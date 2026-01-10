@@ -2,11 +2,13 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { getTask, getTaskState, getTaskPlan, runTask, pauseTask, deleteTask, getTranscripts } from '$lib/api';
+	import { get } from 'svelte/store';
+	import { getProjectTask, getProjectTaskState, getProjectTaskPlan, runProjectTask, pauseProjectTask, deleteProjectTask, getProjectTranscripts } from '$lib/api';
 	import { subscribeToTaskWS, type ConnectionStatus, type WSEventType, getWebSocket } from '$lib/websocket';
 	import type { Task, TaskState, Plan, TranscriptLine } from '$lib/types';
 	import Timeline from '$lib/components/Timeline.svelte';
 	import Transcript from '$lib/components/Transcript.svelte';
+	import { currentProjectId } from '$lib/stores/project';
 
 	let task = $state<Task | null>(null);
 	let taskState = $state<TaskState | null>(null);
@@ -18,9 +20,15 @@
 	let unsubscribe: (() => void) | null = null;
 
 	const taskId = $derived($page.params.id ?? '');
+	const projectId = $derived(get(currentProjectId));
 
 	onMount(async () => {
 		if (!taskId) return;
+		if (!projectId) {
+			error = 'No project selected. Please select a project first.';
+			loading = false;
+			return;
+		}
 		await loadTaskData();
 		setupStreaming();
 	});
@@ -32,12 +40,18 @@
 	async function loadTaskData() {
 		loading = true;
 		error = null;
+		const pid = get(currentProjectId);
+		if (!pid) {
+			error = 'No project selected. Please select a project first.';
+			loading = false;
+			return;
+		}
 		try {
 			const [t, s, p, transcriptFiles] = await Promise.all([
-				getTask(taskId),
-				getTaskState(taskId).catch(() => null),
-				getTaskPlan(taskId).catch(() => null),
-				getTranscripts(taskId).catch(() => [])
+				getProjectTask(pid, taskId),
+				getProjectTaskState(pid, taskId).catch(() => null),
+				getProjectTaskPlan(pid, taskId).catch(() => null),
+				getProjectTranscripts(pid, taskId).catch(() => [])
 			]);
 			task = t;
 			taskState = s;
@@ -111,8 +125,13 @@
 	}
 
 	async function handleRun() {
+		const pid = get(currentProjectId);
+		if (!pid) {
+			error = 'No project selected';
+			return;
+		}
 		try {
-			await runTask(taskId);
+			await runProjectTask(pid, taskId);
 			await loadTaskData();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to run task';
@@ -120,8 +139,13 @@
 	}
 
 	async function handlePause() {
+		const pid = get(currentProjectId);
+		if (!pid) {
+			error = 'No project selected';
+			return;
+		}
 		try {
-			await pauseTask(taskId);
+			await pauseProjectTask(pid, taskId);
 			await loadTaskData();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to pause task';
@@ -131,8 +155,13 @@
 	async function handleDelete() {
 		if (!task || !confirm(`Delete task ${task.id}?`)) return;
 
+		const pid = get(currentProjectId);
+		if (!pid) {
+			error = 'No project selected';
+			return;
+		}
 		try {
-			await deleteTask(taskId);
+			await deleteProjectTask(pid, taskId);
 			goto('/');
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to delete task';

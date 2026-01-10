@@ -348,3 +348,39 @@ export async function createProjectTask(projectId: string, title: string, descri
 		body: JSON.stringify({ title, description, weight })
 	});
 }
+
+export async function getProjectTask(projectId: string, taskId: string): Promise<Task> {
+	return fetchJSON<Task>(`/projects/${projectId}/tasks/${taskId}`);
+}
+
+export async function getProjectTaskState(projectId: string, taskId: string): Promise<TaskState> {
+	return fetchJSON<TaskState>(`/projects/${projectId}/tasks/${taskId}/state`);
+}
+
+export async function getProjectTaskPlan(projectId: string, taskId: string): Promise<Plan> {
+	return fetchJSON<Plan>(`/projects/${projectId}/tasks/${taskId}/plan`);
+}
+
+export async function runProjectTask(projectId: string, taskId: string): Promise<{ status: string; task_id: string }> {
+	return fetchJSON(`/projects/${projectId}/tasks/${taskId}/run`, { method: 'POST' });
+}
+
+export async function pauseProjectTask(projectId: string, taskId: string): Promise<{ status: string; task_id: string }> {
+	return fetchJSON(`/projects/${projectId}/tasks/${taskId}/pause`, { method: 'POST' });
+}
+
+export async function resumeProjectTask(projectId: string, taskId: string): Promise<{ status: string; task_id: string }> {
+	return fetchJSON(`/projects/${projectId}/tasks/${taskId}/resume`, { method: 'POST' });
+}
+
+export async function deleteProjectTask(projectId: string, taskId: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/projects/${projectId}/tasks/${taskId}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to delete task');
+	}
+}
+
+export async function getProjectTranscripts(projectId: string, taskId: string): Promise<TranscriptFile[]> {
+	return fetchJSON<TranscriptFile[]>(`/projects/${projectId}/tasks/${taskId}/transcripts`);
+}
