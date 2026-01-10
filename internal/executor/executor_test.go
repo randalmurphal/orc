@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -990,5 +991,209 @@ func TestLoadRetryContextForPhase_WithContext(t *testing.T) {
 	}
 	if !strings.Contains(ctx, "test failed") {
 		t.Errorf("expected retry context to contain failure reason, got %s", ctx)
+	}
+}
+
+func TestSaveRetryContextFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	e := New(DefaultConfig())
+
+	// Save retry context
+	path, err := e.saveRetryContextFile("TASK-001", "test", "implement", "tests failed", "error output", 1)
+	if err != nil {
+		t.Fatalf("saveRetryContextFile failed: %v", err)
+	}
+
+	// Verify file was created
+	expectedPath := ".orc/tasks/TASK-001/retry-context-test-1.md"
+	if path != expectedPath {
+		t.Errorf("path = %s, want %s", path, expectedPath)
+	}
+
+	// Verify file contents
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read retry context file: %v", err)
+	}
+
+	if !strings.Contains(string(content), "tests failed") {
+		t.Error("retry context should contain failure reason")
+	}
+	if !strings.Contains(string(content), "error output") {
+		t.Error("retry context should contain output")
+	}
+}
+
+func TestSaveRetryContextFile_MultipleAttempts(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	e := New(DefaultConfig())
+
+	// Save multiple retry contexts
+	path1, _ := e.saveRetryContextFile("TASK-002", "test", "implement", "first failure", "output1", 1)
+	path2, _ := e.saveRetryContextFile("TASK-002", "test", "implement", "second failure", "output2", 2)
+
+	// Verify both files exist with different names
+	if path1 == path2 {
+		t.Error("retry context files should have different paths for different attempts")
+	}
+
+	if _, err := os.Stat(path1); os.IsNotExist(err) {
+		t.Error("first retry context file should exist")
+	}
+	if _, err := os.Stat(path2); os.IsNotExist(err) {
+		t.Error("second retry context file should exist")
+	}
+}
+
+func TestBuildPromptNode_InlinePrompt(t *testing.T) {
+	e := New(DefaultConfig())
+
+	// Create a phase with inline prompt (no template file)
+	testPhase := &plan.Phase{
+		ID:     "custom",
+		Name:   "Custom Phase",
+		Prompt: "Do something for {{TASK_TITLE}}",
+	}
+
+	nodeFunc := e.buildPromptNode(testPhase)
+
+	initialState := PhaseState{
+		TaskID:    "TEST-001",
+		TaskTitle: "Test Task",
+		Phase:     "custom",
+		Weight:    "small",
+	}
+
+	// Execute the node
+	result, err := nodeFunc(nil, initialState)
+	if err != nil {
+		t.Fatalf("buildPromptNode failed: %v", err)
+	}
+
+	// Verify prompt was rendered
+	if !strings.Contains(result.Prompt, "Test Task") {
+		t.Errorf("prompt should contain task title, got: %s", result.Prompt)
+	}
+
+	// Verify iteration was incremented
+	if result.Iteration != 1 {
+		t.Errorf("iteration = %d, want 1", result.Iteration)
+	}
+}
+
+func TestBuildPromptNode_NoPrompt(t *testing.T) {
+	e := New(DefaultConfig())
+
+	// Create a phase with no prompt and no template
+	testPhase := &plan.Phase{
+		ID:   "nonexistent",
+		Name: "Nonexistent Phase",
+		// No Prompt field
+	}
+
+	nodeFunc := e.buildPromptNode(testPhase)
+
+	initialState := PhaseState{
+		TaskID:    "TEST-001",
+		TaskTitle: "Test Task",
+		Phase:     "nonexistent",
+	}
+
+	// Execute the node - should return error
+	_, err := nodeFunc(nil, initialState)
+	if err == nil {
+		t.Error("buildPromptNode should fail when no prompt is available")
+	}
+}
+
+func TestExecuteWithRetry_Success(t *testing.T) {
+	e := New(DefaultConfig())
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	e.SetClient(mockClient)
+
+	testTask := &task.Task{
+		ID:     "TEST-RETRY-001",
+		Title:  "Retry Test",
+		Status: task.StatusRunning,
+		Weight: task.WeightSmall,
+	}
+
+	testPhase := &plan.Phase{
+		ID:     "implement",
+		Name:   "Implementation",
+		Prompt: "Implement: {{TASK_TITLE}}",
+	}
+
+	testState := state.New("TEST-RETRY-001")
+
+	ctx := context.Background()
+	result, err := e.ExecuteWithRetry(ctx, testTask, testPhase, testState)
+
+	if err != nil {
+		t.Fatalf("ExecuteWithRetry failed: %v", err)
+	}
+
+	if result.Status != plan.PhaseCompleted {
+		t.Errorf("expected status Completed, got %v", result.Status)
+	}
+}
+
+func TestExecuteWithRetry_ContextCancelled(t *testing.T) {
+	e := New(DefaultConfig())
+	mockClient := claude.NewMockClient("Still working...")
+	e.SetClient(mockClient)
+
+	testTask := &task.Task{
+		ID:     "TEST-CANCEL",
+		Title:  "Cancel Test",
+		Status: task.StatusRunning,
+		Weight: task.WeightSmall,
+	}
+
+	testPhase := &plan.Phase{
+		ID:     "implement",
+		Prompt: "Do work",
+	}
+
+	testState := state.New("TEST-CANCEL")
+
+	// Cancel context immediately
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := e.ExecuteWithRetry(ctx, testTask, testPhase, testState)
+	// May or may not error depending on timing - just ensure no panic
+	_ = err
+}
+
+func TestCommitCheckpointNode(t *testing.T) {
+	e := New(DefaultConfig())
+
+	nodeFunc := e.commitCheckpointNode()
+
+	// Test with completed state
+	state := PhaseState{
+		TaskID:   "TEST-001",
+		Phase:    "implement",
+		Complete: true,
+		Response: "Implementation done",
+	}
+
+	result, err := nodeFunc(nil, state)
+	if err != nil {
+		t.Fatalf("commitCheckpointNode failed: %v", err)
+	}
+
+	// State should pass through
+	if !result.Complete {
+		t.Error("state should still be complete")
 	}
 }
