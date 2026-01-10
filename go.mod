@@ -47,8 +47,8 @@ require (
 
 // Local development: use sibling directories
 // Remove these lines when publishing or using CI with proper module hosting
-replace github.com/randalmurphal/llmkit => ../llmkit
+replace github.com/randalmurphal/llmkit => /home/randy/repos/llmkit
 
-replace github.com/randalmurphal/flowgraph => ../flowgraph
+replace github.com/randalmurphal/flowgraph => /home/randy/repos/flowgraph
 
-replace github.com/randalmurphal/devflow => ../devflow
+replace github.com/randalmurphal/devflow => /home/randy/repos/devflow
