@@ -75,7 +75,26 @@ go build ./...
 # Ensure clean build with no warnings
 ```
 
-### Step 5: Final Checklist
+### Step 5: Sync with Target Branch
+
+Before completion, ensure the branch is synced with the target:
+
+```bash
+# Fetch latest from remote
+git fetch origin main
+
+# Rebase onto target branch
+git rebase origin/main
+```
+
+If there are conflicts:
+1. Resolve each conflict by understanding both changes
+2. Preserve the intent of your task AND upstream changes
+3. If your changes are now obsolete (upstream did the same thing), remove yours
+4. After resolving: `git add -A && git rebase --continue`
+5. Re-run all tests after rebase to ensure nothing broke
+
+### Step 6: Final Checklist
 
 - [ ] All success criteria verified
 - [ ] All tests passing
@@ -84,6 +103,9 @@ go build ./...
 - [ ] No failed network requests (for UI)
 - [ ] Documentation updated (if needed)
 - [ ] No TODO comments in new code
+- [ ] Branch synced with target (rebased onto origin/main)
+- [ ] All review findings addressed (if review phase ran)
+- [ ] Commits are well-structured and meaningful
 
 ## Output Format
 

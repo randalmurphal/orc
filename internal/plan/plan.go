@@ -203,6 +203,25 @@ func (p *Plan) Save(taskID string) error {
 	return nil
 }
 
+// SaveTo saves the plan to a specific directory.
+func (p *Plan) SaveTo(dir string) error {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
+
+	data, err := yaml.Marshal(p)
+	if err != nil {
+		return fmt.Errorf("marshal plan: %w", err)
+	}
+
+	path := filepath.Join(dir, PlanFileName)
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("write plan: %w", err)
+	}
+
+	return nil
+}
+
 // LoadTemplate loads a plan template for a given weight class from embedded files.
 func LoadTemplate(weight task.Weight) (*PlanTemplate, error) {
 	filename := "plans/" + string(weight) + ".yaml"

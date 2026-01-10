@@ -79,3 +79,10 @@ export interface TranscriptLine {
 	type: 'prompt' | 'response' | 'tool' | 'error';
 	content: string;
 }
+
+export interface Project {
+	id: string;
+	name: string;
+	path: string;
+	created_at: string;
+}

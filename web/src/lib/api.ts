@@ -1,4 +1,4 @@
-import type { Task, Plan, TaskState } from './types';
+import type { Task, Plan, TaskState, Project } from './types';
 
 const API_BASE = '/api';
 
@@ -327,4 +327,24 @@ export function subscribeToTask(id: string, onEvent: (event: string, data: unkno
 
 	// Return cleanup function
 	return () => eventSource.close();
+}
+
+// Projects
+export async function listProjects(): Promise<Project[]> {
+	return fetchJSON<Project[]>('/projects');
+}
+
+export async function getProject(id: string): Promise<Project> {
+	return fetchJSON<Project>(`/projects/${id}`);
+}
+
+export async function listProjectTasks(projectId: string): Promise<Task[]> {
+	return fetchJSON<Task[]>(`/projects/${projectId}/tasks`);
+}
+
+export async function createProjectTask(projectId: string, title: string, description?: string, weight?: string): Promise<Task> {
+	return fetchJSON<Task>(`/projects/${projectId}/tasks`, {
+		method: 'POST',
+		body: JSON.stringify({ title, description, weight })
+	});
 }

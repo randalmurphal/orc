@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/hooks"
 	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/randalmurphal/orc/internal/skills"
 	"github.com/randalmurphal/orc/internal/state"
@@ -161,6 +163,12 @@ func (s *Server) registerRoutes() {
 	// Config
 	s.mux.HandleFunc("GET /api/config", cors(s.handleGetConfig))
 	s.mux.HandleFunc("PUT /api/config", cors(s.handleUpdateConfig))
+
+	// Projects
+	s.mux.HandleFunc("GET /api/projects", cors(s.handleListProjects))
+	s.mux.HandleFunc("GET /api/projects/{id}", cors(s.handleGetProject))
+	s.mux.HandleFunc("GET /api/projects/{id}/tasks", cors(s.handleListProjectTasks))
+	s.mux.HandleFunc("POST /api/projects/{id}/tasks", cors(s.handleCreateProjectTask))
 }
 
 // Start starts the API server.
@@ -643,7 +651,7 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 
 // ConfigUpdateRequest represents a config update request.
 type ConfigUpdateRequest struct {
-	Profile   string `json:"profile,omitempty"`
+	Profile    string `json:"profile,omitempty"`
 	Automation *struct {
 		GatesDefault string `json:"gates_default,omitempty"`
 		RetryEnabled *bool  `json:"retry_enabled,omitempty"`
@@ -744,6 +752,156 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 			"commit_prefix": cfg.CommitPrefix,
 		},
 	})
+}
+
+// handleListProjects returns all registered projects.
+func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
+	projects, err := project.ListProjects()
+	if err != nil {
+		s.jsonError(w, "failed to list projects", http.StatusInternalServerError)
+		return
+	}
+
+	// Ensure we return an empty array, not null
+	if projects == nil {
+		projects = []project.Project{}
+	}
+
+	s.jsonResponse(w, projects)
+}
+
+// handleGetProject returns a specific project.
+func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	reg, err := project.LoadRegistry()
+	if err != nil {
+		s.jsonError(w, "failed to load registry", http.StatusInternalServerError)
+		return
+	}
+
+	proj, err := reg.Get(id)
+	if err != nil {
+		s.jsonError(w, "project not found", http.StatusNotFound)
+		return
+	}
+
+	s.jsonResponse(w, proj)
+}
+
+// handleListProjectTasks returns all tasks for a project.
+func (s *Server) handleListProjectTasks(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	reg, err := project.LoadRegistry()
+	if err != nil {
+		s.jsonError(w, "failed to load registry", http.StatusInternalServerError)
+		return
+	}
+
+	proj, err := reg.Get(id)
+	if err != nil {
+		s.jsonError(w, "project not found", http.StatusNotFound)
+		return
+	}
+
+	// Load tasks from project directory
+	tasksDir := filepath.Join(proj.Path, ".orc", "tasks")
+	tasks, err := task.LoadAllFrom(tasksDir)
+	if err != nil {
+		// No tasks dir is OK - return empty list
+		s.jsonResponse(w, []*task.Task{})
+		return
+	}
+
+	if tasks == nil {
+		tasks = []*task.Task{}
+	}
+
+	s.jsonResponse(w, tasks)
+}
+
+// handleCreateProjectTask creates a new task in a project.
+func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request) {
+	projectID := r.PathValue("id")
+
+	reg, err := project.LoadRegistry()
+	if err != nil {
+		s.jsonError(w, "failed to load registry", http.StatusInternalServerError)
+		return
+	}
+
+	proj, err := reg.Get(projectID)
+	if err != nil {
+		s.jsonError(w, "project not found", http.StatusNotFound)
+		return
+	}
+
+	var req struct {
+		Title       string `json:"title"`
+		Description string `json:"description,omitempty"`
+		Weight      string `json:"weight,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Title == "" {
+		s.jsonError(w, "title is required", http.StatusBadRequest)
+		return
+	}
+
+	// Generate ID in project context
+	id, err := task.NextIDIn(filepath.Join(proj.Path, ".orc", "tasks"))
+	if err != nil {
+		s.jsonError(w, "failed to generate task ID", http.StatusInternalServerError)
+		return
+	}
+
+	t := task.New(id, req.Title)
+	t.Description = req.Description
+	if req.Weight != "" {
+		t.Weight = task.Weight(req.Weight)
+	} else {
+		t.Weight = task.WeightMedium
+	}
+
+	// Save in project directory
+	if err := t.SaveTo(filepath.Join(proj.Path, ".orc", "tasks", id)); err != nil {
+		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
+		return
+	}
+
+	// Create plan from template
+	p, err := plan.CreateFromTemplate(t)
+	if err != nil {
+		p = &plan.Plan{
+			Version:     1,
+			TaskID:      id,
+			Weight:      t.Weight,
+			Description: "Default plan",
+			Phases: []plan.Phase{
+				{ID: "implement", Name: "implement", Gate: plan.Gate{Type: plan.GateAuto}, Status: plan.PhasePending},
+			},
+		}
+	}
+
+	// Save plan in project directory
+	if err := p.SaveTo(filepath.Join(proj.Path, ".orc", "tasks", id)); err != nil {
+		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
+		return
+	}
+
+	t.Status = task.StatusPlanned
+	if err := t.SaveTo(filepath.Join(proj.Path, ".orc", "tasks", id)); err != nil {
+		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	s.jsonResponse(w, t)
 }
 
 // jsonResponse writes a JSON response.

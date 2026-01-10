@@ -48,10 +48,12 @@ func setupTestRepo(t *testing.T) string {
 }
 
 func TestNew(t *testing.T) {
-	g := New("/tmp/test")
+	tmpDir := setupTestRepo(t)
+	cfg := DefaultConfig()
 
-	if g.workDir != "/tmp/test" {
-		t.Errorf("workDir = %s, want /tmp/test", g.workDir)
+	g, err := New(tmpDir, cfg)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
 	}
 
 	if g.branchPrefix != "orc/" {
@@ -63,9 +65,16 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestNewInvalidPath(t *testing.T) {
+	_, err := New("/nonexistent/path", DefaultConfig())
+	if err == nil {
+		t.Error("New() should fail for non-git directory")
+	}
+}
+
 func TestCreateBranch(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g := New(tmpDir)
+	g, _ := New(tmpDir, DefaultConfig())
 
 	err := g.CreateBranch("TASK-001")
 	if err != nil {
@@ -85,7 +94,7 @@ func TestCreateBranch(t *testing.T) {
 
 func TestSwitchBranch(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g := New(tmpDir)
+	g, _ := New(tmpDir, DefaultConfig())
 
 	// Create the branch first
 	err := g.CreateBranch("TASK-001")
@@ -112,7 +121,7 @@ func TestSwitchBranch(t *testing.T) {
 
 func TestCreateCheckpoint(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g := New(tmpDir)
+	g, _ := New(tmpDir, DefaultConfig())
 
 	g.CreateBranch("TASK-001")
 
@@ -144,7 +153,7 @@ func TestCreateCheckpoint(t *testing.T) {
 
 func TestCreateCheckpointEmpty(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g := New(tmpDir)
+	g, _ := New(tmpDir, DefaultConfig())
 
 	g.CreateBranch("TASK-001")
 
@@ -161,7 +170,7 @@ func TestCreateCheckpointEmpty(t *testing.T) {
 
 func TestIsClean(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g := New(tmpDir)
+	g, _ := New(tmpDir, DefaultConfig())
 
 	// Should be clean after initial commit
 	clean, err := g.IsClean()
@@ -189,7 +198,7 @@ func TestIsClean(t *testing.T) {
 
 func TestGetCurrentBranch(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g := New(tmpDir)
+	g, _ := New(tmpDir, DefaultConfig())
 
 	branch, err := g.GetCurrentBranch()
 	if err != nil {
@@ -204,7 +213,7 @@ func TestGetCurrentBranch(t *testing.T) {
 
 func TestRewind(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g := New(tmpDir)
+	g, _ := New(tmpDir, DefaultConfig())
 
 	g.CreateBranch("TASK-001")
 
@@ -235,48 +244,90 @@ func TestRewind(t *testing.T) {
 	}
 }
 
-func TestGetCheckpoints(t *testing.T) {
+func TestBranchName(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g := New(tmpDir)
+	g, _ := New(tmpDir, DefaultConfig())
 
-	g.CreateBranch("TASK-001")
+	name := g.BranchName("TASK-001")
+	if name != "orc/TASK-001" {
+		t.Errorf("BranchName() = %s, want orc/TASK-001", name)
+	}
+}
 
-	// Create two checkpoints
-	testFile := filepath.Join(tmpDir, "first.txt")
-	os.WriteFile(testFile, []byte("first"), 0644)
-	g.CreateCheckpoint("TASK-001", "spec", "first")
+func TestWorktreePath(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
 
-	testFile2 := filepath.Join(tmpDir, "second.txt")
-	os.WriteFile(testFile2, []byte("second"), 0644)
-	g.CreateCheckpoint("TASK-001", "implement", "second")
+	path := g.WorktreePath("TASK-001")
+	if !strings.Contains(path, ".orc/worktrees") {
+		t.Errorf("WorktreePath() = %s, should contain .orc/worktrees", path)
+	}
+	if !strings.Contains(path, "orc-task-001") {
+		t.Errorf("WorktreePath() = %s, should contain sanitized branch name", path)
+	}
+}
 
-	checkpoints, err := g.GetCheckpoints("TASK-001")
+func TestCreateAndCleanupWorktree(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// Get current branch to use as base
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create worktree
+	worktreePath, err := g.CreateWorktree("TASK-001", baseBranch)
 	if err != nil {
-		t.Fatalf("GetCheckpoints() failed: %v", err)
+		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
 
-	// Should have at least 2 checkpoints (may have empty checkpoint from branch creation)
-	if len(checkpoints) < 2 {
-		t.Errorf("len(checkpoints) = %d, want >= 2", len(checkpoints))
+	// Verify worktree exists
+	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+		t.Errorf("worktree not created at %s", worktreePath)
 	}
 
-	// Verify our checkpoints are present
-	foundSpec := false
-	foundImpl := false
-	for _, cp := range checkpoints {
-		if strings.Contains(cp.Message, "spec") {
-			foundSpec = true
-		}
-		if strings.Contains(cp.Message, "implement") {
-			foundImpl = true
-		}
+	// Cleanup
+	err = g.CleanupWorktree("TASK-001")
+	if err != nil {
+		t.Fatalf("CleanupWorktree() failed: %v", err)
 	}
 
-	if !foundSpec {
-		t.Error("spec checkpoint not found")
+	// Verify worktree removed
+	if _, err := os.Stat(worktreePath); !os.IsNotExist(err) {
+		t.Error("worktree should be removed after cleanup")
 	}
-	if !foundImpl {
-		t.Error("implement checkpoint not found")
+}
+
+func TestInWorktree(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+	worktreePath, err := g.CreateWorktree("TASK-001", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-001")
+
+	// Get git instance for worktree
+	wtGit := g.InWorktree(worktreePath)
+
+	// Verify it operates in worktree
+	branch, err := wtGit.GetCurrentBranch()
+	if err != nil {
+		t.Fatalf("GetCurrentBranch() in worktree failed: %v", err)
+	}
+
+	if branch != "orc/TASK-001" {
+		t.Errorf("worktree branch = %s, want orc/TASK-001", branch)
+	}
+
+	// Create a file in worktree
+	testFile := filepath.Join(worktreePath, "worktree-test.txt")
+	os.WriteFile(testFile, []byte("test"), 0644)
+
+	clean, _ := wtGit.IsClean()
+	if clean {
+		t.Error("worktree should have uncommitted changes")
 	}
 }
 
