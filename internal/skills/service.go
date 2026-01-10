@@ -68,11 +68,14 @@ func (s *Service) List() ([]SkillInfo, error) {
 
 		// Support both .yaml and .yml extensions
 		name := entry.Name()
-		if !strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml") {
+		var skillName string
+		if strings.HasSuffix(name, ".yaml") {
+			skillName = strings.TrimSuffix(name, ".yaml")
+		} else if strings.HasSuffix(name, ".yml") {
+			skillName = strings.TrimSuffix(name, ".yml")
+		} else {
 			continue
 		}
-
-		skillName := strings.TrimSuffix(strings.TrimSuffix(name, ".yaml"), ".yml")
 		skill, err := s.Get(skillName)
 		if err != nil {
 			continue // Skip invalid skills

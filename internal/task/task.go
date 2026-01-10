@@ -231,10 +231,17 @@ func Exists(id string) bool {
 }
 
 // Delete removes a task and all its associated files.
+// Returns an error if the task is currently running.
 func Delete(id string) error {
-	if !Exists(id) {
+	t, err := Load(id)
+	if err != nil {
 		return fmt.Errorf("task %s not found", id)
 	}
+
+	if t.Status == StatusRunning {
+		return fmt.Errorf("cannot delete running task %s", id)
+	}
+
 	taskDir := TaskDir(id)
 	return os.RemoveAll(taskDir)
 }

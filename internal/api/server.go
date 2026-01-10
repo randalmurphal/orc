@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -268,14 +269,11 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// parsePositiveInt parses a string to a positive integer.
+// parsePositiveInt parses a string to a positive integer using strconv.
 func parsePositiveInt(s string) (int, error) {
-	var n int
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return 0, fmt.Errorf("invalid number")
-		}
-		n = n*10 + int(c-'0')
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return 0, fmt.Errorf("invalid number")
 	}
 	return n, nil
 }
