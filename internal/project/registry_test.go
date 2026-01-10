@@ -140,3 +140,203 @@ func TestGenerateID(t *testing.T) {
 		t.Errorf("ID length = %d, want 8", len(id1))
 	}
 }
+
+func TestRegistrySave(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	projectDir := filepath.Join(tmpDir, "test-project")
+	os.MkdirAll(projectDir, 0755)
+
+	reg := &Registry{Projects: []Project{}}
+	reg.Register(projectDir)
+
+	err := reg.Save()
+	if err != nil {
+		t.Fatalf("Save() failed: %v", err)
+	}
+
+	regPath, _ := RegistryPath()
+	if _, err := os.Stat(regPath); os.IsNotExist(err) {
+		t.Error("Save() did not create registry file")
+	}
+}
+
+func TestLoadRegistry(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	projectDir := filepath.Join(tmpDir, "test-project")
+	os.MkdirAll(projectDir, 0755)
+
+	reg := &Registry{Projects: []Project{}}
+	reg.Register(projectDir)
+	reg.Save()
+
+	loadedReg, err := LoadRegistry()
+	if err != nil {
+		t.Fatalf("LoadRegistry() failed: %v", err)
+	}
+
+	if len(loadedReg.Projects) != 1 {
+		t.Errorf("LoadRegistry() returned %d projects, want 1", len(loadedReg.Projects))
+	}
+}
+
+func TestLoadRegistry_Empty(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	reg, err := LoadRegistry()
+	if err != nil {
+		t.Fatalf("LoadRegistry() failed: %v", err)
+	}
+
+	if len(reg.Projects) != 0 {
+		t.Errorf("LoadRegistry() returned %d projects for empty, want 0", len(reg.Projects))
+	}
+}
+
+func TestLoadRegistry_Invalid(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	orcDir := filepath.Join(tmpDir, GlobalDir)
+	os.MkdirAll(orcDir, 0755)
+	os.WriteFile(filepath.Join(orcDir, RegistryFile), []byte("invalid: yaml: [broken"), 0644)
+
+	_, err := LoadRegistry()
+	if err == nil {
+		t.Error("LoadRegistry() should fail for invalid YAML")
+	}
+}
+
+func TestGlobalPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	path, err := GlobalPath()
+	if err != nil {
+		t.Fatalf("GlobalPath() failed: %v", err)
+	}
+
+	expected := filepath.Join(tmpDir, GlobalDir)
+	if path != expected {
+		t.Errorf("GlobalPath() = %s, want %s", path, expected)
+	}
+}
+
+func TestRegistryPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	path, err := RegistryPath()
+	if err != nil {
+		t.Fatalf("RegistryPath() failed: %v", err)
+	}
+
+	expected := filepath.Join(tmpDir, GlobalDir, RegistryFile)
+	if path != expected {
+		t.Errorf("RegistryPath() = %s, want %s", path, expected)
+	}
+}
+
+func TestRegisterProject(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	projectDir := filepath.Join(tmpDir, "my-project")
+	os.MkdirAll(projectDir, 0755)
+
+	proj, err := RegisterProject(projectDir)
+	if err != nil {
+		t.Fatalf("RegisterProject() failed: %v", err)
+	}
+
+	if proj.Name != "my-project" {
+		t.Errorf("Name = %s, want my-project", proj.Name)
+	}
+
+	reg, _ := LoadRegistry()
+	if len(reg.Projects) != 1 {
+		t.Errorf("RegisterProject() did not save to registry")
+	}
+}
+
+func TestListProjects(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	proj1Dir := filepath.Join(tmpDir, "project1")
+	proj2Dir := filepath.Join(tmpDir, "project2")
+	os.MkdirAll(proj1Dir, 0755)
+	os.MkdirAll(proj2Dir, 0755)
+
+	RegisterProject(proj1Dir)
+	RegisterProject(proj2Dir)
+
+	projects, err := ListProjects()
+	if err != nil {
+		t.Fatalf("ListProjects() failed: %v", err)
+	}
+
+	if len(projects) != 2 {
+		t.Errorf("ListProjects() returned %d projects, want 2", len(projects))
+	}
+}
+
+func TestRegister_File(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	filePath := filepath.Join(tmpDir, "not-a-dir")
+	os.WriteFile(filePath, []byte("content"), 0644)
+
+	reg := &Registry{Projects: []Project{}}
+	_, err := reg.Register(filePath)
+	if err == nil {
+		t.Error("Register() should fail for file (not directory)")
+	}
+}
+
+func TestUnregister_ByPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	projectDir := filepath.Join(tmpDir, "test-project")
+	os.MkdirAll(projectDir, 0755)
+
+	reg := &Registry{Projects: []Project{}}
+	reg.Register(projectDir)
+
+	err := reg.Unregister(projectDir)
+	if err != nil {
+		t.Fatalf("Unregister() by path failed: %v", err)
+	}
+
+	if len(reg.Projects) != 0 {
+		t.Error("Unregister() by path did not remove project")
+	}
+}
+
+func TestUnregister_NotFound(t *testing.T) {
+	reg := &Registry{Projects: []Project{}}
+
+	err := reg.Unregister("nonexistent")
+	if err == nil {
+		t.Error("Unregister() should fail for nonexistent project")
+	}
+}
