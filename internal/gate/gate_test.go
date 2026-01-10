@@ -2,8 +2,10 @@ package gate
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/plan"
 )
 
@@ -229,4 +231,128 @@ func TestDecision(t *testing.T) {
 	if len(d.Questions) != 2 {
 		t.Errorf("len(Questions) = %d, want 2", len(d.Questions))
 	}
+}
+
+func TestEvaluateAI_Approved(t *testing.T) {
+	mockClient := claude.NewMockClient("APPROVED: looks good and meets all criteria")
+	e := New(mockClient)
+
+	gate := &plan.Gate{
+		Type:     plan.GateAI,
+		Criteria: []string{"code quality", "test coverage"},
+	}
+
+	decision, err := e.Evaluate(context.Background(), gate, "some phase output")
+	if err != nil {
+		t.Fatalf("Evaluate() failed: %v", err)
+	}
+
+	if !decision.Approved {
+		t.Error("decision should be approved")
+	}
+
+	if decision.Reason != "looks good and meets all criteria" {
+		t.Errorf("Reason = %q, want 'looks good and meets all criteria'", decision.Reason)
+	}
+}
+
+func TestEvaluateAI_Rejected(t *testing.T) {
+	mockClient := claude.NewMockClient("REJECTED: missing test cases")
+	e := New(mockClient)
+
+	gate := &plan.Gate{
+		Type:     plan.GateAI,
+		Criteria: []string{"test coverage"},
+	}
+
+	decision, err := e.Evaluate(context.Background(), gate, "incomplete output")
+	if err != nil {
+		t.Fatalf("Evaluate() failed: %v", err)
+	}
+
+	if decision.Approved {
+		t.Error("decision should be rejected")
+	}
+
+	if decision.Reason != "missing test cases" {
+		t.Errorf("Reason = %q, want 'missing test cases'", decision.Reason)
+	}
+}
+
+func TestEvaluateAI_NeedsClarification(t *testing.T) {
+	mockClient := claude.NewMockClient("NEEDS_CLARIFICATION: what about edge cases?\nare there integration tests?")
+	e := New(mockClient)
+
+	gate := &plan.Gate{
+		Type:     plan.GateAI,
+		Criteria: []string{"completeness"},
+	}
+
+	decision, err := e.Evaluate(context.Background(), gate, "some output")
+	if err != nil {
+		t.Fatalf("Evaluate() failed: %v", err)
+	}
+
+	if decision.Approved {
+		t.Error("decision should not be approved")
+	}
+
+	if len(decision.Questions) == 0 {
+		t.Error("should have questions")
+	}
+}
+
+func TestEvaluateAI_ClientError(t *testing.T) {
+	mockClient := claude.NewMockClient("").WithError(fmt.Errorf("API error"))
+	e := New(mockClient)
+
+	gate := &plan.Gate{
+		Type: plan.GateAI,
+	}
+
+	_, err := e.Evaluate(context.Background(), gate, "output")
+	if err == nil {
+		t.Error("Evaluate() should fail with client error")
+	}
+}
+
+func TestEvaluateAutoMultipleCriteria(t *testing.T) {
+	e := New(nil)
+
+	gate := &plan.Gate{
+		Type:     plan.GateAuto,
+		Criteria: []string{"has_output", "no_errors", "has_completion_marker"},
+	}
+
+	// Should pass when all criteria met
+	output := "good output <phase_complete>true</phase_complete>"
+	decision, _ := e.Evaluate(context.Background(), gate, output)
+	if !decision.Approved {
+		t.Error("gate should approve when all criteria met")
+	}
+
+	// Should fail when has_output fails
+	decision, _ = e.Evaluate(context.Background(), gate, "")
+	if decision.Approved {
+		t.Error("gate should reject when output empty")
+	}
+
+	// Should fail when no_errors fails
+	decision, _ = e.Evaluate(context.Background(), gate, "error occurred <phase_complete>true</phase_complete>")
+	if decision.Approved {
+		t.Error("gate should reject when errors present")
+	}
+
+	// Should fail when completion marker missing
+	decision, _ = e.Evaluate(context.Background(), gate, "good output")
+	if decision.Approved {
+		t.Error("gate should reject when completion marker missing")
+	}
+}
+
+func TestEvaluateHumanWithoutStdin(t *testing.T) {
+	// We can't easily test human approval in unit tests without mocking stdin
+	// but we can test that it returns an error when stdin fails
+	// Skip this test as it requires interactive input
+	t.Skip("Human gate requires interactive input")
 }
