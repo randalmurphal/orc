@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/stores';
+	import ProjectSwitcher from '$lib/components/ProjectSwitcher.svelte';
 
 	const navItems = [
 		{ href: '/', label: 'Tasks' },
@@ -23,6 +24,7 @@
 	<header>
 		<nav>
 			<a href="/" class="logo">orc</a>
+			<ProjectSwitcher />
 			<div class="nav-links">
 				{#each navItems as item}
 					<a
