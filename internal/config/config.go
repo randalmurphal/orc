@@ -69,6 +69,57 @@ type RetryConfig struct {
 	MaxRetries int `yaml:"max_retries"`
 }
 
+// WorktreeConfig defines worktree isolation settings.
+type WorktreeConfig struct {
+	// Enabled enables worktree isolation for tasks (default: true)
+	Enabled bool `yaml:"enabled"`
+
+	// Dir is the directory where worktrees are created (default: .orc/worktrees)
+	Dir string `yaml:"dir"`
+
+	// CleanupOnComplete removes worktree after successful completion (default: true)
+	CleanupOnComplete bool `yaml:"cleanup_on_complete"`
+
+	// CleanupOnFail removes worktree after failure (default: false for debugging)
+	CleanupOnFail bool `yaml:"cleanup_on_fail"`
+}
+
+// PRConfig defines pull request settings.
+type PRConfig struct {
+	// Title template for PR title (default: "[orc] {{TASK_TITLE}}")
+	Title string `yaml:"title"`
+
+	// BodyTemplate is the path to PR body template (default: templates/pr-body.md)
+	BodyTemplate string `yaml:"body_template"`
+
+	// Labels to add to the PR
+	Labels []string `yaml:"labels,omitempty"`
+
+	// Reviewers to request review from
+	Reviewers []string `yaml:"reviewers,omitempty"`
+
+	// Draft creates PR as draft (default: false)
+	Draft bool `yaml:"draft"`
+
+	// AutoMerge enables auto-merge when approved (default: true)
+	AutoMerge bool `yaml:"auto_merge"`
+}
+
+// CompletionConfig defines task completion behavior.
+type CompletionConfig struct {
+	// Action defines what happens on completion: "pr", "merge", "none" (default: "pr")
+	Action string `yaml:"action"`
+
+	// TargetBranch is the branch to merge into (default: "main")
+	TargetBranch string `yaml:"target_branch"`
+
+	// DeleteBranch deletes task branch after merge (default: true)
+	DeleteBranch bool `yaml:"delete_branch"`
+
+	// PR settings (used when Action is "pr")
+	PR PRConfig `yaml:"pr"`
+}
+
 // Config represents the orc configuration.
 type Config struct {
 	// Version is the config file version
@@ -82,6 +133,12 @@ type Config struct {
 
 	// Retry configuration for cross-phase retry
 	Retry RetryConfig `yaml:"retry"`
+
+	// Worktree isolation settings
+	Worktree WorktreeConfig `yaml:"worktree"`
+
+	// Completion settings (merge/PR after task completes)
+	Completion CompletionConfig `yaml:"completion"`
 
 	// Model settings
 	Model         string `yaml:"model"`
@@ -167,6 +224,23 @@ func Default() *Config {
 				"test_unit": "implement",
 				"test_e2e":  "implement",
 				"validate":  "implement",
+			},
+		},
+		Worktree: WorktreeConfig{
+			Enabled:           true,
+			Dir:               ".orc/worktrees",
+			CleanupOnComplete: true,
+			CleanupOnFail:     false, // Keep for debugging
+		},
+		Completion: CompletionConfig{
+			Action:       "pr",
+			TargetBranch: "main",
+			DeleteBranch: true,
+			PR: PRConfig{
+				Title:        "[orc] {{TASK_TITLE}}",
+				BodyTemplate: "templates/pr-body.md",
+				Labels:       []string{"automated"},
+				AutoMerge:    true,
 			},
 		},
 		Model:                      "claude-opus-4-5-20251101",
