@@ -93,23 +93,6 @@
 			saving = false;
 		}
 	}
-
-	function getSettingsSource(
-		key: string,
-		merged: Settings | null,
-		project: Settings | null,
-		global: Settings | null
-	): 'project' | 'global' | 'default' {
-		// Check if key exists in project settings
-		if (project && key in project && (project as Record<string, unknown>)[key] !== undefined) {
-			return 'project';
-		}
-		// Check if key exists in global settings
-		if (global && key in global && (global as Record<string, unknown>)[key] !== undefined) {
-			return 'global';
-		}
-		return 'default';
-	}
 </script>
 
 <svelte:head>

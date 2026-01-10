@@ -134,20 +134,26 @@ func (a *SessionAdapter) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 	var content strings.Builder
 	var result *session.ResultMessage
 
-	for output := range a.session.Output() {
+	outputCh := a.session.Output()
+collectLoop:
+	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		default:
-		}
+		case output, ok := <-outputCh:
+			if !ok {
+				// Channel closed without result
+				break collectLoop
+			}
 
-		if output.IsAssistant() {
-			content.WriteString(output.GetText())
-		}
+			if output.IsAssistant() {
+				content.WriteString(output.GetText())
+			}
 
-		if output.IsResult() {
-			result = output.Result
-			break
+			if output.IsResult() {
+				result = output.Result
+				break collectLoop
+			}
 		}
 	}
 
@@ -196,24 +202,30 @@ func (a *SessionAdapter) StreamTurn(ctx context.Context, prompt string, callback
 	var content strings.Builder
 	var result *session.ResultMessage
 
-	for output := range a.session.Output() {
+	outputCh := a.session.Output()
+streamLoop:
+	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		default:
-		}
-
-		if output.IsAssistant() {
-			text := output.GetText()
-			content.WriteString(text)
-			if callback != nil {
-				callback(text)
+		case output, ok := <-outputCh:
+			if !ok {
+				// Channel closed without result
+				break streamLoop
 			}
-		}
 
-		if output.IsResult() {
-			result = output.Result
-			break
+			if output.IsAssistant() {
+				text := output.GetText()
+				content.WriteString(text)
+				if callback != nil {
+					callback(text)
+				}
+			}
+
+			if output.IsResult() {
+				result = output.Result
+				break streamLoop
+			}
 		}
 	}
 
