@@ -1137,9 +1137,111 @@ make dev
 
 ---
 
+## E2E Testing (MANDATORY - Playwright MCP)
+
+**You MUST run E2E tests using Playwright MCP tools before outputting `<promise>COMPLETE</promise>`.**
+
+### Setup
+
+```bash
+# Terminal 1: Start API server
+make serve  # Runs on :8080
+
+# Terminal 2: Start frontend
+make web-dev  # Runs on :5173
+```
+
+### E2E Test Protocol
+
+Use these Playwright MCP tools to verify the system works end-to-end:
+
+| Tool | Purpose |
+|------|---------|
+| `mcp__playwright__browser_navigate` | Navigate to pages |
+| `mcp__playwright__browser_snapshot` | Capture accessibility state (preferred over screenshot) |
+| `mcp__playwright__browser_click` | Click buttons, links |
+| `mcp__playwright__browser_type` | Type into inputs |
+| `mcp__playwright__browser_fill_form` | Fill multiple form fields |
+| `mcp__playwright__browser_wait_for` | Wait for text/conditions |
+| `mcp__playwright__browser_network_requests` | Verify API calls |
+
+### Required E2E Test Scenarios
+
+**MUST pass ALL of these before completion:**
+
+#### 1. Task Creation Flow
+```
+1. mcp__playwright__browser_navigate to http://localhost:5173
+2. mcp__playwright__browser_snapshot - verify task list loads
+3. mcp__playwright__browser_click "New Task" button
+4. mcp__playwright__browser_type task title
+5. mcp__playwright__browser_click "Create" button
+6. mcp__playwright__browser_wait_for task to appear in list
+7. mcp__playwright__browser_snapshot - verify task shows with correct status
+```
+
+#### 2. Task Detail View
+```
+1. mcp__playwright__browser_click on a task card
+2. mcp__playwright__browser_snapshot - verify detail page loads
+3. Verify: task title, weight, status, phase timeline visible
+4. Verify: transcript container present
+```
+
+#### 3. Task Execution Flow
+```
+1. Navigate to task detail page
+2. mcp__playwright__browser_click "Run" button
+3. mcp__playwright__browser_wait_for execution to start
+4. mcp__playwright__browser_snapshot - verify:
+   - Status changes to "running"
+   - Timeline shows current phase highlighted
+   - Transcript shows streaming output (if SSE working)
+5. mcp__playwright__browser_network_requests - verify API calls to /api/tasks/{id}/run
+```
+
+#### 4. Pause/Resume Flow
+```
+1. During execution, mcp__playwright__browser_click "Pause" button
+2. mcp__playwright__browser_snapshot - verify status is "paused"
+3. mcp__playwright__browser_click "Resume" button
+4. mcp__playwright__browser_snapshot - verify status returns to "running"
+```
+
+#### 5. Error Handling
+```
+1. Navigate to non-existent task: http://localhost:5173/tasks/TASK-999
+2. mcp__playwright__browser_snapshot - verify error message displayed
+3. Verify no crash, graceful error state
+```
+
+#### 6. API Verification
+```
+1. mcp__playwright__browser_network_requests after each action
+2. Verify: GET /api/tasks returns 200
+3. Verify: POST /api/tasks creates task
+4. Verify: GET /api/tasks/{id} returns task details
+5. Verify: SSE connection to /api/tasks/{id}/stream works
+```
+
+### E2E Completion Checklist
+
+- [ ] Task list page loads and displays tasks
+- [ ] Task creation works end-to-end
+- [ ] Task detail page shows all information
+- [ ] Run button starts execution
+- [ ] Pause/Resume buttons work
+- [ ] Timeline updates during execution
+- [ ] Transcript shows output (real-time if SSE working)
+- [ ] Error states handled gracefully
+- [ ] API calls return correct status codes
+- [ ] No console errors in browser
+
+---
+
 ## When Complete
 
-After verifying ALL completion criteria:
+After verifying ALL completion criteria INCLUDING E2E TESTS:
 
 ```
 All completion criteria verified:
@@ -1157,6 +1259,16 @@ All completion criteria verified:
 ✓ Interrupt handling: Ctrl+C saves state, shows resume command
 ✓ Progress indication: real-time iteration/token/elapsed display
 ✓ Resume works: continues from interrupted phase
+
+E2E TESTS (Playwright MCP):
+✓ Task list page loads correctly
+✓ Task creation flow works
+✓ Task detail page displays all info
+✓ Run/Pause/Resume execution works
+✓ Timeline updates during execution
+✓ Transcript displays output
+✓ Error handling works
+✓ All API calls return correct responses
 
 <promise>COMPLETE</promise>
 ```
