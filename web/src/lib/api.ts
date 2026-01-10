@@ -535,3 +535,67 @@ export async function updateClaudeMD(content: string): Promise<void> {
 export async function getClaudeMDHierarchy(): Promise<ClaudeMDHierarchy> {
 	return fetchJSON<ClaudeMDHierarchy>('/claudemd/hierarchy');
 }
+
+// MCP Servers (.mcp.json)
+export interface MCPServerInfo {
+	name: string;
+	type: string;
+	command?: string;
+	url?: string;
+	disabled: boolean;
+	has_env: boolean;
+	env_count: number;
+	args_count: number;
+}
+
+export interface MCPServer {
+	name: string;
+	type: string;
+	command?: string;
+	args?: string[];
+	env?: Record<string, string>;
+	url?: string;
+	headers?: string[];
+	disabled: boolean;
+}
+
+export interface MCPServerCreate {
+	name: string;
+	type?: string;
+	command?: string;
+	args?: string[];
+	env?: Record<string, string>;
+	url?: string;
+	headers?: string[];
+	disabled?: boolean;
+}
+
+export async function listMCPServers(): Promise<MCPServerInfo[]> {
+	return fetchJSON<MCPServerInfo[]>('/mcp');
+}
+
+export async function getMCPServer(name: string): Promise<MCPServer> {
+	return fetchJSON<MCPServer>(`/mcp/${name}`);
+}
+
+export async function createMCPServer(server: MCPServerCreate): Promise<MCPServerInfo> {
+	return fetchJSON<MCPServerInfo>('/mcp', {
+		method: 'POST',
+		body: JSON.stringify(server)
+	});
+}
+
+export async function updateMCPServer(name: string, server: Partial<MCPServerCreate>): Promise<MCPServerInfo> {
+	return fetchJSON<MCPServerInfo>(`/mcp/${name}`, {
+		method: 'PUT',
+		body: JSON.stringify(server)
+	});
+}
+
+export async function deleteMCPServer(name: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/mcp/${name}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+}

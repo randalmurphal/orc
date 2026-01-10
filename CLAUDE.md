@@ -317,6 +317,15 @@ make e2e            # Run Playwright tests
 | PUT | `/api/claudemd` | Update project CLAUDE.md |
 | GET | `/api/claudemd/hierarchy` | Get full hierarchy (global, user, project) |
 
+### MCP Servers
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/mcp` | List MCP servers from .mcp.json |
+| POST | `/api/mcp` | Create MCP server |
+| GET | `/api/mcp/:name` | Get MCP server details |
+| PUT | `/api/mcp/:name` | Update MCP server |
+| DELETE | `/api/mcp/:name` | Delete MCP server |
+
 ### Config & Real-time
 | Method | Endpoint | Description |
 |--------|----------|-------------|
