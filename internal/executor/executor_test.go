@@ -1175,7 +1175,15 @@ func TestExecuteWithRetry_ContextCancelled(t *testing.T) {
 }
 
 func TestCommitCheckpointNode(t *testing.T) {
-	e := New(DefaultConfig())
+	// Create temp dir that's not a git repo to ensure gitOps is nil
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	cfg := DefaultConfig()
+	cfg.WorkDir = tmpDir
+	e := New(cfg)
 
 	nodeFunc := e.commitCheckpointNode()
 
@@ -1187,6 +1195,7 @@ func TestCommitCheckpointNode(t *testing.T) {
 		Response: "Implementation done",
 	}
 
+	// Since gitOps is nil in a non-git dir, this should pass through without error
 	result, err := nodeFunc(nil, state)
 	if err != nil {
 		t.Fatalf("commitCheckpointNode failed: %v", err)
