@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/randalmurphal/orc/internal/hooks"
 	"github.com/randalmurphal/orc/internal/prompt"
@@ -1040,3 +1041,243 @@ phases:
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+// === Publish Tests ===
+
+func TestPublishWithSubscribers(t *testing.T) {
+	srv := New(nil)
+
+	// Manually add a subscriber
+	ch := make(chan Event, 10)
+	srv.subscribersMu.Lock()
+	srv.subscribers["TASK-001"] = append(srv.subscribers["TASK-001"], ch)
+	srv.subscribersMu.Unlock()
+
+	// Publish an event
+	srv.Publish("TASK-001", Event{Type: "test", Data: "hello"})
+
+	// Check if event was received
+	select {
+	case evt := <-ch:
+		if evt.Type != "test" {
+			t.Errorf("expected event type 'test', got %q", evt.Type)
+		}
+	default:
+		t.Error("expected to receive event")
+	}
+}
+
+func TestPublishWithFullChannel(t *testing.T) {
+	srv := New(nil)
+
+	// Create a full channel (capacity 0)
+	ch := make(chan Event, 0)
+	srv.subscribersMu.Lock()
+	srv.subscribers["TASK-001"] = append(srv.subscribers["TASK-001"], ch)
+	srv.subscribersMu.Unlock()
+
+	// Publish should not block even with full channel
+	done := make(chan struct{})
+	go func() {
+		srv.Publish("TASK-001", Event{Type: "test", Data: "hello"})
+		close(done)
+	}()
+
+	// Wait with timeout
+	select {
+	case <-done:
+		// Success - did not block
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Publish blocked on full channel")
+	}
+}
+
+func TestPublishNoSubscribers(t *testing.T) {
+	srv := New(nil)
+
+	// Publish should not panic with no subscribers
+	srv.Publish("NONEXISTENT", Event{Type: "test", Data: "hello"})
+}
+
+// === Run Task Additional Tests ===
+
+func TestRunTaskEndpoint_TaskCannotRun(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create task with running status
+	taskDir := filepath.Join(".orc", "tasks", "TASK-011")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-011
+title: Running Task
+status: running
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-011/run", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRunTaskEndpoint_NoPlan(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create task without plan file (status must allow running)
+	taskDir := filepath.Join(".orc", "tasks", "TASK-012")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-012
+title: No Plan Task
+status: planned
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-012/run", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// === Pause/Resume Tests ===
+
+func TestPauseTaskEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create running task
+	taskDir := filepath.Join(".orc", "tasks", "TASK-013")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-013
+title: Running Task
+status: running
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-013/pause", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify response
+	var resp map[string]string
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp["status"] != "paused" {
+		t.Errorf("expected status 'paused', got %q", resp["status"])
+	}
+}
+
+func TestPauseTaskEndpoint_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".orc/tasks", 0755)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/pause", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", w.Code)
+	}
+}
+
+func TestResumeTaskEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create paused task
+	taskDir := filepath.Join(".orc", "tasks", "TASK-014")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-014
+title: Paused Task
+status: paused
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-014/resume", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify response
+	var resp map[string]string
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp["status"] != "resumed" {
+		t.Errorf("expected status 'resumed', got %q", resp["status"])
+	}
+}
+
+func TestResumeTaskEndpoint_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".orc/tasks", 0755)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/resume", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", w.Code)
+	}
+}
+
