@@ -1446,3 +1446,179 @@ func TestCreateTaskEndpoint_WithDescription(t *testing.T) {
 	}
 }
 
+// === Hook CRUD Tests ===
+
+func TestCreateHookEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create .claude/hooks directory
+	os.MkdirAll(".claude/hooks", 0755)
+
+	srv := New(nil)
+
+	// Note: hooks use "type" field not "trigger", must be a valid HookType
+	body := `{"name": "test-hook", "type": "post:tool", "pattern": "*", "command": "echo hello"}`
+	req := httptest.NewRequest("POST", "/api/hooks", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateHookEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create hook first (JSON format with .json extension)
+	hooksDir := ".claude/hooks"
+	os.MkdirAll(hooksDir, 0755)
+
+	existingHook := `{"name": "update-hook", "type": "pre:tool", "pattern": "*", "command": "echo before"}`
+	os.WriteFile(filepath.Join(hooksDir, "update-hook.json"), []byte(existingHook), 0644)
+
+	srv := New(nil)
+
+	body := `{"name": "update-hook", "type": "post:tool", "pattern": "*", "command": "echo after"}`
+	req := httptest.NewRequest("PUT", "/api/hooks/update-hook", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestDeleteHookEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create hook to delete (JSON format with .json extension)
+	hooksDir := ".claude/hooks"
+	os.MkdirAll(hooksDir, 0755)
+
+	hookContent := `{"name": "delete-hook", "type": "post:tool", "command": "echo hello"}`
+	os.WriteFile(filepath.Join(hooksDir, "delete-hook.json"), []byte(hookContent), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("DELETE", "/api/hooks/delete-hook", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// === Skill CRUD Tests ===
+
+func TestCreateSkillEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create .claude/skills directory
+	os.MkdirAll(".claude/skills", 0755)
+
+	srv := New(nil)
+
+	body := `{"name": "test-skill", "description": "A test skill", "prompt": "Do something useful"}`
+	req := httptest.NewRequest("POST", "/api/skills", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateSkillEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create skill first (YAML format with .yaml extension)
+	skillsDir := ".claude/skills"
+	os.MkdirAll(skillsDir, 0755)
+
+	existingSkill := `name: update-skill
+description: Original description
+prompt: Original prompt
+`
+	os.WriteFile(filepath.Join(skillsDir, "update-skill.yaml"), []byte(existingSkill), 0644)
+
+	srv := New(nil)
+
+	body := `{"name": "update-skill", "description": "Updated description", "prompt": "Updated prompt"}`
+	req := httptest.NewRequest("PUT", "/api/skills/update-skill", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestDeleteSkillEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create skill to delete (YAML format with .yaml extension)
+	skillsDir := ".claude/skills"
+	os.MkdirAll(skillsDir, 0755)
+
+	skillContent := `name: delete-skill
+description: To be deleted
+prompt: Some prompt
+`
+	os.WriteFile(filepath.Join(skillsDir, "delete-skill.yaml"), []byte(skillContent), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("DELETE", "/api/skills/delete-skill", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// === Prompt Default Tests ===
+
+func TestGetPromptDefaultEndpoint_NotFound(t *testing.T) {
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/prompts/nonexistent/default", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
