@@ -14,6 +14,7 @@ import (
 	"github.com/randalmurphal/flowgraph/pkg/flowgraph"
 	"github.com/randalmurphal/flowgraph/pkg/flowgraph/checkpoint"
 	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/llmkit/claudeconfig"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
@@ -130,21 +131,30 @@ type Result struct {
 	OutputTokens int
 }
 
-// Executor runs phases using flowgraph and llmkit.
+// Executor runs phases using session-based execution with weight-adaptive strategies.
 type Executor struct {
 	config          *Config
 	orcConfig       *config.Config
 	client          claude.Client
+	sessionMgr      session.SessionManager
 	gateEvaluator   *gate.Evaluator
 	gitOps          *git.Git
 	checkpointStore checkpoint.Store
 	logger          *slog.Logger
 	publisher       events.Publisher
 
+	// Phase executors by type (created lazily)
+	trivialExecutor  *TrivialExecutor
+	standardExecutor *StandardExecutor
+	fullExecutor     *FullExecutor
+
 	// Runtime state for current task
 	worktreePath   string   // Path to worktree if enabled
 	worktreeGit    *git.Git // Git operations for worktree
 	currentTaskDir string   // Directory for current task's files
+
+	// Use session-based execution (new) vs flowgraph (legacy)
+	useSessionExecution bool
 }
 
 // New creates a new executor with the given configuration.
@@ -184,6 +194,16 @@ func New(cfg *Config) *Executor {
 
 	client := claude.NewClaudeCLI(clientOpts...)
 
+	// Create session manager for session-based execution
+	// Sessions will use the same model and workdir settings
+	sessionMgr := session.NewManager(
+		session.WithDefaultSessionOptions(
+			session.WithModel(cfg.Model),
+			session.WithWorkdir(cfg.WorkDir),
+			session.WithPermissions(cfg.DangerouslySkipPermissions),
+		),
+	)
+
 	// Create checkpoint store if enabled
 	var cpStore checkpoint.Store
 	if cfg.EnableCheckpoints {
@@ -203,13 +223,15 @@ func New(cfg *Config) *Executor {
 	}
 
 	return &Executor{
-		config:          cfg,
-		orcConfig:       orcCfg,
-		client:          client,
-		gateEvaluator:   gate.New(client),
-		gitOps:          gitOps,
-		checkpointStore: cpStore,
-		logger:          slog.Default(),
+		config:              cfg,
+		orcConfig:           orcCfg,
+		client:              client,
+		sessionMgr:          sessionMgr,
+		gateEvaluator:       gate.New(client),
+		gitOps:              gitOps,
+		checkpointStore:     cpStore,
+		logger:              slog.Default(),
+		useSessionExecution: orcCfg.Execution.UseSessionExecution,
 	}
 }
 
@@ -235,6 +257,69 @@ func (e *Executor) taskDir(taskID string) string {
 // SetClient sets the Claude client (for testing).
 func (e *Executor) SetClient(c claude.Client) {
 	e.client = c
+}
+
+// SetUseSessionExecution enables or disables session-based execution.
+// When disabled, falls back to the legacy flowgraph-based execution.
+func (e *Executor) SetUseSessionExecution(use bool) {
+	e.useSessionExecution = use
+}
+
+// getPhaseExecutor returns the appropriate phase executor for the given weight.
+// Executors are created lazily and cached for reuse.
+func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
+	execType := ExecutorTypeForWeight(weight)
+	workingDir := e.config.WorkDir
+	if e.worktreePath != "" {
+		workingDir = e.worktreePath
+	}
+
+	switch execType {
+	case ExecutorTypeTrivial:
+		if e.trivialExecutor == nil {
+			e.trivialExecutor = NewTrivialExecutor(
+				WithTrivialClient(e.client),
+				WithTrivialPublisher(e.publisher),
+				WithTrivialLogger(e.logger),
+				WithTrivialConfig(DefaultConfigForWeight(weight)),
+			)
+		}
+		return e.trivialExecutor
+
+	case ExecutorTypeFull:
+		if e.fullExecutor == nil {
+			e.fullExecutor = NewFullExecutor(
+				e.sessionMgr,
+				WithFullGitSvc(e.gitOps),
+				WithFullPublisher(e.publisher),
+				WithFullLogger(e.logger),
+				WithFullConfig(DefaultConfigForWeight(weight)),
+				WithFullWorkingDir(workingDir),
+				WithTaskDir(e.currentTaskDir),
+			)
+		}
+		return e.fullExecutor
+
+	default: // ExecutorTypeStandard
+		if e.standardExecutor == nil {
+			e.standardExecutor = NewStandardExecutor(
+				e.sessionMgr,
+				WithGitSvc(e.gitOps),
+				WithPublisher(e.publisher),
+				WithExecutorLogger(e.logger),
+				WithExecutorConfig(DefaultConfigForWeight(weight)),
+				WithWorkingDir(workingDir),
+			)
+		}
+		return e.standardExecutor
+	}
+}
+
+// resetPhaseExecutors clears cached executors (called when context changes, e.g., worktree).
+func (e *Executor) resetPhaseExecutors() {
+	e.trivialExecutor = nil
+	e.standardExecutor = nil
+	e.fullExecutor = nil
 }
 
 // LoadProjectToolPermissions loads tool permissions from the project's .claude/settings.json
@@ -372,8 +457,36 @@ func (e *Executor) publishState(taskID string, s *state.State) {
 	e.publish(events.NewEvent(events.EventState, taskID, s))
 }
 
-// ExecutePhase runs a single phase using flowgraph.
+// ExecutePhase runs a single phase using either session-based or flowgraph execution.
 func (e *Executor) ExecutePhase(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) (*Result, error) {
+	// Use session-based execution if enabled
+	if e.useSessionExecution {
+		return e.executePhaseWithSession(ctx, t, p, s)
+	}
+
+	// Fall back to legacy flowgraph-based execution
+	return e.executePhaseWithFlowgraph(ctx, t, p, s)
+}
+
+// executePhaseWithSession runs a phase using session-based execution.
+// This provides context continuity via Claude's native session management.
+func (e *Executor) executePhaseWithSession(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) (*Result, error) {
+	// Get the appropriate executor for this task's weight
+	executor := e.getPhaseExecutor(t.Weight)
+
+	e.logger.Info("executing phase with session",
+		"phase", p.ID,
+		"task", t.ID,
+		"weight", t.Weight,
+		"executor", executor.Name(),
+	)
+
+	// Delegate to the weight-appropriate executor
+	return executor.Execute(ctx, t, p, s)
+}
+
+// executePhaseWithFlowgraph runs a phase using the legacy flowgraph-based execution.
+func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) (*Result, error) {
 	start := time.Now()
 	result := &Result{
 		Phase:  p.ID,
@@ -704,6 +817,18 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		}
 		e.client = claude.NewClaudeCLI(worktreeClientOpts...)
 		e.logger.Info("claude client configured for worktree", "path", worktreePath)
+
+		// Create new session manager for worktree context
+		e.sessionMgr = session.NewManager(
+			session.WithDefaultSessionOptions(
+				session.WithModel(e.config.Model),
+				session.WithWorkdir(worktreePath),
+				session.WithPermissions(e.config.DangerouslySkipPermissions),
+			),
+		)
+
+		// Reset phase executors to use new worktree context
+		e.resetPhaseExecutors()
 
 		// Cleanup worktree on exit based on config and success
 		defer func() {
