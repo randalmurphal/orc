@@ -1197,3 +1197,275 @@ func TestCommitCheckpointNode(t *testing.T) {
 		t.Error("state should still be complete")
 	}
 }
+
+// === ExecuteTask Tests ===
+
+func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Initialize orc directory structure
+	os.MkdirAll(".orc/tasks/TASK-EXEC-001", 0755)
+
+	// Create task
+	testTask := task.New("TASK-EXEC-001", "Execute Task Test")
+	testTask.Weight = task.WeightSmall
+	testTask.Status = task.StatusPlanned
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create plan with single phase that uses inline prompt
+	testPlan := &plan.Plan{
+		Version:     1,
+		Weight:      "small",
+		Description: "Test plan",
+		Phases: []plan.Phase{
+			{
+				ID:     "implement",
+				Name:   "Implementation",
+				Prompt: "Implement: {{TASK_TITLE}} <phase_complete>true</phase_complete>",
+			},
+		},
+	}
+	if err := testPlan.Save("TASK-EXEC-001"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
+
+	// Create state
+	testState := state.New("TASK-EXEC-001")
+
+	// Create executor with mock client
+	e := New(DefaultConfig())
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Implementation done!")
+	e.SetClient(mockClient)
+
+	// Execute task
+	ctx := context.Background()
+	err := e.ExecuteTask(ctx, testTask, testPlan, testState)
+	if err != nil {
+		t.Fatalf("ExecuteTask failed: %v", err)
+	}
+
+	// Reload and verify task status
+	reloadedTask, err := task.Load("TASK-EXEC-001")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+	if reloadedTask.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want completed", reloadedTask.Status)
+	}
+}
+
+func TestExecuteTask_ContextCancelled(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Initialize orc directory structure
+	os.MkdirAll(".orc/tasks/TASK-CANCEL-001", 0755)
+
+	// Create task
+	testTask := task.New("TASK-CANCEL-001", "Cancel Test")
+	testTask.Weight = task.WeightSmall
+	testTask.Status = task.StatusPlanned
+	testTask.Save()
+
+	// Create plan
+	testPlan := &plan.Plan{
+		Version: 1,
+		Weight:  "small",
+		Phases: []plan.Phase{
+			{
+				ID:     "implement",
+				Name:   "Implementation",
+				Prompt: "Do work",
+			},
+		},
+	}
+	testPlan.Save("TASK-CANCEL-001")
+
+	// Create state
+	testState := state.New("TASK-CANCEL-001")
+
+	// Create executor with mock client that returns incomplete response
+	e := New(DefaultConfig())
+	mockClient := claude.NewMockClient("Still working...")
+	e.SetClient(mockClient)
+
+	// Cancel context immediately
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := e.ExecuteTask(ctx, testTask, testPlan, testState)
+	if err == nil {
+		t.Error("ExecuteTask should fail when context is cancelled")
+	}
+	// Should be context.Canceled error
+	if err != context.Canceled {
+		// Could be a wrapped error, just check it's not nil
+		t.Log("Got expected error:", err)
+	}
+}
+
+func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Initialize orc directory structure
+	os.MkdirAll(".orc/tasks/TASK-SKIP-001", 0755)
+
+	// Create task
+	testTask := task.New("TASK-SKIP-001", "Skip Phase Test")
+	testTask.Weight = task.WeightSmall
+	testTask.Status = task.StatusPlanned
+	testTask.Save()
+
+	// Create plan with two phases
+	testPlan := &plan.Plan{
+		Version: 1,
+		Weight:  "small",
+		Phases: []plan.Phase{
+			{
+				ID:     "spec",
+				Name:   "Specification",
+				Prompt: "Spec: {{TASK_TITLE}}",
+			},
+			{
+				ID:     "implement",
+				Name:   "Implementation",
+				Prompt: "Implement: {{TASK_TITLE}}",
+			},
+		},
+	}
+	testPlan.Save("TASK-SKIP-001")
+
+	// Create state with first phase already completed
+	testState := state.New("TASK-SKIP-001")
+	testState.StartPhase("spec")
+	testState.CompletePhase("spec", "abc123")
+	testState.Save()
+
+	// Create executor with mock client
+	e := New(DefaultConfig())
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	e.SetClient(mockClient)
+
+	// Execute task
+	ctx := context.Background()
+	err := e.ExecuteTask(ctx, testTask, testPlan, testState)
+	if err != nil {
+		t.Fatalf("ExecuteTask failed: %v", err)
+	}
+
+	// Verify task completed
+	reloadedTask, _ := task.Load("TASK-SKIP-001")
+	if reloadedTask.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want completed", reloadedTask.Status)
+	}
+
+	// Verify spec phase was skipped (not re-executed)
+	reloadedState, _ := state.Load("TASK-SKIP-001")
+	specPhase := reloadedState.Phases["spec"]
+	if specPhase.CommitSHA != "abc123" {
+		t.Errorf("spec phase commit SHA changed unexpectedly: %s", specPhase.CommitSHA)
+	}
+}
+
+func TestExecuteTask_WithPublisher(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Initialize orc directory structure
+	os.MkdirAll(".orc/tasks/TASK-PUB-001", 0755)
+
+	// Create task
+	testTask := task.New("TASK-PUB-001", "Publisher Test")
+	testTask.Weight = task.WeightSmall
+	testTask.Status = task.StatusPlanned
+	testTask.Save()
+
+	// Create plan
+	testPlan := &plan.Plan{
+		Version: 1,
+		Weight:  "small",
+		Phases: []plan.Phase{
+			{
+				ID:     "implement",
+				Name:   "Implementation",
+				Prompt: "Implement: {{TASK_TITLE}}",
+			},
+		},
+	}
+	testPlan.Save("TASK-PUB-001")
+
+	testState := state.New("TASK-PUB-001")
+
+	// Create publisher and subscribe
+	pub := events.NewMemoryPublisher()
+	eventCh := pub.Subscribe("TASK-PUB-001")
+	receivedEvents := make([]events.Event, 0)
+
+	// Collect events in background
+	done := make(chan struct{})
+	go func() {
+		for evt := range eventCh {
+			receivedEvents = append(receivedEvents, evt)
+			if evt.Type == events.EventComplete {
+				close(done)
+				return
+			}
+		}
+	}()
+
+	// Create executor with mock client and publisher
+	e := New(DefaultConfig())
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	e.SetClient(mockClient)
+	e.SetPublisher(pub)
+
+	// Execute task
+	ctx := context.Background()
+	err := e.ExecuteTask(ctx, testTask, testPlan, testState)
+	if err != nil {
+		t.Fatalf("ExecuteTask failed: %v", err)
+	}
+
+	// Wait for events with timeout
+	select {
+	case <-done:
+		// Good, events received
+	case <-time.After(2 * time.Second):
+		t.Log("Timed out waiting for events")
+	}
+
+	// Should have received some events
+	if len(receivedEvents) == 0 {
+		t.Error("expected to receive events")
+	}
+
+	// Check for phase start and complete events
+	hasPhaseStart := false
+	hasComplete := false
+	for _, evt := range receivedEvents {
+		if evt.Type == events.EventPhase {
+			hasPhaseStart = true
+		}
+		if evt.Type == events.EventComplete {
+			hasComplete = true
+		}
+	}
+	if !hasPhaseStart {
+		t.Error("expected phase start event")
+	}
+	if !hasComplete {
+		t.Error("expected complete event")
+	}
+}
