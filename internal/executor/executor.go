@@ -527,6 +527,11 @@ func (e *Executor) checkCompletionNode(p *plan.Phase, st *state.State) flowgraph
 // commitCheckpointNode creates the git commit checkpoint node.
 func (e *Executor) commitCheckpointNode() flowgraph.NodeFunc[PhaseState] {
 	return func(ctx flowgraph.Context, s PhaseState) (PhaseState, error) {
+		// Skip if git operations not available
+		if e.gitOps == nil {
+			return s, nil
+		}
+
 		// Create git checkpoint
 		msg := fmt.Sprintf("%s: %s - completed", s.Phase, s.TaskTitle)
 		cp, err := e.gitOps.CreateCheckpoint(s.TaskID, s.Phase, msg)
