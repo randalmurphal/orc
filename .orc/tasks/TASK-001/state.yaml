@@ -1,0 +1,43 @@
+task_id: TASK-001
+current_phase: test
+current_iteration: 3
+status: completed
+started_at: 2026-01-10T15:54:13.447359581-06:00
+updated_at: 2026-01-10T15:55:51.305391787-06:00
+completed_at: 2026-01-10T15:55:51.305388421-06:00
+phases:
+    implement:
+        status: completed
+        started_at: 2026-01-10T15:54:13.458847336-06:00
+        completed_at: 2026-01-10T15:54:44.962145046-06:00
+        iterations: 1
+        commit_sha: b94ca59cf8c0087bcb2e556e00fae4a6fa37de7a
+        tokens:
+            input_tokens: 7
+            output_tokens: 1319
+            total_tokens: 1326
+    test:
+        status: completed
+        started_at: 2026-01-10T15:54:44.9624011-06:00
+        completed_at: 2026-01-10T15:55:51.305043067-06:00
+        iterations: 1
+        commit_sha: 79b5a2f540eed281b553df38d015e0f3d049a784
+        tokens:
+            input_tokens: 12
+            output_tokens: 2425
+            total_tokens: 2437
+gates:
+    - phase: implement
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-10T15:54:44.96240058-06:00
+    - phase: test
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-10T15:55:51.30538762-06:00
+tokens:
+    input_tokens: 19
+    output_tokens: 3744
+    total_tokens: 3763

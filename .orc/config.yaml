@@ -13,6 +13,22 @@ retry:
         test_unit: implement
         validate: implement
     max_retries: 2
+worktree:
+    enabled: true
+    dir: .orc/worktrees
+    cleanup_on_complete: true
+    cleanup_on_fail: false
+completion:
+    action: pr
+    target_branch: main
+    delete_branch: true
+    pr:
+        title: '[orc] {{TASK_TITLE}}'
+        body_template: templates/pr-body.md
+        labels:
+            - automated
+        draft: false
+        auto_merge: true
 model: claude-opus-4-5-20251101
 max_iterations: 30
 timeout: 10m0s
