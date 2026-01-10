@@ -231,7 +231,7 @@ func New(cfg *Config) *Executor {
 		gitOps:              gitOps,
 		checkpointStore:     cpStore,
 		logger:              slog.Default(),
-		useSessionExecution: false, // Session-based execution is opt-in for now
+		useSessionExecution: orcCfg.Execution.UseSessionExecution,
 	}
 }
 

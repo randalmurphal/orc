@@ -120,6 +120,26 @@ type CompletionConfig struct {
 	PR PRConfig `yaml:"pr"`
 }
 
+// ExecutionConfig defines execution strategy settings.
+type ExecutionConfig struct {
+	// UseSessionExecution enables session-based execution with Claude's native
+	// context continuity instead of flowgraph-based iteration. This provides
+	// better context retention across iterations within a phase.
+	// Default: false (uses flowgraph-based execution for compatibility)
+	UseSessionExecution bool `yaml:"use_session_execution"`
+
+	// SessionPersistence enables persisting sessions to disk for resume capability.
+	// Only applicable when UseSessionExecution is true.
+	// Default: true
+	SessionPersistence bool `yaml:"session_persistence"`
+
+	// CheckpointInterval controls how often to save iteration checkpoints.
+	// 0 = only on phase completion, 1 = every iteration, N = every N iterations.
+	// Only applicable when UseSessionExecution is true with FullExecutor.
+	// Default: 1 for large/greenfield tasks, 0 for others
+	CheckpointInterval int `yaml:"checkpoint_interval"`
+}
+
 // Config represents the orc configuration.
 type Config struct {
 	// Version is the config file version
@@ -139,6 +159,9 @@ type Config struct {
 
 	// Completion settings (merge/PR after task completes)
 	Completion CompletionConfig `yaml:"completion"`
+
+	// Execution strategy settings
+	Execution ExecutionConfig `yaml:"execution"`
 
 	// Model settings
 	Model         string `yaml:"model"`
@@ -242,6 +265,11 @@ func Default() *Config {
 				Labels:       []string{"automated"},
 				AutoMerge:    true,
 			},
+		},
+		Execution: ExecutionConfig{
+			UseSessionExecution: false, // Default to flowgraph for compatibility
+			SessionPersistence:  true,
+			CheckpointInterval:  0, // Default to phase-complete only
 		},
 		Model:                      "claude-opus-4-5-20251101",
 		MaxIterations:              30,
