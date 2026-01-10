@@ -1286,6 +1286,12 @@ func (s *Server) handleDeleteHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if event exists before deleting
+	if _, exists := settings.Hooks[eventName]; !exists {
+		s.jsonError(w, "hook event not found", http.StatusNotFound)
+		return
+	}
+
 	delete(settings.Hooks, eventName)
 
 	if err := claudeconfig.SaveProjectSettings(projectRoot, settings); err != nil {
@@ -1348,8 +1354,10 @@ func (s *Server) handleCreateSkill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	skillsDir := filepath.Join(s.getProjectRoot(), ".claude", "skills")
-	if err := claudeconfig.WriteSkillMD(&skill, skillsDir); err != nil {
+	// WriteSkillMD creates SKILL.md inside the given directory,
+	// so we pass the skill-specific directory (.claude/skills/{name}/)
+	skillDir := filepath.Join(s.getProjectRoot(), ".claude", "skills", skill.Name)
+	if err := claudeconfig.WriteSkillMD(&skill, skillDir); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to create skill: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -1698,6 +1706,10 @@ func (s *Server) handleDiscoverScripts(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetClaudeMD(w http.ResponseWriter, r *http.Request) {
 	claudeMD, err := claudeconfig.LoadProjectClaudeMD(s.getProjectRoot())
 	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to load CLAUDE.md: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if claudeMD == nil {
 		s.jsonError(w, "CLAUDE.md not found", http.StatusNotFound)
 		return
 	}
