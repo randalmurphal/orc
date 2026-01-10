@@ -3,6 +3,7 @@ package git
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -64,18 +65,27 @@ func (g *Git) BranchName(taskID string) string {
 
 // CreateWorktree creates an isolated worktree for a task.
 // Returns the absolute path to the worktree.
+// NOTE: This does NOT modify the main repo's checked-out branch.
 func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 	branchName := g.BranchName(taskID)
+	safeName := devgit.SanitizeBranchName(branchName)
+	worktreePath := filepath.Join(g.ctx.RepoPath(), g.worktreeDir, safeName)
 
-	// First checkout the base branch in main repo
-	if err := g.ctx.Checkout(baseBranch); err != nil {
-		return "", fmt.Errorf("checkout base branch %s: %w", baseBranch, err)
+	// Ensure worktrees directory exists
+	worktreesDir := filepath.Join(g.ctx.RepoPath(), g.worktreeDir)
+	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
+		return "", fmt.Errorf("create worktrees dir: %w", err)
 	}
 
-	// Create worktree with task branch
-	worktreePath, err := g.ctx.CreateWorktree(branchName)
+	// Create worktree with new branch from base branch
+	// This does NOT checkout the base branch in the main repo
+	_, err := g.ctx.RunGit("worktree", "add", "-b", branchName, worktreePath, baseBranch)
 	if err != nil {
-		return "", fmt.Errorf("create worktree for %s: %w", taskID, err)
+		// Branch might already exist, try to add worktree for existing branch
+		_, err = g.ctx.RunGit("worktree", "add", worktreePath, branchName)
+		if err != nil {
+			return "", fmt.Errorf("create worktree for %s: %w", taskID, err)
+		}
 	}
 
 	return worktreePath, nil
