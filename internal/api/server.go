@@ -14,14 +14,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/randalmurphal/llmkit/claudeconfig"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/hooks"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/prompt"
-	"github.com/randalmurphal/orc/internal/skills"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -153,14 +152,44 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /api/hooks/{name}", cors(s.handleUpdateHook))
 	s.mux.HandleFunc("DELETE /api/hooks/{name}", cors(s.handleDeleteHook))
 
-	// Skills
+	// Skills (SKILL.md format)
 	s.mux.HandleFunc("GET /api/skills", cors(s.handleListSkills))
 	s.mux.HandleFunc("POST /api/skills", cors(s.handleCreateSkill))
 	s.mux.HandleFunc("GET /api/skills/{name}", cors(s.handleGetSkill))
 	s.mux.HandleFunc("PUT /api/skills/{name}", cors(s.handleUpdateSkill))
 	s.mux.HandleFunc("DELETE /api/skills/{name}", cors(s.handleDeleteSkill))
 
-	// Config
+	// Settings (Claude Code settings.json with inheritance)
+	s.mux.HandleFunc("GET /api/settings", cors(s.handleGetSettings))
+	s.mux.HandleFunc("GET /api/settings/project", cors(s.handleGetProjectSettings))
+	s.mux.HandleFunc("PUT /api/settings", cors(s.handleUpdateSettings))
+
+	// Tools (available Claude Code tools with permissions)
+	s.mux.HandleFunc("GET /api/tools", cors(s.handleListTools))
+	s.mux.HandleFunc("GET /api/tools/permissions", cors(s.handleGetToolPermissions))
+	s.mux.HandleFunc("PUT /api/tools/permissions", cors(s.handleUpdateToolPermissions))
+
+	// Agents (sub-agent definitions)
+	s.mux.HandleFunc("GET /api/agents", cors(s.handleListAgents))
+	s.mux.HandleFunc("POST /api/agents", cors(s.handleCreateAgent))
+	s.mux.HandleFunc("GET /api/agents/{name}", cors(s.handleGetAgent))
+	s.mux.HandleFunc("PUT /api/agents/{name}", cors(s.handleUpdateAgent))
+	s.mux.HandleFunc("DELETE /api/agents/{name}", cors(s.handleDeleteAgent))
+
+	// Scripts (project script registry)
+	s.mux.HandleFunc("GET /api/scripts", cors(s.handleListScripts))
+	s.mux.HandleFunc("POST /api/scripts", cors(s.handleCreateScript))
+	s.mux.HandleFunc("POST /api/scripts/discover", cors(s.handleDiscoverScripts))
+	s.mux.HandleFunc("GET /api/scripts/{name}", cors(s.handleGetScript))
+	s.mux.HandleFunc("PUT /api/scripts/{name}", cors(s.handleUpdateScript))
+	s.mux.HandleFunc("DELETE /api/scripts/{name}", cors(s.handleDeleteScript))
+
+	// CLAUDE.md
+	s.mux.HandleFunc("GET /api/claudemd", cors(s.handleGetClaudeMD))
+	s.mux.HandleFunc("PUT /api/claudemd", cors(s.handleUpdateClaudeMD))
+	s.mux.HandleFunc("GET /api/claudemd/hierarchy", cors(s.handleGetClaudeMDHierarchy))
+
+	// Config (orc configuration)
 	s.mux.HandleFunc("GET /api/config", cors(s.handleGetConfig))
 	s.mux.HandleFunc("PUT /api/config", cors(s.handleUpdateConfig))
 
@@ -1125,115 +1154,179 @@ func (s *Server) handleDeletePrompt(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// === Hooks Handlers ===
+// getProjectRoot returns the current project root directory.
+func (s *Server) getProjectRoot() string {
+	// Use current working directory as project root
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	return wd
+}
 
-// handleListHooks returns all hooks.
+// === Hooks Handlers (settings.json format) ===
+
+// handleListHooks returns all hooks from settings.json.
 func (s *Server) handleListHooks(w http.ResponseWriter, r *http.Request) {
-	svc := hooks.DefaultService()
-	hookList, err := svc.List()
+	settings, err := claudeconfig.LoadProjectSettings(s.getProjectRoot())
 	if err != nil {
-		s.jsonError(w, "failed to list hooks", http.StatusInternalServerError)
+		// No settings file is OK - return empty hooks
+		s.jsonResponse(w, map[string][]claudeconfig.Hook{})
 		return
 	}
 
-	s.jsonResponse(w, hookList)
+	hooks := settings.Hooks
+	if hooks == nil {
+		hooks = make(map[string][]claudeconfig.Hook)
+	}
+
+	s.jsonResponse(w, hooks)
 }
 
-// handleGetHookTypes returns available hook types.
+// handleGetHookTypes returns available hook event types.
 func (s *Server) handleGetHookTypes(w http.ResponseWriter, r *http.Request) {
-	types := hooks.GetHookTypes()
-	s.jsonResponse(w, types)
+	events := claudeconfig.ValidHookEvents()
+	s.jsonResponse(w, events)
 }
 
-// handleGetHook returns a specific hook.
+// handleGetHook returns hooks for a specific event type.
 func (s *Server) handleGetHook(w http.ResponseWriter, r *http.Request) {
-	name := r.PathValue("name")
-	svc := hooks.DefaultService()
+	eventName := r.PathValue("name")
 
-	hook, err := svc.Get(name)
+	settings, err := claudeconfig.LoadProjectSettings(s.getProjectRoot())
 	if err != nil {
-		s.jsonError(w, "hook not found", http.StatusNotFound)
+		s.jsonError(w, "settings not found", http.StatusNotFound)
 		return
 	}
 
-	s.jsonResponse(w, hook)
+	hooks, exists := settings.Hooks[eventName]
+	if !exists {
+		s.jsonError(w, "no hooks for this event", http.StatusNotFound)
+		return
+	}
+
+	s.jsonResponse(w, hooks)
 }
 
-// handleCreateHook creates a new hook.
+// handleCreateHook adds a hook to settings.json.
 func (s *Server) handleCreateHook(w http.ResponseWriter, r *http.Request) {
-	var hook hooks.Hook
-	if err := json.NewDecoder(r.Body).Decode(&hook); err != nil {
+	var req struct {
+		Event string           `json:"event"`
+		Hook  claudeconfig.Hook `json:"hook"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	svc := hooks.DefaultService()
-	if err := svc.Create(hook); err != nil {
-		s.jsonError(w, err.Error(), http.StatusBadRequest)
+	projectRoot := s.getProjectRoot()
+	settings, err := claudeconfig.LoadProjectSettings(projectRoot)
+	if err != nil {
+		settings = &claudeconfig.Settings{}
+	}
+
+	if settings.Hooks == nil {
+		settings.Hooks = make(map[string][]claudeconfig.Hook)
+	}
+
+	settings.Hooks[req.Event] = append(settings.Hooks[req.Event], req.Hook)
+
+	if err := claudeconfig.SaveProjectSettings(projectRoot, settings); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to save settings: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	s.jsonResponse(w, hook)
+	s.jsonResponse(w, req.Hook)
 }
 
-// handleUpdateHook updates an existing hook.
+// handleUpdateHook updates hooks for a specific event.
 func (s *Server) handleUpdateHook(w http.ResponseWriter, r *http.Request) {
-	name := r.PathValue("name")
+	eventName := r.PathValue("name")
 
-	var hook hooks.Hook
-	if err := json.NewDecoder(r.Body).Decode(&hook); err != nil {
+	var hooks []claudeconfig.Hook
+	if err := json.NewDecoder(r.Body).Decode(&hooks); err != nil {
 		s.jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	svc := hooks.DefaultService()
-	if err := svc.Update(name, hook); err != nil {
-		s.jsonError(w, err.Error(), http.StatusBadRequest)
+	projectRoot := s.getProjectRoot()
+	settings, err := claudeconfig.LoadProjectSettings(projectRoot)
+	if err != nil {
+		settings = &claudeconfig.Settings{}
+	}
+
+	if settings.Hooks == nil {
+		settings.Hooks = make(map[string][]claudeconfig.Hook)
+	}
+
+	settings.Hooks[eventName] = hooks
+
+	if err := claudeconfig.SaveProjectSettings(projectRoot, settings); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to save settings: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Return updated hook
-	updated, _ := svc.Get(hook.Name)
-	if updated == nil {
-		updated, _ = svc.Get(name)
-	}
-	s.jsonResponse(w, updated)
+	s.jsonResponse(w, hooks)
 }
 
-// handleDeleteHook deletes a hook.
+// handleDeleteHook removes all hooks for an event type.
 func (s *Server) handleDeleteHook(w http.ResponseWriter, r *http.Request) {
-	name := r.PathValue("name")
-	svc := hooks.DefaultService()
+	eventName := r.PathValue("name")
 
-	if err := svc.Delete(name); err != nil {
-		s.jsonError(w, err.Error(), http.StatusNotFound)
+	projectRoot := s.getProjectRoot()
+	settings, err := claudeconfig.LoadProjectSettings(projectRoot)
+	if err != nil {
+		s.jsonError(w, "settings not found", http.StatusNotFound)
+		return
+	}
+
+	if settings.Hooks == nil {
+		s.jsonError(w, "no hooks configured", http.StatusNotFound)
+		return
+	}
+
+	delete(settings.Hooks, eventName)
+
+	if err := claudeconfig.SaveProjectSettings(projectRoot, settings); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to save settings: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// === Skills Handlers ===
+// === Skills Handlers (SKILL.md format) ===
 
-// handleListSkills returns all skills.
+// handleListSkills returns all skills from .claude/skills/.
 func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
-	svc := skills.DefaultService()
-	skillList, err := svc.List()
+	claudeDir := filepath.Join(s.getProjectRoot(), ".claude")
+	skills, err := claudeconfig.DiscoverSkills(claudeDir)
 	if err != nil {
-		s.jsonError(w, "failed to list skills", http.StatusInternalServerError)
+		// No skills directory is OK - return empty list
+		s.jsonResponse(w, []claudeconfig.SkillInfo{})
 		return
 	}
 
-	s.jsonResponse(w, skillList)
+	// Convert to SkillInfo for listing
+	infos := make([]claudeconfig.SkillInfo, 0, len(skills))
+	for _, skill := range skills {
+		infos = append(infos, claudeconfig.SkillInfo{
+			Name:        skill.Name,
+			Description: skill.Description,
+			Path:        skill.Path,
+		})
+	}
+
+	s.jsonResponse(w, infos)
 }
 
-// handleGetSkill returns a specific skill.
+// handleGetSkill returns a specific skill by name.
 func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	svc := skills.DefaultService()
+	skillPath := filepath.Join(s.getProjectRoot(), ".claude", "skills", name, "SKILL.md")
 
-	skill, err := svc.Get(name)
+	skill, err := claudeconfig.ParseSkillMD(skillPath)
 	if err != nil {
 		s.jsonError(w, "skill not found", http.StatusNotFound)
 		return
@@ -1242,17 +1335,22 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, skill)
 }
 
-// handleCreateSkill creates a new skill.
+// handleCreateSkill creates a new skill in SKILL.md format.
 func (s *Server) handleCreateSkill(w http.ResponseWriter, r *http.Request) {
-	var skill skills.Skill
+	var skill claudeconfig.Skill
 	if err := json.NewDecoder(r.Body).Decode(&skill); err != nil {
 		s.jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	svc := skills.DefaultService()
-	if err := svc.Create(skill); err != nil {
-		s.jsonError(w, err.Error(), http.StatusBadRequest)
+	if skill.Name == "" {
+		s.jsonError(w, "name is required", http.StatusBadRequest)
+		return
+	}
+
+	skillsDir := filepath.Join(s.getProjectRoot(), ".claude", "skills")
+	if err := claudeconfig.WriteSkillMD(&skill, skillsDir); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to create skill: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -1263,31 +1361,232 @@ func (s *Server) handleCreateSkill(w http.ResponseWriter, r *http.Request) {
 // handleUpdateSkill updates an existing skill.
 func (s *Server) handleUpdateSkill(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
+	skillDir := filepath.Join(s.getProjectRoot(), ".claude", "skills", name)
 
-	var skill skills.Skill
+	// Check if skill exists
+	if _, err := os.Stat(filepath.Join(skillDir, "SKILL.md")); os.IsNotExist(err) {
+		s.jsonError(w, "skill not found", http.StatusNotFound)
+		return
+	}
+
+	var skill claudeconfig.Skill
 	if err := json.NewDecoder(r.Body).Decode(&skill); err != nil {
 		s.jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	svc := skills.DefaultService()
-	if err := svc.Update(name, skill); err != nil {
+	// If name changed, we need to rename the directory
+	if skill.Name != "" && skill.Name != name {
+		newDir := filepath.Join(s.getProjectRoot(), ".claude", "skills", skill.Name)
+		if err := os.Rename(skillDir, newDir); err != nil {
+			s.jsonError(w, fmt.Sprintf("failed to rename skill: %v", err), http.StatusInternalServerError)
+			return
+		}
+		skillDir = newDir
+	} else {
+		skill.Name = name
+	}
+
+	// Write the updated skill
+	skillsDir := filepath.Join(s.getProjectRoot(), ".claude", "skills")
+	if err := claudeconfig.WriteSkillMD(&skill, skillsDir); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to update skill: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, skill)
+}
+
+// handleDeleteSkill deletes a skill directory.
+func (s *Server) handleDeleteSkill(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	skillDir := filepath.Join(s.getProjectRoot(), ".claude", "skills", name)
+
+	if _, err := os.Stat(skillDir); os.IsNotExist(err) {
+		s.jsonError(w, "skill not found", http.StatusNotFound)
+		return
+	}
+
+	if err := os.RemoveAll(skillDir); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to delete skill: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// === Settings Handlers ===
+
+// handleGetSettings returns merged settings (global + project).
+func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := claudeconfig.LoadSettings(s.getProjectRoot())
+	if err != nil {
+		// Return empty settings on error
+		s.jsonResponse(w, &claudeconfig.Settings{})
+		return
+	}
+
+	s.jsonResponse(w, settings)
+}
+
+// handleGetProjectSettings returns project-only settings.
+func (s *Server) handleGetProjectSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := claudeconfig.LoadProjectSettings(s.getProjectRoot())
+	if err != nil {
+		s.jsonResponse(w, &claudeconfig.Settings{})
+		return
+	}
+
+	s.jsonResponse(w, settings)
+}
+
+// handleUpdateSettings saves project settings.
+func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
+	var settings claudeconfig.Settings
+	if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := claudeconfig.SaveProjectSettings(s.getProjectRoot(), &settings); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to save settings: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, settings)
+}
+
+// === Tools Handlers ===
+
+// handleListTools returns all available Claude Code tools.
+func (s *Server) handleListTools(w http.ResponseWriter, r *http.Request) {
+	// Check if grouping by category is requested
+	if r.URL.Query().Get("by_category") == "true" {
+		byCategory := claudeconfig.ToolsByCategory()
+		s.jsonResponse(w, byCategory)
+		return
+	}
+
+	tools := claudeconfig.AvailableTools()
+	s.jsonResponse(w, tools)
+}
+
+// handleGetToolPermissions returns tool permission settings.
+func (s *Server) handleGetToolPermissions(w http.ResponseWriter, r *http.Request) {
+	settings, err := claudeconfig.LoadProjectSettings(s.getProjectRoot())
+	if err != nil {
+		// No settings = no permissions configured
+		s.jsonResponse(w, &claudeconfig.ToolPermissions{})
+		return
+	}
+
+	var perms *claudeconfig.ToolPermissions
+	if err := settings.GetExtension("tool_permissions", &perms); err != nil || perms == nil {
+		s.jsonResponse(w, &claudeconfig.ToolPermissions{})
+		return
+	}
+
+	s.jsonResponse(w, perms)
+}
+
+// handleUpdateToolPermissions saves tool permission settings.
+func (s *Server) handleUpdateToolPermissions(w http.ResponseWriter, r *http.Request) {
+	var perms claudeconfig.ToolPermissions
+	if err := json.NewDecoder(r.Body).Decode(&perms); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	projectRoot := s.getProjectRoot()
+	settings, err := claudeconfig.LoadProjectSettings(projectRoot)
+	if err != nil {
+		settings = &claudeconfig.Settings{}
+	}
+
+	settings.SetExtension("tool_permissions", perms)
+
+	if err := claudeconfig.SaveProjectSettings(projectRoot, settings); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to save settings: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, perms)
+}
+
+// === Agents Handlers ===
+
+// handleListAgents returns all sub-agent definitions.
+func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
+	svc := claudeconfig.NewAgentService(s.getProjectRoot())
+	agents, err := svc.List()
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to list agents: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, agents)
+}
+
+// handleGetAgent returns a specific agent by name.
+func (s *Server) handleGetAgent(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	svc := claudeconfig.NewAgentService(s.getProjectRoot())
+
+	agent, err := svc.Get(name)
+	if err != nil {
+		s.jsonError(w, "agent not found", http.StatusNotFound)
+		return
+	}
+
+	s.jsonResponse(w, agent)
+}
+
+// handleCreateAgent creates a new sub-agent.
+func (s *Server) handleCreateAgent(w http.ResponseWriter, r *http.Request) {
+	var agent claudeconfig.SubAgent
+	if err := json.NewDecoder(r.Body).Decode(&agent); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	svc := claudeconfig.NewAgentService(s.getProjectRoot())
+	if err := svc.Create(agent); err != nil {
 		s.jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Return updated skill
-	updated, _ := svc.Get(skill.Name)
+	w.WriteHeader(http.StatusCreated)
+	s.jsonResponse(w, agent)
+}
+
+// handleUpdateAgent updates an existing agent.
+func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+
+	var agent claudeconfig.SubAgent
+	if err := json.NewDecoder(r.Body).Decode(&agent); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	svc := claudeconfig.NewAgentService(s.getProjectRoot())
+	if err := svc.Update(name, agent); err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Return updated agent
+	updated, _ := svc.Get(agent.Name)
 	if updated == nil {
 		updated, _ = svc.Get(name)
 	}
 	s.jsonResponse(w, updated)
 }
 
-// handleDeleteSkill deletes a skill.
-func (s *Server) handleDeleteSkill(w http.ResponseWriter, r *http.Request) {
+// handleDeleteAgent deletes an agent.
+func (s *Server) handleDeleteAgent(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	svc := skills.DefaultService()
+	svc := claudeconfig.NewAgentService(s.getProjectRoot())
 
 	if err := svc.Delete(name); err != nil {
 		s.jsonError(w, err.Error(), http.StatusNotFound)
@@ -1295,4 +1594,150 @@ func (s *Server) handleDeleteSkill(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// === Scripts Handlers ===
+
+// handleListScripts returns all registered scripts.
+func (s *Server) handleListScripts(w http.ResponseWriter, r *http.Request) {
+	svc := claudeconfig.NewScriptService(s.getProjectRoot())
+	scripts, err := svc.List()
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to list scripts: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, scripts)
+}
+
+// handleGetScript returns a specific script by name.
+func (s *Server) handleGetScript(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	svc := claudeconfig.NewScriptService(s.getProjectRoot())
+
+	script, err := svc.Get(name)
+	if err != nil {
+		s.jsonError(w, "script not found", http.StatusNotFound)
+		return
+	}
+
+	s.jsonResponse(w, script)
+}
+
+// handleCreateScript registers a new script.
+func (s *Server) handleCreateScript(w http.ResponseWriter, r *http.Request) {
+	var script claudeconfig.ProjectScript
+	if err := json.NewDecoder(r.Body).Decode(&script); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	svc := claudeconfig.NewScriptService(s.getProjectRoot())
+	if err := svc.Create(script); err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	s.jsonResponse(w, script)
+}
+
+// handleUpdateScript updates an existing script registration.
+func (s *Server) handleUpdateScript(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+
+	var script claudeconfig.ProjectScript
+	if err := json.NewDecoder(r.Body).Decode(&script); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	svc := claudeconfig.NewScriptService(s.getProjectRoot())
+	if err := svc.Update(name, script); err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Return updated script
+	updated, _ := svc.Get(script.Name)
+	if updated == nil {
+		updated, _ = svc.Get(name)
+	}
+	s.jsonResponse(w, updated)
+}
+
+// handleDeleteScript removes a script registration.
+func (s *Server) handleDeleteScript(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	svc := claudeconfig.NewScriptService(s.getProjectRoot())
+
+	if err := svc.Delete(name); err != nil {
+		s.jsonError(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleDiscoverScripts auto-discovers scripts in .claude/scripts/.
+func (s *Server) handleDiscoverScripts(w http.ResponseWriter, r *http.Request) {
+	svc := claudeconfig.NewScriptService(s.getProjectRoot())
+	discovered, err := svc.Discover()
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to discover scripts: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return discovered scripts (not yet registered)
+	s.jsonResponse(w, discovered)
+}
+
+// === CLAUDE.md Handlers ===
+
+// handleGetClaudeMD returns the project CLAUDE.md content.
+func (s *Server) handleGetClaudeMD(w http.ResponseWriter, r *http.Request) {
+	claudeMD, err := claudeconfig.LoadProjectClaudeMD(s.getProjectRoot())
+	if err != nil {
+		s.jsonError(w, "CLAUDE.md not found", http.StatusNotFound)
+		return
+	}
+
+	s.jsonResponse(w, claudeMD)
+}
+
+// handleUpdateClaudeMD saves the project CLAUDE.md.
+func (s *Server) handleUpdateClaudeMD(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	projectRoot := s.getProjectRoot()
+	if err := claudeconfig.SaveProjectClaudeMD(projectRoot, req.Content); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to save CLAUDE.md: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the saved content as a ClaudeMD response
+	claudeMD := &claudeconfig.ClaudeMD{
+		Path:    filepath.Join(projectRoot, "CLAUDE.md"),
+		Content: req.Content,
+		Source:  "project",
+	}
+
+	s.jsonResponse(w, claudeMD)
+}
+
+// handleGetClaudeMDHierarchy returns the full CLAUDE.md inheritance chain.
+func (s *Server) handleGetClaudeMDHierarchy(w http.ResponseWriter, r *http.Request) {
+	hierarchy, err := claudeconfig.LoadClaudeMDHierarchy(s.getProjectRoot())
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to load hierarchy: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, hierarchy)
 }
