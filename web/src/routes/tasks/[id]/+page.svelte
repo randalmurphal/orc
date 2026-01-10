@@ -17,9 +17,10 @@
 	let connectionStatus = $state<ConnectionStatus>('disconnected');
 	let unsubscribe: (() => void) | null = null;
 
-	const taskId = $derived($page.params.id);
+	const taskId = $derived($page.params.id ?? '');
 
 	onMount(async () => {
+		if (!taskId) return;
 		await loadTaskData();
 		setupStreaming();
 	});
