@@ -110,6 +110,11 @@ func (s *Service) List() ([]HookInfo, error) {
 		return hooks[i].Name < hooks[j].Name
 	})
 
+	// Ensure we return an empty array, not null
+	if hooks == nil {
+		hooks = []HookInfo{}
+	}
+
 	return hooks, nil
 }
 

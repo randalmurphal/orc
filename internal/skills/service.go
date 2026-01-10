@@ -92,6 +92,11 @@ func (s *Service) List() ([]SkillInfo, error) {
 		return skills[i].Name < skills[j].Name
 	})
 
+	// Ensure we return an empty array, not null
+	if skills == nil {
+		skills = []SkillInfo{}
+	}
+
 	return skills, nil
 }
 
