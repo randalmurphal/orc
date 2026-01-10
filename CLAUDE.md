@@ -232,6 +232,15 @@ make e2e            # Run Playwright tests
 | GET | `/api/projects/:id` | Get project details |
 | GET | `/api/projects/:id/tasks` | List tasks for project |
 | POST | `/api/projects/:id/tasks` | Create task in project |
+| GET | `/api/projects/:id/tasks/:taskId` | Get specific task |
+| DELETE | `/api/projects/:id/tasks/:taskId` | Delete task |
+| POST | `/api/projects/:id/tasks/:taskId/run` | Start task execution |
+| POST | `/api/projects/:id/tasks/:taskId/pause` | Pause running task |
+| POST | `/api/projects/:id/tasks/:taskId/resume` | Resume paused task |
+| POST | `/api/projects/:id/tasks/:taskId/rewind` | Rewind to phase (body: {phase}) |
+| GET | `/api/projects/:id/tasks/:taskId/state` | Get task state |
+| GET | `/api/projects/:id/tasks/:taskId/plan` | Get task plan |
+| GET | `/api/projects/:id/tasks/:taskId/transcripts` | Get task transcripts |
 
 ### Tasks
 | Method | Endpoint | Description |
