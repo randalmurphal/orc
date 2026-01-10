@@ -27,20 +27,26 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/config" | "/hooks" | "/prompts" | "/skills" | "/tasks" | "/tasks/[id]";
+		RouteId(): "/" | "/agents" | "/claudemd" | "/config" | "/hooks" | "/mcp" | "/prompts" | "/scripts" | "/settings" | "/skills" | "/tasks" | "/tasks/[id]" | "/tools";
 		RouteParams(): {
 			"/tasks/[id]": { id: string }
 		};
 		LayoutParams(): {
 			"/": { id?: string };
+			"/agents": Record<string, never>;
+			"/claudemd": Record<string, never>;
 			"/config": Record<string, never>;
 			"/hooks": Record<string, never>;
+			"/mcp": Record<string, never>;
 			"/prompts": Record<string, never>;
+			"/scripts": Record<string, never>;
+			"/settings": Record<string, never>;
 			"/skills": Record<string, never>;
 			"/tasks": { id?: string };
-			"/tasks/[id]": { id: string }
+			"/tasks/[id]": { id: string };
+			"/tools": Record<string, never>
 		};
-		Pathname(): "/" | "/config" | "/config/" | "/hooks" | "/hooks/" | "/prompts" | "/prompts/" | "/skills" | "/skills/" | "/tasks" | "/tasks/" | `/tasks/${string}` & {} | `/tasks/${string}/` & {};
+		Pathname(): "/" | "/agents" | "/agents/" | "/claudemd" | "/claudemd/" | "/config" | "/config/" | "/hooks" | "/hooks/" | "/mcp" | "/mcp/" | "/prompts" | "/prompts/" | "/scripts" | "/scripts/" | "/settings" | "/settings/" | "/skills" | "/skills/" | "/tasks" | "/tasks/" | `/tasks/${string}` & {} | `/tasks/${string}/` & {} | "/tools" | "/tools/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): string & {};
 	}

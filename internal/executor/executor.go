@@ -142,8 +142,9 @@ type Executor struct {
 	publisher       events.Publisher
 
 	// Runtime state for current task
-	worktreePath string   // Path to worktree if enabled
-	worktreeGit  *git.Git // Git operations for worktree
+	worktreePath   string   // Path to worktree if enabled
+	worktreeGit    *git.Git // Git operations for worktree
+	currentTaskDir string   // Directory for current task's files
 }
 
 // New creates a new executor with the given configuration.
@@ -224,6 +225,11 @@ func NewWithConfig(cfg *Config, orcCfg *config.Config) *Executor {
 // SetPublisher sets the event publisher for real-time updates.
 func (e *Executor) SetPublisher(p events.Publisher) {
 	e.publisher = p
+}
+
+// taskDir returns the directory for a task's files.
+func (e *Executor) taskDir(taskID string) string {
+	return filepath.Join(e.config.WorkDir, ".orc", "tasks", taskID)
 }
 
 // SetClient sets the Claude client (for testing).
@@ -624,7 +630,7 @@ func (e *Executor) commitCheckpointNode() flowgraph.NodeFunc[PhaseState] {
 
 // saveTranscript saves the prompt/response for this iteration.
 func (e *Executor) saveTranscript(s PhaseState) error {
-	dir := filepath.Join(".orc", "tasks", s.TaskID, "transcripts")
+	dir := filepath.Join(e.config.WorkDir, ".orc", "tasks", s.TaskID, "transcripts")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
@@ -655,11 +661,14 @@ Blocked: %v
 
 // ExecuteTask runs all phases of a task with gate evaluation and cross-phase retry.
 func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, s *state.State) error {
+	// Set current task directory for saving files
+	e.currentTaskDir = e.taskDir(t.ID)
+
 	// Update task status
 	t.Status = task.StatusRunning
 	now := time.Now()
 	t.StartedAt = &now
-	if err := t.Save(); err != nil {
+	if err := t.SaveTo(e.currentTaskDir); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 
@@ -728,7 +737,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 
 		// Start phase
 		s.StartPhase(phase.ID)
-		if err := s.Save(); err != nil {
+		if err := s.SaveTo(e.currentTaskDir); err != nil {
 			return fmt.Errorf("save state: %w", err)
 		}
 
@@ -744,7 +753,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			// Check for context cancellation (interrupt)
 			if ctx.Err() != nil {
 				s.InterruptPhase(phase.ID)
-				s.Save()
+				s.SaveTo(e.currentTaskDir)
 				return ctx.Err()
 			}
 
@@ -785,15 +794,15 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 						break
 					}
 				}
-				s.Save()
+				s.SaveTo(e.currentTaskDir)
 				continue
 			}
 
 			// No retry available, fail the task
 			s.FailPhase(phase.ID, err)
-			s.Save()
+			s.SaveTo(e.currentTaskDir)
 			t.Status = task.StatusFailed
-			t.Save()
+			t.SaveTo(e.currentTaskDir)
 
 			// Publish failure events
 			e.publishPhaseFailed(t.ID, phase.ID, err)
@@ -814,10 +823,10 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		}
 
 		// Save state and plan
-		if err := s.Save(); err != nil {
+		if err := s.SaveTo(e.currentTaskDir); err != nil {
 			return fmt.Errorf("save state: %w", err)
 		}
-		if err := p.Save(t.ID); err != nil {
+		if err := p.SaveTo(e.currentTaskDir); err != nil {
 			return fmt.Errorf("save plan: %w", err)
 		}
 
@@ -865,7 +874,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 							break
 						}
 					}
-					s.Save()
+					s.SaveTo(e.currentTaskDir)
 					continue
 				}
 
@@ -885,12 +894,12 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 
 	// Complete task
 	s.Complete()
-	s.Save()
+	s.SaveTo(e.currentTaskDir)
 
 	t.Status = task.StatusCompleted
 	completedAt := time.Now()
 	t.CompletedAt = &completedAt
-	t.Save()
+	t.SaveTo(e.currentTaskDir)
 
 	// Run completion action (merge/PR)
 	if err := e.runCompletion(ctx, t); err != nil {
@@ -961,7 +970,7 @@ func (e *Executor) ResumeFromPhase(ctx context.Context, t *task.Task, p *plan.Pl
 
 // saveRetryContextFile saves detailed retry context to a markdown file.
 func (e *Executor) saveRetryContextFile(taskID, fromPhase, toPhase, reason, output string, attempt int) (string, error) {
-	dir := filepath.Join(".orc", "tasks", taskID)
+	dir := filepath.Join(e.config.WorkDir, ".orc", "tasks", taskID)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", err
 	}
@@ -1027,7 +1036,7 @@ Focus on fixing the root cause of these issues in this phase.
 	return context
 }
 
-// setupWorktree creates an isolated worktree for the task.
+// setupWorktree creates or reuses an isolated worktree for the task.
 func (e *Executor) setupWorktree(taskID string) (string, error) {
 	if e.gitOps == nil {
 		return "", fmt.Errorf("git operations not available")
@@ -1036,6 +1045,14 @@ func (e *Executor) setupWorktree(taskID string) (string, error) {
 	targetBranch := e.orcConfig.Completion.TargetBranch
 	if targetBranch == "" {
 		targetBranch = "main"
+	}
+
+	// Check if worktree already exists
+	worktreePath := e.gitOps.WorktreePath(taskID)
+	if _, err := os.Stat(worktreePath); err == nil {
+		// Worktree exists, reuse it
+		e.logger.Info("reusing existing worktree", "task", taskID, "path", worktreePath)
+		return worktreePath, nil
 	}
 
 	return e.gitOps.CreateWorktree(taskID, targetBranch)
@@ -1199,7 +1216,7 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 			t.Metadata = make(map[string]string)
 		}
 		t.Metadata["pr_url"] = prURL
-		t.Save()
+		t.SaveTo(e.currentTaskDir)
 	}
 
 	e.logger.Info("created pull request", "task", t.ID, "url", prURL)

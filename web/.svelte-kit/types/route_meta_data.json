@@ -1,8 +1,14 @@
 {
 	"/": [],
+	"/agents": [],
+	"/claudemd": [],
 	"/config": [],
 	"/hooks": [],
+	"/mcp": [],
 	"/prompts": [],
+	"/scripts": [],
+	"/settings": [],
 	"/skills": [],
-	"/tasks/[id]": []
+	"/tasks/[id]": [],
+	"/tools": []
 }
