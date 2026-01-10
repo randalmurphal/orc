@@ -60,6 +60,7 @@ declare module '$env/static/private' {
 	export const npm_config_local_prefix: string;
 	export const WEZTERM_EXECUTABLE: string;
 	export const XMODIFIERS: string;
+	export const PLAYWRIGHT_TEST: string;
 	export const DESKTOP_SESSION: string;
 	export const SSH_AGENT_PID: string;
 	export const __ETC_PROFILE_NIX_SOURCED: string;
@@ -79,12 +80,15 @@ declare module '$env/static/private' {
 	export const NIX_PATH: string;
 	export const npm_config_init_module: string;
 	export const SYSTEMD_EXEC_PID: string;
+	export const VIPSHOME: string;
+	export const _: string;
 	export const XAUTHORITY: string;
 	export const DESKTOP_STARTUP_ID: string;
 	export const NoDefaultCurrentDirectoryInExePath: string;
 	export const LS_OPTIONS: string;
 	export const FZF_DEFAULT_COMMAND: string;
 	export const REPOS_PATH: string;
+	export const DEBUG_COLORS: string;
 	export const CLAUDECODE: string;
 	export const ZSH_TMUX_CONFIG: string;
 	export const XKEYSYMDB: string;
@@ -103,6 +107,7 @@ declare module '$env/static/private' {
 	export const SSL_CERT_DIR: string;
 	export const NIX_SSL_CERT_FILE: string;
 	export const VIRTUAL_ENV_DISABLE_PROMPT: string;
+	export const FORCE_COLOR: string;
 	export const OSTYPE: string;
 	export const XDG_SEAT_PATH: string;
 	export const QT_IM_SWITCHER: string;
@@ -159,6 +164,7 @@ declare module '$env/static/private' {
 	export const MANPATHISSET: string;
 	export const XDG_DATA_DIRS: string;
 	export const KDE_FULL_SESSION: string;
+	export const BROWSER: string;
 	export const npm_config_noproxy: string;
 	export const CONFIG_SITE: string;
 	export const VENDOR: string;
@@ -177,7 +183,6 @@ declare module '$env/static/private' {
 	export const OLDPWD: string;
 	export const TERM_PROGRAM: string;
 	export const WEZTERM_EXECUTABLE_DIR: string;
-	export const _: string;
 	export const NODE_ENV: string;
 }
 
@@ -242,6 +247,7 @@ declare module '$env/dynamic/private' {
 		npm_config_local_prefix: string;
 		WEZTERM_EXECUTABLE: string;
 		XMODIFIERS: string;
+		PLAYWRIGHT_TEST: string;
 		DESKTOP_SESSION: string;
 		SSH_AGENT_PID: string;
 		__ETC_PROFILE_NIX_SOURCED: string;
@@ -261,12 +267,15 @@ declare module '$env/dynamic/private' {
 		NIX_PATH: string;
 		npm_config_init_module: string;
 		SYSTEMD_EXEC_PID: string;
+		VIPSHOME: string;
+		_: string;
 		XAUTHORITY: string;
 		DESKTOP_STARTUP_ID: string;
 		NoDefaultCurrentDirectoryInExePath: string;
 		LS_OPTIONS: string;
 		FZF_DEFAULT_COMMAND: string;
 		REPOS_PATH: string;
+		DEBUG_COLORS: string;
 		CLAUDECODE: string;
 		ZSH_TMUX_CONFIG: string;
 		XKEYSYMDB: string;
@@ -285,6 +294,7 @@ declare module '$env/dynamic/private' {
 		SSL_CERT_DIR: string;
 		NIX_SSL_CERT_FILE: string;
 		VIRTUAL_ENV_DISABLE_PROMPT: string;
+		FORCE_COLOR: string;
 		OSTYPE: string;
 		XDG_SEAT_PATH: string;
 		QT_IM_SWITCHER: string;
@@ -341,6 +351,7 @@ declare module '$env/dynamic/private' {
 		MANPATHISSET: string;
 		XDG_DATA_DIRS: string;
 		KDE_FULL_SESSION: string;
+		BROWSER: string;
 		npm_config_noproxy: string;
 		CONFIG_SITE: string;
 		VENDOR: string;
@@ -359,7 +370,6 @@ declare module '$env/dynamic/private' {
 		OLDPWD: string;
 		TERM_PROGRAM: string;
 		WEZTERM_EXECUTABLE_DIR: string;
-		_: string;
 		NODE_ENV: string;
 		[key: `PUBLIC_${string}`]: undefined;
 		[key: `${string}`]: string | undefined;
