@@ -136,6 +136,11 @@ func Load(taskID string) (*State, error) {
 // Save persists the state to disk.
 func (s *State) Save() error {
 	dir := filepath.Join(task.OrcDir, task.TasksDir, s.TaskID)
+	return s.SaveTo(dir)
+}
+
+// SaveTo persists the state to a specific directory.
+func (s *State) SaveTo(dir string) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("create task directory: %w", err)
 	}
