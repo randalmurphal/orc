@@ -344,6 +344,11 @@ Example:
 			err = exec.ExecuteTask(ctx, t, p, s)
 			if err != nil {
 				if ctx.Err() != nil {
+					// Update task and state status for clean interrupt
+					s.InterruptPhase(s.CurrentPhase)
+					s.Save()
+					t.Status = task.StatusBlocked
+					t.Save()
 					disp.TaskInterrupted()
 					return nil // Clean interrupt
 				}
@@ -911,6 +916,160 @@ Example:
 			return nil
 		},
 	}
+}
+
+// newSkipCmd creates the skip command
+func newSkipCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "skip <task-id> --phase <phase>",
+		Short: "Skip a phase",
+		Long: `Skip a phase without executing it.
+
+Creates an audit entry and advances to the next phase.
+Use when you know a phase is not needed for this task.
+
+Example:
+  orc skip TASK-001 --phase research --reason "already have spec"
+  orc skip TASK-001 --phase test --reason "no testable changes"`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := config.RequireInit(); err != nil {
+				return err
+			}
+
+			id := args[0]
+			phaseID, _ := cmd.Flags().GetString("phase")
+			reason, _ := cmd.Flags().GetString("reason")
+
+			if phaseID == "" {
+				return fmt.Errorf("--phase flag is required")
+			}
+
+			// Load plan
+			p, err := plan.Load(id)
+			if err != nil {
+				return fmt.Errorf("load plan: %w", err)
+			}
+
+			// Find and skip the phase
+			phase := p.GetPhase(phaseID)
+			if phase == nil {
+				return fmt.Errorf("phase %s not found", phaseID)
+			}
+
+			if phase.Status == plan.PhaseCompleted {
+				return fmt.Errorf("phase %s is already completed", phaseID)
+			}
+
+			phase.Status = plan.PhaseSkipped
+
+			// Save plan
+			if err := p.Save(id); err != nil {
+				return fmt.Errorf("save plan: %w", err)
+			}
+
+			// Load and update state
+			s, err := state.Load(id)
+			if err == nil && s != nil {
+				s.SkipPhase(phaseID, reason)
+				s.Save()
+			}
+
+			fmt.Printf("⊘ Phase %s skipped", phaseID)
+			if reason != "" {
+				fmt.Printf(": %s", reason)
+			}
+			fmt.Println()
+			fmt.Printf("   Run: orc run %s to continue\n", id)
+			return nil
+		},
+	}
+	cmd.Flags().String("phase", "", "phase to skip (required)")
+	cmd.Flags().StringP("reason", "r", "", "reason for skipping")
+	cmd.MarkFlagRequired("phase")
+	return cmd
+}
+
+// newCleanupCmd creates the cleanup command
+func newCleanupCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "cleanup",
+		Short: "Remove completed task branches and data",
+		Long: `Remove completed task branches and worktrees.
+
+By default, only removes completed tasks. Use --all to remove all tasks.
+
+Example:
+  orc cleanup                    # Remove completed task branches
+  orc cleanup --all              # Remove all task branches
+  orc cleanup --older-than 7d    # Remove branches older than 7 days
+  orc cleanup --dry-run          # Show what would be removed`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := config.RequireInit(); err != nil {
+				return err
+			}
+
+			all, _ := cmd.Flags().GetBool("all")
+			olderThan, _ := cmd.Flags().GetString("older-than")
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+
+			tasks, err := task.LoadAll()
+			if err != nil {
+				return fmt.Errorf("load tasks: %w", err)
+			}
+
+			var toClean []*task.Task
+			for _, t := range tasks {
+				// Filter by status
+				if !all && t.Status != task.StatusCompleted {
+					continue
+				}
+
+				// Filter by age
+				if olderThan != "" {
+					duration, err := time.ParseDuration(olderThan)
+					if err != nil {
+						return fmt.Errorf("invalid duration: %w", err)
+					}
+					if time.Since(t.CreatedAt) < duration {
+						continue
+					}
+				}
+
+				toClean = append(toClean, t)
+			}
+
+			if len(toClean) == 0 {
+				fmt.Println("No tasks to clean up")
+				return nil
+			}
+
+			if dryRun {
+				fmt.Println("Would remove the following tasks:")
+				for _, t := range toClean {
+					fmt.Printf("  %s - %s (%s)\n", t.ID, t.Title, t.Status)
+				}
+				return nil
+			}
+
+			fmt.Printf("Cleaning up %d task(s)...\n", len(toClean))
+			for _, t := range toClean {
+				// Remove task directory
+				taskDir := task.TaskDir(t.ID)
+				if err := os.RemoveAll(taskDir); err != nil {
+					fmt.Printf("  ⚠️  Failed to remove %s: %v\n", t.ID, err)
+					continue
+				}
+				fmt.Printf("  ✅ Removed %s\n", t.ID)
+			}
+
+			return nil
+		},
+	}
+	cmd.Flags().BoolP("all", "a", false, "remove all task branches")
+	cmd.Flags().String("older-than", "", "remove tasks older than duration (e.g., 7d)")
+	cmd.Flags().Bool("dry-run", false, "show what would be removed")
+	return cmd
 }
 
 // newVersionCmd creates the version command

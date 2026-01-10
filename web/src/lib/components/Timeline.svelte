@@ -10,14 +10,14 @@
 	let { phases, currentPhase, state }: Props = $props();
 
 	function getPhaseStatus(phaseId: string): string {
-		if (state?.phases[phaseId]) {
+		if (state?.phases && state.phases[phaseId]) {
 			return state.phases[phaseId].status;
 		}
 		return 'pending';
 	}
 
 	function getPhaseIterations(phaseId: string): number {
-		return state?.phases[phaseId]?.iterations || 0;
+		return state?.phases?.[phaseId]?.iterations || 0;
 	}
 
 	const statusIcons: Record<string, string> = {
@@ -58,7 +58,7 @@
 						<span class="phase-iterations">{iterations} iteration{iterations !== 1 ? 's' : ''}</span>
 					{/if}
 				</div>
-				{#if state?.phases[phase.id]?.error}
+				{#if state?.phases?.[phase.id]?.error}
 					<div class="phase-error">{state.phases[phase.id].error}</div>
 				{/if}
 			</div>

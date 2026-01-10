@@ -7,9 +7,13 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
@@ -52,10 +56,16 @@ func New(cfg *Config) *Server {
 		cfg = DefaultConfig()
 	}
 
+	// Ensure logger is never nil
+	logger := cfg.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	s := &Server{
 		addr:        cfg.Addr,
 		mux:         http.NewServeMux(),
-		logger:      cfg.Logger,
+		logger:      logger,
 		subscribers: make(map[string][]chan Event),
 	}
 
@@ -91,6 +101,7 @@ func (s *Server) registerRoutes() {
 	// Task state and plan
 	s.mux.HandleFunc("GET /api/tasks/{id}/state", cors(s.handleGetState))
 	s.mux.HandleFunc("GET /api/tasks/{id}/plan", cors(s.handleGetPlan))
+	s.mux.HandleFunc("GET /api/tasks/{id}/transcripts", cors(s.handleGetTranscripts))
 
 	// Task control
 	s.mux.HandleFunc("POST /api/tasks/{id}/run", cors(s.handleRunTask))
@@ -155,6 +166,11 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ensure we return an empty array, not null
+	if tasks == nil {
+		tasks = []*task.Task{}
+	}
+
 	s.jsonResponse(w, tasks)
 }
 
@@ -186,10 +202,41 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	t.Description = req.Description
 	if req.Weight != "" {
 		t.Weight = task.Weight(req.Weight)
+	} else {
+		// Default to medium if not specified
+		t.Weight = task.WeightMedium
 	}
 
 	if err := t.Save(); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
+		return
+	}
+
+	// Create plan from template
+	p, err := plan.CreateFromTemplate(t)
+	if err != nil {
+		// If template not found, use default plan
+		p = &plan.Plan{
+			Version:     1,
+			TaskID:      id,
+			Weight:      t.Weight,
+			Description: "Default plan",
+			Phases: []plan.Phase{
+				{ID: "implement", Name: "implement", Gate: plan.Gate{Type: plan.GateAuto}, Status: plan.PhasePending},
+			},
+		}
+	}
+
+	// Save plan
+	if err := p.Save(id); err != nil {
+		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
+		return
+	}
+
+	// Update task status to planned
+	t.Status = task.StatusPlanned
+	if err := t.Save(); err != nil {
+		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}
 
@@ -239,6 +286,52 @@ func (s *Server) handleGetPlan(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, p)
 }
 
+// handleGetTranscripts returns task transcript files.
+func (s *Server) handleGetTranscripts(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	// Verify task exists
+	if !task.Exists(id) {
+		s.jsonError(w, "task not found", http.StatusNotFound)
+		return
+	}
+
+	// Read transcript files
+	transcriptsDir := task.TaskDir(id) + "/transcripts"
+	entries, err := os.ReadDir(transcriptsDir)
+	if err != nil {
+		// No transcripts yet is OK
+		s.jsonResponse(w, []map[string]interface{}{})
+		return
+	}
+
+	var transcripts []map[string]interface{}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+
+		content, err := os.ReadFile(transcriptsDir + "/" + entry.Name())
+		if err != nil {
+			continue
+		}
+
+		info, _ := entry.Info()
+		transcripts = append(transcripts, map[string]interface{}{
+			"filename":   entry.Name(),
+			"content":    string(content),
+			"created_at": info.ModTime(),
+		})
+	}
+
+	// Ensure we return an empty array, not null
+	if transcripts == nil {
+		transcripts = []map[string]interface{}{}
+	}
+
+	s.jsonResponse(w, transcripts)
+}
+
 // handleRunTask starts task execution.
 func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -253,15 +346,39 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Start execution in background goroutine
-	// For now, just update status
-	t.Status = task.StatusRunning
-	now := time.Now()
-	t.StartedAt = &now
-	if err := t.Save(); err != nil {
-		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
+	// Load plan and state
+	p, err := plan.Load(id)
+	if err != nil {
+		s.jsonError(w, "plan not found", http.StatusNotFound)
 		return
 	}
+
+	st, err := state.Load(id)
+	if err != nil {
+		// Create new state if it doesn't exist
+		st = state.New(id)
+	}
+
+	// Start execution in background goroutine
+	go func() {
+		ctx := context.Background()
+		exec := executor.New(executor.DefaultConfig())
+
+		// Execute with SSE publishing
+		err := exec.ExecuteTask(ctx, t, p, st)
+		if err != nil {
+			s.logger.Error("task execution failed", "task", id, "error", err)
+			s.Publish(id, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
+		} else {
+			s.logger.Info("task execution completed", "task", id)
+			s.Publish(id, Event{Type: "complete", Data: map[string]string{"status": "completed"}})
+		}
+
+		// Reload and publish final state
+		if finalState, err := state.Load(id); err == nil {
+			s.Publish(id, Event{Type: "state", Data: finalState})
+		}
+	}()
 
 	s.jsonResponse(w, map[string]string{"status": "started", "task_id": id})
 }
@@ -361,10 +478,29 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 
 // handleGetConfig returns orc configuration.
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
-	// TODO: Return actual config
-	s.jsonResponse(w, map[string]interface{}{
+	cfg, err := config.Load()
+	if err != nil {
+		cfg = config.Default()
+	}
+
+	s.jsonResponse(w, map[string]any{
 		"version": "1.0.0",
-		"profile": "auto",
+		"profile": cfg.Profile,
+		"automation": map[string]any{
+			"profile":       cfg.Profile,
+			"gates_default": cfg.Gates.DefaultType,
+			"retry_enabled": cfg.Retry.Enabled,
+			"retry_max":     cfg.Retry.MaxRetries,
+		},
+		"execution": map[string]any{
+			"model":          cfg.Model,
+			"max_iterations": cfg.MaxIterations,
+			"timeout":        cfg.Timeout.String(),
+		},
+		"git": map[string]any{
+			"branch_prefix": cfg.BranchPrefix,
+			"commit_prefix": cfg.CommitPrefix,
+		},
 	})
 }
 

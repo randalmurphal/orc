@@ -199,3 +199,76 @@ func TestSaveAndLoad(t *testing.T) {
 		t.Errorf("loaded phases = %d, want %d", len(loaded.Phases), len(p.Phases))
 	}
 }
+
+func TestPlanError(t *testing.T) {
+	// Test the planError type - verify they are non-empty strings
+	err := ErrNoTemplate
+	if err.Error() == "" {
+		t.Error("ErrNoTemplate.Error() should not be empty")
+	}
+
+	err = ErrNotFound
+	if err.Error() == "" {
+		t.Error("ErrNotFound.Error() should not be empty")
+	}
+}
+
+func TestLoadNonExistentPlan(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	// Create .orc directory but no plan
+	os.MkdirAll(tmpDir+"/.orc/tasks/TASK-999", 0755)
+
+	_, err := Load("TASK-999")
+	if err == nil {
+		t.Error("Load() should return error for non-existent plan")
+	}
+}
+
+func TestLoadTemplateAndCreateFromTemplate(t *testing.T) {
+	// Test LoadTemplate for various weights
+	weights := []task.Weight{task.WeightTrivial, task.WeightSmall, task.WeightMedium, task.WeightLarge}
+
+	for _, w := range weights {
+		t.Run(string(w), func(t *testing.T) {
+			tmpl, err := LoadTemplate(w)
+			if err != nil {
+				t.Fatalf("LoadTemplate(%s) failed: %v", w, err)
+			}
+
+			if tmpl.Weight != w {
+				t.Errorf("template weight = %s, want %s", tmpl.Weight, w)
+			}
+
+			if len(tmpl.Phases) == 0 {
+				t.Error("template has no phases")
+			}
+		})
+	}
+
+	// Test CreateFromTemplate
+	tsk := &task.Task{ID: "TASK-TEST", Weight: task.WeightSmall}
+	plan, err := CreateFromTemplate(tsk)
+	if err != nil {
+		t.Fatalf("CreateFromTemplate() failed: %v", err)
+	}
+
+	if plan.TaskID != "TASK-TEST" {
+		t.Errorf("plan.TaskID = %s, want TASK-TEST", plan.TaskID)
+	}
+
+	if plan.Weight != task.WeightSmall {
+		t.Errorf("plan.Weight = %s, want small", plan.Weight)
+	}
+}
+
+func TestLoadTemplateInvalidWeight(t *testing.T) {
+	_, err := LoadTemplate("nonexistent")
+	if err == nil {
+		t.Error("LoadTemplate should return error for invalid weight")
+	}
+}

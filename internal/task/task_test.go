@@ -211,3 +211,121 @@ func TestLoadAll(t *testing.T) {
 		t.Errorf("tasks not sorted correctly: first task is %s, want TASK-002", tasks[0].ID)
 	}
 }
+
+func TestExists(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	if err != nil {
+		t.Fatalf("failed to create test directory: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	// Non-existent task
+	if Exists("TASK-999") {
+		t.Error("Exists() = true for non-existent task")
+	}
+
+	// Create task
+	task := New("TASK-001", "Test task")
+	task.Save()
+
+	// Existing task
+	if !Exists("TASK-001") {
+		t.Error("Exists() = false for existing task")
+	}
+}
+
+func TestLoadNonExistentTask(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	if err != nil {
+		t.Fatalf("failed to create test directory: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	_, err = Load("TASK-999")
+	if err == nil {
+		t.Error("Load() should return error for non-existent task")
+	}
+}
+
+func TestLoadAllEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	// No .orc directory at all
+	tasks, err := LoadAll()
+	if err != nil {
+		t.Fatalf("LoadAll() on empty dir should not error: %v", err)
+	}
+	if tasks != nil && len(tasks) != 0 {
+		t.Error("LoadAll() on empty dir should return nil/empty")
+	}
+}
+
+func TestLoadAllSkipsNonDirs(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	if err != nil {
+		t.Fatalf("failed to create test directory: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	// Create a regular file in tasks directory (should be skipped)
+	os.WriteFile(tmpDir+"/.orc/tasks/.gitkeep", []byte(""), 0644)
+
+	// Create a valid task
+	task := New("TASK-001", "Test task")
+	task.Save()
+
+	tasks, err := LoadAll()
+	if err != nil {
+		t.Fatalf("LoadAll() failed: %v", err)
+	}
+
+	// Should only have the valid task, not the .gitkeep file
+	if len(tasks) != 1 {
+		t.Errorf("LoadAll() returned %d tasks, want 1", len(tasks))
+	}
+}
+
+func TestNextIDWithGaps(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	if err != nil {
+		t.Fatalf("failed to create test directory: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	// Create TASK-001 and TASK-003 (gap at 002)
+	os.MkdirAll(tmpDir+"/.orc/tasks/TASK-001", 0755)
+	os.MkdirAll(tmpDir+"/.orc/tasks/TASK-003", 0755)
+
+	// NextID should give TASK-004 (highest + 1)
+	id, err := NextID()
+	if err != nil {
+		t.Fatalf("NextID() failed: %v", err)
+	}
+	if id != "TASK-004" {
+		t.Errorf("NextID() = %s, want TASK-004", id)
+	}
+}

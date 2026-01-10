@@ -37,12 +37,16 @@ func SetupSignalHandler() (context.Context, context.CancelFunc) {
 // GracefulShutdown saves current state before exit
 func GracefulShutdown(t *task.Task, s *state.State, phase string) error {
 	// Mark phase as interrupted (not failed - can be resumed)
-	if ps := s.Phases[phase]; ps != nil {
-		ps.Status = state.StatusInterrupted
-	}
+	s.InterruptPhase(phase)
 
 	if err := s.Save(); err != nil {
 		return fmt.Errorf("save state on interrupt: %w", err)
+	}
+
+	// Update task status to interrupted so it can be resumed
+	t.Status = task.StatusBlocked
+	if err := t.Save(); err != nil {
+		return fmt.Errorf("save task on interrupt: %w", err)
 	}
 
 	fmt.Printf("✅ State saved. Resume with: orc resume %s\n", t.ID)

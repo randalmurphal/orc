@@ -26,44 +26,45 @@ const (
 	StatusFailed      Status = "failed"
 	StatusPaused      Status = "paused"
 	StatusInterrupted Status = "interrupted"
+	StatusSkipped     Status = "skipped"
 )
 
 // State represents the execution state of a task.
 type State struct {
-	TaskID           string                 `yaml:"task_id"`
-	CurrentPhase     string                 `yaml:"current_phase"`
-	CurrentIteration int                    `yaml:"current_iteration"`
-	Status           Status                 `yaml:"status"`
-	StartedAt        time.Time              `yaml:"started_at"`
-	UpdatedAt        time.Time              `yaml:"updated_at"`
-	CompletedAt      *time.Time             `yaml:"completed_at,omitempty"`
-	Phases           map[string]*PhaseState `yaml:"phases"`
-	Gates            []GateDecision         `yaml:"gates,omitempty"`
-	Tokens           TokenUsage             `yaml:"tokens"`
-	Error            string                 `yaml:"error,omitempty"`
-	RetryContext     *RetryContext          `yaml:"retry_context,omitempty"`
+	TaskID           string                 `yaml:"task_id" json:"task_id"`
+	CurrentPhase     string                 `yaml:"current_phase" json:"current_phase"`
+	CurrentIteration int                    `yaml:"current_iteration" json:"current_iteration"`
+	Status           Status                 `yaml:"status" json:"status"`
+	StartedAt        time.Time              `yaml:"started_at" json:"started_at"`
+	UpdatedAt        time.Time              `yaml:"updated_at" json:"updated_at"`
+	CompletedAt      *time.Time             `yaml:"completed_at,omitempty" json:"completed_at,omitempty"`
+	Phases           map[string]*PhaseState `yaml:"phases" json:"phases"`
+	Gates            []GateDecision         `yaml:"gates,omitempty" json:"gates,omitempty"`
+	Tokens           TokenUsage             `yaml:"tokens" json:"tokens"`
+	Error            string                 `yaml:"error,omitempty" json:"error,omitempty"`
+	RetryContext     *RetryContext          `yaml:"retry_context,omitempty" json:"retry_context,omitempty"`
 }
 
 // PhaseState represents the state of a single phase.
 type PhaseState struct {
-	Status        Status     `yaml:"status"`
-	StartedAt     time.Time  `yaml:"started_at,omitempty"`
-	CompletedAt   *time.Time `yaml:"completed_at,omitempty"`
-	InterruptedAt *time.Time `yaml:"interrupted_at,omitempty"`
-	Iterations    int        `yaml:"iterations"`
-	CommitSHA     string     `yaml:"commit_sha,omitempty"`
-	Artifacts     []string   `yaml:"artifacts,omitempty"`
-	Error         string     `yaml:"error,omitempty"`
-	Tokens        TokenUsage `yaml:"tokens"`
+	Status        Status     `yaml:"status" json:"status"`
+	StartedAt     time.Time  `yaml:"started_at,omitempty" json:"started_at,omitempty"`
+	CompletedAt   *time.Time `yaml:"completed_at,omitempty" json:"completed_at,omitempty"`
+	InterruptedAt *time.Time `yaml:"interrupted_at,omitempty" json:"interrupted_at,omitempty"`
+	Iterations    int        `yaml:"iterations" json:"iterations"`
+	CommitSHA     string     `yaml:"commit_sha,omitempty" json:"commit_sha,omitempty"`
+	Artifacts     []string   `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`
+	Error         string     `yaml:"error,omitempty" json:"error,omitempty"`
+	Tokens        TokenUsage `yaml:"tokens" json:"tokens"`
 }
 
 // GateDecision records a gate evaluation result.
 type GateDecision struct {
-	Phase     string    `yaml:"phase"`
-	GateType  string    `yaml:"gate_type"`
-	Approved  bool      `yaml:"approved"`
-	Reason    string    `yaml:"reason,omitempty"`
-	Timestamp time.Time `yaml:"timestamp"`
+	Phase     string    `yaml:"phase" json:"phase"`
+	GateType  string    `yaml:"gate_type" json:"gate_type"`
+	Approved  bool      `yaml:"approved" json:"approved"`
+	Reason    string    `yaml:"reason,omitempty" json:"reason,omitempty"`
+	Timestamp time.Time `yaml:"timestamp" json:"timestamp"`
 }
 
 // RetryContext captures why a phase is being retried.
@@ -86,9 +87,9 @@ type RetryContext struct {
 
 // TokenUsage tracks token consumption.
 type TokenUsage struct {
-	InputTokens  int `yaml:"input_tokens"`
-	OutputTokens int `yaml:"output_tokens"`
-	TotalTokens  int `yaml:"total_tokens"`
+	InputTokens  int `yaml:"input_tokens" json:"input_tokens"`
+	OutputTokens int `yaml:"output_tokens" json:"output_tokens"`
+	TotalTokens  int `yaml:"total_tokens" json:"total_tokens"`
 }
 
 // New creates a new state for a task.
@@ -110,8 +111,11 @@ func Load(taskID string) (*State, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Return new state if file doesn't exist
-			return New(taskID), nil
+			// Check if the task exists - if so, return empty state; otherwise error
+			if task.Exists(taskID) {
+				return New(taskID), nil
+			}
+			return nil, fmt.Errorf("task %s not found", taskID)
 		}
 		return nil, fmt.Errorf("read state for task %s: %w", taskID, err)
 	}
@@ -318,4 +322,23 @@ func (s *State) GetRetryContext() *RetryContext {
 // HasRetryContext returns true if there is an active retry context.
 func (s *State) HasRetryContext() bool {
 	return s.RetryContext != nil
+}
+
+// SkipPhase marks a phase as skipped with an optional reason.
+func (s *State) SkipPhase(phaseID string, reason string) {
+	now := time.Now()
+	s.UpdatedAt = now
+
+	if s.Phases[phaseID] == nil {
+		s.Phases[phaseID] = &PhaseState{}
+	}
+
+	s.Phases[phaseID].Status = StatusSkipped
+	s.Phases[phaseID].CompletedAt = &now
+	if reason != "" {
+		s.Phases[phaseID].Error = "skipped: " + reason
+	}
+
+	// Record as a gate decision for audit trail
+	s.RecordGateDecision(phaseID, "skip", true, reason)
 }

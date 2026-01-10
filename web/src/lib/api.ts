@@ -57,6 +57,17 @@ export async function resumeTask(id: string): Promise<{ status: string; task_id:
 	return fetchJSON(`/tasks/${id}/resume`, { method: 'POST' });
 }
 
+// Transcripts
+export interface TranscriptFile {
+	filename: string;
+	content: string;
+	created_at: string;
+}
+
+export async function getTranscripts(id: string): Promise<TranscriptFile[]> {
+	return fetchJSON<TranscriptFile[]>(`/tasks/${id}/transcripts`);
+}
+
 // SSE streaming
 export function subscribeToTask(id: string, onEvent: (event: string, data: unknown) => void): () => void {
 	const eventSource = new EventSource(`${API_BASE}/tasks/${id}/stream`);

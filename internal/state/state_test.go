@@ -253,3 +253,144 @@ func TestSaveAndLoad(t *testing.T) {
 		t.Errorf("loaded TotalTokens = %d, want %d", loaded.Tokens.TotalTokens, s.Tokens.TotalTokens)
 	}
 }
+
+func TestInterruptPhase(t *testing.T) {
+	s := New("TASK-001")
+	s.StartPhase("implement")
+	s.InterruptPhase("implement")
+
+	if s.Status != StatusInterrupted {
+		t.Errorf("Status = %s, want %s", s.Status, StatusInterrupted)
+	}
+
+	ps := s.Phases["implement"]
+	if ps.Status != StatusInterrupted {
+		t.Errorf("Phase status = %s, want %s", ps.Status, StatusInterrupted)
+	}
+
+	if ps.InterruptedAt == nil {
+		t.Error("InterruptedAt is nil")
+	}
+}
+
+func TestResetPhase(t *testing.T) {
+	s := New("TASK-001")
+	s.StartPhase("implement")
+	s.CompletePhase("implement", "abc123")
+
+	// Reset the phase
+	s.ResetPhase("implement")
+
+	ps := s.Phases["implement"]
+	if ps.Status != StatusPending {
+		t.Errorf("Phase status = %s, want %s", ps.Status, StatusPending)
+	}
+
+	// CompletedAt should be cleared
+	if ps.CompletedAt != nil {
+		t.Error("CompletedAt should be nil after reset")
+	}
+
+	// Error should be cleared
+	if ps.Error != "" {
+		t.Errorf("Error = %s, want empty", ps.Error)
+	}
+}
+
+func TestRetryContext(t *testing.T) {
+	s := New("TASK-001")
+
+	// Initially no retry context
+	if s.HasRetryContext() {
+		t.Error("HasRetryContext() = true, want false initially")
+	}
+
+	if s.GetRetryContext() != nil {
+		t.Error("GetRetryContext() != nil, want nil initially")
+	}
+
+	// Set retry context
+	s.SetRetryContext("test", "implement", "test failure", "output here", 1)
+
+	if !s.HasRetryContext() {
+		t.Error("HasRetryContext() = false after SetRetryContext")
+	}
+
+	rc := s.GetRetryContext()
+	if rc == nil {
+		t.Fatal("GetRetryContext() = nil after SetRetryContext")
+	}
+
+	if rc.FromPhase != "test" {
+		t.Errorf("FromPhase = %s, want test", rc.FromPhase)
+	}
+
+	if rc.ToPhase != "implement" {
+		t.Errorf("ToPhase = %s, want implement", rc.ToPhase)
+	}
+
+	if rc.Reason != "test failure" {
+		t.Errorf("Reason = %s, want 'test failure'", rc.Reason)
+	}
+
+	if rc.FailureOutput != "output here" {
+		t.Errorf("FailureOutput = %s, want 'output here'", rc.FailureOutput)
+	}
+
+	if rc.Attempt != 1 {
+		t.Errorf("Attempt = %d, want 1", rc.Attempt)
+	}
+
+	// Set context file
+	s.SetRetryContextFile("/path/to/context.md")
+	rc = s.GetRetryContext()
+	if rc.ContextFile != "/path/to/context.md" {
+		t.Errorf("ContextFile = %s, want /path/to/context.md", rc.ContextFile)
+	}
+
+	// Clear retry context
+	s.ClearRetryContext()
+
+	if s.HasRetryContext() {
+		t.Error("HasRetryContext() = true after ClearRetryContext")
+	}
+
+	if s.GetRetryContext() != nil {
+		t.Error("GetRetryContext() != nil after ClearRetryContext")
+	}
+}
+
+func TestSkipPhase(t *testing.T) {
+	s := New("TASK-001")
+	s.StartPhase("design")
+
+	s.SkipPhase("design", "already have design")
+
+	ps := s.Phases["design"]
+	if ps.Status != StatusSkipped {
+		t.Errorf("Phase status = %s, want %s", ps.Status, StatusSkipped)
+	}
+
+	// Skip reason is stored in Error field with "skipped: " prefix
+	expectedReason := "skipped: already have design"
+	if ps.Error != expectedReason {
+		t.Errorf("Error = %s, want %s", ps.Error, expectedReason)
+	}
+}
+
+func TestLoadNonExistentTask(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	// Create .orc directory but not the task
+	os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+
+	// Try to load non-existent task
+	_, err := Load("TASK-999")
+	if err == nil {
+		t.Error("Load() should return error for non-existent task")
+	}
+}

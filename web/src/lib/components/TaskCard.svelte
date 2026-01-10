@@ -42,6 +42,18 @@
 		if (diffDays < 7) return `${diffDays}d ago`;
 		return date.toLocaleDateString();
 	}
+
+	function handlePause(e: Event) {
+		e.stopPropagation();
+		e.preventDefault();
+		onPause?.();
+	}
+
+	function handleRun(e: Event) {
+		e.stopPropagation();
+		e.preventDefault();
+		onRun?.();
+	}
 </script>
 
 <a href="/tasks/{task.id}" class="task-card">
@@ -66,9 +78,9 @@
 	</div>
 
 	{#if task.status === 'running' && onPause}
-		<button class="control-btn" onclick|stopPropagation={onPause}>Pause</button>
+		<button class="control-btn" onclick={handlePause}>Pause</button>
 	{:else if ['created', 'planned', 'paused'].includes(task.status) && onRun}
-		<button class="control-btn primary" onclick|stopPropagation={onRun}>Run</button>
+		<button class="control-btn primary" onclick={handleRun}>Run</button>
 	{/if}
 </a>
 

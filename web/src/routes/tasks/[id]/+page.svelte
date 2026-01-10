@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
-	import { getTask, getTaskState, getTaskPlan, runTask, pauseTask, subscribeToTask } from '$lib/api';
+	import { getTask, getTaskState, getTaskPlan, runTask, pauseTask, subscribeToTask, getTranscripts } from '$lib/api';
 	import type { Task, TaskState, Plan, TranscriptLine } from '$lib/types';
 	import Timeline from '$lib/components/Timeline.svelte';
 	import Transcript from '$lib/components/Transcript.svelte';
@@ -29,19 +29,53 @@
 		loading = true;
 		error = null;
 		try {
-			const [t, s, p] = await Promise.all([
+			const [t, s, p, transcriptFiles] = await Promise.all([
 				getTask(taskId),
 				getTaskState(taskId).catch(() => null),
-				getTaskPlan(taskId).catch(() => null)
+				getTaskPlan(taskId).catch(() => null),
+				getTranscripts(taskId).catch(() => [])
 			]);
 			task = t;
 			taskState = s;
 			plan = p;
+
+			// Parse transcript files into TranscriptLine format
+			transcript = parseTranscriptFiles(transcriptFiles);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load task';
 		} finally {
 			loading = false;
 		}
+	}
+
+	function parseTranscriptFiles(files: { filename: string; content: string; created_at: string }[]): TranscriptLine[] {
+		const lines: TranscriptLine[] = [];
+
+		for (const file of files) {
+			// Parse markdown format: # phase - Iteration N, ## Prompt, ## Response
+			const parts = file.content.split(/^## /m);
+
+			for (const part of parts) {
+				if (!part.trim()) continue;
+
+				if (part.startsWith('Prompt\n')) {
+					lines.push({
+						type: 'prompt',
+						content: part.replace('Prompt\n', '').split('\n## ')[0].trim(),
+						timestamp: file.created_at
+					});
+				} else if (part.startsWith('Response\n')) {
+					const responseContent = part.replace('Response\n', '').split('\n---')[0].trim();
+					lines.push({
+						type: 'response',
+						content: responseContent,
+						timestamp: file.created_at
+					});
+				}
+			}
+		}
+
+		return lines;
 	}
 
 	function setupStreaming() {
@@ -128,20 +162,20 @@
 			</section>
 		{/if}
 
-		{#if taskState}
+		{#if taskState?.tokens}
 			<section class="section">
 				<h2>Token Usage</h2>
 				<div class="tokens">
 					<div class="token-stat">
-						<span class="token-value">{taskState.tokens.input_tokens.toLocaleString()}</span>
+						<span class="token-value">{(taskState.tokens.input_tokens || 0).toLocaleString()}</span>
 						<span class="token-label">Input</span>
 					</div>
 					<div class="token-stat">
-						<span class="token-value">{taskState.tokens.output_tokens.toLocaleString()}</span>
+						<span class="token-value">{(taskState.tokens.output_tokens || 0).toLocaleString()}</span>
 						<span class="token-label">Output</span>
 					</div>
 					<div class="token-stat">
-						<span class="token-value">{taskState.tokens.total_tokens.toLocaleString()}</span>
+						<span class="token-value">{(taskState.tokens.total_tokens || 0).toLocaleString()}</span>
 						<span class="token-label">Total</span>
 					</div>
 				</div>
