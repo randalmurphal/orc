@@ -68,6 +68,147 @@ export async function getTranscripts(id: string): Promise<TranscriptFile[]> {
 	return fetchJSON<TranscriptFile[]>(`/tasks/${id}/transcripts`);
 }
 
+// Prompts
+export interface PromptInfo {
+	phase: string;
+	source: 'project' | 'embedded' | 'inline';
+	has_override: boolean;
+	variables: string[];
+}
+
+export interface Prompt {
+	phase: string;
+	content: string;
+	source: 'project' | 'embedded' | 'inline';
+	variables: string[];
+}
+
+export async function listPrompts(): Promise<PromptInfo[]> {
+	return fetchJSON<PromptInfo[]>('/prompts');
+}
+
+export async function getPrompt(phase: string): Promise<Prompt> {
+	return fetchJSON<Prompt>(`/prompts/${phase}`);
+}
+
+export async function getPromptDefault(phase: string): Promise<Prompt> {
+	return fetchJSON<Prompt>(`/prompts/${phase}/default`);
+}
+
+export async function getPromptVariables(): Promise<Record<string, string>> {
+	return fetchJSON<Record<string, string>>('/prompts/variables');
+}
+
+export async function savePrompt(phase: string, content: string): Promise<Prompt> {
+	return fetchJSON<Prompt>(`/prompts/${phase}`, {
+		method: 'PUT',
+		body: JSON.stringify({ content })
+	});
+}
+
+export async function deletePrompt(phase: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/prompts/${phase}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+}
+
+// Hooks
+export type HookType = 'pre:tool' | 'post:tool' | 'pre:command' | 'post:command' | 'prompt:submit';
+
+export interface HookInfo {
+	name: string;
+	type: HookType;
+	pattern?: string;
+	disabled: boolean;
+}
+
+export interface Hook {
+	name: string;
+	type: HookType;
+	pattern?: string;
+	command: string;
+	timeout?: number;
+	disabled?: boolean;
+}
+
+export async function listHooks(): Promise<HookInfo[]> {
+	return fetchJSON<HookInfo[]>('/hooks');
+}
+
+export async function getHookTypes(): Promise<HookType[]> {
+	return fetchJSON<HookType[]>('/hooks/types');
+}
+
+export async function getHook(name: string): Promise<Hook> {
+	return fetchJSON<Hook>(`/hooks/${name}`);
+}
+
+export async function createHook(hook: Hook): Promise<Hook> {
+	return fetchJSON<Hook>('/hooks', {
+		method: 'POST',
+		body: JSON.stringify(hook)
+	});
+}
+
+export async function updateHook(name: string, hook: Hook): Promise<Hook> {
+	return fetchJSON<Hook>(`/hooks/${name}`, {
+		method: 'PUT',
+		body: JSON.stringify(hook)
+	});
+}
+
+export async function deleteHook(name: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/hooks/${name}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+}
+
+// Skills
+export interface SkillInfo {
+	name: string;
+	description: string;
+}
+
+export interface Skill {
+	name: string;
+	description: string;
+	prompt: string;
+}
+
+export async function listSkills(): Promise<SkillInfo[]> {
+	return fetchJSON<SkillInfo[]>('/skills');
+}
+
+export async function getSkill(name: string): Promise<Skill> {
+	return fetchJSON<Skill>(`/skills/${name}`);
+}
+
+export async function createSkill(skill: Skill): Promise<Skill> {
+	return fetchJSON<Skill>('/skills', {
+		method: 'POST',
+		body: JSON.stringify(skill)
+	});
+}
+
+export async function updateSkill(name: string, skill: Skill): Promise<Skill> {
+	return fetchJSON<Skill>(`/skills/${name}`, {
+		method: 'PUT',
+		body: JSON.stringify(skill)
+	});
+}
+
+export async function deleteSkill(name: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/skills/${name}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+}
+
 // SSE streaming
 export function subscribeToTask(id: string, onEvent: (event: string, data: unknown) => void): () => void {
 	const eventSource = new EventSource(`${API_BASE}/tasks/${id}/stream`);

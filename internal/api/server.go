@@ -13,8 +13,12 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
+	"github.com/randalmurphal/orc/internal/hooks"
 	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/prompt"
+	"github.com/randalmurphal/orc/internal/skills"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -25,9 +29,17 @@ type Server struct {
 	mux    *http.ServeMux
 	logger *slog.Logger
 
-	// SSE subscribers per task
+	// Event publisher for real-time updates
+	publisher events.Publisher
+	wsHandler *WSHandler
+
+	// SSE subscribers per task (legacy, kept for compatibility)
 	subscribers   map[string][]chan Event
 	subscribersMu sync.RWMutex
+
+	// Running tasks for cancellation
+	runningTasks   map[string]context.CancelFunc
+	runningTasksMu sync.RWMutex
 }
 
 // Event represents an SSE event.
@@ -62,12 +74,20 @@ func New(cfg *Config) *Server {
 		logger = slog.Default()
 	}
 
+	// Create event publisher
+	pub := events.NewMemoryPublisher()
+
 	s := &Server{
-		addr:        cfg.Addr,
-		mux:         http.NewServeMux(),
-		logger:      logger,
-		subscribers: make(map[string][]chan Event),
+		addr:         cfg.Addr,
+		mux:          http.NewServeMux(),
+		logger:       logger,
+		publisher:    pub,
+		subscribers:  make(map[string][]chan Event),
+		runningTasks: make(map[string]context.CancelFunc),
 	}
+
+	// Create WebSocket handler
+	s.wsHandler = NewWSHandler(pub, s, logger)
 
 	s.registerRoutes()
 	return s
@@ -108,8 +128,34 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/tasks/{id}/pause", cors(s.handlePauseTask))
 	s.mux.HandleFunc("POST /api/tasks/{id}/resume", cors(s.handleResumeTask))
 
-	// SSE streaming
+	// SSE streaming (legacy)
 	s.mux.HandleFunc("GET /api/tasks/{id}/stream", s.handleStream)
+
+	// WebSocket for real-time updates
+	s.mux.Handle("GET /api/ws", s.wsHandler)
+
+	// Prompts
+	s.mux.HandleFunc("GET /api/prompts", cors(s.handleListPrompts))
+	s.mux.HandleFunc("GET /api/prompts/variables", cors(s.handleGetPromptVariables))
+	s.mux.HandleFunc("GET /api/prompts/{phase}", cors(s.handleGetPrompt))
+	s.mux.HandleFunc("GET /api/prompts/{phase}/default", cors(s.handleGetPromptDefault))
+	s.mux.HandleFunc("PUT /api/prompts/{phase}", cors(s.handleSavePrompt))
+	s.mux.HandleFunc("DELETE /api/prompts/{phase}", cors(s.handleDeletePrompt))
+
+	// Hooks
+	s.mux.HandleFunc("GET /api/hooks", cors(s.handleListHooks))
+	s.mux.HandleFunc("GET /api/hooks/types", cors(s.handleGetHookTypes))
+	s.mux.HandleFunc("POST /api/hooks", cors(s.handleCreateHook))
+	s.mux.HandleFunc("GET /api/hooks/{name}", cors(s.handleGetHook))
+	s.mux.HandleFunc("PUT /api/hooks/{name}", cors(s.handleUpdateHook))
+	s.mux.HandleFunc("DELETE /api/hooks/{name}", cors(s.handleDeleteHook))
+
+	// Skills
+	s.mux.HandleFunc("GET /api/skills", cors(s.handleListSkills))
+	s.mux.HandleFunc("POST /api/skills", cors(s.handleCreateSkill))
+	s.mux.HandleFunc("GET /api/skills/{name}", cors(s.handleGetSkill))
+	s.mux.HandleFunc("PUT /api/skills/{name}", cors(s.handleUpdateSkill))
+	s.mux.HandleFunc("DELETE /api/skills/{name}", cors(s.handleDeleteSkill))
 
 	// Config
 	s.mux.HandleFunc("GET /api/config", cors(s.handleGetConfig))
@@ -359,12 +405,26 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		st = state.New(id)
 	}
 
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Store cancel function for later cancellation
+	s.runningTasksMu.Lock()
+	s.runningTasks[id] = cancel
+	s.runningTasksMu.Unlock()
+
 	// Start execution in background goroutine
 	go func() {
-		ctx := context.Background()
-		exec := executor.New(executor.DefaultConfig())
+		defer func() {
+			s.runningTasksMu.Lock()
+			delete(s.runningTasks, id)
+			s.runningTasksMu.Unlock()
+		}()
 
-		// Execute with SSE publishing
+		exec := executor.New(executor.DefaultConfig())
+		exec.SetPublisher(s.publisher)
+
+		// Execute with event publishing
 		err := exec.ExecuteTask(ctx, t, p, st)
 		if err != nil {
 			s.logger.Error("task execution failed", "task", id, "error", err)
@@ -515,4 +575,384 @@ func (s *Server) jsonError(w http.ResponseWriter, message string, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+// pauseTask pauses a running task (called by WebSocket handler).
+func (s *Server) pauseTask(id string) (map[string]any, error) {
+	t, err := task.Load(id)
+	if err != nil {
+		return nil, fmt.Errorf("task not found")
+	}
+
+	t.Status = task.StatusPaused
+	if err := t.Save(); err != nil {
+		return nil, fmt.Errorf("failed to update task: %w", err)
+	}
+
+	return map[string]any{
+		"status":  "paused",
+		"task_id": id,
+	}, nil
+}
+
+// resumeTask resumes a paused task (called by WebSocket handler).
+func (s *Server) resumeTask(id string) (map[string]any, error) {
+	t, err := task.Load(id)
+	if err != nil {
+		return nil, fmt.Errorf("task not found")
+	}
+
+	// If task was paused, restart execution
+	if t.Status == task.StatusPaused {
+		t.Status = task.StatusRunning
+		if err := t.Save(); err != nil {
+			return nil, fmt.Errorf("failed to update task: %w", err)
+		}
+
+		// Resume execution
+		p, err := plan.Load(id)
+		if err != nil {
+			return nil, fmt.Errorf("plan not found")
+		}
+
+		st, err := state.Load(id)
+		if err != nil {
+			return nil, fmt.Errorf("state not found")
+		}
+
+		// Find resume point
+		resumePhase := st.GetResumePhase()
+		if resumePhase == "" {
+			return nil, fmt.Errorf("no resume point found")
+		}
+
+		// Create cancellable context
+		ctx, cancel := context.WithCancel(context.Background())
+
+		s.runningTasksMu.Lock()
+		s.runningTasks[id] = cancel
+		s.runningTasksMu.Unlock()
+
+		go func() {
+			defer func() {
+				s.runningTasksMu.Lock()
+				delete(s.runningTasks, id)
+				s.runningTasksMu.Unlock()
+			}()
+
+			exec := executor.New(executor.DefaultConfig())
+			exec.SetPublisher(s.publisher)
+			err := exec.ResumeFromPhase(ctx, t, p, st, resumePhase)
+			if err != nil {
+				s.logger.Error("task resume failed", "task", id, "error", err)
+			}
+		}()
+	}
+
+	return map[string]any{
+		"status":  "resumed",
+		"task_id": id,
+	}, nil
+}
+
+// cancelTask cancels a running task (called by WebSocket handler).
+func (s *Server) cancelTask(id string) (map[string]any, error) {
+	s.runningTasksMu.RLock()
+	cancel, exists := s.runningTasks[id]
+	s.runningTasksMu.RUnlock()
+
+	if exists {
+		cancel()
+	}
+
+	t, err := task.Load(id)
+	if err != nil {
+		return nil, fmt.Errorf("task not found")
+	}
+
+	t.Status = task.StatusFailed
+	if err := t.Save(); err != nil {
+		return nil, fmt.Errorf("failed to update task: %w", err)
+	}
+
+	return map[string]any{
+		"status":  "cancelled",
+		"task_id": id,
+	}, nil
+}
+
+// Publisher returns the event publisher for external use.
+func (s *Server) Publisher() events.Publisher {
+	return s.publisher
+}
+
+// handleListPrompts returns all available prompts.
+func (s *Server) handleListPrompts(w http.ResponseWriter, r *http.Request) {
+	svc := prompt.DefaultService()
+	prompts, err := svc.List()
+	if err != nil {
+		s.jsonError(w, "failed to list prompts", http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, prompts)
+}
+
+// handleGetPromptVariables returns template variable documentation.
+func (s *Server) handleGetPromptVariables(w http.ResponseWriter, r *http.Request) {
+	vars := prompt.GetVariableReference()
+	s.jsonResponse(w, vars)
+}
+
+// handleGetPrompt returns a specific prompt by phase.
+func (s *Server) handleGetPrompt(w http.ResponseWriter, r *http.Request) {
+	phase := r.PathValue("phase")
+	svc := prompt.DefaultService()
+
+	p, err := svc.Get(phase)
+	if err != nil {
+		s.jsonError(w, "prompt not found", http.StatusNotFound)
+		return
+	}
+
+	s.jsonResponse(w, p)
+}
+
+// handleGetPromptDefault returns the embedded default prompt for a phase.
+func (s *Server) handleGetPromptDefault(w http.ResponseWriter, r *http.Request) {
+	phase := r.PathValue("phase")
+	svc := prompt.DefaultService()
+
+	p, err := svc.GetDefault(phase)
+	if err != nil {
+		s.jsonError(w, "default prompt not found", http.StatusNotFound)
+		return
+	}
+
+	s.jsonResponse(w, p)
+}
+
+// handleSavePrompt saves a project prompt override.
+func (s *Server) handleSavePrompt(w http.ResponseWriter, r *http.Request) {
+	phase := r.PathValue("phase")
+
+	var req struct {
+		Content string `json:"content"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Content == "" {
+		s.jsonError(w, "content is required", http.StatusBadRequest)
+		return
+	}
+
+	svc := prompt.DefaultService()
+	if err := svc.Save(phase, req.Content); err != nil {
+		s.jsonError(w, "failed to save prompt", http.StatusInternalServerError)
+		return
+	}
+
+	// Return updated prompt
+	p, err := svc.Get(phase)
+	if err != nil {
+		s.jsonError(w, "failed to reload prompt", http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, p)
+}
+
+// handleDeletePrompt deletes a project prompt override.
+func (s *Server) handleDeletePrompt(w http.ResponseWriter, r *http.Request) {
+	phase := r.PathValue("phase")
+	svc := prompt.DefaultService()
+
+	// Check if override exists
+	if !svc.HasOverride(phase) {
+		s.jsonError(w, "no override exists for this phase", http.StatusNotFound)
+		return
+	}
+
+	if err := svc.Delete(phase); err != nil {
+		s.jsonError(w, "failed to delete prompt", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// === Hooks Handlers ===
+
+// handleListHooks returns all hooks.
+func (s *Server) handleListHooks(w http.ResponseWriter, r *http.Request) {
+	svc := hooks.DefaultService()
+	hookList, err := svc.List()
+	if err != nil {
+		s.jsonError(w, "failed to list hooks", http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, hookList)
+}
+
+// handleGetHookTypes returns available hook types.
+func (s *Server) handleGetHookTypes(w http.ResponseWriter, r *http.Request) {
+	types := hooks.GetHookTypes()
+	s.jsonResponse(w, types)
+}
+
+// handleGetHook returns a specific hook.
+func (s *Server) handleGetHook(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	svc := hooks.DefaultService()
+
+	hook, err := svc.Get(name)
+	if err != nil {
+		s.jsonError(w, "hook not found", http.StatusNotFound)
+		return
+	}
+
+	s.jsonResponse(w, hook)
+}
+
+// handleCreateHook creates a new hook.
+func (s *Server) handleCreateHook(w http.ResponseWriter, r *http.Request) {
+	var hook hooks.Hook
+	if err := json.NewDecoder(r.Body).Decode(&hook); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	svc := hooks.DefaultService()
+	if err := svc.Create(hook); err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	s.jsonResponse(w, hook)
+}
+
+// handleUpdateHook updates an existing hook.
+func (s *Server) handleUpdateHook(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+
+	var hook hooks.Hook
+	if err := json.NewDecoder(r.Body).Decode(&hook); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	svc := hooks.DefaultService()
+	if err := svc.Update(name, hook); err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Return updated hook
+	updated, _ := svc.Get(hook.Name)
+	if updated == nil {
+		updated, _ = svc.Get(name)
+	}
+	s.jsonResponse(w, updated)
+}
+
+// handleDeleteHook deletes a hook.
+func (s *Server) handleDeleteHook(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	svc := hooks.DefaultService()
+
+	if err := svc.Delete(name); err != nil {
+		s.jsonError(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// === Skills Handlers ===
+
+// handleListSkills returns all skills.
+func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
+	svc := skills.DefaultService()
+	skillList, err := svc.List()
+	if err != nil {
+		s.jsonError(w, "failed to list skills", http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, skillList)
+}
+
+// handleGetSkill returns a specific skill.
+func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	svc := skills.DefaultService()
+
+	skill, err := svc.Get(name)
+	if err != nil {
+		s.jsonError(w, "skill not found", http.StatusNotFound)
+		return
+	}
+
+	s.jsonResponse(w, skill)
+}
+
+// handleCreateSkill creates a new skill.
+func (s *Server) handleCreateSkill(w http.ResponseWriter, r *http.Request) {
+	var skill skills.Skill
+	if err := json.NewDecoder(r.Body).Decode(&skill); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	svc := skills.DefaultService()
+	if err := svc.Create(skill); err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	s.jsonResponse(w, skill)
+}
+
+// handleUpdateSkill updates an existing skill.
+func (s *Server) handleUpdateSkill(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+
+	var skill skills.Skill
+	if err := json.NewDecoder(r.Body).Decode(&skill); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	svc := skills.DefaultService()
+	if err := svc.Update(name, skill); err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Return updated skill
+	updated, _ := svc.Get(skill.Name)
+	if updated == nil {
+		updated, _ = svc.Get(name)
+	}
+	s.jsonResponse(w, updated)
+}
+
+// handleDeleteSkill deletes a skill.
+func (s *Server) handleDeleteSkill(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	svc := skills.DefaultService()
+
+	if err := svc.Delete(name); err != nil {
+		s.jsonError(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

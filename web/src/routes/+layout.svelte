@@ -8,6 +8,9 @@
 			<a href="/" class="logo">orc</a>
 			<div class="nav-links">
 				<a href="/">Tasks</a>
+				<a href="/prompts">Prompts</a>
+				<a href="/hooks">Hooks</a>
+				<a href="/skills">Skills</a>
 				<a href="/config">Config</a>
 			</div>
 		</nav>

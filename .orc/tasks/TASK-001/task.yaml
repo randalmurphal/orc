@@ -1,0 +1,8 @@
+id: TASK-001
+title: E2E Test Task
+weight: small
+status: paused
+branch: orc/TASK-001
+created_at: 2026-01-10T12:42:05.358654356-06:00
+updated_at: 2026-01-10T12:48:59.111789363-06:00
+started_at: 2026-01-10T12:48:53.57397735-06:00

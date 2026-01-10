@@ -1,0 +1,24 @@
+version: 1
+profile: auto
+gates:
+    default_type: auto
+    auto_approve_on_success: true
+    retry_on_failure: true
+    max_retries: 2
+retry:
+    enabled: true
+    retry_map:
+        test: implement
+        test_e2e: implement
+        test_unit: implement
+        validate: implement
+    max_retries: 2
+model: claude-opus-4-5-20251101
+max_iterations: 30
+timeout: 10m0s
+branch_prefix: orc/
+commit_prefix: '[orc]'
+claude_path: claude
+dangerously_skip_permissions: true
+templates_dir: templates
+enable_checkpoints: true
