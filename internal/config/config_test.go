@@ -153,3 +153,189 @@ func TestRequireInit(t *testing.T) {
 		t.Errorf("RequireInit() failed after init: %v", err)
 	}
 }
+
+func TestResolveGateType(t *testing.T) {
+	tests := []struct {
+		name       string
+		cfg        *Config
+		phase      string
+		wantGate   GateType
+		wantAuto   bool
+	}{
+		{
+			name: "default auto gates",
+			cfg: &Config{
+				Gates: GateConfig{
+					DefaultGate: "auto",
+					PhaseGates:  map[string]GateType{},
+				},
+			},
+			phase:    "implement",
+			wantGate: GateAuto,
+			wantAuto: true,
+		},
+		{
+			name: "human gate for phase",
+			cfg: &Config{
+				Gates: GateConfig{
+					DefaultGate: "auto",
+					PhaseGates: map[string]GateType{
+						"review": GateHuman,
+					},
+				},
+			},
+			phase:    "review",
+			wantGate: GateHuman,
+			wantAuto: false,
+		},
+		{
+			name: "fallback to default",
+			cfg: &Config{
+				Gates: GateConfig{
+					DefaultGate: "ai_review",
+					PhaseGates:  map[string]GateType{},
+				},
+			},
+			phase:    "test",
+			wantGate: GateAIReview,
+			wantAuto: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gateType, isAuto := tt.cfg.ResolveGateType(tt.phase)
+			if gateType != tt.wantGate {
+				t.Errorf("ResolveGateType() gate = %v, want %v", gateType, tt.wantGate)
+			}
+			if isAuto != tt.wantAuto {
+				t.Errorf("ResolveGateType() isAuto = %v, want %v", isAuto, tt.wantAuto)
+			}
+		})
+	}
+}
+
+func TestShouldRetryFrom(t *testing.T) {
+	cfg := &Config{
+		Retry: RetryConfig{
+			Enabled:    true,
+			MaxRetries: 3,
+			RetryMap: map[string]string{
+				"test":     "implement",
+				"validate": "implement",
+			},
+		},
+	}
+
+	tests := []struct {
+		phase      string
+		wantFrom   string
+		wantRetry  bool
+	}{
+		{"test", "implement", true},
+		{"validate", "implement", true},
+		{"implement", "", false},
+		{"spec", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.phase, func(t *testing.T) {
+			from, shouldRetry := cfg.ShouldRetryFrom(tt.phase)
+			if from != tt.wantFrom {
+				t.Errorf("ShouldRetryFrom(%s) from = %s, want %s", tt.phase, from, tt.wantFrom)
+			}
+			if shouldRetry != tt.wantRetry {
+				t.Errorf("ShouldRetryFrom(%s) shouldRetry = %v, want %v", tt.phase, shouldRetry, tt.wantRetry)
+			}
+		})
+	}
+
+	// Test with disabled retry
+	cfgDisabled := &Config{
+		Retry: RetryConfig{
+			Enabled: false,
+		},
+	}
+	from, shouldRetry := cfgDisabled.ShouldRetryFrom("test")
+	if shouldRetry {
+		t.Error("ShouldRetryFrom() should return false when retry is disabled")
+	}
+	if from != "" {
+		t.Errorf("ShouldRetryFrom() from = %s, want empty", from)
+	}
+}
+
+func TestProfilePresets(t *testing.T) {
+	presets := ProfilePresets()
+
+	// Check that all expected profiles exist
+	expectedProfiles := []string{"auto", "fast", "safe", "strict"}
+	for _, profile := range expectedProfiles {
+		if _, ok := presets[profile]; !ok {
+			t.Errorf("ProfilePresets() missing profile: %s", profile)
+		}
+	}
+
+	// Check specific preset values
+	auto := presets["auto"]
+	if auto.Gates.DefaultGate != "auto" {
+		t.Errorf("auto profile default gate = %v, want auto", auto.Gates.DefaultGate)
+	}
+
+	strict := presets["strict"]
+	if strict.Gates.DefaultGate != "human" {
+		t.Errorf("strict profile default gate = %v, want human", strict.Gates.DefaultGate)
+	}
+}
+
+func TestApplyProfile(t *testing.T) {
+	cfg := Default()
+
+	// Apply strict profile
+	err := cfg.ApplyProfile("strict")
+	if err != nil {
+		t.Fatalf("ApplyProfile(strict) failed: %v", err)
+	}
+
+	// Verify gates changed
+	if cfg.Gates.DefaultGate != "human" {
+		t.Errorf("After ApplyProfile(strict), DefaultGate = %v, want human", cfg.Gates.DefaultGate)
+	}
+
+	// Apply unknown profile should fail
+	err = cfg.ApplyProfile("nonexistent")
+	if err == nil {
+		t.Error("ApplyProfile(nonexistent) should fail")
+	}
+}
+
+func TestLoadFrom_InvalidYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Write invalid YAML
+	invalidYAML := "invalid: yaml: content: [["
+	err := os.WriteFile(tmpDir+"/invalid.yaml", []byte(invalidYAML), 0644)
+	if err != nil {
+		t.Fatalf("failed to write invalid yaml: %v", err)
+	}
+
+	_, err = LoadFrom(tmpDir + "/invalid.yaml")
+	if err == nil {
+		t.Error("LoadFrom() should fail with invalid YAML")
+	}
+}
+
+func TestLoadFrom_NonExistent(t *testing.T) {
+	_, err := LoadFrom("/nonexistent/path/config.yaml")
+	if err == nil {
+		t.Error("LoadFrom() should fail with non-existent file")
+	}
+}
+
+func TestSaveTo_InvalidPath(t *testing.T) {
+	cfg := Default()
+	err := cfg.SaveTo("/nonexistent/directory/config.yaml")
+	if err == nil {
+		t.Error("SaveTo() should fail with invalid path")
+	}
+}
