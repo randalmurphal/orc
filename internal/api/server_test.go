@@ -811,3 +811,232 @@ type TranscriptFile struct {
 	Content   string `json:"content"`
 	CreatedAt string `json:"created_at"`
 }
+
+// === Config API Tests ===
+
+func TestGetConfigEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create config directory and file
+	os.MkdirAll(".orc", 0755)
+	configYAML := `version: 1
+model: claude-sonnet-4-20250514
+max_iterations: 30
+timeout: 10m
+`
+	os.WriteFile(".orc/config.yaml", []byte(configYAML), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/config", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetConfigEndpoint_NoConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// No config file exists
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/config", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	// Should still return OK with default config
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// === Update Hook/Skill Tests ===
+
+func TestUpdateHookEndpoint_NotFound(t *testing.T) {
+	srv := New(nil)
+
+	body := bytes.NewBufferString(`{"type":"pre:tool","command":"echo updated"}`)
+	req := httptest.NewRequest("PUT", "/api/hooks/nonexistent", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	// Update returns 400 for errors (not found is reported as error)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestUpdateHookEndpoint_InvalidBody(t *testing.T) {
+	srv := New(nil)
+
+	body := bytes.NewBufferString(`invalid json`)
+	req := httptest.NewRequest("PUT", "/api/hooks/test", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestUpdateSkillEndpoint_NotFound(t *testing.T) {
+	srv := New(nil)
+
+	body := bytes.NewBufferString(`{"prompt":"Updated prompt"}`)
+	req := httptest.NewRequest("PUT", "/api/skills/nonexistent", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	// Update returns 400 for errors (not found is reported as error)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestUpdateSkillEndpoint_InvalidBody(t *testing.T) {
+	srv := New(nil)
+
+	body := bytes.NewBufferString(`invalid json`)
+	req := httptest.NewRequest("PUT", "/api/skills/test", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+// === Save Prompt Success Test ===
+
+func TestSavePromptEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create .orc/prompts directory
+	os.MkdirAll(".orc/prompts", 0755)
+
+	srv := New(nil)
+
+	body := bytes.NewBufferString(`{"content":"Custom prompt content for testing"}`)
+	req := httptest.NewRequest("PUT", "/api/prompts/implement", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify prompt was saved
+	content, err := os.ReadFile(".orc/prompts/implement.md")
+	if err != nil {
+		t.Errorf("failed to read saved prompt: %v", err)
+	}
+	if string(content) != "Custom prompt content for testing" {
+		t.Errorf("prompt content mismatch: got %q", string(content))
+	}
+}
+
+func TestDeletePromptEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create .orc/prompts directory with a prompt
+	os.MkdirAll(".orc/prompts", 0755)
+	os.WriteFile(".orc/prompts/test.md", []byte("test content"), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("DELETE", "/api/prompts/test", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d", w.Code)
+	}
+
+	// Verify file was deleted
+	if _, err := os.Stat(".orc/prompts/test.md"); !os.IsNotExist(err) {
+		t.Error("expected prompt file to be deleted")
+	}
+}
+
+// === Publisher Test ===
+
+func TestServerPublisher(t *testing.T) {
+	srv := New(nil)
+
+	// Publisher method should return the internal publisher
+	pub := srv.Publisher()
+	if pub == nil {
+		t.Error("expected non-nil publisher")
+	}
+}
+
+// === Get Plan Success Test ===
+
+func TestGetPlanEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create task with plan file
+	taskDir := filepath.Join(".orc", "tasks", "TASK-010")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-010
+title: Plan Test
+status: pending
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	planYAML := `version: 1
+weight: medium
+description: Test plan
+phases:
+  - id: implement
+    name: Implementation
+    prompt: Do the work
+`
+	os.WriteFile(filepath.Join(taskDir, "plan.yaml"), []byte(planYAML), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/tasks/TASK-010/plan", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
