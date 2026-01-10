@@ -1889,3 +1889,280 @@ func TestGetPromptDefaultEndpoint_NotFound(t *testing.T) {
 	}
 }
 
+// === Project-scoped Task API Tests ===
+
+// setupProjectTestEnv creates a temporary project with task for testing
+func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, cleanup string) {
+	t.Helper()
+
+	// Create temp directory structure
+	tmpDir := t.TempDir()
+	projectDir := filepath.Join(tmpDir, "test-project")
+	os.MkdirAll(filepath.Join(projectDir, ".orc", "tasks"), 0755)
+
+	// Point orc to the temp directory first so registry path resolves correctly
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+
+	// Create global .orc directory where project registry lives
+	globalOrcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(globalOrcDir, 0755)
+	projectID = "test-proj-123"
+
+	// Create projects.yaml in the correct location ($HOME/.orc/projects.yaml)
+	projectsYAML := fmt.Sprintf(`projects:
+  - id: %s
+    name: test-project
+    path: %s
+    created_at: 2025-01-01T00:00:00Z
+`, projectID, projectDir)
+	os.WriteFile(filepath.Join(globalOrcDir, "projects.yaml"), []byte(projectsYAML), 0644)
+
+	// Create task directory
+	taskID = "TASK-001"
+	taskDir := filepath.Join(projectDir, ".orc", "tasks", taskID)
+	os.MkdirAll(taskDir, 0755)
+
+	// Create task.yaml
+	taskYAML := fmt.Sprintf(`id: %s
+title: Test Task
+weight: medium
+status: running
+branch: orc/%s
+created_at: 2025-01-01T00:00:00Z
+updated_at: 2025-01-01T00:00:00Z
+started_at: 2025-01-01T00:00:00Z
+`, taskID, taskID)
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	// Create plan.yaml
+	planYAML := `phases:
+  - id: implement
+    status: running
+  - id: test
+    status: pending
+`
+	os.WriteFile(filepath.Join(taskDir, "plan.yaml"), []byte(planYAML), 0644)
+
+	// Create state.yaml
+	stateYAML := fmt.Sprintf(`task_id: %s
+current_phase: implement
+current_iteration: 1
+status: running
+started_at: 2025-01-01T00:00:00Z
+updated_at: 2025-01-01T00:00:00Z
+phases:
+  implement:
+    status: running
+    started_at: 2025-01-01T00:00:00Z
+    iterations: 0
+tokens:
+  input_tokens: 0
+  output_tokens: 0
+  total_tokens: 0
+`, taskID)
+	os.WriteFile(filepath.Join(taskDir, "state.yaml"), []byte(stateYAML), 0644)
+
+	srv = New(nil)
+
+	cleanup = origHome
+	return srv, projectID, taskID, cleanup
+}
+
+func cleanupProjectTestEnv(origHome string) {
+	os.Setenv("HOME", origHome)
+}
+
+func TestProjectTaskPause_Success(t *testing.T) {
+	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
+	defer cleanupProjectTestEnv(cleanup)
+
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/pause", projectID, taskID), nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["status"] != "paused" {
+		t.Errorf("expected status 'paused', got %q", resp["status"])
+	}
+}
+
+func TestProjectTaskPause_NotRunning(t *testing.T) {
+	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
+	defer cleanupProjectTestEnv(cleanup)
+
+	// Modify task to be completed
+	home := os.Getenv("HOME")
+	taskPath := filepath.Join(home, "test-project", ".orc", "tasks", taskID, "task.yaml")
+	taskYAML := fmt.Sprintf(`id: %s
+title: Test Task
+weight: medium
+status: completed
+branch: orc/%s
+created_at: 2025-01-01T00:00:00Z
+updated_at: 2025-01-01T00:00:00Z
+`, taskID, taskID)
+	os.WriteFile(taskPath, []byte(taskYAML), 0644)
+
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/pause", projectID, taskID), nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestProjectTaskResume_Success(t *testing.T) {
+	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
+	defer cleanupProjectTestEnv(cleanup)
+
+	// Modify task to be paused
+	home := os.Getenv("HOME")
+	taskPath := filepath.Join(home, "test-project", ".orc", "tasks", taskID, "task.yaml")
+	taskYAML := fmt.Sprintf(`id: %s
+title: Test Task
+weight: medium
+status: paused
+branch: orc/%s
+created_at: 2025-01-01T00:00:00Z
+updated_at: 2025-01-01T00:00:00Z
+started_at: 2025-01-01T00:00:00Z
+`, taskID, taskID)
+	os.WriteFile(taskPath, []byte(taskYAML), 0644)
+
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/resume", projectID, taskID), nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["status"] != "resumed" {
+		t.Errorf("expected status 'resumed', got %q", resp["status"])
+	}
+}
+
+func TestProjectTaskResume_NotPaused(t *testing.T) {
+	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
+	defer cleanupProjectTestEnv(cleanup)
+
+	// Task is running, not paused
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/resume", projectID, taskID), nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestProjectTaskRewind_Success(t *testing.T) {
+	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
+	defer cleanupProjectTestEnv(cleanup)
+
+	// Request body
+	body := bytes.NewBufferString(`{"phase": "implement"}`)
+
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/rewind", projectID, taskID), body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["status"] != "rewound" {
+		t.Errorf("expected status 'rewound', got %q", resp["status"])
+	}
+	if resp["phase"] != "implement" {
+		t.Errorf("expected phase 'implement', got %q", resp["phase"])
+	}
+}
+
+func TestProjectTaskRewind_InvalidPhase(t *testing.T) {
+	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
+	defer cleanupProjectTestEnv(cleanup)
+
+	body := bytes.NewBufferString(`{"phase": "nonexistent"}`)
+
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/rewind", projectID, taskID), body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestProjectTaskRewind_MissingPhase(t *testing.T) {
+	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
+	defer cleanupProjectTestEnv(cleanup)
+
+	body := bytes.NewBufferString(`{}`)
+
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/rewind", projectID, taskID), body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestProjectTaskNotFound(t *testing.T) {
+	srv, projectID, _, cleanup := setupProjectTestEnv(t)
+	defer cleanupProjectTestEnv(cleanup)
+
+	req := httptest.NewRequest("GET", fmt.Sprintf("/api/projects/%s/tasks/NONEXISTENT", projectID), nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestProjectNotFound(t *testing.T) {
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/projects/invalid-project/tasks/TASK-001", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
