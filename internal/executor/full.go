@@ -178,7 +178,8 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 			result.Status = plan.PhaseFailed
 			result.Error = fmt.Errorf("execute turn %d: %w", iteration, err)
-			break
+			result.Output = lastResponse // Preserve any previous response for debugging
+			goto done
 		}
 
 		// Track tokens
@@ -261,7 +262,8 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 			result.Status = plan.PhaseFailed
 			result.Error = fmt.Errorf("LLM error: %s", turnResult.ErrorText)
-			break
+			result.Output = lastResponse
+			goto done
 		}
 	}
 
@@ -276,10 +278,10 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 		result.Status = plan.PhaseFailed
 		result.Error = fmt.Errorf("max iterations (%d) reached", e.config.MaxIterations)
+		result.Output = lastResponse // Preserve last response for debugging
 	}
 
 done:
-	result.Output = lastResponse
 	result.Duration = time.Since(start)
 	return result, result.Error
 }
