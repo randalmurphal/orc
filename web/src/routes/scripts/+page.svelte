@@ -1,70 +1,91 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import {
-		listSkills,
-		getSkill,
-		createSkill,
-		updateSkill,
-		deleteSkill,
-		type SkillInfo,
-		type Skill
+		listScripts,
+		getScript,
+		createScript,
+		updateScript,
+		deleteScript,
+		discoverScripts,
+		type ProjectScript
 	} from '$lib/api';
 
-	let skills: SkillInfo[] = [];
-	let selectedSkill: Skill | null = null;
+	let scripts: ProjectScript[] = [];
+	let selectedScript: ProjectScript | null = null;
 	let isCreating = false;
 	let loading = true;
 	let saving = false;
+	let discovering = false;
 	let error: string | null = null;
 	let success: string | null = null;
 
 	// Form fields
 	let formName = '';
+	let formPath = '';
 	let formDescription = '';
-	let formContent = '';
-	let formAllowedTools = '';
+	let formLanguage = '';
 
 	onMount(async () => {
 		try {
-			skills = await listSkills();
+			scripts = await listScripts();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load skills';
+			error = e instanceof Error ? e.message : 'Failed to load scripts';
 		} finally {
 			loading = false;
 		}
 	});
 
-	async function selectSkillByName(name: string) {
+	async function selectScriptByName(name: string) {
 		error = null;
 		success = null;
 		isCreating = false;
 
 		try {
-			selectedSkill = await getSkill(name);
-			formName = selectedSkill.name;
-			formDescription = selectedSkill.description;
-			formContent = selectedSkill.content;
-			formAllowedTools = selectedSkill.allowed_tools?.join(', ') || '';
+			selectedScript = await getScript(name);
+			formName = selectedScript.name;
+			formPath = selectedScript.path;
+			formDescription = selectedScript.description;
+			formLanguage = selectedScript.language || '';
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load skill';
+			error = e instanceof Error ? e.message : 'Failed to load script';
 		}
 	}
 
 	function startCreate() {
 		error = null;
 		success = null;
-		selectedSkill = null;
+		selectedScript = null;
 		isCreating = true;
 
 		formName = '';
+		formPath = '';
 		formDescription = '';
-		formContent = '';
-		formAllowedTools = '';
+		formLanguage = '';
+	}
+
+	async function handleDiscover() {
+		discovering = true;
+		error = null;
+		success = null;
+
+		try {
+			const discovered = await discoverScripts();
+			scripts = await listScripts();
+			if (discovered.length > 0) {
+				success = `Discovered ${discovered.length} script(s)`;
+			} else {
+				success = 'No new scripts found in .claude/scripts/';
+			}
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to discover scripts';
+		} finally {
+			discovering = false;
+		}
 	}
 
 	async function handleSave() {
-		if (!formName.trim() || !formDescription.trim()) {
-			error = 'Name and description are required';
+		if (!formName.trim() || !formPath.trim()) {
+			error = 'Name and path are required';
 			return;
 		}
 
@@ -72,72 +93,98 @@
 		error = null;
 		success = null;
 
-		const allowedTools = formAllowedTools
-			.split(',')
-			.map((t) => t.trim())
-			.filter((t) => t);
-
-		const skill: Skill = {
+		const script: ProjectScript = {
 			name: formName.trim(),
-			description: formDescription.trim(),
-			content: formContent.trim(),
-			allowed_tools: allowedTools.length > 0 ? allowedTools : undefined
+			path: formPath.trim(),
+			description: formDescription.trim()
 		};
+
+		if (formLanguage) script.language = formLanguage;
 
 		try {
 			if (isCreating) {
-				await createSkill(skill);
-				success = 'Skill created successfully';
-			} else if (selectedSkill) {
-				await updateSkill(selectedSkill.name, skill);
-				success = 'Skill updated successfully';
+				await createScript(script);
+				success = 'Script registered successfully';
+			} else if (selectedScript) {
+				await updateScript(selectedScript.name, script);
+				success = 'Script updated successfully';
 			}
 
-			skills = await listSkills();
-			selectedSkill = skill;
+			scripts = await listScripts();
+			selectedScript = script;
 			isCreating = false;
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to save skill';
+			error = e instanceof Error ? e.message : 'Failed to save script';
 		} finally {
 			saving = false;
 		}
 	}
 
 	async function handleDelete() {
-		if (!selectedSkill) return;
+		if (!selectedScript) return;
 
-		if (!confirm(`Delete skill "${selectedSkill.name}"?`)) return;
+		if (!confirm(`Remove script "${selectedScript.name}" from registry?`)) return;
 
 		saving = true;
 		error = null;
 		success = null;
 
 		try {
-			await deleteSkill(selectedSkill.name);
-			skills = await listSkills();
-			selectedSkill = null;
+			await deleteScript(selectedScript.name);
+			scripts = await listScripts();
+			selectedScript = null;
 			isCreating = false;
-			success = 'Skill deleted successfully';
+			success = 'Script removed from registry';
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to delete skill';
+			error = e instanceof Error ? e.message : 'Failed to delete script';
 		} finally {
 			saving = false;
+		}
+	}
+
+	function getLanguageIcon(lang?: string): string {
+		switch (lang?.toLowerCase()) {
+			case 'python':
+			case 'py':
+				return 'py';
+			case 'javascript':
+			case 'js':
+				return 'js';
+			case 'typescript':
+			case 'ts':
+				return 'ts';
+			case 'bash':
+			case 'sh':
+				return 'sh';
+			case 'go':
+				return 'go';
+			default:
+				return '';
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>Skills - orc</title>
+	<title>Scripts - orc</title>
 </svelte:head>
 
-<div class="skills-page">
+<div class="scripts-page">
 	<header class="page-header">
 		<div class="header-content">
 			<div>
-				<h1>Claude Code Skills</h1>
-				<p class="subtitle">Manage skills in .claude/skills/ (SKILL.md format)</p>
+				<h1>Project Scripts</h1>
+				<p class="subtitle">Register scripts for agent use</p>
 			</div>
-			<button class="btn btn-primary" on:click={startCreate}>New Skill</button>
+			<div class="header-actions">
+				<button
+					class="btn btn-secondary"
+					on:click={handleDiscover}
+					disabled={discovering}
+				>
+					{discovering ? 'Discovering...' : 'Discover'}
+				</button>
+				<button class="btn btn-primary" on:click={startCreate}>New Script</button>
+			</div>
 		</div>
 	</header>
 
@@ -150,26 +197,34 @@
 	{/if}
 
 	{#if loading}
-		<div class="loading">Loading skills...</div>
+		<div class="loading">Loading scripts...</div>
 	{:else}
-		<div class="skills-layout">
-			<!-- Skill List -->
-			<aside class="skill-list">
-				<h2>Skills</h2>
-				{#if skills.length === 0}
-					<p class="empty-message">No skills configured</p>
+		<div class="scripts-layout">
+			<!-- Script List -->
+			<aside class="script-list">
+				<h2>Scripts</h2>
+				{#if scripts.length === 0}
+					<p class="empty-message">No scripts registered</p>
+					<p class="empty-hint">
+						Click "Discover" to find scripts in .claude/scripts/
+					</p>
 				{:else}
 					<ul>
-						{#each skills as skill}
+						{#each scripts as script}
 							<li>
 								<button
-									class="skill-item"
-									class:selected={selectedSkill?.name === skill.name}
-									on:click={() => selectSkillByName(skill.name)}
+									class="script-item"
+									class:selected={selectedScript?.name === script.name}
+									on:click={() => selectScriptByName(script.name)}
 								>
-									<span class="skill-name">{skill.name}</span>
-									{#if skill.description}
-										<span class="skill-desc">{skill.description}</span>
+									<div class="script-header">
+										<span class="script-name">{script.name}</span>
+										{#if script.language}
+											<span class="lang-badge">{getLanguageIcon(script.language) || script.language}</span>
+										{/if}
+									</div>
+									{#if script.description}
+										<span class="script-desc">{script.description}</span>
 									{/if}
 								</button>
 							</li>
@@ -180,17 +235,17 @@
 
 			<!-- Editor Panel -->
 			<div class="editor-panel">
-				{#if selectedSkill || isCreating}
+				{#if selectedScript || isCreating}
 					<div class="editor-header">
-						<h2>{isCreating ? 'New Skill' : selectedSkill?.name}</h2>
-						{#if selectedSkill && !isCreating}
+						<h2>{isCreating ? 'New Script' : selectedScript?.name}</h2>
+						{#if selectedScript && !isCreating}
 							<button class="btn btn-danger" on:click={handleDelete} disabled={saving}>
-								Delete
+								Remove
 							</button>
 						{/if}
 					</div>
 
-					<form class="skill-form" on:submit|preventDefault={handleSave}>
+					<form class="script-form" on:submit|preventDefault={handleSave}>
 						<div class="form-row">
 							<div class="form-group">
 								<label for="name">Name</label>
@@ -198,57 +253,56 @@
 									id="name"
 									type="text"
 									bind:value={formName}
-									placeholder="my-skill"
+									placeholder="my-script"
 									disabled={!isCreating}
 								/>
-								<span class="form-hint"
-									>.claude/skills/{formName || 'name'}/SKILL.md</span
-								>
 							</div>
 
 							<div class="form-group">
-								<label for="allowed-tools">Allowed Tools (optional)</label>
-								<input
-									id="allowed-tools"
-									type="text"
-									bind:value={formAllowedTools}
-									placeholder="Read, Bash, Edit"
-								/>
-								<span class="form-hint">Comma-separated list of tools</span>
+								<label for="language">Language (optional)</label>
+								<select id="language" bind:value={formLanguage}>
+									<option value="">Auto-detect</option>
+									<option value="python">Python</option>
+									<option value="bash">Bash</option>
+									<option value="javascript">JavaScript</option>
+									<option value="typescript">TypeScript</option>
+									<option value="go">Go</option>
+								</select>
 							</div>
 						</div>
 
 						<div class="form-group">
-							<label for="description">Description</label>
+							<label for="path">Path</label>
 							<input
-								id="description"
+								id="path"
 								type="text"
-								bind:value={formDescription}
-								placeholder="Brief description of what this skill does"
+								bind:value={formPath}
+								placeholder=".claude/scripts/my-script.py"
 							/>
+							<span class="form-hint">Relative path from project root</span>
 						</div>
 
-						<div class="form-group form-group-grow">
-							<label for="content">Content (Markdown)</label>
+						<div class="form-group">
+							<label for="description">Description</label>
 							<textarea
-								id="content"
-								bind:value={formContent}
-								placeholder="Enter the skill instructions..."
-								rows="15"
+								id="description"
+								bind:value={formDescription}
+								placeholder="What this script does and when to use it"
+								rows="4"
 							></textarea>
 						</div>
 
 						<div class="form-actions">
 							<button type="submit" class="btn btn-primary" disabled={saving}>
-								{saving ? 'Saving...' : isCreating ? 'Create' : 'Update'}
+								{saving ? 'Saving...' : isCreating ? 'Register' : 'Update'}
 							</button>
 						</div>
 					</form>
 				{:else}
 					<div class="no-selection">
-						<p>Select a skill from the list or create a new one.</p>
+						<p>Select a script from the list or register a new one.</p>
 						<p class="hint">
-							Skills are reusable prompts that can be invoked with <code>/skill-name</code>
+							Scripts can be invoked by agents during task execution
 						</p>
 					</div>
 				{/if}
@@ -258,7 +312,7 @@
 </div>
 
 <style>
-	.skills-page {
+	.scripts-page {
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
@@ -273,6 +327,11 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
+	}
+
+	.header-actions {
+		display: flex;
+		gap: 0.5rem;
 	}
 
 	.subtitle {
@@ -305,22 +364,22 @@
 		color: var(--text-secondary);
 	}
 
-	.skills-layout {
+	.scripts-layout {
 		display: grid;
 		grid-template-columns: 250px 1fr;
 		gap: 1.5rem;
-		min-height: 600px;
+		min-height: 500px;
 	}
 
-	/* Skill List */
-	.skill-list {
+	/* Script List */
+	.script-list {
 		background: var(--bg-secondary);
 		border-radius: 8px;
 		padding: 1rem;
 		border: 1px solid var(--border-color);
 	}
 
-	.skill-list h2 {
+	.script-list h2 {
 		font-size: 0.875rem;
 		font-weight: 600;
 		margin: 0 0 0.75rem;
@@ -329,7 +388,7 @@
 		letter-spacing: 0.05em;
 	}
 
-	.skill-list ul {
+	.script-list ul {
 		list-style: none;
 		padding: 0;
 		margin: 0;
@@ -342,9 +401,16 @@
 		color: var(--text-secondary);
 		font-size: 0.875rem;
 		font-style: italic;
+		margin: 0;
 	}
 
-	.skill-item {
+	.empty-hint {
+		color: var(--text-secondary);
+		font-size: 0.75rem;
+		margin: 0.5rem 0 0;
+	}
+
+	.script-item {
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
@@ -360,20 +426,37 @@
 		gap: 0.25rem;
 	}
 
-	.skill-item:hover {
+	.script-item:hover {
 		background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
 	}
 
-	.skill-item.selected {
+	.script-item.selected {
 		background: var(--primary-bg, #dbeafe);
 		color: var(--primary-text, #1d4ed8);
 	}
 
-	.skill-name {
+	.script-header {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		width: 100%;
+	}
+
+	.script-name {
 		font-weight: 500;
 	}
 
-	.skill-desc {
+	.lang-badge {
+		font-size: 0.625rem;
+		padding: 0.125rem 0.375rem;
+		border-radius: 4px;
+		background: var(--bg-tertiary, #e5e7eb);
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		font-weight: 600;
+	}
+
+	.script-desc {
 		font-size: 0.75rem;
 		color: var(--text-secondary);
 		white-space: nowrap;
@@ -382,7 +465,7 @@
 		max-width: 100%;
 	}
 
-	.skill-item.selected .skill-desc {
+	.script-item.selected .script-desc {
 		color: var(--primary-text, #1d4ed8);
 		opacity: 0.7;
 	}
@@ -410,12 +493,11 @@
 		font-size: 1rem;
 	}
 
-	.skill-form {
+	.script-form {
 		padding: 1.5rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
-		flex: 1;
 	}
 
 	.form-row {
@@ -430,10 +512,6 @@
 		gap: 0.5rem;
 	}
 
-	.form-group-grow {
-		flex: 1;
-	}
-
 	.form-group label {
 		font-size: 0.875rem;
 		font-weight: 500;
@@ -441,6 +519,7 @@
 	}
 
 	.form-group input,
+	.form-group select,
 	.form-group textarea {
 		padding: 0.5rem 0.75rem;
 		border: 1px solid var(--border-color);
@@ -451,13 +530,12 @@
 	}
 
 	.form-group textarea {
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
 		resize: vertical;
-		flex: 1;
-		min-height: 200px;
+		min-height: 100px;
 	}
 
 	.form-group input:focus,
+	.form-group select:focus,
 	.form-group textarea:focus {
 		outline: none;
 		border-color: var(--primary, #3b82f6);
@@ -495,6 +573,16 @@
 		background: var(--primary-hover, #2563eb);
 	}
 
+	.btn-secondary {
+		background: var(--bg-secondary);
+		color: var(--text-primary);
+		border-color: var(--border-color);
+	}
+
+	.btn-secondary:hover:not(:disabled) {
+		background: var(--bg-tertiary, #e5e7eb);
+	}
+
 	.btn-danger {
 		background: var(--error-text, #dc2626);
 		color: white;
@@ -520,19 +608,17 @@
 		font-size: 0.875rem;
 	}
 
-	.no-selection code {
-		background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
-		padding: 0.125rem 0.375rem;
-		border-radius: 4px;
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
-	}
-
 	@media (max-width: 768px) {
-		.skills-layout {
+		.header-content {
+			flex-direction: column;
+			gap: 1rem;
+		}
+
+		.scripts-layout {
 			grid-template-columns: 1fr;
 		}
 
-		.skill-list {
+		.script-list {
 			max-height: 200px;
 			overflow-y: auto;
 		}

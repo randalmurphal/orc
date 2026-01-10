@@ -30,8 +30,7 @@ make dev      # Interactive shell in container
 | `internal/plan/` | Phase templates + weight classification |
 | `internal/state/` | Execution state tracking |
 | `internal/prompt/` | Prompt management service |
-| `internal/hooks/` | Claude Code hooks management |
-| `internal/skills/` | Claude Code skills management |
+| `internal/claude/` | Re-exports llmkit/claudeconfig types |
 | `internal/git/` | Git operations, worktrees (wraps devflow/git) |
 | `internal/project/` | Multi-project registry |
 | `templates/` | Phase templates (plans/, prompts/) |
@@ -166,22 +165,29 @@ completion:
 ~/.orc/
 └── projects.yaml        # Global project registry
 
+~/.claude/
+├── settings.json        # Global Claude Code settings
+└── CLAUDE.md            # Global instructions
+
+~/CLAUDE.md              # User-level instructions
+
 .orc/
 ├── config.yaml
-├── prompts/           # Project prompt overrides
+├── prompts/             # Project prompt overrides
 │   └── implement.md
 ├── worktrees/           # Isolated worktrees for tasks
 └── tasks/TASK-001/
-    ├── task.yaml       # Definition
-    ├── plan.yaml       # Phase sequence
-    ├── state.yaml      # Execution state
-    └── transcripts/    # Claude conversation logs
+    ├── task.yaml        # Definition
+    ├── plan.yaml        # Phase sequence
+    ├── state.yaml       # Execution state
+    └── transcripts/     # Claude conversation logs
 
 .claude/
-├── hooks/             # Claude Code hooks
-│   └── my-hook.json
-└── skills/            # Claude Code skills
-    └── my-skill.yaml
+├── settings.json        # Project settings (hooks, env, plugins)
+├── skills/              # Claude Code skills (SKILL.md format)
+│   └── my-skill/
+│       └── SKILL.md     # YAML frontmatter + markdown body
+└── CLAUDE.md            # Project instructions
 ```
 
 ## Commands
@@ -251,30 +257,71 @@ make e2e            # Run Playwright tests
 | PUT | `/api/prompts/:phase` | Save prompt override |
 | DELETE | `/api/prompts/:phase` | Delete prompt override |
 
-### Hooks
+### Hooks (settings.json format)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/hooks` | List hooks |
-| GET | `/api/hooks/types` | Get hook types |
-| POST | `/api/hooks` | Create hook |
-| GET | `/api/hooks/:name` | Get hook |
-| PUT | `/api/hooks/:name` | Update hook |
-| DELETE | `/api/hooks/:name` | Delete hook |
+| GET | `/api/hooks` | List all hooks (map of event → hooks) |
+| GET | `/api/hooks/types` | Get valid hook event types |
+| POST | `/api/hooks` | Create hook (event + matcher + command) |
+| GET | `/api/hooks/:event` | Get hooks for event type |
+| PUT | `/api/hooks/:event` | Update hooks for event |
+| DELETE | `/api/hooks/:event` | Delete all hooks for event |
 
-### Skills
+### Skills (SKILL.md format)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/skills` | List skills |
-| POST | `/api/skills` | Create skill |
-| GET | `/api/skills/:name` | Get skill |
+| POST | `/api/skills` | Create skill (name, description, content) |
+| GET | `/api/skills/:name` | Get skill with content |
 | PUT | `/api/skills/:name` | Update skill |
 | DELETE | `/api/skills/:name` | Delete skill |
+
+### Settings
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/settings` | Get merged settings (global + project) |
+| GET | `/api/settings/project` | Get project settings only |
+| PUT | `/api/settings` | Update project settings |
+
+### Tools
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tools` | List available tools |
+| GET | `/api/tools?by_category=true` | List tools grouped by category |
+| GET | `/api/tools/permissions` | Get tool allow/deny lists |
+| PUT | `/api/tools/permissions` | Update tool permissions |
+
+### Agents
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/agents` | List sub-agents |
+| POST | `/api/agents` | Create sub-agent |
+| GET | `/api/agents/:name` | Get agent details |
+| PUT | `/api/agents/:name` | Update agent |
+| DELETE | `/api/agents/:name` | Delete agent |
+
+### Scripts
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/scripts` | List registered scripts |
+| POST | `/api/scripts` | Register script |
+| POST | `/api/scripts/discover` | Auto-discover scripts |
+| GET | `/api/scripts/:name` | Get script details |
+| PUT | `/api/scripts/:name` | Update script |
+| DELETE | `/api/scripts/:name` | Remove script from registry |
+
+### CLAUDE.md
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/claudemd` | Get project CLAUDE.md |
+| PUT | `/api/claudemd` | Update project CLAUDE.md |
+| GET | `/api/claudemd/hierarchy` | Get full hierarchy (global, user, project) |
 
 ### Config & Real-time
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/config` | Get configuration |
-| PUT | `/api/config` | Update configuration |
+| GET | `/api/config` | Get orc configuration |
+| PUT | `/api/config` | Update orc configuration |
 | GET | `/api/ws` | WebSocket for real-time updates |
 | GET | `/api/tasks/:id/stream` | SSE transcript stream (legacy) |
 
