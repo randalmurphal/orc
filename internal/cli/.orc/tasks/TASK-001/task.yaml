@@ -1,7 +1,7 @@
 id: TASK-001
-title: ""
+title: Test task
 weight: ""
 status: blocked
-branch: ""
-created_at: 0001-01-01T00:00:00Z
-updated_at: 2026-01-10T14:18:40.786859984-06:00
+branch: orc/TASK-001
+created_at: 2026-01-10T14:19:29.351914254-06:00
+updated_at: 2026-01-10T14:19:29.35218156-06:00
