@@ -424,10 +424,10 @@ func (e *Executor) ExecutePhase(ctx context.Context, t *task.Task, p *plan.Phase
 		return result, result.Error
 	}
 
-	// Create flowgraph context
-	fgCtx := flowgraph.NewContext(ctx,
+	// Create flowgraph context with LLM injected via context.WithValue
+	baseCtx := WithLLM(ctx, e.client)
+	fgCtx := flowgraph.NewContext(baseCtx,
 		flowgraph.WithLogger(e.logger),
-		flowgraph.WithLLM(e.client),
 		flowgraph.WithContextRunID(fmt.Sprintf("%s-%s", t.ID, p.ID)),
 	)
 
@@ -539,8 +539,8 @@ func (e *Executor) renderTemplate(tmpl string, s PhaseState) string {
 // executeClaudeNode creates the Claude execution node.
 func (e *Executor) executeClaudeNode() flowgraph.NodeFunc[PhaseState] {
 	return func(ctx flowgraph.Context, s PhaseState) (PhaseState, error) {
-		// Use LLM client from context or fallback to executor's client
-		client := ctx.LLM()
+		// Use LLM client from context (injected via WithLLM)
+		client := LLM(ctx)
 		if client == nil {
 			return s, fmt.Errorf("no LLM client available")
 		}
