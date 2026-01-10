@@ -9,6 +9,7 @@
 		{ href: '/claudemd', label: 'CLAUDE.md' },
 		{ href: '/skills', label: 'Skills' },
 		{ href: '/hooks', label: 'Hooks' },
+		{ href: '/mcp', label: 'MCP' },
 		{ href: '/tools', label: 'Tools' },
 		{ href: '/agents', label: 'Agents' },
 		{ href: '/scripts', label: 'Scripts' },
