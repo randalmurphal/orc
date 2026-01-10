@@ -597,6 +597,22 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		e.worktreeGit = e.gitOps.InWorktree(worktreePath)
 		e.logger.Info("created worktree", "task", t.ID, "path", worktreePath)
 
+		// Create a new Claude client for the worktree context
+		// This ensures all Claude work happens in the isolated worktree
+		worktreeClientOpts := []claude.ClaudeOption{
+			claude.WithModel(e.config.Model),
+			claude.WithWorkdir(worktreePath),
+			claude.WithTimeout(e.config.Timeout),
+		}
+		if e.config.ClaudePath != "" {
+			worktreeClientOpts = append(worktreeClientOpts, claude.WithClaudePath(e.config.ClaudePath))
+		}
+		if e.config.DangerouslySkipPermissions {
+			worktreeClientOpts = append(worktreeClientOpts, claude.WithDangerouslySkipPermissions())
+		}
+		e.client = claude.NewClaudeCLI(worktreeClientOpts...)
+		e.logger.Info("claude client configured for worktree", "path", worktreePath)
+
 		// Cleanup worktree on exit based on config and success
 		defer func() {
 			if e.worktreePath != "" {

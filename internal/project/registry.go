@@ -73,7 +73,8 @@ func LoadRegistry() (*Registry, error) {
 	return &reg, nil
 }
 
-// Save saves the registry to disk.
+// Save saves the registry to disk using atomic write.
+// Uses write-to-temp + rename to prevent corruption from concurrent writes.
 func (r *Registry) Save() error {
 	path, err := RegistryPath()
 	if err != nil {
@@ -90,8 +91,16 @@ func (r *Registry) Save() error {
 		return fmt.Errorf("marshal registry: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("write registry: %w", err)
+	// Atomic write: write to temp file, then rename
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+		return fmt.Errorf("write temp registry: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, path); err != nil {
+		// Clean up temp file on rename failure
+		os.Remove(tmpPath)
+		return fmt.Errorf("rename registry: %w", err)
 	}
 
 	return nil

@@ -8,6 +8,10 @@ export const projects = writable<Project[]>([]);
 // Store for currently selected project
 export const currentProjectId = writable<string | null>(null);
 
+// Loading and error states
+export const projectsLoading = writable<boolean>(false);
+export const projectsError = writable<string | null>(null);
+
 // Derived store for current project
 export const currentProject: Readable<Project | null> = derived(
 	[projects, currentProjectId],
@@ -19,6 +23,9 @@ export const currentProject: Readable<Project | null> = derived(
 
 // Load projects from API
 export async function loadProjects(): Promise<void> {
+	projectsLoading.set(true);
+	projectsError.set(null);
+
 	try {
 		const loaded = await listProjects();
 		projects.set(loaded);
@@ -35,7 +42,11 @@ export async function loadProjects(): Promise<void> {
 			return current;
 		});
 	} catch (e) {
+		const errorMsg = e instanceof Error ? e.message : 'Failed to load projects';
+		projectsError.set(errorMsg);
 		console.error('Failed to load projects:', e);
+	} finally {
+		projectsLoading.set(false);
 	}
 }
 
