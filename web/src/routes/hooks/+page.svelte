@@ -2,36 +2,33 @@
 	import { onMount } from 'svelte';
 	import {
 		listHooks,
-		getHook,
 		getHookTypes,
 		createHook,
-		updateHook,
 		deleteHook,
-		type HookInfo,
+		type HooksMap,
+		type HookEvent,
 		type Hook,
-		type HookType
+		type HookEntry
 	} from '$lib/api';
 
-	let hooks: HookInfo[] = [];
-	let hookTypes: HookType[] = [];
-	let selectedHook: Hook | null = null;
+	let hooksMap: HooksMap = {};
+	let hookEvents: HookEvent[] = [];
+	let selectedEvent: HookEvent | null = null;
+	let selectedHookIndex: number | null = null;
 	let isCreating = false;
 	let loading = true;
 	let saving = false;
 	let error: string | null = null;
 	let success: string | null = null;
 
-	// Form fields
-	let formName = '';
-	let formType: HookType = 'pre:tool';
-	let formPattern = '';
+	// Form fields for a single hook
+	let formMatcher = '';
 	let formCommand = '';
-	let formTimeout = 30;
-	let formDisabled = false;
+	let formEvent: HookEvent = 'PreToolUse';
 
 	onMount(async () => {
 		try {
-			[hooks, hookTypes] = await Promise.all([listHooks(), getHookTypes()]);
+			[hooksMap, hookEvents] = await Promise.all([listHooks(), getHookTypes()]);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load hooks';
 		} finally {
@@ -39,41 +36,36 @@
 		}
 	});
 
-	async function selectHook(name: string) {
+	function selectHook(event: HookEvent, index: number) {
 		error = null;
 		success = null;
 		isCreating = false;
+		selectedEvent = event;
+		selectedHookIndex = index;
 
-		try {
-			selectedHook = await getHook(name);
-			formName = selectedHook.name;
-			formType = selectedHook.type;
-			formPattern = selectedHook.pattern || '';
-			formCommand = selectedHook.command;
-			formTimeout = selectedHook.timeout || 30;
-			formDisabled = selectedHook.disabled || false;
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load hook';
+		const hook = hooksMap[event]?.[index];
+		if (hook) {
+			formMatcher = hook.matcher;
+			formCommand = hook.hooks[0]?.command || '';
+			formEvent = event;
 		}
 	}
 
 	function startCreate() {
 		error = null;
 		success = null;
-		selectedHook = null;
+		selectedEvent = null;
+		selectedHookIndex = null;
 		isCreating = true;
 
-		formName = '';
-		formType = 'pre:tool';
-		formPattern = '';
+		formMatcher = '';
 		formCommand = '';
-		formTimeout = 30;
-		formDisabled = false;
+		formEvent = hookEvents[0] || 'PreToolUse';
 	}
 
 	async function handleSave() {
-		if (!formName.trim() || !formCommand.trim()) {
-			error = 'Name and command are required';
+		if (!formMatcher.trim() || !formCommand.trim()) {
+			error = 'Matcher and command are required';
 			return;
 		}
 
@@ -82,26 +74,20 @@
 		success = null;
 
 		const hook: Hook = {
-			name: formName.trim(),
-			type: formType,
-			pattern: formPattern.trim() || undefined,
-			command: formCommand.trim(),
-			timeout: formTimeout > 0 ? formTimeout : undefined,
-			disabled: formDisabled
+			matcher: formMatcher.trim(),
+			hooks: [{ type: 'command', command: formCommand.trim() }]
 		};
 
 		try {
-			if (isCreating) {
-				await createHook(hook);
-				success = 'Hook created successfully';
-			} else if (selectedHook) {
-				await updateHook(selectedHook.name, hook);
-				success = 'Hook updated successfully';
-			}
+			await createHook(formEvent, hook);
+			success = 'Hook saved successfully';
+			hooksMap = await listHooks();
 
-			hooks = await listHooks();
-			selectedHook = hook;
-			isCreating = false;
+			if (isCreating) {
+				isCreating = false;
+				selectedEvent = formEvent;
+				selectedHookIndex = (hooksMap[formEvent]?.length ?? 1) - 1;
+			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to save hook';
 		} finally {
@@ -110,18 +96,19 @@
 	}
 
 	async function handleDelete() {
-		if (!selectedHook) return;
+		if (!selectedEvent) return;
 
-		if (!confirm(`Delete hook "${selectedHook.name}"?`)) return;
+		if (!confirm(`Delete hooks for "${selectedEvent}"?`)) return;
 
 		saving = true;
 		error = null;
 		success = null;
 
 		try {
-			await deleteHook(selectedHook.name);
-			hooks = await listHooks();
-			selectedHook = null;
+			await deleteHook(selectedEvent);
+			hooksMap = await listHooks();
+			selectedEvent = null;
+			selectedHookIndex = null;
 			isCreating = false;
 			success = 'Hook deleted successfully';
 		} catch (e) {
@@ -131,11 +118,16 @@
 		}
 	}
 
-	function getTypeBadgeClass(type: HookType): string {
-		if (type.startsWith('pre:')) return 'badge-pre';
-		if (type.startsWith('post:')) return 'badge-post';
+	function getEventBadgeClass(event: string): string {
+		if (event.startsWith('Pre')) return 'badge-pre';
+		if (event.startsWith('Post')) return 'badge-post';
 		return 'badge-other';
 	}
+
+	// Flatten hooks for display
+	$: flatHooks = Object.entries(hooksMap).flatMap(([event, hooks]) =>
+		hooks.map((hook, index) => ({ event: event as HookEvent, hook, index }))
+	);
 </script>
 
 <svelte:head>
@@ -147,7 +139,7 @@
 		<div class="header-content">
 			<div>
 				<h1>Claude Code Hooks</h1>
-				<p class="subtitle">Manage hooks in .claude/hooks/</p>
+				<p class="subtitle">Manage hooks in .claude/settings.json</p>
 			</div>
 			<button class="btn btn-primary" on:click={startCreate}>New Hook</button>
 		</div>
@@ -168,20 +160,19 @@
 			<!-- Hook List -->
 			<aside class="hook-list">
 				<h2>Hooks</h2>
-				{#if hooks.length === 0}
+				{#if flatHooks.length === 0}
 					<p class="empty-message">No hooks configured</p>
 				{:else}
 					<ul>
-						{#each hooks as hook}
+						{#each flatHooks as { event, hook, index }}
 							<li>
 								<button
 									class="hook-item"
-									class:selected={selectedHook?.name === hook.name}
-									class:disabled={hook.disabled}
-									on:click={() => selectHook(hook.name)}
+									class:selected={selectedEvent === event && selectedHookIndex === index}
+									on:click={() => selectHook(event, index)}
 								>
-									<span class="hook-name">{hook.name}</span>
-									<span class="badge {getTypeBadgeClass(hook.type)}">{hook.type}</span>
+									<span class="hook-name">{hook.matcher}</span>
+									<span class="badge {getEventBadgeClass(event)}">{event}</span>
 								</button>
 							</li>
 						{/each}
@@ -191,47 +182,35 @@
 
 			<!-- Editor Panel -->
 			<div class="editor-panel">
-				{#if selectedHook || isCreating}
+				{#if selectedEvent !== null || isCreating}
 					<div class="editor-header">
-						<h2>{isCreating ? 'New Hook' : selectedHook?.name}</h2>
-						{#if selectedHook && !isCreating}
+						<h2>{isCreating ? 'New Hook' : formMatcher || 'Edit Hook'}</h2>
+						{#if selectedEvent && !isCreating}
 							<button class="btn btn-danger" on:click={handleDelete} disabled={saving}>
-								Delete
+								Delete Event
 							</button>
 						{/if}
 					</div>
 
 					<form class="hook-form" on:submit|preventDefault={handleSave}>
 						<div class="form-group">
-							<label for="name">Name</label>
-							<input
-								id="name"
-								type="text"
-								bind:value={formName}
-								placeholder="my-hook"
-								disabled={!isCreating}
-							/>
+							<label for="event">Event</label>
+							<select id="event" bind:value={formEvent} disabled={!isCreating}>
+								{#each hookEvents as event}
+									<option value={event}>{event}</option>
+								{/each}
+							</select>
 						</div>
 
-						<div class="form-row">
-							<div class="form-group">
-								<label for="type">Type</label>
-								<select id="type" bind:value={formType}>
-									{#each hookTypes as type}
-										<option value={type}>{type}</option>
-									{/each}
-								</select>
-							</div>
-
-							<div class="form-group">
-								<label for="pattern">Pattern (optional)</label>
-								<input
-									id="pattern"
-									type="text"
-									bind:value={formPattern}
-									placeholder="Bash, Edit, etc."
-								/>
-							</div>
+						<div class="form-group">
+							<label for="matcher">Matcher Pattern</label>
+							<input
+								id="matcher"
+								type="text"
+								bind:value={formMatcher}
+								placeholder="Bash, Edit, *"
+							/>
+							<span class="help-text">Tool name pattern (use * for all tools)</span>
 						</div>
 
 						<div class="form-group">
@@ -242,20 +221,6 @@
 								placeholder="echo 'Hook executed'"
 								rows="3"
 							></textarea>
-						</div>
-
-						<div class="form-row">
-							<div class="form-group">
-								<label for="timeout">Timeout (seconds)</label>
-								<input id="timeout" type="number" bind:value={formTimeout} min="0" max="300" />
-							</div>
-
-							<div class="form-group checkbox-group">
-								<label>
-									<input type="checkbox" bind:checked={formDisabled} />
-									Disabled
-								</label>
-							</div>
 						</div>
 
 						<div class="form-actions">
@@ -385,12 +350,9 @@
 		color: var(--primary-text, #1d4ed8);
 	}
 
-	.hook-item.disabled {
-		opacity: 0.5;
-	}
-
 	.hook-name {
 		font-weight: 500;
+		font-family: 'JetBrains Mono', 'Fira Code', monospace;
 	}
 
 	.badge {
@@ -452,12 +414,6 @@
 		gap: 0.5rem;
 	}
 
-	.form-row {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 1rem;
-	}
-
 	.form-group label {
 		font-size: 0.875rem;
 		font-weight: 500;
@@ -487,19 +443,9 @@
 		border-color: var(--primary, #3b82f6);
 	}
 
-	.checkbox-group {
-		justify-content: flex-end;
-	}
-
-	.checkbox-group label {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		cursor: pointer;
-	}
-
-	.checkbox-group input[type='checkbox'] {
-		width: auto;
+	.help-text {
+		font-size: 0.75rem;
+		color: var(--text-secondary);
 	}
 
 	.form-actions {
@@ -556,10 +502,6 @@
 		.hook-list {
 			max-height: 200px;
 			overflow-y: auto;
-		}
-
-		.form-row {
-			grid-template-columns: 1fr;
 		}
 	}
 </style>

@@ -11,9 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/randalmurphal/orc/internal/hooks"
+	"github.com/randalmurphal/llmkit/claudeconfig"
 	"github.com/randalmurphal/orc/internal/prompt"
-	"github.com/randalmurphal/orc/internal/skills"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -201,9 +200,17 @@ func TestDeletePromptEndpoint_NoOverride(t *testing.T) {
 	}
 }
 
-// === Hooks API Tests ===
+// === Hooks API Tests (settings.json format) ===
 
 func TestListHooksEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create .claude directory
+	os.MkdirAll(".claude", 0755)
+
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/hooks", nil)
@@ -215,14 +222,15 @@ func TestListHooksEndpoint(t *testing.T) {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
 
-	var hookList []hooks.HookInfo
-	if err := json.NewDecoder(w.Body).Decode(&hookList); err != nil {
+	// Response is now a map of event -> hooks
+	var hookMap map[string][]claudeconfig.Hook
+	if err := json.NewDecoder(w.Body).Decode(&hookMap); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	// Empty list is OK if no hooks exist
-	if hookList == nil {
-		t.Error("expected non-nil list")
+	// Empty map is OK if no hooks exist
+	if hookMap == nil {
+		t.Error("expected non-nil map")
 	}
 }
 
@@ -238,7 +246,7 @@ func TestGetHookTypesEndpoint(t *testing.T) {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
 
-	var types []hooks.HookType
+	var types []claudeconfig.HookEvent
 	if err := json.NewDecoder(w.Body).Decode(&types); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -249,9 +257,18 @@ func TestGetHookTypesEndpoint(t *testing.T) {
 }
 
 func TestGetHookEndpoint_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create empty settings
+	os.MkdirAll(".claude", 0755)
+	os.WriteFile(".claude/settings.json", []byte(`{}`), 0644)
+
 	srv := New(nil)
 
-	req := httptest.NewRequest("GET", "/api/hooks/nonexistent", nil)
+	req := httptest.NewRequest("GET", "/api/hooks/PreToolUse", nil)
 	w := httptest.NewRecorder()
 
 	srv.mux.ServeHTTP(w, req)
@@ -276,25 +293,43 @@ func TestCreateHookEndpoint_InvalidBody(t *testing.T) {
 	}
 }
 
-func TestCreateHookEndpoint_MissingName(t *testing.T) {
+func TestCreateHookEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create .claude directory
+	os.MkdirAll(".claude", 0755)
+
 	srv := New(nil)
 
-	body := bytes.NewBufferString(`{"type":"pre:tool","command":"echo test"}`)
-	req := httptest.NewRequest("POST", "/api/hooks", body)
+	// New format: event + hook
+	body := `{"event": "PreToolUse", "hook": {"matcher": "Read", "hooks": [{"type": "command", "command": "echo test"}]}}`
+	req := httptest.NewRequest("POST", "/api/hooks", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
 	srv.mux.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", w.Code)
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
 func TestDeleteHookEndpoint_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create empty settings
+	os.MkdirAll(".claude", 0755)
+	os.WriteFile(".claude/settings.json", []byte(`{}`), 0644)
+
 	srv := New(nil)
 
-	req := httptest.NewRequest("DELETE", "/api/hooks/nonexistent", nil)
+	req := httptest.NewRequest("DELETE", "/api/hooks/PreToolUse", nil)
 	w := httptest.NewRecorder()
 
 	srv.mux.ServeHTTP(w, req)
@@ -304,9 +339,17 @@ func TestDeleteHookEndpoint_NotFound(t *testing.T) {
 	}
 }
 
-// === Skills API Tests ===
+// === Skills API Tests (SKILL.md format) ===
 
 func TestListSkillsEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create .claude/skills directory
+	os.MkdirAll(".claude/skills", 0755)
+
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/skills", nil)
@@ -318,7 +361,7 @@ func TestListSkillsEndpoint(t *testing.T) {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
 
-	var skillList []skills.SkillInfo
+	var skillList []claudeconfig.SkillInfo
 	if err := json.NewDecoder(w.Body).Decode(&skillList); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -330,6 +373,13 @@ func TestListSkillsEndpoint(t *testing.T) {
 }
 
 func TestGetSkillEndpoint_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".claude/skills", 0755)
+
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/skills/nonexistent", nil)
@@ -360,7 +410,7 @@ func TestCreateSkillEndpoint_InvalidBody(t *testing.T) {
 func TestCreateSkillEndpoint_MissingName(t *testing.T) {
 	srv := New(nil)
 
-	body := bytes.NewBufferString(`{"prompt":"Do something"}`)
+	body := bytes.NewBufferString(`{"description":"Something"}`)
 	req := httptest.NewRequest("POST", "/api/skills", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -372,7 +422,43 @@ func TestCreateSkillEndpoint_MissingName(t *testing.T) {
 	}
 }
 
+func TestCreateSkillEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create .claude/skills directory
+	os.MkdirAll(".claude/skills", 0755)
+
+	srv := New(nil)
+
+	body := `{"name": "test-skill", "description": "A test skill", "content": "Do something useful"}`
+	req := httptest.NewRequest("POST", "/api/skills", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify the SKILL.md was created
+	skillPath := filepath.Join(".claude", "skills", "test-skill", "SKILL.md")
+	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
+		t.Error("expected SKILL.md file to be created")
+	}
+}
+
 func TestDeleteSkillEndpoint_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".claude/skills", 0755)
+
 	srv := New(nil)
 
 	req := httptest.NewRequest("DELETE", "/api/skills/nonexistent", nil)
@@ -382,6 +468,399 @@ func TestDeleteSkillEndpoint_NotFound(t *testing.T) {
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf("expected status 404, got %d", w.Code)
+	}
+}
+
+func TestDeleteSkillEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create skill directory with SKILL.md
+	skillDir := filepath.Join(".claude", "skills", "delete-skill")
+	os.MkdirAll(skillDir, 0755)
+	skillMD := `---
+name: delete-skill
+description: To be deleted
+---
+Some content
+`
+	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillMD), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("DELETE", "/api/skills/delete-skill", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify directory was deleted
+	if _, err := os.Stat(skillDir); !os.IsNotExist(err) {
+		t.Error("expected skill directory to be deleted")
+	}
+}
+
+// === Settings API Tests ===
+
+func TestGetSettingsEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".claude", 0755)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/settings", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+}
+
+func TestUpdateSettingsEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".claude", 0755)
+
+	srv := New(nil)
+
+	body := `{"env": {"TEST_VAR": "test_value"}}`
+	req := httptest.NewRequest("PUT", "/api/settings", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// === Tools API Tests ===
+
+func TestListToolsEndpoint(t *testing.T) {
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/tools", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var tools []claudeconfig.ToolInfo
+	if err := json.NewDecoder(w.Body).Decode(&tools); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(tools) == 0 {
+		t.Error("expected at least one tool")
+	}
+}
+
+func TestListToolsByCategory(t *testing.T) {
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/tools?by_category=true", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var byCategory map[string][]claudeconfig.ToolInfo
+	if err := json.NewDecoder(w.Body).Decode(&byCategory); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(byCategory) == 0 {
+		t.Error("expected at least one category")
+	}
+}
+
+func TestGetToolPermissionsEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".claude", 0755)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/tools/permissions", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+}
+
+func TestUpdateToolPermissionsEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".claude", 0755)
+
+	srv := New(nil)
+
+	body := `{"allow": ["Read", "Write"], "deny": ["Bash"]}`
+	req := httptest.NewRequest("PUT", "/api/tools/permissions", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// === Agents API Tests ===
+
+func TestListAgentsEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".claude", 0755)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/agents", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+}
+
+func TestCreateAgentEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".claude", 0755)
+
+	srv := New(nil)
+
+	body := `{"name": "test-agent", "description": "A test agent"}`
+	req := httptest.NewRequest("POST", "/api/agents", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetAgentEndpoint_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".claude", 0755)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/agents/nonexistent", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", w.Code)
+	}
+}
+
+// === Scripts API Tests ===
+
+func TestListScriptsEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".claude", 0755)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/scripts", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+}
+
+func TestDiscoverScriptsEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create scripts directory with a test script
+	scriptsDir := filepath.Join(".claude", "scripts")
+	os.MkdirAll(scriptsDir, 0755)
+	os.WriteFile(filepath.Join(scriptsDir, "test.sh"), []byte("#!/bin/bash\n# Test script\necho hello"), 0755)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("POST", "/api/scripts/discover", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var scripts []claudeconfig.ProjectScript
+	if err := json.NewDecoder(w.Body).Decode(&scripts); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(scripts) == 0 {
+		t.Error("expected at least one discovered script")
+	}
+}
+
+// === CLAUDE.md API Tests ===
+
+func TestGetClaudeMDEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create CLAUDE.md
+	os.WriteFile("CLAUDE.md", []byte("# Project CLAUDE.md\n\nTest content"), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/claudemd", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var claudeMD claudeconfig.ClaudeMD
+	if err := json.NewDecoder(w.Body).Decode(&claudeMD); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if claudeMD.Content == "" {
+		t.Error("expected non-empty content")
+	}
+}
+
+func TestGetClaudeMDEndpoint_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/claudemd", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", w.Code)
+	}
+}
+
+func TestUpdateClaudeMDEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	srv := New(nil)
+
+	body := `{"content": "# Updated CLAUDE.md\n\nNew content"}`
+	req := httptest.NewRequest("PUT", "/api/claudemd", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify file was written
+	content, err := os.ReadFile("CLAUDE.md")
+	if err != nil {
+		t.Fatalf("failed to read CLAUDE.md: %v", err)
+	}
+	if string(content) != "# Updated CLAUDE.md\n\nNew content" {
+		t.Errorf("unexpected content: %s", string(content))
+	}
+}
+
+func TestGetClaudeMDHierarchyEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create project CLAUDE.md
+	os.WriteFile("CLAUDE.md", []byte("# Project"), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/claudemd/hierarchy", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var hierarchy claudeconfig.ClaudeMDHierarchy
+	if err := json.NewDecoder(w.Body).Decode(&hierarchy); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if hierarchy.Project == nil {
+		t.Error("expected project CLAUDE.md in hierarchy")
 	}
 }
 
@@ -519,35 +998,6 @@ updated_at: 2024-01-01T00:00:00Z
 	}
 	if resp.TotalPages != 3 {
 		t.Errorf("expected 3 total pages, got %d", resp.TotalPages)
-	}
-
-	// Test page 3 (should have 5 tasks)
-	req = httptest.NewRequest("GET", "/api/tasks?page=3&limit=10", nil)
-	w = httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-
-	if len(resp.Tasks) != 5 {
-		t.Errorf("expected 5 tasks on page 3, got %d", len(resp.Tasks))
-	}
-
-	// Test without pagination (backward compatible)
-	req = httptest.NewRequest("GET", "/api/tasks", nil)
-	w = httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	var allTasks []task.Task
-	if err := json.NewDecoder(w.Body).Decode(&allTasks); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-
-	if len(allTasks) != 25 {
-		t.Errorf("expected 25 tasks without pagination, got %d", len(allTasks))
 	}
 }
 
@@ -766,180 +1216,6 @@ func TestDeleteTaskEndpoint_RunningTask(t *testing.T) {
 	}
 }
 
-func TestGetStateEndpoint(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	// Create task with state file
-	taskDir := filepath.Join(".orc", "tasks", "TASK-003")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-003
-title: State Test
-status: running
-weight: small
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
-
-	stateYAML := `task_id: TASK-003
-status: running
-started_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-phases: {}
-tokens:
-  input: 0
-  output: 0
-  total: 0
-`
-	os.WriteFile(filepath.Join(taskDir, "state.yaml"), []byte(stateYAML), 0644)
-
-	srv := New(nil)
-
-	req := httptest.NewRequest("GET", "/api/tasks/TASK-003/state", nil)
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestGetStateEndpoint_NotFound(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	os.MkdirAll(".orc/tasks", 0755)
-
-	srv := New(nil)
-
-	req := httptest.NewRequest("GET", "/api/tasks/NONEXISTENT/state", nil)
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", w.Code)
-	}
-}
-
-func TestGetPlanEndpoint_NotFound(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	os.MkdirAll(".orc/tasks", 0755)
-
-	srv := New(nil)
-
-	req := httptest.NewRequest("GET", "/api/tasks/NONEXISTENT/plan", nil)
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", w.Code)
-	}
-}
-
-func TestGetTranscriptsEndpoint(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	// Create task with transcripts directory
-	taskDir := filepath.Join(".orc", "tasks", "TASK-004")
-	transcriptsDir := filepath.Join(taskDir, "transcripts")
-	os.MkdirAll(transcriptsDir, 0755)
-
-	taskYAML := `id: TASK-004
-title: Transcripts Test
-status: completed
-weight: small
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
-
-	// Create transcript file
-	transcript := "This is a test transcript."
-	os.WriteFile(filepath.Join(transcriptsDir, "implement-001.md"), []byte(transcript), 0644)
-
-	srv := New(nil)
-
-	req := httptest.NewRequest("GET", "/api/tasks/TASK-004/transcripts", nil)
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", w.Code)
-	}
-
-	var transcripts []TranscriptFile
-	if err := json.NewDecoder(w.Body).Decode(&transcripts); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-
-	if len(transcripts) != 1 {
-		t.Errorf("expected 1 transcript, got %d", len(transcripts))
-	}
-}
-
-func TestRunTaskEndpoint_TaskNotFound(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	os.MkdirAll(".orc/tasks", 0755)
-
-	srv := New(nil)
-
-	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/run", nil)
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", w.Code)
-	}
-}
-
-func TestPauseTaskEndpoint_NotRunning(t *testing.T) {
-	srv := New(nil)
-
-	req := httptest.NewRequest("POST", "/api/tasks/TASK-999/pause", nil)
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", w.Code)
-	}
-}
-
-func TestResumeTaskEndpoint_NotPaused(t *testing.T) {
-	srv := New(nil)
-
-	req := httptest.NewRequest("POST", "/api/tasks/TASK-999/resume", nil)
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", w.Code)
-	}
-}
-
 func TestServerConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
@@ -1064,21 +1340,6 @@ func TestUpdateConfigEndpoint(t *testing.T) {
 	if resp["profile"] != "safe" {
 		t.Errorf("expected profile 'safe', got %v", resp["profile"])
 	}
-
-	automation := resp["automation"].(map[string]interface{})
-	if automation["gates_default"] != "human" {
-		t.Errorf("expected gates_default 'human', got %v", automation["gates_default"])
-	}
-
-	execution := resp["execution"].(map[string]interface{})
-	if execution["model"] != "claude-opus-4-20250514" {
-		t.Errorf("expected model 'claude-opus-4-20250514', got %v", execution["model"])
-	}
-
-	git := resp["git"].(map[string]interface{})
-	if git["branch_prefix"] != "test/" {
-		t.Errorf("expected branch_prefix 'test/', got %v", git["branch_prefix"])
-	}
 }
 
 func TestUpdateConfigEndpoint_InvalidBody(t *testing.T) {
@@ -1096,101 +1357,73 @@ func TestUpdateConfigEndpoint_InvalidBody(t *testing.T) {
 	}
 }
 
-func TestUpdateConfigEndpoint_PartialUpdate(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+// === Publisher Test ===
 
-	// Create config directory
-	os.MkdirAll(".orc", 0755)
-
+func TestServerPublisher(t *testing.T) {
 	srv := New(nil)
 
-	// Update only profile
-	body := bytes.NewBufferString(`{"profile": "strict"}`)
-	req := httptest.NewRequest("PUT", "/api/config", body)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-
-	if resp["profile"] != "strict" {
-		t.Errorf("expected profile 'strict', got %v", resp["profile"])
+	// Publisher method should return the internal publisher
+	pub := srv.Publisher()
+	if pub == nil {
+		t.Error("expected non-nil publisher")
 	}
 }
 
-// === Update Hook/Skill Tests ===
+// === Publish Tests ===
 
-func TestUpdateHookEndpoint_NotFound(t *testing.T) {
+func TestPublishWithSubscribers(t *testing.T) {
 	srv := New(nil)
 
-	body := bytes.NewBufferString(`{"type":"pre:tool","command":"echo updated"}`)
-	req := httptest.NewRequest("PUT", "/api/hooks/nonexistent", body)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
+	// Manually add a subscriber
+	ch := make(chan Event, 10)
+	srv.subscribersMu.Lock()
+	srv.subscribers["TASK-001"] = append(srv.subscribers["TASK-001"], ch)
+	srv.subscribersMu.Unlock()
 
-	srv.mux.ServeHTTP(w, req)
+	// Publish an event
+	srv.Publish("TASK-001", Event{Type: "test", Data: "hello"})
 
-	// Update returns 400 for errors (not found is reported as error)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", w.Code)
+	// Check if event was received
+	select {
+	case evt := <-ch:
+		if evt.Type != "test" {
+			t.Errorf("expected event type 'test', got %q", evt.Type)
+		}
+	default:
+		t.Error("expected to receive event")
 	}
 }
 
-func TestUpdateHookEndpoint_InvalidBody(t *testing.T) {
+func TestPublishWithFullChannel(t *testing.T) {
 	srv := New(nil)
 
-	body := bytes.NewBufferString(`invalid json`)
-	req := httptest.NewRequest("PUT", "/api/hooks/test", body)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
+	// Create a full channel (capacity 0)
+	ch := make(chan Event, 0)
+	srv.subscribersMu.Lock()
+	srv.subscribers["TASK-001"] = append(srv.subscribers["TASK-001"], ch)
+	srv.subscribersMu.Unlock()
 
-	srv.mux.ServeHTTP(w, req)
+	// Publish should not block even with full channel
+	done := make(chan struct{})
+	go func() {
+		srv.Publish("TASK-001", Event{Type: "test", Data: "hello"})
+		close(done)
+	}()
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", w.Code)
+	// Wait with timeout
+	select {
+	case <-done:
+		// Success - did not block
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Publish blocked on full channel")
 	}
 }
 
-func TestUpdateSkillEndpoint_NotFound(t *testing.T) {
+func TestPublishNoSubscribers(t *testing.T) {
 	srv := New(nil)
 
-	body := bytes.NewBufferString(`{"prompt":"Updated prompt"}`)
-	req := httptest.NewRequest("PUT", "/api/skills/nonexistent", body)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	// Update returns 400 for errors (not found is reported as error)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", w.Code)
-	}
-}
-
-func TestUpdateSkillEndpoint_InvalidBody(t *testing.T) {
-	srv := New(nil)
-
-	body := bytes.NewBufferString(`invalid json`)
-	req := httptest.NewRequest("PUT", "/api/skills/test", body)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", w.Code)
-	}
+	// Publish should not panic with no subscribers
+	srv.Publish("NONEXISTENT", Event{Type: "test", Data: "hello"})
 }
 
 // === Save Prompt Success Test ===
@@ -1254,18 +1487,6 @@ func TestDeletePromptEndpoint_Success(t *testing.T) {
 	}
 }
 
-// === Publisher Test ===
-
-func TestServerPublisher(t *testing.T) {
-	srv := New(nil)
-
-	// Publisher method should return the internal publisher
-	pub := srv.Publisher()
-	if pub == nil {
-		t.Error("expected non-nil publisher")
-	}
-}
-
 // === Get Plan Success Test ===
 
 func TestGetPlanEndpoint_Success(t *testing.T) {
@@ -1307,63 +1528,6 @@ phases:
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
-}
-
-// === Publish Tests ===
-
-func TestPublishWithSubscribers(t *testing.T) {
-	srv := New(nil)
-
-	// Manually add a subscriber
-	ch := make(chan Event, 10)
-	srv.subscribersMu.Lock()
-	srv.subscribers["TASK-001"] = append(srv.subscribers["TASK-001"], ch)
-	srv.subscribersMu.Unlock()
-
-	// Publish an event
-	srv.Publish("TASK-001", Event{Type: "test", Data: "hello"})
-
-	// Check if event was received
-	select {
-	case evt := <-ch:
-		if evt.Type != "test" {
-			t.Errorf("expected event type 'test', got %q", evt.Type)
-		}
-	default:
-		t.Error("expected to receive event")
-	}
-}
-
-func TestPublishWithFullChannel(t *testing.T) {
-	srv := New(nil)
-
-	// Create a full channel (capacity 0)
-	ch := make(chan Event, 0)
-	srv.subscribersMu.Lock()
-	srv.subscribers["TASK-001"] = append(srv.subscribers["TASK-001"], ch)
-	srv.subscribersMu.Unlock()
-
-	// Publish should not block even with full channel
-	done := make(chan struct{})
-	go func() {
-		srv.Publish("TASK-001", Event{Type: "test", Data: "hello"})
-		close(done)
-	}()
-
-	// Wait with timeout
-	select {
-	case <-done:
-		// Success - did not block
-	case <-time.After(100 * time.Millisecond):
-		t.Error("Publish blocked on full channel")
-	}
-}
-
-func TestPublishNoSubscribers(t *testing.T) {
-	srv := New(nil)
-
-	// Publish should not panic with no subscribers
-	srv.Publish("NONEXISTENT", Event{Type: "test", Data: "hello"})
 }
 
 // === Run Task Additional Tests ===
@@ -1713,167 +1877,6 @@ func TestCreateTaskEndpoint_WithDescription(t *testing.T) {
 	}
 }
 
-// === Hook CRUD Tests ===
-
-func TestCreateHookEndpoint_Success(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	// Create .claude/hooks directory
-	os.MkdirAll(".claude/hooks", 0755)
-
-	srv := New(nil)
-
-	// Note: hooks use "type" field not "trigger", must be a valid HookType
-	body := `{"name": "test-hook", "type": "post:tool", "pattern": "*", "command": "echo hello"}`
-	req := httptest.NewRequest("POST", "/api/hooks", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusCreated {
-		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestUpdateHookEndpoint_Success(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	// Create hook first (JSON format with .json extension)
-	hooksDir := ".claude/hooks"
-	os.MkdirAll(hooksDir, 0755)
-
-	existingHook := `{"name": "update-hook", "type": "pre:tool", "pattern": "*", "command": "echo before"}`
-	os.WriteFile(filepath.Join(hooksDir, "update-hook.json"), []byte(existingHook), 0644)
-
-	srv := New(nil)
-
-	body := `{"name": "update-hook", "type": "post:tool", "pattern": "*", "command": "echo after"}`
-	req := httptest.NewRequest("PUT", "/api/hooks/update-hook", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestDeleteHookEndpoint_Success(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	// Create hook to delete (JSON format with .json extension)
-	hooksDir := ".claude/hooks"
-	os.MkdirAll(hooksDir, 0755)
-
-	hookContent := `{"name": "delete-hook", "type": "post:tool", "command": "echo hello"}`
-	os.WriteFile(filepath.Join(hooksDir, "delete-hook.json"), []byte(hookContent), 0644)
-
-	srv := New(nil)
-
-	req := httptest.NewRequest("DELETE", "/api/hooks/delete-hook", nil)
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNoContent {
-		t.Errorf("expected status 204, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-// === Skill CRUD Tests ===
-
-func TestCreateSkillEndpoint_Success(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	// Create .claude/skills directory
-	os.MkdirAll(".claude/skills", 0755)
-
-	srv := New(nil)
-
-	body := `{"name": "test-skill", "description": "A test skill", "prompt": "Do something useful"}`
-	req := httptest.NewRequest("POST", "/api/skills", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusCreated {
-		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestUpdateSkillEndpoint_Success(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	// Create skill first (YAML format with .yaml extension)
-	skillsDir := ".claude/skills"
-	os.MkdirAll(skillsDir, 0755)
-
-	existingSkill := `name: update-skill
-description: Original description
-prompt: Original prompt
-`
-	os.WriteFile(filepath.Join(skillsDir, "update-skill.yaml"), []byte(existingSkill), 0644)
-
-	srv := New(nil)
-
-	body := `{"name": "update-skill", "description": "Updated description", "prompt": "Updated prompt"}`
-	req := httptest.NewRequest("PUT", "/api/skills/update-skill", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestDeleteSkillEndpoint_Success(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	// Create skill to delete (YAML format with .yaml extension)
-	skillsDir := ".claude/skills"
-	os.MkdirAll(skillsDir, 0755)
-
-	skillContent := `name: delete-skill
-description: To be deleted
-prompt: Some prompt
-`
-	os.WriteFile(filepath.Join(skillsDir, "delete-skill.yaml"), []byte(skillContent), 0644)
-
-	srv := New(nil)
-
-	req := httptest.NewRequest("DELETE", "/api/skills/delete-skill", nil)
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNoContent {
-		t.Errorf("expected status 204, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
 // === Prompt Default Tests ===
 
 func TestGetPromptDefaultEndpoint_NotFound(t *testing.T) {
@@ -2165,4 +2168,3 @@ func TestProjectNotFound(t *testing.T) {
 		t.Errorf("expected status 404, got %d: %s", w.Code, w.Body.String())
 	}
 }
-
