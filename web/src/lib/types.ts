@@ -48,6 +48,7 @@ export interface TaskState {
 	gates: GateDecision[];
 	tokens: TokenUsage;
 	error?: string;
+	retries?: number;
 }
 
 export interface PhaseState {

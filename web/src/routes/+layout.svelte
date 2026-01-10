@@ -1,110 +1,177 @@
 <script lang="ts">
 	import '../app.css';
-	import { page } from '$app/stores';
+	import type { Snippet } from 'svelte';
+	import Sidebar from '$lib/components/layout/Sidebar.svelte';
+	import Header from '$lib/components/layout/Header.svelte';
+	import CommandPalette from '$lib/components/overlays/CommandPalette.svelte';
 	import ProjectSwitcher from '$lib/components/ProjectSwitcher.svelte';
+	import { currentProject, loadProjects } from '$lib/stores/project';
+	import { sidebarPinned } from '$lib/stores/sidebar';
+	import { onMount } from 'svelte';
 
-	const navItems = [
-		{ href: '/', label: 'Tasks' },
-		{ href: '/prompts', label: 'Prompts' },
-		{ href: '/claudemd', label: 'CLAUDE.md' },
-		{ href: '/skills', label: 'Skills' },
-		{ href: '/hooks', label: 'Hooks' },
-		{ href: '/mcp', label: 'MCP' },
-		{ href: '/tools', label: 'Tools' },
-		{ href: '/agents', label: 'Agents' },
-		{ href: '/scripts', label: 'Scripts' },
-		{ href: '/settings', label: 'Settings' },
-		{ href: '/config', label: 'Config' }
-	];
+	interface Props {
+		children: Snippet;
+	}
 
-	function isActive(href: string, currentPath: string): boolean {
-		if (href === '/') {
-			// Tasks is active on / and /tasks/*
-			return currentPath === '/' || currentPath.startsWith('/tasks');
+	let { children }: Props = $props();
+
+	let showProjectSwitcher = $state(false);
+	let showCommandPalette = $state(false);
+	let showNewTaskForm = $state(false);
+
+	onMount(() => {
+		loadProjects();
+
+		// Global keyboard shortcuts
+		function handleKeydown(e: KeyboardEvent) {
+			// Don't trigger shortcuts if user is typing in an input
+			const target = e.target as HTMLElement;
+			if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+				// Allow Escape to close modals even when in input
+				if (e.key === 'Escape') {
+					showProjectSwitcher = false;
+					showCommandPalette = false;
+					showNewTaskForm = false;
+				}
+				return;
+			}
+
+			// Cmd/Ctrl + B = Toggle sidebar
+			if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+				e.preventDefault();
+				sidebarPinned.toggle();
+			}
+
+			// Cmd/Ctrl + P = Project switcher
+			if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+				e.preventDefault();
+				showProjectSwitcher = true;
+				showCommandPalette = false;
+			}
+
+			// Cmd/Ctrl + K = Command palette
+			if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+				e.preventDefault();
+				showCommandPalette = true;
+				showProjectSwitcher = false;
+			}
+
+			// Cmd/Ctrl + N = New task
+			if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+				e.preventDefault();
+				showNewTaskForm = true;
+			}
+
+			// Escape = Close overlays
+			if (e.key === 'Escape') {
+				showProjectSwitcher = false;
+				showCommandPalette = false;
+				showNewTaskForm = false;
+			}
 		}
-		return currentPath.startsWith(href);
+
+		// Listen for custom events from command palette
+		function handleSwitchProject() {
+			showProjectSwitcher = true;
+		}
+
+		function handleToggleSidebar() {
+			sidebarPinned.toggle();
+		}
+
+		function handleNewTask() {
+			showNewTaskForm = true;
+		}
+
+		window.addEventListener('keydown', handleKeydown);
+		window.addEventListener('orc:switch-project', handleSwitchProject);
+		window.addEventListener('orc:toggle-sidebar', handleToggleSidebar);
+		window.addEventListener('orc:new-task', handleNewTask);
+
+		return () => {
+			window.removeEventListener('keydown', handleKeydown);
+			window.removeEventListener('orc:switch-project', handleSwitchProject);
+			window.removeEventListener('orc:toggle-sidebar', handleToggleSidebar);
+			window.removeEventListener('orc:new-task', handleNewTask);
+		};
+	});
+
+	function handleProjectClick() {
+		showProjectSwitcher = true;
+	}
+
+	function handleNewTaskClick() {
+		showNewTaskForm = true;
+	}
+
+	function handleCommandPaletteClick() {
+		showCommandPalette = true;
+	}
+
+	// Export state for child pages
+	export function getNewTaskFormState() {
+		return {
+			show: showNewTaskForm,
+			setShow: (value: boolean) => {
+				showNewTaskForm = value;
+			}
+		};
 	}
 </script>
 
-<div class="app">
-	<header>
-		<nav>
-			<a href="/" class="logo">orc</a>
-			<ProjectSwitcher />
-			<div class="nav-links">
-				{#each navItems as item}
-					<a
-						href={item.href}
-						class:active={isActive(item.href, $page.url.pathname)}
-					>
-						{item.label}
-					</a>
-				{/each}
-			</div>
-		</nav>
-	</header>
+<svelte:head>
+	<title>{$currentProject?.name || 'orc'}</title>
+</svelte:head>
 
-	<main>
-		<slot />
-	</main>
+<div class="app-layout">
+	<Sidebar />
+
+	<div class="main-area">
+		<Header
+			currentProject={$currentProject}
+			onProjectClick={handleProjectClick}
+			onNewTask={handleNewTaskClick}
+			onCommandPalette={handleCommandPaletteClick}
+		/>
+
+		<main>
+			{@render children()}
+		</main>
+	</div>
 </div>
 
+<!-- Command Palette -->
+<CommandPalette
+	open={showCommandPalette}
+	onClose={() => (showCommandPalette = false)}
+/>
+
+<!-- Project Switcher Modal -->
+<ProjectSwitcher
+	open={showProjectSwitcher}
+	onClose={() => (showProjectSwitcher = false)}
+/>
+
 <style>
-	.app {
+	.app-layout {
+		display: flex;
+		min-height: 100vh;
+		background: var(--bg-primary);
+	}
+
+	.main-area {
+		flex: 1;
+		margin-left: var(--sidebar-width-collapsed);
 		display: flex;
 		flex-direction: column;
 		min-height: 100vh;
-	}
-
-	header {
-		background: var(--bg-secondary);
-		border-bottom: 1px solid var(--border-color);
-		padding: 0 1.5rem;
-	}
-
-	nav {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		max-width: 1200px;
-		margin: 0 auto;
-		height: 56px;
-	}
-
-	.logo {
-		font-size: 1.25rem;
-		font-weight: 700;
-		color: var(--text-primary);
-	}
-
-	.nav-links {
-		display: flex;
-		gap: 1.5rem;
-	}
-
-	.nav-links a {
-		color: var(--text-secondary);
-		font-size: 0.875rem;
-		padding: 0.25rem 0;
-		border-bottom: 2px solid transparent;
-		transition: color 0.15s, border-color 0.15s;
-	}
-
-	.nav-links a:hover {
-		color: var(--text-primary);
-		text-decoration: none;
-	}
-
-	.nav-links a.active {
-		color: var(--accent-primary);
-		border-bottom-color: var(--accent-primary);
+		transition: margin-left var(--duration-normal) var(--ease-out);
 	}
 
 	main {
 		flex: 1;
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 2rem 1.5rem;
-		width: 100%;
+		padding: var(--space-6);
+		overflow-y: auto;
+		max-width: 1400px;
 	}
 </style>

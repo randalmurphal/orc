@@ -3,109 +3,323 @@
 
 	interface Props {
 		lines: TranscriptLine[];
+		autoScroll?: boolean;
 	}
 
-	let { lines }: Props = $props();
+	let { lines, autoScroll = true }: Props = $props();
 
-	const typeColors: Record<string, string> = {
-		prompt: 'var(--accent-primary)',
-		response: 'var(--accent-success)',
-		tool: 'var(--accent-warning)',
-		error: 'var(--accent-danger)'
+	let containerRef: HTMLDivElement;
+	let isAutoScrollEnabled = $state(autoScroll);
+
+	// Auto-scroll to bottom when new lines added
+	$effect(() => {
+		if (isAutoScrollEnabled && containerRef && lines.length > 0) {
+			containerRef.scrollTop = containerRef.scrollHeight;
+		}
+	});
+
+	const typeConfig: Record<string, { icon: string; color: string; bg: string; label: string }> = {
+		prompt: {
+			icon: '\u25B6', // ▶
+			color: 'var(--accent-primary)',
+			bg: 'var(--accent-subtle)',
+			label: 'PROMPT'
+		},
+		response: {
+			icon: '\u25C0', // ◀
+			color: 'var(--status-success)',
+			bg: 'var(--status-success-bg)',
+			label: 'RESPONSE'
+		},
+		tool: {
+			icon: '\u26A1', // ⚡
+			color: 'var(--status-warning)',
+			bg: 'var(--status-warning-bg)',
+			label: 'TOOL'
+		},
+		error: {
+			icon: '\u2717', // ✗
+			color: 'var(--status-danger)',
+			bg: 'var(--status-danger-bg)',
+			label: 'ERROR'
+		}
 	};
 
 	function formatTime(timestamp: string): string {
 		const date = new Date(timestamp);
 		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 	}
+
+	function toggleAutoScroll() {
+		isAutoScrollEnabled = !isAutoScrollEnabled;
+	}
+
+	// Truncate long content with expand option
+	const MAX_PREVIEW_LENGTH = 500;
+
+	function shouldTruncate(content: string): boolean {
+		return content.length > MAX_PREVIEW_LENGTH;
+	}
+
+	let expandedLines = $state<Set<number>>(new Set());
+
+	function toggleExpand(index: number) {
+		if (expandedLines.has(index)) {
+			expandedLines.delete(index);
+		} else {
+			expandedLines.add(index);
+		}
+		expandedLines = new Set(expandedLines);
+	}
 </script>
 
-<div class="transcript">
-	{#if lines.length === 0}
-		<div class="empty">
-			<p>No transcript yet</p>
-			<p class="hint">Run the task to see live output</p>
+<div class="transcript-container">
+	<!-- Header -->
+	<div class="transcript-header">
+		<h2>Transcript</h2>
+		<div class="header-actions">
+			<button
+				class="auto-scroll-btn"
+				class:active={isAutoScrollEnabled}
+				onclick={toggleAutoScroll}
+				title={isAutoScrollEnabled ? 'Disable auto-scroll' : 'Enable auto-scroll'}
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<polyline points="17 13 12 18 7 13" />
+					<polyline points="17 6 12 11 7 6" />
+				</svg>
+				Auto-scroll
+			</button>
 		</div>
-	{:else}
-		<div class="lines">
-			{#each lines as line, i (i)}
-				<div class="line" style="border-left-color: {typeColors[line.type]}">
-					<div class="line-header">
-						<span class="line-type">{line.type}</span>
-						<span class="line-time">{formatTime(line.timestamp)}</span>
-					</div>
-					<pre class="line-content">{line.content}</pre>
+	</div>
+
+	<!-- Transcript Lines -->
+	<div class="transcript-content" bind:this={containerRef}>
+		{#if lines.length === 0}
+			<div class="empty-state">
+				<div class="empty-icon">
+					<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="4 17 10 11 4 5" />
+						<line x1="12" y1="19" x2="20" y2="19" />
+					</svg>
 				</div>
-			{/each}
-		</div>
-	{/if}
+				<p class="empty-title">No transcript yet</p>
+				<p class="empty-hint">Run the task to see live output</p>
+			</div>
+		{:else}
+			<div class="lines stagger-children">
+				{#each lines as line, i (i)}
+					{@const config = typeConfig[line.type] || typeConfig.response}
+					{@const isTruncated = shouldTruncate(line.content)}
+					{@const isExpanded = expandedLines.has(i)}
+
+					<div
+						class="entry"
+						style:--entry-color={config.color}
+						style:--entry-bg={config.bg}
+					>
+						<!-- Entry Header -->
+						<div class="entry-header">
+							<div class="entry-type">
+								<span class="entry-icon">{config.icon}</span>
+								<span class="entry-label">{config.label}</span>
+							</div>
+							<span class="entry-time">{formatTime(line.timestamp)}</span>
+						</div>
+
+						<!-- Entry Content -->
+						<div class="entry-content">
+							<pre class="content-text">{isExpanded || !isTruncated
+								? line.content
+								: line.content.slice(0, MAX_PREVIEW_LENGTH) + '...'}</pre>
+
+							{#if isTruncated}
+								<button class="expand-btn" onclick={() => toggleExpand(i)}>
+									{isExpanded ? 'Show less' : 'Show more'}
+								</button>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
 </div>
 
 <style>
-	.transcript {
+	.transcript-container {
 		background: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: 8px;
-		max-height: 500px;
-		overflow-y: auto;
-	}
-
-	.empty {
-		padding: 3rem;
-		text-align: center;
-		color: var(--text-secondary);
-	}
-
-	.empty .hint {
-		font-size: 0.875rem;
-		color: var(--text-muted);
-		margin-top: 0.5rem;
-	}
-
-	.lines {
-		padding: 0.5rem;
-	}
-
-	.line {
-		border-left: 3px solid;
-		padding: 0.5rem 0.75rem;
-		margin-bottom: 0.5rem;
-		background: var(--bg-tertiary);
-		border-radius: 0 6px 6px 0;
-	}
-
-	.line:last-child {
-		margin-bottom: 0;
-	}
-
-	.line-header {
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-lg);
 		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 0.25rem;
+		flex-direction: column;
+		max-height: 600px;
 	}
 
-	.line-type {
-		font-size: 0.625rem;
-		font-weight: 600;
+	/* Header */
+	.transcript-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-4) var(--space-5);
+		border-bottom: 1px solid var(--border-subtle);
+		flex-shrink: 0;
+	}
+
+	.transcript-header h2 {
+		font-size: var(--text-xs);
+		font-weight: var(--font-semibold);
+		color: var(--text-secondary);
 		text-transform: uppercase;
+		letter-spacing: var(--tracking-wider);
+		margin: 0;
+	}
+
+	.header-actions {
+		display: flex;
+		gap: var(--space-2);
+	}
+
+	.auto-scroll-btn {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1-5);
+		padding: var(--space-1) var(--space-2);
+		font-size: var(--text-xs);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		color: var(--text-muted);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.auto-scroll-btn:hover {
+		background: var(--bg-surface);
 		color: var(--text-secondary);
 	}
 
-	.line-time {
-		font-size: 0.625rem;
+	.auto-scroll-btn.active {
+		background: var(--accent-subtle);
+		border-color: var(--accent-primary);
+		color: var(--accent-primary);
+	}
+
+	/* Content Area */
+	.transcript-content {
+		flex: 1;
+		overflow-y: auto;
+		padding: var(--space-3);
+	}
+
+	/* Empty State */
+	.empty-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-12) var(--space-6);
+		text-align: center;
+	}
+
+	.empty-icon {
+		color: var(--text-muted);
+		margin-bottom: var(--space-4);
+		opacity: 0.5;
+	}
+
+	.empty-title {
+		font-size: var(--text-base);
+		font-weight: var(--font-medium);
+		color: var(--text-secondary);
+		margin-bottom: var(--space-1);
+	}
+
+	.empty-hint {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+	}
+
+	/* Lines */
+	.lines {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+
+	/* Entry */
+	.entry {
+		border-left: 3px solid var(--entry-color);
+		background: var(--entry-bg);
+		border-radius: 0 var(--radius-md) var(--radius-md) 0;
+		overflow: hidden;
+	}
+
+	.entry-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-2) var(--space-3);
+		background: rgba(0, 0, 0, 0.1);
+	}
+
+	.entry-type {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.entry-icon {
+		font-size: var(--text-sm);
+		color: var(--entry-color);
+	}
+
+	.entry-label {
+		font-size: var(--text-2xs);
+		font-weight: var(--font-semibold);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wider);
+		color: var(--entry-color);
+	}
+
+	.entry-time {
+		font-size: var(--text-2xs);
 		color: var(--text-muted);
 		font-family: var(--font-mono);
 	}
 
-	.line-content {
-		font-size: 0.8125rem;
-		line-height: 1.5;
+	.entry-content {
+		padding: var(--space-3);
+	}
+
+	.content-text {
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
+		line-height: var(--leading-relaxed);
 		white-space: pre-wrap;
 		word-break: break-word;
+		color: var(--text-primary);
 		background: transparent;
 		border: none;
 		padding: 0;
 		margin: 0;
+	}
+
+	.expand-btn {
+		display: inline-flex;
+		margin-top: var(--space-2);
+		padding: var(--space-1) var(--space-2);
+		font-size: var(--text-xs);
+		background: transparent;
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-sm);
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.expand-btn:hover {
+		background: var(--bg-tertiary);
+		color: var(--text-primary);
 	}
 </style>
