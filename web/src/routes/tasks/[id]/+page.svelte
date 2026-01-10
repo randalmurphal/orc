@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
-	import { getTask, getTaskState, getTaskPlan, runTask, pauseTask, subscribeToTask, getTranscripts } from '$lib/api';
+	import { getTask, getTaskState, getTaskPlan, runTask, pauseTask, getTranscripts } from '$lib/api';
+	import { subscribeToTaskWS, type ConnectionStatus, type WSEventType, getWebSocket } from '$lib/websocket';
 	import type { Task, TaskState, Plan, TranscriptLine } from '$lib/types';
 	import Timeline from '$lib/components/Timeline.svelte';
 	import Transcript from '$lib/components/Transcript.svelte';
@@ -12,6 +13,7 @@
 	let transcript = $state<TranscriptLine[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let connectionStatus = $state<ConnectionStatus>('disconnected');
 	let unsubscribe: (() => void) | null = null;
 
 	const taskId = $derived($page.params.id);
@@ -79,16 +81,31 @@
 	}
 
 	function setupStreaming() {
-		unsubscribe = subscribeToTask(taskId, (eventType, data) => {
-			if (eventType === 'state') {
-				taskState = data as TaskState;
-			} else if (eventType === 'transcript') {
-				transcript = [...transcript, data as TranscriptLine];
-			} else if (eventType === 'error') {
-				// Reconnect after delay
-				setTimeout(setupStreaming, 3000);
+		unsubscribe = subscribeToTaskWS(
+			taskId,
+			(eventType: WSEventType, data: unknown) => {
+				if (eventType === 'state') {
+					taskState = data as TaskState;
+				} else if (eventType === 'transcript') {
+					const transcriptData = data as TranscriptLine;
+					transcript = [...transcript, transcriptData];
+				} else if (eventType === 'phase') {
+					// Reload task data on phase change
+					loadTaskData();
+				} else if (eventType === 'complete') {
+					// Reload task data on completion
+					loadTaskData();
+				}
+			},
+			(status: ConnectionStatus) => {
+				connectionStatus = status;
 			}
-		});
+		);
+	}
+
+	function handleCancel() {
+		const ws = getWebSocket();
+		ws.cancel(taskId);
 	}
 
 	async function handleRun() {
@@ -130,6 +147,19 @@
 		<button onclick={loadTaskData}>Retry</button>
 	</div>
 {:else if task}
+	<!-- Connection Status Banner -->
+	{#if connectionStatus !== 'connected'}
+		<div class="connection-banner" class:reconnecting={connectionStatus === 'reconnecting'}>
+			{#if connectionStatus === 'connecting'}
+				Connecting...
+			{:else if connectionStatus === 'reconnecting'}
+				Reconnecting...
+			{:else}
+				Disconnected
+				<button onclick={setupStreaming}>Reconnect</button>
+			{/if}
+		</div>
+	{/if}
 	<div class="task-detail">
 		<header class="task-header">
 			<div class="task-info">
@@ -149,6 +179,7 @@
 			<div class="task-actions">
 				{#if task.status === 'running'}
 					<button onclick={handlePause}>Pause</button>
+					<button class="danger" onclick={handleCancel}>Cancel</button>
 				{:else if ['created', 'planned', 'paused'].includes(task.status)}
 					<button class="primary" onclick={handleRun}>Run</button>
 				{/if}
@@ -296,5 +327,43 @@
 
 	.error p {
 		margin-bottom: 1rem;
+	}
+
+	.connection-banner {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		margin-bottom: 1rem;
+		background: var(--accent-danger);
+		color: white;
+		border-radius: 4px;
+		font-size: 0.875rem;
+	}
+
+	.connection-banner.reconnecting {
+		background: var(--accent-warning);
+	}
+
+	.connection-banner button {
+		padding: 0.25rem 0.75rem;
+		font-size: 0.75rem;
+		background: rgba(255, 255, 255, 0.2);
+		border: 1px solid rgba(255, 255, 255, 0.3);
+		color: white;
+	}
+
+	.connection-banner button:hover {
+		background: rgba(255, 255, 255, 0.3);
+	}
+
+	button.danger {
+		background: var(--accent-danger);
+		color: white;
+	}
+
+	button.danger:hover {
+		background: color-mix(in srgb, var(--accent-danger), black 10%);
 	}
 </style>

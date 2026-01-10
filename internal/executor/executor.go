@@ -14,6 +14,7 @@ import (
 	"github.com/randalmurphal/flowgraph/pkg/flowgraph/checkpoint"
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
@@ -24,10 +25,11 @@ import (
 // PhaseState holds state during phase execution.
 type PhaseState struct {
 	// Task context
-	TaskID    string
-	TaskTitle string
-	Phase     string
-	Weight    string
+	TaskID          string
+	TaskTitle       string
+	TaskDescription string
+	Phase           string
+	Weight          string
 
 	// Execution state
 	Iteration  int
@@ -131,6 +133,7 @@ type Executor struct {
 	gitOps          *git.Git
 	checkpointStore checkpoint.Store
 	logger          *slog.Logger
+	publisher       events.Publisher
 }
 
 // New creates a new executor with the given configuration.
@@ -186,6 +189,88 @@ func NewWithConfig(cfg *Config, orcCfg *config.Config) *Executor {
 		e.orcConfig = orcCfg
 	}
 	return e
+}
+
+// SetPublisher sets the event publisher for real-time updates.
+func (e *Executor) SetPublisher(p events.Publisher) {
+	e.publisher = p
+}
+
+// SetClient sets the Claude client (for testing).
+func (e *Executor) SetClient(c claude.Client) {
+	e.client = c
+}
+
+// publish sends an event if a publisher is configured.
+func (e *Executor) publish(event events.Event) {
+	if e.publisher != nil {
+		e.publisher.Publish(event)
+	}
+}
+
+// publishPhaseStart publishes a phase start event.
+func (e *Executor) publishPhaseStart(taskID, phase string) {
+	e.publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
+		Phase:  phase,
+		Status: "started",
+	}))
+}
+
+// publishPhaseComplete publishes a phase completion event.
+func (e *Executor) publishPhaseComplete(taskID, phase, commitSHA string) {
+	e.publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
+		Phase:     phase,
+		Status:    "completed",
+		CommitSHA: commitSHA,
+	}))
+}
+
+// publishPhaseFailed publishes a phase failure event.
+func (e *Executor) publishPhaseFailed(taskID, phase string, err error) {
+	errMsg := ""
+	if err != nil {
+		errMsg = err.Error()
+	}
+	e.publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
+		Phase:  phase,
+		Status: "failed",
+		Error:  errMsg,
+	}))
+}
+
+// publishTranscript publishes a transcript line event.
+func (e *Executor) publishTranscript(taskID, phase string, iteration int, msgType, content string) {
+	e.publish(events.NewEvent(events.EventTranscript, taskID, events.TranscriptLine{
+		Phase:     phase,
+		Iteration: iteration,
+		Type:      msgType,
+		Content:   content,
+		Timestamp: time.Now(),
+	}))
+}
+
+// publishTokens publishes a token usage update.
+func (e *Executor) publishTokens(taskID, phase string, input, output, total int) {
+	e.publish(events.NewEvent(events.EventTokens, taskID, events.TokenUpdate{
+		Phase:        phase,
+		InputTokens:  input,
+		OutputTokens: output,
+		TotalTokens:  total,
+	}))
+}
+
+// publishError publishes an error event.
+func (e *Executor) publishError(taskID, phase, message string, fatal bool) {
+	e.publish(events.NewEvent(events.EventError, taskID, events.ErrorData{
+		Phase:   phase,
+		Message: message,
+		Fatal:   fatal,
+	}))
+}
+
+// publishState publishes a full state update.
+func (e *Executor) publishState(taskID string, s *state.State) {
+	e.publish(events.NewEvent(events.EventState, taskID, s))
 }
 
 // ExecutePhase runs a single phase using flowgraph.
@@ -334,6 +419,7 @@ func (e *Executor) renderTemplate(tmpl string, s PhaseState) string {
 	replacements := map[string]string{
 		"{{TASK_ID}}":          s.TaskID,
 		"{{TASK_TITLE}}":       s.TaskTitle,
+		"{{TASK_DESCRIPTION}}": s.TaskDescription,
 		"{{PHASE}}":            s.Phase,
 		"{{WEIGHT}}":           s.Weight,
 		"{{ITERATION}}":        fmt.Sprintf("%d", s.Iteration),
@@ -360,6 +446,9 @@ func (e *Executor) executeClaudeNode() flowgraph.NodeFunc[PhaseState] {
 			return s, fmt.Errorf("no LLM client available")
 		}
 
+		// Publish prompt transcript
+		e.publishTranscript(s.TaskID, s.Phase, s.Iteration, "prompt", s.Prompt)
+
 		// Execute completion
 		resp, err := client.Complete(ctx, claude.CompletionRequest{
 			Messages: []claude.Message{
@@ -369,6 +458,7 @@ func (e *Executor) executeClaudeNode() flowgraph.NodeFunc[PhaseState] {
 		})
 		if err != nil {
 			s.Error = err
+			e.publishError(s.TaskID, s.Phase, err.Error(), false)
 			return s, fmt.Errorf("claude completion: %w", err)
 		}
 
@@ -376,6 +466,10 @@ func (e *Executor) executeClaudeNode() flowgraph.NodeFunc[PhaseState] {
 		s.InputTokens += resp.Usage.InputTokens
 		s.OutputTokens += resp.Usage.OutputTokens
 		s.TokensUsed += resp.Usage.TotalTokens
+
+		// Publish response transcript and token update
+		e.publishTranscript(s.TaskID, s.Phase, s.Iteration, "response", s.Response)
+		e.publishTokens(s.TaskID, s.Phase, resp.Usage.InputTokens, resp.Usage.OutputTokens, resp.Usage.TotalTokens)
 
 		return s, nil
 	}
@@ -493,6 +587,10 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 
 		e.logger.Info("executing phase", "phase", phase.ID, "task", t.ID)
 
+		// Publish phase start event
+		e.publishPhaseStart(t.ID, phase.ID)
+		e.publishState(t.ID, s)
+
 		// Execute phase
 		result, err := e.ExecutePhase(ctx, t, phase, s)
 		if err != nil {
@@ -549,6 +647,12 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			s.Save()
 			t.Status = task.StatusFailed
 			t.Save()
+
+			// Publish failure events
+			e.publishPhaseFailed(t.ID, phase.ID, err)
+			e.publishError(t.ID, phase.ID, err.Error(), true)
+			e.publishState(t.ID, s)
+
 			return fmt.Errorf("phase %s failed: %w", phase.ID, err)
 		}
 
@@ -569,6 +673,11 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		if err := p.Save(t.ID); err != nil {
 			return fmt.Errorf("save plan: %w", err)
 		}
+
+		// Publish phase completion events
+		e.publishPhaseComplete(t.ID, phase.ID, result.CommitSHA)
+		e.publishTokens(t.ID, phase.ID, result.InputTokens, result.OutputTokens, result.InputTokens+result.OutputTokens)
+		e.publishState(t.ID, s)
 
 		// Evaluate gate if present (gate.Type != "" means gate is configured)
 		if phase.Gate.Type != "" {
@@ -635,6 +744,12 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 	completedAt := time.Now()
 	t.CompletedAt = &completedAt
 	t.Save()
+
+	// Publish completion event
+	e.publish(events.NewEvent(events.EventComplete, t.ID, events.CompleteData{
+		Status: "completed",
+	}))
+	e.publishState(t.ID, s)
 
 	return nil
 }

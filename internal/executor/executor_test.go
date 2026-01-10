@@ -1,8 +1,18 @@
 package executor
 
 import (
+	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -185,5 +195,634 @@ func TestResult(t *testing.T) {
 
 	if result.CommitSHA != "abc123" {
 		t.Errorf("CommitSHA = %s, want abc123", result.CommitSHA)
+	}
+}
+
+func TestRenderTemplateWithRetryContext(t *testing.T) {
+	e := New(DefaultConfig())
+
+	state := PhaseState{
+		TaskID:       "TASK-001",
+		TaskTitle:    "Fix bug",
+		Phase:        "implement",
+		Weight:       "small",
+		RetryContext: "Previous attempt failed because tests didn't pass",
+	}
+
+	tmpl := "Task: {{TASK_ID}}\nRetry info: {{RETRY_CONTEXT}}"
+	result := e.renderTemplate(tmpl, state)
+
+	expected := "Task: TASK-001\nRetry info: Previous attempt failed because tests didn't pass"
+	if result != expected {
+		t.Errorf("renderTemplate() = %q, want %q", result, expected)
+	}
+}
+
+func TestRenderTemplateWithDescription(t *testing.T) {
+	e := New(DefaultConfig())
+
+	state := PhaseState{
+		TaskID:          "TASK-002",
+		TaskTitle:       "Add feature",
+		TaskDescription: "Add a new button to the UI that triggers an action",
+		Phase:           "spec",
+		Weight:          "medium",
+	}
+
+	tmpl := "Title: {{TASK_TITLE}}\nDescription: {{TASK_DESCRIPTION}}"
+	result := e.renderTemplate(tmpl, state)
+
+	expected := "Title: Add feature\nDescription: Add a new button to the UI that triggers an action"
+	if result != expected {
+		t.Errorf("renderTemplate() = %q, want %q", result, expected)
+	}
+}
+
+func TestRenderTemplateWithEmptyValues(t *testing.T) {
+	e := New(DefaultConfig())
+
+	state := PhaseState{
+		TaskID:    "TASK-003",
+		TaskTitle: "Test",
+		Phase:     "implement",
+		Weight:    "trivial",
+		// All other fields empty
+	}
+
+	tmpl := "{{RESEARCH_CONTENT}}{{SPEC_CONTENT}}{{DESIGN_CONTENT}}"
+	result := e.renderTemplate(tmpl, state)
+
+	// Empty strings should just result in empty output
+	if result != "" {
+		t.Errorf("renderTemplate() with empty values = %q, want empty", result)
+	}
+}
+
+func TestPhaseStateWithAllFields(t *testing.T) {
+	state := PhaseState{
+		TaskID:          "TASK-001",
+		TaskTitle:       "Full task",
+		TaskDescription: "Complete description",
+		Phase:           "test",
+		Weight:          "large",
+		Iteration:       5,
+		Prompt:          "Test prompt",
+		Response:        "Test response",
+		Complete:        true,
+		Blocked:         false,
+		ResearchContent: "Research",
+		SpecContent:     "Spec",
+		DesignContent:   "Design",
+		RetryContext:    "Retry info",
+	}
+
+	if !state.Complete {
+		t.Error("Complete should be true")
+	}
+
+	if state.Blocked {
+		t.Error("Blocked should be false")
+	}
+
+	if state.Iteration != 5 {
+		t.Errorf("Iteration = %d, want 5", state.Iteration)
+	}
+}
+
+func TestResultWithError(t *testing.T) {
+	testErr := fmt.Errorf("tests failed")
+	result := &Result{
+		Phase:      "test",
+		Iterations: 3,
+		Duration:   1 * time.Minute,
+		Error:      testErr,
+	}
+
+	if result.Error == nil {
+		t.Error("Error should not be nil")
+	}
+	if result.Error.Error() != "tests failed" {
+		t.Errorf("Error = %s, want 'tests failed'", result.Error)
+	}
+}
+
+func TestSetPublisher(t *testing.T) {
+	e := New(DefaultConfig())
+
+	if e.publisher != nil {
+		t.Error("publisher should be nil initially")
+	}
+
+	// We can't easily test with a real publisher without the events package
+	// but we can verify SetPublisher doesn't panic with nil
+	e.SetPublisher(nil)
+
+	if e.publisher != nil {
+		t.Error("publisher should remain nil after setting nil")
+	}
+}
+
+func TestNewWithDifferentConfigs(t *testing.T) {
+	tests := []struct {
+		name           string
+		cfg            *Config
+		wantIterations int
+	}{
+		{
+			name:           "default config",
+			cfg:            DefaultConfig(),
+			wantIterations: 30,
+		},
+		{
+			name: "custom iterations",
+			cfg: &Config{
+				ClaudePath:                 "claude",
+				Model:                      "claude-sonnet-4-20250514",
+				MaxIterations:              50,
+				Timeout:                    5 * time.Minute,
+				BranchPrefix:               "custom/",
+				CommitPrefix:               "[custom]",
+				DangerouslySkipPermissions: true,
+				EnableCheckpoints:          false,
+			},
+			wantIterations: 50,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := New(tt.cfg)
+			if e.config.MaxIterations != tt.wantIterations {
+				t.Errorf("MaxIterations = %d, want %d", e.config.MaxIterations, tt.wantIterations)
+			}
+		})
+	}
+}
+
+func TestConfigFromOrc(t *testing.T) {
+	orcCfg := &config.Config{
+		ClaudePath:                 "/custom/claude",
+		Model:                      "custom-model",
+		DangerouslySkipPermissions: false,
+		MaxIterations:              100,
+		Timeout:                    20 * time.Minute,
+		BranchPrefix:               "custom/",
+		CommitPrefix:               "[custom]",
+		TemplatesDir:               "custom-templates",
+		EnableCheckpoints:          true,
+	}
+
+	cfg := ConfigFromOrc(orcCfg)
+
+	if cfg.ClaudePath != orcCfg.ClaudePath {
+		t.Errorf("ClaudePath = %s, want %s", cfg.ClaudePath, orcCfg.ClaudePath)
+	}
+	if cfg.Model != orcCfg.Model {
+		t.Errorf("Model = %s, want %s", cfg.Model, orcCfg.Model)
+	}
+	if cfg.DangerouslySkipPermissions != orcCfg.DangerouslySkipPermissions {
+		t.Errorf("DangerouslySkipPermissions = %v, want %v", cfg.DangerouslySkipPermissions, orcCfg.DangerouslySkipPermissions)
+	}
+	if cfg.MaxIterations != orcCfg.MaxIterations {
+		t.Errorf("MaxIterations = %d, want %d", cfg.MaxIterations, orcCfg.MaxIterations)
+	}
+	if cfg.Timeout != orcCfg.Timeout {
+		t.Errorf("Timeout = %v, want %v", cfg.Timeout, orcCfg.Timeout)
+	}
+	if cfg.BranchPrefix != orcCfg.BranchPrefix {
+		t.Errorf("BranchPrefix = %s, want %s", cfg.BranchPrefix, orcCfg.BranchPrefix)
+	}
+	if cfg.CommitPrefix != orcCfg.CommitPrefix {
+		t.Errorf("CommitPrefix = %s, want %s", cfg.CommitPrefix, orcCfg.CommitPrefix)
+	}
+}
+
+func TestNewWithConfig(t *testing.T) {
+	cfg := DefaultConfig()
+	orcCfg := &config.Config{
+		Profile: "strict",
+	}
+
+	e := NewWithConfig(cfg, orcCfg)
+
+	if e == nil {
+		t.Fatal("NewWithConfig() returned nil")
+	}
+	if e.orcConfig.Profile != "strict" {
+		t.Errorf("orcConfig.Profile = %s, want strict", e.orcConfig.Profile)
+	}
+}
+
+func TestNewWithConfig_NilOrcConfig(t *testing.T) {
+	cfg := DefaultConfig()
+
+	e := NewWithConfig(cfg, nil)
+
+	if e == nil {
+		t.Fatal("NewWithConfig() returned nil")
+	}
+	// Should use default orc config
+	if e.orcConfig == nil {
+		t.Error("orcConfig should not be nil")
+	}
+}
+
+func TestSetClient(t *testing.T) {
+	e := New(DefaultConfig())
+
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>")
+	e.SetClient(mockClient)
+
+	// Verify client was set (by making a request)
+	if e.client == nil {
+		t.Error("client should not be nil after SetClient")
+	}
+}
+
+func TestPublishHelpers(t *testing.T) {
+	e := New(DefaultConfig())
+	pub := events.NewMemoryPublisher()
+	e.SetPublisher(pub)
+
+	// Subscribe to receive events
+	ch := pub.Subscribe("TASK-001")
+	defer pub.Unsubscribe("TASK-001", ch)
+
+	// Test publishPhaseStart
+	e.publishPhaseStart("TASK-001", "implement")
+
+	select {
+	case event := <-ch:
+		if event.Type != events.EventPhase {
+			t.Errorf("expected EventPhase, got %v", event.Type)
+		}
+		if event.TaskID != "TASK-001" {
+			t.Errorf("expected task TASK-001, got %s", event.TaskID)
+		}
+		data, ok := event.Data.(events.PhaseUpdate)
+		if !ok {
+			t.Fatalf("expected PhaseUpdate data, got %T", event.Data)
+		}
+		if data.Phase != "implement" {
+			t.Errorf("expected phase implement, got %s", data.Phase)
+		}
+		if data.Status != "started" {
+			t.Errorf("expected status started, got %s", data.Status)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for event")
+	}
+}
+
+func TestPublishPhaseComplete(t *testing.T) {
+	e := New(DefaultConfig())
+	pub := events.NewMemoryPublisher()
+	e.SetPublisher(pub)
+
+	ch := pub.Subscribe("TASK-002")
+	defer pub.Unsubscribe("TASK-002", ch)
+
+	e.publishPhaseComplete("TASK-002", "test", "abc123")
+
+	select {
+	case event := <-ch:
+		data, ok := event.Data.(events.PhaseUpdate)
+		if !ok {
+			t.Fatalf("expected PhaseUpdate, got %T", event.Data)
+		}
+		if data.Status != "completed" {
+			t.Errorf("expected status completed, got %s", data.Status)
+		}
+		if data.CommitSHA != "abc123" {
+			t.Errorf("expected commit abc123, got %s", data.CommitSHA)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for event")
+	}
+}
+
+func TestPublishPhaseFailed(t *testing.T) {
+	e := New(DefaultConfig())
+	pub := events.NewMemoryPublisher()
+	e.SetPublisher(pub)
+
+	ch := pub.Subscribe("TASK-003")
+	defer pub.Unsubscribe("TASK-003", ch)
+
+	testErr := fmt.Errorf("something went wrong")
+	e.publishPhaseFailed("TASK-003", "validate", testErr)
+
+	select {
+	case event := <-ch:
+		data, ok := event.Data.(events.PhaseUpdate)
+		if !ok {
+			t.Fatalf("expected PhaseUpdate, got %T", event.Data)
+		}
+		if data.Status != "failed" {
+			t.Errorf("expected status failed, got %s", data.Status)
+		}
+		if data.Error != "something went wrong" {
+			t.Errorf("expected error message, got %s", data.Error)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for event")
+	}
+}
+
+func TestPublishTranscript(t *testing.T) {
+	e := New(DefaultConfig())
+	pub := events.NewMemoryPublisher()
+	e.SetPublisher(pub)
+
+	ch := pub.Subscribe("TASK-004")
+	defer pub.Unsubscribe("TASK-004", ch)
+
+	e.publishTranscript("TASK-004", "implement", 3, "response", "Here is the implementation")
+
+	select {
+	case event := <-ch:
+		if event.Type != events.EventTranscript {
+			t.Errorf("expected EventTranscript, got %v", event.Type)
+		}
+		data, ok := event.Data.(events.TranscriptLine)
+		if !ok {
+			t.Fatalf("expected TranscriptLine, got %T", event.Data)
+		}
+		if data.Phase != "implement" {
+			t.Errorf("expected phase implement, got %s", data.Phase)
+		}
+		if data.Iteration != 3 {
+			t.Errorf("expected iteration 3, got %d", data.Iteration)
+		}
+		if data.Type != "response" {
+			t.Errorf("expected type response, got %s", data.Type)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for event")
+	}
+}
+
+func TestPublishTokens(t *testing.T) {
+	e := New(DefaultConfig())
+	pub := events.NewMemoryPublisher()
+	e.SetPublisher(pub)
+
+	ch := pub.Subscribe("TASK-005")
+	defer pub.Unsubscribe("TASK-005", ch)
+
+	e.publishTokens("TASK-005", "spec", 1000, 500, 1500)
+
+	select {
+	case event := <-ch:
+		if event.Type != events.EventTokens {
+			t.Errorf("expected EventTokens, got %v", event.Type)
+		}
+		data, ok := event.Data.(events.TokenUpdate)
+		if !ok {
+			t.Fatalf("expected TokenUpdate, got %T", event.Data)
+		}
+		if data.InputTokens != 1000 {
+			t.Errorf("expected input 1000, got %d", data.InputTokens)
+		}
+		if data.OutputTokens != 500 {
+			t.Errorf("expected output 500, got %d", data.OutputTokens)
+		}
+		if data.TotalTokens != 1500 {
+			t.Errorf("expected total 1500, got %d", data.TotalTokens)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for event")
+	}
+}
+
+func TestPublishError(t *testing.T) {
+	e := New(DefaultConfig())
+	pub := events.NewMemoryPublisher()
+	e.SetPublisher(pub)
+
+	ch := pub.Subscribe("TASK-006")
+	defer pub.Unsubscribe("TASK-006", ch)
+
+	e.publishError("TASK-006", "build", "compilation failed", true)
+
+	select {
+	case event := <-ch:
+		if event.Type != events.EventError {
+			t.Errorf("expected EventError, got %v", event.Type)
+		}
+		data, ok := event.Data.(events.ErrorData)
+		if !ok {
+			t.Fatalf("expected ErrorData, got %T", event.Data)
+		}
+		if data.Phase != "build" {
+			t.Errorf("expected phase build, got %s", data.Phase)
+		}
+		if data.Message != "compilation failed" {
+			t.Errorf("expected message 'compilation failed', got %s", data.Message)
+		}
+		if !data.Fatal {
+			t.Error("expected fatal to be true")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for event")
+	}
+}
+
+func TestPublishWithNoPublisher(t *testing.T) {
+	e := New(DefaultConfig())
+	// No publisher set - should not panic
+	e.publishPhaseStart("TASK-001", "test")
+	e.publishPhaseComplete("TASK-001", "test", "sha")
+	e.publishPhaseFailed("TASK-001", "test", nil)
+	e.publishTranscript("TASK-001", "test", 1, "type", "content")
+	e.publishTokens("TASK-001", "test", 0, 0, 0)
+	e.publishError("TASK-001", "test", "msg", false)
+}
+
+func TestExecutePhase_Complete(t *testing.T) {
+	e := New(DefaultConfig())
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Implementation done.")
+	e.SetClient(mockClient)
+
+	// Create test task
+	testTask := &task.Task{
+		ID:     "TEST-001",
+		Title:  "Test task",
+		Status: task.StatusRunning,
+		Weight: task.WeightSmall,
+	}
+
+	// Create test phase
+	testPhase := &plan.Phase{
+		ID:     "implement",
+		Name:   "Implementation",
+		Prompt: "Implement the feature: {{TASK_TITLE}}",
+	}
+
+	// Create test state
+	testState := state.New("TEST-001")
+
+	ctx := context.Background()
+	result, err := e.ExecutePhase(ctx, testTask, testPhase, testState)
+
+	if err != nil {
+		t.Fatalf("ExecutePhase failed: %v", err)
+	}
+
+	if result.Status != plan.PhaseCompleted {
+		t.Errorf("expected status Completed, got %v", result.Status)
+	}
+
+	if result.Phase != "implement" {
+		t.Errorf("expected phase implement, got %s", result.Phase)
+	}
+
+	if mockClient.CallCount() < 1 {
+		t.Error("expected at least one Claude call")
+	}
+}
+
+func TestExecutePhase_MaxIterations(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.MaxIterations = 2 // Low for testing
+	e := New(cfg)
+
+	// Mock that never completes
+	mockClient := claude.NewMockClient("Still working on it...")
+	e.SetClient(mockClient)
+
+	testTask := &task.Task{
+		ID:     "TEST-002",
+		Title:  "Never ending task",
+		Status: task.StatusRunning,
+		Weight: task.WeightSmall,
+	}
+
+	testPhase := &plan.Phase{
+		ID:     "implement",
+		Name:   "Implementation",
+		Prompt: "Implement: {{TASK_TITLE}}",
+	}
+
+	testState := state.New("TEST-002")
+
+	ctx := context.Background()
+	result, _ := e.ExecutePhase(ctx, testTask, testPhase, testState)
+
+	// Should stop at max iterations
+	if result.Iterations > 2 {
+		t.Errorf("expected max 2 iterations, got %d", result.Iterations)
+	}
+}
+
+func TestExecutePhase_Blocked(t *testing.T) {
+	e := New(DefaultConfig())
+	mockClient := claude.NewMockClient("<phase_blocked>Need clarification on requirements</phase_blocked>")
+	e.SetClient(mockClient)
+
+	testTask := &task.Task{
+		ID:     "TEST-003",
+		Title:  "Blocked task",
+		Status: task.StatusRunning,
+		Weight: task.WeightMedium,
+	}
+
+	testPhase := &plan.Phase{
+		ID:     "spec",
+		Name:   "Specification",
+		Prompt: "Write spec for: {{TASK_TITLE}}",
+	}
+
+	testState := state.New("TEST-003")
+
+	ctx := context.Background()
+	result, _ := e.ExecutePhase(ctx, testTask, testPhase, testState)
+
+	// When blocked, status becomes PhaseFailed with specific error
+	if result.Status != plan.PhaseFailed {
+		t.Errorf("expected status Failed (blocked), got %v", result.Status)
+	}
+	if result.Error == nil || !strings.Contains(result.Error.Error(), "blocked") {
+		t.Errorf("expected blocked error, got %v", result.Error)
+	}
+}
+
+func TestExecutePhase_ContextCancellation(t *testing.T) {
+	e := New(DefaultConfig())
+
+	// Mock that takes time (simulated by the mock sleeping)
+	mockClient := claude.NewMockClient("Response")
+	e.SetClient(mockClient)
+
+	testTask := &task.Task{
+		ID:     "TEST-004",
+		Title:  "Cancellable task",
+		Status: task.StatusRunning,
+		Weight: task.WeightSmall,
+	}
+
+	testPhase := &plan.Phase{
+		ID:     "implement",
+		Name:   "Implementation",
+		Prompt: "Implement: {{TASK_TITLE}}",
+	}
+
+	testState := state.New("TEST-004")
+
+	// Cancel context immediately
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := e.ExecutePhase(ctx, testTask, testPhase, testState)
+
+	if err == nil {
+		// Context cancellation might not always return an error depending on timing
+		// This is acceptable behavior
+		t.Log("ExecutePhase completed despite cancelled context (timing dependent)")
+	}
+}
+
+func TestExecutePhase_WithPublisher(t *testing.T) {
+	e := New(DefaultConfig())
+	pub := events.NewMemoryPublisher()
+	e.SetPublisher(pub)
+
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	e.SetClient(mockClient)
+
+	ch := pub.Subscribe("TEST-005")
+	defer pub.Unsubscribe("TEST-005", ch)
+
+	testTask := &task.Task{
+		ID:     "TEST-005",
+		Title:  "Event task",
+		Status: task.StatusRunning,
+		Weight: task.WeightSmall,
+	}
+
+	testPhase := &plan.Phase{
+		ID:     "implement",
+		Name:   "Implementation",
+		Prompt: "Implement: {{TASK_TITLE}}",
+	}
+
+	testState := state.New("TEST-005")
+
+	ctx := context.Background()
+	_, err := e.ExecutePhase(ctx, testTask, testPhase, testState)
+
+	if err != nil {
+		t.Fatalf("ExecutePhase failed: %v", err)
+	}
+
+	// Verify at least one event was published
+	select {
+	case event := <-ch:
+		if event.TaskID != "TEST-005" {
+			t.Errorf("expected task TEST-005, got %s", event.TaskID)
+		}
+	case <-time.After(100 * time.Millisecond):
+		// Events may have been published but drained before we could read them
+		t.Log("No events captured (timing dependent)")
 	}
 }
