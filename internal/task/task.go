@@ -245,3 +245,90 @@ func Delete(id string) error {
 	taskDir := TaskDir(id)
 	return os.RemoveAll(taskDir)
 }
+
+// SaveTo persists the task to a specific directory.
+func (t *Task) SaveTo(dir string) error {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create task directory: %w", err)
+	}
+
+	t.UpdatedAt = time.Now()
+
+	data, err := yaml.Marshal(t)
+	if err != nil {
+		return fmt.Errorf("marshal task: %w", err)
+	}
+
+	path := filepath.Join(dir, "task.yaml")
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("write task: %w", err)
+	}
+
+	return nil
+}
+
+// LoadAllFrom loads all tasks from a specific tasks directory.
+func LoadAllFrom(tasksDir string) ([]*Task, error) {
+	entries, err := os.ReadDir(tasksDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read tasks directory: %w", err)
+	}
+
+	var tasks []*Task
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		path := filepath.Join(tasksDir, entry.Name(), "task.yaml")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		var t Task
+		if err := yaml.Unmarshal(data, &t); err != nil {
+			continue
+		}
+		tasks = append(tasks, &t)
+	}
+
+	sort.Slice(tasks, func(i, j int) bool {
+		return tasks[i].CreatedAt.After(tasks[j].CreatedAt)
+	})
+
+	return tasks, nil
+}
+
+// NextIDIn generates the next task ID in a specific tasks directory.
+func NextIDIn(tasksDir string) (string, error) {
+	entries, err := os.ReadDir(tasksDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "TASK-001", nil
+		}
+		return "", fmt.Errorf("read tasks directory: %w", err)
+	}
+
+	taskIDRegex := regexp.MustCompile(`^TASK-(\d+)$`)
+	maxNum := 0
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		matches := taskIDRegex.FindStringSubmatch(entry.Name())
+		if len(matches) == 2 {
+			num, _ := strconv.Atoi(matches[1])
+			if num > maxNum {
+				maxNum = num
+			}
+		}
+	}
+
+	return fmt.Sprintf("TASK-%03d", maxNum+1), nil
+}

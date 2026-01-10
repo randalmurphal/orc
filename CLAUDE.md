@@ -32,7 +32,8 @@ make dev      # Interactive shell in container
 | `internal/prompt/` | Prompt management service |
 | `internal/hooks/` | Claude Code hooks management |
 | `internal/skills/` | Claude Code skills management |
-| `internal/git/` | Git checkpointing, branches |
+| `internal/git/` | Git operations, worktrees (wraps devflow/git) |
+| `internal/project/` | Multi-project registry |
 | `templates/` | Phase templates (plans/, prompts/) |
 | `web/` | Svelte 5 frontend (SvelteKit) |
 
@@ -41,6 +42,7 @@ make dev      # Interactive shell in container
 Uses local sibling repos via `go.mod` replace:
 - `../llmkit` - Claude CLI wrapper, templates, model selection
 - `../flowgraph` - Graph-based execution with checkpointing
+- `../devflow` - Git operations, worktree management
 
 ## Automation Profiles
 
@@ -101,13 +103,74 @@ Phases block when Claude outputs:
 <phase_blocked>reason: ...</phase_blocked>
 ```
 
+## Multi-Project Support
+
+Orc supports multiple projects through a global registry.
+
+**Global registry:** `~/.orc/projects.yaml`
+```yaml
+projects:
+  - id: abc123
+    name: orc
+    path: /home/randy/repos/orc
+    created_at: 2025-01-10T14:00:00Z
+```
+
+**Commands:**
+- `orc init` - Initializes project and registers in global registry
+- `orc serve` - Serves all registered projects
+
+**UI:** Project dropdown in header to switch between projects.
+
+## Worktree Isolation
+
+Tasks run in isolated git worktrees for parallel execution.
+
+```yaml
+worktree:
+  enabled: true                    # Enable worktree isolation (default: true)
+  dir: ".orc/worktrees"           # Worktree directory
+  cleanup_on_complete: true        # Remove on success (default: true)
+  cleanup_on_fail: false           # Keep on failure for debugging
+```
+
+**Layout:**
+```
+.orc/worktrees/
+├── orc-task-001/    # Isolated worktree for TASK-001
+└── orc-task-002/    # Another task running in parallel
+```
+
+## Completion Actions
+
+After all phases complete, orc can auto-merge or create a PR.
+
+```yaml
+completion:
+  action: pr              # pr | merge | none (default: pr)
+  target_branch: main     # Branch to merge into
+  delete_branch: true     # Delete task branch after merge
+
+  pr:
+    title: "[orc] {{TASK_TITLE}}"
+    body_template: templates/pr-body.md
+    labels: [automated]
+    reviewers: []
+    draft: false
+    auto_merge: true      # Enable auto-merge when approved
+```
+
 ## File Layout
 
 ```
+~/.orc/
+└── projects.yaml        # Global project registry
+
 .orc/
 ├── config.yaml
 ├── prompts/           # Project prompt overrides
 │   └── implement.md
+├── worktrees/           # Isolated worktrees for tasks
 └── tasks/TASK-001/
     ├── task.yaml       # Definition
     ├── plan.yaml       # Phase sequence
@@ -155,6 +218,14 @@ make e2e            # Run Playwright tests
 ```
 
 ## API Endpoints
+
+### Projects
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/projects` | List registered projects |
+| GET | `/api/projects/:id` | Get project details |
+| GET | `/api/projects/:id/tasks` | List tasks for project |
+| POST | `/api/projects/:id/tasks` | Create task in project |
 
 ### Tasks
 | Method | Endpoint | Description |

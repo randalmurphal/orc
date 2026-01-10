@@ -6,7 +6,9 @@ Intelligent Claude Code orchestrator that scales rigor to task complexity.
 
 - **Weight-based rigor**: Trivial tasks stay trivial, complex tasks get full lifecycle
 - **Git-native checkpointing**: Branches, commits, and worktrees for isolation
+- **Multi-project support**: Global registry to manage tasks across multiple repositories
 - **Quality gates**: Auto, AI, or human approval between phases
+- **Auto-completion**: Create PRs or direct merge after task completion
 - **Full visibility**: Live transcripts, timeline view, rewindable history
 - **Ralph-style execution**: Persistent loops within structured phases
 
@@ -58,26 +60,32 @@ orc status              # Overall status
 ## Configuration
 
 ```yaml
-# orc.yaml
+# .orc/config.yaml
 gates:
-  spec: ai              # AI can approve specs
-  merge: human          # Human approves merge (default)
+  default_type: auto    # auto | ai | human
+  phase_overrides:
+    merge: human        # Human approves merge
 
-weights:
-  default: medium       # Fallback classification
+worktree:
+  enabled: true         # Enable worktree isolation (default: true)
+  cleanup_on_complete: true
 
-git:
-  worktrees: true       # Enable parallel execution
+completion:
+  action: pr            # pr | merge | none
+  target_branch: main
+  pr:
+    title: "[orc] {{TASK_TITLE}}"
+    auto_merge: true
 ```
 
 ## How It Works
 
 1. **Classify**: AI determines task weight (user can override)
 2. **Plan**: Generate phase sequence from weight template
-3. **Execute**: Ralph-style loop within each phase until completion
+3. **Execute**: Ralph-style loop within each phase until completion (in isolated worktree)
 4. **Checkpoint**: Git commit after each phase
 5. **Gate**: Auto/AI/human approval before next phase
-6. **Merge**: Human-approved merge to main (configurable)
+6. **Complete**: Create PR or direct merge (configurable)
 
 ## Documentation
 

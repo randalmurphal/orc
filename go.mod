@@ -3,7 +3,7 @@ module github.com/randalmurphal/orc
 go 1.24.0
 
 require (
-	github.com/randalmurphal/flowgraph v0.0.0-00010101000000-000000000000
+	github.com/randalmurphal/flowgraph v0.0.0-20251222190218-f13ded306948
 	github.com/randalmurphal/llmkit v1.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
@@ -23,6 +23,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
+	github.com/randalmurphal/devflow v0.0.0-20251226061442-e62d70cc5707 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
@@ -37,7 +38,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/sys v0.39.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	modernc.org/libc v1.66.10 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
@@ -49,3 +50,5 @@ require (
 replace github.com/randalmurphal/llmkit => ../llmkit
 
 replace github.com/randalmurphal/flowgraph => ../flowgraph
+
+replace github.com/randalmurphal/devflow => ../devflow

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { listTasks, createTask, runTask, pauseTask, deleteTask, type PaginatedTasks } from '$lib/api';
+	import { listTasks, createTask, runTask, pauseTask, deleteTask, listProjectTasks, createProjectTask, type PaginatedTasks } from '$lib/api';
 	import type { Task } from '$lib/types';
 	import TaskCard from '$lib/components/TaskCard.svelte';
+	import { currentProjectId, currentProject } from '$lib/stores/project';
 
 	let tasks = $state<Task[]>([]);
 	let loading = $state(true);
@@ -17,6 +18,13 @@
 	let limit = $state(10);
 	let usePagination = $state(false);
 
+	// Subscribe to project changes
+	$effect(() => {
+		if ($currentProjectId !== undefined) {
+			loadTasks();
+		}
+	});
+
 	onMount(async () => {
 		await loadTasks();
 	});
@@ -25,12 +33,19 @@
 		loading = true;
 		error = null;
 		try {
-			if (usePagination) {
+			if ($currentProjectId) {
+				// Load tasks from selected project
+				tasks = await listProjectTasks($currentProjectId);
+				total = tasks.length;
+				totalPages = 1;
+				usePagination = false;
+			} else if (usePagination) {
 				const result = await listTasks({ page: currentPage, limit }) as PaginatedTasks;
 				tasks = result.tasks;
 				total = result.total;
 				totalPages = result.total_pages;
 			} else {
+				// Fallback to current directory tasks
 				const result = await listTasks();
 				tasks = result as Task[];
 				total = tasks.length;
@@ -46,7 +61,11 @@
 	async function handleCreateTask() {
 		if (!newTaskTitle.trim()) return;
 		try {
-			await createTask(newTaskTitle.trim());
+			if ($currentProjectId) {
+				await createProjectTask($currentProjectId, newTaskTitle.trim());
+			} else {
+				await createTask(newTaskTitle.trim());
+			}
 			newTaskTitle = '';
 			showNewTask = false;
 			await loadTasks();
@@ -104,9 +123,15 @@
 
 <div class="page">
 	<header class="page-header">
-		<h1>Tasks</h1>
+		<h1>
+			{#if $currentProject}
+				{$currentProject.name} Tasks
+			{:else}
+				Tasks
+			{/if}
+		</h1>
 		<div class="header-actions">
-			{#if total > 10}
+			{#if total > 10 && !$currentProjectId}
 				<button class="toggle-btn" onclick={togglePagination}>
 					{usePagination ? 'Show All' : 'Paginate'}
 				</button>
