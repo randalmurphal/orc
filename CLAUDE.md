@@ -227,7 +227,7 @@ make e2e            # Run Playwright tests
 | GET | `/api/projects/:id/tasks` | List tasks for project |
 | POST | `/api/projects/:id/tasks` | Create task in project |
 
-### Tasks
+### Tasks (Global - CWD-based)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/tasks` | List tasks (supports `?page=N&limit=N`) |
@@ -240,6 +240,19 @@ make e2e            # Run Playwright tests
 | POST | `/api/tasks/:id/run` | Start task |
 | POST | `/api/tasks/:id/pause` | Pause task |
 | POST | `/api/tasks/:id/resume` | Resume task |
+
+### Project Tasks (Multi-project support)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/projects/:id/tasks/:taskId` | Get task in project |
+| DELETE | `/api/projects/:id/tasks/:taskId` | Delete task in project |
+| GET | `/api/projects/:id/tasks/:taskId/state` | Get execution state |
+| GET | `/api/projects/:id/tasks/:taskId/plan` | Get task plan |
+| GET | `/api/projects/:id/tasks/:taskId/transcripts` | Get transcripts |
+| POST | `/api/projects/:id/tasks/:taskId/run` | Start task |
+| POST | `/api/projects/:id/tasks/:taskId/pause` | Pause running task |
+| POST | `/api/projects/:id/tasks/:taskId/resume` | Resume paused task |
+| POST | `/api/projects/:id/tasks/:taskId/rewind` | Rewind to phase (body: `{"phase": "implement"}`) |
 
 ### Prompts
 | Method | Endpoint | Description |
