@@ -23,11 +23,15 @@ make dev      # Interactive shell in container
 |------|---------|
 | `cmd/orc/` | CLI entry point |
 | `internal/cli/` | Cobra commands |
-| `internal/api/` | REST API + SSE server |
+| `internal/api/` | REST API + WebSocket server |
 | `internal/executor/` | flowgraph-based phase execution |
+| `internal/events/` | Event publisher for real-time updates |
 | `internal/task/` | Task model + YAML persistence |
 | `internal/plan/` | Phase templates + weight classification |
 | `internal/state/` | Execution state tracking |
+| `internal/prompt/` | Prompt management service |
+| `internal/hooks/` | Claude Code hooks management |
+| `internal/skills/` | Claude Code skills management |
 | `internal/git/` | Git checkpointing, branches |
 | `templates/` | Phase templates (plans/, prompts/) |
 | `web/` | Svelte 5 frontend (SvelteKit) |
@@ -102,11 +106,19 @@ Phases block when Claude outputs:
 ```
 .orc/
 ├── config.yaml
+├── prompts/           # Project prompt overrides
+│   └── implement.md
 └── tasks/TASK-001/
     ├── task.yaml       # Definition
     ├── plan.yaml       # Phase sequence
     ├── state.yaml      # Execution state
     └── transcripts/    # Claude conversation logs
+
+.claude/
+├── hooks/             # Claude Code hooks
+│   └── my-hook.json
+└── skills/            # Claude Code skills
+    └── my-skill.yaml
 ```
 
 ## Commands
@@ -137,15 +149,84 @@ make web-dev        # Frontend on :5173
 
 # Production build
 make web-build      # Outputs to web/build/
+
+# E2E tests
+make e2e            # Run Playwright tests
 ```
 
-API endpoints:
-- `GET /api/tasks` - List tasks
-- `POST /api/tasks` - Create task
-- `GET /api/tasks/:id` - Get task
-- `GET /api/tasks/:id/stream` - SSE transcript stream
-- `POST /api/tasks/:id/run` - Start task
-- `POST /api/tasks/:id/pause` - Pause task
+## API Endpoints
+
+### Tasks
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tasks` | List tasks (supports `?page=N&limit=N`) |
+| POST | `/api/tasks` | Create task |
+| GET | `/api/tasks/:id` | Get task |
+| DELETE | `/api/tasks/:id` | Delete task |
+| GET | `/api/tasks/:id/state` | Get execution state |
+| GET | `/api/tasks/:id/plan` | Get task plan |
+| GET | `/api/tasks/:id/transcripts` | Get transcripts |
+| POST | `/api/tasks/:id/run` | Start task |
+| POST | `/api/tasks/:id/pause` | Pause task |
+| POST | `/api/tasks/:id/resume` | Resume task |
+
+### Prompts
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/prompts` | List prompts |
+| GET | `/api/prompts/variables` | Get template variables |
+| GET | `/api/prompts/:phase` | Get prompt for phase |
+| GET | `/api/prompts/:phase/default` | Get default prompt |
+| PUT | `/api/prompts/:phase` | Save prompt override |
+| DELETE | `/api/prompts/:phase` | Delete prompt override |
+
+### Hooks
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/hooks` | List hooks |
+| GET | `/api/hooks/types` | Get hook types |
+| POST | `/api/hooks` | Create hook |
+| GET | `/api/hooks/:name` | Get hook |
+| PUT | `/api/hooks/:name` | Update hook |
+| DELETE | `/api/hooks/:name` | Delete hook |
+
+### Skills
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/skills` | List skills |
+| POST | `/api/skills` | Create skill |
+| GET | `/api/skills/:name` | Get skill |
+| PUT | `/api/skills/:name` | Update skill |
+| DELETE | `/api/skills/:name` | Delete skill |
+
+### Config & Real-time
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/config` | Get configuration |
+| PUT | `/api/config` | Update configuration |
+| GET | `/api/ws` | WebSocket for real-time updates |
+| GET | `/api/tasks/:id/stream` | SSE transcript stream (legacy) |
+
+## WebSocket Protocol
+
+Connect to `/api/ws` for real-time updates.
+
+### Client → Server Messages
+```json
+{"type": "subscribe", "task_id": "TASK-001"}
+{"type": "unsubscribe"}
+{"type": "command", "task_id": "TASK-001", "action": "pause"}
+{"type": "ping"}
+```
+
+### Server → Client Messages
+```json
+{"type": "subscribed", "task_id": "TASK-001"}
+{"type": "event", "event_type": "state", "data": {...}}
+{"type": "event", "event_type": "transcript", "data": {...}}
+{"type": "event", "event_type": "phase", "data": {...}}
+{"type": "pong"}
+```
 
 ## Key Patterns
 
@@ -166,6 +247,15 @@ graph.AddConditionalEdge("check", routerFunc)
 [orc] TASK-001: implement - completed
 ```
 
+**Event publishing**: Real-time updates during execution
+```go
+publisher.Publish(events.Event{
+    Type:   events.EventTranscript,
+    TaskID: taskID,
+    Data:   transcriptLine,
+})
+```
+
 ## Container Usage
 
 ```bash
@@ -177,6 +267,19 @@ make docker-test
 
 # Build production binary
 make release-build
+```
+
+## Testing
+
+```bash
+# Backend tests
+make test
+
+# Frontend unit tests
+cd web && npm test
+
+# E2E tests with Playwright
+make e2e
 ```
 
 ## Docs Reference
