@@ -1,17 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import {
+		listAgents,
+		getAgent,
+		createAgent,
+		updateAgent,
+		deleteAgent,
 		listSkills,
-		getSkill,
-		createSkill,
-		updateSkill,
-		deleteSkill,
-		type SkillInfo,
-		type Skill
+		type SubAgent,
+		type SkillInfo
 	} from '$lib/api';
 
+	let agents: SubAgent[] = [];
 	let skills: SkillInfo[] = [];
-	let selectedSkill: Skill | null = null;
+	let selectedAgent: SubAgent | null = null;
 	let isCreating = false;
 	let loading = true;
 	let saving = false;
@@ -21,45 +23,68 @@
 	// Form fields
 	let formName = '';
 	let formDescription = '';
-	let formContent = '';
-	let formAllowedTools = '';
+	let formModel = '';
+	let formPrompt = '';
+	let formWorkDir = '';
+	let formTimeout = '';
+	let formSkillRefs: string[] = [];
+	let formAllowTools = '';
+	let formDenyTools = '';
 
 	onMount(async () => {
 		try {
-			skills = await listSkills();
+			[agents, skills] = await Promise.all([listAgents(), listSkills()]);
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load skills';
+			error = e instanceof Error ? e.message : 'Failed to load agents';
 		} finally {
 			loading = false;
 		}
 	});
 
-	async function selectSkillByName(name: string) {
+	async function selectAgentByName(name: string) {
 		error = null;
 		success = null;
 		isCreating = false;
 
 		try {
-			selectedSkill = await getSkill(name);
-			formName = selectedSkill.name;
-			formDescription = selectedSkill.description;
-			formContent = selectedSkill.content;
-			formAllowedTools = selectedSkill.allowed_tools?.join(', ') || '';
+			selectedAgent = await getAgent(name);
+			formName = selectedAgent.name;
+			formDescription = selectedAgent.description;
+			formModel = selectedAgent.model || '';
+			formPrompt = selectedAgent.prompt || '';
+			formWorkDir = selectedAgent.work_dir || '';
+			formTimeout = selectedAgent.timeout || '';
+			formSkillRefs = selectedAgent.skill_refs || [];
+			formAllowTools = selectedAgent.tools?.allow?.join(', ') || '';
+			formDenyTools = selectedAgent.tools?.deny?.join(', ') || '';
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load skill';
+			error = e instanceof Error ? e.message : 'Failed to load agent';
 		}
 	}
 
 	function startCreate() {
 		error = null;
 		success = null;
-		selectedSkill = null;
+		selectedAgent = null;
 		isCreating = true;
 
 		formName = '';
 		formDescription = '';
-		formContent = '';
-		formAllowedTools = '';
+		formModel = '';
+		formPrompt = '';
+		formWorkDir = '';
+		formTimeout = '';
+		formSkillRefs = [];
+		formAllowTools = '';
+		formDenyTools = '';
+	}
+
+	function toggleSkillRef(skillName: string) {
+		if (formSkillRefs.includes(skillName)) {
+			formSkillRefs = formSkillRefs.filter((s) => s !== skillName);
+		} else {
+			formSkillRefs = [...formSkillRefs, skillName];
+		}
 	}
 
 	async function handleSave() {
@@ -72,54 +97,67 @@
 		error = null;
 		success = null;
 
-		const allowedTools = formAllowedTools
+		const allowTools = formAllowTools
+			.split(',')
+			.map((t) => t.trim())
+			.filter((t) => t);
+		const denyTools = formDenyTools
 			.split(',')
 			.map((t) => t.trim())
 			.filter((t) => t);
 
-		const skill: Skill = {
+		const agent: SubAgent = {
 			name: formName.trim(),
-			description: formDescription.trim(),
-			content: formContent.trim(),
-			allowed_tools: allowedTools.length > 0 ? allowedTools : undefined
+			description: formDescription.trim()
 		};
+
+		if (formModel) agent.model = formModel;
+		if (formPrompt) agent.prompt = formPrompt;
+		if (formWorkDir) agent.work_dir = formWorkDir;
+		if (formTimeout) agent.timeout = formTimeout;
+		if (formSkillRefs.length > 0) agent.skill_refs = formSkillRefs;
+		if (allowTools.length > 0 || denyTools.length > 0) {
+			agent.tools = {};
+			if (allowTools.length > 0) agent.tools.allow = allowTools;
+			if (denyTools.length > 0) agent.tools.deny = denyTools;
+		}
 
 		try {
 			if (isCreating) {
-				await createSkill(skill);
-				success = 'Skill created successfully';
-			} else if (selectedSkill) {
-				await updateSkill(selectedSkill.name, skill);
-				success = 'Skill updated successfully';
+				await createAgent(agent);
+				success = 'Agent created successfully';
+			} else if (selectedAgent) {
+				await updateAgent(selectedAgent.name, agent);
+				success = 'Agent updated successfully';
 			}
 
-			skills = await listSkills();
-			selectedSkill = skill;
+			agents = await listAgents();
+			selectedAgent = agent;
 			isCreating = false;
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to save skill';
+			error = e instanceof Error ? e.message : 'Failed to save agent';
 		} finally {
 			saving = false;
 		}
 	}
 
 	async function handleDelete() {
-		if (!selectedSkill) return;
+		if (!selectedAgent) return;
 
-		if (!confirm(`Delete skill "${selectedSkill.name}"?`)) return;
+		if (!confirm(`Delete agent "${selectedAgent.name}"?`)) return;
 
 		saving = true;
 		error = null;
 		success = null;
 
 		try {
-			await deleteSkill(selectedSkill.name);
-			skills = await listSkills();
-			selectedSkill = null;
+			await deleteAgent(selectedAgent.name);
+			agents = await listAgents();
+			selectedAgent = null;
 			isCreating = false;
-			success = 'Skill deleted successfully';
+			success = 'Agent deleted successfully';
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to delete skill';
+			error = e instanceof Error ? e.message : 'Failed to delete agent';
 		} finally {
 			saving = false;
 		}
@@ -127,17 +165,17 @@
 </script>
 
 <svelte:head>
-	<title>Skills - orc</title>
+	<title>Agents - orc</title>
 </svelte:head>
 
-<div class="skills-page">
+<div class="agents-page">
 	<header class="page-header">
 		<div class="header-content">
 			<div>
-				<h1>Claude Code Skills</h1>
-				<p class="subtitle">Manage skills in .claude/skills/ (SKILL.md format)</p>
+				<h1>Sub-Agents</h1>
+				<p class="subtitle">Define agents for task delegation</p>
 			</div>
-			<button class="btn btn-primary" on:click={startCreate}>New Skill</button>
+			<button class="btn btn-primary" on:click={startCreate}>New Agent</button>
 		</div>
 	</header>
 
@@ -150,26 +188,26 @@
 	{/if}
 
 	{#if loading}
-		<div class="loading">Loading skills...</div>
+		<div class="loading">Loading agents...</div>
 	{:else}
-		<div class="skills-layout">
-			<!-- Skill List -->
-			<aside class="skill-list">
-				<h2>Skills</h2>
-				{#if skills.length === 0}
-					<p class="empty-message">No skills configured</p>
+		<div class="agents-layout">
+			<!-- Agent List -->
+			<aside class="agent-list">
+				<h2>Agents</h2>
+				{#if agents.length === 0}
+					<p class="empty-message">No agents configured</p>
 				{:else}
 					<ul>
-						{#each skills as skill}
+						{#each agents as agent}
 							<li>
 								<button
-									class="skill-item"
-									class:selected={selectedSkill?.name === skill.name}
-									on:click={() => selectSkillByName(skill.name)}
+									class="agent-item"
+									class:selected={selectedAgent?.name === agent.name}
+									on:click={() => selectAgentByName(agent.name)}
 								>
-									<span class="skill-name">{skill.name}</span>
-									{#if skill.description}
-										<span class="skill-desc">{skill.description}</span>
+									<span class="agent-name">{agent.name}</span>
+									{#if agent.description}
+										<span class="agent-desc">{agent.description}</span>
 									{/if}
 								</button>
 							</li>
@@ -180,17 +218,17 @@
 
 			<!-- Editor Panel -->
 			<div class="editor-panel">
-				{#if selectedSkill || isCreating}
+				{#if selectedAgent || isCreating}
 					<div class="editor-header">
-						<h2>{isCreating ? 'New Skill' : selectedSkill?.name}</h2>
-						{#if selectedSkill && !isCreating}
+						<h2>{isCreating ? 'New Agent' : selectedAgent?.name}</h2>
+						{#if selectedAgent && !isCreating}
 							<button class="btn btn-danger" on:click={handleDelete} disabled={saving}>
 								Delete
 							</button>
 						{/if}
 					</div>
 
-					<form class="skill-form" on:submit|preventDefault={handleSave}>
+					<form class="agent-form" on:submit|preventDefault={handleSave}>
 						<div class="form-row">
 							<div class="form-group">
 								<label for="name">Name</label>
@@ -198,23 +236,19 @@
 									id="name"
 									type="text"
 									bind:value={formName}
-									placeholder="my-skill"
+									placeholder="my-agent"
 									disabled={!isCreating}
 								/>
-								<span class="form-hint"
-									>.claude/skills/{formName || 'name'}/SKILL.md</span
-								>
 							</div>
 
 							<div class="form-group">
-								<label for="allowed-tools">Allowed Tools (optional)</label>
-								<input
-									id="allowed-tools"
-									type="text"
-									bind:value={formAllowedTools}
-									placeholder="Read, Bash, Edit"
-								/>
-								<span class="form-hint">Comma-separated list of tools</span>
+								<label for="model">Model (optional)</label>
+								<select id="model" bind:value={formModel}>
+									<option value="">Default</option>
+									<option value="sonnet">Sonnet</option>
+									<option value="opus">Opus</option>
+									<option value="haiku">Haiku</option>
+								</select>
 							</div>
 						</div>
 
@@ -224,17 +258,81 @@
 								id="description"
 								type="text"
 								bind:value={formDescription}
-								placeholder="Brief description of what this skill does"
+								placeholder="Brief description of what this agent does"
 							/>
 						</div>
 
+						<div class="form-row">
+							<div class="form-group">
+								<label for="work-dir">Work Directory (optional)</label>
+								<input
+									id="work-dir"
+									type="text"
+									bind:value={formWorkDir}
+									placeholder="./src"
+								/>
+							</div>
+
+							<div class="form-group">
+								<label for="timeout">Timeout (optional)</label>
+								<input
+									id="timeout"
+									type="text"
+									bind:value={formTimeout}
+									placeholder="30m"
+								/>
+							</div>
+						</div>
+
+						<div class="form-row">
+							<div class="form-group">
+								<label for="allow-tools">Allowed Tools (optional)</label>
+								<input
+									id="allow-tools"
+									type="text"
+									bind:value={formAllowTools}
+									placeholder="Read, Grep, Glob"
+								/>
+								<span class="form-hint">Comma-separated list</span>
+							</div>
+
+							<div class="form-group">
+								<label for="deny-tools">Denied Tools (optional)</label>
+								<input
+									id="deny-tools"
+									type="text"
+									bind:value={formDenyTools}
+									placeholder="Bash, Write"
+								/>
+								<span class="form-hint">Comma-separated list</span>
+							</div>
+						</div>
+
+						{#if skills.length > 0}
+							<div class="form-group">
+								<span class="form-label">Skill References</span>
+								<div class="skill-refs" role="group" aria-label="Skill References">
+									{#each skills as skill}
+										<button
+											type="button"
+											class="skill-chip"
+											class:selected={formSkillRefs.includes(skill.name)}
+											on:click={() => toggleSkillRef(skill.name)}
+										>
+											{skill.name}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
 						<div class="form-group form-group-grow">
-							<label for="content">Content (Markdown)</label>
+							<label for="prompt">System Prompt (optional)</label>
 							<textarea
-								id="content"
-								bind:value={formContent}
-								placeholder="Enter the skill instructions..."
-								rows="15"
+								id="prompt"
+								bind:value={formPrompt}
+								placeholder="Additional instructions for this agent..."
+								rows="8"
 							></textarea>
 						</div>
 
@@ -246,9 +344,9 @@
 					</form>
 				{:else}
 					<div class="no-selection">
-						<p>Select a skill from the list or create a new one.</p>
+						<p>Select an agent from the list or create a new one.</p>
 						<p class="hint">
-							Skills are reusable prompts that can be invoked with <code>/skill-name</code>
+							Sub-agents are specialized workers that can be invoked during task execution
 						</p>
 					</div>
 				{/if}
@@ -258,7 +356,7 @@
 </div>
 
 <style>
-	.skills-page {
+	.agents-page {
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
@@ -305,22 +403,22 @@
 		color: var(--text-secondary);
 	}
 
-	.skills-layout {
+	.agents-layout {
 		display: grid;
 		grid-template-columns: 250px 1fr;
 		gap: 1.5rem;
 		min-height: 600px;
 	}
 
-	/* Skill List */
-	.skill-list {
+	/* Agent List */
+	.agent-list {
 		background: var(--bg-secondary);
 		border-radius: 8px;
 		padding: 1rem;
 		border: 1px solid var(--border-color);
 	}
 
-	.skill-list h2 {
+	.agent-list h2 {
 		font-size: 0.875rem;
 		font-weight: 600;
 		margin: 0 0 0.75rem;
@@ -329,7 +427,7 @@
 		letter-spacing: 0.05em;
 	}
 
-	.skill-list ul {
+	.agent-list ul {
 		list-style: none;
 		padding: 0;
 		margin: 0;
@@ -344,7 +442,7 @@
 		font-style: italic;
 	}
 
-	.skill-item {
+	.agent-item {
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
@@ -360,20 +458,20 @@
 		gap: 0.25rem;
 	}
 
-	.skill-item:hover {
+	.agent-item:hover {
 		background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
 	}
 
-	.skill-item.selected {
+	.agent-item.selected {
 		background: var(--primary-bg, #dbeafe);
 		color: var(--primary-text, #1d4ed8);
 	}
 
-	.skill-name {
+	.agent-name {
 		font-weight: 500;
 	}
 
-	.skill-desc {
+	.agent-desc {
 		font-size: 0.75rem;
 		color: var(--text-secondary);
 		white-space: nowrap;
@@ -382,7 +480,7 @@
 		max-width: 100%;
 	}
 
-	.skill-item.selected .skill-desc {
+	.agent-item.selected .agent-desc {
 		color: var(--primary-text, #1d4ed8);
 		opacity: 0.7;
 	}
@@ -410,7 +508,7 @@
 		font-size: 1rem;
 	}
 
-	.skill-form {
+	.agent-form {
 		padding: 1.5rem;
 		display: flex;
 		flex-direction: column;
@@ -434,13 +532,15 @@
 		flex: 1;
 	}
 
-	.form-group label {
+	.form-group label,
+	.form-label {
 		font-size: 0.875rem;
 		font-weight: 500;
 		color: var(--text-primary);
 	}
 
 	.form-group input,
+	.form-group select,
 	.form-group textarea {
 		padding: 0.5rem 0.75rem;
 		border: 1px solid var(--border-color);
@@ -454,10 +554,11 @@
 		font-family: 'JetBrains Mono', 'Fira Code', monospace;
 		resize: vertical;
 		flex: 1;
-		min-height: 200px;
+		min-height: 150px;
 	}
 
 	.form-group input:focus,
+	.form-group select:focus,
 	.form-group textarea:focus {
 		outline: none;
 		border-color: var(--primary, #3b82f6);
@@ -466,6 +567,33 @@
 	.form-hint {
 		font-size: 0.75rem;
 		color: var(--text-secondary);
+	}
+
+	.skill-refs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.skill-chip {
+		padding: 0.375rem 0.75rem;
+		border: 1px solid var(--border-color);
+		border-radius: 16px;
+		background: var(--bg-primary);
+		color: var(--text-primary);
+		font-size: 0.75rem;
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+
+	.skill-chip:hover {
+		background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
+	}
+
+	.skill-chip.selected {
+		background: var(--primary-bg, #dbeafe);
+		border-color: var(--primary, #3b82f6);
+		color: var(--primary-text, #1d4ed8);
 	}
 
 	.form-actions {
@@ -520,19 +648,12 @@
 		font-size: 0.875rem;
 	}
 
-	.no-selection code {
-		background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
-		padding: 0.125rem 0.375rem;
-		border-radius: 4px;
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
-	}
-
 	@media (max-width: 768px) {
-		.skills-layout {
+		.agents-layout {
 			grid-template-columns: 1fr;
 		}
 
-		.skill-list {
+		.agent-list {
 			max-height: 200px;
 			overflow-y: auto;
 		}
