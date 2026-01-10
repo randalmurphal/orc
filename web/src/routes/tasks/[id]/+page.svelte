@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
-	import { getTask, getTaskState, getTaskPlan, runTask, pauseTask, getTranscripts } from '$lib/api';
+	import { goto } from '$app/navigation';
+	import { getTask, getTaskState, getTaskPlan, runTask, pauseTask, deleteTask, getTranscripts } from '$lib/api';
 	import { subscribeToTaskWS, type ConnectionStatus, type WSEventType, getWebSocket } from '$lib/websocket';
 	import type { Task, TaskState, Plan, TranscriptLine } from '$lib/types';
 	import Timeline from '$lib/components/Timeline.svelte';
@@ -126,6 +127,17 @@
 		}
 	}
 
+	async function handleDelete() {
+		if (!task || !confirm(`Delete task ${task.id}?`)) return;
+
+		try {
+			await deleteTask(taskId);
+			goto('/');
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to delete task';
+		}
+	}
+
 	const statusColors: Record<string, string> = {
 		created: 'var(--text-secondary)',
 		running: 'var(--accent-primary)',
@@ -182,6 +194,14 @@
 					<button class="danger" onclick={handleCancel}>Cancel</button>
 				{:else if ['created', 'planned', 'paused'].includes(task.status)}
 					<button class="primary" onclick={handleRun}>Run</button>
+				{/if}
+				{#if task.status !== 'running'}
+					<button class="delete-btn" onclick={handleDelete} title="Delete task">
+						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="3 6 5 6 21 6"></polyline>
+							<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+						</svg>
+					</button>
 				{/if}
 			</div>
 		</header>
@@ -365,5 +385,23 @@
 
 	button.danger:hover {
 		background: color-mix(in srgb, var(--accent-danger), black 10%);
+	}
+
+	.delete-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.5rem;
+		background: transparent;
+		border: 1px solid var(--border-color);
+		color: var(--text-secondary);
+		border-radius: 6px;
+		cursor: pointer;
+	}
+
+	.delete-btn:hover {
+		background: var(--accent-danger);
+		border-color: var(--accent-danger);
+		color: white;
 	}
 </style>

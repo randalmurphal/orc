@@ -229,3 +229,12 @@ func Exists(id string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
+
+// Delete removes a task and all its associated files.
+func Delete(id string) error {
+	if !Exists(id) {
+		return fmt.Errorf("task %s not found", id)
+	}
+	taskDir := TaskDir(id)
+	return os.RemoveAll(taskDir)
+}

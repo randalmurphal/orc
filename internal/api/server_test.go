@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -462,6 +463,94 @@ updated_at: 2024-01-01T00:00:00Z
 	}
 }
 
+func TestListTasksEndpoint_Pagination(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create multiple tasks for pagination testing
+	for i := 1; i <= 25; i++ {
+		taskDir := filepath.Join(".orc", "tasks", fmt.Sprintf("TASK-%03d", i))
+		os.MkdirAll(taskDir, 0755)
+
+		taskYAML := fmt.Sprintf(`id: TASK-%03d
+title: Test Task %d
+description: Test task number %d
+status: pending
+weight: small
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`, i, i, i)
+		os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	}
+
+	srv := New(nil)
+
+	// Test pagination with page=1, limit=10
+	req := httptest.NewRequest("GET", "/api/tasks?page=1&limit=10", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var resp struct {
+		Tasks      []task.Task `json:"tasks"`
+		Total      int         `json:"total"`
+		Page       int         `json:"page"`
+		Limit      int         `json:"limit"`
+		TotalPages int         `json:"total_pages"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(resp.Tasks) != 10 {
+		t.Errorf("expected 10 tasks, got %d", len(resp.Tasks))
+	}
+	if resp.Total != 25 {
+		t.Errorf("expected total 25, got %d", resp.Total)
+	}
+	if resp.Page != 1 {
+		t.Errorf("expected page 1, got %d", resp.Page)
+	}
+	if resp.TotalPages != 3 {
+		t.Errorf("expected 3 total pages, got %d", resp.TotalPages)
+	}
+
+	// Test page 3 (should have 5 tasks)
+	req = httptest.NewRequest("GET", "/api/tasks?page=3&limit=10", nil)
+	w = httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(resp.Tasks) != 5 {
+		t.Errorf("expected 5 tasks on page 3, got %d", len(resp.Tasks))
+	}
+
+	// Test without pagination (backward compatible)
+	req = httptest.NewRequest("GET", "/api/tasks", nil)
+	w = httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	var allTasks []task.Task
+	if err := json.NewDecoder(w.Body).Decode(&allTasks); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(allTasks) != 25 {
+		t.Errorf("expected 25 tasks without pagination, got %d", len(allTasks))
+	}
+}
+
 func TestGetTaskEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
@@ -599,16 +688,81 @@ func TestCreateTaskEndpoint_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestDeleteTaskEndpoint_NotImplemented(t *testing.T) {
+func TestDeleteTaskEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create a task to delete
+	os.MkdirAll(".orc/tasks/TASK-DEL-001", 0755)
+	testTask := task.New("TASK-DEL-001", "Delete Test")
+	testTask.Status = task.StatusCompleted
+	testTask.Save()
+
 	srv := New(nil)
 
-	req := httptest.NewRequest("DELETE", "/api/tasks/TASK-001", nil)
+	req := httptest.NewRequest("DELETE", "/api/tasks/TASK-DEL-001", nil)
 	w := httptest.NewRecorder()
 
 	srv.mux.ServeHTTP(w, req)
 
-	if w.Code != http.StatusNotImplemented {
-		t.Errorf("expected status 501, got %d", w.Code)
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d", w.Code)
+	}
+
+	// Verify task was deleted
+	if task.Exists("TASK-DEL-001") {
+		t.Error("task should have been deleted")
+	}
+}
+
+func TestDeleteTaskEndpoint_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".orc/tasks", 0755)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("DELETE", "/api/tasks/TASK-NONEXISTENT", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", w.Code)
+	}
+}
+
+func TestDeleteTaskEndpoint_RunningTask(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create a running task
+	os.MkdirAll(".orc/tasks/TASK-RUN-001", 0755)
+	testTask := task.New("TASK-RUN-001", "Running Task")
+	testTask.Status = task.StatusRunning
+	testTask.Save()
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("DELETE", "/api/tasks/TASK-RUN-001", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected status 409, got %d", w.Code)
+	}
+
+	// Verify task still exists
+	if !task.Exists("TASK-RUN-001") {
+		t.Error("running task should not have been deleted")
 	}
 }
 
@@ -859,6 +1013,119 @@ func TestGetConfigEndpoint_NoConfig(t *testing.T) {
 	// Should still return OK with default config
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateConfigEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create config directory
+	os.MkdirAll(".orc", 0755)
+
+	srv := New(nil)
+
+	// Update config with new values
+	body := bytes.NewBufferString(`{
+		"profile": "safe",
+		"automation": {
+			"gates_default": "human",
+			"retry_enabled": true,
+			"retry_max": 5
+		},
+		"execution": {
+			"model": "claude-opus-4-20250514",
+			"max_iterations": 50,
+			"timeout": "1h"
+		},
+		"git": {
+			"branch_prefix": "test/",
+			"commit_prefix": "[test]"
+		}
+	}`)
+	req := httptest.NewRequest("PUT", "/api/config", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify response contains updated values
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["profile"] != "safe" {
+		t.Errorf("expected profile 'safe', got %v", resp["profile"])
+	}
+
+	automation := resp["automation"].(map[string]interface{})
+	if automation["gates_default"] != "human" {
+		t.Errorf("expected gates_default 'human', got %v", automation["gates_default"])
+	}
+
+	execution := resp["execution"].(map[string]interface{})
+	if execution["model"] != "claude-opus-4-20250514" {
+		t.Errorf("expected model 'claude-opus-4-20250514', got %v", execution["model"])
+	}
+
+	git := resp["git"].(map[string]interface{})
+	if git["branch_prefix"] != "test/" {
+		t.Errorf("expected branch_prefix 'test/', got %v", git["branch_prefix"])
+	}
+}
+
+func TestUpdateConfigEndpoint_InvalidBody(t *testing.T) {
+	srv := New(nil)
+
+	body := bytes.NewBufferString(`{invalid json}`)
+	req := httptest.NewRequest("PUT", "/api/config", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestUpdateConfigEndpoint_PartialUpdate(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create config directory
+	os.MkdirAll(".orc", 0755)
+
+	srv := New(nil)
+
+	// Update only profile
+	body := bytes.NewBufferString(`{"profile": "strict"}`)
+	req := httptest.NewRequest("PUT", "/api/config", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["profile"] != "strict" {
+		t.Errorf("expected profile 'strict', got %v", resp["profile"])
 	}
 }
 
