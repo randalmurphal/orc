@@ -946,69 +946,415 @@ func (d *Display) GatePending(gate string) {
 - [ ] `go build ./...` succeeds with zero errors
 - [ ] `go vet ./...` reports no issues
 - [ ] No import errors for llmkit or flowgraph
+- [ ] `cd web && npm install && npm run check` passes
 
-### Tests
-- [ ] `go test ./...` passes with zero failures
-- [ ] Coverage >80% for core packages
+### Test Coverage Requirements
 
-### CLI Functional Tests
-Run this sequence and verify each step works:
+**Run: `go test ./... -v -race -cover`**
 
+Each package MUST have tests covering ALL exported functions and edge cases:
+
+#### `internal/task/` (>90% coverage)
+| Function | Test Cases Required |
+|----------|---------------------|
+| `New()` | Valid input, empty title, special characters |
+| `Load()` | Exists, not found, corrupted YAML, permissions |
+| `Save()` | New task, update existing, directory creation |
+| `LoadAll()` | Empty dir, multiple tasks, partial failures |
+| `NextID()` | First task, sequential IDs, gaps in sequence |
+| `TaskDir()` | Valid ID, special characters |
+| `IsTerminal()` | All status values (pending, running, completed, failed, paused) |
+| `CanRun()` | All status transitions |
+
+#### `internal/plan/` (>90% coverage)
+| Function | Test Cases Required |
+|----------|---------------------|
+| `Load()` | Exists, not found, invalid YAML |
+| `Save()` | New plan, update existing |
+| `LoadTemplate()` | All weights (trivial, small, medium, large, greenfield) |
+| `Generator.Generate()` | Each weight type, custom overrides |
+| Phase dependency resolution | Linear, parallel, complex DAG |
+
+#### `internal/state/` (>90% coverage)
+| Function | Test Cases Required |
+|----------|---------------------|
+| `New()` | Valid task ID |
+| `Load()` | Exists, not found, corrupted |
+| `Save()` | New state, update existing |
+| `StartPhase()` | First phase, subsequent phases |
+| `CompletePhase()` | Normal completion, with artifacts |
+| `FailPhase()` | With error message |
+| `IncrementIteration()` | Normal increment |
+| `AddTokens()` | Input/output tokens |
+| `RecordGateDecision()` | Approved, rejected, all gate types |
+| `GetResumePhase()` | Interrupted, running, completed states |
+| `IsPhaseCompleted()` | All phase states |
+| `SetRetryContext()` | With/without failure output |
+| `ClearRetryContext()` | After retry success |
+
+#### `internal/executor/` (>80% coverage)
+| Function | Test Cases Required |
+|----------|---------------------|
+| `New()` | Valid config, nil config |
+| `ExecutePhase()` | Successful completion, max iterations, blocked |
+| `ExecuteWithRetry()` | Success first try, retry success, max retries exceeded |
+| `buildPromptNode()` | Template rendering, variable substitution |
+| `executeClaudeNode()` | Success, API error, timeout |
+| `checkCompletionNode()` | Complete detected, blocked detected, neither |
+| `commitCheckpointNode()` | Successful commit |
+| `isRetryable()` | Rate limit, network, timeout, non-retryable |
+| `classifyError()` | All error types |
+
+#### `internal/gate/` (>90% coverage)
+| Function | Test Cases Required |
+|----------|---------------------|
+| `NewEvaluator()` | Valid config |
+| `Evaluate()` | Auto gate pass/fail, AI gate approve/reject, human gate pending |
+| `evaluateAuto()` | Success output, failure output |
+| `evaluateAI()` | Approved, rejected, needs clarification |
+| `requestHumanApproval()` | Returns pending status |
+
+#### `internal/config/` (>90% coverage)
+| Function | Test Cases Required |
+|----------|---------------------|
+| `Default()` | Returns valid defaults |
+| `Load()` | Exists, not found, invalid YAML |
+| `Save()` | New config, update existing |
+| `Init()` | Fresh directory, already initialized |
+| `IsInitialized()` | True, false cases |
+| `RequireInit()` | Initialized, not initialized |
+
+#### `internal/git/` (>80% coverage)
+| Function | Test Cases Required |
+|----------|---------------------|
+| `CreateBranch()` | New branch, already exists |
+| `CreateCheckpoint()` | With changes, no changes |
+| `SwitchBranch()` | Exists, not exists |
+| `GetCurrentBranch()` | On branch, detached HEAD |
+| `ListTaskBranches()` | Multiple branches, none |
+
+#### `internal/progress/` (>80% coverage)
+| Function | Test Cases Required |
+|----------|---------------------|
+| `New()` | Valid params |
+| `PhaseStart()` | Normal phase |
+| `Update()` | Progress update |
+| `PhaseComplete()` | With commit SHA |
+| `PhaseFailed()` | With error |
+| `GatePending()` | Human gate |
+| `TaskComplete()` | Normal completion |
+| `FormatDuration()` | Seconds, minutes, hours |
+
+#### `internal/api/` (>80% coverage)
+| Endpoint | Test Cases Required |
+|----------|---------------------|
+| `GET /api/health` | Returns 200 |
+| `GET /api/tasks` | Empty list, multiple tasks, with filters |
+| `POST /api/tasks` | Valid task, missing title, invalid weight |
+| `GET /api/tasks/{id}` | Exists, not found |
+| `DELETE /api/tasks/{id}` | Exists, not found |
+| `GET /api/tasks/{id}/state` | Exists, not found |
+| `GET /api/tasks/{id}/plan` | Exists, not found |
+| `POST /api/tasks/{id}/run` | Can run, already running, completed |
+| `POST /api/tasks/{id}/pause` | Running, not running |
+| `POST /api/tasks/{id}/resume` | Paused, not paused |
+| `GET /api/tasks/{id}/stream` | SSE connection, events sent |
+| CORS | Preflight requests, headers present |
+
+#### `internal/cli/` (>70% coverage)
+| Command | Test Cases Required |
+|---------|---------------------|
+| Signal handling | SIGINT once, SIGINT twice, SIGTERM |
+| Graceful shutdown | State saved, message shown |
+
+### CLI Command Verification (ALL commands, ALL flags)
+
+**Every command must work with all its flags:**
+
+#### `orc init`
 ```bash
-# Build
-go build -o orc ./cmd/orc
-
-# Initialize
-./orc init
-# Should create: .orc/orc.yaml
-
-# Create task
-./orc new "Test task for validation"
-# Should create: .orc/tasks/TASK-001/task.yaml, plan.yaml, state.yaml
-# Should create: git branch orc/TASK-001
-
-# List tasks
-./orc list
-# Should show: TASK-001
-
-# Show task
-./orc show TASK-001
-# Should display task details, phases, current state
-
-# Status
-./orc status
-# Should show orc status (running tasks, pending gates)
-
-# Run a task (watch for progress output)
-./orc run TASK-001
-# Should show: 🚀 Starting phase: ...
-# Should show: ⏳ progress updates
-# Should create git commits for each phase
-
-# Pause a running task (in another terminal or via signal)
-./orc pause TASK-001
-# Should mark as paused, save state
-
-# Resume a paused/interrupted task
-./orc resume TASK-001
-# Should continue from last checkpoint
-
-# Rewind to a previous phase
-./orc rewind TASK-001 --phase implement
-# Should reset state to before implement phase
-
-# Approve a gate (for human gates)
-./orc approve TASK-001 --phase implement
-# Should mark gate as passed, continue execution
-
-# Skip a phase
-./orc skip TASK-001 --phase design --reason "already have design"
-# Should mark phase as skipped
-
-# Cleanup old tasks
-./orc cleanup --older-than 7d --dry-run
-# Should list tasks that would be cleaned
+./orc init                    # Creates .orc/ and orc.yaml
+./orc init --force            # Overwrites existing config
+./orc init --help             # Shows usage
 ```
+
+#### `orc new`
+```bash
+./orc new "Task title"                           # Auto-classify weight
+./orc new "Task title" --weight trivial          # Explicit weight
+./orc new "Task title" --weight small
+./orc new "Task title" --weight medium
+./orc new "Task title" --weight large
+./orc new "Task title" --weight greenfield
+./orc new "Task title" -w medium                 # Short flag
+./orc new "Task title" --description "Details"   # With description
+./orc new "Task title" -d "Details"              # Short flag
+./orc new "Task title" --branch "custom-branch"  # Custom branch name
+./orc new "Task title" -b "custom-branch"        # Short flag
+./orc new --help                                 # Shows usage
+```
+
+#### `orc list`
+```bash
+./orc list                           # List active tasks
+./orc list --all                     # Include completed
+./orc list -a                        # Short flag
+./orc list --status running          # Filter by status
+./orc list --status paused
+./orc list --status completed
+./orc list --status failed
+./orc list -s running                # Short flag
+./orc list --weight medium           # Filter by weight
+./orc list -w medium                 # Short flag
+./orc list --json                    # JSON output
+./orc list -j                        # Short flag
+./orc list --help                    # Shows usage
+```
+
+#### `orc show`
+```bash
+./orc show TASK-001                  # Show task details
+./orc show TASK-001 --checkpoints    # Include checkpoint history
+./orc show TASK-001 --json           # JSON output
+./orc show TASK-999                  # Error: not found
+./orc show --help                    # Shows usage
+```
+
+#### `orc run`
+```bash
+./orc run TASK-001                        # Run with default profile
+./orc run TASK-001 --profile auto         # Explicit profile
+./orc run TASK-001 --profile fast
+./orc run TASK-001 --profile safe
+./orc run TASK-001 --profile strict
+./orc run TASK-001 -P auto                # Short flag
+./orc run TASK-001 --phase implement      # Start from specific phase
+./orc run TASK-001 -p implement           # Short flag
+./orc run TASK-001 --continue             # Resume from last position
+./orc run TASK-001 -C                     # Short flag
+./orc run TASK-001 --dry-run              # Show plan only
+./orc run --help                          # Shows usage
+```
+
+#### `orc pause`
+```bash
+./orc pause TASK-001                      # Pause running task
+./orc pause TASK-001 --reason "Need info" # With reason
+./orc pause TASK-999                      # Error: not found
+./orc pause --help                        # Shows usage
+```
+
+#### `orc resume`
+```bash
+./orc resume TASK-001                     # Resume paused/interrupted
+./orc resume TASK-999                     # Error: not found
+./orc resume --help                       # Shows usage
+```
+
+#### `orc stop`
+```bash
+./orc stop TASK-001                       # Stop task
+./orc stop TASK-001 --force               # Force stop
+./orc stop --help                         # Shows usage
+```
+
+#### `orc rewind`
+```bash
+./orc rewind TASK-001 --to implement      # Rewind to phase
+./orc rewind TASK-001 -t implement        # Short flag
+./orc rewind TASK-001 --to spec --hard    # Discard later checkpoints
+./orc rewind --help                       # Shows usage
+```
+
+#### `orc skip`
+```bash
+./orc skip TASK-001 --phase design                    # Skip phase
+./orc skip TASK-001 -p design                         # Short flag
+./orc skip TASK-001 --phase design --reason "Done"    # With reason
+./orc skip TASK-001 -p design -r "Done"               # Short flags
+./orc skip --help                                     # Shows usage
+```
+
+#### `orc approve`
+```bash
+./orc approve TASK-001                    # Approve pending gate
+./orc approve TASK-001 --comment "LGTM"   # With comment
+./orc approve --help                      # Shows usage
+```
+
+#### `orc reject`
+```bash
+./orc reject TASK-001 --reason "Tests fail"  # Reject gate
+./orc reject TASK-001 -r "Tests fail"        # Short flag
+./orc reject --help                          # Shows usage
+```
+
+#### `orc log`
+```bash
+./orc log TASK-001                        # Show transcript
+./orc log TASK-001 --phase implement      # Specific phase
+./orc log TASK-001 -p implement           # Short flag
+./orc log TASK-001 --tail 50              # Last N lines
+./orc log TASK-001 -n 50                  # Short flag
+./orc log TASK-001 --follow               # Live output
+./orc log TASK-001 -f                     # Short flag
+./orc log --help                          # Shows usage
+```
+
+#### `orc diff`
+```bash
+./orc diff TASK-001                       # Show changes
+./orc diff TASK-001 --phase implement     # Specific phase
+./orc diff TASK-001 --stat                # Summary only
+./orc diff --help                         # Shows usage
+```
+
+#### `orc status`
+```bash
+./orc status                              # Overall status
+./orc status --json                       # JSON output
+./orc status --help                       # Shows usage
+```
+
+#### `orc cleanup`
+```bash
+./orc cleanup                             # Clean completed tasks
+./orc cleanup --all                       # All task branches
+./orc cleanup -a                          # Short flag
+./orc cleanup --older-than 7d             # Age filter
+./orc cleanup --dry-run                   # Preview only
+./orc cleanup --help                      # Shows usage
+```
+
+#### `orc serve`
+```bash
+./orc serve                               # Start on :8080
+./orc serve --port 3000                   # Custom port
+./orc serve -p 3000                       # Short flag
+./orc serve --help                        # Shows usage
+```
+
+#### `orc config`
+```bash
+./orc config                              # Show all config
+./orc config --list                       # List keys
+./orc config --edit                       # Open editor
+./orc config key                          # Get value
+./orc config key value                    # Set value
+./orc config --help                       # Shows usage
+```
+
+#### Global Flags (work with all commands)
+```bash
+./orc --verbose <command>                 # Verbose output
+./orc -v <command>                        # Short flag
+./orc -vv <command>                       # Extra verbose
+./orc --quiet <command>                   # Suppress output
+./orc -q <command>                        # Short flag
+./orc --json <command>                    # JSON output
+./orc -j <command>                        # Short flag
+./orc --config path/to/config <command>   # Custom config
+./orc -c path/to/config <command>         # Short flag
+./orc --help                              # Help
+./orc -h                                  # Short flag
+./orc --version                           # Version
+./orc -V                                  # Short flag
+```
+
+### Frontend Feature Verification
+
+**ALL frontend features must work:**
+
+#### Task List Page (`/`)
+- [ ] Page loads without errors
+- [ ] Shows loading state while fetching
+- [ ] Displays task cards with: ID, title, weight badge, status badge
+- [ ] Empty state shown when no tasks
+- [ ] "New Task" button visible and clickable
+- [ ] Task cards are clickable (navigate to detail)
+- [ ] Status badges have correct colors (pending=gray, running=blue, completed=green, failed=red, paused=yellow)
+- [ ] Weight badges displayed correctly
+- [ ] Responsive layout (mobile, tablet, desktop)
+
+#### Task Creation
+- [ ] "New Task" button opens creation form/modal
+- [ ] Title input field works
+- [ ] Weight selector works (all 5 options)
+- [ ] Description field works (optional)
+- [ ] Submit creates task via API
+- [ ] Success: redirects to task detail or shows in list
+- [ ] Error: shows error message, preserves form state
+- [ ] Cancel closes form without creating
+- [ ] Validation: empty title shows error
+
+#### Task Detail Page (`/tasks/{id}`)
+- [ ] Page loads without errors
+- [ ] Shows task title, ID, weight, status
+- [ ] Shows phase timeline with all phases
+- [ ] Current phase highlighted
+- [ ] Completed phases show checkmark
+- [ ] Failed phases show X
+- [ ] Shows transcript container
+- [ ] Transcript displays prompt and response
+- [ ] Shows token usage
+- [ ] Shows elapsed time
+- [ ] Back button returns to list
+
+#### Execution Controls
+- [ ] "Run" button visible when task can run
+- [ ] "Run" button starts execution via API
+- [ ] "Pause" button visible when running
+- [ ] "Pause" button pauses execution
+- [ ] "Resume" button visible when paused
+- [ ] "Resume" button resumes execution
+- [ ] "Stop" button visible when running
+- [ ] "Stop" button stops execution
+- [ ] Buttons disabled when action not available
+- [ ] Loading states shown during API calls
+
+#### Timeline Component
+- [ ] Shows all phases in order
+- [ ] Phase names displayed
+- [ ] Phase status indicators (pending, running, completed, failed, skipped)
+- [ ] Current phase visually highlighted
+- [ ] Iteration count shown for running phase
+- [ ] Duration shown for completed phases
+- [ ] Clickable to view phase details (if implemented)
+
+#### Transcript Component
+- [ ] Container scrolls when content overflows
+- [ ] Shows prompt sent to Claude
+- [ ] Shows response from Claude
+- [ ] Tool calls displayed (if applicable)
+- [ ] Errors displayed with red styling
+- [ ] Auto-scroll to bottom on new content
+- [ ] Timestamps shown
+- [ ] Iteration markers shown
+
+#### Real-time Updates (SSE)
+- [ ] SSE connection established on task detail page
+- [ ] Transcript updates in real-time during execution
+- [ ] Timeline updates when phase changes
+- [ ] Status badge updates on state change
+- [ ] Token count updates
+- [ ] Connection reconnects on disconnect
+- [ ] Connection closed when leaving page
+
+#### Error Handling
+- [ ] 404 page for non-existent task
+- [ ] Network error shown gracefully
+- [ ] API error messages displayed
+- [ ] No unhandled exceptions in console
+- [ ] Retry option for failed requests
+
+#### Styling & UX
+- [ ] Dark theme applied consistently
+- [ ] Fonts readable
+- [ ] Buttons have hover states
+- [ ] Focus states visible (keyboard nav)
+- [ ] Loading spinners/skeletons shown
+- [ ] Transitions smooth
+- [ ] No layout shift on load
 
 ### Error Scenario Tests
 
