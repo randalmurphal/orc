@@ -1,0 +1,194 @@
+# Plan Template: Greenfield
+# For: New projects, POCs, major rewrites
+# Phases: Research → Architecture → Spec → Skeleton → Implement → Validate
+
+version: 1
+weight: greenfield
+description: Full project creation with architecture-first approach
+
+phases:
+  - id: research
+    name: Research
+    prompt: research
+    config:
+      depth: comprehensive
+      include:
+        - Similar projects
+        - Technology options
+        - Constraints and requirements
+        - User needs
+    gate:
+      type: ai
+      criteria:
+        - Problem space understood
+        - Technology options evaluated
+        - Constraints documented
+    checkpoint: true
+    artifacts:
+      - research.md
+
+  - id: architecture
+    name: Architecture
+    prompt: design
+    depends_on: [research]
+    config:
+      scope: full_system
+      include:
+        - System components
+        - Data model
+        - API design
+        - Technology stack
+        - Directory structure
+    gate:
+      type: ai
+      criteria:
+        - All components defined
+        - Interfaces specified
+        - Data flow documented
+        - Technology choices justified
+    checkpoint: true
+    artifacts:
+      - architecture.md
+
+  - id: spec
+    name: Specification
+    prompt: spec
+    depends_on: [architecture]
+    config:
+      include:
+        - Feature breakdown
+        - User stories
+        - Acceptance criteria
+        - Non-functional requirements
+    gate:
+      type: ai
+      criteria:
+        - All features specified
+        - Priorities clear
+        - MVP scope defined
+    checkpoint: true
+    artifacts:
+      - spec.md
+
+  - id: skeleton
+    name: Skeleton
+    prompt: implement
+    depends_on: [spec]
+    config:
+      mode: skeleton
+      include:
+        - Directory structure
+        - Key interfaces
+        - Configuration
+        - Build system
+        - Basic CI/CD
+    gate:
+      type: ai
+      criteria:
+        - Project structure created
+        - Build system works
+        - Basic tests pass
+    checkpoint: true
+
+  - id: implement
+    name: Implement
+    prompt: implement
+    depends_on: [skeleton]
+    config:
+      mode: iterative
+      include:
+        - Core functionality
+        - Tests alongside code
+        - Documentation
+    gate:
+      type: auto
+    checkpoint: true
+    # This phase may loop multiple times for greenfield
+
+  - id: review
+    name: Review
+    prompt: review
+    depends_on: [implement]
+    gate:
+      type: ai
+      criteria:
+        - Matches architecture
+        - Code quality acceptable
+        - No security issues
+        - Tests comprehensive
+    checkpoint: true
+
+  - id: test
+    name: Full Test Suite
+    prompt: test
+    depends_on: [review]
+    config:
+      test_level: full
+      coverage_threshold: 80
+      include:
+        - Unit tests
+        - Integration tests
+        - E2E tests
+    gate:
+      type: auto
+      criteria:
+        - All tests pass
+        - Coverage >= 80%
+    checkpoint: true
+
+  - id: validate
+    name: Validate
+    prompt: validate
+    depends_on: [test]
+    config:
+      include:
+        - Spec compliance
+        - Architecture compliance
+        - Performance baseline
+        - Security scan
+    gate:
+      type: ai
+      criteria:
+        - All spec requirements met
+        - Architecture followed
+        - No critical security issues
+        - Performance acceptable
+    checkpoint: true
+    artifacts:
+      - validation_report.md
+
+  - id: docs
+    name: Documentation
+    prompt: docs
+    depends_on: [validate]
+    config:
+      scope: comprehensive
+      include:
+        - CLAUDE.md (AI-readable project overview)
+        - README.md (user-facing documentation)
+        - Architecture docs (docs/architecture/)
+        - API docs (if applicable)
+        - Getting started guide
+    gate:
+      type: ai
+      criteria:
+        - CLAUDE.md complete and under 200 lines
+        - README.md comprehensive
+        - Architecture documented
+        - Setup instructions work
+        - No placeholder content
+    checkpoint: true
+    artifacts:
+      - CLAUDE.md
+      - README.md
+      - docs/
+
+  - id: merge
+    name: Merge / Release
+    prompt: merge_prepare
+    depends_on: [docs]
+    gate:
+      type: human
+      reviewers: 2
+      require_architecture_review: true
+    checkpoint: true

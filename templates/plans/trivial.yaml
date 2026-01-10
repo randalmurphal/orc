@@ -1,0 +1,18 @@
+# Plan Template: Trivial
+# For: Typos, config tweaks, single-line fixes
+# Phases: Direct execution, no ceremony
+
+version: 1
+weight: trivial
+description: Direct execution for minimal changes
+
+phases:
+  - id: execute
+    name: Execute
+    prompt: implement
+    gate:
+      type: auto
+    checkpoint: true
+
+# No spec, no review, no tests for truly trivial changes
+# If it turns out to need more, user should re-classify

@@ -1,0 +1,79 @@
+# Plan Template: Medium
+# For: Features, refactors, multi-file changes
+# Phases: Spec → Implement → Review → Unit Tests
+
+version: 1
+weight: medium
+description: Standard development flow with specification
+
+phases:
+  - id: spec
+    name: Specification
+    prompt: spec
+    gate:
+      type: ai
+      criteria:
+        - Requirements clear
+        - Scope bounded
+        - Approach defined
+    checkpoint: true
+    artifacts:
+      - spec.md
+
+  - id: implement
+    name: Implement
+    prompt: implement
+    depends_on: [spec]
+    gate:
+      type: auto
+    checkpoint: true
+
+  - id: review
+    name: Review
+    prompt: review_ai
+    depends_on: [implement]
+    gate:
+      type: ai
+      criteria:
+        - Matches spec
+        - No regressions
+        - Code quality acceptable
+        - Security considerations addressed
+    checkpoint: true
+
+  - id: docs
+    name: Documentation
+    prompt: docs
+    depends_on: [review]
+    gate:
+      type: auto
+      criteria:
+        - CLAUDE.md exists and current
+        - README.md updated if needed
+        - No stale documentation
+    checkpoint: true
+    artifacts:
+      - CLAUDE.md
+      - README.md
+
+  - id: test
+    name: Unit Tests
+    prompt: test
+    depends_on: [docs]
+    config:
+      test_level: unit
+      coverage_threshold: 70
+    gate:
+      type: auto
+      criteria:
+        - Unit tests pass
+        - Coverage >= 70%
+    checkpoint: true
+
+  - id: merge
+    name: Merge
+    prompt: merge_prepare
+    depends_on: [test]
+    gate:
+      type: human  # Medium changes need human approval
+    checkpoint: true

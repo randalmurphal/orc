@@ -1,0 +1,44 @@
+# Plan Template: Small
+# For: Bug fixes, small features, isolated changes
+# Phases: Implement → Review → Smoke Test
+
+version: 1
+weight: small
+description: Quick implementation with basic validation
+
+phases:
+  - id: implement
+    name: Implement
+    prompt: implement
+    gate:
+      type: auto
+    checkpoint: true
+
+  - id: review
+    name: Review
+    prompt: review_ai
+    gate:
+      type: ai
+      criteria:
+        - No obvious bugs
+        - Code style consistent
+        - No security issues
+    checkpoint: true
+
+  - id: test
+    name: Smoke Test
+    prompt: test
+    config:
+      test_level: smoke
+    gate:
+      type: auto
+      criteria:
+        - Smoke tests pass
+    checkpoint: true
+
+  - id: merge
+    name: Merge
+    prompt: merge_prepare
+    gate:
+      type: auto  # Small changes can auto-merge by default
+    checkpoint: true

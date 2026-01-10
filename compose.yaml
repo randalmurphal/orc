@@ -1,0 +1,127 @@
+# =============================================================================
+# Orc Development Environment
+# =============================================================================
+#
+# Quick Start:
+#   make dev          # Start development shell
+#   make test         # Run tests in container
+#   make build        # Build binary
+#
+# Services:
+#   dev    - Full development environment with Go, tools, mounted source
+#   test   - Ephemeral container for running tests
+#   build  - One-shot build to produce binary
+#
+# =============================================================================
+
+name: orc
+
+services:
+  # ---------------------------------------------------------------------------
+  # Development: Interactive shell with full tooling
+  # ---------------------------------------------------------------------------
+  dev:
+    build:
+      context: .
+      target: dev
+    image: orc-dev:latest
+    container_name: orc-dev
+    stdin_open: true
+    tty: true
+    working_dir: /app
+    user: "1000:1000"
+    volumes:
+      # Source code (live reload)
+      - .:/app:cached
+      # Local dependencies (sibling repos)
+      - ../llmkit:/deps/llmkit:cached
+      - ../flowgraph:/deps/flowgraph:cached
+      # Go module cache (persist across restarts)
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+      # Git config for commits
+      - ~/.gitconfig:/home/dev/.gitconfig:ro
+      # SSH for git operations
+      - ~/.ssh:/home/dev/.ssh:ro
+    environment:
+      - GOPROXY=https://proxy.golang.org,direct
+      - GOFLAGS=-mod=mod
+      # Tell Go where to find local modules
+      - GOWORK=off
+    command: bash
+
+  # ---------------------------------------------------------------------------
+  # Test: Run test suite
+  # ---------------------------------------------------------------------------
+  test:
+    build:
+      context: .
+      target: dev
+    image: orc-dev:latest
+    working_dir: /app
+    user: "1000:1000"
+    volumes:
+      - .:/app:cached
+      - ../llmkit:/deps/llmkit:cached
+      - ../flowgraph:/deps/flowgraph:cached
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+    environment:
+      - GOPROXY=https://proxy.golang.org,direct
+    command: go test -v -race -cover ./...
+
+  # ---------------------------------------------------------------------------
+  # Lint: Run linters
+  # ---------------------------------------------------------------------------
+  lint:
+    build:
+      context: .
+      target: dev
+    image: orc-dev:latest
+    working_dir: /app
+    user: "1000:1000"
+    volumes:
+      - .:/app:cached
+      - ../llmkit:/deps/llmkit:cached
+      - ../flowgraph:/deps/flowgraph:cached
+      - go-mod-cache:/go/pkg/mod
+    command: golangci-lint run ./...
+
+  # ---------------------------------------------------------------------------
+  # Build: Compile production binary
+  # ---------------------------------------------------------------------------
+  build:
+    build:
+      context: .
+      target: builder
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-unknown}
+    image: orc-builder:latest
+    volumes:
+      - ./bin:/output
+    command: cp /bin/orc /output/orc
+
+  # ---------------------------------------------------------------------------
+  # Runtime: Run orc CLI (for testing the built binary)
+  # ---------------------------------------------------------------------------
+  orc:
+    build:
+      context: .
+      target: runtime
+    image: orc:latest
+    working_dir: /workspace
+    user: "1000:1000"
+    volumes:
+      # Mount the project you want to orchestrate
+      - ${PROJECT_DIR:-.}:/workspace
+      # Orc state directory
+      - ${ORC_STATE_DIR:-~/.orc}:/home/orc/.orc
+    environment:
+      - ORC_CONFIG=/home/orc/.orc/config.yaml
+
+volumes:
+  go-mod-cache:
+    name: orc-go-mod-cache
+  go-build-cache:
+    name: orc-go-build-cache

@@ -1,0 +1,147 @@
+# Plan Template: Large
+# For: Epics, major features, architectural changes
+# Phases: Research → Spec → Design → Implement → Review → E2E Tests
+
+version: 1
+weight: large
+description: Full development lifecycle with design phase and comprehensive testing
+
+phases:
+  - id: research
+    name: Research
+    prompt: research
+    gate:
+      type: ai
+      criteria:
+        - Existing patterns identified
+        - Dependencies understood
+        - Risks documented
+    checkpoint: true
+    artifacts:
+      - research.md
+
+  - id: spec
+    name: Specification
+    prompt: spec
+    depends_on: [research]
+    gate:
+      type: ai
+      criteria:
+        - Requirements complete
+        - Acceptance criteria defined
+        - Edge cases covered
+    checkpoint: true
+    artifacts:
+      - spec.md
+
+  - id: design
+    name: Design
+    prompt: design
+    depends_on: [spec]
+    gate:
+      type: ai
+      criteria:
+        - Architecture decisions documented
+        - Interfaces defined
+        - Migration path clear (if applicable)
+    checkpoint: true
+    artifacts:
+      - design.md
+
+  - id: implement
+    name: Implement
+    prompt: implement
+    depends_on: [design]
+    gate:
+      type: auto
+    checkpoint: true
+
+  - id: review
+    name: Review
+    prompt: review
+    depends_on: [implement]
+    gate:
+      type: ai
+      criteria:
+        - Matches design
+        - No architectural drift
+        - Performance acceptable
+        - Security review passed
+    checkpoint: true
+
+  - id: docs
+    name: Documentation
+    prompt: docs
+    depends_on: [review]
+    gate:
+      type: ai
+      criteria:
+        - CLAUDE.md exists and current
+        - README.md updated if needed
+        - Architecture docs updated
+        - No stale documentation
+    checkpoint: true
+    artifacts:
+      - CLAUDE.md
+      - README.md
+      - docs/architecture/*.md
+
+  - id: test_unit
+    name: Unit Tests
+    prompt: test
+    depends_on: [docs]
+    config:
+      test_level: unit
+      coverage_threshold: 80
+    gate:
+      type: auto
+      criteria:
+        - Unit tests pass
+        - Coverage >= 80%
+    checkpoint: true
+
+  - id: test_integration
+    name: Integration Tests
+    prompt: test
+    depends_on: [test_unit]
+    config:
+      test_level: integration
+    gate:
+      type: auto
+      criteria:
+        - Integration tests pass
+    checkpoint: true
+
+  - id: test_e2e
+    name: E2E Tests
+    prompt: test
+    depends_on: [test_integration]
+    config:
+      test_level: e2e
+    gate:
+      type: auto
+      criteria:
+        - E2E tests pass
+        - No regressions
+    checkpoint: true
+
+  - id: validate
+    name: Validate
+    prompt: validate
+    depends_on: [test_e2e]
+    gate:
+      type: ai
+      criteria:
+        - All acceptance criteria met
+        - Documentation updated
+        - No known issues
+    checkpoint: true
+
+  - id: merge
+    name: Merge
+    prompt: merge_prepare
+    depends_on: [validate]
+    gate:
+      type: human
+      reviewers: 2  # Require 2 reviewers for large changes
+    checkpoint: true

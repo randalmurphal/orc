@@ -1,0 +1,49 @@
+# =============================================================================
+# Docker Build Exclusions
+# =============================================================================
+
+# Build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+coverage.out
+coverage.html
+
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.*.sw?
+
+# Git
+.git/
+.gitignore
+
+# Docker (prevent recursive copy)
+Dockerfile
+compose.yaml
+.dockerignore
+
+# Documentation (not needed in image)
+docs/
+*.md
+!README.md
+
+# Test fixtures (if large)
+testdata/fixtures/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Orc state (user data, not source)
+.orc/
+
+# Temporary files
+tmp/
+*.tmp
+*.log

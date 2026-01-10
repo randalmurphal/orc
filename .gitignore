@@ -1,0 +1,12 @@
+# Build output
+orc
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code local state
+.claude/*.local.md
