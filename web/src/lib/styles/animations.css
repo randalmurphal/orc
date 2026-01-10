@@ -1,0 +1,411 @@
+/* =============================================================================
+   ORC Animations - Mission Control Theme
+   ============================================================================= */
+
+/* ==========================================================================
+   STATUS ANIMATIONS
+   ========================================================================== */
+
+/* Running Status Pulse - for status indicators and orbs */
+@keyframes status-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.8;
+  }
+}
+
+/* Running Status Glow - subtle glow animation */
+@keyframes status-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--accent-glow-strong);
+  }
+}
+
+/* Card Running Border Glow */
+@keyframes card-running-glow {
+  0%, 100% {
+    border-color: var(--border-default);
+    box-shadow: var(--shadow-sm);
+  }
+  50% {
+    border-color: var(--accent-primary);
+    box-shadow: var(--shadow-glow), var(--shadow-sm);
+  }
+}
+
+/* Paused Status Blink */
+@keyframes status-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* ==========================================================================
+   PROGRESS ANIMATIONS
+   ========================================================================== */
+
+/* Progress Bar Flow - gradient movement */
+@keyframes progress-flow {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Indeterminate Progress */
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+/* Phase Connection Flow */
+@keyframes connection-flow {
+  0% {
+    stroke-dashoffset: 20;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ==========================================================================
+   LOADING ANIMATIONS
+   ========================================================================== */
+
+/* Spinner Rotation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Skeleton Shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Dots Loading */
+@keyframes dots-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   ENTRANCE ANIMATIONS
+   ========================================================================== */
+
+/* Fade In */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Fade In Up */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade In Down */
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scale In */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Slide In from Left */
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Slide In from Right */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ==========================================================================
+   EXIT ANIMATIONS
+   ========================================================================== */
+
+/* Fade Out */
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Scale Out */
+@keyframes scale-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* ==========================================================================
+   INTERACTION ANIMATIONS
+   ========================================================================== */
+
+/* Button Press */
+@keyframes button-press {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Ripple Effect */
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Focus Ring Expand */
+@keyframes focus-ring-expand {
+  from {
+    box-shadow: 0 0 0 0 var(--accent-glow-strong);
+  }
+  to {
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+}
+
+/* ==========================================================================
+   CURSOR ANIMATIONS
+   ========================================================================== */
+
+/* Terminal Cursor Blink */
+@keyframes cursor-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   MODAL ANIMATIONS
+   ========================================================================== */
+
+/* Modal Backdrop Fade */
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal Content Scale */
+@keyframes modal-content-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ==========================================================================
+   SIDEBAR ANIMATIONS
+   ========================================================================== */
+
+/* Sidebar Expand */
+@keyframes sidebar-expand {
+  from {
+    width: var(--sidebar-width-collapsed);
+  }
+  to {
+    width: var(--sidebar-width-expanded);
+  }
+}
+
+/* Nav Item Slide In */
+@keyframes nav-item-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ==========================================================================
+   UTILITY CLASSES
+   ========================================================================== */
+
+/* Apply running animation */
+.animate-running {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+.animate-running-glow {
+  animation: status-glow 2s ease-in-out infinite;
+}
+
+.animate-card-running {
+  animation: card-running-glow 2s ease-in-out infinite;
+}
+
+/* Apply paused animation */
+.animate-paused {
+  animation: status-blink 1.5s ease-in-out infinite;
+}
+
+/* Apply loading animations */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 25%,
+    var(--bg-surface) 50%,
+    var(--bg-tertiary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Apply entrance animations */
+.animate-fade-in {
+  animation: fade-in var(--duration-normal) var(--ease-out);
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up var(--duration-normal) var(--ease-out);
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down var(--duration-normal) var(--ease-out);
+}
+
+.animate-scale-in {
+  animation: scale-in var(--duration-normal) var(--ease-out);
+}
+
+/* Progress bar active state */
+.progress-active {
+  background: linear-gradient(
+    90deg,
+    var(--accent-primary),
+    var(--accent-secondary),
+    var(--accent-primary)
+  );
+  background-size: 200% 100%;
+  animation: progress-flow 2s linear infinite;
+}
+
+/* Cursor blink */
+.cursor-blink::after {
+  content: '_';
+  animation: cursor-blink 1s step-end infinite;
+}
+
+/* Stagger children animations */
+.stagger-children > * {
+  animation: fade-in-up var(--duration-normal) var(--ease-out) backwards;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+.stagger-children > *:nth-child(9) { animation-delay: 400ms; }
+.stagger-children > *:nth-child(10) { animation-delay: 450ms; }

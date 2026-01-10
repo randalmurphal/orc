@@ -1,8 +1,23 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { listTasks, createTask, runTask, pauseTask, resumeTask, deleteTask, listProjectTasks, createProjectTask, runProjectTask, pauseProjectTask, resumeProjectTask, deleteProjectTask, type PaginatedTasks } from '$lib/api';
+	import {
+		listTasks,
+		createTask,
+		runTask,
+		pauseTask,
+		resumeTask,
+		deleteTask,
+		listProjectTasks,
+		createProjectTask,
+		runProjectTask,
+		pauseProjectTask,
+		resumeProjectTask,
+		deleteProjectTask,
+		type PaginatedTasks
+	} from '$lib/api';
 	import type { Task } from '$lib/types';
 	import TaskCard from '$lib/components/TaskCard.svelte';
+	import Modal from '$lib/components/overlays/Modal.svelte';
 	import { currentProjectId, currentProject } from '$lib/stores/project';
 
 	let tasks = $state<Task[]>([]);
@@ -10,12 +25,19 @@
 	let error = $state<string | null>(null);
 	let showNewTask = $state(false);
 	let newTaskTitle = $state('');
+	let newTaskInputRef: HTMLInputElement;
+
+	// Filters
+	let searchQuery = $state('');
+	let statusFilter = $state<'all' | 'active' | 'completed' | 'failed'>('all');
+	let weightFilter = $state<string>('all');
+	let sortBy = $state<'recent' | 'oldest' | 'status'>('recent');
 
 	// Pagination state
 	let currentPage = $state(1);
 	let totalPages = $state(1);
 	let total = $state(0);
-	let limit = $state(10);
+	let limit = $state(20);
 	let usePagination = $state(false);
 
 	// Subscribe to project changes
@@ -25,8 +47,23 @@
 		}
 	});
 
-	onMount(async () => {
-		await loadTasks();
+	// Focus input when modal opens
+	$effect(() => {
+		if (showNewTask && newTaskInputRef) {
+			newTaskInputRef.focus();
+		}
+	});
+
+	// Listen for new task event from command palette
+	onMount(() => {
+		loadTasks();
+
+		function handleNewTask() {
+			showNewTask = true;
+		}
+
+		window.addEventListener('orc:new-task', handleNewTask);
+		return () => window.removeEventListener('orc:new-task', handleNewTask);
 	});
 
 	async function loadTasks() {
@@ -34,18 +71,16 @@
 		error = null;
 		try {
 			if ($currentProjectId) {
-				// Load tasks from selected project
 				tasks = await listProjectTasks($currentProjectId);
 				total = tasks.length;
 				totalPages = 1;
 				usePagination = false;
 			} else if (usePagination) {
-				const result = await listTasks({ page: currentPage, limit }) as PaginatedTasks;
+				const result = (await listTasks({ page: currentPage, limit })) as PaginatedTasks;
 				tasks = result.tasks;
 				total = result.total;
 				totalPages = result.total_pages;
 			} else {
-				// Fallback to current directory tasks
 				const result = await listTasks();
 				tasks = result as Task[];
 				total = tasks.length;
@@ -132,14 +167,55 @@
 		loadTasks();
 	}
 
-	function togglePagination() {
-		usePagination = !usePagination;
-		currentPage = 1;
-		loadTasks();
-	}
+	// Derived filtered tasks
+	const filteredTasks = $derived(() => {
+		let result = [...tasks];
 
-	const activeTasks = $derived(tasks.filter(t => !['completed', 'failed'].includes(t.status)));
-	const completedTasks = $derived(tasks.filter(t => ['completed', 'failed'].includes(t.status)));
+		// Status filter
+		if (statusFilter === 'active') {
+			result = result.filter((t) => !['completed', 'failed'].includes(t.status));
+		} else if (statusFilter === 'completed') {
+			result = result.filter((t) => t.status === 'completed');
+		} else if (statusFilter === 'failed') {
+			result = result.filter((t) => t.status === 'failed');
+		}
+
+		// Weight filter
+		if (weightFilter !== 'all') {
+			result = result.filter((t) => t.weight === weightFilter);
+		}
+
+		// Search filter
+		if (searchQuery.trim()) {
+			const query = searchQuery.toLowerCase();
+			result = result.filter(
+				(t) => t.id.toLowerCase().includes(query) || t.title.toLowerCase().includes(query)
+			);
+		}
+
+		// Sort
+		if (sortBy === 'recent') {
+			result.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+		} else if (sortBy === 'oldest') {
+			result.sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime());
+		} else if (sortBy === 'status') {
+			const statusOrder = ['running', 'paused', 'blocked', 'planned', 'created', 'completed', 'failed'];
+			result.sort((a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status));
+		}
+
+		return result;
+	});
+
+	// Status counts for tabs
+	const statusCounts = $derived(() => ({
+		all: tasks.length,
+		active: tasks.filter((t) => !['completed', 'failed'].includes(t.status)).length,
+		completed: tasks.filter((t) => t.status === 'completed').length,
+		failed: tasks.filter((t) => t.status === 'failed').length
+	}));
+
+	// Available weights
+	const weights = ['trivial', 'small', 'medium', 'large', 'greenfield'];
 </script>
 
 <svelte:head>
@@ -147,279 +223,488 @@
 </svelte:head>
 
 <div class="page">
-	<header class="page-header">
-		<h1>
-			{#if $currentProject}
-				{$currentProject.name} Tasks
-			{:else}
-				Tasks
-			{/if}
-		</h1>
-		<div class="header-actions">
-			{#if total > 10 && !$currentProjectId}
-				<button class="toggle-btn" onclick={togglePagination}>
-					{usePagination ? 'Show All' : 'Paginate'}
-				</button>
-			{/if}
-			<button class="primary" onclick={() => showNewTask = true}>New Task</button>
-		</div>
-	</header>
-
+	<!-- Error Banner -->
 	{#if error}
 		<div class="error-banner">
-			{error}
-			<button onclick={() => error = null}>Dismiss</button>
-		</div>
-	{/if}
-
-	{#if showNewTask}
-		<div class="new-task-form">
-			<input
-				type="text"
-				placeholder="Task title..."
-				bind:value={newTaskTitle}
-				onkeydown={(e) => e.key === 'Enter' && handleCreateTask()}
-			/>
-			<div class="form-actions">
-				<button onclick={() => { showNewTask = false; newTaskTitle = ''; }}>Cancel</button>
-				<button class="primary" onclick={handleCreateTask}>Create</button>
+			<div class="error-content">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="12" cy="12" r="10" />
+					<line x1="12" y1="8" x2="12" y2="12" />
+					<line x1="12" y1="16" x2="12.01" y2="16" />
+				</svg>
+				<span>{error}</span>
 			</div>
+			<button class="error-dismiss" onclick={() => (error = null)}>
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<line x1="18" y1="6" x2="6" y2="18" />
+					<line x1="6" y1="6" x2="18" y2="18" />
+				</svg>
+			</button>
 		</div>
 	{/if}
 
+	<!-- Filter Bar -->
+	<div class="filter-bar">
+		<!-- Status Tabs -->
+		<div class="status-tabs">
+			<button
+				class="status-tab"
+				class:active={statusFilter === 'all'}
+				onclick={() => (statusFilter = 'all')}
+			>
+				All
+				<span class="tab-count">{statusCounts().all}</span>
+			</button>
+			<button
+				class="status-tab"
+				class:active={statusFilter === 'active'}
+				onclick={() => (statusFilter = 'active')}
+			>
+				Active
+				<span class="tab-count">{statusCounts().active}</span>
+			</button>
+			<button
+				class="status-tab"
+				class:active={statusFilter === 'completed'}
+				onclick={() => (statusFilter = 'completed')}
+			>
+				Completed
+				<span class="tab-count">{statusCounts().completed}</span>
+			</button>
+			<button
+				class="status-tab"
+				class:active={statusFilter === 'failed'}
+				onclick={() => (statusFilter = 'failed')}
+			>
+				Failed
+				<span class="tab-count">{statusCounts().failed}</span>
+			</button>
+		</div>
+
+		<!-- Filters Row -->
+		<div class="filters-row">
+			<!-- Search -->
+			<div class="search-input">
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="11" cy="11" r="8" />
+					<path d="m21 21-4.35-4.35" />
+				</svg>
+				<input type="text" placeholder="Search tasks..." bind:value={searchQuery} />
+			</div>
+
+			<!-- Weight Filter -->
+			<select class="filter-select" bind:value={weightFilter}>
+				<option value="all">All weights</option>
+				{#each weights as w}
+					<option value={w}>{w}</option>
+				{/each}
+			</select>
+
+			<!-- Sort -->
+			<select class="filter-select" bind:value={sortBy}>
+				<option value="recent">Most recent</option>
+				<option value="oldest">Oldest first</option>
+				<option value="status">By status</option>
+			</select>
+
+			<!-- New Task Button -->
+			<button class="primary new-task-btn" onclick={() => (showNewTask = true)}>
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<line x1="12" y1="5" x2="12" y2="19" />
+					<line x1="5" y1="12" x2="19" y2="12" />
+				</svg>
+				New Task
+			</button>
+		</div>
+	</div>
+
+	<!-- Task List -->
 	{#if loading}
-		<div class="loading">Loading tasks...</div>
-	{:else if tasks.length === 0}
+		<div class="loading-state">
+			<div class="spinner"></div>
+			<span>Loading tasks...</span>
+		</div>
+	{:else if filteredTasks().length === 0}
 		<div class="empty-state">
-			<p>No tasks yet</p>
-			<button class="primary" onclick={() => showNewTask = true}>Create your first task</button>
+			{#if tasks.length === 0}
+				<div class="empty-icon">
+					<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+						<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+						<line x1="9" y1="9" x2="15" y2="15" />
+						<line x1="15" y1="9" x2="9" y2="15" />
+					</svg>
+				</div>
+				<h3>No tasks yet</h3>
+				<p>Create your first task to get started with orc</p>
+				<button class="primary" onclick={() => (showNewTask = true)}>
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<line x1="12" y1="5" x2="12" y2="19" />
+						<line x1="5" y1="12" x2="19" y2="12" />
+					</svg>
+					Create Task
+				</button>
+			{:else}
+				<div class="empty-icon">
+					<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="11" cy="11" r="8" />
+						<path d="m21 21-4.35-4.35" />
+					</svg>
+				</div>
+				<h3>No matching tasks</h3>
+				<p>Try adjusting your filters or search query</p>
+				<button
+					onclick={() => {
+						searchQuery = '';
+						statusFilter = 'all';
+						weightFilter = 'all';
+					}}
+				>
+					Clear filters
+				</button>
+			{/if}
 		</div>
 	{:else}
-		{#if usePagination}
-			<!-- Paginated view: show all tasks in one list -->
-			<div class="task-stats">
-				Showing {(currentPage - 1) * limit + 1}-{Math.min(currentPage * limit, total)} of {total} tasks
+		<div class="task-list">
+			{#each filteredTasks() as task (task.id)}
+				<TaskCard
+					{task}
+					onRun={() => handleRunTask(task.id)}
+					onPause={() => handlePauseTask(task.id)}
+					onResume={() => handleResumeTask(task.id)}
+					onDelete={() => handleDeleteTask(task.id)}
+				/>
+			{/each}
+		</div>
+
+		<!-- Pagination -->
+		{#if usePagination && totalPages > 1}
+			<div class="pagination">
+				<button class="page-btn" onclick={() => goToPage(1)} disabled={currentPage === 1}>
+					First
+				</button>
+				<button
+					class="page-btn"
+					onclick={() => goToPage(currentPage - 1)}
+					disabled={currentPage === 1}
+				>
+					Prev
+				</button>
+				<span class="page-info">Page {currentPage} of {totalPages}</span>
+				<button
+					class="page-btn"
+					onclick={() => goToPage(currentPage + 1)}
+					disabled={currentPage === totalPages}
+				>
+					Next
+				</button>
+				<button
+					class="page-btn"
+					onclick={() => goToPage(totalPages)}
+					disabled={currentPage === totalPages}
+				>
+					Last
+				</button>
 			</div>
-			<div class="task-grid">
-				{#each tasks as task (task.id)}
-					<TaskCard
-						{task}
-						onRun={() => handleRunTask(task.id)}
-						onPause={() => handlePauseTask(task.id)}
-						onResume={() => handleResumeTask(task.id)}
-						onDelete={() => handleDeleteTask(task.id)}
-					/>
-				{/each}
-			</div>
-
-			<!-- Pagination controls -->
-			{#if totalPages > 1}
-				<div class="pagination">
-					<button
-						class="page-btn"
-						onclick={() => goToPage(1)}
-						disabled={currentPage === 1}
-					>
-						First
-					</button>
-					<button
-						class="page-btn"
-						onclick={() => goToPage(currentPage - 1)}
-						disabled={currentPage === 1}
-					>
-						Prev
-					</button>
-
-					<span class="page-info">
-						Page {currentPage} of {totalPages}
-					</span>
-
-					<button
-						class="page-btn"
-						onclick={() => goToPage(currentPage + 1)}
-						disabled={currentPage === totalPages}
-					>
-						Next
-					</button>
-					<button
-						class="page-btn"
-						onclick={() => goToPage(totalPages)}
-						disabled={currentPage === totalPages}
-					>
-						Last
-					</button>
-				</div>
-			{/if}
-		{:else}
-			<!-- Non-paginated view: group by status -->
-			{#if activeTasks.length > 0}
-				<section>
-					<h2>Active ({activeTasks.length})</h2>
-					<div class="task-grid">
-						{#each activeTasks as task (task.id)}
-							<TaskCard
-								{task}
-								onRun={() => handleRunTask(task.id)}
-								onPause={() => handlePauseTask(task.id)}
-								onResume={() => handleResumeTask(task.id)}
-								onDelete={() => handleDeleteTask(task.id)}
-							/>
-						{/each}
-					</div>
-				</section>
-			{/if}
-
-			{#if completedTasks.length > 0}
-				<section>
-					<h2>Completed ({completedTasks.length})</h2>
-					<div class="task-grid">
-						{#each completedTasks as task (task.id)}
-							<TaskCard {task} onDelete={() => handleDeleteTask(task.id)} />
-						{/each}
-					</div>
-				</section>
-			{/if}
 		{/if}
 	{/if}
 </div>
+
+<!-- New Task Modal -->
+<Modal open={showNewTask} onClose={() => (showNewTask = false)} size="md" title="Create New Task">
+	<div class="new-task-form">
+		<label class="form-label">
+			Task Title
+			<input
+				bind:this={newTaskInputRef}
+				type="text"
+				placeholder="What needs to be done?"
+				bind:value={newTaskTitle}
+				onkeydown={(e) => e.key === 'Enter' && handleCreateTask()}
+				class="form-input"
+			/>
+		</label>
+		<p class="form-hint">
+			Describe the task briefly. Orc will classify the weight and create a plan automatically.
+		</p>
+		<div class="form-actions">
+			<button
+				onclick={() => {
+					showNewTask = false;
+					newTaskTitle = '';
+				}}
+			>
+				Cancel
+			</button>
+			<button class="primary" onclick={handleCreateTask} disabled={!newTaskTitle.trim()}>
+				Create Task
+			</button>
+		</div>
+	</div>
+</Modal>
 
 <style>
 	.page {
 		max-width: 900px;
 	}
 
-	.page-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 2rem;
-	}
-
-	.header-actions {
-		display: flex;
-		gap: 0.5rem;
-	}
-
-	h1 {
-		font-size: 1.5rem;
-		font-weight: 600;
-	}
-
-	h2 {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: var(--text-secondary);
-		margin-bottom: 1rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	section {
-		margin-bottom: 2rem;
-	}
-
-	.task-grid {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	.task-stats {
-		font-size: 0.875rem;
-		color: var(--text-secondary);
-		margin-bottom: 1rem;
-	}
-
-	.new-task-form {
-		background: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: 8px;
-		padding: 1rem;
-		margin-bottom: 2rem;
-	}
-
-	.new-task-form input {
-		width: 100%;
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border-color);
-		border-radius: 6px;
-		padding: 0.75rem;
-		color: var(--text-primary);
-		font-size: 0.875rem;
-		margin-bottom: 1rem;
-	}
-
-	.new-task-form input:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-	}
-
-	.form-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.5rem;
-	}
-
+	/* Error Banner */
 	.error-banner {
-		background: rgba(248, 81, 73, 0.1);
-		border: 1px solid var(--accent-danger);
-		border-radius: 6px;
-		padding: 0.75rem 1rem;
-		margin-bottom: 1rem;
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		color: var(--accent-danger);
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		background: var(--status-danger-bg);
+		border: 1px solid var(--status-danger);
+		border-radius: var(--radius-lg);
+		margin-bottom: var(--space-5);
 	}
 
-	.error-banner button {
+	.error-content {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		color: var(--status-danger);
+		font-size: var(--text-sm);
+	}
+
+	.error-dismiss {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
 		background: transparent;
 		border: none;
-		color: var(--accent-danger);
-		padding: 0.25rem 0.5rem;
+		border-radius: var(--radius-md);
+		color: var(--status-danger);
+		cursor: pointer;
+		transition: background var(--duration-fast) var(--ease-out);
 	}
 
-	.loading, .empty-state {
-		text-align: center;
-		padding: 3rem;
+	.error-dismiss:hover {
+		background: rgba(239, 68, 68, 0.2);
+	}
+
+	/* Filter Bar */
+	.filter-bar {
+		margin-bottom: var(--space-5);
+	}
+
+	.status-tabs {
+		display: flex;
+		gap: var(--space-1);
+		padding: var(--space-1);
+		background: var(--bg-secondary);
+		border-radius: var(--radius-lg);
+		margin-bottom: var(--space-4);
+	}
+
+	.status-tab {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		padding: var(--space-2-5) var(--space-4);
+		background: transparent;
+		border: none;
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
 		color: var(--text-secondary);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.status-tab:hover {
+		color: var(--text-primary);
+		background: var(--bg-tertiary);
+	}
+
+	.status-tab.active {
+		background: var(--accent-primary);
+		color: var(--text-inverse);
+	}
+
+	.tab-count {
+		font-size: var(--text-xs);
+		font-family: var(--font-mono);
+		padding: var(--space-0-5) var(--space-1-5);
+		background: rgba(0, 0, 0, 0.2);
+		border-radius: var(--radius-full);
+	}
+
+	.status-tab.active .tab-count {
+		background: rgba(255, 255, 255, 0.2);
+	}
+
+	/* Filters Row */
+	.filters-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	.search-input {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		color: var(--text-muted);
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.search-input:focus-within {
+		border-color: var(--accent-primary);
+		box-shadow: 0 0 0 3px var(--accent-glow);
+	}
+
+	.search-input input {
+		flex: 1;
+		background: transparent;
+		border: none;
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+		outline: none;
+	}
+
+	.search-input input::placeholder {
+		color: var(--text-muted);
+	}
+
+	.filter-select {
+		padding: var(--space-2) var(--space-3);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.filter-select:hover {
+		border-color: var(--border-strong);
+	}
+
+	.filter-select:focus {
+		outline: none;
+		border-color: var(--accent-primary);
+		box-shadow: 0 0 0 3px var(--accent-glow);
+	}
+
+	.new-task-btn {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		white-space: nowrap;
+	}
+
+	/* Task List */
+	.task-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+
+	/* Loading State */
+	.loading-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-4);
+		padding: var(--space-16);
+		text-align: center;
+	}
+
+	.spinner {
+		width: 32px;
+		height: 32px;
+		border: 3px solid var(--border-default);
+		border-top-color: var(--accent-primary);
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.loading-state span {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+	}
+
+	/* Empty State */
+	.empty-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-4);
+		padding: var(--space-16);
+		text-align: center;
+	}
+
+	.empty-icon {
+		color: var(--text-muted);
+		opacity: 0.5;
+	}
+
+	.empty-state h3 {
+		font-size: var(--text-lg);
+		font-weight: var(--font-semibold);
+		color: var(--text-primary);
+		margin: 0;
 	}
 
 	.empty-state p {
-		margin-bottom: 1rem;
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin: 0;
 	}
 
-	.toggle-btn {
-		font-size: 0.75rem;
-		padding: 0.5rem 0.75rem;
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border-color);
+	.empty-state button {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin-top: var(--space-2);
 	}
 
-	.toggle-btn:hover {
-		background: var(--bg-secondary);
-	}
-
+	/* Pagination */
 	.pagination {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 0.5rem;
-		margin-top: 1.5rem;
-		padding-top: 1.5rem;
-		border-top: 1px solid var(--border-color);
+		gap: var(--space-2);
+		margin-top: var(--space-6);
+		padding-top: var(--space-6);
+		border-top: 1px solid var(--border-subtle);
 	}
 
 	.page-btn {
-		font-size: 0.75rem;
-		padding: 0.375rem 0.75rem;
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border-color);
+		padding: var(--space-2) var(--space-3);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
 	}
 
 	.page-btn:hover:not(:disabled) {
-		background: var(--bg-secondary);
+		background: var(--bg-tertiary);
 		border-color: var(--accent-primary);
+		color: var(--text-primary);
 	}
 
 	.page-btn:disabled {
@@ -428,8 +713,56 @@
 	}
 
 	.page-info {
-		font-size: 0.875rem;
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		padding: 0 var(--space-4);
+	}
+
+	/* New Task Form */
+	.new-task-form {
+		padding: var(--space-5);
+	}
+
+	.form-label {
+		display: block;
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
 		color: var(--text-secondary);
-		padding: 0 1rem;
+		margin-bottom: var(--space-2);
+	}
+
+	.form-input {
+		width: 100%;
+		padding: var(--space-3);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		font-size: var(--text-base);
+		color: var(--text-primary);
+		margin-top: var(--space-2);
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.form-input:focus {
+		outline: none;
+		border-color: var(--accent-primary);
+		box-shadow: 0 0 0 3px var(--accent-glow);
+	}
+
+	.form-input::placeholder {
+		color: var(--text-muted);
+	}
+
+	.form-hint {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin-top: var(--space-2);
+		margin-bottom: var(--space-5);
+	}
+
+	.form-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--space-3);
 	}
 </style>
