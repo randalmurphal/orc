@@ -4,49 +4,97 @@
 
 ---
 
+## Automation-First Philosophy
+
+Orc defaults to **fully automated gates** - the system runs without human intervention by default. Human gates are opt-in for workflows that require oversight.
+
+---
+
 ## Gate Types
 
 | Type | Description | Use Case |
 |------|-------------|----------|
-| `auto` | Proceed immediately if criteria met | Low-risk phases |
-| `ai` | Claude evaluates whether to proceed | Medium-risk phases |
-| `human` | Requires manual approval | High-risk phases |
+| `auto` | Proceed immediately if criteria met | Default for all phases |
+| `ai` | Claude evaluates whether to proceed | When judgment needed |
+| `human` | Requires manual approval | Critical decisions |
 
 ---
 
-## Default Gates by Weight
+## Automation Profiles
+
+| Profile | Default Gate | Description |
+|---------|--------------|-------------|
+| `auto` | All auto | Default - Full automation, no human approval |
+| `fast` | All auto | Maximum speed, no retry on failure |
+| `safe` | Auto + human merge | Balanced - Automatic until final merge |
+| `strict` | Human on spec/merge | Full oversight for critical phases |
+
+```bash
+# Run with profile
+orc run TASK-001 --profile auto    # (default)
+orc run TASK-001 --profile safe    # human on merge
+orc run TASK-001 --profile strict  # human on spec/merge
+```
+
+---
+
+## Default Gates by Weight (auto profile)
 
 | Phase | Trivial | Small | Medium | Large | Greenfield |
 |-------|---------|-------|--------|-------|------------|
-| classify | auto | auto | auto | auto | auto |
-| research | - | - | - | auto | human |
-| spec | - | - | ai | human | human |
-| design | - | - | - | human | human |
+| research | - | - | - | auto | auto |
+| spec | - | - | - | auto | auto |
 | implement | auto | auto | auto | auto | auto |
-| review | - | ai | ai | ai | ai |
 | test | auto | auto | auto | auto | auto |
-| **merge** | **human** | **human** | **human** | **human** | **human** |
+| validate | - | - | - | auto | auto |
 
 ---
 
 ## Gate Configuration
 
 ```yaml
-# orc.yaml
+# orc.yaml - default automation-first configuration
 gates:
-  # Override defaults
-  spec: ai              # Downgrade from human
-  merge: ai             # DANGER: auto-merge to main
-  
-  # Per-weight overrides
+  default_type: auto              # Default gate type for all phases
+  auto_approve_on_success: true   # Auto-approve when phase succeeds
+  retry_on_failure: true          # Enable cross-phase retry
+  max_retries: 3                  # Max retry attempts per phase
+
+  # Override specific phases
+  phase_overrides:
+    merge: human                  # Human approval before merge
+
+  # Override by weight
   weight_overrides:
-    trivial:
-      merge: auto       # Trust trivial changes
     greenfield:
-      spec: human
-      design: human
-      review: human
+      spec: human                 # Human review for greenfield specs
+
+# Cross-phase retry configuration
+retry:
+  enabled: true
+  max_retries: 3
+  retry_map:
+    test: implement              # Test failures retry from implement
+    validate: implement          # Validation failures retry from implement
 ```
+
+---
+
+## Cross-Phase Retry
+
+When a gate rejects or a phase fails, orc can automatically retry from an earlier phase:
+
+```
+implement → test (FAIL) → implement (retry #1) → test → validate
+```
+
+The retry phase receives **{{RETRY_CONTEXT}}** in its prompt:
+- What phase failed
+- Why it failed (error message or gate rejection reason)
+- Output from the failed phase
+- Which retry attempt this is
+
+This enables the agent to fix the root cause rather than just re-running blindly.
 
 ---
 

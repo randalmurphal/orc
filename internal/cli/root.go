@@ -59,6 +59,7 @@ func init() {
 	rootCmd.AddCommand(newRunCmd())
 	rootCmd.AddCommand(newPauseCmd())
 	rootCmd.AddCommand(newStopCmd())
+	rootCmd.AddCommand(newResumeCmd())
 	rootCmd.AddCommand(newRewindCmd())
 	rootCmd.AddCommand(newStatusCmd())
 	rootCmd.AddCommand(newLogCmd())
@@ -69,6 +70,7 @@ func init() {
 	rootCmd.AddCommand(newImportCmd())
 	rootCmd.AddCommand(newConfigCmd())
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newServeCmd())
 }
 
 // initConfig reads in config file and ENV variables if set.

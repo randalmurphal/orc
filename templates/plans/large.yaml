@@ -1,147 +1,162 @@
-# Plan Template: Large
-# For: Epics, major features, architectural changes
-# Phases: Research → Spec → Design → Implement → Review → E2E Tests
-
 version: 1
 weight: large
-description: Full development lifecycle with design phase and comprehensive testing
+description: Large task - spec, implement, test, validate with E2E testing
 
 phases:
-  - id: research
-    name: Research
-    prompt: research
-    gate:
-      type: ai
-      criteria:
-        - Existing patterns identified
-        - Dependencies understood
-        - Risks documented
-    checkpoint: true
-    artifacts:
-      - research.md
-
   - id: spec
-    name: Specification
-    prompt: spec
-    depends_on: [research]
-    gate:
-      type: ai
-      criteria:
-        - Requirements complete
-        - Acceptance criteria defined
-        - Edge cases covered
-    checkpoint: true
-    artifacts:
-      - spec.md
+    name: spec
+    prompt: |
+      Create a specification for this large task:
 
-  - id: design
-    name: Design
-    prompt: design
-    depends_on: [spec]
+      Task: {{TASK_TITLE}}
+
+      Define:
+      1. Requirements and scope
+      2. Technical approach
+      3. Component breakdown (backend, frontend if applicable)
+      4. API design (if applicable)
+      5. Success criteria with explicit checkboxes
+      6. Testing strategy:
+         - Unit tests
+         - Integration tests
+         - E2E tests (using Playwright MCP tools if frontend exists)
+
+      Include clear completion criteria:
+      - What code must be written
+      - What tests must pass
+      - What E2E scenarios must work
+      - What documentation must exist
+
+      Keep iterating until the specification is clear and complete.
+
+      When done, output:
+      <phase_complete>true</phase_complete>
+    depends_on: []
     gate:
-      type: ai
-      criteria:
-        - Architecture decisions documented
-        - Interfaces defined
-        - Migration path clear (if applicable)
+      type: auto
     checkpoint: true
-    artifacts:
-      - design.md
 
   - id: implement
-    name: Implement
-    prompt: implement
-    depends_on: [design]
+    name: implement
+    prompt: |
+      Implement the large task according to the specification:
+
+      Task: {{TASK_TITLE}}
+
+      Specification:
+      {{SPEC_CONTENT}}
+
+      {{RETRY_CONTEXT}}
+
+      Implementation protocol:
+      1. Implement all components defined in the spec
+      2. Write unit tests alongside code
+      3. Run tests frequently: `go test ./... -v -race`
+      4. Fix failures before continuing
+      5. If frontend exists:
+         - Implement all components
+         - Add loading/error states
+         - Integrate with API
+
+      Keep iterating until:
+      - All components implemented
+      - All unit tests pass
+      - No race conditions
+
+      When done, output:
+      <phase_complete>true</phase_complete>
+    depends_on: [spec]
     gate:
       type: auto
     checkpoint: true
 
-  - id: review
-    name: Review
-    prompt: review
+  - id: test
+    name: test
+    prompt: |
+      Comprehensive testing for:
+
+      Task: {{TASK_TITLE}}
+
+      ## Unit Tests
+      1. Run: `go test ./... -v -race -cover`
+      2. Verify coverage > 80%
+      3. Fix any failures
+
+      ## Integration Tests
+      1. Test component interactions
+      2. Test error handling paths
+      3. Verify data flows correctly
+
+      ## E2E Tests (If frontend exists - Use Playwright MCP tools)
+
+      Setup:
+      - Start backend server
+      - Start frontend server
+
+      Test using Playwright MCP:
+      1. `mcp__playwright__browser_navigate` to app URL
+      2. `mcp__playwright__browser_snapshot` to verify state
+      3. `mcp__playwright__browser_click` to interact
+      4. `mcp__playwright__browser_type` for input
+      5. `mcp__playwright__browser_wait_for` for async operations
+
+      Critical scenarios:
+      - Happy path user flow
+      - Error handling
+      - Edge cases
+
+      Keep iterating until all tests pass.
+
+      When done, output:
+      <phase_complete>true</phase_complete>
     depends_on: [implement]
     gate:
-      type: ai
-      criteria:
-        - Matches design
-        - No architectural drift
-        - Performance acceptable
-        - Security review passed
-    checkpoint: true
-
-  - id: docs
-    name: Documentation
-    prompt: docs
-    depends_on: [review]
-    gate:
-      type: ai
-      criteria:
-        - CLAUDE.md exists and current
-        - README.md updated if needed
-        - Architecture docs updated
-        - No stale documentation
-    checkpoint: true
-    artifacts:
-      - CLAUDE.md
-      - README.md
-      - docs/architecture/*.md
-
-  - id: test_unit
-    name: Unit Tests
-    prompt: test
-    depends_on: [docs]
-    config:
-      test_level: unit
-      coverage_threshold: 80
-    gate:
       type: auto
-      criteria:
-        - Unit tests pass
-        - Coverage >= 80%
-    checkpoint: true
-
-  - id: test_integration
-    name: Integration Tests
-    prompt: test
-    depends_on: [test_unit]
-    config:
-      test_level: integration
-    gate:
-      type: auto
-      criteria:
-        - Integration tests pass
-    checkpoint: true
-
-  - id: test_e2e
-    name: E2E Tests
-    prompt: test
-    depends_on: [test_integration]
-    config:
-      test_level: e2e
-    gate:
-      type: auto
-      criteria:
-        - E2E tests pass
-        - No regressions
     checkpoint: true
 
   - id: validate
-    name: Validate
-    prompt: validate
-    depends_on: [test_e2e]
-    gate:
-      type: ai
-      criteria:
-        - All acceptance criteria met
-        - Documentation updated
-        - No known issues
-    checkpoint: true
+    name: validate
+    prompt: |
+      Final validation for:
 
-  - id: merge
-    name: Merge
-    prompt: merge_prepare
-    depends_on: [validate]
+      Task: {{TASK_TITLE}}
+
+      ## Validation Checklist
+
+      ### Code
+      - [ ] All requirements from spec are met
+      - [ ] Unit tests pass: `go test ./... -v -race`
+      - [ ] Test coverage > 80%
+      - [ ] No race conditions
+      - [ ] Code quality acceptable (no debug statements, TODOs)
+
+      ### Integration
+      - [ ] Components work together
+      - [ ] Error handling is complete
+      - [ ] Performance is acceptable
+
+      ### E2E (If frontend - MUST RUN with Playwright MCP)
+      - [ ] Main user flows work
+      - [ ] Error states handled
+      - [ ] UI updates correctly
+
+      ### Documentation
+      - [ ] Code is documented where needed
+      - [ ] CLAUDE.md updated if necessary
+      - [ ] API documented if applicable
+
+      ## Final Verification
+
+      If frontend exists, run E2E verification:
+      1. Start all servers
+      2. Use Playwright MCP tools to test all features
+      3. Verify everything works end-to-end
+
+      Keep iterating until validation passes.
+
+      When done, output:
+      <phase_complete>true</phase_complete>
+    depends_on: [test]
     gate:
-      type: human
-      reviewers: 2  # Require 2 reviewers for large changes
+      type: auto
     checkpoint: true

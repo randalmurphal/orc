@@ -97,7 +97,7 @@ orc show <task-id> [--checkpoints]
 Execute or resume a task.
 
 ```bash
-orc run <task-id> [--phase <phase>] [--continue] [--dry-run]
+orc run <task-id> [--phase <phase>] [--continue] [--dry-run] [--profile <profile>]
 ```
 
 | Option | Description |
@@ -105,6 +105,23 @@ orc run <task-id> [--phase <phase>] [--continue] [--dry-run]
 | `--phase`, `-p` | Start from specific phase |
 | `--continue`, `-C` | Resume from last position |
 | `--dry-run` | Show execution plan only |
+| `--profile`, `-P` | Automation profile (auto, fast, safe, strict) |
+
+**Automation Profiles**:
+
+| Profile | Description |
+|---------|-------------|
+| `auto` | Default - Fully automated, all gates auto |
+| `fast` | Maximum speed, no retry on failure |
+| `safe` | Automatic + human gate on merge |
+| `strict` | Human gates on spec and merge phases |
+
+**Examples**:
+```bash
+orc run TASK-001                     # Run with default auto profile
+orc run TASK-001 --profile safe      # Human approval on merge
+orc run TASK-001 --profile strict    # Human approval on spec and merge
+```
 
 ---
 
@@ -291,6 +308,31 @@ View or modify configuration.
 orc config [key] [value]
 orc config --list
 orc config --edit
+```
+
+---
+
+### orc serve
+
+Start the API server for the web UI.
+
+```bash
+orc serve [--port <port>]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--port`, `-p` | Port to listen on | 8080 |
+
+The API server provides:
+- REST endpoints for task management
+- SSE streaming for live transcript updates
+- CORS headers for frontend development
+
+**Example**:
+```bash
+orc serve              # Start on :8080
+orc serve --port 3000  # Start on :3000
 ```
 
 ---

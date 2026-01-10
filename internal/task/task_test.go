@@ -1,0 +1,213 @@
+package task
+
+import (
+	"os"
+	"testing"
+	"time"
+)
+
+func TestNew(t *testing.T) {
+	task := New("TASK-001", "Test task")
+
+	if task.ID != "TASK-001" {
+		t.Errorf("expected ID TASK-001, got %s", task.ID)
+	}
+
+	if task.Title != "Test task" {
+		t.Errorf("expected Title 'Test task', got %s", task.Title)
+	}
+
+	if task.Status != StatusCreated {
+		t.Errorf("expected Status %s, got %s", StatusCreated, task.Status)
+	}
+
+	if task.Branch != "orc/TASK-001" {
+		t.Errorf("expected Branch 'orc/TASK-001', got %s", task.Branch)
+	}
+
+	if task.CreatedAt.IsZero() {
+		t.Error("expected CreatedAt to be set")
+	}
+}
+
+func TestIsTerminal(t *testing.T) {
+	tests := []struct {
+		status   Status
+		terminal bool
+	}{
+		{StatusCreated, false},
+		{StatusClassifying, false},
+		{StatusPlanned, false},
+		{StatusRunning, false},
+		{StatusPaused, false},
+		{StatusBlocked, false},
+		{StatusCompleted, true},
+		{StatusFailed, true},
+	}
+
+	for _, tt := range tests {
+		task := &Task{Status: tt.status}
+		if task.IsTerminal() != tt.terminal {
+			t.Errorf("IsTerminal() for %s = %v, want %v", tt.status, task.IsTerminal(), tt.terminal)
+		}
+	}
+}
+
+func TestCanRun(t *testing.T) {
+	tests := []struct {
+		status Status
+		canRun bool
+	}{
+		{StatusCreated, true},
+		{StatusClassifying, false},
+		{StatusPlanned, true},
+		{StatusRunning, false},
+		{StatusPaused, true},
+		{StatusBlocked, true},
+		{StatusCompleted, false},
+		{StatusFailed, false},
+	}
+
+	for _, tt := range tests {
+		task := &Task{Status: tt.status}
+		if task.CanRun() != tt.canRun {
+			t.Errorf("CanRun() for %s = %v, want %v", tt.status, task.CanRun(), tt.canRun)
+		}
+	}
+}
+
+func TestSaveAndLoad(t *testing.T) {
+	// Create temp directory
+	tmpDir := t.TempDir()
+	oldOrcDir := OrcDir
+
+	// Override OrcDir for testing
+	defer func() {
+		// Can't change const, so we test Save/Load with actual directory
+	}()
+
+	// Create .orc directory in temp
+	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	if err != nil {
+		t.Fatalf("failed to create test directory: %v", err)
+	}
+
+	// Change to temp directory
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	// Create and save task
+	task := New("TASK-001", "Test task")
+	task.Weight = WeightMedium
+	task.Description = "Test description"
+
+	err = task.Save()
+	if err != nil {
+		t.Fatalf("Save() failed: %v", err)
+	}
+
+	// Load task
+	loaded, err := Load("TASK-001")
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	if loaded.ID != task.ID {
+		t.Errorf("loaded ID = %s, want %s", loaded.ID, task.ID)
+	}
+
+	if loaded.Title != task.Title {
+		t.Errorf("loaded Title = %s, want %s", loaded.Title, task.Title)
+	}
+
+	if loaded.Weight != task.Weight {
+		t.Errorf("loaded Weight = %s, want %s", loaded.Weight, task.Weight)
+	}
+
+	if loaded.Description != task.Description {
+		t.Errorf("loaded Description = %s, want %s", loaded.Description, task.Description)
+	}
+
+	_ = oldOrcDir
+}
+
+func TestNextID(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .orc directory
+	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	if err != nil {
+		t.Fatalf("failed to create test directory: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	// First ID should be TASK-001
+	id, err := NextID()
+	if err != nil {
+		t.Fatalf("NextID() failed: %v", err)
+	}
+	if id != "TASK-001" {
+		t.Errorf("NextID() = %s, want TASK-001", id)
+	}
+
+	// Create task directory
+	os.MkdirAll(tmpDir+"/.orc/tasks/TASK-001", 0755)
+
+	// Second ID should be TASK-002
+	id, err = NextID()
+	if err != nil {
+		t.Fatalf("NextID() failed: %v", err)
+	}
+	if id != "TASK-002" {
+		t.Errorf("NextID() = %s, want TASK-002", id)
+	}
+}
+
+func TestTaskDir(t *testing.T) {
+	dir := TaskDir("TASK-001")
+	expected := ".orc/tasks/TASK-001"
+	if dir != expected {
+		t.Errorf("TaskDir() = %s, want %s", dir, expected)
+	}
+}
+
+func TestLoadAll(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	if err != nil {
+		t.Fatalf("failed to create test directory: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	// Create two tasks
+	task1 := New("TASK-001", "First task")
+	task1.CreatedAt = time.Now().Add(-time.Hour)
+	task1.Save()
+
+	task2 := New("TASK-002", "Second task")
+	task2.CreatedAt = time.Now()
+	task2.Save()
+
+	// Load all
+	tasks, err := LoadAll()
+	if err != nil {
+		t.Fatalf("LoadAll() failed: %v", err)
+	}
+
+	if len(tasks) != 2 {
+		t.Errorf("LoadAll() returned %d tasks, want 2", len(tasks))
+	}
+
+	// Should be sorted by creation time (newest first)
+	if tasks[0].ID != "TASK-002" {
+		t.Errorf("tasks not sorted correctly: first task is %s, want TASK-002", tasks[0].ID)
+	}
+}

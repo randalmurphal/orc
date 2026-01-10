@@ -1,18 +1,23 @@
-# Plan Template: Trivial
-# For: Typos, config tweaks, single-line fixes
-# Phases: Direct execution, no ceremony
-
 version: 1
 weight: trivial
-description: Direct execution for minimal changes
+description: Trivial task - single implement phase, fully automated
 
 phases:
-  - id: execute
-    name: Execute
-    prompt: implement
+  - id: implement
+    name: implement
+    prompt: |
+      Complete this task:
+
+      Task: {{TASK_TITLE}}
+
+      {{RETRY_CONTEXT}}
+
+      Implement the fix/change directly. Run any affected tests.
+      Keep iterating until the implementation is complete and tests pass.
+
+      When done, output:
+      <phase_complete>true</phase_complete>
+    depends_on: []
     gate:
       type: auto
     checkpoint: true
-
-# No spec, no review, no tests for truly trivial changes
-# If it turns out to need more, user should re-classify

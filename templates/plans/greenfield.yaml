@@ -1,194 +1,220 @@
-# Plan Template: Greenfield
-# For: New projects, POCs, major rewrites
-# Phases: Research → Architecture → Spec → Skeleton → Implement → Validate
-
 version: 1
 weight: greenfield
-description: Full project creation with architecture-first approach
+description: Greenfield project - full lifecycle with comprehensive E2E testing
 
 phases:
   - id: research
-    name: Research
-    prompt: research
-    config:
-      depth: comprehensive
-      include:
-        - Similar projects
-        - Technology options
-        - Constraints and requirements
-        - User needs
-    gate:
-      type: ai
-      criteria:
-        - Problem space understood
-        - Technology options evaluated
-        - Constraints documented
-    checkpoint: true
-    artifacts:
-      - research.md
+    name: research
+    prompt: |
+      Research for new greenfield project:
 
-  - id: architecture
-    name: Architecture
-    prompt: design
-    depends_on: [research]
-    config:
-      scope: full_system
-      include:
-        - System components
-        - Data model
-        - API design
-        - Technology stack
-        - Directory structure
+      Task: {{TASK_TITLE}}
+
+      Investigate:
+      1. Similar existing systems/approaches
+      2. Technology options and trade-offs
+      3. Best practices in the domain
+      4. Constraints and requirements
+      5. Integration points
+      6. Testing strategies (unit, integration, E2E)
+
+      Keep iterating until research is thorough.
+
+      When done, output:
+      <phase_complete>true</phase_complete>
+    depends_on: []
     gate:
-      type: ai
-      criteria:
-        - All components defined
-        - Interfaces specified
-        - Data flow documented
-        - Technology choices justified
+      type: auto
     checkpoint: true
-    artifacts:
-      - architecture.md
 
   - id: spec
-    name: Specification
-    prompt: spec
-    depends_on: [architecture]
-    config:
-      include:
-        - Feature breakdown
-        - User stories
-        - Acceptance criteria
-        - Non-functional requirements
-    gate:
-      type: ai
-      criteria:
-        - All features specified
-        - Priorities clear
-        - MVP scope defined
-    checkpoint: true
-    artifacts:
-      - spec.md
+    name: spec
+    prompt: |
+      Create specification for greenfield project:
 
-  - id: skeleton
-    name: Skeleton
-    prompt: implement
-    depends_on: [spec]
-    config:
-      mode: skeleton
-      include:
-        - Directory structure
-        - Key interfaces
-        - Configuration
-        - Build system
-        - Basic CI/CD
+      Task: {{TASK_TITLE}}
+
+      Research findings:
+      {{RESEARCH_CONTENT}}
+
+      Define:
+      1. Project scope and goals
+      2. Requirements (functional and non-functional)
+      3. Architecture decisions
+      4. Data model
+      5. API design (endpoints, request/response formats)
+      6. Frontend components and user flows
+      7. Success criteria with checkboxes
+      8. Test plan (unit, integration, E2E with Playwright MCP)
+
+      Include explicit completion criteria:
+      - Backend criteria (all endpoints, tests, coverage)
+      - Frontend criteria (all components, flows, states)
+      - E2E criteria (critical paths via Playwright MCP tools)
+      - Documentation criteria
+
+      Keep iterating until specification is complete.
+
+      When done, output:
+      <phase_complete>true</phase_complete>
+    depends_on: [research]
     gate:
-      type: ai
-      criteria:
-        - Project structure created
-        - Build system works
-        - Basic tests pass
+      type: auto
     checkpoint: true
 
   - id: implement
-    name: Implement
-    prompt: implement
-    depends_on: [skeleton]
-    config:
-      mode: iterative
-      include:
-        - Core functionality
-        - Tests alongside code
-        - Documentation
+    name: implement
+    prompt: |
+      Implement the greenfield project:
+
+      Task: {{TASK_TITLE}}
+
+      Specification:
+      {{SPEC_CONTENT}}
+
+      {{RETRY_CONTEXT}}
+
+      Implementation protocol:
+      1. Create project structure
+      2. Implement backend:
+         - All API endpoints
+         - Business logic
+         - Error handling
+         - Unit tests alongside code
+      3. Implement frontend:
+         - All pages/routes
+         - All components
+         - API integration
+         - Loading/error states
+      4. Run tests frequently: `go test ./... -v -race`
+      5. Fix failures before continuing
+
+      Keep iterating until:
+      - All backend code complete
+      - All frontend code complete
+      - All unit tests pass
+      - No race conditions
+
+      When done, output:
+      <phase_complete>true</phase_complete>
+    depends_on: [spec]
     gate:
       type: auto
-    checkpoint: true
-    # This phase may loop multiple times for greenfield
-
-  - id: review
-    name: Review
-    prompt: review
-    depends_on: [implement]
-    gate:
-      type: ai
-      criteria:
-        - Matches architecture
-        - Code quality acceptable
-        - No security issues
-        - Tests comprehensive
     checkpoint: true
 
   - id: test
-    name: Full Test Suite
-    prompt: test
-    depends_on: [review]
-    config:
-      test_level: full
-      coverage_threshold: 80
-      include:
-        - Unit tests
-        - Integration tests
-        - E2E tests
+    name: test
+    prompt: |
+      Complete testing for greenfield project:
+
+      Task: {{TASK_TITLE}}
+
+      Testing checklist:
+
+      ## Unit Tests
+      1. Run: `go test ./... -v -race -cover`
+      2. Verify coverage > 80%
+      3. Fix any failures
+
+      ## Integration Tests
+      1. Test API endpoints with real database/storage
+      2. Test cross-component interactions
+      3. Verify error handling paths
+
+      ## E2E Tests (REQUIRED - Use Playwright MCP tools)
+
+      Setup:
+      - Start API server: `make serve` (port 8080)
+      - Start frontend: `make web-dev` (port 5173)
+
+      Test flows using Playwright MCP:
+      1. `mcp__playwright__browser_navigate` to http://localhost:5173
+      2. `mcp__playwright__browser_snapshot` to verify page state
+      3. `mcp__playwright__browser_click` to interact with elements
+      4. `mcp__playwright__browser_type` to enter text
+      5. `mcp__playwright__browser_fill_form` to fill forms
+      6. `mcp__playwright__browser_wait_for` to wait for conditions
+      7. `mcp__playwright__browser_network_requests` to verify API calls
+
+      Critical E2E scenarios to test:
+      - Main user journey (create, view, interact)
+      - Error handling (invalid input, network failures)
+      - Real-time updates (if applicable)
+      - All navigation paths
+
+      ## Performance Testing
+      1. API response times < 100ms
+      2. Frontend loads < 2s
+      3. No memory leaks
+
+      Keep iterating until ALL tests pass.
+
+      When done, output:
+      <phase_complete>true</phase_complete>
+    depends_on: [implement]
     gate:
       type: auto
-      criteria:
-        - All tests pass
-        - Coverage >= 80%
     checkpoint: true
 
   - id: validate
-    name: Validate
-    prompt: validate
+    name: validate
+    prompt: |
+      Final validation for greenfield project:
+
+      Task: {{TASK_TITLE}}
+
+      ## Validation Checklist
+
+      ### Backend
+      - [ ] All API endpoints functional
+      - [ ] All business logic complete
+      - [ ] Error handling returns actionable messages
+      - [ ] Unit tests pass: `go test ./... -v -race`
+      - [ ] Test coverage > 80%
+      - [ ] No race conditions
+      - [ ] API documented
+
+      ### Frontend
+      - [ ] All pages/routes implemented
+      - [ ] All components functional
+      - [ ] State management works correctly
+      - [ ] API integration complete
+      - [ ] Loading states shown
+      - [ ] Error states handled
+      - [ ] Responsive design works
+
+      ### E2E (Playwright MCP - MUST RUN)
+      Start servers and run E2E tests:
+      - [ ] Main user flow works end-to-end
+      - [ ] All critical paths tested
+      - [ ] Error scenarios handled gracefully
+      - [ ] Real-time features work (if applicable)
+
+      ### Documentation
+      - [ ] CLAUDE.md is current and accurate
+      - [ ] README is updated
+      - [ ] API endpoints documented
+      - [ ] Setup instructions work
+
+      ### Code Quality
+      - [ ] No TODO comments in production code
+      - [ ] No console.log/fmt.Println debugging
+      - [ ] Consistent code style
+      - [ ] No security vulnerabilities
+
+      ## Final E2E Verification
+
+      Run full E2E test suite using Playwright MCP tools:
+      1. Navigate to frontend
+      2. Test every user-facing feature
+      3. Verify all API calls succeed
+      4. Check all UI states render correctly
+
+      Keep iterating until ALL checkboxes are checked.
+
+      When ALL validation criteria pass, output:
+      <phase_complete>true</phase_complete>
     depends_on: [test]
-    config:
-      include:
-        - Spec compliance
-        - Architecture compliance
-        - Performance baseline
-        - Security scan
     gate:
-      type: ai
-      criteria:
-        - All spec requirements met
-        - Architecture followed
-        - No critical security issues
-        - Performance acceptable
-    checkpoint: true
-    artifacts:
-      - validation_report.md
-
-  - id: docs
-    name: Documentation
-    prompt: docs
-    depends_on: [validate]
-    config:
-      scope: comprehensive
-      include:
-        - CLAUDE.md (AI-readable project overview)
-        - README.md (user-facing documentation)
-        - Architecture docs (docs/architecture/)
-        - API docs (if applicable)
-        - Getting started guide
-    gate:
-      type: ai
-      criteria:
-        - CLAUDE.md complete and under 200 lines
-        - README.md comprehensive
-        - Architecture documented
-        - Setup instructions work
-        - No placeholder content
-    checkpoint: true
-    artifacts:
-      - CLAUDE.md
-      - README.md
-      - docs/
-
-  - id: merge
-    name: Merge / Release
-    prompt: merge_prepare
-    depends_on: [docs]
-    gate:
-      type: human
-      reviewers: 2
-      require_architecture_review: true
+      type: auto
     checkpoint: true

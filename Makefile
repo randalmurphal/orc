@@ -149,6 +149,37 @@ release-darwin:
 	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY)-darwin-arm64 ./cmd/orc
 
 # =============================================================================
+# Frontend
+# =============================================================================
+
+## web-install: Install frontend dependencies
+web-install:
+	cd web && npm install
+
+## web-dev: Start frontend dev server (proxies to :8080)
+web-dev:
+	cd web && npm run dev
+
+## web-build: Build frontend for production
+web-build:
+	cd web && npm run build
+
+## web-check: Type-check frontend
+web-check:
+	cd web && npm run check
+
+## serve: Start API server (for frontend development)
+serve: build
+	./$(BUILD_DIR)/$(BINARY) serve
+
+## dev-full: Start both API server and frontend dev server
+dev-full:
+	@echo "Starting API server on :8080 and frontend on :5173..."
+	@echo "API: http://localhost:8080"
+	@echo "UI:  http://localhost:5173"
+	@$(MAKE) serve & cd web && npm run dev
+
+# =============================================================================
 # Coverage
 # =============================================================================
 
