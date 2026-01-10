@@ -46,6 +46,7 @@ type WSHandler struct {
 // wsConnection tracks a single WebSocket connection.
 type wsConnection struct {
 	conn         *websocket.Conn
+	mu           sync.Mutex // protects taskID, eventChan, unsubscribed
 	taskID       string
 	eventChan    <-chan events.Event
 	send         chan []byte
@@ -199,9 +200,11 @@ func (h *WSHandler) handleSubscribe(c *wsConnection, taskID string) {
 	h.handleUnsubscribe(c)
 
 	// Subscribe to new task
+	c.mu.Lock()
 	c.taskID = taskID
 	c.eventChan = h.publisher.Subscribe(taskID)
 	c.unsubscribed = false
+	c.mu.Unlock()
 
 	// Start event forwarding goroutine
 	go h.forwardEvents(c)
@@ -217,6 +220,9 @@ func (h *WSHandler) handleSubscribe(c *wsConnection, taskID string) {
 
 // handleUnsubscribe unsubscribes the connection from current task.
 func (h *WSHandler) handleUnsubscribe(c *wsConnection) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if c.taskID != "" && c.eventChan != nil && !c.unsubscribed {
 		h.publisher.Unsubscribe(c.taskID, c.eventChan)
 		c.unsubscribed = true
@@ -259,7 +265,12 @@ func (h *WSHandler) handleCommand(c *wsConnection, msg WSMessage) {
 
 // forwardEvents forwards events from the publisher to the WebSocket.
 func (h *WSHandler) forwardEvents(c *wsConnection) {
-	if c.eventChan == nil {
+	// Get a local reference to eventChan under lock
+	c.mu.Lock()
+	eventChan := c.eventChan
+	c.mu.Unlock()
+
+	if eventChan == nil {
 		return
 	}
 
@@ -267,8 +278,16 @@ func (h *WSHandler) forwardEvents(c *wsConnection) {
 		select {
 		case <-c.done:
 			return
-		case event, ok := <-c.eventChan:
+		case event, ok := <-eventChan:
 			if !ok {
+				return
+			}
+
+			// Check if unsubscribed before sending
+			c.mu.Lock()
+			unsubscribed := c.unsubscribed
+			c.mu.Unlock()
+			if unsubscribed {
 				return
 			}
 
