@@ -826,3 +826,169 @@ func TestExecutePhase_WithPublisher(t *testing.T) {
 		t.Log("No events captured (timing dependent)")
 	}
 }
+
+func TestPublishState(t *testing.T) {
+	e := New(DefaultConfig())
+	pub := events.NewMemoryPublisher()
+	e.SetPublisher(pub)
+
+	ch := pub.Subscribe("TASK-007")
+	defer pub.Unsubscribe("TASK-007", ch)
+
+	testState := state.New("TASK-007")
+	testState.StartPhase("implement")
+
+	e.publishState("TASK-007", testState)
+
+	select {
+	case event := <-ch:
+		if event.Type != events.EventState {
+			t.Errorf("expected EventState, got %v", event.Type)
+		}
+		if event.TaskID != "TASK-007" {
+			t.Errorf("expected task TASK-007, got %s", event.TaskID)
+		}
+		// Data should be the state object
+		if event.Data == nil {
+			t.Error("expected state data, got nil")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for state event")
+	}
+}
+
+func TestEvaluateGate_AutoApprove(t *testing.T) {
+	cfg := DefaultConfig()
+	orcCfg := &config.Config{
+		Gates: config.GateConfig{
+			DefaultType:           "auto",
+			AutoApproveOnSuccess:  true,
+		},
+	}
+
+	e := NewWithConfig(cfg, orcCfg)
+
+	testPhase := &plan.Phase{
+		ID: "implement",
+		Gate: plan.Gate{
+			Type:     plan.GateAuto,
+			Criteria: []string{"has_output"},
+		},
+	}
+
+	ctx := context.Background()
+	decision, err := e.evaluateGate(ctx, testPhase, "some output", "small")
+
+	if err != nil {
+		t.Fatalf("evaluateGate failed: %v", err)
+	}
+
+	if !decision.Approved {
+		t.Error("expected auto-approve on success")
+	}
+
+	if decision.Reason != "auto-approved on success" {
+		t.Errorf("expected reason 'auto-approved on success', got %s", decision.Reason)
+	}
+}
+
+func TestEvaluateGate_WithCriteria(t *testing.T) {
+	cfg := DefaultConfig()
+	orcCfg := &config.Config{
+		Gates: config.GateConfig{
+			DefaultType:           "auto",
+			AutoApproveOnSuccess:  false, // Actually evaluate criteria
+		},
+	}
+
+	e := NewWithConfig(cfg, orcCfg)
+
+	testPhase := &plan.Phase{
+		ID: "implement",
+		Gate: plan.Gate{
+			Type:     plan.GateAuto,
+			Criteria: []string{"has_output"},
+		},
+	}
+
+	ctx := context.Background()
+
+	// Should approve with output
+	decision, err := e.evaluateGate(ctx, testPhase, "some output here", "small")
+	if err != nil {
+		t.Fatalf("evaluateGate failed: %v", err)
+	}
+	if !decision.Approved {
+		t.Error("expected approval with output")
+	}
+
+	// Should reject without output
+	decision, err = e.evaluateGate(ctx, testPhase, "", "small")
+	if err != nil {
+		t.Fatalf("evaluateGate failed: %v", err)
+	}
+	if decision.Approved {
+		t.Error("expected rejection without output")
+	}
+}
+
+func TestEvaluateGate_PhaseOverride(t *testing.T) {
+	cfg := DefaultConfig()
+	orcCfg := &config.Config{
+		Gates: config.GateConfig{
+			DefaultType: "auto",
+			PhaseOverrides: map[string]string{
+				"spec": "auto", // Override spec to use auto gate
+			},
+			AutoApproveOnSuccess: true,
+		},
+	}
+
+	e := NewWithConfig(cfg, orcCfg)
+
+	testPhase := &plan.Phase{
+		ID: "spec",
+		Gate: plan.Gate{
+			Type: plan.GateHuman, // This will be overridden
+		},
+	}
+
+	ctx := context.Background()
+	decision, err := e.evaluateGate(ctx, testPhase, "spec content", "large")
+
+	if err != nil {
+		t.Fatalf("evaluateGate failed: %v", err)
+	}
+
+	// Should use auto gate due to override
+	if !decision.Approved {
+		t.Error("expected auto-approval via phase override")
+	}
+}
+
+func TestLoadRetryContextForPhase(t *testing.T) {
+	e := New(DefaultConfig())
+
+	// Test with no retry context
+	testState := state.New("TASK-999")
+	ctx := e.loadRetryContextForPhase(testState)
+	if ctx != "" {
+		t.Errorf("expected empty retry context, got %s", ctx)
+	}
+}
+
+func TestLoadRetryContextForPhase_WithContext(t *testing.T) {
+	e := New(DefaultConfig())
+
+	// Test with retry context set
+	testState := state.New("TASK-888")
+	testState.SetRetryContext("test", "implement", "test failed", "output here", 1)
+
+	ctx := e.loadRetryContextForPhase(testState)
+	if ctx == "" {
+		t.Error("expected retry context, got empty")
+	}
+	if !strings.Contains(ctx, "test failed") {
+		t.Errorf("expected retry context to contain failure reason, got %s", ctx)
+	}
+}
