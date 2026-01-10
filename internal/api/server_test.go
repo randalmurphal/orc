@@ -1281,3 +1281,168 @@ func TestResumeTaskEndpoint_NotFound(t *testing.T) {
 	}
 }
 
+// === SSE Stream Tests ===
+
+func TestStreamEndpoint_TaskNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".orc/tasks", 0755)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/tasks/NONEXISTENT/stream", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", w.Code)
+	}
+}
+
+// === Additional Transcript Tests ===
+
+func TestGetTranscriptsEndpoint_Empty(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create task with empty transcripts directory
+	taskDir := filepath.Join(".orc", "tasks", "TASK-TRANS-001")
+	os.MkdirAll(filepath.Join(taskDir, "transcripts"), 0755)
+
+	taskYAML := `id: TASK-TRANS-001
+title: Transcript Test
+status: pending
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/tasks/TASK-TRANS-001/transcripts", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify we get an empty array
+	var transcripts []interface{}
+	json.NewDecoder(w.Body).Decode(&transcripts)
+	if len(transcripts) != 0 {
+		t.Errorf("expected empty transcripts, got %d", len(transcripts))
+	}
+}
+
+func TestGetTranscriptsEndpoint_WithTranscripts(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create task with transcripts
+	taskDir := filepath.Join(".orc", "tasks", "TASK-TRANS-002")
+	transcriptsDir := filepath.Join(taskDir, "transcripts")
+	os.MkdirAll(transcriptsDir, 0755)
+
+	taskYAML := `id: TASK-TRANS-002
+title: Transcript Test
+status: running
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	// Create a transcript file
+	transcriptContent := `# Phase: implement
+## Iteration 1
+Implementation done!
+`
+	os.WriteFile(filepath.Join(transcriptsDir, "implement-001.md"), []byte(transcriptContent), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/tasks/TASK-TRANS-002/transcripts", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var transcripts []map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&transcripts)
+	if len(transcripts) == 0 {
+		t.Error("expected at least one transcript")
+	}
+}
+
+// === Additional Create Task Tests ===
+
+func TestCreateTaskEndpoint_WithWeight(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".orc/tasks", 0755)
+
+	srv := New(nil)
+
+	body := `{"title": "Test Task", "weight": "large"}`
+	req := httptest.NewRequest("POST", "/api/tasks", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp["weight"] != "large" {
+		t.Errorf("weight = %v, want large", resp["weight"])
+	}
+}
+
+func TestCreateTaskEndpoint_WithDescription(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".orc/tasks", 0755)
+
+	srv := New(nil)
+
+	body := `{"title": "Test Task", "description": "Detailed description here"}`
+	req := httptest.NewRequest("POST", "/api/tasks", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp["description"] != "Detailed description here" {
+		t.Errorf("description = %v, want 'Detailed description here'", resp["description"])
+	}
+}
+
