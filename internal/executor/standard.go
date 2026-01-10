@@ -137,7 +137,8 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		if err != nil {
 			result.Status = plan.PhaseFailed
 			result.Error = fmt.Errorf("execute turn %d: %w", iteration, err)
-			break
+			result.Output = lastResponse // Preserve any previous response for debugging
+			goto done
 		}
 
 		// Track tokens
@@ -174,7 +175,8 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		if turnResult.IsError {
 			result.Status = plan.PhaseFailed
 			result.Error = fmt.Errorf("LLM error: %s", turnResult.ErrorText)
-			break
+			result.Output = lastResponse
+			goto done
 		}
 	}
 
@@ -182,10 +184,10 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	if result.Status == plan.PhaseRunning {
 		result.Status = plan.PhaseFailed
 		result.Error = fmt.Errorf("max iterations (%d) reached without completion", e.config.MaxIterations)
+		result.Output = lastResponse // Preserve last response for debugging
 	}
 
 done:
-	result.Output = lastResponse
 	result.Duration = time.Since(start)
 
 	// Commit on success if git service available

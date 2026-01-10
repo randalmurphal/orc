@@ -369,6 +369,10 @@ export async function getSettings(): Promise<Settings> {
 	return fetchJSON<Settings>('/settings');
 }
 
+export async function getGlobalSettings(): Promise<Settings> {
+	return fetchJSON<Settings>('/settings/global');
+}
+
 export async function getProjectSettings(): Promise<Settings> {
 	return fetchJSON<Settings>('/settings/project');
 }
