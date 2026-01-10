@@ -156,60 +156,72 @@ func TestRequireInit(t *testing.T) {
 
 func TestResolveGateType(t *testing.T) {
 	tests := []struct {
-		name       string
-		cfg        *Config
-		phase      string
-		wantGate   GateType
-		wantAuto   bool
+		name     string
+		cfg      *Config
+		phase    string
+		weight   string
+		wantGate string
 	}{
 		{
 			name: "default auto gates",
 			cfg: &Config{
 				Gates: GateConfig{
-					DefaultGate: "auto",
-					PhaseGates:  map[string]GateType{},
+					DefaultType: "auto",
 				},
 			},
 			phase:    "implement",
-			wantGate: GateAuto,
-			wantAuto: true,
+			weight:   "small",
+			wantGate: "auto",
 		},
 		{
-			name: "human gate for phase",
+			name: "phase override",
 			cfg: &Config{
 				Gates: GateConfig{
-					DefaultGate: "auto",
-					PhaseGates: map[string]GateType{
-						"review": GateHuman,
+					DefaultType: "auto",
+					PhaseOverrides: map[string]string{
+						"review": "human",
 					},
 				},
 			},
 			phase:    "review",
-			wantGate: GateHuman,
-			wantAuto: false,
+			weight:   "small",
+			wantGate: "human",
 		},
 		{
-			name: "fallback to default",
+			name: "weight override takes priority",
 			cfg: &Config{
 				Gates: GateConfig{
-					DefaultGate: "ai_review",
-					PhaseGates:  map[string]GateType{},
+					DefaultType: "auto",
+					PhaseOverrides: map[string]string{
+						"spec": "ai",
+					},
+					WeightOverrides: map[string]map[string]string{
+						"large": {
+							"spec": "human",
+						},
+					},
 				},
 			},
+			phase:    "spec",
+			weight:   "large",
+			wantGate: "human",
+		},
+		{
+			name: "empty config returns auto",
+			cfg: &Config{
+				Gates: GateConfig{},
+			},
 			phase:    "test",
-			wantGate: GateAIReview,
-			wantAuto: false,
+			weight:   "small",
+			wantGate: "auto",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gateType, isAuto := tt.cfg.ResolveGateType(tt.phase)
+			gateType := tt.cfg.ResolveGateType(tt.phase, tt.weight)
 			if gateType != tt.wantGate {
-				t.Errorf("ResolveGateType() gate = %v, want %v", gateType, tt.wantGate)
-			}
-			if isAuto != tt.wantAuto {
-				t.Errorf("ResolveGateType() isAuto = %v, want %v", isAuto, tt.wantAuto)
+				t.Errorf("ResolveGateType() = %v, want %v", gateType, tt.wantGate)
 			}
 		})
 	}
@@ -228,24 +240,20 @@ func TestShouldRetryFrom(t *testing.T) {
 	}
 
 	tests := []struct {
-		phase      string
-		wantFrom   string
-		wantRetry  bool
+		phase    string
+		wantFrom string
 	}{
-		{"test", "implement", true},
-		{"validate", "implement", true},
-		{"implement", "", false},
-		{"spec", "", false},
+		{"test", "implement"},
+		{"validate", "implement"},
+		{"implement", ""},
+		{"spec", ""},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.phase, func(t *testing.T) {
-			from, shouldRetry := cfg.ShouldRetryFrom(tt.phase)
+			from := cfg.ShouldRetryFrom(tt.phase)
 			if from != tt.wantFrom {
-				t.Errorf("ShouldRetryFrom(%s) from = %s, want %s", tt.phase, from, tt.wantFrom)
-			}
-			if shouldRetry != tt.wantRetry {
-				t.Errorf("ShouldRetryFrom(%s) shouldRetry = %v, want %v", tt.phase, shouldRetry, tt.wantRetry)
+				t.Errorf("ShouldRetryFrom(%s) = %s, want %s", tt.phase, from, tt.wantFrom)
 			}
 		})
 	}
@@ -256,35 +264,39 @@ func TestShouldRetryFrom(t *testing.T) {
 			Enabled: false,
 		},
 	}
-	from, shouldRetry := cfgDisabled.ShouldRetryFrom("test")
-	if shouldRetry {
-		t.Error("ShouldRetryFrom() should return false when retry is disabled")
-	}
+	from := cfgDisabled.ShouldRetryFrom("test")
 	if from != "" {
-		t.Errorf("ShouldRetryFrom() from = %s, want empty", from)
+		t.Errorf("ShouldRetryFrom() = %s, want empty when retry disabled", from)
 	}
 }
 
 func TestProfilePresets(t *testing.T) {
-	presets := ProfilePresets()
-
-	// Check that all expected profiles exist
-	expectedProfiles := []string{"auto", "fast", "safe", "strict"}
-	for _, profile := range expectedProfiles {
-		if _, ok := presets[profile]; !ok {
-			t.Errorf("ProfilePresets() missing profile: %s", profile)
-		}
+	tests := []struct {
+		profile     AutomationProfile
+		wantDefault string
+	}{
+		{ProfileAuto, "auto"},
+		{ProfileFast, "auto"},
+		{ProfileSafe, "auto"},
+		{ProfileStrict, "auto"},
 	}
 
-	// Check specific preset values
-	auto := presets["auto"]
-	if auto.Gates.DefaultGate != "auto" {
-		t.Errorf("auto profile default gate = %v, want auto", auto.Gates.DefaultGate)
+	for _, tt := range tests {
+		t.Run(string(tt.profile), func(t *testing.T) {
+			preset := ProfilePresets(tt.profile)
+			if preset.DefaultType != tt.wantDefault {
+				t.Errorf("ProfilePresets(%s).DefaultType = %v, want %v", tt.profile, preset.DefaultType, tt.wantDefault)
+			}
+		})
 	}
 
-	strict := presets["strict"]
-	if strict.Gates.DefaultGate != "human" {
-		t.Errorf("strict profile default gate = %v, want human", strict.Gates.DefaultGate)
+	// Check strict has phase overrides
+	strict := ProfilePresets(ProfileStrict)
+	if strict.PhaseOverrides == nil {
+		t.Error("ProfilePresets(strict) should have PhaseOverrides")
+	}
+	if strict.PhaseOverrides["spec"] != "human" {
+		t.Errorf("ProfilePresets(strict).PhaseOverrides[spec] = %v, want human", strict.PhaseOverrides["spec"])
 	}
 }
 
@@ -292,20 +304,20 @@ func TestApplyProfile(t *testing.T) {
 	cfg := Default()
 
 	// Apply strict profile
-	err := cfg.ApplyProfile("strict")
-	if err != nil {
-		t.Fatalf("ApplyProfile(strict) failed: %v", err)
+	cfg.ApplyProfile(ProfileStrict)
+
+	// Verify gates changed - strict has human gates for spec
+	if cfg.Gates.PhaseOverrides == nil {
+		t.Fatal("After ApplyProfile(strict), PhaseOverrides should not be nil")
+	}
+	if cfg.Gates.PhaseOverrides["spec"] != "human" {
+		t.Errorf("After ApplyProfile(strict), PhaseOverrides[spec] = %v, want human", cfg.Gates.PhaseOverrides["spec"])
 	}
 
-	// Verify gates changed
-	if cfg.Gates.DefaultGate != "human" {
-		t.Errorf("After ApplyProfile(strict), DefaultGate = %v, want human", cfg.Gates.DefaultGate)
-	}
-
-	// Apply unknown profile should fail
-	err = cfg.ApplyProfile("nonexistent")
-	if err == nil {
-		t.Error("ApplyProfile(nonexistent) should fail")
+	// Apply auto profile
+	cfg.ApplyProfile(ProfileAuto)
+	if cfg.Profile != ProfileAuto {
+		t.Errorf("After ApplyProfile(auto), Profile = %v, want auto", cfg.Profile)
 	}
 }
 
@@ -326,9 +338,17 @@ func TestLoadFrom_InvalidYAML(t *testing.T) {
 }
 
 func TestLoadFrom_NonExistent(t *testing.T) {
-	_, err := LoadFrom("/nonexistent/path/config.yaml")
-	if err == nil {
-		t.Error("LoadFrom() should fail with non-existent file")
+	// LoadFrom returns default config when file doesn't exist
+	cfg, err := LoadFrom("/nonexistent/path/config.yaml")
+	if err != nil {
+		t.Errorf("LoadFrom() should not error with non-existent file: %v", err)
+	}
+	// Should return default config
+	if cfg == nil {
+		t.Error("LoadFrom() should return default config for non-existent file")
+	}
+	if cfg.Version != 1 {
+		t.Errorf("LoadFrom() default config should have Version=1, got %d", cfg.Version)
 	}
 }
 
