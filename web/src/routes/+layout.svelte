@@ -6,8 +6,14 @@
 	const navItems = [
 		{ href: '/', label: 'Tasks' },
 		{ href: '/prompts', label: 'Prompts' },
-		{ href: '/hooks', label: 'Hooks' },
+		{ href: '/claudemd', label: 'CLAUDE.md' },
 		{ href: '/skills', label: 'Skills' },
+		{ href: '/hooks', label: 'Hooks' },
+		{ href: '/mcp', label: 'MCP' },
+		{ href: '/tools', label: 'Tools' },
+		{ href: '/agents', label: 'Agents' },
+		{ href: '/scripts', label: 'Scripts' },
+		{ href: '/settings', label: 'Settings' },
 		{ href: '/config', label: 'Config' }
 	];
 

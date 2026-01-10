@@ -14,6 +14,7 @@ import (
 	"github.com/randalmurphal/flowgraph/pkg/flowgraph"
 	"github.com/randalmurphal/flowgraph/pkg/flowgraph/checkpoint"
 	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/llmkit/claudeconfig"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
@@ -62,6 +63,10 @@ type Config struct {
 	ClaudePath                 string
 	Model                      string
 	DangerouslySkipPermissions bool
+
+	// Tool permissions (from project settings)
+	AllowedTools    []string
+	DisallowedTools []string
 
 	// Execution settings
 	MaxIterations int
@@ -169,6 +174,14 @@ func New(cfg *Config) *Executor {
 		clientOpts = append(clientOpts, claude.WithDangerouslySkipPermissions())
 	}
 
+	// Apply tool permissions
+	if len(cfg.AllowedTools) > 0 {
+		clientOpts = append(clientOpts, claude.WithAllowedTools(cfg.AllowedTools))
+	}
+	if len(cfg.DisallowedTools) > 0 {
+		clientOpts = append(clientOpts, claude.WithDisallowedTools(cfg.DisallowedTools))
+	}
+
 	client := claude.NewClaudeCLI(clientOpts...)
 
 	// Create checkpoint store if enabled
@@ -222,6 +235,69 @@ func (e *Executor) taskDir(taskID string) string {
 // SetClient sets the Claude client (for testing).
 func (e *Executor) SetClient(c claude.Client) {
 	e.client = c
+}
+
+// LoadProjectToolPermissions loads tool permissions from the project's .claude/settings.json
+// and applies them to the executor config if not already set.
+// This allows project-level tool restrictions to be enforced during execution.
+func (e *Executor) LoadProjectToolPermissions(projectRoot string) error {
+	// Only load if not already configured
+	if len(e.config.AllowedTools) > 0 || len(e.config.DisallowedTools) > 0 {
+		return nil // Already configured, don't override
+	}
+
+	settings, err := claudeconfig.LoadProjectSettings(projectRoot)
+	if err != nil {
+		// No settings file is OK - no tool restrictions
+		return nil
+	}
+
+	// Check for tool permissions in settings extensions
+	perms, err := claudeconfig.GetToolPermissions(settings)
+	if err != nil || perms == nil || perms.IsEmpty() {
+		return nil
+	}
+
+	// Apply permissions to config
+	if len(perms.Allow) > 0 {
+		e.config.AllowedTools = perms.Allow
+		e.logger.Info("loaded allowed tools from project settings", "tools", perms.Allow)
+	}
+	if len(perms.Deny) > 0 {
+		e.config.DisallowedTools = perms.Deny
+		e.logger.Info("loaded disallowed tools from project settings", "tools", perms.Deny)
+	}
+
+	// Rebuild client with new permissions
+	if len(e.config.AllowedTools) > 0 || len(e.config.DisallowedTools) > 0 {
+		e.rebuildClient()
+	}
+
+	return nil
+}
+
+// rebuildClient recreates the Claude client with current config settings.
+func (e *Executor) rebuildClient() {
+	clientOpts := []claude.ClaudeOption{
+		claude.WithModel(e.config.Model),
+		claude.WithWorkdir(e.config.WorkDir),
+		claude.WithTimeout(e.config.Timeout),
+	}
+
+	if e.config.ClaudePath != "" {
+		clientOpts = append(clientOpts, claude.WithClaudePath(e.config.ClaudePath))
+	}
+	if e.config.DangerouslySkipPermissions {
+		clientOpts = append(clientOpts, claude.WithDangerouslySkipPermissions())
+	}
+	if len(e.config.AllowedTools) > 0 {
+		clientOpts = append(clientOpts, claude.WithAllowedTools(e.config.AllowedTools))
+	}
+	if len(e.config.DisallowedTools) > 0 {
+		clientOpts = append(clientOpts, claude.WithDisallowedTools(e.config.DisallowedTools))
+	}
+
+	e.client = claude.NewClaudeCLI(clientOpts...)
 }
 
 // publish sends an event if a publisher is configured.
@@ -618,6 +694,13 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		}
 		if e.config.DangerouslySkipPermissions {
 			worktreeClientOpts = append(worktreeClientOpts, claude.WithDangerouslySkipPermissions())
+		}
+		// Apply tool permissions to worktree client
+		if len(e.config.AllowedTools) > 0 {
+			worktreeClientOpts = append(worktreeClientOpts, claude.WithAllowedTools(e.config.AllowedTools))
+		}
+		if len(e.config.DisallowedTools) > 0 {
+			worktreeClientOpts = append(worktreeClientOpts, claude.WithDisallowedTools(e.config.DisallowedTools))
 		}
 		e.client = claude.NewClaudeCLI(worktreeClientOpts...)
 		e.logger.Info("claude client configured for worktree", "path", worktreePath)

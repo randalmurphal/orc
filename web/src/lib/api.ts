@@ -136,69 +136,73 @@ export async function deletePrompt(phase: string): Promise<void> {
 	}
 }
 
-// Hooks
-export type HookType = 'pre:tool' | 'post:tool' | 'pre:command' | 'post:command' | 'prompt:submit';
+// Hooks (settings.json format)
+export type HookEvent = 'PreToolUse' | 'PostToolUse' | 'PreCompact' | 'PrePrompt' | 'Stop';
 
-export interface HookInfo {
-	name: string;
-	type: HookType;
-	pattern?: string;
-	disabled: boolean;
+export interface HookEntry {
+	type: string;
+	command: string;
 }
 
 export interface Hook {
-	name: string;
-	type: HookType;
-	pattern?: string;
-	command: string;
-	timeout?: number;
-	disabled?: boolean;
+	matcher: string;
+	hooks: HookEntry[];
 }
 
-export async function listHooks(): Promise<HookInfo[]> {
-	return fetchJSON<HookInfo[]>('/hooks');
+// Hooks are stored as map[event][]Hook
+export type HooksMap = Record<string, Hook[]>;
+
+export async function listHooks(): Promise<HooksMap> {
+	return fetchJSON<HooksMap>('/hooks');
 }
 
-export async function getHookTypes(): Promise<HookType[]> {
-	return fetchJSON<HookType[]>('/hooks/types');
+export async function getHookTypes(): Promise<HookEvent[]> {
+	return fetchJSON<HookEvent[]>('/hooks/types');
 }
 
-export async function getHook(name: string): Promise<Hook> {
-	return fetchJSON<Hook>(`/hooks/${name}`);
+export async function getHook(event: string): Promise<Hook[]> {
+	return fetchJSON<Hook[]>(`/hooks/${event}`);
 }
 
-export async function createHook(hook: Hook): Promise<Hook> {
-	return fetchJSON<Hook>('/hooks', {
+export async function createHook(event: string, hook: Hook): Promise<Hook[]> {
+	return fetchJSON<Hook[]>('/hooks', {
 		method: 'POST',
-		body: JSON.stringify(hook)
+		body: JSON.stringify({ event, hook })
 	});
 }
 
-export async function updateHook(name: string, hook: Hook): Promise<Hook> {
-	return fetchJSON<Hook>(`/hooks/${name}`, {
+export async function updateHook(event: string, hooks: Hook[]): Promise<Hook[]> {
+	return fetchJSON<Hook[]>(`/hooks/${event}`, {
 		method: 'PUT',
-		body: JSON.stringify(hook)
+		body: JSON.stringify({ hooks })
 	});
 }
 
-export async function deleteHook(name: string): Promise<void> {
-	const res = await fetch(`${API_BASE}/hooks/${name}`, { method: 'DELETE' });
+export async function deleteHook(event: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/hooks/${event}`, { method: 'DELETE' });
 	if (!res.ok && res.status !== 204) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Request failed');
 	}
 }
 
-// Skills
+// Skills (SKILL.md format)
 export interface SkillInfo {
 	name: string;
 	description: string;
+	path: string;
 }
 
 export interface Skill {
 	name: string;
 	description: string;
-	prompt: string;
+	content: string;
+	allowed_tools?: string[];
+	version?: string;
+	path?: string;
+	has_references?: boolean;
+	has_scripts?: boolean;
+	has_assets?: boolean;
 }
 
 export async function listSkills(): Promise<SkillInfo[]> {
@@ -349,6 +353,254 @@ export async function createProjectTask(projectId: string, title: string, descri
 	});
 }
 
+// Settings (Claude Code settings.json)
+export interface Settings {
+	env?: Record<string, string>;
+	hooks?: HooksMap;
+	enabledPlugins?: Record<string, boolean>;
+	statusLine?: {
+		type?: string;
+		command?: string;
+	};
+	extensions?: Record<string, unknown>;
+}
+
+export async function getSettings(): Promise<Settings> {
+	return fetchJSON<Settings>('/settings');
+}
+
+export async function getProjectSettings(): Promise<Settings> {
+	return fetchJSON<Settings>('/settings/project');
+}
+
+export async function updateSettings(settings: Settings): Promise<Settings> {
+	return fetchJSON<Settings>('/settings', {
+		method: 'PUT',
+		body: JSON.stringify(settings)
+	});
+}
+
+// Tools
+export interface ToolInfo {
+	name: string;
+	description: string;
+	category: string;
+}
+
+export interface ToolPermissions {
+	allow?: string[];
+	deny?: string[];
+}
+
+export interface ToolsByCategory {
+	[category: string]: ToolInfo[];
+}
+
+export async function listTools(): Promise<ToolInfo[]> {
+	return fetchJSON<ToolInfo[]>('/tools');
+}
+
+export async function listToolsByCategory(): Promise<ToolsByCategory> {
+	return fetchJSON<ToolsByCategory>('/tools?by_category=true');
+}
+
+export async function getToolPermissions(): Promise<ToolPermissions> {
+	return fetchJSON<ToolPermissions>('/tools/permissions');
+}
+
+export async function updateToolPermissions(perms: ToolPermissions): Promise<ToolPermissions> {
+	return fetchJSON<ToolPermissions>('/tools/permissions', {
+		method: 'PUT',
+		body: JSON.stringify(perms)
+	});
+}
+
+// Agents (sub-agent definitions)
+export interface SubAgent {
+	name: string;
+	description: string;
+	model?: string;
+	tools?: ToolPermissions;
+	prompt?: string;
+	work_dir?: string;
+	skill_refs?: string[];
+	timeout?: string;
+}
+
+export async function listAgents(): Promise<SubAgent[]> {
+	return fetchJSON<SubAgent[]>('/agents');
+}
+
+export async function getAgent(name: string): Promise<SubAgent> {
+	return fetchJSON<SubAgent>(`/agents/${name}`);
+}
+
+export async function createAgent(agent: SubAgent): Promise<SubAgent> {
+	return fetchJSON<SubAgent>('/agents', {
+		method: 'POST',
+		body: JSON.stringify(agent)
+	});
+}
+
+export async function updateAgent(name: string, agent: SubAgent): Promise<SubAgent> {
+	return fetchJSON<SubAgent>(`/agents/${name}`, {
+		method: 'PUT',
+		body: JSON.stringify(agent)
+	});
+}
+
+export async function deleteAgent(name: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/agents/${name}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+}
+
+// Scripts (project script registry)
+export interface ProjectScript {
+	name: string;
+	path: string;
+	description: string;
+	language?: string;
+}
+
+export async function listScripts(): Promise<ProjectScript[]> {
+	return fetchJSON<ProjectScript[]>('/scripts');
+}
+
+export async function getScript(name: string): Promise<ProjectScript> {
+	return fetchJSON<ProjectScript>(`/scripts/${name}`);
+}
+
+export async function createScript(script: ProjectScript): Promise<ProjectScript> {
+	return fetchJSON<ProjectScript>('/scripts', {
+		method: 'POST',
+		body: JSON.stringify(script)
+	});
+}
+
+export async function updateScript(name: string, script: ProjectScript): Promise<ProjectScript> {
+	return fetchJSON<ProjectScript>(`/scripts/${name}`, {
+		method: 'PUT',
+		body: JSON.stringify(script)
+	});
+}
+
+export async function deleteScript(name: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/scripts/${name}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+}
+
+export async function discoverScripts(): Promise<ProjectScript[]> {
+	return fetchJSON<ProjectScript[]>('/scripts/discover', {
+		method: 'POST'
+	});
+}
+
+// CLAUDE.md
+export interface ClaudeMD {
+	path: string;
+	content: string;
+	is_global: boolean;
+	source: 'global' | 'user' | 'project' | 'local';
+}
+
+export interface ClaudeMDHierarchy {
+	global?: ClaudeMD;
+	user?: ClaudeMD;
+	project?: ClaudeMD;
+	local?: ClaudeMD[];
+}
+
+export async function getClaudeMD(): Promise<ClaudeMD> {
+	return fetchJSON<ClaudeMD>('/claudemd');
+}
+
+export async function updateClaudeMD(content: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/claudemd`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ content })
+	});
+	if (!res.ok) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+}
+
+export async function getClaudeMDHierarchy(): Promise<ClaudeMDHierarchy> {
+	return fetchJSON<ClaudeMDHierarchy>('/claudemd/hierarchy');
+}
+
+// MCP Servers (.mcp.json)
+export interface MCPServerInfo {
+	name: string;
+	type: string;
+	command?: string;
+	url?: string;
+	disabled: boolean;
+	has_env: boolean;
+	env_count: number;
+	args_count: number;
+}
+
+export interface MCPServer {
+	name: string;
+	type: string;
+	command?: string;
+	args?: string[];
+	env?: Record<string, string>;
+	url?: string;
+	headers?: string[];
+	disabled: boolean;
+}
+
+export interface MCPServerCreate {
+	name: string;
+	type?: string;
+	command?: string;
+	args?: string[];
+	env?: Record<string, string>;
+	url?: string;
+	headers?: string[];
+	disabled?: boolean;
+}
+
+export async function listMCPServers(): Promise<MCPServerInfo[]> {
+	return fetchJSON<MCPServerInfo[]>('/mcp');
+}
+
+export async function getMCPServer(name: string): Promise<MCPServer> {
+	return fetchJSON<MCPServer>(`/mcp/${name}`);
+}
+
+export async function createMCPServer(server: MCPServerCreate): Promise<MCPServerInfo> {
+	return fetchJSON<MCPServerInfo>('/mcp', {
+		method: 'POST',
+		body: JSON.stringify(server)
+	});
+}
+
+export async function updateMCPServer(name: string, server: Partial<MCPServerCreate>): Promise<MCPServerInfo> {
+	return fetchJSON<MCPServerInfo>(`/mcp/${name}`, {
+		method: 'PUT',
+		body: JSON.stringify(server)
+	});
+}
+
+export async function deleteMCPServer(name: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/mcp/${name}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+}
+
+// Project Task operations
 export async function getProjectTask(projectId: string, taskId: string): Promise<Task> {
 	return fetchJSON<Task>(`/projects/${projectId}/tasks/${taskId}`);
 }
