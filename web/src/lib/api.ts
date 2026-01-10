@@ -20,7 +20,21 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // Tasks
-export async function listTasks(): Promise<Task[]> {
+export interface PaginatedTasks {
+	tasks: Task[];
+	total: number;
+	page: number;
+	limit: number;
+	total_pages: number;
+}
+
+export async function listTasks(options?: { page?: number; limit?: number }): Promise<Task[] | PaginatedTasks> {
+	if (options?.page || options?.limit) {
+		const params = new URLSearchParams();
+		if (options.page) params.set('page', String(options.page));
+		if (options.limit) params.set('limit', String(options.limit));
+		return fetchJSON<PaginatedTasks>(`/tasks?${params}`);
+	}
 	return fetchJSON<Task[]>('/tasks');
 }
 
@@ -55,6 +69,14 @@ export async function pauseTask(id: string): Promise<{ status: string; task_id: 
 
 export async function resumeTask(id: string): Promise<{ status: string; task_id: string }> {
 	return fetchJSON(`/tasks/${id}/resume`, { method: 'POST' });
+}
+
+export async function deleteTask(id: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/tasks/${id}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to delete task');
+	}
 }
 
 // Transcripts
@@ -207,6 +229,56 @@ export async function deleteSkill(name: string): Promise<void> {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Request failed');
 	}
+}
+
+// Config
+export interface Config {
+	version: string;
+	profile: string;
+	automation: {
+		profile: string;
+		gates_default: string;
+		retry_enabled: boolean;
+		retry_max: number;
+	};
+	execution: {
+		model: string;
+		max_iterations: number;
+		timeout: string;
+	};
+	git: {
+		branch_prefix: string;
+		commit_prefix: string;
+	};
+}
+
+export interface ConfigUpdateRequest {
+	profile?: string;
+	automation?: {
+		gates_default?: string;
+		retry_enabled?: boolean;
+		retry_max?: number;
+	};
+	execution?: {
+		model?: string;
+		max_iterations?: number;
+		timeout?: string;
+	};
+	git?: {
+		branch_prefix?: string;
+		commit_prefix?: string;
+	};
+}
+
+export async function getConfig(): Promise<Config> {
+	return fetchJSON<Config>('/config');
+}
+
+export async function updateConfig(req: ConfigUpdateRequest): Promise<Config> {
+	return fetchJSON<Config>('/config', {
+		method: 'PUT',
+		body: JSON.stringify(req)
+	});
 }
 
 // SSE streaming

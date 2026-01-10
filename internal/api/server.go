@@ -159,6 +159,7 @@ func (s *Server) registerRoutes() {
 
 	// Config
 	s.mux.HandleFunc("GET /api/config", cors(s.handleGetConfig))
+	s.mux.HandleFunc("PUT /api/config", cors(s.handleUpdateConfig))
 }
 
 // Start starts the API server.
@@ -204,7 +205,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
-// handleListTasks returns all tasks.
+// handleListTasks returns all tasks with optional pagination.
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	tasks, err := task.LoadAll()
 	if err != nil {
@@ -217,7 +218,66 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		tasks = []*task.Task{}
 	}
 
-	s.jsonResponse(w, tasks)
+	// Check for pagination params
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	// If no pagination requested, return all tasks (backward compatible)
+	if pageStr == "" && limitStr == "" {
+		s.jsonResponse(w, tasks)
+		return
+	}
+
+	// Parse pagination params
+	page := 1
+	limit := 20 // default limit
+	if pageStr != "" {
+		if p, err := parsePositiveInt(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if limitStr != "" {
+		if l, err := parsePositiveInt(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	// Calculate pagination
+	total := len(tasks)
+	totalPages := (total + limit - 1) / limit
+	start := (page - 1) * limit
+	end := start + limit
+
+	// Bounds checking
+	if start >= total {
+		start = total
+		end = total
+	}
+	if end > total {
+		end = total
+	}
+
+	pagedTasks := tasks[start:end]
+
+	s.jsonResponse(w, map[string]any{
+		"tasks":       pagedTasks,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": totalPages,
+	})
+}
+
+// parsePositiveInt parses a string to a positive integer.
+func parsePositiveInt(s string) (int, error) {
+	var n int
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return 0, fmt.Errorf("invalid number")
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n, nil
 }
 
 // handleCreateTask creates a new task.
@@ -304,8 +364,27 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 
 // handleDeleteTask deletes a task.
 func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement task deletion
-	s.jsonError(w, "not implemented", http.StatusNotImplemented)
+	id := r.PathValue("id")
+
+	// Check if task is running
+	t, err := task.Load(id)
+	if err != nil {
+		s.jsonError(w, "task not found", http.StatusNotFound)
+		return
+	}
+
+	if t.Status == task.StatusRunning {
+		s.jsonError(w, "cannot delete running task", http.StatusConflict)
+		return
+	}
+
+	// Delete task
+	if err := task.Delete(id); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to delete task: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleGetState returns task execution state.
@@ -543,6 +622,111 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 		cfg = config.Default()
 	}
 
+	s.jsonResponse(w, map[string]any{
+		"version": "1.0.0",
+		"profile": cfg.Profile,
+		"automation": map[string]any{
+			"profile":       cfg.Profile,
+			"gates_default": cfg.Gates.DefaultType,
+			"retry_enabled": cfg.Retry.Enabled,
+			"retry_max":     cfg.Retry.MaxRetries,
+		},
+		"execution": map[string]any{
+			"model":          cfg.Model,
+			"max_iterations": cfg.MaxIterations,
+			"timeout":        cfg.Timeout.String(),
+		},
+		"git": map[string]any{
+			"branch_prefix": cfg.BranchPrefix,
+			"commit_prefix": cfg.CommitPrefix,
+		},
+	})
+}
+
+// ConfigUpdateRequest represents a config update request.
+type ConfigUpdateRequest struct {
+	Profile   string `json:"profile,omitempty"`
+	Automation *struct {
+		GatesDefault string `json:"gates_default,omitempty"`
+		RetryEnabled *bool  `json:"retry_enabled,omitempty"`
+		RetryMax     *int   `json:"retry_max,omitempty"`
+	} `json:"automation,omitempty"`
+	Execution *struct {
+		Model         string `json:"model,omitempty"`
+		MaxIterations *int   `json:"max_iterations,omitempty"`
+		Timeout       string `json:"timeout,omitempty"`
+	} `json:"execution,omitempty"`
+	Git *struct {
+		BranchPrefix string `json:"branch_prefix,omitempty"`
+		CommitPrefix string `json:"commit_prefix,omitempty"`
+	} `json:"git,omitempty"`
+}
+
+// handleUpdateConfig updates orc configuration.
+func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
+	var req ConfigUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Load existing config
+	cfg, err := config.Load()
+	if err != nil {
+		cfg = config.Default()
+	}
+
+	// Apply profile if specified
+	if req.Profile != "" {
+		profile := config.AutomationProfile(req.Profile)
+		cfg.ApplyProfile(profile)
+	}
+
+	// Apply automation settings
+	if req.Automation != nil {
+		if req.Automation.GatesDefault != "" {
+			cfg.Gates.DefaultType = req.Automation.GatesDefault
+		}
+		if req.Automation.RetryEnabled != nil {
+			cfg.Retry.Enabled = *req.Automation.RetryEnabled
+		}
+		if req.Automation.RetryMax != nil {
+			cfg.Retry.MaxRetries = *req.Automation.RetryMax
+		}
+	}
+
+	// Apply execution settings
+	if req.Execution != nil {
+		if req.Execution.Model != "" {
+			cfg.Model = req.Execution.Model
+		}
+		if req.Execution.MaxIterations != nil {
+			cfg.MaxIterations = *req.Execution.MaxIterations
+		}
+		if req.Execution.Timeout != "" {
+			if d, err := time.ParseDuration(req.Execution.Timeout); err == nil {
+				cfg.Timeout = d
+			}
+		}
+	}
+
+	// Apply git settings
+	if req.Git != nil {
+		if req.Git.BranchPrefix != "" {
+			cfg.BranchPrefix = req.Git.BranchPrefix
+		}
+		if req.Git.CommitPrefix != "" {
+			cfg.CommitPrefix = req.Git.CommitPrefix
+		}
+	}
+
+	// Save config
+	if err := cfg.Save(); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to save config: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return updated config
 	s.jsonResponse(w, map[string]any{
 		"version": "1.0.0",
 		"profile": cfg.Profile,

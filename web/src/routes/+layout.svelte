@@ -1,5 +1,22 @@
 <script lang="ts">
 	import '../app.css';
+	import { page } from '$app/stores';
+
+	const navItems = [
+		{ href: '/', label: 'Tasks' },
+		{ href: '/prompts', label: 'Prompts' },
+		{ href: '/hooks', label: 'Hooks' },
+		{ href: '/skills', label: 'Skills' },
+		{ href: '/config', label: 'Config' }
+	];
+
+	function isActive(href: string, currentPath: string): boolean {
+		if (href === '/') {
+			// Tasks is active on / and /tasks/*
+			return currentPath === '/' || currentPath.startsWith('/tasks');
+		}
+		return currentPath.startsWith(href);
+	}
 </script>
 
 <div class="app">
@@ -7,11 +24,14 @@
 		<nav>
 			<a href="/" class="logo">orc</a>
 			<div class="nav-links">
-				<a href="/">Tasks</a>
-				<a href="/prompts">Prompts</a>
-				<a href="/hooks">Hooks</a>
-				<a href="/skills">Skills</a>
-				<a href="/config">Config</a>
+				{#each navItems as item}
+					<a
+						href={item.href}
+						class:active={isActive(item.href, $page.url.pathname)}
+					>
+						{item.label}
+					</a>
+				{/each}
 			</div>
 		</nav>
 	</header>
@@ -57,11 +77,19 @@
 	.nav-links a {
 		color: var(--text-secondary);
 		font-size: 0.875rem;
+		padding: 0.25rem 0;
+		border-bottom: 2px solid transparent;
+		transition: color 0.15s, border-color 0.15s;
 	}
 
 	.nav-links a:hover {
 		color: var(--text-primary);
 		text-decoration: none;
+	}
+
+	.nav-links a.active {
+		color: var(--accent-primary);
+		border-bottom-color: var(--accent-primary);
 	}
 
 	main {
