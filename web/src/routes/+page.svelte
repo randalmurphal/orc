@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { listTasks, createTask, runTask, pauseTask, deleteTask, listProjectTasks, createProjectTask, type PaginatedTasks } from '$lib/api';
+	import { listTasks, createTask, runTask, pauseTask, resumeTask, deleteTask, listProjectTasks, createProjectTask, runProjectTask, pauseProjectTask, resumeProjectTask, deleteProjectTask, type PaginatedTasks } from '$lib/api';
 	import type { Task } from '$lib/types';
 	import TaskCard from '$lib/components/TaskCard.svelte';
 	import { currentProjectId, currentProject } from '$lib/stores/project';
@@ -76,7 +76,11 @@
 
 	async function handleRunTask(id: string) {
 		try {
-			await runTask(id);
+			if ($currentProjectId) {
+				await runProjectTask($currentProjectId, id);
+			} else {
+				await runTask(id);
+			}
 			await loadTasks();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to run task';
@@ -85,16 +89,37 @@
 
 	async function handlePauseTask(id: string) {
 		try {
-			await pauseTask(id);
+			if ($currentProjectId) {
+				await pauseProjectTask($currentProjectId, id);
+			} else {
+				await pauseTask(id);
+			}
 			await loadTasks();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to pause task';
 		}
 	}
 
+	async function handleResumeTask(id: string) {
+		try {
+			if ($currentProjectId) {
+				await resumeProjectTask($currentProjectId, id);
+			} else {
+				await resumeTask(id);
+			}
+			await loadTasks();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to resume task';
+		}
+	}
+
 	async function handleDeleteTask(id: string) {
 		try {
-			await deleteTask(id);
+			if ($currentProjectId) {
+				await deleteProjectTask($currentProjectId, id);
+			} else {
+				await deleteTask(id);
+			}
 			await loadTasks();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to delete task';
@@ -181,6 +206,7 @@
 						{task}
 						onRun={() => handleRunTask(task.id)}
 						onPause={() => handlePauseTask(task.id)}
+						onResume={() => handleResumeTask(task.id)}
 						onDelete={() => handleDeleteTask(task.id)}
 					/>
 				{/each}
@@ -235,6 +261,7 @@
 								{task}
 								onRun={() => handleRunTask(task.id)}
 								onPause={() => handlePauseTask(task.id)}
+								onResume={() => handleResumeTask(task.id)}
 								onDelete={() => handleDeleteTask(task.id)}
 							/>
 						{/each}

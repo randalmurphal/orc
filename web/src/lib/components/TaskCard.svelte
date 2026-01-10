@@ -5,10 +5,11 @@
 		task: Task;
 		onRun?: () => void;
 		onPause?: () => void;
+		onResume?: () => void;
 		onDelete?: () => void;
 	}
 
-	let { task, onRun, onPause, onDelete }: Props = $props();
+	let { task, onRun, onPause, onResume, onDelete }: Props = $props();
 
 	const statusColors: Record<string, string> = {
 		created: 'var(--text-secondary)',
@@ -63,6 +64,12 @@
 			onDelete?.();
 		}
 	}
+
+	function handleResume(e: Event) {
+		e.stopPropagation();
+		e.preventDefault();
+		onResume?.();
+	}
 </script>
 
 <a href="/tasks/{task.id}" class="task-card">
@@ -89,7 +96,9 @@
 	<div class="task-actions">
 		{#if task.status === 'running' && onPause}
 			<button class="control-btn" onclick={handlePause}>Pause</button>
-		{:else if ['created', 'planned', 'paused'].includes(task.status) && onRun}
+		{:else if task.status === 'paused' && onResume}
+			<button class="control-btn primary" onclick={handleResume}>Resume</button>
+		{:else if ['created', 'planned'].includes(task.status) && onRun}
 			<button class="control-btn primary" onclick={handleRun}>Run</button>
 		{/if}
 		{#if task.status !== 'running' && onDelete}

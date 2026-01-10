@@ -8,18 +8,30 @@ export const nodes = [
 	() => import('./nodes/4'),
 	() => import('./nodes/5'),
 	() => import('./nodes/6'),
-	() => import('./nodes/7')
+	() => import('./nodes/7'),
+	() => import('./nodes/8'),
+	() => import('./nodes/9'),
+	() => import('./nodes/10'),
+	() => import('./nodes/11'),
+	() => import('./nodes/12'),
+	() => import('./nodes/13')
 ];
 
 export const server_loads = [];
 
 export const dictionary = {
 		"/": [2],
-		"/config": [3],
-		"/hooks": [4],
-		"/prompts": [5],
-		"/skills": [6],
-		"/tasks/[id]": [7]
+		"/agents": [3],
+		"/claudemd": [4],
+		"/config": [5],
+		"/hooks": [6],
+		"/mcp": [7],
+		"/prompts": [8],
+		"/scripts": [9],
+		"/settings": [10],
+		"/skills": [11],
+		"/tasks/[id]": [12],
+		"/tools": [13]
 	};
 
 export const hooks = {
