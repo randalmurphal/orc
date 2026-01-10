@@ -163,6 +163,7 @@ func (s *Server) registerRoutes() {
 
 	// Settings (Claude Code settings.json with inheritance)
 	s.mux.HandleFunc("GET /api/settings", cors(s.handleGetSettings))
+	s.mux.HandleFunc("GET /api/settings/global", cors(s.handleGetGlobalSettings))
 	s.mux.HandleFunc("GET /api/settings/project", cors(s.handleGetProjectSettings))
 	s.mux.HandleFunc("PUT /api/settings", cors(s.handleUpdateSettings))
 
@@ -2015,6 +2016,17 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	settings, err := claudeconfig.LoadSettings(s.getProjectRoot())
 	if err != nil {
 		// Return empty settings on error
+		s.jsonResponse(w, &claudeconfig.Settings{})
+		return
+	}
+
+	s.jsonResponse(w, settings)
+}
+
+// handleGetGlobalSettings returns global-only settings from ~/.claude/settings.json.
+func (s *Server) handleGetGlobalSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := claudeconfig.LoadGlobalSettings()
+	if err != nil {
 		s.jsonResponse(w, &claudeconfig.Settings{})
 		return
 	}
