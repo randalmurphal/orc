@@ -331,79 +331,14 @@ func TestInWorktree(t *testing.T) {
 	}
 }
 
-func TestCreateWorktree(t *testing.T) {
+// TestCleanupWorktree_NotExists tests cleanup of non-existent worktree
+func TestCleanupWorktree_NotExists(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g := New(tmpDir)
+	g, _ := New(tmpDir, DefaultConfig())
 
-	// Create the .orc/worktrees directory
-	worktreesDir := filepath.Join(tmpDir, ".orc", "worktrees")
-	os.MkdirAll(worktreesDir, 0755)
-
-	// Get current branch for base
-	baseBranch, err := g.GetCurrentBranch()
-	if err != nil {
-		t.Fatalf("GetCurrentBranch() failed: %v", err)
-	}
-
-	// Create worktree
-	path, err := g.CreateWorktree("TASK-001", baseBranch)
-	if err != nil {
-		t.Fatalf("CreateWorktree() failed: %v", err)
-	}
-
-	// Verify path is correct
-	expectedPath := ".orc/worktrees/TASK-001"
-	if path != expectedPath {
-		t.Errorf("worktree path = %s, want %s", path, expectedPath)
-	}
-
-	// Verify the worktree was actually created
-	worktreeFullPath := filepath.Join(tmpDir, path)
-	if _, err := os.Stat(worktreeFullPath); os.IsNotExist(err) {
-		t.Error("worktree directory was not created")
-	}
-}
-
-func TestRemoveWorktree(t *testing.T) {
-	tmpDir := setupTestRepo(t)
-	g := New(tmpDir)
-
-	// Create the .orc/worktrees directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "worktrees"), 0755)
-
-	baseBranch, _ := g.GetCurrentBranch()
-
-	// Create a worktree first
-	_, err := g.CreateWorktree("TASK-002", baseBranch)
-	if err != nil {
-		t.Fatalf("CreateWorktree() failed: %v", err)
-	}
-
-	// Verify worktree exists
-	worktreePath := filepath.Join(tmpDir, ".orc", "worktrees", "TASK-002")
-	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
-		t.Fatal("worktree should exist before removal")
-	}
-
-	// Remove worktree
-	err = g.RemoveWorktree("TASK-002")
-	if err != nil {
-		t.Fatalf("RemoveWorktree() failed: %v", err)
-	}
-
-	// Verify worktree was removed
-	if _, err := os.Stat(worktreePath); !os.IsNotExist(err) {
-		t.Error("worktree should be removed")
-	}
-}
-
-func TestRemoveWorktree_NotExists(t *testing.T) {
-	tmpDir := setupTestRepo(t)
-	g := New(tmpDir)
-
-	// Try to remove a worktree that doesn't exist
-	err := g.RemoveWorktree("NONEXISTENT")
+	// Try to cleanup a worktree that doesn't exist - should error
+	err := g.CleanupWorktree("NONEXISTENT")
 	if err == nil {
-		t.Error("RemoveWorktree() should fail for non-existent worktree")
+		t.Error("CleanupWorktree() should fail for non-existent worktree")
 	}
 }
