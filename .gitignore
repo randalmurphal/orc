@@ -1,12 +1,22 @@
 # Build output
 orc
 *.exe
+bin/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# Web build artifacts
+web/.svelte-kit/
+web/build/
+web/node_modules/
+
+# Test artifacts
+coverage.out
+*.test
 
 # Claude Code local state
 .claude/*.local.md
