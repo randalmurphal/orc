@@ -154,3 +154,110 @@ func TestFormatDuration(t *testing.T) {
 type testError string
 
 func (e testError) Error() string { return string(e) }
+
+// === Non-Quiet Mode Tests (for coverage of print statements) ===
+
+func TestPhaseStart_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Should not panic and should execute the print paths
+	d.PhaseStart("implement", 30)
+
+	if d.phase != "implement" {
+		t.Errorf("phase = %s, want implement", d.phase)
+	}
+}
+
+func TestUpdate_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+	d.PhaseStart("implement", 30)
+
+	// Should not panic and should execute the print paths
+	d.Update(5, 1000)
+
+	if d.iteration != 5 {
+		t.Errorf("iteration = %d, want 5", d.iteration)
+	}
+}
+
+func TestPhaseComplete_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+	d.PhaseStart("implement", 30)
+
+	// Should not panic
+	d.PhaseComplete("implement", "abc1234567890")
+}
+
+func TestPhaseComplete_ShortCommit(t *testing.T) {
+	d := New("TASK-001", false)
+	d.PhaseStart("test", 10)
+
+	// Short commit (less than 7 chars)
+	d.PhaseComplete("test", "abc")
+}
+
+func TestPhaseFailed_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Should not panic
+	d.PhaseFailed("implement", testError("test error"))
+}
+
+func TestGatePending_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Test all gate types
+	d.GatePending("spec", "human")
+	d.GatePending("implement", "ai")
+	d.GatePending("test", "auto")
+	d.GatePending("validate", "unknown") // default icon
+}
+
+func TestGateApproved_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Should not panic
+	d.GateApproved("spec")
+}
+
+func TestGateRejected_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Should not panic
+	d.GateRejected("spec", "needs more detail")
+}
+
+func TestTaskComplete_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Should not panic
+	d.TaskComplete(5000, 10*time.Minute)
+}
+
+func TestTaskFailed_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Should not panic
+	d.TaskFailed(testError("something went wrong"))
+}
+
+func TestTaskInterrupted_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Should not panic
+	d.TaskInterrupted()
+}
+
+func TestInfo_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Should not panic
+	d.Info("info message")
+}
+
+func TestWarning_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Should not panic
+	d.Warning("warning message")
+}
