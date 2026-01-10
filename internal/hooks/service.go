@@ -39,6 +39,16 @@ type HookInfo struct {
 	Disabled bool     `json:"disabled"`
 }
 
+// isValidHookType checks if the given type is a valid hook type.
+func isValidHookType(t HookType) bool {
+	switch t {
+	case HookPreTool, HookPostTool, HookPreCommand, HookPostCommand, HookPromptSubmit:
+		return true
+	default:
+		return false
+	}
+}
+
 // Service manages Claude Code hooks.
 type Service struct {
 	claudeDir string
@@ -135,6 +145,10 @@ func (s *Service) Create(hook Hook) error {
 		return fmt.Errorf("hook type is required")
 	}
 
+	if !isValidHookType(hook.Type) {
+		return fmt.Errorf("invalid hook type: %s", hook.Type)
+	}
+
 	if hook.Command == "" {
 		return fmt.Errorf("hook command is required")
 	}
@@ -156,15 +170,25 @@ func (s *Service) Update(name string, hook Hook) error {
 		return fmt.Errorf("hook not found: %s", name)
 	}
 
-	// If name changed, delete old file
+	// Validate required fields
+	if hook.Type != "" && !isValidHookType(hook.Type) {
+		return fmt.Errorf("invalid hook type: %s", hook.Type)
+	}
+
+	// If name changed, save new file first, then delete old (safe rename)
 	if hook.Name != "" && hook.Name != name {
+		// Save new hook first
+		if err := s.save(hook); err != nil {
+			return fmt.Errorf("save new hook: %w", err)
+		}
+		// Then delete old file
 		if err := os.Remove(path); err != nil {
 			return fmt.Errorf("remove old hook: %w", err)
 		}
-	} else {
-		hook.Name = name
+		return nil
 	}
 
+	hook.Name = name
 	return s.save(hook)
 }
 

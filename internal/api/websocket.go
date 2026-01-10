@@ -142,21 +142,19 @@ func (h *WSHandler) writePump(c *wsConnection) {
 				return
 			}
 
-			w, err := c.conn.NextWriter(websocket.TextMessage)
-			if err != nil {
+			// Send message as individual WebSocket frame (not batched to avoid invalid JSON)
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				return
 			}
-			w.Write(message)
 
-			// Drain queued messages
+			// Send any queued messages as separate frames
 			n := len(c.send)
 			for i := 0; i < n; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-c.send)
-			}
-
-			if err := w.Close(); err != nil {
-				return
+				c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+				if err := c.conn.WriteMessage(websocket.TextMessage, <-c.send); err != nil {
+					return
+				}
 			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
@@ -182,6 +180,9 @@ func (h *WSHandler) handleMessage(c *wsConnection, data []byte) {
 		h.handleUnsubscribe(c)
 	case "command":
 		h.handleCommand(c, msg)
+	case "ping":
+		// Respond to application-level ping with pong
+		h.sendJSON(c, map[string]any{"type": "pong"})
 	default:
 		h.sendError(c, "unknown message type: "+msg.Type)
 	}
