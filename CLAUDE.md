@@ -616,6 +616,16 @@ The dashboard (`/dashboard`) displays:
 |--------|----------|-------------|
 | GET | `/api/cost/summary` | Get cost summary (query: period=day\|week\|month\|all, since=RFC3339) |
 
+### GitHub PR Integration
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/tasks/:id/github/pr` | Create PR for task branch |
+| GET | `/api/tasks/:id/github/pr` | Get PR details, comments, and checks |
+| POST | `/api/tasks/:id/github/pr/merge` | Merge the PR (body: `{"method": "squash", "delete_branch": true}`) |
+| POST | `/api/tasks/:id/github/pr/comments/sync` | Sync local review comments to PR |
+| POST | `/api/tasks/:id/github/pr/comments/:commentId/autofix` | Queue auto-fix for a review comment |
+| GET | `/api/tasks/:id/github/pr/checks` | Get CI check run status |
+
 ### Config & Real-time
 | Method | Endpoint | Description |
 |--------|----------|-------------|
