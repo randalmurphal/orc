@@ -32,6 +32,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_status.go` | `orc status` | Show running tasks |
 | `cmd_log.go` | `orc log TASK-ID` | Show task transcripts |
 | `cmd_diff.go` | `orc diff TASK-ID` | Show task changes |
+| `cmd_delete.go` | `orc delete TASK-ID` | Delete task and files |
 | `cmd_approve.go` | `orc approve TASK-ID` | Approve pending gate |
 | `cmd_config.go` | `orc config [key] [value]` | Get/set configuration |
 | `cmd_pool.go` | `orc pool [subcommand]` | Manage OAuth token pool |

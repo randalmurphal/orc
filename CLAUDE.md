@@ -295,6 +295,8 @@ completion:
 | `orc resume TASK-ID` | Continue from checkpoint |
 | `orc rewind TASK-ID --to X` | Reset to before phase X |
 | `orc status` | Show running tasks |
+| `orc delete TASK-ID` | Delete task and its files |
+| `orc diff TASK-ID` | Show git diff for task changes |
 | `orc pool init` | Initialize token pool directory |
 | `orc pool add <name>` | Add OAuth account to pool |
 | `orc pool list` | List accounts in pool |
