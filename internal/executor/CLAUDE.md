@@ -37,6 +37,7 @@ Phase execution engine implementing Ralph-style iteration loops with multiple ex
 | `recovery.go` | Error recovery strategies |
 | `phase_executor.go` | PhaseExecutor interface |
 | `pr.go` | PR creation and auto-merge |
+| `test_parser.go` | Test output parsing (Go, Jest, Pytest) |
 
 ## Architecture
 
@@ -128,6 +129,36 @@ Or blocking:
 
 Parsed by `CheckPhaseCompletion()` in `completion.go`.
 
+## Test Output Parsing (test_parser.go)
+
+Auto-detects and parses test output from multiple frameworks:
+
+```go
+result, err := ParseTestOutput(output)  // Auto-detect framework
+result, err := ParseGoTestOutput(output) // Go-specific
+result, err := ParseJestOutput(output)   // Jest-specific
+result, err := ParsePytestOutput(output) // Pytest-specific
+```
+
+Returns `ParsedTestResult`:
+- `Passed`, `Failed`, `Skipped` counts
+- `Coverage` percentage
+- `Failures` with file:line references
+- `Duration` of test run
+- `Framework` detected
+
+Coverage validation:
+```go
+valid := ValidateTestResults(result, thresholdPercent, required)
+pass, reason := CheckCoverageThreshold(75.5, 80)
+```
+
+Retry context generation:
+```go
+context := BuildTestRetryContext("test", result)
+context := BuildCoverageRetryContext(65.0, 80, result)
+```
+
 ## Testing
 
 ```bash
@@ -148,3 +179,4 @@ Test coverage for each module:
 - `worktree_test.go` - Setup/cleanup
 - `flowgraph_nodes_test.go` - Node builders
 - `executor_test.go` - Integration tests
+- `test_parser_test.go` - Framework detection, parsing, coverage validation
