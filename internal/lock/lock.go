@@ -5,6 +5,7 @@ package lock
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -85,6 +86,8 @@ func NewLocker(mode Mode, tasksDir, owner string) Locker {
 	case ModeSolo:
 		return NewNoOpLocker()
 	case ModeP2P, ModeTeam:
+		// TODO: Team mode should use CompositeLocker with WebSocket primary
+		// and FileLocker fallback. For Phase 1 (P2P), FileLocker is sufficient.
 		return NewFileLocker(tasksDir, owner)
 	default:
 		return NewNoOpLocker()
@@ -202,8 +205,10 @@ func (l *FileLocker) Acquire(taskID string) error {
 				}
 			}
 			// We already hold the lock, refresh it
+		} else {
+			// Lock is stale, we can claim it
+			slog.Warn("claiming stale lock", "previous_owner", existing.Owner, "task", taskID)
 		}
-		// Lock is stale, we can claim it
 	} else if !os.IsNotExist(err) {
 		// Some other error reading lock file
 		return fmt.Errorf("read lock: %w", err)

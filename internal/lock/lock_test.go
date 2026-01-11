@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -151,7 +152,7 @@ func (l *Lock) marshalYAML() ([]byte, error) {
 		"acquired: " + l.Acquired.Format(time.RFC3339) + "\n" +
 		"heartbeat: " + l.Heartbeat.Format(time.RFC3339) + "\n" +
 		"ttl: " + l.TTL + "\n" +
-		"pid: " + string(rune('0'+l.PID%10)) + "\n"), nil
+		"pid: " + strconv.Itoa(l.PID) + "\n"), nil
 }
 
 func TestFileLocker_HeartbeatUpdatesTimestamp(t *testing.T) {
