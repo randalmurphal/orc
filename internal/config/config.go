@@ -251,6 +251,46 @@ type DocumentationConfig struct {
 	Sections []string `yaml:"sections,omitempty"`
 }
 
+// TimeoutsConfig defines timeout settings for phases.
+type TimeoutsConfig struct {
+	// PhaseMax is the maximum time per phase (0 = unlimited, default: 30m)
+	PhaseMax time.Duration `yaml:"phase_max"`
+	// IdleWarning is the duration to warn if no tool calls (default: 5m)
+	IdleWarning time.Duration `yaml:"idle_warning"`
+}
+
+// QAConfig defines QA session configuration.
+type QAConfig struct {
+	// Enabled enables the QA phase (default: true)
+	Enabled bool `yaml:"enabled"`
+	// SkipForWeights skips QA for these task weights (default: [trivial])
+	SkipForWeights []string `yaml:"skip_for_weights,omitempty"`
+	// RequireE2E requires e2e tests to pass (default: false)
+	RequireE2E bool `yaml:"require_e2e"`
+	// GenerateDocs enables auto-generating feature docs (default: true)
+	GenerateDocs bool `yaml:"generate_docs"`
+}
+
+// ReviewConfig defines multi-round review configuration.
+type ReviewConfig struct {
+	// Enabled enables the review phase (default: true)
+	Enabled bool `yaml:"enabled"`
+	// Rounds is the number of review rounds (default: 2)
+	Rounds int `yaml:"rounds"`
+	// RequirePass requires review to pass before continuing (default: true)
+	RequirePass bool `yaml:"require_pass"`
+}
+
+// SubtasksConfig defines sub-task queue configuration.
+type SubtasksConfig struct {
+	// AllowCreation allows agents to propose sub-tasks (default: true)
+	AllowCreation bool `yaml:"allow_creation"`
+	// AutoApprove automatically approves proposed sub-tasks (default: false)
+	AutoApprove bool `yaml:"auto_approve"`
+	// MaxPending is the max number of pending sub-tasks per task (default: 10)
+	MaxPending int `yaml:"max_pending"`
+}
+
 // Config represents the orc configuration.
 type Config struct {
 	// Version is the config file version
@@ -297,6 +337,18 @@ type Config struct {
 
 	// Documentation configuration
 	Documentation DocumentationConfig `yaml:"documentation"`
+
+	// Timeouts configuration
+	Timeouts TimeoutsConfig `yaml:"timeouts"`
+
+	// QA session configuration
+	QA QAConfig `yaml:"qa"`
+
+	// Review configuration
+	Review ReviewConfig `yaml:"review"`
+
+	// Sub-task queue configuration
+	Subtasks SubtasksConfig `yaml:"subtasks"`
 
 	// Model settings
 	Model         string `yaml:"model"`
@@ -449,6 +501,26 @@ func Default() *Config {
 			UpdateOn:           []string{"feature", "api_change"},
 			SkipForWeights:     []string{"trivial"},
 			Sections:           []string{"api-endpoints", "commands", "config-options"},
+		},
+		Timeouts: TimeoutsConfig{
+			PhaseMax:    30 * time.Minute,
+			IdleWarning: 5 * time.Minute,
+		},
+		QA: QAConfig{
+			Enabled:        true,
+			SkipForWeights: []string{"trivial"},
+			RequireE2E:     false,
+			GenerateDocs:   true,
+		},
+		Review: ReviewConfig{
+			Enabled:     true,
+			Rounds:      2,
+			RequirePass: true,
+		},
+		Subtasks: SubtasksConfig{
+			AllowCreation: true,
+			AutoApprove:   false,
+			MaxPending:    10,
 		},
 		Model: "claude-opus-4-5-20251101",
 		MaxIterations:              30,
@@ -616,4 +688,22 @@ func (c *Config) ExecutorPrefix() string {
 		return ""
 	}
 	return c.Identity.Initials
+}
+
+// ShouldSkipQA returns true if QA should be skipped for the given task weight.
+func (c *Config) ShouldSkipQA(weight string) bool {
+	if !c.QA.Enabled {
+		return true
+	}
+	for _, w := range c.QA.SkipForWeights {
+		if w == weight {
+			return true
+		}
+	}
+	return false
+}
+
+// ShouldSkipReview returns true if review should be skipped.
+func (c *Config) ShouldSkipReview() bool {
+	return !c.Review.Enabled
 }

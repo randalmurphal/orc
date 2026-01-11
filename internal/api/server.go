@@ -140,6 +140,15 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/initiatives/{id}/decisions", cors(s.handleAddInitiativeDecision))
 	s.mux.HandleFunc("GET /api/initiatives/{id}/ready", cors(s.handleGetReadyTasks))
 
+	// Subtasks (proposed sub-tasks queue)
+	s.mux.HandleFunc("GET /api/tasks/{taskId}/subtasks", cors(s.handleListSubtasks))
+	s.mux.HandleFunc("GET /api/tasks/{taskId}/subtasks/pending", cors(s.handleListPendingSubtasks))
+	s.mux.HandleFunc("POST /api/subtasks", cors(s.handleCreateSubtask))
+	s.mux.HandleFunc("GET /api/subtasks/{id}", cors(s.handleGetSubtask))
+	s.mux.HandleFunc("POST /api/subtasks/{id}/approve", cors(s.handleApproveSubtask))
+	s.mux.HandleFunc("POST /api/subtasks/{id}/reject", cors(s.handleRejectSubtask))
+	s.mux.HandleFunc("DELETE /api/subtasks/{id}", cors(s.handleDeleteSubtask))
+
 	// WebSocket for real-time updates
 	s.mux.Handle("GET /api/ws", s.wsHandler)
 
