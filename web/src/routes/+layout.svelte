@@ -202,6 +202,8 @@
 		flex: 1;
 		padding: var(--space-6);
 		overflow-y: auto;
-		max-width: 1400px;
+		max-width: 1800px;
+		width: 100%;
+		margin: 0 auto;
 	}
 </style>

@@ -33,6 +33,7 @@
 	import type { Task, TaskState, Plan, TranscriptLine } from '$lib/types';
 	import TaskHeader from '$lib/components/task/TaskHeader.svelte';
 	import TabNav, { type TabId } from '$lib/components/task/TabNav.svelte';
+	import PRActions from '$lib/components/task/PRActions.svelte';
 	import Timeline from '$lib/components/Timeline.svelte';
 	import Transcript from '$lib/components/Transcript.svelte';
 	import DiffViewer from '$lib/components/diff/DiffViewer.svelte';
@@ -331,6 +332,11 @@
 			onRetry={handleRetry}
 		/>
 
+		<!-- PR Actions (for completed tasks) -->
+		<div class="pr-section">
+			<PRActions taskId={task.id} taskBranch={task.branch} taskStatus={task.status} />
+		</div>
+
 		<!-- Tab Navigation -->
 		<div class="tab-section">
 			<TabNav {tabs} {activeTab} onTabChange={handleTabChange} />
@@ -469,6 +475,15 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
+	}
+
+	/* PR Section */
+	.pr-section {
+		min-height: 40px;
+	}
+
+	.pr-section:empty {
+		display: none;
 	}
 
 	/* Loading / Error States */

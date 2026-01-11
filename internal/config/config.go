@@ -118,6 +118,10 @@ type CompletionConfig struct {
 
 	// PR settings (used when Action is "pr")
 	PR PRConfig `yaml:"pr"`
+
+	// WeightActions allows per-weight action overrides
+	// e.g., {"trivial": "none", "small": "merge"}
+	WeightActions map[string]string `yaml:"weight_actions,omitempty"`
 }
 
 // BudgetConfig defines cost budget settings.
@@ -469,6 +473,17 @@ func (c *Config) ShouldRetryFrom(failedPhase string) string {
 	return ""
 }
 
+// ResolveCompletionAction returns the effective completion action for a task weight.
+// Priority: weight-specific override > default action
+func (c *Config) ResolveCompletionAction(weight string) string {
+	if c.Completion.WeightActions != nil {
+		if action, ok := c.Completion.WeightActions[weight]; ok {
+			return action
+		}
+	}
+	return c.Completion.Action
+}
+
 // Default returns the default configuration.
 // Default is AUTOMATION-FIRST: all gates auto, retry enabled.
 func Default() *Config {
@@ -508,6 +523,12 @@ func Default() *Config {
 				BodyTemplate: "templates/pr-body.md",
 				Labels:       []string{"automated"},
 				AutoMerge:    true,
+			},
+			// Intuitive defaults: trivial tasks skip PR, small tasks auto-merge
+			WeightActions: map[string]string{
+				"trivial": "none",  // No PR for trivial fixes
+				"small":   "merge", // Auto-merge small tasks directly
+				// medium, large, greenfield use default "pr" action
 			},
 		},
 		Execution: ExecutionConfig{

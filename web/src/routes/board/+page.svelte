@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Board from '$lib/components/kanban/Board.svelte';
-	import { listProjectTasks, runProjectTask, pauseProjectTask, resumeProjectTask } from '$lib/api';
+	import { listProjectTasks, runProjectTask, pauseProjectTask, resumeProjectTask, escalateProjectTask } from '$lib/api';
 	import { currentProjectId } from '$lib/stores/project';
 	import type { Task } from '$lib/types';
 
@@ -53,6 +53,16 @@
 			error = e instanceof Error ? e.message : 'Action failed';
 		}
 	}
+
+	async function handleEscalate(taskId: string, reason: string) {
+		if (!projectId) return;
+		try {
+			await escalateProjectTask(projectId, taskId, reason);
+			await loadTasks();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Escalation failed';
+		}
+	}
 </script>
 
 <svelte:head>
@@ -100,7 +110,7 @@
 			<button onclick={loadTasks}>Try Again</button>
 		</div>
 	{:else}
-		<Board {tasks} onAction={handleAction} onRefresh={loadTasks} />
+		<Board {tasks} onAction={handleAction} onEscalate={handleEscalate} onRefresh={loadTasks} />
 	{/if}
 </div>
 
