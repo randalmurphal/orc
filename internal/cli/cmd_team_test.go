@@ -107,11 +107,18 @@ func TestTeamInitCreatesDirectoryStructure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get cwd: %v", err)
 	}
-	defer os.Chdir(origDir)
+	t.Cleanup(func() {
+		_ = os.Chdir(origDir)
+	})
 
 	tmpDir := t.TempDir()
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("chdir: %v", err)
+	}
+
+	// Create .orc directory so findProjectRoot can find it
+	if err := os.MkdirAll(".orc", 0755); err != nil {
+		t.Fatalf("mkdir .orc: %v", err)
 	}
 
 	// Run team init
@@ -152,6 +159,9 @@ func TestTeamInitCreatesDirectoryStructure(t *testing.T) {
 		if cfg.TaskID.PrefixSource != "initials" {
 			t.Errorf("expected prefix_source initials, got %s", cfg.TaskID.PrefixSource)
 		}
+		if cfg.Gates.DefaultType != "auto" {
+			t.Errorf("expected gates.default_type auto, got %s", cfg.Gates.DefaultType)
+		}
 	}
 
 	// Verify team.yaml
@@ -179,14 +189,16 @@ func TestTeamInitFailsWithoutForce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get cwd: %v", err)
 	}
-	defer os.Chdir(origDir)
+	t.Cleanup(func() {
+		_ = os.Chdir(origDir)
+	})
 
 	tmpDir := t.TempDir()
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("chdir: %v", err)
 	}
 
-	// Create shared directory
+	// Create .orc/shared directory (both .orc for findProjectRoot and shared for the test)
 	if err := os.MkdirAll(".orc/shared", 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -293,6 +305,9 @@ func TestSharedConfig(t *testing.T) {
 	cfg.TaskID.Mode = "p2p"
 	cfg.TaskID.PrefixSource = "initials"
 	cfg.Defaults.Profile = "safe"
+	cfg.Gates.DefaultType = "auto"
+	cfg.Gates.PhaseOverrides = map[string]string{"validate": "human"}
+	cfg.Cost.WarnPerTask = 5.0
 
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
@@ -315,5 +330,14 @@ func TestSharedConfig(t *testing.T) {
 	}
 	if loaded.Defaults.Profile != "safe" {
 		t.Errorf("expected profile safe, got %s", loaded.Defaults.Profile)
+	}
+	if loaded.Gates.DefaultType != "auto" {
+		t.Errorf("expected gates.default_type auto, got %s", loaded.Gates.DefaultType)
+	}
+	if loaded.Gates.PhaseOverrides["validate"] != "human" {
+		t.Errorf("expected gates.phase_overrides[validate] human, got %s", loaded.Gates.PhaseOverrides["validate"])
+	}
+	if loaded.Cost.WarnPerTask != 5.0 {
+		t.Errorf("expected cost.warn_per_task 5.0, got %f", loaded.Cost.WarnPerTask)
 	}
 }
