@@ -45,6 +45,9 @@ make dev-full # API (:8080) + frontend (:5173)
 | `git/` | Git operations, worktrees | Branch management, checkpoints |
 | `project/` | Multi-project registry | Project discovery, registry management |
 | `tokenpool/` | OAuth token pool for rate limit failover | Account rotation, state persistence |
+| `db/` | SQLite persistence (global + project) | FTS search, cost tracking, migrations |
+| `bootstrap/` | Instant project initialization | <500ms init, no prompts |
+| `setup/` | Claude-powered interactive setup | Prompt generation, validation |
 
 ## Dependencies
 
@@ -67,6 +70,37 @@ For local development, `make setup` creates `go.work` to use sibling directories
 ```bash
 orc run TASK-001 --profile safe
 orc config profile strict  # Set default
+```
+
+## Config Hierarchy
+
+Configuration loads from multiple sources (later overrides earlier):
+
+| Priority | Source | Location |
+|----------|--------|----------|
+| 1 | Defaults | Built-in |
+| 2 | System | `/etc/orc/config.yaml` |
+| 3 | User | `~/.orc/config.yaml` |
+| 4 | Project | `.orc/config.yaml` |
+| 5 | Environment | `ORC_*` variables |
+
+**Environment Variable Overrides:**
+```bash
+ORC_PROFILE=strict          # profile
+ORC_MODEL=claude-sonnet     # model
+ORC_MAX_ITERATIONS=50       # max_iterations
+ORC_TIMEOUT=5m              # timeout
+ORC_RETRY_ENABLED=false     # retry.enabled
+ORC_GATES_DEFAULT=human     # gates.default_type
+ORC_WORKTREE_ENABLED=false  # worktree.enabled
+```
+
+**View config sources:**
+```bash
+orc config show --source
+# profile = strict (from env ORC_PROFILE)
+# model = claude-sonnet (from project)
+# retry.enabled = true (from user)
 ```
 
 ## Task Weight → Phases
@@ -212,6 +246,8 @@ completion:
 
 ```
 ~/.orc/
+├── orc.db               # Global SQLite (projects, cost logs, templates)
+├── config.yaml          # User-level config (applies to all projects)
 ├── projects.yaml        # Global project registry
 └── token-pool/          # OAuth token pool
     ├── pool.yaml        # Pool configuration + tokens
@@ -224,6 +260,7 @@ completion:
 ~/CLAUDE.md              # User-level instructions
 
 .orc/
+├── orc.db               # Project SQLite (tasks, phases, transcripts FTS)
 ├── config.yaml
 ├── prompts/             # Project prompt overrides
 │   └── implement.md
@@ -246,7 +283,8 @@ completion:
 
 | Command | Purpose |
 |---------|---------|
-| `orc init` | Initialize .orc/ in current directory |
+| `orc init` | Initialize .orc/ in current directory (instant, <500ms) |
+| `orc setup` | Claude-powered interactive project setup |
 | `orc new "title"` | Create task, classify weight, generate plan |
 | `orc run TASK-ID` | Execute task phases (auto by default) |
 | `orc run TASK-ID -p safe` | Execute with specific profile |
@@ -264,6 +302,8 @@ completion:
 | `orc pool switch <id>` | Manually switch account |
 | `orc pool remove <id>` | Remove account from pool |
 | `orc pool reset` | Clear exhausted flags |
+| `orc export TASK-ID` | Export task to YAML (with --transcripts, --state) |
+| `orc import <file>` | Import task from YAML (with --force) |
 
 ## Web UI
 

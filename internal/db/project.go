@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -43,15 +44,21 @@ type Detection struct {
 
 // StoreDetection saves detection results.
 func (p *ProjectDB) StoreDetection(d *Detection) error {
-	frameworks, _ := json.Marshal(d.Frameworks)
-	buildTools, _ := json.Marshal(d.BuildTools)
+	frameworks, err := json.Marshal(d.Frameworks)
+	if err != nil {
+		return fmt.Errorf("marshal frameworks: %w", err)
+	}
+	buildTools, err2 := json.Marshal(d.BuildTools)
+	if err2 != nil {
+		return fmt.Errorf("marshal build_tools: %w", err2)
+	}
 
 	hasTests := 0
 	if d.HasTests {
 		hasTests = 1
 	}
 
-	_, err := p.Exec(`
+	_, err = p.Exec(`
 		INSERT OR REPLACE INTO detection (id, language, frameworks, build_tools, has_tests, test_command, lint_command, detected_at)
 		VALUES (1, ?, ?, ?, ?, ?, ?, datetime('now'))
 	`, d.Language, string(frameworks), string(buildTools), hasTests, d.TestCommand, d.LintCommand)
@@ -79,8 +86,12 @@ func (p *ProjectDB) LoadDetection() (*Detection, error) {
 	}
 
 	d.HasTests = hasTests == 1
-	json.Unmarshal([]byte(frameworks), &d.Frameworks)
-	json.Unmarshal([]byte(buildTools), &d.BuildTools)
+	if err := json.Unmarshal([]byte(frameworks), &d.Frameworks); err != nil {
+		return nil, fmt.Errorf("unmarshal frameworks: %w", err)
+	}
+	if err := json.Unmarshal([]byte(buildTools), &d.BuildTools); err != nil {
+		return nil, fmt.Errorf("unmarshal build_tools: %w", err)
+	}
 	if t, err := time.Parse("2006-01-02 15:04:05", detectedAt); err == nil {
 		d.DetectedAt = t
 	}
@@ -220,6 +231,9 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 			return nil, 0, fmt.Errorf("scan task: %w", err)
 		}
 		tasks = append(tasks, *t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate tasks: %w", err)
 	}
 
 	return tasks, total, nil
@@ -389,6 +403,9 @@ func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 		}
 		phases = append(phases, ph)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate phases: %w", err)
+	}
 
 	return phases, nil
 }
@@ -446,6 +463,9 @@ func (p *ProjectDB) GetTranscripts(taskID string) ([]Transcript, error) {
 		}
 		transcripts = append(transcripts, t)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate transcripts: %w", err)
+	}
 
 	return transcripts, nil
 }
@@ -459,14 +479,19 @@ type TranscriptMatch struct {
 }
 
 // SearchTranscripts performs full-text search on transcript content.
+// The query is wrapped in quotes for literal matching to avoid FTS5 syntax errors.
 func (p *ProjectDB) SearchTranscripts(query string) ([]TranscriptMatch, error) {
+	// Sanitize query: escape quotes and wrap for literal matching
+	// This prevents FTS5 syntax errors from special characters like - * " etc.
+	sanitized := `"` + escapeQuotes(query) + `"`
+
 	rows, err := p.Query(`
 		SELECT task_id, phase, snippet(transcripts_fts, 0, '<mark>', '</mark>', '...', 32), rank
 		FROM transcripts_fts
 		WHERE content MATCH ?
 		ORDER BY rank
 		LIMIT 50
-	`, query)
+	`, sanitized)
 	if err != nil {
 		return nil, fmt.Errorf("search transcripts: %w", err)
 	}
@@ -480,6 +505,14 @@ func (p *ProjectDB) SearchTranscripts(query string) ([]TranscriptMatch, error) {
 		}
 		matches = append(matches, m)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate matches: %w", err)
+	}
 
 	return matches, nil
+}
+
+// escapeQuotes escapes double quotes for FTS5 literal matching.
+func escapeQuotes(s string) string {
+	return strings.ReplaceAll(s, `"`, `""`)
 }

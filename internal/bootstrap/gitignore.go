@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ var orcGitignoreEntries = []string{
 	"# orc - Claude Code Task Orchestrator",
 	".orc/worktrees/",
 	".orc/orc.db",
+	".orc/orc.db-journal",
 	".orc/orc.db-wal",
 	".orc/orc.db-shm",
 }
@@ -26,6 +28,10 @@ func updateGitignore(workDir string) error {
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			existing[strings.TrimSpace(scanner.Text())] = true
+		}
+		if err := scanner.Err(); err != nil {
+			file.Close()
+			return fmt.Errorf("read .gitignore: %w", err)
 		}
 		file.Close()
 	}
@@ -46,18 +52,25 @@ func updateGitignore(workDir string) error {
 	// Append to .gitignore
 	file, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return err
+		return fmt.Errorf("open .gitignore: %w", err)
 	}
 	defer file.Close()
 
 	// Add blank line before our entries if file isn't empty
-	info, _ := file.Stat()
+	info, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("stat .gitignore: %w", err)
+	}
 	if info.Size() > 0 {
-		file.WriteString("\n")
+		if _, err := file.WriteString("\n"); err != nil {
+			return fmt.Errorf("write to .gitignore: %w", err)
+		}
 	}
 
 	for _, entry := range toAdd {
-		file.WriteString(entry + "\n")
+		if _, err := file.WriteString(entry + "\n"); err != nil {
+			return fmt.Errorf("write to .gitignore: %w", err)
+		}
 	}
 
 	return nil

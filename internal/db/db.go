@@ -95,6 +95,9 @@ func (d *DB) Migrate(schemaType string) error {
 		}
 		applied[v] = true
 	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate migrations: %w", err)
+	}
 
 	// Find and sort migration files
 	entries, err := schemaFS.ReadDir("schema")
