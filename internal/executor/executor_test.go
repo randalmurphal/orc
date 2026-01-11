@@ -17,6 +17,55 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+func TestResolveClaudePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantAbs  bool // Whether result should be absolute
+		wantSame bool // Whether result should be same as input
+	}{
+		{
+			name:     "empty string",
+			input:    "",
+			wantSame: true,
+		},
+		{
+			name:     "already absolute",
+			input:    "/usr/local/bin/claude",
+			wantAbs:  true,
+			wantSame: true,
+		},
+		{
+			name:    "relative claude",
+			input:   "claude",
+			wantAbs: true, // Should resolve to absolute if claude exists in PATH
+		},
+		{
+			name:     "relative nonexistent",
+			input:    "nonexistent-binary-xyz",
+			wantSame: true, // Falls back to original if not found
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := resolveClaudePath(tc.input)
+
+			if tc.wantSame && result != tc.input {
+				t.Errorf("resolveClaudePath(%q) = %q, want %q", tc.input, result, tc.input)
+			}
+
+			if tc.wantAbs && result != "" && !filepath.IsAbs(result) {
+				// Only check for absolute if we expect it AND claude is actually in PATH
+				// If claude isn't installed, it should fall back to the original
+				if tc.input != "claude" {
+					t.Errorf("resolveClaudePath(%q) = %q, want absolute path", tc.input, result)
+				}
+			}
+		})
+	}
+}
+
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 

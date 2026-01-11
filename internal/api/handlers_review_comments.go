@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,10 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/executor"
+	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // createReviewCommentRequest is the request body for creating a review comment.
@@ -100,6 +105,12 @@ func (s *Server) handleCreateReviewComment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	defer pdb.Close()
+
+	// Ensure task exists in database for foreign key constraint
+	if err := s.syncTaskToDB(pdb, taskID); err != nil {
+		s.jsonError(w, "failed to sync task: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// Get latest review round if not specified
 	reviewRound := req.ReviewRound
@@ -277,16 +288,83 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build retry context from comments
-	context := buildReviewRetryContext(comments)
+	// Load task
+	t, err := task.Load(taskID)
+	if err != nil {
+		s.jsonError(w, "task not found: "+err.Error(), http.StatusNotFound)
+		return
+	}
 
-	// Return the context that would be injected into retry
-	// Integration with executor would happen here
+	// Load plan
+	p, err := plan.Load(taskID)
+	if err != nil {
+		s.jsonError(w, "plan not found: "+err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Load or create state
+	st, err := state.Load(taskID)
+	if err != nil {
+		st = state.New(taskID)
+	}
+
+	// Build retry context from comments
+	retryContext := buildReviewRetryContext(comments)
+
+	// Set retry context in state - use "review" as the from phase
+	st.SetRetryContext("review", "implement", "Review comments require fixes", retryContext, 1)
+	if err := st.Save(); err != nil {
+		s.jsonError(w, "failed to save state: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Reset task status to allow re-running
+	t.Status = task.StatusRunning
+	if err := t.Save(); err != nil {
+		s.jsonError(w, "failed to update task: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Store cancel function for later cancellation
+	s.runningTasksMu.Lock()
+	s.runningTasks[taskID] = cancel
+	s.runningTasksMu.Unlock()
+
+	// Start execution in background goroutine
+	go func() {
+		defer func() {
+			s.runningTasksMu.Lock()
+			delete(s.runningTasks, taskID)
+			s.runningTasksMu.Unlock()
+		}()
+
+		exec := executor.New(executor.DefaultConfig())
+		exec.SetPublisher(s.publisher)
+
+		// Execute with event publishing
+		execErr := exec.ExecuteTask(ctx, t, p, st)
+		if execErr != nil {
+			s.logger.Error("task execution failed", "task", taskID, "error", execErr)
+			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": execErr.Error()}})
+		} else {
+			s.logger.Info("task execution completed", "task", taskID)
+			s.Publish(taskID, Event{Type: "complete", Data: map[string]string{"status": "completed"}})
+		}
+
+		// Reload and publish final state
+		if finalState, loadErr := state.Load(taskID); loadErr == nil {
+			s.Publish(taskID, Event{Type: "state", Data: finalState})
+		}
+	}()
+
 	resp := reviewRetryResponse{
 		TaskID:       taskID,
 		CommentCount: len(comments),
-		RetryContext: context,
-		Status:       "queued",
+		RetryContext: retryContext,
+		Status:       "started",
 	}
 
 	s.jsonResponse(w, resp)

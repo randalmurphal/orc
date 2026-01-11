@@ -6,10 +6,49 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/randalmurphal/orc/internal/db"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 )
+
+// syncTaskToDB ensures a task exists in the database by loading from YAML if needed.
+// This is used for foreign key constraints (e.g., review_comments references tasks).
+func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
+	// Check if task already exists in database
+	existing, err := pdb.GetTask(taskID)
+	if err != nil {
+		return fmt.Errorf("check task in db: %w", err)
+	}
+	if existing != nil {
+		return nil // Task already synced
+	}
+
+	// Load from YAML and sync to database
+	t, err := task.Load(taskID)
+	if err != nil {
+		return fmt.Errorf("load task from yaml: %w", err)
+	}
+
+	dbTask := &db.Task{
+		ID:           t.ID,
+		Title:        t.Title,
+		Description:  t.Description,
+		Weight:       string(t.Weight),
+		Status:       string(t.Status),
+		CurrentPhase: t.CurrentPhase,
+		Branch:       t.Branch,
+		CreatedAt:    t.CreatedAt,
+		StartedAt:    t.StartedAt,
+		CompletedAt:  t.CompletedAt,
+	}
+
+	if err := pdb.SaveTask(dbTask); err != nil {
+		return fmt.Errorf("sync task to db: %w", err)
+	}
+
+	return nil
+}
 
 // handleListTasks returns all tasks with optional pagination.
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {

@@ -5,49 +5,113 @@
 		getGlobalSettings,
 		getProjectSettings,
 		updateSettings,
-		type Settings
+		getConfig,
+		updateConfig,
+		type Settings,
+		type Config,
+		type ConfigUpdateRequest
 	} from '$lib/api';
+	import Icon from '$lib/components/ui/Icon.svelte';
 
-	let mergedSettings: Settings | null = null;
-	let globalSettings: Settings | null = null;
-	let projectSettings: Settings | null = null;
-	let loading = true;
-	let saving = false;
-	let error: string | null = null;
-	let success: string | null = null;
+	// Settings state
+	let mergedSettings: Settings | null = $state(null);
+	let globalSettings: Settings | null = $state(null);
+	let projectSettings: Settings | null = $state(null);
+	let config: Config | null = $state(null);
+	let loading = $state(true);
+	let saving = $state(false);
+	let error = $state<string | null>(null);
+	let success = $state<string | null>(null);
 
-	// Form state for project settings
-	let envEntries: { key: string; value: string }[] = [];
-	let statusLineType = '';
-	let statusLineCommand = '';
-	let newEnvKey = '';
-	let newEnvValue = '';
+	// Active tab
+	let activeTab = $state<'config' | 'claude' | 'quick'>('config');
 
-	// View mode: 'edit' for form, 'compare' for three-column comparison
-	let viewMode: 'edit' | 'compare' = 'edit';
+	// Config form state
+	let editProfile = $state('');
+	let editGatesDefault = $state('');
+	let editRetryEnabled = $state(false);
+	let editRetryMax = $state(3);
+	let editModel = $state('');
+	let editMaxIterations = $state(10);
+	let editTimeout = $state('');
+	let editBranchPrefix = $state('');
+	let editCommitPrefix = $state('');
+
+	// Claude settings form state
+	let envEntries = $state<{ key: string; value: string }[]>([]);
+	let statusLineType = $state('');
+	let statusLineCommand = $state('');
+	let newEnvKey = $state('');
+	let newEnvValue = $state('');
+
+	const profiles = ['auto', 'fast', 'safe', 'strict'];
+	const gateTypes = ['auto', 'human', 'ai'];
+
+	const profileDescriptions: Record<string, string> = {
+		auto: 'Fully automated, no human intervention',
+		fast: 'Minimal gates, speed over safety',
+		safe: 'AI reviews, human only for merge',
+		strict: 'Human gates on spec/review/merge'
+	};
+
+	// Quick access items
+	const quickAccessItems = [
+		{ label: 'Prompts', href: '/prompts', icon: 'prompts', description: 'Phase prompt templates' },
+		{ label: 'CLAUDE.md', href: '/claudemd', icon: 'file', description: 'Project instructions' },
+		{ label: 'Skills', href: '/skills', icon: 'skills', description: 'Custom skills' },
+		{ label: 'Hooks', href: '/hooks', icon: 'hooks', description: 'Event hooks' },
+		{ label: 'MCP', href: '/mcp', icon: 'mcp', description: 'MCP servers' },
+		{ label: 'Tools', href: '/tools', icon: 'tools', description: 'Tool permissions' },
+		{ label: 'Agents', href: '/agents', icon: 'agents', description: 'Sub-agents' },
+		{ label: 'Scripts', href: '/scripts', icon: 'scripts', description: 'Registered scripts' }
+	];
 
 	onMount(async () => {
 		try {
-			[mergedSettings, globalSettings, projectSettings] = await Promise.all([
+			const [settingsRes, globalRes, projectRes, configRes] = await Promise.all([
 				getSettings(),
 				getGlobalSettings(),
-				getProjectSettings()
+				getProjectSettings(),
+				getConfig()
 			]);
 
-			// Initialize form state from project settings
-			if (projectSettings?.env) {
-				envEntries = Object.entries(projectSettings.env).map(([key, value]) => ({ key, value }));
-			}
-			if (projectSettings?.statusLine) {
-				statusLineType = projectSettings.statusLine.type || '';
-				statusLineCommand = projectSettings.statusLine.command || '';
-			}
+			mergedSettings = settingsRes;
+			globalSettings = globalRes;
+			projectSettings = projectRes;
+			config = configRes;
+
+			// Initialize form state
+			resetConfigForm();
+			resetClaudeForm();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load settings';
 		} finally {
 			loading = false;
 		}
 	});
+
+	function resetConfigForm() {
+		if (!config) return;
+		editProfile = config.profile;
+		editGatesDefault = config.automation.gates_default;
+		editRetryEnabled = config.automation.retry_enabled;
+		editRetryMax = config.automation.retry_max;
+		editModel = config.execution.model;
+		editMaxIterations = config.execution.max_iterations;
+		editTimeout = config.execution.timeout;
+		editBranchPrefix = config.git.branch_prefix;
+		editCommitPrefix = config.git.commit_prefix;
+	}
+
+	function resetClaudeForm() {
+		if (projectSettings?.env) {
+			envEntries = Object.entries(projectSettings.env).map(([key, value]) => ({ key, value }));
+		}
+		if (projectSettings?.statusLine) {
+			statusLineType = projectSettings.statusLine.type || '';
+			statusLineCommand = projectSettings.statusLine.command || '';
+		}
+	}
 
 	function addEnvVar() {
 		if (!newEnvKey.trim()) return;
@@ -60,7 +124,41 @@
 		envEntries = envEntries.filter((_, i) => i !== index);
 	}
 
-	async function handleSave() {
+	async function saveConfig() {
+		saving = true;
+		error = null;
+		success = null;
+
+		try {
+			const req: ConfigUpdateRequest = {
+				profile: editProfile,
+				automation: {
+					gates_default: editGatesDefault,
+					retry_enabled: editRetryEnabled,
+					retry_max: editRetryMax
+				},
+				execution: {
+					model: editModel,
+					max_iterations: editMaxIterations,
+					timeout: editTimeout
+				},
+				git: {
+					branch_prefix: editBranchPrefix,
+					commit_prefix: editCommitPrefix
+				}
+			};
+
+			config = await updateConfig(req);
+			success = 'Configuration saved';
+			setTimeout(() => (success = null), 3000);
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to save config';
+		} finally {
+			saving = false;
+		}
+	}
+
+	async function saveClaudeSettings() {
 		saving = true;
 		error = null;
 		success = null;
@@ -84,9 +182,9 @@
 		try {
 			await updateSettings(settings);
 			projectSettings = settings;
-			// Refresh merged settings
 			mergedSettings = await getSettings();
-			success = 'Settings saved successfully';
+			success = 'Settings saved';
+			setTimeout(() => (success = null), 3000);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to save settings';
 		} finally {
@@ -100,468 +198,729 @@
 </svelte:head>
 
 <div class="settings-page">
-	<header class="page-header">
-		<div class="header-content">
-			<div>
-				<h1>Project Settings</h1>
-				<p class="subtitle">Configure .claude/settings.json for this project</p>
-			</div>
-			<div class="header-actions">
-				<div class="view-toggle">
-					<button
-						class="toggle-btn"
-						class:active={viewMode === 'edit'}
-						on:click={() => (viewMode = 'edit')}
-					>
-						Edit
-					</button>
-					<button
-						class="toggle-btn"
-						class:active={viewMode === 'compare'}
-						on:click={() => (viewMode = 'compare')}
-					>
-						Compare
-					</button>
-				</div>
-				{#if viewMode === 'edit'}
-					<button class="btn btn-primary" on:click={handleSave} disabled={saving}>
-						{saving ? 'Saving...' : 'Save'}
-					</button>
-				{/if}
-			</div>
+	{#if success}
+		<div class="toast success">
+			<Icon name="check" size={16} />
+			{success}
 		</div>
-	</header>
+	{/if}
 
 	{#if error}
-		<div class="alert alert-error">{error}</div>
+		<div class="toast error">
+			<Icon name="close" size={16} />
+			{error}
+			<button class="toast-dismiss" onclick={() => (error = null)} aria-label="Dismiss">
+				<Icon name="close" size={14} />
+			</button>
+		</div>
 	{/if}
 
-	{#if success}
-		<div class="alert alert-success">{success}</div>
-	{/if}
+	<!-- Tabs -->
+	<div class="tabs">
+		<button
+			class="tab"
+			class:active={activeTab === 'config'}
+			onclick={() => (activeTab = 'config')}
+		>
+			<Icon name="config" size={16} />
+			<span>Orc Config</span>
+		</button>
+		<button
+			class="tab"
+			class:active={activeTab === 'claude'}
+			onclick={() => (activeTab = 'claude')}
+		>
+			<Icon name="settings" size={16} />
+			<span>Claude Settings</span>
+		</button>
+		<button
+			class="tab"
+			class:active={activeTab === 'quick'}
+			onclick={() => (activeTab = 'quick')}
+		>
+			<Icon name="dashboard" size={16} />
+			<span>Quick Access</span>
+		</button>
+	</div>
 
 	{#if loading}
-		<div class="loading">Loading settings...</div>
-	{:else if viewMode === 'compare'}
-		<!-- Three-column comparison view -->
-		<div class="comparison-view">
-			<div class="comparison-column global-column">
-				<div class="column-header">
-					<h2>Global</h2>
-					<span class="column-path">~/.claude/settings.json</span>
-					<span class="badge badge-readonly">Read-only</span>
-				</div>
-				<div class="column-content">
-					<pre>{JSON.stringify(globalSettings, null, 2)}</pre>
-				</div>
-			</div>
-
-			<div class="comparison-column project-column">
-				<div class="column-header">
-					<h2>Project</h2>
-					<span class="column-path">.claude/settings.json</span>
-					<span class="badge badge-editable">Editable</span>
-				</div>
-				<div class="column-content">
-					<pre>{JSON.stringify(projectSettings, null, 2)}</pre>
-				</div>
-			</div>
-
-			<div class="comparison-column merged-column">
-				<div class="column-header">
-					<h2>Merged (Effective)</h2>
-					<span class="column-path">What Claude sees</span>
-					<span class="badge badge-merged">Computed</span>
-				</div>
-				<div class="column-content">
-					<pre>{JSON.stringify(mergedSettings, null, 2)}</pre>
-				</div>
-			</div>
-		</div>
-
-		<div class="legend">
-			<h3>Legend</h3>
-			<div class="legend-items">
-				<div class="legend-item">
-					<span class="badge badge-readonly">Global</span>
-					<span>Settings from ~/.claude/settings.json (read-only)</span>
-				</div>
-				<div class="legend-item">
-					<span class="badge badge-editable">Project</span>
-					<span>Settings from .claude/settings.json (editable)</span>
-				</div>
-				<div class="legend-item">
-					<span class="badge badge-merged">Merged</span>
-					<span>Project settings override global settings</span>
-				</div>
-			</div>
+		<div class="loading-state">
+			<div class="spinner"></div>
+			<span>Loading settings...</span>
 		</div>
 	{:else}
-		<!-- Edit mode -->
-		<div class="settings-grid">
-			<!-- Environment Variables -->
-			<section class="settings-section">
-				<h2>Environment Variables</h2>
-				<p class="section-help">Variables passed to Claude Code during execution</p>
-
-				<div class="env-list">
-					{#each envEntries as entry, index}
-						<div class="env-row">
-							<input
-								type="text"
-								bind:value={entry.key}
-								placeholder="KEY"
-								class="env-key"
-							/>
-							<span class="env-equals">=</span>
-							<input
-								type="text"
-								bind:value={entry.value}
-								placeholder="value"
-								class="env-value"
-							/>
-							<button
-								class="btn-icon btn-remove"
-								on:click={() => removeEnvVar(index)}
-								title="Remove"
-							>
-								&times;
-							</button>
-						</div>
-					{/each}
-
-					<div class="env-row env-new">
-						<input
-							type="text"
-							bind:value={newEnvKey}
-							placeholder="NEW_KEY"
-							class="env-key"
-							on:keydown={(e) => e.key === 'Enter' && addEnvVar()}
-						/>
-						<span class="env-equals">=</span>
-						<input
-							type="text"
-							bind:value={newEnvValue}
-							placeholder="value"
-							class="env-value"
-							on:keydown={(e) => e.key === 'Enter' && addEnvVar()}
-						/>
-						<button class="btn-icon btn-add" on:click={addEnvVar} title="Add">+</button>
+		<!-- Config Tab -->
+		{#if activeTab === 'config'}
+			<div class="tab-content">
+				<div class="content-header">
+					<div>
+						<h2>Orc Configuration</h2>
+						<p class="subtitle">.orc/config.yaml - Task orchestration settings</p>
 					</div>
-				</div>
-			</section>
-
-			<!-- Status Line -->
-			<section class="settings-section">
-				<h2>Status Line</h2>
-				<p class="section-help">Custom status line shown in Claude Code</p>
-
-				<div class="form-group">
-					<label for="status-type">Type</label>
-					<select id="status-type" bind:value={statusLineType}>
-						<option value="">Default</option>
-						<option value="text">Text</option>
-						<option value="command">Command</option>
-					</select>
-				</div>
-
-				{#if statusLineType === 'command'}
-					<div class="form-group">
-						<label for="status-command">Command</label>
-						<input
-							id="status-command"
-							type="text"
-							bind:value={statusLineCommand}
-							placeholder="echo 'Status: ready'"
-						/>
-						<span class="form-hint">Shell command to generate status text</span>
-					</div>
-				{/if}
-			</section>
-
-			<!-- Effective Settings Preview -->
-			<section class="settings-section preview-section">
-				<h2>Effective Settings</h2>
-				<p class="section-help">
-					Merged global + project settings (read-only)
-					<button class="link-btn" on:click={() => (viewMode = 'compare')}>
-						View comparison
+					<button class="btn-primary" onclick={saveConfig} disabled={saving}>
+						{saving ? 'Saving...' : 'Save'}
 					</button>
-				</p>
-
-				<div class="preview-content">
-					<pre>{JSON.stringify(mergedSettings, null, 2)}</pre>
 				</div>
-			</section>
-		</div>
+
+				<div class="config-grid">
+					<!-- Automation Section -->
+					<div class="config-section">
+						<div class="section-header">
+							<div class="section-icon automation">
+								<Icon name="settings" size={18} />
+							</div>
+							<h3>Automation</h3>
+						</div>
+
+						<div class="form-grid">
+							<div class="form-group">
+								<label for="profile">Profile</label>
+								<select id="profile" bind:value={editProfile}>
+									{#each profiles as p}
+										<option value={p}>{p}</option>
+									{/each}
+								</select>
+								<span class="hint">{profileDescriptions[editProfile]}</span>
+							</div>
+
+							<div class="form-group">
+								<label for="gates_default">Default Gate</label>
+								<select id="gates_default" bind:value={editGatesDefault}>
+									{#each gateTypes as g}
+										<option value={g}>{g}</option>
+									{/each}
+								</select>
+							</div>
+
+							<div class="form-group toggle-row">
+								<div class="toggle-info">
+									<label for="retry_enabled">Enable Retry</label>
+									<span class="hint">Auto-retry failed phases</span>
+								</div>
+								<label class="toggle">
+									<input type="checkbox" id="retry_enabled" bind:checked={editRetryEnabled} />
+									<span class="toggle-slider"></span>
+								</label>
+							</div>
+
+							<div class="form-group">
+								<label for="retry_max">Max Retries</label>
+								<input type="number" id="retry_max" bind:value={editRetryMax} min="0" max="10" />
+							</div>
+						</div>
+					</div>
+
+					<!-- Execution Section -->
+					<div class="config-section">
+						<div class="section-header">
+							<div class="section-icon execution">
+								<Icon name="play" size={18} />
+							</div>
+							<h3>Execution</h3>
+						</div>
+
+						<div class="form-grid">
+							<div class="form-group full-width">
+								<label for="model">Model</label>
+								<input type="text" id="model" bind:value={editModel} placeholder="claude-sonnet-4-20250514" />
+							</div>
+
+							<div class="form-group">
+								<label for="max_iterations">Max Iterations</label>
+								<input type="number" id="max_iterations" bind:value={editMaxIterations} min="1" max="100" />
+							</div>
+
+							<div class="form-group">
+								<label for="timeout">Timeout</label>
+								<input type="text" id="timeout" bind:value={editTimeout} placeholder="30m" />
+							</div>
+						</div>
+					</div>
+
+					<!-- Git Section -->
+					<div class="config-section">
+						<div class="section-header">
+							<div class="section-icon git">
+								<Icon name="branch" size={18} />
+							</div>
+							<h3>Git</h3>
+						</div>
+
+						<div class="form-grid">
+							<div class="form-group">
+								<label for="branch_prefix">Branch Prefix</label>
+								<input type="text" id="branch_prefix" bind:value={editBranchPrefix} placeholder="orc/" />
+							</div>
+
+							<div class="form-group">
+								<label for="commit_prefix">Commit Prefix</label>
+								<input type="text" id="commit_prefix" bind:value={editCommitPrefix} placeholder="[orc]" />
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Claude Settings Tab -->
+		{#if activeTab === 'claude'}
+			<div class="tab-content">
+				<div class="content-header">
+					<div>
+						<h2>Claude Settings</h2>
+						<p class="subtitle">.claude/settings.json - Claude Code environment</p>
+					</div>
+					<button class="btn-primary" onclick={saveClaudeSettings} disabled={saving}>
+						{saving ? 'Saving...' : 'Save'}
+					</button>
+				</div>
+
+				<div class="config-grid">
+					<!-- Environment Variables -->
+					<div class="config-section full-width">
+						<div class="section-header">
+							<div class="section-icon env">
+								<Icon name="config" size={18} />
+							</div>
+							<h3>Environment Variables</h3>
+						</div>
+
+						<div class="env-list">
+							{#each envEntries as entry, index}
+								<div class="env-row">
+									<input
+										type="text"
+										bind:value={entry.key}
+										placeholder="KEY"
+										class="env-key"
+									/>
+									<span class="env-equals">=</span>
+									<input
+										type="text"
+										bind:value={entry.value}
+										placeholder="value"
+										class="env-value"
+									/>
+									<button class="btn-icon btn-remove" onclick={() => removeEnvVar(index)} title="Remove">
+										<Icon name="close" size={14} />
+									</button>
+								</div>
+							{/each}
+
+							<div class="env-row env-new">
+								<input
+									type="text"
+									bind:value={newEnvKey}
+									placeholder="NEW_KEY"
+									class="env-key"
+									onkeydown={(e) => e.key === 'Enter' && addEnvVar()}
+								/>
+								<span class="env-equals">=</span>
+								<input
+									type="text"
+									bind:value={newEnvValue}
+									placeholder="value"
+									class="env-value"
+									onkeydown={(e) => e.key === 'Enter' && addEnvVar()}
+								/>
+								<button class="btn-icon btn-add" onclick={addEnvVar} title="Add">
+									<Icon name="plus" size={14} />
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- Status Line -->
+					<div class="config-section">
+						<div class="section-header">
+							<div class="section-icon status">
+								<Icon name="info" size={18} />
+							</div>
+							<h3>Status Line</h3>
+						</div>
+
+						<div class="form-grid">
+							<div class="form-group">
+								<label for="status-type">Type</label>
+								<select id="status-type" bind:value={statusLineType}>
+									<option value="">Default</option>
+									<option value="text">Text</option>
+									<option value="command">Command</option>
+								</select>
+							</div>
+
+							{#if statusLineType === 'command'}
+								<div class="form-group">
+									<label for="status-command">Command</label>
+									<input
+										id="status-command"
+										type="text"
+										bind:value={statusLineCommand}
+										placeholder="echo 'Status: ready'"
+									/>
+								</div>
+							{/if}
+						</div>
+					</div>
+
+					<!-- Effective Settings Preview -->
+					<div class="config-section">
+						<div class="section-header">
+							<div class="section-icon preview">
+								<Icon name="file" size={18} />
+							</div>
+							<h3>Effective Settings</h3>
+						</div>
+						<div class="preview-content">
+							<pre>{JSON.stringify(mergedSettings, null, 2)}</pre>
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Quick Access Tab -->
+		{#if activeTab === 'quick'}
+			<div class="tab-content">
+				<div class="content-header">
+					<div>
+						<h2>Quick Access</h2>
+						<p class="subtitle">Jump to Claude configuration pages</p>
+					</div>
+				</div>
+
+				<div class="quick-access-grid">
+					{#each quickAccessItems as item}
+						<a href={item.href} class="quick-card">
+							<div class="quick-icon">
+								<Icon name={item.icon} size={24} />
+							</div>
+							<div class="quick-info">
+								<h4>{item.label}</h4>
+								<p>{item.description}</p>
+							</div>
+							<div class="quick-arrow">
+								<Icon name="chevron-right" size={16} />
+							</div>
+						</a>
+					{/each}
+				</div>
+			</div>
+		{/if}
 	{/if}
 </div>
 
 <style>
 	.settings-page {
+		max-width: 900px;
+	}
+
+	/* Toast */
+	.toast {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-md);
+		margin-bottom: var(--space-4);
+		font-size: var(--text-sm);
+		animation: slideIn var(--duration-normal) var(--ease-out);
+	}
+
+	@keyframes slideIn {
+		from {
+			opacity: 0;
+			transform: translateY(-8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.toast.success {
+		background: rgba(16, 185, 129, 0.1);
+		border: 1px solid var(--status-success);
+		color: var(--status-success);
+	}
+
+	.toast.error {
+		background: rgba(239, 68, 68, 0.1);
+		border: 1px solid var(--status-danger);
+		color: var(--status-danger);
+	}
+
+	.toast-dismiss {
+		margin-left: auto;
+		background: transparent;
+		border: none;
+		color: inherit;
+		cursor: pointer;
+		padding: var(--space-1);
+		border-radius: var(--radius-sm);
+	}
+
+	/* Tabs */
+	.tabs {
+		display: flex;
+		gap: var(--space-1);
+		background: var(--bg-secondary);
+		padding: var(--space-1);
+		border-radius: var(--radius-lg);
+		margin-bottom: var(--space-5);
+	}
+
+	.tab {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		padding: var(--space-3) var(--space-4);
+		background: transparent;
+		border: none;
+		border-radius: var(--radius-md);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.tab:hover {
+		color: var(--text-primary);
+		background: var(--bg-tertiary);
+	}
+
+	.tab.active {
+		background: var(--bg-primary);
+		color: var(--accent-primary);
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	}
+
+	/* Loading */
+	.loading-state {
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-16);
+		gap: var(--space-4);
+		color: var(--text-secondary);
 	}
 
-	.page-header h1 {
-		margin: 0;
-		font-size: 1.5rem;
+	.spinner {
+		width: 32px;
+		height: 32px;
+		border: 3px solid var(--border-subtle);
+		border-top-color: var(--accent-primary);
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
 	}
 
-	.header-content {
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	/* Tab Content */
+	.tab-content {
+		animation: fadeIn var(--duration-fast) var(--ease-out);
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	.content-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
+		margin-bottom: var(--space-5);
 	}
 
-	.header-actions {
-		display: flex;
-		gap: 1rem;
-		align-items: center;
-	}
-
-	.view-toggle {
-		display: flex;
-		background: var(--bg-secondary);
-		border-radius: 6px;
-		padding: 2px;
-		border: 1px solid var(--border-color);
-	}
-
-	.toggle-btn {
-		padding: 0.5rem 1rem;
-		border: none;
-		background: transparent;
-		cursor: pointer;
-		font-size: 0.875rem;
-		border-radius: 4px;
-		color: var(--text-secondary);
-		transition: all 0.2s;
-	}
-
-	.toggle-btn.active {
-		background: var(--bg-primary);
+	.content-header h2 {
+		font-size: var(--text-lg);
+		font-weight: var(--font-semibold);
 		color: var(--text-primary);
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-	}
-
-	.toggle-btn:hover:not(.active) {
-		color: var(--text-primary);
+		margin: 0;
 	}
 
 	.subtitle {
-		margin: 0.5rem 0 0;
-		color: var(--text-secondary);
-		font-size: 0.875rem;
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin: var(--space-1) 0 0;
 	}
 
-	.alert {
-		padding: 0.75rem 1rem;
-		border-radius: 6px;
-		font-size: 0.875rem;
+	.btn-primary {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2-5) var(--space-5);
+		background: var(--accent-primary);
+		border: 1px solid var(--accent-primary);
+		border-radius: var(--radius-md);
+		color: white;
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
 	}
 
-	.alert-error {
-		background: var(--error-bg, #fee2e2);
-		color: var(--error-text, #dc2626);
-		border: 1px solid var(--error-border, #fecaca);
+	.btn-primary:hover:not(:disabled) {
+		background: var(--accent-hover);
 	}
 
-	.alert-success {
-		background: var(--success-bg, #dcfce7);
-		color: var(--success-text, #16a34a);
-		border: 1px solid var(--success-border, #bbf7d0);
+	.btn-primary:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
-	.loading {
-		text-align: center;
-		padding: 3rem;
-		color: var(--text-secondary);
-	}
-
-	/* Comparison View */
-	.comparison-view {
+	/* Config Grid */
+	.config-grid {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 1rem;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--space-5);
 	}
 
-	.comparison-column {
+	@media (max-width: 768px) {
+		.config-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	/* Config Section */
+	.config-section {
 		background: var(--bg-secondary);
-		border-radius: 8px;
-		border: 1px solid var(--border-color);
-		overflow: hidden;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-lg);
+		padding: var(--space-5);
 	}
 
-	.column-header {
-		padding: 1rem;
-		border-bottom: 1px solid var(--border-color);
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
+	.config-section.full-width {
+		grid-column: span 2;
 	}
 
-	.column-header h2 {
-		font-size: 1rem;
-		font-weight: 600;
-		margin: 0;
+	@media (max-width: 768px) {
+		.config-section.full-width {
+			grid-column: span 1;
+		}
 	}
 
-	.column-path {
-		font-size: 0.75rem;
-		color: var(--text-secondary);
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
-	}
-
-	.badge {
-		display: inline-block;
-		padding: 0.125rem 0.5rem;
-		border-radius: 4px;
-		font-size: 0.625rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		width: fit-content;
-		margin-top: 0.25rem;
-	}
-
-	.badge-readonly {
-		background: var(--info-bg, #e0f2fe);
-		color: var(--info-text, #0284c7);
-	}
-
-	.badge-editable {
-		background: var(--success-bg, #dcfce7);
-		color: var(--success-text, #16a34a);
-	}
-
-	.badge-merged {
-		background: var(--warning-bg, #fef3c7);
-		color: var(--warning-text, #d97706);
-	}
-
-	.column-content {
-		padding: 1rem;
-		max-height: 400px;
-		overflow: auto;
-	}
-
-	.column-content pre {
-		margin: 0;
-		font-size: 0.75rem;
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
-		white-space: pre-wrap;
-		word-break: break-word;
-	}
-
-	.legend {
-		background: var(--bg-secondary);
-		border-radius: 8px;
-		padding: 1rem;
-		border: 1px solid var(--border-color);
-	}
-
-	.legend h3 {
-		font-size: 0.875rem;
-		margin: 0 0 0.75rem;
-	}
-
-	.legend-items {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.legend-item {
+	.section-header {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		font-size: 0.875rem;
-		color: var(--text-secondary);
+		gap: var(--space-3);
+		margin-bottom: var(--space-4);
 	}
 
-	/* Edit Mode */
-	.settings-grid {
+	.section-header h3 {
+		font-size: var(--text-sm);
+		font-weight: var(--font-semibold);
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		margin: 0;
+	}
+
+	.section-icon {
+		width: 36px;
+		height: 36px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: var(--radius-md);
+	}
+
+	.section-icon.automation {
+		background: rgba(139, 92, 246, 0.15);
+		color: var(--accent-primary);
+	}
+
+	.section-icon.execution {
+		background: rgba(245, 158, 11, 0.15);
+		color: var(--status-warning);
+	}
+
+	.section-icon.git {
+		background: rgba(239, 68, 68, 0.15);
+		color: #f87171;
+	}
+
+	.section-icon.env {
+		background: rgba(16, 185, 129, 0.15);
+		color: var(--status-success);
+	}
+
+	.section-icon.status {
+		background: rgba(59, 130, 246, 0.15);
+		color: #3b82f6;
+	}
+
+	.section-icon.preview {
+		background: rgba(107, 114, 128, 0.15);
+		color: var(--text-muted);
+	}
+
+	/* Form Grid */
+	.form-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--space-4);
+	}
+
+	.form-group {
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
+		gap: var(--space-1-5);
 	}
 
-	.settings-section {
-		background: var(--bg-secondary);
-		border-radius: 8px;
-		padding: 1.5rem;
-		border: 1px solid var(--border-color);
+	.form-group.full-width {
+		grid-column: span 2;
 	}
 
-	.settings-section h2 {
-		font-size: 1rem;
-		font-weight: 600;
-		margin: 0 0 0.25rem;
+	.form-group label {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
 		color: var(--text-primary);
 	}
 
-	.section-help {
-		font-size: 0.75rem;
-		color: var(--text-secondary);
-		margin: 0 0 1rem;
+	.form-group input,
+	.form-group select {
+		width: 100%;
+		padding: var(--space-2-5) var(--space-3);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		color: var(--text-primary);
+		font-size: var(--text-sm);
+		transition: all var(--duration-fast) var(--ease-out);
 	}
 
-	.link-btn {
-		background: none;
-		border: none;
-		color: var(--primary, #3b82f6);
+	.form-group input:focus,
+	.form-group select:focus {
+		outline: none;
+		border-color: var(--accent-primary);
+		box-shadow: 0 0 0 3px var(--accent-glow);
+	}
+
+	.hint {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+	}
+
+	/* Toggle Row */
+	.toggle-row {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		grid-column: span 2;
+		padding: var(--space-3);
+		background: var(--bg-tertiary);
+		border-radius: var(--radius-md);
+	}
+
+	.toggle-info {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-0-5);
+	}
+
+	.toggle {
+		position: relative;
+		display: inline-block;
+		width: 44px;
+		height: 24px;
 		cursor: pointer;
-		font-size: inherit;
-		padding: 0;
-		margin-left: 0.5rem;
 	}
 
-	.link-btn:hover {
-		text-decoration: underline;
+	.toggle input {
+		opacity: 0;
+		width: 0;
+		height: 0;
+	}
+
+	.toggle-slider {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: var(--bg-surface);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-full);
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.toggle-slider::before {
+		content: '';
+		position: absolute;
+		width: 18px;
+		height: 18px;
+		left: 2px;
+		bottom: 2px;
+		background: var(--text-muted);
+		border-radius: 50%;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.toggle input:checked + .toggle-slider {
+		background: var(--accent-primary);
+		border-color: var(--accent-primary);
+	}
+
+	.toggle input:checked + .toggle-slider::before {
+		transform: translateX(20px);
+		background: white;
 	}
 
 	/* Environment Variables */
 	.env-list {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 
 	.env-row {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 
 	.env-key {
-		flex: 0 0 200px;
-		padding: 0.5rem 0.75rem;
-		border: 1px solid var(--border-color);
-		border-radius: 6px;
-		font-size: 0.875rem;
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
-		background: var(--bg-primary);
+		flex: 0 0 180px;
+		padding: var(--space-2) var(--space-3);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
 		color: var(--text-primary);
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
 	}
 
 	.env-equals {
-		color: var(--text-secondary);
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+		color: var(--text-muted);
+		font-family: var(--font-mono);
 	}
 
 	.env-value {
 		flex: 1;
-		padding: 0.5rem 0.75rem;
-		border: 1px solid var(--border-color);
-		border-radius: 6px;
-		font-size: 0.875rem;
-		background: var(--bg-primary);
+		padding: var(--space-2) var(--space-3);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
 		color: var(--text-primary);
+		font-size: var(--text-sm);
 	}
 
 	.env-new {
-		opacity: 0.7;
+		opacity: 0.6;
 	}
 
 	.env-new:focus-within {
@@ -571,141 +930,121 @@
 	.btn-icon {
 		width: 32px;
 		height: 32px;
-		border: none;
-		border-radius: 6px;
-		cursor: pointer;
-		font-size: 1.25rem;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		border: none;
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
 	}
 
 	.btn-remove {
-		background: var(--error-bg, #fee2e2);
-		color: var(--error-text, #dc2626);
+		background: rgba(239, 68, 68, 0.1);
+		color: var(--status-danger);
 	}
 
 	.btn-remove:hover {
-		background: var(--error-border, #fecaca);
+		background: rgba(239, 68, 68, 0.2);
 	}
 
 	.btn-add {
-		background: var(--success-bg, #dcfce7);
-		color: var(--success-text, #16a34a);
+		background: rgba(16, 185, 129, 0.1);
+		color: var(--status-success);
 	}
 
 	.btn-add:hover {
-		background: var(--success-border, #bbf7d0);
+		background: rgba(16, 185, 129, 0.2);
 	}
 
-	/* Form Groups */
-	.form-group {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		margin-bottom: 1rem;
-	}
-
-	.form-group:last-child {
-		margin-bottom: 0;
-	}
-
-	.form-group label {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: var(--text-primary);
-	}
-
-	.form-group input,
-	.form-group select {
-		padding: 0.5rem 0.75rem;
-		border: 1px solid var(--border-color);
-		border-radius: 6px;
-		font-size: 0.875rem;
-		background: var(--bg-primary);
-		color: var(--text-primary);
-	}
-
-	.form-group input:focus,
-	.form-group select:focus {
-		outline: none;
-		border-color: var(--primary, #3b82f6);
-	}
-
-	.form-hint {
-		font-size: 0.75rem;
-		color: var(--text-secondary);
-	}
-
-	/* Preview Section */
-	.preview-section {
-		background: var(--bg-tertiary, #f3f4f6);
-	}
-
+	/* Preview */
 	.preview-content {
-		background: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: 6px;
-		padding: 1rem;
-		overflow-x: auto;
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		padding: var(--space-3);
+		max-height: 200px;
+		overflow: auto;
 	}
 
 	.preview-content pre {
 		margin: 0;
-		font-size: 0.75rem;
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
 		color: var(--text-primary);
+		white-space: pre-wrap;
 	}
 
-	.btn {
-		padding: 0.5rem 1rem;
-		border-radius: 6px;
-		font-size: 0.875rem;
-		font-weight: 500;
-		cursor: pointer;
-		border: 1px solid transparent;
+	/* Quick Access Grid */
+	.quick-access-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--space-4);
 	}
 
-	.btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.btn-primary {
-		background: var(--primary, #3b82f6);
-		color: white;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: var(--primary-hover, #2563eb);
-	}
-
-	@media (max-width: 1024px) {
-		.comparison-view {
+	@media (max-width: 640px) {
+		.quick-access-grid {
 			grid-template-columns: 1fr;
 		}
 	}
 
-	@media (max-width: 768px) {
-		.header-content {
-			flex-direction: column;
-			gap: 1rem;
-		}
+	.quick-card {
+		display: flex;
+		align-items: center;
+		gap: var(--space-4);
+		padding: var(--space-4);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-lg);
+		text-decoration: none;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
 
-		.env-row {
-			flex-wrap: wrap;
-		}
+	.quick-card:hover {
+		border-color: var(--accent-primary);
+		background: var(--bg-tertiary);
+		transform: translateY(-2px);
+	}
 
-		.env-key {
-			flex: 1 1 100%;
-		}
+	.quick-icon {
+		width: 48px;
+		height: 48px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--accent-subtle);
+		color: var(--accent-primary);
+		border-radius: var(--radius-md);
+		flex-shrink: 0;
+	}
 
-		.env-equals {
-			display: none;
-		}
+	.quick-info {
+		flex: 1;
+		min-width: 0;
+	}
 
-		.env-value {
-			flex: 1 1 calc(100% - 40px);
-		}
+	.quick-info h4 {
+		font-size: var(--text-sm);
+		font-weight: var(--font-semibold);
+		color: var(--text-primary);
+		margin: 0;
+	}
+
+	.quick-info p {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin: var(--space-1) 0 0;
+	}
+
+	.quick-arrow {
+		color: var(--text-muted);
+		opacity: 0;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.quick-card:hover .quick-arrow {
+		opacity: 1;
+		color: var(--accent-primary);
+		transform: translateX(4px);
 	}
 </style>

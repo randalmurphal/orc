@@ -139,14 +139,20 @@ func (e *Executor) checkCompletionNode(p *plan.Phase, st *state.State) flowgraph
 // commitCheckpointNode creates the git commit checkpoint node.
 func (e *Executor) commitCheckpointNode() flowgraph.NodeFunc[PhaseState] {
 	return func(ctx flowgraph.Context, s PhaseState) (PhaseState, error) {
+		// Use worktree git if available, otherwise fall back to main repo git
+		gitSvc := e.gitOps
+		if e.worktreeGit != nil {
+			gitSvc = e.worktreeGit
+		}
+
 		// Skip if git operations not available
-		if e.gitOps == nil {
+		if gitSvc == nil {
 			return s, nil
 		}
 
 		// Create git checkpoint
 		msg := fmt.Sprintf("%s: %s - completed", s.Phase, s.TaskTitle)
-		cp, err := e.gitOps.CreateCheckpoint(s.TaskID, s.Phase, msg)
+		cp, err := gitSvc.CreateCheckpoint(s.TaskID, s.Phase, msg)
 		if err != nil {
 			ctx.Logger().Warn("failed to create git checkpoint", "error", err)
 			// Don't fail the phase for git errors

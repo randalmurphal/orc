@@ -28,7 +28,7 @@ Phase execution engine implementing Ralph-style iteration loops with multiple ex
 | `template.go` | Prompt template rendering |
 | `retry.go` | Cross-phase retry context management |
 | `worktree.go` | Git worktree setup/cleanup |
-| `flowgraph_nodes.go` | Flowgraph node builders |
+| `flowgraph_nodes.go` | Flowgraph node builders (uses worktree git for commits) |
 | `session_adapter.go` | LLM session abstraction |
 | `completion.go` | Phase completion detection |
 | `config.go` | ExecutorConfig struct and defaults |

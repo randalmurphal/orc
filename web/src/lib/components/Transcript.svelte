@@ -5,9 +5,10 @@
 		lines: TranscriptLine[];
 		autoScroll?: boolean;
 		taskId?: string;
+		streamingContent?: string;
 	}
 
-	let { lines, autoScroll = true, taskId = 'task' }: Props = $props();
+	let { lines, autoScroll = true, taskId = 'task', streamingContent = '' }: Props = $props();
 
 	let containerRef: HTMLDivElement;
 	let isAutoScrollEnabled = $state(true);
@@ -17,9 +18,11 @@
 		isAutoScrollEnabled = autoScroll;
 	});
 
-	// Auto-scroll to bottom when new lines added
+	// Auto-scroll to bottom when new lines added or streaming content changes
 	$effect(() => {
-		if (isAutoScrollEnabled && containerRef && lines.length > 0) {
+		// Track both lines and streamingContent for auto-scroll
+		const _ = lines.length + streamingContent.length;
+		if (isAutoScrollEnabled && containerRef) {
 			containerRef.scrollTop = containerRef.scrollHeight;
 		}
 	});
@@ -220,6 +223,26 @@
 						</div>
 					</div>
 				{/each}
+
+				<!-- Live streaming content -->
+				{#if streamingContent}
+					<div
+						class="entry streaming"
+						style:--entry-color="var(--status-success)"
+						style:--entry-bg="var(--status-success-bg)"
+					>
+						<div class="entry-header">
+							<div class="entry-type">
+								<span class="entry-icon streaming-icon">&#9679;</span>
+								<span class="entry-label">STREAMING</span>
+							</div>
+							<span class="entry-time">Live</span>
+						</div>
+						<div class="entry-content">
+							<pre class="content-text">{streamingContent}</pre>
+						</div>
+					</div>
+				{/if}
 			</div>
 		{/if}
 	</div>
@@ -405,5 +428,23 @@
 	.expand-btn:hover {
 		background: var(--bg-tertiary);
 		color: var(--text-primary);
+	}
+
+	/* Streaming indicator */
+	.entry.streaming {
+		border-left-width: 3px;
+	}
+
+	.streaming-icon {
+		animation: pulse 1.5s ease-in-out infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.4;
+		}
 	}
 </style>

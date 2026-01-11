@@ -75,7 +75,7 @@ web/
 | Component | Purpose |
 |-----------|---------|
 | `Header.svelte` | Top navigation, project switcher |
-| `Sidebar.svelte` | Navigation menu with icons |
+| `Sidebar.svelte` | Minimal navigation: Dashboard, Tasks, Board, Settings |
 
 ### Dashboard Components
 
@@ -108,6 +108,7 @@ web/
 | `TaskHeader.svelte` | Task title, status, actions |
 | `TaskTabs.svelte` | Tab navigation (Timeline/Diff/Review/Transcript) |
 | `RetryPanel.svelte` | Retry configuration with context injection |
+| `PRActions.svelte` | GitHub PR status, create/merge buttons |
 
 ### Diff Components
 
@@ -341,3 +342,25 @@ Button actions on TaskCard are always available without drag-drop.
 2. **Batch Review**: Collect multiple comments, then "Send to Agent"
 3. **Context Injection**: All open comments injected into retry context
 4. **Resolution**: Mark comments as Resolved or Won't Fix after retry
+
+## Settings Hub
+
+The `/settings` page provides a unified configuration interface with three tabs:
+
+### Orc Config Tab
+- Automation profile (auto/fast/safe/strict)
+- Model selection
+- Max iterations, timeout
+- Retry settings, worktree isolation
+
+### Claude Settings Tab
+- Model, max tokens, custom prompt
+- Environment variables
+- Permission settings
+
+### Quick Access Tab
+Grid of links to all configuration pages:
+- Prompts, CLAUDE.md, Skills, Hooks
+- MCP, Tools, Agents, Scripts
+
+All Claude Code configuration (prompts, agents, scripts, MCP, hooks, skills) is accessible through the Quick Access grid, keeping the sidebar minimal while providing full access to all settings.

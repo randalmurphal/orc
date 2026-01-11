@@ -20,6 +20,8 @@
 	let creating = $state(false);
 	let merging = $state(false);
 	let error = $state<string | null>(null);
+	let showMergeConfirm = $state(false);
+	let hasCheckedPR = $state(false); // Track if we've already checked for PR
 
 	// Only show for completed tasks with a branch
 	const shouldShow = $derived(
@@ -32,9 +34,9 @@
 		}
 	});
 
-	// Reload when task status changes to completed
+	// Only reload when task status changes to completed AND we haven't checked yet
 	$effect(() => {
-		if (shouldShow && !pr && !loading) {
+		if (shouldShow && !pr && !loading && !hasCheckedPR) {
 			loadPRData();
 		}
 	});
@@ -65,6 +67,7 @@
 			}
 		} finally {
 			loading = false;
+			hasCheckedPR = true; // Mark that we've checked
 		}
 	}
 
@@ -84,9 +87,18 @@
 		}
 	}
 
-	async function handleMergePR() {
-		if (!pr || !confirm(`Merge PR #${pr.number}?`)) return;
+	function openMergeConfirm() {
+		showMergeConfirm = true;
+	}
 
+	function closeMergeConfirm() {
+		showMergeConfirm = false;
+	}
+
+	async function handleMergePR() {
+		if (!pr) return;
+
+		showMergeConfirm = false;
 		merging = true;
 		error = null;
 
@@ -154,7 +166,7 @@
 					PR #{pr.number}
 				</a>
 
-				<span class="pr-state" class:open={pr.state === 'open'} class:merged={pr.state === 'merged'} class:closed={pr.state === 'closed'}>
+				<span class="pr-state" class:open={pr.state.toLowerCase() === 'open'} class:merged={pr.state.toLowerCase() === 'merged'} class:closed={pr.state.toLowerCase() === 'closed'}>
 					{pr.state}
 				</span>
 
@@ -172,9 +184,9 @@
 					</div>
 				{/if}
 
-				{#if pr.state === 'open'}
+				{#if pr.state.toLowerCase() === 'open'}
 					{#if pr.mergeable}
-						<button class="btn-merge" onclick={handleMergePR} disabled={merging}>
+						<button class="btn-merge" onclick={openMergeConfirm} disabled={merging}>
 							{#if merging}
 								<div class="spinner small"></div>
 								Merging...
@@ -200,6 +212,38 @@
 				{/if}
 			</div>
 		{/if}
+	</div>
+{/if}
+
+<!-- Merge confirmation modal -->
+{#if showMergeConfirm && pr}
+	<div class="modal-backdrop" onclick={closeMergeConfirm} role="presentation">
+		<div class="modal-content" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="merge-modal-title">
+			<div class="modal-header">
+				<h3 id="merge-modal-title">Merge Pull Request</h3>
+				<button class="modal-close" onclick={closeMergeConfirm} aria-label="Close">
+					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<line x1="18" y1="6" x2="6" y2="18"/>
+						<line x1="6" y1="6" x2="18" y2="18"/>
+					</svg>
+				</button>
+			</div>
+			<div class="modal-body">
+				<p>Are you sure you want to merge <strong>PR #{pr.number}</strong>?</p>
+				<p class="modal-details">This will squash and merge the changes into the base branch and delete the source branch.</p>
+			</div>
+			<div class="modal-footer">
+				<button class="btn-cancel" onclick={closeMergeConfirm}>Cancel</button>
+				<button class="btn-confirm-merge" onclick={handleMergePR}>
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="18" cy="18" r="3"/>
+						<circle cx="6" cy="6" r="3"/>
+						<path d="M6 21V9a9 9 0 0 0 9 9"/>
+					</svg>
+					Merge PR
+				</button>
+			</div>
+		</div>
 	</div>
 {/if}
 
@@ -389,6 +433,141 @@
 	@keyframes spin {
 		to {
 			transform: rotate(360deg);
+		}
+	}
+
+	/* Modal styles */
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(2px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+		animation: fadeIn 0.15s ease;
+	}
+
+	.modal-content {
+		background: var(--bg-primary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-lg);
+		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+		width: 100%;
+		max-width: 400px;
+		animation: slideUp 0.15s ease;
+	}
+
+	.modal-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-4);
+		border-bottom: 1px solid var(--border-default);
+	}
+
+	.modal-header h3 {
+		margin: 0;
+		font-size: var(--text-lg);
+		font-weight: var(--font-semibold);
+		color: var(--text-primary);
+	}
+
+	.modal-close {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-1);
+		background: transparent;
+		border: none;
+		border-radius: var(--radius-sm);
+		color: var(--text-muted);
+		cursor: pointer;
+		transition: background 0.15s ease, color 0.15s ease;
+	}
+
+	.modal-close:hover {
+		background: var(--bg-secondary);
+		color: var(--text-primary);
+	}
+
+	.modal-body {
+		padding: var(--space-4);
+	}
+
+	.modal-body p {
+		margin: 0;
+		color: var(--text-primary);
+		line-height: 1.5;
+	}
+
+	.modal-body p + p {
+		margin-top: var(--space-2);
+	}
+
+	.modal-details {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+	}
+
+	.modal-footer {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: var(--space-2);
+		padding: var(--space-4);
+		border-top: 1px solid var(--border-default);
+	}
+
+	.btn-cancel {
+		padding: var(--space-2) var(--space-4);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		color: var(--text-primary);
+		cursor: pointer;
+		transition: background 0.15s ease;
+	}
+
+	.btn-cancel:hover {
+		background: var(--bg-tertiary);
+	}
+
+	.btn-confirm-merge {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-4);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		background: var(--status-success);
+		border: none;
+		border-radius: var(--radius-md);
+		color: white;
+		cursor: pointer;
+		transition: filter 0.15s ease;
+	}
+
+	.btn-confirm-merge:hover {
+		filter: brightness(1.1);
+	}
+
+	@keyframes fadeIn {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+
+	@keyframes slideUp {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
 		}
 	}
 </style>
