@@ -1,16 +1,49 @@
 <script lang="ts">
 	import DiffLine from './DiffLine.svelte';
 	import VirtualScroller from './VirtualScroller.svelte';
-	import type { Hunk, Line } from '$lib/types';
+	import InlineCommentThread from './InlineCommentThread.svelte';
+	import type { Hunk, Line, ReviewComment, CreateCommentRequest } from '$lib/types';
 
 	interface Props {
 		hunk: Hunk;
 		viewMode: 'split' | 'unified';
 		filePath: string;
+		comments?: ReviewComment[];
+		activeLineNumber?: number | null;
 		onLineClick?: (lineNumber: number, filePath: string) => void;
+		onAddComment?: (comment: CreateCommentRequest) => Promise<void>;
+		onResolveComment?: (id: string) => void;
+		onWontFixComment?: (id: string) => void;
+		onDeleteComment?: (id: string) => void;
 	}
 
-	let { hunk, viewMode, filePath, onLineClick }: Props = $props();
+	let {
+		hunk,
+		viewMode,
+		filePath,
+		comments = [],
+		activeLineNumber = null,
+		onLineClick,
+		onAddComment,
+		onResolveComment,
+		onWontFixComment,
+		onDeleteComment
+	}: Props = $props();
+
+	function getCommentsForLine(lineNumber: number | undefined): ReviewComment[] {
+		if (!lineNumber) return [];
+		return comments.filter(c => c.line_number === lineNumber);
+	}
+
+	function getCommentCount(lineNumber: number | undefined): number {
+		if (!lineNumber) return 0;
+		return comments.filter(c => c.line_number === lineNumber && c.status === 'open').length;
+	}
+
+	function shouldShowThread(lineNumber: number | undefined): boolean {
+		if (!lineNumber) return false;
+		return getCommentsForLine(lineNumber).length > 0 || activeLineNumber === lineNumber;
+	}
 
 	interface LinePair {
 		old?: Line;
@@ -66,12 +99,36 @@
 			{#if hunk.lines.length > VIRTUAL_THRESHOLD}
 				<VirtualScroller items={hunk.lines} itemHeight={22}>
 					{#snippet children({ item })}
-						<DiffLine line={item} mode="unified" {filePath} {onLineClick} />
+						{@const lineNum = item.type === 'deletion' ? item.old_line : item.new_line}
+						<DiffLine line={item} mode="unified" {filePath} {onLineClick} commentCount={getCommentCount(lineNum)} />
+						{#if shouldShowThread(lineNum) && onAddComment && onResolveComment && onWontFixComment && onDeleteComment}
+							<InlineCommentThread
+								comments={getCommentsForLine(lineNum)}
+								{filePath}
+								lineNumber={lineNum ?? 0}
+								onAddComment={onAddComment}
+								onResolve={onResolveComment}
+								onWontFix={onWontFixComment}
+								onDelete={onDeleteComment}
+							/>
+						{/if}
 					{/snippet}
 				</VirtualScroller>
 			{:else}
 				{#each hunk.lines as line, i (i)}
-					<DiffLine {line} mode="unified" {filePath} {onLineClick} />
+					{@const lineNum = line.type === 'deletion' ? line.old_line : line.new_line}
+					<DiffLine {line} mode="unified" {filePath} {onLineClick} commentCount={getCommentCount(lineNum)} />
+					{#if shouldShowThread(lineNum) && onAddComment && onResolveComment && onWontFixComment && onDeleteComment}
+						<InlineCommentThread
+							comments={getCommentsForLine(lineNum)}
+							{filePath}
+							lineNumber={lineNum ?? 0}
+							onAddComment={onAddComment}
+							onResolve={onResolveComment}
+							onWontFix={onWontFixComment}
+							onDelete={onDeleteComment}
+						/>
+					{/if}
 				{/each}
 			{/if}
 		</div>
@@ -80,6 +137,7 @@
 			{#if pairedLines.length > VIRTUAL_THRESHOLD}
 				<VirtualScroller items={pairedLines} itemHeight={22}>
 					{#snippet children({ item: pair })}
+						{@const lineNum = pair.new?.new_line}
 						<div class="split-row">
 							<div class="split-left">
 								{#if pair.old}
@@ -90,16 +148,28 @@
 							</div>
 							<div class="split-right">
 								{#if pair.new}
-									<DiffLine line={pair.new} mode="split-new" {filePath} {onLineClick} />
+									<DiffLine line={pair.new} mode="split-new" {filePath} {onLineClick} commentCount={getCommentCount(lineNum)} />
 								{:else}
 									<div class="empty-line"></div>
 								{/if}
 							</div>
 						</div>
+						{#if shouldShowThread(lineNum) && onAddComment && onResolveComment && onWontFixComment && onDeleteComment}
+							<InlineCommentThread
+								comments={getCommentsForLine(lineNum)}
+								{filePath}
+								lineNumber={lineNum ?? 0}
+								onAddComment={onAddComment}
+								onResolve={onResolveComment}
+								onWontFix={onWontFixComment}
+								onDelete={onDeleteComment}
+							/>
+						{/if}
 					{/snippet}
 				</VirtualScroller>
 			{:else}
 				{#each pairedLines as pair, i (i)}
+					{@const lineNum = pair.new?.new_line}
 					<div class="split-row">
 						<div class="split-left">
 							{#if pair.old}
@@ -110,12 +180,23 @@
 						</div>
 						<div class="split-right">
 							{#if pair.new}
-								<DiffLine line={pair.new} mode="split-new" {filePath} {onLineClick} />
+								<DiffLine line={pair.new} mode="split-new" {filePath} {onLineClick} commentCount={getCommentCount(lineNum)} />
 							{:else}
 								<div class="empty-line"></div>
 							{/if}
 						</div>
 					</div>
+					{#if shouldShowThread(lineNum) && onAddComment && onResolveComment && onWontFixComment && onDeleteComment}
+						<InlineCommentThread
+							comments={getCommentsForLine(lineNum)}
+							{filePath}
+							lineNumber={lineNum ?? 0}
+							onAddComment={onAddComment}
+							onResolve={onResolveComment}
+							onWontFix={onWontFixComment}
+							onDelete={onDeleteComment}
+						/>
+					{/if}
 				{/each}
 			{/if}
 		</div>

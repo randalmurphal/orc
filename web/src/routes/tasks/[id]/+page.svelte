@@ -37,7 +37,6 @@
 	import Timeline from '$lib/components/Timeline.svelte';
 	import Transcript from '$lib/components/Transcript.svelte';
 	import DiffViewer from '$lib/components/diff/DiffViewer.svelte';
-	import ReviewPanel from '$lib/components/review/ReviewPanel.svelte';
 	import { currentProjectId } from '$lib/stores/project';
 
 	let task = $state<Task | null>(null);
@@ -68,7 +67,10 @@
 	// Read initial tab from URL query param
 	$effect(() => {
 		const urlTab = $page.url.searchParams.get('tab');
-		if (urlTab && ['timeline', 'diff', 'review', 'transcript'].includes(urlTab)) {
+		// Support old 'review' tab URL by redirecting to 'changes'
+		if (urlTab === 'review') {
+			activeTab = 'changes' as TabId;
+		} else if (urlTab && ['timeline', 'changes', 'transcript'].includes(urlTab)) {
 			activeTab = urlTab as TabId;
 		}
 	});
@@ -82,6 +84,18 @@
 	}
 
 	// Tab configuration with badges
+	// Combined diff stats and review stats into single badge for Changes tab
+	const changesBadge = $derived.by(() => {
+		const parts: string[] = [];
+		if (diffStats) {
+			parts.push(`+${diffStats.additions} -${diffStats.deletions}`);
+		}
+		if (reviewStats?.open_comments) {
+			parts.push(`${reviewStats.open_comments} comment${reviewStats.open_comments > 1 ? 's' : ''}`);
+		}
+		return parts.length > 0 ? parts.join(' · ') : null;
+	});
+
 	const tabs = $derived([
 		{
 			id: 'timeline' as TabId,
@@ -89,16 +103,10 @@
 			badge: null
 		},
 		{
-			id: 'diff' as TabId,
-			label: 'Diff',
-			badge: diffStats ? `+${diffStats.additions} -${diffStats.deletions}` : null,
-			badgeType: 'default' as const
-		},
-		{
-			id: 'review' as TabId,
-			label: 'Review',
-			badge: reviewStats?.open_comments || null,
-			badgeType: (reviewStats?.blockers ?? 0) > 0 ? ('danger' as const) : ('info' as const)
+			id: 'changes' as TabId,
+			label: 'Changes',
+			badge: changesBadge,
+			badgeType: (reviewStats?.blockers ?? 0) > 0 ? ('danger' as const) : ('default' as const)
 		},
 		{
 			id: 'transcript' as TabId,
@@ -256,8 +264,8 @@
 	}
 
 	function handleRetry() {
-		// Switch to diff tab so user can see changes and add comments
-		handleTabChange('review');
+		// Switch to changes tab so user can see diff and add review comments
+		handleTabChange('changes');
 	}
 </script>
 
@@ -454,13 +462,9 @@
 						</div>
 					{/if}
 				</div>
-			{:else if activeTab === 'diff'}
+			{:else if activeTab === 'changes'}
 				<div class="diff-container">
 					<DiffViewer {taskId} />
-				</div>
-			{:else if activeTab === 'review'}
-				<div class="review-container">
-					<ReviewPanel {taskId} />
 				</div>
 			{:else if activeTab === 'transcript'}
 				<Transcript lines={transcript} {taskId} />
@@ -607,9 +611,8 @@
 		border-radius: var(--radius-lg);
 	}
 
-	/* Diff and Review Containers */
-	.diff-container,
-	.review-container {
+	/* Diff Container */
+	.diff-container {
 		min-height: 500px;
 		max-height: calc(100vh - 300px);
 	}
