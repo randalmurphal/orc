@@ -304,6 +304,12 @@ completion:
 | `orc pool reset` | Clear exhausted flags |
 | `orc export TASK-ID` | Export task to YAML (with --transcripts, --state) |
 | `orc import <file>` | Import task from YAML (with --force) |
+| `orc initiative new <title>` | Create initiative to group related tasks |
+| `orc initiative list` | List all initiatives |
+| `orc initiative show <id>` | Show initiative details |
+| `orc initiative add-task <init-id> <task-id>` | Link task to initiative |
+| `orc initiative decide <init-id> <decision>` | Record decision |
+| `orc initiative run <id>` | Run all initiative tasks in order |
 
 ## Web UI
 
@@ -416,6 +422,19 @@ The dashboard (`/dashboard`) displays:
 | POST | `/api/projects/:id/tasks/:taskId/pause` | Pause running task |
 | POST | `/api/projects/:id/tasks/:taskId/resume` | Resume paused task |
 | POST | `/api/projects/:id/tasks/:taskId/rewind` | Rewind to phase (body: `{"phase": "implement"}`) |
+
+### Initiatives
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/initiatives` | List initiatives (query: ?status=active, ?shared=true) |
+| POST | `/api/initiatives` | Create initiative |
+| GET | `/api/initiatives/:id` | Get initiative |
+| PUT | `/api/initiatives/:id` | Update initiative |
+| DELETE | `/api/initiatives/:id` | Delete initiative |
+| GET | `/api/initiatives/:id/tasks` | List initiative tasks |
+| POST | `/api/initiatives/:id/tasks` | Add task to initiative |
+| POST | `/api/initiatives/:id/decisions` | Add decision |
+| GET | `/api/initiatives/:id/ready` | Get tasks ready to run |
 
 ### Prompts
 | Method | Endpoint | Description |

@@ -563,3 +563,277 @@ func TestProjectDB_CascadeDelete(t *testing.T) {
 		t.Error("transcripts not deleted on cascade")
 	}
 }
+
+func TestProjectDB_Initiatives(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create initiative
+	init := &Initiative{
+		ID:               "INIT-001",
+		Title:            "User Authentication",
+		Status:           "draft",
+		OwnerInitials:    "RM",
+		OwnerDisplayName: "Randy",
+		Vision:           "Secure authentication using JWT tokens",
+	}
+
+	if err := pdb.SaveInitiative(init); err != nil {
+		t.Fatalf("SaveInitiative failed: %v", err)
+	}
+
+	// Get initiative
+	got, err := pdb.GetInitiative("INIT-001")
+	if err != nil {
+		t.Fatalf("GetInitiative failed: %v", err)
+	}
+	if got.Title != init.Title {
+		t.Errorf("Title = %q, want %q", got.Title, init.Title)
+	}
+	if got.OwnerInitials != init.OwnerInitials {
+		t.Errorf("OwnerInitials = %q, want %q", got.OwnerInitials, init.OwnerInitials)
+	}
+	if got.Vision != init.Vision {
+		t.Errorf("Vision = %q, want %q", got.Vision, init.Vision)
+	}
+
+	// Update initiative
+	init.Status = "active"
+	if err := pdb.SaveInitiative(init); err != nil {
+		t.Fatalf("SaveInitiative update failed: %v", err)
+	}
+
+	got2, _ := pdb.GetInitiative("INIT-001")
+	if got2.Status != "active" {
+		t.Errorf("Status = %q, want active", got2.Status)
+	}
+
+	// List initiatives
+	init2 := &Initiative{ID: "INIT-002", Title: "API Refactor", Status: "draft"}
+	pdb.SaveInitiative(init2)
+
+	initiatives, err := pdb.ListInitiatives(ListOpts{})
+	if err != nil {
+		t.Fatalf("ListInitiatives failed: %v", err)
+	}
+	if len(initiatives) != 2 {
+		t.Errorf("len(initiatives) = %d, want 2", len(initiatives))
+	}
+
+	// Filter by status
+	activeInits, _ := pdb.ListInitiatives(ListOpts{Status: "active"})
+	if len(activeInits) != 1 {
+		t.Errorf("active initiatives = %d, want 1", len(activeInits))
+	}
+
+	// Delete initiative
+	if err := pdb.DeleteInitiative("INIT-002"); err != nil {
+		t.Fatalf("DeleteInitiative failed: %v", err)
+	}
+
+	deleted, _ := pdb.GetInitiative("INIT-002")
+	if deleted != nil {
+		t.Error("initiative still exists after delete")
+	}
+}
+
+func TestProjectDB_InitiativeDecisions(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create initiative first
+	init := &Initiative{ID: "INIT-001", Title: "Test", Status: "draft"}
+	pdb.SaveInitiative(init)
+
+	// Add decisions
+	dec1 := &InitiativeDecision{
+		ID:           "DEC-001",
+		InitiativeID: "INIT-001",
+		Decision:     "Use JWT tokens for authentication",
+		Rationale:    "Industry standard, stateless",
+		DecidedBy:    "RM",
+		DecidedAt:    time.Now(),
+	}
+	if err := pdb.AddInitiativeDecision(dec1); err != nil {
+		t.Fatalf("AddInitiativeDecision failed: %v", err)
+	}
+
+	dec2 := &InitiativeDecision{
+		ID:           "DEC-002",
+		InitiativeID: "INIT-001",
+		Decision:     "7-day token expiry",
+		Rationale:    "Security best practice",
+		DecidedBy:    "RM",
+		DecidedAt:    time.Now(),
+	}
+	pdb.AddInitiativeDecision(dec2)
+
+	// Get decisions
+	decisions, err := pdb.GetInitiativeDecisions("INIT-001")
+	if err != nil {
+		t.Fatalf("GetInitiativeDecisions failed: %v", err)
+	}
+	if len(decisions) != 2 {
+		t.Errorf("len(decisions) = %d, want 2", len(decisions))
+	}
+	if decisions[0].Decision != dec1.Decision {
+		t.Errorf("Decision = %q, want %q", decisions[0].Decision, dec1.Decision)
+	}
+}
+
+func TestProjectDB_InitiativeTasks(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create initiative
+	init := &Initiative{ID: "INIT-001", Title: "Test", Status: "draft"}
+	pdb.SaveInitiative(init)
+
+	// Create tasks
+	pdb.SaveTask(&Task{ID: "TASK-001", Title: "Task 1", Status: "pending", CreatedAt: time.Now()})
+	pdb.SaveTask(&Task{ID: "TASK-002", Title: "Task 2", Status: "pending", CreatedAt: time.Now()})
+	pdb.SaveTask(&Task{ID: "TASK-003", Title: "Task 3", Status: "pending", CreatedAt: time.Now()})
+
+	// Link tasks to initiative
+	if err := pdb.AddTaskToInitiative("INIT-001", "TASK-001", 1); err != nil {
+		t.Fatalf("AddTaskToInitiative failed: %v", err)
+	}
+	pdb.AddTaskToInitiative("INIT-001", "TASK-003", 2)
+	pdb.AddTaskToInitiative("INIT-001", "TASK-002", 3)
+
+	// Get tasks in order
+	taskIDs, err := pdb.GetInitiativeTasks("INIT-001")
+	if err != nil {
+		t.Fatalf("GetInitiativeTasks failed: %v", err)
+	}
+	if len(taskIDs) != 3 {
+		t.Errorf("len(taskIDs) = %d, want 3", len(taskIDs))
+	}
+	if taskIDs[0] != "TASK-001" || taskIDs[1] != "TASK-003" || taskIDs[2] != "TASK-002" {
+		t.Errorf("taskIDs = %v, want [TASK-001, TASK-003, TASK-002]", taskIDs)
+	}
+
+	// Update sequence
+	pdb.AddTaskToInitiative("INIT-001", "TASK-002", 0) // Move to first
+	taskIDs2, _ := pdb.GetInitiativeTasks("INIT-001")
+	if taskIDs2[0] != "TASK-002" {
+		t.Errorf("first task after reorder = %s, want TASK-002", taskIDs2[0])
+	}
+
+	// Remove task from initiative
+	if err := pdb.RemoveTaskFromInitiative("INIT-001", "TASK-003"); err != nil {
+		t.Fatalf("RemoveTaskFromInitiative failed: %v", err)
+	}
+	taskIDs3, _ := pdb.GetInitiativeTasks("INIT-001")
+	if len(taskIDs3) != 2 {
+		t.Errorf("len(taskIDs) after remove = %d, want 2", len(taskIDs3))
+	}
+}
+
+func TestProjectDB_TaskDependencies(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create tasks
+	pdb.SaveTask(&Task{ID: "TASK-001", Title: "Task 1", Status: "pending", CreatedAt: time.Now()})
+	pdb.SaveTask(&Task{ID: "TASK-002", Title: "Task 2", Status: "pending", CreatedAt: time.Now()})
+	pdb.SaveTask(&Task{ID: "TASK-003", Title: "Task 3", Status: "pending", CreatedAt: time.Now()})
+
+	// Add dependencies: TASK-002 depends on TASK-001, TASK-003 depends on TASK-001 and TASK-002
+	if err := pdb.AddTaskDependency("TASK-002", "TASK-001"); err != nil {
+		t.Fatalf("AddTaskDependency failed: %v", err)
+	}
+	pdb.AddTaskDependency("TASK-003", "TASK-001")
+	pdb.AddTaskDependency("TASK-003", "TASK-002")
+
+	// Get dependencies for TASK-003
+	deps, err := pdb.GetTaskDependencies("TASK-003")
+	if err != nil {
+		t.Fatalf("GetTaskDependencies failed: %v", err)
+	}
+	if len(deps) != 2 {
+		t.Errorf("len(deps) for TASK-003 = %d, want 2", len(deps))
+	}
+
+	// Get dependents for TASK-001
+	dependents, err := pdb.GetTaskDependents("TASK-001")
+	if err != nil {
+		t.Fatalf("GetTaskDependents failed: %v", err)
+	}
+	if len(dependents) != 2 {
+		t.Errorf("len(dependents) for TASK-001 = %d, want 2", len(dependents))
+	}
+
+	// Remove a dependency
+	if err := pdb.RemoveTaskDependency("TASK-003", "TASK-002"); err != nil {
+		t.Fatalf("RemoveTaskDependency failed: %v", err)
+	}
+	deps2, _ := pdb.GetTaskDependencies("TASK-003")
+	if len(deps2) != 1 {
+		t.Errorf("len(deps) after remove = %d, want 1", len(deps2))
+	}
+
+	// Clear all dependencies
+	if err := pdb.ClearTaskDependencies("TASK-003"); err != nil {
+		t.Fatalf("ClearTaskDependencies failed: %v", err)
+	}
+	deps3, _ := pdb.GetTaskDependencies("TASK-003")
+	if len(deps3) != 0 {
+		t.Errorf("len(deps) after clear = %d, want 0", len(deps3))
+	}
+
+	// Test duplicate dependency is ignored
+	pdb.AddTaskDependency("TASK-002", "TASK-001") // Already exists
+	deps4, _ := pdb.GetTaskDependencies("TASK-002")
+	if len(deps4) != 1 {
+		t.Errorf("len(deps) after duplicate = %d, want 1", len(deps4))
+	}
+}

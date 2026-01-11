@@ -81,6 +81,10 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 - `phases` - Phase execution state (iterations, tokens)
 - `transcripts` - Claude conversation logs
 - `transcripts_fts` - FTS5 virtual table with triggers
+- `initiatives` - Initiative groupings (id, title, status, vision, owner)
+- `initiative_decisions` - Decisions within initiatives
+- `initiative_tasks` - Task-to-initiative mappings with sequence
+- `task_dependencies` - Task dependency relationships
 
 ## Testing
 
