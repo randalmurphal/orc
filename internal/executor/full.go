@@ -7,16 +7,14 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude/session"
-	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/templates"
 )
 
 // FullExecutor executes phases using persistent sessions with per-iteration
@@ -28,12 +26,12 @@ import (
 type FullExecutor struct {
 	manager      session.SessionManager
 	gitSvc       *git.Git
-	publisher    events.Publisher
+	publisher    *EventPublisher
 	logger       *slog.Logger
 	config       ExecutorConfig
 	workingDir   string
-	taskDir      string // Directory for task-specific files
-	stateUpdater func(*state.State) // Callback to persist state changes
+	taskDir      string              // Directory for task-specific files
+	stateUpdater func(*state.State)  // Callback to persist state changes
 }
 
 // FullExecutorOption configures a FullExecutor.
@@ -46,7 +44,7 @@ func WithFullGitSvc(svc *git.Git) FullExecutorOption {
 
 // WithFullPublisher sets the event publisher.
 func WithFullPublisher(p events.Publisher) FullExecutorOption {
-	return func(e *FullExecutor) { e.publisher = p }
+	return func(e *FullExecutor) { e.publisher = NewEventPublisher(p) }
 }
 
 // WithFullLogger sets the logger.
@@ -151,24 +149,26 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		)
 	}
 
-	// Load and render initial prompt
-	promptText, err := e.loadAndRenderPrompt(t, p, s, startIteration, "")
+	// Load and render initial prompt using shared template module
+	tmpl, err := LoadPromptTemplate(p)
 	if err != nil {
 		result.Status = plan.PhaseFailed
 		result.Error = fmt.Errorf("load prompt: %w", err)
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
+	vars := BuildTemplateVars(t, p, s, startIteration, "")
+	promptText := RenderTemplate(tmpl, vars)
 
 	// Iteration loop with checkpointing
 	var lastResponse string
 	for iteration := startIteration + 1; iteration <= e.config.MaxIterations; iteration++ {
-		e.publishPhaseProgress(t.ID, p.ID, iteration)
-		e.publishTranscript(t.ID, p.ID, iteration, "prompt", promptText)
+		e.publisher.PhaseStart(t.ID, p.ID)
+		e.publisher.Transcript(t.ID, p.ID, iteration, "prompt", promptText)
 
 		// Execute turn with streaming
 		turnResult, err := adapter.StreamTurn(ctx, promptText, func(chunk string) {
-			e.publishTranscriptChunk(t.ID, p.ID, iteration, chunk)
+			e.publisher.TranscriptChunk(t.ID, p.ID, iteration, chunk)
 		})
 
 		if err != nil {
@@ -194,7 +194,7 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		result.Iterations = iteration
 		lastResponse = turnResult.Content
 
-		e.publishTranscript(t.ID, p.ID, iteration, "response", turnResult.Content)
+		e.publisher.Transcript(t.ID, p.ID, iteration, "response", turnResult.Content)
 
 		// Save iteration checkpoint (per-iteration checkpointing)
 		if e.config.CheckpointInterval > 0 && iteration%e.config.CheckpointInterval == 0 {
@@ -358,71 +358,3 @@ func (e *FullExecutor) removeCheckpoint(taskID, phaseID string) {
 	_ = os.Remove(path) // Intentionally ignore - file may not exist
 }
 
-// loadAndRenderPrompt loads and renders the prompt template.
-func (e *FullExecutor) loadAndRenderPrompt(t *task.Task, p *plan.Phase, s *state.State, iteration int, retryContext string) (string, error) {
-	if p.Prompt != "" {
-		return e.renderTemplate(p.Prompt, t, p, iteration, retryContext), nil
-	}
-
-	tmplPath := fmt.Sprintf("prompts/%s.md", p.ID)
-	content, err := templates.Prompts.ReadFile(tmplPath)
-	if err != nil {
-		return "", fmt.Errorf("prompt not found for phase %s", p.ID)
-	}
-
-	return e.renderTemplate(string(content), t, p, iteration, retryContext), nil
-}
-
-// renderTemplate does simple variable substitution.
-func (e *FullExecutor) renderTemplate(tmpl string, t *task.Task, p *plan.Phase, iteration int, retryContext string) string {
-	replacements := map[string]string{
-		"{{TASK_ID}}":          t.ID,
-		"{{TASK_TITLE}}":       t.Title,
-		"{{TASK_DESCRIPTION}}": t.Description,
-		"{{PHASE}}":            p.ID,
-		"{{WEIGHT}}":           string(t.Weight),
-		"{{ITERATION}}":        fmt.Sprintf("%d", iteration),
-		"{{RETRY_CONTEXT}}":    retryContext,
-	}
-
-	result := tmpl
-	for k, v := range replacements {
-		result = strings.ReplaceAll(result, k, v)
-	}
-	return result
-}
-
-// Event publishing
-
-func (e *FullExecutor) publish(ev events.Event) {
-	if e.publisher != nil {
-		e.publisher.Publish(ev)
-	}
-}
-
-func (e *FullExecutor) publishPhaseProgress(taskID, phase string, iteration int) {
-	e.publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
-		Phase:  phase,
-		Status: string(plan.PhaseRunning),
-	}))
-}
-
-func (e *FullExecutor) publishTranscript(taskID, phase string, iteration int, msgType, content string) {
-	e.publish(events.NewEvent(events.EventTranscript, taskID, events.TranscriptLine{
-		Phase:     phase,
-		Iteration: iteration,
-		Type:      msgType,
-		Content:   content,
-		Timestamp: time.Now(),
-	}))
-}
-
-func (e *FullExecutor) publishTranscriptChunk(taskID, phase string, iteration int, chunk string) {
-	e.publish(events.NewEvent(events.EventTranscript, taskID, events.TranscriptLine{
-		Phase:     phase,
-		Iteration: iteration,
-		Type:      "chunk",
-		Content:   chunk,
-		Timestamp: time.Now(),
-	}))
-}

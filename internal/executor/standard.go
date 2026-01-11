@@ -4,16 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude/session"
-	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/templates"
 )
 
 // StandardExecutor executes phases using session-based LLM interaction
@@ -26,7 +24,7 @@ import (
 type StandardExecutor struct {
 	manager    session.SessionManager
 	gitSvc     *git.Git
-	publisher  events.Publisher
+	publisher  *EventPublisher
 	logger     *slog.Logger
 	config     ExecutorConfig
 	workingDir string
@@ -42,7 +40,7 @@ func WithGitSvc(svc *git.Git) StandardExecutorOption {
 
 // WithPublisher sets the event publisher for real-time updates.
 func WithPublisher(p events.Publisher) StandardExecutorOption {
-	return func(e *StandardExecutor) { e.publisher = p }
+	return func(e *StandardExecutor) { e.publisher = NewEventPublisher(p) }
 }
 
 // WithExecutorLogger sets the logger.
@@ -115,27 +113,29 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		}
 	}()
 
-	// Load and render initial prompt
-	promptText, err := e.loadAndRenderPrompt(t, p, s, 0, "")
+	// Load and render initial prompt using shared template module
+	tmpl, err := LoadPromptTemplate(p)
 	if err != nil {
 		result.Status = plan.PhaseFailed
 		result.Error = fmt.Errorf("load prompt: %w", err)
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
+	vars := BuildTemplateVars(t, p, s, 0, "")
+	promptText := RenderTemplate(tmpl, vars)
 
 	// Iteration loop
 	var lastResponse string
 	for iteration := 1; iteration <= e.config.MaxIterations; iteration++ {
-		e.publishPhaseProgress(t.ID, p.ID, iteration)
+		e.publisher.PhaseStart(t.ID, p.ID)
 
 		// Publish prompt transcript
-		e.publishTranscript(t.ID, p.ID, iteration, "prompt", promptText)
+		e.publisher.Transcript(t.ID, p.ID, iteration, "prompt", promptText)
 
 		// Execute turn with streaming
 		turnResult, err := adapter.StreamTurn(ctx, promptText, func(chunk string) {
 			// Publish chunk for real-time display
-			e.publishTranscriptChunk(t.ID, p.ID, iteration, chunk)
+			e.publisher.TranscriptChunk(t.ID, p.ID, iteration, chunk)
 		})
 
 		if err != nil {
@@ -152,7 +152,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		lastResponse = turnResult.Content
 
 		// Publish response transcript
-		e.publishTranscript(t.ID, p.ID, iteration, "response", turnResult.Content)
+		e.publisher.Transcript(t.ID, p.ID, iteration, "response", turnResult.Content)
 
 		// Check for completion
 		switch turnResult.Status {
@@ -207,73 +207,3 @@ done:
 	return result, result.Error
 }
 
-// loadAndRenderPrompt loads the prompt template and renders it with variables.
-func (e *StandardExecutor) loadAndRenderPrompt(t *task.Task, p *plan.Phase, s *state.State, iteration int, retryContext string) (string, error) {
-	// Try inline prompt first
-	if p.Prompt != "" {
-		return e.renderTemplate(p.Prompt, t, p, s, iteration, retryContext), nil
-	}
-
-	// Load from embedded templates
-	tmplPath := fmt.Sprintf("prompts/%s.md", p.ID)
-	content, err := templates.Prompts.ReadFile(tmplPath)
-	if err != nil {
-		return "", fmt.Errorf("prompt not found for phase %s", p.ID)
-	}
-
-	return e.renderTemplate(string(content), t, p, s, iteration, retryContext), nil
-}
-
-// renderTemplate does simple template variable substitution.
-func (e *StandardExecutor) renderTemplate(tmpl string, t *task.Task, p *plan.Phase, s *state.State, iteration int, retryContext string) string {
-	replacements := map[string]string{
-		"{{TASK_ID}}":          t.ID,
-		"{{TASK_TITLE}}":       t.Title,
-		"{{TASK_DESCRIPTION}}": t.Description,
-		"{{PHASE}}":            p.ID,
-		"{{WEIGHT}}":           string(t.Weight),
-		"{{ITERATION}}":        fmt.Sprintf("%d", iteration),
-		"{{RETRY_CONTEXT}}":    retryContext,
-	}
-
-	result := tmpl
-	for k, v := range replacements {
-		result = strings.ReplaceAll(result, k, v)
-	}
-	return result
-}
-
-// Event publishing helpers
-
-func (e *StandardExecutor) publish(ev events.Event) {
-	if e.publisher != nil {
-		e.publisher.Publish(ev)
-	}
-}
-
-func (e *StandardExecutor) publishPhaseProgress(taskID, phase string, iteration int) {
-	e.publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
-		Phase:  phase,
-		Status: string(plan.PhaseRunning),
-	}))
-}
-
-func (e *StandardExecutor) publishTranscript(taskID, phase string, iteration int, msgType, content string) {
-	e.publish(events.NewEvent(events.EventTranscript, taskID, events.TranscriptLine{
-		Phase:     phase,
-		Iteration: iteration,
-		Type:      msgType,
-		Content:   content,
-		Timestamp: time.Now(),
-	}))
-}
-
-func (e *StandardExecutor) publishTranscriptChunk(taskID, phase string, iteration int, chunk string) {
-	e.publish(events.NewEvent(events.EventTranscript, taskID, events.TranscriptLine{
-		Phase:     phase,
-		Iteration: iteration,
-		Type:      "chunk",
-		Content:   chunk,
-		Timestamp: time.Now(),
-	}))
-}
