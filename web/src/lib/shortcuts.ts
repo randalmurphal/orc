@@ -191,9 +191,17 @@ class ShortcutManager {
 		const mods: ('ctrl' | 'meta' | 'shift' | 'alt')[] = [];
 		if (e.ctrlKey) mods.push('ctrl');
 		if (e.metaKey) mods.push('meta');
-		if (e.shiftKey) mods.push('shift');
+		// Don't include shift if the key is already a shifted character (like ? ! @ etc)
+		// This allows '?' shortcut to work when pressing Shift+/
+		if (e.shiftKey && !this.isShiftedCharacter(e.key)) mods.push('shift');
 		if (e.altKey) mods.push('alt');
 		return mods;
+	}
+
+	private isShiftedCharacter(key: string): boolean {
+		// Characters that require shift to type - don't double-count shift for these
+		const shiftedChars = '~!@#$%^&*()_+{}|:"<>?';
+		return shiftedChars.includes(key);
 	}
 
 	private normalizeKey(key: string, modifiers?: readonly ('ctrl' | 'meta' | 'shift' | 'alt')[]): string {
