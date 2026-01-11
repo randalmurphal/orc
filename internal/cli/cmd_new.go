@@ -20,8 +20,8 @@ func newNewCmd() *cobra.Command {
 		Short: "Create a new task",
 		Long: `Create a new task to be orchestrated by orc.
 
-The task will be classified by weight (trivial, small, medium, large, greenfield)
-either automatically by AI or manually via --weight flag.
+Specify the weight (trivial, small, medium, large, greenfield) via --weight flag.
+If not specified, defaults to medium.
 
 Use --template to create a task from a predefined template:
   orc new -t bugfix "Fix authentication timeout bug"
@@ -95,12 +95,10 @@ Example:
 				}
 			}
 
-			// Set weight
+			// Set weight (defaults to medium if not specified via --weight flag)
 			if weight != "" {
 				t.Weight = task.Weight(weight)
 			} else {
-				// Default to medium if not specified
-				// TODO: Add AI classification
 				t.Weight = task.WeightMedium
 			}
 

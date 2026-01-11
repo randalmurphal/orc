@@ -1,7 +1,0 @@
-id: TASK-005
-title: Fix template variable CHANGES_DIFF not being populated in review phase
-weight: small
-status: planned
-branch: orc/TASK-005
-created_at: 2026-01-11T02:41:06.249168264-06:00
-updated_at: 2026-01-11T02:41:06.249775403-06:00

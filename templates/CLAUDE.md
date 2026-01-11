@@ -20,7 +20,6 @@ templates/
 │   ├── design.md
 │   ├── implement.md
 │   ├── test.md
-│   ├── review.md
 │   ├── docs.md
 │   └── validate.md
 ├── scripts/          # Script templates
@@ -41,19 +40,26 @@ Plans define phase sequences based on task weight:
 
 ### Plan Format (YAML)
 
+Plan templates use inline prompts that include task context:
+
 ```yaml
 id: medium
 weight: medium
 phases:
   - id: implement
     name: Implementation
+    prompt: |
+      **Task**: {{TASK_TITLE}}
+      **Description**: {{TASK_DESCRIPTION}}
+
+      [Phase instructions...]
+
+      <phase_complete>true</phase_complete>
     gate: auto
     max_iterations: 20
-  - id: test
-    name: Testing
-    gate: auto
-    max_iterations: 10
 ```
+
+The `{{TASK_DESCRIPTION}}` variable includes the full description provided when creating a task with `orc new "title" -d "description"`.
 
 ## Prompt Templates
 
@@ -104,7 +110,6 @@ If blocked, output:
 | `design.md` | Design architecture/approach |
 | `implement.md` | Write the implementation |
 | `test.md` | Write and run tests |
-| `review.md` | Review code quality |
 | `docs.md` | Update documentation |
 | `validate.md` | E2E validation with Playwright MCP |
 
