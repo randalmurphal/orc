@@ -2168,3 +2168,248 @@ func TestProjectNotFound(t *testing.T) {
 		t.Errorf("expected status 404, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+// === Cost Summary API Tests ===
+
+func TestGetCostSummaryEndpoint_Empty(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create minimal .orc structure with no tasks
+	os.MkdirAll(".orc/tasks", 0755)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/cost/summary", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["task_count"].(float64) != 0 {
+		t.Errorf("expected 0 tasks, got %v", resp["task_count"])
+	}
+}
+
+func TestGetCostSummaryEndpoint_WithTasks(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create task with cost data
+	taskDir := filepath.Join(".orc", "tasks", "TASK-COST-001")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-COST-001
+title: Cost Test Task
+status: completed
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	stateYAML := `task_id: TASK-COST-001
+current_phase: implement
+current_iteration: 1
+status: completed
+started_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+phases:
+  implement:
+    status: completed
+    tokens:
+      input_tokens: 1000
+      output_tokens: 500
+      total_tokens: 1500
+tokens:
+  input_tokens: 1000
+  output_tokens: 500
+  total_tokens: 1500
+cost:
+  total_cost_usd: 0.025
+  phase_costs:
+    implement: 0.025
+`
+	os.WriteFile(filepath.Join(taskDir, "state.yaml"), []byte(stateYAML), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/cost/summary", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["task_count"].(float64) != 1 {
+		t.Errorf("expected 1 task, got %v", resp["task_count"])
+	}
+
+	total := resp["total"].(map[string]interface{})
+	if total["cost_usd"].(float64) != 0.025 {
+		t.Errorf("expected cost 0.025, got %v", total["cost_usd"])
+	}
+
+	byPhase := resp["by_phase"].(map[string]interface{})
+	if byPhase["implement"].(float64) != 0.025 {
+		t.Errorf("expected implement phase cost 0.025, got %v", byPhase["implement"])
+	}
+}
+
+func TestGetCostSummaryEndpoint_PeriodFiltering(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create old task (more than a week old)
+	oldTaskDir := filepath.Join(".orc", "tasks", "TASK-OLD")
+	os.MkdirAll(oldTaskDir, 0755)
+
+	oldTaskYAML := `id: TASK-OLD
+title: Old Task
+status: completed
+weight: small
+created_at: 2020-01-01T00:00:00Z
+updated_at: 2020-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(oldTaskDir, "task.yaml"), []byte(oldTaskYAML), 0644)
+
+	oldStateYAML := `task_id: TASK-OLD
+status: completed
+started_at: 2020-01-01T00:00:00Z
+updated_at: 2020-01-01T00:00:00Z
+tokens:
+  input_tokens: 100
+  output_tokens: 50
+  total_tokens: 150
+cost:
+  total_cost_usd: 0.001
+`
+	os.WriteFile(filepath.Join(oldTaskDir, "state.yaml"), []byte(oldStateYAML), 0644)
+
+	// Create recent task
+	recentTaskDir := filepath.Join(".orc", "tasks", "TASK-NEW")
+	os.MkdirAll(recentTaskDir, 0755)
+
+	now := time.Now().Format(time.RFC3339)
+	recentTaskYAML := fmt.Sprintf(`id: TASK-NEW
+title: New Task
+status: completed
+weight: small
+created_at: %s
+updated_at: %s
+`, now, now)
+	os.WriteFile(filepath.Join(recentTaskDir, "task.yaml"), []byte(recentTaskYAML), 0644)
+
+	recentStateYAML := fmt.Sprintf(`task_id: TASK-NEW
+status: completed
+started_at: %s
+updated_at: %s
+tokens:
+  input_tokens: 200
+  output_tokens: 100
+  total_tokens: 300
+cost:
+  total_cost_usd: 0.002
+`, now, now)
+	os.WriteFile(filepath.Join(recentTaskDir, "state.yaml"), []byte(recentStateYAML), 0644)
+
+	srv := New(nil)
+
+	// Test with period=week (should only include recent task)
+	req := httptest.NewRequest("GET", "/api/cost/summary?period=week", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should only have the recent task
+	if resp["task_count"].(float64) != 1 {
+		t.Errorf("expected 1 task for week period, got %v", resp["task_count"])
+	}
+
+	// Test with period=all (should include both tasks)
+	req = httptest.NewRequest("GET", "/api/cost/summary?period=all", nil)
+	w = httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["task_count"].(float64) != 2 {
+		t.Errorf("expected 2 tasks for all period, got %v", resp["task_count"])
+	}
+}
+
+func TestGetCostSummaryEndpoint_InvalidPeriod(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".orc/tasks", 0755)
+
+	srv := New(nil)
+
+	// Invalid period with no 'since' should still work (falls through to no filter)
+	req := httptest.NewRequest("GET", "/api/cost/summary?period=invalid", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	// Should return OK (with no filtering if period is invalid and no since provided)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+}
+
+func TestGetCostSummaryEndpoint_InvalidSinceParameter(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll(".orc/tasks", 0755)
+
+	srv := New(nil)
+
+	// Invalid 'since' parameter should return error
+	req := httptest.NewRequest("GET", "/api/cost/summary?period=custom&since=not-a-date", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}

@@ -2,11 +2,13 @@ task_id: TEST-RETRY-002
 current_phase: ""
 current_iteration: 0
 status: pending
-started_at: 2026-01-10T19:29:45.895953301-06:00
-updated_at: 2026-01-10T19:29:51.900267555-06:00
+started_at: 2026-01-10T19:32:50.741658954-06:00
+updated_at: 2026-01-10T19:32:56.745282083-06:00
 phases: {}
 tokens:
     input_tokens: 0
     output_tokens: 0
     total_tokens: 0
+cost:
+    total_cost_usd: 0
 error: 'node execute: execute: claude completion: rate limited'
