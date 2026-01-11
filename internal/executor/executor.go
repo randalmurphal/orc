@@ -878,7 +878,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			// Check for context cancellation (interrupt)
 			if ctx.Err() != nil {
 				s.InterruptPhase(phase.ID)
-				s.SaveTo(e.currentTaskDir)
+				if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+					e.logger.Error("failed to save state on interrupt", "error", saveErr)
+				}
 				return ctx.Err()
 			}
 
@@ -919,15 +921,21 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 						break
 					}
 				}
-				s.SaveTo(e.currentTaskDir)
+				if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+					e.logger.Error("failed to save state on retry", "error", saveErr)
+				}
 				continue
 			}
 
 			// No retry available, fail the task
 			s.FailPhase(phase.ID, err)
-			s.SaveTo(e.currentTaskDir)
+			if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+				e.logger.Error("failed to save state on failure", "error", saveErr)
+			}
 			t.Status = task.StatusFailed
-			t.SaveTo(e.currentTaskDir)
+			if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+				e.logger.Error("failed to save task on failure", "error", saveErr)
+			}
 
 			// Publish failure events
 			e.publishPhaseFailed(t.ID, phase.ID, err)
@@ -999,7 +1007,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 							break
 						}
 					}
-					s.SaveTo(e.currentTaskDir)
+					if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+						e.logger.Error("failed to save state after retry reset", "error", saveErr)
+					}
 					continue
 				}
 
@@ -1019,12 +1029,16 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 
 	// Complete task
 	s.Complete()
-	s.SaveTo(e.currentTaskDir)
+	if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+		e.logger.Error("failed to save state on completion", "error", saveErr)
+	}
 
 	t.Status = task.StatusCompleted
 	completedAt := time.Now()
 	t.CompletedAt = &completedAt
-	t.SaveTo(e.currentTaskDir)
+	if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+		e.logger.Error("failed to save task on completion", "error", saveErr)
+	}
 
 	// Run completion action (merge/PR)
 	if err := e.runCompletion(ctx, t); err != nil {
@@ -1341,7 +1355,9 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 			t.Metadata = make(map[string]string)
 		}
 		t.Metadata["pr_url"] = prURL
-		t.SaveTo(e.currentTaskDir)
+		if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+			e.logger.Error("failed to save task with PR URL", "error", saveErr)
+		}
 	}
 
 	e.logger.Info("created pull request", "task", t.ID, "url", prURL)
@@ -1371,8 +1387,8 @@ func (e *Executor) buildPRBody(t *task.Task) string {
 	sb.WriteString("\n\n")
 
 	sb.WriteString("## Task Details\n\n")
-	sb.WriteString(fmt.Sprintf("- **Task ID**: %s\n", t.ID))
-	sb.WriteString(fmt.Sprintf("- **Weight**: %s\n", t.Weight))
+	fmt.Fprintf(&sb, "- **Task ID**: %s\n", t.ID)
+	fmt.Fprintf(&sb, "- **Weight**: %s\n", t.Weight)
 	sb.WriteString("\n")
 
 	sb.WriteString("## Test Plan\n\n")

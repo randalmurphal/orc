@@ -48,6 +48,6 @@ declare module "$app/types" {
 		};
 		Pathname(): "/" | "/agents" | "/agents/" | "/claudemd" | "/claudemd/" | "/config" | "/config/" | "/hooks" | "/hooks/" | "/mcp" | "/mcp/" | "/prompts" | "/prompts/" | "/scripts" | "/scripts/" | "/settings" | "/settings/" | "/skills" | "/skills/" | "/tasks" | "/tasks/" | `/tasks/${string}` & {} | `/tasks/${string}/` & {} | "/tools" | "/tools/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): string & {};
+		Asset(): "/fonts/inter-latin-400.woff2" | "/fonts/inter-latin-500.woff2" | "/fonts/inter-latin-600.woff2" | "/fonts/inter-latin-700.woff2" | "/fonts/jetbrains-mono-latin-400.woff2" | "/fonts/jetbrains-mono-latin-500.woff2" | "/fonts/jetbrains-mono-latin-600.woff2" | string & {};
 	}
 }

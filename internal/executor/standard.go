@@ -109,7 +109,11 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
-	defer adapter.Close()
+	defer func() {
+		if closeErr := adapter.Close(); closeErr != nil {
+			e.logger.Error("failed to close adapter", "error", closeErr)
+		}
+	}()
 
 	// Load and render initial prompt
 	promptText, err := e.loadAndRenderPrompt(t, p, s, 0, "")

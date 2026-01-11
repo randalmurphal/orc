@@ -997,8 +997,10 @@ func TestLoadRetryContextForPhase_WithContext(t *testing.T) {
 func TestSaveRetryContextFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
 	e := New(DefaultConfig())
 
@@ -1031,8 +1033,10 @@ func TestSaveRetryContextFile(t *testing.T) {
 func TestSaveRetryContextFile_MultipleAttempts(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
 	e := New(DefaultConfig())
 
@@ -1178,8 +1182,10 @@ func TestCommitCheckpointNode(t *testing.T) {
 	// Create temp dir that's not a git repo to ensure gitOps is nil
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir
@@ -1212,11 +1218,15 @@ func TestCommitCheckpointNode(t *testing.T) {
 func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Initialize orc directory structure
-	os.MkdirAll(".orc/tasks/TASK-EXEC-001", 0755)
+	if err := os.MkdirAll(".orc/tasks/TASK-EXEC-001", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	// Create task
 	testTask := task.New("TASK-EXEC-001", "Execute Task Test")
@@ -1271,17 +1281,23 @@ func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
 func TestExecuteTask_ContextCancelled(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Initialize orc directory structure
-	os.MkdirAll(".orc/tasks/TASK-CANCEL-001", 0755)
+	if err := os.MkdirAll(".orc/tasks/TASK-CANCEL-001", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	// Create task
 	testTask := task.New("TASK-CANCEL-001", "Cancel Test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	testTask.Save()
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
 	// Create plan
 	testPlan := &plan.Plan{
@@ -1295,7 +1311,9 @@ func TestExecuteTask_ContextCancelled(t *testing.T) {
 			},
 		},
 	}
-	testPlan.Save("TASK-CANCEL-001")
+	if err := testPlan.Save("TASK-CANCEL-001"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
 
 	// Create state
 	testState := state.New("TASK-CANCEL-001")
@@ -1323,17 +1341,23 @@ func TestExecuteTask_ContextCancelled(t *testing.T) {
 func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Initialize orc directory structure
-	os.MkdirAll(".orc/tasks/TASK-SKIP-001", 0755)
+	if err := os.MkdirAll(".orc/tasks/TASK-SKIP-001", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	// Create task
 	testTask := task.New("TASK-SKIP-001", "Skip Phase Test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	testTask.Save()
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
 	// Create plan with two phases
 	testPlan := &plan.Plan{
@@ -1352,13 +1376,17 @@ func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 			},
 		},
 	}
-	testPlan.Save("TASK-SKIP-001")
+	if err := testPlan.Save("TASK-SKIP-001"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
 
 	// Create state with first phase already completed
 	testState := state.New("TASK-SKIP-001")
 	testState.StartPhase("spec")
 	testState.CompletePhase("spec", "abc123")
-	testState.Save()
+	if err := testState.Save(); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
 
 	// Create executor with mock client
 	e := New(DefaultConfig())
@@ -1389,17 +1417,23 @@ func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 func TestExecuteTask_WithPublisher(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Initialize orc directory structure
-	os.MkdirAll(".orc/tasks/TASK-PUB-001", 0755)
+	if err := os.MkdirAll(".orc/tasks/TASK-PUB-001", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	// Create task
 	testTask := task.New("TASK-PUB-001", "Publisher Test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	testTask.Save()
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
 	// Create plan
 	testPlan := &plan.Plan{
@@ -1413,7 +1447,9 @@ func TestExecuteTask_WithPublisher(t *testing.T) {
 			},
 		},
 	}
-	testPlan.Save("TASK-PUB-001")
+	if err := testPlan.Save("TASK-PUB-001"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
 
 	testState := state.New("TASK-PUB-001")
 
@@ -1484,17 +1520,23 @@ func TestExecuteTask_WithPublisher(t *testing.T) {
 func TestResumeFromPhase_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Initialize orc directory structure
-	os.MkdirAll(".orc/tasks/TASK-RESUME-001", 0755)
+	if err := os.MkdirAll(".orc/tasks/TASK-RESUME-001", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	// Create task
 	testTask := task.New("TASK-RESUME-001", "Resume Test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPaused
-	testTask.Save()
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
 	// Create plan with two phases
 	testPlan := &plan.Plan{
@@ -1513,7 +1555,9 @@ func TestResumeFromPhase_Success(t *testing.T) {
 			},
 		},
 	}
-	testPlan.Save("TASK-RESUME-001")
+	if err := testPlan.Save("TASK-RESUME-001"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
 
 	// Create state with first phase completed, second interrupted
 	testState := state.New("TASK-RESUME-001")
@@ -1521,7 +1565,9 @@ func TestResumeFromPhase_Success(t *testing.T) {
 	testState.CompletePhase("spec", "abc123")
 	testState.StartPhase("implement")
 	testState.InterruptPhase("implement")
-	testState.Save()
+	if err := testState.Save(); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
 
 	// Create executor with mock client
 	e := New(DefaultConfig())
@@ -1545,14 +1591,20 @@ func TestResumeFromPhase_Success(t *testing.T) {
 func TestResumeFromPhase_PhaseNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
-	os.MkdirAll(".orc/tasks/TASK-RESUME-002", 0755)
+	if err := os.MkdirAll(".orc/tasks/TASK-RESUME-002", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	testTask := task.New("TASK-RESUME-002", "Resume Test")
 	testTask.Weight = task.WeightSmall
-	testTask.Save()
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
 	testPlan := &plan.Plan{
 		Version: 1,
@@ -1563,7 +1615,9 @@ func TestResumeFromPhase_PhaseNotFound(t *testing.T) {
 			},
 		},
 	}
-	testPlan.Save("TASK-RESUME-002")
+	if err := testPlan.Save("TASK-RESUME-002"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
 
 	testState := state.New("TASK-RESUME-002")
 
@@ -1621,11 +1675,15 @@ func TestExecuteWithRetry_RetryOnTransientError(t *testing.T) {
 func TestSaveTranscript(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Create task directory structure
-	os.MkdirAll(".orc/tasks/TASK-TRANS-001/transcripts", 0755)
+	if err := os.MkdirAll(".orc/tasks/TASK-TRANS-001/transcripts", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	e := New(DefaultConfig())
 
