@@ -5,7 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/state"
 )
 
@@ -292,5 +294,539 @@ func TestNewRetryTracker_DefaultMaxRetries(t *testing.T) {
 	tracker2.Increment("test")
 	if tracker2.CanRetry("test") {
 		t.Error("negative max retries should default to 2")
+	}
+}
+
+// Tests for enhanced fresh session retry functions
+
+func TestBuildRetryContextForFreshSession_Basic(t *testing.T) {
+	opts := RetryOptions{
+		FailedPhase:   "test",
+		FailureReason: "Tests failed",
+		AttemptNumber: 1,
+		MaxAttempts:   3,
+	}
+
+	context := BuildRetryContextForFreshSession(opts)
+
+	// Check header
+	if !strings.Contains(context, "# Retry Context") {
+		t.Error("context should have header")
+	}
+	if !strings.Contains(context, "This is attempt 1 of 3") {
+		t.Error("context should show attempt number")
+	}
+
+	// Check failure summary
+	if !strings.Contains(context, "## Previous Attempt Summary") {
+		t.Error("context should have previous attempt section")
+	}
+	if !strings.Contains(context, "Phase `test` failed") {
+		t.Error("context should mention failed phase")
+	}
+	if !strings.Contains(context, "**Reason:** Tests failed") {
+		t.Error("context should include failure reason")
+	}
+
+	// Check call to action
+	if !strings.Contains(context, "Fix all identified issues") {
+		t.Error("context should have call to action")
+	}
+}
+
+func TestBuildRetryContextForFreshSession_WithFailureOutput(t *testing.T) {
+	opts := RetryOptions{
+		FailedPhase:   "test",
+		FailureOutput: "Error: test assertion failed at line 42",
+		AttemptNumber: 2,
+		MaxAttempts:   3,
+	}
+
+	context := BuildRetryContextForFreshSession(opts)
+
+	if !strings.Contains(context, "### Failure Output") {
+		t.Error("context should have failure output section")
+	}
+	if !strings.Contains(context, "Error: test assertion failed") {
+		t.Error("context should include failure output")
+	}
+}
+
+func TestBuildRetryContextForFreshSession_WithReviewComments(t *testing.T) {
+	opts := RetryOptions{
+		FailedPhase:   "test",
+		AttemptNumber: 1,
+		MaxAttempts:   3,
+		ReviewComments: []db.ReviewComment{
+			{
+				FilePath:   "main.go",
+				LineNumber: 42,
+				Content:    "Missing error handling",
+				Severity:   db.SeverityIssue,
+			},
+			{
+				FilePath:   "main.go",
+				LineNumber: 100,
+				Content:    "Consider using a constant",
+				Severity:   db.SeveritySuggestion,
+			},
+			{
+				Content:  "General code quality concern",
+				Severity: db.SeverityBlocker,
+			},
+		},
+	}
+
+	context := BuildRetryContextForFreshSession(opts)
+
+	if !strings.Contains(context, "## Review Comments to Address") {
+		t.Error("context should have review comments section")
+	}
+	if !strings.Contains(context, "### General Comments") {
+		t.Error("context should have general comments subsection")
+	}
+	if !strings.Contains(context, "### `main.go`") {
+		t.Error("context should group comments by file")
+	}
+	if !strings.Contains(context, "**Line 42** [ISSUE]") {
+		t.Error("context should include line number and severity")
+	}
+	if !strings.Contains(context, "[BLOCKER]") {
+		t.Error("context should include blocker severity")
+	}
+}
+
+func TestBuildRetryContextForFreshSession_WithPRComments(t *testing.T) {
+	opts := RetryOptions{
+		FailedPhase:   "implement",
+		AttemptNumber: 1,
+		MaxAttempts:   3,
+		PRComments: []PRCommentFeedback{
+			{
+				Author:   "reviewer1",
+				Body:     "Please add tests for this function",
+				FilePath: "handler.go",
+				Line:     50,
+			},
+			{
+				Author: "reviewer2",
+				Body:   "General feedback:\nLooks good overall",
+			},
+		},
+	}
+
+	context := BuildRetryContextForFreshSession(opts)
+
+	if !strings.Contains(context, "## PR Feedback to Address") {
+		t.Error("context should have PR feedback section")
+	}
+	if !strings.Contains(context, "**handler.go:50** (@reviewer1)") {
+		t.Error("context should include file location and author")
+	}
+	if !strings.Contains(context, "> Please add tests") {
+		t.Error("context should quote PR comments")
+	}
+	if !strings.Contains(context, "**@reviewer2**:") {
+		t.Error("context should handle comments without file")
+	}
+}
+
+func TestBuildRetryContextForFreshSession_WithInstructions(t *testing.T) {
+	opts := RetryOptions{
+		FailedPhase:   "test",
+		AttemptNumber: 1,
+		MaxAttempts:   3,
+		Instructions:  "Focus on the authentication module first",
+	}
+
+	context := BuildRetryContextForFreshSession(opts)
+
+	if !strings.Contains(context, "## Additional Instructions") {
+		t.Error("context should have instructions section")
+	}
+	if !strings.Contains(context, "Focus on the authentication module") {
+		t.Error("context should include user instructions")
+	}
+}
+
+func TestBuildRetryContextForFreshSession_WithPreviousContext(t *testing.T) {
+	opts := RetryOptions{
+		FailedPhase:     "test",
+		AttemptNumber:   2,
+		MaxAttempts:     3,
+		PreviousContext: "Previous session summary:\n- Phase `implement` was executed\n- Tests were written but failed",
+	}
+
+	context := BuildRetryContextForFreshSession(opts)
+
+	if !strings.Contains(context, "## Context from Previous Session") {
+		t.Error("context should have previous session section")
+	}
+	if !strings.Contains(context, "Phase `implement` was executed") {
+		t.Error("context should include previous session summary")
+	}
+}
+
+func TestBuildRetryContextForFreshSession_Full(t *testing.T) {
+	opts := RetryOptions{
+		FailedPhase:   "test",
+		FailureReason: "3 tests failed",
+		FailureOutput: "FAIL main_test.go:42",
+		ReviewComments: []db.ReviewComment{
+			{
+				FilePath: "main.go",
+				Content:  "Fix this",
+				Severity: db.SeverityIssue,
+			},
+		},
+		PRComments: []PRCommentFeedback{
+			{
+				Author: "bob",
+				Body:   "Needs work",
+			},
+		},
+		Instructions:    "Priority: fix tests",
+		PreviousContext: "Summary here",
+		AttemptNumber:   2,
+		MaxAttempts:     3,
+	}
+
+	context := BuildRetryContextForFreshSession(opts)
+
+	// All sections should be present
+	sections := []string{
+		"# Retry Context",
+		"## Previous Attempt Summary",
+		"### Failure Output",
+		"## Review Comments to Address",
+		"## PR Feedback to Address",
+		"## Additional Instructions",
+		"## Context from Previous Session",
+	}
+
+	for _, section := range sections {
+		if !strings.Contains(context, section) {
+			t.Errorf("full context should contain section: %s", section)
+		}
+	}
+}
+
+func TestTruncateOutput(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		maxLen   int
+		expected string
+	}{
+		{
+			name:     "short string unchanged",
+			input:    "short",
+			maxLen:   100,
+			expected: "short",
+		},
+		{
+			name:     "exact length unchanged",
+			input:    "12345",
+			maxLen:   5,
+			expected: "12345",
+		},
+		{
+			name:   "long string truncated",
+			input:  "0123456789",
+			maxLen: 5,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := truncateOutput(tc.input, tc.maxLen)
+			if tc.expected != "" {
+				if result != tc.expected {
+					t.Errorf("truncateOutput() = %q, want %q", result, tc.expected)
+				}
+			} else {
+				// For truncated case, verify it's truncated and ends with end of input
+				if !strings.HasPrefix(result, "...(truncated)...") {
+					t.Error("truncated output should start with truncation marker")
+				}
+				if len(result) > tc.maxLen+20 { // allow for prefix
+					t.Errorf("truncated output too long: %d chars", len(result))
+				}
+			}
+		})
+	}
+}
+
+func TestTruncateString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		maxLen   int
+		expected string
+	}{
+		{
+			name:     "short string unchanged",
+			input:    "hello",
+			maxLen:   10,
+			expected: "hello",
+		},
+		{
+			name:     "exact length unchanged",
+			input:    "hello",
+			maxLen:   5,
+			expected: "hello",
+		},
+		{
+			name:     "long string gets ellipsis",
+			input:    "hello world",
+			maxLen:   8,
+			expected: "hello...",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := truncateString(tc.input, tc.maxLen)
+			if result != tc.expected {
+				t.Errorf("truncateString(%q, %d) = %q, want %q", tc.input, tc.maxLen, result, tc.expected)
+			}
+		})
+	}
+}
+
+func TestCompressPreviousContext_Empty(t *testing.T) {
+	result := CompressPreviousContext(nil)
+	if result != "" {
+		t.Error("empty transcripts should return empty string")
+	}
+
+	result = CompressPreviousContext([]db.Transcript{})
+	if result != "" {
+		t.Error("empty slice should return empty string")
+	}
+}
+
+func TestCompressPreviousContext_WithPhases(t *testing.T) {
+	transcripts := []db.Transcript{
+		{Phase: "implement", Content: "Starting implementation"},
+		{Phase: "implement", Content: "Added function foo"},
+		{Phase: "test", Content: "Running tests"},
+		{Phase: "test", Content: "All tests passed"},
+	}
+
+	result := CompressPreviousContext(transcripts)
+
+	if !strings.Contains(result, "Previous session summary:") {
+		t.Error("should have summary header")
+	}
+	if !strings.Contains(result, "Phase `implement` was executed") {
+		t.Error("should mention implement phase")
+	}
+	if !strings.Contains(result, "Phase `test` was executed") {
+		t.Error("should mention test phase")
+	}
+}
+
+func TestCompressPreviousContext_WithErrors(t *testing.T) {
+	transcripts := []db.Transcript{
+		{Phase: "implement", Content: "Starting implementation"},
+		{Phase: "test", Content: "Error: test failed at line 42"},
+		{Phase: "test", Content: "Error: assertion error in main.go"},
+	}
+
+	result := CompressPreviousContext(transcripts)
+
+	if !strings.Contains(result, "Key issues encountered:") {
+		t.Error("should have key issues section when errors present")
+	}
+	if !strings.Contains(result, "Error: test failed") {
+		t.Error("should extract error messages")
+	}
+}
+
+func TestShouldContinueRetrying(t *testing.T) {
+	tests := []struct {
+		current  int
+		max      int
+		expected bool
+	}{
+		{0, 3, true},
+		{1, 3, true},
+		{2, 3, true},
+		{3, 3, false},
+		{4, 3, false},
+	}
+
+	for _, tc := range tests {
+		result := ShouldContinueRetrying(tc.current, tc.max)
+		if result != tc.expected {
+			t.Errorf("ShouldContinueRetrying(%d, %d) = %v, want %v",
+				tc.current, tc.max, result, tc.expected)
+		}
+	}
+}
+
+func TestIncrementRetryAttempt(t *testing.T) {
+	tests := []struct {
+		current  int
+		expected int
+	}{
+		{0, 1},
+		{1, 2},
+		{5, 6},
+	}
+
+	for _, tc := range tests {
+		result := IncrementRetryAttempt(tc.current)
+		if result != tc.expected {
+			t.Errorf("IncrementRetryAttempt(%d) = %d, want %d",
+				tc.current, result, tc.expected)
+		}
+	}
+}
+
+func TestBuildRetryPreview(t *testing.T) {
+	opts := RetryOptions{
+		FailedPhase: "test",
+		ReviewComments: []db.ReviewComment{
+			{Content: "Issue 1"},
+			{Content: "Issue 2"},
+		},
+		PRComments: []PRCommentFeedback{
+			{Body: "PR comment"},
+		},
+		AttemptNumber: 1,
+		MaxAttempts:   3,
+	}
+
+	preview := BuildRetryPreview(opts)
+
+	if preview.CurrentPhase != "test" {
+		t.Errorf("CurrentPhase = %q, want %q", preview.CurrentPhase, "test")
+	}
+	if preview.OpenComments != 2 {
+		t.Errorf("OpenComments = %d, want 2", preview.OpenComments)
+	}
+	if preview.PRComments != 1 {
+		t.Errorf("PRComments = %d, want 1", preview.PRComments)
+	}
+	if preview.ContextPreview == "" {
+		t.Error("ContextPreview should not be empty")
+	}
+	if preview.EstimatedTokens <= 0 {
+		t.Error("EstimatedTokens should be positive")
+	}
+}
+
+func TestFormatReviewCommentsForContext_GroupsByFile(t *testing.T) {
+	comments := []db.ReviewComment{
+		{FilePath: "a.go", LineNumber: 10, Content: "Issue in a.go", Severity: db.SeverityIssue},
+		{FilePath: "b.go", LineNumber: 20, Content: "Issue in b.go", Severity: db.SeverityBlocker},
+		{FilePath: "a.go", LineNumber: 30, Content: "Another in a.go", Severity: db.SeveritySuggestion},
+		{Content: "General comment", Severity: db.SeverityIssue},
+	}
+
+	result := formatReviewCommentsForContext(comments)
+
+	// Check grouping
+	if !strings.Contains(result, "### General Comments") {
+		t.Error("should have general comments section")
+	}
+	if !strings.Contains(result, "### `a.go`") {
+		t.Error("should have a.go section")
+	}
+	if !strings.Contains(result, "### `b.go`") {
+		t.Error("should have b.go section")
+	}
+
+	// Check formatting
+	if !strings.Contains(result, "**Line 10** [ISSUE]") {
+		t.Error("should format line number and severity")
+	}
+	if !strings.Contains(result, "[BLOCKER]") {
+		t.Error("should uppercase severity")
+	}
+}
+
+func TestFormatPRCommentsForContext(t *testing.T) {
+	comments := []PRCommentFeedback{
+		{Author: "alice", Body: "Fix this please", FilePath: "main.go", Line: 42},
+		{Author: "bob", Body: "Multi-line\ncomment here"},
+	}
+
+	result := formatPRCommentsForContext(comments)
+
+	// Check file-specific comment
+	if !strings.Contains(result, "**main.go:42** (@alice)") {
+		t.Error("should format file path and author")
+	}
+	if !strings.Contains(result, "> Fix this please") {
+		t.Error("should quote comment body")
+	}
+
+	// Check general comment
+	if !strings.Contains(result, "**@bob**:") {
+		t.Error("should format author for general comment")
+	}
+	if !strings.Contains(result, "> Multi-line\n> comment here") {
+		t.Error("should handle multi-line comments")
+	}
+}
+
+func TestRetryState_Fields(t *testing.T) {
+	// Test that RetryState struct has expected fields
+	now := time.Now()
+	state := RetryState{
+		TaskID:        "TASK-001",
+		Phase:         "implement",
+		AttemptNumber: 2,
+		StartedAt:     now,
+		Context:       "retry context here",
+	}
+
+	if state.TaskID != "TASK-001" {
+		t.Error("TaskID should be set")
+	}
+	if state.Phase != "implement" {
+		t.Error("Phase should be set")
+	}
+	if state.AttemptNumber != 2 {
+		t.Error("AttemptNumber should be set")
+	}
+	if state.StartedAt.IsZero() {
+		t.Error("StartedAt should be set")
+	}
+	if state.Context == "" {
+		t.Error("Context should be set")
+	}
+}
+
+func TestRetryPreview_Fields(t *testing.T) {
+	preview := RetryPreview{
+		TaskID:          "TASK-001",
+		CurrentPhase:    "test",
+		OpenComments:    5,
+		PRComments:      2,
+		ContextPreview:  "preview here",
+		EstimatedTokens: 100,
+	}
+
+	if preview.TaskID != "TASK-001" {
+		t.Error("TaskID should be set")
+	}
+	if preview.CurrentPhase != "test" {
+		t.Error("CurrentPhase should be set")
+	}
+	if preview.OpenComments != 5 {
+		t.Error("OpenComments should be set")
+	}
+	if preview.PRComments != 2 {
+		t.Error("PRComments should be set")
+	}
+	if preview.ContextPreview == "" {
+		t.Error("ContextPreview should be set")
+	}
+	if preview.EstimatedTokens != 100 {
+		t.Error("EstimatedTokens should be set")
 	}
 }
