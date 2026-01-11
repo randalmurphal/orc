@@ -19,7 +19,7 @@
 
 	let searchQuery = $state('');
 	let selectedIndex = $state(0);
-	let inputRef: HTMLInputElement;
+	let inputRef = $state<HTMLInputElement | null>(null);
 
 	onMount(async () => {
 		await loadProjects();
@@ -92,6 +92,7 @@
 		role="dialog"
 		aria-modal="true"
 		aria-label="Switch project"
+		tabindex="-1"
 		onclick={handleBackdropClick}
 		onkeydown={handleKeydown}
 	>

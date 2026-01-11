@@ -11,7 +11,7 @@
 
 	let searchQuery = $state('');
 	let selectedIndex = $state(0);
-	let inputRef: HTMLInputElement;
+	let inputRef = $state<HTMLInputElement | null>(null);
 
 	interface Command {
 		id: string;
@@ -263,6 +263,7 @@
 		role="dialog"
 		aria-modal="true"
 		aria-label="Command palette"
+		tabindex="-1"
 		onclick={handleBackdropClick}
 		onkeydown={handleKeydown}
 	>
