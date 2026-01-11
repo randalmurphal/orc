@@ -337,3 +337,285 @@ func TestLevelPriority(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatResolutionPath(t *testing.T) {
+	tests := []struct {
+		name  string
+		entry config.ResolutionEntry
+		want  string
+	}{
+		{
+			name: "env var",
+			entry: config.ResolutionEntry{
+				Source: config.SourceEnv,
+				Path:   "ORC_MODEL",
+			},
+			want: "env (ORC_MODEL)",
+		},
+		{
+			name: "flag",
+			entry: config.ResolutionEntry{
+				Source: config.SourceFlag,
+				Path:   "--model",
+			},
+			want: "flags (--model)",
+		},
+		{
+			name: "file path",
+			entry: config.ResolutionEntry{
+				Source: config.SourcePersonal,
+				Path:   "~/.orc/config.yaml",
+			},
+			want: "~/.orc/config.yaml",
+		},
+		{
+			name: "shared file",
+			entry: config.ResolutionEntry{
+				Source: config.SourceShared,
+				Path:   ".orc/config.yaml",
+			},
+			want: ".orc/config.yaml",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatResolutionPath(tt.entry)
+			if got != tt.want {
+				t.Errorf("formatResolutionPath() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfigGetCmd_InvalidKey(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	var buf bytes.Buffer
+	cmd := newConfigGetCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"nonexistent.key.path"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Error("expected error for invalid key, got nil")
+	}
+}
+
+func TestConfigSetCmd_InvalidKey(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	var buf bytes.Buffer
+	cmd := newConfigSetCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"nonexistent.key.path", "value"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Error("expected error for invalid key, got nil")
+	}
+}
+
+func TestConfigSetCmd_MutuallyExclusiveFlags(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	var buf bytes.Buffer
+	cmd := newConfigSetCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--project", "--shared", "model", "test"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Error("expected error for mutually exclusive flags, got nil")
+	}
+	if !strings.Contains(err.Error(), "mutually exclusive") && !strings.Contains(err.Error(), "if any flags in the group") {
+		t.Errorf("expected mutual exclusivity error, got: %v", err)
+	}
+}
+
+func TestConfigSetCmd_WritesToUser(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .orc directory for project
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
+
+	// Create fake home dir for user config
+	homeDir := filepath.Join(tmpDir, "home")
+	userOrcDir := filepath.Join(homeDir, ".orc")
+	if err := os.MkdirAll(userOrcDir, 0755); err != nil {
+		t.Fatalf("create user .orc dir: %v", err)
+	}
+
+	// Save old HOME and set new
+	oldHome := os.Getenv("HOME")
+	if err := os.Setenv("HOME", homeDir); err != nil {
+		t.Fatalf("set HOME: %v", err)
+	}
+	defer func() { _ = os.Setenv("HOME", oldHome) }()
+
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	var buf bytes.Buffer
+	cmd := newConfigSetCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--user", "model", "user-model"})
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("config set --user failed: %v", err)
+	}
+
+	// Verify file was created in user directory
+	configPath := filepath.Join(userOrcDir, config.ConfigFileName)
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read user config: %v", err)
+	}
+
+	if !strings.Contains(string(data), "user-model") {
+		t.Error("User config missing set value")
+	}
+
+	// Verify output message
+	output := buf.String()
+	if !strings.Contains(output, "Set model = user-model") {
+		t.Error("Missing confirmation message")
+	}
+	if !strings.Contains(output, "~/.orc/config.yaml") {
+		t.Error("Missing target file in output")
+	}
+}
+
+func TestConfigResolutionCmd_UnknownKey(t *testing.T) {
+	// Resolution for unknown keys shows the chain with empty values
+	// This is expected behavior - it doesn't error, just shows nothing is set
+	tmpDir := t.TempDir()
+
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	var buf bytes.Buffer
+	cmd := newConfigResolutionCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"nonexistent.key.path"})
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	// Should still show the resolution chain header
+	if !strings.Contains(output, "Resolution chain for 'nonexistent.key.path'") {
+		t.Error("Missing resolution chain header")
+	}
+	// Final value should be empty
+	if !strings.Contains(output, "Final value:") {
+		t.Error("Missing final value line")
+	}
+}
+
+func TestConfigResolutionCmd_FormatsRuntimeEntries(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	var buf bytes.Buffer
+	cmd := newConfigResolutionCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"model"})
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("config resolution failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Check format matches spec: "env (ORC_MODEL):" and "flags (--model):"
+	if !strings.Contains(output, "env (ORC_MODEL)") {
+		t.Error("Output missing 'env (ORC_MODEL)' format")
+	}
+	if !strings.Contains(output, "flags (--model)") {
+		t.Error("Output missing 'flags (--model)' format")
+	}
+}
+
+func TestConfigEditCmd_MutuallyExclusiveFlags(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := newConfigEditCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--project", "--shared"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Error("expected error for mutually exclusive flags, got nil")
+	}
+	if !strings.Contains(err.Error(), "mutually exclusive") && !strings.Contains(err.Error(), "if any flags in the group") {
+		t.Errorf("expected mutual exclusivity error, got: %v", err)
+	}
+}
