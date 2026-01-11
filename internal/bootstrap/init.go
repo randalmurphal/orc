@@ -160,6 +160,14 @@ func Run(opts Options) (*Result, error) {
 		fmt.Printf("Installed: .claude/hooks/orc-stop.sh (ralph-style loop hook)\n")
 	}
 
+	// 8. Install orc plugin for slash commands
+	if err := InstallPlugins(opts.WorkDir); err != nil {
+		// Non-fatal - just warn
+		fmt.Fprintf(os.Stderr, "Warning: could not install orc plugin: %v\n", err)
+	} else {
+		fmt.Printf("Installed: .claude/plugins/orc/ (slash commands: /orc:init, /orc:continue, /orc:status, /orc:review, /orc:qa, /orc:propose)\n")
+	}
+
 	return &Result{
 		Duration:     time.Since(start),
 		ProjectID:    proj.ID,

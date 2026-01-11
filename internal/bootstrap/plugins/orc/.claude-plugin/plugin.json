@@ -1,0 +1,8 @@
+{
+  "name": "orc",
+  "description": "Task orchestration for multi-phase Claude workflows. Create specs, run tasks, manage reviews and QA sessions.",
+  "author": {
+    "name": "Orc Project",
+    "url": "https://github.com/randalmurphal/orc"
+  }
+}

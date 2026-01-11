@@ -30,6 +30,21 @@ var EnvVarMapping = map[string]string{
 	"ORC_AUTH_TYPE":         "server.auth.type",
 	"ORC_TEAM_ENABLED":      "team.enabled",
 	"ORC_TEAM_SERVER":       "team.server_url",
+	// Timeouts
+	"ORC_PHASE_MAX_TIMEOUT": "timeouts.phase_max",
+	"ORC_IDLE_WARNING":      "timeouts.idle_warning",
+	// QA settings
+	"ORC_QA_ENABLED":      "qa.enabled",
+	"ORC_QA_REQUIRE_E2E":  "qa.require_e2e",
+	"ORC_QA_GENERATE_DOCS": "qa.generate_docs",
+	// Review settings
+	"ORC_REVIEW_ENABLED":      "review.enabled",
+	"ORC_REVIEW_ROUNDS":       "review.rounds",
+	"ORC_REVIEW_REQUIRE_PASS": "review.require_pass",
+	// Subtasks settings
+	"ORC_SUBTASKS_ALLOW":       "subtasks.allow_creation",
+	"ORC_SUBTASKS_AUTO_APPROVE": "subtasks.auto_approve",
+	"ORC_SUBTASKS_MAX_PENDING": "subtasks.max_pending",
 }
 
 // ApplyEnvVars applies environment variable overrides to a TrackedConfig.
@@ -108,6 +123,40 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 		cfg.Team.Enabled = parseBool(value)
 	case "team.server_url":
 		cfg.Team.ServerURL = value
+	// Timeouts
+	case "timeouts.phase_max":
+		if d, err := time.ParseDuration(value); err == nil {
+			cfg.Timeouts.PhaseMax = d
+		}
+	case "timeouts.idle_warning":
+		if d, err := time.ParseDuration(value); err == nil {
+			cfg.Timeouts.IdleWarning = d
+		}
+	// QA settings
+	case "qa.enabled":
+		cfg.QA.Enabled = parseBool(value)
+	case "qa.require_e2e":
+		cfg.QA.RequireE2E = parseBool(value)
+	case "qa.generate_docs":
+		cfg.QA.GenerateDocs = parseBool(value)
+	// Review settings
+	case "review.enabled":
+		cfg.Review.Enabled = parseBool(value)
+	case "review.rounds":
+		if v, err := strconv.Atoi(value); err == nil {
+			cfg.Review.Rounds = v
+		}
+	case "review.require_pass":
+		cfg.Review.RequirePass = parseBool(value)
+	// Subtasks settings
+	case "subtasks.allow_creation":
+		cfg.Subtasks.AllowCreation = parseBool(value)
+	case "subtasks.auto_approve":
+		cfg.Subtasks.AutoApprove = parseBool(value)
+	case "subtasks.max_pending":
+		if v, err := strconv.Atoi(value); err == nil {
+			cfg.Subtasks.MaxPending = v
+		}
 	default:
 		return false
 	}
