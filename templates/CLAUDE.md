@@ -35,9 +35,9 @@ Plans define phase sequences based on task weight:
 |--------|--------|
 | `trivial` | implement |
 | `small` | implement → test |
-| `medium` | implement → test |
-| `large` | spec → implement → test → validate |
-| `greenfield` | research → spec → implement → test → validate |
+| `medium` | implement → test → docs |
+| `large` | spec → implement → test → docs → validate |
+| `greenfield` | research → spec → implement → test → docs → validate |
 
 ### Plan Format (YAML)
 

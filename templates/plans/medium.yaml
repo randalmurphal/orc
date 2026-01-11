@@ -46,3 +46,13 @@ phases:
     gate:
       type: auto
     checkpoint: true
+
+  - id: docs
+    name: docs
+    prompt: docs
+    depends_on: [test]
+    gate:
+      type: auto
+    checkpoint: true
+    skip_conditions:
+      - "weight == trivial"

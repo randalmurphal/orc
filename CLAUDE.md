@@ -109,9 +109,9 @@ orc config show --source
 |--------|--------|
 | trivial | implement |
 | small | implement → test |
-| medium | implement → test |
-| large | spec → implement → test → validate |
-| greenfield | research → spec → implement → test → validate |
+| medium | implement → test → docs |
+| large | spec → implement → test → docs → validate |
+| greenfield | research → spec → implement → test → docs → validate |
 
 All phases use **auto gates by default**. Config/profile can override.
 

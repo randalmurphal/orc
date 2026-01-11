@@ -114,6 +114,14 @@ phases:
       type: auto
     checkpoint: true
 
+  - id: docs
+    name: docs
+    prompt: docs
+    depends_on: [test]
+    gate:
+      type: auto
+    checkpoint: true
+
   - id: validate
     name: validate
     prompt: |
@@ -156,7 +164,7 @@ phases:
 
       When done, output:
       <phase_complete>true</phase_complete>
-    depends_on: [test]
+    depends_on: [docs]
     gate:
       type: auto
     checkpoint: true
