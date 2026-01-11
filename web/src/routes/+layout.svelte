@@ -192,6 +192,8 @@
 	.main-area {
 		flex: 1;
 		margin-left: var(--sidebar-width-collapsed);
+		/* Add extra padding on right to compensate for sidebar, making the center point match viewport center */
+		padding-right: var(--sidebar-width-collapsed);
 		display: flex;
 		flex-direction: column;
 		min-height: 100vh;
@@ -202,12 +204,14 @@
 		flex: 1;
 		padding: var(--space-6);
 		overflow-y: auto;
-		max-width: 1800px;
+		/* Center children within the now-balanced main-area */
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	main > :global(*) {
 		width: 100%;
-		/* Center content relative to viewport, accounting for sidebar:
-		   50vw puts us at viewport center, -900px (half of 1800px) centers the content,
-		   -sidebar width compensates for main-area's left offset */
-		margin-left: max(0px, calc(50vw - 900px - var(--sidebar-width-collapsed)));
-		margin-right: auto;
+		max-width: 1200px;
 	}
 </style>

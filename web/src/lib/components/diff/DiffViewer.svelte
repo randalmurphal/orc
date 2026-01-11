@@ -22,6 +22,10 @@
 	let activeLineNumber = $state<number | null>(null);
 	let activeFilePath = $state<string | null>(null);
 	let sendingToAgent = $state(false);
+	let showGeneralCommentForm = $state(false);
+	let generalCommentContent = $state('');
+	let generalCommentSeverity = $state<'suggestion' | 'issue' | 'blocker'>('issue');
+	let addingGeneralComment = $state(false);
 
 	// Comment stats
 	const openComments = $derived(comments.filter(c => c.status === 'open'));
@@ -103,6 +107,27 @@
 	function handleCloseThread() {
 		activeLineNumber = null;
 		activeFilePath = null;
+	}
+
+	async function handleAddGeneralComment() {
+		if (!generalCommentContent.trim() || addingGeneralComment) return;
+		addingGeneralComment = true;
+		try {
+			const newComment = await createReviewComment(taskId, {
+				content: generalCommentContent.trim(),
+				severity: generalCommentSeverity
+				// No file_path or line_number = general comment
+			});
+			comments = [...comments, newComment];
+			generalCommentContent = '';
+			generalCommentSeverity = 'issue';
+			showGeneralCommentForm = false;
+			toast.success('Comment added');
+		} catch (e) {
+			toast.error('Failed to add comment');
+		} finally {
+			addingGeneralComment = false;
+		}
 	}
 
 	async function handleSendToAgent() {
@@ -292,6 +317,72 @@
 					onCloseThread={handleCloseThread}
 				/>
 			{/each}
+		</div>
+
+		<!-- General Comments Section -->
+		<div class="general-comments-section">
+			<div class="general-comments-header">
+				<h3>General Comments</h3>
+				{#if !showGeneralCommentForm}
+					<button class="add-general-btn" onclick={() => showGeneralCommentForm = true}>
+						<span>+</span> Add Comment
+					</button>
+				{/if}
+			</div>
+
+			{#if generalComments.length > 0}
+				<div class="general-comments-list">
+					{#each generalComments.filter(c => c.status === 'open') as comment (comment.id)}
+						<div class="general-comment">
+							<div class="comment-header">
+								<span class="severity-badge {comment.severity}">{comment.severity}</span>
+								<span class="timestamp">{new Date(comment.created_at).toLocaleString()}</span>
+							</div>
+							<div class="comment-content">{comment.content}</div>
+							<div class="comment-actions">
+								<button class="action-btn" onclick={() => handleResolveComment(comment.id)}>Resolve</button>
+								<button class="action-btn" onclick={() => handleWontFixComment(comment.id)}>Won't Fix</button>
+								<button class="action-btn delete" onclick={() => handleDeleteComment(comment.id)}>Delete</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+
+			{#if showGeneralCommentForm}
+				<div class="general-comment-form">
+					<div class="severity-pills">
+						{#each (['suggestion', 'issue', 'blocker'] as const) as sev}
+							<button
+								type="button"
+								class="severity-pill"
+								class:selected={generalCommentSeverity === sev}
+								onclick={() => generalCommentSeverity = sev}
+							>
+								{sev}
+							</button>
+						{/each}
+					</div>
+					<textarea
+						bind:value={generalCommentContent}
+						placeholder="Add a general comment about this change..."
+						rows="3"
+						disabled={addingGeneralComment}
+					></textarea>
+					<div class="form-actions">
+						<button class="cancel-btn" onclick={() => { showGeneralCommentForm = false; generalCommentContent = ''; }}>
+							Cancel
+						</button>
+						<button
+							class="submit-btn"
+							onclick={handleAddGeneralComment}
+							disabled={!generalCommentContent.trim() || addingGeneralComment}
+						>
+							{addingGeneralComment ? 'Adding...' : 'Add Comment'}
+						</button>
+					</div>
+				</div>
+			{/if}
 		</div>
 	{:else}
 		<div class="empty-state">
@@ -503,5 +594,212 @@
 		background: var(--bg-tertiary);
 		font-family: var(--font-mono);
 		font-weight: var(--font-bold);
+	}
+
+	/* General Comments Section */
+	.general-comments-section {
+		border-top: 1px solid var(--border-subtle);
+		padding: var(--space-4);
+		background: var(--bg-secondary);
+	}
+
+	.general-comments-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: var(--space-3);
+	}
+
+	.general-comments-header h3 {
+		font-size: var(--text-sm);
+		font-weight: var(--font-semibold);
+		color: var(--text-primary);
+		margin: 0;
+	}
+
+	.add-general-btn {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding: var(--space-1) var(--space-2);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		color: var(--text-secondary);
+		font-size: var(--text-xs);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.add-general-btn:hover {
+		background: var(--bg-surface);
+		border-color: var(--accent-primary);
+		color: var(--accent-primary);
+	}
+
+	.general-comments-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		margin-bottom: var(--space-3);
+	}
+
+	.general-comment {
+		background: var(--bg-tertiary);
+		border-radius: var(--radius-md);
+		padding: var(--space-3);
+	}
+
+	.general-comment .comment-header {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin-bottom: var(--space-2);
+	}
+
+	.general-comment .severity-badge {
+		padding: var(--space-0-5) var(--space-1-5);
+		font-size: var(--text-2xs);
+		font-weight: var(--font-semibold);
+		text-transform: uppercase;
+		border-radius: var(--radius-sm);
+	}
+
+	.general-comment .severity-badge.suggestion {
+		background: var(--status-info-bg);
+		color: var(--status-info);
+	}
+
+	.general-comment .severity-badge.issue {
+		background: var(--status-warning-bg);
+		color: var(--status-warning);
+	}
+
+	.general-comment .severity-badge.blocker {
+		background: var(--status-danger-bg);
+		color: var(--status-danger);
+	}
+
+	.general-comment .timestamp {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+	}
+
+	.general-comment .comment-content {
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+		line-height: var(--leading-relaxed);
+		margin-bottom: var(--space-2);
+	}
+
+	.general-comment .comment-actions {
+		display: flex;
+		gap: var(--space-2);
+	}
+
+	.general-comment .action-btn {
+		padding: var(--space-0-5) var(--space-1-5);
+		font-size: var(--text-2xs);
+		background: transparent;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		color: var(--text-muted);
+		cursor: pointer;
+	}
+
+	.general-comment .action-btn:hover {
+		background: var(--bg-surface);
+		border-color: var(--border-default);
+	}
+
+	.general-comment .action-btn.delete:hover {
+		color: var(--status-danger);
+		border-color: var(--status-danger);
+	}
+
+	.general-comment-form {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		background: var(--bg-tertiary);
+		padding: var(--space-3);
+		border-radius: var(--radius-md);
+	}
+
+	.general-comment-form .severity-pills {
+		display: flex;
+		gap: var(--space-1);
+	}
+
+	.general-comment-form .severity-pill {
+		padding: var(--space-0-5) var(--space-2);
+		font-size: var(--text-2xs);
+		font-weight: var(--font-medium);
+		background: var(--bg-primary);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-full);
+		color: var(--text-muted);
+		cursor: pointer;
+		text-transform: capitalize;
+	}
+
+	.general-comment-form .severity-pill:hover {
+		border-color: var(--border-default);
+	}
+
+	.general-comment-form .severity-pill.selected {
+		background: var(--accent-primary);
+		border-color: var(--accent-primary);
+		color: var(--text-inverse);
+	}
+
+	.general-comment-form textarea {
+		width: 100%;
+		padding: var(--space-2);
+		font-size: var(--text-sm);
+		font-family: var(--font-body);
+		background: var(--bg-primary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		color: var(--text-primary);
+		resize: vertical;
+		min-height: 80px;
+	}
+
+	.general-comment-form textarea:focus {
+		outline: none;
+		border-color: var(--accent-primary);
+	}
+
+	.general-comment-form .form-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--space-2);
+	}
+
+	.general-comment-form .cancel-btn {
+		padding: var(--space-1) var(--space-2);
+		font-size: var(--text-xs);
+		background: transparent;
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		color: var(--text-secondary);
+		cursor: pointer;
+	}
+
+	.general-comment-form .submit-btn {
+		padding: var(--space-1) var(--space-3);
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		background: var(--accent-primary);
+		border: none;
+		border-radius: var(--radius-md);
+		color: var(--text-inverse);
+		cursor: pointer;
+	}
+
+	.general-comment-form .submit-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 </style>
