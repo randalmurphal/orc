@@ -4,12 +4,14 @@ package executor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/tokenpool"
 )
 
 // Sentinel errors for recovery decisions
@@ -55,6 +57,25 @@ func (e *Executor) ExecuteWithRetry(ctx context.Context, t *task.Task, p *plan.P
 		// Check if error is retryable
 		if !isRetryable(lastErr) {
 			return result, lastErr
+		}
+
+		// If rate limited and token pool is available, try switching accounts
+		if IsRateLimitError(lastErr) && e.tokenPool != nil && e.tokenPool.SwitchOnRateLimit() {
+			e.MarkCurrentAccountExhausted(lastErr.Error())
+			if switchErr := e.SwitchToNextAccount(); switchErr != nil {
+				e.logger.Warn("failed to switch to next account",
+					"error", switchErr,
+					"original_error", lastErr,
+				)
+				// If all accounts exhausted, don't retry - fail immediately
+				if errors.Is(switchErr, tokenpool.ErrAllExhausted) {
+					return result, fmt.Errorf("all accounts exhausted: %w", lastErr)
+				}
+			} else {
+				e.logger.Info("switched account due to rate limit, retrying immediately")
+				// Reset backoff since we have a fresh account
+				backoff = cfg.InitialBackoff
+			}
 		}
 
 		e.logger.Warn("phase execution failed, retrying",

@@ -184,11 +184,19 @@ func (p *Pool) HasAvailable() bool {
 	return false
 }
 
-// Accounts returns all configured accounts (for listing).
+// Accounts returns a copy of all configured accounts (for listing).
+// The returned slice and accounts are copies - safe to use after the call.
 func (p *Pool) Accounts() []*Account {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.config.Accounts
+
+	// Return a copy of the slice with copied accounts
+	result := make([]*Account, len(p.config.Accounts))
+	for i, acc := range p.config.Accounts {
+		copied := *acc
+		result[i] = &copied
+	}
+	return result
 }
 
 // AccountStatus returns the status of an account.
@@ -199,6 +207,7 @@ type AccountStatus struct {
 }
 
 // Status returns the status of all accounts.
+// Returns copies of account and state data - safe to use after the call.
 func (p *Pool) Status() []AccountStatus {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -208,9 +217,18 @@ func (p *Pool) Status() []AccountStatus {
 
 	for _, account := range p.config.Accounts {
 		state := p.state.GetAccountState(account.ID)
+
+		// Copy account and state to avoid race conditions
+		accCopy := *account
+		var stateCopy *AccountState
+		if state != nil {
+			sc := *state
+			stateCopy = &sc
+		}
+
 		statuses = append(statuses, AccountStatus{
-			Account:   account,
-			State:     state,
+			Account:   &accCopy,
+			State:     stateCopy,
 			IsCurrent: current != nil && current.ID == account.ID,
 		})
 	}

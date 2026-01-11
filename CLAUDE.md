@@ -165,7 +165,7 @@ pool:
 **Pool configuration (`~/.orc/token-pool/pool.yaml`):**
 ```yaml
 version: 1
-strategy: round-robin    # round-robin | failover
+strategy: round-robin    # round-robin | failover | lowest-utilization (future)
 switch_on_rate_limit: true
 accounts:
   - id: personal
@@ -262,6 +262,7 @@ completion:
 | `orc pool list` | List accounts in pool |
 | `orc pool status` | Show account exhaustion status |
 | `orc pool switch <id>` | Manually switch account |
+| `orc pool remove <id>` | Remove account from pool |
 | `orc pool reset` | Clear exhausted flags |
 
 ## Web UI

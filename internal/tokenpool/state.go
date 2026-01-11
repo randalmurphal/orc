@@ -75,8 +75,14 @@ func (s *State) Save() error {
 		return fmt.Errorf("marshal state: %w", err)
 	}
 
-	if err := os.WriteFile(s.path, data, 0600); err != nil {
-		return fmt.Errorf("write state: %w", err)
+	// Write atomically: temp file then rename (prevents corruption on crash)
+	tmpPath := s.path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
+		return fmt.Errorf("write state temp: %w", err)
+	}
+	if err := os.Rename(tmpPath, s.path); err != nil {
+		os.Remove(tmpPath) // Clean up temp file on rename failure
+		return fmt.Errorf("rename state: %w", err)
 	}
 
 	return nil

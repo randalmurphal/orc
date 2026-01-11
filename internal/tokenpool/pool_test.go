@@ -1,6 +1,7 @@
 package tokenpool
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -719,5 +720,160 @@ func TestLoadState_NonExistent(t *testing.T) {
 
 	if state.CurrentIndex != 0 {
 		t.Errorf("Default CurrentIndex = %d, want 0", state.CurrentIndex)
+	}
+}
+
+func TestPoolConfig_GetAccount(t *testing.T) {
+	cfg := DefaultPoolConfig()
+	cfg.Accounts = []*Account{
+		{ID: "acc1", Name: "Account 1"},
+		{ID: "acc2", Name: "Account 2"},
+	}
+
+	// Found case
+	acc, err := cfg.GetAccount("acc1")
+	if err != nil {
+		t.Fatalf("GetAccount(acc1) error = %v", err)
+	}
+	if acc.Name != "Account 1" {
+		t.Errorf("GetAccount(acc1).Name = %v, want 'Account 1'", acc.Name)
+	}
+
+	// Not found case
+	_, err = cfg.GetAccount("nonexistent")
+	if err == nil {
+		t.Error("GetAccount(nonexistent) should return error")
+	}
+}
+
+func TestPool_Strategy(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "pool.yaml")
+
+	cfg := DefaultPoolConfig()
+	cfg.Strategy = StrategyFailover
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save config error = %v", err)
+	}
+
+	pool, err := New(configPath)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	if pool.Strategy() != StrategyFailover {
+		t.Errorf("Strategy() = %v, want %v", pool.Strategy(), StrategyFailover)
+	}
+}
+
+func TestPool_SwitchOnRateLimit(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "pool.yaml")
+
+	cfg := DefaultPoolConfig()
+	cfg.SwitchOnRateLimit = false
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save config error = %v", err)
+	}
+
+	pool, err := New(configPath)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	if pool.SwitchOnRateLimit() {
+		t.Error("SwitchOnRateLimit() = true, want false")
+	}
+}
+
+func TestPool_Current_EmptyPool(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "pool.yaml")
+
+	cfg := DefaultPoolConfig() // No accounts
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save config error = %v", err)
+	}
+
+	pool, err := New(configPath)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	if current := pool.Current(); current != nil {
+		t.Errorf("Current() = %v, want nil for empty pool", current)
+	}
+}
+
+func TestPool_Token_EmptyPool(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "pool.yaml")
+
+	cfg := DefaultPoolConfig() // No accounts
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save config error = %v", err)
+	}
+
+	pool, err := New(configPath)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	if token := pool.Token(); token != "" {
+		t.Errorf("Token() = %q, want empty string for empty pool", token)
+	}
+}
+
+func TestState_Save_EmptyPath(t *testing.T) {
+	state := NewState("") // Empty path
+	if err := state.Save(); err == nil {
+		t.Error("Save() should error with empty path")
+	}
+}
+
+func TestLoadPoolConfig_InvalidYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "pool.yaml")
+	os.WriteFile(path, []byte("invalid: yaml: content: [[["), 0600)
+
+	_, err := LoadPoolConfig(path)
+	if err == nil {
+		t.Error("LoadPoolConfig should error on invalid YAML")
+	}
+}
+
+func TestLoadState_InvalidYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "state.yaml")
+	os.WriteFile(path, []byte("invalid: yaml: content: [[["), 0600)
+
+	_, err := LoadState(path)
+	if err == nil {
+		t.Error("LoadState should error on invalid YAML")
+	}
+}
+
+func TestPool_WithLogger(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "pool.yaml")
+
+	cfg := DefaultPoolConfig()
+	cfg.Accounts = []*Account{
+		{ID: "acc1", Enabled: true},
+	}
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save config error = %v", err)
+	}
+
+	// Create pool with custom logger - should not panic
+	logger := slog.Default()
+	pool, err := New(configPath, WithLogger(logger))
+	if err != nil {
+		t.Fatalf("New() with logger error = %v", err)
+	}
+
+	// Verify pool works
+	if pool.Current() == nil {
+		t.Error("Pool with logger should have current account")
 	}
 }

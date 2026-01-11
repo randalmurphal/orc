@@ -97,9 +97,14 @@ func (c *PoolConfig) Save(path string) error {
 		return fmt.Errorf("marshal pool config: %w", err)
 	}
 
-	// Write with restricted permissions (0600) since it contains tokens
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		return fmt.Errorf("write pool config: %w", err)
+	// Write atomically: temp file then rename (prevents corruption on crash)
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
+		return fmt.Errorf("write pool config temp: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		os.Remove(tmpPath) // Clean up temp file on rename failure
+		return fmt.Errorf("rename pool config: %w", err)
 	}
 
 	return nil
