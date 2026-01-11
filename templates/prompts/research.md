@@ -4,10 +4,10 @@ You are investigating the codebase and gathering context for a task.
 
 ## Context
 
-**Task ID**: ${TASK_ID}
-**Task**: ${TASK_TITLE}
-**Weight**: ${WEIGHT}
-**Description**: ${TASK_DESCRIPTION}
+**Task ID**: {{TASK_ID}}
+**Task**: {{TASK_TITLE}}
+**Weight**: {{WEIGHT}}
+**Description**: {{TASK_DESCRIPTION}}
 
 ## Instructions
 
@@ -53,10 +53,10 @@ Create a research summary documenting:
 
 ### Research Document
 
-Save to `.orc/tasks/${TASK_ID}/artifacts/research.md`:
+Save to `.orc/tasks/{{TASK_ID}}/artifacts/research.md`:
 
 ```markdown
-# Research: ${TASK_TITLE}
+# Research: {{TASK_TITLE}}
 
 ## Goal
 [Clear statement of what needs to be accomplished]
@@ -114,7 +114,7 @@ Save to `.orc/tasks/${TASK_ID}/artifacts/research.md`:
 
 ```bash
 git add -A
-git commit -m "[orc] ${TASK_ID}: research - completed
+git commit -m "[orc] {{TASK_ID}}: research - completed
 
 Phase: research
 Status: completed

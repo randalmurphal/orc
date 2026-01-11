@@ -156,7 +156,9 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	if st, err := state.Load(id); err == nil {
 		data, _ := json.Marshal(st)
 		fmt.Fprintf(w, "event: state\ndata: %s\n\n", data)
-		w.(http.Flusher).Flush()
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
 	}
 
 	// Stream events

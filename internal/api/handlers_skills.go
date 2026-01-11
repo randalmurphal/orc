@@ -102,9 +102,8 @@ func (s *Server) handleUpdateSkill(w http.ResponseWriter, r *http.Request) {
 		skill.Name = name
 	}
 
-	// Write the updated skill
-	skillsDir := filepath.Join(s.getProjectRoot(), ".claude", "skills")
-	if err := claudeconfig.WriteSkillMD(&skill, skillsDir); err != nil {
+	// Write the updated skill to the skill-specific directory
+	if err := claudeconfig.WriteSkillMD(&skill, skillDir); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to update skill: %v", err), http.StatusInternalServerError)
 		return
 	}

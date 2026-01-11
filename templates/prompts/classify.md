@@ -4,8 +4,8 @@ You are classifying a task to determine the appropriate level of rigor.
 
 ## Task
 
-**Title**: ${TASK_TITLE}
-**Description**: ${TASK_DESCRIPTION}
+**Title**: {{TASK_TITLE}}
+**Description**: {{TASK_DESCRIPTION}}
 
 ## Weight Definitions
 

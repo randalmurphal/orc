@@ -53,7 +53,8 @@ func WithTrivialConfig(cfg ExecutorConfig) TrivialExecutorOption {
 // NewTrivialExecutor creates a new trivial executor.
 func NewTrivialExecutor(opts ...TrivialExecutorOption) *TrivialExecutor {
 	e := &TrivialExecutor{
-		logger: slog.Default(),
+		logger:    slog.Default(),
+		publisher: NewEventPublisher(nil), // Initialize with nil-safe wrapper
 		config: ExecutorConfig{
 			MaxIterations:      5,
 			CheckpointInterval: 0,

@@ -4,21 +4,21 @@ You are performing final validation before merge using comprehensive E2E testing
 
 ## Context
 
-**Task ID**: ${TASK_ID}
-**Task**: ${TASK_TITLE}
-**Weight**: ${WEIGHT}
+**Task ID**: {{TASK_ID}}
+**Task**: {{TASK_TITLE}}
+**Weight**: {{WEIGHT}}
 
 ## Specification
 
-${SPEC_CONTENT}
+{{SPEC_CONTENT}}
 
 ## Implementation Summary
 
-${IMPLEMENTATION_SUMMARY}
+{{IMPLEMENTATION_SUMMARY}}
 
 ## Test Results
 
-${TEST_RESULTS}
+{{TEST_RESULTS}}
 
 ## Instructions
 
@@ -112,7 +112,7 @@ If there are conflicts:
 ### Validation Report
 
 ```markdown
-# Validation Report: ${TASK_ID}
+# Validation Report: {{TASK_ID}}
 
 ## Success Criteria Verification
 
@@ -142,11 +142,11 @@ If there are conflicts:
 
 ### Commit Validation Report
 
-Save report to `.orc/tasks/${TASK_ID}/artifacts/validation-report.md`:
+Save report to `.orc/tasks/{{TASK_ID}}/artifacts/validation-report.md`:
 
 ```bash
 git add -A
-git commit -m "[orc] ${TASK_ID}: validate - completed
+git commit -m "[orc] {{TASK_ID}}: validate - completed
 
 Phase: validate
 Status: completed

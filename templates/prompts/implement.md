@@ -4,13 +4,13 @@ You are implementing a task according to its specification.
 
 ## Context
 
-**Task ID**: ${TASK_ID}
-**Task**: ${TASK_TITLE}
-**Weight**: ${WEIGHT}
+**Task ID**: {{TASK_ID}}
+**Task**: {{TASK_TITLE}}
+**Weight**: {{WEIGHT}}
 
 ## Specification
 
-${SPEC_CONTENT}
+{{SPEC_CONTENT}}
 
 ## Instructions
 
@@ -84,7 +84,7 @@ When all success criteria are met:
 
 ```bash
 git add -A
-git commit -m "[orc] ${TASK_ID}: implement - completed
+git commit -m "[orc] {{TASK_ID}}: implement - completed
 
 Phase: implement
 Status: completed

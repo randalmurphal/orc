@@ -4,22 +4,22 @@ You are creating and updating documentation after implementation is complete.
 
 ## Context
 
-**Task ID**: ${TASK_ID}
-**Task**: ${TASK_TITLE}
-**Weight**: ${WEIGHT}
-**Project Type**: ${PROJECT_TYPE}
+**Task ID**: {{TASK_ID}}
+**Task**: {{TASK_TITLE}}
+**Weight**: {{WEIGHT}}
+**Project Type**: {{PROJECT_TYPE}}
 
 ## Implementation Summary
 
-${IMPLEMENTATION_SUMMARY}
+{{IMPLEMENTATION_SUMMARY}}
 
 ## Files Changed
 
-${FILES_CHANGED}
+{{FILES_CHANGED}}
 
 ## Current Documentation Status
 
-${DOC_STATUS}
+{{DOC_STATUS}}
 
 ## Instructions
 
@@ -94,7 +94,7 @@ For each file created or updated:
 
 ```bash
 git add -A
-git commit -m "[orc] ${TASK_ID}: docs - completed
+git commit -m "[orc] {{TASK_ID}}: docs - completed
 
 Phase: docs
 Status: completed
@@ -108,7 +108,7 @@ Docs updated: [count]
 ```
 ### Documentation Summary
 
-**Project Type**: ${PROJECT_TYPE}
+**Project Type**: {{PROJECT_TYPE}}
 **Docs Created**: [list]
 **Docs Updated**: [list]
 **CLAUDE.md Status**: [created/updated/verified]

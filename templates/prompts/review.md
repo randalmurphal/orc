@@ -4,16 +4,16 @@ You are reviewing code changes for correctness, quality, and spec compliance.
 
 ## Context
 
-**Task ID**: ${TASK_ID}
-**Task**: ${TASK_TITLE}
+**Task ID**: {{TASK_ID}}
+**Task**: {{TASK_TITLE}}
 
 ## Specification
 
-${SPEC_CONTENT}
+{{SPEC_CONTENT}}
 
 ## Changes to Review
 
-${CHANGES_DIFF}
+{{CHANGES_DIFF}}
 
 ## Review Checklist
 
@@ -84,7 +84,7 @@ If you made any fixes during review, commit them before completing:
 
 ```bash
 git add -A
-git commit -m "[orc] ${TASK_ID}: review - completed
+git commit -m "[orc] {{TASK_ID}}: review - completed
 
 Phase: review
 Status: completed
