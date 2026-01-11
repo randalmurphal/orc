@@ -15,6 +15,7 @@
 		onResolveComment?: (id: string) => void;
 		onWontFixComment?: (id: string) => void;
 		onDeleteComment?: (id: string) => void;
+		onCloseThread?: () => void;
 	}
 
 	let {
@@ -27,7 +28,8 @@
 		onAddComment,
 		onResolveComment,
 		onWontFixComment,
-		onDeleteComment
+		onDeleteComment,
+		onCloseThread
 	}: Props = $props();
 
 	function getCommentsForLine(lineNumber: number | undefined): ReviewComment[] {
@@ -106,10 +108,12 @@
 								comments={getCommentsForLine(lineNum)}
 								{filePath}
 								lineNumber={lineNum ?? 0}
+								isActive={activeLineNumber === lineNum}
 								onAddComment={onAddComment}
 								onResolve={onResolveComment}
 								onWontFix={onWontFixComment}
 								onDelete={onDeleteComment}
+								onClose={onCloseThread}
 							/>
 						{/if}
 					{/snippet}
@@ -123,10 +127,12 @@
 							comments={getCommentsForLine(lineNum)}
 							{filePath}
 							lineNumber={lineNum ?? 0}
+							isActive={activeLineNumber === lineNum}
 							onAddComment={onAddComment}
 							onResolve={onResolveComment}
 							onWontFix={onWontFixComment}
 							onDelete={onDeleteComment}
+							onClose={onCloseThread}
 						/>
 					{/if}
 				{/each}
@@ -159,10 +165,12 @@
 								comments={getCommentsForLine(lineNum)}
 								{filePath}
 								lineNumber={lineNum ?? 0}
+								isActive={activeLineNumber === lineNum}
 								onAddComment={onAddComment}
 								onResolve={onResolveComment}
 								onWontFix={onWontFixComment}
 								onDelete={onDeleteComment}
+								onClose={onCloseThread}
 							/>
 						{/if}
 					{/snippet}
@@ -191,10 +199,12 @@
 							comments={getCommentsForLine(lineNum)}
 							{filePath}
 							lineNumber={lineNum ?? 0}
+							isActive={activeLineNumber === lineNum}
 							onAddComment={onAddComment}
 							onResolve={onResolveComment}
 							onWontFix={onWontFixComment}
 							onDelete={onDeleteComment}
+							onClose={onCloseThread}
 						/>
 					{/if}
 				{/each}

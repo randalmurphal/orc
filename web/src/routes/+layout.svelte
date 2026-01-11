@@ -204,6 +204,9 @@
 		overflow-y: auto;
 		max-width: 1800px;
 		width: 100%;
-		margin: 0 auto;
+		/* Center content accounting for sidebar offset:
+		   On wide screens, offset left margin by half sidebar width to visually center */
+		margin-left: max(0px, calc((100% - 1800px) / 2 - var(--sidebar-width-collapsed) / 2));
+		margin-right: auto;
 	}
 </style>

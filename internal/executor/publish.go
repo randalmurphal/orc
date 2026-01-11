@@ -83,12 +83,13 @@ func (ep *EventPublisher) TranscriptChunk(taskID, phase string, iteration int, c
 }
 
 // Tokens publishes a token usage update event.
-func (ep *EventPublisher) Tokens(taskID, phase string, input, output, total int) {
+func (ep *EventPublisher) Tokens(taskID, phase string, input, output, cacheRead, total int) {
 	ep.Publish(events.NewEvent(events.EventTokens, taskID, events.TokenUpdate{
-		Phase:        phase,
-		InputTokens:  input,
-		OutputTokens: output,
-		TotalTokens:  total,
+		Phase:                phase,
+		InputTokens:          input,
+		OutputTokens:         output,
+		CacheReadInputTokens: cacheRead,
+		TotalTokens:          total,
 	}))
 }
 

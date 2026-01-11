@@ -46,9 +46,10 @@ type PhaseState struct {
 	OutputTokens int
 
 	// Prior phase content (for template rendering)
-	ResearchContent string
-	SpecContent     string
-	DesignContent   string
+	ResearchContent  string
+	SpecContent      string
+	DesignContent    string
+	ImplementContent string
 
 	// Retry context (populated when retrying from a failed phase)
 	RetryContext string
@@ -339,8 +340,8 @@ func (e *Executor) publishTranscript(taskID, phase string, iteration int, msgTyp
 	e.eventPublisher().Transcript(taskID, phase, iteration, msgType, content)
 }
 
-func (e *Executor) publishTokens(taskID, phase string, input, output, total int) {
-	e.eventPublisher().Tokens(taskID, phase, input, output, total)
+func (e *Executor) publishTokens(taskID, phase string, input, output, cacheRead, total int) {
+	e.eventPublisher().Tokens(taskID, phase, input, output, cacheRead, total)
 }
 
 func (e *Executor) publishError(taskID, phase, message string, fatal bool) {

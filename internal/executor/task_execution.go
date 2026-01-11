@@ -109,7 +109,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 
 		// Publish phase completion events
 		e.publishPhaseComplete(t.ID, phase.ID, result.CommitSHA)
-		e.publishTokens(t.ID, phase.ID, result.InputTokens, result.OutputTokens, result.InputTokens+result.OutputTokens)
+		e.publishTokens(t.ID, phase.ID, result.InputTokens, result.OutputTokens, 0, result.InputTokens+result.OutputTokens)
 		e.publishState(t.ID, s)
 
 		// Evaluate gate if present (gate.Type != "" means gate is configured)

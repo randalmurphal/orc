@@ -15,6 +15,7 @@
 		onResolveComment?: (id: string) => void;
 		onWontFixComment?: (id: string) => void;
 		onDeleteComment?: (id: string) => void;
+		onCloseThread?: () => void;
 	}
 
 	let {
@@ -28,7 +29,8 @@
 		onAddComment,
 		onResolveComment,
 		onWontFixComment,
-		onDeleteComment
+		onDeleteComment,
+		onCloseThread
 	}: Props = $props();
 
 	const fileComments = $derived(comments.filter(c => c.file_path === file.path));
@@ -93,6 +95,7 @@
 						onResolveComment={onResolveComment}
 						onWontFixComment={onWontFixComment}
 						onDeleteComment={onDeleteComment}
+						{onCloseThread}
 					/>
 				{/each}
 			{:else}

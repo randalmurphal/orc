@@ -217,8 +217,9 @@
 
 <!-- Merge confirmation modal -->
 {#if showMergeConfirm && pr}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div class="modal-backdrop" onclick={closeMergeConfirm} role="presentation">
-		<div class="modal-content" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="merge-modal-title">
+		<div class="modal-content" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="merge-modal-title" tabindex="-1">
 			<div class="modal-header">
 				<h3 id="merge-modal-title">Merge Pull Request</h3>
 				<button class="modal-close" onclick={closeMergeConfirm} aria-label="Close">
