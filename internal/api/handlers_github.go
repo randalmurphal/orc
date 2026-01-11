@@ -62,7 +62,8 @@ func (s *Server) handleCreatePR(w http.ResponseWriter, r *http.Request) {
 
 	var req createPRRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		// Use defaults if no body
+		// Use defaults if no body or invalid JSON
+		s.logger.Debug("using default PR options", "reason", "empty or invalid body")
 		req = createPRRequest{}
 	}
 
