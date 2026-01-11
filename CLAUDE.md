@@ -136,6 +136,76 @@ retry:
     validate: implement
 ```
 
+## Review Configuration
+
+Multi-round code review runs after implementation (when enabled).
+
+```yaml
+review:
+  enabled: true           # Enable review phase (default: true)
+  rounds: 2               # Number of review rounds (default: 2)
+  require_pass: true      # Must pass review to continue
+```
+
+**Review Process:**
+1. **Round 1 (Exploratory)**: Identifies gaps, issues, architectural concerns
+2. **Round 2 (Validation)**: Verifies all Round 1 issues were addressed
+
+Review outputs use XML format:
+```xml
+<review_decision>
+  <status>pass|fail|needs_user_input</status>
+  <gaps_addressed>true|false</gaps_addressed>
+  <summary>Review summary...</summary>
+</review_decision>
+```
+
+## QA Configuration
+
+QA session runs after review passes (when enabled).
+
+```yaml
+qa:
+  enabled: true           # Run QA phase (default: true)
+  skip_for_weights:       # Skip QA for these weights
+    - trivial
+  require_e2e: false      # Require e2e tests to pass
+  generate_docs: true     # Auto-generate feature docs
+```
+
+**QA outputs:**
+```xml
+<qa_result>
+  <status>pass|fail|needs_attention</status>
+  <summary>QA summary...</summary>
+  <tests_run>
+    <total>10</total>
+    <passed>9</passed>
+    <failed>1</failed>
+  </tests_run>
+</qa_result>
+```
+
+## Sub-task Queue
+
+Agents can propose sub-tasks during implementation for later review.
+
+```yaml
+subtasks:
+  allow_creation: true    # Agents can propose sub-tasks
+  auto_approve: false     # Require human approval
+  max_pending: 10         # Max queued per task
+```
+
+Sub-tasks are managed through the API and web UI. Agents propose via XML:
+```xml
+<subtask_proposal>
+  <title>Refactor auth module</title>
+  <description>Split auth into smaller modules</description>
+  <parent_task>TASK-001</parent_task>
+</subtask_proposal>
+```
+
 ## Completion Detection
 
 Phases complete when Claude outputs:
@@ -273,16 +343,40 @@ completion:
 
 .claude/
 ├── settings.json        # Project settings (hooks, env, plugins)
+├── plugins/             # Claude Code plugins (slash commands)
+│   └── orc/
+│       ├── .claude-plugin/
+│       │   └── plugin.json
+│       └── commands/    # /orc:init, /orc:continue, etc.
 ├── skills/              # Claude Code skills (SKILL.md format)
 │   └── my-skill/
 │       └── SKILL.md     # YAML frontmatter + markdown body
 └── CLAUDE.md            # Project instructions
 ```
 
+## Claude Code Integration
+
+Orc installs a Claude Code plugin providing slash commands:
+
+| Command | Purpose |
+|---------|---------|
+| `/orc:init` | Initialize project or create new spec |
+| `/orc:continue` | Resume current task from checkpoint |
+| `/orc:status` | Show current task progress |
+| `/orc:review` | Start multi-round code review |
+| `/orc:qa` | Run QA session (tests, docs) |
+| `/orc:propose` | Queue sub-task for later review |
+
+The plugin is installed automatically by `orc init` to `.claude/plugins/orc/`.
+
 ## Commands
 
 | Command | Purpose |
 |---------|---------|
+| `orc go` | Main entry point - interactive guidance or quick execution |
+| `orc go --headless` | Automated execution, no user interaction |
+| `orc go "description"` | Quick mode - create and execute single task |
+| `orc go --stream` | Stream Claude transcript to stdout |
 | `orc init` | Initialize .orc/ in current directory (instant, <500ms) |
 | `orc setup` | Claude-powered interactive project setup |
 | `orc new "title"` | Create task, classify weight, generate plan |

@@ -97,10 +97,12 @@ func ParseQAResult(response string) (*QAResult, error) {
 	}
 	content := resultMatch[1]
 
-	// Parse status
-	statusRe := regexp.MustCompile(`<status>(pass|fail|needs_attention)</status>`)
+	// Parse status (required field)
+	statusRe := regexp.MustCompile(`<status>\s*(pass|fail|needs_attention)\s*</status>`)
 	if m := statusRe.FindStringSubmatch(content); m != nil {
 		result.Status = QAStatus(m[1])
+	} else {
+		return nil, fmt.Errorf("no valid <status> found in qa_result (expected pass, fail, or needs_attention)")
 	}
 
 	// Parse summary

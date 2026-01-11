@@ -95,8 +95,10 @@ Examples:
 				cancel()
 			}()
 
+			stream, _ := cmd.Flags().GetBool("stream")
+
 			if quick && description != "" {
-				return runQuickMode(ctx, cfg, description, weight, headless)
+				return runQuickMode(ctx, cfg, description, weight, stream)
 			}
 
 			if headless {
@@ -134,7 +136,7 @@ func ensureInit() error {
 }
 
 // runQuickMode creates a single task and executes it immediately
-func runQuickMode(ctx context.Context, cfg *config.Config, description, weight string, headless bool) error {
+func runQuickMode(ctx context.Context, cfg *config.Config, description, weight string, stream bool) error {
 	fmt.Printf("Quick mode: %s\n\n", description)
 
 	// Create task
@@ -146,12 +148,8 @@ func runQuickMode(ctx context.Context, cfg *config.Config, description, weight s
 	t := task.New(id, description)
 	t.Description = description
 
-	// Set weight (default to medium if not specified)
-	if weight != "" {
-		t.Weight = task.Weight(weight)
-	} else {
-		t.Weight = task.WeightMedium
-	}
+	// Set weight (flag has default "medium", so always set)
+	t.Weight = task.Weight(weight)
 
 	// Save task
 	if err := t.Save(); err != nil {
@@ -195,7 +193,7 @@ func runQuickMode(ctx context.Context, cfg *config.Config, description, weight s
 	fmt.Printf("  Phases: %d\n\n", len(p.Phases))
 
 	// Execute task
-	return executeTask(ctx, cfg, t, p, s, headless)
+	return executeTask(ctx, cfg, t, p, s, stream)
 }
 
 // runHeadlessMode executes existing tasks or parses spec in automated mode
@@ -240,7 +238,7 @@ func runHeadlessMode(ctx context.Context, cfg *config.Config) error {
 		}
 
 		fmt.Printf("Running %s: %s\n", t.ID, t.Title)
-		if err := executeTask(ctx, cfg, t, p, s, true); err != nil {
+		if err := executeTask(ctx, cfg, t, p, s, false); err != nil {
 			if ctx.Err() != nil {
 				return nil // Clean interrupt
 			}
@@ -301,7 +299,7 @@ func runInteractiveMode(ctx context.Context, cfg *config.Config) error {
 }
 
 // executeTask runs a single task through all phases
-func executeTask(ctx context.Context, cfg *config.Config, t *task.Task, p *plan.Plan, s *state.State, headless bool) error {
+func executeTask(ctx context.Context, cfg *config.Config, t *task.Task, p *plan.Plan, s *state.State, stream bool) error {
 	// Create progress display
 	disp := progress.New(t.ID, quiet)
 	disp.Info(fmt.Sprintf("Executing %s (%s)", t.ID, t.Weight))
@@ -309,8 +307,8 @@ func executeTask(ctx context.Context, cfg *config.Config, t *task.Task, p *plan.
 	// Create executor
 	exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
 
-	// Set up streaming if verbose
-	if verbose {
+	// Set up streaming if verbose or --stream flag is set
+	if verbose || stream {
 		publisher := events.NewCLIPublisher(os.Stdout, events.WithStreamMode(true))
 		exec.SetPublisher(publisher)
 		defer publisher.Close()

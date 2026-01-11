@@ -38,6 +38,8 @@ Phase execution engine implementing Ralph-style iteration loops with multiple ex
 | `phase_executor.go` | PhaseExecutor interface |
 | `pr.go` | PR creation and auto-merge |
 | `test_parser.go` | Test output parsing (Go, Jest, Pytest) |
+| `review.go` | Multi-round review session parsing |
+| `qa.go` | QA session result parsing |
 
 ## Architecture
 
@@ -159,6 +161,65 @@ context := BuildTestRetryContext("test", result)
 context := BuildCoverageRetryContext(65.0, 80, result)
 ```
 
+## Review Session (review.go)
+
+Multi-round code review with structured output parsing.
+
+**Types:**
+- `ReviewFindings` - Round 1 exploratory findings (issues, questions, positives)
+- `ReviewDecision` - Round 2 validation decision (pass/fail/needs_user_input)
+- `ReviewResult` - Complete multi-round review result
+
+**Parsing:**
+```go
+findings, err := ParseReviewFindings(response)  // Round 1
+decision, err := ParseReviewDecision(response)  // Round 2
+
+// Check for high-severity issues
+if findings.HasHighSeverityIssues() { ... }
+
+// Count by severity
+counts := findings.CountBySeverity()  // map[string]int
+
+// Format for Round 2 injection
+formatted := FormatFindingsForRound2(findings)
+```
+
+**Configuration helpers:**
+```go
+shouldRun := ShouldRunReview(cfg, weight)
+rounds := GetReviewRounds(cfg)
+```
+
+## QA Session (qa.go)
+
+QA session result parsing for tests, coverage, and documentation.
+
+**Types:**
+- `QAResult` - Complete QA session result
+- `QATest` - Test written (file, description, type)
+- `QATestRun` - Test execution counts (total, passed, failed, skipped)
+- `QACoverage` - Coverage percentage and uncovered areas
+- `QADoc` - Documentation created (file, type)
+- `QAIssue` - Issue found (severity, description, reproduction)
+
+**Parsing:**
+```go
+result, err := ParseQAResult(response)
+
+// Check results
+if result.HasHighSeverityIssues() { ... }
+if result.AllTestsPassed() { ... }
+
+// Format for display
+summary := FormatQAResultSummary(result)
+```
+
+**Configuration helpers:**
+```go
+shouldRun := ShouldRunQA(cfg, weight)
+```
+
 ## Testing
 
 ```bash
@@ -180,3 +241,5 @@ Test coverage for each module:
 - `flowgraph_nodes_test.go` - Node builders
 - `executor_test.go` - Integration tests
 - `test_parser_test.go` - Framework detection, parsing, coverage validation
+- `review_test.go` - Review findings/decision parsing, edge cases
+- `qa_test.go` - QA result parsing, status validation
