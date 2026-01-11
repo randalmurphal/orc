@@ -41,8 +41,27 @@ type State struct {
 	Phases           map[string]*PhaseState `yaml:"phases" json:"phases"`
 	Gates            []GateDecision         `yaml:"gates,omitempty" json:"gates,omitempty"`
 	Tokens           TokenUsage             `yaml:"tokens" json:"tokens"`
+	Cost             CostTracking           `yaml:"cost" json:"cost"`
+	Session          *SessionInfo           `yaml:"session,omitempty" json:"session,omitempty"`
 	Error            string                 `yaml:"error,omitempty" json:"error,omitempty"`
 	RetryContext     *RetryContext          `yaml:"retry_context,omitempty" json:"retry_context,omitempty"`
+}
+
+// SessionInfo tracks the Claude session associated with the task.
+type SessionInfo struct {
+	ID           string    `yaml:"id" json:"id"`
+	Model        string    `yaml:"model,omitempty" json:"model,omitempty"`
+	Status       string    `yaml:"status" json:"status"`
+	CreatedAt    time.Time `yaml:"created_at" json:"created_at"`
+	LastActivity time.Time `yaml:"last_activity" json:"last_activity"`
+	TurnCount    int       `yaml:"turn_count" json:"turn_count"`
+}
+
+// CostTracking tracks cost information for the task.
+type CostTracking struct {
+	TotalCostUSD  float64               `yaml:"total_cost_usd" json:"total_cost_usd"`
+	PhaseCosts    map[string]float64    `yaml:"phase_costs,omitempty" json:"phase_costs,omitempty"`
+	LastUpdatedAt time.Time             `yaml:"last_updated_at,omitempty" json:"last_updated_at,omitempty"`
 }
 
 // PhaseState represents the state of a single phase.
@@ -346,4 +365,69 @@ func (s *State) SkipPhase(phaseID string, reason string) {
 
 	// Record as a gate decision for audit trail
 	s.RecordGateDecision(phaseID, "skip", true, reason)
+}
+
+// SetSession updates the session info for the task.
+func (s *State) SetSession(id, model, status string, turnCount int) {
+	now := time.Now()
+	if s.Session == nil {
+		s.Session = &SessionInfo{
+			CreatedAt: now,
+		}
+	}
+	s.Session.ID = id
+	s.Session.Model = model
+	s.Session.Status = status
+	s.Session.TurnCount = turnCount
+	s.Session.LastActivity = now
+	s.UpdatedAt = now
+}
+
+// AddCost adds cost to the task and optionally to the current phase.
+func (s *State) AddCost(costUSD float64) {
+	s.Cost.TotalCostUSD += costUSD
+	s.Cost.LastUpdatedAt = time.Now()
+
+	if s.CurrentPhase != "" {
+		if s.Cost.PhaseCosts == nil {
+			s.Cost.PhaseCosts = make(map[string]float64)
+		}
+		s.Cost.PhaseCosts[s.CurrentPhase] += costUSD
+	}
+	s.UpdatedAt = time.Now()
+}
+
+// GetSessionID returns the session ID if available.
+func (s *State) GetSessionID() string {
+	if s.Session != nil {
+		return s.Session.ID
+	}
+	return ""
+}
+
+// LoadAllStates loads state for all tasks.
+func LoadAllStates() ([]*State, error) {
+	tasksDir := filepath.Join(task.OrcDir, task.TasksDir)
+	entries, err := os.ReadDir(tasksDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read tasks directory: %w", err)
+	}
+
+	var states []*State
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		s, err := Load(entry.Name())
+		if err != nil {
+			continue // Skip tasks that can't be loaded
+		}
+		states = append(states, s)
+	}
+
+	return states, nil
 }
