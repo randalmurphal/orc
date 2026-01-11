@@ -1,0 +1,397 @@
+// Package task provides task management for orc.
+package task
+
+import (
+	"crypto/sha256"
+	"fmt"
+	"os"
+	"os/user"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
+
+	"gopkg.in/yaml.v3"
+)
+
+// Mode represents the coordination mode for task ID generation.
+type Mode string
+
+const (
+	// ModeSolo is the default mode with no prefix (single user).
+	ModeSolo Mode = "solo"
+	// ModeP2P uses prefixed IDs for multi-user coordination.
+	ModeP2P Mode = "p2p"
+	// ModeTeam uses server-based coordination with prefixed IDs.
+	ModeTeam Mode = "team"
+)
+
+// PrefixSource determines how the task ID prefix is derived.
+type PrefixSource string
+
+const (
+	// PrefixNone generates IDs without a prefix (TASK-001).
+	PrefixNone PrefixSource = "none"
+	// PrefixInitials uses the user's configured initials (TASK-AM-001).
+	PrefixInitials PrefixSource = "initials"
+	// PrefixUsername uses the system username (TASK-alice-001).
+	PrefixUsername PrefixSource = "username"
+	// PrefixEmailHash uses first 4 chars of email hash (TASK-a1b2-001).
+	PrefixEmailHash PrefixSource = "email_hash"
+	// PrefixMachine uses the machine hostname (TASK-laptop-001).
+	PrefixMachine PrefixSource = "machine"
+)
+
+// SequenceStore manages per-prefix sequence numbers.
+type SequenceStore struct {
+	path string
+	mu   sync.Mutex
+}
+
+// SequenceData represents the sequences.yaml file structure.
+type SequenceData struct {
+	Prefixes map[string]int `yaml:"prefixes"`
+}
+
+// NewSequenceStore creates a new sequence store at the given path.
+func NewSequenceStore(path string) *SequenceStore {
+	return &SequenceStore{path: path}
+}
+
+// load reads the current sequence data from disk.
+func (s *SequenceStore) load() (*SequenceData, error) {
+	data, err := os.ReadFile(s.path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &SequenceData{Prefixes: make(map[string]int)}, nil
+		}
+		return nil, fmt.Errorf("read sequences: %w", err)
+	}
+
+	var sd SequenceData
+	if err := yaml.Unmarshal(data, &sd); err != nil {
+		return nil, fmt.Errorf("parse sequences: %w", err)
+	}
+	if sd.Prefixes == nil {
+		sd.Prefixes = make(map[string]int)
+	}
+	return &sd, nil
+}
+
+// save persists the sequence data to disk.
+func (s *SequenceStore) save(sd *SequenceData) error {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0755); err != nil {
+		return fmt.Errorf("create sequences directory: %w", err)
+	}
+
+	data, err := yaml.Marshal(sd)
+	if err != nil {
+		return fmt.Errorf("marshal sequences: %w", err)
+	}
+
+	if err := os.WriteFile(s.path, data, 0644); err != nil {
+		return fmt.Errorf("write sequences: %w", err)
+	}
+	return nil
+}
+
+// NextSequence returns the next sequence number for the given prefix.
+// The prefix is normalized to uppercase. An empty prefix uses "_solo" internally.
+func (s *SequenceStore) NextSequence(prefix string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Normalize prefix
+	key := strings.ToUpper(prefix)
+	if key == "" {
+		key = "_solo"
+	}
+
+	sd, err := s.load()
+	if err != nil {
+		return 0, err
+	}
+
+	// Increment and save
+	current := sd.Prefixes[key]
+	next := current + 1
+	sd.Prefixes[key] = next
+
+	if err := s.save(sd); err != nil {
+		return 0, err
+	}
+
+	return next, nil
+}
+
+// GetSequence returns the current sequence number for the given prefix
+// without incrementing it.
+func (s *SequenceStore) GetSequence(prefix string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	key := strings.ToUpper(prefix)
+	if key == "" {
+		key = "_solo"
+	}
+
+	sd, err := s.load()
+	if err != nil {
+		return 0, err
+	}
+
+	return sd.Prefixes[key], nil
+}
+
+// IdentityConfig holds user identity settings for prefix generation.
+type IdentityConfig struct {
+	// Initials for PrefixInitials mode (e.g., "AM")
+	Initials string `yaml:"initials"`
+	// Email for PrefixEmailHash mode
+	Email string `yaml:"email"`
+	// DisplayName for team visibility
+	DisplayName string `yaml:"display_name"`
+}
+
+// TaskIDConfig holds task ID generation configuration.
+type TaskIDConfig struct {
+	// Mode is the coordination mode (solo, p2p, team)
+	Mode Mode `yaml:"mode"`
+	// PrefixSource determines how the prefix is derived
+	PrefixSource PrefixSource `yaml:"prefix_source"`
+}
+
+// TaskIDGenerator generates task IDs with optional prefixes.
+type TaskIDGenerator struct {
+	mode         Mode
+	prefix       string
+	store        *SequenceStore
+	tasksDir     string // For scanning existing tasks
+	scanExisting bool   // Whether to scan existing tasks for max sequence
+}
+
+// GeneratorOption configures the TaskIDGenerator.
+type GeneratorOption func(*TaskIDGenerator)
+
+// WithSequenceStore sets the sequence store for persisting sequence numbers.
+func WithSequenceStore(store *SequenceStore) GeneratorOption {
+	return func(g *TaskIDGenerator) {
+		g.store = store
+	}
+}
+
+// WithTasksDir sets the tasks directory for scanning existing IDs.
+func WithTasksDir(dir string) GeneratorOption {
+	return func(g *TaskIDGenerator) {
+		g.tasksDir = dir
+	}
+}
+
+// WithScanExisting enables scanning existing tasks to determine max sequence.
+// This is useful for backwards compatibility or when sequence file is lost.
+func WithScanExisting(scan bool) GeneratorOption {
+	return func(g *TaskIDGenerator) {
+		g.scanExisting = scan
+	}
+}
+
+// NewTaskIDGenerator creates a new generator with the specified mode and prefix.
+// For solo mode, pass an empty prefix.
+func NewTaskIDGenerator(mode Mode, prefix string, opts ...GeneratorOption) *TaskIDGenerator {
+	g := &TaskIDGenerator{
+		mode:   mode,
+		prefix: strings.ToUpper(prefix),
+	}
+	for _, opt := range opts {
+		opt(g)
+	}
+	return g
+}
+
+// ResolvePrefix determines the prefix based on the prefix source and identity.
+func ResolvePrefix(source PrefixSource, identity *IdentityConfig) (string, error) {
+	switch source {
+	case PrefixNone:
+		return "", nil
+
+	case PrefixInitials:
+		if identity == nil || identity.Initials == "" {
+			return "", fmt.Errorf("prefix_source 'initials' requires identity.initials to be configured")
+		}
+		return strings.ToUpper(identity.Initials), nil
+
+	case PrefixUsername:
+		u, err := user.Current()
+		if err != nil {
+			return "", fmt.Errorf("get current user: %w", err)
+		}
+		return strings.ToLower(u.Username), nil
+
+	case PrefixEmailHash:
+		if identity == nil || identity.Email == "" {
+			return "", fmt.Errorf("prefix_source 'email_hash' requires identity.email to be configured")
+		}
+		hash := sha256.Sum256([]byte(strings.ToLower(identity.Email)))
+		return fmt.Sprintf("%x", hash[:2]), nil // First 4 hex chars
+
+	case PrefixMachine:
+		hostname, err := os.Hostname()
+		if err != nil {
+			return "", fmt.Errorf("get hostname: %w", err)
+		}
+		// Truncate long hostnames and clean up
+		name := strings.ToLower(hostname)
+		name = strings.Split(name, ".")[0] // Remove domain
+		if len(name) > 12 {
+			name = name[:12]
+		}
+		return name, nil
+
+	default:
+		return "", fmt.Errorf("unknown prefix source: %s", source)
+	}
+}
+
+// Next generates the next task ID.
+// For solo mode: TASK-001
+// For p2p/team mode with prefix: TASK-AM-001
+func (g *TaskIDGenerator) Next() (string, error) {
+	// If no store, fall back to scanning directory
+	if g.store == nil {
+		return g.nextFromDirectory()
+	}
+
+	// Get next sequence from store
+	seq, err := g.store.NextSequence(g.prefix)
+	if err != nil {
+		// Fall back to directory scan on error
+		return g.nextFromDirectory()
+	}
+
+	// Optionally verify against existing tasks
+	if g.scanExisting && g.tasksDir != "" {
+		maxExisting := g.scanMaxSequence()
+		if maxExisting >= seq {
+			seq = maxExisting + 1
+			// Update store to match
+			_, _ = g.store.NextSequence(g.prefix) // Increment to catch up
+		}
+	}
+
+	return g.formatID(seq), nil
+}
+
+// nextFromDirectory generates the next ID by scanning the tasks directory.
+// This is the fallback when no sequence store is available.
+func (g *TaskIDGenerator) nextFromDirectory() (string, error) {
+	dir := g.tasksDir
+	if dir == "" {
+		dir = filepath.Join(OrcDir, TasksDir)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return g.formatID(1), nil
+		}
+		return "", fmt.Errorf("read tasks directory: %w", err)
+	}
+
+	maxNum := g.scanMaxSequenceFromEntries(entries)
+	return g.formatID(maxNum + 1), nil
+}
+
+// scanMaxSequence scans the tasks directory for the maximum existing sequence.
+func (g *TaskIDGenerator) scanMaxSequence() int {
+	dir := g.tasksDir
+	if dir == "" {
+		dir = filepath.Join(OrcDir, TasksDir)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return 0
+	}
+
+	return g.scanMaxSequenceFromEntries(entries)
+}
+
+// scanMaxSequenceFromEntries finds the max sequence number from directory entries.
+func (g *TaskIDGenerator) scanMaxSequenceFromEntries(entries []os.DirEntry) int {
+	var pattern *regexp.Regexp
+	if g.prefix == "" {
+		// Solo mode: TASK-001
+		pattern = regexp.MustCompile(`^TASK-(\d+)$`)
+	} else {
+		// Prefixed mode: TASK-AM-001
+		pattern = regexp.MustCompile(fmt.Sprintf(`^TASK-%s-(\d+)$`, regexp.QuoteMeta(g.prefix)))
+	}
+
+	maxNum := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		matches := pattern.FindStringSubmatch(entry.Name())
+		if len(matches) == 2 {
+			num, _ := strconv.Atoi(matches[1])
+			if num > maxNum {
+				maxNum = num
+			}
+		}
+	}
+
+	return maxNum
+}
+
+// formatID formats a task ID with the given sequence number.
+func (g *TaskIDGenerator) formatID(seq int) string {
+	if g.prefix == "" || g.mode == ModeSolo {
+		return fmt.Sprintf("TASK-%03d", seq)
+	}
+	return fmt.Sprintf("TASK-%s-%03d", g.prefix, seq)
+}
+
+// Prefix returns the configured prefix (empty for solo mode).
+func (g *TaskIDGenerator) Prefix() string {
+	return g.prefix
+}
+
+// Mode returns the configured mode.
+func (g *TaskIDGenerator) Mode() Mode {
+	return g.mode
+}
+
+// ParseTaskID extracts the prefix and sequence from a task ID.
+// Returns prefix (empty for solo), sequence number, and ok=true if valid.
+func ParseTaskID(id string) (prefix string, seq int, ok bool) {
+	// Try prefixed format first: TASK-AM-001
+	prefixedPattern := regexp.MustCompile(`^TASK-([A-Za-z0-9]+)-(\d+)$`)
+	if matches := prefixedPattern.FindStringSubmatch(id); len(matches) == 3 {
+		num, err := strconv.Atoi(matches[2])
+		if err != nil {
+			return "", 0, false
+		}
+		return strings.ToUpper(matches[1]), num, true
+	}
+
+	// Try solo format: TASK-001
+	soloPattern := regexp.MustCompile(`^TASK-(\d+)$`)
+	if matches := soloPattern.FindStringSubmatch(id); len(matches) == 2 {
+		num, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return "", 0, false
+		}
+		return "", num, true
+	}
+
+	return "", 0, false
+}
+
+// DefaultSequencePath returns the default path for the sequences file.
+// This is .orc/local/sequences.yaml
+func DefaultSequencePath() string {
+	return filepath.Join(OrcDir, "local", "sequences.yaml")
+}
