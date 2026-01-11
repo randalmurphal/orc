@@ -19,7 +19,11 @@
 		pauseProjectTask,
 		resumeProjectTask,
 		deleteProjectTask,
-		getProjectTranscripts
+		getProjectTranscripts,
+		getDiffStats,
+		getReviewStats,
+		type DiffStatsResponse,
+		type ReviewStatsResponse
 	} from '$lib/api';
 	import {
 		subscribeToTaskWS,
@@ -28,9 +32,12 @@
 		getWebSocket
 	} from '$lib/websocket';
 	import type { Task, TaskState, Plan, TranscriptLine } from '$lib/types';
+	import TaskHeader from '$lib/components/task/TaskHeader.svelte';
+	import TabNav, { type TabId } from '$lib/components/task/TabNav.svelte';
 	import Timeline from '$lib/components/Timeline.svelte';
 	import Transcript from '$lib/components/Transcript.svelte';
-	import StatusIndicator from '$lib/components/ui/StatusIndicator.svelte';
+	import DiffViewer from '$lib/components/diff/DiffViewer.svelte';
+	import ReviewPanel from '$lib/components/review/ReviewPanel.svelte';
 	import { currentProjectId } from '$lib/stores/project';
 
 	let task = $state<Task | null>(null);
@@ -42,12 +49,60 @@
 	let connectionStatus = $state<ConnectionStatus>('disconnected');
 	let unsubscribe: (() => void) | null = null;
 
+	// Tab state
+	let activeTab = $state<TabId>('timeline');
+	let diffStats = $state<DiffStatsResponse | null>(null);
+	let reviewStats = $state<ReviewStatsResponse | null>(null);
+
 	const taskId = $derived($page.params.id ?? '');
 	const projectId = $derived(get(currentProjectId));
+
+	// Read initial tab from URL query param
+	$effect(() => {
+		const urlTab = $page.url.searchParams.get('tab');
+		if (urlTab && ['timeline', 'diff', 'review', 'transcript'].includes(urlTab)) {
+			activeTab = urlTab as TabId;
+		}
+	});
+
+	// Update URL when tab changes
+	function handleTabChange(tab: TabId) {
+		activeTab = tab;
+		const url = new URL($page.url);
+		url.searchParams.set('tab', tab);
+		goto(url.toString(), { replaceState: true, noScroll: true });
+	}
+
+	// Tab configuration with badges
+	const tabs = $derived([
+		{
+			id: 'timeline' as TabId,
+			label: 'Timeline',
+			badge: null
+		},
+		{
+			id: 'diff' as TabId,
+			label: 'Diff',
+			badge: diffStats ? `+${diffStats.additions} -${diffStats.deletions}` : null,
+			badgeType: 'default' as const
+		},
+		{
+			id: 'review' as TabId,
+			label: 'Review',
+			badge: reviewStats?.open_comments || null,
+			badgeType: (reviewStats?.blockers ?? 0) > 0 ? ('danger' as const) : ('info' as const)
+		},
+		{
+			id: 'transcript' as TabId,
+			label: 'Transcript',
+			badge: null
+		}
+	]);
 
 	onMount(async () => {
 		if (!taskId) return;
 		await loadTaskData();
+		await loadBadgeStats();
 		setupStreaming();
 	});
 
@@ -61,7 +116,6 @@
 		const pid = get(currentProjectId);
 
 		try {
-			// Use project-specific endpoints if project is selected, otherwise fall back to global
 			const [t, s, p, transcriptFiles] = pid
 				? await Promise.all([
 						getProjectTask(pid, taskId),
@@ -79,8 +133,6 @@
 			task = t;
 			taskState = s;
 			plan = p;
-
-			// Parse transcript files into TranscriptLine format
 			transcript = parseTranscriptFiles(transcriptFiles);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load task';
@@ -89,13 +141,22 @@
 		}
 	}
 
+	async function loadBadgeStats() {
+		// Load stats for tab badges in parallel
+		const [ds, rs] = await Promise.all([
+			getDiffStats(taskId).catch(() => null),
+			getReviewStats(taskId).catch(() => null)
+		]);
+		diffStats = ds;
+		reviewStats = rs;
+	}
+
 	function parseTranscriptFiles(
 		files: { filename: string; content: string; created_at: string }[]
 	): TranscriptLine[] {
 		const lines: TranscriptLine[] = [];
 
 		for (const file of files) {
-			// Parse markdown format: # phase - Iteration N, ## Prompt, ## Response
 			const parts = file.content.split(/^## /m);
 
 			for (const part of parts) {
@@ -131,11 +192,11 @@
 					const transcriptData = data as TranscriptLine;
 					transcript = [...transcript, transcriptData];
 				} else if (eventType === 'phase') {
-					// Reload task data on phase change
 					loadTaskData();
+					loadBadgeStats();
 				} else if (eventType === 'complete') {
-					// Reload task data on completion
 					loadTaskData();
+					loadBadgeStats();
 				}
 			},
 			(status: ConnectionStatus) => {
@@ -191,15 +252,10 @@
 		}
 	}
 
-	const weightConfig: Record<string, { color: string; bg: string }> = {
-		trivial: { color: 'var(--weight-trivial)', bg: 'rgba(107, 114, 128, 0.15)' },
-		small: { color: 'var(--weight-small)', bg: 'var(--status-success-bg)' },
-		medium: { color: 'var(--weight-medium)', bg: 'var(--status-info-bg)' },
-		large: { color: 'var(--weight-large)', bg: 'var(--status-warning-bg)' },
-		greenfield: { color: 'var(--weight-greenfield)', bg: 'var(--accent-subtle)' }
-	};
-
-	const weight = $derived(weightConfig[task?.weight || 'small'] || weightConfig.small);
+	function handleRetry() {
+		// Switch to diff tab so user can see changes and add comments
+		handleTabChange('review');
+	}
 </script>
 
 <svelte:head>
@@ -245,15 +301,11 @@
 						stroke-linejoin="round"
 					>
 						<line x1="1" y1="1" x2="23" y2="23" />
-						<path
-							d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"
-						/>
+						<path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
 						<path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
 						<path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
 						<path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
-						<path
-							d="M8.53 16.11a6 6 0 0 1 6.95 0"
-						/>
+						<path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
 						<line x1="12" y1="20" x2="12.01" y2="20" />
 					</svg>
 					<span>Disconnected from live updates</span>
@@ -265,231 +317,156 @@
 
 	<div class="task-detail">
 		<!-- Task Header -->
-		<header class="task-header">
-			<div class="task-info">
-				<div class="task-meta">
-					<span class="task-id">{task.id}</span>
-					<span
-						class="weight-badge"
-						style:color={weight.color}
-						style:background={weight.bg}
-					>
-						{task.weight}
-					</span>
-					<div class="status-badge">
-						<StatusIndicator status={task.status} size="sm" showLabel />
-					</div>
-				</div>
-				<h1 class="task-title">{task.title}</h1>
-				{#if task.description}
-					<p class="task-description">{task.description}</p>
-				{/if}
-			</div>
+		<TaskHeader
+			{task}
+			{taskState}
+			{plan}
+			onRun={handleRun}
+			onPause={handlePause}
+			onResume={handleResume}
+			onCancel={handleCancel}
+			onDelete={handleDelete}
+			onRetry={handleRetry}
+		/>
 
-			<div class="task-actions">
-				{#if task.status === 'running'}
-					<button onclick={handlePause} title="Pause task">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="currentColor"
-							stroke="none"
-						>
-							<rect x="6" y="4" width="4" height="16" rx="1" />
-							<rect x="14" y="4" width="4" height="16" rx="1" />
-						</svg>
-						Pause
-					</button>
-					<button class="danger" onclick={handleCancel} title="Cancel task">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-						</svg>
-						Cancel
-					</button>
-				{:else if task.status === 'paused'}
-					<button class="primary" onclick={handleResume} title="Resume task">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="currentColor"
-							stroke="none"
-						>
-							<polygon points="5 3 19 12 5 21 5 3" />
-						</svg>
-						Resume
-					</button>
-				{:else if ['created', 'planned'].includes(task.status)}
-					<button class="primary" onclick={handleRun} title="Run task">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="currentColor"
-							stroke="none"
-						>
-							<polygon points="5 3 19 12 5 21 5 3" />
-						</svg>
-						Run Task
-					</button>
-				{/if}
-				{#if task.status !== 'running'}
-					<button class="icon-btn delete-btn" onclick={handleDelete} title="Delete task">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<polyline points="3 6 5 6 21 6"></polyline>
-							<path
-								d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-							></path>
-						</svg>
-					</button>
-				{/if}
-			</div>
-		</header>
-
-		<!-- Timeline Section -->
-		{#if plan}
-			<section class="section">
-				<Timeline phases={plan.phases} currentPhase={task.current_phase} state={taskState} />
-			</section>
-		{/if}
-
-		<!-- Stats Grid -->
-		<div class="stats-grid">
-			<!-- Token Usage -->
-			{#if taskState?.tokens}
-				<div class="stat-card">
-					<div class="stat-header">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<circle cx="12" cy="12" r="10" />
-							<line x1="12" y1="8" x2="12" y2="16" />
-							<line x1="8" y1="12" x2="16" y2="12" />
-						</svg>
-						<span>Token Usage</span>
-					</div>
-					<div class="token-stats">
-						<div class="token-stat">
-							<span class="token-value"
-								>{(taskState.tokens.input_tokens || 0).toLocaleString()}</span
-							>
-							<span class="token-label">Input</span>
-						</div>
-						<div class="token-divider"></div>
-						<div class="token-stat">
-							<span class="token-value"
-								>{(taskState.tokens.output_tokens || 0).toLocaleString()}</span
-							>
-							<span class="token-label">Output</span>
-						</div>
-						<div class="token-divider"></div>
-						<div class="token-stat total">
-							<span class="token-value"
-								>{(taskState.tokens.total_tokens || 0).toLocaleString()}</span
-							>
-							<span class="token-label">Total</span>
-						</div>
-					</div>
-				</div>
-			{/if}
-
-			<!-- Iterations -->
-			{#if taskState?.phases}
-				{@const totalIterations = Object.values(taskState.phases).reduce(
-					(sum, p) => sum + (p.iterations || 0),
-					0
-				)}
-				<div class="stat-card">
-					<div class="stat-header">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<polyline points="23 4 23 10 17 10" />
-							<polyline points="1 20 1 14 7 14" />
-							<path
-								d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
-							/>
-						</svg>
-						<span>Iterations</span>
-					</div>
-					<div class="stat-value">{totalIterations}</div>
-				</div>
-			{/if}
-
-			<!-- Retries -->
-			{#if taskState?.retries}
-				<div class="stat-card">
-					<div class="stat-header">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
-						</svg>
-						<span>Retries</span>
-					</div>
-					<div class="stat-value">{taskState.retries}</div>
-				</div>
-			{/if}
+		<!-- Tab Navigation -->
+		<div class="tab-section">
+			<TabNav {tabs} {activeTab} onTabChange={handleTabChange} />
 		</div>
 
-		<!-- Transcript Section -->
-		<section class="section transcript-section">
-			<Transcript lines={transcript} taskId={taskId} />
-		</section>
+		<!-- Tab Content -->
+		<div class="tab-content" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
+			{#if activeTab === 'timeline'}
+				{#if plan}
+					<Timeline phases={plan.phases} currentPhase={task.current_phase} state={taskState} />
+				{:else}
+					<div class="empty-tab-state">
+						<p>No execution plan available</p>
+					</div>
+				{/if}
+
+				<!-- Stats Grid -->
+				<div class="stats-grid">
+					{#if taskState?.tokens}
+						<div class="stat-card">
+							<div class="stat-header">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="16"
+									height="16"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<circle cx="12" cy="12" r="10" />
+									<line x1="12" y1="8" x2="12" y2="16" />
+									<line x1="8" y1="12" x2="16" y2="12" />
+								</svg>
+								<span>Token Usage</span>
+							</div>
+							<div class="token-stats">
+								<div class="token-stat">
+									<span class="token-value"
+										>{(taskState.tokens.input_tokens || 0).toLocaleString()}</span
+									>
+									<span class="token-label">Input</span>
+								</div>
+								<div class="token-divider"></div>
+								<div class="token-stat">
+									<span class="token-value"
+										>{(taskState.tokens.output_tokens || 0).toLocaleString()}</span
+									>
+									<span class="token-label">Output</span>
+								</div>
+								<div class="token-divider"></div>
+								<div class="token-stat total">
+									<span class="token-value"
+										>{(taskState.tokens.total_tokens || 0).toLocaleString()}</span
+									>
+									<span class="token-label">Total</span>
+								</div>
+							</div>
+						</div>
+					{/if}
+
+					{#if taskState?.phases}
+						{@const totalIterations = Object.values(taskState.phases).reduce(
+							(sum, p) => sum + (p.iterations || 0),
+							0
+						)}
+						<div class="stat-card">
+							<div class="stat-header">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="16"
+									height="16"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<polyline points="23 4 23 10 17 10" />
+									<polyline points="1 20 1 14 7 14" />
+									<path
+										d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+									/>
+								</svg>
+								<span>Iterations</span>
+							</div>
+							<div class="stat-value">{totalIterations}</div>
+						</div>
+					{/if}
+
+					{#if taskState?.retries}
+						<div class="stat-card">
+							<div class="stat-header">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="16"
+									height="16"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path
+										d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"
+									/>
+								</svg>
+								<span>Retries</span>
+							</div>
+							<div class="stat-value">{taskState.retries}</div>
+						</div>
+					{/if}
+				</div>
+			{:else if activeTab === 'diff'}
+				<div class="diff-container">
+					<DiffViewer {taskId} />
+				</div>
+			{:else if activeTab === 'review'}
+				<div class="review-container">
+					<ReviewPanel {taskId} />
+				</div>
+			{:else if activeTab === 'transcript'}
+				<Transcript lines={transcript} {taskId} />
+			{/if}
+		</div>
 	</div>
 {/if}
 
 <style>
 	.task-detail {
-		max-width: 1000px;
+		max-width: 1200px;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
 	}
 
 	/* Loading / Error States */
@@ -548,7 +525,7 @@
 		align-items: center;
 		justify-content: center;
 		padding: var(--space-2-5) var(--space-4);
-		margin-bottom: var(--space-5);
+		margin-bottom: var(--space-4);
 		background: var(--status-danger-bg);
 		border: 1px solid var(--status-danger);
 		border-radius: var(--radius-lg);
@@ -592,94 +569,32 @@
 		background: rgba(0, 0, 0, 0.2);
 	}
 
-	/* Task Header */
-	.task-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		gap: var(--space-6);
-		margin-bottom: var(--space-6);
-		padding-bottom: var(--space-6);
-		border-bottom: 1px solid var(--border-subtle);
+	/* Tab Section */
+	.tab-section {
+		margin-bottom: var(--space-2);
 	}
 
-	.task-info {
-		flex: 1;
-		min-width: 0;
+	/* Tab Content */
+	.tab-content {
+		min-height: 400px;
 	}
 
-	.task-meta {
+	.empty-tab-state {
 		display: flex;
 		align-items: center;
-		gap: var(--space-3);
-		margin-bottom: var(--space-3);
-	}
-
-	.task-id {
-		font-family: var(--font-mono);
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
+		justify-content: center;
+		padding: var(--space-12);
 		color: var(--text-muted);
-		letter-spacing: var(--tracking-wide);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-lg);
 	}
 
-	.weight-badge {
-		font-size: var(--text-2xs);
-		font-weight: var(--font-semibold);
-		text-transform: uppercase;
-		letter-spacing: var(--tracking-wider);
-		padding: var(--space-0-5) var(--space-2);
-		border-radius: var(--radius-sm);
-	}
-
-	.status-badge {
-		margin-left: var(--space-2);
-	}
-
-	.task-title {
-		font-size: var(--text-2xl);
-		font-weight: var(--font-semibold);
-		color: var(--text-primary);
-		margin: 0 0 var(--space-2) 0;
-		letter-spacing: normal;
-		text-transform: none;
-	}
-
-	.task-description {
-		font-size: var(--text-base);
-		color: var(--text-secondary);
-		line-height: var(--leading-relaxed);
-		margin: 0;
-	}
-
-	/* Task Actions */
-	.task-actions {
-		display: flex;
-		gap: var(--space-2);
-		flex-shrink: 0;
-	}
-
-	.task-actions button {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.delete-btn {
-		background: transparent;
-		border: 1px solid var(--border-default);
-		color: var(--text-muted);
-	}
-
-	.delete-btn:hover {
-		background: var(--status-danger-bg);
-		border-color: var(--status-danger);
-		color: var(--status-danger);
-	}
-
-	/* Sections */
-	.section {
-		margin-bottom: var(--space-6);
+	/* Diff and Review Containers */
+	.diff-container,
+	.review-container {
+		min-height: 500px;
+		max-height: calc(100vh - 300px);
 	}
 
 	/* Stats Grid */
@@ -687,7 +602,7 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 		gap: var(--space-4);
-		margin-bottom: var(--space-6);
+		margin-top: var(--space-6);
 	}
 
 	.stat-card {
@@ -751,10 +666,5 @@
 		width: 1px;
 		height: 32px;
 		background: var(--border-subtle);
-	}
-
-	/* Transcript Section */
-	.transcript-section {
-		min-height: 400px;
 	}
 </style>

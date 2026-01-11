@@ -231,7 +231,7 @@ func TestAllConfigPaths(t *testing.T) {
 		"completion.pr.title",
 		"server.host",
 		"server.port",
-		"team.enabled",
+		"team.activity_logging",
 	}
 
 	pathSet := make(map[string]bool)

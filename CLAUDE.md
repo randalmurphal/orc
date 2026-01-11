@@ -237,6 +237,43 @@ projects:
 
 **UI:** Project dropdown in header to switch between projects.
 
+## Organization Model
+
+Every user is part of an organization (even solo developers are an "org of 1"). Features are opt-in with sensible defaults for solo development.
+
+```yaml
+team:
+  name: ""                    # Organization name (auto-detected from username)
+  activity_logging: true      # Log all actions as history (default: on)
+  task_claiming: false        # Task assignment features (default: off for solo)
+  visibility: all             # all | assigned | owned
+  mode: local                 # local | shared_db | sync_server (future)
+  server_url: ""              # For sync_server mode
+```
+
+**Environment Variables:**
+```bash
+ORC_TEAM_NAME=myteam              # team.name
+ORC_TEAM_ACTIVITY_LOG=true        # team.activity_logging
+ORC_TEAM_TASK_CLAIMING=true       # team.task_claiming
+ORC_TEAM_VISIBILITY=all           # team.visibility
+ORC_TEAM_MODE=shared_db           # team.mode
+```
+
+**Modes:**
+- `local` - Single user, local database (default)
+- `shared_db` - Multiple users, shared PostgreSQL database
+- `sync_server` - Future: distributed sync server
+
+**Features by Mode:**
+
+| Feature | local | shared_db |
+|---------|-------|-----------|
+| Activity logging | ✓ | ✓ |
+| Task claiming | ✓ | ✓ |
+| Real-time sync | - | ✓ |
+| Team members | 1 | Many |
+
 ## Worktree Isolation
 
 Tasks run in isolated git worktrees for parallel execution.
