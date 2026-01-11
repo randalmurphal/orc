@@ -485,16 +485,23 @@ func (s *Server) handleMergePR(w http.ResponseWriter, r *http.Request) {
 
 	// Update task status to completed
 	t.Status = task.StatusCompleted
+	var warning string
 	if err := t.Save(); err != nil {
-		s.logger.Warn("failed to update task status after merge", "error", err)
+		s.logger.Error("failed to update task status after merge", "task", taskID, "error", err)
+		warning = "task status not updated: " + err.Error()
 	}
 
-	s.jsonResponse(w, map[string]any{
+	response := map[string]any{
 		"merged":    true,
 		"pr_number": pr.Number,
 		"method":    req.Method,
 		"message":   fmt.Sprintf("PR #%d merged successfully", pr.Number),
-	})
+	}
+	if warning != "" {
+		response["warning"] = warning
+	}
+
+	s.jsonResponse(w, response)
 }
 
 // handleListPRChecks lists CI check runs for a task's PR.
