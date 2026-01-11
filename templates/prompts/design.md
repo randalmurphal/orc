@@ -4,17 +4,17 @@ You are creating an architecture/design document for a complex task.
 
 ## Context
 
-**Task ID**: ${TASK_ID}
-**Task**: ${TASK_TITLE}
-**Weight**: ${WEIGHT}
+**Task ID**: {{TASK_ID}}
+**Task**: {{TASK_TITLE}}
+**Weight**: {{WEIGHT}}
 
 ## Research Findings
 
-${RESEARCH_CONTENT}
+{{RESEARCH_CONTENT}}
 
 ## Specification
 
-${SPEC_CONTENT}
+{{SPEC_CONTENT}}
 
 ## Instructions
 
@@ -58,10 +58,10 @@ Use ASCII diagrams for:
 
 ### Design Document
 
-Save to `.orc/tasks/${TASK_ID}/artifacts/design.md`:
+Save to `.orc/tasks/{{TASK_ID}}/artifacts/design.md`:
 
 ```markdown
-# Design: ${TASK_TITLE}
+# Design: {{TASK_TITLE}}
 
 ## Overview
 
@@ -93,7 +93,7 @@ Save to `.orc/tasks/${TASK_ID}/artifacts/design.md`:
 type ComponentA interface {
     Method1(input Type1) (Type2, error)
     Method2(input Type3) error
-}
+}}
 ```
 
 ### Component B
@@ -157,7 +157,7 @@ User Input
 
 ```bash
 git add -A
-git commit -m "[orc] ${TASK_ID}: design - completed
+git commit -m "[orc] {{TASK_ID}}: design - completed
 
 Phase: design
 Status: completed

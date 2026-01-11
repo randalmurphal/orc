@@ -4,17 +4,17 @@ You are writing and running tests to verify the implementation.
 
 ## Context
 
-**Task ID**: ${TASK_ID}
-**Task**: ${TASK_TITLE}
-**Weight**: ${WEIGHT}
+**Task ID**: {{TASK_ID}}
+**Task**: {{TASK_TITLE}}
+**Weight**: {{WEIGHT}}
 
 ## Specification
 
-${SPEC_CONTENT}
+{{SPEC_CONTENT}}
 
 ## Implementation Summary
 
-${IMPLEMENTATION_SUMMARY}
+{{IMPLEMENTATION_SUMMARY}}
 
 ## Instructions
 
@@ -98,7 +98,7 @@ If coverage is low:
 
 ```bash
 git add -A
-git commit -m "[orc] ${TASK_ID}: test - completed
+git commit -m "[orc] {{TASK_ID}}: test - completed
 
 Phase: test
 Status: completed

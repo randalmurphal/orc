@@ -4,14 +4,14 @@ You are writing a detailed specification for a task.
 
 ## Context
 
-**Task ID**: ${TASK_ID}
-**Task**: ${TASK_TITLE}
-**Weight**: ${WEIGHT}
-**Description**: ${TASK_DESCRIPTION}
+**Task ID**: {{TASK_ID}}
+**Task**: {{TASK_TITLE}}
+**Weight**: {{WEIGHT}}
+**Description**: {{TASK_DESCRIPTION}}
 
 ## Research Findings (if available)
 
-${RESEARCH_CONTENT}
+{{RESEARCH_CONTENT}}
 
 ## Instructions
 
@@ -57,7 +57,7 @@ Document:
 Create the spec in this format:
 
 ```markdown
-# Specification: ${TASK_TITLE}
+# Specification: {{TASK_TITLE}}
 
 ## Problem Statement
 [1-2 sentences on what we're solving]
@@ -99,11 +99,11 @@ Create the spec in this format:
 
 ### Commit the Spec
 
-Save the spec to `.orc/tasks/${TASK_ID}/artifacts/spec.md` and commit:
+Save the spec to `.orc/tasks/{{TASK_ID}}/artifacts/spec.md` and commit:
 
 ```bash
 git add -A
-git commit -m "[orc] ${TASK_ID}: spec - completed
+git commit -m "[orc] {{TASK_ID}}: spec - completed
 
 Phase: spec
 Status: completed

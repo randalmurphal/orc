@@ -61,8 +61,9 @@ func WithWorkingDir(dir string) StandardExecutorOption {
 // NewStandardExecutor creates a new standard executor.
 func NewStandardExecutor(mgr session.SessionManager, opts ...StandardExecutorOption) *StandardExecutor {
 	e := &StandardExecutor{
-		manager: mgr,
-		logger:  slog.Default(),
+		manager:   mgr,
+		logger:    slog.Default(),
+		publisher: NewEventPublisher(nil), // Initialize with nil-safe wrapper
 		config: ExecutorConfig{
 			MaxIterations:      20,
 			CheckpointInterval: 0,

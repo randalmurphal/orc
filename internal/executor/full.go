@@ -75,8 +75,9 @@ func WithStateUpdater(fn func(*state.State)) FullExecutorOption {
 // NewFullExecutor creates a new full executor.
 func NewFullExecutor(mgr session.SessionManager, opts ...FullExecutorOption) *FullExecutor {
 	e := &FullExecutor{
-		manager: mgr,
-		logger:  slog.Default(),
+		manager:   mgr,
+		logger:    slog.Default(),
+		publisher: NewEventPublisher(nil), // Initialize with nil-safe wrapper
 		config: ExecutorConfig{
 			MaxIterations:      30,
 			CheckpointInterval: 1, // Checkpoint every iteration
