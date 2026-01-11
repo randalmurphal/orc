@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/randalmurphal/orc/internal/db/driver"
 )
 
 // ProjectDB provides operations on a project database (.orc/orc.db).
@@ -14,10 +16,26 @@ type ProjectDB struct {
 	*DB
 }
 
-// OpenProject opens the project database at {projectPath}/.orc/orc.db.
+// OpenProject opens the project database at {projectPath}/.orc/orc.db using SQLite.
 func OpenProject(projectPath string) (*ProjectDB, error) {
 	path := filepath.Join(projectPath, ".orc", "orc.db")
 	db, err := Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.Migrate("project"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate project db: %w", err)
+	}
+
+	return &ProjectDB{DB: db}, nil
+}
+
+// OpenProjectWithDialect opens the project database with a specific dialect.
+// For SQLite, dsn is the file path. For PostgreSQL, dsn is the connection string.
+func OpenProjectWithDialect(dsn string, dialect driver.Dialect) (*ProjectDB, error) {
+	db, err := OpenWithDialect(dsn, dialect)
 	if err != nil {
 		return nil, err
 	}
@@ -58,10 +76,29 @@ func (p *ProjectDB) StoreDetection(d *Detection) error {
 		hasTests = 1
 	}
 
-	_, err = p.Exec(`
-		INSERT OR REPLACE INTO detection (id, language, frameworks, build_tools, has_tests, test_command, lint_command, detected_at)
-		VALUES (1, ?, ?, ?, ?, ?, ?, datetime('now'))
-	`, d.Language, string(frameworks), string(buildTools), hasTests, d.TestCommand, d.LintCommand)
+	// Use dialect-aware upsert
+	var query string
+	if p.Dialect() == driver.DialectSQLite {
+		query = `
+			INSERT OR REPLACE INTO detection (id, language, frameworks, build_tools, has_tests, test_command, lint_command, detected_at)
+			VALUES (1, ?, ?, ?, ?, ?, ?, datetime('now'))
+		`
+	} else {
+		query = `
+			INSERT INTO detection (id, language, frameworks, build_tools, has_tests, test_command, lint_command, detected_at)
+			VALUES (1, $1, $2, $3, $4, $5, $6, NOW())
+			ON CONFLICT (id) DO UPDATE SET
+				language = EXCLUDED.language,
+				frameworks = EXCLUDED.frameworks,
+				build_tools = EXCLUDED.build_tools,
+				has_tests = EXCLUDED.has_tests,
+				test_command = EXCLUDED.test_command,
+				lint_command = EXCLUDED.lint_command,
+				detected_at = NOW()
+		`
+	}
+
+	_, err = p.Exec(query, d.Language, string(frameworks), string(buildTools), hasTests, d.TestCommand, d.LintCommand)
 	if err != nil {
 		return fmt.Errorf("store detection: %w", err)
 	}
@@ -479,19 +516,40 @@ type TranscriptMatch struct {
 }
 
 // SearchTranscripts performs full-text search on transcript content.
-// The query is wrapped in quotes for literal matching to avoid FTS5 syntax errors.
+// For SQLite, uses FTS5 with MATCH. For PostgreSQL, uses ILIKE (basic search).
+// Note: PostgreSQL full-text search with tsvector requires additional schema setup.
 func (p *ProjectDB) SearchTranscripts(query string) ([]TranscriptMatch, error) {
-	// Sanitize query: escape quotes and wrap for literal matching
-	// This prevents FTS5 syntax errors from special characters like - * " etc.
-	sanitized := `"` + escapeQuotes(query) + `"`
+	var rows *sql.Rows
+	var err error
 
-	rows, err := p.Query(`
-		SELECT task_id, phase, snippet(transcripts_fts, 0, '<mark>', '</mark>', '...', 32), rank
-		FROM transcripts_fts
-		WHERE content MATCH ?
-		ORDER BY rank
-		LIMIT 50
-	`, sanitized)
+	if p.Dialect() == driver.DialectSQLite {
+		// SQLite FTS5 search
+		// Sanitize query: escape quotes and wrap for literal matching
+		// This prevents FTS5 syntax errors from special characters like - * " etc.
+		sanitized := `"` + escapeQuotes(query) + `"`
+
+		rows, err = p.Query(`
+			SELECT task_id, phase, snippet(transcripts_fts, 0, '<mark>', '</mark>', '...', 32), rank
+			FROM transcripts_fts
+			WHERE content MATCH ?
+			ORDER BY rank
+			LIMIT 50
+		`, sanitized)
+	} else {
+		// PostgreSQL basic search using ILIKE
+		// For better performance, consider adding tsvector columns and GIN indexes
+		likePattern := "%" + query + "%"
+		rows, err = p.Query(`
+			SELECT task_id, phase,
+				SUBSTRING(content FROM GREATEST(1, POSITION($1 IN content) - 20) FOR 64) as snippet,
+				0.0 as rank
+			FROM transcripts
+			WHERE content ILIKE $2
+			ORDER BY id DESC
+			LIMIT 50
+		`, query, likePattern)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("search transcripts: %w", err)
 	}
@@ -793,10 +851,13 @@ func (p *ProjectDB) GetInitiativeTasks(initiativeID string) ([]string, error) {
 
 // AddTaskDependency records that taskID depends on dependsOn.
 func (p *ProjectDB) AddTaskDependency(taskID, dependsOn string) error {
-	_, err := p.Exec(`
-		INSERT OR IGNORE INTO task_dependencies (task_id, depends_on)
-		VALUES (?, ?)
-	`, taskID, dependsOn)
+	var query string
+	if p.Dialect() == driver.DialectSQLite {
+		query = `INSERT OR IGNORE INTO task_dependencies (task_id, depends_on) VALUES (?, ?)`
+	} else {
+		query = `INSERT INTO task_dependencies (task_id, depends_on) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	}
+	_, err := p.Exec(query, taskID, dependsOn)
 	if err != nil {
 		return fmt.Errorf("add task dependency: %w", err)
 	}

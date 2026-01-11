@@ -13,6 +13,7 @@
 	const navItems: NavItem[] = [
 		{ label: 'Dashboard', href: '/dashboard', icon: 'dashboard', section: 'main' },
 		{ label: 'Tasks', href: '/', icon: 'tasks', section: 'main' },
+		{ label: 'Board', href: '/board', icon: 'board', section: 'main' },
 		{ label: 'Prompts', href: '/prompts', icon: 'prompts', section: 'main' },
 		{ label: 'CLAUDE.md', href: '/claudemd', icon: 'file', section: 'main' },
 		{ label: 'Skills', href: '/skills', icon: 'skills', section: 'main' },

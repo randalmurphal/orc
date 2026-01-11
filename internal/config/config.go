@@ -291,6 +291,38 @@ type SubtasksConfig struct {
 	MaxPending int `yaml:"max_pending"`
 }
 
+// DatabaseConfig defines database connection settings.
+type DatabaseConfig struct {
+	// Driver is the database type: "sqlite" or "postgres"
+	Driver string `yaml:"driver"`
+
+	// SQLite settings
+	SQLite SQLiteConfig `yaml:"sqlite"`
+
+	// Postgres settings (for team mode)
+	Postgres PostgresConfig `yaml:"postgres"`
+}
+
+// SQLiteConfig defines SQLite-specific settings.
+type SQLiteConfig struct {
+	// Path for project database (relative to project root)
+	Path string `yaml:"path"`
+
+	// GlobalPath for global database
+	GlobalPath string `yaml:"global_path"`
+}
+
+// PostgresConfig defines PostgreSQL-specific settings.
+type PostgresConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Database string `yaml:"database"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"` // Use env ORC_DB_PASSWORD
+	SSLMode  string `yaml:"ssl_mode"`
+	PoolMax  int    `yaml:"pool_max"`
+}
+
 // Config represents the orc configuration.
 type Config struct {
 	// Version is the config file version
@@ -349,6 +381,9 @@ type Config struct {
 
 	// Sub-task queue configuration
 	Subtasks SubtasksConfig `yaml:"subtasks"`
+
+	// Database configuration
+	Database DatabaseConfig `yaml:"database"`
 
 	// Model settings
 	Model         string `yaml:"model"`
@@ -521,6 +556,21 @@ func Default() *Config {
 			AllowCreation: true,
 			AutoApprove:   false,
 			MaxPending:    10,
+		},
+		Database: DatabaseConfig{
+			Driver: "sqlite",
+			SQLite: SQLiteConfig{
+				Path:       ".orc/orc.db",
+				GlobalPath: "~/.orc/orc.db",
+			},
+			Postgres: PostgresConfig{
+				Host:     "localhost",
+				Port:     5432,
+				Database: "orc",
+				User:     "orc",
+				SSLMode:  "disable",
+				PoolMax:  10,
+			},
 		},
 		Model: "claude-opus-4-5-20251101",
 		MaxIterations:              30,
@@ -706,4 +756,27 @@ func (c *Config) ShouldSkipQA(weight string) bool {
 // ShouldSkipReview returns true if review should be skipped.
 func (c *Config) ShouldSkipReview() bool {
 	return !c.Review.Enabled
+}
+
+// DSN returns the database connection string based on current config.
+func (c *Config) DSN() string {
+	if c.Database.Driver == "postgres" {
+		return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+			c.Database.Postgres.User,
+			c.Database.Postgres.Password,
+			c.Database.Postgres.Host,
+			c.Database.Postgres.Port,
+			c.Database.Postgres.Database,
+			c.Database.Postgres.SSLMode,
+		)
+	}
+	return c.Database.SQLite.Path
+}
+
+// GlobalDSN returns the global database connection string.
+func (c *Config) GlobalDSN() string {
+	if c.Database.Driver == "postgres" {
+		return c.DSN() // Same DB in postgres mode
+	}
+	return c.Database.SQLite.GlobalPath
 }

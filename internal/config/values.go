@@ -266,5 +266,15 @@ func AllConfigPaths() []string {
 		"server.auth.type",
 		"team.enabled",
 		"team.server_url",
+		"database.driver",
+		"database.sqlite.path",
+		"database.sqlite.global_path",
+		"database.postgres.host",
+		"database.postgres.port",
+		"database.postgres.database",
+		"database.postgres.user",
+		"database.postgres.password",
+		"database.postgres.ssl_mode",
+		"database.postgres.pool_max",
 	}
 }

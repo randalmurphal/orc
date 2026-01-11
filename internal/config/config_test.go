@@ -457,3 +457,72 @@ func TestSaveTo_InvalidPath(t *testing.T) {
 		t.Error("SaveTo() should fail with invalid path")
 	}
 }
+
+func TestDefault_DatabaseConfig(t *testing.T) {
+	cfg := Default()
+
+	// Driver should be sqlite by default
+	if cfg.Database.Driver != "sqlite" {
+		t.Errorf("Database.Driver = %s, want sqlite", cfg.Database.Driver)
+	}
+
+	// SQLite paths
+	if cfg.Database.SQLite.Path != ".orc/orc.db" {
+		t.Errorf("Database.SQLite.Path = %s, want .orc/orc.db", cfg.Database.SQLite.Path)
+	}
+	if cfg.Database.SQLite.GlobalPath != "~/.orc/orc.db" {
+		t.Errorf("Database.SQLite.GlobalPath = %s, want ~/.orc/orc.db", cfg.Database.SQLite.GlobalPath)
+	}
+
+	// Postgres defaults
+	if cfg.Database.Postgres.Host != "localhost" {
+		t.Errorf("Database.Postgres.Host = %s, want localhost", cfg.Database.Postgres.Host)
+	}
+	if cfg.Database.Postgres.Port != 5432 {
+		t.Errorf("Database.Postgres.Port = %d, want 5432", cfg.Database.Postgres.Port)
+	}
+	if cfg.Database.Postgres.Database != "orc" {
+		t.Errorf("Database.Postgres.Database = %s, want orc", cfg.Database.Postgres.Database)
+	}
+	if cfg.Database.Postgres.User != "orc" {
+		t.Errorf("Database.Postgres.User = %s, want orc", cfg.Database.Postgres.User)
+	}
+	if cfg.Database.Postgres.SSLMode != "disable" {
+		t.Errorf("Database.Postgres.SSLMode = %s, want disable", cfg.Database.Postgres.SSLMode)
+	}
+	if cfg.Database.Postgres.PoolMax != 10 {
+		t.Errorf("Database.Postgres.PoolMax = %d, want 10", cfg.Database.Postgres.PoolMax)
+	}
+}
+
+func TestDSN_SQLite(t *testing.T) {
+	cfg := Default()
+
+	dsn := cfg.DSN()
+	if dsn != ".orc/orc.db" {
+		t.Errorf("DSN() = %s, want .orc/orc.db", dsn)
+	}
+
+	globalDSN := cfg.GlobalDSN()
+	if globalDSN != "~/.orc/orc.db" {
+		t.Errorf("GlobalDSN() = %s, want ~/.orc/orc.db", globalDSN)
+	}
+}
+
+func TestDSN_Postgres(t *testing.T) {
+	cfg := Default()
+	cfg.Database.Driver = "postgres"
+	cfg.Database.Postgres.Password = "secret"
+
+	dsn := cfg.DSN()
+	expected := "postgres://orc:secret@localhost:5432/orc?sslmode=disable"
+	if dsn != expected {
+		t.Errorf("DSN() = %s, want %s", dsn, expected)
+	}
+
+	// GlobalDSN should return same as DSN for postgres
+	globalDSN := cfg.GlobalDSN()
+	if globalDSN != expected {
+		t.Errorf("GlobalDSN() = %s, want %s", globalDSN, expected)
+	}
+}

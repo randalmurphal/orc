@@ -87,3 +87,43 @@ export interface Project {
 	path: string;
 	created_at: string;
 }
+
+// Diff types
+export interface DiffStats {
+	files_changed: number;
+	additions: number;
+	deletions: number;
+}
+
+export interface Line {
+	type: 'context' | 'addition' | 'deletion';
+	content: string;
+	old_line?: number;
+	new_line?: number;
+}
+
+export interface Hunk {
+	old_start: number;
+	old_lines: number;
+	new_start: number;
+	new_lines: number;
+	lines: Line[];
+}
+
+export interface FileDiff {
+	path: string;
+	status: 'modified' | 'added' | 'deleted' | 'renamed';
+	old_path?: string;
+	additions: number;
+	deletions: number;
+	binary: boolean;
+	syntax: string;
+	hunks?: Hunk[];
+}
+
+export interface DiffResult {
+	base: string;
+	head: string;
+	stats: DiffStats;
+	files: FileDiff[];
+}

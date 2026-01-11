@@ -42,9 +42,17 @@ var EnvVarMapping = map[string]string{
 	"ORC_REVIEW_ROUNDS":       "review.rounds",
 	"ORC_REVIEW_REQUIRE_PASS": "review.require_pass",
 	// Subtasks settings
-	"ORC_SUBTASKS_ALLOW":       "subtasks.allow_creation",
+	"ORC_SUBTASKS_ALLOW":        "subtasks.allow_creation",
 	"ORC_SUBTASKS_AUTO_APPROVE": "subtasks.auto_approve",
-	"ORC_SUBTASKS_MAX_PENDING": "subtasks.max_pending",
+	"ORC_SUBTASKS_MAX_PENDING":  "subtasks.max_pending",
+	// Database settings
+	"ORC_DB_DRIVER":   "database.driver",
+	"ORC_DB_PASSWORD": "database.postgres.password",
+	"ORC_DB_HOST":     "database.postgres.host",
+	"ORC_DB_PORT":     "database.postgres.port",
+	"ORC_DB_NAME":     "database.postgres.database",
+	"ORC_DB_USER":     "database.postgres.user",
+	"ORC_DB_SSL_MODE": "database.postgres.ssl_mode",
 }
 
 // ApplyEnvVars applies environment variable overrides to a TrackedConfig.
@@ -157,6 +165,23 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 		if v, err := strconv.Atoi(value); err == nil {
 			cfg.Subtasks.MaxPending = v
 		}
+	// Database settings
+	case "database.driver":
+		cfg.Database.Driver = value
+	case "database.postgres.password":
+		cfg.Database.Postgres.Password = value
+	case "database.postgres.host":
+		cfg.Database.Postgres.Host = value
+	case "database.postgres.port":
+		if v, err := strconv.Atoi(value); err == nil {
+			cfg.Database.Postgres.Port = v
+		}
+	case "database.postgres.database":
+		cfg.Database.Postgres.Database = value
+	case "database.postgres.user":
+		cfg.Database.Postgres.User = value
+	case "database.postgres.ssl_mode":
+		cfg.Database.Postgres.SSLMode = value
 	default:
 		return false
 	}
