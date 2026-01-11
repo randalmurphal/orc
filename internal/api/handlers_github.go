@@ -659,11 +659,11 @@ func (s *Server) handleReplyToPRComment(w http.ResponseWriter, r *http.Request) 
 	// Find PR for branch
 	pr, err := client.FindPRByBranch(r.Context(), t.Branch)
 	if err != nil {
-		s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
-		return
-	}
-	if pr == nil {
-		s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		if errors.Is(err, github.ErrNoPRFound) {
+			s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		} else {
+			s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -728,11 +728,11 @@ func (s *Server) handleImportPRComments(w http.ResponseWriter, r *http.Request) 
 	// Find PR for branch
 	pr, err := client.FindPRByBranch(r.Context(), t.Branch)
 	if err != nil {
-		s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
-		return
-	}
-	if pr == nil {
-		s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		if errors.Is(err, github.ErrNoPRFound) {
+			s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		} else {
+			s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
+		}
 		return
 	}
 

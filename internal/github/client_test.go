@@ -98,6 +98,98 @@ func TestNewClient_HTTPSRemoteNoGitSuffix(t *testing.T) {
 	}
 }
 
+func TestParseOwnerRepo(t *testing.T) {
+	tests := []struct {
+		name      string
+		url       string
+		wantOwner string
+		wantRepo  string
+	}{
+		// Standard SSH format
+		{
+			name:      "ssh standard",
+			url:       "git@github.com:owner/repo",
+			wantOwner: "owner",
+			wantRepo:  "repo",
+		},
+		// GitHub Enterprise SSH format
+		{
+			name:      "ssh github enterprise",
+			url:       "git@github.company.com:org/repo",
+			wantOwner: "org",
+			wantRepo:  "repo",
+		},
+		// SSH URL with port
+		{
+			name:      "ssh with port",
+			url:       "ssh://git@github.com:22/org/repo",
+			wantOwner: "org",
+			wantRepo:  "repo",
+		},
+		// Standard HTTPS format
+		{
+			name:      "https standard",
+			url:       "https://github.com/owner/repo",
+			wantOwner: "owner",
+			wantRepo:  "repo",
+		},
+		// Nested paths (take last two segments)
+		{
+			name:      "nested path",
+			url:       "https://github.com/org/subgroup/repo",
+			wantOwner: "subgroup",
+			wantRepo:  "repo",
+		},
+		// Deeply nested paths
+		{
+			name:      "deeply nested path",
+			url:       "https://github.com/org/level1/level2/level3/repo",
+			wantOwner: "level3",
+			wantRepo:  "repo",
+		},
+		// HTTP (no S)
+		{
+			name:      "http",
+			url:       "http://github.internal.com/team/project",
+			wantOwner: "team",
+			wantRepo:  "project",
+		},
+		// Invalid - too few segments
+		{
+			name:      "too few segments",
+			url:       "https://github.com/repo",
+			wantOwner: "",
+			wantRepo:  "",
+		},
+		// Invalid - no path
+		{
+			name:      "no path",
+			url:       "https://github.com/",
+			wantOwner: "",
+			wantRepo:  "",
+		},
+		// Invalid - garbage
+		{
+			name:      "garbage",
+			url:       "not a url",
+			wantOwner: "",
+			wantRepo:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotOwner, gotRepo := parseOwnerRepo(tt.url)
+			if gotOwner != tt.wantOwner {
+				t.Errorf("owner: got %q, want %q", gotOwner, tt.wantOwner)
+			}
+			if gotRepo != tt.wantRepo {
+				t.Errorf("repo: got %q, want %q", gotRepo, tt.wantRepo)
+			}
+		})
+	}
+}
+
 func TestNewClient_NoRemote(t *testing.T) {
 	tmpDir := t.TempDir()
 
