@@ -1,28 +1,40 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Board from '$lib/components/kanban/Board.svelte';
-	import { listTasks, runTask, pauseTask, resumeTask } from '$lib/api';
+	import { listProjectTasks, runProjectTask, pauseProjectTask, resumeProjectTask } from '$lib/api';
+	import { currentProjectId } from '$lib/stores/project';
 	import type { Task } from '$lib/types';
 
 	let tasks = $state<Task[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
+	// Subscribe to project changes
+	let projectId = $state<string | null>(null);
+	$effect(() => {
+		const unsubscribe = currentProjectId.subscribe(id => {
+			projectId = id;
+			if (id) {
+				loadTasks();
+			}
+		});
+		return unsubscribe;
+	});
+
 	onMount(async () => {
-		await loadTasks();
+		// Initial load handled by $effect when projectId is set
 	});
 
 	async function loadTasks() {
+		if (!projectId) {
+			tasks = [];
+			loading = false;
+			return;
+		}
 		loading = true;
 		error = null;
 		try {
-			const result = await listTasks();
-			// Handle both array and paginated response
-			if (Array.isArray(result)) {
-				tasks = result;
-			} else {
-				tasks = result.tasks || [];
-			}
+			tasks = await listProjectTasks(projectId);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load tasks';
 		} finally {
@@ -31,10 +43,11 @@
 	}
 
 	async function handleAction(taskId: string, action: 'run' | 'pause' | 'resume') {
+		if (!projectId) return;
 		try {
-			if (action === 'run') await runTask(taskId);
-			else if (action === 'pause') await pauseTask(taskId);
-			else if (action === 'resume') await resumeTask(taskId);
+			if (action === 'run') await runProjectTask(projectId, taskId);
+			else if (action === 'pause') await pauseProjectTask(projectId, taskId);
+			else if (action === 'resume') await resumeProjectTask(projectId, taskId);
 			await loadTasks();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Action failed';
