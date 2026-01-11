@@ -1,0 +1,13 @@
+name: spike
+description: Time-boxed investigation, no implementation
+version: 1
+weight: small
+phases:
+  - research
+variables:
+  - name: RESEARCH_QUESTION
+    description: What question to answer
+    required: false
+  - name: TIME_BOX
+    description: Time limit for investigation
+    required: false

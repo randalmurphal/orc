@@ -27,7 +27,7 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/agents" | "/claudemd" | "/config" | "/hooks" | "/mcp" | "/prompts" | "/scripts" | "/settings" | "/skills" | "/tasks" | "/tasks/[id]" | "/tools";
+		RouteId(): "/" | "/agents" | "/claudemd" | "/config" | "/dashboard" | "/hooks" | "/mcp" | "/prompts" | "/scripts" | "/settings" | "/skills" | "/tasks" | "/tasks/[id]" | "/tools";
 		RouteParams(): {
 			"/tasks/[id]": { id: string }
 		};
@@ -36,6 +36,7 @@ declare module "$app/types" {
 			"/agents": Record<string, never>;
 			"/claudemd": Record<string, never>;
 			"/config": Record<string, never>;
+			"/dashboard": Record<string, never>;
 			"/hooks": Record<string, never>;
 			"/mcp": Record<string, never>;
 			"/prompts": Record<string, never>;
@@ -46,7 +47,7 @@ declare module "$app/types" {
 			"/tasks/[id]": { id: string };
 			"/tools": Record<string, never>
 		};
-		Pathname(): "/" | "/agents" | "/agents/" | "/claudemd" | "/claudemd/" | "/config" | "/config/" | "/hooks" | "/hooks/" | "/mcp" | "/mcp/" | "/prompts" | "/prompts/" | "/scripts" | "/scripts/" | "/settings" | "/settings/" | "/skills" | "/skills/" | "/tasks" | "/tasks/" | `/tasks/${string}` & {} | `/tasks/${string}/` & {} | "/tools" | "/tools/";
+		Pathname(): "/" | "/agents" | "/agents/" | "/claudemd" | "/claudemd/" | "/config" | "/config/" | "/dashboard" | "/dashboard/" | "/hooks" | "/hooks/" | "/mcp" | "/mcp/" | "/prompts" | "/prompts/" | "/scripts" | "/scripts/" | "/settings" | "/settings/" | "/skills" | "/skills/" | "/tasks" | "/tasks/" | `/tasks/${string}` & {} | `/tasks/${string}/` & {} | "/tools" | "/tools/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): "/fonts/inter-latin-400.woff2" | "/fonts/inter-latin-500.woff2" | "/fonts/inter-latin-600.woff2" | "/fonts/inter-latin-700.woff2" | "/fonts/jetbrains-mono-latin-400.woff2" | "/fonts/jetbrains-mono-latin-500.woff2" | "/fonts/jetbrains-mono-latin-600.woff2" | string & {};
 	}

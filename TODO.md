@@ -1,7 +1,7 @@
 # Orc v1.0 Progress
 
 ## Current Focus
-- [ ] Working on: Cost Tracking (P1)
+- [ ] Working on: Task Templates (P1)
 
 ## P0 Features (ALL COMPLETE)
 - [x] Error Standards (100%)
@@ -31,7 +31,11 @@
   - Analysis output: scope, affected files, risks, dependencies, test strategy
 
 ## P1 Features
-- [ ] Cost Tracking (0%) - Infrastructure in place, needs aggregation endpoints
+- [x] Cost Tracking (100%)
+  - GET /api/cost/summary endpoint with period filtering (day/week/month/all)
+  - orc cost CLI with --period flag
+  - BudgetConfig in config.yaml for threshold alerts
+  - Budget warning in API and CLI output
 - [ ] Task Templates (0%)
 - [ ] Web Dashboard (0%)
 - [x] Project Detection (100%) - Implemented as part of Init Wizard

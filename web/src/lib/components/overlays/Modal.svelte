@@ -162,5 +162,6 @@
 	.modal-body {
 		flex: 1;
 		overflow-y: auto;
+		padding: var(--space-5);
 	}
 </style>

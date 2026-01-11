@@ -640,3 +640,62 @@ export async function deleteProjectTask(projectId: string, taskId: string): Prom
 export async function getProjectTranscripts(projectId: string, taskId: string): Promise<TranscriptFile[]> {
 	return fetchJSON<TranscriptFile[]>(`/projects/${projectId}/tasks/${taskId}/transcripts`);
 }
+
+// Dashboard
+export interface DashboardStats {
+	running: number;
+	paused: number;
+	blocked: number;
+	completed: number;
+	failed: number;
+	today: number;
+	total: number;
+	tokens: number;
+	cost: number;
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+	return fetchJSON<DashboardStats>('/dashboard/stats');
+}
+
+// Templates
+export interface TemplateInfo {
+	name: string;
+	description?: string;
+	weight: string;
+	phases: string[];
+	scope: 'project' | 'global' | 'builtin';
+	variables?: { name: string; description?: string; required: boolean; default?: string }[];
+}
+
+export interface Template extends TemplateInfo {
+	version: number;
+	prompts?: Record<string, string>;
+	defaults?: { branch_prefix?: string };
+	created_from?: string;
+	created_at?: string;
+	author?: string;
+}
+
+export async function listTemplates(): Promise<TemplateInfo[]> {
+	return fetchJSON<TemplateInfo[]>('/templates');
+}
+
+export async function getTemplate(name: string): Promise<Template> {
+	return fetchJSON<Template>(`/templates/${name}`);
+}
+
+export async function createTemplate(taskId: string, name: string, description?: string, global?: boolean): Promise<Template> {
+	return fetchJSON<Template>('/templates', {
+		method: 'POST',
+		body: JSON.stringify({ task_id: taskId, name, description, global })
+	});
+}
+
+export async function deleteTemplate(name: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/templates/${name}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to delete template');
+	}
+}

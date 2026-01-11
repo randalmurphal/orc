@@ -1,0 +1,14 @@
+name: bugfix
+description: Quick bug fix with regression test
+version: 1
+weight: small
+phases:
+  - implement
+  - test
+variables:
+  - name: BUG_DESCRIPTION
+    description: Description of the bug
+    required: false
+  - name: AFFECTED_FILES
+    description: Files that might be affected
+    required: false

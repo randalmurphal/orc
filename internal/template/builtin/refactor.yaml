@@ -1,0 +1,15 @@
+name: refactor
+description: Code refactoring with before/after comparison
+version: 1
+weight: medium
+phases:
+  - spec
+  - implement
+  - test
+variables:
+  - name: REFACTOR_GOAL
+    description: What the refactoring aims to achieve
+    required: false
+  - name: TARGET_CODE
+    description: Code or files to refactor
+    required: false
