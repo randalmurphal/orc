@@ -24,6 +24,12 @@ var EnvVarMapping = map[string]string{
 	"ORC_BRANCH_PREFIX":     "branch_prefix",
 	"ORC_COMMIT_PREFIX":     "commit_prefix",
 	"ORC_POOL_ENABLED":      "pool.enabled",
+	"ORC_HOST":              "server.host",
+	"ORC_PORT":              "server.port",
+	"ORC_AUTH_ENABLED":      "server.auth.enabled",
+	"ORC_AUTH_TYPE":         "server.auth.type",
+	"ORC_TEAM_ENABLED":      "team.enabled",
+	"ORC_TEAM_SERVER":       "team.server_url",
 }
 
 // ApplyEnvVars applies environment variable overrides to a TrackedConfig.
@@ -88,6 +94,20 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 		cfg.CommitPrefix = value
 	case "pool.enabled":
 		cfg.Pool.Enabled = parseBool(value)
+	case "server.host":
+		cfg.Server.Host = value
+	case "server.port":
+		if v, err := strconv.Atoi(value); err == nil {
+			cfg.Server.Port = v
+		}
+	case "server.auth.enabled":
+		cfg.Server.Auth.Enabled = parseBool(value)
+	case "server.auth.type":
+		cfg.Server.Auth.Type = value
+	case "team.enabled":
+		cfg.Team.Enabled = parseBool(value)
+	case "team.server_url":
+		cfg.Team.ServerURL = value
 	default:
 		return false
 	}

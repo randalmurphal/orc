@@ -669,3 +669,31 @@ func TestBackwardCompatibility_DeprecatedSources(t *testing.T) {
 		t.Errorf("GetSource returned %q, want %q", tc.GetSource("profile"), SourceProject)
 	}
 }
+
+// TestLoadWithSources_EnvSourceHasNoPath verifies that env var sources have empty path.
+func TestLoadWithSources_EnvSourceHasNoPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Use empty home
+	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
+
+	// Set env var
+	t.Setenv("ORC_PROFILE", "strict")
+
+	tc, err := LoadWithSources()
+	if err != nil {
+		t.Fatalf("LoadWithSources failed: %v", err)
+	}
+
+	// Env source should have empty path
+	ts := tc.GetTrackedSource("profile")
+	if ts.Source != SourceEnv {
+		t.Errorf("profile source = %q, want env", ts.Source)
+	}
+	if ts.Path != "" {
+		t.Errorf("env source should have empty path, got %q", ts.Path)
+	}
+}

@@ -161,6 +161,36 @@ type PoolConfig struct {
 	ConfigPath string `yaml:"config_path"`
 }
 
+// AuthConfig defines authentication settings for the server.
+type AuthConfig struct {
+	// Enabled enables authentication
+	Enabled bool `yaml:"enabled"`
+
+	// Type is the authentication type: "token" or "oidc"
+	Type string `yaml:"type"`
+}
+
+// ServerConfig defines server configuration for team mode.
+type ServerConfig struct {
+	// Host is the server bind address (default: "127.0.0.1")
+	Host string `yaml:"host"`
+
+	// Port is the server port (default: 8080)
+	Port int `yaml:"port"`
+
+	// Auth configuration
+	Auth AuthConfig `yaml:"auth"`
+}
+
+// TeamConfig defines team mode settings.
+type TeamConfig struct {
+	// Enabled enables team mode features
+	Enabled bool `yaml:"enabled"`
+
+	// ServerURL is the URL of the team server
+	ServerURL string `yaml:"server_url"`
+}
+
 // Config represents the orc configuration.
 type Config struct {
 	// Version is the config file version
@@ -189,6 +219,12 @@ type Config struct {
 
 	// Token pool settings for automatic account switching
 	Pool PoolConfig `yaml:"pool"`
+
+	// Server settings (for team mode)
+	Server ServerConfig `yaml:"server"`
+
+	// Team mode settings
+	Team TeamConfig `yaml:"team"`
 
 	// Model settings
 	Model         string `yaml:"model"`
@@ -301,6 +337,18 @@ func Default() *Config {
 		Pool: PoolConfig{
 			Enabled:    false, // Disabled by default
 			ConfigPath: "~/.orc/token-pool/pool.yaml",
+		},
+		Server: ServerConfig{
+			Host: "127.0.0.1",
+			Port: 8080,
+			Auth: AuthConfig{
+				Enabled: false,
+				Type:    "token",
+			},
+		},
+		Team: TeamConfig{
+			Enabled:   false,
+			ServerURL: "",
 		},
 		Model:                      "claude-opus-4-5-20251101",
 		MaxIterations:              30,

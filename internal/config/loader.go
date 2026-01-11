@@ -16,6 +16,11 @@ import (
 //	Level 2: Personal (~/.orc/, .orc/local/) - user preferences
 //	Level 3: Shared (.orc/shared/, .orc/) - team defaults
 //	Level 4: Defaults (built-in) - lowest priority
+//
+// Note: CLI flags are not handled by the Loader. They are applied at the CLI
+// layer (internal/cli) after loading config, using TrackedConfig.SetSource()
+// with SourceFlag. This separation allows the config package to remain
+// decoupled from CLI framework specifics (Cobra/pflag).
 type Loader struct {
 	projectDir string // Project directory (containing .orc/)
 	userDir    string // User config directory (~/.orc/)
@@ -239,6 +244,12 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 	if rawPool, ok := raw["pool"].(map[string]interface{}); ok {
 		mergePoolConfigWithPath(cfg, fileCfg, rawPool, tc, source, path)
 	}
+	if rawServer, ok := raw["server"].(map[string]interface{}); ok {
+		mergeServerConfigWithPath(cfg, fileCfg, rawServer, tc, source, path)
+	}
+	if rawTeam, ok := raw["team"].(map[string]interface{}); ok {
+		mergeTeamConfigWithPath(cfg, fileCfg, rawTeam, tc, source, path)
+	}
 }
 
 // mergeConfig merges fileCfg into tc.Config (backward compat wrapper).
@@ -390,6 +401,39 @@ func mergePoolConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interf
 	}
 }
 
+func mergeServerConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
+	if _, ok := raw["host"]; ok {
+		cfg.Server.Host = fileCfg.Server.Host
+		tc.SetSourceWithPath("server.host", source, path)
+	}
+	if _, ok := raw["port"]; ok {
+		cfg.Server.Port = fileCfg.Server.Port
+		tc.SetSourceWithPath("server.port", source, path)
+	}
+	// Auth is nested
+	if rawAuth, ok := raw["auth"].(map[string]interface{}); ok {
+		if _, ok := rawAuth["enabled"]; ok {
+			cfg.Server.Auth.Enabled = fileCfg.Server.Auth.Enabled
+			tc.SetSourceWithPath("server.auth.enabled", source, path)
+		}
+		if _, ok := rawAuth["type"]; ok {
+			cfg.Server.Auth.Type = fileCfg.Server.Auth.Type
+			tc.SetSourceWithPath("server.auth.type", source, path)
+		}
+	}
+}
+
+func mergeTeamConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
+	if _, ok := raw["enabled"]; ok {
+		cfg.Team.Enabled = fileCfg.Team.Enabled
+		tc.SetSourceWithPath("team.enabled", source, path)
+	}
+	if _, ok := raw["server_url"]; ok {
+		cfg.Team.ServerURL = fileCfg.Team.ServerURL
+		tc.SetSourceWithPath("team.server_url", source, path)
+	}
+}
+
 // markDefaults marks all config paths as having SourceDefault.
 func markDefaults(tc *TrackedConfig) {
 	paths := []string{
@@ -405,6 +449,8 @@ func markDefaults(tc *TrackedConfig) {
 		"execution.use_session_execution", "execution.session_persistence", "execution.checkpoint_interval",
 		"budget.threshold_usd", "budget.alert_on_exceed", "budget.pause_on_exceed",
 		"pool.enabled", "pool.config_path",
+		"server.host", "server.port", "server.auth.enabled", "server.auth.type",
+		"team.enabled", "team.server_url",
 	}
 
 	for _, path := range paths {

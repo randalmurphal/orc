@@ -77,10 +77,9 @@ type teamConfigRaw struct {
 //  2. P2P mode: .orc/shared/ directory exists
 //  3. Solo mode: default
 //
-// This function checks multiple config sources in order:
+// This function checks config sources in order:
 // - Project config (.orc/config.yaml)
 // - User config (~/.orc/config.yaml)
-// - System config (/etc/orc/config.yaml)
 func DetectMode(projectPath string) Mode {
 	// Check for team server configuration first (highest priority)
 	if hasTeamServer(projectPath) {
@@ -111,12 +110,6 @@ func hasTeamServer(projectPath string) bool {
 		if serverURL := readTeamServerURL(userConfig); serverURL != "" {
 			return true
 		}
-	}
-
-	// Check system config
-	systemConfig := "/etc/orc/config.yaml"
-	if serverURL := readTeamServerURL(systemConfig); serverURL != "" {
-		return true
 	}
 
 	return false
