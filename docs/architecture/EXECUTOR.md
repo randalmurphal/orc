@@ -2,6 +2,41 @@
 
 **Purpose**: Ralph-style execution loops within structured phases.
 
+> **Code Reference**: See `internal/executor/CLAUDE.md` for implementation details.
+
+---
+
+## Module Structure
+
+The executor package is organized into focused modules:
+
+| Module | File | Responsibility |
+|--------|------|----------------|
+| **Core** | `executor.go` | Main orchestrator, task lifecycle |
+| **Task Execution** | `task_execution.go` | ExecuteTask, ResumeFromPhase, gate evaluation |
+| **Phase Execution** | `phase.go` | ExecutePhase, executor dispatch |
+| **Trivial Executor** | `trivial.go` | Stateless, fire-and-forget execution |
+| **Standard Executor** | `standard.go` | Session per phase, iteration loop |
+| **Full Executor** | `full.go` | Persistent sessions, per-iteration checkpointing |
+| **Publishing** | `publish.go` | Nil-safe EventPublisher |
+| **Templates** | `template.go` | Prompt variable substitution |
+| **Retry** | `retry.go` | Cross-phase retry context |
+| **Worktree** | `worktree.go` | Git worktree isolation |
+| **Flowgraph** | `flowgraph_nodes.go` | Flowgraph node builders |
+| **Completion** | `completion.go` | Phase completion detection |
+
+---
+
+## Executor Strategies
+
+Three executor types scale to task weight:
+
+| Executor | Session | Checkpointing | Max Iterations | Best For |
+|----------|---------|---------------|----------------|----------|
+| **Trivial** | None | None | 5 | Quick single-prompt tasks |
+| **Standard** | Per-phase | On completion | 20 | Small/medium tasks |
+| **Full** | Persistent | Every iteration | 30-50 | Large/greenfield |
+
 ---
 
 ## Execution Architecture
@@ -12,8 +47,8 @@
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
-│  │   Prompt    │───►│   Claude    │───►│   Output    │        │
-│  │ Constructor │    │    Code     │    │   Parser    │        │
+│  │   Template  │───►│   Claude    │───►│   Output    │        │
+│  │  Rendering  │    │   Session   │    │   Parser    │        │
 │  └─────────────┘    └─────────────┘    └─────────────┘        │
 │        ▲                                      │                │
 │        │                                      ▼                │
