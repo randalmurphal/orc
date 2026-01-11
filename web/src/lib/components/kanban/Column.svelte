@@ -45,8 +45,8 @@
 			try {
 				const task = JSON.parse(taskData) as Task;
 				onDrop(task);
-			} catch {
-				// Invalid JSON, ignore
+			} catch (e) {
+				console.warn('Invalid drop data:', e);
 			}
 		}
 	}

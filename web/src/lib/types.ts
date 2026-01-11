@@ -119,6 +119,7 @@ export interface FileDiff {
 	binary: boolean;
 	syntax: string;
 	hunks?: Hunk[];
+	loadError?: string;
 }
 
 export interface DiffResult {

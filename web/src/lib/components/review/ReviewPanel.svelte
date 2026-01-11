@@ -27,7 +27,7 @@
 	let isRetrying = $state(false);
 	let showForm = $state(false);
 	let filter = $state<FilterValue>('all');
-	let selectedIndex = $state(-1);
+	let selectedCommentId = $state<string | null>(null);
 
 	const openComments = $derived(comments.filter((c) => c.status === 'open'));
 	const resolvedComments = $derived(comments.filter((c) => c.status !== 'open'));
@@ -134,10 +134,7 @@
 	}
 
 	function handleCommentClick(comment: ReviewComment) {
-		const idx = filteredComments.findIndex((c) => c.id === comment.id);
-		if (idx >= 0) {
-			selectedIndex = idx;
-		}
+		selectedCommentId = comment.id;
 	}
 
 	function handleKeyDown(event: KeyboardEvent) {
@@ -148,14 +145,22 @@
 		switch (event.key) {
 			case 'j':
 				event.preventDefault();
-				if (selectedIndex < filteredComments.length - 1) {
-					selectedIndex++;
+				if (filteredComments.length > 0) {
+					const currentIdx = selectedCommentId
+						? filteredComments.findIndex((c) => c.id === selectedCommentId)
+						: -1;
+					const nextIdx = Math.min(currentIdx + 1, filteredComments.length - 1);
+					selectedCommentId = filteredComments[nextIdx].id;
 				}
 				break;
 			case 'k':
 				event.preventDefault();
-				if (selectedIndex > 0) {
-					selectedIndex--;
+				if (filteredComments.length > 0) {
+					const currentIdx = selectedCommentId
+						? filteredComments.findIndex((c) => c.id === selectedCommentId)
+						: filteredComments.length;
+					const prevIdx = Math.max(currentIdx - 1, 0);
+					selectedCommentId = filteredComments[prevIdx].id;
 				}
 				break;
 			case 'n':
@@ -274,8 +279,8 @@
 							<span>General</span>
 						</div>
 						<div class="comments-list">
-							{#each commentsByFile.general as comment, i}
-								<div class="comment-wrapper" class:selected={selectedIndex === i}>
+							{#each commentsByFile.general as comment}
+								<div class="comment-wrapper" class:selected={selectedCommentId === comment.id}>
 									<CommentThread
 										{comment}
 										onResolve={handleResolve}
@@ -296,8 +301,7 @@
 						</div>
 						<div class="comments-list">
 							{#each fileComments as comment}
-								{@const globalIndex = filteredComments.findIndex((c) => c.id === comment.id)}
-								<div class="comment-wrapper" class:selected={selectedIndex === globalIndex}>
+								<div class="comment-wrapper" class:selected={selectedCommentId === comment.id}>
 									<CommentThread
 										{comment}
 										onResolve={handleResolve}
@@ -319,7 +323,7 @@
 					</summary>
 					<div class="comments-list resolved">
 						{#each resolvedComments as comment}
-							<CommentThread {comment} />
+							<CommentThread {comment} onDelete={handleDelete} />
 						{/each}
 					</div>
 				</details>

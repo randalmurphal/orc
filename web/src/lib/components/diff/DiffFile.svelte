@@ -50,9 +50,14 @@
 		<div class="file-content">
 			{#if file.binary}
 				<div class="binary-notice">Binary file not shown</div>
+			{:else if file.loadError}
+				<div class="error-hunks">
+					<span class="error-icon">!</span>
+					<span>{file.loadError}</span>
+				</div>
 			{:else if file.hunks && file.hunks.length > 0}
 				{#each file.hunks as hunk, i (i)}
-					<DiffHunk {hunk} {viewMode} syntax={file.syntax} />
+					<DiffHunk {hunk} {viewMode} filePath={file.path} />
 				{/each}
 			{:else}
 				<div class="loading-hunks">
@@ -145,13 +150,14 @@
 	}
 
 	.file-content {
-		max-height: 600px;
 		overflow: auto;
 		background: var(--bg-primary);
+		/* Height controlled by parent flex layout */
 	}
 
 	.binary-notice,
-	.loading-hunks {
+	.loading-hunks,
+	.error-hunks {
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -161,6 +167,23 @@
 		color: var(--text-muted);
 		font-style: italic;
 		font-size: var(--text-sm);
+	}
+
+	.error-hunks {
+		color: var(--status-danger);
+	}
+
+	.error-icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		background: var(--status-danger-bg);
+		font-weight: var(--font-bold);
+		font-style: normal;
+		font-size: var(--text-xs);
 	}
 
 	.loading-spinner {

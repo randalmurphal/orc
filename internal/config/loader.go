@@ -84,6 +84,11 @@ func (l *Loader) Load() (*TrackedConfig, error) {
 	// Level 1: Runtime (env vars)
 	ApplyEnvVars(tc)
 
+	// Validate the merged configuration
+	if err := tc.Config.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
+	}
+
 	return tc, nil
 }
 

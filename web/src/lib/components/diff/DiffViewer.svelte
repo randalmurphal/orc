@@ -35,31 +35,53 @@
 	}
 
 	async function loadFileHunks(filePath: string) {
-		const res = await fetch(`/api/tasks/${taskId}/diff/file/${encodeURIComponent(filePath)}`);
-		if (!res.ok) return;
-		const fileDiff = (await res.json()) as FileDiff;
+		try {
+			const res = await fetch(`/api/tasks/${taskId}/diff/file/${encodeURIComponent(filePath)}`);
+			if (!res.ok) {
+				const errorMsg = `Failed to load file diff (${res.status})`;
+				if (diff) {
+					diff = {
+						...diff,
+						files: diff.files.map((f) =>
+							f.path === filePath ? { ...f, loadError: errorMsg } : f
+						)
+					};
+				}
+				return;
+			}
+			const fileDiff = (await res.json()) as FileDiff;
 
-		// Update the file in diff.files with hunks
-		if (diff) {
-			diff = {
-				...diff,
-				files: diff.files.map((f) => (f.path === filePath ? { ...f, hunks: fileDiff.hunks } : f))
-			};
+			// Update the file in diff.files with hunks
+			if (diff) {
+				diff = {
+					...diff,
+					files: diff.files.map((f) =>
+						f.path === filePath ? { ...f, hunks: fileDiff.hunks, loadError: undefined } : f
+					)
+				};
+			}
+		} catch (e) {
+			const errorMsg = e instanceof Error ? e.message : 'Unknown error loading file';
+			if (diff) {
+				diff = {
+					...diff,
+					files: diff.files.map((f) => (f.path === filePath ? { ...f, loadError: errorMsg } : f))
+				};
+			}
 		}
 	}
 
 	function toggleFile(path: string) {
 		const file = diff?.files.find((f) => f.path === path);
-		if (!file?.hunks?.length) {
+		if (!file?.hunks?.length && !file?.loadError) {
 			loadFileHunks(path);
 		}
 
 		if (expandedFiles.has(path)) {
-			expandedFiles.delete(path);
+			expandedFiles = new Set([...expandedFiles].filter((p) => p !== path));
 		} else {
-			expandedFiles.add(path);
+			expandedFiles = new Set([...expandedFiles, path]);
 		}
-		expandedFiles = new Set(expandedFiles);
 	}
 
 	function expandAll() {

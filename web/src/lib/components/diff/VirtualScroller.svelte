@@ -62,8 +62,8 @@
 <style>
 	.virtual-scroller {
 		height: 100%;
-		max-height: 400px;
 		overflow-y: auto;
+		/* Max height configurable via parent container */
 	}
 
 	.virtual-content {
