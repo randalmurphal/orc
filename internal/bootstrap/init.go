@@ -168,6 +168,14 @@ func Run(opts Options) (*Result, error) {
 		fmt.Printf("Installed: .claude/plugins/orc/ (slash commands: /orc:init, /orc:continue, /orc:status, /orc:review, /orc:qa, /orc:propose)\n")
 	}
 
+	// 9. Inject orc section into CLAUDE.md
+	if err := InjectOrcSection(opts.WorkDir); err != nil {
+		// Non-fatal - just warn
+		fmt.Fprintf(os.Stderr, "Warning: could not update CLAUDE.md: %v\n", err)
+	} else {
+		fmt.Printf("Updated: CLAUDE.md (orc workflow documentation)\n")
+	}
+
 	return &Result{
 		Duration:     time.Since(start),
 		ProjectID:    proj.ID,
