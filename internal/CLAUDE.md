@@ -24,6 +24,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `state/` | Execution state persistence | `State` |
 | `task/` | Task model and YAML persistence | `Task`, `Store` |
 | `template/` | Go template rendering | `Engine` |
+| `tokenpool/` | OAuth token pool for rate limit failover | `Pool`, `Account` |
 | `wizard/` | Interactive CLI wizard | `Wizard` |
 
 ## Dependency Graph
@@ -39,7 +40,8 @@ cmd/orc
         │   │   ├── plan/
         │   │   ├── prompt/
         │   │   ├── state/
-        │   │   └── task/
+        │   │   ├── task/
+        │   │   └── tokenpool/
         │   ├── project/
         │   ├── prompt/
         │   └── task/
