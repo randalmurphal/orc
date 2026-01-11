@@ -40,8 +40,8 @@ type Server struct {
 
 // Event represents an SSE event.
 type Event struct {
-	Type string      `json:"type"`
-	Data interface{} `json:"data"`
+	Type string `json:"type"`
+	Data any    `json:"data"`
 }
 
 // Config holds server configuration.
@@ -269,7 +269,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 // jsonResponse writes a JSON response.
-func (s *Server) jsonResponse(w http.ResponseWriter, data interface{}) {
+func (s *Server) jsonResponse(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
 }
@@ -286,16 +286,6 @@ func (s *Server) handleOrcError(w http.ResponseWriter, err *orcerrors.OrcError) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.HTTPStatus())
 	json.NewEncoder(w).Encode(err.ToAPIError())
-}
-
-// handleError inspects the error and writes an appropriate response.
-// If err is an OrcError, it uses structured format. Otherwise, uses simple format.
-func (s *Server) handleError(w http.ResponseWriter, err error, fallbackStatus int) {
-	if orcErr := orcerrors.AsOrcError(err); orcErr != nil {
-		s.handleOrcError(w, orcErr)
-		return
-	}
-	s.jsonError(w, err.Error(), fallbackStatus)
 }
 
 // pauseTask pauses a running task (called by WebSocket handler).

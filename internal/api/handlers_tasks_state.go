@@ -192,11 +192,11 @@ func (s *Server) handleGetTranscripts(w http.ResponseWriter, r *http.Request) {
 	entries, err := os.ReadDir(transcriptsDir)
 	if err != nil {
 		// No transcripts yet is OK
-		s.jsonResponse(w, []map[string]interface{}{})
+		s.jsonResponse(w, []map[string]any{})
 		return
 	}
 
-	var transcripts []map[string]interface{}
+	var transcripts []map[string]any
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
 			continue
@@ -208,7 +208,7 @@ func (s *Server) handleGetTranscripts(w http.ResponseWriter, r *http.Request) {
 		}
 
 		info, _ := entry.Info()
-		transcripts = append(transcripts, map[string]interface{}{
+		transcripts = append(transcripts, map[string]any{
 			"filename":   entry.Name(),
 			"content":    string(content),
 			"created_at": info.ModTime(),
@@ -217,7 +217,7 @@ func (s *Server) handleGetTranscripts(w http.ResponseWriter, r *http.Request) {
 
 	// Ensure we return an empty array, not null
 	if transcripts == nil {
-		transcripts = []map[string]interface{}{}
+		transcripts = []map[string]any{}
 	}
 
 	s.jsonResponse(w, transcripts)

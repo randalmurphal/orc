@@ -169,7 +169,9 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 		case event := <-ch:
 			data, _ := json.Marshal(event.Data)
 			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, data)
-			w.(http.Flusher).Flush()
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
 		}
 	}
 }
