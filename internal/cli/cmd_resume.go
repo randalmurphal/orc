@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/progress"
@@ -20,7 +21,7 @@ import (
 )
 
 func newResumeCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "resume <task-id>",
 		Short: "Resume a paused or interrupted task",
 		Args:  cobra.ExactArgs(1),
@@ -70,7 +71,15 @@ func newResumeCmd() *cobra.Command {
 			disp := progress.New(id, quiet)
 			disp.Info(fmt.Sprintf("Resuming task %s", id))
 
-			exec := executor.New(executor.ConfigFromOrc(cfg))
+			exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
+
+			// Set up streaming publisher if verbose or --stream flag is set
+			stream, _ := cmd.Flags().GetBool("stream")
+			if verbose || stream {
+				publisher := events.NewCLIPublisher(os.Stdout, events.WithStreamMode(true))
+				exec.SetPublisher(publisher)
+				defer publisher.Close()
+			}
 
 			// Find resume phase
 			resumePhase := s.GetResumePhase()
@@ -95,4 +104,6 @@ func newResumeCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().Bool("stream", false, "stream Claude transcript to stdout")
+	return cmd
 }
