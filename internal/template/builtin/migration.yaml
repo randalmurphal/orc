@@ -1,0 +1,16 @@
+name: migration
+description: Database or data migration with rollback plan
+version: 1
+weight: large
+phases:
+  - spec
+  - implement
+  - test
+  - validate
+variables:
+  - name: MIGRATION_TYPE
+    description: Type of migration (database, data, schema)
+    required: false
+  - name: ROLLBACK_PLAN
+    description: How to rollback if needed
+    required: false

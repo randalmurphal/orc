@@ -353,6 +353,11 @@ make e2e            # Run Playwright tests
 | PUT | `/api/mcp/:name` | Update MCP server |
 | DELETE | `/api/mcp/:name` | Delete MCP server |
 
+### Cost Tracking
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/cost/summary` | Get cost summary (query: period=day\|week\|month\|all, since=RFC3339) |
+
 ### Config & Real-time
 | Method | Endpoint | Description |
 |--------|----------|-------------|

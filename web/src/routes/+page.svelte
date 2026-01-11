@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { goto } from '$app/navigation';
 	import {
 		listTasks,
 		createTask,
@@ -19,6 +20,8 @@
 	import TaskCard from '$lib/components/TaskCard.svelte';
 	import Modal from '$lib/components/overlays/Modal.svelte';
 	import { currentProjectId, currentProject } from '$lib/stores/project';
+	import { setupTaskListShortcuts, getShortcutManager } from '$lib/shortcuts';
+	import { toast } from '$lib/stores/toast';
 
 	let tasks = $state<Task[]>([]);
 	let loading = $state(true);
@@ -26,6 +29,8 @@
 	let showNewTask = $state(false);
 	let newTaskTitle = $state('');
 	let newTaskInputRef: HTMLInputElement;
+	let selectedIndex = $state(-1);
+	let cleanupShortcuts: (() => void) | null = null;
 
 	// Filters
 	let searchQuery = $state('');
@@ -54,6 +59,15 @@
 		}
 	});
 
+	// Get selected task from filtered list
+	function getSelectedTask(): Task | null {
+		const filtered = filteredTasks();
+		if (selectedIndex >= 0 && selectedIndex < filtered.length) {
+			return filtered[selectedIndex];
+		}
+		return null;
+	}
+
 	// Listen for new task event from command palette
 	onMount(() => {
 		loadTasks();
@@ -62,9 +76,69 @@
 			showNewTask = true;
 		}
 
+		// Setup task list keyboard shortcuts
+		cleanupShortcuts = setupTaskListShortcuts({
+			onNavDown: () => {
+				const filtered = filteredTasks();
+				if (filtered.length > 0) {
+					selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1);
+					scrollToSelected();
+				}
+			},
+			onNavUp: () => {
+				if (selectedIndex > 0) {
+					selectedIndex = selectedIndex - 1;
+					scrollToSelected();
+				}
+			},
+			onOpen: () => {
+				const task = getSelectedTask();
+				if (task) {
+					goto(`/tasks/${task.id}`);
+				}
+			},
+			onRun: () => {
+				const task = getSelectedTask();
+				if (task && task.status !== 'running') {
+					handleRunTask(task.id);
+					toast.info(`Running task ${task.id}`);
+				}
+			},
+			onPause: () => {
+				const task = getSelectedTask();
+				if (task && task.status === 'running') {
+					handlePauseTask(task.id);
+					toast.info(`Paused task ${task.id}`);
+				}
+			},
+			onDelete: () => {
+				const task = getSelectedTask();
+				if (task) {
+					if (confirm(`Delete task ${task.id}?`)) {
+						handleDeleteTask(task.id);
+						toast.success(`Deleted task ${task.id}`);
+					}
+				}
+			}
+		});
+
 		window.addEventListener('orc:new-task', handleNewTask);
 		return () => window.removeEventListener('orc:new-task', handleNewTask);
 	});
+
+	onDestroy(() => {
+		if (cleanupShortcuts) {
+			cleanupShortcuts();
+		}
+	});
+
+	function scrollToSelected() {
+		// Scroll the selected task into view
+		const taskElements = document.querySelectorAll('.task-card');
+		if (taskElements[selectedIndex]) {
+			taskElements[selectedIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		}
+	}
 
 	async function loadTasks() {
 		loading = true;
@@ -365,14 +439,23 @@
 		</div>
 	{:else}
 		<div class="task-list">
-			{#each filteredTasks() as task (task.id)}
-				<TaskCard
-					{task}
-					onRun={() => handleRunTask(task.id)}
-					onPause={() => handlePauseTask(task.id)}
-					onResume={() => handleResumeTask(task.id)}
-					onDelete={() => handleDeleteTask(task.id)}
-				/>
+			{#each filteredTasks() as task, index (task.id)}
+				<div
+					class="task-card-wrapper"
+					class:selected={index === selectedIndex}
+					onclick={() => (selectedIndex = index)}
+					onkeydown={(e) => e.key === 'Enter' && goto(`/tasks/${task.id}`)}
+					role="button"
+					tabindex="0"
+				>
+					<TaskCard
+						{task}
+						onRun={() => handleRunTask(task.id)}
+						onPause={() => handlePauseTask(task.id)}
+						onResume={() => handleResumeTask(task.id)}
+						onDelete={() => handleDeleteTask(task.id)}
+					/>
+				</div>
 			{/each}
 		</div>
 
@@ -610,6 +693,21 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
+	}
+
+	.task-card-wrapper {
+		border-radius: var(--radius-lg);
+		outline: none;
+		transition: box-shadow var(--duration-fast) var(--ease-out);
+	}
+
+	.task-card-wrapper:focus-visible,
+	.task-card-wrapper.selected {
+		box-shadow: 0 0 0 2px var(--accent-primary);
+	}
+
+	.task-card-wrapper.selected :global(.task-card) {
+		border-color: var(--accent-primary);
 	}
 
 	/* Loading State */

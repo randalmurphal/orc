@@ -31,8 +31,10 @@ declare module '$env/static/private' {
 	export const LSCOLORS: string;
 	export const COREPACK_ENABLE_AUTO_PIN: string;
 	export const SESSION_MANAGER: string;
+	export const npm_config_userconfig: string;
 	export const COLORTERM: string;
 	export const XDG_CONFIG_DIRS: string;
+	export const npm_config_cache: string;
 	export const LESS: string;
 	export const XDG_SESSION_PATH: string;
 	export const XDG_MENU_PREFIX: string;
@@ -53,6 +55,7 @@ declare module '$env/static/private' {
 	export const XDG_DATA_HOME: string;
 	export const CPU: string;
 	export const XDG_CONFIG_HOME: string;
+	export const COLOR: string;
 	export const LOCALE_ARCHIVE_2_27: string;
 	export const npm_config_local_prefix: string;
 	export const WEZTERM_EXECUTABLE: string;
@@ -61,7 +64,9 @@ declare module '$env/static/private' {
 	export const SSH_AGENT_PID: string;
 	export const __ETC_PROFILE_NIX_SOURCED: string;
 	export const GTK_RC_FILES: string;
+	export const npm_config_globalconfig: string;
 	export const GPG_TTY: string;
+	export const EDITOR: string;
 	export const GTK_MODULES: string;
 	export const XDG_SEAT: string;
 	export const PWD: string;
@@ -72,7 +77,9 @@ declare module '$env/static/private' {
 	export const XDG_SESSION_TYPE: string;
 	export const MANPATH: string;
 	export const NIX_PATH: string;
+	export const npm_config_init_module: string;
 	export const SYSTEMD_EXEC_PID: string;
+	export const _: string;
 	export const XAUTHORITY: string;
 	export const DESKTOP_STARTUP_ID: string;
 	export const NoDefaultCurrentDirectoryInExePath: string;
@@ -103,11 +110,13 @@ declare module '$env/static/private' {
 	export const LESS_ADVANCED_PREPROCESSOR: string;
 	export const INVOCATION_ID: string;
 	export const MANAGERPID: string;
+	export const INIT_CWD: string;
 	export const XSESSION_IS_UP: string;
 	export const KDE_SESSION_UID: string;
 	export const XDG_CACHE_HOME: string;
 	export const npm_lifecycle_script: string;
 	export const MOZ_GMP_PATH: string;
+	export const npm_config_npm_version: string;
 	export const LESSCLOSE: string;
 	export const XDG_SESSION_CLASS: string;
 	export const TERM: string;
@@ -115,6 +124,7 @@ declare module '$env/static/private' {
 	export const ZSH: string;
 	export const G_FILENAME_ENCODING: string;
 	export const HOST: string;
+	export const npm_config_prefix: string;
 	export const XAUTHLOCALHOSTNAME: string;
 	export const LESSOPEN: string;
 	export const USER: string;
@@ -150,11 +160,14 @@ declare module '$env/static/private' {
 	export const MANPATHISSET: string;
 	export const XDG_DATA_DIRS: string;
 	export const KDE_FULL_SESSION: string;
+	export const npm_config_noproxy: string;
 	export const CONFIG_SITE: string;
 	export const VENDOR: string;
 	export const PATH: string;
+	export const npm_config_node_gyp: string;
 	export const DBUS_SESSION_BUS_ADDRESS: string;
 	export const PROFILEREAD: string;
+	export const npm_config_global_prefix: string;
 	export const KDE_APPLICATIONS_AS_SCOPE: string;
 	export const MAIL: string;
 	export const HOSTTYPE: string;
@@ -165,7 +178,6 @@ declare module '$env/static/private' {
 	export const OLDPWD: string;
 	export const TERM_PROGRAM: string;
 	export const WEZTERM_EXECUTABLE_DIR: string;
-	export const _: string;
 	export const NODE_ENV: string;
 }
 
@@ -201,8 +213,10 @@ declare module '$env/dynamic/private' {
 		LSCOLORS: string;
 		COREPACK_ENABLE_AUTO_PIN: string;
 		SESSION_MANAGER: string;
+		npm_config_userconfig: string;
 		COLORTERM: string;
 		XDG_CONFIG_DIRS: string;
+		npm_config_cache: string;
 		LESS: string;
 		XDG_SESSION_PATH: string;
 		XDG_MENU_PREFIX: string;
@@ -223,6 +237,7 @@ declare module '$env/dynamic/private' {
 		XDG_DATA_HOME: string;
 		CPU: string;
 		XDG_CONFIG_HOME: string;
+		COLOR: string;
 		LOCALE_ARCHIVE_2_27: string;
 		npm_config_local_prefix: string;
 		WEZTERM_EXECUTABLE: string;
@@ -231,7 +246,9 @@ declare module '$env/dynamic/private' {
 		SSH_AGENT_PID: string;
 		__ETC_PROFILE_NIX_SOURCED: string;
 		GTK_RC_FILES: string;
+		npm_config_globalconfig: string;
 		GPG_TTY: string;
+		EDITOR: string;
 		GTK_MODULES: string;
 		XDG_SEAT: string;
 		PWD: string;
@@ -242,7 +259,9 @@ declare module '$env/dynamic/private' {
 		XDG_SESSION_TYPE: string;
 		MANPATH: string;
 		NIX_PATH: string;
+		npm_config_init_module: string;
 		SYSTEMD_EXEC_PID: string;
+		_: string;
 		XAUTHORITY: string;
 		DESKTOP_STARTUP_ID: string;
 		NoDefaultCurrentDirectoryInExePath: string;
@@ -273,11 +292,13 @@ declare module '$env/dynamic/private' {
 		LESS_ADVANCED_PREPROCESSOR: string;
 		INVOCATION_ID: string;
 		MANAGERPID: string;
+		INIT_CWD: string;
 		XSESSION_IS_UP: string;
 		KDE_SESSION_UID: string;
 		XDG_CACHE_HOME: string;
 		npm_lifecycle_script: string;
 		MOZ_GMP_PATH: string;
+		npm_config_npm_version: string;
 		LESSCLOSE: string;
 		XDG_SESSION_CLASS: string;
 		TERM: string;
@@ -285,6 +306,7 @@ declare module '$env/dynamic/private' {
 		ZSH: string;
 		G_FILENAME_ENCODING: string;
 		HOST: string;
+		npm_config_prefix: string;
 		XAUTHLOCALHOSTNAME: string;
 		LESSOPEN: string;
 		USER: string;
@@ -320,11 +342,14 @@ declare module '$env/dynamic/private' {
 		MANPATHISSET: string;
 		XDG_DATA_DIRS: string;
 		KDE_FULL_SESSION: string;
+		npm_config_noproxy: string;
 		CONFIG_SITE: string;
 		VENDOR: string;
 		PATH: string;
+		npm_config_node_gyp: string;
 		DBUS_SESSION_BUS_ADDRESS: string;
 		PROFILEREAD: string;
+		npm_config_global_prefix: string;
 		KDE_APPLICATIONS_AS_SCOPE: string;
 		MAIL: string;
 		HOSTTYPE: string;
@@ -335,7 +360,6 @@ declare module '$env/dynamic/private' {
 		OLDPWD: string;
 		TERM_PROGRAM: string;
 		WEZTERM_EXECUTABLE_DIR: string;
-		_: string;
 		NODE_ENV: string;
 		[key: `PUBLIC_${string}`]: undefined;
 		[key: `${string}`]: string | undefined;

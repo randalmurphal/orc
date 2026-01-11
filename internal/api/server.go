@@ -26,6 +26,7 @@ import (
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/template"
 )
 
 // Server is the orc API server.
@@ -223,6 +224,15 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/projects/{id}/tasks/{taskId}/state", cors(s.handleGetProjectTaskState))
 	s.mux.HandleFunc("GET /api/projects/{id}/tasks/{taskId}/plan", cors(s.handleGetProjectTaskPlan))
 	s.mux.HandleFunc("GET /api/projects/{id}/tasks/{taskId}/transcripts", cors(s.handleGetProjectTaskTranscripts))
+
+	// Templates
+	s.mux.HandleFunc("GET /api/templates", cors(s.handleListTemplates))
+	s.mux.HandleFunc("POST /api/templates", cors(s.handleCreateTemplate))
+	s.mux.HandleFunc("GET /api/templates/{name}", cors(s.handleGetTemplate))
+	s.mux.HandleFunc("DELETE /api/templates/{name}", cors(s.handleDeleteTemplate))
+
+	// Dashboard
+	s.mux.HandleFunc("GET /api/dashboard/stats", cors(s.handleGetDashboardStats))
 }
 
 // Start starts the API server.
@@ -2709,4 +2719,154 @@ func (s *Server) handleDeleteMCPServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// === Template Handlers ===
+
+// handleListTemplates returns all available templates.
+func (s *Server) handleListTemplates(w http.ResponseWriter, r *http.Request) {
+	templates, err := template.List()
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to list templates: %v", err), http.StatusInternalServerError)
+		return
+	}
+	s.jsonResponse(w, templates)
+}
+
+// handleGetTemplate returns a specific template by name.
+func (s *Server) handleGetTemplate(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+
+	t, err := template.Load(name)
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("template %q not found", name), http.StatusNotFound)
+		return
+	}
+
+	s.jsonResponse(w, t)
+}
+
+// handleCreateTemplate creates a template from a task.
+func (s *Server) handleCreateTemplate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TaskID      string `json:"task_id"`
+		Name        string `json:"name"`
+		Description string `json:"description,omitempty"`
+		Global      bool   `json:"global,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" {
+		s.jsonError(w, "name is required", http.StatusBadRequest)
+		return
+	}
+
+	if err := template.ValidateName(req.Name); err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if template.Exists(req.Name) {
+		s.jsonError(w, fmt.Sprintf("template %q already exists", req.Name), http.StatusConflict)
+		return
+	}
+
+	if req.TaskID == "" {
+		s.jsonError(w, "task_id is required", http.StatusBadRequest)
+		return
+	}
+
+	t, err := template.SaveFromTask(req.TaskID, req.Name, req.Description, req.Global)
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to create template: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	s.jsonResponse(w, t)
+}
+
+// handleDeleteTemplate removes a template.
+func (s *Server) handleDeleteTemplate(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+
+	t, err := template.Load(name)
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("template %q not found", name), http.StatusNotFound)
+		return
+	}
+
+	if t.Scope == template.ScopeBuiltin {
+		s.jsonError(w, "cannot delete built-in template", http.StatusForbidden)
+		return
+	}
+
+	if err := t.Delete(); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to delete template: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// === Dashboard Handlers ===
+
+// DashboardStats represents dashboard statistics.
+type DashboardStats struct {
+	Running   int     `json:"running"`
+	Paused    int     `json:"paused"`
+	Blocked   int     `json:"blocked"`
+	Completed int     `json:"completed"`
+	Failed    int     `json:"failed"`
+	Today     int     `json:"today"`
+	Total     int     `json:"total"`
+	Tokens    int64   `json:"tokens"`
+	Cost      float64 `json:"cost"`
+}
+
+// handleGetDashboardStats returns dashboard statistics.
+func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request) {
+	tasks, err := task.LoadAll()
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to load tasks: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	stats := DashboardStats{
+		Total: len(tasks),
+	}
+
+	for _, t := range tasks {
+		switch t.Status {
+		case task.StatusRunning:
+			stats.Running++
+		case task.StatusPaused:
+			stats.Paused++
+		case task.StatusBlocked:
+			stats.Blocked++
+		case task.StatusCompleted:
+			stats.Completed++
+		case task.StatusFailed:
+			stats.Failed++
+		}
+
+		// Count tasks created or updated today
+		if t.CreatedAt.After(today) || (!t.UpdatedAt.IsZero() && t.UpdatedAt.After(today)) {
+			stats.Today++
+		}
+
+		// Load state for token counts
+		if st, err := state.Load(t.ID); err == nil && st != nil {
+			stats.Tokens += int64(st.Tokens.TotalTokens)
+		}
+	}
+
+	s.jsonResponse(w, stats)
 }

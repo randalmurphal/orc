@@ -10,6 +10,7 @@
 	}
 
 	const navItems: NavItem[] = [
+		{ label: 'Dashboard', href: '/dashboard', icon: 'dashboard', section: 'main' },
 		{ label: 'Tasks', href: '/', icon: 'tasks', section: 'main' },
 		{ label: 'Prompts', href: '/prompts', icon: 'prompts', section: 'main' },
 		{ label: 'CLAUDE.md', href: '/claudemd', icon: 'file', section: 'main' },
@@ -29,6 +30,9 @@
 	function isActive(href: string): boolean {
 		if (href === '/') {
 			return $page.url.pathname === '/' || $page.url.pathname.startsWith('/tasks');
+		}
+		if (href === '/dashboard') {
+			return $page.url.pathname === '/dashboard';
 		}
 		return $page.url.pathname.startsWith(href);
 	}
@@ -109,7 +113,14 @@
 						title={!expanded ? item.label : undefined}
 					>
 						<span class="nav-icon">
-							{#if item.icon === 'tasks'}
+							{#if item.icon === 'dashboard'}
+								<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<rect x="3" y="3" width="7" height="9" />
+									<rect x="14" y="3" width="7" height="5" />
+									<rect x="14" y="12" width="7" height="9" />
+									<rect x="3" y="16" width="7" height="5" />
+								</svg>
+							{:else if item.icon === 'tasks'}
 								<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 									<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
 									<line x1="9" y1="9" x2="15" y2="9" />
