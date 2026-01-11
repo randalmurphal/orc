@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -206,10 +207,12 @@ func TestIntegration_RealRepo(t *testing.T) {
 	// Test listing PRs (read-only, safe)
 	pr, err := client.FindPRByBranch(context.Background(), "main")
 	if err != nil {
-		t.Logf("FindPRByBranch: %v (this is OK if there's no PR for main)", err)
-	} else if pr != nil {
-		t.Logf("Found PR #%d: %s", pr.Number, pr.Title)
+		if errors.Is(err, ErrNoPRFound) {
+			t.Log("No PR found for main branch (expected)")
+		} else {
+			t.Logf("FindPRByBranch error: %v", err)
+		}
 	} else {
-		t.Log("No PR found for main branch (expected)")
+		t.Logf("Found PR #%d: %s", pr.Number, pr.Title)
 	}
 }
