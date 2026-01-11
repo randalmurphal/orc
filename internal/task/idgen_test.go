@@ -104,6 +104,57 @@ func TestSequenceStore_CaseNormalization(t *testing.T) {
 	}
 }
 
+func TestSequenceStore_SetSequence(t *testing.T) {
+	tmpDir := t.TempDir()
+	seqPath := filepath.Join(tmpDir, "sequences.yaml")
+	store := NewSequenceStore(seqPath)
+
+	// Set sequence directly
+	err := store.SetSequence("AM", 100)
+	if err != nil {
+		t.Fatalf("SetSequence failed: %v", err)
+	}
+
+	// Verify it was set
+	current, err := store.GetSequence("AM")
+	if err != nil {
+		t.Fatalf("GetSequence failed: %v", err)
+	}
+	if current != 100 {
+		t.Errorf("GetSequence = %d, want 100", current)
+	}
+
+	// Next should return 101
+	next, err := store.NextSequence("AM")
+	if err != nil {
+		t.Fatalf("NextSequence failed: %v", err)
+	}
+	if next != 101 {
+		t.Errorf("NextSequence = %d, want 101", next)
+	}
+}
+
+func TestSequenceStore_SetSequence_SoloMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	seqPath := filepath.Join(tmpDir, "sequences.yaml")
+	store := NewSequenceStore(seqPath)
+
+	// Set sequence for solo mode (empty prefix)
+	err := store.SetSequence("", 50)
+	if err != nil {
+		t.Fatalf("SetSequence failed: %v", err)
+	}
+
+	// Verify it was set
+	current, err := store.GetSequence("")
+	if err != nil {
+		t.Fatalf("GetSequence failed: %v", err)
+	}
+	if current != 50 {
+		t.Errorf("GetSequence = %d, want 50", current)
+	}
+}
+
 func TestTaskIDGenerator_SoloMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
@@ -240,6 +291,56 @@ func TestTaskIDGenerator_ScanExisting(t *testing.T) {
 	}
 	if id != "TASK-AM-011" {
 		t.Errorf("ID = %s, want TASK-AM-011", id)
+	}
+}
+
+func TestTaskIDGenerator_ScanExisting_EfficientCatchUp(t *testing.T) {
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
+	seqPath := filepath.Join(tmpDir, "sequences.yaml")
+	os.MkdirAll(tasksDir, 0755)
+
+	// Create existing task far ahead (e.g., TASK-AM-100)
+	os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-100"), 0755)
+
+	store := NewSequenceStore(seqPath)
+	gen := NewTaskIDGenerator(ModeP2P, "AM",
+		WithSequenceStore(store),
+		WithTasksDir(tasksDir),
+		WithScanExisting(true),
+	)
+
+	// First call should catch up efficiently to 101
+	id1, err := gen.Next()
+	if err != nil {
+		t.Fatalf("Next() failed: %v", err)
+	}
+	if id1 != "TASK-AM-101" {
+		t.Errorf("ID = %s, want TASK-AM-101", id1)
+	}
+
+	// Verify store was set to 100 (maxExisting), so NextSequence returns 101
+	current, _ := store.GetSequence("AM")
+	if current != 100 {
+		t.Errorf("stored sequence after catch-up = %d, want 100", current)
+	}
+
+	// Simulate task creation by adding the directory
+	os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-101"), 0755)
+
+	// Next call should return 102 (101 from NextSequence, but 101 exists, so catches up)
+	id2, err := gen.Next()
+	if err != nil {
+		t.Fatalf("Next() failed: %v", err)
+	}
+	if id2 != "TASK-AM-102" {
+		t.Errorf("ID = %s, want TASK-AM-102", id2)
+	}
+
+	// Verify the stored sequence is 101 (set from maxExisting after catch-up)
+	current, _ = store.GetSequence("AM")
+	if current != 101 {
+		t.Errorf("stored sequence = %d, want 101", current)
 	}
 }
 
