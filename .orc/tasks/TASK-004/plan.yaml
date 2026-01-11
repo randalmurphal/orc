@@ -1,0 +1,45 @@
+version: 1
+task_id: TASK-004
+weight: small
+description: Small task - implement with tests, fully automated
+phases:
+    - id: implement
+      name: implement
+      prompt: |
+        Implement the following task:
+
+        Task: {{TASK_TITLE}}
+
+        {{RETRY_CONTEXT}}
+
+        1. Implement the required changes
+        2. Write/update tests as needed
+        3. Run tests and fix any failures
+
+        Keep iterating until implementation is complete and all tests pass.
+
+        When done, output:
+        <phase_complete>true</phase_complete>
+      gate:
+        type: auto
+      checkpoint: true
+      status: pending
+    - id: test
+      name: test
+      prompt: |
+        Final test verification for: {{TASK_TITLE}}
+
+        1. Run the full test suite
+        2. Fix any failures found
+        3. Verify edge cases are covered
+
+        Keep iterating until all tests pass.
+
+        When done, output:
+        <phase_complete>true</phase_complete>
+      depends_on:
+        - implement
+      gate:
+        type: auto
+      checkpoint: true
+      status: pending

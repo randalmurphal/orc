@@ -1,7 +1,8 @@
 # Orc v1.0 Progress
 
-## Current Focus
-- [ ] Working on: Task Templates (P1)
+## Current Status: Feature Complete
+
+All planned P0 and P1 features are implemented. Focus is now on refinement and bug fixes.
 
 ## P0 Features (ALL COMPLETE)
 - [x] Error Standards (100%)
@@ -30,24 +31,38 @@
   - Weight classification: trivial, small, medium, large, greenfield
   - Analysis output: scope, affected files, risks, dependencies, test strategy
 
-## P1 Features
+## P1 Features (ALL COMPLETE)
 - [x] Cost Tracking (100%)
   - GET /api/cost/summary endpoint with period filtering (day/week/month/all)
   - orc cost CLI with --period flag
   - BudgetConfig in config.yaml for threshold alerts
   - Budget warning in API and CLI output
-- [ ] Task Templates (0%)
-- [ ] Web Dashboard (0%)
+- [x] Task Templates (100%)
+  - internal/template package with built-in templates
+  - 5 templates: bugfix, feature, migration, refactor, spike
+  - CLI: orc template list, orc template create
+  - API: /api/templates endpoints
+- [x] Web Dashboard (100%)
+  - Dashboard component with quick stats
+  - Connection status indicator (WebSocket)
+  - Active tasks and recent activity views
+  - Real-time updates via WebSocket
 - [x] Project Detection (100%) - Implemented as part of Init Wizard
-- [ ] Keyboard Shortcuts (0%)
+- [x] Keyboard Shortcuts (100%)
+  - CommandPalette (Cmd+K)
+  - Navigation shortcuts (g+d, g+t, g+s, etc.)
+  - Task list navigation (j/k/Enter/r/p/d)
+  - Help modal (?)
+
+## Bug Fixes (2026-01-11)
+- [x] Config loader: Added missing merge handlers for task_id and identity sections
+- [x] Cost tracking: Fixed timestamp format mismatch (SQLite datetime vs RFC3339)
+- [x] Removed empty internal/transcript directory
 
 ## Last Updated
-2026-01-10 20:00:00
+2026-01-11
 
 ## Notes
 - Error standards: 95.9% test coverage on errors package
 - Session interop leverages llmkit/claude/session package
-- Cost tracking infrastructure added to state.yaml
-- Init wizard with project detection implemented and tested
-- Task enhancement with AI analysis implemented and tested
-- All P0 features COMPLETE!
+- All tests passing

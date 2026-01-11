@@ -174,6 +174,6 @@ Example:
 	cmd.Flags().StringP("weight", "w", "", "task weight (trivial, small, medium, large, greenfield)")
 	cmd.Flags().StringP("description", "d", "", "task description")
 	cmd.Flags().StringP("template", "t", "", "use template (bugfix, feature, refactor, migration, spike)")
-	cmd.Flags().StringSliceP("var", "v", nil, "template variable (KEY=VALUE)")
+	cmd.Flags().StringSlice("var", nil, "template variable (KEY=VALUE)")
 	return cmd
 }
