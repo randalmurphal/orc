@@ -139,6 +139,7 @@
 					placeholder="Add a comment..."
 					rows="2"
 					disabled={isSubmitting}
+					aria-label="Review comment"
 				></textarea>
 				<div class="form-actions">
 					<button type="button" class="cancel-btn" onclick={handleCancel}>

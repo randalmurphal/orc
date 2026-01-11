@@ -5,6 +5,7 @@
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import type { DiffResult, FileDiff, ReviewComment, CreateCommentRequest } from '$lib/types';
 	import { getReviewComments, createReviewComment, updateReviewComment, deleteReviewComment, triggerReviewRetry } from '$lib/api';
+	import { toast } from '$lib/stores/toast.svelte';
 
 	interface Props {
 		taskId: string;
@@ -46,25 +47,46 @@
 	}
 
 	async function handleAddComment(comment: CreateCommentRequest): Promise<void> {
-		const newComment = await createReviewComment(taskId, comment);
-		comments = [...comments, newComment];
-		activeLineNumber = null;
-		activeFilePath = null;
+		try {
+			const newComment = await createReviewComment(taskId, comment);
+			comments = [...comments, newComment];
+			activeLineNumber = null;
+			activeFilePath = null;
+			toast.success('Comment added');
+		} catch (e) {
+			toast.error('Failed to add comment');
+			throw e;
+		}
 	}
 
 	async function handleResolveComment(id: string) {
-		const updated = await updateReviewComment(taskId, id, { status: 'resolved' });
-		comments = comments.map(c => c.id === id ? updated : c);
+		try {
+			const updated = await updateReviewComment(taskId, id, { status: 'resolved' });
+			comments = comments.map(c => c.id === id ? updated : c);
+			toast.success('Comment resolved');
+		} catch (e) {
+			toast.error('Failed to resolve comment');
+		}
 	}
 
 	async function handleWontFixComment(id: string) {
-		const updated = await updateReviewComment(taskId, id, { status: 'wont_fix' });
-		comments = comments.map(c => c.id === id ? updated : c);
+		try {
+			const updated = await updateReviewComment(taskId, id, { status: 'wont_fix' });
+			comments = comments.map(c => c.id === id ? updated : c);
+			toast.success('Marked as won\'t fix');
+		} catch (e) {
+			toast.error('Failed to update comment');
+		}
 	}
 
 	async function handleDeleteComment(id: string) {
-		await deleteReviewComment(taskId, id);
-		comments = comments.filter(c => c.id !== id);
+		try {
+			await deleteReviewComment(taskId, id);
+			comments = comments.filter(c => c.id !== id);
+			toast.success('Comment deleted');
+		} catch (e) {
+			toast.error('Failed to delete comment');
+		}
 	}
 
 	function handleLineClick(lineNumber: number, filePath: string) {
