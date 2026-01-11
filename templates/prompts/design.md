@@ -56,11 +56,9 @@ Use ASCII diagrams for:
 
 ## Output Format
 
-### Design Document
+Create the design document and wrap it in artifact tags for automatic persistence:
 
-Save to `.orc/tasks/{{TASK_ID}}/artifacts/design.md`:
-
-```markdown
+<artifact>
 # Design: {{TASK_TITLE}}
 
 ## Overview
@@ -149,23 +147,18 @@ User Input
 ## Open Questions
 
 [Any remaining design questions - or "None"]
-```
+</artifact>
 
 ## Phase Completion
 
-### Commit Design
+After completing the design, commit your changes:
 
 ```bash
 git add -A
-git commit -m "[orc] {{TASK_ID}}: design - completed
-
-Phase: design
-Status: completed
-Artifact: artifacts/design.md
-"
+git commit -m "[orc] {{TASK_ID}}: design - completed"
 ```
 
-### Output Completion
+Then output:
 
 ```
 ### Design Summary

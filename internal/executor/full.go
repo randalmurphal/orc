@@ -222,6 +222,14 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 			result.Status = plan.PhaseCompleted
 			result.Output = turnResult.Content
 
+			// Save artifact on success
+			if artifactPath, err := SavePhaseArtifact(t.ID, p.ID, result.Output); err != nil {
+				e.logger.Warn("failed to save phase artifact", "error", err)
+			} else if artifactPath != "" {
+				result.Artifacts = append(result.Artifacts, artifactPath)
+				e.logger.Info("saved phase artifact", "path", artifactPath)
+			}
+
 			// Create git checkpoint on completion
 			if e.gitSvc != nil {
 				checkpoint, err := e.gitSvc.CreateCheckpoint(t.ID, p.ID, "completed")

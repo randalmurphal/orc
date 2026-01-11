@@ -54,9 +54,9 @@ Document:
 
 ## Output Format
 
-Create the spec in this format:
+Create the spec and wrap it in artifact tags for automatic persistence:
 
-```markdown
+<artifact>
 # Specification: {{TASK_TITLE}}
 
 ## Problem Statement
@@ -93,25 +93,18 @@ Create the spec in this format:
 
 ## Open Questions
 [Any questions needing clarification - or "None"]
-```
+</artifact>
 
 ## Phase Completion
 
-### Commit the Spec
-
-Save the spec to `.orc/tasks/{{TASK_ID}}/artifacts/spec.md` and commit:
+After completing the spec, commit your changes:
 
 ```bash
 git add -A
-git commit -m "[orc] {{TASK_ID}}: spec - completed
-
-Phase: spec
-Status: completed
-Artifact: artifacts/spec.md
-"
+git commit -m "[orc] {{TASK_ID}}: spec - completed"
 ```
 
-### Output Completion
+Then output:
 
 ```
 ### Spec Summary

@@ -96,18 +96,29 @@ This checkpoint enables rollback if later phases fail.
 
 ### Step 8: Output Completion
 
-```
-### Implementation Summary
+Wrap your implementation summary in artifact tags for automatic persistence:
 
-**Files Changed**: [count]
+<artifact>
+## Implementation Summary
+
+**Task**: {{TASK_TITLE}}
+
+### Files Changed
 - [file1]: [description]
 - [file2]: [description]
 
-**Success Criteria Met**: [count]/[total]
+### Success Criteria Met
+- [x] [Criterion 1]
+- [x] [Criterion 2]
 
+### Notes
+[Any deviations or decisions made]
+</artifact>
+
+Then output the completion marker:
+
+```
 **Commit**: [commit SHA]
-
-**Notes**: [any deviations or decisions made]
 
 <phase_complete>true</phase_complete>
 ```

@@ -7,19 +7,10 @@ You are creating and updating documentation after implementation is complete.
 **Task ID**: {{TASK_ID}}
 **Task**: {{TASK_TITLE}}
 **Weight**: {{WEIGHT}}
-**Project Type**: {{PROJECT_TYPE}}
 
 ## Implementation Summary
 
-{{IMPLEMENTATION_SUMMARY}}
-
-## Files Changed
-
-{{FILES_CHANGED}}
-
-## Current Documentation Status
-
-{{DOC_STATUS}}
+{{IMPLEMENT_CONTENT}}
 
 ## Instructions
 
@@ -76,42 +67,41 @@ Ensure CLAUDE.md files are:
 
 ## Output Format
 
-### Documentation Changes
+Create a documentation summary and wrap it in artifact tags for automatic persistence:
 
-For each file created or updated:
+<artifact>
+## Documentation Summary
 
-```markdown
-### [Created/Updated]: path/to/doc.md
+**Task**: {{TASK_TITLE}}
 
-**Reason**: [Why this doc needed creation/update]
+### Auto-Updated Sections
+Look for sections marked with `<!-- orc:auto:* -->` and regenerate them:
+- `<!-- orc:auto:api-endpoints -->` - API endpoints table
+- `<!-- orc:auto:commands -->` - CLI commands table
+- `<!-- orc:auto:config -->` - Configuration options
 
-**Content Summary**: [Brief description of content]
-```
+### Docs Created
+- [path/to/doc.md]: [purpose]
+
+### Docs Updated
+- [path/to/doc.md]: [what changed]
+
+### CLAUDE.md Status
+[created/updated/verified]
+</artifact>
 
 ## Phase Completion
 
-### Commit Documentation
+After completing documentation updates, commit your changes:
 
 ```bash
 git add -A
-git commit -m "[orc] {{TASK_ID}}: docs - completed
-
-Phase: docs
-Status: completed
-Docs created: [count]
-Docs updated: [count]
-"
+git commit -m "[orc] {{TASK_ID}}: docs - completed"
 ```
 
-### Output Completion
+Then output:
 
 ```
-### Documentation Summary
-
-**Project Type**: {{PROJECT_TYPE}}
-**Docs Created**: [list]
-**Docs Updated**: [list]
-**CLAUDE.md Status**: [created/updated/verified]
 **Commit**: [commit SHA]
 
 <phase_complete>true</phase_complete>
