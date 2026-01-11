@@ -8,7 +8,9 @@ phases:
     prompt: |
       Complete this task:
 
-      Task: {{TASK_TITLE}}
+      **Task**: {{TASK_TITLE}}
+
+      **Description**: {{TASK_DESCRIPTION}}
 
       {{RETRY_CONTEXT}}
 

@@ -64,8 +64,7 @@ func init() {
 	rootCmd.AddCommand(newRewindCmd())
 	rootCmd.AddCommand(newStatusCmd())
 	rootCmd.AddCommand(newLogCmd())
-	// TODO: diff command pending implementation - currently a stub
-	// rootCmd.AddCommand(newDiffCmd())
+	rootCmd.AddCommand(newDiffCmd())
 	rootCmd.AddCommand(newApproveCmd())
 	rootCmd.AddCommand(newRejectCmd())
 	rootCmd.AddCommand(newExportCmd())
@@ -75,6 +74,7 @@ func init() {
 	rootCmd.AddCommand(newServeCmd())
 	rootCmd.AddCommand(newSkipCmd())
 	rootCmd.AddCommand(newCleanupCmd())
+	rootCmd.AddCommand(newDeleteCmd())
 	rootCmd.AddCommand(newPoolCmd())
 	rootCmd.AddCommand(newProjectsCmd())
 	rootCmd.AddCommand(newTeamCmd())
