@@ -146,8 +146,14 @@
 		background: var(--bg-surface) !important;
 	}
 
-	.line-num.clickable:hover .add-icon {
+	.line-num.clickable:hover .add-icon,
+	.line-num.clickable:focus .add-icon {
 		display: block;
+	}
+
+	.line-num.clickable:focus {
+		outline: 2px solid var(--accent-primary);
+		outline-offset: -2px;
 	}
 
 	.line-num.has-comments {
