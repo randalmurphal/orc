@@ -110,6 +110,9 @@
 		sendingToAgent = true;
 		try {
 			await triggerReviewRetry(taskId);
+			toast.success('Comments sent to agent for review');
+		} catch (e) {
+			toast.error('Failed to send comments to agent');
 		} finally {
 			sendingToAgent = false;
 		}
