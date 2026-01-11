@@ -11,19 +11,12 @@
 	}
 
 	const navItems: NavItem[] = [
+		// Main views
 		{ label: 'Dashboard', href: '/dashboard', icon: 'dashboard', section: 'main' },
 		{ label: 'Tasks', href: '/', icon: 'tasks', section: 'main' },
 		{ label: 'Board', href: '/board', icon: 'board', section: 'main' },
-		{ label: 'Prompts', href: '/prompts', icon: 'prompts', section: 'main' },
-		{ label: 'CLAUDE.md', href: '/claudemd', icon: 'file', section: 'main' },
-		{ label: 'Skills', href: '/skills', icon: 'skills', section: 'main' },
-		{ label: 'Hooks', href: '/hooks', icon: 'hooks', section: 'main' },
-		{ label: 'MCP', href: '/mcp', icon: 'mcp', section: 'main' },
-		{ label: 'Tools', href: '/tools', icon: 'tools', section: 'main' },
-		{ label: 'Agents', href: '/agents', icon: 'agents', section: 'main' },
-		{ label: 'Scripts', href: '/scripts', icon: 'scripts', section: 'main' },
-		{ label: 'Settings', href: '/settings', icon: 'settings', section: 'config' },
-		{ label: 'Config', href: '/config', icon: 'config', section: 'config' }
+		// Configuration hub
+		{ label: 'Settings', href: '/settings', icon: 'settings', section: 'config' }
 	];
 
 	let expanded = $state(false);
