@@ -124,11 +124,11 @@ type RetryContext struct {
     PreviousContext string          // Summary from previous session
 }
 
-func BuildRetryContextForFreshSession(task *Task, failedPhase string, opts RetryOptions) string
+func BuildRetryContextForFreshSession(opts RetryOptions) string
 ```
 
 Context injection includes:
-- **Failure output**: Last 1000 chars of what went wrong
+- **Failure output**: Last 1500 chars of what went wrong
 - **Review comments**: Grouped by file with line numbers and severity
 - **PR comments**: GitHub PR review feedback
 - **User instructions**: Additional guidance from retry UI

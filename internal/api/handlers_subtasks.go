@@ -34,7 +34,7 @@ func (s *Server) handleListSubtasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -63,7 +63,7 @@ func (s *Server) handleListPendingSubtasks(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -101,7 +101,7 @@ func (s *Server) handleCreateSubtask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -136,7 +136,7 @@ func (s *Server) handleCreateSubtask(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetSubtask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -166,7 +166,7 @@ func (s *Server) handleApproveSubtask(w http.ResponseWriter, r *http.Request) {
 		req.ApprovedBy = ""
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -192,7 +192,7 @@ func (s *Server) handleRejectSubtask(w http.ResponseWriter, r *http.Request) {
 		req.Reason = ""
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -211,7 +211,7 @@ func (s *Server) handleRejectSubtask(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeleteSubtask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return

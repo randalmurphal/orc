@@ -45,7 +45,7 @@ func (s *Server) handleListReviewComments(w http.ResponseWriter, r *http.Request
 
 	status := r.URL.Query().Get("status")
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -94,7 +94,7 @@ func (s *Server) handleCreateReviewComment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -141,7 +141,7 @@ func (s *Server) handleGetReviewComment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -169,7 +169,7 @@ func (s *Server) handleUpdateReviewComment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -235,7 +235,7 @@ func (s *Server) handleDeleteReviewComment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -258,7 +258,7 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -300,7 +300,7 @@ func (s *Server) handleGetReviewStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
