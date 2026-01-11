@@ -1,0 +1,565 @@
+package db
+
+import (
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+func TestOpen(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if db.Path() != dbPath {
+		t.Errorf("Path() = %q, want %q", db.Path(), dbPath)
+	}
+
+	// Verify pragmas are set
+	var journalMode string
+	if err := db.QueryRow("PRAGMA journal_mode").Scan(&journalMode); err != nil {
+		t.Fatalf("query journal_mode: %v", err)
+	}
+	if journalMode != "wal" {
+		t.Errorf("journal_mode = %q, want wal", journalMode)
+	}
+}
+
+func TestOpen_CreatesParentDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "subdir", "nested", "test.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	db.Close()
+}
+
+func TestMigrate(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	// Migrate global schema
+	if err := db.Migrate("global"); err != nil {
+		t.Fatalf("Migrate global failed: %v", err)
+	}
+
+	// Verify tables exist
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM projects").Scan(&count); err != nil {
+		t.Errorf("projects table not created: %v", err)
+	}
+
+	// Run again - should be idempotent
+	if err := db.Migrate("global"); err != nil {
+		t.Fatalf("Second Migrate failed: %v", err)
+	}
+}
+
+func TestMigrate_Project(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate project failed: %v", err)
+	}
+
+	// Verify all tables exist
+	tables := []string{"detection", "tasks", "phases", "transcripts", "transcripts_fts"}
+	for _, table := range tables {
+		var name string
+		err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name)
+		if err != nil {
+			t.Errorf("table %s not created: %v", table, err)
+		}
+	}
+}
+
+func TestGlobalDB_Projects(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "global.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("global"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	gdb := &GlobalDB{DB: db}
+
+	// Create project
+	p := Project{
+		ID:        "proj-001",
+		Name:      "Test Project",
+		Path:      "/home/user/test",
+		Language:  "go",
+		CreatedAt: time.Now(),
+	}
+
+	if err := gdb.SyncProject(p); err != nil {
+		t.Fatalf("SyncProject failed: %v", err)
+	}
+
+	// Get by ID
+	got, err := gdb.GetProject("proj-001")
+	if err != nil {
+		t.Fatalf("GetProject failed: %v", err)
+	}
+	if got.Name != p.Name {
+		t.Errorf("Name = %q, want %q", got.Name, p.Name)
+	}
+	if got.Path != p.Path {
+		t.Errorf("Path = %q, want %q", got.Path, p.Path)
+	}
+
+	// Get by path
+	got2, err := gdb.GetProjectByPath("/home/user/test")
+	if err != nil {
+		t.Fatalf("GetProjectByPath failed: %v", err)
+	}
+	if got2.ID != p.ID {
+		t.Errorf("ID = %q, want %q", got2.ID, p.ID)
+	}
+
+	// List
+	projects, err := gdb.ListProjects()
+	if err != nil {
+		t.Fatalf("ListProjects failed: %v", err)
+	}
+	if len(projects) != 1 {
+		t.Errorf("len(projects) = %d, want 1", len(projects))
+	}
+
+	// Update
+	p.Name = "Updated Name"
+	if err := gdb.SyncProject(p); err != nil {
+		t.Fatalf("SyncProject update failed: %v", err)
+	}
+
+	got3, _ := gdb.GetProject("proj-001")
+	if got3.Name != "Updated Name" {
+		t.Errorf("Name after update = %q, want %q", got3.Name, "Updated Name")
+	}
+
+	// Delete
+	if err := gdb.DeleteProject("proj-001"); err != nil {
+		t.Fatalf("DeleteProject failed: %v", err)
+	}
+
+	projects, _ = gdb.ListProjects()
+	if len(projects) != 0 {
+		t.Errorf("len(projects) after delete = %d, want 0", len(projects))
+	}
+}
+
+func TestGlobalDB_CostTracking(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "global.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("global"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	gdb := &GlobalDB{DB: db}
+
+	// Record some costs
+	if err := gdb.RecordCost("proj-1", "TASK-001", "implement", 0.05, 1000, 500); err != nil {
+		t.Fatalf("RecordCost failed: %v", err)
+	}
+	if err := gdb.RecordCost("proj-1", "TASK-001", "test", 0.03, 600, 300); err != nil {
+		t.Fatalf("RecordCost failed: %v", err)
+	}
+	if err := gdb.RecordCost("proj-2", "TASK-002", "implement", 0.10, 2000, 1000); err != nil {
+		t.Fatalf("RecordCost failed: %v", err)
+	}
+
+	// Get summary (all projects)
+	since := time.Now().Add(-1 * time.Hour)
+	summary, err := gdb.GetCostSummary("", since)
+	if err != nil {
+		t.Fatalf("GetCostSummary failed: %v", err)
+	}
+
+	if summary.TotalCostUSD != 0.18 {
+		t.Errorf("TotalCostUSD = %f, want 0.18", summary.TotalCostUSD)
+	}
+	if summary.EntryCount != 3 {
+		t.Errorf("EntryCount = %d, want 3", summary.EntryCount)
+	}
+
+	// Get summary (specific project)
+	summary2, err := gdb.GetCostSummary("proj-1", since)
+	if err != nil {
+		t.Fatalf("GetCostSummary proj-1 failed: %v", err)
+	}
+
+	if summary2.TotalCostUSD != 0.08 {
+		t.Errorf("TotalCostUSD for proj-1 = %f, want 0.08", summary2.TotalCostUSD)
+	}
+}
+
+func TestProjectDB_Detection(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Store detection
+	d := &Detection{
+		Language:    "go",
+		Frameworks:  []string{"cobra", "viper"},
+		BuildTools:  []string{"go"},
+		HasTests:    true,
+		TestCommand: "go test ./...",
+		LintCommand: "golangci-lint run",
+	}
+
+	if err := pdb.StoreDetection(d); err != nil {
+		t.Fatalf("StoreDetection failed: %v", err)
+	}
+
+	// Load detection
+	got, err := pdb.LoadDetection()
+	if err != nil {
+		t.Fatalf("LoadDetection failed: %v", err)
+	}
+
+	if got.Language != d.Language {
+		t.Errorf("Language = %q, want %q", got.Language, d.Language)
+	}
+	if len(got.Frameworks) != 2 {
+		t.Errorf("len(Frameworks) = %d, want 2", len(got.Frameworks))
+	}
+	if !got.HasTests {
+		t.Error("HasTests = false, want true")
+	}
+}
+
+func TestProjectDB_Tasks(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create task
+	now := time.Now()
+	task := &Task{
+		ID:          "TASK-001",
+		Title:       "Fix login bug",
+		Description: "Users can't login with special characters",
+		Weight:      "small",
+		Status:      "created",
+		CreatedAt:   now,
+	}
+
+	if err := pdb.SaveTask(task); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
+
+	// Get task
+	got, err := pdb.GetTask("TASK-001")
+	if err != nil {
+		t.Fatalf("GetTask failed: %v", err)
+	}
+	if got.Title != task.Title {
+		t.Errorf("Title = %q, want %q", got.Title, task.Title)
+	}
+
+	// List tasks
+	tasks, total, err := pdb.ListTasks(ListOpts{})
+	if err != nil {
+		t.Fatalf("ListTasks failed: %v", err)
+	}
+	if total != 1 {
+		t.Errorf("total = %d, want 1", total)
+	}
+	if len(tasks) != 1 {
+		t.Errorf("len(tasks) = %d, want 1", len(tasks))
+	}
+
+	// Update task
+	startedAt := time.Now()
+	task.Status = "running"
+	task.StartedAt = &startedAt
+	if err := pdb.SaveTask(task); err != nil {
+		t.Fatalf("SaveTask update failed: %v", err)
+	}
+
+	got2, _ := pdb.GetTask("TASK-001")
+	if got2.Status != "running" {
+		t.Errorf("Status = %q, want running", got2.Status)
+	}
+	if got2.StartedAt == nil {
+		t.Error("StartedAt is nil, want non-nil")
+	}
+
+	// Add more tasks and test filtering
+	task2 := &Task{ID: "TASK-002", Title: "Task 2", Status: "completed", CreatedAt: now}
+	task3 := &Task{ID: "TASK-003", Title: "Task 3", Status: "running", CreatedAt: now}
+	pdb.SaveTask(task2)
+	pdb.SaveTask(task3)
+
+	// Filter by status
+	running, _, _ := pdb.ListTasks(ListOpts{Status: "running"})
+	if len(running) != 2 {
+		t.Errorf("running tasks = %d, want 2", len(running))
+	}
+
+	// Pagination
+	page, _, _ := pdb.ListTasks(ListOpts{Limit: 2})
+	if len(page) != 2 {
+		t.Errorf("paginated tasks = %d, want 2", len(page))
+	}
+
+	// Delete
+	if err := pdb.DeleteTask("TASK-001"); err != nil {
+		t.Fatalf("DeleteTask failed: %v", err)
+	}
+
+	deleted, _ := pdb.GetTask("TASK-001")
+	if deleted != nil {
+		t.Error("task still exists after delete")
+	}
+}
+
+func TestProjectDB_Phases(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create task first
+	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
+	pdb.SaveTask(task)
+
+	// Save phases
+	now := time.Now()
+	phases := []Phase{
+		{TaskID: "TASK-001", PhaseID: "implement", Status: "completed", Iterations: 1, StartedAt: &now, CompletedAt: &now},
+		{TaskID: "TASK-001", PhaseID: "test", Status: "running", Iterations: 2, StartedAt: &now},
+	}
+
+	for _, ph := range phases {
+		if err := pdb.SavePhase(&ph); err != nil {
+			t.Fatalf("SavePhase failed: %v", err)
+		}
+	}
+
+	// Get phases
+	got, err := pdb.GetPhases("TASK-001")
+	if err != nil {
+		t.Fatalf("GetPhases failed: %v", err)
+	}
+	if len(got) != 2 {
+		t.Errorf("len(phases) = %d, want 2", len(got))
+	}
+
+	// Update phase
+	phases[1].Status = "completed"
+	phases[1].CompletedAt = &now
+	if err := pdb.SavePhase(&phases[1]); err != nil {
+		t.Fatalf("SavePhase update failed: %v", err)
+	}
+
+	got2, _ := pdb.GetPhases("TASK-001")
+	for _, ph := range got2 {
+		if ph.PhaseID == "test" && ph.Status != "completed" {
+			t.Error("test phase not updated")
+		}
+	}
+}
+
+func TestProjectDB_Transcripts(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create task
+	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
+	pdb.SaveTask(task)
+
+	// Add transcripts
+	transcripts := []Transcript{
+		{TaskID: "TASK-001", Phase: "implement", Iteration: 1, Role: "user", Content: "Fix the authentication bug"},
+		{TaskID: "TASK-001", Phase: "implement", Iteration: 1, Role: "assistant", Content: "I'll fix the authentication module"},
+		{TaskID: "TASK-001", Phase: "test", Iteration: 1, Role: "user", Content: "Run the test suite"},
+	}
+
+	for i := range transcripts {
+		if err := pdb.AddTranscript(&transcripts[i]); err != nil {
+			t.Fatalf("AddTranscript failed: %v", err)
+		}
+		if transcripts[i].ID == 0 {
+			t.Error("transcript ID not set")
+		}
+	}
+
+	// Get transcripts
+	got, err := pdb.GetTranscripts("TASK-001")
+	if err != nil {
+		t.Fatalf("GetTranscripts failed: %v", err)
+	}
+	if len(got) != 3 {
+		t.Errorf("len(transcripts) = %d, want 3", len(got))
+	}
+}
+
+func TestProjectDB_TranscriptSearch(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create task and transcripts
+	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
+	pdb.SaveTask(task)
+
+	transcripts := []Transcript{
+		{TaskID: "TASK-001", Phase: "implement", Iteration: 1, Role: "assistant", Content: "Fixed the authentication bug in login handler"},
+		{TaskID: "TASK-001", Phase: "test", Iteration: 1, Role: "assistant", Content: "All unit tests are passing now"},
+		{TaskID: "TASK-001", Phase: "implement", Iteration: 1, Role: "assistant", Content: "Updated the database schema"},
+	}
+
+	for i := range transcripts {
+		pdb.AddTranscript(&transcripts[i])
+	}
+
+	// Search for "authentication"
+	matches, err := pdb.SearchTranscripts("authentication")
+	if err != nil {
+		t.Fatalf("SearchTranscripts failed: %v", err)
+	}
+	if len(matches) != 1 {
+		t.Errorf("len(matches) for 'authentication' = %d, want 1", len(matches))
+	}
+
+	// Search for "test"
+	matches2, err := pdb.SearchTranscripts("tests")
+	if err != nil {
+		t.Fatalf("SearchTranscripts failed: %v", err)
+	}
+	if len(matches2) != 1 {
+		t.Errorf("len(matches) for 'tests' = %d, want 1", len(matches2))
+	}
+}
+
+func TestProjectDB_CascadeDelete(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create task with phases and transcripts
+	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
+	pdb.SaveTask(task)
+
+	now := time.Now()
+	pdb.SavePhase(&Phase{TaskID: "TASK-001", PhaseID: "implement", Status: "completed", StartedAt: &now})
+	pdb.AddTranscript(&Transcript{TaskID: "TASK-001", Phase: "implement", Content: "Test content"})
+
+	// Delete task - should cascade
+	if err := pdb.DeleteTask("TASK-001"); err != nil {
+		t.Fatalf("DeleteTask failed: %v", err)
+	}
+
+	// Verify phases deleted
+	phases, _ := pdb.GetPhases("TASK-001")
+	if len(phases) != 0 {
+		t.Error("phases not deleted on cascade")
+	}
+
+	// Verify transcripts deleted
+	transcripts, _ := pdb.GetTranscripts("TASK-001")
+	if len(transcripts) != 0 {
+		t.Error("transcripts not deleted on cascade")
+	}
+}

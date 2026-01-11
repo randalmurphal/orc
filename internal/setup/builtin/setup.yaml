@@ -1,0 +1,82 @@
+# orc Setup Prompt Template
+# This template generates the prompt for interactive project setup
+
+You are setting up a project for use with orc, a Claude Code task orchestrator.
+
+## Project Detection Results
+
+| Property | Value |
+|----------|-------|
+| **Project** | {{.ProjectName}} |
+| **Path** | {{.ProjectPath}} |
+| **Language** | {{if .Language}}{{.Language}}{{else}}unknown{{end}} |
+| **Size** | {{.ProjectSize}} |
+{{if .Frameworks}}| **Frameworks** | {{range $i, $f := .Frameworks}}{{if $i}}, {{end}}{{$f}}{{end}} |
+{{end}}{{if .BuildTools}}| **Build Tools** | {{range $i, $t := .BuildTools}}{{if $i}}, {{end}}{{$t}}{{end}} |
+{{end}}{{if .HasTests}}| **Has Tests** | yes |
+{{end}}{{if .TestCommand}}| **Test Command** | `{{.TestCommand}}` |
+{{end}}{{if .LintCommand}}| **Lint Command** | `{{.LintCommand}}` |
+{{end}}
+
+{{if .ExistingClaudeMD}}
+## Existing CLAUDE.md
+
+The project already has a CLAUDE.md file with this content:
+
+```markdown
+{{.ExistingClaudeMD}}
+```
+
+Your task is to ADD an orc-specific section to this file, not replace it.
+{{end}}
+
+## Your Task
+
+Configure this project for optimal use with orc. Based on the project size, take the appropriate approach:
+
+{{if eq .ProjectSize "small"}}
+### Small Project Approach
+- Quick scan of the codebase structure
+- Add minimal orc section to CLAUDE.md
+- Document key entry points and patterns
+{{else if eq .ProjectSize "medium"}}
+### Medium Project Approach
+- Sample key files to understand patterns
+- Document code conventions and architecture
+- Create helpful prompts if patterns are complex
+{{else if eq .ProjectSize "large"}}
+### Large Project Approach
+- Ask what areas the user wants to focus on
+- Document incrementally, starting with priority areas
+- Consider creating a project-profile.yaml for common settings
+{{else}}
+### Monorepo Approach
+- Ask which packages/projects to focus on
+- Create per-package documentation if needed
+- Set up workspace-aware configuration
+{{end}}
+
+## Actions to Consider
+
+1. **CLAUDE.md Update** (Recommended)
+   - Add an "## orc" section with:
+     - Task weights for common operations
+     - Phase preferences for this project
+     - Any project-specific gates or approval flows
+
+2. **Skills** (Optional)
+   - Create `.claude/skills/` if project has complex patterns worth documenting
+   - Skills should be concise (< 200 lines) and focused
+
+3. **Prompts** (Optional)
+   - Create `.orc/prompts/` overrides if default phase prompts don't fit
+   - Only create what's needed - defaults work for most projects
+
+## Guidelines
+
+- **Be concise** - use tables over prose, bullet points over paragraphs
+- **Focus on automation** - what would help orc run tasks with less friction?
+- **Don't over-engineer** - start minimal, user can add more later
+- **Ask when unclear** - if the project structure is unusual, ask for guidance
+
+Ready to begin? Start by exploring the project to understand its structure.

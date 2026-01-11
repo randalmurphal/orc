@@ -4,7 +4,8 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/randalmurphal/orc/internal/wizard"
+	"github.com/randalmurphal/orc/internal/bootstrap"
+	"github.com/randalmurphal/orc/internal/config"
 )
 
 // newInitCmd creates the init command
@@ -12,39 +13,43 @@ func newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize orc in current project",
-		Long: `Initialize orc configuration in the current directory.
+		Long: `Initialize orc in the current directory.
 
-Creates .orc/ directory with:
-  • config.yaml - project configuration
-  • tasks/ - task storage directory
+This is a fast, instant initialization (< 500ms) that:
+  • Creates .orc/ directory with config.yaml
+  • Creates SQLite database for task tracking
+  • Detects project type and stores results
+  • Registers project in global registry
+  • Updates .gitignore
 
-Detects project type and suggests appropriate settings.
-Also registers the project in the global registry (~/.orc/projects.yaml).
+For AI-powered project configuration, run 'orc setup' after init.
 
 Example:
-  orc init            # Interactive initialization
-  orc init --quick    # Non-interactive with defaults
-  orc init --force    # Overwrite existing config`,
+  orc init                    # Instant initialization
+  orc init --force            # Reinitialize existing project
+  orc init --profile strict   # Initialize with strict profile`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			force, _ := cmd.Flags().GetBool("force")
-			quick, _ := cmd.Flags().GetBool("quick")
 			profile, _ := cmd.Flags().GetString("profile")
 
-			result, err := wizard.Run(wizard.Options{
-				Force:   force,
-				Quick:   quick,
-				Profile: profile,
-			})
+			opts := bootstrap.Options{
+				Force: force,
+			}
+
+			if profile != "" {
+				opts.Profile = config.AutomationProfile(profile)
+			}
+
+			result, err := bootstrap.Run(opts)
 			if err != nil {
 				return err
 			}
 
-			wizard.PrintResult(result)
+			bootstrap.PrintResult(result)
 			return nil
 		},
 	}
 	cmd.Flags().Bool("force", false, "overwrite existing configuration")
-	cmd.Flags().Bool("quick", false, "skip interactive prompts, use defaults")
 	cmd.Flags().String("profile", "", "set automation profile (auto, fast, safe, strict)")
 	return cmd
 }
