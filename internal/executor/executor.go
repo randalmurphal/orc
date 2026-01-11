@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -15,7 +14,6 @@ import (
 	"github.com/randalmurphal/flowgraph/pkg/flowgraph/checkpoint"
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/llmkit/claude/session"
-	"github.com/randalmurphal/llmkit/claudeconfig"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
@@ -265,139 +263,45 @@ func (e *Executor) resetPhaseExecutors() {
 	e.fullExecutor = nil
 }
 
-// LoadProjectToolPermissions loads tool permissions from the project's .claude/settings.json
-// and applies them to the executor config if not already set.
-// This allows project-level tool restrictions to be enforced during execution.
-func (e *Executor) LoadProjectToolPermissions(projectRoot string) error {
-	// Only load if not already configured
-	if len(e.config.AllowedTools) > 0 || len(e.config.DisallowedTools) > 0 {
-		return nil // Already configured, don't override
-	}
+// LoadProjectToolPermissions and rebuildClient are defined in permissions.go
 
-	settings, err := claudeconfig.LoadProjectSettings(projectRoot)
-	if err != nil {
-		// No settings file is OK - no tool restrictions
-		return nil
-	}
+// Event publishing convenience methods - thin wrappers around EventPublisher.
+// These provide backwards-compatible method signatures on Executor.
 
-	// Check for tool permissions in settings extensions
-	perms, err := claudeconfig.GetToolPermissions(settings)
-	if err != nil || perms == nil || perms.IsEmpty() {
-		return nil
-	}
-
-	// Apply permissions to config
-	if len(perms.Allow) > 0 {
-		e.config.AllowedTools = perms.Allow
-		e.logger.Info("loaded allowed tools from project settings", "tools", perms.Allow)
-	}
-	if len(perms.Deny) > 0 {
-		e.config.DisallowedTools = perms.Deny
-		e.logger.Info("loaded disallowed tools from project settings", "tools", perms.Deny)
-	}
-
-	// Rebuild client with new permissions
-	if len(e.config.AllowedTools) > 0 || len(e.config.DisallowedTools) > 0 {
-		e.rebuildClient()
-	}
-
-	return nil
+func (e *Executor) eventPublisher() *EventPublisher {
+	return NewEventPublisher(e.publisher)
 }
 
-// rebuildClient recreates the Claude client with current config settings.
-func (e *Executor) rebuildClient() {
-	clientOpts := []claude.ClaudeOption{
-		claude.WithModel(e.config.Model),
-		claude.WithWorkdir(e.config.WorkDir),
-		claude.WithTimeout(e.config.Timeout),
-	}
-
-	if e.config.ClaudePath != "" {
-		clientOpts = append(clientOpts, claude.WithClaudePath(e.config.ClaudePath))
-	}
-	if e.config.DangerouslySkipPermissions {
-		clientOpts = append(clientOpts, claude.WithDangerouslySkipPermissions())
-	}
-	if len(e.config.AllowedTools) > 0 {
-		clientOpts = append(clientOpts, claude.WithAllowedTools(e.config.AllowedTools))
-	}
-	if len(e.config.DisallowedTools) > 0 {
-		clientOpts = append(clientOpts, claude.WithDisallowedTools(e.config.DisallowedTools))
-	}
-
-	e.client = claude.NewClaudeCLI(clientOpts...)
+func (e *Executor) publish(ev events.Event) {
+	e.eventPublisher().Publish(ev)
 }
 
-// publish sends an event if a publisher is configured.
-func (e *Executor) publish(event events.Event) {
-	if e.publisher != nil {
-		e.publisher.Publish(event)
-	}
-}
-
-// publishPhaseStart publishes a phase start event.
 func (e *Executor) publishPhaseStart(taskID, phase string) {
-	e.publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
-		Phase:  phase,
-		Status: "started",
-	}))
+	e.eventPublisher().PhaseStart(taskID, phase)
 }
 
-// publishPhaseComplete publishes a phase completion event.
 func (e *Executor) publishPhaseComplete(taskID, phase, commitSHA string) {
-	e.publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
-		Phase:     phase,
-		Status:    "completed",
-		CommitSHA: commitSHA,
-	}))
+	e.eventPublisher().PhaseComplete(taskID, phase, commitSHA)
 }
 
-// publishPhaseFailed publishes a phase failure event.
 func (e *Executor) publishPhaseFailed(taskID, phase string, err error) {
-	errMsg := ""
-	if err != nil {
-		errMsg = err.Error()
-	}
-	e.publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
-		Phase:  phase,
-		Status: "failed",
-		Error:  errMsg,
-	}))
+	e.eventPublisher().PhaseFailed(taskID, phase, err)
 }
 
-// publishTranscript publishes a transcript line event.
 func (e *Executor) publishTranscript(taskID, phase string, iteration int, msgType, content string) {
-	e.publish(events.NewEvent(events.EventTranscript, taskID, events.TranscriptLine{
-		Phase:     phase,
-		Iteration: iteration,
-		Type:      msgType,
-		Content:   content,
-		Timestamp: time.Now(),
-	}))
+	e.eventPublisher().Transcript(taskID, phase, iteration, msgType, content)
 }
 
-// publishTokens publishes a token usage update.
 func (e *Executor) publishTokens(taskID, phase string, input, output, total int) {
-	e.publish(events.NewEvent(events.EventTokens, taskID, events.TokenUpdate{
-		Phase:        phase,
-		InputTokens:  input,
-		OutputTokens: output,
-		TotalTokens:  total,
-	}))
+	e.eventPublisher().Tokens(taskID, phase, input, output, total)
 }
 
-// publishError publishes an error event.
 func (e *Executor) publishError(taskID, phase, message string, fatal bool) {
-	e.publish(events.NewEvent(events.EventError, taskID, events.ErrorData{
-		Phase:   phase,
-		Message: message,
-		Fatal:   fatal,
-	}))
+	e.eventPublisher().Error(taskID, phase, message, fatal)
 }
 
-// publishState publishes a full state update.
 func (e *Executor) publishState(taskID string, s *state.State) {
-	e.publish(events.NewEvent(events.EventState, taskID, s))
+	e.eventPublisher().State(taskID, s)
 }
 
 // ExecutePhase runs a single phase using either session-based or flowgraph execution.
@@ -1140,224 +1044,5 @@ func (e *Executor) setupWorktree(taskID string) (string, error) {
 	return e.gitOps.CreateWorktree(taskID, targetBranch)
 }
 
-// runCompletion executes the completion action (merge/PR/none).
-func (e *Executor) runCompletion(ctx context.Context, t *task.Task) error {
-	action := e.orcConfig.Completion.Action
-	if action == "" || action == "none" {
-		return nil
-	}
-
-	if e.gitOps == nil {
-		return fmt.Errorf("git operations not available")
-	}
-
-	// Sync with target branch before completion
-	if err := e.syncWithTarget(ctx, t); err != nil {
-		return fmt.Errorf("sync with target: %w", err)
-	}
-
-	switch action {
-	case "merge":
-		return e.directMerge(ctx, t)
-	case "pr":
-		return e.createPR(ctx, t)
-	default:
-		e.logger.Warn("unknown completion action", "action", action)
-		return nil
-	}
-}
-
-// syncWithTarget rebases the task branch onto the target branch.
-func (e *Executor) syncWithTarget(ctx context.Context, t *task.Task) error {
-	cfg := e.orcConfig.Completion
-	targetBranch := cfg.TargetBranch
-	if targetBranch == "" {
-		targetBranch = "main"
-	}
-
-	// Use worktree git if available
-	gitOps := e.gitOps
-	if e.worktreeGit != nil {
-		gitOps = e.worktreeGit
-	}
-
-	e.logger.Info("syncing with target branch", "target", targetBranch)
-
-	// Fetch latest from remote
-	if err := gitOps.Fetch("origin"); err != nil {
-		e.logger.Warn("fetch failed, continuing anyway", "error", err)
-	}
-
-	// Rebase onto target
-	target := "origin/" + targetBranch
-	if err := gitOps.Rebase(target); err != nil {
-		return fmt.Errorf("rebase onto %s: %w", target, err)
-	}
-
-	e.logger.Info("synced with target branch", "target", targetBranch)
-	return nil
-}
-
-// directMerge merges the task branch directly into the target branch.
-func (e *Executor) directMerge(ctx context.Context, t *task.Task) error {
-	cfg := e.orcConfig.Completion
-	taskBranch := e.gitOps.BranchName(t.ID)
-
-	// Use worktree git if available, otherwise main repo
-	gitOps := e.gitOps
-	if e.worktreeGit != nil {
-		gitOps = e.worktreeGit
-	}
-
-	// Checkout target branch
-	if err := gitOps.Context().Checkout(cfg.TargetBranch); err != nil {
-		return fmt.Errorf("checkout %s: %w", cfg.TargetBranch, err)
-	}
-
-	// Merge task branch
-	if err := gitOps.Merge(taskBranch, true); err != nil {
-		return fmt.Errorf("merge %s: %w", taskBranch, err)
-	}
-
-	// Push to remote
-	if err := gitOps.Push("origin", cfg.TargetBranch, false); err != nil {
-		e.logger.Warn("failed to push after merge", "error", err)
-	}
-
-	// Delete task branch if configured
-	if cfg.DeleteBranch {
-		if err := gitOps.DeleteBranch(taskBranch, false); err != nil {
-			e.logger.Warn("failed to delete task branch", "error", err)
-		}
-	}
-
-	e.logger.Info("merged task branch", "task", t.ID, "branch", taskBranch, "target", cfg.TargetBranch)
-	return nil
-}
-
-// createPR creates a pull request for the task branch.
-func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
-	cfg := e.orcConfig.Completion
-	taskBranch := e.gitOps.BranchName(t.ID)
-
-	// Use worktree git if available
-	gitOps := e.gitOps
-	if e.worktreeGit != nil {
-		gitOps = e.worktreeGit
-	}
-
-	// Push task branch to remote
-	if err := gitOps.Push("origin", taskBranch, true); err != nil {
-		return fmt.Errorf("push branch: %w", err)
-	}
-
-	// Build PR title
-	title := cfg.PR.Title
-	if title == "" {
-		title = "[orc] {{TASK_TITLE}}"
-	}
-	title = strings.ReplaceAll(title, "{{TASK_TITLE}}", t.Title)
-	title = strings.ReplaceAll(title, "{{TASK_ID}}", t.ID)
-
-	// Build PR body
-	body := e.buildPRBody(t)
-
-	// Create PR using gh CLI
-	args := []string{"pr", "create",
-		"--title", title,
-		"--body", body,
-		"--base", cfg.TargetBranch,
-		"--head", taskBranch,
-	}
-
-	// Add labels
-	for _, label := range cfg.PR.Labels {
-		args = append(args, "--label", label)
-	}
-
-	// Add reviewers
-	for _, reviewer := range cfg.PR.Reviewers {
-		args = append(args, "--reviewer", reviewer)
-	}
-
-	// Add draft flag
-	if cfg.PR.Draft {
-		args = append(args, "--draft")
-	}
-
-	// Run gh CLI
-	output, err := e.runGH(ctx, args...)
-	if err != nil {
-		return fmt.Errorf("create PR: %w", err)
-	}
-
-	// Extract PR URL from output
-	prURL := strings.TrimSpace(output)
-	if prURL != "" {
-		if t.Metadata == nil {
-			t.Metadata = make(map[string]string)
-		}
-		t.Metadata["pr_url"] = prURL
-		if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
-			e.logger.Error("failed to save task with PR URL", "error", saveErr)
-		}
-	}
-
-	e.logger.Info("created pull request", "task", t.ID, "url", prURL)
-
-	// Enable auto-merge if configured
-	if cfg.PR.AutoMerge && prURL != "" {
-		if _, err := e.runGH(ctx, "pr", "merge", prURL, "--auto", "--squash"); err != nil {
-			e.logger.Warn("failed to enable auto-merge", "error", err)
-		} else {
-			e.logger.Info("enabled auto-merge", "task", t.ID)
-		}
-	}
-
-	return nil
-}
-
-// buildPRBody constructs the PR body from task information.
-func (e *Executor) buildPRBody(t *task.Task) string {
-	var sb strings.Builder
-
-	sb.WriteString("## Summary\n\n")
-	if t.Description != "" {
-		sb.WriteString(t.Description)
-	} else {
-		sb.WriteString(t.Title)
-	}
-	sb.WriteString("\n\n")
-
-	sb.WriteString("## Task Details\n\n")
-	fmt.Fprintf(&sb, "- **Task ID**: %s\n", t.ID)
-	fmt.Fprintf(&sb, "- **Weight**: %s\n", t.Weight)
-	sb.WriteString("\n")
-
-	sb.WriteString("## Test Plan\n\n")
-	sb.WriteString("- [ ] Automated tests passed\n")
-	sb.WriteString("- [ ] Manual verification completed\n")
-	sb.WriteString("\n")
-
-	sb.WriteString("---\n")
-	sb.WriteString("*Created by [orc](https://github.com/randalmurphal/orc)*\n")
-
-	return sb.String()
-}
-
-// runGH executes a gh CLI command.
-func (e *Executor) runGH(ctx context.Context, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "gh", args...)
-
-	// Use worktree path if available
-	if e.worktreePath != "" {
-		cmd.Dir = e.worktreePath
-	}
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("%w: %s", err, output)
-	}
-
-	return string(output), nil
-}
+// PR and completion methods (runCompletion, syncWithTarget, directMerge, createPR, buildPRBody, runGH)
+// are defined in pr.go
