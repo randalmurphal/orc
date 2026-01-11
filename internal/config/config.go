@@ -152,6 +152,15 @@ type ExecutionConfig struct {
 	CheckpointInterval int `yaml:"checkpoint_interval"`
 }
 
+// PoolConfig defines token pool settings for automatic account switching.
+type PoolConfig struct {
+	// Enabled enables the token pool for automatic account switching on rate limits
+	Enabled bool `yaml:"enabled"`
+
+	// ConfigPath is the path to pool.yaml (default: ~/.orc/token-pool/pool.yaml)
+	ConfigPath string `yaml:"config_path"`
+}
+
 // Config represents the orc configuration.
 type Config struct {
 	// Version is the config file version
@@ -177,6 +186,9 @@ type Config struct {
 
 	// Budget settings for cost tracking
 	Budget BudgetConfig `yaml:"budget"`
+
+	// Token pool settings for automatic account switching
+	Pool PoolConfig `yaml:"pool"`
 
 	// Model settings
 	Model         string `yaml:"model"`
@@ -285,6 +297,10 @@ func Default() *Config {
 			UseSessionExecution: false, // Default to flowgraph for compatibility
 			SessionPersistence:  true,
 			CheckpointInterval:  0, // Default to phase-complete only
+		},
+		Pool: PoolConfig{
+			Enabled:    false, // Disabled by default
+			ConfigPath: "~/.orc/token-pool/pool.yaml",
 		},
 		Model:                      "claude-opus-4-5-20251101",
 		MaxIterations:              30,

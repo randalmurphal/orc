@@ -16,6 +16,7 @@ import (
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/tokenpool"
 )
 
 // PhaseState holds state during phase execution.
@@ -79,6 +80,9 @@ type Executor struct {
 	logger          *slog.Logger
 	publisher       events.Publisher
 
+	// Token pool for automatic account switching (nil if disabled)
+	tokenPool *tokenpool.Pool
+
 	// Phase executors by type (created lazily)
 	trivialExecutor  *TrivialExecutor
 	standardExecutor *StandardExecutor
@@ -128,6 +132,9 @@ func New(cfg *Config) *Executor {
 		clientOpts = append(clientOpts, claude.WithDisallowedTools(cfg.DisallowedTools))
 	}
 
+	// Token pool injection happens after pool is loaded (see below)
+	// We'll rebuild the client with the token if pool is enabled
+
 	client := claude.NewClaudeCLI(clientOpts...)
 
 	// Create session manager for session-based execution
@@ -158,6 +165,23 @@ func New(cfg *Config) *Executor {
 		slog.Warn("failed to initialize git operations", "error", err)
 	}
 
+	// Load token pool if enabled
+	var pool *tokenpool.Pool
+	if orcCfg.Pool.Enabled {
+		pool, err = tokenpool.New(orcCfg.Pool.ConfigPath, tokenpool.WithLogger(slog.Default()))
+		if err != nil {
+			slog.Warn("failed to load token pool", "error", err)
+		} else {
+			slog.Info("token pool enabled", "accounts", len(pool.Accounts()))
+			// Rebuild client with token from pool
+			if token := pool.Token(); token != "" {
+				clientOpts = append(clientOpts, claude.WithEnvVar("CLAUDE_CODE_OAUTH_TOKEN", token))
+				client = claude.NewClaudeCLI(clientOpts...)
+				slog.Info("using token from pool", "account", pool.Current().ID)
+			}
+		}
+	}
+
 	return &Executor{
 		config:              cfg,
 		orcConfig:           orcCfg,
@@ -167,6 +191,7 @@ func New(cfg *Config) *Executor {
 		gitOps:              gitOps,
 		checkpointStore:     cpStore,
 		logger:              slog.Default(),
+		tokenPool:           pool,
 		useSessionExecution: orcCfg.Execution.UseSessionExecution,
 	}
 }
@@ -321,3 +346,75 @@ func (e *Executor) setupWorktree(taskID string) (string, error) {
 
 // PR and completion methods (runCompletion, syncWithTarget, directMerge, createPR, buildPRBody, runGH)
 // are defined in pr.go
+
+// TokenPool returns the token pool if configured.
+func (e *Executor) TokenPool() *tokenpool.Pool {
+	return e.tokenPool
+}
+
+// SetTokenPool sets the token pool (for testing).
+func (e *Executor) SetTokenPool(pool *tokenpool.Pool) {
+	e.tokenPool = pool
+}
+
+// SwitchToNextAccount switches to the next available account in the pool.
+// Returns an error if all accounts are exhausted.
+func (e *Executor) SwitchToNextAccount() error {
+	if e.tokenPool == nil {
+		return tokenpool.ErrPoolDisabled
+	}
+
+	next, err := e.tokenPool.Next()
+	if err != nil {
+		return err
+	}
+
+	// Rebuild client with new token
+	e.rebuildClientWithToken(next.Token())
+	e.logger.Info("switched to next account",
+		"account_id", next.ID,
+		"account_name", next.Name)
+
+	return nil
+}
+
+// rebuildClientWithToken rebuilds the Claude client with a new OAuth token.
+func (e *Executor) rebuildClientWithToken(token string) {
+	clientOpts := []claude.ClaudeOption{
+		claude.WithModel(e.config.Model),
+		claude.WithWorkdir(e.config.WorkDir),
+		claude.WithTimeout(e.config.Timeout),
+	}
+
+	if e.config.ClaudePath != "" {
+		clientOpts = append(clientOpts, claude.WithClaudePath(e.config.ClaudePath))
+	}
+
+	if e.config.DangerouslySkipPermissions {
+		clientOpts = append(clientOpts, claude.WithDangerouslySkipPermissions())
+	}
+
+	if len(e.config.AllowedTools) > 0 {
+		clientOpts = append(clientOpts, claude.WithAllowedTools(e.config.AllowedTools))
+	}
+	if len(e.config.DisallowedTools) > 0 {
+		clientOpts = append(clientOpts, claude.WithDisallowedTools(e.config.DisallowedTools))
+	}
+
+	// Inject the new token
+	if token != "" {
+		clientOpts = append(clientOpts, claude.WithEnvVar("CLAUDE_CODE_OAUTH_TOKEN", token))
+	}
+
+	e.client = claude.NewClaudeCLI(clientOpts...)
+
+	// Reset phase executors so they pick up the new client
+	e.resetPhaseExecutors()
+}
+
+// MarkCurrentAccountExhausted marks the current account as exhausted due to rate limiting.
+func (e *Executor) MarkCurrentAccountExhausted(reason string) {
+	if e.tokenPool != nil {
+		e.tokenPool.MarkExhausted(reason)
+	}
+}

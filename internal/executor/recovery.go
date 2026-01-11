@@ -108,6 +108,7 @@ func isRetryable(err error) bool {
 		"connection refused",
 		"connection reset",
 		"rate limit",
+		"usage limit",
 		"timeout",
 		"temporary failure",
 		"service unavailable",
@@ -147,4 +148,36 @@ func ClassifyError(err error) error {
 	}
 
 	return err
+}
+
+// IsRateLimitError checks if an error indicates a rate limit has been hit.
+// This is used by the token pool to decide when to switch accounts.
+func IsRateLimitError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check sentinel error
+	if errors.Is(err, ErrRateLimited) {
+		return true
+	}
+
+	errStr := strings.ToLower(err.Error())
+	rateLimitPatterns := []string{
+		"rate limit",
+		"usage limit",
+		"too many requests",
+		"429",
+		"limit reached",
+		"limit exceeded",
+		"quota exceeded",
+	}
+
+	for _, pattern := range rateLimitPatterns {
+		if strings.Contains(errStr, pattern) {
+			return true
+		}
+	}
+
+	return false
 }
