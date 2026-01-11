@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -334,30 +335,48 @@ func (c *Client) CreatePRComment(ctx context.Context, number int, comment PRComm
 		var created struct {
 			ID int64 `json:"id"`
 		}
-		if err := json.Unmarshal(output, &created); err == nil && created.ID > 0 {
-			return &PRComment{
-				ID:   created.ID,
-				Body: comment.Body,
-				Path: comment.Path,
-				Line: comment.Line,
-			}, nil
+		if err := json.Unmarshal(output, &created); err != nil {
+			slog.Warn("comment created but could not parse response ID",
+				"path", comment.Path,
+				"line", comment.Line,
+				"error", err)
+		} else if created.ID == 0 {
+			slog.Warn("comment created but response contained no ID",
+				"path", comment.Path,
+				"line", comment.Line)
 		}
 
 		return &PRComment{
+			ID:   created.ID, // May be 0 if parsing failed
 			Body: comment.Body,
 			Path: comment.Path,
 			Line: comment.Line,
 		}, nil
 	}
 
-	// General comment on the PR
-	_, err := c.runGH(ctx, "pr", "comment", fmt.Sprintf("%d", number),
-		"--body", comment.Body)
+	// General comment on the PR - use API to get the comment ID back
+	output, err := c.runGH(ctx, "api",
+		fmt.Sprintf("/repos/%s/%s/issues/%d/comments", c.owner, c.repo, number),
+		"-X", "POST",
+		"-f", fmt.Sprintf("body=%s", comment.Body))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create PR comment: %w", err)
+	}
+
+	var created struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(output, &created); err != nil {
+		slog.Warn("PR comment created but could not parse response ID",
+			"pr", number,
+			"error", err)
+	} else if created.ID == 0 {
+		slog.Warn("PR comment created but response contained no ID",
+			"pr", number)
 	}
 
 	return &PRComment{
+		ID:   created.ID, // May be 0 if parsing failed
 		Body: comment.Body,
 	}, nil
 }
