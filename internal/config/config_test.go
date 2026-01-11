@@ -34,6 +34,104 @@ func TestDefault(t *testing.T) {
 	}
 }
 
+func TestDefault_TestingConfig(t *testing.T) {
+	cfg := Default()
+
+	// Required should be true by default
+	if !cfg.Testing.Required {
+		t.Error("Testing.Required should default to true")
+	}
+
+	// CoverageThreshold should be 0 (no threshold)
+	if cfg.Testing.CoverageThreshold != 0 {
+		t.Errorf("Testing.CoverageThreshold = %d, want 0", cfg.Testing.CoverageThreshold)
+	}
+
+	// Types should include "unit"
+	if len(cfg.Testing.Types) == 0 {
+		t.Fatal("Testing.Types should not be empty")
+	}
+	if cfg.Testing.Types[0] != "unit" {
+		t.Errorf("Testing.Types[0] = %s, want unit", cfg.Testing.Types[0])
+	}
+
+	// SkipForWeights should include "trivial"
+	if len(cfg.Testing.SkipForWeights) == 0 {
+		t.Fatal("Testing.SkipForWeights should not be empty")
+	}
+	if cfg.Testing.SkipForWeights[0] != "trivial" {
+		t.Errorf("Testing.SkipForWeights[0] = %s, want trivial", cfg.Testing.SkipForWeights[0])
+	}
+
+	// Commands should have unit test command
+	if cfg.Testing.Commands.Unit != "go test ./..." {
+		t.Errorf("Testing.Commands.Unit = %s, want 'go test ./...'", cfg.Testing.Commands.Unit)
+	}
+
+	// ParseOutput should be true
+	if !cfg.Testing.ParseOutput {
+		t.Error("Testing.ParseOutput should default to true")
+	}
+}
+
+func TestDefault_DocumentationConfig(t *testing.T) {
+	cfg := Default()
+
+	// Enabled should be true by default
+	if !cfg.Documentation.Enabled {
+		t.Error("Documentation.Enabled should default to true")
+	}
+
+	// AutoUpdateClaudeMD should be true
+	if !cfg.Documentation.AutoUpdateClaudeMD {
+		t.Error("Documentation.AutoUpdateClaudeMD should default to true")
+	}
+
+	// UpdateOn should include "feature" and "api_change"
+	if len(cfg.Documentation.UpdateOn) < 2 {
+		t.Fatal("Documentation.UpdateOn should have at least 2 items")
+	}
+
+	foundFeature := false
+	foundAPIChange := false
+	for _, item := range cfg.Documentation.UpdateOn {
+		if item == "feature" {
+			foundFeature = true
+		}
+		if item == "api_change" {
+			foundAPIChange = true
+		}
+	}
+	if !foundFeature {
+		t.Error("Documentation.UpdateOn should include 'feature'")
+	}
+	if !foundAPIChange {
+		t.Error("Documentation.UpdateOn should include 'api_change'")
+	}
+
+	// SkipForWeights should include "trivial"
+	if len(cfg.Documentation.SkipForWeights) == 0 {
+		t.Fatal("Documentation.SkipForWeights should not be empty")
+	}
+	if cfg.Documentation.SkipForWeights[0] != "trivial" {
+		t.Errorf("Documentation.SkipForWeights[0] = %s, want trivial", cfg.Documentation.SkipForWeights[0])
+	}
+
+	// Sections should have at least api-endpoints
+	if len(cfg.Documentation.Sections) == 0 {
+		t.Fatal("Documentation.Sections should not be empty")
+	}
+	foundAPIEndpoints := false
+	for _, section := range cfg.Documentation.Sections {
+		if section == "api-endpoints" {
+			foundAPIEndpoints = true
+		}
+	}
+	if !foundAPIEndpoints {
+		t.Error("Documentation.Sections should include 'api-endpoints'")
+	}
+}
+
 func TestSaveAndLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 

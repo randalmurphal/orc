@@ -24,7 +24,7 @@ func TestParseGoTestOutput(t *testing.T) {
 --- PASS: TestSub (0.00s)
 PASS
 ok  	example.com/math	0.005s`,
-			wantPassed:    3, // 2 tests + 1 package
+			wantPassed:    2, // 2 individual tests
 			wantFailed:    0,
 			wantFramework: "go",
 		},
@@ -51,7 +51,7 @@ FAIL	example.com/math	0.005s`,
     math_test.go:20: skipping in short mode
 PASS
 ok  	example.com/math	0.005s`,
-			wantPassed:    2,
+			wantPassed:    1, // Only count individual test passes
 			wantSkipped:   1,
 			wantFramework: "go",
 		},
@@ -62,16 +62,16 @@ ok  	example.com/math	0.005s`,
 PASS
 coverage: 85.7% of statements
 ok  	example.com/math	0.005s`,
-			wantPassed:    2,
+			wantPassed:    1, // Only count individual test passes
 			wantCoverage:  85.7,
 			wantFramework: "go",
 		},
 		{
-			name: "multiple packages",
+			name: "multiple packages summary only",
 			output: `ok  	example.com/math	0.005s
 ok  	example.com/string	0.003s
 FAIL	example.com/broken	0.002s`,
-			wantPassed:    2,
+			wantPassed:    0, // Package summary lines don't count as individual tests
 			wantFramework: "go",
 		},
 	}
