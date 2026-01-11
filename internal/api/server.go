@@ -18,6 +18,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/randalmurphal/orc/internal/config"
+	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/plan"
@@ -409,7 +410,7 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	t, err := task.Load(id)
 	if err != nil {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
@@ -423,7 +424,7 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 	// Check if task is running
 	t, err := task.Load(id)
 	if err != nil {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
@@ -471,7 +472,7 @@ func (s *Server) handleGetTranscripts(w http.ResponseWriter, r *http.Request) {
 
 	// Verify task exists
 	if !task.Exists(id) {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
@@ -516,7 +517,7 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	t, err := task.Load(id)
 	if err != nil {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
@@ -581,7 +582,7 @@ func (s *Server) handlePauseTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	t, err := task.Load(id)
 	if err != nil {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
@@ -599,7 +600,7 @@ func (s *Server) handleResumeTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	t, err := task.Load(id)
 	if err != nil {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
@@ -618,7 +619,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 
 	// Verify task exists
 	if !task.Exists(id) {
-		http.Error(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
@@ -965,7 +966,7 @@ func (s *Server) handleGetProjectTask(w http.ResponseWriter, r *http.Request) {
 
 	t, err := s.loadProjectTask(proj.Path, taskID)
 	if err != nil {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
@@ -985,7 +986,7 @@ func (s *Server) handleDeleteProjectTask(w http.ResponseWriter, r *http.Request)
 
 	t, err := s.loadProjectTask(proj.Path, taskID)
 	if err != nil {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
@@ -1020,7 +1021,7 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 
 	t, err := s.loadProjectTask(proj.Path, taskID)
 	if err != nil {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
@@ -1121,7 +1122,7 @@ func (s *Server) handlePauseProjectTask(w http.ResponseWriter, r *http.Request) 
 
 	t, err := s.loadProjectTask(proj.Path, taskID)
 	if err != nil {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
@@ -1178,7 +1179,7 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 
 	t, err := s.loadProjectTask(proj.Path, taskID)
 	if err != nil {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
@@ -1298,7 +1299,7 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 
 	t, err := s.loadProjectTask(proj.Path, taskID)
 	if err != nil {
-		s.jsonError(w, "task not found", http.StatusNotFound)
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
@@ -1530,6 +1531,23 @@ func (s *Server) jsonError(w http.ResponseWriter, message string, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+// handleOrcError writes a structured JSON error response for OrcErrors.
+func (s *Server) handleOrcError(w http.ResponseWriter, err *orcerrors.OrcError) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(err.HTTPStatus())
+	json.NewEncoder(w).Encode(err.ToAPIError())
+}
+
+// handleError inspects the error and writes an appropriate response.
+// If err is an OrcError, it uses structured format. Otherwise, uses simple format.
+func (s *Server) handleError(w http.ResponseWriter, err error, fallbackStatus int) {
+	if orcErr := orcerrors.AsOrcError(err); orcErr != nil {
+		s.handleOrcError(w, orcErr)
+		return
+	}
+	s.jsonError(w, err.Error(), fallbackStatus)
 }
 
 // pauseTask pauses a running task (called by WebSocket handler).
