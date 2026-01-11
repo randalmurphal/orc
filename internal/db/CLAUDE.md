@@ -71,6 +71,9 @@ Embedded via `//go:embed schema/*.sql`:
 | `schema/global_001.sql` | Projects, cost_log, templates tables |
 | `schema/project_001.sql` | Detection, tasks, phases, transcripts, FTS |
 | `schema/project_002.sql` | Initiatives, decisions, task dependencies |
+| `schema/project_003.sql` | Subtasks queue table |
+| `schema/project_004.sql` | Review comments with severity/status |
+| `schema/project_005.sql` | Team members, task claims, activity log |
 
 ## Usage
 
@@ -153,6 +156,11 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 - `initiative_decisions` - Decisions within initiatives
 - `initiative_tasks` - Task-to-initiative mappings with sequence
 - `task_dependencies` - Task dependency relationships
+- `subtasks` - Subtask queue (parent_task, title, status, proposed_by)
+- `review_comments` - Inline review comments (file_path, line_number, severity, status)
+- `team_members` - Organization members (email, display_name, initials, role)
+- `task_claims` - Task assignments/claims (task_id, member_id, claimed_at)
+- `activity_log` - Audit trail (action, task_id, member_id, details)
 
 ## Dialect-Specific Queries
 

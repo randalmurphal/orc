@@ -109,6 +109,30 @@ saveRetryContextFile(taskDir, ctx)
 // On retry, phase receives {{RETRY_CONTEXT}} with failure info
 ```
 
+### Fresh Session Retry
+
+Retries use fresh Claude sessions with comprehensive context injection:
+
+```go
+type RetryContext struct {
+    FailedPhase     string          // Which phase failed
+    FailureReason   string          // Why it failed
+    FailureOutput   string          // Last 1000 chars of output
+    ReviewComments  []ReviewComment // Comments from code review UI
+    PRComments      []PRComment     // Comments from GitHub PR
+    Instructions    string          // User-provided guidance
+    PreviousContext string          // Summary from previous session
+}
+
+func BuildRetryContextForFreshSession(task *Task, failedPhase string, opts RetryOptions) string
+```
+
+Context injection includes:
+- **Failure output**: Last 1000 chars of what went wrong
+- **Review comments**: Grouped by file with line numbers and severity
+- **PR comments**: GitHub PR review feedback
+- **User instructions**: Additional guidance from retry UI
+
 ### Worktree Isolation (worktree.go)
 
 Tasks run in isolated git worktrees:
