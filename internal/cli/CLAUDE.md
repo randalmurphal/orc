@@ -16,11 +16,12 @@ Command-line interface using Cobra. Each command is in its own file.
 | `template.go` | CLI output templates |
 | `errors.go` | CLI error types and formatting |
 
-### Command Files (19 total)
+### Command Files (21 total)
 
 | File | Command | Description |
 |------|---------|-------------|
-| `cmd_init.go` | `orc init` | Initialize .orc/ in project |
+| `cmd_init.go` | `orc init` | Initialize .orc/ in project (instant, <500ms) |
+| `cmd_setup.go` | `orc setup` | Claude-powered interactive setup |
 | `cmd_new.go` | `orc new "title"` | Create new task |
 | `cmd_list.go` | `orc list` | List all tasks |
 | `cmd_show.go` | `orc show TASK-ID` | Show task details |
@@ -38,7 +39,8 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_cleanup.go` | `orc cleanup` | Clean up stale worktrees |
 | `cmd_version.go` | `orc version` | Show version info |
 | `cmd_projects.go` | `orc projects` | List registered projects |
-| `cmd_export.go` | `orc export TASK-ID` | Export task data |
+| `cmd_export.go` | `orc export TASK-ID` | Export task to YAML (with plan, state, transcripts) |
+| `cmd_export.go` | `orc import <file>` | Import task from YAML file |
 
 ## Command Structure
 

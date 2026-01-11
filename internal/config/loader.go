@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -24,7 +26,7 @@ func LoadWithSources() (*TrackedConfig, error) {
 	systemPath := "/etc/orc/config.yaml"
 	if _, err := os.Stat(systemPath); err == nil {
 		if err := mergeFromFile(tc, systemPath, SourceSystem); err != nil {
-			// Log warning but continue - system config is optional
+			slog.Warn("failed to load system config", "path", systemPath, "error", err)
 		}
 	}
 
@@ -33,7 +35,7 @@ func LoadWithSources() (*TrackedConfig, error) {
 		userPath := filepath.Join(home, ".orc", "config.yaml")
 		if _, err := os.Stat(userPath); err == nil {
 			if err := mergeFromFile(tc, userPath, SourceUser); err != nil {
-				// Log warning but continue - user config is optional
+				slog.Warn("failed to load user config", "path", userPath, "error", err)
 			}
 		}
 	}
@@ -56,19 +58,19 @@ func LoadWithSources() (*TrackedConfig, error) {
 func mergeFromFile(tc *TrackedConfig, path string, source ConfigSource) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("read config %s: %w", path, err)
 	}
 
 	// Parse YAML into a map to track which fields are set
 	var raw map[string]interface{}
 	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return err
+		return fmt.Errorf("parse config %s: %w", path, err)
 	}
 
 	// Parse into Config
 	var fileCfg Config
 	if err := yaml.Unmarshal(data, &fileCfg); err != nil {
-		return err
+		return fmt.Errorf("parse config %s: %w", path, err)
 	}
 
 	// Merge non-zero values and track sources

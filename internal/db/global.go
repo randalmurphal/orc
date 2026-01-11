@@ -112,6 +112,9 @@ func (g *GlobalDB) ListProjects() ([]Project, error) {
 		}
 		projects = append(projects, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate projects: %w", err)
+	}
 
 	return projects, nil
 }
@@ -209,6 +212,9 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 		}
 		summary.ByProject[pid] = cost
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate project costs: %w", err)
+	}
 
 	// Get breakdown by phase
 	phaseQuery := `
@@ -243,6 +249,9 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 			return nil, fmt.Errorf("scan phase cost: %w", err)
 		}
 		summary.ByPhase[phase] = cost
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate phase costs: %w", err)
 	}
 
 	return summary, nil

@@ -131,16 +131,19 @@ func Run(opts Options) (*Result, error) {
 	gdb, err := db.OpenGlobal()
 	if err != nil {
 		// Non-fatal - YAML registry is the fallback
-		// Just log and continue
+		fmt.Fprintf(os.Stderr, "Warning: could not open global database: %v\n", err)
 	} else {
 		defer gdb.Close()
-		gdb.SyncProject(db.Project{
+		if err := gdb.SyncProject(db.Project{
 			ID:        proj.ID,
 			Name:      proj.Name,
 			Path:      proj.Path,
 			Language:  string(detection.Language),
 			CreatedAt: proj.CreatedAt,
-		})
+		}); err != nil {
+			// Non-fatal - YAML registry is the fallback
+			fmt.Fprintf(os.Stderr, "Warning: could not sync to global database: %v\n", err)
+		}
 	}
 
 	// 6. Update .gitignore

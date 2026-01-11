@@ -7,9 +7,11 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | Package | Responsibility | Key Types |
 |---------|----------------|-----------|
 | `api/` | HTTP server, REST endpoints, WebSocket | `Server`, handlers |
+| `bootstrap/` | Instant project initialization (<500ms) | `Run`, `Options`, `Result` |
 | `cli/` | Command-line interface (Cobra) | Commands |
 | `claude/` | Re-exports llmkit/claudeconfig types | `Settings`, `Skill` |
-| `config/` | Configuration loading and management | `Config` |
+| `config/` | Configuration loading, hierarchy, env vars | `Config`, `TrackedConfig`, `ConfigSource` |
+| `db/` | SQLite persistence (global + project) | `GlobalDB`, `ProjectDB`, `Transcript` |
 | `detect/` | Project type detection | `Detector` |
 | `enhance/` | Task enhancement via AI | `Enhancer` |
 | `errors/` | Custom error types | `OrcError` |
@@ -23,9 +25,10 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `prompt/` | Prompt template management | `Service` |
 | `state/` | Execution state persistence | `State` |
 | `task/` | Task model and YAML persistence | `Task`, `Store` |
+| `setup/` | Claude-powered interactive setup | `Run`, `Spawner`, `Validator` |
 | `template/` | Go template rendering | `Engine` |
 | `tokenpool/` | OAuth token pool for rate limit failover | `Pool`, `Account` |
-| `wizard/` | Interactive CLI wizard | `Wizard` |
+| `wizard/` | Interactive CLI wizard (deprecated) | `Wizard` |
 
 ## Dependency Graph
 
@@ -94,5 +97,8 @@ go test ./internal/executor/... -v
 
 See package-specific CLAUDE.md files:
 - `api/CLAUDE.md` - API server and handlers
+- `bootstrap/CLAUDE.md` - Instant project initialization
 - `cli/CLAUDE.md` - CLI commands
+- `db/CLAUDE.md` - SQLite persistence layer
 - `executor/CLAUDE.md` - Execution engine modules
+- `setup/CLAUDE.md` - Claude-powered setup
