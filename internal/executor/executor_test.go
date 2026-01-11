@@ -467,8 +467,8 @@ func TestPublishHelpers(t *testing.T) {
 		if data.Phase != "implement" {
 			t.Errorf("expected phase implement, got %s", data.Phase)
 		}
-		if data.Status != "started" {
-			t.Errorf("expected status started, got %s", data.Status)
+		if data.Status != string(plan.PhaseRunning) {
+			t.Errorf("expected status %s, got %s", plan.PhaseRunning, data.Status)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for event")
