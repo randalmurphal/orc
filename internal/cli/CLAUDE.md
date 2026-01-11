@@ -16,7 +16,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `template.go` | CLI output templates |
 | `errors.go` | CLI error types and formatting |
 
-### Command Files (18 total)
+### Command Files (19 total)
 
 | File | Command | Description |
 |------|---------|-------------|
@@ -33,6 +33,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_diff.go` | `orc diff TASK-ID` | Show task changes |
 | `cmd_approve.go` | `orc approve TASK-ID` | Approve pending gate |
 | `cmd_config.go` | `orc config [key] [value]` | Get/set configuration |
+| `cmd_pool.go` | `orc pool [subcommand]` | Manage OAuth token pool |
 | `cmd_skip.go` | `orc skip TASK-ID` | Skip current phase |
 | `cmd_cleanup.go` | `orc cleanup` | Clean up stale worktrees |
 | `cmd_version.go` | `orc version` | Show version info |

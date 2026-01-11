@@ -44,6 +44,7 @@ make dev-full # API (:8080) + frontend (:5173)
 | `prompt/` | Prompt template management | Template loading, variable substitution |
 | `git/` | Git operations, worktrees | Branch management, checkpoints |
 | `project/` | Multi-project registry | Project discovery, registry management |
+| `tokenpool/` | OAuth token pool for rate limit failover | Account rotation, state persistence |
 
 ## Dependencies
 
@@ -151,6 +152,43 @@ worktree:
 └── orc-task-002/    # Another task running in parallel
 ```
 
+## Token Pool
+
+Automatic OAuth token rotation when rate limits are hit.
+
+```yaml
+pool:
+  enabled: true
+  config_path: ~/.orc/token-pool/pool.yaml
+```
+
+**Pool configuration (`~/.orc/token-pool/pool.yaml`):**
+```yaml
+version: 1
+strategy: round-robin    # round-robin | failover
+switch_on_rate_limit: true
+accounts:
+  - id: personal
+    name: "Personal Max"
+    access_token: "sk-ant-oat01-..."
+    refresh_token: "sk-ant-ort01-..."
+    enabled: true
+```
+
+**Features:**
+- Round-robin account selection
+- Automatic switching on rate limit errors
+- Session continuity via `CLAUDE_CODE_OAUTH_TOKEN` override
+- State persistence (exhausted flags survive restarts)
+
+**Setup:**
+```bash
+orc pool init              # Initialize ~/.orc/token-pool/
+orc pool add personal      # Authenticate via claude login
+orc pool add work          # Add another account
+orc pool list              # View accounts
+```
+
 ## Completion Actions
 
 After all phases complete, orc can auto-merge or create a PR.
@@ -174,7 +212,10 @@ completion:
 
 ```
 ~/.orc/
-└── projects.yaml        # Global project registry
+├── projects.yaml        # Global project registry
+└── token-pool/          # OAuth token pool
+    ├── pool.yaml        # Pool configuration + tokens
+    └── state.yaml       # Runtime state (current account, exhausted flags)
 
 ~/.claude/
 ├── settings.json        # Global Claude Code settings
@@ -216,6 +257,12 @@ completion:
 | `orc resume TASK-ID` | Continue from checkpoint |
 | `orc rewind TASK-ID --to X` | Reset to before phase X |
 | `orc status` | Show running tasks |
+| `orc pool init` | Initialize token pool directory |
+| `orc pool add <name>` | Add OAuth account to pool |
+| `orc pool list` | List accounts in pool |
+| `orc pool status` | Show account exhaustion status |
+| `orc pool switch <id>` | Manually switch account |
+| `orc pool reset` | Clear exhausted flags |
 
 ## Web UI
 
