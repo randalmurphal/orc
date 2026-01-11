@@ -200,7 +200,8 @@ func runQuickMode(ctx context.Context, cfg *config.Config, description, weight s
 
 // runHeadlessMode executes existing tasks or parses spec in automated mode
 func runHeadlessMode(ctx context.Context, cfg *config.Config) error {
-	fmt.Println("Headless mode: Looking for tasks to execute...\n")
+	fmt.Println("Headless mode: Looking for tasks to execute...")
+	fmt.Println()
 
 	// Find tasks to run
 	tasks, err := task.LoadAll()
