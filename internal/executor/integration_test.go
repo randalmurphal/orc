@@ -138,10 +138,14 @@ func TestIntegration_ExecutePhase_Complete(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
-	os.MkdirAll(".orc/tasks/INT-001", 0755)
+	if err := os.MkdirAll(".orc/tasks/INT-001", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	cfg := DefaultConfig()
 	e := New(cfg)
@@ -191,10 +195,14 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
-	os.MkdirAll(".orc/tasks/INT-002", 0755)
+	if err := os.MkdirAll(".orc/tasks/INT-002", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	cfg := DefaultConfig()
 	e := New(cfg)
@@ -211,7 +219,9 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 	testTask := task.New("INT-002", "Integration test task")
 	testTask.Weight = task.WeightTrivial
 	testTask.Status = task.StatusPlanned
-	testTask.Save()
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
 	testPlan := &plan.Plan{
 		Version:     1,
@@ -225,7 +235,9 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 			},
 		},
 	}
-	testPlan.Save("INT-002")
+	if err := testPlan.Save("INT-002"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
 
 	testState := state.New("INT-002")
 
@@ -279,10 +291,14 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
-	os.MkdirAll(".orc/tasks/INT-003", 0755)
+	if err := os.MkdirAll(".orc/tasks/INT-003", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	cfg := DefaultConfig()
 	cfg.MaxIterations = 5
@@ -294,7 +310,9 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 	testTask := task.New("INT-003", "Multi-phase integration test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	testTask.Save()
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
 	testPlan := &plan.Plan{
 		Version: 1,
@@ -312,7 +330,9 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 			},
 		},
 	}
-	testPlan.Save("INT-003")
+	if err := testPlan.Save("INT-003"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
 
 	testState := state.New("INT-003")
 
@@ -354,10 +374,14 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
-	os.MkdirAll(".orc/tasks/INT-004", 0755)
+	if err := os.MkdirAll(".orc/tasks/INT-004", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	cfg := DefaultConfig()
 	e := New(cfg)
@@ -368,7 +392,9 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 	testTask := task.New("INT-004", "Pause/Resume test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	testTask.Save()
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
 	testPlan := &plan.Plan{
 		Version: 1,
@@ -384,7 +410,9 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 			},
 		},
 	}
-	testPlan.Save("INT-004")
+	if err := testPlan.Save("INT-004"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
 
 	testState := state.New("INT-004")
 
@@ -401,8 +429,12 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 	// Simulate pause
 	testState.InterruptPhase("phase1")
 	testTask.Status = task.StatusPaused
-	testState.Save()
-	testTask.Save()
+	if err := testState.Save(); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
 	// Verify paused state
 	reloadedTask, _ := task.Load("INT-004")
@@ -412,7 +444,9 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 
 	// Resume and execute phase2
 	testTask.Status = task.StatusRunning
-	testTask.Save()
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
 	phase2 := &testPlan.Phases[1]
 	result2, err := e.ExecutePhase(ctx, testTask, phase2, testState)
@@ -438,10 +472,14 @@ func TestMock_ExecutePhase_Complete(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
-	os.MkdirAll(".orc/tasks/MOCK-001", 0755)
+	if err := os.MkdirAll(".orc/tasks/MOCK-001", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	e := New(DefaultConfig())
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
@@ -480,10 +518,14 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
 
-	os.MkdirAll(".orc/tasks/MOCK-002", 0755)
+	if err := os.MkdirAll(".orc/tasks/MOCK-002", 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
 
 	e := New(DefaultConfig())
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>")
@@ -497,7 +539,9 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 	testTask := task.New("MOCK-002", "Event test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	testTask.Save()
+	if err := testTask.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
 	testPlan := &plan.Plan{
 		Version: 1,
@@ -505,7 +549,9 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 			{ID: "implement", Prompt: "Test"},
 		},
 	}
-	testPlan.Save("MOCK-002")
+	if err := testPlan.Save("MOCK-002"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
 
 	testState := state.New("MOCK-002")
 

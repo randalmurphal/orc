@@ -132,7 +132,11 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
-	defer adapter.Close()
+	defer func() {
+		if closeErr := adapter.Close(); closeErr != nil {
+			e.logger.Error("failed to close adapter", "error", closeErr)
+		}
+	}()
 
 	// Determine starting iteration (from checkpoint or 0)
 	startIteration := 0
@@ -169,12 +173,14 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 		if err != nil {
 			// Save checkpoint before failing
-			e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
+			if cpErr := e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
 				Iteration:    iteration - 1,
 				InputTokens:  result.InputTokens,
 				OutputTokens: result.OutputTokens,
 				LastResponse: lastResponse,
-			})
+			}); cpErr != nil {
+				e.logger.Error("failed to save checkpoint", "error", cpErr)
+			}
 
 			result.Status = plan.PhaseFailed
 			result.Error = fmt.Errorf("execute turn %d: %w", iteration, err)
@@ -192,12 +198,14 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 		// Save iteration checkpoint (per-iteration checkpointing)
 		if e.config.CheckpointInterval > 0 && iteration%e.config.CheckpointInterval == 0 {
-			e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
+			if cpErr := e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
 				Iteration:    iteration,
 				InputTokens:  result.InputTokens,
 				OutputTokens: result.OutputTokens,
 				LastResponse: lastResponse,
-			})
+			}); cpErr != nil {
+				e.logger.Error("failed to save iteration checkpoint", "error", cpErr)
+			}
 		}
 
 		// Update state with iteration progress
@@ -231,14 +239,16 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 		case PhaseStatusBlocked:
 			// Save checkpoint before failing
-			e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
+			if cpErr := e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
 				Iteration:    iteration,
 				InputTokens:  result.InputTokens,
 				OutputTokens: result.OutputTokens,
 				LastResponse: lastResponse,
 				Blocked:      true,
 				BlockReason:  turnResult.Reason,
-			})
+			}); cpErr != nil {
+				e.logger.Error("failed to save checkpoint on block", "error", cpErr)
+			}
 
 			result.Status = plan.PhaseFailed
 			result.Error = fmt.Errorf("phase blocked: %s", turnResult.Reason)
@@ -252,13 +262,15 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 		// Check for errors
 		if turnResult.IsError {
-			e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
+			if cpErr := e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
 				Iteration:    iteration,
 				InputTokens:  result.InputTokens,
 				OutputTokens: result.OutputTokens,
 				LastResponse: lastResponse,
 				Error:        turnResult.ErrorText,
-			})
+			}); cpErr != nil {
+				e.logger.Error("failed to save checkpoint on error", "error", cpErr)
+			}
 
 			result.Status = plan.PhaseFailed
 			result.Error = fmt.Errorf("LLM error: %s", turnResult.ErrorText)
@@ -269,12 +281,14 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 	if result.Status == plan.PhaseRunning {
 		// Save checkpoint for max iterations case
-		e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
+		if cpErr := e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
 			Iteration:    e.config.MaxIterations,
 			InputTokens:  result.InputTokens,
 			OutputTokens: result.OutputTokens,
 			LastResponse: lastResponse,
-		})
+		}); cpErr != nil {
+			e.logger.Error("failed to save checkpoint on max iterations", "error", cpErr)
+		}
 
 		result.Status = plan.PhaseFailed
 		result.Error = fmt.Errorf("max iterations (%d) reached", e.config.MaxIterations)
@@ -341,7 +355,7 @@ func (e *FullExecutor) saveCheckpoint(taskID, phaseID string, cp *iterationCheck
 // removeCheckpoint removes a checkpoint file after successful completion.
 func (e *FullExecutor) removeCheckpoint(taskID, phaseID string) {
 	path := e.checkpointPath(taskID, phaseID)
-	os.Remove(path) // Ignore errors
+	_ = os.Remove(path) // Intentionally ignore - file may not exist
 }
 
 // loadAndRenderPrompt loads and renders the prompt template.

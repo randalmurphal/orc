@@ -79,6 +79,7 @@ declare module '$env/static/private' {
 	export const NIX_PATH: string;
 	export const npm_config_init_module: string;
 	export const SYSTEMD_EXEC_PID: string;
+	export const VIPSHOME: string;
 	export const XAUTHORITY: string;
 	export const DESKTOP_STARTUP_ID: string;
 	export const NoDefaultCurrentDirectoryInExePath: string;
@@ -261,6 +262,7 @@ declare module '$env/dynamic/private' {
 		NIX_PATH: string;
 		npm_config_init_module: string;
 		SYSTEMD_EXEC_PID: string;
+		VIPSHOME: string;
 		XAUTHORITY: string;
 		DESKTOP_STARTUP_ID: string;
 		NoDefaultCurrentDirectoryInExePath: string;
