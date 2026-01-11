@@ -5,9 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/randalmurphal/flowgraph/pkg/flowgraph"
@@ -398,7 +396,7 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 		Phase:        p.ID,
 		Weight:       string(t.Weight),
 		Iteration:    0,
-		RetryContext: e.loadRetryContextForPhase(s),
+		RetryContext: LoadRetryContextForPhase(s),
 	}
 
 	// Run with checkpointing if enabled
@@ -443,181 +441,8 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 	return result, result.Error
 }
 
-// buildPromptNode creates the prompt building node.
-func (e *Executor) buildPromptNode(p *plan.Phase) flowgraph.NodeFunc[PhaseState] {
-	return func(ctx flowgraph.Context, s PhaseState) (PhaseState, error) {
-		// Load template from templates/prompts/{phase}.md
-		templatePath := filepath.Join(e.config.TemplatesDir, "prompts", p.Name+".md")
-		tmplContent, err := os.ReadFile(templatePath)
-		if err != nil {
-			// Try with ID if name doesn't exist
-			templatePath = filepath.Join(e.config.TemplatesDir, "prompts", p.ID+".md")
-			tmplContent, err = os.ReadFile(templatePath)
-			if err != nil {
-				// Use inline prompt from plan if template doesn't exist
-				if p.Prompt != "" {
-					s.Prompt = e.renderTemplate(p.Prompt, s)
-				} else {
-					return s, fmt.Errorf("no prompt template found for phase %s", p.ID)
-				}
-				s.Iteration++
-				return s, nil
-			}
-		}
-
-		// Render template with task context
-		s.Prompt = e.renderTemplate(string(tmplContent), s)
-		s.Iteration++
-		return s, nil
-	}
-}
-
-// renderTemplate does simple template variable substitution.
-func (e *Executor) renderTemplate(tmpl string, s PhaseState) string {
-	// Simple variable replacement
-	replacements := map[string]string{
-		"{{TASK_ID}}":          s.TaskID,
-		"{{TASK_TITLE}}":       s.TaskTitle,
-		"{{TASK_DESCRIPTION}}": s.TaskDescription,
-		"{{PHASE}}":            s.Phase,
-		"{{WEIGHT}}":           s.Weight,
-		"{{ITERATION}}":        fmt.Sprintf("%d", s.Iteration),
-		"{{RESEARCH_CONTENT}}": s.ResearchContent,
-		"{{SPEC_CONTENT}}":     s.SpecContent,
-		"{{DESIGN_CONTENT}}":   s.DesignContent,
-		"{{RETRY_CONTEXT}}":    s.RetryContext,
-	}
-
-	result := tmpl
-	for k, v := range replacements {
-		result = strings.ReplaceAll(result, k, v)
-	}
-
-	return result
-}
-
-// executeClaudeNode creates the Claude execution node.
-func (e *Executor) executeClaudeNode() flowgraph.NodeFunc[PhaseState] {
-	return func(ctx flowgraph.Context, s PhaseState) (PhaseState, error) {
-		// Use LLM client from context (injected via WithLLM)
-		client := LLM(ctx)
-		if client == nil {
-			return s, fmt.Errorf("no LLM client available")
-		}
-
-		// Publish prompt transcript
-		e.publishTranscript(s.TaskID, s.Phase, s.Iteration, "prompt", s.Prompt)
-
-		// Execute completion
-		resp, err := client.Complete(ctx, claude.CompletionRequest{
-			Messages: []claude.Message{
-				{Role: claude.RoleUser, Content: s.Prompt},
-			},
-			Model: e.config.Model,
-		})
-		if err != nil {
-			s.Error = err
-			e.publishError(s.TaskID, s.Phase, err.Error(), false)
-			return s, fmt.Errorf("claude completion: %w", err)
-		}
-
-		s.Response = resp.Content
-		s.InputTokens += resp.Usage.InputTokens
-		s.OutputTokens += resp.Usage.OutputTokens
-		s.TokensUsed += resp.Usage.TotalTokens
-
-		// Publish response transcript and token update
-		e.publishTranscript(s.TaskID, s.Phase, s.Iteration, "response", s.Response)
-		e.publishTokens(s.TaskID, s.Phase, resp.Usage.InputTokens, resp.Usage.OutputTokens, resp.Usage.TotalTokens)
-
-		return s, nil
-	}
-}
-
-// checkCompletionNode creates the completion check node.
-func (e *Executor) checkCompletionNode(p *plan.Phase, st *state.State) flowgraph.NodeFunc[PhaseState] {
-	return func(ctx flowgraph.Context, s PhaseState) (PhaseState, error) {
-		// Detect completion marker in response
-		s.Complete = strings.Contains(s.Response, "<phase_complete>true</phase_complete>")
-
-		// Also check for specific phase completion tag
-		phaseCompleteTag := fmt.Sprintf("<%s_complete>true</%s_complete>", p.ID, p.ID)
-		if strings.Contains(s.Response, phaseCompleteTag) {
-			s.Complete = true
-		}
-
-		// Check for blocked state
-		if strings.Contains(s.Response, "<phase_blocked>") {
-			s.Blocked = true
-		}
-
-		// Update state tracking
-		if st != nil {
-			st.IncrementIteration()
-			st.AddTokens(s.InputTokens, s.OutputTokens)
-		}
-
-		// Save transcript for this iteration
-		if err := e.saveTranscript(s); err != nil {
-			ctx.Logger().Warn("failed to save transcript", "error", err)
-		}
-
-		return s, nil
-	}
-}
-
-// commitCheckpointNode creates the git commit checkpoint node.
-func (e *Executor) commitCheckpointNode() flowgraph.NodeFunc[PhaseState] {
-	return func(ctx flowgraph.Context, s PhaseState) (PhaseState, error) {
-		// Skip if git operations not available
-		if e.gitOps == nil {
-			return s, nil
-		}
-
-		// Create git checkpoint
-		msg := fmt.Sprintf("%s: %s - completed", s.Phase, s.TaskTitle)
-		cp, err := e.gitOps.CreateCheckpoint(s.TaskID, s.Phase, msg)
-		if err != nil {
-			ctx.Logger().Warn("failed to create git checkpoint", "error", err)
-			// Don't fail the phase for git errors
-			return s, nil
-		}
-
-		s.CommitSHA = cp.CommitSHA
-		return s, nil
-	}
-}
-
-// saveTranscript saves the prompt/response for this iteration.
-func (e *Executor) saveTranscript(s PhaseState) error {
-	dir := filepath.Join(e.config.WorkDir, ".orc", "tasks", s.TaskID, "transcripts")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-
-	filename := fmt.Sprintf("%s-%03d.md", s.Phase, s.Iteration)
-	path := filepath.Join(dir, filename)
-
-	content := fmt.Sprintf(`# %s - Iteration %d
-
-## Prompt
-
-%s
-
-## Response
-
-%s
-
----
-Tokens: %d input, %d output
-Complete: %v
-Blocked: %v
-`,
-		s.Phase, s.Iteration, s.Prompt, s.Response,
-		s.InputTokens, s.OutputTokens, s.Complete, s.Blocked)
-
-	return os.WriteFile(path, []byte(content), 0644)
-}
+// Node functions (buildPromptNode, renderTemplate, executeClaudeNode, checkCompletionNode,
+// commitCheckpointNode, saveTranscript) are defined in flowgraph_nodes.go
 
 // ExecuteTask runs all phases of a task with gate evaluation and cross-phase retry.
 func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, s *state.State) error {
@@ -750,7 +575,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 				s.SetRetryContext(phase.ID, retryFrom, reason, failureOutput, retryCounts[phase.ID])
 
 				// Save detailed context to file
-				contextFile, saveErr := e.saveRetryContextFile(t.ID, phase.ID, retryFrom, reason, failureOutput, retryCounts[phase.ID])
+				contextFile, saveErr := SaveRetryContextFile(e.config.WorkDir, t.ID, phase.ID, retryFrom, reason, failureOutput, retryCounts[phase.ID])
 				if saveErr != nil {
 					e.logger.Warn("failed to save retry context file", "error", saveErr)
 				} else {
@@ -837,7 +662,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 					s.SetRetryContext(phase.ID, retryFrom, reason, result.Output, retryCounts[phase.ID])
 
 					// Save detailed context to file
-					contextFile, saveErr := e.saveRetryContextFile(t.ID, phase.ID, retryFrom, reason, result.Output, retryCounts[phase.ID])
+					contextFile, saveErr := SaveRetryContextFile(e.config.WorkDir, t.ID, phase.ID, retryFrom, reason, result.Output, retryCounts[phase.ID])
 					if saveErr != nil {
 						e.logger.Warn("failed to save retry context file", "error", saveErr)
 					} else {
@@ -954,94 +779,18 @@ func (e *Executor) ResumeFromPhase(ctx context.Context, t *task.Task, p *plan.Pl
 	return e.ExecuteTask(ctx, t, resumePlan, s)
 }
 
-// saveRetryContextFile saves detailed retry context to a markdown file.
-func (e *Executor) saveRetryContextFile(taskID, fromPhase, toPhase, reason, output string, attempt int) (string, error) {
-	dir := filepath.Join(e.config.WorkDir, ".orc", "tasks", taskID)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", err
-	}
-
-	filename := fmt.Sprintf("retry-context-%s-%d.md", fromPhase, attempt)
-	path := filepath.Join(dir, filename)
-
-	content := fmt.Sprintf(`# Retry Context
-
-## Summary
-- **From Phase**: %s
-- **To Phase**: %s
-- **Attempt**: %d
-- **Timestamp**: %s
-
-## Reason
-%s
-
-## Output from Failed Phase
-
-%s
-`, fromPhase, toPhase, attempt, time.Now().Format(time.RFC3339), reason, output)
-
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		return "", err
-	}
-
-	return path, nil
-}
-
-// loadRetryContextForPhase loads retry context for prompt injection.
-func (e *Executor) loadRetryContextForPhase(s *state.State) string {
-	rc := s.GetRetryContext()
-	if rc == nil {
-		return ""
-	}
-
-	// Build a summary for prompt injection
-	context := fmt.Sprintf(`## Retry Context
-
-This phase is being re-executed due to a failure in a later phase.
-
-**What happened:**
-- Phase "%s" failed/was rejected
-- Reason: %s
-- This is retry attempt #%d
-
-**What to fix:**
-Please address the issues that caused the later phase to fail. The failure output is below:
-
----
-%s
----
-
-Focus on fixing the root cause of these issues in this phase.
-`, rc.FromPhase, rc.Reason, rc.Attempt, rc.FailureOutput)
-
-	// If there's a context file with more details, reference it
-	if rc.ContextFile != "" {
-		context += fmt.Sprintf("\nDetailed context saved to: %s\n", rc.ContextFile)
-	}
-
-	return context
-}
-
 // setupWorktree creates or reuses an isolated worktree for the task.
 func (e *Executor) setupWorktree(taskID string) (string, error) {
-	if e.gitOps == nil {
-		return "", fmt.Errorf("git operations not available")
+	result, err := SetupWorktree(taskID, e.orcConfig, e.gitOps)
+	if err != nil {
+		return "", err
 	}
 
-	targetBranch := e.orcConfig.Completion.TargetBranch
-	if targetBranch == "" {
-		targetBranch = "main"
+	if result.Reused {
+		e.logger.Info("reusing existing worktree", "task", taskID, "path", result.Path)
 	}
 
-	// Check if worktree already exists
-	worktreePath := e.gitOps.WorktreePath(taskID)
-	if _, err := os.Stat(worktreePath); err == nil {
-		// Worktree exists, reuse it
-		e.logger.Info("reusing existing worktree", "task", taskID, "path", worktreePath)
-		return worktreePath, nil
-	}
-
-	return e.gitOps.CreateWorktree(taskID, targetBranch)
+	return result.Path, nil
 }
 
 // PR and completion methods (runCompletion, syncWithTarget, directMerge, createPR, buildPRBody, runGH)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -968,24 +969,20 @@ func TestEvaluateGate_PhaseOverride(t *testing.T) {
 }
 
 func TestLoadRetryContextForPhase(t *testing.T) {
-	e := New(DefaultConfig())
-
 	// Test with no retry context
 	testState := state.New("TASK-999")
-	ctx := e.loadRetryContextForPhase(testState)
+	ctx := LoadRetryContextForPhase(testState)
 	if ctx != "" {
 		t.Errorf("expected empty retry context, got %s", ctx)
 	}
 }
 
 func TestLoadRetryContextForPhase_WithContext(t *testing.T) {
-	e := New(DefaultConfig())
-
 	// Test with retry context set
 	testState := state.New("TASK-888")
 	testState.SetRetryContext("test", "implement", "test failed", "output here", 1)
 
-	ctx := e.loadRetryContextForPhase(testState)
+	ctx := LoadRetryContextForPhase(testState)
 	if ctx == "" {
 		t.Error("expected retry context, got empty")
 	}
@@ -996,22 +993,15 @@ func TestLoadRetryContextForPhase_WithContext(t *testing.T) {
 
 func TestSaveRetryContextFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to temp dir: %v", err)
-	}
-	defer func() { _ = os.Chdir(origDir) }()
-
-	e := New(DefaultConfig())
 
 	// Save retry context
-	path, err := e.saveRetryContextFile("TASK-001", "test", "implement", "tests failed", "error output", 1)
+	path, err := SaveRetryContextFile(tmpDir, "TASK-001", "test", "implement", "tests failed", "error output", 1)
 	if err != nil {
-		t.Fatalf("saveRetryContextFile failed: %v", err)
+		t.Fatalf("SaveRetryContextFile failed: %v", err)
 	}
 
 	// Verify file was created
-	expectedPath := ".orc/tasks/TASK-001/retry-context-test-1.md"
+	expectedPath := filepath.Join(tmpDir, ".orc/tasks/TASK-001/retry-context-test-1.md")
 	if path != expectedPath {
 		t.Errorf("path = %s, want %s", path, expectedPath)
 	}
@@ -1032,17 +1022,10 @@ func TestSaveRetryContextFile(t *testing.T) {
 
 func TestSaveRetryContextFile_MultipleAttempts(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to temp dir: %v", err)
-	}
-	defer func() { _ = os.Chdir(origDir) }()
-
-	e := New(DefaultConfig())
 
 	// Save multiple retry contexts
-	path1, _ := e.saveRetryContextFile("TASK-002", "test", "implement", "first failure", "output1", 1)
-	path2, _ := e.saveRetryContextFile("TASK-002", "test", "implement", "second failure", "output2", 2)
+	path1, _ := SaveRetryContextFile(tmpDir, "TASK-002", "test", "implement", "first failure", "output1", 1)
+	path2, _ := SaveRetryContextFile(tmpDir, "TASK-002", "test", "implement", "second failure", "output2", 2)
 
 	// Verify both files exist with different names
 	if path1 == path2 {
