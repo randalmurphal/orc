@@ -144,6 +144,27 @@ func (s *SequenceStore) GetSequence(prefix string) (int, error) {
 	return sd.Prefixes[key], nil
 }
 
+// SetSequence sets the sequence number for the given prefix to a specific value.
+// This is used for catch-up when existing tasks exceed the stored sequence.
+func (s *SequenceStore) SetSequence(prefix string, value int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	key := strings.ToUpper(prefix)
+	if key == "" {
+		key = "_solo"
+	}
+
+	sd, err := s.load()
+	if err != nil {
+		return err
+	}
+
+	sd.Prefixes[key] = value
+
+	return s.save(sd)
+}
+
 // IdentityConfig holds user identity settings for prefix generation.
 type IdentityConfig struct {
 	// Initials for PrefixInitials mode (e.g., "AM")
@@ -198,6 +219,10 @@ func WithScanExisting(scan bool) GeneratorOption {
 
 // NewTaskIDGenerator creates a new generator with the specified mode and prefix.
 // For solo mode, pass an empty prefix.
+//
+// Note: In solo mode, the prefix parameter is ignored and IDs are always
+// generated as TASK-NNN (no prefix). This is intentional per spec - solo mode
+// is for single-user workflows where prefixes add no value.
 func NewTaskIDGenerator(mode Mode, prefix string, opts ...GeneratorOption) *TaskIDGenerator {
 	g := &TaskIDGenerator{
 		mode:   mode,
@@ -274,8 +299,9 @@ func (g *TaskIDGenerator) Next() (string, error) {
 		maxExisting := g.scanMaxSequence()
 		if maxExisting >= seq {
 			seq = maxExisting + 1
-			// Update store to match
-			_, _ = g.store.NextSequence(g.prefix) // Increment to catch up
+			// Set store directly to maxExisting for efficient catch-up
+			// (avoids multiple increments when existing tasks are far ahead)
+			_ = g.store.SetSequence(g.prefix, maxExisting)
 		}
 	}
 
@@ -347,6 +373,7 @@ func (g *TaskIDGenerator) scanMaxSequenceFromEntries(entries []os.DirEntry) int 
 }
 
 // formatID formats a task ID with the given sequence number.
+// In solo mode, the prefix is ignored and IDs are always TASK-NNN.
 func (g *TaskIDGenerator) formatID(seq int) string {
 	if g.prefix == "" || g.mode == ModeSolo {
 		return fmt.Sprintf("TASK-%03d", seq)
