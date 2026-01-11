@@ -228,6 +228,55 @@ make web-build      # Outputs to web/build/
 make e2e            # Run Playwright tests
 ```
 
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `⌘ K` | Open command palette |
+| `⌘ N` | Create new task |
+| `⌘ B` | Toggle sidebar |
+| `⌘ P` | Switch project |
+| `/` | Focus search |
+| `?` | Show keyboard shortcuts help |
+| `Esc` | Close overlay |
+
+**Navigation Sequences:**
+| Sequence | Action |
+|----------|--------|
+| `g d` | Go to dashboard |
+| `g t` | Go to tasks |
+| `g s` | Go to settings |
+| `g p` | Go to prompts |
+| `g h` | Go to hooks |
+| `g k` | Go to skills |
+
+**Task List (on Tasks page):**
+| Shortcut | Action |
+|----------|--------|
+| `j` | Select next task |
+| `k` | Select previous task |
+| `Enter` | Open selected task |
+| `r` | Run selected task |
+| `p` | Pause selected task |
+| `d` | Delete selected task |
+
+### Toast Notifications
+
+The UI shows toast notifications for:
+- Task state changes (completed, failed, blocked)
+- Phase completions
+- User actions (run, pause, delete)
+
+Toasts appear in the top-right corner and auto-dismiss after a configurable duration.
+
+### Dashboard
+
+The dashboard (`/dashboard`) displays:
+- **Quick Stats**: Running, Blocked, Today's tasks, Token usage
+- **Connection Status**: Live/Connecting/Offline WebSocket indicator
+- **Active Tasks**: Currently running or paused tasks
+- **Recent Activity**: Recently completed or failed tasks
+
 ## API Endpoints
 
 ### Projects
