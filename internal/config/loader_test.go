@@ -13,6 +13,9 @@ func TestLoadWithSources_DefaultsOnly(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(origDir)
 
+	// Use empty home to avoid picking up real user config
+	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
+
 	tc, err := LoadWithSources()
 	if err != nil {
 		t.Fatalf("LoadWithSources failed: %v", err)
@@ -29,28 +32,31 @@ func TestLoadWithSources_DefaultsOnly(t *testing.T) {
 	}
 }
 
-func TestLoadWithSources_ProjectConfig(t *testing.T) {
+func TestLoadWithSources_SharedConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
 	defer os.Chdir(origDir)
 
-	// Create project config
+	// Use empty home to avoid picking up real user config
+	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
+
+	// Create shared config (.orc/config.yaml)
 	os.MkdirAll(".orc", 0755)
-	projectConfig := `
+	sharedConfig := `
 profile: strict
 model: claude-sonnet
 gates:
   default_type: human
 `
-	os.WriteFile(".orc/config.yaml", []byte(projectConfig), 0644)
+	os.WriteFile(".orc/config.yaml", []byte(sharedConfig), 0644)
 
 	tc, err := LoadWithSources()
 	if err != nil {
 		t.Fatalf("LoadWithSources failed: %v", err)
 	}
 
-	// Check project config is loaded
+	// Check shared config is loaded
 	if tc.Config.Profile != ProfileStrict {
 		t.Errorf("Profile = %q, want strict", tc.Config.Profile)
 	}
@@ -61,15 +67,15 @@ gates:
 		t.Errorf("Gates.DefaultType = %q, want human", tc.Config.Gates.DefaultType)
 	}
 
-	// Check sources
-	if tc.GetSource("profile") != SourceProject {
-		t.Errorf("profile source = %q, want project", tc.GetSource("profile"))
+	// Check sources - should be SourceShared
+	if tc.GetSource("profile") != SourceShared {
+		t.Errorf("profile source = %q, want shared", tc.GetSource("profile"))
 	}
-	if tc.GetSource("model") != SourceProject {
-		t.Errorf("model source = %q, want project", tc.GetSource("model"))
+	if tc.GetSource("model") != SourceShared {
+		t.Errorf("model source = %q, want shared", tc.GetSource("model"))
 	}
-	if tc.GetSource("gates.default_type") != SourceProject {
-		t.Errorf("gates.default_type source = %q, want project", tc.GetSource("gates.default_type"))
+	if tc.GetSource("gates.default_type") != SourceShared {
+		t.Errorf("gates.default_type source = %q, want shared", tc.GetSource("gates.default_type"))
 	}
 
 	// Check defaults for unset values
@@ -78,7 +84,47 @@ gates:
 	}
 }
 
-func TestLoadWithSources_UserConfig(t *testing.T) {
+func TestLoadWithSources_SharedDirConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Use empty home
+	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
+
+	// Create .orc/config.yaml with one value
+	os.MkdirAll(".orc/shared", 0755)
+	os.WriteFile(".orc/config.yaml", []byte("profile: safe\nmodel: model-a"), 0644)
+
+	// Create .orc/shared/config.yaml that overrides
+	os.WriteFile(".orc/shared/config.yaml", []byte("model: model-b"), 0644)
+
+	tc, err := LoadWithSources()
+	if err != nil {
+		t.Fatalf("LoadWithSources failed: %v", err)
+	}
+
+	// Profile from .orc/config.yaml (not overridden)
+	if tc.Config.Profile != ProfileSafe {
+		t.Errorf("Profile = %q, want safe", tc.Config.Profile)
+	}
+
+	// Model from .orc/shared/config.yaml (overrides .orc/config.yaml)
+	if tc.Config.Model != "model-b" {
+		t.Errorf("Model = %q, want model-b", tc.Config.Model)
+	}
+
+	// Both should be SourceShared
+	if tc.GetSource("profile") != SourceShared {
+		t.Errorf("profile source = %q, want shared", tc.GetSource("profile"))
+	}
+	if tc.GetSource("model") != SourceShared {
+		t.Errorf("model source = %q, want shared", tc.GetSource("model"))
+	}
+}
+
+func TestLoadWithSources_PersonalConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -89,11 +135,9 @@ func TestLoadWithSources_UserConfig(t *testing.T) {
 	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
 
 	// Set HOME temporarily
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", fakeHome)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", fakeHome)
 
-	// Create user config
+	// Create user config (~/.orc/config.yaml)
 	userConfig := `
 profile: safe
 retry:
@@ -114,12 +158,53 @@ retry:
 		t.Error("Retry.Enabled = true, want false")
 	}
 
-	// Check sources
-	if tc.GetSource("profile") != SourceUser {
-		t.Errorf("profile source = %q, want user", tc.GetSource("profile"))
+	// Check sources - should be SourcePersonal
+	if tc.GetSource("profile") != SourcePersonal {
+		t.Errorf("profile source = %q, want personal", tc.GetSource("profile"))
 	}
-	if tc.GetSource("retry.enabled") != SourceUser {
-		t.Errorf("retry.enabled source = %q, want user", tc.GetSource("retry.enabled"))
+	if tc.GetSource("retry.enabled") != SourcePersonal {
+		t.Errorf("retry.enabled source = %q, want personal", tc.GetSource("retry.enabled"))
+	}
+}
+
+func TestLoadWithSources_LocalConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create fake home with global personal config
+	fakeHome := filepath.Join(tmpDir, "home")
+	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
+	t.Setenv("HOME", fakeHome)
+	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
+		[]byte("profile: safe\nmodel: global-model"), 0644)
+
+	// Create local personal config (.orc/local/config.yaml)
+	os.MkdirAll(".orc/local", 0755)
+	os.WriteFile(".orc/local/config.yaml", []byte("model: local-model"), 0644)
+
+	tc, err := LoadWithSources()
+	if err != nil {
+		t.Fatalf("LoadWithSources failed: %v", err)
+	}
+
+	// Profile from ~/.orc/config.yaml (not overridden)
+	if tc.Config.Profile != ProfileSafe {
+		t.Errorf("Profile = %q, want safe", tc.Config.Profile)
+	}
+
+	// Model from .orc/local/config.yaml (overrides ~/.orc/config.yaml)
+	if tc.Config.Model != "local-model" {
+		t.Errorf("Model = %q, want local-model", tc.Config.Model)
+	}
+
+	// Both should be SourcePersonal
+	if tc.GetSource("profile") != SourcePersonal {
+		t.Errorf("profile source = %q, want personal", tc.GetSource("profile"))
+	}
+	if tc.GetSource("model") != SourcePersonal {
+		t.Errorf("model source = %q, want personal", tc.GetSource("model"))
 	}
 }
 
@@ -129,10 +214,12 @@ func TestLoadWithSources_EnvOverrides(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(origDir)
 
-	// Create project config
+	// Use empty home
+	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
+
+	// Create shared config
 	os.MkdirAll(".orc", 0755)
-	projectConfig := `profile: auto`
-	os.WriteFile(".orc/config.yaml", []byte(projectConfig), 0644)
+	os.WriteFile(".orc/config.yaml", []byte("profile: auto"), 0644)
 
 	// Set env var
 	t.Setenv("ORC_PROFILE", "strict")
@@ -144,7 +231,7 @@ func TestLoadWithSources_EnvOverrides(t *testing.T) {
 		t.Fatalf("LoadWithSources failed: %v", err)
 	}
 
-	// Check env overrides project
+	// Check env overrides everything
 	if tc.Config.Profile != ProfileStrict {
 		t.Errorf("Profile = %q, want strict (from env)", tc.Config.Profile)
 	}
@@ -167,7 +254,9 @@ func TestLoadWithSources_EnvOverrides(t *testing.T) {
 	}
 }
 
-func TestLoadWithSources_HierarchyOrder(t *testing.T) {
+// TestLoadWithSources_PersonalBeatsShared verifies the key 4-level hierarchy behavior:
+// Personal settings (user preferences) override shared settings (team defaults).
+func TestLoadWithSources_PersonalBeatsShared(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -176,16 +265,13 @@ func TestLoadWithSources_HierarchyOrder(t *testing.T) {
 	// Create fake home
 	fakeHome := filepath.Join(tmpDir, "home")
 	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
+	t.Setenv("HOME", fakeHome)
 
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", fakeHome)
-	defer os.Setenv("HOME", origHome)
-
-	// User config sets profile to safe
+	// Personal config sets profile to safe (user's preference)
 	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
 		[]byte("profile: safe"), 0644)
 
-	// Project config sets profile to strict (should override user)
+	// Shared config sets profile to strict (team default)
 	os.MkdirAll(".orc", 0755)
 	os.WriteFile(".orc/config.yaml",
 		[]byte("profile: strict"), 0644)
@@ -195,12 +281,215 @@ func TestLoadWithSources_HierarchyOrder(t *testing.T) {
 		t.Fatalf("LoadWithSources failed: %v", err)
 	}
 
-	// Project should override user
-	if tc.Config.Profile != ProfileStrict {
-		t.Errorf("Profile = %q, want strict (project overrides user)", tc.Config.Profile)
+	// Personal should override shared
+	if tc.Config.Profile != ProfileSafe {
+		t.Errorf("Profile = %q, want safe (personal overrides shared)", tc.Config.Profile)
 	}
-	if tc.GetSource("profile") != SourceProject {
-		t.Errorf("profile source = %q, want project", tc.GetSource("profile"))
+	if tc.GetSource("profile") != SourcePersonal {
+		t.Errorf("profile source = %q, want personal", tc.GetSource("profile"))
+	}
+}
+
+// TestLoadWithSources_RuntimeBeatsPersonal verifies runtime (env) beats personal.
+func TestLoadWithSources_RuntimeBeatsPersonal(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create fake home
+	fakeHome := filepath.Join(tmpDir, "home")
+	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
+	t.Setenv("HOME", fakeHome)
+
+	// Personal config sets profile
+	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
+		[]byte("profile: safe"), 0644)
+
+	// Runtime (env) should win
+	t.Setenv("ORC_PROFILE", "strict")
+
+	tc, err := LoadWithSources()
+	if err != nil {
+		t.Fatalf("LoadWithSources failed: %v", err)
+	}
+
+	// Runtime (env) should override personal
+	if tc.Config.Profile != ProfileStrict {
+		t.Errorf("Profile = %q, want strict (runtime overrides personal)", tc.Config.Profile)
+	}
+	if tc.GetSource("profile") != SourceEnv {
+		t.Errorf("profile source = %q, want env", tc.GetSource("profile"))
+	}
+}
+
+// TestLoadWithSources_FullHierarchy tests all 4 levels together.
+func TestLoadWithSources_FullHierarchy(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create fake home
+	fakeHome := filepath.Join(tmpDir, "home")
+	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
+	t.Setenv("HOME", fakeHome)
+
+	// Level 3 (Shared): team defaults
+	os.MkdirAll(".orc", 0755)
+	os.WriteFile(".orc/config.yaml", []byte(`
+profile: auto
+model: shared-model
+max_iterations: 10
+branch_prefix: team/
+`), 0644)
+
+	// Level 2 (Personal): user preferences
+	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"), []byte(`
+profile: safe
+model: personal-model
+`), 0644)
+
+	// Level 1 (Runtime): env override
+	t.Setenv("ORC_MODEL", "runtime-model")
+
+	tc, err := LoadWithSources()
+	if err != nil {
+		t.Fatalf("LoadWithSources failed: %v", err)
+	}
+
+	// Profile: personal beats shared
+	if tc.Config.Profile != ProfileSafe {
+		t.Errorf("Profile = %q, want safe", tc.Config.Profile)
+	}
+	if tc.GetSource("profile") != SourcePersonal {
+		t.Errorf("profile source = %q, want personal", tc.GetSource("profile"))
+	}
+
+	// Model: runtime beats personal
+	if tc.Config.Model != "runtime-model" {
+		t.Errorf("Model = %q, want runtime-model", tc.Config.Model)
+	}
+	if tc.GetSource("model") != SourceEnv {
+		t.Errorf("model source = %q, want env", tc.GetSource("model"))
+	}
+
+	// MaxIterations: only in shared
+	if tc.Config.MaxIterations != 10 {
+		t.Errorf("MaxIterations = %d, want 10", tc.Config.MaxIterations)
+	}
+	if tc.GetSource("max_iterations") != SourceShared {
+		t.Errorf("max_iterations source = %q, want shared", tc.GetSource("max_iterations"))
+	}
+
+	// BranchPrefix: only in shared
+	if tc.Config.BranchPrefix != "team/" {
+		t.Errorf("BranchPrefix = %q, want team/", tc.Config.BranchPrefix)
+	}
+	if tc.GetSource("branch_prefix") != SourceShared {
+		t.Errorf("branch_prefix source = %q, want shared", tc.GetSource("branch_prefix"))
+	}
+
+	// Timeout: not set anywhere, should be default
+	if tc.GetSource("timeout") != SourceDefault {
+		t.Errorf("timeout source = %q, want default", tc.GetSource("timeout"))
+	}
+}
+
+func TestLoadWithSources_SourcePathTracking(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Create fake home
+	fakeHome := filepath.Join(tmpDir, "home")
+	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
+	t.Setenv("HOME", fakeHome)
+
+	// Create configs
+	os.MkdirAll(".orc", 0755)
+	os.WriteFile(".orc/config.yaml", []byte("profile: strict"), 0644)
+	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
+		[]byte("model: my-model"), 0644)
+
+	tc, err := LoadWithSources()
+	if err != nil {
+		t.Fatalf("LoadWithSources failed: %v", err)
+	}
+
+	// Check TrackedSource includes file path
+	profileTS := tc.GetTrackedSource("profile")
+	if profileTS.Source != SourceShared {
+		t.Errorf("profile TrackedSource.Source = %q, want shared", profileTS.Source)
+	}
+	if profileTS.Path == "" {
+		t.Error("profile TrackedSource.Path is empty, want file path")
+	}
+
+	modelTS := tc.GetTrackedSource("model")
+	if modelTS.Source != SourcePersonal {
+		t.Errorf("model TrackedSource.Source = %q, want personal", modelTS.Source)
+	}
+	if modelTS.Path == "" {
+		t.Error("model TrackedSource.Path is empty, want file path")
+	}
+}
+
+func TestLoadWithSources_MissingFilesOK(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Use empty home - no config files anywhere
+	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
+
+	// No .orc directory, no config files - should still work with defaults
+	tc, err := LoadWithSources()
+	if err != nil {
+		t.Fatalf("LoadWithSources failed with missing files: %v", err)
+	}
+
+	// Should have defaults
+	if tc.Config.Profile != ProfileAuto {
+		t.Errorf("Profile = %q, want auto (default)", tc.Config.Profile)
+	}
+	if tc.Config.Model != Default().Model {
+		t.Errorf("Model = %q, want %q (default)", tc.Config.Model, Default().Model)
+	}
+}
+
+func TestLoader_SetDirectories(t *testing.T) {
+	loader := NewLoader("/project")
+
+	loader.SetUserDir("/custom/user")
+	loader.SetProjectDir("/custom/project")
+
+	paths := loader.GetConfigPaths()
+
+	// Check personal paths include custom user dir
+	found := false
+	for _, p := range paths[LevelPersonal] {
+		if p == "/custom/user/config.yaml" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Personal paths don't include custom user dir: %v", paths[LevelPersonal])
+	}
+
+	// Check shared paths include custom project dir
+	found = false
+	for _, p := range paths[LevelShared] {
+		if p == "/custom/project/.orc/config.yaml" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Shared paths don't include custom project dir: %v", paths[LevelShared])
 	}
 }
 
@@ -294,5 +583,89 @@ func TestApplyEnvVars(t *testing.T) {
 				t.Errorf("source for %q = %q, want env", tt.wantPath, tc.GetSource(tt.wantPath))
 			}
 		})
+	}
+}
+
+func TestConfigLevel_String(t *testing.T) {
+	tests := []struct {
+		level ConfigLevel
+		want  string
+	}{
+		{LevelDefaults, "default"},
+		{LevelShared, "shared"},
+		{LevelPersonal, "personal"},
+		{LevelRuntime, "runtime"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.level.String(); got != tt.want {
+				t.Errorf("ConfigLevel.String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfigSource_Level(t *testing.T) {
+	tests := []struct {
+		source ConfigSource
+		want   ConfigLevel
+	}{
+		{SourceDefault, LevelDefaults},
+		{SourceShared, LevelShared},
+		{SourcePersonal, LevelPersonal},
+		{SourceEnv, LevelRuntime},
+		{SourceFlag, LevelRuntime},
+		// Deprecated sources
+		{SourceProject, LevelShared},
+		{SourceUser, LevelPersonal},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.source), func(t *testing.T) {
+			if got := tt.source.Level(); got != tt.want {
+				t.Errorf("ConfigSource.Level() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTrackedSource_String(t *testing.T) {
+	tests := []struct {
+		ts   TrackedSource
+		want string
+	}{
+		{TrackedSource{Source: SourceDefault}, "default"},
+		{TrackedSource{Source: SourceShared, Path: ".orc/config.yaml"}, "shared: .orc/config.yaml"},
+		{TrackedSource{Source: SourcePersonal, Path: "~/.orc/config.yaml"}, "personal: ~/.orc/config.yaml"},
+		{TrackedSource{Source: SourceEnv}, "env"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.ts.String(); got != tt.want {
+				t.Errorf("TrackedSource.String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// Backward compatibility tests - ensure deprecated source constants still work
+func TestBackwardCompatibility_DeprecatedSources(t *testing.T) {
+	// SourceProject should work like SourceShared
+	if SourceProject.Level() != LevelShared {
+		t.Errorf("SourceProject.Level() = %v, want LevelShared", SourceProject.Level())
+	}
+
+	// SourceUser should work like SourcePersonal
+	if SourceUser.Level() != LevelPersonal {
+		t.Errorf("SourceUser.Level() = %v, want LevelPersonal", SourceUser.Level())
+	}
+
+	// TrackedConfig should still work with old source constants
+	tc := NewTrackedConfig()
+	tc.SetSource("profile", SourceProject)
+	if tc.GetSource("profile") != SourceProject {
+		t.Errorf("GetSource returned %q, want %q", tc.GetSource("profile"), SourceProject)
 	}
 }

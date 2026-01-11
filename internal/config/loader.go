@@ -9,53 +9,132 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// LoadWithSources loads configuration with source tracking.
-// Load order (later sources override earlier):
-//  1. Built-in defaults
-//  2. System config (/etc/orc/config.yaml) - optional
-//  3. User config (~/.orc/config.yaml) - optional
-//  4. Project config (.orc/config.yaml)
-//  5. Environment variables (ORC_*)
-func LoadWithSources() (*TrackedConfig, error) {
+// Loader handles loading and merging configuration from multiple sources.
+// It implements the 4-level configuration hierarchy:
+//
+//	Level 1: Runtime (env vars, CLI flags) - highest priority
+//	Level 2: Personal (~/.orc/, .orc/local/) - user preferences
+//	Level 3: Shared (.orc/shared/, .orc/) - team defaults
+//	Level 4: Defaults (built-in) - lowest priority
+type Loader struct {
+	projectDir string // Project directory (containing .orc/)
+	userDir    string // User config directory (~/.orc/)
+}
+
+// NewLoader creates a new configuration loader.
+// If projectDir is empty, the current working directory is used.
+func NewLoader(projectDir string) *Loader {
+	if projectDir == "" {
+		projectDir, _ = os.Getwd()
+	}
+	userDir := ""
+	if home, err := os.UserHomeDir(); err == nil {
+		userDir = filepath.Join(home, ".orc")
+	}
+	return &Loader{
+		projectDir: projectDir,
+		userDir:    userDir,
+	}
+}
+
+// SetUserDir overrides the user config directory (for testing).
+func (l *Loader) SetUserDir(dir string) {
+	l.userDir = dir
+}
+
+// SetProjectDir overrides the project directory (for testing).
+func (l *Loader) SetProjectDir(dir string) {
+	l.projectDir = dir
+}
+
+// Load loads and merges configuration from all levels with source tracking.
+//
+// Resolution order (later levels override earlier):
+//  1. Defaults (built-in)
+//  2. Shared: .orc/config.yaml, .orc/shared/config.yaml
+//  3. Personal: ~/.orc/config.yaml, .orc/local/config.yaml
+//  4. Runtime: environment variables (ORC_*)
+//
+// Personal settings always override shared settings (individual autonomy).
+func (l *Loader) Load() (*TrackedConfig, error) {
 	tc := NewTrackedConfig()
 
-	// Mark all defaults with SourceDefault
+	// Level 4: Defaults (already set in NewTrackedConfig)
 	markDefaults(tc)
 
-	// 2. System config (/etc/orc/config.yaml)
-	systemPath := "/etc/orc/config.yaml"
-	if _, err := os.Stat(systemPath); err == nil {
-		if err := mergeFromFile(tc, systemPath, SourceSystem); err != nil {
-			slog.Warn("failed to load system config", "path", systemPath, "error", err)
-		}
-	}
+	// Level 3: Shared (team/project defaults)
+	// Load .orc/config.yaml first, then .orc/shared/config.yaml can override
+	l.loadLevel(tc, LevelShared, SourceShared, []string{
+		filepath.Join(l.projectDir, OrcDir, ConfigFileName),          // .orc/config.yaml
+		filepath.Join(l.projectDir, OrcDir, "shared", ConfigFileName), // .orc/shared/config.yaml
+	})
 
-	// 3. User config (~/.orc/config.yaml)
-	if home, err := os.UserHomeDir(); err == nil {
-		userPath := filepath.Join(home, ".orc", "config.yaml")
-		if _, err := os.Stat(userPath); err == nil {
-			if err := mergeFromFile(tc, userPath, SourceUser); err != nil {
-				slog.Warn("failed to load user config", "path", userPath, "error", err)
-			}
-		}
-	}
+	// Level 2: Personal (user preferences)
+	// Load ~/.orc/config.yaml first, then .orc/local/config.yaml can override
+	l.loadLevel(tc, LevelPersonal, SourcePersonal, []string{
+		filepath.Join(l.userDir, ConfigFileName),                     // ~/.orc/config.yaml
+		filepath.Join(l.projectDir, OrcDir, "local", ConfigFileName), // .orc/local/config.yaml
+	})
 
-	// 4. Project config (.orc/config.yaml)
-	projectPath := filepath.Join(OrcDir, ConfigFileName)
-	if _, err := os.Stat(projectPath); err == nil {
-		if err := mergeFromFile(tc, projectPath, SourceProject); err != nil {
-			return nil, err // Project config errors are fatal
-		}
-	}
-
-	// 5. Environment variables
+	// Level 1: Runtime (env vars)
 	ApplyEnvVars(tc)
 
 	return tc, nil
 }
 
-// mergeFromFile merges configuration from a file into tc.
-func mergeFromFile(tc *TrackedConfig, path string, source ConfigSource) error {
+// loadLevel loads configuration files for a specific level.
+// Files are processed in order; later files in the list override earlier ones.
+func (l *Loader) loadLevel(tc *TrackedConfig, level ConfigLevel, source ConfigSource, paths []string) {
+	for _, path := range paths {
+		if _, err := os.Stat(path); err != nil {
+			continue // Skip missing files
+		}
+		if err := mergeFromFileWithPath(tc, path, source); err != nil {
+			slog.Warn("failed to load config",
+				"level", level.String(),
+				"path", path,
+				"error", err)
+		}
+	}
+}
+
+// GetConfigPaths returns the list of config file paths that would be checked.
+// Useful for debugging and displaying configuration resolution.
+func (l *Loader) GetConfigPaths() map[ConfigLevel][]string {
+	return map[ConfigLevel][]string{
+		LevelShared: {
+			filepath.Join(l.projectDir, OrcDir, ConfigFileName),
+			filepath.Join(l.projectDir, OrcDir, "shared", ConfigFileName),
+		},
+		LevelPersonal: {
+			filepath.Join(l.userDir, ConfigFileName),
+			filepath.Join(l.projectDir, OrcDir, "local", ConfigFileName),
+		},
+	}
+}
+
+// LoadWithSources loads configuration with source tracking.
+// This is the main entry point, using the current working directory.
+//
+// 4-Level Configuration Hierarchy:
+//  1. Runtime: env vars, CLI flags (highest priority)
+//  2. Personal: ~/.orc/config.yaml, .orc/local/config.yaml
+//  3. Shared: .orc/shared/config.yaml, .orc/config.yaml
+//  4. Defaults: Built-in values (lowest priority)
+//
+// Key principle: Personal settings always override shared settings.
+// This ensures individual developers maintain control over their preferences.
+func LoadWithSources() (*TrackedConfig, error) {
+	return NewLoader("").Load()
+}
+
+// LoadWithSourcesFrom loads configuration from a specific project directory.
+func LoadWithSourcesFrom(projectDir string) (*TrackedConfig, error) {
+	return NewLoader(projectDir).Load()
+}
+
+// mergeFromFileWithPath merges configuration from a file, tracking the file path.
+func mergeFromFileWithPath(tc *TrackedConfig, path string, source ConfigSource) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read config %s: %w", path, err)
@@ -73,231 +152,241 @@ func mergeFromFile(tc *TrackedConfig, path string, source ConfigSource) error {
 		return fmt.Errorf("parse config %s: %w", path, err)
 	}
 
-	// Merge non-zero values and track sources
-	mergeConfig(tc, &fileCfg, raw, source)
+	// Merge non-zero values and track sources with file path
+	mergeConfigWithPath(tc, &fileCfg, raw, source, path)
 
 	return nil
 }
 
-// mergeConfig merges fileCfg into tc.Config, tracking sources.
-func mergeConfig(tc *TrackedConfig, fileCfg *Config, raw map[string]interface{}, source ConfigSource) {
+// mergeFromFile merges configuration from a file (backward compat).
+func mergeFromFile(tc *TrackedConfig, path string, source ConfigSource) error {
+	return mergeFromFileWithPath(tc, path, source)
+}
+
+// mergeConfigWithPath merges fileCfg into tc.Config, tracking sources with path.
+func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]interface{}, source ConfigSource, path string) {
 	cfg := tc.Config
 
 	// Top-level fields
 	if _, ok := raw["version"]; ok {
 		cfg.Version = fileCfg.Version
-		tc.SetSource("version", source)
+		tc.SetSourceWithPath("version", source, path)
 	}
 	if _, ok := raw["profile"]; ok {
 		cfg.Profile = fileCfg.Profile
-		tc.SetSource("profile", source)
+		tc.SetSourceWithPath("profile", source, path)
 	}
 	if _, ok := raw["model"]; ok {
 		cfg.Model = fileCfg.Model
-		tc.SetSource("model", source)
+		tc.SetSourceWithPath("model", source, path)
 	}
 	if _, ok := raw["fallback_model"]; ok {
 		cfg.FallbackModel = fileCfg.FallbackModel
-		tc.SetSource("fallback_model", source)
+		tc.SetSourceWithPath("fallback_model", source, path)
 	}
 	if _, ok := raw["max_iterations"]; ok {
 		cfg.MaxIterations = fileCfg.MaxIterations
-		tc.SetSource("max_iterations", source)
+		tc.SetSourceWithPath("max_iterations", source, path)
 	}
 	if _, ok := raw["timeout"]; ok {
 		cfg.Timeout = fileCfg.Timeout
-		tc.SetSource("timeout", source)
+		tc.SetSourceWithPath("timeout", source, path)
 	}
 	if _, ok := raw["branch_prefix"]; ok {
 		cfg.BranchPrefix = fileCfg.BranchPrefix
-		tc.SetSource("branch_prefix", source)
+		tc.SetSourceWithPath("branch_prefix", source, path)
 	}
 	if _, ok := raw["commit_prefix"]; ok {
 		cfg.CommitPrefix = fileCfg.CommitPrefix
-		tc.SetSource("commit_prefix", source)
+		tc.SetSourceWithPath("commit_prefix", source, path)
 	}
 	if _, ok := raw["claude_path"]; ok {
 		cfg.ClaudePath = fileCfg.ClaudePath
-		tc.SetSource("claude_path", source)
+		tc.SetSourceWithPath("claude_path", source, path)
 	}
 	if _, ok := raw["dangerously_skip_permissions"]; ok {
 		cfg.DangerouslySkipPermissions = fileCfg.DangerouslySkipPermissions
-		tc.SetSource("dangerously_skip_permissions", source)
+		tc.SetSourceWithPath("dangerously_skip_permissions", source, path)
 	}
 	if _, ok := raw["templates_dir"]; ok {
 		cfg.TemplatesDir = fileCfg.TemplatesDir
-		tc.SetSource("templates_dir", source)
+		tc.SetSourceWithPath("templates_dir", source, path)
 	}
 	if _, ok := raw["enable_checkpoints"]; ok {
 		cfg.EnableCheckpoints = fileCfg.EnableCheckpoints
-		tc.SetSource("enable_checkpoints", source)
+		tc.SetSourceWithPath("enable_checkpoints", source, path)
 	}
 
 	// Nested configs
 	if rawGates, ok := raw["gates"].(map[string]interface{}); ok {
-		mergeGatesConfig(cfg, fileCfg, rawGates, tc, source)
+		mergeGatesConfigWithPath(cfg, fileCfg, rawGates, tc, source, path)
 	}
 	if rawRetry, ok := raw["retry"].(map[string]interface{}); ok {
-		mergeRetryConfig(cfg, fileCfg, rawRetry, tc, source)
+		mergeRetryConfigWithPath(cfg, fileCfg, rawRetry, tc, source, path)
 	}
 	if rawWorktree, ok := raw["worktree"].(map[string]interface{}); ok {
-		mergeWorktreeConfig(cfg, fileCfg, rawWorktree, tc, source)
+		mergeWorktreeConfigWithPath(cfg, fileCfg, rawWorktree, tc, source, path)
 	}
 	if rawCompletion, ok := raw["completion"].(map[string]interface{}); ok {
-		mergeCompletionConfig(cfg, fileCfg, rawCompletion, tc, source)
+		mergeCompletionConfigWithPath(cfg, fileCfg, rawCompletion, tc, source, path)
 	}
 	if rawExecution, ok := raw["execution"].(map[string]interface{}); ok {
-		mergeExecutionConfig(cfg, fileCfg, rawExecution, tc, source)
+		mergeExecutionConfigWithPath(cfg, fileCfg, rawExecution, tc, source, path)
 	}
 	if rawBudget, ok := raw["budget"].(map[string]interface{}); ok {
-		mergeBudgetConfig(cfg, fileCfg, rawBudget, tc, source)
+		mergeBudgetConfigWithPath(cfg, fileCfg, rawBudget, tc, source, path)
 	}
 	if rawPool, ok := raw["pool"].(map[string]interface{}); ok {
-		mergePoolConfig(cfg, fileCfg, rawPool, tc, source)
+		mergePoolConfigWithPath(cfg, fileCfg, rawPool, tc, source, path)
 	}
 }
 
-func mergeGatesConfig(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource) {
+// mergeConfig merges fileCfg into tc.Config (backward compat wrapper).
+func mergeConfig(tc *TrackedConfig, fileCfg *Config, raw map[string]interface{}, source ConfigSource) {
+	mergeConfigWithPath(tc, fileCfg, raw, source, "")
+}
+
+func mergeGatesConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
 	if _, ok := raw["default_type"]; ok {
 		cfg.Gates.DefaultType = fileCfg.Gates.DefaultType
-		tc.SetSource("gates.default_type", source)
+		tc.SetSourceWithPath("gates.default_type", source, path)
 	}
 	if _, ok := raw["auto_approve_on_success"]; ok {
 		cfg.Gates.AutoApproveOnSuccess = fileCfg.Gates.AutoApproveOnSuccess
-		tc.SetSource("gates.auto_approve_on_success", source)
+		tc.SetSourceWithPath("gates.auto_approve_on_success", source, path)
 	}
 	if _, ok := raw["retry_on_failure"]; ok {
 		cfg.Gates.RetryOnFailure = fileCfg.Gates.RetryOnFailure
-		tc.SetSource("gates.retry_on_failure", source)
+		tc.SetSourceWithPath("gates.retry_on_failure", source, path)
 	}
 	if _, ok := raw["max_retries"]; ok {
 		cfg.Gates.MaxRetries = fileCfg.Gates.MaxRetries
-		tc.SetSource("gates.max_retries", source)
+		tc.SetSourceWithPath("gates.max_retries", source, path)
 	}
 	if _, ok := raw["phase_overrides"]; ok {
 		cfg.Gates.PhaseOverrides = fileCfg.Gates.PhaseOverrides
-		tc.SetSource("gates.phase_overrides", source)
+		tc.SetSourceWithPath("gates.phase_overrides", source, path)
 	}
 	if _, ok := raw["weight_overrides"]; ok {
 		cfg.Gates.WeightOverrides = fileCfg.Gates.WeightOverrides
-		tc.SetSource("gates.weight_overrides", source)
+		tc.SetSourceWithPath("gates.weight_overrides", source, path)
 	}
 }
 
-func mergeRetryConfig(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource) {
+func mergeRetryConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
 	if _, ok := raw["enabled"]; ok {
 		cfg.Retry.Enabled = fileCfg.Retry.Enabled
-		tc.SetSource("retry.enabled", source)
+		tc.SetSourceWithPath("retry.enabled", source, path)
 	}
 	if _, ok := raw["max_retries"]; ok {
 		cfg.Retry.MaxRetries = fileCfg.Retry.MaxRetries
-		tc.SetSource("retry.max_retries", source)
+		tc.SetSourceWithPath("retry.max_retries", source, path)
 	}
 	if _, ok := raw["retry_map"]; ok {
 		cfg.Retry.RetryMap = fileCfg.Retry.RetryMap
-		tc.SetSource("retry.retry_map", source)
+		tc.SetSourceWithPath("retry.retry_map", source, path)
 	}
 }
 
-func mergeWorktreeConfig(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource) {
+func mergeWorktreeConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
 	if _, ok := raw["enabled"]; ok {
 		cfg.Worktree.Enabled = fileCfg.Worktree.Enabled
-		tc.SetSource("worktree.enabled", source)
+		tc.SetSourceWithPath("worktree.enabled", source, path)
 	}
 	if _, ok := raw["dir"]; ok {
 		cfg.Worktree.Dir = fileCfg.Worktree.Dir
-		tc.SetSource("worktree.dir", source)
+		tc.SetSourceWithPath("worktree.dir", source, path)
 	}
 	if _, ok := raw["cleanup_on_complete"]; ok {
 		cfg.Worktree.CleanupOnComplete = fileCfg.Worktree.CleanupOnComplete
-		tc.SetSource("worktree.cleanup_on_complete", source)
+		tc.SetSourceWithPath("worktree.cleanup_on_complete", source, path)
 	}
 	if _, ok := raw["cleanup_on_fail"]; ok {
 		cfg.Worktree.CleanupOnFail = fileCfg.Worktree.CleanupOnFail
-		tc.SetSource("worktree.cleanup_on_fail", source)
+		tc.SetSourceWithPath("worktree.cleanup_on_fail", source, path)
 	}
 }
 
-func mergeCompletionConfig(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource) {
+func mergeCompletionConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
 	if _, ok := raw["action"]; ok {
 		cfg.Completion.Action = fileCfg.Completion.Action
-		tc.SetSource("completion.action", source)
+		tc.SetSourceWithPath("completion.action", source, path)
 	}
 	if _, ok := raw["target_branch"]; ok {
 		cfg.Completion.TargetBranch = fileCfg.Completion.TargetBranch
-		tc.SetSource("completion.target_branch", source)
+		tc.SetSourceWithPath("completion.target_branch", source, path)
 	}
 	if _, ok := raw["delete_branch"]; ok {
 		cfg.Completion.DeleteBranch = fileCfg.Completion.DeleteBranch
-		tc.SetSource("completion.delete_branch", source)
+		tc.SetSourceWithPath("completion.delete_branch", source, path)
 	}
 	// PR config is nested further
 	if rawPR, ok := raw["pr"].(map[string]interface{}); ok {
 		if _, ok := rawPR["title"]; ok {
 			cfg.Completion.PR.Title = fileCfg.Completion.PR.Title
-			tc.SetSource("completion.pr.title", source)
+			tc.SetSourceWithPath("completion.pr.title", source, path)
 		}
 		if _, ok := rawPR["body_template"]; ok {
 			cfg.Completion.PR.BodyTemplate = fileCfg.Completion.PR.BodyTemplate
-			tc.SetSource("completion.pr.body_template", source)
+			tc.SetSourceWithPath("completion.pr.body_template", source, path)
 		}
 		if _, ok := rawPR["labels"]; ok {
 			cfg.Completion.PR.Labels = fileCfg.Completion.PR.Labels
-			tc.SetSource("completion.pr.labels", source)
+			tc.SetSourceWithPath("completion.pr.labels", source, path)
 		}
 		if _, ok := rawPR["reviewers"]; ok {
 			cfg.Completion.PR.Reviewers = fileCfg.Completion.PR.Reviewers
-			tc.SetSource("completion.pr.reviewers", source)
+			tc.SetSourceWithPath("completion.pr.reviewers", source, path)
 		}
 		if _, ok := rawPR["draft"]; ok {
 			cfg.Completion.PR.Draft = fileCfg.Completion.PR.Draft
-			tc.SetSource("completion.pr.draft", source)
+			tc.SetSourceWithPath("completion.pr.draft", source, path)
 		}
 		if _, ok := rawPR["auto_merge"]; ok {
 			cfg.Completion.PR.AutoMerge = fileCfg.Completion.PR.AutoMerge
-			tc.SetSource("completion.pr.auto_merge", source)
+			tc.SetSourceWithPath("completion.pr.auto_merge", source, path)
 		}
 	}
 }
 
-func mergeExecutionConfig(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource) {
+func mergeExecutionConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
 	if _, ok := raw["use_session_execution"]; ok {
 		cfg.Execution.UseSessionExecution = fileCfg.Execution.UseSessionExecution
-		tc.SetSource("execution.use_session_execution", source)
+		tc.SetSourceWithPath("execution.use_session_execution", source, path)
 	}
 	if _, ok := raw["session_persistence"]; ok {
 		cfg.Execution.SessionPersistence = fileCfg.Execution.SessionPersistence
-		tc.SetSource("execution.session_persistence", source)
+		tc.SetSourceWithPath("execution.session_persistence", source, path)
 	}
 	if _, ok := raw["checkpoint_interval"]; ok {
 		cfg.Execution.CheckpointInterval = fileCfg.Execution.CheckpointInterval
-		tc.SetSource("execution.checkpoint_interval", source)
+		tc.SetSourceWithPath("execution.checkpoint_interval", source, path)
 	}
 }
 
-func mergeBudgetConfig(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource) {
+func mergeBudgetConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
 	if _, ok := raw["threshold_usd"]; ok {
 		cfg.Budget.ThresholdUSD = fileCfg.Budget.ThresholdUSD
-		tc.SetSource("budget.threshold_usd", source)
+		tc.SetSourceWithPath("budget.threshold_usd", source, path)
 	}
 	if _, ok := raw["alert_on_exceed"]; ok {
 		cfg.Budget.AlertOnExceed = fileCfg.Budget.AlertOnExceed
-		tc.SetSource("budget.alert_on_exceed", source)
+		tc.SetSourceWithPath("budget.alert_on_exceed", source, path)
 	}
 	if _, ok := raw["pause_on_exceed"]; ok {
 		cfg.Budget.PauseOnExceed = fileCfg.Budget.PauseOnExceed
-		tc.SetSource("budget.pause_on_exceed", source)
+		tc.SetSourceWithPath("budget.pause_on_exceed", source, path)
 	}
 }
 
-func mergePoolConfig(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource) {
+func mergePoolConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
 	if _, ok := raw["enabled"]; ok {
 		cfg.Pool.Enabled = fileCfg.Pool.Enabled
-		tc.SetSource("pool.enabled", source)
+		tc.SetSourceWithPath("pool.enabled", source, path)
 	}
 	if _, ok := raw["config_path"]; ok {
 		cfg.Pool.ConfigPath = fileCfg.Pool.ConfigPath
-		tc.SetSource("pool.config_path", source)
+		tc.SetSourceWithPath("pool.config_path", source, path)
 	}
 }
 
