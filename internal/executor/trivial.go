@@ -4,15 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude"
-	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/templates"
 )
 
 // TrivialExecutor executes phases using fire-and-forget LLM calls.
@@ -24,7 +22,7 @@ import (
 // Iteration Limit: 5 (low, expects quick completion)
 type TrivialExecutor struct {
 	client    claude.Client
-	publisher events.Publisher
+	publisher *EventPublisher
 	logger    *slog.Logger
 	config    ExecutorConfig
 }
@@ -39,7 +37,7 @@ func WithTrivialClient(client claude.Client) TrivialExecutorOption {
 
 // WithTrivialPublisher sets the event publisher.
 func WithTrivialPublisher(p events.Publisher) TrivialExecutorOption {
-	return func(e *TrivialExecutor) { e.publisher = p }
+	return func(e *TrivialExecutor) { e.publisher = NewEventPublisher(p) }
 }
 
 // WithTrivialLogger sets the logger.
@@ -90,19 +88,21 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		return result, result.Error
 	}
 
-	// Load and render prompt
-	promptText, err := e.loadAndRenderPrompt(t, p, s)
+	// Load and render prompt using shared template module
+	tmpl, err := LoadPromptTemplate(p)
 	if err != nil {
 		result.Status = plan.PhaseFailed
 		result.Error = fmt.Errorf("load prompt: %w", err)
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
+	vars := BuildTemplateVars(t, p, s, 0, "")
+	promptText := RenderTemplate(tmpl, vars)
 
 	// Simple iteration loop - no session, just repeated completions
 	var lastResponse string
 	for iteration := 1; iteration <= e.config.MaxIterations; iteration++ {
-		e.publishTranscript(t.ID, p.ID, iteration, "prompt", promptText)
+		e.publisher.Transcript(t.ID, p.ID, iteration, "prompt", promptText)
 
 		// Execute single completion
 		resp, err := e.client.Complete(ctx, claude.CompletionRequest{
@@ -123,7 +123,7 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		result.Iterations = iteration
 		lastResponse = resp.Content
 
-		e.publishTranscript(t.ID, p.ID, iteration, "response", resp.Content)
+		e.publisher.Transcript(t.ID, p.ID, iteration, "response", resp.Content)
 
 		// Check completion markers
 		status, reason := CheckPhaseCompletion(resp.Content)
@@ -158,52 +158,3 @@ done:
 	return result, result.Error
 }
 
-// loadAndRenderPrompt loads and renders the prompt template.
-func (e *TrivialExecutor) loadAndRenderPrompt(t *task.Task, p *plan.Phase, s *state.State) (string, error) {
-	if p.Prompt != "" {
-		return e.renderTemplate(p.Prompt, t, p), nil
-	}
-
-	tmplPath := fmt.Sprintf("prompts/%s.md", p.ID)
-	content, err := templates.Prompts.ReadFile(tmplPath)
-	if err != nil {
-		return "", fmt.Errorf("prompt not found for phase %s", p.ID)
-	}
-
-	return e.renderTemplate(string(content), t, p), nil
-}
-
-// renderTemplate does simple variable substitution.
-func (e *TrivialExecutor) renderTemplate(tmpl string, t *task.Task, p *plan.Phase) string {
-	replacements := map[string]string{
-		"{{TASK_ID}}":          t.ID,
-		"{{TASK_TITLE}}":       t.Title,
-		"{{TASK_DESCRIPTION}}": t.Description,
-		"{{PHASE}}":            p.ID,
-		"{{WEIGHT}}":           string(t.Weight),
-	}
-
-	result := tmpl
-	for k, v := range replacements {
-		result = strings.ReplaceAll(result, k, v)
-	}
-	return result
-}
-
-// Event publishing
-
-func (e *TrivialExecutor) publish(ev events.Event) {
-	if e.publisher != nil {
-		e.publisher.Publish(ev)
-	}
-}
-
-func (e *TrivialExecutor) publishTranscript(taskID, phase string, iteration int, msgType, content string) {
-	e.publish(events.NewEvent(events.EventTranscript, taskID, events.TranscriptLine{
-		Phase:     phase,
-		Iteration: iteration,
-		Type:      msgType,
-		Content:   content,
-		Timestamp: time.Now(),
-	}))
-}
