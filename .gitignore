@@ -20,3 +20,9 @@ coverage.out
 
 # Claude Code local state
 .claude/*.local.md
+
+# Playwright MCP screenshots
+.playwright-mcp/
+
+# Orc worktrees (parallel task execution)
+.orc/worktrees/
