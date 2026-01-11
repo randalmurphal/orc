@@ -2,6 +2,7 @@
 	import type { ReviewComment, CreateCommentRequest, CommentSeverity } from '$lib/types';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { formatRelativeTime } from '$lib/utils/format';
+	import { getModifierSymbol } from '$lib/utils/platform';
 
 	interface Props {
 		comments: ReviewComment[];
@@ -142,6 +143,7 @@
 					aria-label="Review comment"
 				></textarea>
 				<div class="form-actions">
+					<span class="keyboard-hint">{getModifierSymbol()}+Enter to submit, Esc to cancel</span>
 					<button type="button" class="cancel-btn" onclick={handleCancel}>
 						Cancel
 					</button>
@@ -307,8 +309,15 @@
 
 	.form-actions {
 		display: flex;
+		align-items: center;
 		justify-content: flex-end;
 		gap: var(--space-2);
+	}
+
+	.keyboard-hint {
+		margin-right: auto;
+		font-size: var(--text-2xs);
+		color: var(--text-muted);
 	}
 
 	.cancel-btn {
