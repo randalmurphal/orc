@@ -6,6 +6,57 @@ Build the complete orc v1.0 orchestrator with all P0 and P1 features implemented
 
 ---
 
+## Library Integration Map
+
+**Use existing capabilities from sibling libraries. Don't reinvent.**
+
+### From llmkit (../llmkit)
+
+| Feature | Package | Use In Orc |
+|---------|---------|------------|
+| Claude CLI wrapper | `claude.Client` | Already using in executor |
+| Session management | `claude/session` | **Leverage for Session Interop** - has token/cost tracking |
+| Template rendering | `template.Engine` | Use for prompt rendering instead of custom |
+| Response parsing | `parser.IsPhaseComplete()` | Already using for phase detection |
+| Token budgeting | `tokens.Budget` | Use for context window management |
+| Cost tracking | `model.CostTracker` | **Use for Cost Tracking feature** |
+| Model selection | `model.Selector` | Use for phase-appropriate model selection |
+| Escalation chains | `model.EscalationChain` | Use for retry with model fallback |
+
+### From devflow (../devflow)
+
+| Feature | Package | Use In Orc |
+|---------|---------|------------|
+| Git operations | `git.Context` | Already wrapped in internal/git |
+| Worktree isolation | `git.CreateWorktree()` | Already using |
+| Branch naming | `git.BranchNamer` | Use for task branch names |
+| PR creation | `pr.Provider` | **Use for completion actions** (PR/merge) |
+| Transcript storage | `transcript.FileStore` | Use for phase transcript persistence |
+| Artifact storage | `artifact.Manager` | Use for test results, lint output |
+
+### From flowgraph (../flowgraph)
+
+| Feature | Package | Use In Orc |
+|---------|---------|------------|
+| Graph execution | `flowgraph.CompiledGraph` | Already using in executor |
+| Checkpointing | `checkpoint.SQLiteStore` | **Consider for task state** instead of YAML |
+| Event bus | `event.Bus` | Consider for real-time updates |
+| Signals | `signal.Signal` | Consider for human gates |
+| Observability | `metrics`, `tracing` | Use for phase telemetry |
+
+### Orc-Specific (Must Build)
+
+| Feature | Why Orc-Specific |
+|---------|------------------|
+| Task YAML persistence | Orc's task/plan/state model |
+| Weight classification | Orc's trivial→greenfield mapping |
+| Automation profiles | Orc's auto/fast/safe/strict gates |
+| Init wizard | Orc's interactive setup flow |
+| Web dashboard | Orc's Svelte frontend |
+| Multi-project registry | Orc's cross-project support |
+
+---
+
 ## Current State Check
 
 Before each iteration:
@@ -78,24 +129,31 @@ Before each iteration:
 
 ### 2. Session Interoperability
 
-#### Backend Implementation
-- [ ] `internal/state/state.go` has Session struct
-- [ ] Session ID captured from Claude Code init message
-- [ ] Session stored in `state.yaml` with: id, started_at, paused_at, iterations
-- [ ] `orc session TASK-ID` command shows session info
-- [ ] `orc resume TASK-ID` resumes with continuation prompt
-- [ ] `orc attach TASK-ID` attaches to running session
-- [ ] `GET /api/tasks/:id/session` endpoint returns session data
-- [ ] Graceful pause preserves session context
+**Leverage:** `llmkit/claude/session` package already provides session management.
+
+#### Backend Implementation (Wire Up llmkit)
+- [ ] Use `session.SessionManager` from llmkit for multi-session tracking
+- [ ] Use `session.Session` for bidirectional Claude communication
+- [ ] Session metadata (ID, tokens, cost) comes from `session.OutputMessage`
+- [ ] Wrap llmkit session in orc's state.yaml for persistence
+- [ ] `orc session TASK-ID` command shows session info from llmkit
+- [ ] `orc resume TASK-ID` uses llmkit's session resume capability
+- [ ] `orc attach TASK-ID` attaches to running llmkit session
+- [ ] `GET /api/tasks/:id/session` returns session data
+
+#### Orc-Specific Additions
+- [ ] Map llmkit session state to orc task state
+- [ ] Graceful pause triggers session.Close() with state preservation
+- [ ] Store session context in state.yaml for cross-process resume
 
 #### Tests (80%+ coverage)
 - [ ] Unit tests:
-  - `TestSessionIDCapture` - extraction from init message
-  - `TestGracefulPause` - state.yaml updated
-  - `TestResumeContextSerialization` - marshal/unmarshal
-  - `TestConcurrentAccessDetection` - running task detection
+  - `TestSessionManagerIntegration` - llmkit session wiring
+  - `TestGracefulPause` - state.yaml updated with session data
+  - `TestResumeFromState` - reconstruct llmkit session from state
+  - `TestConcurrentAccessDetection` - running session detection
 - [ ] Integration tests:
-  - Pause API preserves session
+  - Pause API preserves session via llmkit
   - Resume constructs continuation prompt
   - WebSocket publishes session events
 - [ ] E2E tests (Playwright MCP):
@@ -171,28 +229,34 @@ Before each iteration:
 
 ### 5. Cost Tracking
 
-#### Backend Implementation
-- [ ] `internal/cost/cost.go` - cost calculations
-- [ ] Token tracking per iteration/phase/task
-- [ ] Pricing config in `~/.orc/pricing.yaml`
-- [ ] Cost estimation from token counts
-- [ ] `orc show TASK-ID` displays tokens/cost
-- [ ] `orc cost` shows summary by period
+**Leverage:** `llmkit/model.CostTracker` already has per-model pricing and aggregation.
+
+#### Backend Implementation (Wire Up llmkit)
+- [ ] Use `model.CostTracker` from llmkit for token/cost aggregation
+- [ ] CostTracker already has 2025 pricing (Opus: $15/$75, Sonnet: $3/$15, Haiku: $0.25/$1.25)
+- [ ] Use `tracker.Record(model, input, output)` after each Claude call
+- [ ] Use `tracker.EstimatedCost()` for task cost display
+- [ ] Use `tracker.Summary()` for period aggregation
+
+#### Orc-Specific Additions
+- [ ] Persist cost data to state.yaml per phase/task
+- [ ] `~/.orc/pricing.yaml` for price overrides (optional, llmkit has defaults)
+- [ ] `orc show TASK-ID` displays tokens/cost from tracker
+- [ ] `orc cost` aggregates across tasks by period
 - [ ] `GET /api/tasks/:id/tokens` endpoint
 - [ ] `GET /api/cost/summary?period=week` endpoint
-- [ ] Budget alerts (optional)
+- [ ] Budget alerts via config threshold check
 
 #### Tests (80%+ coverage)
 - [ ] Unit tests:
-  - `TestCalculateCost` - various token counts
-  - `TestCalculateCost_CacheReadSavings`
-  - `TestAggregateTokens_ByPhase`
-  - `TestParsePricingConfig`
+  - `TestCostTrackerIntegration` - llmkit tracker wiring
+  - `TestPersistCostToState` - state.yaml tokens section
+  - `TestAggregateCostAcrossTasks` - multi-task summary
   - `TestBudgetAlert_ThresholdTriggered`
 - [ ] Integration tests:
-  - Task execution captures tokens
+  - Task execution records tokens via llmkit
   - state.yaml contains tokens section
-  - API returns token data
+  - API returns token data from tracker
 - [ ] E2E tests (Playwright MCP):
   - Dashboard shows token widget
   - Task card displays token count and cost
@@ -202,23 +266,29 @@ Before each iteration:
 
 ### 6. Task Templates
 
-#### Backend Implementation
-- [ ] `internal/template/template.go` - template loading
-- [ ] `internal/template/save.go` - save from task
+**Leverage:** `llmkit/template.Engine` for Handlebars-style variable substitution.
+
+#### Backend Implementation (Wire Up llmkit)
+- [ ] Use `template.Engine` from llmkit for variable rendering
+- [ ] Engine supports: `{{var}}`, `{{#if x}}`, `{{#each items}}`, helpers
+- [ ] Use `template.Parse()` to extract required variables from template
+
+#### Orc-Specific Additions
+- [ ] `internal/template/store.go` - template storage/retrieval
 - [ ] Template storage in `.orc/templates/` and `~/.orc/templates/`
-- [ ] Template YAML format with variables
+- [ ] Template YAML format with metadata + prompt content
 - [ ] `orc template save TASK-ID --name X`
 - [ ] `orc template list`
 - [ ] `orc template show X`
 - [ ] `orc template delete X`
 - [ ] `orc new --template X "title"`
-- [ ] Variable substitution in prompts
 - [ ] Built-in templates: bugfix, feature, refactor, migration, spike
+- [ ] Resolution order: project > global > builtin
 
 #### Tests (80%+ coverage)
 - [ ] Unit tests:
-  - `TestRenderTemplate_Variables`
-  - `TestParseTemplateYAML`
+  - `TestTemplateEngineIntegration` - llmkit engine wiring
+  - `TestParseTemplateYAML` - orc template format
   - `TestTemplateResolutionOrder` - project > global > builtin
   - `TestSaveTemplateFromTask`
 - [ ] Integration tests:
