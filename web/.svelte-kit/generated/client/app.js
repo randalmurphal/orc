@@ -15,7 +15,8 @@ export const nodes = [
 	() => import('./nodes/11'),
 	() => import('./nodes/12'),
 	() => import('./nodes/13'),
-	() => import('./nodes/14')
+	() => import('./nodes/14'),
+	() => import('./nodes/15')
 ];
 
 export const server_loads = [];
@@ -23,17 +24,18 @@ export const server_loads = [];
 export const dictionary = {
 		"/": [2],
 		"/agents": [3],
-		"/claudemd": [4],
-		"/config": [5],
-		"/dashboard": [6],
-		"/hooks": [7],
-		"/mcp": [8],
-		"/prompts": [9],
-		"/scripts": [10],
-		"/settings": [11],
-		"/skills": [12],
-		"/tasks/[id]": [13],
-		"/tools": [14]
+		"/board": [4],
+		"/claudemd": [5],
+		"/config": [6],
+		"/dashboard": [7],
+		"/hooks": [8],
+		"/mcp": [9],
+		"/prompts": [10],
+		"/scripts": [11],
+		"/settings": [12],
+		"/skills": [13],
+		"/tasks/[id]": [14],
+		"/tools": [15]
 	};
 
 export const hooks = {

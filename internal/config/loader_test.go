@@ -697,3 +697,147 @@ func TestLoadWithSources_EnvSourceHasNoPath(t *testing.T) {
 		t.Errorf("env source should have empty path, got %q", ts.Path)
 	}
 }
+
+func TestApplyEnvVars_Database(t *testing.T) {
+	tests := []struct {
+		name     string
+		envVar   string
+		value    string
+		check    func(*Config) bool
+		wantPath string
+	}{
+		{
+			name:     "db_driver",
+			envVar:   "ORC_DB_DRIVER",
+			value:    "postgres",
+			check:    func(c *Config) bool { return c.Database.Driver == "postgres" },
+			wantPath: "database.driver",
+		},
+		{
+			name:     "db_host",
+			envVar:   "ORC_DB_HOST",
+			value:    "db.example.com",
+			check:    func(c *Config) bool { return c.Database.Postgres.Host == "db.example.com" },
+			wantPath: "database.postgres.host",
+		},
+		{
+			name:     "db_port",
+			envVar:   "ORC_DB_PORT",
+			value:    "5433",
+			check:    func(c *Config) bool { return c.Database.Postgres.Port == 5433 },
+			wantPath: "database.postgres.port",
+		},
+		{
+			name:     "db_name",
+			envVar:   "ORC_DB_NAME",
+			value:    "mydb",
+			check:    func(c *Config) bool { return c.Database.Postgres.Database == "mydb" },
+			wantPath: "database.postgres.database",
+		},
+		{
+			name:     "db_user",
+			envVar:   "ORC_DB_USER",
+			value:    "myuser",
+			check:    func(c *Config) bool { return c.Database.Postgres.User == "myuser" },
+			wantPath: "database.postgres.user",
+		},
+		{
+			name:     "db_password",
+			envVar:   "ORC_DB_PASSWORD",
+			value:    "secret123",
+			check:    func(c *Config) bool { return c.Database.Postgres.Password == "secret123" },
+			wantPath: "database.postgres.password",
+		},
+		{
+			name:     "db_ssl_mode",
+			envVar:   "ORC_DB_SSL_MODE",
+			value:    "require",
+			check:    func(c *Config) bool { return c.Database.Postgres.SSLMode == "require" },
+			wantPath: "database.postgres.ssl_mode",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear all ORC env vars first
+			for envVar := range EnvVarMapping {
+				os.Unsetenv(envVar)
+			}
+
+			t.Setenv(tt.envVar, tt.value)
+
+			tc := NewTrackedConfig()
+			overridden := ApplyEnvVars(tc)
+
+			if !tt.check(tc.Config) {
+				t.Errorf("config not set correctly for %s=%s", tt.envVar, tt.value)
+			}
+
+			found := false
+			for _, path := range overridden {
+				if path == tt.wantPath {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("path %q not in overridden list: %v", tt.wantPath, overridden)
+			}
+
+			if tc.GetSource(tt.wantPath) != SourceEnv {
+				t.Errorf("source for %q = %q, want env", tt.wantPath, tc.GetSource(tt.wantPath))
+			}
+		})
+	}
+}
+
+func TestLoadWithSources_DatabaseConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Use empty home
+	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
+
+	// Create shared config with database settings
+	os.MkdirAll(".orc", 0755)
+	dbConfig := `
+database:
+  driver: postgres
+  postgres:
+    host: db.team.local
+    port: 5432
+    database: team_orc
+    user: team_user
+    ssl_mode: require
+`
+	os.WriteFile(".orc/config.yaml", []byte(dbConfig), 0644)
+
+	tc, err := LoadWithSources()
+	if err != nil {
+		t.Fatalf("LoadWithSources failed: %v", err)
+	}
+
+	// Check database config is loaded
+	if tc.Config.Database.Driver != "postgres" {
+		t.Errorf("Database.Driver = %q, want postgres", tc.Config.Database.Driver)
+	}
+	if tc.Config.Database.Postgres.Host != "db.team.local" {
+		t.Errorf("Database.Postgres.Host = %q, want db.team.local", tc.Config.Database.Postgres.Host)
+	}
+	if tc.Config.Database.Postgres.Database != "team_orc" {
+		t.Errorf("Database.Postgres.Database = %q, want team_orc", tc.Config.Database.Postgres.Database)
+	}
+	if tc.Config.Database.Postgres.SSLMode != "require" {
+		t.Errorf("Database.Postgres.SSLMode = %q, want require", tc.Config.Database.Postgres.SSLMode)
+	}
+
+	// Check sources
+	if tc.GetSource("database.driver") != SourceShared {
+		t.Errorf("database.driver source = %q, want shared", tc.GetSource("database.driver"))
+	}
+	if tc.GetSource("database.postgres.host") != SourceShared {
+		t.Errorf("database.postgres.host source = %q, want shared", tc.GetSource("database.postgres.host"))
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/diff"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
@@ -36,6 +37,9 @@ type Server struct {
 	// Running tasks for cancellation
 	runningTasks   map[string]context.CancelFunc
 	runningTasksMu sync.RWMutex
+
+	// Diff cache for computed diffs
+	diffCache *diff.Cache
 }
 
 // Event represents an SSE event.
@@ -80,6 +84,7 @@ func New(cfg *Config) *Server {
 		publisher:    pub,
 		subscribers:  make(map[string][]chan Event),
 		runningTasks: make(map[string]context.CancelFunc),
+		diffCache:    diff.NewCache(100), // Cache up to 100 file diffs
 	}
 
 	// Create WebSocket handler
@@ -121,10 +126,20 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/tasks/{id}/session", cors(s.handleGetSession))
 	s.mux.HandleFunc("GET /api/tasks/{id}/tokens", cors(s.handleGetTokens))
 
+	// Task diff (git changes visualization)
+	s.mux.HandleFunc("GET /api/tasks/{id}/diff", cors(s.handleGetDiff))
+	s.mux.HandleFunc("GET /api/tasks/{id}/diff/stats", cors(s.handleGetDiffStats))
+	s.mux.HandleFunc("GET /api/tasks/{id}/diff/file/{path...}", cors(s.handleGetDiffFile))
+
 	// Task control
 	s.mux.HandleFunc("POST /api/tasks/{id}/run", cors(s.handleRunTask))
 	s.mux.HandleFunc("POST /api/tasks/{id}/pause", cors(s.handlePauseTask))
 	s.mux.HandleFunc("POST /api/tasks/{id}/resume", cors(s.handleResumeTask))
+
+	// Task retry (fresh session with context injection)
+	s.mux.HandleFunc("POST /api/tasks/{id}/retry", cors(s.handleRetryTask))
+	s.mux.HandleFunc("GET /api/tasks/{id}/retry/preview", cors(s.handleGetRetryPreview))
+	s.mux.HandleFunc("POST /api/tasks/{id}/retry/feedback", cors(s.handleRetryWithFeedback))
 
 	// SSE streaming (legacy)
 	s.mux.HandleFunc("GET /api/tasks/{id}/stream", s.handleStream)
@@ -148,6 +163,15 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/subtasks/{id}/approve", cors(s.handleApproveSubtask))
 	s.mux.HandleFunc("POST /api/subtasks/{id}/reject", cors(s.handleRejectSubtask))
 	s.mux.HandleFunc("DELETE /api/subtasks/{id}", cors(s.handleDeleteSubtask))
+
+	// Review comments (code review UI)
+	s.mux.HandleFunc("GET /api/tasks/{id}/review/comments", cors(s.handleListReviewComments))
+	s.mux.HandleFunc("POST /api/tasks/{id}/review/comments", cors(s.handleCreateReviewComment))
+	s.mux.HandleFunc("GET /api/tasks/{id}/review/comments/{commentId}", cors(s.handleGetReviewComment))
+	s.mux.HandleFunc("PATCH /api/tasks/{id}/review/comments/{commentId}", cors(s.handleUpdateReviewComment))
+	s.mux.HandleFunc("DELETE /api/tasks/{id}/review/comments/{commentId}", cors(s.handleDeleteReviewComment))
+	s.mux.HandleFunc("POST /api/tasks/{id}/review/retry", cors(s.handleReviewRetry))
+	s.mux.HandleFunc("GET /api/tasks/{id}/review/stats", cors(s.handleGetReviewStats))
 
 	// WebSocket for real-time updates
 	s.mux.Handle("GET /api/ws", s.wsHandler)

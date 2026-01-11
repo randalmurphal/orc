@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/state"
 )
 
@@ -148,4 +150,264 @@ func (rt *RetryTracker) Reset(phase string) {
 // ResetAll clears all retry counts.
 func (rt *RetryTracker) ResetAll() {
 	rt.counts = make(map[string]int)
+}
+
+// RetryOptions configures retry behavior for fresh session retries.
+type RetryOptions struct {
+	// What failed
+	FailedPhase   string
+	FailureReason string
+	FailureOutput string // Last N chars of output
+
+	// Review feedback
+	ReviewComments []db.ReviewComment
+
+	// PR feedback
+	PRComments []PRCommentFeedback
+
+	// User guidance
+	Instructions string
+
+	// Context from previous session (compressed)
+	PreviousContext string
+
+	// Attempt tracking
+	AttemptNumber int
+	MaxAttempts   int
+}
+
+// PRCommentFeedback represents a PR comment to address.
+type PRCommentFeedback struct {
+	Author   string
+	Body     string
+	FilePath string
+	Line     int
+}
+
+// RetryState represents persisted retry state for tracking.
+type RetryState struct {
+	TaskID        string    `json:"task_id"`
+	Phase         string    `json:"phase"`
+	AttemptNumber int       `json:"attempt_number"`
+	StartedAt     time.Time `json:"started_at"`
+	Context       string    `json:"context"` // The injected context
+}
+
+// BuildRetryContextForFreshSession builds comprehensive context for a fresh retry session.
+// This creates a complete context package for injecting into a new Claude session.
+func BuildRetryContextForFreshSession(opts RetryOptions) string {
+	var sb strings.Builder
+
+	// Header
+	sb.WriteString("# Retry Context\n\n")
+	sb.WriteString(fmt.Sprintf("This is attempt %d of %d.\n\n", opts.AttemptNumber, opts.MaxAttempts))
+
+	// Previous failure summary
+	sb.WriteString("## Previous Attempt Summary\n\n")
+	if opts.FailedPhase != "" {
+		sb.WriteString(fmt.Sprintf("Phase `%s` failed on the previous attempt.\n\n", opts.FailedPhase))
+	}
+	if opts.FailureReason != "" {
+		sb.WriteString(fmt.Sprintf("**Reason:** %s\n\n", opts.FailureReason))
+	}
+
+	// Failure output (truncated)
+	if opts.FailureOutput != "" {
+		output := truncateOutput(opts.FailureOutput, 1500)
+		sb.WriteString("### Failure Output\n\n")
+		sb.WriteString("```\n")
+		sb.WriteString(output)
+		sb.WriteString("\n```\n\n")
+	}
+
+	// Review comments
+	if len(opts.ReviewComments) > 0 {
+		sb.WriteString("## Review Comments to Address\n\n")
+		sb.WriteString(formatReviewCommentsForContext(opts.ReviewComments))
+		sb.WriteString("\n")
+	}
+
+	// PR comments
+	if len(opts.PRComments) > 0 {
+		sb.WriteString("## PR Feedback to Address\n\n")
+		sb.WriteString(formatPRCommentsForContext(opts.PRComments))
+		sb.WriteString("\n")
+	}
+
+	// User instructions
+	if opts.Instructions != "" {
+		sb.WriteString("## Additional Instructions\n\n")
+		sb.WriteString(opts.Instructions)
+		sb.WriteString("\n\n")
+	}
+
+	// Previous context summary (if provided)
+	if opts.PreviousContext != "" {
+		sb.WriteString("## Context from Previous Session\n\n")
+		sb.WriteString(opts.PreviousContext)
+		sb.WriteString("\n\n")
+	}
+
+	// Call to action
+	sb.WriteString("---\n\n")
+	sb.WriteString("Please address all issues above and complete the task. ")
+	sb.WriteString("Make sure to:\n")
+	sb.WriteString("1. Fix all identified issues\n")
+	sb.WriteString("2. Run tests to verify fixes\n")
+	sb.WriteString("3. Ensure no regressions were introduced\n")
+
+	return sb.String()
+}
+
+// formatReviewCommentsForContext formats review comments grouped by file.
+func formatReviewCommentsForContext(comments []db.ReviewComment) string {
+	// Group by file
+	byFile := make(map[string][]db.ReviewComment)
+	for _, c := range comments {
+		key := c.FilePath
+		if key == "" {
+			key = "_general"
+		}
+		byFile[key] = append(byFile[key], c)
+	}
+
+	var sb strings.Builder
+
+	// General comments first
+	if general, ok := byFile["_general"]; ok {
+		sb.WriteString("### General Comments\n\n")
+		for _, c := range general {
+			sb.WriteString(fmt.Sprintf("- **[%s]** %s\n", strings.ToUpper(string(c.Severity)), c.Content))
+		}
+		sb.WriteString("\n")
+		delete(byFile, "_general")
+	}
+
+	// File-specific comments
+	for file, fileComments := range byFile {
+		sb.WriteString(fmt.Sprintf("### `%s`\n\n", file))
+		for _, c := range fileComments {
+			if c.LineNumber > 0 {
+				sb.WriteString(fmt.Sprintf("- **Line %d** [%s]: %s\n",
+					c.LineNumber, strings.ToUpper(string(c.Severity)), c.Content))
+			} else {
+				sb.WriteString(fmt.Sprintf("- [%s]: %s\n",
+					strings.ToUpper(string(c.Severity)), c.Content))
+			}
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+// formatPRCommentsForContext formats PR comments for context.
+func formatPRCommentsForContext(comments []PRCommentFeedback) string {
+	var sb strings.Builder
+
+	for _, c := range comments {
+		if c.FilePath != "" {
+			sb.WriteString(fmt.Sprintf("**%s:%d** (@%s)\n", c.FilePath, c.Line, c.Author))
+		} else {
+			sb.WriteString(fmt.Sprintf("**@%s**:\n", c.Author))
+		}
+		sb.WriteString(fmt.Sprintf("> %s\n\n", strings.ReplaceAll(c.Body, "\n", "\n> ")))
+	}
+
+	return sb.String()
+}
+
+// truncateOutput truncates output to maxLen, keeping the end (most relevant).
+func truncateOutput(output string, maxLen int) string {
+	if len(output) <= maxLen {
+		return output
+	}
+	return "...(truncated)...\n" + output[len(output)-maxLen:]
+}
+
+// CompressPreviousContext creates a compressed summary of a previous session.
+// This extracts key information from transcripts for injection into retry context.
+func CompressPreviousContext(transcripts []db.Transcript) string {
+	if len(transcripts) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("Previous session summary:\n")
+
+	// Extract key information from transcripts
+	var lastPhase string
+	var keyPoints []string
+
+	for _, t := range transcripts {
+		if t.Phase != lastPhase {
+			lastPhase = t.Phase
+			sb.WriteString(fmt.Sprintf("- Phase `%s` was executed\n", t.Phase))
+		}
+
+		// Look for key patterns in content
+		if strings.Contains(t.Content, "error") || strings.Contains(t.Content, "Error") {
+			// Extract error context
+			lines := strings.Split(t.Content, "\n")
+			for _, line := range lines {
+				if strings.Contains(strings.ToLower(line), "error") {
+					keyPoints = append(keyPoints, strings.TrimSpace(line))
+					if len(keyPoints) > 5 {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if len(keyPoints) > 0 {
+		sb.WriteString("\nKey issues encountered:\n")
+		for _, point := range keyPoints {
+			sb.WriteString(fmt.Sprintf("- %s\n", truncateString(point, 200)))
+		}
+	}
+
+	return sb.String()
+}
+
+// truncateString truncates a string to maxLen with ellipsis.
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
+}
+
+// ShouldContinueRetrying checks if we should continue retrying.
+func ShouldContinueRetrying(current, max int) bool {
+	return current < max
+}
+
+// IncrementRetryAttempt returns the next attempt number.
+func IncrementRetryAttempt(current int) int {
+	return current + 1
+}
+
+// BuildRetryPreview builds a preview of the retry context without triggering retry.
+// This is useful for showing users what context will be injected.
+func BuildRetryPreview(opts RetryOptions) RetryPreview {
+	context := BuildRetryContextForFreshSession(opts)
+	return RetryPreview{
+		TaskID:          "",
+		CurrentPhase:    opts.FailedPhase,
+		OpenComments:    len(opts.ReviewComments),
+		PRComments:      len(opts.PRComments),
+		ContextPreview:  context,
+		EstimatedTokens: len(context) / 4, // Rough estimate: 4 chars per token
+	}
+}
+
+// RetryPreview represents a preview of retry context.
+type RetryPreview struct {
+	TaskID          string `json:"task_id"`
+	CurrentPhase    string `json:"current_phase"`
+	OpenComments    int    `json:"open_comments"`
+	PRComments      int    `json:"pr_comments"`
+	ContextPreview  string `json:"context_preview"`
+	EstimatedTokens int    `json:"estimated_tokens"`
 }

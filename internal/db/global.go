@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/randalmurphal/orc/internal/db/driver"
 )
 
 // GlobalDB provides operations on the global database (~/.orc/orc.db).
@@ -12,7 +14,7 @@ type GlobalDB struct {
 	*DB
 }
 
-// OpenGlobal opens the global database at ~/.orc/orc.db.
+// OpenGlobal opens the global database at ~/.orc/orc.db using SQLite.
 func OpenGlobal() (*GlobalDB, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -21,6 +23,22 @@ func OpenGlobal() (*GlobalDB, error) {
 
 	path := filepath.Join(home, ".orc", "orc.db")
 	db, err := Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.Migrate("global"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate global db: %w", err)
+	}
+
+	return &GlobalDB{DB: db}, nil
+}
+
+// OpenGlobalWithDialect opens the global database with a specific dialect.
+// For SQLite, dsn is the file path. For PostgreSQL, dsn is the connection string.
+func OpenGlobalWithDialect(dsn string, dialect driver.Dialect) (*GlobalDB, error) {
+	db, err := OpenWithDialect(dsn, dialect)
 	if err != nil {
 		return nil, err
 	}

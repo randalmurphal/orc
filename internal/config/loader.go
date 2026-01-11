@@ -252,6 +252,9 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 	if rawIdentity, ok := raw["identity"].(map[string]interface{}); ok {
 		mergeIdentityConfigWithPath(cfg, fileCfg, rawIdentity, tc, source, path)
 	}
+	if rawDatabase, ok := raw["database"].(map[string]interface{}); ok {
+		mergeDatabaseConfigWithPath(cfg, fileCfg, rawDatabase, tc, source, path)
+	}
 }
 
 
@@ -458,6 +461,55 @@ func mergeIdentityConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]in
 	}
 }
 
+func mergeDatabaseConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
+	if _, ok := raw["driver"]; ok {
+		cfg.Database.Driver = fileCfg.Database.Driver
+		tc.SetSourceWithPath("database.driver", source, path)
+	}
+	// SQLite config is nested
+	if rawSQLite, ok := raw["sqlite"].(map[string]interface{}); ok {
+		if _, ok := rawSQLite["path"]; ok {
+			cfg.Database.SQLite.Path = fileCfg.Database.SQLite.Path
+			tc.SetSourceWithPath("database.sqlite.path", source, path)
+		}
+		if _, ok := rawSQLite["global_path"]; ok {
+			cfg.Database.SQLite.GlobalPath = fileCfg.Database.SQLite.GlobalPath
+			tc.SetSourceWithPath("database.sqlite.global_path", source, path)
+		}
+	}
+	// Postgres config is nested
+	if rawPostgres, ok := raw["postgres"].(map[string]interface{}); ok {
+		if _, ok := rawPostgres["host"]; ok {
+			cfg.Database.Postgres.Host = fileCfg.Database.Postgres.Host
+			tc.SetSourceWithPath("database.postgres.host", source, path)
+		}
+		if _, ok := rawPostgres["port"]; ok {
+			cfg.Database.Postgres.Port = fileCfg.Database.Postgres.Port
+			tc.SetSourceWithPath("database.postgres.port", source, path)
+		}
+		if _, ok := rawPostgres["database"]; ok {
+			cfg.Database.Postgres.Database = fileCfg.Database.Postgres.Database
+			tc.SetSourceWithPath("database.postgres.database", source, path)
+		}
+		if _, ok := rawPostgres["user"]; ok {
+			cfg.Database.Postgres.User = fileCfg.Database.Postgres.User
+			tc.SetSourceWithPath("database.postgres.user", source, path)
+		}
+		if _, ok := rawPostgres["password"]; ok {
+			cfg.Database.Postgres.Password = fileCfg.Database.Postgres.Password
+			tc.SetSourceWithPath("database.postgres.password", source, path)
+		}
+		if _, ok := rawPostgres["ssl_mode"]; ok {
+			cfg.Database.Postgres.SSLMode = fileCfg.Database.Postgres.SSLMode
+			tc.SetSourceWithPath("database.postgres.ssl_mode", source, path)
+		}
+		if _, ok := rawPostgres["pool_max"]; ok {
+			cfg.Database.Postgres.PoolMax = fileCfg.Database.Postgres.PoolMax
+			tc.SetSourceWithPath("database.postgres.pool_max", source, path)
+		}
+	}
+}
+
 // markDefaults marks all config paths as having SourceDefault.
 func markDefaults(tc *TrackedConfig) {
 	paths := []string{
@@ -477,6 +529,10 @@ func markDefaults(tc *TrackedConfig) {
 		"team.enabled", "team.server_url",
 		"task_id.mode", "task_id.prefix_source",
 		"identity.initials", "identity.display_name", "identity.email",
+		"database.driver", "database.sqlite.path", "database.sqlite.global_path",
+		"database.postgres.host", "database.postgres.port", "database.postgres.database",
+		"database.postgres.user", "database.postgres.password", "database.postgres.ssl_mode",
+		"database.postgres.pool_max",
 	}
 
 	for _, path := range paths {
