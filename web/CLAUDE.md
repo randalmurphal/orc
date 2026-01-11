@@ -106,28 +106,29 @@ web/
 | `Timeline.svelte` | Phase timeline visualization |
 | `Transcript.svelte` | Claude conversation viewer |
 | `TaskHeader.svelte` | Task title, status, actions |
-| `TaskTabs.svelte` | Tab navigation (Timeline/Diff/Review/Transcript) |
+| `TabNav.svelte` | Tab navigation (Timeline/Changes/Transcript) |
 | `RetryPanel.svelte` | Retry configuration with context injection |
 | `PRActions.svelte` | GitHub PR status, create/merge buttons |
 
-### Diff Components
+### Diff Components (Unified Changes View)
 
 | Component | Purpose |
 |-----------|---------|
-| `DiffViewer.svelte` | Main diff container with split/unified toggle |
-| `DiffFile.svelte` | Single file diff with expand/collapse |
-| `DiffHunk.svelte` | Code hunk with line numbers |
-| `DiffLine.svelte` | Line with syntax highlighting |
+| `DiffViewer.svelte` | Main diff container with inline review, split/unified toggle |
+| `DiffFile.svelte` | Single file diff with expand/collapse, comment counts |
+| `DiffHunk.svelte` | Code hunk with line numbers, inline comment threads |
+| `DiffLine.svelte` | Line with syntax highlighting, comment badge, add-comment hover |
+| `InlineCommentThread.svelte` | Inline comments below diff lines |
 | `DiffStats.svelte` | Additions/deletions summary |
 | `VirtualScroller.svelte` | Virtual scrolling for 10K+ lines |
 
-### Review Components
+### Review Components (Used by Diff for Inline Comments)
 
 | Component | Purpose |
 |-----------|---------|
-| `ReviewPanel.svelte` | Side panel with all comments |
-| `CommentThread.svelte` | Single comment thread |
-| `CommentForm.svelte` | Add/edit comment form |
+| `ReviewPanel.svelte` | Standalone review panel (legacy, kept for compatibility) |
+| `CommentThread.svelte` | Single comment thread display |
+| `CommentForm.svelte` | Add/edit comment form with severity options |
 | `ReviewSummary.svelte` | Findings summary with severity counts |
 
 ### Kanban Components
@@ -336,12 +337,18 @@ Actions triggered by dropping tasks into columns require confirmation:
 
 Button actions on TaskCard are always available without drag-drop.
 
-## Review Workflow
+## Review Workflow (GitHub-Style Unified View)
 
-1. **Adding Comments**: Click line number in diff to add inline comment
-2. **Batch Review**: Collect multiple comments, then "Send to Agent"
-3. **Context Injection**: All open comments injected into retry context
-4. **Resolution**: Mark comments as Resolved or Won't Fix after retry
+The "Changes" tab combines diff viewing with inline review in a single unified view:
+
+1. **Viewing Changes**: Split or unified diff view with file-by-file breakdown
+2. **Adding Comments**: Click line number → inline comment form appears below line
+3. **Comment Severity**: Suggestion (info), Issue (warning), Blocker (danger)
+4. **Summary Bar**: Shows open comment counts by severity in toolbar
+5. **Send to Agent**: Button appears when open comments exist, triggers retry with context
+6. **Resolution**: Mark comments as Resolved or Won't Fix directly in inline thread
+
+Comments are displayed inline below relevant diff lines, with a count badge on the line number.
 
 ## Settings Hub
 
