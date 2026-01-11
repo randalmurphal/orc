@@ -496,37 +496,34 @@ func (r *Repo) RebuildIndex() error {
 
 ---
 
-## Fix 7: Lock Mechanism Clarification
+## Fix 7: Simplified Execution Model (No Cross-User Locking)
 
 ### Problem
 
-Lock mechanism differs between P2P (file) and Team (server).
+Original design had complex locking (TTL, heartbeat, file-based, server-based). This was over-engineered.
 
 ### Solution
 
-This is intentional and correct. Clarify the design.
+**Remove cross-user locking entirely.** Each execution is independent:
+
+- Anyone can run any task they have access to
+- Multiple users running same task = separate branches/worktrees
+- Only protection: PID guard prevents same user running twice
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Lock Mechanisms by Mode                       │
+│                    Execution Model (Simplified)                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  Solo Mode: NO LOCKING                                          │
-│  - Single user, single machine                                   │
-│  - No coordination needed                                        │
+│  ALL MODES: WORKTREE ISOLATION                                  │
+│  - Each execution: own worktree + branch                         │
+│  - Branch naming: orc/{taskID}-{executorPrefix}                  │
+│  - No blocking between users                                     │
 │                                                                  │
-│  P2P Mode: FILE-BASED LOCKING                                   │
-│  - .orc/tasks/TASK-001/lock.yaml (gitignored)                   │
-│  - TTL-based with heartbeat                                      │
-│  - Stale lock detection (heartbeat > TTL)                        │
-│  - No server dependency                                          │
-│  - Eventual consistency via git                                  │
-│                                                                  │
-│  Team Mode: SERVER-SIDE LOCKING                                 │
-│  - WebSocket-based real-time locks                               │
-│  - Server manages TTL and heartbeat                              │
-│  - Immediate conflict detection                                  │
-│  - Falls back to file-based if server unavailable               │
+│  SAME-USER PROTECTION ONLY                                      │
+│  - PID file in worktree                                          │
+│  - Prevents accidental double-run                                │
+│  - Stale PID auto-cleaned                                        │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -534,28 +531,44 @@ This is intentional and correct. Clarify the design.
 ### Implementation
 
 ```go
-// internal/lock/lock.go
-type Locker interface {
-    Acquire(taskID string) error
-    Release(taskID string) error
-    Heartbeat(taskID string) error
-    IsLocked(taskID string) (bool, *LockInfo, error)
+// internal/executor/pid_guard.go
+type PIDGuard struct {
+    worktreePath string
 }
 
-func NewLocker(mode string, config *Config) Locker {
-    switch mode {
-    case "solo":
-        return &NoOpLocker{} // No locking
-    case "p2p":
-        return &FileLocker{dir: ".orc/tasks"}
-    case "team":
-        return &ServerLocker{
-            primary:  NewWebSocketLocker(config.Team.ServerURL),
-            fallback: &FileLocker{dir: ".orc/tasks"},
-        }
-    default:
-        return &NoOpLocker{}
+func (g *PIDGuard) Check() error {
+    pidFile := filepath.Join(g.worktreePath, ".orc.pid")
+    data, err := os.ReadFile(pidFile)
+    if err != nil {
+        return nil // No PID, good to go
     }
+
+    pid, _ := strconv.Atoi(strings.TrimSpace(string(data)))
+    if processExists(pid) {
+        return fmt.Errorf("already running (pid %d)", pid)
+    }
+    os.Remove(pidFile) // Stale
+    return nil
+}
+
+func (g *PIDGuard) Acquire() error {
+    return os.WriteFile(
+        filepath.Join(g.worktreePath, ".orc.pid"),
+        []byte(strconv.Itoa(os.Getpid())),
+        0644,
+    )
+}
+```
+
+### Branch/Worktree Naming
+
+```go
+// Includes executor identity to prevent conflicts
+func BranchName(taskID, prefix string) string {
+    if prefix == "" {
+        return "orc/" + taskID  // Solo mode
+    }
+    return fmt.Sprintf("orc/%s-%s", taskID, strings.ToLower(prefix))
 }
 ```
 
@@ -627,69 +640,64 @@ func (c *Connection) handleMessage(msg ClientMessage) {
 
 ---
 
-## Fix 9: Force Unlock Safety
+## Fix 9: Orphaned Worktree Cleanup
 
 ### Problem
 
-Force unlock is too easy to trigger accidentally.
+If execution crashes, worktree is left behind with stale PID.
 
 ### Solution
 
-Add confirmation and audit logging.
+Detect stale PID and prompt for cleanup/resume.
 
 ```go
-// internal/cli/cmd_unlock.go
-func runForceUnlock(taskID string, force bool) error {
-    lock, err := locker.IsLocked(taskID)
-    if err != nil {
-        return err
-    }
+// internal/executor/executor.go
+func (e *Executor) Run(taskID string) error {
+    worktreePath := e.worktreePath(taskID)
 
-    if !lock.Locked {
-        fmt.Println("Task is not locked")
-        return nil
-    }
+    if exists(worktreePath) {
+        guard := &PIDGuard{worktreePath: worktreePath}
+        if err := guard.Check(); err != nil {
+            return err // Actually running
+        }
 
-    fmt.Printf("Task %s is locked by %s\n", taskID, lock.Owner)
-    fmt.Printf("Locked since: %s\n", lock.AcquiredAt.Format(time.RFC3339))
-    fmt.Printf("Last heartbeat: %s ago\n", time.Since(lock.Heartbeat))
+        // Worktree exists but no active process
+        fmt.Printf("Worktree exists at %s\n", worktreePath)
+        fmt.Println("No active process found (likely crashed).\n")
+        fmt.Println("Options:")
+        fmt.Println("  [1] Resume from last checkpoint")
+        fmt.Println("  [2] Clean up and restart")
+        fmt.Println("  [3] Cancel")
 
-    if !force {
-        fmt.Println("\nWARNING: Force unlocking may corrupt task state if execution is in progress.")
-        fmt.Print("Type 'FORCE' to confirm: ")
-
-        var confirm string
-        fmt.Scanln(&confirm)
-
-        if confirm != "FORCE" {
-            fmt.Println("Cancelled")
+        choice := promptChoice([]string{"1", "2", "3"})
+        switch choice {
+        case "1":
+            return e.resumeInWorktree(taskID, worktreePath)
+        case "2":
+            e.cleanupWorktree(worktreePath)
+            // Fall through to create new
+        case "3":
             return nil
         }
     }
 
-    // Audit log
-    auditLog.Record(AuditEvent{
-        Action:   "lock.force_unlock",
-        TaskID:   taskID,
-        UserID:   currentUser(),
-        Previous: lock.Owner,
-        Reason:   "manual force unlock",
-    })
-
-    return locker.ForceRelease(taskID)
+    return e.createAndRun(taskID)
 }
 ```
 
 ### CLI UX
 
 ```bash
-$ orc unlock TASK-AM-001
-Task TASK-AM-001 is locked by bob@laptop
-Locked since: 2026-01-10T12:00:00Z
-Last heartbeat: 30 seconds ago
+$ orc run TASK-AM-001
+Worktree exists at .orc/worktrees/TASK-AM-001-am/
+No active process found (likely crashed).
 
-WARNING: Force unlocking may corrupt task state if execution is in progress.
-Type 'FORCE' to confirm: _
+Options:
+  [1] Resume from last checkpoint
+  [2] Clean up and restart
+  [3] Cancel
+
+Choice: _
 ```
 
 ---

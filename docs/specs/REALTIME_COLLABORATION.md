@@ -12,91 +12,100 @@
 
 ---
 
-## Lock Mechanisms by Mode
+## Execution Visibility (Not Locking)
 
-The lock mechanism differs by mode - this is intentional design.
+**No cross-user locking.** The server provides visibility, not control.
+
+### Design Philosophy
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Lock Mechanisms by Mode                       │
+│                    Execution Model by Mode                       │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  SOLO MODE: NO LOCKING                                          │
+│  ALL MODES: WORKTREE ISOLATION                                  │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │ • Single user, single machine                            │    │
-│  │ • No coordination needed                                 │    │
-│  │ • Zero overhead from lock checking                       │    │
+│  │ • Each execution gets its own worktree                   │    │
+│  │ • Branch naming includes executor: orc/TASK-001-am       │    │
+│  │ • Multiple users can run same task simultaneously        │    │
+│  │ • No blocking, no locks between users                    │    │
 │  └─────────────────────────────────────────────────────────┘    │
 │                                                                  │
-│  P2P MODE: FILE-BASED LOCKING                                   │
+│  SOLO MODE                                                      │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │ • Lock file: .orc/tasks/TASK-001/lock.yaml (gitignored) │    │
-│  │ • TTL-based with heartbeat (60s TTL, 10s heartbeat)     │    │
-│  │ • Stale lock detection (heartbeat > TTL)                │    │
-│  │ • No server dependency                                   │    │
-│  │ • Eventual consistency via git                           │    │
+│  │ • Simple worktree naming (no prefix)                     │    │
+│  │ • PID guard prevents accidental double-run               │    │
 │  └─────────────────────────────────────────────────────────┘    │
 │                                                                  │
-│  TEAM MODE: SERVER-SIDE LOCKING                                 │
+│  P2P MODE                                                       │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │ • WebSocket-based real-time locks                        │    │
-│  │ • Server manages TTL and heartbeat                       │    │
-│  │ • Immediate conflict detection                           │    │
-│  │ • Falls back to file-based if server unavailable        │    │
+│  │ • Worktree includes executor prefix                      │    │
+│  │ • Git branches show who's working on what                │    │
+│  │ • No real-time visibility (git pull to see)              │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  TEAM MODE                                                      │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ • Same as P2P, plus server notifications                 │    │
+│  │ • Real-time "who's running what" visibility              │    │
+│  │ • Presence tracking                                      │    │
+│  │ • Server is advisory only, never blocks execution        │    │
 │  └─────────────────────────────────────────────────────────┘    │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Lock Interface
+### Server Notifications (Team Mode Only)
+
+Server tracks who's running what for visibility, but never blocks:
 
 ```go
-// internal/lock/lock.go
-type Locker interface {
-    Acquire(taskID string) error
-    Release(taskID string) error
-    Heartbeat(taskID string) error
-    IsLocked(taskID string) (bool, *LockInfo, error)
+// internal/executor/server_notify.go
+func (e *Executor) notifyServerStart(taskID string) error {
+    return e.ws.Send(Message{
+        Type: "execution.start",
+        Data: map[string]any{
+            "task_id":  taskID,
+            "user":     e.config.Identity.Initials,
+            "worktree": e.worktreePath,
+        },
+    })
 }
 
-// Factory creates appropriate locker for mode
-func NewLocker(mode string, config *Config) Locker {
-    switch mode {
-    case "solo":
-        return &NoOpLocker{} // No locking, zero overhead
-    case "p2p":
-        return &FileLocker{dir: ".orc/tasks"}
-    case "team":
-        return &CompositeLocker{
-            primary:  NewWebSocketLocker(config.Team.ServerURL),
-            fallback: &FileLocker{dir: ".orc/tasks"},
-        }
-    default:
-        return &NoOpLocker{}
-    }
+func (e *Executor) notifyServerStop(taskID string) error {
+    return e.ws.Send(Message{
+        Type: "execution.stop",
+        Data: map[string]any{
+            "task_id": taskID,
+            "user":    e.config.Identity.Initials,
+        },
+    })
 }
 ```
 
-### Fallback Behavior
+### Same-User Protection (PID Guard)
 
-Team mode gracefully degrades to file-based locking:
+Only protection is preventing same user from running same task twice:
 
 ```go
-// internal/lock/composite.go
-type CompositeLocker struct {
-    primary  Locker
-    fallback Locker
+// internal/executor/pid_guard.go
+type PIDGuard struct {
+    worktreePath string
 }
 
-func (c *CompositeLocker) Acquire(taskID string) error {
-    err := c.primary.Acquire(taskID)
+func (g *PIDGuard) Check() error {
+    pidFile := filepath.Join(g.worktreePath, ".orc.pid")
+    data, err := os.ReadFile(pidFile)
     if err != nil {
-        if isConnectionError(err) {
-            log.Warn("server unavailable, using file lock", "task", taskID)
-            return c.fallback.Acquire(taskID)
-        }
-        return err
+        return nil // No PID file, good to go
     }
+
+    pid, _ := strconv.Atoi(strings.TrimSpace(string(data)))
+    if processExists(pid) {
+        return fmt.Errorf("task already running (pid %d)", pid)
+    }
+
+    os.Remove(pidFile) // Stale, clean up
     return nil
 }
 ```

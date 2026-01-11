@@ -13,6 +13,7 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/git"
+	"github.com/randalmurphal/orc/internal/lock"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
@@ -89,9 +90,10 @@ type Executor struct {
 	fullExecutor     *FullExecutor
 
 	// Runtime state for current task
-	worktreePath   string   // Path to worktree if enabled
-	worktreeGit    *git.Git // Git operations for worktree
-	currentTaskDir string   // Directory for current task's files
+	worktreePath   string          // Path to worktree if enabled
+	worktreeGit    *git.Git        // Git operations for worktree
+	currentTaskDir string          // Directory for current task's files
+	pidGuard       *lock.PIDGuard  // PID guard for same-user protection
 
 	// Use session-based execution (new) vs flowgraph (legacy)
 	useSessionExecution bool
@@ -155,9 +157,10 @@ func New(cfg *Config) *Executor {
 
 	// Create git operations with orc-specific config
 	gitCfg := git.Config{
-		BranchPrefix: cfg.BranchPrefix,
-		CommitPrefix: cfg.CommitPrefix,
-		WorktreeDir:  orcCfg.Worktree.Dir,
+		BranchPrefix:   cfg.BranchPrefix,
+		CommitPrefix:   cfg.CommitPrefix,
+		WorktreeDir:    orcCfg.Worktree.Dir,
+		ExecutorPrefix: orcCfg.ExecutorPrefix(),
 	}
 	gitOps, err := git.New(cfg.WorkDir, gitCfg)
 	if err != nil {

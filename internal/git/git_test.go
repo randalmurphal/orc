@@ -262,8 +262,9 @@ func TestWorktreePath(t *testing.T) {
 	if !strings.Contains(path, ".orc/worktrees") {
 		t.Errorf("WorktreePath() = %s, should contain .orc/worktrees", path)
 	}
-	if !strings.Contains(path, "orc-task-001") {
-		t.Errorf("WorktreePath() = %s, should contain sanitized branch name", path)
+	// New naming: orc-TASK-001 (preserves case, no branch sanitization)
+	if !strings.Contains(path, "orc-TASK-001") {
+		t.Errorf("WorktreePath() = %s, should contain orc-TASK-001", path)
 	}
 }
 

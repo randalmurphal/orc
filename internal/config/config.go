@@ -191,6 +191,24 @@ type TeamConfig struct {
 	ServerURL string `yaml:"server_url"`
 }
 
+// IdentityConfig holds user identity settings for multi-user coordination.
+type IdentityConfig struct {
+	// Initials for executor prefix (e.g., "AM" for Alice Martinez)
+	Initials string `yaml:"initials"`
+	// DisplayName for team visibility (e.g., "Alice Martinez")
+	DisplayName string `yaml:"display_name"`
+	// Email for identification (optional)
+	Email string `yaml:"email,omitempty"`
+}
+
+// TaskIDConfig holds task ID generation configuration.
+type TaskIDConfig struct {
+	// Mode is the coordination mode (solo, p2p, team)
+	Mode string `yaml:"mode"`
+	// PrefixSource determines how task ID prefix is derived (initials, username, etc)
+	PrefixSource string `yaml:"prefix_source"`
+}
+
 // Config represents the orc configuration.
 type Config struct {
 	// Version is the config file version
@@ -225,6 +243,12 @@ type Config struct {
 
 	// Team mode settings
 	Team TeamConfig `yaml:"team"`
+
+	// Identity settings for multi-user coordination
+	Identity IdentityConfig `yaml:"identity"`
+
+	// Task ID generation settings
+	TaskID TaskIDConfig `yaml:"task_id"`
 
 	// Model settings
 	Model         string `yaml:"model"`
@@ -349,6 +373,14 @@ func Default() *Config {
 		Team: TeamConfig{
 			Enabled:   false,
 			ServerURL: "",
+		},
+		Identity: IdentityConfig{
+			Initials:    "",
+			DisplayName: "",
+		},
+		TaskID: TaskIDConfig{
+			Mode:         "solo",
+			PrefixSource: "initials",
 		},
 		Model:                      "claude-opus-4-5-20251101",
 		MaxIterations:              30,
@@ -507,4 +539,13 @@ func RequireInit() error {
 		return fmt.Errorf("not an orc project (no %s directory). Run 'orc init' first", OrcDir)
 	}
 	return nil
+}
+
+// ExecutorPrefix returns the prefix for branch/worktree naming based on mode.
+// Returns empty string in solo mode, identity initials in p2p/team mode.
+func (c *Config) ExecutorPrefix() string {
+	if c.TaskID.Mode == "solo" {
+		return ""
+	}
+	return c.Identity.Initials
 }
