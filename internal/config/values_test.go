@@ -246,6 +246,183 @@ func TestAllConfigPaths(t *testing.T) {
 	}
 }
 
+func TestAllConfigPaths_IdentityPaths(t *testing.T) {
+	paths := AllConfigPaths()
+
+	pathSet := make(map[string]bool)
+	for _, p := range paths {
+		pathSet[p] = true
+	}
+
+	// Identity paths must be included for multi-user coordination
+	identityPaths := []string{
+		"identity.initials",
+		"identity.display_name",
+		"identity.email",
+	}
+
+	for _, expected := range identityPaths {
+		if !pathSet[expected] {
+			t.Errorf("AllConfigPaths() missing identity path %q", expected)
+		}
+	}
+}
+
+func TestAllConfigPaths_TaskIDPaths(t *testing.T) {
+	paths := AllConfigPaths()
+
+	pathSet := make(map[string]bool)
+	for _, p := range paths {
+		pathSet[p] = true
+	}
+
+	// Task ID paths must be included for task ID generation configuration
+	taskIDPaths := []string{
+		"task_id.mode",
+		"task_id.prefix_source",
+	}
+
+	for _, expected := range taskIDPaths {
+		if !pathSet[expected] {
+			t.Errorf("AllConfigPaths() missing task_id path %q", expected)
+		}
+	}
+}
+
+func TestConfig_GetValue_Identity(t *testing.T) {
+	cfg := Default()
+	cfg.Identity.Initials = "AM"
+	cfg.Identity.DisplayName = "Alice Martinez"
+	cfg.Identity.Email = "alice@example.com"
+
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"identity.initials", "AM"},
+		{"identity.display_name", "Alice Martinez"},
+		{"identity.email", "alice@example.com"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			got, err := cfg.GetValue(tt.path)
+			if err != nil {
+				t.Errorf("GetValue(%q) error = %v", tt.path, err)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetValue(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfig_SetValue_Identity(t *testing.T) {
+	tests := []struct {
+		name  string
+		path  string
+		value string
+		check func(*Config) bool
+	}{
+		{
+			name:  "set identity initials",
+			path:  "identity.initials",
+			value: "BJ",
+			check: func(c *Config) bool { return c.Identity.Initials == "BJ" },
+		},
+		{
+			name:  "set identity display_name",
+			path:  "identity.display_name",
+			value: "Bob Johnson",
+			check: func(c *Config) bool { return c.Identity.DisplayName == "Bob Johnson" },
+		},
+		{
+			name:  "set identity email",
+			path:  "identity.email",
+			value: "bob@example.com",
+			check: func(c *Config) bool { return c.Identity.Email == "bob@example.com" },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Default()
+			err := cfg.SetValue(tt.path, tt.value)
+			if err != nil {
+				t.Errorf("SetValue(%q, %q) error = %v", tt.path, tt.value, err)
+				return
+			}
+			if !tt.check(cfg) {
+				t.Errorf("SetValue(%q, %q) did not set correctly", tt.path, tt.value)
+			}
+		})
+	}
+}
+
+func TestConfig_GetValue_TaskID(t *testing.T) {
+	cfg := Default()
+	cfg.TaskID.Mode = "p2p"
+	cfg.TaskID.PrefixSource = "username"
+
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"task_id.mode", "p2p"},
+		{"task_id.prefix_source", "username"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			got, err := cfg.GetValue(tt.path)
+			if err != nil {
+				t.Errorf("GetValue(%q) error = %v", tt.path, err)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetValue(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfig_SetValue_TaskID(t *testing.T) {
+	tests := []struct {
+		name  string
+		path  string
+		value string
+		check func(*Config) bool
+	}{
+		{
+			name:  "set task_id mode",
+			path:  "task_id.mode",
+			value: "team",
+			check: func(c *Config) bool { return c.TaskID.Mode == "team" },
+		},
+		{
+			name:  "set task_id prefix_source",
+			path:  "task_id.prefix_source",
+			value: "project",
+			check: func(c *Config) bool { return c.TaskID.PrefixSource == "project" },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Default()
+			err := cfg.SetValue(tt.path, tt.value)
+			if err != nil {
+				t.Errorf("SetValue(%q, %q) error = %v", tt.path, tt.value, err)
+				return
+			}
+			if !tt.check(cfg) {
+				t.Errorf("SetValue(%q, %q) did not set correctly", tt.path, tt.value)
+			}
+		})
+	}
+}
+
 func TestConfig_SetValue_Labels(t *testing.T) {
 	cfg := Default()
 

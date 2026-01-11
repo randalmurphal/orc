@@ -1,0 +1,63 @@
+task_id: TASK-GH-001
+current_phase: implement
+current_iteration: 1
+status: failed
+started_at: 2025-01-01T00:00:00Z
+updated_at: 2026-01-11T13:47:11.22101711-06:00
+phases:
+    implement:
+        status: failed
+        started_at: 2026-01-11T13:47:11.220856681-06:00
+        iterations: 1
+        error: 'node prompt: execute: no prompt template found for phase implement'
+        tokens:
+            input_tokens: 0
+            output_tokens: 0
+            total_tokens: 0
+tokens:
+    input_tokens: 0
+    output_tokens: 0
+    total_tokens: 0
+cost:
+    total_cost_usd: 0
+error: 'node prompt: execute: no prompt template found for phase implement'
+retry_context:
+    from_phase: implement
+    to_phase: implement
+    reason: 'Auto-fix requested for comment: Fix this'
+    failure_output: |
+        # Retry Context
+
+        This is attempt 1 of 3.
+
+        ## Previous Attempt Summary
+
+        Phase `implement` failed on the previous attempt.
+
+        **Reason:** Auto-fix requested for comment: Fix this
+
+        ## Review Comments to Address
+
+        ### `main.go`
+
+        - [SUGGESTION]: Fix this
+
+
+        ## PR Feedback to Address
+
+        **main.go:0** (@reviewer)
+        > Fix this
+
+
+        ## Additional Instructions
+
+        Fix the issue in main.go at line 0: Fix this
+
+        ---
+
+        Please address all issues above and complete the task. Make sure to:
+        1. Fix all identified issues
+        2. Run tests to verify fixes
+        3. Ensure no regressions were introduced
+    attempt: 1
+    timestamp: 2026-01-11T13:47:11.218264505-06:00
