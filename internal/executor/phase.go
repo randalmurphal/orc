@@ -100,15 +100,22 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 		flowgraph.WithContextRunID(fmt.Sprintf("%s-%s", t.ID, p.ID)),
 	)
 
+	// Build template vars to get prior phase content
+	templateVars := BuildTemplateVars(t, p, s, 0, "")
+
 	// Initial state with retry context if applicable
 	initialState := PhaseState{
-		TaskID:          t.ID,
-		TaskTitle:       t.Title,
-		TaskDescription: t.Description,
-		Phase:           p.ID,
-		Weight:          string(t.Weight),
-		Iteration:       0,
-		RetryContext:    LoadRetryContextForPhase(s),
+		TaskID:           t.ID,
+		TaskTitle:        t.Title,
+		TaskDescription:  t.Description,
+		Phase:            p.ID,
+		Weight:           string(t.Weight),
+		Iteration:        0,
+		RetryContext:     LoadRetryContextForPhase(s),
+		ResearchContent:  templateVars.ResearchContent,
+		SpecContent:      templateVars.SpecContent,
+		DesignContent:    templateVars.DesignContent,
+		ImplementContent: templateVars.ImplementContent,
 	}
 
 	// Run with checkpointing if enabled

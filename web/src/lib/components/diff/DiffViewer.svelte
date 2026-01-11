@@ -78,6 +78,11 @@
 		}
 	}
 
+	function handleCloseThread() {
+		activeLineNumber = null;
+		activeFilePath = null;
+	}
+
 	async function handleSendToAgent() {
 		if (openComments.length === 0 || sendingToAgent) return;
 		sendingToAgent = true;
@@ -259,6 +264,7 @@
 					onResolveComment={handleResolveComment}
 					onWontFixComment={handleWontFixComment}
 					onDeleteComment={handleDeleteComment}
+					onCloseThread={handleCloseThread}
 				/>
 			{/each}
 		</div>

@@ -238,13 +238,14 @@
 					}
 				} else if (eventType === 'tokens') {
 					// Update token display in real-time
-					const tokenData = data as { input_tokens: number; output_tokens: number; total_tokens: number };
+					const tokenData = data as { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number; total_tokens: number };
 					if (taskState) {
 						taskState = {
 							...taskState,
 							tokens: {
 								input_tokens: (taskState.tokens?.input_tokens || 0) + tokenData.input_tokens,
 								output_tokens: (taskState.tokens?.output_tokens || 0) + tokenData.output_tokens,
+								cache_read_input_tokens: (taskState.tokens?.cache_read_input_tokens || 0) + (tokenData.cache_read_input_tokens || 0),
 								total_tokens: (taskState.tokens?.total_tokens || 0) + tokenData.total_tokens
 							}
 						};
@@ -443,6 +444,15 @@
 									>
 									<span class="token-label">Output</span>
 								</div>
+								{#if taskState.tokens.cache_read_input_tokens}
+									<div class="token-divider"></div>
+									<div class="token-stat cached">
+										<span class="token-value"
+											>{(taskState.tokens.cache_read_input_tokens || 0).toLocaleString()}</span
+										>
+										<span class="token-label">Cached</span>
+									</div>
+								{/if}
 								<div class="token-divider"></div>
 								<div class="token-stat total">
 									<span class="token-value"
@@ -711,6 +721,10 @@
 
 	.token-stat.total .token-value {
 		color: var(--accent-primary);
+	}
+
+	.token-stat.cached .token-value {
+		color: var(--status-success);
 	}
 
 	.token-value {

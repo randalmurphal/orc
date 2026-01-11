@@ -43,18 +43,25 @@ type TemplateVars struct {
 // Variables use the {{VAR}} format. Missing variables are replaced with
 // empty strings.
 func RenderTemplate(tmpl string, vars TemplateVars) string {
+	// For tasks without a spec phase, use task description as spec content
+	specContent := vars.SpecContent
+	if specContent == "" && vars.TaskDescription != "" {
+		specContent = vars.TaskDescription
+	}
+
 	replacements := map[string]string{
-		"{{TASK_ID}}":           vars.TaskID,
-		"{{TASK_TITLE}}":        vars.TaskTitle,
-		"{{TASK_DESCRIPTION}}":  vars.TaskDescription,
-		"{{PHASE}}":             vars.Phase,
-		"{{WEIGHT}}":            vars.Weight,
-		"{{ITERATION}}":         fmt.Sprintf("%d", vars.Iteration),
-		"{{RETRY_CONTEXT}}":     vars.RetryContext,
-		"{{RESEARCH_CONTENT}}":  vars.ResearchContent,
-		"{{SPEC_CONTENT}}":      vars.SpecContent,
-		"{{DESIGN_CONTENT}}":    vars.DesignContent,
-		"{{IMPLEMENT_CONTENT}}": vars.ImplementContent,
+		"{{TASK_ID}}":              vars.TaskID,
+		"{{TASK_TITLE}}":           vars.TaskTitle,
+		"{{TASK_DESCRIPTION}}":     vars.TaskDescription,
+		"{{PHASE}}":                vars.Phase,
+		"{{WEIGHT}}":               vars.Weight,
+		"{{ITERATION}}":            fmt.Sprintf("%d", vars.Iteration),
+		"{{RETRY_CONTEXT}}":        vars.RetryContext,
+		"{{RESEARCH_CONTENT}}":     vars.ResearchContent,
+		"{{SPEC_CONTENT}}":         specContent,
+		"{{DESIGN_CONTENT}}":       vars.DesignContent,
+		"{{IMPLEMENT_CONTENT}}":    vars.ImplementContent,
+		"{{IMPLEMENTATION_SUMMARY}}": vars.ImplementContent, // Alias for template compatibility
 	}
 
 	result := tmpl

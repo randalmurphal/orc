@@ -7,15 +7,24 @@
 		comments: ReviewComment[];
 		filePath: string;
 		lineNumber: number;
+		isActive?: boolean;
 		onAddComment: (comment: CreateCommentRequest) => Promise<void>;
 		onResolve: (id: string) => void;
 		onWontFix: (id: string) => void;
 		onDelete: (id: string) => void;
+		onClose?: () => void;
 	}
 
-	let { comments, filePath, lineNumber, onAddComment, onResolve, onWontFix, onDelete }: Props = $props();
+	let { comments, filePath, lineNumber, isActive = false, onAddComment, onResolve, onWontFix, onDelete, onClose }: Props = $props();
 
 	let showForm = $state(false);
+
+	// Auto-open form when component becomes active (user clicked line to add comment)
+	$effect(() => {
+		if (isActive && comments.length === 0) {
+			showForm = true;
+		}
+	});
 	let isSubmitting = $state(false);
 	let content = $state('');
 	let severity = $state<CommentSeverity>('issue');
@@ -43,6 +52,7 @@
 			content = '';
 			severity = 'issue';
 			showForm = false;
+			onClose?.();
 		} finally {
 			isSubmitting = false;
 		}
@@ -50,10 +60,17 @@
 
 	function handleKeyDown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
-			showForm = false;
+			handleCancel();
 		} else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
 			handleSubmit();
 		}
+	}
+
+	function handleCancel() {
+		showForm = false;
+		content = '';
+		severity = 'issue';
+		onClose?.();
 	}
 
 	export function openCommentForm() {
@@ -124,7 +141,7 @@
 					disabled={isSubmitting}
 				></textarea>
 				<div class="form-actions">
-					<button type="button" class="cancel-btn" onclick={() => showForm = false}>
+					<button type="button" class="cancel-btn" onclick={handleCancel}>
 						Cancel
 					</button>
 					<button type="submit" class="submit-btn" disabled={!content.trim() || isSubmitting}>

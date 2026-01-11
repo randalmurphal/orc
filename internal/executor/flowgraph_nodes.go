@@ -44,18 +44,26 @@ func (e *Executor) buildPromptNode(p *plan.Phase) flowgraph.NodeFunc[PhaseState]
 
 // renderTemplate does simple template variable substitution.
 func (e *Executor) renderTemplate(tmpl string, s PhaseState) string {
+	// For tasks without a spec phase, use task description as spec content
+	specContent := s.SpecContent
+	if specContent == "" && s.TaskDescription != "" {
+		specContent = s.TaskDescription
+	}
+
 	// Simple variable replacement
 	replacements := map[string]string{
-		"{{TASK_ID}}":          s.TaskID,
-		"{{TASK_TITLE}}":       s.TaskTitle,
-		"{{TASK_DESCRIPTION}}": s.TaskDescription,
-		"{{PHASE}}":            s.Phase,
-		"{{WEIGHT}}":           s.Weight,
-		"{{ITERATION}}":        fmt.Sprintf("%d", s.Iteration),
-		"{{RESEARCH_CONTENT}}": s.ResearchContent,
-		"{{SPEC_CONTENT}}":     s.SpecContent,
-		"{{DESIGN_CONTENT}}":   s.DesignContent,
-		"{{RETRY_CONTEXT}}":    s.RetryContext,
+		"{{TASK_ID}}":               s.TaskID,
+		"{{TASK_TITLE}}":            s.TaskTitle,
+		"{{TASK_DESCRIPTION}}":      s.TaskDescription,
+		"{{PHASE}}":                 s.Phase,
+		"{{WEIGHT}}":                s.Weight,
+		"{{ITERATION}}":             fmt.Sprintf("%d", s.Iteration),
+		"{{RESEARCH_CONTENT}}":      s.ResearchContent,
+		"{{SPEC_CONTENT}}":          specContent,
+		"{{DESIGN_CONTENT}}":        s.DesignContent,
+		"{{IMPLEMENT_CONTENT}}":     s.ImplementContent,
+		"{{IMPLEMENTATION_SUMMARY}}": s.ImplementContent, // Alias for template compatibility
+		"{{RETRY_CONTEXT}}":         s.RetryContext,
 	}
 
 	result := tmpl
@@ -98,7 +106,7 @@ func (e *Executor) executeClaudeNode() flowgraph.NodeFunc[PhaseState] {
 
 		// Publish response transcript and token update
 		e.publishTranscript(s.TaskID, s.Phase, s.Iteration, "response", s.Response)
-		e.publishTokens(s.TaskID, s.Phase, resp.Usage.InputTokens, resp.Usage.OutputTokens, resp.Usage.TotalTokens)
+		e.publishTokens(s.TaskID, s.Phase, resp.Usage.InputTokens, resp.Usage.OutputTokens, resp.Usage.CacheReadInputTokens, resp.Usage.TotalTokens)
 
 		return s, nil
 	}

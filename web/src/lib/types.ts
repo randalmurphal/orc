@@ -72,6 +72,7 @@ export interface GateDecision {
 export interface TokenUsage {
 	input_tokens: number;
 	output_tokens: number;
+	cache_read_input_tokens?: number;
 	total_tokens: number;
 }
 

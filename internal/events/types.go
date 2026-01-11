@@ -60,10 +60,11 @@ type PhaseUpdate struct {
 
 // TokenUpdate represents token usage information.
 type TokenUpdate struct {
-	Phase        string `json:"phase"`
-	InputTokens  int    `json:"input_tokens"`
-	OutputTokens int    `json:"output_tokens"`
-	TotalTokens  int    `json:"total_tokens"`
+	Phase                string `json:"phase"`
+	InputTokens          int    `json:"input_tokens"`
+	OutputTokens         int    `json:"output_tokens"`
+	CacheReadInputTokens int    `json:"cache_read_input_tokens"`
+	TotalTokens          int    `json:"total_tokens"`
 }
 
 // ErrorData represents error information.

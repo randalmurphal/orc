@@ -1,0 +1,169 @@
+# test - Iteration 1
+
+## Prompt
+
+# Test Phase
+
+You are writing and running tests to verify the implementation.
+
+## Context
+
+**Task ID**: TASK-006
+**Task**: Add a greeting.go file with a simple Hello World function
+**Weight**: medium
+
+## Specification
+
+
+
+## Implementation Summary
+
+{{IMPLEMENTATION_SUMMARY}}
+
+## Instructions
+
+### Step 1: Identify Test Cases
+
+For each success criterion in the spec:
+- Create at least one test case
+- Include positive and negative cases
+- Cover edge cases mentioned in spec
+
+### Step 2: Write Unit Tests
+
+For each component:
+- Test public functions/methods
+- Test error handling paths
+- Test boundary conditions
+- Mock external dependencies
+
+### Step 3: Write Integration Tests
+
+Test component interactions:
+- API endpoints with real handlers
+- Database operations (use test DB)
+- External service calls (use mocks)
+
+### Step 4: Run Tests
+
+```bash
+# For Go projects
+go test ./... -v -cover
+
+# For Node projects
+npm test
+
+# For Python projects
+pytest -v --cov
+```
+
+### Step 5: Verify Coverage
+
+Target: >80% coverage on new code
+
+If coverage is low:
+- Identify untested paths
+- Add tests for uncovered code
+- Focus on error paths (often missed)
+
+## Test Patterns
+
+| Pattern | Use Case |
+|---------|----------|
+| Table-driven tests | Multiple inputs/outputs |
+| Subtests | Grouped related cases |
+| Fixtures | Shared setup/teardown |
+| Mocks | External dependencies |
+
+## Output Format
+
+### Test Summary
+
+```
+### Test Results
+
+**Total Tests**: [count]
+**Passed**: [count]
+**Failed**: [count]
+**Coverage**: [percent]%
+
+### Tests Written
+- [test_file1]: [count] tests
+- [test_file2]: [count] tests
+
+### Coverage by Package
+- [package1]: [percent]%
+- [package2]: [percent]%
+```
+
+## Phase Completion
+
+### Commit Tests
+
+```bash
+git add -A
+git commit -m "[orc] TASK-006: test - completed
+
+Phase: test
+Status: completed
+Tests: [count] passed
+Coverage: [percent]%
+"
+```
+
+### Output Completion
+
+```
+### Test Summary
+
+**Tests**: [passed]/[total] passing
+**Coverage**: [percent]%
+**Commit**: [commit SHA]
+
+<phase_complete>true</phase_complete>
+```
+
+If tests fail:
+```
+<phase_blocked>
+reason: [count] tests failing
+needs: [specific failures to fix]
+</phase_blocked>
+```
+
+
+## Response
+
+### Test Summary
+
+**Total Tests**: 6 (5 unit tests + 1 example)
+**Passed**: 6
+**Failed**: 0
+**Coverage**: 100%
+
+### Tests Written
+- `internal/greeting/greeting_test.go`: 6 tests + 1 benchmark
+
+### Coverage by Package
+- `github.com/randalmurphal/orc/internal/greeting`: 100%
+
+### Test Details
+
+| Test | Purpose |
+|------|---------|
+| `TestHello` | Verifies exact "Hello, World!" output |
+| `TestHello_ReturnsNonEmpty` | Ensures non-empty string returned |
+| `TestHello_ContainsHello` | Validates "Hello" prefix |
+| `TestHello_ContainsWorld` | Validates "World" content |
+| `TestHello_Idempotent` | Confirms consistent return value |
+| `ExampleHello` | Documentation example (testable) |
+| `BenchmarkHello` | Performance baseline (~1.25ns/op) |
+
+**Commit**: 301fcb5
+
+<phase_complete>true</phase_complete>
+
+---
+Tokens: 186 input, 4023 output
+Complete: true
+Blocked: false
