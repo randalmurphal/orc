@@ -206,6 +206,11 @@ func (r *Resolver) ResolveFromSource(phase string, source Source) (*ResolvedProm
 
 // resolveWithInheritance handles prompt inheritance via frontmatter.
 func (r *Resolver) resolveWithInheritance(content string, source Source, phase string) (*ResolvedPrompt, error) {
+	return r.resolveWithInheritanceTracked(content, source, phase, make(map[Source]bool))
+}
+
+// resolveWithInheritanceTracked is the internal implementation that tracks visited sources for cycle detection.
+func (r *Resolver) resolveWithInheritanceTracked(content string, source Source, phase string, visited map[Source]bool) (*ResolvedPrompt, error) {
 	meta, body := parseFrontmatter(content)
 
 	// No inheritance, return as-is
@@ -233,8 +238,19 @@ func (r *Resolver) resolveWithInheritance(content string, source Source, phase s
 		return nil, fmt.Errorf("unknown extends value: %s", meta.Extends)
 	}
 
-	// Resolve parent
-	parent, err := r.ResolveFromSource(phase, parentSource)
+	// Check for inheritance cycle
+	if visited[parentSource] {
+		return nil, fmt.Errorf("inheritance cycle detected: %s already visited", parentSource)
+	}
+	visited[parentSource] = true
+
+	// Resolve parent (inline to avoid going through ResolveFromSource which creates new visited map)
+	parentContent, err := r.readFromSource(phase, parentSource)
+	if err != nil {
+		return nil, fmt.Errorf("resolve parent prompt: %w", err)
+	}
+
+	parent, err := r.resolveWithInheritanceTracked(parentContent, parentSource, phase, visited)
 	if err != nil {
 		return nil, fmt.Errorf("resolve parent prompt: %w", err)
 	}
@@ -259,6 +275,42 @@ func (r *Resolver) resolveWithInheritance(content string, source Source, phase s
 		Source:        source,
 		InheritedFrom: inherited,
 	}, nil
+}
+
+// readFromSource reads raw content from a specific source without inheritance resolution.
+func (r *Resolver) readFromSource(phase string, source Source) (string, error) {
+	filename := phase + ".md"
+
+	switch source {
+	case SourcePersonalGlobal:
+		if r.personalDir == "" {
+			return "", fmt.Errorf("personal directory not configured")
+		}
+		data, err := os.ReadFile(filepath.Join(r.personalDir, filename))
+		return string(data), err
+	case SourceProjectLocal:
+		if r.localDir == "" {
+			return "", fmt.Errorf("local directory not configured")
+		}
+		data, err := os.ReadFile(filepath.Join(r.localDir, filename))
+		return string(data), err
+	case SourceProjectShared:
+		if r.sharedDir == "" {
+			return "", fmt.Errorf("shared directory not configured")
+		}
+		data, err := os.ReadFile(filepath.Join(r.sharedDir, filename))
+		return string(data), err
+	case SourceProject:
+		if r.projectDir == "" {
+			return "", fmt.Errorf("project directory not configured")
+		}
+		data, err := os.ReadFile(filepath.Join(r.projectDir, filename))
+		return string(data), err
+	case SourceEmbedded:
+		return r.readEmbedded(phase)
+	default:
+		return "", fmt.Errorf("unknown source: %s", source)
+	}
 }
 
 // readEmbedded reads a prompt from embedded templates.

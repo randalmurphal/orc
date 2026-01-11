@@ -259,7 +259,7 @@ The winning value is marked with "← WINNER".`,
 				return err
 			}
 
-			fmt.Fprintf(out, "Resolution chain for '%s':\n", key)
+			_, _ = fmt.Fprintf(out, "Resolution chain for '%s':\n", key)
 
 			// Group entries by level
 			byLevel := make(map[config.ConfigLevel][]config.ResolutionEntry)
@@ -347,7 +347,7 @@ func printConfigAsYAML(out io.Writer, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
-	fmt.Fprint(out, string(data))
+	_, _ = fmt.Fprint(out, string(data))
 	return nil
 }
 
