@@ -41,6 +41,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_projects.go` | `orc projects` | List registered projects |
 | `cmd_export.go` | `orc export TASK-ID` | Export task to YAML (with plan, state, transcripts) |
 | `cmd_export.go` | `orc import <file>` | Import task from YAML file |
+| `cmd_initiative.go` | `orc initiative [subcommand]` | Manage initiatives (grouped tasks) |
 
 ## Command Structure
 

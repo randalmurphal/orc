@@ -516,3 +516,353 @@ func (p *ProjectDB) SearchTranscripts(query string) ([]TranscriptMatch, error) {
 func escapeQuotes(s string) string {
 	return strings.ReplaceAll(s, `"`, `""`)
 }
+
+// Initiative represents an initiative stored in the database.
+type Initiative struct {
+	ID               string
+	Title            string
+	Status           string
+	OwnerInitials    string
+	OwnerDisplayName string
+	OwnerEmail       string
+	Vision           string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+// InitiativeDecision represents a decision within an initiative.
+type InitiativeDecision struct {
+	ID           string
+	InitiativeID string
+	Decision     string
+	Rationale    string
+	DecidedBy    string
+	DecidedAt    time.Time
+}
+
+// SaveInitiative creates or updates an initiative.
+func (p *ProjectDB) SaveInitiative(i *Initiative) error {
+	now := time.Now().Format(time.RFC3339)
+	if i.CreatedAt.IsZero() {
+		i.CreatedAt = time.Now()
+	}
+
+	_, err := p.Exec(`
+		INSERT INTO initiatives (id, title, status, owner_initials, owner_display_name, owner_email, vision, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			title = excluded.title,
+			status = excluded.status,
+			owner_initials = excluded.owner_initials,
+			owner_display_name = excluded.owner_display_name,
+			owner_email = excluded.owner_email,
+			vision = excluded.vision,
+			updated_at = excluded.updated_at
+	`, i.ID, i.Title, i.Status, i.OwnerInitials, i.OwnerDisplayName, i.OwnerEmail, i.Vision,
+		i.CreatedAt.Format(time.RFC3339), now)
+	if err != nil {
+		return fmt.Errorf("save initiative: %w", err)
+	}
+	return nil
+}
+
+// GetInitiative retrieves an initiative by ID.
+func (p *ProjectDB) GetInitiative(id string) (*Initiative, error) {
+	row := p.QueryRow(`
+		SELECT id, title, status, owner_initials, owner_display_name, owner_email, vision, created_at, updated_at
+		FROM initiatives WHERE id = ?
+	`, id)
+
+	var i Initiative
+	var ownerInitials, ownerDisplayName, ownerEmail, vision sql.NullString
+	var createdAt, updatedAt string
+
+	if err := row.Scan(&i.ID, &i.Title, &i.Status, &ownerInitials, &ownerDisplayName, &ownerEmail, &vision, &createdAt, &updatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get initiative %s: %w", id, err)
+	}
+
+	if ownerInitials.Valid {
+		i.OwnerInitials = ownerInitials.String
+	}
+	if ownerDisplayName.Valid {
+		i.OwnerDisplayName = ownerDisplayName.String
+	}
+	if ownerEmail.Valid {
+		i.OwnerEmail = ownerEmail.String
+	}
+	if vision.Valid {
+		i.Vision = vision.String
+	}
+	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
+		i.CreatedAt = ts
+	} else if ts, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
+		i.CreatedAt = ts
+	}
+	if ts, err := time.Parse(time.RFC3339, updatedAt); err == nil {
+		i.UpdatedAt = ts
+	} else if ts, err := time.Parse("2006-01-02 15:04:05", updatedAt); err == nil {
+		i.UpdatedAt = ts
+	}
+
+	return &i, nil
+}
+
+// ListInitiatives returns initiatives matching the given options.
+func (p *ProjectDB) ListInitiatives(opts ListOpts) ([]Initiative, error) {
+	query := `SELECT id, title, status, owner_initials, owner_display_name, owner_email, vision, created_at, updated_at FROM initiatives`
+	args := []any{}
+
+	if opts.Status != "" {
+		query += " WHERE status = ?"
+		args = append(args, opts.Status)
+	}
+	query += " ORDER BY created_at DESC"
+
+	if opts.Limit > 0 {
+		query += " LIMIT ?"
+		args = append(args, opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query += " OFFSET ?"
+		args = append(args, opts.Offset)
+	}
+
+	rows, err := p.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list initiatives: %w", err)
+	}
+	defer rows.Close()
+
+	var initiatives []Initiative
+	for rows.Next() {
+		var i Initiative
+		var ownerInitials, ownerDisplayName, ownerEmail, vision sql.NullString
+		var createdAt, updatedAt string
+
+		if err := rows.Scan(&i.ID, &i.Title, &i.Status, &ownerInitials, &ownerDisplayName, &ownerEmail, &vision, &createdAt, &updatedAt); err != nil {
+			return nil, fmt.Errorf("scan initiative: %w", err)
+		}
+
+		if ownerInitials.Valid {
+			i.OwnerInitials = ownerInitials.String
+		}
+		if ownerDisplayName.Valid {
+			i.OwnerDisplayName = ownerDisplayName.String
+		}
+		if ownerEmail.Valid {
+			i.OwnerEmail = ownerEmail.String
+		}
+		if vision.Valid {
+			i.Vision = vision.String
+		}
+		if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
+			i.CreatedAt = ts
+		} else if ts, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
+			i.CreatedAt = ts
+		}
+		if ts, err := time.Parse(time.RFC3339, updatedAt); err == nil {
+			i.UpdatedAt = ts
+		} else if ts, err := time.Parse("2006-01-02 15:04:05", updatedAt); err == nil {
+			i.UpdatedAt = ts
+		}
+
+		initiatives = append(initiatives, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate initiatives: %w", err)
+	}
+
+	return initiatives, nil
+}
+
+// DeleteInitiative removes an initiative and its decisions/tasks.
+func (p *ProjectDB) DeleteInitiative(id string) error {
+	_, err := p.Exec("DELETE FROM initiatives WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("delete initiative: %w", err)
+	}
+	return nil
+}
+
+// AddInitiativeDecision adds a decision to an initiative.
+func (p *ProjectDB) AddInitiativeDecision(d *InitiativeDecision) error {
+	_, err := p.Exec(`
+		INSERT INTO initiative_decisions (id, initiative_id, decision, rationale, decided_by, decided_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, d.ID, d.InitiativeID, d.Decision, d.Rationale, d.DecidedBy, d.DecidedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("add initiative decision: %w", err)
+	}
+	return nil
+}
+
+// GetInitiativeDecisions retrieves all decisions for an initiative.
+func (p *ProjectDB) GetInitiativeDecisions(initiativeID string) ([]InitiativeDecision, error) {
+	rows, err := p.Query(`
+		SELECT id, initiative_id, decision, rationale, decided_by, decided_at
+		FROM initiative_decisions WHERE initiative_id = ? ORDER BY decided_at
+	`, initiativeID)
+	if err != nil {
+		return nil, fmt.Errorf("get initiative decisions: %w", err)
+	}
+	defer rows.Close()
+
+	var decisions []InitiativeDecision
+	for rows.Next() {
+		var d InitiativeDecision
+		var rationale, decidedBy sql.NullString
+		var decidedAt string
+
+		if err := rows.Scan(&d.ID, &d.InitiativeID, &d.Decision, &rationale, &decidedBy, &decidedAt); err != nil {
+			return nil, fmt.Errorf("scan decision: %w", err)
+		}
+
+		if rationale.Valid {
+			d.Rationale = rationale.String
+		}
+		if decidedBy.Valid {
+			d.DecidedBy = decidedBy.String
+		}
+		if ts, err := time.Parse(time.RFC3339, decidedAt); err == nil {
+			d.DecidedAt = ts
+		} else if ts, err := time.Parse("2006-01-02 15:04:05", decidedAt); err == nil {
+			d.DecidedAt = ts
+		}
+
+		decisions = append(decisions, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate decisions: %w", err)
+	}
+
+	return decisions, nil
+}
+
+// AddTaskToInitiative links a task to an initiative.
+func (p *ProjectDB) AddTaskToInitiative(initiativeID, taskID string, sequence int) error {
+	_, err := p.Exec(`
+		INSERT INTO initiative_tasks (initiative_id, task_id, sequence)
+		VALUES (?, ?, ?)
+		ON CONFLICT(initiative_id, task_id) DO UPDATE SET
+			sequence = excluded.sequence
+	`, initiativeID, taskID, sequence)
+	if err != nil {
+		return fmt.Errorf("add task to initiative: %w", err)
+	}
+	return nil
+}
+
+// RemoveTaskFromInitiative unlinks a task from an initiative.
+func (p *ProjectDB) RemoveTaskFromInitiative(initiativeID, taskID string) error {
+	_, err := p.Exec(`DELETE FROM initiative_tasks WHERE initiative_id = ? AND task_id = ?`, initiativeID, taskID)
+	if err != nil {
+		return fmt.Errorf("remove task from initiative: %w", err)
+	}
+	return nil
+}
+
+// GetInitiativeTasks retrieves task IDs linked to an initiative in sequence order.
+func (p *ProjectDB) GetInitiativeTasks(initiativeID string) ([]string, error) {
+	rows, err := p.Query(`
+		SELECT task_id FROM initiative_tasks
+		WHERE initiative_id = ?
+		ORDER BY sequence
+	`, initiativeID)
+	if err != nil {
+		return nil, fmt.Errorf("get initiative tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var taskIDs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan task id: %w", err)
+		}
+		taskIDs = append(taskIDs, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate task ids: %w", err)
+	}
+
+	return taskIDs, nil
+}
+
+// AddTaskDependency records that taskID depends on dependsOn.
+func (p *ProjectDB) AddTaskDependency(taskID, dependsOn string) error {
+	_, err := p.Exec(`
+		INSERT OR IGNORE INTO task_dependencies (task_id, depends_on)
+		VALUES (?, ?)
+	`, taskID, dependsOn)
+	if err != nil {
+		return fmt.Errorf("add task dependency: %w", err)
+	}
+	return nil
+}
+
+// RemoveTaskDependency removes a dependency relationship.
+func (p *ProjectDB) RemoveTaskDependency(taskID, dependsOn string) error {
+	_, err := p.Exec(`DELETE FROM task_dependencies WHERE task_id = ? AND depends_on = ?`, taskID, dependsOn)
+	if err != nil {
+		return fmt.Errorf("remove task dependency: %w", err)
+	}
+	return nil
+}
+
+// GetTaskDependencies retrieves IDs of tasks that taskID depends on.
+func (p *ProjectDB) GetTaskDependencies(taskID string) ([]string, error) {
+	rows, err := p.Query(`SELECT depends_on FROM task_dependencies WHERE task_id = ?`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get task dependencies: %w", err)
+	}
+	defer rows.Close()
+
+	var deps []string
+	for rows.Next() {
+		var dep string
+		if err := rows.Scan(&dep); err != nil {
+			return nil, fmt.Errorf("scan dependency: %w", err)
+		}
+		deps = append(deps, dep)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate dependencies: %w", err)
+	}
+
+	return deps, nil
+}
+
+// GetTaskDependents retrieves IDs of tasks that depend on taskID.
+func (p *ProjectDB) GetTaskDependents(taskID string) ([]string, error) {
+	rows, err := p.Query(`SELECT task_id FROM task_dependencies WHERE depends_on = ?`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get task dependents: %w", err)
+	}
+	defer rows.Close()
+
+	var deps []string
+	for rows.Next() {
+		var dep string
+		if err := rows.Scan(&dep); err != nil {
+			return nil, fmt.Errorf("scan dependent: %w", err)
+		}
+		deps = append(deps, dep)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate dependents: %w", err)
+	}
+
+	return deps, nil
+}
+
+// ClearTaskDependencies removes all dependencies for a task.
+func (p *ProjectDB) ClearTaskDependencies(taskID string) error {
+	_, err := p.Exec(`DELETE FROM task_dependencies WHERE task_id = ?`, taskID)
+	if err != nil {
+		return fmt.Errorf("clear task dependencies: %w", err)
+	}
+	return nil
+}

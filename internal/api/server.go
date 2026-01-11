@@ -129,6 +129,17 @@ func (s *Server) registerRoutes() {
 	// SSE streaming (legacy)
 	s.mux.HandleFunc("GET /api/tasks/{id}/stream", s.handleStream)
 
+	// Initiatives
+	s.mux.HandleFunc("GET /api/initiatives", cors(s.handleListInitiatives))
+	s.mux.HandleFunc("POST /api/initiatives", cors(s.handleCreateInitiative))
+	s.mux.HandleFunc("GET /api/initiatives/{id}", cors(s.handleGetInitiative))
+	s.mux.HandleFunc("PUT /api/initiatives/{id}", cors(s.handleUpdateInitiative))
+	s.mux.HandleFunc("DELETE /api/initiatives/{id}", cors(s.handleDeleteInitiative))
+	s.mux.HandleFunc("GET /api/initiatives/{id}/tasks", cors(s.handleListInitiativeTasks))
+	s.mux.HandleFunc("POST /api/initiatives/{id}/tasks", cors(s.handleAddInitiativeTask))
+	s.mux.HandleFunc("POST /api/initiatives/{id}/decisions", cors(s.handleAddInitiativeDecision))
+	s.mux.HandleFunc("GET /api/initiatives/{id}/ready", cors(s.handleGetReadyTasks))
+
 	// WebSocket for real-time updates
 	s.mux.Handle("GET /api/ws", s.wsHandler)
 
