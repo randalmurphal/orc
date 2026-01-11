@@ -222,7 +222,7 @@ orc config profile safe  # Set default
 
 ```bash
 ORC_PROFILE=strict
-ORC_MODEL=claude-sonnet-4-20250514
+ORC_MODEL=claude-opus-4-5-20251101  # Default, recommended
 ORC_GATES_DEFAULT=human
 ORC_WORKTREE_ENABLED=false
 ORC_RETRY_ENABLED=false
@@ -480,6 +480,26 @@ make docker-test   # Tests in container
 - [CLI Spec](docs/specs/CLI.md)
 - [File Formats](docs/specs/FILE_FORMATS.md)
 - [ADRs](docs/decisions/)
+
+## Standing on Shoulders
+
+Orc didn't emerge from nothing. Key ideas came from:
+
+### Ralph Wiggum Technique
+
+The core execution model—persistent loops that iterate until done—comes from the Ralph Wiggum pattern. The insight: the prompt never changes, but the codebase does. Each iteration reads the same instructions but operates on evolved state.
+
+```bash
+while :; do cat PROMPT.md | claude-code; done
+```
+
+Simple systems fail simply. You can debug a bash loop. Orc wraps this in structure (phases, checkpoints, gates) but the heart is Ralph: keep going until you're actually done.
+
+See [docs/research/RALPH_WIGGUM.md](docs/research/RALPH_WIGGUM.md) for the full breakdown.
+
+### Vibe Kanban
+
+The visual task management and "describe it, run it, come back to a PR" workflow draws from [Vibe Kanban](https://github.com/BloopAI/vibe-kanban)—a project that demonstrated AI-driven task execution with a Kanban interface. The idea that you queue up work, let AI execute, and review results later shaped orc's solo dev workflow.
 
 ## License
 
