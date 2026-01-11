@@ -91,8 +91,8 @@ func ParseReviewFindings(response string) (*ReviewFindings, error) {
 		fmt.Sscanf(m[1], "%d", &findings.Round)
 	}
 
-	// Parse summary
-	summaryRe := regexp.MustCompile(`<summary>(.*?)</summary>`)
+	// Parse summary (use (?s) to handle multiline content)
+	summaryRe := regexp.MustCompile(`(?s)<summary>(.*?)</summary>`)
 	if m := summaryRe.FindStringSubmatch(content); m != nil {
 		findings.Summary = strings.TrimSpace(m[1])
 	}
@@ -158,10 +158,12 @@ func ParseReviewDecision(response string) (*ReviewDecision, error) {
 	}
 	content := decisionMatch[1]
 
-	// Parse status
-	statusRe := regexp.MustCompile(`<status>(pass|fail|needs_user_input)</status>`)
+	// Parse status (required field)
+	statusRe := regexp.MustCompile(`<status>\s*(pass|fail|needs_user_input)\s*</status>`)
 	if m := statusRe.FindStringSubmatch(content); m != nil {
 		decision.Status = ReviewDecisionStatus(m[1])
+	} else {
+		return nil, fmt.Errorf("no valid <status> found in review_decision (expected pass, fail, or needs_user_input)")
 	}
 
 	// Parse gaps_addressed
@@ -170,8 +172,8 @@ func ParseReviewDecision(response string) (*ReviewDecision, error) {
 		decision.GapsAddressed = m[1] == "true"
 	}
 
-	// Parse summary
-	summaryRe := regexp.MustCompile(`<summary>(.*?)</summary>`)
+	// Parse summary (use (?s) to handle multiline content)
+	summaryRe := regexp.MustCompile(`(?s)<summary>(.*?)</summary>`)
 	if m := summaryRe.FindStringSubmatch(content); m != nil {
 		decision.Summary = strings.TrimSpace(m[1])
 	}
@@ -228,7 +230,7 @@ func (f *ReviewFindings) HasHighSeverityIssues() bool {
 	return false
 }
 
-// CountBySerity counts issues by severity level.
+// CountBySeverity counts issues by severity level.
 func (f *ReviewFindings) CountBySeverity() map[string]int {
 	counts := map[string]int{
 		"high":   0,

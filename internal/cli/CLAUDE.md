@@ -16,10 +16,11 @@ Command-line interface using Cobra. Each command is in its own file.
 | `template.go` | CLI output templates |
 | `errors.go` | CLI error types and formatting |
 
-### Command Files (21 total)
+### Command Files (22 total)
 
 | File | Command | Description |
 |------|---------|-------------|
+| `cmd_go.go` | `orc go` | Main entry point - interactive, headless, or quick mode |
 | `cmd_init.go` | `orc init` | Initialize .orc/ in project (instant, <500ms) |
 | `cmd_setup.go` | `orc setup` | Claude-powered interactive setup |
 | `cmd_new.go` | `orc new "title"` | Create new task |

@@ -1,6 +1,6 @@
 ---
 description: "Propose a sub-task for later review"
-argument-hint: "TITLE [--description DESC] [--parent TASK-ID]"
+argument-hint: "TITLE"
 ---
 
 # Orc Propose Command
@@ -17,36 +17,37 @@ During implementation, you may discover:
 
 Instead of scope creep, use `/orc:propose` to queue these for later.
 
-## Usage
+## How It Works
 
-Propose a sub-task with title and optional description:
+When you invoke `/orc:propose`, output the sub-task in XML format:
 
-```bash
-# Simple proposal
-orc propose "Refactor auth module for better testability"
-
-# With description
-orc propose "Add rate limiting to API" --description "The API endpoints should have rate limiting to prevent abuse. Consider using token bucket algorithm."
-
-# Linked to parent task
-orc propose "Add logging to new feature" --parent TASK-001
+```xml
+<subtask_proposal>
+  <title>Refactor auth module for better testability</title>
+  <description>The auth module has grown complex. Should be refactored to use dependency injection for easier testing.</description>
+  <parent_task>TASK-001</parent_task>
+</subtask_proposal>
 ```
 
-## What Happens
+The orchestrator will:
+1. Parse the XML from your output
+2. Queue the sub-task in the database via API
+3. Mark it as "pending" approval
+4. Link to the parent task
+5. Show to user after parent task completes
 
-1. Sub-task is queued in the database
-2. Marked as "pending" approval
-3. Linked to parent task (if specified)
-4. Shown to user after parent task merges
-5. User approves/rejects
-6. Approved tasks become real tasks
+## Queue Management
 
-## Queue Status
+Sub-tasks are managed through the orc API:
 
-Check pending sub-tasks:
-```bash
-orc subtasks list
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `POST /api/projects/:id/subtasks` | Create | Queue new sub-task |
+| `GET /api/projects/:id/subtasks` | List | List pending sub-tasks |
+| `POST /api/subtasks/:id/approve` | Approve | Approve and create task |
+| `POST /api/subtasks/:id/reject` | Reject | Reject sub-task |
+
+The web UI provides a visual interface for reviewing and approving queued sub-tasks.
 
 ## Configuration
 
@@ -60,14 +61,14 @@ subtasks:
 
 ## Output
 
-After proposing:
+After outputting the proposal XML, the orchestrator will confirm:
 ```xml
-<subtask_proposed>
+<subtask_queued>
   <id>ST-001</id>
   <title>Refactor auth module for better testability</title>
   <parent>TASK-001</parent>
   <status>pending</status>
-</subtask_proposed>
+</subtask_queued>
 ```
 
 Continue with your current work - the sub-task will be reviewed later.
@@ -77,5 +78,5 @@ Continue with your current work - the sub-task will be reviewed later.
 - Keep proposals focused and specific
 - Include enough context for later review
 - Don't propose trivial tasks (just do them)
-- Link to parent task for context
-- Estimate rough effort in description
+- Always include the parent task ID for context
+- Estimate rough effort in the description
