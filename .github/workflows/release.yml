@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          COMMIT=$(git rev-parse --short HEAD)
+          OUTPUT="orc-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
+
+          go build -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
+            -o "${OUTPUT}" ./cmd/orc
+
+          tar -czvf "${OUTPUT}.tar.gz" "${OUTPUT}"
+          sha256sum "${OUTPUT}.tar.gz" > "${OUTPUT}.tar.gz.sha256"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: orc-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            orc-*.tar.gz
+            orc-*.tar.gz.sha256
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create checksums file
+        run: |
+          cd dist
+          cat *.sha256 > checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/checksums.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}

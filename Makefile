@@ -2,11 +2,14 @@
 # Orc Makefile
 # =============================================================================
 #
-# Quick Start:
-#   make setup    # First-time setup (go mod, build deps)
-#   make dev      # Start development shell in container
+# Quick Start (new users):
+#   curl -fsSL https://raw.githubusercontent.com/randalmurphal/orc/main/install.sh | sh
+#
+# Development:
+#   make setup    # First-time setup (creates go.work for local deps)
 #   make build    # Build binary locally
 #   make test     # Run tests
+#   make dev-full # Start API + frontend dev servers
 #
 # Container Commands:
 #   make docker-build   # Build all Docker images
@@ -38,18 +41,20 @@ all: build
 # Setup
 # =============================================================================
 
-## setup: First-time project setup
-setup: go.mod
-	@echo "==> Setting up go.mod with local dependencies..."
-	@if ! grep -q "replace.*llmkit" go.mod; then \
-		echo "replace github.com/randymurphal/llmkit => ../llmkit" >> go.mod; \
+## setup: First-time project setup (for contributors with local deps)
+setup:
+	@echo "==> Creating go.work for local development..."
+	@if [ ! -f go.work ]; then \
+		echo "go 1.24.0\n\nuse .\nuse ../llmkit\nuse ../flowgraph\nuse ../devflow" > go.work; \
+		echo "Created go.work"; \
+	else \
+		echo "go.work already exists"; \
 	fi
-	@if ! grep -q "replace.*flowgraph" go.mod; then \
-		echo "replace github.com/randymurphal/flowgraph => ../flowgraph" >> go.mod; \
-	fi
-	@echo "==> Downloading dependencies..."
-	go mod tidy
+	@echo "==> Installing frontend dependencies..."
+	cd web && bun install
 	@echo "==> Setup complete!"
+	@echo ""
+	@echo "For development, run: make dev-full"
 
 ## deps: Download dependencies
 deps:
@@ -154,19 +159,23 @@ release-darwin:
 
 ## web-install: Install frontend dependencies
 web-install:
-	cd web && npm install
+	cd web && bun install
 
 ## web-dev: Start frontend dev server (proxies to :8080)
 web-dev:
-	cd web && npm run dev
+	cd web && bun run dev
 
 ## web-build: Build frontend for production
 web-build:
-	cd web && npm run build
+	cd web && bun run build
 
 ## web-check: Type-check frontend
 web-check:
-	cd web && npm run check
+	cd web && bun run check
+
+## web-test: Run frontend tests
+web-test:
+	cd web && bun test
 
 ## serve: Start API server (for frontend development)
 serve: build
@@ -177,7 +186,7 @@ dev-full:
 	@echo "Starting API server on :8080 and frontend on :5173..."
 	@echo "API: http://localhost:8080"
 	@echo "UI:  http://localhost:5173"
-	@$(MAKE) serve & cd web && npm run dev
+	@$(MAKE) serve & cd web && bun run dev
 
 # =============================================================================
 # Coverage
