@@ -234,6 +234,9 @@ func (s *Server) registerRoutes() {
 
 	// Dashboard
 	s.mux.HandleFunc("GET /api/dashboard/stats", cors(s.handleGetDashboardStats))
+
+	// Static files (embedded frontend) - catch-all for non-API routes
+	s.mux.Handle("/", staticHandler())
 }
 
 // Start starts the API server.
