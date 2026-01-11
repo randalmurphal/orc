@@ -56,22 +56,72 @@ Lowest Priority
 - CLI flags (`--model`, `--profile`)
 - Not persisted, applies only to current command
 - Highest priority - always wins
+- **Within-level order**: CLI flags override env vars
 
 **Personal** (Level 2)
 - `~/.orc/config.yaml` - User's global defaults
 - `.orc/local/config.yaml` - User's project-specific (gitignored)
 - Persisted, applies to all commands
 - Second priority - wins over team/shared
+- **Within-level order**: `.orc/local/` overrides `~/.orc/` (project-specific > global)
 
 **Shared** (Level 3)
-- `.orc/shared/config.yaml` - Team defaults (git-tracked)
 - `.orc/config.yaml` - Project defaults
+- `.orc/shared/config.yaml` - Team defaults (git-tracked)
 - Git-tracked, shared with team
 - Third priority - team baseline
+- **Within-level order**: `.orc/shared/` overrides `.orc/config.yaml` (team > project)
 
 **Defaults** (Level 4)
 - Built-in values in code
 - Lowest priority - fallback only
+
+### Within-Level Order (Important!)
+
+Each level may have multiple sources. **Later sources override earlier sources** within the same level:
+
+```
+LEVEL           | ORDER (earlier → later)                    | WHY
+----------------|-------------------------------------------- |----------------------------------
+Runtime         | env vars → CLI flags                       | CLI is more intentional
+Personal        | ~/.orc/ → .orc/local/                      | Project-specific > global
+Shared          | .orc/config.yaml → .orc/shared/config.yaml | Team defaults > project defaults
+```
+
+**Visual Example:**
+
+```
+$ orc config resolution model
+
+Level 1 - Runtime:
+  env (ORC_MODEL):     claude-opus-4        # Set in shell
+  flags (--model):     (not set)
+  → Runtime value: claude-opus-4
+
+Level 2 - Personal:
+  ~/.orc/config.yaml:       claude-sonnet-4  # User's global
+  .orc/local/config.yaml:   (not set)
+  → Personal value: claude-sonnet-4
+
+Level 3 - Shared:
+  .orc/config.yaml:         claude-sonnet-4  # Project default
+  .orc/shared/config.yaml:  claude-haiku     # Team default (wins)
+  → Shared value: claude-haiku
+
+Level 4 - Defaults:
+  builtin: claude-opus-4-5-20251101
+
+FINAL: claude-opus-4 (from Runtime env ORC_MODEL)
+```
+
+**Common Scenarios:**
+
+| Scenario | Which File Wins | Why |
+|----------|-----------------|-----|
+| User sets personal preference | `~/.orc/config.yaml` | No project-local override |
+| User overrides for one project | `.orc/local/config.yaml` | Project-specific > global |
+| Team sets defaults | `.orc/shared/config.yaml` | Team > project defaults |
+| Quick one-off override | `ORC_MODEL=x orc run` | Runtime > everything |
 
 ---
 
