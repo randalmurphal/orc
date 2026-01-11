@@ -127,3 +127,33 @@ export interface DiffResult {
 	stats: DiffStats;
 	files: FileDiff[];
 }
+
+// Review comment types
+export type CommentSeverity = 'suggestion' | 'issue' | 'blocker';
+export type CommentStatus = 'open' | 'resolved' | 'wont_fix';
+
+export interface ReviewComment {
+	id: string;
+	task_id: string;
+	review_round: number;
+	file_path?: string;
+	line_number?: number;
+	content: string;
+	severity: CommentSeverity;
+	status: CommentStatus;
+	created_at: string;
+	resolved_at?: string;
+	resolved_by?: string;
+}
+
+export interface CreateCommentRequest {
+	file_path?: string;
+	line_number?: number;
+	content: string;
+	severity: CommentSeverity;
+}
+
+export interface UpdateCommentRequest {
+	status?: 'resolved' | 'wont_fix';
+	content?: string;
+}

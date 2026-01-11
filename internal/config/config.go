@@ -187,7 +187,16 @@ type TeamConfig struct {
 	// Enabled enables team mode features
 	Enabled bool `yaml:"enabled"`
 
-	// ServerURL is the URL of the team server
+	// Mode is the team coordination mode: shared_db | sync_server (future)
+	Mode string `yaml:"mode"`
+
+	// Visibility controls task visibility: all | assigned | owned
+	// "all" = All members see all tasks (default)
+	// "assigned" = Members only see tasks assigned to them or unassigned
+	// "owned" = Members only see tasks they created or are assigned to
+	Visibility string `yaml:"visibility"`
+
+	// ServerURL is the URL of the team server (for sync_server mode)
 	ServerURL string `yaml:"server_url"`
 }
 
@@ -506,8 +515,10 @@ func Default() *Config {
 			},
 		},
 		Team: TeamConfig{
-			Enabled:   false,
-			ServerURL: "",
+			Enabled:    false,
+			Mode:       "shared_db",
+			Visibility: "all",
+			ServerURL:  "",
 		},
 		Identity: IdentityConfig{
 			Initials:    "",

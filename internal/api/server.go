@@ -276,6 +276,18 @@ func (s *Server) registerRoutes() {
 	// Dashboard
 	s.mux.HandleFunc("GET /api/dashboard/stats", cors(s.handleGetDashboardStats))
 
+	// Team (team mode infrastructure)
+	s.mux.HandleFunc("GET /api/team/members", cors(s.handleListTeamMembers))
+	s.mux.HandleFunc("POST /api/team/members", cors(s.handleCreateTeamMember))
+	s.mux.HandleFunc("GET /api/team/members/{id}", cors(s.handleGetTeamMember))
+	s.mux.HandleFunc("PUT /api/team/members/{id}", cors(s.handleUpdateTeamMember))
+	s.mux.HandleFunc("DELETE /api/team/members/{id}", cors(s.handleDeleteTeamMember))
+	s.mux.HandleFunc("GET /api/team/members/{id}/claims", cors(s.handleGetMemberClaims))
+	s.mux.HandleFunc("POST /api/tasks/{id}/claim", cors(s.handleClaimTask))
+	s.mux.HandleFunc("POST /api/tasks/{id}/release", cors(s.handleReleaseTask))
+	s.mux.HandleFunc("GET /api/tasks/{id}/claim", cors(s.handleGetTaskClaim))
+	s.mux.HandleFunc("GET /api/team/activity", cors(s.handleListActivity))
+
 	// Static files (embedded frontend) - catch-all for non-API routes
 	s.mux.Handle("/", staticHandler())
 }

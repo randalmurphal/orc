@@ -1,4 +1,4 @@
-import type { Task, Plan, TaskState, Project } from './types';
+import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest } from './types';
 
 const API_BASE = '/api';
 
@@ -697,5 +697,85 @@ export async function deleteTemplate(name: string): Promise<void> {
 	if (!res.ok && res.status !== 204) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Failed to delete template');
+	}
+}
+
+// Review Comments
+export async function getReviewComments(taskId: string): Promise<ReviewComment[]> {
+	return fetchJSON<ReviewComment[]>(`/tasks/${taskId}/review/comments`);
+}
+
+export async function createReviewComment(taskId: string, comment: CreateCommentRequest): Promise<ReviewComment> {
+	return fetchJSON<ReviewComment>(`/tasks/${taskId}/review/comments`, {
+		method: 'POST',
+		body: JSON.stringify(comment)
+	});
+}
+
+export async function updateReviewComment(taskId: string, commentId: string, update: UpdateCommentRequest): Promise<ReviewComment> {
+	return fetchJSON<ReviewComment>(`/tasks/${taskId}/review/comments/${commentId}`, {
+		method: 'PATCH',
+		body: JSON.stringify(update)
+	});
+}
+
+export async function deleteReviewComment(taskId: string, commentId: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/tasks/${taskId}/review/comments/${commentId}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to delete comment');
+	}
+}
+
+export async function triggerReviewRetry(taskId: string): Promise<void> {
+	await fetchJSON(`/tasks/${taskId}/review/retry`, {
+		method: 'POST',
+		body: JSON.stringify({ include_comments: true })
+	});
+}
+
+// Diff Stats
+export interface DiffStatsResponse {
+	files_changed: number;
+	additions: number;
+	deletions: number;
+}
+
+export async function getDiffStats(taskId: string): Promise<DiffStatsResponse | null> {
+	try {
+		return await fetchJSON<DiffStatsResponse>(`/tasks/${taskId}/diff/stats`);
+	} catch {
+		return null;
+	}
+}
+
+// Review Stats
+export interface ReviewStatsResponse {
+	open_comments: number;
+	resolved_comments: number;
+	total_comments: number;
+	blockers: number;
+	issues: number;
+	suggestions: number;
+}
+
+export async function getReviewStats(taskId: string): Promise<ReviewStatsResponse | null> {
+	try {
+		const comments = await fetchJSON<ReviewComment[]>(`/tasks/${taskId}/review/comments`);
+		const openComments = comments.filter((c) => c.status === 'open');
+		const resolvedComments = comments.filter(
+			(c) => c.status === 'resolved' || c.status === 'wont_fix'
+		);
+
+		return {
+			open_comments: openComments.length,
+			resolved_comments: resolvedComments.length,
+			total_comments: comments.length,
+			blockers: comments.filter((c) => c.severity === 'blocker' && c.status === 'open').length,
+			issues: comments.filter((c) => c.severity === 'issue' && c.status === 'open').length,
+			suggestions: comments.filter((c) => c.severity === 'suggestion' && c.status === 'open').length
+		};
+	} catch {
+		return null;
 	}
 }

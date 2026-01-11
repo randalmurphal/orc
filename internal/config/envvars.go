@@ -29,6 +29,8 @@ var EnvVarMapping = map[string]string{
 	"ORC_AUTH_ENABLED":      "server.auth.enabled",
 	"ORC_AUTH_TYPE":         "server.auth.type",
 	"ORC_TEAM_ENABLED":      "team.enabled",
+	"ORC_TEAM_MODE":         "team.mode",
+	"ORC_TEAM_VISIBILITY":   "team.visibility",
 	"ORC_TEAM_SERVER":       "team.server_url",
 	// Timeouts
 	"ORC_PHASE_MAX_TIMEOUT": "timeouts.phase_max",
@@ -129,6 +131,10 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 		cfg.Server.Auth.Type = value
 	case "team.enabled":
 		cfg.Team.Enabled = parseBool(value)
+	case "team.mode":
+		cfg.Team.Mode = value
+	case "team.visibility":
+		cfg.Team.Visibility = value
 	case "team.server_url":
 		cfg.Team.ServerURL = value
 	// Timeouts
