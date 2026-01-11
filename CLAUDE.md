@@ -25,19 +25,25 @@ make dev-full # API (:8080) + frontend (:5173)
 | Path | Purpose |
 |------|---------|
 | `cmd/orc/` | CLI entry point |
-| `internal/cli/` | Cobra commands |
-| `internal/api/` | REST API + WebSocket server |
-| `internal/executor/` | flowgraph-based phase execution |
-| `internal/events/` | Event publisher for real-time updates |
-| `internal/task/` | Task model + YAML persistence |
-| `internal/plan/` | Phase templates + weight classification |
-| `internal/state/` | Execution state tracking |
-| `internal/prompt/` | Prompt management service |
-| `internal/claude/` | Re-exports llmkit/claudeconfig types |
-| `internal/git/` | Git operations, worktrees (wraps devflow/git) |
-| `internal/project/` | Multi-project registry |
-| `templates/` | Phase templates (plans/, prompts/) |
-| `web/` | Svelte 5 frontend (SvelteKit) |
+| `internal/` | Core packages (see `internal/CLAUDE.md`) |
+| `templates/` | Phase templates (see `templates/CLAUDE.md`) |
+| `web/` | Svelte 5 frontend (see `web/CLAUDE.md`) |
+| `docs/` | Architecture docs, specs, ADRs (see `docs/CLAUDE.md`) |
+
+### Key Internal Packages
+
+| Package | Purpose | Key Files |
+|---------|---------|-----------|
+| `api/` | REST API + WebSocket | `server.go` + 16 `handlers_*.go` files |
+| `cli/` | Cobra commands | `root.go` + 18 `cmd_*.go` files |
+| `executor/` | Phase execution | 12 modules: publish, template, retry, worktree, phase, etc. |
+| `events/` | Real-time event publishing | EventPublisher, event types |
+| `task/` | Task model + YAML persistence | Task struct, CRUD operations |
+| `plan/` | Phase templates + weight classification | Plan generation, phase sequences |
+| `state/` | Execution state tracking | Checkpointing, iteration tracking |
+| `prompt/` | Prompt template management | Template loading, variable substitution |
+| `git/` | Git operations, worktrees | Branch management, checkpoints |
+| `project/` | Multi-project registry | Project discovery, registry management |
 
 ## Dependencies
 

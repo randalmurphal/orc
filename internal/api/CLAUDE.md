@@ -1,0 +1,135 @@
+# API Package
+
+REST API server with WebSocket support for real-time updates.
+
+## File Structure
+
+| File | Purpose | Lines |
+|------|---------|-------|
+| `server.go` | Server setup, routing, core methods | ~400 |
+| `websocket.go` | WebSocket connection handling | ~280 |
+| `middleware.go` | CORS middleware | ~50 |
+| `response.go` | JSON response helpers, error handling | ~80 |
+
+### Handler Files (16 total)
+
+| File | Endpoints | Description |
+|------|-----------|-------------|
+| `handlers_tasks.go` | `/api/tasks/*` | Task CRUD operations |
+| `handlers_tasks_control.go` | `run`, `pause`, `resume` | Task execution control |
+| `handlers_tasks_state.go` | `state`, `plan`, `transcripts`, `stream` | Task state and streaming |
+| `handlers_projects.go` | `/api/projects/*` | Project-scoped task operations |
+| `handlers_prompts.go` | `/api/prompts/*` | Prompt template management |
+| `handlers_hooks.go` | `/api/hooks/*` | Hook configuration |
+| `handlers_skills.go` | `/api/skills/*` | Skill management (SKILL.md format) |
+| `handlers_settings.go` | `/api/settings/*` | Settings management |
+| `handlers_tools.go` | `/api/tools/*` | Tool permissions |
+| `handlers_agents.go` | `/api/agents/*` | Sub-agent management |
+| `handlers_scripts.go` | `/api/scripts/*` | Script registry |
+| `handlers_claudemd.go` | `/api/claudemd/*` | CLAUDE.md hierarchy |
+| `handlers_mcp.go` | `/api/mcp/*` | MCP server configuration |
+| `handlers_templates.go` | `/api/templates/*` | Template management |
+| `handlers_config.go` | `/api/config/*` | Orc configuration |
+| `handlers_dashboard.go` | `/api/dashboard/*` | Dashboard statistics |
+
+## Server Architecture
+
+```
+Server
+├── Routes (chi router)
+│   ├── /api/tasks/* → handlers_tasks*.go
+│   ├── /api/projects/* → handlers_projects.go
+│   ├── /api/prompts/* → handlers_prompts.go
+│   ├── /api/hooks/* → handlers_hooks.go
+│   ├── /api/skills/* → handlers_skills.go
+│   ├── /api/settings/* → handlers_settings.go
+│   ├── /api/tools/* → handlers_tools.go
+│   ├── /api/agents/* → handlers_agents.go
+│   ├── /api/scripts/* → handlers_scripts.go
+│   ├── /api/claudemd/* → handlers_claudemd.go
+│   ├── /api/mcp/* → handlers_mcp.go
+│   ├── /api/templates/* → handlers_templates.go
+│   ├── /api/config/* → handlers_config.go
+│   ├── /api/dashboard/* → handlers_dashboard.go
+│   └── /api/ws → websocket.go
+├── WebSocket Hub
+│   └── Client connections, subscriptions
+└── Event Publisher
+    └── Real-time task updates
+```
+
+## Key Patterns
+
+### Response Helpers (response.go)
+
+```go
+// Success response
+s.jsonResponse(w, data)
+
+// Error response with proper status code
+s.handleOrcError(w, err)  // Inspects error type for status
+s.jsonError(w, "message", http.StatusBadRequest)
+```
+
+### Handler Methods
+
+All handlers are methods on `*Server`:
+```go
+func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
+    // Handler implementation
+}
+```
+
+### Project-Scoped Operations
+
+Project handlers resolve project path and delegate to task handlers:
+```go
+func (s *Server) handleProjectListTasks(w http.ResponseWriter, r *http.Request) {
+    projectID := chi.URLParam(r, "id")
+    project, err := s.projectRegistry.Get(projectID)
+    // Use project.Path for task operations
+}
+```
+
+### Safe Type Assertions
+
+ResponseWriter flushing uses safe assertions:
+```go
+if f, ok := w.(http.Flusher); ok {
+    f.Flush()
+}
+```
+
+## WebSocket Protocol
+
+### Client Messages
+```json
+{"type": "subscribe", "task_id": "TASK-001"}
+{"type": "unsubscribe"}
+{"type": "command", "task_id": "TASK-001", "action": "pause"}
+{"type": "ping"}
+```
+
+### Server Messages
+```json
+{"type": "subscribed", "task_id": "TASK-001"}
+{"type": "event", "event_type": "state", "data": {...}}
+{"type": "event", "event_type": "transcript", "data": {...}}
+{"type": "pong"}
+```
+
+## Testing
+
+```bash
+# Run API tests
+go test ./internal/api/... -v
+
+# Test specific handler
+go test ./internal/api/... -run TestHandlerName -v
+```
+
+Test files:
+- `server_test.go` - Integration tests for endpoints
+- `middleware_test.go` - CORS middleware tests
+- `response_test.go` - Response helper tests
+- `websocket_test.go` - WebSocket protocol tests
