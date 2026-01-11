@@ -40,6 +40,17 @@
 		if (line.type === 'deletion') return 'var(--status-danger)';
 		return 'var(--text-muted)';
 	});
+
+	const ariaLabel = $derived.by(() => {
+		if (!lineNum) return '';
+		if (commentCount > 0) {
+			return `Line ${lineNum}, ${commentCount} comment${commentCount > 1 ? 's' : ''}. Click to view or add.`;
+		}
+		if (onLineClick) {
+			return `Line ${lineNum}. Click to add comment.`;
+		}
+		return `Line ${lineNum}`;
+	});
 </script>
 
 <div class="diff-line" style:background={bgColor}>
@@ -51,6 +62,7 @@
 		style:background={lineNumBg}
 		onclick={() => lineNum && onLineClick?.(lineNum, filePath)}
 		disabled={!onLineClick || !lineNum}
+		aria-label={ariaLabel}
 	>
 		{#if commentCount > 0}
 			<span class="comment-badge">{commentCount}</span>
