@@ -150,7 +150,7 @@
 				<line x1="9" y1="9" x2="15" y2="15" />
 			</svg>
 			{error}
-			<button class="toast-dismiss" onclick={() => (error = null)}>
+			<button class="toast-dismiss" onclick={() => (error = null)} aria-label="Dismiss error">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					width="14"

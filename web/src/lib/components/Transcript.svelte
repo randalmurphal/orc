@@ -9,7 +9,12 @@
 	let { lines, autoScroll = true }: Props = $props();
 
 	let containerRef: HTMLDivElement;
-	let isAutoScrollEnabled = $state(autoScroll);
+	let isAutoScrollEnabled = $state(true);
+
+	// Sync with prop on initial render and prop changes
+	$effect(() => {
+		isAutoScrollEnabled = autoScroll;
+	});
 
 	// Auto-scroll to bottom when new lines added
 	$effect(() => {
