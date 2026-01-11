@@ -1,0 +1,396 @@
+// Package executor provides the flowgraph-based execution engine for orc.
+// This file contains task execution methods for the Executor type.
+package executor
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/llmkit/claude/session"
+	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/gate"
+	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
+)
+
+// ExecuteTask runs all phases of a task with gate evaluation and cross-phase retry.
+func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, s *state.State) error {
+	// Set current task directory for saving files
+	e.currentTaskDir = e.taskDir(t.ID)
+
+	// Update task status
+	t.Status = task.StatusRunning
+	now := time.Now()
+	t.StartedAt = &now
+	if err := t.SaveTo(e.currentTaskDir); err != nil {
+		return fmt.Errorf("save task: %w", err)
+	}
+
+	// Setup worktree if enabled
+	if e.orcConfig.Worktree.Enabled && e.gitOps != nil {
+		if err := e.setupWorktreeForTask(t); err != nil {
+			return err
+		}
+		// Cleanup worktree on exit based on config and success
+		defer e.cleanupWorktreeForTask(t)
+	}
+
+	// Track retry counts per phase
+	retryCounts := make(map[string]int)
+
+	// Execute phases with potential retry loop
+	i := 0
+	for i < len(p.Phases) {
+		phase := &p.Phases[i]
+
+		// Skip completed phases
+		if s.IsPhaseCompleted(phase.ID) {
+			i++
+			continue
+		}
+
+		// Start phase
+		s.StartPhase(phase.ID)
+		if err := s.SaveTo(e.currentTaskDir); err != nil {
+			return fmt.Errorf("save state: %w", err)
+		}
+
+		e.logger.Info("executing phase", "phase", phase.ID, "task", t.ID)
+
+		// Publish phase start event
+		e.publishPhaseStart(t.ID, phase.ID)
+		e.publishState(t.ID, s)
+
+		// Execute phase
+		result, err := e.ExecutePhase(ctx, t, phase, s)
+		if err != nil {
+			// Check for context cancellation (interrupt)
+			if ctx.Err() != nil {
+				s.InterruptPhase(phase.ID)
+				if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+					e.logger.Error("failed to save state on interrupt", "error", saveErr)
+				}
+				return ctx.Err()
+			}
+
+			// Handle phase failure with potential retry
+			shouldRetry, retryIdx := e.handlePhaseFailure(phase.ID, err, result, p, s, retryCounts, i)
+			if shouldRetry {
+				i = retryIdx
+				continue
+			}
+
+			// No retry available, fail the task
+			e.failTask(t, phase, s, err)
+			return fmt.Errorf("phase %s failed: %w", phase.ID, err)
+		}
+
+		// Complete phase
+		s.CompletePhase(phase.ID, result.CommitSHA)
+		phase.Status = plan.PhaseCompleted
+		phase.CommitSHA = result.CommitSHA
+
+		// Clear retry context on successful completion
+		if s.HasRetryContext() {
+			s.ClearRetryContext()
+		}
+
+		// Save state and plan
+		if err := s.SaveTo(e.currentTaskDir); err != nil {
+			return fmt.Errorf("save state: %w", err)
+		}
+		if err := p.SaveTo(e.currentTaskDir); err != nil {
+			return fmt.Errorf("save plan: %w", err)
+		}
+
+		// Publish phase completion events
+		e.publishPhaseComplete(t.ID, phase.ID, result.CommitSHA)
+		e.publishTokens(t.ID, phase.ID, result.InputTokens, result.OutputTokens, result.InputTokens+result.OutputTokens)
+		e.publishState(t.ID, s)
+
+		// Evaluate gate if present (gate.Type != "" means gate is configured)
+		if phase.Gate.Type != "" {
+			shouldRetry, retryIdx := e.handleGateEvaluation(ctx, phase, result, t, p, s, retryCounts, i)
+			if shouldRetry {
+				i = retryIdx
+				continue
+			}
+		}
+
+		i++ // Move to next phase
+	}
+
+	// Complete task
+	return e.completeTask(ctx, t, s)
+}
+
+// setupWorktreeForTask creates or reuses an isolated worktree for the task.
+func (e *Executor) setupWorktreeForTask(t *task.Task) error {
+	worktreePath, err := e.setupWorktree(t.ID)
+	if err != nil {
+		return fmt.Errorf("setup worktree: %w", err)
+	}
+	e.worktreePath = worktreePath
+	e.worktreeGit = e.gitOps.InWorktree(worktreePath)
+	e.logger.Info("created worktree", "task", t.ID, "path", worktreePath)
+
+	// Create a new Claude client for the worktree context
+	// This ensures all Claude work happens in the isolated worktree
+	worktreeClientOpts := []claude.ClaudeOption{
+		claude.WithModel(e.config.Model),
+		claude.WithWorkdir(worktreePath),
+		claude.WithTimeout(e.config.Timeout),
+	}
+	if e.config.ClaudePath != "" {
+		worktreeClientOpts = append(worktreeClientOpts, claude.WithClaudePath(e.config.ClaudePath))
+	}
+	if e.config.DangerouslySkipPermissions {
+		worktreeClientOpts = append(worktreeClientOpts, claude.WithDangerouslySkipPermissions())
+	}
+	// Apply tool permissions to worktree client
+	if len(e.config.AllowedTools) > 0 {
+		worktreeClientOpts = append(worktreeClientOpts, claude.WithAllowedTools(e.config.AllowedTools))
+	}
+	if len(e.config.DisallowedTools) > 0 {
+		worktreeClientOpts = append(worktreeClientOpts, claude.WithDisallowedTools(e.config.DisallowedTools))
+	}
+	e.client = claude.NewClaudeCLI(worktreeClientOpts...)
+	e.logger.Info("claude client configured for worktree", "path", worktreePath)
+
+	// Create new session manager for worktree context
+	e.sessionMgr = session.NewManager(
+		session.WithDefaultSessionOptions(
+			session.WithModel(e.config.Model),
+			session.WithWorkdir(worktreePath),
+			session.WithPermissions(e.config.DangerouslySkipPermissions),
+		),
+	)
+
+	// Reset phase executors to use new worktree context
+	e.resetPhaseExecutors()
+
+	return nil
+}
+
+// cleanupWorktreeForTask removes the worktree based on config and task status.
+func (e *Executor) cleanupWorktreeForTask(t *task.Task) {
+	if e.worktreePath != "" {
+		shouldCleanup := (t.Status == task.StatusCompleted && e.orcConfig.Worktree.CleanupOnComplete) ||
+			(t.Status == task.StatusFailed && e.orcConfig.Worktree.CleanupOnFail)
+		if shouldCleanup {
+			if err := e.gitOps.CleanupWorktree(t.ID); err != nil {
+				e.logger.Warn("failed to cleanup worktree", "error", err)
+			} else {
+				e.logger.Info("cleaned up worktree", "task", t.ID)
+			}
+		}
+	}
+}
+
+// handlePhaseFailure handles a phase execution failure, potentially setting up a retry.
+// Returns (shouldRetry, retryIndex) where retryIndex is the phase index to jump to.
+func (e *Executor) handlePhaseFailure(phaseID string, err error, result *Result, p *plan.Plan, s *state.State, retryCounts map[string]int, currentIdx int) (bool, int) {
+	// Check if we should retry from an earlier phase
+	retryFrom := e.orcConfig.ShouldRetryFrom(phaseID)
+	if retryFrom != "" && retryCounts[phaseID] < e.orcConfig.Retry.MaxRetries {
+		retryCounts[phaseID]++
+		e.logger.Info("phase failed, retrying from earlier phase",
+			"failed_phase", phaseID,
+			"retry_from", retryFrom,
+			"attempt", retryCounts[phaseID],
+		)
+
+		// Save retry context with failure details
+		failureOutput := result.Output
+		if failureOutput == "" && err != nil {
+			failureOutput = err.Error()
+		}
+		reason := fmt.Sprintf("Phase %s failed: %v", phaseID, err)
+		s.SetRetryContext(phaseID, retryFrom, reason, failureOutput, retryCounts[phaseID])
+
+		// Save detailed context to file
+		contextFile, saveErr := SaveRetryContextFile(e.config.WorkDir, "", phaseID, retryFrom, reason, failureOutput, retryCounts[phaseID])
+		if saveErr != nil {
+			e.logger.Warn("failed to save retry context file", "error", saveErr)
+		} else {
+			s.SetRetryContextFile(contextFile)
+		}
+
+		// Find the retry phase index and reset phases from there
+		for j, ph := range p.Phases {
+			if ph.ID == retryFrom {
+				// Reset phases from retry point onwards
+				for k := j; k <= currentIdx; k++ {
+					s.ResetPhase(p.Phases[k].ID)
+				}
+				if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+					e.logger.Error("failed to save state on retry", "error", saveErr)
+				}
+				return true, j
+			}
+		}
+	}
+
+	return false, 0
+}
+
+// failTask handles marking a task as failed.
+func (e *Executor) failTask(t *task.Task, phase *plan.Phase, s *state.State, err error) {
+	s.FailPhase(phase.ID, err)
+	if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+		e.logger.Error("failed to save state on failure", "error", saveErr)
+	}
+	t.Status = task.StatusFailed
+	if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+		e.logger.Error("failed to save task on failure", "error", saveErr)
+	}
+
+	// Publish failure events
+	e.publishPhaseFailed(t.ID, phase.ID, err)
+	e.publishError(t.ID, phase.ID, err.Error(), true)
+	e.publishState(t.ID, s)
+}
+
+// handleGateEvaluation evaluates a phase gate and handles potential retry.
+// Returns (shouldRetry, retryIndex) where retryIndex is the phase index to jump to.
+func (e *Executor) handleGateEvaluation(ctx context.Context, phase *plan.Phase, result *Result, t *task.Task, p *plan.Plan, s *state.State, retryCounts map[string]int, currentIdx int) (bool, int) {
+	decision, gateErr := e.evaluateGate(ctx, phase, result.Output, string(t.Weight))
+	if gateErr != nil {
+		e.logger.Warn("gate evaluation failed", "error", gateErr)
+		// Continue on gate error - don't block automation
+		return false, 0
+	}
+
+	if !decision.Approved {
+		// Gate rejected - check if we should retry
+		retryFrom := e.orcConfig.ShouldRetryFrom(phase.ID)
+		if retryFrom != "" && retryCounts[phase.ID] < e.orcConfig.Retry.MaxRetries {
+			retryCounts[phase.ID]++
+			e.logger.Info("gate rejected, retrying from earlier phase",
+				"failed_phase", phase.ID,
+				"reason", decision.Reason,
+				"retry_from", retryFrom,
+			)
+
+			// Save retry context with gate rejection details
+			reason := fmt.Sprintf("Gate rejected for phase %s: %s", phase.ID, decision.Reason)
+			s.SetRetryContext(phase.ID, retryFrom, reason, result.Output, retryCounts[phase.ID])
+
+			// Save detailed context to file
+			contextFile, saveErr := SaveRetryContextFile(e.config.WorkDir, t.ID, phase.ID, retryFrom, reason, result.Output, retryCounts[phase.ID])
+			if saveErr != nil {
+				e.logger.Warn("failed to save retry context file", "error", saveErr)
+			} else {
+				s.SetRetryContextFile(contextFile)
+			}
+
+			// Find and reset to retry phase
+			for j, ph := range p.Phases {
+				if ph.ID == retryFrom {
+					for k := j; k <= currentIdx; k++ {
+						s.ResetPhase(p.Phases[k].ID)
+					}
+					if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+						e.logger.Error("failed to save state after retry reset", "error", saveErr)
+					}
+					return true, j
+				}
+			}
+		}
+
+		// No retry - record rejection and continue (automation-first)
+		e.logger.Warn("gate rejected, continuing anyway (automation mode)",
+			"phase", phase.ID,
+			"reason", decision.Reason,
+		)
+		s.RecordGateDecision(phase.ID, string(phase.Gate.Type), decision.Approved, decision.Reason)
+	} else {
+		s.RecordGateDecision(phase.ID, string(phase.Gate.Type), decision.Approved, decision.Reason)
+	}
+
+	return false, 0
+}
+
+// completeTask finalizes the task after all phases are done.
+func (e *Executor) completeTask(ctx context.Context, t *task.Task, s *state.State) error {
+	s.Complete()
+	if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+		e.logger.Error("failed to save state on completion", "error", saveErr)
+	}
+
+	t.Status = task.StatusCompleted
+	completedAt := time.Now()
+	t.CompletedAt = &completedAt
+	if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+		e.logger.Error("failed to save task on completion", "error", saveErr)
+	}
+
+	// Run completion action (merge/PR)
+	if err := e.runCompletion(ctx, t); err != nil {
+		e.logger.Warn("completion action failed", "error", err)
+		// Don't fail the task for completion errors
+	}
+
+	// Publish completion event
+	e.publish(events.NewEvent(events.EventComplete, t.ID, events.CompleteData{
+		Status: "completed",
+	}))
+	e.publishState(t.ID, s)
+
+	return nil
+}
+
+// evaluateGate evaluates a phase gate using configured gate type.
+func (e *Executor) evaluateGate(ctx context.Context, phase *plan.Phase, output string, weight string) (*gate.Decision, error) {
+	// Resolve effective gate type from config
+	gateType := e.orcConfig.ResolveGateType(phase.ID, weight)
+
+	// For auto gates with AutoApproveOnSuccess, just approve
+	if gateType == "auto" && e.orcConfig.Gates.AutoApproveOnSuccess {
+		return &gate.Decision{
+			Approved: true,
+			Reason:   "auto-approved on success",
+		}, nil
+	}
+
+	// Override the gate type from config
+	effectiveGate := &plan.Gate{
+		Type:     plan.GateType(gateType),
+		Criteria: phase.Gate.Criteria,
+	}
+
+	return e.gateEvaluator.Evaluate(ctx, effectiveGate, output)
+}
+
+// ResumeFromPhase resumes execution from a specific phase.
+func (e *Executor) ResumeFromPhase(ctx context.Context, t *task.Task, p *plan.Plan, s *state.State, phaseID string) error {
+	// Find the phase index
+	startIdx := -1
+	for i, phase := range p.Phases {
+		if phase.ID == phaseID {
+			startIdx = i
+			break
+		}
+	}
+
+	if startIdx == -1 {
+		return fmt.Errorf("phase %s not found in plan", phaseID)
+	}
+
+	// Reset the interrupted phase
+	s.ResetPhase(phaseID)
+
+	// Create a sub-plan starting from the resume point
+	resumePlan := &plan.Plan{
+		Version:     p.Version,
+		Weight:      p.Weight,
+		Description: p.Description,
+		Phases:      p.Phases[startIdx:],
+	}
+
+	// Use ExecuteTask which handles gates and retry
+	return e.ExecuteTask(ctx, t, resumePlan, s)
+}
