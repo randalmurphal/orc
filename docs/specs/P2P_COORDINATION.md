@@ -52,55 +52,70 @@ func DetectMode(projectPath string) Mode {
 // internal/executor/executor.go
 func (e *Executor) Run(taskID string) error {
     mode := e.config.TaskID.Mode
+    prefix := e.config.Identity.Initials
+
+    // All modes use worktree isolation with executor prefix
+    worktreePath := WorktreePath(taskID, prefix)
+    branchName := BranchName(taskID, prefix)
 
     switch mode {
     case "solo":
-        // No coordination overhead
-        return e.runLocal(taskID)
+        // No prefix in naming, simple worktree
+        return e.runInWorktree(taskID, "", taskID)
 
     case "p2p":
-        // File-based locking only
-        lock := NewFileLock(e.taskDir(taskID))
-        if err := lock.TryAcquire(); err != nil {
-            return fmt.Errorf("task locked: %w", err)
-        }
-        defer lock.Release()
-        go lock.Heartbeat() // Background heartbeat
-        return e.runLocal(taskID)
+        // Worktree with executor prefix
+        return e.runInWorktree(taskID, prefix, branchName)
 
     case "team":
-        // Server-based locking + sync
-        if err := e.serverLock.Acquire(taskID); err != nil {
-            // Fallback to file lock if server unavailable
-            if isConnectionError(err) {
-                log.Warn("server unavailable, using file lock")
-                return e.runWithFileLock(taskID)
-            }
-            return err
+        // Worktree + server sync for visibility
+        if err := e.notifyServerStart(taskID); err != nil {
+            log.Warn("server notification failed", "error", err)
+            // Continue anyway - execution is local
         }
-        defer e.serverLock.Release(taskID)
-        return e.runWithSync(taskID)
+        defer e.notifyServerStop(taskID)
+        return e.runInWorktree(taskID, prefix, branchName)
 
     default:
         return fmt.Errorf("unknown mode: %s", mode)
     }
 }
+
+func (e *Executor) runInWorktree(taskID, prefix, branchName string) error {
+    worktreePath := WorktreePath(taskID, prefix)
+
+    // PID guard: prevent same user running same task twice
+    guard := &PIDGuard{worktreePath: worktreePath}
+    if err := guard.Check(); err != nil {
+        return err
+    }
+
+    // Create or reuse worktree
+    if !exists(worktreePath) {
+        if err := e.git.CreateWorktree(worktreePath, branchName); err != nil {
+            return err
+        }
+    }
+
+    guard.Acquire()
+    defer guard.Release()
+
+    return e.executeInDir(worktreePath, taskID)
+}
 ```
 
 ### Solo Mode Guarantees
 
-When `mode: solo`, these features are **disabled** (zero overhead):
+When `mode: solo`, these features are simplified:
 
-- Task ID prefix generation
-- Lock file creation/checking
-- Lock heartbeat goroutine
-- Team member registry validation
-- Server sync attempts
+- No prefix in branch/worktree naming (just task ID)
+- No team member registry validation
+- No server sync attempts
 
 ```go
-// Skip team features in solo mode
+// Solo mode: simple naming without prefix
 if mode == ModeSolo {
-    return &NoOpLocker{}
+    return e.runInWorktree(taskID, "", taskID)
 }
 ```
 
