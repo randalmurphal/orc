@@ -1,14 +1,19 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/github"
+	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -86,10 +91,10 @@ func (s *Server) handleCreatePR(w http.ResponseWriter, r *http.Request) {
 
 	// Check if PR already exists
 	existingPR, err := client.FindPRByBranch(r.Context(), t.Branch)
-	if err != nil {
+	if err != nil && !errors.Is(err, github.ErrNoPRFound) {
 		s.logger.Warn("failed to check for existing PR", "error", err)
 	}
-	if existingPR != nil {
+	if err == nil && existingPR != nil {
 		s.jsonResponse(w, map[string]any{
 			"pr":      existingPR,
 			"created": false,
@@ -147,12 +152,11 @@ func (s *Server) handleGetPR(w http.ResponseWriter, r *http.Request) {
 
 	pr, err := client.FindPRByBranch(r.Context(), t.Branch)
 	if err != nil {
-		s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	if pr == nil {
-		s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		if errors.Is(err, github.ErrNoPRFound) {
+			s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		} else {
+			s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -228,11 +232,11 @@ func (s *Server) handleSyncPRComments(w http.ResponseWriter, r *http.Request) {
 	// Find PR for branch
 	pr, err := client.FindPRByBranch(r.Context(), t.Branch)
 	if err != nil {
-		s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
-		return
-	}
-	if pr == nil {
-		s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		if errors.Is(err, github.ErrNoPRFound) {
+			s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		} else {
+			s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -281,7 +285,7 @@ func (s *Server) handleSyncPRComments(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, resp)
 }
 
-// handleAutoFixComment queues an auto-fix for a PR comment.
+// handleAutoFixComment triggers an auto-fix for a PR comment by rewinding to implement phase.
 func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 	commentID := r.PathValue("commentId")
@@ -310,16 +314,51 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// This endpoint prepares the context for auto-fix
-	// The actual fix would be triggered through the executor with retry context
-	resp := autoFixResponse{
-		TaskID:    taskID,
-		CommentID: commentID,
-		Status:    "prepared",
-		Message:   fmt.Sprintf("Auto-fix prepared for comment on %s:%d - '%s'", comment.FilePath, comment.LineNumber, truncateString(comment.Content, 50)),
+	// Load plan and state for the rewind/retry
+	p, err := plan.Load(taskID)
+	if err != nil {
+		s.jsonError(w, "plan not found: "+err.Error(), http.StatusNotFound)
+		return
 	}
 
-	// Store the auto-fix intent in task metadata for executor pickup
+	st, err := state.Load(taskID)
+	if err != nil {
+		// Create new state if it doesn't exist
+		st = state.New(taskID)
+	}
+
+	// Build retry context with the comment as PR feedback
+	prFeedback := executor.PRCommentFeedback{
+		Author:   "reviewer",
+		Body:     comment.Content,
+		FilePath: comment.FilePath,
+		Line:     comment.LineNumber,
+	}
+
+	// Also get any other open review comments for context
+	openComments, _ := pdb.ListReviewComments(taskID, "open")
+
+	opts := executor.RetryOptions{
+		FailedPhase:     t.CurrentPhase,
+		FailureReason:   fmt.Sprintf("Auto-fix requested for comment: %s", truncateString(comment.Content, 100)),
+		PRComments:      []executor.PRCommentFeedback{prFeedback},
+		ReviewComments:  openComments,
+		AttemptNumber:   1,
+		MaxAttempts:     3,
+		Instructions:    fmt.Sprintf("Fix the issue in %s at line %d: %s", comment.FilePath, comment.LineNumber, comment.Content),
+	}
+
+	// Build and set retry context in state
+	retryContext := executor.BuildRetryContextForFreshSession(opts)
+	st.SetRetryContext(t.CurrentPhase, "implement", opts.FailureReason, retryContext, 1)
+
+	// Save state with retry context
+	if err := st.Save(); err != nil {
+		s.jsonError(w, "failed to save state: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Store the auto-fix intent in task metadata
 	if t.Metadata == nil {
 		t.Metadata = make(map[string]string)
 	}
@@ -328,13 +367,57 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 	t.Metadata["autofix_line"] = strconv.Itoa(comment.LineNumber)
 	t.Metadata["autofix_content"] = comment.Content
 
+	// Update task status to allow re-run
+	if t.Status == task.StatusCompleted || t.Status == task.StatusFailed {
+		t.Status = task.StatusPending
+	}
+
 	if err := t.Save(); err != nil {
 		s.jsonError(w, "failed to save task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	resp.Status = "queued"
-	resp.Message = fmt.Sprintf("Auto-fix queued for task %s, comment %s", taskID, commentID)
+	// Create cancellable context for execution
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Store cancel function for later cancellation
+	s.runningTasksMu.Lock()
+	s.runningTasks[taskID] = cancel
+	s.runningTasksMu.Unlock()
+
+	// Start execution in background goroutine
+	go func() {
+		defer func() {
+			s.runningTasksMu.Lock()
+			delete(s.runningTasks, taskID)
+			s.runningTasksMu.Unlock()
+		}()
+
+		exec := executor.New(executor.DefaultConfig())
+		exec.SetPublisher(s.publisher)
+
+		// Resume from implement phase with retry context
+		err := exec.ResumeFromPhase(ctx, t, p, st, "implement")
+		if err != nil {
+			s.logger.Error("auto-fix execution failed", "task", taskID, "error", err)
+			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
+		} else {
+			s.logger.Info("auto-fix execution completed", "task", taskID)
+			s.Publish(taskID, Event{Type: "complete", Data: map[string]string{"status": "completed"}})
+		}
+
+		// Reload and publish final state
+		if finalState, err := state.Load(taskID); err == nil {
+			s.Publish(taskID, Event{Type: "state", Data: finalState})
+		}
+	}()
+
+	resp := autoFixResponse{
+		TaskID:    taskID,
+		CommentID: commentID,
+		Status:    "running",
+		Message:   fmt.Sprintf("Auto-fix started for task %s, addressing comment on %s:%d", taskID, comment.FilePath, comment.LineNumber),
+	}
 
 	s.jsonResponse(w, resp)
 }

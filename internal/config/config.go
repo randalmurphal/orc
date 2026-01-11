@@ -806,3 +806,35 @@ func (c *Config) GlobalDSN() string {
 	}
 	return c.Database.SQLite.GlobalPath
 }
+
+// Valid values for validation
+var (
+	// ValidVisibilities are the allowed values for team.visibility
+	ValidVisibilities = []string{"all", "assigned", "owned"}
+
+	// ValidModes are the allowed values for team.mode
+	ValidModes = []string{"local", "shared_db", "sync_server"}
+)
+
+// Validate checks if config values are valid.
+func (c *Config) Validate() error {
+	if c.Team.Visibility != "" && !contains(ValidVisibilities, c.Team.Visibility) {
+		return fmt.Errorf("invalid team.visibility: %s (must be one of: %v)",
+			c.Team.Visibility, ValidVisibilities)
+	}
+	if c.Team.Mode != "" && !contains(ValidModes, c.Team.Mode) {
+		return fmt.Errorf("invalid team.mode: %s (must be one of: %v)",
+			c.Team.Mode, ValidModes)
+	}
+	return nil
+}
+
+// contains checks if a string is in a slice.
+func contains(slice []string, s string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}

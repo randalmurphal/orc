@@ -4,10 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 )
+
+// ErrNoPRFound is returned when no PR exists for the given branch.
+var ErrNoPRFound = errors.New("no pull request found for branch")
 
 // Client implements Provider using the gh CLI.
 type Client struct {
@@ -33,32 +38,74 @@ func NewClient(repoPath string) (*Client, error) {
 	}
 
 	// Parse owner/repo from URL
-	// Handles: git@github.com:owner/repo.git and https://github.com/owner/repo.git
-	url := strings.TrimSpace(string(output))
-	url = strings.TrimSuffix(url, ".git")
+	// Handles multiple formats:
+	// - git@github.com:owner/repo.git
+	// - git@github.company.com:org/repo.git (GitHub Enterprise)
+	// - ssh://git@github.com:22/org/repo.git (SSH with port)
+	// - https://github.com/owner/repo.git
+	// - github.com/org/subgroup/repo (nested paths - takes last two segments)
+	rawURL := strings.TrimSpace(string(output))
+	rawURL = strings.TrimSuffix(rawURL, ".git")
 
-	if strings.HasPrefix(url, "git@github.com:") {
-		parts := strings.Split(strings.TrimPrefix(url, "git@github.com:"), "/")
-		if len(parts) >= 2 {
-			client.owner = parts[0]
-			client.repo = parts[1]
-		}
-	} else if strings.Contains(url, "github.com/") {
-		parts := strings.Split(url, "github.com/")
-		if len(parts) >= 2 {
-			ownerRepo := strings.Split(parts[1], "/")
-			if len(ownerRepo) >= 2 {
-				client.owner = ownerRepo[0]
-				client.repo = ownerRepo[1]
-			}
-		}
-	}
+	client.owner, client.repo = parseOwnerRepo(rawURL)
 
 	if client.owner == "" || client.repo == "" {
-		return nil, fmt.Errorf("could not parse owner/repo from remote URL: %s", url)
+		return nil, fmt.Errorf("could not parse owner/repo from remote URL: %s", rawURL)
 	}
 
 	return client, nil
+}
+
+// parseOwnerRepo extracts owner and repo from various git remote URL formats.
+// Supports:
+// - git@github.com:owner/repo
+// - git@github.company.com:org/repo (GitHub Enterprise)
+// - ssh://git@github.com:22/org/repo (SSH with port)
+// - https://github.com/owner/repo
+// - Nested paths like github.com/org/subgroup/repo (takes last two segments)
+func parseOwnerRepo(rawURL string) (owner, repo string) {
+	// SSH URL pattern: git@host:path or ssh://git@host[:port]/path
+	// Match git@<host>:<path> format (most common SSH format)
+	sshPattern := regexp.MustCompile(`^git@[^:]+:(.+)$`)
+	if matches := sshPattern.FindStringSubmatch(rawURL); len(matches) == 2 {
+		return extractLastTwoSegments(matches[1])
+	}
+
+	// Match ssh://git@host[:port]/path format
+	sshURLPattern := regexp.MustCompile(`^ssh://[^/]+/(.+)$`)
+	if matches := sshURLPattern.FindStringSubmatch(rawURL); len(matches) == 2 {
+		return extractLastTwoSegments(matches[1])
+	}
+
+	// HTTPS/HTTP URL pattern: https://host/path
+	httpsPattern := regexp.MustCompile(`^https?://[^/]+/(.+)$`)
+	if matches := httpsPattern.FindStringSubmatch(rawURL); len(matches) == 2 {
+		return extractLastTwoSegments(matches[1])
+	}
+
+	// Fallback: try to find path segments after any hostname-like pattern
+	// This handles edge cases like "github.com/owner/repo" without protocol
+	hostPathPattern := regexp.MustCompile(`[^/]+\.[^/]+/(.+)$`)
+	if matches := hostPathPattern.FindStringSubmatch(rawURL); len(matches) == 2 {
+		return extractLastTwoSegments(matches[1])
+	}
+
+	return "", ""
+}
+
+// extractLastTwoSegments takes a path like "org/subgroup/repo" or "owner/repo"
+// and returns the last two segments as owner and repo.
+func extractLastTwoSegments(path string) (owner, repo string) {
+	// Clean up any leading/trailing slashes
+	path = strings.Trim(path, "/")
+	segments := strings.Split(path, "/")
+
+	if len(segments) < 2 {
+		return "", ""
+	}
+
+	// Take the last two segments (handles nested paths)
+	return segments[len(segments)-2], segments[len(segments)-1]
 }
 
 // Owner returns the repository owner.
@@ -195,7 +242,7 @@ func (c *Client) FindPRByBranch(ctx context.Context, branch string) (*PR, error)
 	}
 
 	if len(prs) == 0 {
-		return nil, nil // No PR found
+		return nil, ErrNoPRFound
 	}
 
 	return c.GetPR(ctx, prs[0].Number)

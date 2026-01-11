@@ -6,6 +6,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
+	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -65,18 +66,27 @@ func (s *Server) handleRetryTask(w http.ResponseWriter, r *http.Request) {
 	}
 	defer pdb.Close()
 
+	// Load state to get attempt number from retry context
+	st, _ := state.Load(taskID)
+	attemptNumber := 1
+	if st != nil && st.RetryContext != nil {
+		attemptNumber = st.RetryContext.Attempt + 1
+	}
+
 	// Build retry options
 	opts := executor.RetryOptions{
 		FailedPhase:   t.CurrentPhase,
 		Instructions:  req.Instructions,
-		AttemptNumber: 1, // Could be tracked in state for persistence
+		AttemptNumber: attemptNumber,
 		MaxAttempts:   3,
 	}
 
 	// Get review comments if requested
 	if req.IncludeReviewComments {
 		comments, err := pdb.ListReviewComments(taskID, "open")
-		if err == nil {
+		if err != nil {
+			s.logger.Warn("failed to list review comments for retry", "task_id", taskID, "error", err)
+		} else {
 			opts.ReviewComments = comments
 		}
 	}
@@ -142,11 +152,18 @@ func (s *Server) handleGetRetryPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load state to get attempt number from retry context
+	st, _ := state.Load(taskID)
+	attemptNumber := 1
+	if st != nil && st.RetryContext != nil {
+		attemptNumber = st.RetryContext.Attempt + 1
+	}
+
 	// Build preview context
 	opts := executor.RetryOptions{
 		FailedPhase:    t.CurrentPhase,
 		ReviewComments: comments,
-		AttemptNumber:  1,
+		AttemptNumber:  attemptNumber,
 		MaxAttempts:    3,
 	}
 
@@ -200,10 +217,20 @@ func (s *Server) handleRetryWithFeedback(w http.ResponseWriter, r *http.Request)
 	defer pdb.Close()
 
 	// Get review comments
-	reviewComments, _ := pdb.ListReviewComments(taskID, "open")
+	reviewComments, err := pdb.ListReviewComments(taskID, "open")
+	if err != nil {
+		s.logger.Warn("failed to list review comments for retry", "task_id", taskID, "error", err)
+	}
 
 	// Get transcripts for context
 	transcripts, _ := pdb.GetTranscripts(taskID)
+
+	// Load state to get attempt number from retry context
+	st, _ := state.Load(taskID)
+	attemptNumber := 1
+	if st != nil && st.RetryContext != nil {
+		attemptNumber = st.RetryContext.Attempt + 1
+	}
 
 	// Build comprehensive retry options
 	opts := executor.RetryOptions{
@@ -214,7 +241,7 @@ func (s *Server) handleRetryWithFeedback(w http.ResponseWriter, r *http.Request)
 		PRComments:      req.PRComments,
 		Instructions:    req.Instructions,
 		PreviousContext: executor.CompressPreviousContext(transcripts),
-		AttemptNumber:   1,
+		AttemptNumber:   attemptNumber,
 		MaxAttempts:     3,
 	}
 

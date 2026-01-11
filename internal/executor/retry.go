@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -277,28 +278,46 @@ func formatReviewCommentsForContext(comments []db.ReviewComment) string {
 	if general, ok := byFile["_general"]; ok {
 		sb.WriteString("### General Comments\n\n")
 		for _, c := range general {
-			sb.WriteString(fmt.Sprintf("- **[%s]** %s\n", strings.ToUpper(string(c.Severity)), c.Content))
+			severity := normalizeSeverity(string(c.Severity))
+			sb.WriteString(fmt.Sprintf("- **[%s]** %s\n", severity, c.Content))
 		}
 		sb.WriteString("\n")
 		delete(byFile, "_general")
 	}
 
-	// File-specific comments
-	for file, fileComments := range byFile {
+	// Build sorted list of files for deterministic output
+	files := make([]string, 0, len(byFile))
+	for file := range byFile {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+
+	// File-specific comments in sorted order
+	for _, file := range files {
+		fileComments := byFile[file]
 		sb.WriteString(fmt.Sprintf("### `%s`\n\n", file))
 		for _, c := range fileComments {
+			severity := normalizeSeverity(string(c.Severity))
 			if c.LineNumber > 0 {
 				sb.WriteString(fmt.Sprintf("- **Line %d** [%s]: %s\n",
-					c.LineNumber, strings.ToUpper(string(c.Severity)), c.Content))
+					c.LineNumber, severity, c.Content))
 			} else {
 				sb.WriteString(fmt.Sprintf("- [%s]: %s\n",
-					strings.ToUpper(string(c.Severity)), c.Content))
+					severity, c.Content))
 			}
 		}
 		sb.WriteString("\n")
 	}
 
 	return sb.String()
+}
+
+// normalizeSeverity returns an uppercase severity string, defaulting to INFO if empty.
+func normalizeSeverity(severity string) string {
+	if severity == "" {
+		return "INFO"
+	}
+	return strings.ToUpper(severity)
 }
 
 // formatPRCommentsForContext formats PR comments for context.
@@ -350,7 +369,7 @@ func CompressPreviousContext(transcripts []db.Transcript) string {
 			// Extract error context
 			lines := strings.Split(t.Content, "\n")
 			for _, line := range lines {
-				if strings.Contains(strings.ToLower(line), "error") {
+				if isErrorLine(line) {
 					keyPoints = append(keyPoints, strings.TrimSpace(line))
 					if len(keyPoints) > 5 {
 						break
@@ -368,6 +387,45 @@ func CompressPreviousContext(transcripts []db.Transcript) string {
 	}
 
 	return sb.String()
+}
+
+// isErrorLine checks if a line contains an actual error indicator, avoiding false positives
+// like "No errors" or "0 errors".
+func isErrorLine(line string) bool {
+	lower := strings.ToLower(line)
+
+	// Skip lines that explicitly state no errors
+	if strings.Contains(lower, "no error") ||
+		strings.Contains(lower, "0 error") ||
+		strings.Contains(lower, "zero error") ||
+		strings.Contains(lower, "without error") {
+		return false
+	}
+
+	// Look for actual error patterns
+	// Error at start of line or after punctuation/whitespace
+	if strings.HasPrefix(lower, "error:") ||
+		strings.HasPrefix(lower, "error ") ||
+		strings.Contains(lower, ": error:") ||
+		strings.Contains(lower, ": error ") ||
+		strings.Contains(lower, " error:") ||
+		strings.Contains(lower, "\terror:") ||
+		strings.Contains(lower, "error[") || // Rust-style errors
+		strings.Contains(lower, "failed:") ||
+		strings.Contains(lower, "failure:") ||
+		strings.Contains(lower, "panic:") ||
+		strings.Contains(lower, "fatal:") {
+		return true
+	}
+
+	// Check for ERROR in uppercase (common log format)
+	if strings.Contains(line, "ERROR") ||
+		strings.Contains(line, "FAILED") ||
+		strings.Contains(line, "FATAL") {
+		return true
+	}
+
+	return false
 }
 
 // truncateString truncates a string to maxLen with ellipsis.

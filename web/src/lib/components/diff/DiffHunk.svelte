@@ -6,10 +6,11 @@
 	interface Props {
 		hunk: Hunk;
 		viewMode: 'split' | 'unified';
-		syntax: string;
+		filePath: string;
+		onLineClick?: (lineNumber: number, filePath: string) => void;
 	}
 
-	let { hunk, viewMode, syntax }: Props = $props();
+	let { hunk, viewMode, filePath, onLineClick }: Props = $props();
 
 	interface LinePair {
 		old?: Line;
@@ -65,12 +66,12 @@
 			{#if hunk.lines.length > VIRTUAL_THRESHOLD}
 				<VirtualScroller items={hunk.lines} itemHeight={22}>
 					{#snippet children({ item })}
-						<DiffLine line={item} mode="unified" {syntax} />
+						<DiffLine line={item} mode="unified" {filePath} {onLineClick} />
 					{/snippet}
 				</VirtualScroller>
 			{:else}
 				{#each hunk.lines as line, i (i)}
-					<DiffLine {line} mode="unified" {syntax} />
+					<DiffLine {line} mode="unified" {filePath} {onLineClick} />
 				{/each}
 			{/if}
 		</div>
@@ -82,14 +83,14 @@
 						<div class="split-row">
 							<div class="split-left">
 								{#if pair.old}
-									<DiffLine line={pair.old} mode="split-old" {syntax} />
+									<DiffLine line={pair.old} mode="split-old" {filePath} {onLineClick} />
 								{:else}
 									<div class="empty-line"></div>
 								{/if}
 							</div>
 							<div class="split-right">
 								{#if pair.new}
-									<DiffLine line={pair.new} mode="split-new" {syntax} />
+									<DiffLine line={pair.new} mode="split-new" {filePath} {onLineClick} />
 								{:else}
 									<div class="empty-line"></div>
 								{/if}
@@ -102,14 +103,14 @@
 					<div class="split-row">
 						<div class="split-left">
 							{#if pair.old}
-								<DiffLine line={pair.old} mode="split-old" {syntax} />
+								<DiffLine line={pair.old} mode="split-old" {filePath} {onLineClick} />
 							{:else}
 								<div class="empty-line"></div>
 							{/if}
 						</div>
 						<div class="split-right">
 							{#if pair.new}
-								<DiffLine line={pair.new} mode="split-new" {syntax} />
+								<DiffLine line={pair.new} mode="split-new" {filePath} {onLineClick} />
 							{:else}
 								<div class="empty-line"></div>
 							{/if}

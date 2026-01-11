@@ -17,6 +17,10 @@
 	let content = $state('');
 	let severity = $state<CommentSeverity>('issue');
 
+	// Platform detection for keyboard hints
+	const isMac = $derived(typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform));
+	const modifierKey = $derived(isMac ? 'Cmd' : 'Ctrl');
+
 	const severityOptions: { value: CommentSeverity; label: string; description: string }[] = [
 		{ value: 'suggestion', label: 'Suggestion', description: 'Optional improvement' },
 		{ value: 'issue', label: 'Issue', description: 'Should be fixed' },
@@ -48,7 +52,7 @@
 	function handleKeyDown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			onCancel();
-		} else if (event.key === 'Enter' && event.metaKey) {
+		} else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
 			handleSubmit(event);
 		}
 	}
@@ -137,7 +141,7 @@
 	</div>
 
 	<div class="keyboard-hint">
-		<kbd>Cmd</kbd> + <kbd>Enter</kbd> to submit
+		<kbd>{modifierKey}</kbd> + <kbd>Enter</kbd> to submit
 	</div>
 </form>
 

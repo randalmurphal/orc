@@ -48,7 +48,7 @@
 	const severity = $derived(severityConfig[comment.severity]);
 	const status = $derived(statusConfig[comment.status]);
 	const isOpen = $derived(comment.status === 'open');
-	const hasLocation = $derived(comment.file_path !== undefined);
+	const hasLocation = $derived(comment.file_path !== undefined || comment.line_number !== undefined);
 
 	function handleResolve() {
 		onResolve?.(comment.id);
@@ -109,26 +109,30 @@
 		</div>
 	{/if}
 
-	{#if isOpen}
+	{#if isOpen && (onResolve || onWontFix || onDelete)}
 		<div class="comment-actions">
-			<button
-				class="action-btn resolve"
-				onclick={handleResolve}
-				onkeydown={(e) => handleKeyDown(e, handleResolve)}
-				title="Mark as resolved"
-			>
-				<Icon name="check" size={14} />
-				Resolve
-			</button>
-			<button
-				class="action-btn wont-fix"
-				onclick={handleWontFix}
-				onkeydown={(e) => handleKeyDown(e, handleWontFix)}
-				title="Mark as won't fix"
-			>
-				<Icon name="close" size={14} />
-				Won't Fix
-			</button>
+			{#if onResolve}
+				<button
+					class="action-btn resolve"
+					onclick={handleResolve}
+					onkeydown={(e) => handleKeyDown(e, handleResolve)}
+					title="Mark as resolved"
+				>
+					<Icon name="check" size={14} />
+					Resolve
+				</button>
+			{/if}
+			{#if onWontFix}
+				<button
+					class="action-btn wont-fix"
+					onclick={handleWontFix}
+					onkeydown={(e) => handleKeyDown(e, handleWontFix)}
+					title="Mark as won't fix"
+				>
+					<Icon name="close" size={14} />
+					Won't Fix
+				</button>
+			{/if}
 			{#if onDelete}
 				<button
 					class="action-btn delete"
@@ -139,6 +143,18 @@
 					<Icon name="trash" size={14} />
 				</button>
 			{/if}
+		</div>
+	{/if}
+	{#if !isOpen && onDelete}
+		<div class="comment-actions">
+			<button
+				class="action-btn delete"
+				onclick={handleDelete}
+				onkeydown={(e) => handleKeyDown(e, handleDelete)}
+				title="Delete comment"
+			>
+				<Icon name="trash" size={14} />
+			</button>
 		</div>
 	{/if}
 </div>

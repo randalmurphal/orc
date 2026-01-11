@@ -25,6 +25,12 @@
 		isDragging = false;
 	}
 
+	/**
+	 * Button actions execute immediately without confirmation.
+	 * This is intentional - drag-drop requires confirmation because the action
+	 * is less explicit (you're moving to a column), but button clicks are
+	 * direct and clear about what action will occur.
+	 */
 	async function handleAction(action: 'run' | 'pause' | 'resume', e: MouseEvent) {
 		e.stopPropagation();
 		e.preventDefault();

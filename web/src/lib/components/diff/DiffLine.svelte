@@ -4,10 +4,11 @@
 	interface Props {
 		line: Line;
 		mode: 'unified' | 'split-old' | 'split-new';
-		syntax: string;
+		filePath: string;
+		onLineClick?: (lineNumber: number, filePath: string) => void;
 	}
 
-	let { line, mode, syntax: _syntax }: Props = $props();
+	let { line, mode, filePath, onLineClick }: Props = $props();
 
 	const bgColor = $derived.by(() => {
 		if (line.type === 'addition') return 'var(--diff-add-bg)';
@@ -41,9 +42,16 @@
 </script>
 
 <div class="diff-line" style:background={bgColor}>
-	<span class="line-num" style:background={lineNumBg}>
+	<button
+		type="button"
+		class="line-num"
+		class:clickable={onLineClick && lineNum}
+		style:background={lineNumBg}
+		onclick={() => lineNum && onLineClick?.(lineNum, filePath)}
+		disabled={!onLineClick || !lineNum}
+	>
 		{lineNum ?? ''}
-	</span>
+	</button>
 	{#if mode === 'unified'}
 		<span class="line-prefix" style:color={prefixColor}>
 			{prefix}
@@ -68,6 +76,22 @@
 		user-select: none;
 		flex-shrink: 0;
 		font-size: var(--text-2xs);
+		font-family: var(--font-mono);
+		border: none;
+		cursor: default;
+	}
+
+	.line-num.clickable {
+		cursor: pointer;
+	}
+
+	.line-num.clickable:hover {
+		color: var(--accent-primary);
+		background: var(--bg-surface) !important;
+	}
+
+	.line-num:disabled {
+		cursor: default;
 	}
 
 	.line-prefix {

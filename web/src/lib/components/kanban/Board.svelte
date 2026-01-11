@@ -14,7 +14,7 @@
 	const columns = [
 		{ id: 'todo', title: 'To Do', statuses: ['created', 'classifying', 'planned'] },
 		{ id: 'running', title: 'In Progress', statuses: ['running'] },
-		{ id: 'review', title: 'Blocked / Paused', statuses: ['paused', 'blocked'] },
+		{ id: 'review', title: 'In Review', statuses: ['paused', 'blocked'] },
 		{ id: 'done', title: 'Done', statuses: ['completed', 'failed'] }
 	];
 
@@ -57,7 +57,7 @@
 			// Moving to In Progress - run or resume
 			if (task.status === 'paused') {
 				action = 'resume';
-			} else if (['created', 'planned'].includes(task.status)) {
+			} else if (['created', 'classifying', 'planned'].includes(task.status)) {
 				action = 'run';
 			}
 		} else if (columnId === 'review' && task.status === 'running') {
@@ -105,6 +105,7 @@
 		message="Move '{confirmModal.task.title}' to {confirmModal.targetColumn}?"
 		confirmLabel={confirmModal.action === 'run' ? 'Run Task' : confirmModal.action === 'pause' ? 'Pause Task' : 'Resume Task'}
 		confirmVariant={confirmModal.action === 'pause' ? 'warning' : 'primary'}
+		action={confirmModal.action as 'run' | 'pause' | 'resume'}
 		loading={actionLoading}
 		onConfirm={confirmAction}
 		onCancel={cancelAction}
