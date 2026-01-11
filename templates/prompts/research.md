@@ -51,11 +51,9 @@ Create a research summary documenting:
 
 ## Output Format
 
-### Research Document
+Create the research document and wrap it in artifact tags for automatic persistence:
 
-Save to `.orc/tasks/{{TASK_ID}}/artifacts/research.md`:
-
-```markdown
+<artifact>
 # Research: {{TASK_TITLE}}
 
 ## Goal
@@ -106,23 +104,18 @@ Save to `.orc/tasks/{{TASK_ID}}/artifacts/research.md`:
 ## Recommendations
 
 [Summary of recommended approach based on findings]
-```
+</artifact>
 
 ## Phase Completion
 
-### Commit Research
+After completing research, commit your changes:
 
 ```bash
 git add -A
-git commit -m "[orc] {{TASK_ID}}: research - completed
-
-Phase: research
-Status: completed
-Artifact: artifacts/research.md
-"
+git commit -m "[orc] {{TASK_ID}}: research - completed"
 ```
 
-### Output Completion
+Then output:
 
 ```
 ### Research Summary

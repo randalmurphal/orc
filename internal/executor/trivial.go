@@ -156,6 +156,17 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 done:
 	result.Output = lastResponse
 	result.Duration = time.Since(start)
+
+	// Save artifact on success
+	if result.Status == plan.PhaseCompleted && result.Output != "" {
+		if artifactPath, err := SavePhaseArtifact(t.ID, p.ID, result.Output); err != nil {
+			e.logger.Warn("failed to save phase artifact", "error", err)
+		} else if artifactPath != "" {
+			result.Artifacts = append(result.Artifacts, artifactPath)
+			e.logger.Info("saved phase artifact", "path", artifactPath)
+		}
+	}
+
 	return result, result.Error
 }
 
