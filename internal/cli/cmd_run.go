@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/progress"
@@ -101,6 +102,14 @@ Example:
 			// Create executor with config
 			exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
 
+			// Set up streaming publisher if verbose or --stream flag is set
+			stream, _ := cmd.Flags().GetBool("stream")
+			if verbose || stream {
+				publisher := events.NewCLIPublisher(os.Stdout, events.WithStreamMode(true))
+				exec.SetPublisher(publisher)
+				defer publisher.Close()
+			}
+
 			// Execute task
 			err = exec.ExecuteTask(ctx, t, p, s)
 			if err != nil {
@@ -124,5 +133,6 @@ Example:
 	cmd.Flags().String("phase", "", "run specific phase only")
 	cmd.Flags().StringP("profile", "p", "", "automation profile (auto, fast, safe, strict)")
 	cmd.Flags().Bool("continue", false, "continue from last checkpoint")
+	cmd.Flags().Bool("stream", false, "stream Claude transcript to stdout")
 	return cmd
 }
