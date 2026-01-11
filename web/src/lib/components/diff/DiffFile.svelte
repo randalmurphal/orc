@@ -1,16 +1,38 @@
 <script lang="ts">
 	import DiffHunk from './DiffHunk.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
-	import type { FileDiff } from '$lib/types';
+	import type { FileDiff, ReviewComment, CreateCommentRequest } from '$lib/types';
 
 	interface Props {
 		file: FileDiff;
 		expanded: boolean;
 		viewMode: 'split' | 'unified';
+		comments?: ReviewComment[];
+		activeLineNumber?: number | null;
 		onToggle: () => void;
+		onLineClick?: (lineNumber: number, filePath: string) => void;
+		onAddComment?: (comment: CreateCommentRequest) => Promise<void>;
+		onResolveComment?: (id: string) => void;
+		onWontFixComment?: (id: string) => void;
+		onDeleteComment?: (id: string) => void;
 	}
 
-	let { file, expanded, viewMode, onToggle }: Props = $props();
+	let {
+		file,
+		expanded,
+		viewMode,
+		comments = [],
+		activeLineNumber = null,
+		onToggle,
+		onLineClick,
+		onAddComment,
+		onResolveComment,
+		onWontFixComment,
+		onDeleteComment
+	}: Props = $props();
+
+	const fileComments = $derived(comments.filter(c => c.file_path === file.path));
+	const openCommentCount = $derived(fileComments.filter(c => c.status === 'open').length);
 
 	const statusConfig: Record<string, { label: string; color: string }> = {
 		added: { label: 'A', color: 'var(--status-success)' },
@@ -37,6 +59,9 @@
 			{/if}
 		</span>
 		<span class="file-stats">
+			{#if openCommentCount > 0}
+				<span class="comments-count">{openCommentCount}</span>
+			{/if}
 			{#if file.additions > 0}
 				<span class="additions">+{file.additions}</span>
 			{/if}
@@ -57,7 +82,18 @@
 				</div>
 			{:else if file.hunks && file.hunks.length > 0}
 				{#each file.hunks as hunk, i (i)}
-					<DiffHunk {hunk} {viewMode} filePath={file.path} />
+					<DiffHunk
+						{hunk}
+						{viewMode}
+						filePath={file.path}
+						comments={fileComments}
+						{activeLineNumber}
+						{onLineClick}
+						{onAddComment}
+						onResolveComment={onResolveComment}
+						onWontFixComment={onWontFixComment}
+						onDeleteComment={onDeleteComment}
+					/>
 				{/each}
 			{:else}
 				<div class="loading-hunks">
@@ -137,6 +173,20 @@
 		gap: var(--space-2);
 		font-size: var(--text-2xs);
 		flex-shrink: 0;
+	}
+
+	.comments-count {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 16px;
+		height: 16px;
+		padding: 0 var(--space-1);
+		border-radius: var(--radius-full);
+		background: var(--status-warning);
+		color: white;
+		font-size: var(--text-2xs);
+		font-weight: var(--font-bold);
 	}
 
 	.additions {

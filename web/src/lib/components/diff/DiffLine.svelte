@@ -5,10 +5,11 @@
 		line: Line;
 		mode: 'unified' | 'split-old' | 'split-new';
 		filePath: string;
+		commentCount?: number;
 		onLineClick?: (lineNumber: number, filePath: string) => void;
 	}
 
-	let { line, mode, filePath, onLineClick }: Props = $props();
+	let { line, mode, filePath, commentCount = 0, onLineClick }: Props = $props();
 
 	const bgColor = $derived.by(() => {
 		if (line.type === 'addition') return 'var(--diff-add-bg)';
@@ -46,11 +47,17 @@
 		type="button"
 		class="line-num"
 		class:clickable={onLineClick && lineNum}
+		class:has-comments={commentCount > 0}
 		style:background={lineNumBg}
 		onclick={() => lineNum && onLineClick?.(lineNum, filePath)}
 		disabled={!onLineClick || !lineNum}
 	>
-		{lineNum ?? ''}
+		{#if commentCount > 0}
+			<span class="comment-badge">{commentCount}</span>
+		{:else if onLineClick && lineNum}
+			<span class="add-icon">+</span>
+		{/if}
+		<span class="line-number">{lineNum ?? ''}</span>
 	</button>
 	{#if mode === 'unified'}
 		<span class="line-prefix" style:color={prefixColor}>
@@ -69,6 +76,7 @@
 	}
 
 	.line-num {
+		position: relative;
 		width: 48px;
 		padding: 0 var(--space-2);
 		text-align: right;
@@ -79,6 +87,42 @@
 		font-family: var(--font-mono);
 		border: none;
 		cursor: default;
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: var(--space-1);
+	}
+
+	.line-number {
+		min-width: 24px;
+		text-align: right;
+	}
+
+	.add-icon {
+		display: none;
+		width: 14px;
+		height: 14px;
+		border-radius: var(--radius-sm);
+		background: var(--accent-primary);
+		color: var(--text-inverse);
+		font-size: 10px;
+		font-weight: var(--font-bold);
+		line-height: 14px;
+		text-align: center;
+	}
+
+	.comment-badge {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 14px;
+		height: 14px;
+		padding: 0 var(--space-0-5);
+		border-radius: var(--radius-sm);
+		background: var(--status-warning);
+		color: white;
+		font-size: 9px;
+		font-weight: var(--font-bold);
 	}
 
 	.line-num.clickable {
@@ -87,6 +131,18 @@
 
 	.line-num.clickable:hover {
 		color: var(--accent-primary);
+		background: var(--bg-surface) !important;
+	}
+
+	.line-num.clickable:hover .add-icon {
+		display: block;
+	}
+
+	.line-num.has-comments {
+		cursor: pointer;
+	}
+
+	.line-num.has-comments:hover {
 		background: var(--bg-surface) !important;
 	}
 

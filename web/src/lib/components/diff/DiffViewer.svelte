@@ -2,7 +2,9 @@
 	import { onMount } from 'svelte';
 	import DiffFile from './DiffFile.svelte';
 	import DiffStats from './DiffStats.svelte';
-	import type { DiffResult, FileDiff } from '$lib/types';
+	import Icon from '$lib/components/ui/Icon.svelte';
+	import type { DiffResult, FileDiff, ReviewComment, CreateCommentRequest } from '$lib/types';
+	import { getReviewComments, createReviewComment, updateReviewComment, deleteReviewComment, triggerReviewRetry } from '$lib/api';
 
 	interface Props {
 		taskId: string;
@@ -11,14 +13,80 @@
 	let { taskId }: Props = $props();
 
 	let diff = $state<DiffResult | null>(null);
+	let comments = $state<ReviewComment[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let viewMode = $state<'split' | 'unified'>('split');
 	let expandedFiles = $state<Set<string>>(new Set());
+	let activeLineNumber = $state<number | null>(null);
+	let activeFilePath = $state<string | null>(null);
+	let sendingToAgent = $state(false);
+
+	// Comment stats
+	const openComments = $derived(comments.filter(c => c.status === 'open'));
+	const blockerCount = $derived(openComments.filter(c => c.severity === 'blocker').length);
+	const issueCount = $derived(openComments.filter(c => c.severity === 'issue').length);
+	const suggestionCount = $derived(openComments.filter(c => c.severity === 'suggestion').length);
+	const hasBlockers = $derived(blockerCount > 0);
+
+	// General comments (not tied to a specific line)
+	const generalComments = $derived(comments.filter(c => !c.file_path && !c.line_number));
 
 	onMount(async () => {
-		await loadDiff();
+		await Promise.all([loadDiff(), loadComments()]);
 	});
+
+	async function loadComments() {
+		try {
+			comments = await getReviewComments(taskId);
+		} catch (e) {
+			// Silently fail - comments are optional
+			console.error('Failed to load comments:', e);
+		}
+	}
+
+	async function handleAddComment(comment: CreateCommentRequest): Promise<void> {
+		const newComment = await createReviewComment(taskId, comment);
+		comments = [...comments, newComment];
+		activeLineNumber = null;
+		activeFilePath = null;
+	}
+
+	async function handleResolveComment(id: string) {
+		const updated = await updateReviewComment(taskId, id, { status: 'resolved' });
+		comments = comments.map(c => c.id === id ? updated : c);
+	}
+
+	async function handleWontFixComment(id: string) {
+		const updated = await updateReviewComment(taskId, id, { status: 'wont_fix' });
+		comments = comments.map(c => c.id === id ? updated : c);
+	}
+
+	async function handleDeleteComment(id: string) {
+		await deleteReviewComment(taskId, id);
+		comments = comments.filter(c => c.id !== id);
+	}
+
+	function handleLineClick(lineNumber: number, filePath: string) {
+		if (activeLineNumber === lineNumber && activeFilePath === filePath) {
+			// Toggle off
+			activeLineNumber = null;
+			activeFilePath = null;
+		} else {
+			activeLineNumber = lineNumber;
+			activeFilePath = filePath;
+		}
+	}
+
+	async function handleSendToAgent() {
+		if (openComments.length === 0 || sendingToAgent) return;
+		sendingToAgent = true;
+		try {
+			await triggerReviewRetry(taskId);
+		} finally {
+			sendingToAgent = false;
+		}
+	}
 
 	async function loadDiff() {
 		loading = true;
@@ -131,9 +199,39 @@
 			{/if}
 		</div>
 
-		{#if diff}
-			<DiffStats stats={diff.stats} />
-		{/if}
+		<div class="toolbar-right">
+			{#if openComments.length > 0}
+				<div class="review-summary" class:has-blockers={hasBlockers}>
+					{#if blockerCount > 0}
+						<span class="count blocker">{blockerCount} blocker{blockerCount > 1 ? 's' : ''}</span>
+					{/if}
+					{#if issueCount > 0}
+						<span class="count issue">{issueCount} issue{issueCount > 1 ? 's' : ''}</span>
+					{/if}
+					{#if suggestionCount > 0}
+						<span class="count suggestion">{suggestionCount} suggestion{suggestionCount > 1 ? 's' : ''}</span>
+					{/if}
+				</div>
+
+				<button
+					class="send-to-agent-btn"
+					onclick={handleSendToAgent}
+					disabled={sendingToAgent}
+				>
+					{#if sendingToAgent}
+						<span class="spinner"></span>
+						Sending...
+					{:else}
+						<Icon name="play" size={14} />
+						Send to Agent
+					{/if}
+				</button>
+			{/if}
+
+			{#if diff}
+				<DiffStats stats={diff.stats} />
+			{/if}
+		</div>
 	</div>
 
 	{#if loading}
@@ -153,7 +251,14 @@
 					{file}
 					expanded={expandedFiles.has(file.path)}
 					{viewMode}
+					{comments}
+					activeLineNumber={activeFilePath === file.path ? activeLineNumber : null}
 					onToggle={() => toggleFile(file.path)}
+					onLineClick={handleLineClick}
+					onAddComment={handleAddComment}
+					onResolveComment={handleResolveComment}
+					onWontFixComment={handleWontFixComment}
+					onDeleteComment={handleDeleteComment}
 				/>
 			{/each}
 		</div>
@@ -184,12 +289,79 @@
 		border-bottom: 1px solid var(--border-subtle);
 		background: var(--bg-secondary);
 		flex-shrink: 0;
+		gap: var(--space-4);
+		flex-wrap: wrap;
 	}
 
 	.toolbar-left {
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
+	}
+
+	.toolbar-right {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	.review-summary {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-1) var(--space-2);
+		background: var(--bg-tertiary);
+		border-radius: var(--radius-md);
+		font-size: var(--text-xs);
+	}
+
+	.review-summary .count {
+		font-weight: var(--font-medium);
+	}
+
+	.review-summary .count.blocker {
+		color: var(--status-danger);
+	}
+
+	.review-summary .count.issue {
+		color: var(--status-warning);
+	}
+
+	.review-summary .count.suggestion {
+		color: var(--status-info);
+	}
+
+	.send-to-agent-btn {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding: var(--space-1-5) var(--space-3);
+		background: var(--accent-primary);
+		border: none;
+		border-radius: var(--radius-md);
+		color: var(--text-inverse);
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		cursor: pointer;
+		transition: background var(--duration-fast) var(--ease-out);
+	}
+
+	.send-to-agent-btn:hover:not(:disabled) {
+		background: var(--accent-primary-hover);
+	}
+
+	.send-to-agent-btn:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.send-to-agent-btn .spinner {
+		width: 12px;
+		height: 12px;
+		border: 2px solid rgba(255, 255, 255, 0.3);
+		border-top-color: white;
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
 	}
 
 	.view-toggle {
