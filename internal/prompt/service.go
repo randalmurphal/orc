@@ -17,9 +17,12 @@ import (
 type Source string
 
 const (
-	SourceProject  Source = "project"  // .orc/prompts/
-	SourceEmbedded Source = "embedded" // Embedded in binary
-	SourceInline   Source = "inline"   // Inline in plan YAML
+	SourcePersonalGlobal Source = "personal_global" // ~/.orc/prompts/
+	SourceProjectLocal   Source = "project_local"   // .orc/local/prompts/
+	SourceProjectShared  Source = "project_shared"  // .orc/shared/prompts/
+	SourceProject        Source = "project"         // .orc/prompts/
+	SourceEmbedded       Source = "embedded"        // Embedded in binary
+	SourceInline         Source = "inline"          // Inline in plan YAML
 )
 
 // PromptInfo contains metadata about a prompt.
@@ -40,17 +43,26 @@ type Prompt struct {
 
 // Service manages prompt templates.
 type Service struct {
-	orcDir string
+	orcDir   string
+	resolver *Resolver
 }
 
 // NewService creates a new prompt service.
 func NewService(orcDir string) *Service {
-	return &Service{orcDir: orcDir}
+	return &Service{
+		orcDir:   orcDir,
+		resolver: NewResolverFromOrcDir(orcDir),
+	}
 }
 
 // DefaultService creates a service using the default .orc directory.
 func DefaultService() *Service {
 	return NewService(".orc")
+}
+
+// Resolver returns the underlying resolver for advanced usage.
+func (s *Service) Resolver() *Resolver {
+	return s.resolver
 }
 
 // projectPromptsDir returns the path to the project prompts directory.
@@ -63,24 +75,21 @@ func (s *Service) projectPromptPath(phase string) string {
 	return filepath.Join(s.projectPromptsDir(), phase+".md")
 }
 
-// Resolve returns the prompt content for a phase, resolving from project override first,
-// then falling back to embedded templates.
+// Resolve returns the prompt content for a phase, using the full resolution chain:
+// 1. Personal (~/.orc/prompts/)
+// 2. Local (.orc/local/prompts/)
+// 3. Shared (.orc/shared/prompts/)
+// 4. Project (.orc/prompts/)
+// 5. Embedded (built-in)
+//
+// Supports prompt inheritance via frontmatter (extends, prepend, append).
 // Returns content, source, and any error.
 func (s *Service) Resolve(phase string) (string, Source, error) {
-	// Try project override first
-	projectPath := s.projectPromptPath(phase)
-	if content, err := os.ReadFile(projectPath); err == nil {
-		return string(content), SourceProject, nil
-	}
-
-	// Fall back to embedded
-	embeddedPath := fmt.Sprintf("prompts/%s.md", phase)
-	content, err := templates.Prompts.ReadFile(embeddedPath)
+	resolved, err := s.resolver.Resolve(phase)
 	if err != nil {
-		return "", "", fmt.Errorf("prompt not found: %s", phase)
+		return "", "", err
 	}
-
-	return string(content), SourceEmbedded, nil
+	return resolved.Content, resolved.Source, nil
 }
 
 // List returns information about all available prompts.
