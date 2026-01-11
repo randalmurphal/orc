@@ -241,8 +241,8 @@ orc log TASK-001
 
 ```go
 func syncToTeamServer(task *Task) error {
-    if !config.Team.Enabled {
-        return nil  // Team not enabled, nothing to do
+    if config.Team.Mode == "local" {
+        return nil  // Local mode, nothing to sync
     }
 
     err := server.SyncTask(task)

@@ -425,9 +425,25 @@ func mergeServerConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]inte
 }
 
 func mergeTeamConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
-	if _, ok := raw["enabled"]; ok {
-		cfg.Team.Enabled = fileCfg.Team.Enabled
-		tc.SetSourceWithPath("team.enabled", source, path)
+	if _, ok := raw["name"]; ok {
+		cfg.Team.Name = fileCfg.Team.Name
+		tc.SetSourceWithPath("team.name", source, path)
+	}
+	if _, ok := raw["activity_logging"]; ok {
+		cfg.Team.ActivityLogging = fileCfg.Team.ActivityLogging
+		tc.SetSourceWithPath("team.activity_logging", source, path)
+	}
+	if _, ok := raw["task_claiming"]; ok {
+		cfg.Team.TaskClaiming = fileCfg.Team.TaskClaiming
+		tc.SetSourceWithPath("team.task_claiming", source, path)
+	}
+	if _, ok := raw["visibility"]; ok {
+		cfg.Team.Visibility = fileCfg.Team.Visibility
+		tc.SetSourceWithPath("team.visibility", source, path)
+	}
+	if _, ok := raw["mode"]; ok {
+		cfg.Team.Mode = fileCfg.Team.Mode
+		tc.SetSourceWithPath("team.mode", source, path)
 	}
 	if _, ok := raw["server_url"]; ok {
 		cfg.Team.ServerURL = fileCfg.Team.ServerURL
@@ -526,7 +542,7 @@ func markDefaults(tc *TrackedConfig) {
 		"budget.threshold_usd", "budget.alert_on_exceed", "budget.pause_on_exceed",
 		"pool.enabled", "pool.config_path",
 		"server.host", "server.port", "server.auth.enabled", "server.auth.type",
-		"team.enabled", "team.server_url",
+		"team.name", "team.activity_logging", "team.task_claiming", "team.visibility", "team.mode", "team.server_url",
 		"task_id.mode", "task_id.prefix_source",
 		"identity.initials", "identity.display_name", "identity.email",
 		"database.driver", "database.sqlite.path", "database.sqlite.global_path",

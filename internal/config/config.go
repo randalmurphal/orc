@@ -182,13 +182,20 @@ type ServerConfig struct {
 	Auth AuthConfig `yaml:"auth"`
 }
 
-// TeamConfig defines team mode settings.
+// TeamConfig defines organization/team settings.
+// Every user is part of an organization (even solo users are an "org of 1").
+// Features are opt-in with sensible defaults for solo developers.
 type TeamConfig struct {
-	// Enabled enables team mode features
-	Enabled bool `yaml:"enabled"`
+	// Name is the organization name (defaults to username or "Personal")
+	Name string `yaml:"name,omitempty"`
 
-	// Mode is the team coordination mode: shared_db | sync_server (future)
-	Mode string `yaml:"mode"`
+	// ActivityLogging enables activity log for all actions (default: true)
+	// Useful even for solo users as a history/audit trail
+	ActivityLogging bool `yaml:"activity_logging"`
+
+	// TaskClaiming enables task claiming/assignment features (default: false)
+	// Only useful for multi-user setups - solo users don't need this
+	TaskClaiming bool `yaml:"task_claiming"`
 
 	// Visibility controls task visibility: all | assigned | owned
 	// "all" = All members see all tasks (default)
@@ -196,8 +203,14 @@ type TeamConfig struct {
 	// "owned" = Members only see tasks they created or are assigned to
 	Visibility string `yaml:"visibility"`
 
+	// Mode is the coordination mode: local | shared_db | sync_server (future)
+	// "local" = Single user, local database (default)
+	// "shared_db" = Multiple users, shared PostgreSQL database
+	// "sync_server" = Future: distributed sync server mode
+	Mode string `yaml:"mode"`
+
 	// ServerURL is the URL of the team server (for sync_server mode)
-	ServerURL string `yaml:"server_url"`
+	ServerURL string `yaml:"server_url,omitempty"`
 }
 
 // IdentityConfig holds user identity settings for multi-user coordination.
@@ -515,10 +528,12 @@ func Default() *Config {
 			},
 		},
 		Team: TeamConfig{
-			Enabled:    false,
-			Mode:       "shared_db",
-			Visibility: "all",
-			ServerURL:  "",
+			Name:            "", // Auto-detected from username
+			ActivityLogging: true, // On by default - useful history even for solo
+			TaskClaiming:    false, // Off by default - opt-in for multi-user
+			Visibility:      "all",
+			Mode:            "local", // Local by default, shared_db for teams
+			ServerURL:       "",
 		},
 		Identity: IdentityConfig{
 			Initials:    "",
