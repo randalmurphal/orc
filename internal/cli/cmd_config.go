@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -35,6 +36,7 @@ Subcommands:
   get         Get a specific config value
   set         Set a config value
   resolution  Show full resolution chain for a key
+  edit        Open config file in $EDITOR
 
 Examples:
   orc config show                  # Show merged config as YAML
@@ -43,13 +45,16 @@ Examples:
   orc config get model --source    # Get model with source info
   orc config set model claude-sonnet-4    # Set in user config
   orc config set --project profile safe   # Set in project config
-  orc config resolution model      # Show resolution chain`,
+  orc config resolution model      # Show resolution chain
+  orc config edit                  # Open user config in $EDITOR
+  orc config edit --project        # Open project config`,
 	}
 
 	cmd.AddCommand(newConfigShowCmd())
 	cmd.AddCommand(newConfigGetCmd())
 	cmd.AddCommand(newConfigSetCmd())
 	cmd.AddCommand(newConfigResolutionCmd())
+	cmd.AddCommand(newConfigEditCmd())
 
 	return cmd
 }
@@ -116,9 +121,9 @@ Examples:
 			out := cmd.OutOrStdout()
 			if showSource {
 				source := tc.GetTrackedSource(key)
-				fmt.Fprintf(out, "%s (from %s)\n", value, source)
+				_, _ = fmt.Fprintf(out, "%s (from %s)\n", value, source)
 			} else {
-				fmt.Fprintln(out, value)
+				_, _ = fmt.Fprintln(out, value)
 			}
 
 			return nil
@@ -278,7 +283,7 @@ The winning value is marked with "← WINNER".`,
 
 				levelName := strings.ToUpper(level.String())
 				priority := levelPriority(level)
-				fmt.Fprintf(out, "  %s (%s):\n", levelName, priority)
+				_, _ = fmt.Fprintf(out, "  %s (%s):\n", levelName, priority)
 
 				for _, e := range entries {
 					status := "not set"
@@ -290,11 +295,13 @@ The winning value is marked with "← WINNER".`,
 						winner = " ← WINNER"
 					}
 
-					fmt.Fprintf(out, "    %s: %s%s\n", e.Path, status, winner)
+					// Format path based on source type
+					formattedPath := formatResolutionPath(e)
+					_, _ = fmt.Fprintf(out, "    %s: %s%s\n", formattedPath, status, winner)
 				}
 			}
 
-			fmt.Fprintf(out, "\nFinal value: %s (from %s)\n", chain.FinalValue, chain.WinningFrom)
+			_, _ = fmt.Fprintf(out, "\nFinal value: %s (from %s)\n", chain.FinalValue, chain.WinningFrom)
 
 			return nil
 		},
@@ -314,6 +321,23 @@ func levelPriority(level config.ConfigLevel) string {
 		return "lowest priority"
 	default:
 		return ""
+	}
+}
+
+// formatResolutionPath formats a resolution entry path according to the spec.
+// For runtime entries:
+//   - env vars: "env (ORC_MODEL)"
+//   - flags: "flags (--model)"
+//
+// For file-based entries, returns the path as-is.
+func formatResolutionPath(e config.ResolutionEntry) string {
+	switch e.Source {
+	case config.SourceEnv:
+		return fmt.Sprintf("env (%s)", e.Path)
+	case config.SourceFlag:
+		return fmt.Sprintf("flags (%s)", e.Path)
+	default:
+		return e.Path
 	}
 }
 
@@ -340,8 +364,94 @@ func printConfigWithSources(out io.Writer, tc *config.TrackedConfig) error {
 		}
 
 		source := tc.GetTrackedSource(path)
-		fmt.Fprintf(out, "%s = %s (%s)\n", path, value, source)
+		_, _ = fmt.Fprintf(out, "%s = %s (%s)\n", path, value, source)
 	}
 
 	return nil
+}
+
+// newConfigEditCmd creates the 'config edit' subcommand.
+func newConfigEditCmd() *cobra.Command {
+	var (
+		editProject bool
+		editShared  bool
+	)
+
+	cmd := &cobra.Command{
+		Use:   "edit",
+		Short: "Open config file in $EDITOR",
+		Long: `Open a configuration file in your default editor.
+
+By default, opens the user config (~/.orc/config.yaml).
+Use flags to specify a different target:
+
+  --project  Open .orc/config.yaml
+  --shared   Open .orc/shared/config.yaml
+
+The file will be created if it doesn't exist.
+
+Examples:
+  orc config edit              # Open user config
+  orc config edit --project    # Open project config
+  orc config edit --shared     # Open shared config`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			// Determine target file
+			var targetPath string
+
+			switch {
+			case editProject:
+				targetPath = filepath.Join(config.OrcDir, config.ConfigFileName)
+			case editShared:
+				targetPath = filepath.Join(config.OrcDir, "shared", config.ConfigFileName)
+			default:
+				// Default to user config
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return fmt.Errorf("get home directory: %w", err)
+				}
+				targetPath = filepath.Join(home, ".orc", config.ConfigFileName)
+			}
+
+			// Ensure target directory exists
+			targetDir := filepath.Dir(targetPath)
+			if err := os.MkdirAll(targetDir, 0755); err != nil {
+				return fmt.Errorf("create directory %s: %w", targetDir, err)
+			}
+
+			// Create file if it doesn't exist
+			if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+				if err := os.WriteFile(targetPath, []byte("# orc configuration\n"), 0644); err != nil {
+					return fmt.Errorf("create config file: %w", err)
+				}
+			}
+
+			// Get editor from environment
+			editor := os.Getenv("EDITOR")
+			if editor == "" {
+				editor = os.Getenv("VISUAL")
+			}
+			if editor == "" {
+				return fmt.Errorf("no editor configured: set $EDITOR or $VISUAL environment variable")
+			}
+
+			// Open editor
+			editorCmd := exec.Command(editor, targetPath)
+			editorCmd.Stdin = os.Stdin
+			editorCmd.Stdout = os.Stdout
+			editorCmd.Stderr = os.Stderr
+
+			if err := editorCmd.Run(); err != nil {
+				return fmt.Errorf("run editor: %w", err)
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().BoolVar(&editProject, "project", false, "Edit project config (.orc/config.yaml)")
+	cmd.Flags().BoolVar(&editShared, "shared", false, "Edit shared config (.orc/shared/config.yaml)")
+	cmd.MarkFlagsMutuallyExclusive("project", "shared")
+
+	return cmd
 }

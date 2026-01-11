@@ -1398,7 +1398,7 @@ func TestPublishWithFullChannel(t *testing.T) {
 	srv := New(nil)
 
 	// Create a full channel (capacity 0)
-	ch := make(chan Event, 0)
+	ch := make(chan Event)
 	srv.subscribersMu.Lock()
 	srv.subscribers["TASK-001"] = append(srv.subscribers["TASK-001"], ch)
 	srv.subscribersMu.Unlock()

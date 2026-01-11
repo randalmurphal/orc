@@ -345,7 +345,7 @@ func TestLoadFrom_NonExistent(t *testing.T) {
 	}
 	// Should return default config
 	if cfg == nil {
-		t.Error("LoadFrom() should return default config for non-existent file")
+		t.Fatal("LoadFrom() should return default config for non-existent file")
 	}
 	if cfg.Version != 1 {
 		t.Errorf("LoadFrom() default config should have Version=1, got %d", cfg.Version)

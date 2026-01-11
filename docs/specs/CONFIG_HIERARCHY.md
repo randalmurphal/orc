@@ -439,19 +439,19 @@ func (l *Loader) loadFromEnv() *Config {
 ```go
 // internal/prompt/resolver.go
 type Resolver struct {
-    userDir    string  // ~/.orc/prompts/
-    localDir   string  // .orc/local/prompts/
-    sharedDir  string  // .orc/shared/prompts/
-    projectDir string  // .orc/prompts/
-    embedded   embed.FS
+    personalDir string  // ~/.orc/prompts/
+    localDir    string  // .orc/local/prompts/
+    sharedDir   string  // .orc/shared/prompts/
+    projectDir  string  // .orc/prompts/
+    embedded    embed.FS
 }
 
 func (r *Resolver) Resolve(phase string) (content string, source Source, err error) {
     filename := phase + ".md"
 
-    // 1. User global
-    if content, err := r.readFile(r.userDir, filename); err == nil {
-        return content, SourceUserGlobal, nil
+    // 1. Personal global
+    if content, err := r.readFile(r.personalDir, filename); err == nil {
+        return content, SourcePersonalGlobal, nil
     }
 
     // 2. Project local (personal override)
@@ -477,11 +477,11 @@ func (r *Resolver) Resolve(phase string) (content string, source Source, err err
 type Source string
 
 const (
-    SourceUserGlobal    Source = "user_global"    // ~/.orc/prompts/
-    SourceProjectLocal  Source = "project_local"  // .orc/local/prompts/
-    SourceProjectShared Source = "project_shared" // .orc/shared/prompts/
-    SourceProject       Source = "project"        // .orc/prompts/
-    SourceEmbedded      Source = "embedded"       // Built-in
+    SourcePersonalGlobal Source = "personal_global" // ~/.orc/prompts/
+    SourceProjectLocal   Source = "project_local"   // .orc/local/prompts/
+    SourceProjectShared  Source = "project_shared"  // .orc/shared/prompts/
+    SourceProject        Source = "project"         // .orc/prompts/
+    SourceEmbedded       Source = "embedded"        // Built-in
 )
 ```
 

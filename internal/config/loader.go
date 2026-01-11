@@ -163,10 +163,6 @@ func mergeFromFileWithPath(tc *TrackedConfig, path string, source ConfigSource) 
 	return nil
 }
 
-// mergeFromFile merges configuration from a file (backward compat).
-func mergeFromFile(tc *TrackedConfig, path string, source ConfigSource) error {
-	return mergeFromFileWithPath(tc, path, source)
-}
 
 // mergeConfigWithPath merges fileCfg into tc.Config, tracking sources with path.
 func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]interface{}, source ConfigSource, path string) {
@@ -252,10 +248,6 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 	}
 }
 
-// mergeConfig merges fileCfg into tc.Config (backward compat wrapper).
-func mergeConfig(tc *TrackedConfig, fileCfg *Config, raw map[string]interface{}, source ConfigSource) {
-	mergeConfigWithPath(tc, fileCfg, raw, source, "")
-}
 
 func mergeGatesConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
 	if _, ok := raw["default_type"]; ok {

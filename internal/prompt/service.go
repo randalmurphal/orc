@@ -100,7 +100,7 @@ func (s *Service) List() ([]PromptInfo, error) {
 		return nil, fmt.Errorf("read embedded prompts: %w", err)
 	}
 
-	// Build map of prompts
+	// Build map of prompts from embedded
 	prompts := make(map[string]*PromptInfo)
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
@@ -108,48 +108,61 @@ func (s *Service) List() ([]PromptInfo, error) {
 		}
 		phase := strings.TrimSuffix(entry.Name(), ".md")
 
-		// Read content to extract variables
-		content, _, err := s.Resolve(phase)
+		// Use resolver to get the actual content and source
+		resolved, err := s.resolver.Resolve(phase)
 		if err != nil {
-			slog.Debug("failed to resolve prompt for variable extraction", "phase", phase, "error", err)
+			slog.Debug("failed to resolve prompt", "phase", phase, "error", err)
+			continue
 		}
-		vars := extractVariables(content)
 
 		prompts[phase] = &PromptInfo{
 			Phase:       phase,
-			Source:      SourceEmbedded,
-			HasOverride: false,
-			Variables:   vars,
+			Source:      resolved.Source,
+			HasOverride: resolved.Source != SourceEmbedded,
+			Variables:   extractVariables(resolved.Content),
 		}
 	}
 
-	// Check for project overrides
-	projectDir := s.projectPromptsDir()
-	if entries, err := os.ReadDir(projectDir); err == nil {
-		for _, entry := range entries {
+	// Also scan all override directories for custom prompts not in embedded
+	overrideDirs := []struct {
+		dir    string
+		source Source
+	}{
+		{s.resolver.personalDir, SourcePersonalGlobal},
+		{s.resolver.localDir, SourceProjectLocal},
+		{s.resolver.sharedDir, SourceProjectShared},
+		{s.resolver.projectDir, SourceProject},
+	}
+
+	for _, od := range overrideDirs {
+		if od.dir == "" {
+			continue
+		}
+		dirEntries, err := os.ReadDir(od.dir)
+		if err != nil {
+			continue // Directory doesn't exist, skip
+		}
+		for _, entry := range dirEntries {
 			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
 				continue
 			}
 			phase := strings.TrimSuffix(entry.Name(), ".md")
-
-			// Read content to extract variables
-			content, err := os.ReadFile(filepath.Join(projectDir, entry.Name()))
-			vars := []string{}
-			if err == nil {
-				vars = extractVariables(string(content))
+			if _, exists := prompts[phase]; exists {
+				continue // Already have this prompt from higher priority source
 			}
 
-			if info, exists := prompts[phase]; exists {
-				info.HasOverride = true
-				info.Source = SourceProject
-				info.Variables = vars
-			} else {
-				prompts[phase] = &PromptInfo{
-					Phase:       phase,
-					Source:      SourceProject,
-					HasOverride: true,
-					Variables:   vars,
-				}
+			// Resolve to get actual source (may be higher priority than this dir)
+			resolved, err := s.resolver.Resolve(phase)
+			if err != nil {
+				slog.Debug("failed to resolve custom prompt", "phase", phase, "error", err)
+				continue
+			}
+
+			prompts[phase] = &PromptInfo{
+				Phase:       phase,
+				Source:      resolved.Source,
+				HasOverride: true, // Custom prompt = always an override
+				Variables:   extractVariables(resolved.Content),
 			}
 		}
 	}
@@ -221,11 +234,14 @@ func (s *Service) Delete(phase string) error {
 	return nil
 }
 
-// HasOverride checks if a project override exists for a phase.
+// HasOverride checks if an override exists for a phase in any source.
+// Returns true if the prompt is overridden in personal, local, shared, or project directories.
 func (s *Service) HasOverride(phase string) bool {
-	path := s.projectPromptPath(phase)
-	_, err := os.Stat(path)
-	return err == nil
+	resolved, err := s.resolver.Resolve(phase)
+	if err != nil {
+		return false
+	}
+	return resolved.Source != SourceEmbedded
 }
 
 // GetVariableReference returns documentation for available template variables.

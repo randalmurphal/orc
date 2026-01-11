@@ -3,6 +3,7 @@ package prompt
 import (
 	"bufio"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,9 +87,19 @@ func NewResolver(opts ...ResolverOption) *Resolver {
 
 // NewResolverFromOrcDir creates a Resolver configured for a project.
 func NewResolverFromOrcDir(orcDir string) *Resolver {
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		slog.Warn("could not determine home directory", "error", err)
+		homeDir = ""
+	}
+
+	var personalDir string
+	if homeDir != "" {
+		personalDir = filepath.Join(homeDir, ".orc", "prompts")
+	}
+
 	return NewResolver(
-		WithPersonalDir(filepath.Join(homeDir, ".orc", "prompts")),
+		WithPersonalDir(personalDir),
 		WithLocalDir(filepath.Join(orcDir, "local", "prompts")),
 		WithSharedDir(filepath.Join(orcDir, "shared", "prompts")),
 		WithProjectDir(filepath.Join(orcDir, "prompts")),
@@ -306,7 +317,9 @@ func parseFrontmatter(content string) (PromptMeta, string) {
 
 	// Parse YAML frontmatter
 	if frontmatterClosed {
-		_ = yaml.Unmarshal([]byte(frontmatter.String()), &meta)
+		if err := yaml.Unmarshal([]byte(frontmatter.String()), &meta); err != nil {
+			slog.Warn("invalid frontmatter YAML", "error", err)
+		}
 		return meta, strings.TrimSpace(body.String())
 	}
 
