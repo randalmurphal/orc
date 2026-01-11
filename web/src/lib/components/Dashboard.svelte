@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { getDashboardStats, listTasks, type DashboardStats } from '$lib/api';
 	import { getWebSocket, type WSEvent, type ConnectionStatus } from '$lib/websocket';
-	import { toast } from '$lib/stores/toast';
+	import { toast } from '$lib/stores/toast.svelte';
 	import type { Task } from '$lib/types';
 	import {
 		DashboardStats as StatsSection,

@@ -33,11 +33,11 @@ export async function get_hooks() {
 	let handleError;
 	let handleValidationError;
 	let init;
-	
+
 
 	let reroute;
 	let transport;
-	
+
 
 	return {
 		handle,

@@ -21,7 +21,7 @@
 	import Modal from '$lib/components/overlays/Modal.svelte';
 	import { currentProjectId, currentProject } from '$lib/stores/project';
 	import { setupTaskListShortcuts, getShortcutManager } from '$lib/shortcuts';
-	import { toast } from '$lib/stores/toast';
+	import { toast } from '$lib/stores/toast.svelte';
 
 	let tasks = $state<Task[]>([]);
 	let loading = $state(true);
