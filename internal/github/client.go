@@ -429,9 +429,7 @@ func (c *Client) MergePR(ctx context.Context, number int, opts PRMergeOptions) e
 		args = append(args, "--subject", opts.CommitTitle)
 	}
 
-	// Auto-confirm the merge
-	args = append(args, "--yes")
-
+	// gh pr merge doesn't need --yes flag - it auto-confirms when not in TTY
 	_, err := c.runGH(ctx, args...)
 	return err
 }

@@ -102,12 +102,13 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 
 	// Initial state with retry context if applicable
 	initialState := PhaseState{
-		TaskID:       t.ID,
-		TaskTitle:    t.Title,
-		Phase:        p.ID,
-		Weight:       string(t.Weight),
-		Iteration:    0,
-		RetryContext: LoadRetryContextForPhase(s),
+		TaskID:          t.ID,
+		TaskTitle:       t.Title,
+		TaskDescription: t.Description,
+		Phase:           p.ID,
+		Weight:          string(t.Weight),
+		Iteration:       0,
+		RetryContext:    LoadRetryContextForPhase(s),
 	}
 
 	// Run with checkpointing if enabled

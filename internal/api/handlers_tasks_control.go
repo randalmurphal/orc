@@ -14,6 +14,14 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// truncate truncates a string for logging purposes.
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
 // handleRunTask starts task execution.
 func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -22,6 +30,14 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
+
+	// Debug: log task fields to trace description injection
+	s.logger.Debug("handleRunTask: task loaded",
+		"task_id", t.ID,
+		"title", t.Title,
+		"description_len", len(t.Description),
+		"description_preview", truncate(t.Description, 100),
+	)
 
 	if !t.CanRun() {
 		s.jsonError(w, fmt.Sprintf("task cannot run in status: %s", t.Status), http.StatusBadRequest)
