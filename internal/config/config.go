@@ -209,6 +209,48 @@ type TaskIDConfig struct {
 	PrefixSource string `yaml:"prefix_source"`
 }
 
+// TestCommands defines test commands for different test types.
+type TestCommands struct {
+	// Unit is the command to run unit tests (default: "go test ./...")
+	Unit string `yaml:"unit"`
+	// Integration is the command to run integration tests
+	Integration string `yaml:"integration"`
+	// E2E is the command to run E2E tests
+	E2E string `yaml:"e2e"`
+	// Coverage is the command to generate coverage report
+	Coverage string `yaml:"coverage"`
+}
+
+// TestingConfig defines test execution configuration.
+type TestingConfig struct {
+	// Required enforces that tests must pass (default: true)
+	Required bool `yaml:"required"`
+	// CoverageThreshold is the minimum coverage percentage required (0 = no threshold)
+	CoverageThreshold int `yaml:"coverage_threshold"`
+	// Types specifies which test types to run (unit, integration, e2e)
+	Types []string `yaml:"types,omitempty"`
+	// SkipForWeights skips testing for these task weights
+	SkipForWeights []string `yaml:"skip_for_weights,omitempty"`
+	// Commands defines test commands for different test types
+	Commands TestCommands `yaml:"commands"`
+	// ParseOutput enables structured parsing of test output for retry context
+	ParseOutput bool `yaml:"parse_output"`
+}
+
+// DocumentationConfig defines documentation phase configuration.
+type DocumentationConfig struct {
+	// Enabled enables the docs phase (default: true)
+	Enabled bool `yaml:"enabled"`
+	// AutoUpdateClaudeMD enables auto-updating CLAUDE.md sections (default: true)
+	AutoUpdateClaudeMD bool `yaml:"auto_update_claudemd"`
+	// UpdateOn specifies when to run docs phase (feature, api_change, schema_change)
+	UpdateOn []string `yaml:"update_on,omitempty"`
+	// SkipForWeights skips docs for these task weights
+	SkipForWeights []string `yaml:"skip_for_weights,omitempty"`
+	// Sections specifies which auto-sections to maintain
+	Sections []string `yaml:"sections,omitempty"`
+}
+
 // Config represents the orc configuration.
 type Config struct {
 	// Version is the config file version
@@ -249,6 +291,12 @@ type Config struct {
 
 	// Task ID generation settings
 	TaskID TaskIDConfig `yaml:"task_id"`
+
+	// Testing configuration
+	Testing TestingConfig `yaml:"testing"`
+
+	// Documentation configuration
+	Documentation DocumentationConfig `yaml:"documentation"`
 
 	// Model settings
 	Model         string `yaml:"model"`
@@ -382,7 +430,27 @@ func Default() *Config {
 			Mode:         "solo",
 			PrefixSource: "initials",
 		},
-		Model:                      "claude-opus-4-5-20251101",
+		Testing: TestingConfig{
+			Required:          true,
+			CoverageThreshold: 0, // No threshold by default
+			Types:             []string{"unit"},
+			SkipForWeights:    []string{"trivial"},
+			Commands: TestCommands{
+				Unit:        "go test ./...",
+				Integration: "go test -tags=integration ./...",
+				E2E:         "make e2e",
+				Coverage:    "go test -coverprofile=coverage.out ./...",
+			},
+			ParseOutput: true,
+		},
+		Documentation: DocumentationConfig{
+			Enabled:            true,
+			AutoUpdateClaudeMD: true,
+			UpdateOn:           []string{"feature", "api_change"},
+			SkipForWeights:     []string{"trivial"},
+			Sections:           []string{"api-endpoints", "commands", "config-options"},
+		},
+		Model: "claude-opus-4-5-20251101",
 		MaxIterations:              30,
 		Timeout:                    10 * time.Minute,
 		BranchPrefix:               "orc/",
