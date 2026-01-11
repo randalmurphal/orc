@@ -419,3 +419,197 @@ ok  	example.com/math	(1.234s)`
 		t.Errorf("Duration = %v, want >= 1s", result.Duration)
 	}
 }
+
+func TestValidateTestResults(t *testing.T) {
+	tests := []struct {
+		name              string
+		result            *ParsedTestResult
+		coverageThreshold int
+		required          bool
+		wantValid         bool
+		wantReason        string
+	}{
+		{
+			name:              "nil result not required",
+			result:            nil,
+			coverageThreshold: 0,
+			required:          false,
+			wantValid:         true,
+		},
+		{
+			name:              "nil result required",
+			result:            nil,
+			coverageThreshold: 0,
+			required:          true,
+			wantValid:         false,
+			wantReason:        "no test results found",
+		},
+		{
+			name: "tests failed",
+			result: &ParsedTestResult{
+				Failed: 2,
+				Passed: 5,
+			},
+			coverageThreshold: 0,
+			required:          true,
+			wantValid:         false,
+			wantReason:        "tests failed",
+		},
+		{
+			name: "coverage below threshold",
+			result: &ParsedTestResult{
+				Passed:   10,
+				Coverage: 65.0,
+			},
+			coverageThreshold: 80,
+			required:          true,
+			wantValid:         false,
+			wantReason:        "coverage below threshold",
+		},
+		{
+			name: "all passing with coverage",
+			result: &ParsedTestResult{
+				Passed:   10,
+				Coverage: 85.0,
+			},
+			coverageThreshold: 80,
+			required:          true,
+			wantValid:         true,
+		},
+		{
+			name: "no coverage threshold",
+			result: &ParsedTestResult{
+				Passed:   10,
+				Coverage: 50.0,
+			},
+			coverageThreshold: 0,
+			required:          true,
+			wantValid:         true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ValidateTestResults(tt.result, tt.coverageThreshold, tt.required)
+
+			if got.Valid != tt.wantValid {
+				t.Errorf("Valid = %v, want %v", got.Valid, tt.wantValid)
+			}
+			if got.Reason != tt.wantReason {
+				t.Errorf("Reason = %v, want %v", got.Reason, tt.wantReason)
+			}
+		})
+	}
+}
+
+func TestCheckCoverageThreshold(t *testing.T) {
+	tests := []struct {
+		name      string
+		coverage  float64
+		threshold int
+		wantPass  bool
+	}{
+		{
+			name:      "no threshold",
+			coverage:  50.0,
+			threshold: 0,
+			wantPass:  true,
+		},
+		{
+			name:      "meets threshold",
+			coverage:  85.0,
+			threshold: 80,
+			wantPass:  true,
+		},
+		{
+			name:      "exactly at threshold",
+			coverage:  80.0,
+			threshold: 80,
+			wantPass:  true,
+		},
+		{
+			name:      "below threshold",
+			coverage:  75.0,
+			threshold: 80,
+			wantPass:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pass, _ := CheckCoverageThreshold(tt.coverage, tt.threshold)
+			if pass != tt.wantPass {
+				t.Errorf("CheckCoverageThreshold() = %v, want %v", pass, tt.wantPass)
+			}
+		})
+	}
+}
+
+func TestShouldSkipTestPhase(t *testing.T) {
+	tests := []struct {
+		name           string
+		weight         string
+		skipForWeights []string
+		wantSkip       bool
+	}{
+		{
+			name:           "skip trivial",
+			weight:         "trivial",
+			skipForWeights: []string{"trivial"},
+			wantSkip:       true,
+		},
+		{
+			name:           "don't skip medium",
+			weight:         "medium",
+			skipForWeights: []string{"trivial"},
+			wantSkip:       false,
+		},
+		{
+			name:           "empty skip list",
+			weight:         "trivial",
+			skipForWeights: []string{},
+			wantSkip:       false,
+		},
+		{
+			name:           "multiple in skip list",
+			weight:         "small",
+			skipForWeights: []string{"trivial", "small"},
+			wantSkip:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ShouldSkipTestPhase(tt.weight, tt.skipForWeights)
+			if got != tt.wantSkip {
+				t.Errorf("ShouldSkipTestPhase() = %v, want %v", got, tt.wantSkip)
+			}
+		})
+	}
+}
+
+func TestBuildCoverageRetryContext(t *testing.T) {
+	result := &ParsedTestResult{
+		Framework: "go",
+		Passed:    10,
+		Failed:    0,
+		Skipped:   2,
+	}
+
+	ctx := BuildCoverageRetryContext(65.0, 80, result)
+
+	wantContains := []string{
+		"Coverage Below Threshold",
+		"65.0%",
+		"80%",
+		"Framework: go",
+		"Passed: 10",
+		"Skipped: 2",
+	}
+
+	for _, want := range wantContains {
+		if !containsString(ctx, want) {
+			t.Errorf("BuildCoverageRetryContext() missing %q", want)
+		}
+	}
+}

@@ -496,3 +496,119 @@ func BuildTestRetryContext(phase string, result *ParsedTestResult) string {
 
 	return b.String()
 }
+
+// TestValidationResult represents the outcome of validating test results.
+type TestValidationResult struct {
+	// Valid indicates if the test results meet requirements
+	Valid bool `json:"valid"`
+	// Reason explains why validation failed (if !Valid)
+	Reason string `json:"reason,omitempty"`
+	// Details contains additional information
+	Details map[string]any `json:"details,omitempty"`
+}
+
+// ValidateTestResults checks if test results meet the configured requirements.
+func ValidateTestResults(result *ParsedTestResult, coverageThreshold int, required bool) *TestValidationResult {
+	if result == nil {
+		if required {
+			return &TestValidationResult{
+				Valid:  false,
+				Reason: "no test results found",
+			}
+		}
+		return &TestValidationResult{Valid: true}
+	}
+
+	// Check for failures
+	if result.Failed > 0 {
+		return &TestValidationResult{
+			Valid:  false,
+			Reason: "tests failed",
+			Details: map[string]any{
+				"failed":    result.Failed,
+				"passed":    result.Passed,
+				"failures":  result.Failures,
+				"framework": result.Framework,
+			},
+		}
+	}
+
+	// Check coverage threshold
+	if coverageThreshold > 0 && result.Coverage < float64(coverageThreshold) {
+		return &TestValidationResult{
+			Valid:  false,
+			Reason: "coverage below threshold",
+			Details: map[string]any{
+				"coverage":   result.Coverage,
+				"threshold":  coverageThreshold,
+				"difference": float64(coverageThreshold) - result.Coverage,
+			},
+		}
+	}
+
+	// All checks passed
+	return &TestValidationResult{
+		Valid: true,
+		Details: map[string]any{
+			"passed":    result.Passed,
+			"coverage":  result.Coverage,
+			"framework": result.Framework,
+		},
+	}
+}
+
+// CheckCoverageThreshold checks if coverage meets the required threshold.
+func CheckCoverageThreshold(coverage float64, threshold int) (bool, string) {
+	if threshold <= 0 {
+		return true, ""
+	}
+
+	if coverage < float64(threshold) {
+		return false, "coverage " + strconv.FormatFloat(coverage, 'f', 1, 64) +
+			"% below threshold " + strconv.Itoa(threshold) + "%"
+	}
+
+	return true, ""
+}
+
+// ShouldSkipTestPhase checks if the test phase should be skipped for a given weight.
+func ShouldSkipTestPhase(weight string, skipForWeights []string) bool {
+	for _, skip := range skipForWeights {
+		if weight == skip {
+			return true
+		}
+	}
+	return false
+}
+
+// BuildCoverageRetryContext builds retry context specifically for coverage failures.
+func BuildCoverageRetryContext(coverage float64, threshold int, result *ParsedTestResult) string {
+	var b strings.Builder
+
+	b.WriteString("## Coverage Below Threshold\n\n")
+	b.WriteString("Current coverage: ")
+	b.WriteString(strconv.FormatFloat(coverage, 'f', 1, 64))
+	b.WriteString("%\n")
+	b.WriteString("Required threshold: ")
+	b.WriteString(strconv.Itoa(threshold))
+	b.WriteString("%\n\n")
+	b.WriteString("Please add more tests to increase code coverage.\n\n")
+
+	if result != nil {
+		b.WriteString("### Test Summary\n\n")
+		b.WriteString("- Framework: ")
+		b.WriteString(result.Framework)
+		b.WriteString("\n")
+		b.WriteString("- Passed: ")
+		b.WriteString(strconv.Itoa(result.Passed))
+		b.WriteString("\n")
+		b.WriteString("- Failed: ")
+		b.WriteString(strconv.Itoa(result.Failed))
+		b.WriteString("\n")
+		b.WriteString("- Skipped: ")
+		b.WriteString(strconv.Itoa(result.Skipped))
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
