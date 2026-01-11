@@ -157,6 +157,12 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 	if len(e.config.DisallowedTools) > 0 {
 		worktreeClientOpts = append(worktreeClientOpts, claude.WithDisallowedTools(e.config.DisallowedTools))
 	}
+	// Inject token from pool if configured
+	if e.tokenPool != nil {
+		if token := e.tokenPool.Token(); token != "" {
+			worktreeClientOpts = append(worktreeClientOpts, claude.WithEnvVar("CLAUDE_CODE_OAUTH_TOKEN", token))
+		}
+	}
 	e.client = claude.NewClaudeCLI(worktreeClientOpts...)
 	e.logger.Info("claude client configured for worktree", "path", worktreePath)
 

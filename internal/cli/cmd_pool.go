@@ -168,7 +168,6 @@ func newPoolAddCmd() *cobra.Command {
 			}
 
 			fmt.Printf("\nSuccessfully added account '%s' to the pool\n", name)
-			fmt.Printf("Token: %s...\n", account.AccessToken[:20])
 
 			return nil
 		},
@@ -197,8 +196,8 @@ func newPoolListCmd() *cobra.Command {
 			}
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tNAME\tENABLED\tTOKEN")
-			fmt.Fprintln(w, "--\t----\t-------\t-----")
+			fmt.Fprintln(w, "ID\tNAME\tENABLED")
+			fmt.Fprintln(w, "--\t----\t-------")
 
 			current := pool.Current()
 			for _, acc := range accounts {
@@ -206,11 +205,7 @@ func newPoolListCmd() *cobra.Command {
 				if current != nil && acc.ID == current.ID {
 					marker = "*"
 				}
-				tokenPreview := ""
-				if len(acc.AccessToken) > 15 {
-					tokenPreview = acc.AccessToken[:15] + "..."
-				}
-				fmt.Fprintf(w, "%s%s\t%s\t%v\t%s\n", marker, acc.ID, acc.Name, acc.Enabled, tokenPreview)
+				fmt.Fprintf(w, "%s%s\t%s\t%v\n", marker, acc.ID, acc.Name, acc.Enabled)
 			}
 			w.Flush()
 
