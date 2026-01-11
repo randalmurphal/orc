@@ -239,7 +239,9 @@ func TestConfigSetCmd_WritesToShared(t *testing.T) {
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	sharedDir := filepath.Join(orcDir, "shared")
-	os.MkdirAll(sharedDir, 0755)
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatalf("create shared dir: %v", err)
+	}
 
 	oldWd, _ := os.Getwd()
 	defer os.Chdir(oldWd)
@@ -272,11 +274,15 @@ func TestConfigResolutionCmd_ShowsAllLevels(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
 
 	configContent := `model: project-model
 `
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644)
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
 
 	oldWd, _ := os.Getwd()
 	defer os.Chdir(oldWd)
