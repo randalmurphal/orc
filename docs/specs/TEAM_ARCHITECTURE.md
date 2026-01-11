@@ -426,47 +426,71 @@ type Presence struct {
 
 ---
 
-## Task Locking
+## Execution Isolation
 
-### Problem
-Two developers shouldn't run the same task simultaneously.
+### Design Philosophy
 
-### Solution: Advisory Locks
+**No cross-user locking.** Multiple developers CAN run the same task - each gets isolated execution:
+
+| Mode | Branch Naming | Worktree |
+|------|---------------|----------|
+| Solo | `orc/TASK-001` | `.orc/worktrees/TASK-001/` |
+| P2P | `orc/TASK-AM-001-bj` | `.orc/worktrees/TASK-AM-001-bj/` |
+| Team | Same as P2P + server visibility | Same as P2P |
+
+### Same-User Protection (PID Guard)
+
+Only protection is preventing same user from running same task twice:
 
 ```go
-type TaskLock struct {
-    TaskID    string    `json:"task_id"`
-    Owner     string    `json:"owner"`     // user_id
-    Machine   string    `json:"machine"`   // hostname
-    Acquired  time.Time `json:"acquired"`
-    Heartbeat time.Time `json:"heartbeat"`
-    TTL       Duration  `json:"ttl"`       // 60s default
+type PIDGuard struct {
+    worktreePath string
+}
+
+func (g *PIDGuard) Check() error {
+    pidFile := filepath.Join(g.worktreePath, ".orc.pid")
+    data, err := os.ReadFile(pidFile)
+    if err != nil {
+        return nil // No PID file, good to go
+    }
+
+    pid, _ := strconv.Atoi(strings.TrimSpace(string(data)))
+    if processExists(pid) {
+        return fmt.Errorf("already running (pid %d)", pid)
+    }
+    os.Remove(pidFile) // Stale PID, clean it up
+    return nil
 }
 ```
 
-### Lock Flow
+### Execution Flow
 
 ```
 1. orc run TASK-001
-2. Check .orc/tasks/TASK-001/lock.yaml (or server)
-3. If locked by another:
-   - Show: "Task locked by alice@laptop (running for 5m)"
-   - Options: [Wait] [Force unlock] [Cancel]
-4. If unlocked or stale (heartbeat > TTL):
-   - Acquire lock
-   - Start heartbeat goroutine
-   - Execute task
-5. On completion/exit:
-   - Release lock
+2. Determine executor tag (P2P/Team only)
+3. Compute branch/worktree names
+4. Check for existing branches (warn about potential redundant work)
+5. Create worktree if not exists
+6. PID guard: ensure not already running locally
+7. Execute task in worktree
+8. On completion: optionally cleanup worktree
 ```
 
-### Tier-Specific Implementation
+### Redundant Work Prevention
 
-| Tier | Lock Storage | Coordination |
-|------|--------------|--------------|
-| Solo | `.orc/tasks/<id>/lock.yaml` | Local file |
-| P2P | `.orc/tasks/<id>/lock.yaml` + git push | Git-based |
-| Team | Server-side lock table | WebSocket + TTL |
+Before creating a new branch, orc checks for existing work and warns (but doesn't block):
+
+- **Merged branch exists**: "You may be duplicating completed work"
+- **Active branch by someone else**: "Someone else is working on this task"
+- **User can**: View what was done, join existing branch, fork own, or cancel
+
+### Tier-Specific Behavior
+
+| Tier | Isolation | Visibility |
+|------|-----------|------------|
+| Solo | Single worktree per task | Local only |
+| P2P | Worktree per user (executor tag) | Git branches |
+| Team | Same as P2P | Real-time server notifications |
 
 ---
 

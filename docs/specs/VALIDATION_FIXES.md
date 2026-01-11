@@ -779,6 +779,8 @@ Each fix must include:
 3. **Migration tests** for existing users
 4. **E2E tests** for critical paths (token storage, CSRF)
 
+### Security Tests
+
 ```go
 // Example: Token storage migration test
 func TestTokenPoolMigration(t *testing.T) {
@@ -804,5 +806,379 @@ accounts:
     newFormat := readFile("~/.orc/token-pool/pool.yaml")
     assert.NotContains(t, newFormat, "sk-ant-oat01")
     assert.Contains(t, newFormat, "version: 2")
+}
+```
+
+---
+
+## UX Validation Tests
+
+The following tests verify the UX fixes from reviewer feedback.
+
+### Test: Zero-Friction Onboarding
+
+```go
+func TestP2POnboarding(t *testing.T) {
+    dir := t.TempDir()
+
+    // First user creates P2P structure
+    cmd := exec.Command("orc", "init", "--p2p")
+    cmd.Dir = dir
+    cmd.Stdin = strings.NewReader("AM\nAlice Martinez\n")  // Interactive input
+
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Verify structure created
+    assert.DirExists(t, filepath.Join(dir, ".orc", "shared"))
+    assert.FileExists(t, filepath.Join(dir, ".orc", "shared", "config.yaml"))
+    assert.FileExists(t, filepath.Join(dir, ".orc", "shared", "team.yaml"))
+
+    // Verify team.yaml has user
+    teamYAML, _ := os.ReadFile(filepath.Join(dir, ".orc", "shared", "team.yaml"))
+    assert.Contains(t, string(teamYAML), "AM:")
+    assert.Contains(t, string(teamYAML), "Alice Martinez")
+
+    // Verify output is friendly
+    assert.Contains(t, string(output), "✓ Created .orc/shared/")
+    assert.Contains(t, string(output), "✓ Added you to team.yaml")
+}
+
+func TestP2POnboardingSecondUser(t *testing.T) {
+    dir := setupExistingP2PProject(t)
+
+    // Second user joins existing project
+    cmd := exec.Command("orc", "init")
+    cmd.Dir = dir
+    cmd.Stdin = strings.NewReader("BJ\nBob Johnson\n")
+
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Verify auto-detected P2P mode
+    assert.Contains(t, string(output), "P2P mode detected")
+
+    // Verify user added to team.yaml
+    teamYAML, _ := os.ReadFile(filepath.Join(dir, ".orc", "shared", "team.yaml"))
+    assert.Contains(t, string(teamYAML), "BJ:")
+}
+
+func TestDuplicateInitialsRejected(t *testing.T) {
+    dir := setupExistingP2PProject(t)  // Has "AM" registered
+
+    cmd := exec.Command("orc", "init")
+    cmd.Dir = dir
+    cmd.Stdin = strings.NewReader("AM\n")  // Try to use existing initials
+
+    output, err := cmd.CombinedOutput()
+    // Should not error, but should prompt for different initials
+    assert.Contains(t, string(output), "already registered")
+}
+```
+
+### Test: Redundant Work Warning
+
+```go
+func TestWarningForMergedBranch(t *testing.T) {
+    dir := setupP2PProjectWithMergedBranch(t, "TASK-AM-001")
+
+    cmd := exec.Command("orc", "run", "TASK-AM-001")
+    cmd.Dir = dir
+    cmd.Stdin = strings.NewReader("3\n")  // Cancel
+
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Verify warning shown
+    assert.Contains(t, string(output), "merged to main")
+    assert.Contains(t, string(output), "duplicating completed work")
+    assert.Contains(t, string(output), "View what was done")
+    assert.Contains(t, string(output), "Continue anyway")
+    assert.Contains(t, string(output), "Cancel")
+}
+
+func TestWarningForActiveRemoteBranch(t *testing.T) {
+    dir := setupP2PProjectWithRemoteBranch(t, "TASK-AM-001", "am")
+
+    // Different user tries to run
+    setIdentity(dir, "bj")
+    cmd := exec.Command("orc", "run", "TASK-AM-001")
+    cmd.Dir = dir
+    cmd.Stdin = strings.NewReader("3\n")  // Cancel
+
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    assert.Contains(t, string(output), "Someone else is working")
+    assert.Contains(t, string(output), "Join Alice's branch")
+    assert.Contains(t, string(output), "Fork your own")
+}
+
+func TestNoWarningForOwnBranch(t *testing.T) {
+    dir := setupP2PProjectWithRemoteBranch(t, "TASK-AM-001", "am")
+
+    // Same user runs again
+    setIdentity(dir, "am")
+    cmd := exec.Command("orc", "run", "TASK-AM-001")
+    cmd.Dir = dir
+
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Should NOT show warning for own branch
+    assert.NotContains(t, string(output), "Someone else is working")
+}
+```
+
+### Test: Crash Recovery UX
+
+```go
+func TestCrashRecoveryPrompt(t *testing.T) {
+    dir := setupProjectWithOrphanedWorktree(t, "TASK-001")
+
+    cmd := exec.Command("orc", "run", "TASK-001")
+    cmd.Dir = dir
+    cmd.Stdin = strings.NewReader("4\n")  // Cancel
+
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Verify detailed state shown
+    assert.Contains(t, string(output), "Worktree exists")
+    assert.Contains(t, string(output), "No active process")
+    assert.Contains(t, string(output), "Last checkpoint:")
+    assert.Contains(t, string(output), "Phase:")
+    assert.Contains(t, string(output), "iteration")
+    assert.Contains(t, string(output), "files modified")
+
+    // Verify options shown
+    assert.Contains(t, string(output), "Resume from checkpoint")
+    assert.Contains(t, string(output), "Inspect worktree")
+    assert.Contains(t, string(output), "Clean up and restart")
+    assert.Contains(t, string(output), "Cancel")
+}
+
+func TestGarbageCollection(t *testing.T) {
+    dir := t.TempDir()
+    worktreesDir := filepath.Join(dir, ".orc", "worktrees")
+
+    // Create orphaned worktree (no PID)
+    orphaned := filepath.Join(worktreesDir, "TASK-001")
+    os.MkdirAll(orphaned, 0755)
+
+    // Create active worktree (with current PID)
+    active := filepath.Join(worktreesDir, "TASK-002")
+    os.MkdirAll(active, 0755)
+    os.WriteFile(filepath.Join(active, ".orc.pid"),
+        []byte(strconv.Itoa(os.Getpid())), 0644)
+
+    cmd := exec.Command("orc", "gc")
+    cmd.Dir = dir
+    cmd.Stdin = strings.NewReader("y\n")
+
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    assert.Contains(t, string(output), "orphaned")
+    assert.Contains(t, string(output), "TASK-001")
+    assert.NotContains(t, string(output), "TASK-002")  // Active, not listed
+    assert.DirExists(t, active)
+    assert.NoDirExists(t, orphaned)
+}
+
+func TestGarbageCollectionDryRun(t *testing.T) {
+    dir := setupProjectWithOrphanedWorktree(t, "TASK-001")
+
+    cmd := exec.Command("orc", "gc", "--dry-run")
+    cmd.Dir = dir
+
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Shows what would be cleaned
+    assert.Contains(t, string(output), "TASK-001")
+
+    // But doesn't actually remove
+    assert.DirExists(t, filepath.Join(dir, ".orc", "worktrees", "TASK-001"))
+}
+```
+
+### Test: Solo Mode Guarantees
+
+```go
+func TestSoloModeNoIdentityRequired(t *testing.T) {
+    dir := t.TempDir()
+
+    // Init without --p2p (solo mode)
+    cmd := exec.Command("orc", "init")
+    cmd.Dir = dir
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Should NOT prompt for initials
+    assert.NotContains(t, string(output), "initials")
+
+    // No shared directory created
+    assert.NoDirExists(t, filepath.Join(dir, ".orc", "shared"))
+}
+
+func TestSoloModeSimpleTaskIDs(t *testing.T) {
+    dir := setupSoloProject(t)
+
+    cmd := exec.Command("orc", "new", "Test task")
+    cmd.Dir = dir
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Simple ID without prefix
+    assert.Contains(t, string(output), "TASK-001")
+    assert.NotContains(t, string(output), "TASK-AM-")
+}
+
+func TestSoloModeNoRemoteFetch(t *testing.T) {
+    dir := setupSoloProject(t)
+
+    cmd := exec.Command("orc", "list")
+    cmd.Dir = dir
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Should NOT attempt to fetch remote
+    assert.NotContains(t, string(output), "Fetching")
+}
+```
+
+### Test: Team Visibility
+
+```go
+func TestP2PListShowsTeamByDefault(t *testing.T) {
+    dir := setupP2PProjectWithRemoteTasks(t)
+
+    cmd := exec.Command("orc", "list")
+    cmd.Dir = dir
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Shows remote indicator
+    assert.Contains(t, string(output), "Fetching")
+
+    // Shows both local and remote tasks
+    assert.Contains(t, string(output), "TASK-AM-001")
+    assert.Contains(t, string(output), "TASK-BJ-001")  // Remote task
+}
+
+func TestP2PListLocalFlag(t *testing.T) {
+    dir := setupP2PProjectWithRemoteTasks(t)
+
+    cmd := exec.Command("orc", "list", "--local")
+    cmd.Dir = dir
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Should NOT fetch remote
+    assert.NotContains(t, string(output), "Fetching")
+
+    // Shows only local tasks
+    assert.Contains(t, string(output), "TASK-AM-001")
+    assert.NotContains(t, string(output), "TASK-BJ-001")
+}
+
+func TestListVisualIndicators(t *testing.T) {
+    dir := setupP2PProjectWithMixedTasks(t)
+
+    cmd := exec.Command("orc", "list")
+    cmd.Dir = dir
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Check indicators
+    assert.Contains(t, string(output), "(you)")
+    assert.Contains(t, string(output), "← remote")
+}
+```
+
+### Test: Config Within-Level Order
+
+```go
+func TestConfigWithinLevelOrder(t *testing.T) {
+    dir := t.TempDir()
+
+    // Setup config at multiple levels within same category
+    userDir := filepath.Join(dir, ".orc")
+    projectDir := filepath.Join(dir, "project", ".orc")
+    localDir := filepath.Join(projectDir, "local")
+    sharedDir := filepath.Join(projectDir, "shared")
+
+    os.MkdirAll(userDir, 0755)
+    os.MkdirAll(localDir, 0755)
+    os.MkdirAll(sharedDir, 0755)
+
+    // User global
+    writeYAML(filepath.Join(userDir, "config.yaml"), map[string]any{
+        "model": "user-global-model",
+    })
+
+    // Project local (should win over user global)
+    writeYAML(filepath.Join(localDir, "config.yaml"), map[string]any{
+        "model": "project-local-model",
+    })
+
+    // Shared team (lower priority)
+    writeYAML(filepath.Join(sharedDir, "config.yaml"), map[string]any{
+        "model": "shared-model",
+    })
+
+    // Load and verify
+    cfg := loadConfig(dir, filepath.Join(dir, "project"))
+    assert.Equal(t, "project-local-model", cfg.Model)  // Local wins
+}
+
+func TestConfigResolutionCommand(t *testing.T) {
+    dir := setupMultiLevelConfig(t)
+
+    cmd := exec.Command("orc", "config", "resolution", "model")
+    cmd.Dir = dir
+    output, err := cmd.CombinedOutput()
+    require.NoError(t, err)
+
+    // Shows full chain
+    assert.Contains(t, string(output), "Level 1 - Runtime")
+    assert.Contains(t, string(output), "Level 2 - Personal")
+    assert.Contains(t, string(output), "Level 3 - Shared")
+    assert.Contains(t, string(output), "Level 4 - Defaults")
+    assert.Contains(t, string(output), "FINAL:")
+}
+```
+
+### Test: Error Messages
+
+```go
+func TestIdentityRequiredError(t *testing.T) {
+    dir := setupP2PProject(t)
+
+    // Don't set identity
+    cmd := exec.Command("orc", "run", "TASK-001")
+    cmd.Dir = dir
+    output, err := cmd.CombinedOutput()
+
+    // Should fail with helpful message
+    assert.Error(t, err)
+    assert.Contains(t, string(output), "identity.initials required")
+    assert.Contains(t, string(output), "orc config set identity.initials")
+}
+
+func TestAlreadyRunningError(t *testing.T) {
+    dir := setupProjectWithRunningTask(t, "TASK-001")
+
+    cmd := exec.Command("orc", "run", "TASK-001")
+    cmd.Dir = dir
+    output, err := cmd.CombinedOutput()
+
+    assert.Error(t, err)
+    assert.Contains(t, string(output), "already running")
+    assert.Contains(t, string(output), "PID")
+    assert.Contains(t, string(output), "orc status")
+    assert.Contains(t, string(output), "orc logs")
+    assert.Contains(t, string(output), "orc pause")
 }
 ```

@@ -19,9 +19,21 @@ No central server, no database sync, no WebSocket infrastructure.
 
 | Mode | When | Features Active |
 |------|------|-----------------|
-| `solo` | Default, single user | No locks, no prefixes, no sync |
-| `p2p` | `.orc/shared/` exists | File locks, prefixed IDs, git sync |
-| `team` | `team.server_url` configured | Server locks, real-time, dashboard |
+| `solo` | Default, single user | No identity config needed, simple task IDs |
+| `p2p` | `.orc/shared/` exists | Executor tags on branches, git-based visibility |
+| `team` | `team.server_url` configured | Real-time visibility, server notifications |
+
+### Solo Mode Guarantees
+
+When `mode: solo` (the default), these are **guaranteed**:
+
+- **No identity config required** - `identity.initials` not read or validated
+- **No `.orc/shared/` checks** - directory not scanned
+- **No team.yaml validation** - file not read
+- **Simple task IDs** - `TASK-001`, `TASK-002` (no prefix)
+- **Simple branch names** - `orc/TASK-001` (no executor tag)
+- **No git sync prompts** - no team visibility features
+- **Zero overhead** - same performance as pre-P2P orc
 
 ### Auto-Detection
 
@@ -41,7 +53,7 @@ func DetectMode(projectPath string) Mode {
         return ModeP2P
     }
 
-    // Default: solo
+    // Default: solo - no further config checks
     return ModeSolo
 }
 ```
@@ -51,71 +63,132 @@ func DetectMode(projectPath string) Mode {
 ```go
 // internal/executor/executor.go
 func (e *Executor) Run(taskID string) error {
-    mode := e.config.TaskID.Mode
-    prefix := e.config.Identity.Initials
-
-    // All modes use worktree isolation with executor prefix
-    worktreePath := WorktreePath(taskID, prefix)
-    branchName := BranchName(taskID, prefix)
+    mode := DetectMode(e.projectDir)
 
     switch mode {
-    case "solo":
-        // No prefix in naming, simple worktree
-        return e.runInWorktree(taskID, "", taskID)
+    case ModeSolo:
+        // GUARANTEED: No identity config read, no team features
+        return e.runInWorktree(taskID, "", "orc/"+taskID)
 
-    case "p2p":
-        // Worktree with executor prefix
-        return e.runInWorktree(taskID, prefix, branchName)
-
-    case "team":
-        // Worktree + server sync for visibility
-        if err := e.notifyServerStart(taskID); err != nil {
-            log.Warn("server notification failed", "error", err)
-            // Continue anyway - execution is local
+    case ModeP2P, ModeTeam:
+        // Only P2P/Team modes require identity
+        tag := e.config.Identity.Initials
+        if tag == "" {
+            return fmt.Errorf("identity.initials required for %s mode\n"+
+                "Run: orc config set identity.initials YOUR_INITIALS", mode)
         }
-        defer e.notifyServerStop(taskID)
-        return e.runInWorktree(taskID, prefix, branchName)
+
+        // Check for existing work before creating redundant branch
+        if warning := e.checkExistingBranches(taskID, tag); warning != "" {
+            if !e.promptContinue(warning) {
+                return nil // User cancelled
+            }
+        }
+
+        branchName := BranchName(taskID, tag)
+
+        if mode == ModeTeam {
+            e.notifyServerStart(taskID) // Non-blocking, failures logged
+            defer e.notifyServerStop(taskID)
+        }
+
+        return e.runInWorktree(taskID, tag, branchName)
 
     default:
         return fmt.Errorf("unknown mode: %s", mode)
     }
 }
 
-func (e *Executor) runInWorktree(taskID, prefix, branchName string) error {
-    worktreePath := WorktreePath(taskID, prefix)
+func (e *Executor) checkExistingBranches(taskID, myTag string) string {
+    branches := e.git.FindBranches("orc/" + taskID + "-*")
 
-    // PID guard: prevent same user running same task twice
-    guard := &PIDGuard{worktreePath: worktreePath}
-    if err := guard.Check(); err != nil {
+    for _, b := range branches {
+        if b.IsMerged {
+            return fmt.Sprintf("Branch '%s' was merged to main %s ago.\n"+
+                "You may be duplicating completed work.", b.Name, b.MergedAgo)
+        }
+        if b.Tag != myTag {
+            return fmt.Sprintf("Branch '%s' exists (last commit: %s by %s).\n"+
+                "Someone else is working on this task.", b.Name, b.LastCommit, b.Author)
+        }
+    }
+    return ""
+}
+
+func (e *Executor) runInWorktree(taskID, tag, branchName string) error {
+    worktreePath := WorktreePath(taskID, tag)
+
+    // Handle existing worktree (crash recovery)
+    if exists(worktreePath) {
+        return e.handleExistingWorktree(taskID, worktreePath)
+    }
+
+    // Create new worktree
+    if err := e.git.CreateWorktree(worktreePath, branchName); err != nil {
         return err
     }
 
-    // Create or reuse worktree
-    if !exists(worktreePath) {
-        if err := e.git.CreateWorktree(worktreePath, branchName); err != nil {
-            return err
-        }
-    }
-
+    // PID guard: prevent same user running twice
+    guard := &PIDGuard{worktreePath: worktreePath}
     guard.Acquire()
     defer guard.Release()
 
     return e.executeInDir(worktreePath, taskID)
 }
-```
 
-### Solo Mode Guarantees
+func (e *Executor) handleExistingWorktree(taskID, worktreePath string) error {
+    guard := &PIDGuard{worktreePath: worktreePath}
 
-When `mode: solo`, these features are simplified:
+    if err := guard.Check(); err != nil {
+        // Process is running - show detailed error
+        return e.formatRunningError(taskID, worktreePath, guard.PID())
+    }
 
-- No prefix in branch/worktree naming (just task ID)
-- No team member registry validation
-- No server sync attempts
+    // Worktree exists but no process - show recovery options
+    state := e.inspectWorktreeState(worktreePath)
 
-```go
-// Solo mode: simple naming without prefix
-if mode == ModeSolo {
-    return e.runInWorktree(taskID, "", taskID)
+    fmt.Printf("Worktree exists: %s\n", worktreePath)
+    fmt.Printf("No active process (likely crashed).\n\n")
+    fmt.Printf("Last checkpoint:\n")
+    fmt.Printf("  Phase: %s (iteration %d/%d)\n", state.Phase, state.Iteration, state.MaxIterations)
+    fmt.Printf("  Time: %s ago\n", state.LastActivity)
+    fmt.Printf("  Changes: %d files modified, %d uncommitted\n", state.ModifiedFiles, state.UncommittedFiles)
+    fmt.Println()
+    fmt.Println("Options:")
+    fmt.Println("  [1] Resume from checkpoint")
+    fmt.Println("  [2] Inspect worktree (opens shell)")
+    fmt.Println("  [3] Clean up and restart")
+    fmt.Println("  [4] Cancel")
+
+    switch promptChoice([]string{"1", "2", "3", "4"}) {
+    case "1":
+        guard.Acquire()
+        defer guard.Release()
+        return e.executeInDir(worktreePath, taskID)
+    case "2":
+        return e.openShellIn(worktreePath)
+    case "3":
+        e.cleanupWorktree(worktreePath)
+        return e.Run(taskID) // Recurse to create fresh
+    default:
+        return nil
+    }
+}
+
+func (e *Executor) formatRunningError(taskID, worktreePath string, pid int) error {
+    state := e.inspectWorktreeState(worktreePath)
+
+    return fmt.Errorf("Task %s is already running.\n\n"+
+        "  Process: PID %d\n"+
+        "  Started: %s ago\n"+
+        "  Phase: %s (iteration %d/%d)\n\n"+
+        "Options:\n"+
+        "  orc status %s      # View progress\n"+
+        "  orc logs %s -f     # Follow transcript\n"+
+        "  orc pause %s       # Stop execution\n\n"+
+        "If process is hung: orc run %s --force-clean",
+        taskID, pid, state.StartedAgo, state.Phase, state.Iteration, state.MaxIterations,
+        taskID, taskID, taskID, taskID)
 }
 ```
 
@@ -141,11 +214,11 @@ if mode == ModeSolo {
 │                                                                  │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │ .orc/tasks/                       (git-tracked per task)   │  │
-│  │ ├── TASK-alice-001/               Alice's tasks            │  │
+│  │ ├── TASK-AM-001/                  Alice's tasks            │  │
 │  │ │   ├── task.yaml                                          │  │
 │  │ │   ├── plan.yaml                                          │  │
-│  │ │   └── lock.yaml                 Execution lock           │  │
-│  │ └── TASK-bob-001/                 Bob's tasks              │  │
+│  │ │   └── state.yaml                                         │  │
+│  │ └── TASK-BJ-001/                  Bob's tasks              │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  .orc/local/                         (gitignored)               │
@@ -340,23 +413,79 @@ func (s *PromptService) Resolve(phase string) (content string, source Source, er
 
 ### Design Philosophy
 
-**No cross-user locking.** Anyone with access can run any task. Each execution is independent:
+**No cross-user blocking.** Anyone with access can run any task. Each execution is isolated:
 
 | Who runs | Branch | Worktree |
 |----------|--------|----------|
 | Alice runs TASK-AM-001 | `orc/TASK-AM-001-am` | `.orc/worktrees/TASK-AM-001-am/` |
 | Bob runs TASK-AM-001 | `orc/TASK-AM-001-bj` | `.orc/worktrees/TASK-AM-001-bj/` |
 | Alice runs again | Same branch, resumes | Same worktree |
+| Solo user runs TASK-001 | `orc/TASK-001` | `.orc/worktrees/TASK-001/` |
+
+### Ownership Model
+
+**Creator prefix** vs **Executor tag** - two distinct concepts:
+
+| Concept | Example | Meaning |
+|---------|---------|---------|
+| **Creator prefix** | `TASK-AM-001` | Alice (AM) created this task |
+| **Executor tag** | `orc/TASK-AM-001-bj` | Bob (BJ) is running this execution |
 
 **Key principles:**
-- Task prefix (AM, BJ) indicates creator, not exclusive access
-- Multiple people can work on same task simultaneously
-- Each execution gets its own branch/worktree (no conflicts)
-- Ownership is metadata, not access control
+- Creator prefix is **immutable** - part of the task ID forever
+- Creator prefix indicates who made the task, nothing more
+- **Anyone can run any task** - no access control
+- Executor tag shows who's running this particular execution
+- Multiple people can run the same task (separate branches)
+- Ownership ≠ exclusive access
+
+### Redundant Work Prevention
+
+Before creating a new branch, orc checks for existing work:
+
+```
+$ orc run TASK-AM-001
+Note: Branch 'orc/TASK-AM-001-am' was merged to main 2 hours ago.
+      You may be duplicating completed work.
+
+Options:
+  [1] View what was done (git diff main..orc/TASK-AM-001-am)
+  [2] Continue anyway (create orc/TASK-AM-001-bj)
+  [3] Cancel
+
+>
+```
+
+```
+$ orc run TASK-AM-001
+Note: Branch 'orc/TASK-AM-001-am' exists (last commit: 30 min ago by alice)
+      Someone else is working on this task.
+
+Options:
+  [1] Join Alice's branch (checkout orc/TASK-AM-001-am)
+  [2] Fork your own (create orc/TASK-AM-001-bj)
+  [3] Cancel
+
+>
+```
+
+This is a **warning, not a block**. Users can always proceed.
+
+### Reconciling Parallel Executions
+
+When multiple people work on the same task:
+
+1. **First to merge wins** - their branch becomes the canonical implementation
+2. **Others can:**
+   - Cherry-pick specific commits from their branch
+   - Rebase onto main and continue
+   - Abandon their branch if work is redundant
+3. **Normal git workflow applies** - no special orc handling
+4. **PRs show the diff** - reviewers see all approaches
 
 ### Same-User Protection (PID Guard)
 
-The only protection is preventing the same user from accidentally running the same task twice:
+The only hard block is preventing the same user from running twice:
 
 ```go
 // internal/executor/pid_guard.go
@@ -394,19 +523,40 @@ func (g *PIDGuard) Release() {
 
 ### Branch/Worktree Naming
 
-Includes executor identity to prevent conflicts:
+Includes executor tag to prevent conflicts between users:
 
 ```go
 // internal/git/naming.go
-func BranchName(taskID, executorPrefix string) string {
-    return fmt.Sprintf("orc/%s-%s", taskID, strings.ToLower(executorPrefix))
+
+// BranchName creates the git branch name for a task execution.
+// Solo mode: orc/TASK-001
+// P2P/Team:  orc/TASK-AM-001-bj (task ID + lowercase executor tag)
+func BranchName(taskID, executorTag string) string {
+    if executorTag == "" {
+        return "orc/" + taskID  // Solo mode
+    }
+    return fmt.Sprintf("orc/%s-%s", taskID, strings.ToLower(executorTag))
 }
 
-func WorktreePath(taskID, executorPrefix string) string {
-    return filepath.Join(".orc", "worktrees",
-        fmt.Sprintf("%s-%s", taskID, strings.ToLower(executorPrefix)))
+// WorktreePath creates the worktree directory path.
+// Solo mode: .orc/worktrees/TASK-001/
+// P2P/Team:  .orc/worktrees/TASK-AM-001-bj/
+func WorktreePath(taskID, executorTag string) string {
+    name := taskID
+    if executorTag != "" {
+        name = fmt.Sprintf("%s-%s", taskID, strings.ToLower(executorTag))
+    }
+    return filepath.Join(".orc", "worktrees", name)
 }
 ```
+
+### Casing Rules
+
+| Context | Format | Example |
+|---------|--------|---------|
+| Task ID | UPPERCASE prefix | `TASK-AM-001` |
+| Branch name | lowercase tag | `orc/TASK-AM-001-bj` |
+| Worktree path | lowercase tag | `.orc/worktrees/TASK-AM-001-bj/` |
 
 ### Execution Flow
 
@@ -449,30 +599,99 @@ func WorktreePath(taskID, executorPrefix string) string {
 
 ## Task Visibility
 
-### Local Task List
+### Mode-Aware Task List
+
+**In P2P/Team mode**, `orc list` shows both local and team tasks by default:
 
 ```bash
 $ orc list
-TASK-AM-001  running   large   implement  Add authentication
-TASK-AM-002  planned   small   -          Fix login bug
+Fetching remote branches... done
+
+TASK-AM-001  running   large   implement  Add authentication    (you)
+TASK-AM-002  planned   small   -          Fix login bug         (you)
+TASK-BJ-001  running   medium  test       Refactor API          (bob) ← remote
+TASK-BJ-002  completed small   -          Update README         (bob) ← remote
 ```
 
-### Team Task List (from Git)
+**In Solo mode**, shows local tasks only (no remote fetch):
 
 ```bash
-$ orc list --team
-Fetching remote branches...
+$ orc list
+TASK-001  running   large   implement  Add authentication
+TASK-002  planned   small   -          Fix login bug
+```
 
-TASK-AM-001  running   large   implement  Add authentication    (alice)
-TASK-AM-002  planned   small   -          Fix login bug         (alice)
+### Filter Options
+
+```bash
+# P2P mode - local tasks only (skip remote fetch)
+$ orc list --local
+TASK-AM-001  running   large   implement  Add authentication
+TASK-AM-002  planned   small   -          Fix login bug
+
+# Show only remote tasks
+$ orc list --remote
 TASK-BJ-001  running   medium  test       Refactor API          (bob)
 TASK-BJ-002  completed small   -          Update README         (bob)
+
+# Filter by creator
+$ orc list --creator bj
+TASK-BJ-001  running   medium  test       Refactor API          (bob)
+TASK-BJ-002  completed small   -          Update README         (bob)
+
+# Filter by status
+$ orc list --status running
+TASK-AM-001  running   large   implement  Add authentication    (you)
+TASK-BJ-001  running   medium  test       Refactor API          (bob)
 ```
+
+### Visual Indicators
+
+| Indicator | Meaning |
+|-----------|---------|
+| `(you)` | Your task (created by you) |
+| `(alice)` | Task creator's name |
+| `← remote` | Task from git remote, not local |
+| `← local` | Task exists locally but not pushed |
+| `⚡ active` | Task is currently running (has PID) |
 
 ### Implementation
 
 ```go
-func listTeamTasks() ([]TaskSummary, error) {
+// internal/task/list.go
+func ListTasks(mode Mode, filter ListFilter) ([]TaskSummary, error) {
+    var tasks []TaskSummary
+
+    // Always include local tasks
+    localTasks, err := listLocalTasks()
+    if err != nil {
+        return nil, err
+    }
+    tasks = append(tasks, localTasks...)
+
+    // P2P/Team: also fetch remote tasks (unless --local flag)
+    if mode != ModeSolo && !filter.LocalOnly {
+        remoteTasks, err := listRemoteTasks()
+        if err != nil {
+            // Non-fatal: log warning but continue
+            log.Warn("Failed to fetch remote tasks: %v", err)
+        } else {
+            tasks = mergeTaskLists(tasks, remoteTasks)
+        }
+    }
+
+    return applyFilters(tasks, filter), nil
+}
+
+func listRemoteTasks() ([]TaskSummary, error) {
+    // Fetch with timeout to not block if network is slow
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    if err := git.FetchWithContext(ctx, "origin"); err != nil {
+        return nil, err
+    }
+
     // List all orc/* branches
     branches, err := git.ListRemoteBranches("origin", "orc/TASK-*")
     if err != nil {
@@ -481,8 +700,7 @@ func listTeamTasks() ([]TaskSummary, error) {
 
     var tasks []TaskSummary
     for _, branch := range branches {
-        // Extract task ID from branch name
-        taskID := strings.TrimPrefix(branch, "orc/")
+        taskID := extractTaskID(branch)
 
         // Read task.yaml from that branch
         content, err := git.ShowFile("origin/"+branch, ".orc/tasks/"+taskID+"/task.yaml")
@@ -493,13 +711,34 @@ func listTeamTasks() ([]TaskSummary, error) {
         var task Task
         yaml.Unmarshal(content, &task)
         tasks = append(tasks, TaskSummary{
-            ID:     task.ID,
-            Title:  task.Title,
-            Status: task.Status,
-            Owner:  extractOwner(taskID),  // From prefix
+            ID:       task.ID,
+            Title:    task.Title,
+            Status:   task.Status,
+            Creator:  extractCreator(taskID),
+            IsRemote: true,
         })
     }
     return tasks, nil
+}
+
+func mergeTaskLists(local, remote []TaskSummary) []TaskSummary {
+    seen := make(map[string]bool)
+    var result []TaskSummary
+
+    // Local tasks first
+    for _, t := range local {
+        seen[t.ID] = true
+        result = append(result, t)
+    }
+
+    // Add remote tasks not in local
+    for _, t := range remote {
+        if !seen[t.ID] {
+            result = append(result, t)
+        }
+    }
+
+    return result
 }
 ```
 
@@ -551,7 +790,7 @@ git push
 # Bob
 cd project
 git pull                           # Gets Alice's task
-orc list --team                    # Shows TASK-AM-005 (alice)
+orc list                           # Shows TASK-AM-005 (alice) - team tasks by default
 ```
 
 ### Example 3: Parallel Work
@@ -634,38 +873,97 @@ orc run TASK-AM-005
 
 ## Team Setup
 
-### Initial Setup
+### Zero-Friction Onboarding
+
+Team setup should take **< 30 seconds**. No YAML editing required.
+
+### First Team Member (Creates P2P Structure)
 
 ```bash
-# Team lead creates shared structure
-mkdir -p .orc/shared/{prompts,skills,templates}
+$ orc init --p2p
+Creating P2P structure...
+Enter your initials: AM
+Enter your name (optional): Alice Martinez
 
-# Create team config
-cat > .orc/shared/config.yaml << 'EOF'
-version: 1
-task_id:
-  mode: p2p
-  prefix_source: initials
-defaults:
-  profile: safe
-EOF
+✓ Created .orc/shared/
+✓ Created .orc/shared/config.yaml
+✓ Added you to team.yaml
+✓ Configured identity.initials = AM
 
-# Create team registry
-cat > .orc/shared/team.yaml << 'EOF'
-version: 1
-members: []
-reserved_prefixes: []
-EOF
-
-git add .orc/shared/
-git commit -m "Initialize orc team structure"
+Next steps:
+  git add .orc/shared/
+  git commit -m "Initialize orc P2P structure"
+  git push
 ```
 
-### Adding Team Member
+### Teammates Join (Auto-Detected)
+
+When a teammate clones or pulls:
 
 ```bash
-# Alice joins the team
-# 1. Configure her identity
+$ orc init
+P2P mode detected (.orc/shared/ exists)
+Enter your initials: BJ
+Enter your name (optional): Bob Johnson
+
+✓ Added you to team.yaml
+✓ Configured identity.initials = BJ
+
+Ready to create tasks!
+```
+
+### Registration is Optional
+
+By default, **no registration required**. Anyone can use any initials:
+
+```yaml
+# .orc/shared/config.yaml (default)
+task_id:
+  require_registration: false  # First use claims initials
+```
+
+For larger teams that want prefix reservation:
+
+```yaml
+# .orc/shared/config.yaml
+task_id:
+  require_registration: true  # Must be in team.yaml
+```
+
+### Team Registry (Auto-Populated)
+
+```yaml
+# .orc/shared/team.yaml - auto-populated by orc init
+members:
+  AM:
+    name: Alice Martinez
+    joined: 2025-01-10T10:00:00Z
+  BJ:
+    name: Bob Johnson
+    joined: 2025-01-11T09:00:00Z
+```
+
+No manual editing needed. `orc init` handles it.
+
+### Duplicate Initials Handling
+
+```bash
+$ orc init
+P2P mode detected.
+Enter your initials: AM
+Error: Initials 'AM' already registered to Alice Martinez.
+       Pick different initials or contact Alice.
+
+Enter your initials: AX
+✓ Configured identity.initials = AX
+```
+
+### Legacy: Adding Team Member Manually
+
+For users who prefer manual setup:
+
+```bash
+# 1. Configure identity
 cat >> ~/.orc/config.yaml << 'EOF'
 identity:
   initials: AM
@@ -720,46 +1018,108 @@ git add .orc/shared/prompts/implement.md
 git commit
 ```
 
-### Stale Lock Detection
-
-```go
-func (l *FileLock) IsStale() bool {
-    lock, err := l.readLock()
-    if err != nil {
-        return true  // No lock file
-    }
-    return time.Since(lock.Heartbeat) > lock.TTL
-}
-```
-
-### Machine Crash During Execution
-
-Lock has TTL of 60 seconds. After crash:
-1. No heartbeat updates
-2. Lock becomes stale after TTL
-3. Next execution claims lock automatically
-4. Warning logged about stale lock
-
 ---
 
 ## CLI Commands
 
-### P2P-Specific Commands
+### Mode-Specific Behavior
+
+| Command | Solo Mode | P2P/Team Mode |
+|---------|-----------|---------------|
+| `orc init` | Standard init | `orc init --p2p` for first user, auto-detects for others |
+| `orc new` | Simple ID (`TASK-001`) | Prefixed ID (`TASK-AM-001`) |
+| `orc run` | Single branch | Branch per executor (`orc/TASK-AM-001-bj`) |
+| `orc list` | Local tasks only | Team tasks by default (with remote indicator) |
+
+### P2P Commands
 
 | Command | Description |
 |---------|-------------|
-| `orc list --team` | Show tasks from all team members |
-| `orc team join` | Register in team.yaml |
-| `orc team members` | List team members |
-| `orc team sync` | Pull latest shared resources |
+| `orc init --p2p` | Initialize P2P structure (creates `.orc/shared/`) |
+| `orc list` | Show all tasks (local + team in P2P mode) |
+| `orc list --local` | Show only local tasks (filter out team) |
+| `orc team members` | List registered team members |
 
-### Standard Commands (P2P-Aware)
+### Worktree Management
 
-| Command | P2P Behavior |
-|---------|--------------|
-| `orc new` | Uses prefixed ID |
-| `orc run` | Checks/acquires lock |
-| `orc status` | Shows lock status |
+| Command | Description |
+|---------|-------------|
+| `orc status` | Show running task status (PID, phase, iterations) |
+| `orc gc` | Clean up orphaned worktrees (no active process) |
+| `orc gc --dry-run` | Show what would be cleaned without removing |
+| `orc gc --force` | Clean all worktrees (even with active processes) |
+
+### Garbage Collection (`orc gc`)
+
+Cleans up orphaned worktrees from crashed or completed executions:
+
+```bash
+$ orc gc
+Scanning .orc/worktrees/...
+
+Found 3 worktrees:
+  TASK-AM-001-am   orphaned (no PID, last modified 2 days ago)
+  TASK-AM-002-am   active (PID 12345)
+  TASK-BJ-003-bj   orphaned (stale PID 99999)
+
+Clean up 2 orphaned worktrees? [y/N] y
+Removed .orc/worktrees/TASK-AM-001-am/
+Removed .orc/worktrees/TASK-BJ-003-bj/
+Done. 2 worktrees cleaned, 23MB freed.
+```
+
+### Implementation
+
+```go
+// internal/cli/cmd_gc.go
+func runGC(dryRun, force bool) error {
+    worktrees, err := scanWorktrees(".orc/worktrees/")
+    if err != nil {
+        return err
+    }
+
+    var orphaned []WorktreeInfo
+    for _, wt := range worktrees {
+        if !wt.HasActivePID() {
+            orphaned = append(orphaned, wt)
+        }
+    }
+
+    if len(orphaned) == 0 {
+        fmt.Println("No orphaned worktrees found.")
+        return nil
+    }
+
+    // Show what we found
+    fmt.Printf("Found %d orphaned worktrees:\n", len(orphaned))
+    for _, wt := range orphaned {
+        fmt.Printf("  %s (last modified %s)\n", wt.Name, wt.ModifiedAgo)
+    }
+
+    if dryRun {
+        return nil
+    }
+
+    if !force && !promptConfirm("Clean up?") {
+        return nil
+    }
+
+    var freed int64
+    for _, wt := range orphaned {
+        freed += wt.Size
+        if err := os.RemoveAll(wt.Path); err != nil {
+            fmt.Printf("Warning: failed to remove %s: %v\n", wt.Path, err)
+            continue
+        }
+        // Also remove git worktree reference
+        exec.Command("git", "worktree", "remove", wt.Path).Run()
+    }
+
+    fmt.Printf("Done. %d worktrees cleaned, %s freed.\n",
+        len(orphaned), humanize.Bytes(uint64(freed)))
+    return nil
+}
+```
 
 ---
 
@@ -798,6 +1158,49 @@ Server becomes optional dashboard/visibility layer, not execution coordinator.
 
 ## Testing P2P Mode
 
+### Test: Mode Detection
+
+```go
+func TestModeDetection(t *testing.T) {
+    tests := []struct {
+        name     string
+        setup    func(dir string)
+        expected Mode
+    }{
+        {
+            name:     "default is solo",
+            setup:    func(dir string) {},
+            expected: ModeSolo,
+        },
+        {
+            name: "p2p when shared exists",
+            setup: func(dir string) {
+                os.MkdirAll(filepath.Join(dir, ".orc", "shared"), 0755)
+            },
+            expected: ModeP2P,
+        },
+        {
+            name: "team when server configured",
+            setup: func(dir string) {
+                cfg := `team:
+  server_url: https://orc.example.com`
+                os.MkdirAll(filepath.Join(dir, ".orc"), 0755)
+                os.WriteFile(filepath.Join(dir, ".orc", "config.yaml"), []byte(cfg), 0644)
+            },
+            expected: ModeTeam,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            dir := t.TempDir()
+            tt.setup(dir)
+            assert.Equal(t, tt.expected, DetectMode(dir))
+        })
+    }
+}
+```
+
 ### Test: Prefix Generation
 
 ```go
@@ -810,32 +1213,118 @@ func TestPrefixedTaskID(t *testing.T) {
     id2 := gen.Next()
     assert.Equal(t, "TASK-AM-002", id2)
 }
+
+func TestSoloTaskID(t *testing.T) {
+    gen := NewTaskIDGenerator("solo", "")
+
+    id1 := gen.Next()
+    assert.Equal(t, "TASK-001", id1)  // No prefix in solo mode
+}
 ```
 
-### Test: Lock Acquisition
+### Test: Branch/Worktree Naming
 
 ```go
-func TestFileLock(t *testing.T) {
-    tmpDir := t.TempDir()
-    lock1 := NewFileLock(tmpDir, "alice@laptop")
-    lock2 := NewFileLock(tmpDir, "bob@desktop")
+func TestBranchNaming(t *testing.T) {
+    tests := []struct {
+        taskID      string
+        executorTag string
+        expected    string
+    }{
+        {"TASK-001", "", "orc/TASK-001"},                // Solo
+        {"TASK-AM-001", "bj", "orc/TASK-AM-001-bj"},    // P2P
+        {"TASK-AM-001", "BJ", "orc/TASK-AM-001-bj"},    // Lowercase enforcement
+    }
 
-    // Alice acquires
-    acquired, err := lock1.TryAcquire()
-    assert.True(t, acquired)
-    assert.NoError(t, err)
+    for _, tt := range tests {
+        result := BranchName(tt.taskID, tt.executorTag)
+        assert.Equal(t, tt.expected, result)
+    }
+}
 
-    // Bob cannot acquire
-    acquired, err = lock2.TryAcquire()
-    assert.False(t, acquired)
-    assert.NoError(t, err)
+func TestWorktreePath(t *testing.T) {
+    tests := []struct {
+        taskID      string
+        executorTag string
+        expected    string
+    }{
+        {"TASK-001", "", ".orc/worktrees/TASK-001"},
+        {"TASK-AM-001", "bj", ".orc/worktrees/TASK-AM-001-bj"},
+    }
 
-    // Alice releases
-    lock1.Release()
+    for _, tt := range tests {
+        result := WorktreePath(tt.taskID, tt.executorTag)
+        assert.Equal(t, tt.expected, result)
+    }
+}
+```
 
-    // Bob can now acquire
-    acquired, err = lock2.TryAcquire()
-    assert.True(t, acquired)
+### Test: PID Guard
+
+```go
+func TestPIDGuard(t *testing.T) {
+    dir := t.TempDir()
+    guard := &PIDGuard{worktreePath: dir}
+
+    // No PID file - check passes
+    assert.NoError(t, guard.Check())
+
+    // Acquire creates PID file
+    assert.NoError(t, guard.Acquire())
+    pidFile := filepath.Join(dir, ".orc.pid")
+    assert.FileExists(t, pidFile)
+
+    // Current process - check fails
+    assert.Error(t, guard.Check())
+
+    // Release removes PID file
+    guard.Release()
+    assert.NoFileExists(t, pidFile)
+}
+
+func TestPIDGuardStalePID(t *testing.T) {
+    dir := t.TempDir()
+    pidFile := filepath.Join(dir, ".orc.pid")
+
+    // Write stale PID (non-existent process)
+    os.WriteFile(pidFile, []byte("999999"), 0644)
+
+    guard := &PIDGuard{worktreePath: dir}
+    // Stale PID should pass (auto-cleaned)
+    assert.NoError(t, guard.Check())
+    assert.NoFileExists(t, pidFile)  // Stale PID removed
+}
+```
+
+### Test: Existing Branch Warning
+
+```go
+func TestExistingBranchWarning(t *testing.T) {
+    // Setup mock git with existing branch
+    git := &MockGit{
+        branches: []BranchInfo{
+            {Name: "orc/TASK-AM-001-am", IsMerged: true, MergedAgo: "2h"},
+        },
+    }
+
+    executor := &Executor{git: git}
+    warning := executor.checkExistingBranches("TASK-AM-001", "bj")
+
+    assert.Contains(t, warning, "merged to main")
+    assert.Contains(t, warning, "duplicating completed work")
+}
+
+func TestNoWarningForOwnBranch(t *testing.T) {
+    git := &MockGit{
+        branches: []BranchInfo{
+            {Name: "orc/TASK-AM-001-am", IsMerged: false, Tag: "am"},
+        },
+    }
+
+    executor := &Executor{git: git}
+    warning := executor.checkExistingBranches("TASK-AM-001", "am")
+
+    assert.Empty(t, warning)  // Own branch, no warning
 }
 ```
 
@@ -852,5 +1341,63 @@ func TestPromptResolution(t *testing.T) {
 
     assert.Equal(t, "personal", content)
     assert.Equal(t, SourcePersonalGlobal, source)
+}
+```
+
+### Test: Garbage Collection
+
+```go
+func TestGarbageCollection(t *testing.T) {
+    dir := t.TempDir()
+    worktreesDir := filepath.Join(dir, ".orc", "worktrees")
+    os.MkdirAll(worktreesDir, 0755)
+
+    // Create orphaned worktree (no PID)
+    orphaned := filepath.Join(worktreesDir, "TASK-001")
+    os.MkdirAll(orphaned, 0755)
+
+    // Create active worktree (with current PID)
+    active := filepath.Join(worktreesDir, "TASK-002")
+    os.MkdirAll(active, 0755)
+    os.WriteFile(filepath.Join(active, ".orc.pid"),
+        []byte(strconv.Itoa(os.Getpid())), 0644)
+
+    // Run GC
+    gc := &GarbageCollector{baseDir: dir}
+    cleaned, err := gc.Run(false)  // not dry-run
+
+    assert.NoError(t, err)
+    assert.Equal(t, 1, len(cleaned))
+    assert.DirExists(t, active)
+    assert.NoDirExists(t, orphaned)
+}
+```
+
+### Test: Solo Mode Guarantees
+
+```go
+func TestSoloModeNoIdentityRequired(t *testing.T) {
+    dir := t.TempDir()
+    setupSoloProject(dir)  // No .orc/shared/
+
+    cfg := &Config{}  // Empty identity
+    executor := NewExecutor(dir, cfg)
+
+    // Should succeed without identity.initials
+    err := executor.Run("TASK-001")
+    assert.NoError(t, err)
+}
+
+func TestP2PModeRequiresIdentity(t *testing.T) {
+    dir := t.TempDir()
+    setupP2PProject(dir)  // Creates .orc/shared/
+
+    cfg := &Config{}  // Empty identity
+    executor := NewExecutor(dir, cfg)
+
+    // Should fail without identity.initials
+    err := executor.Run("TASK-001")
+    assert.Error(t, err)
+    assert.Contains(t, err.Error(), "identity.initials required")
 }
 ```
