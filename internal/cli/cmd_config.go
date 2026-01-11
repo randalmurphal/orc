@@ -174,15 +174,8 @@ Examples:
 			case setShared:
 				targetPath = filepath.Join(config.OrcDir, "shared", config.ConfigFileName)
 				targetName = ".orc/shared/config.yaml"
-			case setUser:
-				home, err := os.UserHomeDir()
-				if err != nil {
-					return fmt.Errorf("get home directory: %w", err)
-				}
-				targetPath = filepath.Join(home, ".orc", config.ConfigFileName)
-				targetName = "~/.orc/config.yaml"
 			default:
-				// Default to user config
+				// Default to user config (also handles explicit --user flag)
 				home, err := os.UserHomeDir()
 				if err != nil {
 					return fmt.Errorf("get home directory: %w", err)

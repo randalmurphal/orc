@@ -690,3 +690,83 @@ Body`
 		t.Error("expected error for invalid extends value")
 	}
 }
+
+func TestResolve_InheritanceCycleDetection(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	sharedDir := filepath.Join(tmpDir, "shared", "prompts")
+	localDir := filepath.Join(tmpDir, "local", "prompts")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(localDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a cycle: local extends shared, shared extends local
+	localContent := `---
+extends: shared
+prepend: |
+  LOCAL
+---
+`
+	sharedContent := `---
+extends: local
+prepend: |
+  SHARED
+---
+`
+	if err := os.WriteFile(filepath.Join(localDir, "cycle.md"), []byte(localContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDir, "cycle.md"), []byte(sharedContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := NewResolver(
+		WithLocalDir(localDir),
+		WithSharedDir(sharedDir),
+		WithEmbedded(false),
+	)
+
+	_, err := r.Resolve("cycle")
+	if err == nil {
+		t.Error("expected error for inheritance cycle")
+	}
+	if err != nil && !strings.Contains(err.Error(), "cycle") {
+		t.Errorf("expected cycle error, got: %v", err)
+	}
+}
+
+func TestResolve_SelfReferenceCycleDetection(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	projectDir := filepath.Join(tmpDir, "prompts")
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create self-reference: project extends project
+	content := `---
+extends: project
+prepend: |
+  SELF
+---
+`
+	if err := os.WriteFile(filepath.Join(projectDir, "self.md"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := NewResolver(
+		WithProjectDir(projectDir),
+		WithEmbedded(false),
+	)
+
+	_, err := r.Resolve("self")
+	if err == nil {
+		t.Error("expected error for self-reference cycle")
+	}
+	if err != nil && !strings.Contains(err.Error(), "cycle") {
+		t.Errorf("expected cycle error, got: %v", err)
+	}
+}
