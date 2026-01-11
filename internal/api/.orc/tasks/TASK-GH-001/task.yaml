@@ -1,0 +1,15 @@
+id: TASK-GH-001
+title: GitHub Test Task
+description: A task for testing GitHub handlers
+weight: medium
+status: failed
+current_phase: implement
+branch: orc/TASK-GH-001
+created_at: 2025-01-01T00:00:00Z
+updated_at: 2026-01-11T13:47:11.221186115-06:00
+started_at: 2026-01-11T13:47:11.220728492-06:00
+metadata:
+    autofix_comment_id: RC-status1
+    autofix_content: Fix this
+    autofix_file: main.go
+    autofix_line: "0"
