@@ -217,6 +217,7 @@ Examples:
 	cmd.Flags().BoolVar(&setProject, "project", false, "Save to project config (.orc/config.yaml)")
 	cmd.Flags().BoolVar(&setShared, "shared", false, "Save to shared config (.orc/shared/config.yaml)")
 	cmd.Flags().BoolVar(&setUser, "user", false, "Save to user config (~/.orc/config.yaml)")
+	cmd.MarkFlagsMutuallyExclusive("project", "shared", "user")
 
 	return cmd
 }

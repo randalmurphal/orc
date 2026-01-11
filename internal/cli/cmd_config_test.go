@@ -15,13 +15,17 @@ func TestConfigShowCmd_OutputsValidYAML(t *testing.T) {
 
 	// Create .orc directory with config
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
 
 	configContent := `version: 1
 profile: safe
 model: test-model
 `
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644)
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
 
 	// Change to temp dir
 	oldWd, _ := os.Getwd()
@@ -57,11 +61,15 @@ func TestConfigShowCmd_WithSource(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
 
 	configContent := `model: custom-model
 `
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644)
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
 
 	oldWd, _ := os.Getwd()
 	defer os.Chdir(oldWd)
@@ -94,14 +102,18 @@ func TestConfigGetCmd_RetrievesNestedKeys(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
 
 	configContent := `gates:
   default_type: human
 retry:
   enabled: true
 `
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644)
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
 
 	oldWd, _ := os.Getwd()
 	defer os.Chdir(oldWd)
@@ -140,11 +152,15 @@ func TestConfigGetCmd_WithSource(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
 
 	configContent := `model: test-model
 `
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644)
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
 
 	oldWd, _ := os.Getwd()
 	defer os.Chdir(oldWd)
@@ -177,7 +193,9 @@ func TestConfigSetCmd_WritesToCorrectFile(t *testing.T) {
 
 	// Create .orc directory
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
 
 	oldWd, _ := os.Getwd()
 	defer os.Chdir(oldWd)
