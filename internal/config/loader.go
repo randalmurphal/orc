@@ -246,6 +246,12 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 	if rawTeam, ok := raw["team"].(map[string]interface{}); ok {
 		mergeTeamConfigWithPath(cfg, fileCfg, rawTeam, tc, source, path)
 	}
+	if rawTaskID, ok := raw["task_id"].(map[string]interface{}); ok {
+		mergeTaskIDConfigWithPath(cfg, fileCfg, rawTaskID, tc, source, path)
+	}
+	if rawIdentity, ok := raw["identity"].(map[string]interface{}); ok {
+		mergeIdentityConfigWithPath(cfg, fileCfg, rawIdentity, tc, source, path)
+	}
 }
 
 
@@ -426,6 +432,32 @@ func mergeTeamConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interf
 	}
 }
 
+func mergeTaskIDConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
+	if _, ok := raw["mode"]; ok {
+		cfg.TaskID.Mode = fileCfg.TaskID.Mode
+		tc.SetSourceWithPath("task_id.mode", source, path)
+	}
+	if _, ok := raw["prefix_source"]; ok {
+		cfg.TaskID.PrefixSource = fileCfg.TaskID.PrefixSource
+		tc.SetSourceWithPath("task_id.prefix_source", source, path)
+	}
+}
+
+func mergeIdentityConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
+	if _, ok := raw["initials"]; ok {
+		cfg.Identity.Initials = fileCfg.Identity.Initials
+		tc.SetSourceWithPath("identity.initials", source, path)
+	}
+	if _, ok := raw["display_name"]; ok {
+		cfg.Identity.DisplayName = fileCfg.Identity.DisplayName
+		tc.SetSourceWithPath("identity.display_name", source, path)
+	}
+	if _, ok := raw["email"]; ok {
+		cfg.Identity.Email = fileCfg.Identity.Email
+		tc.SetSourceWithPath("identity.email", source, path)
+	}
+}
+
 // markDefaults marks all config paths as having SourceDefault.
 func markDefaults(tc *TrackedConfig) {
 	paths := []string{
@@ -443,6 +475,8 @@ func markDefaults(tc *TrackedConfig) {
 		"pool.enabled", "pool.config_path",
 		"server.host", "server.port", "server.auth.enabled", "server.auth.type",
 		"team.enabled", "team.server_url",
+		"task_id.mode", "task_id.prefix_source",
+		"identity.initials", "identity.display_name", "identity.email",
 	}
 
 	for _, path := range paths {

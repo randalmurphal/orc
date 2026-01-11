@@ -170,6 +170,8 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 	}
 
 	// Build query based on filters
+	// Use strftime to format 'since' to match SQLite's datetime('now') format
+	// SQLite stores as "YYYY-MM-DD HH:MM:SS", RFC3339 is "YYYY-MM-DDTHH:MM:SSZ"
 	query := `
 		SELECT
 			COALESCE(SUM(cost_usd), 0),
@@ -179,7 +181,7 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 		FROM cost_log
 		WHERE timestamp >= ?
 	`
-	args := []any{since.Format(time.RFC3339)}
+	args := []any{since.UTC().Format("2006-01-02 15:04:05")}
 
 	if projectID != "" {
 		query += " AND project_id = ?"
@@ -198,7 +200,7 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 		WHERE timestamp >= ?
 		GROUP BY project_id
 	`
-	rows, err := g.Query(projQuery, since.Format(time.RFC3339))
+	rows, err := g.Query(projQuery, since.UTC().Format("2006-01-02 15:04:05"))
 	if err != nil {
 		return nil, fmt.Errorf("get cost by project: %w", err)
 	}
@@ -232,10 +234,11 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 		`
 	}
 
+	sinceStr := since.UTC().Format("2006-01-02 15:04:05")
 	if projectID != "" {
-		rows, err = g.Query(phaseQuery, since.Format(time.RFC3339), projectID)
+		rows, err = g.Query(phaseQuery, sinceStr, projectID)
 	} else {
-		rows, err = g.Query(phaseQuery, since.Format(time.RFC3339))
+		rows, err = g.Query(phaseQuery, sinceStr)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get cost by phase: %w", err)
