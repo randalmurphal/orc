@@ -122,14 +122,16 @@ web/
 | `DiffStats.svelte` | Additions/deletions summary |
 | `VirtualScroller.svelte` | Virtual scrolling for 10K+ lines |
 
-### Review Components (Used by Diff for Inline Comments)
+### Review Components (Legacy - Unused)
+
+These components were the original standalone review UI before inline review was integrated into the diff view. Kept for reference but no longer imported anywhere.
 
 | Component | Purpose |
 |-----------|---------|
-| `ReviewPanel.svelte` | Standalone review panel (legacy, kept for compatibility) |
-| `CommentThread.svelte` | Single comment thread display |
-| `CommentForm.svelte` | Add/edit comment form with severity options |
-| `ReviewSummary.svelte` | Findings summary with severity counts |
+| `ReviewPanel.svelte` | Standalone review panel (legacy) |
+| `CommentThread.svelte` | Single comment thread display (legacy) |
+| `CommentForm.svelte` | Add/edit comment form (legacy) |
+| `ReviewSummary.svelte` | Findings summary with severity counts (legacy) |
 
 ### Kanban Components
 
