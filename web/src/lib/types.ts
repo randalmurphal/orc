@@ -158,3 +158,49 @@ export interface UpdateCommentRequest {
 	status?: 'resolved' | 'wont_fix';
 	content?: string;
 }
+
+// GitHub PR types
+export interface PR {
+	number: number;
+	title: string;
+	body: string;
+	state: 'open' | 'closed' | 'merged';
+	url: string;
+	html_url: string;
+	head: string;
+	base: string;
+	mergeable: boolean;
+	mergeable_state: string;
+	draft: boolean;
+	created_at: string;
+	updated_at: string;
+	merged_at?: string;
+}
+
+export interface PRComment {
+	id: number;
+	body: string;
+	path: string;
+	line: number;
+	author: string;
+	created_at: string;
+	thread_id?: number;
+}
+
+export interface CheckRun {
+	id: number;
+	name: string;
+	status: 'queued' | 'in_progress' | 'completed' | 'waiting' | 'pending' | 'requested';
+	conclusion?: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required' | 'stale' | 'startup_failure';
+	started_at?: string;
+	completed_at?: string;
+	html_url?: string;
+}
+
+export interface CheckSummary {
+	passed: number;
+	failed: number;
+	pending: number;
+	neutral: number;
+	total: number;
+}

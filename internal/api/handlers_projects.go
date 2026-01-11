@@ -602,6 +602,159 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// handleEscalateProjectTask escalates a task from Review/QA back to Implementation with context.
+// This is used for the ralph-loop style workflow where human reviewers can send tasks back
+// to the AI with specific feedback on what needs to be fixed.
+func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Request) {
+	projectID := r.PathValue("id")
+	taskID := r.PathValue("taskId")
+
+	proj, err := s.getProject(projectID)
+	if err != nil {
+		s.jsonError(w, "project not found", http.StatusNotFound)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.Reason == "" {
+		s.jsonError(w, "reason is required for escalation", http.StatusBadRequest)
+		return
+	}
+
+	t, err := s.loadProjectTask(proj.Path, taskID)
+	if err != nil {
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
+		return
+	}
+
+	// Task must be in paused or blocked state to be escalated
+	if t.Status != task.StatusPaused && t.Status != task.StatusBlocked {
+		s.jsonError(w, "task must be paused or blocked to escalate", http.StatusBadRequest)
+		return
+	}
+
+	taskDir := filepath.Join(proj.Path, ".orc", "tasks", taskID)
+
+	// Load plan
+	planPath := filepath.Join(taskDir, "plan.yaml")
+	planData, err := os.ReadFile(planPath)
+	if err != nil {
+		s.jsonError(w, "failed to load plan", http.StatusInternalServerError)
+		return
+	}
+	var p plan.Plan
+	if err := yaml.Unmarshal(planData, &p); err != nil {
+		s.jsonError(w, "failed to parse plan", http.StatusInternalServerError)
+		return
+	}
+
+	// Find implement phase - this is always where we escalate to
+	targetPhase := p.GetPhase("implement")
+	if targetPhase == nil {
+		s.jsonError(w, "implement phase not found", http.StatusBadRequest)
+		return
+	}
+
+	// Load state
+	statePath := filepath.Join(taskDir, "state.yaml")
+	stateData, err := os.ReadFile(statePath)
+	if err != nil && !os.IsNotExist(err) {
+		s.jsonError(w, "failed to load state", http.StatusInternalServerError)
+		return
+	}
+	var st state.State
+	if err == nil {
+		yaml.Unmarshal(stateData, &st)
+	}
+
+	// Get current phase for context
+	currentPhase := st.CurrentPhase
+	if currentPhase == "" {
+		currentPhase = "review"
+	}
+
+	// Get retry attempt number from existing context or start at 1
+	attempt := 1
+	if st.RetryContext != nil && st.RetryContext.Attempt > 0 {
+		attempt = st.RetryContext.Attempt + 1
+	}
+
+	// Save escalation context as a retry context file
+	_, saveErr := executor.SaveRetryContextFile(
+		proj.Path,
+		taskID,
+		currentPhase,
+		"implement",
+		"Human escalation: "+req.Reason,
+		"", // No output, this is manual escalation
+		attempt,
+	)
+	if saveErr != nil {
+		s.logger.Warn("failed to save escalation context file", "error", saveErr)
+		// Continue anyway, the reason is still in state
+	}
+
+	// Set retry context in state
+	st.SetRetryContext(currentPhase, "implement", req.Reason, "", attempt)
+
+	// Mark implement and all later phases as pending
+	foundTarget := false
+	for i := range p.Phases {
+		if p.Phases[i].ID == "implement" {
+			foundTarget = true
+		}
+		if foundTarget {
+			p.Phases[i].Status = plan.PhasePending
+			p.Phases[i].CommitSHA = ""
+			if st.Phases[p.Phases[i].ID] != nil {
+				st.Phases[p.Phases[i].ID].Status = state.StatusPending
+				st.Phases[p.Phases[i].ID].CompletedAt = nil
+			}
+		}
+	}
+
+	// Update state to point to implement phase
+	st.Status = state.StatusPending
+	st.CurrentPhase = "implement"
+	st.CurrentIteration = 1
+	st.CompletedAt = nil
+
+	// Update task status to allow re-running
+	t.Status = task.StatusPlanned
+	t.CompletedAt = nil
+
+	// Save all updates
+	if err := p.SaveTo(taskDir); err != nil {
+		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
+		return
+	}
+	if err := st.SaveTo(taskDir); err != nil {
+		s.jsonError(w, "failed to save state", http.StatusInternalServerError)
+		return
+	}
+	if err := t.SaveTo(taskDir); err != nil {
+		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
+		return
+	}
+
+	s.logger.Info("escalated task", "task", taskID, "reason", req.Reason)
+
+	s.jsonResponse(w, map[string]any{
+		"status":    "escalated",
+		"task_id":   taskID,
+		"phase":     "implement",
+		"reason":    req.Reason,
+		"attempt":   attempt,
+	})
+}
+
 // handleGetProjectTaskState returns the state for a project task.
 func (s *Server) handleGetProjectTaskState(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("id")

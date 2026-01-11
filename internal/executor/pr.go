@@ -12,8 +12,10 @@ import (
 
 // runCompletion executes the completion action (merge/PR/none).
 func (e *Executor) runCompletion(ctx context.Context, t *task.Task) error {
-	action := e.orcConfig.Completion.Action
+	// Resolve action based on task weight
+	action := e.orcConfig.ResolveCompletionAction(string(t.Weight))
 	if action == "" || action == "none" {
+		e.logger.Info("skipping completion action", "weight", t.Weight, "action", action)
 		return nil
 	}
 

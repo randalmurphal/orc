@@ -1,4 +1,4 @@
-import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest } from './types';
+import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary } from './types';
 
 const API_BASE = '/api';
 
@@ -637,6 +637,13 @@ export async function deleteProjectTask(projectId: string, taskId: string): Prom
 	}
 }
 
+export async function escalateProjectTask(projectId: string, taskId: string, reason: string): Promise<{ status: string; task_id: string; phase: string; reason: string; attempt: number }> {
+	return fetchJSON(`/projects/${projectId}/tasks/${taskId}/escalate`, {
+		method: 'POST',
+		body: JSON.stringify({ reason })
+	});
+}
+
 export async function getProjectTranscripts(projectId: string, taskId: string): Promise<TranscriptFile[]> {
 	return fetchJSON<TranscriptFile[]>(`/projects/${projectId}/tasks/${taskId}/transcripts`);
 }
@@ -778,4 +785,62 @@ export async function getReviewStats(taskId: string): Promise<ReviewStatsRespons
 	} catch {
 		return null;
 	}
+}
+
+// GitHub PR Operations
+export interface CreatePRResponse {
+	pr: PR;
+	created: boolean;
+	message?: string;
+}
+
+export interface GetPRResponse {
+	pr: PR;
+	comments: PRComment[];
+	checks: CheckRun[];
+}
+
+export interface MergePRResponse {
+	merged: boolean;
+	pr_number: number;
+	method: string;
+	message: string;
+	warning?: string;
+}
+
+export interface GetChecksResponse {
+	checks: CheckRun[];
+	summary: CheckSummary;
+}
+
+export async function createPR(taskId: string, options?: {
+	title?: string;
+	body?: string;
+	base?: string;
+	labels?: string[];
+	reviewers?: string[];
+	draft?: boolean;
+}): Promise<CreatePRResponse> {
+	return fetchJSON<CreatePRResponse>(`/tasks/${taskId}/github/pr`, {
+		method: 'POST',
+		body: JSON.stringify(options || {})
+	});
+}
+
+export async function getPR(taskId: string): Promise<GetPRResponse> {
+	return fetchJSON<GetPRResponse>(`/tasks/${taskId}/github/pr`);
+}
+
+export async function mergePR(taskId: string, options?: {
+	method?: 'merge' | 'squash' | 'rebase';
+	delete_branch?: boolean;
+}): Promise<MergePRResponse> {
+	return fetchJSON<MergePRResponse>(`/tasks/${taskId}/github/pr/merge`, {
+		method: 'POST',
+		body: JSON.stringify(options || { method: 'squash', delete_branch: true })
+	});
+}
+
+export async function getPRChecks(taskId: string): Promise<GetChecksResponse> {
+	return fetchJSON<GetChecksResponse>(`/tasks/${taskId}/github/pr/checks`);
 }

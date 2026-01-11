@@ -104,6 +104,10 @@
 
 	<h3 class="task-title">{task.title}</h3>
 
+	{#if task.description}
+		<p class="task-description">{task.description}</p>
+	{/if}
+
 	{#if task.current_phase}
 		<div class="task-phase">
 			<span class="phase-label">Phase:</span>
@@ -229,7 +233,7 @@
 	}
 
 	.task-title {
-		margin: 0 0 var(--space-2);
+		margin: 0 0 var(--space-1);
 		font-size: var(--text-sm);
 		font-weight: var(--font-medium);
 		color: var(--text-primary);
@@ -241,6 +245,19 @@
 		overflow: hidden;
 		text-transform: none;
 		letter-spacing: normal;
+	}
+
+	.task-description {
+		margin: 0 0 var(--space-2);
+		font-size: var(--text-xs);
+		color: var(--text-secondary);
+		line-height: var(--leading-relaxed);
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		white-space: pre-wrap;
 	}
 
 	.task-phase {

@@ -28,6 +28,7 @@
 	let error = $state<string | null>(null);
 	let showNewTask = $state(false);
 	let newTaskTitle = $state('');
+	let newTaskDescription = $state('');
 	let newTaskInputRef: HTMLInputElement;
 	let selectedIndex = $state(-1);
 	let cleanupShortcuts: (() => void) | null = null;
@@ -170,12 +171,14 @@
 	async function handleCreateTask() {
 		if (!newTaskTitle.trim()) return;
 		try {
+			const description = newTaskDescription.trim() || undefined;
 			if ($currentProjectId) {
-				await createProjectTask($currentProjectId, newTaskTitle.trim());
+				await createProjectTask($currentProjectId, newTaskTitle.trim(), description);
 			} else {
-				await createTask(newTaskTitle.trim());
+				await createTask(newTaskTitle.trim(), description);
 			}
 			newTaskTitle = '';
+			newTaskDescription = '';
 			showNewTask = false;
 			await loadTasks();
 		} catch (e) {
@@ -502,18 +505,28 @@
 				type="text"
 				placeholder="What needs to be done?"
 				bind:value={newTaskTitle}
-				onkeydown={(e) => e.key === 'Enter' && handleCreateTask()}
+				onkeydown={(e) => e.key === 'Enter' && !newTaskDescription && handleCreateTask()}
 				class="form-input"
 			/>
 		</label>
+		<label class="form-label">
+			Description <span class="optional">(optional)</span>
+			<textarea
+				placeholder="Provide additional context, acceptance criteria, or implementation details..."
+				bind:value={newTaskDescription}
+				class="form-textarea"
+				rows="4"
+			></textarea>
+		</label>
 		<p class="form-hint">
-			Describe the task briefly. Orc will classify the weight and create a plan automatically.
+			Orc will classify the weight and create a plan automatically based on the title and description.
 		</p>
 		<div class="form-actions">
 			<button
 				onclick={() => {
 					showNewTask = false;
 					newTaskTitle = '';
+					newTaskDescription = '';
 				}}
 			>
 				Cancel
@@ -826,7 +839,11 @@
 		font-size: var(--text-sm);
 		font-weight: var(--font-medium);
 		color: var(--text-secondary);
-		margin-bottom: var(--space-2);
+		margin-bottom: var(--space-4);
+	}
+
+	.form-label + .form-label {
+		margin-top: var(--space-3);
 	}
 
 	.form-input {
@@ -856,6 +873,36 @@
 		color: var(--text-muted);
 		margin-top: var(--space-2);
 		margin-bottom: var(--space-5);
+	}
+
+	.form-textarea {
+		width: 100%;
+		padding: var(--space-3);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+		margin-top: var(--space-2);
+		resize: vertical;
+		min-height: 80px;
+		font-family: inherit;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.form-textarea:focus {
+		outline: none;
+		border-color: var(--accent-primary);
+		box-shadow: 0 0 0 3px var(--accent-glow);
+	}
+
+	.form-textarea::placeholder {
+		color: var(--text-muted);
+	}
+
+	.optional {
+		font-weight: var(--font-normal);
+		color: var(--text-muted);
 	}
 
 	.form-actions {
