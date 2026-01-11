@@ -4,13 +4,14 @@
 
 	interface Props {
 		task: Task;
+		compact?: boolean;
 		onRun?: () => void;
 		onPause?: () => void;
 		onResume?: () => void;
 		onDelete?: () => void;
 	}
 
-	let { task, onRun, onPause, onResume, onDelete }: Props = $props();
+	let { task, compact = false, onRun, onPause, onResume, onDelete }: Props = $props();
 
 	const weightConfig: Record<string, { color: string; bg: string }> = {
 		trivial: { color: 'var(--weight-trivial)', bg: 'rgba(107, 114, 128, 0.15)' },
