@@ -152,6 +152,14 @@ func Run(opts Options) (*Result, error) {
 		fmt.Fprintf(os.Stderr, "Warning: could not update .gitignore: %v\n", err)
 	}
 
+	// 7. Install orc stop hook for ralph-style loops
+	if err := InstallHooks(opts.WorkDir); err != nil {
+		// Non-fatal - just warn
+		fmt.Fprintf(os.Stderr, "Warning: could not install hooks: %v\n", err)
+	} else {
+		fmt.Printf("Installed: .claude/hooks/orc-stop.sh (ralph-style loop hook)\n")
+	}
+
 	return &Result{
 		Duration:     time.Since(start),
 		ProjectID:    proj.ID,

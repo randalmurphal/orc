@@ -65,12 +65,22 @@ deps:
 # Development (Native)
 # =============================================================================
 
-## build: Build the binary locally
-build: $(BUILD_DIR)/$(BINARY)
+## build: Build the binary locally (with embedded frontend)
+build: web-build embed-frontend $(BUILD_DIR)/$(BINARY)
+
+## build-cli: Build CLI only (no frontend)
+build-cli: $(BUILD_DIR)/$(BINARY)
 
 $(BUILD_DIR)/$(BINARY): $(GO_FILES)
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 go build $(LDFLAGS) -o $@ ./cmd/orc
+
+## embed-frontend: Copy frontend build to embed directory
+embed-frontend:
+	@echo "==> Embedding frontend..."
+	@rm -rf internal/api/static
+	@cp -r web/build internal/api/static
+	@echo "    Frontend embedded to internal/api/static/"
 
 ## test: Run tests locally
 test:
