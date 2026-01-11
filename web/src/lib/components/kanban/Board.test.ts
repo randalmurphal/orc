@@ -371,54 +371,37 @@ describe('Board', () => {
 
 	describe('action mapping for column transitions', () => {
 		// Testing the handleDrop action determination logic
-		it('determines run action for todo to running transition', () => {
-			const sourceStatus = 'created';
-			const targetColumn = 'running';
-
-			let action: string | null = null;
+		// Helper to determine action based on source status and target column
+		function determineAction(sourceStatus: TaskStatus, targetColumn: string): string | null {
 			if (targetColumn === 'running' && sourceStatus !== 'running') {
 				if (sourceStatus === 'paused') {
-					action = 'resume';
+					return 'resume';
 				} else if (['created', 'classifying', 'planned'].includes(sourceStatus)) {
-					action = 'run';
+					return 'run';
 				}
+			} else if (targetColumn === 'review' && sourceStatus === 'running') {
+				return 'pause';
 			}
+			return null;
+		}
 
+		it('determines run action for todo to running transition', () => {
+			const action = determineAction('created', 'running');
 			expect(action).toBe('run');
 		});
 
 		it('determines resume action for paused to running transition', () => {
-			const sourceStatus = 'paused';
-			const targetColumn = 'running';
-
-			let action: string | null = null;
-			if (targetColumn === 'running' && sourceStatus !== 'running') {
-				if (sourceStatus === 'paused') {
-					action = 'resume';
-				} else if (['created', 'classifying', 'planned'].includes(sourceStatus)) {
-					action = 'run';
-				}
-			}
-
+			const action = determineAction('paused', 'running');
 			expect(action).toBe('resume');
 		});
 
 		it('determines pause action for running to review transition', () => {
-			const sourceStatus = 'running';
-			const targetColumn = 'review';
-
-			let action: string | null = null;
-			if (targetColumn === 'running' && sourceStatus !== 'running') {
-				// Not applicable
-			} else if (targetColumn === 'review' && sourceStatus === 'running') {
-				action = 'pause';
-			}
-
+			const action = determineAction('running', 'review');
 			expect(action).toBe('pause');
 		});
 
 		it('returns null for same-column drop', () => {
-			const sourceStatus = 'created';
+			const sourceStatus: TaskStatus = 'created';
 			const targetColumn = 'todo';
 
 			// Same column check would happen before action determination
@@ -431,18 +414,7 @@ describe('Board', () => {
 		});
 
 		it('returns null for invalid transitions', () => {
-			const sourceStatus = 'completed';
-			const targetColumn = 'running';
-
-			let action: string | null = null;
-			if (targetColumn === 'running' && sourceStatus !== 'running') {
-				if (sourceStatus === 'paused') {
-					action = 'resume';
-				} else if (['created', 'classifying', 'planned'].includes(sourceStatus)) {
-					action = 'run';
-				}
-			}
-
+			const action = determineAction('completed', 'running');
 			// completed -> running has no valid action
 			expect(action).toBeNull();
 		});

@@ -12,10 +12,21 @@
 
 	let { initialFilePath, initialLineNumber, onSubmit, onCancel, isLoading = false }: Props = $props();
 
+	// Initialize state from props - captured once at mount time (intentional)
+	// svelte-ignore state_referenced_locally
 	let filePath = $state(initialFilePath ?? '');
+	// svelte-ignore state_referenced_locally
 	let lineNumber = $state<number | undefined>(initialLineNumber);
 	let content = $state('');
 	let severity = $state<CommentSeverity>('issue');
+	let textareaEl = $state<HTMLTextAreaElement | null>(null);
+
+	// Focus textarea on mount
+	$effect(() => {
+		if (textareaEl) {
+			textareaEl.focus();
+		}
+	});
 
 	// Platform detection for keyboard hints
 	const isMac = $derived(typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform));
@@ -58,6 +69,7 @@
 	}
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <form class="comment-form" onsubmit={handleSubmit} onkeydown={handleKeyDown}>
 	<div class="form-header">
 		<h3>Add Comment</h3>
@@ -119,11 +131,11 @@
 		<label for="content">Comment</label>
 		<textarea
 			id="content"
+			bind:this={textareaEl}
 			bind:value={content}
 			placeholder="Describe the issue or suggestion..."
 			rows="4"
 			disabled={isLoading}
-			autofocus
 		></textarea>
 	</div>
 

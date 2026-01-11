@@ -42,7 +42,6 @@ declare module '$env/static/private' {
 	export const PWD: string;
 	export const USERPROFILE: string;
 	export const LOGNAME: string;
-	export const _: string;
 	export const NoDefaultCurrentDirectoryInExePath: string;
 	export const FZF_DEFAULT_COMMAND: string;
 	export const REPOS_PATH: string;
@@ -93,6 +92,7 @@ declare module '$env/static/private' {
 	export const OLDPWD: string;
 	export const GOPATH: string;
 	export const TERM_PROGRAM: string;
+	export const _: string;
 	export const __MISE_SHIM: string;
 	export const NODE_ENV: string;
 }
@@ -140,7 +140,6 @@ declare module '$env/dynamic/private' {
 		PWD: string;
 		USERPROFILE: string;
 		LOGNAME: string;
-		_: string;
 		NoDefaultCurrentDirectoryInExePath: string;
 		FZF_DEFAULT_COMMAND: string;
 		REPOS_PATH: string;
@@ -191,6 +190,7 @@ declare module '$env/dynamic/private' {
 		OLDPWD: string;
 		GOPATH: string;
 		TERM_PROGRAM: string;
+		_: string;
 		__MISE_SHIM: string;
 		NODE_ENV: string;
 		[key: `PUBLIC_${string}`]: undefined;
