@@ -4,9 +4,9 @@ go 1.24.0
 
 require (
 	github.com/gorilla/websocket v1.5.3
-	github.com/randalmurphal/devflow v0.0.0-20251226061442-e62d70cc5707
-	github.com/randalmurphal/flowgraph v0.0.0-20251222190218-f13ded306948
-	github.com/randalmurphal/llmkit v1.0.0
+	github.com/randalmurphal/devflow v1.1.0
+	github.com/randalmurphal/flowgraph v1.1.0
+	github.com/randalmurphal/llmkit v1.1.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -44,11 +44,3 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.40.1 // indirect
 )
-
-// Local development: use sibling directories
-// Remove these lines when publishing or using CI with proper module hosting
-replace github.com/randalmurphal/llmkit => /home/randy/repos/llmkit
-
-replace github.com/randalmurphal/flowgraph => /home/randy/repos/flowgraph
-
-replace github.com/randalmurphal/devflow => /home/randy/repos/devflow

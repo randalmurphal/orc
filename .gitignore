@@ -26,3 +26,7 @@ coverage.out
 
 # Orc worktrees (parallel task execution)
 .orc/worktrees/
+
+# Go workspace (local development only)
+go.work
+go.work.sum

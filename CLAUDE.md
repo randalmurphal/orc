@@ -3,13 +3,16 @@
 ## Quick Start
 
 ```bash
-# Setup (first time)
-make setup    # Configure go.mod with local dependencies
+# Install (users)
+curl -fsSL https://raw.githubusercontent.com/randalmurphal/orc/main/install.sh | sh
 
-# Development
+# Or: go install github.com/randalmurphal/orc/cmd/orc@latest
+
+# Development (contributors)
+make setup    # Creates go.work, installs bun deps
 make build    # Build binary to bin/orc
 make test     # Run tests
-make dev      # Interactive shell in container
+make dev-full # API (:8080) + frontend (:5173)
 
 # Run
 ./bin/orc init
@@ -38,10 +41,12 @@ make dev      # Interactive shell in container
 
 ## Dependencies
 
-Uses local sibling repos via `go.mod` replace:
-- `../llmkit` - Claude CLI wrapper, templates, model selection
-- `../flowgraph` - Graph-based execution with checkpointing
-- `../devflow` - Git operations, worktree management
+Published Go modules (v1.1.0):
+- `github.com/randalmurphal/llmkit` - Claude CLI wrapper, templates, model selection
+- `github.com/randalmurphal/flowgraph` - Graph-based execution with checkpointing
+- `github.com/randalmurphal/devflow` - Git operations, worktree management
+
+For local development, `make setup` creates `go.work` to use sibling directories.
 
 ## Automation Profiles
 
@@ -425,7 +430,7 @@ make release-build
 make test
 
 # Frontend unit tests
-cd web && npm test
+make web-test
 
 # E2E tests with Playwright
 make e2e

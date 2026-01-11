@@ -12,6 +12,16 @@ Intelligent Claude Code orchestrator that scales rigor to task complexity.
 - **Full visibility**: Live transcripts, timeline view, rewindable history
 - **Ralph-style execution**: Persistent loops within structured phases
 
+## Installation
+
+```bash
+# Install latest release
+curl -fsSL https://raw.githubusercontent.com/randalmurphal/orc/main/install.sh | sh
+
+# Or with go install
+go install github.com/randalmurphal/orc/cmd/orc@latest
+```
+
 ## Quick Start
 
 ```bash
@@ -96,25 +106,40 @@ completion:
 
 ## Development
 
-**Native:**
+**Requirements:**
+- Go 1.24+
+- Bun (for frontend)
+
+**Setup:**
 ```bash
-make setup    # First-time setup
-make build    # Build to bin/orc
-make test     # Run tests
-make lint     # Run linters
+# Clone with sibling dependencies (for contributors)
+git clone https://github.com/randalmurphal/orc
+git clone https://github.com/randalmurphal/llmkit
+git clone https://github.com/randalmurphal/flowgraph
+git clone https://github.com/randalmurphal/devflow
+
+# First-time setup (creates go.work, installs frontend deps)
+cd orc
+make setup
+
+# Build and run
+make build
 ./bin/orc --help
+
+# Run tests
+make test
+```
+
+**Web UI Development:**
+```bash
+make dev-full     # Start API (:8080) + frontend (:5173)
 ```
 
 **Container:**
 ```bash
 make dev           # Interactive development shell
 make docker-test   # Run tests in container
-make docker-build  # Build all images
 ```
-
-**Dependencies:**
-- Requires sibling repos: `../llmkit` and `../flowgraph`
-- Uses `go.mod` replace directives for local development
 
 ## License
 
