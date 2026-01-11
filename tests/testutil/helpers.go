@@ -27,8 +27,8 @@ func SetupTestRepo(t *testing.T) *TestRepo {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
-	// Initialize git repo
-	cmd := exec.Command("git", "init")
+	// Initialize git repo with explicit 'main' branch
+	cmd := exec.Command("git", "init", "--initial-branch=main")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git init failed: %v\n%s", err, output)

@@ -296,8 +296,8 @@ func TestShouldCleanupWorktree_ConfiguredBehavior(t *testing.T) {
 
 // initTestRepo initializes a minimal git repo for testing.
 func initTestRepo(dir string) error {
-	// git init
-	if err := runGitCmd(dir, "init"); err != nil {
+	// git init with explicit 'main' branch to ensure consistent branch name
+	if err := runGitCmd(dir, "init", "--initial-branch=main"); err != nil {
 		return err
 	}
 
