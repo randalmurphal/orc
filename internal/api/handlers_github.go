@@ -370,7 +370,7 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 
 	// Update task status to allow re-run
 	if t.Status == task.StatusCompleted || t.Status == task.StatusFailed {
-		t.Status = task.StatusPending
+		t.Status = task.StatusPlanned
 	}
 
 	if err := t.Save(); err != nil {
@@ -443,6 +443,8 @@ func (s *Server) handleMergePR(w http.ResponseWriter, r *http.Request) {
 		DeleteBranch bool   `json:"delete_branch"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Use defaults if no body or invalid JSON
+		s.logger.Debug("using default merge options", "reason", "empty or invalid body")
 		req.Method = "squash"
 		req.DeleteBranch = true
 	}
