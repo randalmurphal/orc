@@ -76,6 +76,7 @@ func init() {
 	rootCmd.AddCommand(newCleanupCmd())
 	rootCmd.AddCommand(newPoolCmd())
 	rootCmd.AddCommand(newProjectsCmd())
+	rootCmd.AddCommand(newTeamCmd())
 	rootCmd.AddCommand(newSessionCmd())
 	rootCmd.AddCommand(newCostCmd())
 	rootCmd.AddCommand(newTemplateCmd())
