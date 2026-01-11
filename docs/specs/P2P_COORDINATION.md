@@ -321,129 +321,113 @@ func (s *PromptService) Resolve(phase string) (content string, source Source, er
 
 ---
 
-## Task Locking (P2P)
+## Concurrent Execution Model
 
-### Problem
+### Design Philosophy
 
-Two developers shouldn't execute the same task simultaneously.
+**No cross-user locking.** Anyone with access can run any task. Each execution is independent:
 
-### Solution: File-Based Locks
+| Who runs | Branch | Worktree |
+|----------|--------|----------|
+| Alice runs TASK-AM-001 | `orc/TASK-AM-001-am` | `.orc/worktrees/TASK-AM-001-am/` |
+| Bob runs TASK-AM-001 | `orc/TASK-AM-001-bj` | `.orc/worktrees/TASK-AM-001-bj/` |
+| Alice runs again | Same branch, resumes | Same worktree |
 
-```yaml
-# .orc/tasks/TASK-AM-001/lock.yaml
-owner: alice@laptop
-acquired: 2026-01-10T12:00:00Z
-heartbeat: 2026-01-10T12:05:30Z
-ttl: 60s
-pid: 12345
-```
+**Key principles:**
+- Task prefix (AM, BJ) indicates creator, not exclusive access
+- Multiple people can work on same task simultaneously
+- Each execution gets its own branch/worktree (no conflicts)
+- Ownership is metadata, not access control
 
-### Lock Lifecycle
+### Same-User Protection (PID Guard)
 
-```
-┌─────────────────┐
-│ orc run TASK-X  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Check lock.yaml │
-└────────┬────────┘
-         │
-    ┌────┴────┐
-    │ Locked? │
-    └────┬────┘
-         │
-    ┌────┴────┐         ┌─────────────────────┐
-    │   No    ├────────▶│ Create lock.yaml    │
-    └─────────┘         │ Start heartbeat     │
-                        │ Execute task        │
-                        │ Remove lock on exit │
-                        └─────────────────────┘
-         │
-    ┌────┴────┐         ┌─────────────────────┐
-    │   Yes   ├────────▶│ Check heartbeat age │
-    └─────────┘         └──────────┬──────────┘
-                                   │
-                        ┌──────────┴──────────┐
-                        │ Heartbeat > TTL?    │
-                        └──────────┬──────────┘
-                                   │
-                    ┌──────────────┼──────────────┐
-                    │              │              │
-               ┌────┴────┐   ┌─────┴─────┐  ┌─────┴─────┐
-               │   No    │   │    Yes    │  │   Stale   │
-               │ (active)│   │ (crashed) │  │ (orphan)  │
-               └────┬────┘   └─────┬─────┘  └─────┬─────┘
-                    │              │              │
-                    ▼              ▼              ▼
-               Show error     Claim lock     Claim lock
-               "locked by X"  (auto)         (with warning)
-```
-
-### Lock Implementation
+The only protection is preventing the same user from accidentally running the same task twice:
 
 ```go
-type FileLock struct {
-    taskDir string
-    owner   string    // user@machine
+// internal/executor/pid_guard.go
+type PIDGuard struct {
+    worktreePath string
 }
 
-func (l *FileLock) TryAcquire() (bool, error) {
-    lockPath := filepath.Join(l.taskDir, "lock.yaml")
+func (g *PIDGuard) Check() error {
+    pidFile := filepath.Join(g.worktreePath, ".orc.pid")
 
-    // Check existing lock
-    existing, err := l.readLock(lockPath)
-    if err == nil {
-        if time.Since(existing.Heartbeat) < existing.TTL {
-            return false, nil  // Lock is active
-        }
-        // Lock is stale, can claim
-        log.Warn("claiming stale lock", "previous_owner", existing.Owner)
+    data, err := os.ReadFile(pidFile)
+    if err != nil {
+        return nil // No PID file, good to go
     }
 
-    // Create lock
-    lock := Lock{
-        Owner:     l.owner,
-        Acquired:  time.Now(),
-        Heartbeat: time.Now(),
-        TTL:       60 * time.Second,
-        PID:       os.Getpid(),
+    pid, _ := strconv.Atoi(strings.TrimSpace(string(data)))
+    if processExists(pid) {
+        return fmt.Errorf("task already running (pid %d)", pid)
     }
-    return true, l.writeLock(lockPath, lock)
+
+    // Stale PID, clean it up
+    os.Remove(pidFile)
+    return nil
 }
 
-func (l *FileLock) Heartbeat() {
-    ticker := time.NewTicker(10 * time.Second)
-    for range ticker.C {
-        lock, _ := l.readLock(lockPath)
-        lock.Heartbeat = time.Now()
-        l.writeLock(lockPath, lock)
-    }
+func (g *PIDGuard) Acquire() error {
+    pidFile := filepath.Join(g.worktreePath, ".orc.pid")
+    return os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0644)
 }
 
-func (l *FileLock) Release() error {
-    return os.Remove(filepath.Join(l.taskDir, "lock.yaml"))
+func (g *PIDGuard) Release() {
+    os.Remove(filepath.Join(g.worktreePath, ".orc.pid"))
 }
 ```
 
-### Lock in Git
+### Branch/Worktree Naming
 
-```gitignore
-# .gitignore
-.orc/tasks/*/lock.yaml    # Locks are local-only
+Includes executor identity to prevent conflicts:
+
+```go
+// internal/git/naming.go
+func BranchName(taskID, executorPrefix string) string {
+    return fmt.Sprintf("orc/%s-%s", taskID, strings.ToLower(executorPrefix))
+}
+
+func WorktreePath(taskID, executorPrefix string) string {
+    return filepath.Join(".orc", "worktrees",
+        fmt.Sprintf("%s-%s", taskID, strings.ToLower(executorPrefix)))
+}
 ```
 
-**Locks are NOT committed to git.** They're purely local coordination.
+### Execution Flow
 
-### Distributed Lock Check
-
-For tasks that might be running on another machine (checked out in multiple places):
-
-```bash
-# Before running, sync and check
-git fetch origin
-git log --oneline origin/orc/TASK-AM-001..HEAD  # Any remote changes?
+```
+┌─────────────────────┐
+│ orc run TASK-AM-001 │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│ Get executor prefix │  (from ~/.orc/config.yaml identity.initials)
+│ e.g., "bj" for Bob  │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│ Check worktree      │  .orc/worktrees/TASK-AM-001-bj/
+│ exists?             │
+└──────────┬──────────┘
+           │
+     ┌─────┴─────┐
+     │           │
+    Yes          No
+     │           │
+     ▼           ▼
+┌─────────┐  ┌─────────────┐
+│ Check   │  │ Create      │
+│ PID     │  │ worktree    │
+│ guard   │  │ and branch  │
+└────┬────┘  └──────┬──────┘
+     │              │
+     ▼              ▼
+┌─────────────────────┐
+│ Execute task        │
+│ (write PID file)    │
+└─────────────────────┘
 ```
 
 ---
@@ -577,22 +561,21 @@ git push
 # Bob pulls and gets the new prompt automatically
 ```
 
-### Example 5: Lock Conflict
+### Example 5: Multiple Users Same Task
 
 ```bash
-# Alice starts TASK-AM-005
-orc run TASK-AM-005  # Acquires lock
-
-# Bob (same task somehow)
+# Alice runs TASK-AM-005
 orc run TASK-AM-005
-# Error: Task TASK-AM-005 is locked by alice@laptop
-# Started: 5 minutes ago
-# Last heartbeat: 10 seconds ago
-#
-# Options:
-#   [1] Wait for completion
-#   [2] Force unlock (dangerous)
-#   [3] Cancel
+# Creates branch: orc/TASK-AM-005-am
+# Creates worktree: .orc/worktrees/TASK-AM-005-am/
+
+# Bob also runs TASK-AM-005 (different execution)
+orc run TASK-AM-005
+# Creates branch: orc/TASK-AM-005-bj
+# Creates worktree: .orc/worktrees/TASK-AM-005-bj/
+
+# Both run independently, no conflicts
+# Each has their own branch and worktree
 ```
 
 ---
@@ -606,7 +589,6 @@ orc run TASK-AM-005
 .orc/orc.db
 .orc/local/
 .orc/worktrees/
-.orc/tasks/*/lock.yaml
 .orc/tasks/*/transcripts/    # Optional: transcripts can be large
 
 # Keep these tracked
@@ -629,22 +611,9 @@ orc run TASK-AM-005
 | `.orc/tasks/*/plan.yaml` | Yes | Phase sequence |
 | `.orc/tasks/*/state.yaml` | Optional | Execution state |
 | `.orc/tasks/*/transcripts/` | Optional | Can be large |
-| `.orc/tasks/*/lock.yaml` | No | Local only |
 | `.orc/local/*` | No | Personal overrides |
+| `.orc/worktrees/` | No | Local worktrees |
 | `.orc/orc.db` | No | Local database |
-
-### Commit Hooks
-
-```bash
-#!/bin/bash
-# .git/hooks/pre-commit
-
-# Don't commit lock files
-if git diff --cached --name-only | grep -q 'lock\.yaml$'; then
-    echo "Error: lock.yaml files should not be committed"
-    exit 1
-fi
-```
 
 ---
 
