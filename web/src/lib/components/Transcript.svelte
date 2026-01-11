@@ -4,9 +4,10 @@
 	interface Props {
 		lines: TranscriptLine[];
 		autoScroll?: boolean;
+		taskId?: string;
 	}
 
-	let { lines, autoScroll = true }: Props = $props();
+	let { lines, autoScroll = true, taskId = 'task' }: Props = $props();
 
 	let containerRef: HTMLDivElement;
 	let isAutoScrollEnabled = $state(true);
@@ -76,6 +77,54 @@
 		}
 		expandedLines = new Set(expandedLines);
 	}
+
+	// Export transcript to markdown
+	function exportToMarkdown() {
+		if (lines.length === 0) return;
+
+		const timestamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
+		const filename = `${taskId}-transcript-${timestamp}.md`;
+
+		let content = `# Transcript: ${taskId}\n\n`;
+		content += `Generated: ${new Date().toLocaleString()}\n\n`;
+		content += `---\n\n`;
+
+		for (const line of lines) {
+			const config = typeConfig[line.type] || typeConfig.response;
+			const time = formatTime(line.timestamp);
+			content += `## ${config.label} (${time})\n\n`;
+			content += `\`\`\`\n${line.content}\n\`\`\`\n\n`;
+		}
+
+		const blob = new Blob([content], { type: 'text/markdown' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	}
+
+	// Copy transcript to clipboard
+	async function copyToClipboard() {
+		if (lines.length === 0) return;
+
+		let content = '';
+		for (const line of lines) {
+			const config = typeConfig[line.type] || typeConfig.response;
+			const time = formatTime(line.timestamp);
+			content += `[${config.label} ${time}]\n${line.content}\n\n`;
+		}
+
+		try {
+			await navigator.clipboard.writeText(content);
+			// Could add toast notification here
+		} catch (e) {
+			console.error('Failed to copy to clipboard:', e);
+		}
+	}
 </script>
 
 <div class="transcript-container">
@@ -84,7 +133,32 @@
 		<h2>Transcript</h2>
 		<div class="header-actions">
 			<button
-				class="auto-scroll-btn"
+				class="header-btn"
+				onclick={copyToClipboard}
+				title="Copy transcript to clipboard"
+				disabled={lines.length === 0}
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+					<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+				</svg>
+				Copy
+			</button>
+			<button
+				class="header-btn"
+				onclick={exportToMarkdown}
+				title="Export transcript as markdown"
+				disabled={lines.length === 0}
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+					<polyline points="7 10 12 15 17 10" />
+					<line x1="12" y1="15" x2="12" y2="3" />
+				</svg>
+				Export
+			</button>
+			<button
+				class="header-btn"
 				class:active={isAutoScrollEnabled}
 				onclick={toggleAutoScroll}
 				title={isAutoScrollEnabled ? 'Disable auto-scroll' : 'Enable auto-scroll'}
@@ -185,7 +259,7 @@
 		gap: var(--space-2);
 	}
 
-	.auto-scroll-btn {
+	.header-btn {
 		display: flex;
 		align-items: center;
 		gap: var(--space-1-5);
@@ -199,12 +273,17 @@
 		transition: all var(--duration-fast) var(--ease-out);
 	}
 
-	.auto-scroll-btn:hover {
+	.header-btn:hover:not(:disabled) {
 		background: var(--bg-surface);
 		color: var(--text-secondary);
 	}
 
-	.auto-scroll-btn.active {
+	.header-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.header-btn.active {
 		background: var(--accent-subtle);
 		border-color: var(--accent-primary);
 		color: var(--accent-primary);

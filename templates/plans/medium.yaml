@@ -8,7 +8,9 @@ phases:
     prompt: |
       Implement the following feature/task:
 
-      Task: {{TASK_TITLE}}
+      **Task**: {{TASK_TITLE}}
+
+      **Description**: {{TASK_DESCRIPTION}}
 
       {{RETRY_CONTEXT}}
 
@@ -31,7 +33,9 @@ phases:
     prompt: |
       Test and review the implementation:
 
-      Task: {{TASK_TITLE}}
+      **Task**: {{TASK_TITLE}}
+
+      **Original task**: {{TASK_DESCRIPTION}}
 
       1. Run the full test suite
       2. Review code for quality issues
@@ -49,7 +53,22 @@ phases:
 
   - id: docs
     name: docs
-    prompt: docs
+    prompt: |
+      Update documentation for:
+
+      **Task**: {{TASK_TITLE}}
+
+      **Description**: {{TASK_DESCRIPTION}}
+
+      1. Update any relevant documentation files
+      2. Ensure CLAUDE.md reflects the changes if applicable
+      3. Add/update code comments where needed
+      4. Update README if user-facing changes were made
+
+      Keep iterating until documentation is complete.
+
+      When done, output:
+      <phase_complete>true</phase_complete>
     depends_on: [test]
     gate:
       type: auto

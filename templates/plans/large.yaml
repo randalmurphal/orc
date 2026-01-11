@@ -8,7 +8,9 @@ phases:
     prompt: |
       Create a specification for this large task:
 
-      Task: {{TASK_TITLE}}
+      **Task**: {{TASK_TITLE}}
+
+      **Description**: {{TASK_DESCRIPTION}}
 
       Define:
       1. Requirements and scope
@@ -41,9 +43,11 @@ phases:
     prompt: |
       Implement the large task according to the specification:
 
-      Task: {{TASK_TITLE}}
+      **Task**: {{TASK_TITLE}}
 
-      Specification:
+      **Description**: {{TASK_DESCRIPTION}}
+
+      **Specification**:
       {{SPEC_CONTENT}}
 
       {{RETRY_CONTEXT}}
@@ -75,7 +79,9 @@ phases:
     prompt: |
       Comprehensive testing for:
 
-      Task: {{TASK_TITLE}}
+      **Task**: {{TASK_TITLE}}
+
+      **Description**: {{TASK_DESCRIPTION}}
 
       ## Unit Tests
       1. Run: `go test ./... -v -race -cover`
@@ -116,7 +122,22 @@ phases:
 
   - id: docs
     name: docs
-    prompt: docs
+    prompt: |
+      Update documentation for:
+
+      **Task**: {{TASK_TITLE}}
+
+      **Description**: {{TASK_DESCRIPTION}}
+
+      1. Update any relevant documentation files
+      2. Ensure CLAUDE.md reflects the changes if applicable
+      3. Add/update code comments where needed
+      4. Update README if user-facing changes were made
+
+      Keep iterating until documentation is complete.
+
+      When done, output:
+      <phase_complete>true</phase_complete>
     depends_on: [test]
     gate:
       type: auto
@@ -127,7 +148,9 @@ phases:
     prompt: |
       Final validation for:
 
-      Task: {{TASK_TITLE}}
+      **Task**: {{TASK_TITLE}}
+
+      **Description**: {{TASK_DESCRIPTION}}
 
       ## Validation Checklist
 
