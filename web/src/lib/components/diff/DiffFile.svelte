@@ -23,7 +23,7 @@
 </script>
 
 <div class="diff-file">
-	<button class="file-header" onclick={onToggle}>
+	<button class="file-header" onclick={onToggle} aria-expanded={expanded}>
 		<span class="expand-icon" class:expanded>
 			<Icon name="chevron-right" size={14} />
 		</span>

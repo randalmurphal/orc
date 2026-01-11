@@ -178,7 +178,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/tasks/{id}/github/pr", cors(s.handleGetPR))
 	s.mux.HandleFunc("POST /api/tasks/{id}/github/pr/merge", cors(s.handleMergePR))
 	s.mux.HandleFunc("POST /api/tasks/{id}/github/pr/comments/sync", cors(s.handleSyncPRComments))
+	s.mux.HandleFunc("POST /api/tasks/{id}/github/pr/comments/import", cors(s.handleImportPRComments))
 	s.mux.HandleFunc("POST /api/tasks/{id}/github/pr/comments/{commentId}/autofix", cors(s.handleAutoFixComment))
+	s.mux.HandleFunc("POST /api/tasks/{id}/github/pr/comments/{commentId}/reply", cors(s.handleReplyToPRComment))
 	s.mux.HandleFunc("GET /api/tasks/{id}/github/pr/checks", cors(s.handleListPRChecks))
 
 	// WebSocket for real-time updates

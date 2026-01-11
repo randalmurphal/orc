@@ -463,11 +463,11 @@ func (s *Server) handleMergePR(w http.ResponseWriter, r *http.Request) {
 
 	pr, err := client.FindPRByBranch(r.Context(), t.Branch)
 	if err != nil {
-		s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
-		return
-	}
-	if pr == nil {
-		s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		if errors.Is(err, github.ErrNoPRFound) {
+			s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		} else {
+			s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -526,17 +526,26 @@ func (s *Server) handleListPRChecks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Calculate summary
-	var passed, failed, pending int
+	// Calculate summary with proper conclusion categorization
+	var passed, failed, pending, neutral int
 	for _, check := range checks {
 		switch check.Status {
 		case "completed":
-			if check.Conclusion == "success" {
+			switch check.Conclusion {
+			case "success":
 				passed++
-			} else {
+			case "neutral", "skipped", "cancelled":
+				// These aren't failures - count separately
+				neutral++
+			case "action_required":
+				// Treat action_required as needing attention but not failure
+				neutral++
+			default:
+				// failure, timed_out, stale, startup_failure, etc.
 				failed++
 			}
 		default:
+			// queued, in_progress, waiting, pending, requested
 			pending++
 		}
 	}
@@ -547,6 +556,7 @@ func (s *Server) handleListPRChecks(w http.ResponseWriter, r *http.Request) {
 			"passed":  passed,
 			"failed":  failed,
 			"pending": pending,
+			"neutral": neutral,
 			"total":   len(checks),
 		},
 	})
@@ -591,4 +601,222 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// replyToCommentRequest is the request body for replying to a PR comment.
+type replyToCommentRequest struct {
+	Body string `json:"body"`
+}
+
+// handleReplyToPRComment replies to a PR comment thread.
+func (s *Server) handleReplyToPRComment(w http.ResponseWriter, r *http.Request) {
+	taskID := r.PathValue("id")
+	commentID := r.PathValue("commentId")
+
+	t, err := task.Load(taskID)
+	if err != nil {
+		s.jsonError(w, "task not found", http.StatusNotFound)
+		return
+	}
+
+	if t.Branch == "" {
+		s.jsonError(w, "task has no branch", http.StatusBadRequest)
+		return
+	}
+
+	var req replyToCommentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.Body == "" {
+		s.jsonError(w, "body is required", http.StatusBadRequest)
+		return
+	}
+
+	if err := github.CheckGHAuth(r.Context()); err != nil {
+		s.jsonError(w, "GitHub CLI not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	client, err := github.NewClient(s.getProjectRoot())
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to create GitHub client: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Find PR for branch
+	pr, err := client.FindPRByBranch(r.Context(), t.Branch)
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if pr == nil {
+		s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		return
+	}
+
+	// Parse comment ID as int64
+	threadID, err := strconv.ParseInt(commentID, 10, 64)
+	if err != nil {
+		s.jsonError(w, "invalid comment ID: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Reply to the comment thread
+	reply, err := client.ReplyToComment(r.Context(), pr.Number, threadID, req.Body)
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to reply to comment: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, map[string]any{
+		"reply":     reply,
+		"pr_number": pr.Number,
+		"thread_id": threadID,
+		"message":   "Reply posted successfully",
+	})
+}
+
+// importPRCommentsResponse is the response for importing PR comments.
+type importPRCommentsResponse struct {
+	Imported int    `json:"imported"`
+	Skipped  int    `json:"skipped"`
+	Errors   int    `json:"errors"`
+	Total    int    `json:"total"`
+	PRNumber int    `json:"pr_number"`
+	Message  string `json:"message,omitempty"`
+}
+
+// handleImportPRComments imports PR comments as local review comments.
+func (s *Server) handleImportPRComments(w http.ResponseWriter, r *http.Request) {
+	taskID := r.PathValue("id")
+
+	t, err := task.Load(taskID)
+	if err != nil {
+		s.jsonError(w, "task not found", http.StatusNotFound)
+		return
+	}
+
+	if t.Branch == "" {
+		s.jsonError(w, "task has no branch", http.StatusBadRequest)
+		return
+	}
+
+	if err := github.CheckGHAuth(r.Context()); err != nil {
+		s.jsonError(w, "GitHub CLI not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	client, err := github.NewClient(s.getProjectRoot())
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to create GitHub client: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Find PR for branch
+	pr, err := client.FindPRByBranch(r.Context(), t.Branch)
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if pr == nil {
+		s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		return
+	}
+
+	// Get PR comments from GitHub
+	prComments, err := client.ListPRComments(r.Context(), pr.Number)
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to list PR comments: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if len(prComments) == 0 {
+		s.jsonResponse(w, importPRCommentsResponse{
+			Total:    0,
+			PRNumber: pr.Number,
+			Message:  "no comments to import",
+		})
+		return
+	}
+
+	// Open project database
+	pdb, err := db.OpenProject(s.getProjectRoot())
+	if err != nil {
+		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer pdb.Close()
+
+	// Get existing comments to check for duplicates
+	existingComments, err := pdb.ListReviewComments(taskID, "")
+	if err != nil {
+		s.jsonError(w, "failed to list existing comments: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Build a map of existing comments for deduplication
+	// Key: filepath:line:content_prefix
+	existingMap := make(map[string]bool)
+	for _, c := range existingComments {
+		key := fmt.Sprintf("%s:%d:%s", c.FilePath, c.LineNumber, truncateString(c.Content, 50))
+		existingMap[key] = true
+	}
+
+	// Get latest review round
+	latestRound, _ := pdb.GetLatestReviewRound(taskID)
+	newRound := latestRound + 1
+
+	resp := importPRCommentsResponse{
+		Total:    len(prComments),
+		PRNumber: pr.Number,
+	}
+
+	// Import each comment
+	for _, pc := range prComments {
+		// Skip reply comments (part of a thread)
+		if pc.ThreadID != 0 {
+			resp.Skipped++
+			continue
+		}
+
+		// Check for duplicate
+		key := fmt.Sprintf("%s:%d:%s", pc.Path, pc.Line, truncateString(pc.Body, 50))
+		if existingMap[key] {
+			resp.Skipped++
+			continue
+		}
+
+		// Create new review comment
+		comment := &db.ReviewComment{
+			TaskID:      taskID,
+			ReviewRound: newRound,
+			FilePath:    pc.Path,
+			LineNumber:  pc.Line,
+			Content:     fmt.Sprintf("[@%s] %s", pc.Author, pc.Body),
+			Severity:    db.SeverityIssue, // Default to issue for PR comments
+			Status:      db.CommentStatusOpen,
+		}
+
+		if err := pdb.CreateReviewComment(comment); err != nil {
+			s.logger.Warn("failed to import PR comment", "error", err, "path", pc.Path, "line", pc.Line)
+			resp.Errors++
+		} else {
+			resp.Imported++
+			// Add to existing map to prevent duplicate imports in same batch
+			existingMap[key] = true
+		}
+	}
+
+	if resp.Imported > 0 {
+		resp.Message = fmt.Sprintf("imported %d comments from PR #%d (round %d)", resp.Imported, pr.Number, newRound)
+	} else if resp.Skipped > 0 {
+		resp.Message = fmt.Sprintf("all %d comments already exist or are replies", resp.Skipped)
+	} else {
+		resp.Message = "no new comments to import"
+	}
+
+	s.jsonResponse(w, resp)
 }

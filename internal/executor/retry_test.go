@@ -830,3 +830,148 @@ func TestRetryPreview_Fields(t *testing.T) {
 		t.Error("EstimatedTokens should be set")
 	}
 }
+
+func TestIsErrorLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     string
+		expected bool
+	}{
+		// True positives - should detect as error
+		{"error: prefix", "error: something went wrong", true},
+		{"Error: prefix", "Error: something went wrong", true},
+		{"error with space prefix", "error something went wrong", true},
+		{"colon error colon", "main.go:42: error: undefined", true},
+		{"colon error space", "main.go:42: error something", true},
+		{"space error colon", "FAIL  error: timeout", true},
+		{"tab error colon", "	error: tab prefixed", true},
+		{"rust style error", "error[E0425]: cannot find value", true},
+		{"failed colon", "command failed: exit code 1", true},
+		{"failure colon", "test failure: assertion failed", true},
+		{"panic colon", "panic: runtime error", true},
+		{"fatal colon", "fatal: not a git repository", true},
+		{"uppercase ERROR", "2024-01-01 ERROR something happened", true},
+		{"uppercase FAILED", "Test FAILED", true},
+		{"uppercase FATAL", "FATAL: database connection lost", true},
+
+		// False positives - should NOT detect as error
+		{"no error", "No error occurred", false},
+		{"no errors plural", "No errors found in codebase", false},
+		{"zero errors", "0 errors, 5 warnings", false},
+		{"without error", "completed without error", false},
+		{"zero error singular", "0 error found", false},
+		{"contains error but negated", "Test passed with zero errors", false},
+		{"error in word", "terrorize", false},
+		{"error in variable name", "errorHandler := func(){}", false},
+		{"normal log message", "processing request 123", false},
+		{"success message", "Build completed successfully", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isErrorLine(tc.line)
+			if result != tc.expected {
+				t.Errorf("isErrorLine(%q) = %v, want %v", tc.line, result, tc.expected)
+			}
+		})
+	}
+}
+
+func TestNormalizeSeverity(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"", "INFO"},
+		{"issue", "ISSUE"},
+		{"ISSUE", "ISSUE"},
+		{"Issue", "ISSUE"},
+		{"blocker", "BLOCKER"},
+		{"suggestion", "SUGGESTION"},
+		{"info", "INFO"},
+	}
+
+	for _, tc := range tests {
+		t.Run("input_"+tc.input, func(t *testing.T) {
+			result := normalizeSeverity(tc.input)
+			if result != tc.expected {
+				t.Errorf("normalizeSeverity(%q) = %q, want %q", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
+
+func TestFormatReviewCommentsForContext_EmptySeverity(t *testing.T) {
+	comments := []db.ReviewComment{
+		{FilePath: "test.go", LineNumber: 10, Content: "Missing something", Severity: ""},
+	}
+
+	result := formatReviewCommentsForContext(comments)
+
+	// Should default empty severity to INFO
+	if !strings.Contains(result, "[INFO]") {
+		t.Error("empty severity should default to INFO, got: " + result)
+	}
+}
+
+func TestFormatReviewCommentsForContext_DeterministicOrder(t *testing.T) {
+	// Create comments for multiple files
+	comments := []db.ReviewComment{
+		{FilePath: "zebra.go", Content: "Z comment", Severity: "issue"},
+		{FilePath: "alpha.go", Content: "A comment", Severity: "issue"},
+		{FilePath: "middle.go", Content: "M comment", Severity: "issue"},
+	}
+
+	// Run multiple times and verify order is consistent
+	var results []string
+	for i := 0; i < 5; i++ {
+		results = append(results, formatReviewCommentsForContext(comments))
+	}
+
+	// All results should be identical
+	for i := 1; i < len(results); i++ {
+		if results[i] != results[0] {
+			t.Errorf("run %d produced different output than run 0", i)
+		}
+	}
+
+	// Verify alphabetical order
+	result := results[0]
+	alphaIdx := strings.Index(result, "### `alpha.go`")
+	middleIdx := strings.Index(result, "### `middle.go`")
+	zebraIdx := strings.Index(result, "### `zebra.go`")
+
+	if alphaIdx == -1 || middleIdx == -1 || zebraIdx == -1 {
+		t.Fatal("not all files found in output")
+	}
+	if alphaIdx > middleIdx || middleIdx > zebraIdx {
+		t.Error("files should be in alphabetical order: alpha < middle < zebra")
+	}
+}
+
+func TestCompressPreviousContext_FalsePositivesFiltered(t *testing.T) {
+	transcripts := []db.Transcript{
+		{Phase: "test", Content: "No errors found"},
+		{Phase: "test", Content: "0 errors, 10 tests passed"},
+		{Phase: "test", Content: "completed without error"},
+		{Phase: "test", Content: "error: actual error here"},
+	}
+
+	result := CompressPreviousContext(transcripts)
+
+	// Should NOT include false positives
+	if strings.Contains(result, "No errors found") {
+		t.Error("should not include 'No errors found' as key issue")
+	}
+	if strings.Contains(result, "0 errors") {
+		t.Error("should not include '0 errors' as key issue")
+	}
+	if strings.Contains(result, "without error") {
+		t.Error("should not include 'without error' as key issue")
+	}
+
+	// Should include actual error
+	if !strings.Contains(result, "error: actual error here") {
+		t.Error("should include actual error line")
+	}
+}

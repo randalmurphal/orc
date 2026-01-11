@@ -25,21 +25,20 @@
 	const totalHeight = $derived(items.length * itemHeight);
 
 	onMount(() => {
+		const resizeObserver = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				containerHeight = entry.contentRect.height;
+			}
+		});
+
 		if (containerEl) {
 			containerHeight = containerEl.clientHeight;
-
-			const resizeObserver = new ResizeObserver((entries) => {
-				for (const entry of entries) {
-					containerHeight = entry.contentRect.height;
-				}
-			});
-
 			resizeObserver.observe(containerEl);
-
-			return () => {
-				resizeObserver.disconnect();
-			};
 		}
+
+		return () => {
+			resizeObserver.disconnect();
+		};
 	});
 
 	function handleScroll() {

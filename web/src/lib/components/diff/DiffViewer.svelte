@@ -105,11 +105,21 @@
 <div class="diff-viewer">
 	<div class="diff-toolbar">
 		<div class="toolbar-left">
-			<div class="view-toggle">
-				<button class:active={viewMode === 'split'} onclick={() => (viewMode = 'split')}>
+			<div class="view-toggle" role="tablist" aria-label="Diff view mode">
+				<button
+					role="tab"
+					aria-selected={viewMode === 'split'}
+					class:active={viewMode === 'split'}
+					onclick={() => (viewMode = 'split')}
+				>
 					Split
 				</button>
-				<button class:active={viewMode === 'unified'} onclick={() => (viewMode = 'unified')}>
+				<button
+					role="tab"
+					aria-selected={viewMode === 'unified'}
+					class:active={viewMode === 'unified'}
+					onclick={() => (viewMode = 'unified')}
+				>
 					Unified
 				</button>
 			</div>
