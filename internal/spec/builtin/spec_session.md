@@ -82,14 +82,22 @@ Present your proposed approach clearly:
 
 Create a structured specification with:
 - Problem statement (1-2 sentences)
-- Success criteria (testable)
+- Success criteria (testable, measurable outcomes)
 - Scope (what's in, what's out)
 - Technical approach
 - Files to modify/create
 - Edge cases and error handling
 - Open questions (if any remain)
 
-Save the spec to: `.orc/specs/{{.Title | lower | replace " " "-"}}.md`
+**REQUIRED - Test Definition Section:**
+Every spec MUST include a "Testing" section that defines:
+1. **What to test**: Specific behaviors, functions, or scenarios that need test coverage
+2. **How to test**: Test types needed (unit, integration, e2e) and approach for each
+3. **Acceptance criteria**: Concrete conditions that prove the implementation works
+
+A spec is NOT ready for implementation until the testing section is complete.
+
+Save the spec to: `.orc/specs/<feature-name>.md` (use lowercase with hyphens, e.g., "User Authentication" → "user-authentication.md")
 
 {{if .CreateTasks}}
 ## Task Generation

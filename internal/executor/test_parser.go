@@ -111,10 +111,9 @@ func ParseGoTestOutput(output string) (*ParsedTestResult, error) {
 	var failureOutput strings.Builder
 
 	for i, line := range lines {
-		// Extract package from ok/FAIL lines
+		// Extract package from ok/FAIL lines (for context, don't count as tests)
 		if matches := pkgPassPattern.FindStringSubmatch(line); matches != nil {
 			currentPackage = matches[1]
-			result.Passed++ // Count package passes
 		} else if matches := pkgFailPattern.FindStringSubmatch(line); matches != nil {
 			currentPackage = matches[1]
 		}

@@ -17,7 +17,7 @@ import (
 func newInitiativeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "initiative",
-		Aliases: []string{"init", "i"},
+		Aliases: []string{"i"},
 		Short:   "Manage initiatives (grouped tasks with shared context)",
 		Long: `Manage initiatives - groupings of related tasks with shared vision and decisions.
 

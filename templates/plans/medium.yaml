@@ -54,5 +54,3 @@ phases:
     gate:
       type: auto
     checkpoint: true
-    skip_conditions:
-      - "weight == trivial"
