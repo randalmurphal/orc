@@ -1,22 +1,14 @@
 // Package cli implements the orc command-line interface.
 package cli
 
-import (
-	"fmt"
-
-	"github.com/spf13/cobra"
-)
-
-// newDiffCmd creates the diff command
-func newDiffCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "diff <task-id>",
-		Short: "Show task changes",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Printf("Showing diff for task: %s\n", args[0])
-			// TODO: Implement git diff
-			return nil
-		},
-	}
-}
+// TODO: Implement diff command to show task changes via git diff.
+// The command should show all commits/changes made by a task.
+//
+// Planned usage:
+//   orc diff <task-id>        # Show all changes made by task
+//   orc diff <task-id> --stat # Show summary stats only
+//
+// Implementation needs:
+//   - Get task branch from task.yaml
+//   - Find base commit (before task started)
+//   - Run git diff base..HEAD or git log base..HEAD

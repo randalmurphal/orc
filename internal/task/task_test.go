@@ -269,7 +269,7 @@ func TestLoadAllEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadAll() on empty dir should not error: %v", err)
 	}
-	if tasks != nil && len(tasks) != 0 {
+	if len(tasks) != 0 {
 		t.Error("LoadAll() on empty dir should return nil/empty")
 	}
 }
@@ -444,7 +444,7 @@ func TestLoadAllFrom_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadAllFrom() should not error for non-existent: %v", err)
 	}
-	if tasks != nil && len(tasks) != 0 {
+	if len(tasks) != 0 {
 		t.Error("LoadAllFrom() should return nil/empty for non-existent directory")
 	}
 }

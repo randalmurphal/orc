@@ -8,10 +8,10 @@ import (
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 )
 
-// printError prints an error to stderr with appropriate formatting.
+// PrintError prints an error to stderr with appropriate formatting.
 // If the error is an OrcError, it uses the user-friendly format.
 // Otherwise, it prints a simple error message.
-func printError(err error) {
+func PrintError(err error) {
 	if orcErr := orcerrors.AsOrcError(err); orcErr != nil {
 		fmt.Fprintln(os.Stderr, orcErr.UserMessage())
 		if verbose {

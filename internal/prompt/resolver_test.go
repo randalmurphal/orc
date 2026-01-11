@@ -61,10 +61,18 @@ func TestResolve_PersonalOverridesAll(t *testing.T) {
 	}
 
 	// Write prompts at each level
-	os.WriteFile(filepath.Join(personalDir, "implement.md"), []byte("personal prompt"), 0644)
-	os.WriteFile(filepath.Join(localDir, "implement.md"), []byte("local prompt"), 0644)
-	os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte("shared prompt"), 0644)
-	os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte("project prompt"), 0644)
+	if err := os.WriteFile(filepath.Join(personalDir, "implement.md"), []byte("personal prompt"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(localDir, "implement.md"), []byte("local prompt"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte("shared prompt"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte("project prompt"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewResolver(
 		WithPersonalDir(personalDir),
@@ -100,8 +108,12 @@ func TestResolve_LocalOverridesShared(t *testing.T) {
 		}
 	}
 
-	os.WriteFile(filepath.Join(localDir, "implement.md"), []byte("local prompt"), 0644)
-	os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte("shared prompt"), 0644)
+	if err := os.WriteFile(filepath.Join(localDir, "implement.md"), []byte("local prompt"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte("shared prompt"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewResolver(
 		WithLocalDir(localDir),
@@ -134,8 +146,12 @@ func TestResolve_SharedOverridesProject(t *testing.T) {
 		}
 	}
 
-	os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte("shared prompt"), 0644)
-	os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte("project prompt"), 0644)
+	if err := os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte("shared prompt"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte("project prompt"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewResolver(
 		WithSharedDir(sharedDir),
@@ -159,8 +175,12 @@ func TestResolve_SharedOverridesProject(t *testing.T) {
 func TestResolve_ProjectOverridesEmbedded(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectDir := filepath.Join(tmpDir, "prompts")
-	os.MkdirAll(projectDir, 0755)
-	os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte("project prompt"), 0644)
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte("project prompt"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewResolver(
 		WithProjectDir(projectDir),
@@ -222,7 +242,9 @@ func TestResolve_InheritanceWithPrepend(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	projectDir := filepath.Join(tmpDir, "project", "prompts")
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Write prompt that extends embedded and prepends
 	content := `---
@@ -232,7 +254,9 @@ prepend: |
   ==============
 ---
 `
-	os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte(content), 0644)
+	if err := os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewResolver(
 		WithProjectDir(projectDir),
@@ -266,7 +290,9 @@ func TestResolve_InheritanceWithAppend(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	projectDir := filepath.Join(tmpDir, "project", "prompts")
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	content := `---
 extends: embedded
@@ -274,7 +300,9 @@ append: |
   CUSTOM FOOTER
 ---
 `
-	os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte(content), 0644)
+	if err := os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewResolver(
 		WithProjectDir(projectDir),
@@ -300,7 +328,9 @@ func TestResolve_InheritanceWithPrependAndAppend(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	projectDir := filepath.Join(tmpDir, "project", "prompts")
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	content := `---
 extends: embedded
@@ -310,7 +340,9 @@ append: |
   FOOTER
 ---
 `
-	os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte(content), 0644)
+	if err := os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewResolver(
 		WithProjectDir(projectDir),
@@ -335,8 +367,12 @@ func TestResolve_InheritanceChain(t *testing.T) {
 
 	sharedDir := filepath.Join(tmpDir, "shared", "prompts")
 	localDir := filepath.Join(tmpDir, "local", "prompts")
-	os.MkdirAll(sharedDir, 0755)
-	os.MkdirAll(localDir, 0755)
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(localDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Shared extends embedded
 	sharedContent := `---
@@ -345,7 +381,9 @@ prepend: |
   SHARED PREPEND
 ---
 `
-	os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte(sharedContent), 0644)
+	if err := os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte(sharedContent), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Local extends shared
 	localContent := `---
@@ -354,7 +392,9 @@ prepend: |
   LOCAL PREPEND
 ---
 `
-	os.WriteFile(filepath.Join(localDir, "implement.md"), []byte(localContent), 0644)
+	if err := os.WriteFile(filepath.Join(localDir, "implement.md"), []byte(localContent), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewResolver(
 		WithLocalDir(localDir),
@@ -391,11 +431,19 @@ func TestResolveFromSource(t *testing.T) {
 
 	personalDir := filepath.Join(tmpDir, "personal", "prompts")
 	projectDir := filepath.Join(tmpDir, "project", "prompts")
-	os.MkdirAll(personalDir, 0755)
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(personalDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
-	os.WriteFile(filepath.Join(personalDir, "test.md"), []byte("personal"), 0644)
-	os.WriteFile(filepath.Join(projectDir, "test.md"), []byte("project"), 0644)
+	if err := os.WriteFile(filepath.Join(personalDir, "test.md"), []byte("personal"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "test.md"), []byte("project"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewResolver(
 		WithPersonalDir(personalDir),
@@ -583,7 +631,9 @@ func TestSourceDisplayName(t *testing.T) {
 func TestResolve_NoBodyAfterFrontmatter(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectDir := filepath.Join(tmpDir, "prompts")
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Prompt with only frontmatter, no body
 	content := `---
@@ -592,7 +642,9 @@ prepend: |
   PREPEND ONLY
 ---
 `
-	os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte(content), 0644)
+	if err := os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewResolver(
 		WithProjectDir(projectDir),
@@ -616,13 +668,17 @@ prepend: |
 func TestResolve_InvalidExtends(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectDir := filepath.Join(tmpDir, "prompts")
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	content := `---
 extends: invalid_source
 ---
 Body`
-	os.WriteFile(filepath.Join(projectDir, "test.md"), []byte(content), 0644)
+	if err := os.WriteFile(filepath.Join(projectDir, "test.md"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewResolver(
 		WithProjectDir(projectDir),

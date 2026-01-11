@@ -288,8 +288,8 @@ func generateOrcSection(detection *detect.Detection) string {
 	sb.WriteString("This project uses [orc](https://github.com/randalmurphal/orc) for task orchestration.\n\n")
 
 	sb.WriteString("### Detected Configuration\n\n")
-	sb.WriteString(fmt.Sprintf("| Setting | Value |\n"))
-	sb.WriteString(fmt.Sprintf("|---------|-------|\n"))
+	sb.WriteString("| Setting | Value |\n")
+	sb.WriteString("|---------|-------|\n")
 	sb.WriteString(fmt.Sprintf("| Language | %s |\n", detection.Language))
 
 	if len(detection.Frameworks) > 0 {

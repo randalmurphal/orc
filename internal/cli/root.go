@@ -64,7 +64,8 @@ func init() {
 	rootCmd.AddCommand(newRewindCmd())
 	rootCmd.AddCommand(newStatusCmd())
 	rootCmd.AddCommand(newLogCmd())
-	rootCmd.AddCommand(newDiffCmd())
+	// TODO: diff command pending implementation - currently a stub
+	// rootCmd.AddCommand(newDiffCmd())
 	rootCmd.AddCommand(newApproveCmd())
 	rootCmd.AddCommand(newRejectCmd())
 	rootCmd.AddCommand(newExportCmd())

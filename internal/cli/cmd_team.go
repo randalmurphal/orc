@@ -11,6 +11,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
 
 	"github.com/randalmurphal/orc/internal/config"
@@ -32,14 +33,39 @@ type TeamRegistry struct {
 
 // SharedConfig represents the .orc/shared/config.yaml file structure.
 type SharedConfig struct {
-	Version  int `yaml:"version"`
-	TaskID   struct {
+	Version int `yaml:"version"`
+	TaskID  struct {
 		Mode         string `yaml:"mode"`
 		PrefixSource string `yaml:"prefix_source"`
 	} `yaml:"task_id"`
 	Defaults struct {
 		Profile string `yaml:"profile"`
 	} `yaml:"defaults"`
+	Gates struct {
+		DefaultType    string            `yaml:"default_type,omitempty"`
+		PhaseOverrides map[string]string `yaml:"phase_overrides,omitempty"`
+	} `yaml:"gates,omitempty"`
+	Cost struct {
+		WarnPerTask float64 `yaml:"warn_per_task,omitempty"`
+	} `yaml:"cost,omitempty"`
+}
+
+// findProjectRoot walks up from cwd to find the .orc directory.
+func findProjectRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("get working directory: %w", err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, config.OrcDir)); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("not in an orc project (no %s directory found)", config.OrcDir)
+		}
+		dir = parent
+	}
 }
 
 func newTeamCmd() *cobra.Command {
@@ -92,11 +118,16 @@ so team members can access it.`,
 }
 
 func runTeamInit(force bool) error {
-	sharedDir := filepath.Join(config.OrcDir, "shared")
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		return err
+	}
+
+	sharedDir := filepath.Join(projectRoot, config.OrcDir, "shared")
 
 	// Check if already exists
 	if _, err := os.Stat(sharedDir); err == nil && !force {
-		return fmt.Errorf(".orc/shared/ already exists (use --force to reinitialize)")
+		return fmt.Errorf("%s already exists (use --force to reinitialize)", sharedDir)
 	}
 
 	// Create directory structure
@@ -118,6 +149,7 @@ func runTeamInit(force bool) error {
 	sharedCfg.TaskID.Mode = "p2p"
 	sharedCfg.TaskID.PrefixSource = "initials"
 	sharedCfg.Defaults.Profile = "safe"
+	sharedCfg.Gates.DefaultType = "auto"
 
 	cfgPath := filepath.Join(sharedDir, "config.yaml")
 	cfgData, err := yaml.Marshal(sharedCfg)
@@ -144,17 +176,17 @@ func runTeamInit(force bool) error {
 		return fmt.Errorf("write team registry: %w", err)
 	}
 
-	fmt.Println("Initialized P2P team structure:")
-	fmt.Println("  .orc/shared/config.yaml")
-	fmt.Println("  .orc/shared/prompts/")
-	fmt.Println("  .orc/shared/skills/")
-	fmt.Println("  .orc/shared/templates/")
-	fmt.Println("  .orc/shared/team.yaml")
-	fmt.Println()
-	fmt.Println("Next steps:")
-	fmt.Println("  1. Run 'orc team join' to register yourself")
-	fmt.Println("  2. Commit .orc/shared/ to git")
-	fmt.Println("  3. Have team members pull and run 'orc team join'")
+	_, _ = fmt.Println("Initialized P2P team structure:")
+	_, _ = fmt.Printf("  %s/config.yaml\n", sharedDir)
+	_, _ = fmt.Printf("  %s/prompts/\n", sharedDir)
+	_, _ = fmt.Printf("  %s/skills/\n", sharedDir)
+	_, _ = fmt.Printf("  %s/templates/\n", sharedDir)
+	_, _ = fmt.Printf("  %s/team.yaml\n", sharedDir)
+	_, _ = fmt.Println()
+	_, _ = fmt.Println("Next steps:")
+	_, _ = fmt.Println("  1. Run 'orc team join' to register yourself")
+	_, _ = fmt.Println("  2. Commit .orc/shared/ to git")
+	_, _ = fmt.Println("  3. Have team members pull and run 'orc team join'")
 
 	return nil
 }
@@ -186,12 +218,17 @@ You can provide your details via flags or be prompted interactively.`,
 }
 
 func runTeamJoin(initials, name, email string) error {
-	sharedDir := filepath.Join(config.OrcDir, "shared")
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		return err
+	}
+
+	sharedDir := filepath.Join(projectRoot, config.OrcDir, "shared")
 	teamPath := filepath.Join(sharedDir, "team.yaml")
 
 	// Check if shared directory exists
 	if _, err := os.Stat(sharedDir); os.IsNotExist(err) {
-		return fmt.Errorf(".orc/shared/ does not exist. Run 'orc team init' first")
+		return fmt.Errorf("%s does not exist; run 'orc team init' first", sharedDir)
 	}
 
 	// Load existing registry
@@ -200,11 +237,17 @@ func runTeamJoin(initials, name, email string) error {
 		return fmt.Errorf("load team registry: %w", err)
 	}
 
+	// Check TTY for interactive prompts
+	isTTY := term.IsTerminal(int(os.Stdin.Fd()))
+
 	// Interactive prompts if flags not provided
 	reader := bufio.NewReader(os.Stdin)
 
 	if initials == "" {
-		fmt.Print("Enter your initials (e.g., AM): ")
+		if !isTTY {
+			return fmt.Errorf("--initials flag required in non-interactive mode")
+		}
+		_, _ = fmt.Print("Enter your initials (e.g., AM): ")
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("read initials: %w", err)
@@ -229,22 +272,25 @@ func runTeamJoin(initials, name, email string) error {
 		}
 	}
 
-	// Check if initials already taken
+	// Check if initials already taken (use uppercase for comparison)
 	for _, m := range registry.Members {
-		if strings.EqualFold(m.Initials, initials) {
+		if strings.ToUpper(m.Initials) == initials {
 			return fmt.Errorf("initials '%s' already registered to %s", initials, m.Name)
 		}
 	}
 
-	// Check if prefix already reserved
+	// Check if prefix already reserved (use uppercase for comparison)
 	for _, p := range registry.ReservedPrefixes {
-		if strings.EqualFold(p, initials) {
+		if strings.ToUpper(p) == initials {
 			return fmt.Errorf("prefix '%s' is already reserved", initials)
 		}
 	}
 
 	if name == "" {
-		fmt.Print("Enter your display name: ")
+		if !isTTY {
+			return fmt.Errorf("--name flag required in non-interactive mode")
+		}
+		_, _ = fmt.Print("Enter your display name: ")
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("read name: %w", err)
@@ -256,8 +302,8 @@ func runTeamJoin(initials, name, email string) error {
 		return fmt.Errorf("display name is required")
 	}
 
-	if email == "" {
-		fmt.Print("Enter your email (optional, press Enter to skip): ")
+	if email == "" && isTTY {
+		_, _ = fmt.Print("Enter your email (optional, press Enter to skip): ")
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("read email: %w", err)
@@ -279,19 +325,19 @@ func runTeamJoin(initials, name, email string) error {
 		return fmt.Errorf("save team registry: %w", err)
 	}
 
-	// Also save to user config for task ID generation
+	// Save to user config for task ID generation (hard error if this fails)
 	if err := saveUserIdentity(initials, name); err != nil {
-		fmt.Printf("Warning: could not save to user config: %v\n", err)
+		return fmt.Errorf("save user identity to ~/.orc/config.yaml: %w", err)
 	}
 
-	fmt.Printf("\nRegistered as team member:\n")
-	fmt.Printf("  Initials: %s\n", initials)
-	fmt.Printf("  Name:     %s\n", name)
+	_, _ = fmt.Printf("\nRegistered as team member:\n")
+	_, _ = fmt.Printf("  Initials: %s\n", initials)
+	_, _ = fmt.Printf("  Name:     %s\n", name)
 	if email != "" {
-		fmt.Printf("  Email:    %s\n", email)
+		_, _ = fmt.Printf("  Email:    %s\n", email)
 	}
-	fmt.Printf("\nYour task IDs will be: TASK-%s-001, TASK-%s-002, ...\n", initials, initials)
-	fmt.Println("\nRemember to commit the updated team.yaml to share with your team.")
+	_, _ = fmt.Printf("\nYour task IDs will be: TASK-%s-001, TASK-%s-002, ...\n", initials, initials)
+	_, _ = fmt.Printf("\nRemember to commit the updated %s to share with your team.\n", teamPath)
 
 	return nil
 }
@@ -308,12 +354,17 @@ func newTeamMembersCmd() *cobra.Command {
 }
 
 func runTeamMembers() error {
-	sharedDir := filepath.Join(config.OrcDir, "shared")
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		return err
+	}
+
+	sharedDir := filepath.Join(projectRoot, config.OrcDir, "shared")
 	teamPath := filepath.Join(sharedDir, "team.yaml")
 
 	// Check if shared directory exists
 	if _, err := os.Stat(sharedDir); os.IsNotExist(err) {
-		return fmt.Errorf(".orc/shared/ does not exist. Run 'orc team init' first")
+		return fmt.Errorf("%s does not exist; run 'orc team init' first", sharedDir)
 	}
 
 	registry, err := loadTeamRegistry(teamPath)
@@ -322,26 +373,25 @@ func runTeamMembers() error {
 	}
 
 	if len(registry.Members) == 0 {
-		fmt.Println("No team members registered. Run 'orc team join' to register.")
+		_, _ = fmt.Println("No team members registered. Run 'orc team join' to register.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "INITIALS\tNAME\tEMAIL")
-	fmt.Fprintln(w, "--------\t----\t-----")
+	_, _ = fmt.Fprintln(w, "INITIALS\tNAME\tEMAIL")
+	_, _ = fmt.Fprintln(w, "--------\t----\t-----")
 
 	for _, m := range registry.Members {
 		email := m.Email
 		if email == "" {
 			email = "-"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n", m.Initials, m.Name, email)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", m.Initials, m.Name, email)
 	}
-	w.Flush()
+	_ = w.Flush()
 
-	if len(registry.ReservedPrefixes) > len(registry.Members) {
-		fmt.Printf("\nReserved prefixes: %s\n", strings.Join(registry.ReservedPrefixes, ", "))
-	}
+	// Always show reserved prefixes section
+	_, _ = fmt.Printf("\nReserved prefixes: %s\n", strings.Join(registry.ReservedPrefixes, ", "))
 
 	return nil
 }
@@ -365,17 +415,32 @@ This runs 'git pull' to fetch the latest changes to:
 }
 
 func runTeamSync() error {
-	sharedDir := filepath.Join(config.OrcDir, "shared")
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		return err
+	}
+
+	sharedDir := filepath.Join(projectRoot, config.OrcDir, "shared")
 
 	// Check if shared directory exists
 	if _, err := os.Stat(sharedDir); os.IsNotExist(err) {
-		return fmt.Errorf(".orc/shared/ does not exist. Run 'orc team init' first or pull from remote")
+		return fmt.Errorf("%s does not exist; run 'orc team init' first or pull from remote", sharedDir)
 	}
 
-	fmt.Println("Pulling latest shared resources...")
+	// Check for uncommitted changes in shared directory
+	statusCmd := exec.Command("git", "-C", projectRoot, "status", "--porcelain", filepath.Join(config.OrcDir, "shared"))
+	output, err := statusCmd.Output()
+	if err != nil {
+		return fmt.Errorf("check git status: %w", err)
+	}
+	if len(output) > 0 {
+		return fmt.Errorf("uncommitted changes in %s; commit or stash first", sharedDir)
+	}
 
-	// Run git pull
-	gitCmd := exec.Command("git", "pull", "--rebase")
+	_, _ = fmt.Println("Pulling latest shared resources...")
+
+	// Run git pull from project root
+	gitCmd := exec.Command("git", "-C", projectRoot, "pull", "--rebase")
 	gitCmd.Stdout = os.Stdout
 	gitCmd.Stderr = os.Stderr
 
@@ -383,7 +448,7 @@ func runTeamSync() error {
 		return fmt.Errorf("git pull failed: %w", err)
 	}
 
-	fmt.Println("\nShared resources synced successfully.")
+	_, _ = fmt.Println("\nShared resources synced successfully.")
 
 	return nil
 }
@@ -427,15 +492,16 @@ func saveTeamRegistry(path string, registry *TeamRegistry) error {
 }
 
 // saveUserIdentity saves the user's identity to ~/.orc/config.yaml.
+// Preserves existing config values, only updates the identity section.
 func saveUserIdentity(initials, displayName string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return err
+		return fmt.Errorf("get home directory: %w", err)
 	}
 
 	userOrcDir := filepath.Join(home, ".orc")
 	if err := os.MkdirAll(userOrcDir, 0755); err != nil {
-		return err
+		return fmt.Errorf("create %s: %w", userOrcDir, err)
 	}
 
 	userCfgPath := filepath.Join(userOrcDir, "config.yaml")
@@ -446,13 +512,19 @@ func saveUserIdentity(initials, displayName string) error {
 	data, err := os.ReadFile(userCfgPath)
 	if err == nil {
 		if err := yaml.Unmarshal(data, &userCfg); err != nil {
-			userCfg = make(map[string]interface{})
+			return fmt.Errorf("parse existing %s: %w", userCfgPath, err)
 		}
+	} else if os.IsNotExist(err) {
+		userCfg = make(map[string]interface{})
 	} else {
+		return fmt.Errorf("read %s: %w", userCfgPath, err)
+	}
+
+	if userCfg == nil {
 		userCfg = make(map[string]interface{})
 	}
 
-	// Set identity
+	// Set identity (preserves other config values)
 	identity := map[string]string{
 		"initials":     initials,
 		"display_name": displayName,
@@ -462,8 +534,12 @@ func saveUserIdentity(initials, displayName string) error {
 	// Save
 	newData, err := yaml.Marshal(userCfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal config: %w", err)
 	}
 
-	return os.WriteFile(userCfgPath, newData, 0644)
+	if err := os.WriteFile(userCfgPath, newData, 0644); err != nil {
+		return fmt.Errorf("write %s: %w", userCfgPath, err)
+	}
+
+	return nil
 }

@@ -64,6 +64,7 @@ func TestMemoryPublisher_MultipleSubscribers(t *testing.T) {
 
 	// Both should receive
 	received := 0
+loop:
 	for i := 0; i < 2; i++ {
 		select {
 		case <-ch1:
@@ -71,7 +72,7 @@ func TestMemoryPublisher_MultipleSubscribers(t *testing.T) {
 		case <-ch2:
 			received++
 		case <-time.After(100 * time.Millisecond):
-			break
+			break loop
 		}
 	}
 
