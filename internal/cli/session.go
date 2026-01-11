@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -70,13 +71,21 @@ This information is useful for debugging or resuming tasks.`,
 
 // newCostCmd creates the cost command.
 func newCostCmd() *cobra.Command {
+	var period string
+
 	cmd := &cobra.Command{
 		Use:   "cost [task-id]",
 		Short: "Show cost information",
 		Long: `Show token usage and cost information.
 
 Without arguments, shows aggregate cost across all tasks.
-With a task ID, shows detailed cost breakdown for that task.`,
+With a task ID, shows detailed cost breakdown for that task.
+
+Use --period to filter by time range:
+  day   - last 24 hours
+  week  - last 7 days
+  month - last 30 days
+  all   - all time (default)`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
 				return wrapNotInitialized()
@@ -88,10 +97,12 @@ With a task ID, shows detailed cost breakdown for that task.`,
 				return showTaskCost(id)
 			}
 
-			// Show aggregate cost
-			return showAggregateCost()
+			// Show aggregate cost with period filter
+			return showAggregateCost(period)
 		},
 	}
+
+	cmd.Flags().StringVarP(&period, "period", "p", "all", "Time period: day, week, month, all")
 	return cmd
 }
 
@@ -133,7 +144,7 @@ func showTaskCost(id string) error {
 }
 
 // showAggregateCost displays cost summary across all tasks.
-func showAggregateCost() error {
+func showAggregateCost(period string) error {
 	// Get all task IDs
 	entries, err := state.LoadAllStates()
 	if err != nil {
@@ -141,19 +152,54 @@ func showAggregateCost() error {
 		return nil
 	}
 
+	// Calculate time filter based on period
+	now := time.Now()
+	var since time.Time
+	switch period {
+	case "day":
+		since = now.AddDate(0, 0, -1)
+	case "week":
+		since = now.AddDate(0, 0, -7)
+	case "month":
+		since = now.AddDate(0, -1, 0)
+	case "all", "":
+		since = time.Time{} // No filter
+	default:
+		return fmt.Errorf("invalid period: %s (use day, week, month, or all)", period)
+	}
+
 	var totalCost float64
 	var totalInputTokens, totalOutputTokens int
 	taskCount := 0
+	phaseCosts := make(map[string]float64)
 
 	for _, s := range entries {
+		// Filter by time if period is specified
+		if !since.IsZero() && s.StartedAt.Before(since) {
+			continue
+		}
+
 		totalCost += s.Cost.TotalCostUSD
 		totalInputTokens += s.Tokens.InputTokens
 		totalOutputTokens += s.Tokens.OutputTokens
 		taskCount++
+
+		// Aggregate phase costs
+		for phase, cost := range s.Cost.PhaseCosts {
+			phaseCosts[phase] += cost
+		}
+	}
+
+	// Check budget threshold
+	cfg, _ := config.Load()
+	var budgetWarning string
+	if cfg != nil && cfg.Budget.ThresholdUSD > 0 && totalCost >= cfg.Budget.ThresholdUSD {
+		budgetWarning = fmt.Sprintf("Budget threshold of $%.2f reached!", cfg.Budget.ThresholdUSD)
 	}
 
 	if jsonOut {
-		data, _ := json.MarshalIndent(map[string]any{
+		result := map[string]any{
+			"period":         period,
 			"task_count":     taskCount,
 			"total_cost_usd": totalCost,
 			"tokens": map[string]int{
@@ -161,12 +207,27 @@ func showAggregateCost() error {
 				"output": totalOutputTokens,
 				"total":  totalInputTokens + totalOutputTokens,
 			},
-		}, "", "  ")
+			"by_phase": phaseCosts,
+		}
+		if budgetWarning != "" {
+			result["budget_warning"] = budgetWarning
+		}
+		data, _ := json.MarshalIndent(result, "", "  ")
 		fmt.Println(string(data))
 		return nil
 	}
 
-	fmt.Println("Cost Summary")
+	periodLabel := "All Time"
+	switch period {
+	case "day":
+		periodLabel = "Last 24 Hours"
+	case "week":
+		periodLabel = "Last 7 Days"
+	case "month":
+		periodLabel = "Last 30 Days"
+	}
+
+	fmt.Printf("Cost Summary (%s)\n", periodLabel)
 	fmt.Println("─────────────────────────")
 	fmt.Printf("Tasks:       %d\n", taskCount)
 	fmt.Printf("Total Cost:  $%.4f\n", totalCost)
@@ -175,6 +236,19 @@ func showAggregateCost() error {
 	fmt.Printf("  Input:     %d tokens\n", totalInputTokens)
 	fmt.Printf("  Output:    %d tokens\n", totalOutputTokens)
 	fmt.Printf("  Total:     %d tokens\n", totalInputTokens+totalOutputTokens)
+
+	if len(phaseCosts) > 0 {
+		fmt.Println()
+		fmt.Println("Cost by Phase:")
+		for phase, cost := range phaseCosts {
+			fmt.Printf("  %-12s $%.4f\n", phase+":", cost)
+		}
+	}
+
+	if budgetWarning != "" {
+		fmt.Println()
+		fmt.Printf("⚠️  %s\n", budgetWarning)
+	}
 
 	return nil
 }

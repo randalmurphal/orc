@@ -127,6 +127,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/tasks/{id}/state", cors(s.handleGetState))
 	s.mux.HandleFunc("GET /api/tasks/{id}/plan", cors(s.handleGetPlan))
 	s.mux.HandleFunc("GET /api/tasks/{id}/transcripts", cors(s.handleGetTranscripts))
+	s.mux.HandleFunc("GET /api/tasks/{id}/session", cors(s.handleGetSession))
+	s.mux.HandleFunc("GET /api/tasks/{id}/tokens", cors(s.handleGetTokens))
 
 	// Task control
 	s.mux.HandleFunc("POST /api/tasks/{id}/run", cors(s.handleRunTask))
@@ -138,6 +140,9 @@ func (s *Server) registerRoutes() {
 
 	// WebSocket for real-time updates
 	s.mux.Handle("GET /api/ws", s.wsHandler)
+
+	// Cost aggregation
+	s.mux.HandleFunc("GET /api/cost/summary", cors(s.handleGetCostSummary))
 
 	// Prompts
 	s.mux.HandleFunc("GET /api/prompts", cors(s.handleListPrompts))
@@ -464,6 +469,141 @@ func (s *Server) handleGetPlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.jsonResponse(w, p)
+}
+
+// handleGetSession returns session information for a task.
+func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	st, err := state.Load(id)
+	if err != nil {
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
+		return
+	}
+
+	if st.Session == nil {
+		s.jsonResponse(w, map[string]any{"session": nil})
+		return
+	}
+
+	s.jsonResponse(w, st.Session)
+}
+
+// handleGetTokens returns token usage and cost for a task.
+func (s *Server) handleGetTokens(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	st, err := state.Load(id)
+	if err != nil {
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
+		return
+	}
+
+	s.jsonResponse(w, map[string]any{
+		"tokens": st.Tokens,
+		"cost":   st.Cost,
+	})
+}
+
+// handleGetCostSummary returns aggregated cost information with optional period filtering.
+// Supports query params:
+//   - period: day, week, month, all (default: all)
+//   - since: RFC3339 timestamp for custom start date
+func (s *Server) handleGetCostSummary(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters
+	period := r.URL.Query().Get("period")
+	sinceStr := r.URL.Query().Get("since")
+
+	// Calculate the time range
+	var since time.Time
+	now := time.Now()
+
+	switch period {
+	case "day":
+		since = now.AddDate(0, 0, -1)
+	case "week":
+		since = now.AddDate(0, 0, -7)
+	case "month":
+		since = now.AddDate(0, -1, 0)
+	case "all", "":
+		since = time.Time{} // Zero time = no filter
+	default:
+		// Try parsing custom since parameter
+		if sinceStr != "" {
+			var err error
+			since, err = time.Parse(time.RFC3339, sinceStr)
+			if err != nil {
+				s.jsonError(w, "invalid 'since' parameter: use RFC3339 format", http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	// Load all states
+	states, err := state.LoadAllStates()
+	if err != nil {
+		s.jsonError(w, "failed to load task states", http.StatusInternalServerError)
+		return
+	}
+
+	// Aggregate costs
+	var totalCost float64
+	var totalInputTokens, totalOutputTokens int
+	taskCount := 0
+	taskCosts := make([]map[string]any, 0)
+	phaseCosts := make(map[string]float64)
+
+	for _, st := range states {
+		// Filter by time range if specified
+		if !since.IsZero() && st.StartedAt.Before(since) {
+			continue
+		}
+
+		totalCost += st.Cost.TotalCostUSD
+		totalInputTokens += st.Tokens.InputTokens
+		totalOutputTokens += st.Tokens.OutputTokens
+		taskCount++
+
+		// Track per-task cost
+		taskCosts = append(taskCosts, map[string]any{
+			"task_id":    st.TaskID,
+			"cost_usd":   st.Cost.TotalCostUSD,
+			"tokens":     st.Tokens.TotalTokens,
+			"started_at": st.StartedAt,
+			"status":     st.Status,
+		})
+
+		// Aggregate phase costs
+		for phase, cost := range st.Cost.PhaseCosts {
+			phaseCosts[phase] += cost
+		}
+	}
+
+	// Check budget threshold from config
+	cfg, _ := config.Load()
+	var budgetWarning *string
+	if cfg != nil && cfg.Budget.ThresholdUSD > 0 && totalCost >= cfg.Budget.ThresholdUSD {
+		warning := fmt.Sprintf("Budget threshold of $%.2f reached (current: $%.4f)", cfg.Budget.ThresholdUSD, totalCost)
+		budgetWarning = &warning
+	}
+
+	response := map[string]any{
+		"period":     period,
+		"since":      since,
+		"task_count": taskCount,
+		"total": map[string]any{
+			"cost_usd":      totalCost,
+			"input_tokens":  totalInputTokens,
+			"output_tokens": totalOutputTokens,
+			"total_tokens":  totalInputTokens + totalOutputTokens,
+		},
+		"by_phase": phaseCosts,
+		"tasks":    taskCosts,
+	}
+
+	if budgetWarning != nil {
+		response["budget_warning"] = *budgetWarning
+	}
+
+	s.jsonResponse(w, response)
 }
 
 // handleGetTranscripts returns task transcript files.

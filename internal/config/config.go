@@ -120,6 +120,18 @@ type CompletionConfig struct {
 	PR PRConfig `yaml:"pr"`
 }
 
+// BudgetConfig defines cost budget settings.
+type BudgetConfig struct {
+	// ThresholdUSD is the budget threshold for cost alerts (0 = disabled)
+	ThresholdUSD float64 `yaml:"threshold_usd"`
+
+	// AlertOnExceed triggers an alert when threshold is exceeded
+	AlertOnExceed bool `yaml:"alert_on_exceed"`
+
+	// PauseOnExceed pauses task execution when budget is exceeded
+	PauseOnExceed bool `yaml:"pause_on_exceed"`
+}
+
 // ExecutionConfig defines execution strategy settings.
 type ExecutionConfig struct {
 	// UseSessionExecution enables session-based execution with Claude's native
@@ -162,6 +174,9 @@ type Config struct {
 
 	// Execution strategy settings
 	Execution ExecutionConfig `yaml:"execution"`
+
+	// Budget settings for cost tracking
+	Budget BudgetConfig `yaml:"budget"`
 
 	// Model settings
 	Model         string `yaml:"model"`

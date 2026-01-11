@@ -19,6 +19,7 @@ import (
 	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/wizard"
 )
 
 // newInitCmd creates the init command
@@ -32,42 +33,34 @@ Creates .orc/ directory with:
   • config.yaml - project configuration
   • tasks/ - task storage directory
 
+Detects project type and suggests appropriate settings.
 Also registers the project in the global registry (~/.orc/projects.yaml).
 
 Example:
-  orc init
-  orc init --force  # overwrite existing config`,
+  orc init            # Interactive initialization
+  orc init --quick    # Non-interactive with defaults
+  orc init --force    # Overwrite existing config`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			force, _ := cmd.Flags().GetBool("force")
+			quick, _ := cmd.Flags().GetBool("quick")
+			profile, _ := cmd.Flags().GetString("profile")
 
-			if err := config.Init(force); err != nil {
+			result, err := wizard.Run(wizard.Options{
+				Force:   force,
+				Quick:   quick,
+				Profile: profile,
+			})
+			if err != nil {
 				return err
 			}
 
-			// Register in global registry
-			cwd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("get working directory: %w", err)
-			}
-
-			proj, err := project.RegisterProject(cwd)
-			if err != nil {
-				// Non-fatal: warn but continue
-				fmt.Printf("⚠️  Failed to register project: %v\n", err)
-			} else {
-				fmt.Printf("📁 Registered project: %s (ID: %s)\n", proj.Name, proj.ID)
-			}
-
-			fmt.Println("✅ orc initialized successfully")
-			fmt.Println("   Config: .orc/config.yaml")
-			fmt.Println("   Tasks:  .orc/tasks/")
-			fmt.Println("\nNext steps:")
-			fmt.Println("  orc new \"Your task title\"  - Create a new task")
-
+			wizard.PrintResult(result)
 			return nil
 		},
 	}
 	cmd.Flags().Bool("force", false, "overwrite existing configuration")
+	cmd.Flags().Bool("quick", false, "skip interactive prompts, use defaults")
+	cmd.Flags().String("profile", "", "set automation profile (auto, fast, safe, strict)")
 	return cmd
 }
 
