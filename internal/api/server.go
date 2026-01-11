@@ -588,7 +588,10 @@ func (s *Server) handleGetCostSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check budget threshold from config
-	cfg, _ := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		s.logger.Warn("failed to load config for budget check", "error", err)
+	}
 	var budgetWarning *string
 	if cfg != nil && cfg.Budget.ThresholdUSD > 0 && totalCost >= cfg.Budget.ThresholdUSD {
 		warning := fmt.Sprintf("Budget threshold of $%.2f reached (current: $%.4f)", cfg.Budget.ThresholdUSD, totalCost)

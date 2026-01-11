@@ -3,6 +3,7 @@ package prompt
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -99,7 +100,10 @@ func (s *Service) List() ([]PromptInfo, error) {
 		phase := strings.TrimSuffix(entry.Name(), ".md")
 
 		// Read content to extract variables
-		content, _, _ := s.Resolve(phase)
+		content, _, err := s.Resolve(phase)
+		if err != nil {
+			slog.Debug("failed to resolve prompt for variable extraction", "phase", phase, "error", err)
+		}
 		vars := extractVariables(content)
 
 		prompts[phase] = &PromptInfo{
