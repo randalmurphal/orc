@@ -53,8 +53,10 @@ func (e *Executor) rebuildClient() {
 		claude.WithTimeout(e.config.Timeout),
 	}
 
-	if e.config.ClaudePath != "" {
-		clientOpts = append(clientOpts, claude.WithClaudePath(e.config.ClaudePath))
+	// Resolve Claude path to absolute to ensure it works with worktrees
+	claudePath := resolveClaudePath(e.config.ClaudePath)
+	if claudePath != "" {
+		clientOpts = append(clientOpts, claude.WithClaudePath(claudePath))
 	}
 	if e.config.DangerouslySkipPermissions {
 		clientOpts = append(clientOpts, claude.WithDangerouslySkipPermissions())

@@ -3,6 +3,7 @@ package executor
 
 import (
 	"log/slog"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -54,6 +55,21 @@ type PhaseState struct {
 }
 
 // Config, DefaultConfig, and ConfigFromOrc are defined in config.go
+
+// resolveClaudePath resolves a Claude CLI path to an absolute path.
+// This is necessary because when cmd.Dir is set (e.g., for worktrees),
+// Go's exec.Command won't perform PATH lookup for relative executables.
+// By resolving to absolute path upfront, execution works regardless of cmd.Dir.
+func resolveClaudePath(path string) string {
+	if path == "" || filepath.IsAbs(path) {
+		return path
+	}
+	// Resolve relative path to absolute using PATH lookup
+	if absPath, err := exec.LookPath(path); err == nil {
+		return absPath
+	}
+	return path // Fall back to original if lookup fails
+}
 
 // Result represents the result of a phase execution.
 type Result struct {
@@ -118,8 +134,10 @@ func New(cfg *Config) *Executor {
 		claude.WithTimeout(cfg.Timeout),
 	}
 
-	if cfg.ClaudePath != "" {
-		clientOpts = append(clientOpts, claude.WithClaudePath(cfg.ClaudePath))
+	// Resolve Claude path to absolute to ensure it works with worktrees
+	claudePath := resolveClaudePath(cfg.ClaudePath)
+	if claudePath != "" {
+		clientOpts = append(clientOpts, claude.WithClaudePath(claudePath))
 	}
 
 	if cfg.DangerouslySkipPermissions {
@@ -238,6 +256,12 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 		workingDir = e.worktreePath
 	}
 
+	// Use worktree git if available, otherwise fall back to main repo git
+	gitSvc := e.gitOps
+	if e.worktreeGit != nil {
+		gitSvc = e.worktreeGit
+	}
+
 	switch execType {
 	case ExecutorTypeTrivial:
 		if e.trivialExecutor == nil {
@@ -254,7 +278,7 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 		if e.fullExecutor == nil {
 			e.fullExecutor = NewFullExecutor(
 				e.sessionMgr,
-				WithFullGitSvc(e.gitOps),
+				WithFullGitSvc(gitSvc),
 				WithFullPublisher(e.publisher),
 				WithFullLogger(e.logger),
 				WithFullConfig(DefaultConfigForWeight(weight)),
@@ -268,7 +292,7 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 		if e.standardExecutor == nil {
 			e.standardExecutor = NewStandardExecutor(
 				e.sessionMgr,
-				WithGitSvc(e.gitOps),
+				WithGitSvc(gitSvc),
 				WithPublisher(e.publisher),
 				WithExecutorLogger(e.logger),
 				WithExecutorConfig(DefaultConfigForWeight(weight)),
@@ -389,8 +413,10 @@ func (e *Executor) rebuildClientWithToken(token string) {
 		claude.WithTimeout(e.config.Timeout),
 	}
 
-	if e.config.ClaudePath != "" {
-		clientOpts = append(clientOpts, claude.WithClaudePath(e.config.ClaudePath))
+	// Resolve Claude path to absolute to ensure it works with worktrees
+	claudePath := resolveClaudePath(e.config.ClaudePath)
+	if claudePath != "" {
+		clientOpts = append(clientOpts, claude.WithClaudePath(claudePath))
 	}
 
 	if e.config.DangerouslySkipPermissions {

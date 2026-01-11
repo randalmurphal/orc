@@ -159,8 +159,10 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 		claude.WithWorkdir(worktreePath),
 		claude.WithTimeout(e.config.Timeout),
 	}
-	if e.config.ClaudePath != "" {
-		worktreeClientOpts = append(worktreeClientOpts, claude.WithClaudePath(e.config.ClaudePath))
+	// Resolve Claude path to absolute to ensure it works with worktree cmd.Dir
+	claudePath := resolveClaudePath(e.config.ClaudePath)
+	if claudePath != "" {
+		worktreeClientOpts = append(worktreeClientOpts, claude.WithClaudePath(claudePath))
 	}
 	if e.config.DangerouslySkipPermissions {
 		worktreeClientOpts = append(worktreeClientOpts, claude.WithDangerouslySkipPermissions())

@@ -3,6 +3,7 @@ package executor
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,6 +15,14 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/templates"
 )
+
+// truncateForLog truncates a string for logging purposes.
+func truncateForLog(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
 
 // TemplateVars holds all variables for template rendering.
 type TemplateVars struct {
@@ -87,6 +96,16 @@ func BuildTemplateVars(
 	iteration int,
 	retryContext string,
 ) TemplateVars {
+	// Debug: log task fields to trace description injection
+	if t != nil {
+		slog.Debug("BuildTemplateVars called",
+			"task_id", t.ID,
+			"title", t.Title,
+			"description_len", len(t.Description),
+			"description_preview", truncateForLog(t.Description, 100),
+		)
+	}
+
 	vars := TemplateVars{
 		TaskID:          t.ID,
 		TaskTitle:       t.Title,

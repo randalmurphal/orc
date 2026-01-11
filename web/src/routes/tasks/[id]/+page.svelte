@@ -197,6 +197,11 @@
 		return lines;
 	}
 
+	// Track streaming response content for live updates
+	let streamingContent = $state('');
+	let streamingPhase = $state('');
+	let streamingIteration = $state(0);
+
 	function setupStreaming() {
 		unsubscribe = subscribeToTaskWS(
 			taskId,
@@ -204,14 +209,55 @@
 				if (eventType === 'state') {
 					taskState = data as TaskState;
 				} else if (eventType === 'transcript') {
-					const transcriptData = data as TranscriptLine;
-					transcript = [...transcript, transcriptData];
+					const transcriptData = data as { type: string; content: string; phase: string; iteration: number };
+
+					// Handle streaming chunks - accumulate them
+					if (transcriptData.type === 'chunk') {
+						// If this is a new phase/iteration, reset streaming content
+						if (
+							transcriptData.phase !== streamingPhase ||
+							transcriptData.iteration !== streamingIteration
+						) {
+							streamingPhase = transcriptData.phase;
+							streamingIteration = transcriptData.iteration;
+							streamingContent = '';
+						}
+						streamingContent += transcriptData.content;
+					} else {
+						// Full prompt or response - add to transcript
+						const line: TranscriptLine = {
+							type: transcriptData.type === 'prompt' ? 'prompt' : 'response',
+							content: transcriptData.content,
+							timestamp: new Date().toISOString()
+						};
+						transcript = [...transcript, line];
+						// Clear streaming content when we get a full response
+						if (transcriptData.type === 'response') {
+							streamingContent = '';
+						}
+					}
+				} else if (eventType === 'tokens') {
+					// Update token display in real-time
+					const tokenData = data as { input_tokens: number; output_tokens: number; total_tokens: number };
+					if (taskState) {
+						taskState = {
+							...taskState,
+							tokens: {
+								input_tokens: (taskState.tokens?.input_tokens || 0) + tokenData.input_tokens,
+								output_tokens: (taskState.tokens?.output_tokens || 0) + tokenData.output_tokens,
+								total_tokens: (taskState.tokens?.total_tokens || 0) + tokenData.total_tokens
+							}
+						};
+					}
 				} else if (eventType === 'phase') {
 					loadTaskData();
 					loadBadgeStats();
 				} else if (eventType === 'complete') {
 					loadTaskData();
 					loadBadgeStats();
+				} else if (eventType === 'error') {
+					const errorData = data as { message: string };
+					error = errorData.message;
 				}
 			},
 			(status: ConnectionStatus) => {
@@ -467,7 +513,7 @@
 					<DiffViewer {taskId} />
 				</div>
 			{:else if activeTab === 'transcript'}
-				<Transcript lines={transcript} {taskId} />
+				<Transcript lines={transcript} {taskId} {streamingContent} />
 			{/if}
 		</div>
 	</div>
