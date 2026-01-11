@@ -14,7 +14,8 @@
 	const columns = [
 		{ id: 'todo', title: 'To Do', statuses: ['created', 'classifying', 'planned'] },
 		{ id: 'running', title: 'In Progress', statuses: ['running'] },
-		{ id: 'review', title: 'In Review', statuses: ['paused', 'blocked'] },
+		{ id: 'review', title: 'Review', statuses: ['paused'] },
+		{ id: 'qa', title: 'QA', statuses: ['blocked'] },
 		{ id: 'done', title: 'Done', statuses: ['completed', 'failed'] }
 	];
 
