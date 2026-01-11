@@ -216,7 +216,7 @@ Examples:
 				return fmt.Errorf("save config: %w", err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Set %s = %s in %s\n", key, value, targetName)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Set %s = %s in %s\n", key, value, targetName)
 			return nil
 		},
 	}
