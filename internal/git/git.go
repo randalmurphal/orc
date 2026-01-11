@@ -21,17 +21,19 @@ type Checkpoint struct {
 
 // Git provides git operations for orc tasks.
 type Git struct {
-	ctx          *devgit.Context
-	branchPrefix string
-	commitPrefix string
-	worktreeDir  string
+	ctx            *devgit.Context
+	branchPrefix   string
+	commitPrefix   string
+	worktreeDir    string
+	executorPrefix string // For multi-user branch/worktree naming (empty in solo mode)
 }
 
 // Config holds git configuration.
 type Config struct {
-	BranchPrefix string // Prefix for task branches (default: "orc/")
-	CommitPrefix string // Prefix for commit messages (default: "[orc]")
-	WorktreeDir  string // Directory for worktrees (default: ".orc/worktrees")
+	BranchPrefix   string // Prefix for task branches (default: "orc/")
+	CommitPrefix   string // Prefix for commit messages (default: "[orc]")
+	WorktreeDir    string // Directory for worktrees (default: ".orc/worktrees")
+	ExecutorPrefix string // Executor prefix for multi-user mode (empty in solo mode)
 }
 
 // DefaultConfig returns sensible defaults.
@@ -51,25 +53,27 @@ func New(workDir string, cfg Config) (*Git, error) {
 	}
 
 	return &Git{
-		ctx:          ctx,
-		branchPrefix: cfg.BranchPrefix,
-		commitPrefix: cfg.CommitPrefix,
-		worktreeDir:  cfg.WorktreeDir,
+		ctx:            ctx,
+		branchPrefix:   cfg.BranchPrefix,
+		commitPrefix:   cfg.CommitPrefix,
+		worktreeDir:    cfg.WorktreeDir,
+		executorPrefix: cfg.ExecutorPrefix,
 	}, nil
 }
 
 // BranchName returns the full branch name for a task.
+// Uses executor prefix in p2p/team mode for isolated branches.
 func (g *Git) BranchName(taskID string) string {
-	return g.branchPrefix + taskID
+	return BranchName(taskID, g.executorPrefix)
 }
 
 // CreateWorktree creates an isolated worktree for a task.
 // Returns the absolute path to the worktree.
+// Uses executor prefix in p2p/team mode for isolated worktrees.
 // NOTE: This does NOT modify the main repo's checked-out branch.
 func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 	branchName := g.BranchName(taskID)
-	safeName := devgit.SanitizeBranchName(branchName)
-	worktreePath := filepath.Join(g.ctx.RepoPath(), g.worktreeDir, safeName)
+	worktreePath := WorktreePath(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix)
 
 	// Ensure worktrees directory exists
 	worktreesDir := filepath.Join(g.ctx.RepoPath(), g.worktreeDir)
@@ -93,9 +97,7 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 
 // CleanupWorktree removes a task's worktree.
 func (g *Git) CleanupWorktree(taskID string) error {
-	branchName := g.BranchName(taskID)
-	safeName := devgit.SanitizeBranchName(branchName)
-	worktreePath := filepath.Join(g.ctx.RepoPath(), g.worktreeDir, safeName)
+	worktreePath := WorktreePath(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix)
 
 	if err := g.ctx.CleanupWorktree(worktreePath); err != nil {
 		return fmt.Errorf("cleanup worktree for %s: %w", taskID, err)
@@ -105,19 +107,19 @@ func (g *Git) CleanupWorktree(taskID string) error {
 }
 
 // WorktreePath returns the path to a task's worktree.
+// Uses executor prefix in p2p/team mode for isolated worktrees.
 func (g *Git) WorktreePath(taskID string) string {
-	branchName := g.BranchName(taskID)
-	safeName := devgit.SanitizeBranchName(branchName)
-	return filepath.Join(g.ctx.RepoPath(), g.worktreeDir, safeName)
+	return WorktreePath(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix)
 }
 
 // InWorktree returns a Git instance operating in the specified worktree.
 func (g *Git) InWorktree(worktreePath string) *Git {
 	return &Git{
-		ctx:          g.ctx.InWorktree(worktreePath),
-		branchPrefix: g.branchPrefix,
-		commitPrefix: g.commitPrefix,
-		worktreeDir:  g.worktreeDir,
+		ctx:            g.ctx.InWorktree(worktreePath),
+		branchPrefix:   g.branchPrefix,
+		commitPrefix:   g.commitPrefix,
+		worktreeDir:    g.worktreeDir,
+		executorPrefix: g.executorPrefix,
 	}
 }
 
