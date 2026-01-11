@@ -22,7 +22,9 @@ const (
 	SourceProjectShared  Source = "project_shared"  // .orc/shared/prompts/
 	SourceProject        Source = "project"         // .orc/prompts/
 	SourceEmbedded       Source = "embedded"        // Embedded in binary
-	SourceInline         Source = "inline"          // Inline in plan YAML
+	// TODO: SourceInline will be used for inline prompts defined directly in plan YAML files.
+	// This enables task-specific prompt customization without creating separate prompt files.
+	SourceInline Source = "inline" // Inline in plan YAML
 )
 
 // PromptInfo contains metadata about a prompt.
