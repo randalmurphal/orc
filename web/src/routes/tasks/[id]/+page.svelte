@@ -2,7 +2,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { get } from 'svelte/store';
 	import {
 		getTask,
 		getTaskState,
@@ -55,7 +54,15 @@
 	let reviewStats = $state<ReviewStatsResponse | null>(null);
 
 	const taskId = $derived($page.params.id ?? '');
-	const projectId = $derived(get(currentProjectId));
+	// Subscribe to currentProjectId reactively - use $effect to track changes
+	let projectId = $state<string | null>(null);
+	$effect(() => {
+		// Subscribe to store and update when it changes
+		const unsubscribeProject = currentProjectId.subscribe((value) => {
+			projectId = value;
+		});
+		return unsubscribeProject;
+	});
 
 	// Read initial tab from URL query param
 	$effect(() => {
@@ -113,15 +120,14 @@
 	async function loadTaskData() {
 		loading = true;
 		error = null;
-		const pid = get(currentProjectId);
 
 		try {
-			const [t, s, p, transcriptFiles] = pid
+			const [t, s, p, transcriptFiles] = projectId
 				? await Promise.all([
-						getProjectTask(pid, taskId),
-						getProjectTaskState(pid, taskId).catch(() => null),
-						getProjectTaskPlan(pid, taskId).catch(() => null),
-						getProjectTranscripts(pid, taskId).catch(() => [])
+						getProjectTask(projectId, taskId),
+						getProjectTaskState(projectId, taskId).catch(() => null),
+						getProjectTaskPlan(projectId, taskId).catch(() => null),
+						getProjectTranscripts(projectId, taskId).catch(() => [])
 					])
 				: await Promise.all([
 						getTask(taskId),
@@ -211,9 +217,8 @@
 	}
 
 	async function handleRun() {
-		const pid = get(currentProjectId);
 		try {
-			pid ? await runProjectTask(pid, taskId) : await runTask(taskId);
+			projectId ? await runProjectTask(projectId, taskId) : await runTask(taskId);
 			await loadTaskData();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to run task';
@@ -221,9 +226,8 @@
 	}
 
 	async function handlePause() {
-		const pid = get(currentProjectId);
 		try {
-			pid ? await pauseProjectTask(pid, taskId) : await pauseTask(taskId);
+			projectId ? await pauseProjectTask(projectId, taskId) : await pauseTask(taskId);
 			await loadTaskData();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to pause task';
@@ -231,9 +235,8 @@
 	}
 
 	async function handleResume() {
-		const pid = get(currentProjectId);
 		try {
-			pid ? await resumeProjectTask(pid, taskId) : await resumeTask(taskId);
+			projectId ? await resumeProjectTask(projectId, taskId) : await resumeTask(taskId);
 			await loadTaskData();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to resume task';
@@ -243,9 +246,8 @@
 	async function handleDelete() {
 		if (!task || !confirm(`Delete task ${task.id}?`)) return;
 
-		const pid = get(currentProjectId);
 		try {
-			pid ? await deleteProjectTask(pid, taskId) : await deleteTask(taskId);
+			projectId ? await deleteProjectTask(projectId, taskId) : await deleteTask(taskId);
 			goto('/');
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to delete task';

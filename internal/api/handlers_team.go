@@ -42,7 +42,7 @@ type activityListResponse struct {
 
 // handleListTeamMembers returns all team members.
 func (s *Server) handleListTeamMembers(w http.ResponseWriter, r *http.Request) {
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -93,7 +93,7 @@ func (s *Server) handleCreateTeamMember(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -135,7 +135,7 @@ func (s *Server) handleGetTeamMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -163,7 +163,7 @@ func (s *Server) handleUpdateTeamMember(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -230,7 +230,7 @@ func (s *Server) handleDeleteTeamMember(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -275,7 +275,7 @@ func (s *Server) handleClaimTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -346,7 +346,7 @@ func (s *Server) handleReleaseTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -388,7 +388,7 @@ func (s *Server) handleGetTaskClaim(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -455,7 +455,7 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 		opts.Offset = parseIntOrDefault(offsetStr, 0)
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -487,7 +487,7 @@ func (s *Server) handleGetMemberClaims(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return

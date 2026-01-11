@@ -171,9 +171,13 @@
 		}
 	}
 
-	// Load comments on mount
+	// Load comments on mount and when taskId changes
 	$effect(() => {
-		loadComments();
+		// Explicitly track taskId as dependency
+		const currentTaskId = taskId;
+		if (currentTaskId) {
+			loadComments();
+		}
 	});
 </script>
 

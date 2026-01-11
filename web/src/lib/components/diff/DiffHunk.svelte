@@ -76,24 +76,47 @@
 		</div>
 	{:else}
 		<div class="split-view">
-			{#each pairedLines as pair, i (i)}
-				<div class="split-row">
-					<div class="split-left">
-						{#if pair.old}
-							<DiffLine line={pair.old} mode="split-old" {syntax} />
-						{:else}
-							<div class="empty-line"></div>
-						{/if}
+			{#if pairedLines.length > VIRTUAL_THRESHOLD}
+				<VirtualScroller items={pairedLines} itemHeight={22}>
+					{#snippet children({ item: pair })}
+						<div class="split-row">
+							<div class="split-left">
+								{#if pair.old}
+									<DiffLine line={pair.old} mode="split-old" {syntax} />
+								{:else}
+									<div class="empty-line"></div>
+								{/if}
+							</div>
+							<div class="split-right">
+								{#if pair.new}
+									<DiffLine line={pair.new} mode="split-new" {syntax} />
+								{:else}
+									<div class="empty-line"></div>
+								{/if}
+							</div>
+						</div>
+					{/snippet}
+				</VirtualScroller>
+			{:else}
+				{#each pairedLines as pair, i (i)}
+					<div class="split-row">
+						<div class="split-left">
+							{#if pair.old}
+								<DiffLine line={pair.old} mode="split-old" {syntax} />
+							{:else}
+								<div class="empty-line"></div>
+							{/if}
+						</div>
+						<div class="split-right">
+							{#if pair.new}
+								<DiffLine line={pair.new} mode="split-new" {syntax} />
+							{:else}
+								<div class="empty-line"></div>
+							{/if}
+						</div>
 					</div>
-					<div class="split-right">
-						{#if pair.new}
-							<DiffLine line={pair.new} mode="split-new" {syntax} />
-						{:else}
-							<div class="empty-line"></div>
-						{/if}
-					</div>
-				</div>
-			{/each}
+				{/each}
+			{/if}
 		</div>
 	{/if}
 </div>

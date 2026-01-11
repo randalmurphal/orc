@@ -193,7 +193,7 @@ func (s *Server) handleSyncPRComments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get local review comments
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -293,7 +293,7 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if comment exists
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return

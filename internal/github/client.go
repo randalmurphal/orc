@@ -267,42 +267,21 @@ func (c *Client) CreatePRComment(ctx context.Context, number int, comment PRComm
 			return nil, fmt.Errorf("parse PR head commit: %w", err)
 		}
 
-		// Create inline comment via API
-		body := map[string]any{
-			"body":       comment.Body,
-			"commit_id":  pr.HeadRefOid,
-			"path":       comment.Path,
-			"side":       "RIGHT",
-			"line":       comment.Line,
-		}
+		// Create inline comment via API using -f flags (gh api supports -f for string fields, -F for non-string)
+		side := "RIGHT"
 		if comment.Side != "" {
-			body["side"] = comment.Side
+			side = comment.Side
 		}
-
-		bodyJSON, err := json.Marshal(body)
-		if err != nil {
-			return nil, fmt.Errorf("marshal comment body: %w", err)
-		}
-
 		output, err := c.runGH(ctx, "api",
 			fmt.Sprintf("/repos/%s/%s/pulls/%d/comments", c.owner, c.repo, number),
 			"-X", "POST",
-			"-H", "Accept: application/vnd.github+json",
-			"--input", "-",
-		)
+			"-f", fmt.Sprintf("body=%s", comment.Body),
+			"-f", fmt.Sprintf("commit_id=%s", pr.HeadRefOid),
+			"-f", fmt.Sprintf("path=%s", comment.Path),
+			"-F", fmt.Sprintf("line=%d", comment.Line),
+			"-f", fmt.Sprintf("side=%s", side))
 		if err != nil {
-			// Fallback: try using -f flags
-			output, err = c.runGH(ctx, "api",
-				fmt.Sprintf("/repos/%s/%s/pulls/%d/comments", c.owner, c.repo, number),
-				"-X", "POST",
-				"-f", fmt.Sprintf("body=%s", comment.Body),
-				"-f", fmt.Sprintf("commit_id=%s", pr.HeadRefOid),
-				"-f", fmt.Sprintf("path=%s", comment.Path),
-				"-F", fmt.Sprintf("line=%d", comment.Line),
-				"-f", "side=RIGHT")
-			if err != nil {
-				return nil, fmt.Errorf("create inline comment: %w (body: %s)", err, string(bodyJSON))
-			}
+			return nil, fmt.Errorf("create inline comment: %w", err)
 		}
 
 		var created struct {

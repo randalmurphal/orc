@@ -58,7 +58,7 @@ func (s *Server) handleRetryTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Open project database
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -128,7 +128,7 @@ func (s *Server) handleGetRetryPreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Open project database
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -192,7 +192,7 @@ func (s *Server) handleRetryWithFeedback(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Open project database
-	pdb, err := db.OpenProject(".")
+	pdb, err := db.OpenProject(s.getProjectRoot())
 	if err != nil {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
