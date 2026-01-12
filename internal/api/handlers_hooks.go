@@ -4,15 +4,53 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/randalmurphal/llmkit/claudeconfig"
 )
 
+// saveGlobalSettings saves settings to ~/.claude/settings.json
+func saveGlobalSettings(settings *claudeconfig.Settings) error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("get home dir: %w", err)
+	}
+	globalPath := filepath.Join(homeDir, ".claude", "settings.json")
+
+	// Ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(globalPath), 0755); err != nil {
+		return fmt.Errorf("create .claude dir: %w", err)
+	}
+
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal settings: %w", err)
+	}
+
+	if err := os.WriteFile(globalPath, data, 0644); err != nil {
+		return fmt.Errorf("write settings: %w", err)
+	}
+
+	return nil
+}
+
 // === Hooks Handlers (settings.json format) ===
 
 // handleListHooks returns all hooks from settings.json.
+// Supports ?scope=global to list from ~/.claude/settings.json instead of project.
 func (s *Server) handleListHooks(w http.ResponseWriter, r *http.Request) {
-	settings, err := claudeconfig.LoadProjectSettings(s.getProjectRoot())
+	scope := r.URL.Query().Get("scope")
+
+	var settings *claudeconfig.Settings
+	var err error
+
+	if scope == "global" {
+		settings, err = claudeconfig.LoadGlobalSettings()
+	} else {
+		settings, err = claudeconfig.LoadProjectSettings(s.getProjectRoot())
+	}
+
 	if err != nil {
 		// No settings file is OK - return empty hooks
 		s.jsonResponse(w, map[string][]claudeconfig.Hook{})
@@ -34,10 +72,20 @@ func (s *Server) handleGetHookTypes(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleGetHook returns hooks for a specific event type.
+// Supports ?scope=global to get from ~/.claude/settings.json instead of project.
 func (s *Server) handleGetHook(w http.ResponseWriter, r *http.Request) {
 	eventName := r.PathValue("name")
+	scope := r.URL.Query().Get("scope")
 
-	settings, err := claudeconfig.LoadProjectSettings(s.getProjectRoot())
+	var settings *claudeconfig.Settings
+	var err error
+
+	if scope == "global" {
+		settings, err = claudeconfig.LoadGlobalSettings()
+	} else {
+		settings, err = claudeconfig.LoadProjectSettings(s.getProjectRoot())
+	}
+
 	if err != nil {
 		s.jsonError(w, "settings not found", http.StatusNotFound)
 		return
@@ -53,7 +101,10 @@ func (s *Server) handleGetHook(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleCreateHook adds a hook to settings.json.
+// Supports ?scope=global to add to ~/.claude/settings.json instead of project.
 func (s *Server) handleCreateHook(w http.ResponseWriter, r *http.Request) {
+	scope := r.URL.Query().Get("scope")
+
 	var req struct {
 		Event string            `json:"event"`
 		Hook  claudeconfig.Hook `json:"hook"`
@@ -63,8 +114,15 @@ func (s *Server) handleCreateHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectRoot := s.getProjectRoot()
-	settings, err := claudeconfig.LoadProjectSettings(projectRoot)
+	var settings *claudeconfig.Settings
+	var err error
+
+	if scope == "global" {
+		settings, err = claudeconfig.LoadGlobalSettings()
+	} else {
+		settings, err = claudeconfig.LoadProjectSettings(s.getProjectRoot())
+	}
+
 	if err != nil {
 		settings = &claudeconfig.Settings{}
 	}
@@ -75,7 +133,13 @@ func (s *Server) handleCreateHook(w http.ResponseWriter, r *http.Request) {
 
 	settings.Hooks[req.Event] = append(settings.Hooks[req.Event], req.Hook)
 
-	if err := claudeconfig.SaveProjectSettings(projectRoot, settings); err != nil {
+	if scope == "global" {
+		err = saveGlobalSettings(settings)
+	} else {
+		err = claudeconfig.SaveProjectSettings(s.getProjectRoot(), settings)
+	}
+
+	if err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save settings: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -85,8 +149,10 @@ func (s *Server) handleCreateHook(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdateHook updates hooks for a specific event.
+// Supports ?scope=global to update in ~/.claude/settings.json instead of project.
 func (s *Server) handleUpdateHook(w http.ResponseWriter, r *http.Request) {
 	eventName := r.PathValue("name")
+	scope := r.URL.Query().Get("scope")
 
 	var hooks []claudeconfig.Hook
 	if err := json.NewDecoder(r.Body).Decode(&hooks); err != nil {
@@ -94,8 +160,15 @@ func (s *Server) handleUpdateHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectRoot := s.getProjectRoot()
-	settings, err := claudeconfig.LoadProjectSettings(projectRoot)
+	var settings *claudeconfig.Settings
+	var err error
+
+	if scope == "global" {
+		settings, err = claudeconfig.LoadGlobalSettings()
+	} else {
+		settings, err = claudeconfig.LoadProjectSettings(s.getProjectRoot())
+	}
+
 	if err != nil {
 		settings = &claudeconfig.Settings{}
 	}
@@ -106,7 +179,13 @@ func (s *Server) handleUpdateHook(w http.ResponseWriter, r *http.Request) {
 
 	settings.Hooks[eventName] = hooks
 
-	if err := claudeconfig.SaveProjectSettings(projectRoot, settings); err != nil {
+	if scope == "global" {
+		err = saveGlobalSettings(settings)
+	} else {
+		err = claudeconfig.SaveProjectSettings(s.getProjectRoot(), settings)
+	}
+
+	if err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save settings: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -115,11 +194,20 @@ func (s *Server) handleUpdateHook(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleDeleteHook removes all hooks for an event type.
+// Supports ?scope=global to delete from ~/.claude/settings.json instead of project.
 func (s *Server) handleDeleteHook(w http.ResponseWriter, r *http.Request) {
 	eventName := r.PathValue("name")
+	scope := r.URL.Query().Get("scope")
 
-	projectRoot := s.getProjectRoot()
-	settings, err := claudeconfig.LoadProjectSettings(projectRoot)
+	var settings *claudeconfig.Settings
+	var err error
+
+	if scope == "global" {
+		settings, err = claudeconfig.LoadGlobalSettings()
+	} else {
+		settings, err = claudeconfig.LoadProjectSettings(s.getProjectRoot())
+	}
+
 	if err != nil {
 		s.jsonError(w, "settings not found", http.StatusNotFound)
 		return
@@ -138,7 +226,13 @@ func (s *Server) handleDeleteHook(w http.ResponseWriter, r *http.Request) {
 
 	delete(settings.Hooks, eventName)
 
-	if err := claudeconfig.SaveProjectSettings(projectRoot, settings); err != nil {
+	if scope == "global" {
+		err = saveGlobalSettings(settings)
+	} else {
+		err = claudeconfig.SaveProjectSettings(s.getProjectRoot(), settings)
+	}
+
+	if err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save settings: %v", err), http.StatusInternalServerError)
 		return
 	}

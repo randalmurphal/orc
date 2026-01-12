@@ -81,11 +81,11 @@ func TestValidateName(t *testing.T) {
 		{"my-template", false},
 		{"feature-v2", false},
 		{"template123", false},
-		{"", true},              // empty
-		{"-invalid", true},     // starts with dash
-		{"has spaces", true},   // contains space
+		{"", true},               // empty
+		{"-invalid", true},       // starts with dash
+		{"has spaces", true},     // contains space
 		{"has_underscore", true}, // contains underscore
-		{"has.dot", true},      // contains dot
+		{"has.dot", true},        // contains dot
 	}
 
 	for _, tt := range tests {

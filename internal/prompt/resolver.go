@@ -29,11 +29,11 @@ type PromptMeta struct {
 
 // Resolver resolves prompts from multiple sources with inheritance support.
 type Resolver struct {
-	personalDir string   // ~/.orc/prompts/
-	localDir    string   // .orc/local/prompts/
-	sharedDir   string   // .orc/shared/prompts/
-	projectDir  string   // .orc/prompts/
-	embedded    bool     // Whether to check embedded templates
+	personalDir string // ~/.orc/prompts/
+	localDir    string // .orc/local/prompts/
+	sharedDir   string // .orc/shared/prompts/
+	projectDir  string // .orc/prompts/
+	embedded    bool   // Whether to check embedded templates
 }
 
 // ResolverOption configures a Resolver.

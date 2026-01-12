@@ -79,13 +79,21 @@ bunx playwright test  # E2E tests
 
 ## Svelte 5 Runes
 
+**All pages use runes mode.** Legacy syntax causes build errors.
+
 ```svelte
 <script>
   let { data } = $props()        // Props (not export let)
-  let count = $state(0)          // Reactive state
-  let doubled = $derived(count * 2)  // Derived value
+  let count = $state(0)          // Reactive state (NOT let count = 0)
+  let doubled = $derived(count * 2)  // Derived (NOT $: doubled)
 </script>
+
+<!-- Event handlers: use onclick, NOT on:click -->
+<button onclick={handleClick}>Click</button>
+<form onsubmit={(e) => { e.preventDefault(); save(); }}>
 ```
+
+**Common mistakes:** `let x = []` without `$state()`, `$:` reactive statements, `on:click` handlers.
 
 ## WebSocket Architecture
 
@@ -111,9 +119,13 @@ See `QUICKREF.md` for component hierarchy.
 | `/board` | Kanban board |
 | `/tasks` | Task list |
 | `/tasks/:id` | Task detail (Timeline/Changes/Transcript tabs) |
-| `/settings` | Settings hub (Quick Access/Orc Config/Claude Settings) |
-| `/prompts`, `/hooks`, `/skills` | Configuration editors |
-| `/environment/knowledge` | Knowledge queue |
+| `/environment` | Environment hub (Claude Code + Orchestrator config) |
+| `/environment/docs` | CLAUDE.md editor (`?scope=global\|user\|project`) |
+| `/environment/claude/skills` | Skills (`?scope=global`) |
+| `/environment/claude/hooks` | Hooks (`?scope=global`) |
+| `/environment/claude/agents` | Agents (`?scope=global`) |
+| `/environment/claude/mcp` | MCP servers (`?scope=global`) |
+| `/preferences` | User preferences |
 
 ## API Client
 

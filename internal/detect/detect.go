@@ -62,12 +62,12 @@ const (
 
 // Detection contains the results of project detection.
 type Detection struct {
-	Language   ProjectType  `yaml:"language" json:"language"`
-	Frameworks []Framework  `yaml:"frameworks,omitempty" json:"frameworks,omitempty"`
-	BuildTools []BuildTool  `yaml:"build_tools,omitempty" json:"build_tools,omitempty"`
-	HasDocker  bool         `yaml:"has_docker" json:"has_docker"`
-	HasCI      bool         `yaml:"has_ci" json:"has_ci"`
-	HasTests   bool         `yaml:"has_tests" json:"has_tests"`
+	Language   ProjectType `yaml:"language" json:"language"`
+	Frameworks []Framework `yaml:"frameworks,omitempty" json:"frameworks,omitempty"`
+	BuildTools []BuildTool `yaml:"build_tools,omitempty" json:"build_tools,omitempty"`
+	HasDocker  bool        `yaml:"has_docker" json:"has_docker"`
+	HasCI      bool        `yaml:"has_ci" json:"has_ci"`
+	HasTests   bool        `yaml:"has_tests" json:"has_tests"`
 
 	// Inferred commands
 	TestCommand  string `yaml:"test_command,omitempty" json:"test_command,omitempty"`

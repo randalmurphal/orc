@@ -69,17 +69,17 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 	}
 
 	replacements := map[string]string{
-		"{{TASK_ID}}":              vars.TaskID,
-		"{{TASK_TITLE}}":           vars.TaskTitle,
-		"{{TASK_DESCRIPTION}}":     vars.TaskDescription,
-		"{{PHASE}}":                vars.Phase,
-		"{{WEIGHT}}":               vars.Weight,
-		"{{ITERATION}}":            fmt.Sprintf("%d", vars.Iteration),
-		"{{RETRY_CONTEXT}}":        vars.RetryContext,
-		"{{RESEARCH_CONTENT}}":     vars.ResearchContent,
-		"{{SPEC_CONTENT}}":         specContent,
-		"{{DESIGN_CONTENT}}":       vars.DesignContent,
-		"{{IMPLEMENT_CONTENT}}":    vars.ImplementContent,
+		"{{TASK_ID}}":                vars.TaskID,
+		"{{TASK_TITLE}}":             vars.TaskTitle,
+		"{{TASK_DESCRIPTION}}":       vars.TaskDescription,
+		"{{PHASE}}":                  vars.Phase,
+		"{{WEIGHT}}":                 vars.Weight,
+		"{{ITERATION}}":              fmt.Sprintf("%d", vars.Iteration),
+		"{{RETRY_CONTEXT}}":          vars.RetryContext,
+		"{{RESEARCH_CONTENT}}":       vars.ResearchContent,
+		"{{SPEC_CONTENT}}":           specContent,
+		"{{DESIGN_CONTENT}}":         vars.DesignContent,
+		"{{IMPLEMENT_CONTENT}}":      vars.ImplementContent,
 		"{{IMPLEMENTATION_SUMMARY}}": vars.ImplementContent, // Alias for template compatibility
 
 		// Worktree context variables

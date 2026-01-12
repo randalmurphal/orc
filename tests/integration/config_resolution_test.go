@@ -147,14 +147,14 @@ func TestConfigResolutionSourceTracking(t *testing.T) {
 	}
 
 	tests := []struct {
-		key          string
-		wantSource   config.ConfigSource
+		key        string
+		wantSource config.ConfigSource
 	}{
-		{"profile", config.SourceShared},      // Set in shared
-		{"model", config.SourceShared},        // Set in shared
+		{"profile", config.SourceShared},        // Set in shared
+		{"model", config.SourceShared},          // Set in shared
 		{"max_iterations", config.SourceShared}, // Project is treated as shared level
-		{"timeout", config.SourcePersonal},    // Set in personal
-		{"retry.enabled", config.SourceEnv},   // Set via env
+		{"timeout", config.SourcePersonal},      // Set in personal
+		{"retry.enabled", config.SourceEnv},     // Set via env
 	}
 
 	for _, tt := range tests {

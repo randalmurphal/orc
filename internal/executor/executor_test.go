@@ -921,8 +921,8 @@ func TestEvaluateGate_AutoApprove(t *testing.T) {
 	cfg := DefaultConfig()
 	orcCfg := &config.Config{
 		Gates: config.GateConfig{
-			DefaultType:           "auto",
-			AutoApproveOnSuccess:  true,
+			DefaultType:          "auto",
+			AutoApproveOnSuccess: true,
 		},
 	}
 
@@ -956,8 +956,8 @@ func TestEvaluateGate_WithCriteria(t *testing.T) {
 	cfg := DefaultConfig()
 	orcCfg := &config.Config{
 		Gates: config.GateConfig{
-			DefaultType:           "auto",
-			AutoApproveOnSuccess:  false, // Actually evaluate criteria
+			DefaultType:          "auto",
+			AutoApproveOnSuccess: false, // Actually evaluate criteria
 		},
 	}
 

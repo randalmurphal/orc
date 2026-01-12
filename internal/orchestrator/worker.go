@@ -48,14 +48,14 @@ type Worker struct {
 
 // WorkerPool manages a pool of workers executing tasks.
 type WorkerPool struct {
-	workers      map[string]*Worker
-	maxWorkers   int
-	publisher    events.Publisher
-	cfg          *config.Config
-	gitOps       *git.Git
-	promptSvc    *prompt.Service
-	eventChan    chan events.Event
-	mu           sync.RWMutex
+	workers    map[string]*Worker
+	maxWorkers int
+	publisher  events.Publisher
+	cfg        *config.Config
+	gitOps     *git.Git
+	promptSvc  *prompt.Service
+	eventChan  chan events.Event
+	mu         sync.RWMutex
 }
 
 // NewWorkerPool creates a new worker pool.

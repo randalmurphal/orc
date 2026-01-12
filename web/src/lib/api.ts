@@ -152,34 +152,39 @@ export interface Hook {
 // Hooks are stored as map[event][]Hook
 export type HooksMap = Record<string, Hook[]>;
 
-export async function listHooks(): Promise<HooksMap> {
-	return fetchJSON<HooksMap>('/hooks');
+export async function listHooks(scope?: 'global' | 'project'): Promise<HooksMap> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<HooksMap>(`/hooks${params}`);
 }
 
 export async function getHookTypes(): Promise<HookEvent[]> {
 	return fetchJSON<HookEvent[]>('/hooks/types');
 }
 
-export async function getHook(event: string): Promise<Hook[]> {
-	return fetchJSON<Hook[]>(`/hooks/${event}`);
+export async function getHook(event: string, scope?: 'global' | 'project'): Promise<Hook[]> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<Hook[]>(`/hooks/${event}${params}`);
 }
 
-export async function createHook(event: string, hook: Hook): Promise<Hook[]> {
-	return fetchJSON<Hook[]>('/hooks', {
+export async function createHook(event: string, hook: Hook, scope?: 'global' | 'project'): Promise<Hook[]> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<Hook[]>(`/hooks${params}`, {
 		method: 'POST',
 		body: JSON.stringify({ event, hook })
 	});
 }
 
-export async function updateHook(event: string, hooks: Hook[]): Promise<Hook[]> {
-	return fetchJSON<Hook[]>(`/hooks/${event}`, {
+export async function updateHook(event: string, hooks: Hook[], scope?: 'global' | 'project'): Promise<Hook[]> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<Hook[]>(`/hooks/${event}${params}`, {
 		method: 'PUT',
 		body: JSON.stringify({ hooks })
 	});
 }
 
-export async function deleteHook(event: string): Promise<void> {
-	const res = await fetch(`${API_BASE}/hooks/${event}`, { method: 'DELETE' });
+export async function deleteHook(event: string, scope?: 'global' | 'project'): Promise<void> {
+	const params = scope ? `?scope=${scope}` : '';
+	const res = await fetch(`${API_BASE}/hooks/${event}${params}`, { method: 'DELETE' });
 	if (!res.ok && res.status !== 204) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Request failed');
@@ -205,30 +210,35 @@ export interface Skill {
 	has_assets?: boolean;
 }
 
-export async function listSkills(): Promise<SkillInfo[]> {
-	return fetchJSON<SkillInfo[]>('/skills');
+export async function listSkills(scope?: 'global' | 'project'): Promise<SkillInfo[]> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<SkillInfo[]>(`/skills${params}`);
 }
 
-export async function getSkill(name: string): Promise<Skill> {
-	return fetchJSON<Skill>(`/skills/${name}`);
+export async function getSkill(name: string, scope?: 'global' | 'project'): Promise<Skill> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<Skill>(`/skills/${name}${params}`);
 }
 
-export async function createSkill(skill: Skill): Promise<Skill> {
-	return fetchJSON<Skill>('/skills', {
+export async function createSkill(skill: Skill, scope?: 'global' | 'project'): Promise<Skill> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<Skill>(`/skills${params}`, {
 		method: 'POST',
 		body: JSON.stringify(skill)
 	});
 }
 
-export async function updateSkill(name: string, skill: Skill): Promise<Skill> {
-	return fetchJSON<Skill>(`/skills/${name}`, {
+export async function updateSkill(name: string, skill: Skill, scope?: 'global' | 'project'): Promise<Skill> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<Skill>(`/skills/${name}${params}`, {
 		method: 'PUT',
 		body: JSON.stringify(skill)
 	});
 }
 
-export async function deleteSkill(name: string): Promise<void> {
-	const res = await fetch(`${API_BASE}/skills/${name}`, { method: 'DELETE' });
+export async function deleteSkill(name: string, scope?: 'global' | 'project'): Promise<void> {
+	const params = scope ? `?scope=${scope}` : '';
+	const res = await fetch(`${API_BASE}/skills/${name}${params}`, { method: 'DELETE' });
 	if (!res.ok && res.status !== 204) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Request failed');
@@ -435,8 +445,9 @@ export interface ToolsByCategory {
 	[category: string]: ToolInfo[];
 }
 
-export async function listTools(): Promise<ToolInfo[]> {
-	return fetchJSON<ToolInfo[]>('/tools');
+export async function listTools(scope?: 'global'): Promise<ToolInfo[]> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<ToolInfo[]>(`/tools${params}`);
 }
 
 export async function listToolsByCategory(): Promise<ToolsByCategory> {
@@ -459,15 +470,17 @@ export interface SubAgent {
 	name: string;
 	description: string;
 	model?: string;
-	tools?: ToolPermissions;
+	tools?: ToolPermissions | string; // string for global agents (from .md files)
 	prompt?: string;
 	work_dir?: string;
 	skill_refs?: string[];
 	timeout?: string;
+	path?: string; // for global agents discovered from .md files
 }
 
-export async function listAgents(): Promise<SubAgent[]> {
-	return fetchJSON<SubAgent[]>('/agents');
+export async function listAgents(scope?: 'global'): Promise<SubAgent[]> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<SubAgent[]>(`/agents${params}`);
 }
 
 export async function getAgent(name: string): Promise<SubAgent> {
@@ -555,12 +568,14 @@ export interface ClaudeMDHierarchy {
 	local?: ClaudeMD[];
 }
 
-export async function getClaudeMD(): Promise<ClaudeMD> {
-	return fetchJSON<ClaudeMD>('/claudemd');
+export async function getClaudeMD(scope?: 'global' | 'user' | 'project'): Promise<ClaudeMD> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<ClaudeMD>(`/claudemd${params}`);
 }
 
-export async function updateClaudeMD(content: string): Promise<void> {
-	const res = await fetch(`${API_BASE}/claudemd`, {
+export async function updateClaudeMD(content: string, scope?: 'global' | 'user' | 'project'): Promise<void> {
+	const params = scope ? `?scope=${scope}` : '';
+	const res = await fetch(`${API_BASE}/claudemd${params}`, {
 		method: 'PUT',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ content })
@@ -609,8 +624,9 @@ export interface MCPServerCreate {
 	disabled?: boolean;
 }
 
-export async function listMCPServers(): Promise<MCPServerInfo[]> {
-	return fetchJSON<MCPServerInfo[]>('/mcp');
+export async function listMCPServers(scope?: 'global'): Promise<MCPServerInfo[]> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<MCPServerInfo[]>(`/mcp${params}`);
 }
 
 export async function getMCPServer(name: string): Promise<MCPServer> {

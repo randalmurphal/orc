@@ -259,14 +259,14 @@ func (c *Client) ListPRComments(ctx context.Context, number int) ([]PRComment, e
 	}
 
 	var rawComments []struct {
-		ID              int64  `json:"id"`
-		Body            string `json:"body"`
-		Path            string `json:"path"`
-		OriginalLine    int    `json:"original_line"`
-		Line            int    `json:"line"`
-		Side            string `json:"side"`
-		InReplyToID     int64  `json:"in_reply_to_id"`
-		User            struct {
+		ID           int64  `json:"id"`
+		Body         string `json:"body"`
+		Path         string `json:"path"`
+		OriginalLine int    `json:"original_line"`
+		Line         int    `json:"line"`
+		Side         string `json:"side"`
+		InReplyToID  int64  `json:"in_reply_to_id"`
+		User         struct {
 			Login string `json:"login"`
 		} `json:"user"`
 		CreatedAt string `json:"created_at"`

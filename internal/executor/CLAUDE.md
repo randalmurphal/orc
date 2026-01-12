@@ -40,6 +40,7 @@ Phase execution engine implementing Ralph-style iteration loops with multiple ex
 | `test_parser.go` | Test output parsing (Go, Jest, Pytest) |
 | `review.go` | Multi-round review session parsing |
 | `qa.go` | QA session result parsing |
+| `knowledge.go` | Post-phase knowledge extraction (fallback) |
 
 ## Architecture
 
