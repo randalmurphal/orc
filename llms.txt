@@ -1,0 +1,117 @@
+# Orc - Documentation Index
+
+> AI-powered task orchestration with phased execution, git worktree isolation, and multi-round review.
+
+## Quick Start
+
+- CLAUDE.md (182 lines) - Project overview, core concepts
+- docs/architecture/OVERVIEW.md - System architecture
+- docs/specs/CLI.md - Command reference
+
+## By Task
+
+### Understanding the System
+- CLAUDE.md - Start here
+- docs/architecture/OVERVIEW.md - Architecture overview
+- docs/architecture/TASK_MODEL.md - Task structure, weights, lifecycle
+- docs/architecture/PHASE_MODEL.md - Phase definitions, execution flow
+
+### Working with Tasks
+- CLAUDE.md#commands - CLI quick reference
+- internal/cli/CLAUDE.md - Full CLI documentation
+- docs/specs/CLI.md - CLI specification
+- docs/specs/FILE_FORMATS.md - task.yaml, plan.yaml, state.yaml
+
+### Implementing Features
+- internal/CLAUDE.md - Package overview
+- internal/executor/CLAUDE.md - Phase execution engine
+- docs/architecture/EXECUTOR.md - Execution deep-dive
+- docs/specs/COMPLETION_CRITERIA.md - Phase completion rules
+
+### Working with API
+- docs/API_REFERENCE.md - All REST endpoints
+- internal/api/CLAUDE.md - API server architecture
+
+### Frontend Development
+- web/CLAUDE.md (155 lines) - Frontend overview
+- web/QUICKREF.md - Code patterns, components
+- docs/specs/WEB_DASHBOARD.md - UI specification
+- docs/specs/KEYBOARD_SHORTCUTS.md - Shortcuts spec
+
+### Configuration
+- docs/specs/CONFIG_HIERARCHY.md - Full config reference
+- docs/specs/DATABASE_ABSTRACTION.md - Storage modes
+
+### Git Integration
+- docs/architecture/GIT_INTEGRATION.md - Branches, worktrees
+- internal/git/CLAUDE.md - Git operations
+
+### Testing
+- internal/CLAUDE.md#testing - Test isolation patterns
+- docs/guides/TROUBLESHOOTING.md - Common issues
+
+## By Directory
+
+### Root
+- CLAUDE.md - Project instructions (182 lines)
+- README.md - User-facing overview
+- llms.txt - This index
+
+### docs/
+- CLAUDE.md - Documentation index
+- API_REFERENCE.md - REST API endpoints
+- architecture/ - System architecture (6 docs)
+- specs/ - Feature specifications (23 docs)
+- decisions/ - ADRs (7 docs)
+- research/ - Research notes (4 docs)
+- guides/ - Troubleshooting
+
+### internal/
+- CLAUDE.md - Package overview (142 lines)
+- api/CLAUDE.md - REST server
+- bootstrap/CLAUDE.md - Project init
+- cli/CLAUDE.md - Commands (199 lines)
+- db/CLAUDE.md - SQLite persistence
+- executor/CLAUDE.md - Phase execution (270 lines)
+- initiative/CLAUDE.md - Task grouping
+- orchestrator/CLAUDE.md - High-level orchestration
+- plan_session/CLAUDE.md - Interactive planning
+- planner/CLAUDE.md - Plan generation
+- setup/CLAUDE.md - Claude-powered setup
+- spec/CLAUDE.md - Spec generation
+
+### templates/
+- CLAUDE.md - Template system
+- prompts/ - Phase prompt templates (10 files)
+
+### web/
+- CLAUDE.md - Frontend overview (155 lines)
+- QUICKREF.md - Code patterns, deep-dives
+
+## Architecture Decision Records
+
+- ADR-001 - Language and stack (Go + Svelte 5)
+- ADR-002 - Storage model (YAML, git-tracked)
+- ADR-003 - Git integration (branches, worktrees)
+- ADR-004 - UI framework (Svelte 5)
+- ADR-005 - Task weight system
+- ADR-006 - Execution model (Ralph-style)
+- ADR-007 - Human gates
+
+## Key Specifications
+
+| Spec | Purpose | Size |
+|------|---------|------|
+| CONFIG_HIERARCHY.md | Config loading, env vars | 25K |
+| DATABASE_ABSTRACTION.md | Storage backends | 30K |
+| TEAM_ARCHITECTURE.md | Multi-user support | 27K |
+| P2P_COORDINATION.md | Distributed tasks | 39K |
+| REALTIME_COLLABORATION.md | WebSocket sync | 34K |
+| VALIDATION_FIXES.md | Error handling | 34K |
+
+## Research Documents
+
+- RALPH_WIGGUM.md - Ralph-style loop patterns
+- PATTERNS.md - Orchestration patterns
+- AGENT_FRAMEWORKS.md - Framework comparison
+- CLAUDE_TOOLS.md - Claude Code tools analysis

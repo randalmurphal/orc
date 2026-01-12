@@ -6,12 +6,19 @@ Technical documentation for the orc orchestrator.
 
 ```
 docs/
+├── API_REFERENCE.md  # REST API endpoints
 ├── architecture/     # System architecture docs
 ├── specs/            # Feature specifications
 ├── decisions/        # Architecture Decision Records (ADRs)
 ├── research/         # Research notes and analysis
 └── guides/           # User guides and troubleshooting
 ```
+
+## API Reference
+
+| Document | Description |
+|----------|-------------|
+| `API_REFERENCE.md` | All REST endpoints, WebSocket protocol, error responses |
 
 ## Architecture Documents
 
