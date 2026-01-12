@@ -343,3 +343,113 @@ func TestCleanupWorktree_NotExists(t *testing.T) {
 		t.Error("CleanupWorktree() should fail for non-existent worktree")
 	}
 }
+
+// TestPush_ProtectedBranch tests that Push() blocks protected branches
+func TestPush_ProtectedBranch(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	tests := []struct {
+		branch    string
+		wantError bool
+	}{
+		{"main", true},
+		{"master", true},
+		{"develop", true},
+		{"release", true},
+		{"orc/TASK-001", false},
+		{"feature/foo", false},
+	}
+
+	for _, tt := range tests {
+		err := g.Push("origin", tt.branch, false)
+		// Note: Push will fail because there's no remote, but for protected
+		// branches it should fail with ErrProtectedBranch BEFORE trying
+		if tt.wantError {
+			if err == nil {
+				t.Errorf("Push(%q) should return error for protected branch", tt.branch)
+			}
+			if !strings.Contains(err.Error(), "protected branch") {
+				t.Errorf("Push(%q) error should mention protected branch, got: %v", tt.branch, err)
+			}
+		} else {
+			// For non-protected branches, it will still fail (no remote)
+			// but NOT with protected branch error
+			if err != nil && strings.Contains(err.Error(), "protected branch") {
+				t.Errorf("Push(%q) should not fail with protected branch error", tt.branch)
+			}
+		}
+	}
+}
+
+// TestPushUnsafe_AllowsProtectedBranch tests that PushUnsafe bypasses protection
+func TestPushUnsafe_AllowsProtectedBranch(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// PushUnsafe should NOT fail with protected branch error
+	// (it will fail because there's no remote, but that's a different error)
+	err := g.PushUnsafe("origin", "main", false)
+	if err != nil && strings.Contains(err.Error(), "protected branch") {
+		t.Error("PushUnsafe() should not fail with protected branch error")
+	}
+}
+
+// TestIsInWorktreeContext tests worktree context tracking
+func TestIsInWorktreeContext(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// Main git instance is not in worktree context
+	if g.IsInWorktreeContext() {
+		t.Error("main Git instance should not be in worktree context")
+	}
+
+	// Create worktree
+	baseBranch, _ := g.GetCurrentBranch()
+	worktreePath, err := g.CreateWorktree("TASK-001", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-001")
+
+	// Worktree git instance should be in worktree context
+	wtGit := g.InWorktree(worktreePath)
+	if !wtGit.IsInWorktreeContext() {
+		t.Error("worktree Git instance should be in worktree context")
+	}
+}
+
+// TestProtectedBranches_CustomConfig tests custom protected branches
+func TestProtectedBranches_CustomConfig(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	cfg := Config{
+		BranchPrefix:      "orc/",
+		CommitPrefix:      "[orc]",
+		WorktreeDir:       ".orc/worktrees",
+		ProtectedBranches: []string{"prod", "staging"},
+	}
+
+	g, err := New(tmpDir, cfg)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+
+	// Check custom protected branches
+	protected := g.ProtectedBranches()
+	if len(protected) != 2 {
+		t.Errorf("ProtectedBranches() = %v, want 2 items", protected)
+	}
+
+	// main should NOT be protected in this config
+	err = g.Push("origin", "main", false)
+	if err != nil && strings.Contains(err.Error(), "protected branch") {
+		t.Error("main should not be protected with custom config")
+	}
+
+	// prod should be protected
+	err = g.Push("origin", "prod", false)
+	if err == nil || !strings.Contains(err.Error(), "protected branch") {
+		t.Error("prod should be protected with custom config")
+	}
+}

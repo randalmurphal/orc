@@ -24,6 +24,20 @@ func truncateForLog(s string, maxLen int) string {
 	return s[:maxLen] + "..."
 }
 
+// WorktreeContext holds worktree-specific context for template rendering.
+// This provides safety context to Claude about where it's working and what
+// branches are protected.
+type WorktreeContext struct {
+	// WorktreePath is the absolute path to the worktree directory.
+	WorktreePath string
+
+	// TaskBranch is the git branch for this task (e.g., orc/TASK-001).
+	TaskBranch string
+
+	// TargetBranch is the target branch for merging (e.g., main).
+	TargetBranch string
+}
+
 // TemplateVars holds all variables for template rendering.
 type TemplateVars struct {
 	TaskID           string
@@ -37,6 +51,11 @@ type TemplateVars struct {
 	SpecContent      string
 	DesignContent    string
 	ImplementContent string
+
+	// Worktree context variables (for safety instructions)
+	WorktreePath string // Absolute path to the worktree directory
+	TaskBranch   string // The git branch for this task (e.g., orc/TASK-001)
+	TargetBranch string // The target branch for merging (e.g., main)
 }
 
 // RenderTemplate performs variable substitution on a template string.
@@ -62,6 +81,11 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{DESIGN_CONTENT}}":       vars.DesignContent,
 		"{{IMPLEMENT_CONTENT}}":    vars.ImplementContent,
 		"{{IMPLEMENTATION_SUMMARY}}": vars.ImplementContent, // Alias for template compatibility
+
+		// Worktree context variables
+		"{{WORKTREE_PATH}}": vars.WorktreePath,
+		"{{TASK_BRANCH}}":   vars.TaskBranch,
+		"{{TARGET_BRANCH}}": vars.TargetBranch,
 	}
 
 	result := tmpl
@@ -131,6 +155,31 @@ func BuildTemplateVars(
 	vars.ImplementContent = loadPriorContent(taskDir, s, "implement")
 
 	return vars
+}
+
+// BuildTemplateVarsWithWorktree creates template variables with worktree context.
+// This is the preferred function when executing phases in a worktree.
+func BuildTemplateVarsWithWorktree(
+	t *task.Task,
+	p *plan.Phase,
+	s *state.State,
+	iteration int,
+	retryContext string,
+	wctx WorktreeContext,
+) TemplateVars {
+	vars := BuildTemplateVars(t, p, s, iteration, retryContext)
+	vars.WorktreePath = wctx.WorktreePath
+	vars.TaskBranch = wctx.TaskBranch
+	vars.TargetBranch = wctx.TargetBranch
+	return vars
+}
+
+// WithWorktreeContext returns a copy of the vars with worktree context applied.
+func (v TemplateVars) WithWorktreeContext(wctx WorktreeContext) TemplateVars {
+	v.WorktreePath = wctx.WorktreePath
+	v.TaskBranch = wctx.TaskBranch
+	v.TargetBranch = wctx.TargetBranch
+	return v
 }
 
 // loadPriorContent loads content from a completed prior phase.

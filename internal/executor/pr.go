@@ -3,10 +3,12 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
 
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -70,10 +72,26 @@ func (e *Executor) syncWithTarget(ctx context.Context, t *task.Task) error {
 	return nil
 }
 
+// ErrDirectMergeBlocked is returned when direct merge to a protected branch is blocked.
+var ErrDirectMergeBlocked = errors.New("direct merge to protected branch blocked")
+
 // directMerge merges the task branch directly into the target branch.
+// NOTE: This operation is BLOCKED for protected branches (main, master, develop, release).
+// Use the PR workflow instead for protected branches.
 func (e *Executor) directMerge(ctx context.Context, t *task.Task) error {
 	cfg := e.orcConfig.Completion
 	taskBranch := e.gitOps.BranchName(t.ID)
+
+	// SAFETY: Block direct merge to protected branches
+	// This is a critical safety check - protected branches should only be modified via PR
+	if git.IsProtectedBranch(cfg.TargetBranch, e.gitOps.ProtectedBranches()) {
+		e.logger.Error("direct merge blocked",
+			"target", cfg.TargetBranch,
+			"task", t.ID,
+			"reason", "protected branch - use PR workflow instead")
+		return fmt.Errorf("%w: cannot merge directly to '%s' - use completion.action: pr instead",
+			ErrDirectMergeBlocked, cfg.TargetBranch)
+	}
 
 	// Use worktree git if available, otherwise main repo
 	gitOps := e.gitOps
@@ -91,8 +109,9 @@ func (e *Executor) directMerge(ctx context.Context, t *task.Task) error {
 		return fmt.Errorf("merge %s: %w", taskBranch, err)
 	}
 
-	// Push to remote
-	if err := gitOps.Push("origin", cfg.TargetBranch, false); err != nil {
+	// Push to remote - use PushUnsafe since we've already validated the branch
+	// and this is a non-protected branch
+	if err := gitOps.PushUnsafe("origin", cfg.TargetBranch, false); err != nil {
 		e.logger.Warn("failed to push after merge", "error", err)
 	}
 

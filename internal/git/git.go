@@ -21,27 +21,31 @@ type Checkpoint struct {
 
 // Git provides git operations for orc tasks.
 type Git struct {
-	ctx            *devgit.Context
-	branchPrefix   string
-	commitPrefix   string
-	worktreeDir    string
-	executorPrefix string // For multi-user branch/worktree naming (empty in solo mode)
+	ctx               *devgit.Context
+	branchPrefix      string
+	commitPrefix      string
+	worktreeDir       string
+	executorPrefix    string   // For multi-user branch/worktree naming (empty in solo mode)
+	inWorktreeContext bool     // True when operating within a worktree
+	protectedBranches []string // Branches that cannot be pushed to directly
 }
 
 // Config holds git configuration.
 type Config struct {
-	BranchPrefix   string // Prefix for task branches (default: "orc/")
-	CommitPrefix   string // Prefix for commit messages (default: "[orc]")
-	WorktreeDir    string // Directory for worktrees (default: ".orc/worktrees")
-	ExecutorPrefix string // Executor prefix for multi-user mode (empty in solo mode)
+	BranchPrefix      string   // Prefix for task branches (default: "orc/")
+	CommitPrefix      string   // Prefix for commit messages (default: "[orc]")
+	WorktreeDir       string   // Directory for worktrees (default: ".orc/worktrees")
+	ExecutorPrefix    string   // Executor prefix for multi-user mode (empty in solo mode)
+	ProtectedBranches []string // Branches protected from direct push (default: main, master, develop, release)
 }
 
 // DefaultConfig returns sensible defaults.
 func DefaultConfig() Config {
 	return Config{
-		BranchPrefix: "orc/",
-		CommitPrefix: "[orc]",
-		WorktreeDir:  ".orc/worktrees",
+		BranchPrefix:      "orc/",
+		CommitPrefix:      "[orc]",
+		WorktreeDir:       ".orc/worktrees",
+		ProtectedBranches: DefaultProtectedBranches,
 	}
 }
 
@@ -52,12 +56,18 @@ func New(workDir string, cfg Config) (*Git, error) {
 		return nil, fmt.Errorf("init git context: %w", err)
 	}
 
+	protectedBranches := cfg.ProtectedBranches
+	if len(protectedBranches) == 0 {
+		protectedBranches = DefaultProtectedBranches
+	}
+
 	return &Git{
-		ctx:            ctx,
-		branchPrefix:   cfg.BranchPrefix,
-		commitPrefix:   cfg.CommitPrefix,
-		worktreeDir:    cfg.WorktreeDir,
-		executorPrefix: cfg.ExecutorPrefix,
+		ctx:               ctx,
+		branchPrefix:      cfg.BranchPrefix,
+		commitPrefix:      cfg.CommitPrefix,
+		worktreeDir:       cfg.WorktreeDir,
+		executorPrefix:    cfg.ExecutorPrefix,
+		protectedBranches: protectedBranches,
 	}, nil
 }
 
@@ -71,6 +81,10 @@ func (g *Git) BranchName(taskID string) string {
 // Returns the absolute path to the worktree.
 // Uses executor prefix in p2p/team mode for isolated worktrees.
 // NOTE: This does NOT modify the main repo's checked-out branch.
+//
+// After creation, safety hooks are injected into the worktree that:
+// - Block pushes to protected branches (main, master, develop, release)
+// - Warn if commits are made on unexpected branches
 func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 	branchName := g.BranchName(taskID)
 	worktreePath := WorktreePath(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix)
@@ -90,6 +104,18 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("create worktree for %s: %w", taskID, err)
 		}
+	}
+
+	// Inject safety hooks into the worktree
+	hookCfg := HookConfig{
+		ProtectedBranches: g.protectedBranches,
+		TaskBranch:        branchName,
+		TaskID:            taskID,
+	}
+	if err := g.InjectWorktreeHooks(worktreePath, hookCfg); err != nil {
+		// Log warning but don't fail - hooks are defense in depth
+		// The Push() protection will still work at the code level
+		fmt.Fprintf(os.Stderr, "warning: failed to inject worktree hooks: %v\n", err)
 	}
 
 	return worktreePath, nil
@@ -113,14 +139,22 @@ func (g *Git) WorktreePath(taskID string) string {
 }
 
 // InWorktree returns a Git instance operating in the specified worktree.
+// The returned instance is marked as being in worktree context.
 func (g *Git) InWorktree(worktreePath string) *Git {
 	return &Git{
-		ctx:            g.ctx.InWorktree(worktreePath),
-		branchPrefix:   g.branchPrefix,
-		commitPrefix:   g.commitPrefix,
-		worktreeDir:    g.worktreeDir,
-		executorPrefix: g.executorPrefix,
+		ctx:               g.ctx.InWorktree(worktreePath),
+		branchPrefix:      g.branchPrefix,
+		commitPrefix:      g.commitPrefix,
+		worktreeDir:       g.worktreeDir,
+		executorPrefix:    g.executorPrefix,
+		inWorktreeContext: true,
+		protectedBranches: g.protectedBranches,
 	}
+}
+
+// IsInWorktreeContext returns true if this Git instance is operating within a worktree.
+func (g *Git) IsInWorktreeContext() bool {
+	return g.inWorktreeContext
 }
 
 // CreateCheckpoint creates a checkpoint commit for a phase.
@@ -206,9 +240,28 @@ func (g *Git) Rebase(target string) error {
 	return err
 }
 
+// ErrProtectedBranch is returned when attempting to push to a protected branch.
+var ErrProtectedBranch = fmt.Errorf("push to protected branch blocked")
+
 // Push pushes the current branch to remote.
+// Returns ErrProtectedBranch if attempting to push to a protected branch.
 func (g *Git) Push(remote, branch string, setUpstream bool) error {
+	if IsProtectedBranch(branch, g.protectedBranches) {
+		return fmt.Errorf("%w: cannot push to '%s' - use PR workflow instead", ErrProtectedBranch, branch)
+	}
 	return g.ctx.Push(remote, branch, setUpstream)
+}
+
+// PushUnsafe pushes to remote without branch protection checks.
+// This should only be used by PR merge operations that have explicit user approval.
+// DANGER: Use with caution - this bypasses safety checks.
+func (g *Git) PushUnsafe(remote, branch string, setUpstream bool) error {
+	return g.ctx.Push(remote, branch, setUpstream)
+}
+
+// ProtectedBranches returns the list of protected branch names.
+func (g *Git) ProtectedBranches() []string {
+	return g.protectedBranches
 }
 
 // Merge merges a branch into current.

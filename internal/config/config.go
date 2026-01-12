@@ -524,11 +524,11 @@ func Default() *Config {
 				Labels:       []string{"automated"},
 				AutoMerge:    true,
 			},
-			// Intuitive defaults: trivial tasks skip PR, small tasks auto-merge
+			// Safety defaults: use PR workflow for protected branches
+			// Direct merge is blocked for protected branches (main, master, develop, release)
 			WeightActions: map[string]string{
-				"trivial": "none",  // No PR for trivial fixes
-				"small":   "merge", // Auto-merge small tasks directly
-				// medium, large, greenfield use default "pr" action
+				"trivial": "none", // No PR for trivial fixes (local-only changes)
+				// All other weights use default "pr" action
 			},
 		},
 		Execution: ExecutionConfig{
@@ -835,6 +835,12 @@ var (
 
 	// ValidModes are the allowed values for team.mode
 	ValidModes = []string{"local", "shared_db", "sync_server"}
+
+	// ValidCompletionActions are the allowed values for completion.action
+	ValidCompletionActions = []string{"pr", "merge", "none", ""}
+
+	// DefaultProtectedBranches are branches that cannot be directly merged to
+	DefaultProtectedBranches = []string{"main", "master", "develop", "release"}
 )
 
 // Validate checks if config values are valid.
@@ -847,7 +853,60 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid team.mode: %s (must be one of: %v)",
 			c.Team.Mode, ValidModes)
 	}
+
+	// Validate completion action
+	if c.Completion.Action != "" && !contains(ValidCompletionActions, c.Completion.Action) {
+		return fmt.Errorf("invalid completion.action: %s (must be one of: pr, merge, none)",
+			c.Completion.Action)
+	}
+
+	// SAFETY: Block "merge" action when target is a protected branch
+	// This prevents accidental direct merges to main/master/develop/release
+	if c.Completion.Action == "merge" {
+		targetBranch := c.Completion.TargetBranch
+		if targetBranch == "" {
+			targetBranch = "main" // default
+		}
+		if isProtectedBranch(targetBranch) {
+			return fmt.Errorf("completion.action 'merge' is blocked for protected branch '%s'; "+
+				"use 'pr' action instead to ensure code review before merging to protected branches",
+				targetBranch)
+		}
+	}
+
+	// Validate weight-specific actions don't allow merge to protected branches
+	for weight, action := range c.Completion.WeightActions {
+		if action == "merge" {
+			targetBranch := c.Completion.TargetBranch
+			if targetBranch == "" {
+				targetBranch = "main"
+			}
+			if isProtectedBranch(targetBranch) {
+				return fmt.Errorf("completion.weight_actions[%s]='merge' is blocked for protected branch '%s'; "+
+					"use 'pr' action instead", weight, targetBranch)
+			}
+		}
+	}
+
+	// SAFETY: Worktree isolation should not be disabled
+	// This is a critical safety feature that prevents parallel tasks from interfering
+	if !c.Worktree.Enabled {
+		return fmt.Errorf("worktree.enabled cannot be set to false; " +
+			"worktree isolation is required for safe parallel task execution and branch protection; " +
+			"if you need to run without worktrees, contact maintainers to discuss your use case")
+	}
+
 	return nil
+}
+
+// isProtectedBranch checks if a branch is in the protected list.
+func isProtectedBranch(branch string) bool {
+	for _, p := range DefaultProtectedBranches {
+		if branch == p {
+			return true
+		}
+	}
+	return false
 }
 
 // contains checks if a string is in a slice.

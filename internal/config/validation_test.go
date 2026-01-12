@@ -21,35 +21,40 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid visibility: all",
 			cfg: &Config{
-				Team: TeamConfig{Visibility: "all"},
+				Team:     TeamConfig{Visibility: "all"},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr: false,
 		},
 		{
 			name: "valid visibility: assigned",
 			cfg: &Config{
-				Team: TeamConfig{Visibility: "assigned"},
+				Team:     TeamConfig{Visibility: "assigned"},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr: false,
 		},
 		{
 			name: "valid visibility: owned",
 			cfg: &Config{
-				Team: TeamConfig{Visibility: "owned"},
+				Team:     TeamConfig{Visibility: "owned"},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr: false,
 		},
 		{
 			name: "empty visibility is allowed",
 			cfg: &Config{
-				Team: TeamConfig{Visibility: ""},
+				Team:     TeamConfig{Visibility: ""},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr: false,
 		},
 		{
 			name: "invalid visibility returns error",
 			cfg: &Config{
-				Team: TeamConfig{Visibility: "invalid"},
+				Team:     TeamConfig{Visibility: "invalid"},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr:   true,
 			errSubstr: "invalid team.visibility",
@@ -57,7 +62,8 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "invalid visibility: typo",
 			cfg: &Config{
-				Team: TeamConfig{Visibility: "alll"},
+				Team:     TeamConfig{Visibility: "alll"},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr:   true,
 			errSubstr: "team.visibility",
@@ -66,35 +72,40 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid mode: local",
 			cfg: &Config{
-				Team: TeamConfig{Mode: "local"},
+				Team:     TeamConfig{Mode: "local"},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr: false,
 		},
 		{
 			name: "valid mode: shared_db",
 			cfg: &Config{
-				Team: TeamConfig{Mode: "shared_db"},
+				Team:     TeamConfig{Mode: "shared_db"},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr: false,
 		},
 		{
 			name: "valid mode: sync_server",
 			cfg: &Config{
-				Team: TeamConfig{Mode: "sync_server"},
+				Team:     TeamConfig{Mode: "sync_server"},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr: false,
 		},
 		{
 			name: "empty mode is allowed",
 			cfg: &Config{
-				Team: TeamConfig{Mode: ""},
+				Team:     TeamConfig{Mode: ""},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr: false,
 		},
 		{
 			name: "invalid mode returns error",
 			cfg: &Config{
-				Team: TeamConfig{Mode: "invalid"},
+				Team:     TeamConfig{Mode: "invalid"},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr:   true,
 			errSubstr: "invalid team.mode",
@@ -102,7 +113,8 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "invalid mode: typo",
 			cfg: &Config{
-				Team: TeamConfig{Mode: "loca"},
+				Team:     TeamConfig{Mode: "loca"},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr:   true,
 			errSubstr: "team.mode",
@@ -115,6 +127,7 @@ func TestConfig_Validate(t *testing.T) {
 					Visibility: "assigned",
 					Mode:       "shared_db",
 				},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr: false,
 		},
@@ -125,6 +138,7 @@ func TestConfig_Validate(t *testing.T) {
 					Visibility: "bad",
 					Mode:       "local",
 				},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr:   true,
 			errSubstr: "visibility",
@@ -136,9 +150,78 @@ func TestConfig_Validate(t *testing.T) {
 					Visibility: "all",
 					Mode:       "bad",
 				},
+				Worktree: WorktreeConfig{Enabled: true},
 			},
 			wantErr:   true,
 			errSubstr: "mode",
+		},
+		// Worktree safety validation
+		{
+			name: "worktree disabled is blocked",
+			cfg: &Config{
+				Worktree: WorktreeConfig{Enabled: false},
+			},
+			wantErr:   true,
+			errSubstr: "worktree.enabled cannot be set to false",
+		},
+		{
+			name: "merge action blocked for main",
+			cfg: &Config{
+				Worktree:   WorktreeConfig{Enabled: true},
+				Completion: CompletionConfig{Action: "merge", TargetBranch: "main"},
+			},
+			wantErr:   true,
+			errSubstr: "protected branch",
+		},
+		{
+			name: "merge action blocked for master",
+			cfg: &Config{
+				Worktree:   WorktreeConfig{Enabled: true},
+				Completion: CompletionConfig{Action: "merge", TargetBranch: "master"},
+			},
+			wantErr:   true,
+			errSubstr: "protected branch",
+		},
+		{
+			name: "merge action blocked for develop",
+			cfg: &Config{
+				Worktree:   WorktreeConfig{Enabled: true},
+				Completion: CompletionConfig{Action: "merge", TargetBranch: "develop"},
+			},
+			wantErr:   true,
+			errSubstr: "protected branch",
+		},
+		{
+			name: "merge action allowed for feature branch",
+			cfg: &Config{
+				Worktree:   WorktreeConfig{Enabled: true},
+				Completion: CompletionConfig{Action: "merge", TargetBranch: "feature/foo"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "pr action allowed for main",
+			cfg: &Config{
+				Worktree:   WorktreeConfig{Enabled: true},
+				Completion: CompletionConfig{Action: "pr", TargetBranch: "main"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "none action allowed for main",
+			cfg: &Config{
+				Worktree:   WorktreeConfig{Enabled: true},
+				Completion: CompletionConfig{Action: "none", TargetBranch: "main"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty action allowed for main",
+			cfg: &Config{
+				Worktree:   WorktreeConfig{Enabled: true},
+				Completion: CompletionConfig{Action: "", TargetBranch: "main"},
+			},
+			wantErr: false,
 		},
 	}
 
