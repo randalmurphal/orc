@@ -51,15 +51,17 @@
 		}
 	}
 
-	// Column-specific styling
+	// Column-specific styling - matches column IDs from Board.svelte
 	const columnStyles: Record<string, { accentColor: string; bgColor: string }> = {
-		todo: { accentColor: 'var(--text-muted)', bgColor: 'var(--bg-secondary)' },
-		running: { accentColor: 'var(--accent-primary)', bgColor: 'rgba(139, 92, 246, 0.05)' },
+		queued: { accentColor: 'var(--text-muted)', bgColor: 'rgba(148, 163, 184, 0.05)' },
+		spec: { accentColor: 'rgb(59, 130, 246)', bgColor: 'rgba(59, 130, 246, 0.05)' },
+		implement: { accentColor: 'var(--accent-primary)', bgColor: 'rgba(139, 92, 246, 0.05)' },
+		test: { accentColor: 'rgb(6, 182, 212)', bgColor: 'rgba(6, 182, 212, 0.05)' },
 		review: { accentColor: 'var(--status-warning)', bgColor: 'rgba(245, 158, 11, 0.05)' },
 		done: { accentColor: 'var(--status-success)', bgColor: 'rgba(16, 185, 129, 0.05)' }
 	};
 
-	const style = $derived(columnStyles[column.id] || columnStyles.todo);
+	const style = $derived(columnStyles[column.id] || columnStyles.queued);
 </script>
 
 <div
@@ -100,9 +102,9 @@
 	.column {
 		display: flex;
 		flex-direction: column;
-		min-width: 300px;
-		max-width: 340px;
-		flex: 1;
+		min-width: 180px;
+		flex: 1 0 180px;
+		max-width: 300px;
 		background: var(--column-bg);
 		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-lg);

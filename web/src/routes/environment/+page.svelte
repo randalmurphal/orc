@@ -28,7 +28,7 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
-	// Data
+	// Project data
 	let skills = $state<SkillInfo[]>([]);
 	let hooks = $state<Record<string, Hook[]>>({});
 	let agents = $state<SubAgent[]>([]);
@@ -39,6 +39,13 @@
 	let prompts = $state<PromptInfo[]>([]);
 	let scripts = $state<ProjectScript[]>([]);
 	let claudeMD = $state<ClaudeMDHierarchy | null>(null);
+
+	// Global data
+	let globalSkills = $state<SkillInfo[]>([]);
+	let globalHooks = $state<Record<string, Hook[]>>({});
+	let globalAgents = $state<SubAgent[]>([]);
+	let globalMcpServers = $state<MCPServerInfo[]>([]);
+	let globalTools = $state<ToolInfo[]>([]);
 
 	// Expanded sections
 	let expandedSections = $state<Set<string>>(new Set());
@@ -64,7 +71,12 @@
 				configRes,
 				promptsRes,
 				scriptsRes,
-				claudeMDRes
+				claudeMDRes,
+				globalSkillsRes,
+				globalHooksRes,
+				globalAgentsRes,
+				globalMcpRes,
+				globalToolsRes
 			] = await Promise.all([
 				listSkills().catch(() => []),
 				listHooks().catch(() => ({})),
@@ -75,7 +87,12 @@
 				getConfig().catch(() => null),
 				listPrompts().catch(() => []),
 				listScripts().catch(() => []),
-				getClaudeMDHierarchy().catch(() => null)
+				getClaudeMDHierarchy().catch(() => null),
+				listSkills('global').catch(() => []),
+				listHooks('global').catch(() => ({})),
+				listAgents('global').catch(() => []),
+				listMCPServers('global').catch(() => []),
+				listTools('global').catch(() => [])
 			]);
 
 			skills = skillsRes;
@@ -88,6 +105,11 @@
 			prompts = promptsRes;
 			scripts = scriptsRes;
 			claudeMD = claudeMDRes;
+			globalSkills = globalSkillsRes;
+			globalHooks = globalHooksRes;
+			globalAgents = globalAgentsRes;
+			globalMcpServers = globalMcpRes;
+			globalTools = globalToolsRes;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load environment data';
 		} finally {
@@ -95,9 +117,13 @@
 		}
 	});
 
-	// Computed stats
+	// Computed stats - Project
 	const hookCount = $derived(Object.values(hooks).flat().length);
 	const activeHookEvents = $derived(Object.keys(hooks).length);
+
+	// Computed stats - Global
+	const globalHookCount = $derived(Object.values(globalHooks).flat().length);
+	const globalMcpConnected = $derived(globalMcpServers.filter((s) => !s.disabled).length);
 	const mcpConnected = $derived(mcpServers.filter((s) => !s.disabled).length);
 	const deniedToolsCount = $derived(toolPermissions?.deny?.length || 0);
 	const overriddenPrompts = $derived(prompts.filter((p) => p.has_override).length);
@@ -159,31 +185,128 @@
 		</div>
 	{:else}
 		<div class="sections">
-			<!-- Claude Code Section -->
-			<div class="section" class:expanded={expandedSections.has('claude')}>
-				<button class="section-header" onclick={() => toggleSection('claude')}>
+			<!-- Claude Code - Global/User Section -->
+			<div class="section" class:expanded={expandedSections.has('claude-global')}>
+				<button class="section-header" onclick={() => toggleSection('claude-global')}>
 					<div class="section-info">
 						<div class="section-icon claude">
-							<Icon name="terminal" size={20} />
+							<Icon name="claude" size={20} />
 						</div>
 						<div class="section-title">
-							<h2>Claude Code</h2>
+							<h2>Claude Code - Global</h2>
 							<p class="section-summary">
-								Skills ({skills.length}) • Hooks ({hookCount}) • Agents ({agents.length}) • MCP ({mcpConnected}
-								connected)
+								CLAUDE.md ({claudeMD?.global?.content ? 1 : 0}) • Skills ({globalSkills.length}) • Hooks ({globalHookCount}) • Agents ({globalAgents.length}) • MCP ({globalMcpConnected})
+							</p>
+						</div>
+					</div>
+					<div class="section-status">
+						<span class="status-badge healthy">healthy</span>
+						<Icon
+							name={expandedSections.has('claude-global') ? 'chevron-down' : 'chevron-right'}
+							size={16}
+						/>
+					</div>
+				</button>
+
+				{#if expandedSections.has('claude-global')}
+					<div class="section-content">
+						<p class="section-path">~/.claude/</p>
+						<div class="config-grid">
+							<a href="/environment/docs?scope=global" class="config-card">
+								<div class="card-icon">
+									<Icon name="file-text" size={18} />
+								</div>
+								<div class="card-info">
+									<h3>CLAUDE.md</h3>
+									<p>{claudeMD?.global?.content ? `${claudeMD.global.content.length.toLocaleString()} chars` : 'Not configured'}</p>
+								</div>
+								<Icon name="chevron-right" size={14} class="card-arrow" />
+							</a>
+
+							<a href="/environment/claude/skills?scope=global" class="config-card">
+								<div class="card-icon">
+									<Icon name="skills" size={18} />
+								</div>
+								<div class="card-info">
+									<h3>Skills</h3>
+									<p>{globalSkills.length} configured</p>
+								</div>
+								<Icon name="chevron-right" size={14} class="card-arrow" />
+							</a>
+
+							<a href="/environment/claude/hooks?scope=global" class="config-card">
+								<div class="card-icon">
+									<Icon name="hooks" size={18} />
+								</div>
+								<div class="card-info">
+									<h3>Hooks</h3>
+									<p>{globalHookCount} hooks on {Object.keys(globalHooks).length} events</p>
+								</div>
+								<Icon name="chevron-right" size={14} class="card-arrow" />
+							</a>
+
+							<a href="/environment/claude/agents?scope=global" class="config-card">
+								<div class="card-icon">
+									<Icon name="agents" size={18} />
+								</div>
+								<div class="card-info">
+									<h3>Agents</h3>
+									<p>{globalAgents.length} sub-agents</p>
+								</div>
+								<Icon name="chevron-right" size={14} class="card-arrow" />
+							</a>
+
+							<a href="/environment/claude/tools?scope=global" class="config-card">
+								<div class="card-icon">
+									<Icon name="tools" size={18} />
+								</div>
+								<div class="card-info">
+									<h3>Tools</h3>
+									<p>{globalTools.length} available</p>
+								</div>
+								<Icon name="chevron-right" size={14} class="card-arrow" />
+							</a>
+
+							<a href="/environment/claude/mcp?scope=global" class="config-card">
+								<div class="card-icon">
+									<Icon name="mcp" size={18} />
+								</div>
+								<div class="card-info">
+									<h3>MCP Servers</h3>
+									<p>{globalMcpConnected} of {globalMcpServers.length} enabled</p>
+								</div>
+								<Icon name="chevron-right" size={14} class="card-arrow" />
+							</a>
+						</div>
+
+					</div>
+				{/if}
+			</div>
+
+			<!-- Claude Code - Project Section -->
+			<div class="section" class:expanded={expandedSections.has('claude-project')}>
+				<button class="section-header" onclick={() => toggleSection('claude-project')}>
+					<div class="section-info">
+						<div class="section-icon claude">
+							<Icon name="claude" size={20} />
+						</div>
+						<div class="section-title">
+							<h2>Claude Code - Project</h2>
+							<p class="section-summary">
+								CLAUDE.md ({claudeMD?.project?.content ? 1 : 0}) • Skills ({skills.length}) • Hooks ({hookCount}) • Agents ({agents.length}) • MCP ({mcpConnected})
 							</p>
 						</div>
 					</div>
 					<div class="section-status">
 						<span class="status-badge {claudeStatus.status}">{claudeStatus.status}</span>
 						<Icon
-							name={expandedSections.has('claude') ? 'chevron-down' : 'chevron-right'}
+							name={expandedSections.has('claude-project') ? 'chevron-down' : 'chevron-right'}
 							size={16}
 						/>
 					</div>
 				</button>
 
-				{#if expandedSections.has('claude')}
+				{#if expandedSections.has('claude-project')}
 					<div class="section-content">
 						{#if claudeStatus.status !== 'healthy'}
 							<div class="status-message warning">
@@ -191,8 +314,19 @@
 								{claudeStatus.message}
 							</div>
 						{/if}
-
+						<p class="section-path">.claude/</p>
 						<div class="config-grid">
+							<a href="/environment/docs" class="config-card">
+								<div class="card-icon">
+									<Icon name="file-text" size={18} />
+								</div>
+								<div class="card-info">
+									<h3>CLAUDE.md</h3>
+									<p>{claudeMD?.project?.content ? `${claudeMD.project.content.length.toLocaleString()} chars` : 'Not configured'}</p>
+								</div>
+								<Icon name="chevron-right" size={14} class="card-arrow" />
+							</a>
+
 							<a href="/environment/claude/skills" class="config-card">
 								<div class="card-icon">
 									<Icon name="skills" size={18} />
@@ -367,75 +501,6 @@
 				{/if}
 			</div>
 
-			<!-- Documentation Section -->
-			<div class="section" class:expanded={expandedSections.has('docs')}>
-				<button class="section-header" onclick={() => toggleSection('docs')}>
-					<div class="section-info">
-						<div class="section-icon docs">
-							<Icon name="file-text" size={20} />
-						</div>
-						<div class="section-title">
-							<h2>Documentation</h2>
-							<p class="section-summary">CLAUDE.md: {claudeMDLevels} level(s) configured</p>
-						</div>
-					</div>
-					<div class="section-status">
-						<span class="status-badge healthy">configured</span>
-						<Icon
-							name={expandedSections.has('docs') ? 'chevron-down' : 'chevron-right'}
-							size={16}
-						/>
-					</div>
-				</button>
-
-				{#if expandedSections.has('docs')}
-					<div class="section-content">
-						<div class="docs-hierarchy">
-							{#if claudeMD?.global?.content}
-								<div class="docs-level">
-									<span class="level-badge global">Global</span>
-									<span class="level-path">~/.claude/CLAUDE.md</span>
-									<span class="level-size"
-										>{claudeMD.global.content.length.toLocaleString()} chars</span
-									>
-								</div>
-							{/if}
-							{#if claudeMD?.user?.content}
-								<div class="docs-level">
-									<span class="level-badge user">User</span>
-									<span class="level-path">~/CLAUDE.md</span>
-									<span class="level-size"
-										>{claudeMD.user.content.length.toLocaleString()} chars</span
-									>
-								</div>
-							{/if}
-							{#if claudeMD?.project?.content}
-								<div class="docs-level">
-									<span class="level-badge project">Project</span>
-									<span class="level-path">.claude/CLAUDE.md or CLAUDE.md</span>
-									<span class="level-size"
-										>{claudeMD.project.content.length.toLocaleString()} chars</span
-									>
-								</div>
-							{/if}
-							{#if !claudeMD?.global?.content && !claudeMD?.user?.content && !claudeMD?.project?.content}
-								<p class="no-docs">No CLAUDE.md files configured</p>
-							{/if}
-						</div>
-
-						<a href="/environment/docs" class="config-card full-width">
-							<div class="card-icon">
-								<Icon name="file-text" size={18} />
-							</div>
-							<div class="card-info">
-								<h3>Edit Documentation</h3>
-								<p>View and edit project CLAUDE.md</p>
-							</div>
-							<Icon name="chevron-right" size={14} class="card-arrow" />
-						</a>
-					</div>
-				{/if}
-			</div>
 		</div>
 
 		<!-- Keyboard hint -->
@@ -630,6 +695,17 @@
 		animation: slideDown var(--duration-fast) var(--ease-out);
 	}
 
+	.section-path {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-3);
+		padding: var(--space-1) var(--space-2);
+		background: var(--bg-tertiary);
+		border-radius: var(--radius-sm);
+		display: inline-block;
+	}
+
 	@keyframes slideDown {
 		from {
 			opacity: 0;
@@ -809,6 +885,31 @@
 		padding: var(--space-2) var(--space-3);
 		background: var(--bg-tertiary);
 		border-radius: var(--radius-md);
+		text-decoration: none;
+		color: inherit;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.docs-level.clickable {
+		cursor: pointer;
+	}
+
+	.docs-level.clickable:hover {
+		background: var(--bg-primary);
+		border-color: var(--accent-primary);
+	}
+
+	.docs-level :global(.level-arrow) {
+		color: var(--text-muted);
+		opacity: 0;
+		transition: all var(--duration-fast) var(--ease-out);
+		margin-left: auto;
+	}
+
+	.docs-level.clickable:hover :global(.level-arrow) {
+		opacity: 1;
+		color: var(--accent-primary);
+		transform: translateX(2px);
 	}
 
 	.level-badge {
@@ -851,6 +952,38 @@
 		font-size: var(--text-sm);
 		color: var(--text-muted);
 		font-style: italic;
+	}
+
+	.docs-level.empty {
+		opacity: 0.5;
+	}
+
+	.docs-hierarchy.compact {
+		margin-bottom: var(--space-3);
+	}
+
+	.section-description {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin-bottom: var(--space-4);
+		line-height: var(--leading-relaxed);
+	}
+
+	.hint-box {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-2);
+		padding: var(--space-3);
+		background: var(--bg-tertiary);
+		border-radius: var(--radius-md);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin-top: var(--space-4);
+	}
+
+	.hint-box :global(svg) {
+		flex-shrink: 0;
+		margin-top: 1px;
 	}
 
 	/* Keyboard Hint */

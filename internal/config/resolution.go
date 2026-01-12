@@ -11,12 +11,12 @@ import (
 
 // ResolutionEntry represents one level in the resolution chain for a config key.
 type ResolutionEntry struct {
-	Level     ConfigLevel   // Level in the hierarchy (default, shared, personal, runtime)
-	Source    ConfigSource  // Source type (default, shared, personal, env, flag)
-	Path      string        // File path or env var name
-	Value     string        // Value at this level (empty if not set)
-	IsSet     bool          // Whether this level has a value
-	IsWinning bool          // Whether this is the winning (effective) value
+	Level     ConfigLevel  // Level in the hierarchy (default, shared, personal, runtime)
+	Source    ConfigSource // Source type (default, shared, personal, env, flag)
+	Path      string       // File path or env var name
+	Value     string       // Value at this level (empty if not set)
+	IsSet     bool         // Whether this level has a value
+	IsWinning bool         // Whether this is the winning (effective) value
 }
 
 // ResolutionChain shows all resolution levels for a config key.

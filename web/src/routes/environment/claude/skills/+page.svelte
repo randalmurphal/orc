@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import {
 		listSkills,
 		getSkill,
@@ -10,23 +11,32 @@
 		type Skill
 	} from '$lib/api';
 
-	let skills: SkillInfo[] = [];
-	let selectedSkill: Skill | null = null;
-	let isCreating = false;
-	let loading = true;
-	let saving = false;
-	let error: string | null = null;
-	let success: string | null = null;
+	let skills = $state<SkillInfo[]>([]);
+	let selectedSkill = $state<Skill | null>(null);
+	let selectedSkillDir = $state<string | null>(null); // Directory name for API operations
+	let isCreating = $state(false);
+	let loading = $state(true);
+	let saving = $state(false);
+	let error = $state<string | null>(null);
+	let success = $state<string | null>(null);
 
 	// Form fields
-	let formName = '';
-	let formDescription = '';
-	let formContent = '';
-	let formAllowedTools = '';
+	let formName = $state('');
+	let formDescription = $state('');
+	let formContent = $state('');
+	let formAllowedTools = $state('');
+
+	// Get scope from URL params
+	const scope = $derived($page.url.searchParams.get('scope') as 'global' | 'project' | null);
+	const isGlobal = $derived(scope === 'global');
+	const scopeParam = $derived(isGlobal ? 'global' : undefined);
 
 	onMount(async () => {
 		try {
-			skills = await listSkills();
+			// Read scope directly from URL on mount
+			const urlScope = new URL(window.location.href).searchParams.get('scope');
+			const initialScope = urlScope === 'global' ? 'global' : undefined;
+			skills = await listSkills(initialScope);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load skills';
 		} finally {
@@ -34,19 +44,46 @@
 		}
 	});
 
-	async function selectSkillByName(name: string) {
+	// Reload skills when scope changes
+	$effect(() => {
+		if (!loading) {
+			loadSkills();
+		}
+	});
+
+	async function loadSkills() {
+		try {
+			skills = await listSkills(scopeParam);
+			selectedSkill = null;
+			selectedSkillDir = null;
+			isCreating = false;
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to load skills';
+		}
+	}
+
+	// Extract directory name from full path
+	function getSkillDirName(skillPath: string): string {
+		return skillPath.split('/').pop() || skillPath;
+	}
+
+	async function selectSkill(skill: SkillInfo) {
 		error = null;
 		success = null;
 		isCreating = false;
 
 		try {
-			selectedSkill = await getSkill(name);
+			// Use directory name for API lookup, not display name
+			const dirName = getSkillDirName(skill.path);
+			selectedSkillDir = dirName;
+			selectedSkill = await getSkill(dirName, scopeParam);
 			formName = selectedSkill.name;
 			formDescription = selectedSkill.description;
 			formContent = selectedSkill.content;
 			formAllowedTools = selectedSkill.allowed_tools?.join(', ') || '';
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load skill';
+			selectedSkillDir = null;
 		}
 	}
 
@@ -54,6 +91,7 @@
 		error = null;
 		success = null;
 		selectedSkill = null;
+		selectedSkillDir = null;
 		isCreating = true;
 
 		formName = '';
@@ -86,14 +124,15 @@
 
 		try {
 			if (isCreating) {
-				await createSkill(skill);
+				await createSkill(skill, scopeParam);
 				success = 'Skill created successfully';
-			} else if (selectedSkill) {
-				await updateSkill(selectedSkill.name, skill);
+				selectedSkillDir = formName.trim(); // New skill uses name as dir
+			} else if (selectedSkill && selectedSkillDir) {
+				await updateSkill(selectedSkillDir, skill, scopeParam);
 				success = 'Skill updated successfully';
 			}
 
-			skills = await listSkills();
+			skills = await listSkills(scopeParam);
 			selectedSkill = skill;
 			isCreating = false;
 		} catch (e) {
@@ -104,7 +143,7 @@
 	}
 
 	async function handleDelete() {
-		if (!selectedSkill) return;
+		if (!selectedSkill || !selectedSkillDir) return;
 
 		if (!confirm(`Delete skill "${selectedSkill.name}"?`)) return;
 
@@ -113,9 +152,10 @@
 		success = null;
 
 		try {
-			await deleteSkill(selectedSkill.name);
-			skills = await listSkills();
+			await deleteSkill(selectedSkillDir, scopeParam);
+			skills = await listSkills(scopeParam);
 			selectedSkill = null;
+			selectedSkillDir = null;
 			isCreating = false;
 			success = 'Skill deleted successfully';
 		} catch (e) {
@@ -124,20 +164,29 @@
 			saving = false;
 		}
 	}
+
+	// Path display based on scope
+	const skillsBasePath = $derived(isGlobal ? '~/.claude/skills/' : '.claude/skills/');
 </script>
 
 <svelte:head>
-	<title>Skills - orc</title>
+	<title>{isGlobal ? 'Global ' : ''}Skills - orc</title>
 </svelte:head>
 
 <div class="skills-page">
 	<header class="page-header">
 		<div class="header-content">
 			<div>
-				<h1>Claude Code Skills</h1>
-				<p class="subtitle">Manage skills in .claude/skills/ (SKILL.md format)</p>
+				<h1>{isGlobal ? 'Global ' : ''}Claude Code Skills</h1>
+				<p class="subtitle">Manage skills in {skillsBasePath} (SKILL.md format)</p>
 			</div>
-			<button class="btn btn-primary" on:click={startCreate}>New Skill</button>
+			<div class="header-actions">
+				<div class="scope-toggle">
+					<a href="/environment/claude/skills" class="scope-btn" class:active={!isGlobal}>Project</a>
+					<a href="/environment/claude/skills?scope=global" class="scope-btn" class:active={isGlobal}>Global</a>
+				</div>
+				<button class="btn btn-primary" onclick={startCreate}>New Skill</button>
+			</div>
 		</div>
 	</header>
 
@@ -165,7 +214,7 @@
 								<button
 									class="skill-item"
 									class:selected={selectedSkill?.name === skill.name}
-									on:click={() => selectSkillByName(skill.name)}
+									onclick={() => selectSkill(skill)}
 								>
 									<span class="skill-name">{skill.name}</span>
 									{#if skill.description}
@@ -184,13 +233,13 @@
 					<div class="editor-header">
 						<h2>{isCreating ? 'New Skill' : selectedSkill?.name}</h2>
 						{#if selectedSkill && !isCreating}
-							<button class="btn btn-danger" on:click={handleDelete} disabled={saving}>
+							<button class="btn btn-danger" onclick={handleDelete} disabled={saving}>
 								Delete
 							</button>
 						{/if}
 					</div>
 
-					<form class="skill-form" on:submit|preventDefault={handleSave}>
+					<form class="skill-form" onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
 						<div class="form-row">
 							<div class="form-group">
 								<label for="name">Name</label>
@@ -199,10 +248,9 @@
 									type="text"
 									bind:value={formName}
 									placeholder="my-skill"
-									disabled={!isCreating}
 								/>
 								<span class="form-hint"
-									>.claude/skills/{formName || 'name'}/SKILL.md</span
+									>{skillsBasePath}{formName || 'name'}/SKILL.md</span
 								>
 							</div>
 
@@ -273,6 +321,39 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
+	}
+
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.scope-toggle {
+		display: flex;
+		background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
+		border-radius: 6px;
+		padding: 2px;
+	}
+
+	.scope-btn {
+		padding: 0.375rem 0.75rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: var(--text-secondary);
+		text-decoration: none;
+		border-radius: 4px;
+		transition: all 0.15s ease;
+	}
+
+	.scope-btn:hover {
+		color: var(--text-primary);
+	}
+
+	.scope-btn.active {
+		background: var(--bg-primary);
+		color: var(--text-primary);
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 	}
 
 	.subtitle {

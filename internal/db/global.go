@@ -172,12 +172,12 @@ func (g *GlobalDB) RecordCost(projectID, taskID, phase string, costUSD float64, 
 
 // CostSummary provides aggregated cost data.
 type CostSummary struct {
-	TotalCostUSD   float64
-	TotalInput     int
-	TotalOutput    int
-	EntryCount     int
-	ByProject      map[string]float64
-	ByPhase        map[string]float64
+	TotalCostUSD float64
+	TotalInput   int
+	TotalOutput  int
+	EntryCount   int
+	ByProject    map[string]float64
+	ByPhase      map[string]float64
 }
 
 // GetCostSummary retrieves aggregated cost data since the given time.

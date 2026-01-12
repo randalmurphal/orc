@@ -102,6 +102,17 @@ if f, ok := w.(http.Flusher); ok {
 }
 ```
 
+### Scope Parameter
+
+Claude Code endpoints support `?scope=global` for user-level config (`~/.claude/`):
+- `/api/skills?scope=global` - Global skills from `~/.claude/skills/`
+- `/api/hooks?scope=global` - Global hooks from `~/.claude/settings.json`
+- `/api/agents?scope=global` - Global agents from `~/.claude/agents/*.md`
+- `/api/mcp?scope=global` - Global MCP from `~/.claude/.mcp.json`
+- `/api/claudemd?scope=global` - Global CLAUDE.md
+
+Without scope parameter, endpoints return project-level config (`.claude/`).
+
 ## WebSocket Protocol
 
 ### Client Messages

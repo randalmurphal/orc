@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/randalmurphal/llmkit/claudeconfig"
 )
@@ -11,11 +13,33 @@ import (
 // === MCP Server Handlers ===
 
 // handleListMCPServers returns all MCP servers from .mcp.json.
+// Supports ?scope=global to list from ~/.claude/.mcp.json instead of project.
 func (s *Server) handleListMCPServers(w http.ResponseWriter, r *http.Request) {
-	config, err := claudeconfig.LoadProjectMCPConfig(s.getProjectRoot())
-	if err != nil {
-		s.jsonError(w, fmt.Sprintf("failed to load MCP config: %v", err), http.StatusInternalServerError)
-		return
+	scope := r.URL.Query().Get("scope")
+
+	var config *claudeconfig.MCPConfig
+	var err error
+
+	if scope == "global" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			s.jsonError(w, "failed to get home directory", http.StatusInternalServerError)
+			return
+		}
+		// Global MCP config is at ~/.claude/.mcp.json - use LoadProjectMCPConfig with ~/.claude as root
+		config, err = claudeconfig.LoadProjectMCPConfig(filepath.Join(homeDir, ".claude"))
+		if err != nil {
+			// No global MCP config is OK - return empty list
+			s.jsonResponse(w, []*claudeconfig.MCPServerInfo{})
+			return
+		}
+	} else {
+		config, err = claudeconfig.LoadProjectMCPConfig(s.getProjectRoot())
+		if err != nil {
+			// No MCP config is OK - return empty list
+			s.jsonResponse(w, []*claudeconfig.MCPServerInfo{})
+			return
+		}
 	}
 
 	// Return list with server info

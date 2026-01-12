@@ -331,12 +331,12 @@ func TestInitialsValidation(t *testing.T) {
 		{"AM", true},
 		{"BJ", true},
 		{"ABC", true},
-		{"XY1", true},   // Alphanumeric allowed
-		{"ABCD", true},  // 4 chars max
-		{"A", false},    // Too short
+		{"XY1", true},    // Alphanumeric allowed
+		{"ABCD", true},   // 4 chars max
+		{"A", false},     // Too short
 		{"ABCDE", false}, // Too long
-		{"A!", false},   // Invalid char
-		{"a-b", false},  // Invalid char
+		{"A!", false},    // Invalid char
+		{"a-b", false},   // Invalid char
 	}
 
 	for _, tt := range tests {

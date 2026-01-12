@@ -18,8 +18,8 @@ type DiffStats struct {
 // FileDiff represents changes to a single file.
 type FileDiff struct {
 	Path      string `json:"path"`
-	Status    string `json:"status"`              // modified, added, deleted, renamed
-	OldPath   string `json:"old_path,omitempty"`  // For renames
+	Status    string `json:"status"`             // modified, added, deleted, renamed
+	OldPath   string `json:"old_path,omitempty"` // For renames
 	Additions int    `json:"additions"`
 	Deletions int    `json:"deletions"`
 	Binary    bool   `json:"binary"`

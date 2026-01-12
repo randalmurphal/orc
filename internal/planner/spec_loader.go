@@ -11,10 +11,10 @@ import (
 
 // SpecFile represents a loaded specification file.
 type SpecFile struct {
-	Path     string // Relative path from spec directory
-	Name     string // Filename
-	Content  string // File contents
-	Words    int    // Approximate word count
+	Path    string // Relative path from spec directory
+	Name    string // Filename
+	Content string // File contents
+	Words   int    // Approximate word count
 }
 
 // SpecLoader loads specification files from a directory.

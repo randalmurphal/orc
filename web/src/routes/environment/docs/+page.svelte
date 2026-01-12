@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import {
 		getClaudeMD,
 		updateClaudeMD,
@@ -8,62 +10,71 @@
 		type ClaudeMDHierarchy
 	} from '$lib/api';
 
-	let content = '';
-	let hierarchy: ClaudeMDHierarchy | null = null;
-	let selectedSource: 'project' | 'global' | 'user' = 'project';
-	let loading = true;
-	let saving = false;
-	let error: string | null = null;
-	let success: string | null = null;
-	let hasProject = false;
+	let content = $state('');
+	let hierarchy = $state<ClaudeMDHierarchy | null>(null);
+	let loading = $state(true);
+	let saving = $state(false);
+	let error = $state<string | null>(null);
+	let success = $state<string | null>(null);
+
+	// Get scope from URL params (default to project)
+	const urlScope = $derived($page.url.searchParams.get('scope') as 'global' | 'user' | 'project' | null);
+	const selectedSource = $derived(urlScope || 'project');
 
 	onMount(async () => {
+		// Read scope directly from URL on mount
+		const urlScopeParam = new URL(window.location.href).searchParams.get('scope');
+		const initialScope = (urlScopeParam as 'global' | 'user' | 'project') || 'project';
+		await loadContent(initialScope);
+	});
+
+	async function loadContent(scope: 'global' | 'user' | 'project' = 'project') {
+		loading = true;
+		error = null;
+
 		try {
 			hierarchy = await getClaudeMDHierarchy();
-			hasProject = !!hierarchy.project;
 
-			// Load project content if it exists
-			if (hierarchy.project) {
-				content = hierarchy.project.content;
-			}
+			// Load content for the selected scope
+			const claudeMD = await getClaudeMD(scope);
+			content = claudeMD.content || '';
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load CLAUDE.md';
 		} finally {
 			loading = false;
 		}
+	}
+
+	// Reload when scope changes
+	$effect(() => {
+		if (!loading && hierarchy) {
+			loadContentForScope();
+		}
 	});
 
-	function selectSource(source: 'project' | 'global' | 'user') {
-		selectedSource = source;
-		if (hierarchy) {
-			switch (source) {
-				case 'global':
-					content = hierarchy.global?.content || '';
-					break;
-				case 'user':
-					content = hierarchy.user?.content || '';
-					break;
-				case 'project':
-					content = hierarchy.project?.content || '';
-					break;
-			}
+	async function loadContentForScope() {
+		try {
+			const claudeMD = await getClaudeMD(selectedSource);
+			content = claudeMD.content || '';
+		} catch (e) {
+			// Ignore errors when switching - will show empty
+			content = '';
 		}
 	}
 
-	async function handleSave() {
-		if (selectedSource !== 'project') {
-			error = 'Only project CLAUDE.md can be edited';
-			return;
-		}
+	function selectSource(source: 'project' | 'global' | 'user') {
+		const params = source === 'project' ? '' : `?scope=${source}`;
+		goto(`/environment/docs${params}`);
+	}
 
+	async function handleSave() {
 		saving = true;
 		error = null;
 		success = null;
 
 		try {
-			await updateClaudeMD(content);
+			await updateClaudeMD(content, selectedSource);
 			success = 'CLAUDE.md saved successfully';
-			hasProject = true;
 
 			// Refresh hierarchy
 			hierarchy = await getClaudeMDHierarchy();
@@ -86,24 +97,40 @@
 				return source;
 		}
 	}
+
+	const hasContent = $derived((source: string) => {
+		if (!hierarchy) return false;
+		switch (source) {
+			case 'global': return !!hierarchy.global?.content;
+			case 'user': return !!hierarchy.user?.content;
+			case 'project': return !!hierarchy.project?.content;
+			default: return false;
+		}
+	});
 </script>
 
 <svelte:head>
-	<title>CLAUDE.md - orc</title>
+	<title>{selectedSource === 'project' ? '' : selectedSource.charAt(0).toUpperCase() + selectedSource.slice(1) + ' '}CLAUDE.md - orc</title>
 </svelte:head>
 
 <div class="claudemd-page">
 	<header class="page-header">
 		<div class="header-content">
 			<div>
-				<h1>CLAUDE.md</h1>
-				<p class="subtitle">View and edit project instructions for Claude</p>
+				<h1>{selectedSource === 'project' ? '' : selectedSource.charAt(0).toUpperCase() + selectedSource.slice(1) + ' '}CLAUDE.md</h1>
+				<p class="subtitle">
+					{#if selectedSource === 'global'}
+						Global instructions at ~/.claude/CLAUDE.md
+					{:else if selectedSource === 'user'}
+						User instructions at ~/CLAUDE.md
+					{:else}
+						Project instructions for Claude
+					{/if}
+				</p>
 			</div>
-			{#if selectedSource === 'project'}
-				<button class="btn btn-primary" on:click={handleSave} disabled={saving}>
-					{saving ? 'Saving...' : 'Save'}
-				</button>
-			{/if}
+			<button class="btn btn-primary" onclick={handleSave} disabled={saving}>
+				{saving ? 'Saving...' : 'Save'}
+			</button>
 		</div>
 	</header>
 
@@ -124,39 +151,41 @@
 				<h2>Sources</h2>
 				<p class="help-text">CLAUDE.md files are applied in order: global, user, project</p>
 				<ul>
-					{#if hierarchy?.global}
-						<li>
-							<button
-								class="source-item"
-								class:selected={selectedSource === 'global'}
-								on:click={() => selectSource('global')}
-							>
-								<span class="source-name">Global</span>
-								<span class="source-path">~/.claude/CLAUDE.md</span>
-							</button>
-						</li>
-					{/if}
-					{#if hierarchy?.user}
-						<li>
-							<button
-								class="source-item"
-								class:selected={selectedSource === 'user'}
-								on:click={() => selectSource('user')}
-							>
-								<span class="source-name">User</span>
-								<span class="source-path">~/CLAUDE.md</span>
-							</button>
-						</li>
-					{/if}
+					<li>
+						<button
+							class="source-item"
+							class:selected={selectedSource === 'global'}
+							onclick={() => selectSource('global')}
+						>
+							<span class="source-name">Global</span>
+							<span class="source-path">~/.claude/CLAUDE.md</span>
+							{#if !hierarchy?.global?.content}
+								<span class="badge badge-new">New</span>
+							{/if}
+						</button>
+					</li>
+					<li>
+						<button
+							class="source-item"
+							class:selected={selectedSource === 'user'}
+							onclick={() => selectSource('user')}
+						>
+							<span class="source-name">User</span>
+							<span class="source-path">~/CLAUDE.md</span>
+							{#if !hierarchy?.user?.content}
+								<span class="badge badge-new">New</span>
+							{/if}
+						</button>
+					</li>
 					<li>
 						<button
 							class="source-item"
 							class:selected={selectedSource === 'project'}
-							on:click={() => selectSource('project')}
+							onclick={() => selectSource('project')}
 						>
 							<span class="source-name">Project</span>
 							<span class="source-path">./CLAUDE.md</span>
-							{#if !hasProject}
+							{#if !hierarchy?.project?.content}
 								<span class="badge badge-new">New</span>
 							{/if}
 						</button>
@@ -168,18 +197,12 @@
 			<div class="editor-panel">
 				<div class="editor-header">
 					<h2>{getSourceLabel(selectedSource)}</h2>
-					{#if selectedSource !== 'project'}
-						<span class="readonly-badge">Read Only</span>
-					{/if}
 				</div>
 
 				<div class="editor-content">
 					<textarea
 						bind:value={content}
-						placeholder={selectedSource === 'project'
-							? '# Project Instructions\n\nAdd instructions for Claude here...'
-							: 'No content'}
-						disabled={selectedSource !== 'project'}
+						placeholder="# Instructions\n\nAdd instructions for Claude here..."
 						rows="30"
 					></textarea>
 				</div>

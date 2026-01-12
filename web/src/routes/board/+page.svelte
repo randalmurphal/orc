@@ -43,7 +43,7 @@
 	<title>Board - orc</title>
 </svelte:head>
 
-<div class="board-page">
+<div class="board-page full-width">
 	<header class="page-header">
 		<div class="header-left">
 			<h1>Task Board</h1>
@@ -94,6 +94,7 @@
 		flex-direction: column;
 		height: calc(100vh - var(--header-height) - var(--space-12));
 		min-height: 0;
+		overflow-x: auto;
 	}
 
 	.page-header {

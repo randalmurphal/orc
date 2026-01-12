@@ -60,15 +60,15 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 
 // SettingsHierarchyResponse contains settings from each level with source tracking.
 type SettingsHierarchyResponse struct {
-	Merged  *claudeconfig.Settings           `json:"merged"`
-	Global  *SettingsLevel                   `json:"global"`
-	Project *SettingsLevel                   `json:"project"`
-	Sources map[string]SettingsSourceInfo    `json:"sources"`
+	Merged  *claudeconfig.Settings        `json:"merged"`
+	Global  *SettingsLevel                `json:"global"`
+	Project *SettingsLevel                `json:"project"`
+	Sources map[string]SettingsSourceInfo `json:"sources"`
 }
 
 // SettingsLevel represents settings from a specific level.
 type SettingsLevel struct {
-	Path     string               `json:"path"`
+	Path     string                 `json:"path"`
 	Settings *claudeconfig.Settings `json:"settings,omitempty"`
 }
 

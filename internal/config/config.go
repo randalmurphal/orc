@@ -648,8 +648,8 @@ func Default() *Config {
 			},
 		},
 		Team: TeamConfig{
-			Name:            "", // Auto-detected from username
-			ActivityLogging: true, // On by default - useful history even for solo
+			Name:            "",    // Auto-detected from username
+			ActivityLogging: true,  // On by default - useful history even for solo
 			TaskClaiming:    false, // Off by default - opt-in for multi-user
 			Visibility:      "all",
 			Mode:            "local", // Local by default, shared_db for teams
@@ -741,7 +741,7 @@ func Default() *Config {
 				ContextSummary: true,  // When enabled, export context.md
 			},
 		},
-		Model: "claude-opus-4-5-20251101",
+		Model:                      "claude-opus-4-5-20251101",
 		MaxIterations:              30,
 		Timeout:                    10 * time.Minute,
 		BranchPrefix:               "orc/",

@@ -129,11 +129,11 @@ func withRetryContext(attempt int) func(*testing.T, string, string) {
 		}
 
 		st.RetryContext = &state.RetryContext{
-			FromPhase:     "test",
-			ToPhase:       "implement",
-			Reason:        "Tests failed",
-			Attempt:       attempt,
-			ContextFile:   "",
+			FromPhase:   "test",
+			ToPhase:     "implement",
+			Reason:      "Tests failed",
+			Attempt:     attempt,
+			ContextFile: "",
 		}
 
 		taskDir := task.TaskDirIn(tmpDir, taskID)
@@ -653,16 +653,16 @@ func TestDefaultRetryMap(t *testing.T) {
 	retryMap := executor.DefaultRetryMap()
 
 	tests := []struct {
-		failedPhase    string
-		expectedRetry  string
+		failedPhase       string
+		expectedRetry     string
 		shouldHaveMapping bool
 	}{
 		{"test", "implement", true},
 		{"test_unit", "implement", true},
 		{"test_e2e", "implement", true},
 		{"validate", "implement", true},
-		{"implement", "", false},  // No mapping - retry from same phase
-		{"spec", "", false},       // No mapping
+		{"implement", "", false}, // No mapping - retry from same phase
+		{"spec", "", false},      // No mapping
 	}
 
 	for _, tt := range tests {

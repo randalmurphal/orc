@@ -123,60 +123,60 @@ func TestNaming_WorktreePath(t *testing.T) {
 
 func TestParseBranchName(t *testing.T) {
 	tests := []struct {
-		name           string
-		branch         string
-		wantTaskID     string
-		wantExecutor   string
-		wantOK         bool
+		name         string
+		branch       string
+		wantTaskID   string
+		wantExecutor string
+		wantOK       bool
 	}{
 		{
-			name:           "solo mode branch",
-			branch:         "orc/TASK-001",
-			wantTaskID:     "TASK-001",
-			wantExecutor:   "",
-			wantOK:         true,
+			name:         "solo mode branch",
+			branch:       "orc/TASK-001",
+			wantTaskID:   "TASK-001",
+			wantExecutor: "",
+			wantOK:       true,
 		},
 		{
-			name:           "p2p mode branch with executor",
-			branch:         "orc/TASK-001-am",
-			wantTaskID:     "TASK-001",
-			wantExecutor:   "am",
-			wantOK:         true,
+			name:         "p2p mode branch with executor",
+			branch:       "orc/TASK-001-am",
+			wantTaskID:   "TASK-001",
+			wantExecutor: "am",
+			wantOK:       true,
 		},
 		{
-			name:           "prefixed task with executor",
-			branch:         "orc/TASK-AM-001-bj",
-			wantTaskID:     "TASK-AM-001",
-			wantExecutor:   "bj",
-			wantOK:         true,
+			name:         "prefixed task with executor",
+			branch:       "orc/TASK-AM-001-bj",
+			wantTaskID:   "TASK-AM-001",
+			wantExecutor: "bj",
+			wantOK:       true,
 		},
 		{
-			name:           "three-letter executor prefix",
-			branch:         "orc/TASK-001-abc",
-			wantTaskID:     "TASK-001",
-			wantExecutor:   "abc",
-			wantOK:         true,
+			name:         "three-letter executor prefix",
+			branch:       "orc/TASK-001-abc",
+			wantTaskID:   "TASK-001",
+			wantExecutor: "abc",
+			wantOK:       true,
 		},
 		{
-			name:           "non-orc branch",
-			branch:         "main",
-			wantTaskID:     "",
-			wantExecutor:   "",
-			wantOK:         false,
+			name:         "non-orc branch",
+			branch:       "main",
+			wantTaskID:   "",
+			wantExecutor: "",
+			wantOK:       false,
 		},
 		{
-			name:           "feature branch",
-			branch:         "feature/something",
-			wantTaskID:     "",
-			wantExecutor:   "",
-			wantOK:         false,
+			name:         "feature branch",
+			branch:       "feature/something",
+			wantTaskID:   "",
+			wantExecutor: "",
+			wantOK:       false,
 		},
 		{
-			name:           "prefixed task without executor",
-			branch:         "orc/TASK-AM-001",
-			wantTaskID:     "TASK-AM-001",
-			wantExecutor:   "",
-			wantOK:         true,
+			name:         "prefixed task without executor",
+			branch:       "orc/TASK-AM-001",
+			wantTaskID:   "TASK-AM-001",
+			wantExecutor: "",
+			wantOK:       true,
 		},
 	}
 

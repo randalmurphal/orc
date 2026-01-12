@@ -19,11 +19,11 @@ func TestSavePhaseArtifact(t *testing.T) {
 	defer func() { _ = oldOrcDir }()
 
 	tests := []struct {
-		name       string
-		taskID     string
-		phaseID    string
-		output     string
-		wantSaved  bool
+		name        string
+		taskID      string
+		phaseID     string
+		output      string
+		wantSaved   bool
 		wantContent string
 	}{
 		{
@@ -55,18 +55,18 @@ This is the spec content.
 - Criterion 2`,
 		},
 		{
-			name:       "no artifact when no tags",
-			taskID:     "TASK-ART-001",
-			phaseID:    "implement",
-			output:     "Just some random output without artifact tags",
-			wantSaved:  false,
+			name:      "no artifact when no tags",
+			taskID:    "TASK-ART-001",
+			phaseID:   "implement",
+			output:    "Just some random output without artifact tags",
+			wantSaved: false,
 		},
 		{
-			name:       "empty artifact",
-			taskID:     "TASK-ART-001",
-			phaseID:    "design",
-			output:     "<artifact></artifact>",
-			wantSaved:  false,
+			name:      "empty artifact",
+			taskID:    "TASK-ART-001",
+			phaseID:   "design",
+			output:    "<artifact></artifact>",
+			wantSaved: false,
 		},
 	}
 
@@ -195,9 +195,9 @@ func TestLoadFromTranscript(t *testing.T) {
 
 	// Create transcript files
 	files := map[string]string{
-		"spec-001.md": "iteration 1 content",
-		"spec-002.md": "<artifact>iteration 2 artifact</artifact>",
-		"spec-003.md": "<artifact>iteration 3 artifact (latest)</artifact>",
+		"spec-001.md":  "iteration 1 content",
+		"spec-002.md":  "<artifact>iteration 2 artifact</artifact>",
+		"spec-003.md":  "<artifact>iteration 3 artifact (latest)</artifact>",
 		"other-001.md": "other phase content",
 	}
 
