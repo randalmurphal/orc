@@ -31,3 +31,4 @@ coverage.out
 go.work
 go.work.sum
 internal/api/static/
+.orc/orc.db
