@@ -20,7 +20,7 @@
 	// Phase-based columns matching orchestration workflow
 	const columns = [
 		{ id: 'queued', title: 'Queued', phases: [] as string[] }, // No phase yet
-		{ id: 'spec', title: 'Spec', phases: ['research', 'spec'] },
+		{ id: 'spec', title: 'Spec', phases: ['research', 'spec', 'design'] },
 		{ id: 'implement', title: 'Implement', phases: ['implement'] },
 		{ id: 'test', title: 'Test', phases: ['test'] },
 		{ id: 'review', title: 'Review', phases: ['docs', 'validate', 'review'] },

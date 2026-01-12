@@ -3,6 +3,7 @@
 	import { browser } from '$app/environment';
 	import { formatShortcut } from '$lib/utils/platform';
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import { sidebarPinned } from '$lib/stores/sidebar';
 
 	interface NavItem {
 		label: string;
@@ -85,9 +86,17 @@
 		icon: 'user'
 	};
 
-	// Sidebar state
-	let expanded = $state(false);
-	let pinned = $state(false);
+	// Sidebar state - expanded follows pinned state on mount and pin changes
+	let expanded = $state($sidebarPinned);
+	// Pin state is synced with store
+	let pinned = $derived($sidebarPinned);
+
+	// Keep expanded in sync when pinned changes externally
+	$effect(() => {
+		if (pinned) {
+			expanded = true;
+		}
+	});
 
 	// Section/group expansion state (persisted in localStorage)
 	const STORAGE_KEY_SECTIONS = 'orc-sidebar-sections';
@@ -168,8 +177,8 @@
 	}
 
 	function togglePin() {
-		pinned = !pinned;
-		expanded = pinned;
+		sidebarPinned.toggle();
+		expanded = !pinned; // Use current pinned value (before toggle completes)
 	}
 
 	// Get work and environment sections

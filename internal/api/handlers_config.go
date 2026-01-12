@@ -143,9 +143,12 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 			cfg.MaxIterations = *req.Execution.MaxIterations
 		}
 		if req.Execution.Timeout != "" {
-			if d, err := time.ParseDuration(req.Execution.Timeout); err == nil {
-				cfg.Timeout = d
+			d, err := time.ParseDuration(req.Execution.Timeout)
+			if err != nil {
+				s.jsonError(w, fmt.Sprintf("invalid timeout format: %v", err), http.StatusBadRequest)
+				return
 			}
+			cfg.Timeout = d
 		}
 	}
 

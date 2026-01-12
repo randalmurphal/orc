@@ -99,7 +99,7 @@ func (s *Server) handleGetSettingsHierarchy(w http.ResponseWriter, r *http.Reque
 	// Check env settings
 	if mergedSettings != nil && mergedSettings.Env != nil {
 		for key := range mergedSettings.Env {
-			source := determineSettingSource(key, "env", globalSettings, projectSettings)
+			source := determineSettingSource(key, "env", globalSettings, projectSettings, globalPath, projectPath)
 			sources["env."+key] = source
 		}
 	}
@@ -172,16 +172,16 @@ func (s *Server) handleGetSettingsHierarchy(w http.ResponseWriter, r *http.Reque
 }
 
 // determineSettingSource determines which level a setting came from.
-func determineSettingSource(key, settingType string, global, project *claudeconfig.Settings) SettingsSourceInfo {
+func determineSettingSource(key, settingType string, global, project *claudeconfig.Settings, globalPath, projectPath string) SettingsSourceInfo {
 	if settingType == "env" {
 		if project != nil && project.Env != nil {
 			if _, ok := project.Env[key]; ok {
-				return SettingsSourceInfo{Source: "project"}
+				return SettingsSourceInfo{Source: "project", Path: projectPath}
 			}
 		}
 		if global != nil && global.Env != nil {
 			if _, ok := global.Env[key]; ok {
-				return SettingsSourceInfo{Source: "global"}
+				return SettingsSourceInfo{Source: "global", Path: globalPath}
 			}
 		}
 	}

@@ -15,7 +15,7 @@
 		type SkillInfo,
 		type Hook,
 		type SubAgent,
-		type MCPServer,
+		type MCPServerInfo,
 		type ToolInfo,
 		type ToolPermissions,
 		type Config,
@@ -32,7 +32,7 @@
 	let skills = $state<SkillInfo[]>([]);
 	let hooks = $state<Record<string, Hook[]>>({});
 	let agents = $state<SubAgent[]>([]);
-	let mcpServers = $state<MCPServer[]>([]);
+	let mcpServers = $state<MCPServerInfo[]>([]);
 	let tools = $state<ToolInfo[]>([]);
 	let toolPermissions = $state<ToolPermissions | null>(null);
 	let config = $state<Config | null>(null);
