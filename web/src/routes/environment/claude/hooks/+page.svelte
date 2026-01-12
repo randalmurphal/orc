@@ -6,16 +6,20 @@
 		getHookTypes,
 		createHook,
 		deleteHook,
+		getPluginResources,
 		type HooksMap,
 		type HookEvent,
 		type Hook,
-		type HookEntry
+		type HookEntry,
+		type PluginHookWithSource
 	} from '$lib/api';
 
 	let hooksMap = $state<HooksMap>({});
 	let hookEvents = $state<HookEvent[]>([]);
+	let pluginHooks = $state<PluginHookWithSource[]>([]);
 	let selectedEvent = $state<HookEvent | null>(null);
 	let selectedHookIndex = $state<number | null>(null);
+	let selectedPluginHook = $state<PluginHookWithSource | null>(null);
 	let isCreating = $state(false);
 	let loading = $state(true);
 	let saving = $state(false);
@@ -38,7 +42,14 @@
 			// Read scope directly from URL on mount
 			const urlScope = new URL(window.location.href).searchParams.get('scope');
 			const initialScope = urlScope === 'global' ? 'global' : undefined;
-			[hooksMap, hookEvents] = await Promise.all([listHooks(initialScope), getHookTypes()]);
+			const [hooksData, events, resources] = await Promise.all([
+				listHooks(initialScope),
+				getHookTypes(),
+				getPluginResources().catch(() => ({ mcp_servers: [], hooks: [], commands: [] }))
+			]);
+			hooksMap = hooksData;
+			hookEvents = events;
+			pluginHooks = resources.hooks;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load hooks';
 		} finally {
@@ -64,10 +75,20 @@
 		}
 	}
 
+	function selectPluginHook(hook: PluginHookWithSource) {
+		error = null;
+		success = null;
+		isCreating = false;
+		selectedEvent = null;
+		selectedHookIndex = null;
+		selectedPluginHook = hook;
+	}
+
 	function selectHook(event: HookEvent, index: number) {
 		error = null;
 		success = null;
 		isCreating = false;
+		selectedPluginHook = null;
 		selectedEvent = event;
 		selectedHookIndex = index;
 
@@ -84,6 +105,7 @@
 		success = null;
 		selectedEvent = null;
 		selectedHookIndex = null;
+		selectedPluginHook = null;
 		isCreating = true;
 
 		formMatcher = '';
@@ -194,29 +216,93 @@
 			<!-- Hook List -->
 			<aside class="hook-list">
 				<h2>Hooks</h2>
-				{#if flatHooks.length === 0}
+				{#if flatHooks.length === 0 && pluginHooks.length === 0}
 					<p class="empty-message">No hooks configured</p>
 				{:else}
-					<ul>
-						{#each flatHooks as { event, hook, index }}
-							<li>
-								<button
-									class="hook-item"
-									class:selected={selectedEvent === event && selectedHookIndex === index}
-									onclick={() => selectHook(event, index)}
-								>
-									<span class="hook-name">{hook.matcher}</span>
-									<span class="badge {getEventBadgeClass(event)}">{event}</span>
-								</button>
-							</li>
-						{/each}
-					</ul>
+					{#if flatHooks.length > 0}
+						<ul>
+							{#each flatHooks as { event, hook, index }}
+								<li>
+									<button
+										class="hook-item"
+										class:selected={selectedEvent === event && selectedHookIndex === index}
+										onclick={() => selectHook(event, index)}
+									>
+										<span class="hook-name">{hook.matcher}</span>
+										<span class="badge {getEventBadgeClass(event)}">{event}</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+
+					{#if pluginHooks.length > 0}
+						<div class="plugin-section">
+							<h3>From Plugins</h3>
+							<ul>
+								{#each pluginHooks as hook}
+									<li>
+										<button
+											class="hook-item plugin-item"
+											class:selected={selectedPluginHook === hook}
+											onclick={() => selectPluginHook(hook)}
+										>
+											<span class="hook-name">{hook.matcher || '*'}</span>
+											<span class="badge {getEventBadgeClass(hook.event)}">{hook.event}</span>
+										</button>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
 				{/if}
 			</aside>
 
 			<!-- Editor Panel -->
 			<div class="editor-panel">
-				{#if selectedEvent !== null || isCreating}
+				{#if selectedPluginHook}
+					<!-- Read-only view for plugin hooks -->
+					<div class="editor-header">
+						<h2>{selectedPluginHook.matcher || 'All Tools'}</h2>
+						<span class="plugin-badge">From plugin: {selectedPluginHook.plugin_name}</span>
+					</div>
+
+					<div class="plugin-hook-details">
+						<div class="detail-group">
+							<span class="detail-label">Event</span>
+							<span class="badge {getEventBadgeClass(selectedPluginHook.event)}">{selectedPluginHook.event}</span>
+						</div>
+
+						{#if selectedPluginHook.matcher}
+							<div class="detail-group">
+								<span class="detail-label">Matcher Pattern</span>
+								<code class="detail-value">{selectedPluginHook.matcher}</code>
+							</div>
+						{/if}
+
+						<div class="detail-group">
+							<span class="detail-label">Type</span>
+							<span class="detail-value">{selectedPluginHook.type}</span>
+						</div>
+
+						<div class="detail-group">
+							<span class="detail-label">Command</span>
+							<code class="detail-value command-value">{selectedPluginHook.command}</code>
+						</div>
+
+						{#if selectedPluginHook.description}
+							<div class="detail-group">
+								<span class="detail-label">Description</span>
+								<p class="detail-value">{selectedPluginHook.description}</p>
+							</div>
+						{/if}
+
+						<div class="plugin-notice">
+							<p>This hook is provided by the <strong>{selectedPluginHook.plugin_name}</strong> plugin.</p>
+							<p>To modify or remove it, manage the plugin in the <a href="/environment/claude/plugins">Plugins</a> section.</p>
+						</div>
+					</div>
+				{:else if selectedEvent !== null || isCreating}
 					<div class="editor-header">
 						<h2>{isCreating ? 'New Hook' : formMatcher || 'Edit Hook'}</h2>
 						{#if selectedEvent && !isCreating}
@@ -559,6 +645,98 @@
 		padding: 3rem;
 		text-align: center;
 		color: var(--text-secondary);
+	}
+
+	/* Plugin section styles */
+	.plugin-section {
+		margin-top: 1rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--border-color);
+	}
+
+	.plugin-section h3 {
+		font-size: 0.75rem;
+		font-weight: 600;
+		margin: 0 0 0.5rem;
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.plugin-item {
+		opacity: 0.85;
+	}
+
+	.plugin-badge {
+		font-size: 0.75rem;
+		padding: 0.25rem 0.5rem;
+		background: var(--primary-bg, #dbeafe);
+		color: var(--primary-text, #1d4ed8);
+		border-radius: 4px;
+	}
+
+	.plugin-hook-details {
+		padding: 1.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.detail-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.detail-label {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.detail-value {
+		font-size: 0.875rem;
+		color: var(--text-primary);
+		margin: 0;
+	}
+
+	code.detail-value {
+		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+		background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+	}
+
+	.command-value {
+		word-break: break-all;
+	}
+
+	.plugin-notice {
+		margin-top: 1rem;
+		padding: 1rem;
+		background: var(--bg-tertiary, rgba(0, 0, 0, 0.03));
+		border-radius: 6px;
+		font-size: 0.875rem;
+		color: var(--text-secondary);
+	}
+
+	.plugin-notice p {
+		margin: 0 0 0.5rem;
+	}
+
+	.plugin-notice p:last-child {
+		margin-bottom: 0;
+	}
+
+	.plugin-notice a {
+		color: var(--primary, #3b82f6);
+		text-decoration: none;
+	}
+
+	.plugin-notice a:hover {
+		text-decoration: underline;
 	}
 
 	@media (max-width: 768px) {

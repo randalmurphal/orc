@@ -6,12 +6,16 @@
 		createMCPServer,
 		updateMCPServer,
 		deleteMCPServer,
+		getPluginResources,
 		type MCPServerInfo,
-		type MCPServer
+		type MCPServer,
+		type PluginMCPServerWithSource
 	} from '$lib/api';
 
 	let servers: MCPServerInfo[] = [];
+	let pluginServers: PluginMCPServerWithSource[] = [];
 	let selectedServer: MCPServer | null = null;
+	let selectedPluginServer: PluginMCPServerWithSource | null = null;
 	let isCreating = false;
 	let loading = true;
 	let saving = false;
@@ -30,7 +34,12 @@
 
 	onMount(async () => {
 		try {
-			servers = await listMCPServers();
+			const [serverList, resources] = await Promise.all([
+				listMCPServers(),
+				getPluginResources().catch(() => ({ mcp_servers: [], hooks: [], commands: [] }))
+			]);
+			servers = serverList;
+			pluginServers = resources.mcp_servers;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load MCP servers';
 		} finally {
@@ -38,10 +47,19 @@
 		}
 	});
 
+	function selectPluginServer(server: PluginMCPServerWithSource) {
+		error = null;
+		success = null;
+		isCreating = false;
+		selectedServer = null;
+		selectedPluginServer = server;
+	}
+
 	async function selectServerByName(name: string) {
 		error = null;
 		success = null;
 		isCreating = false;
+		selectedPluginServer = null;
 
 		try {
 			selectedServer = await getMCPServer(name);
@@ -71,6 +89,7 @@
 		error = null;
 		success = null;
 		selectedServer = null;
+		selectedPluginServer = null;
 		isCreating = true;
 
 		formName = '';
@@ -212,7 +231,7 @@
 				<h1>MCP Servers</h1>
 				<p class="subtitle">Configure Model Context Protocol servers for Claude Code</p>
 			</div>
-			<button class="btn btn-primary" on:click={startCreate}>New Server</button>
+			<button class="btn btn-primary" onclick={startCreate}>New Server</button>
 		</div>
 	</header>
 
@@ -231,51 +250,132 @@
 			<!-- Server List -->
 			<aside class="server-list">
 				<h2>Servers</h2>
-				{#if servers.length === 0}
+				{#if servers.length === 0 && pluginServers.length === 0}
 					<p class="empty-message">No MCP servers configured</p>
 				{:else}
-					<ul>
-						{#each servers as server}
-							<li>
-								<button
-									class="server-item"
-									class:selected={selectedServer?.name === server.name}
-									class:disabled={server.disabled}
-									on:click={() => selectServerByName(server.name)}
-								>
-									<div class="server-header">
-										<span class="type-badge" title={server.type}>
-											{getTypeIcon(server.type)}
+					{#if servers.length > 0}
+						<ul>
+							{#each servers as server}
+								<li>
+									<button
+										class="server-item"
+										class:selected={selectedServer?.name === server.name}
+										class:disabled={server.disabled}
+										onclick={() => selectServerByName(server.name)}
+									>
+										<div class="server-header">
+											<span class="type-badge" title={server.type}>
+												{getTypeIcon(server.type)}
+											</span>
+											<span class="server-name">{server.name}</span>
+										</div>
+										<span class="server-detail">
+											{#if server.type === 'stdio'}
+												{server.command}
+											{:else}
+												{server.url}
+											{/if}
 										</span>
-										<span class="server-name">{server.name}</span>
-									</div>
-									<span class="server-detail">
-										{#if server.type === 'stdio'}
-											{server.command}
-										{:else}
-											{server.url}
-										{/if}
-									</span>
-								</button>
-							</li>
-						{/each}
-					</ul>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+
+					{#if pluginServers.length > 0}
+						<div class="plugin-section">
+							<h3>From Plugins</h3>
+							<ul>
+								{#each pluginServers as server}
+									<li>
+										<button
+											class="server-item plugin-item"
+											class:selected={selectedPluginServer?.name === server.name && selectedPluginServer?.plugin_name === server.plugin_name}
+											onclick={() => selectPluginServer(server)}
+										>
+											<div class="server-header">
+												<span class="type-badge" title={server.type || 'stdio'}>
+													{getTypeIcon(server.type || 'stdio')}
+												</span>
+												<span class="server-name">{server.name}</span>
+											</div>
+											<span class="server-detail plugin-source">
+												via {server.plugin_name}
+											</span>
+										</button>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
 				{/if}
 			</aside>
 
 			<!-- Editor Panel -->
 			<div class="editor-panel">
-				{#if selectedServer || isCreating}
+				{#if selectedPluginServer}
+					<!-- Read-only view for plugin servers -->
+					<div class="editor-header">
+						<h2>{selectedPluginServer.name}</h2>
+						<span class="plugin-badge">From plugin: {selectedPluginServer.plugin_name}</span>
+					</div>
+
+					<div class="plugin-server-details">
+						<div class="detail-group">
+							<span class="detail-label">Transport Type</span>
+							<span class="detail-value">{selectedPluginServer.type || 'stdio'}</span>
+						</div>
+
+						{#if selectedPluginServer.command}
+							<div class="detail-group">
+								<span class="detail-label">Command</span>
+								<code class="detail-value">{selectedPluginServer.command}</code>
+							</div>
+						{/if}
+
+						{#if selectedPluginServer.args && selectedPluginServer.args.length > 0}
+							<div class="detail-group">
+								<span class="detail-label">Arguments</span>
+								<code class="detail-value">{selectedPluginServer.args.join(' ')}</code>
+							</div>
+						{/if}
+
+						{#if selectedPluginServer.url}
+							<div class="detail-group">
+								<span class="detail-label">URL</span>
+								<code class="detail-value">{selectedPluginServer.url}</code>
+							</div>
+						{/if}
+
+						{#if selectedPluginServer.env && Object.keys(selectedPluginServer.env).length > 0}
+							<div class="detail-group">
+								<span class="detail-label">Environment Variables</span>
+								<div class="env-display">
+									{#each Object.entries(selectedPluginServer.env) as [key, value]}
+										<div class="env-item">
+											<code>{key}</code> = <code>{value}</code>
+										</div>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						<div class="plugin-notice">
+							<p>This MCP server is provided by the <strong>{selectedPluginServer.plugin_name}</strong> plugin.</p>
+							<p>To modify or remove it, manage the plugin in the <a href="/environment/claude/plugins">Plugins</a> section.</p>
+						</div>
+					</div>
+				{:else if selectedServer || isCreating}
 					<div class="editor-header">
 						<h2>{isCreating ? 'New MCP Server' : selectedServer?.name}</h2>
 						{#if selectedServer && !isCreating}
-							<button class="btn btn-danger" on:click={handleDelete} disabled={saving}>
+							<button class="btn btn-danger" onclick={handleDelete} disabled={saving}>
 								Delete
 							</button>
 						{/if}
 					</div>
 
-					<form class="server-form" on:submit|preventDefault={handleSave}>
+					<form class="server-form" onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
 						<div class="form-row">
 							<div class="form-group">
 								<label for="name">Server Name</label>
@@ -349,7 +449,7 @@
 						<div class="form-group">
 							<div class="env-header">
 								<span class="form-label">Environment Variables</span>
-								<button type="button" class="btn btn-sm" on:click={addEnvVar}>
+								<button type="button" class="btn btn-sm" onclick={addEnvVar}>
 									+ Add Variable
 								</button>
 							</div>
@@ -374,7 +474,7 @@
 											<button
 												type="button"
 												class="btn btn-icon"
-												on:click={() => removeEnvVar(i)}
+												onclick={() => removeEnvVar(i)}
 												title="Remove"
 											>
 												x
@@ -779,6 +879,112 @@
 
 	.no-selection .hint li {
 		margin: 0.25rem 0;
+	}
+
+	/* Plugin section styles */
+	.plugin-section {
+		margin-top: 1rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--border-color);
+	}
+
+	.plugin-section h3 {
+		font-size: 0.75rem;
+		font-weight: 600;
+		margin: 0 0 0.5rem;
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.plugin-item {
+		opacity: 0.85;
+	}
+
+	.plugin-source {
+		font-style: italic;
+		color: var(--text-tertiary, #9ca3af);
+	}
+
+	.plugin-badge {
+		font-size: 0.75rem;
+		padding: 0.25rem 0.5rem;
+		background: var(--primary-bg, #dbeafe);
+		color: var(--primary-text, #1d4ed8);
+		border-radius: 4px;
+	}
+
+	.plugin-server-details {
+		padding: 1.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.detail-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.detail-label {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.detail-value {
+		font-size: 0.875rem;
+		color: var(--text-primary);
+	}
+
+	code.detail-value {
+		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+		background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+	}
+
+	.env-display {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.env-item code {
+		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+		font-size: 0.75rem;
+		background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
+		padding: 0.125rem 0.375rem;
+		border-radius: 3px;
+	}
+
+	.plugin-notice {
+		margin-top: 1rem;
+		padding: 1rem;
+		background: var(--bg-tertiary, rgba(0, 0, 0, 0.03));
+		border-radius: 6px;
+		font-size: 0.875rem;
+		color: var(--text-secondary);
+	}
+
+	.plugin-notice p {
+		margin: 0 0 0.5rem;
+	}
+
+	.plugin-notice p:last-child {
+		margin-bottom: 0;
+	}
+
+	.plugin-notice a {
+		color: var(--primary, #3b82f6);
+		text-decoration: none;
+	}
+
+	.plugin-notice a:hover {
+		text-decoration: underline;
 	}
 
 	@media (max-width: 768px) {
