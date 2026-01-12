@@ -8,10 +8,14 @@
 	import ProjectSwitcher from '$lib/components/ProjectSwitcher.svelte';
 	import KeyboardShortcutsHelp from '$lib/components/overlays/KeyboardShortcutsHelp.svelte';
 	import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
-	import { currentProject, loadProjects } from '$lib/stores/project';
+	import { currentProject, loadProjects, currentProjectId } from '$lib/stores/project';
 	import { sidebarPinned } from '$lib/stores/sidebar';
+	import { loadTasks, updateTaskStatus, updateTaskState, refreshTask, addTask } from '$lib/stores/tasks';
+	import { initGlobalWebSocket, type WSEventType, type ConnectionStatus } from '$lib/websocket';
+	import { toast } from '$lib/stores/toast.svelte';
 	import { setupGlobalShortcuts } from '$lib/shortcuts';
 	import { onMount, onDestroy } from 'svelte';
+	import type { TaskState } from '$lib/types';
 
 	interface Props {
 		children: Snippet;
@@ -24,9 +28,70 @@
 	let showNewTaskForm = $state(false);
 	let showShortcutsHelp = $state(false);
 	let cleanupShortcuts: (() => void) | null = null;
+	let cleanupWebSocket: (() => void) | null = null;
+	let wsStatus = $state<ConnectionStatus>('disconnected');
+
+	// Handle WebSocket events globally
+	function handleGlobalWSEvent(taskId: string, eventType: WSEventType, data: unknown) {
+		switch (eventType) {
+			case 'state': {
+				const stateData = data as TaskState;
+				updateTaskState(taskId, stateData);
+
+				// Show toasts for important state changes
+				if (stateData.status === 'completed') {
+					toast.success(`Task ${taskId} completed`, { title: 'Task Complete' });
+				} else if (stateData.status === 'failed') {
+					toast.error(`Task ${taskId} failed`, { title: 'Task Failed' });
+				} else if (stateData.status === 'blocked') {
+					toast.warning(`Task ${taskId} is blocked`, { title: 'Task Blocked' });
+				}
+				break;
+			}
+			case 'phase': {
+				const phaseData = data as { phase?: string; status?: string };
+				if (phaseData.status === 'started' || phaseData.status === 'completed' || phaseData.status === 'failed') {
+					// Refresh the task to get updated current_phase
+					refreshTask(taskId);
+				}
+				if (phaseData.status === 'completed') {
+					toast.info(`Phase ${phaseData.phase} completed for ${taskId}`, { duration: 3000 });
+				}
+				break;
+			}
+			case 'complete': {
+				const completeData = data as { status?: string };
+				if (completeData.status) {
+					updateTaskStatus(taskId, completeData.status as 'completed' | 'failed');
+				}
+				// Refresh to get final state
+				refreshTask(taskId);
+				break;
+			}
+			case 'error': {
+				const errorData = data as { message?: string; fatal?: boolean };
+				if (errorData.fatal) {
+					toast.error(errorData.message || `Error in task ${taskId}`, { title: 'Task Error' });
+				}
+				break;
+			}
+		}
+	}
 
 	onMount(() => {
 		loadProjects();
+		loadTasks();
+
+		// Initialize global WebSocket for real-time updates
+		cleanupWebSocket = initGlobalWebSocket(
+			handleGlobalWSEvent,
+			(status) => { wsStatus = status; }
+		);
+
+		// Reload tasks when project changes
+		const unsubProject = currentProjectId.subscribe(() => {
+			loadTasks();
+		});
 
 		// Setup global shortcuts using ShortcutManager
 		cleanupShortcuts = setupGlobalShortcuts({
@@ -108,12 +173,16 @@
 			window.removeEventListener('orc:toggle-sidebar', handleToggleSidebar);
 			window.removeEventListener('orc:new-task', handleNewTask);
 			window.removeEventListener('orc:show-shortcuts', handleShowShortcuts);
+			unsubProject();
 		};
 	});
 
 	onDestroy(() => {
 		if (cleanupShortcuts) {
 			cleanupShortcuts();
+		}
+		if (cleanupWebSocket) {
+			cleanupWebSocket();
 		}
 	});
 

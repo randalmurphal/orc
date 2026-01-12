@@ -174,9 +174,38 @@ isMac()                     // Detect macOS for shortcuts
 
 | Store | Purpose |
 |-------|---------|
+| `tasks.ts` | Global reactive task state with real-time updates |
 | `project.ts` | Current project state |
 | `sidebar.ts` | Sidebar collapsed state |
 | `toast.svelte.ts` | Toast notification queue |
+
+### Task Store (`tasks.ts`)
+
+The task store provides global reactive state for all tasks, updated in real-time via WebSocket:
+
+```typescript
+// Reactive stores
+tasks           // All tasks
+tasksLoading    // Loading state
+tasksError      // Error state
+
+// Derived stores
+activeTasks     // Running, blocked, paused
+recentTasks     // Recently completed/failed
+runningTasks    // Currently running
+statusCounts    // Counts by status
+
+// Actions
+loadTasks()                          // Fetch all tasks from API
+updateTask(taskId, updates)          // Update task in store
+updateTaskStatus(taskId, status)     // Update task status
+updateTaskState(taskId, state)       // Update from WebSocket state event
+addTask(task)                        // Add new task
+removeTask(taskId)                   // Remove task
+refreshTask(taskId)                  // Fetch single task from API
+```
+
+The task store is initialized and kept in sync by the global WebSocket handler in `+layout.svelte`. Pages subscribe to the store for reactive updates without needing their own WebSocket connections.
 
 ## API Client (api.ts)
 
@@ -221,13 +250,52 @@ api.releaseTask(taskId)
 
 ## WebSocket (websocket.ts)
 
-Real-time updates for task events:
+Real-time updates for task events. Supports both task-specific and global subscriptions:
+
 ```typescript
-const ws = createWebSocket()
+// Singleton instance
+const ws = getWebSocket()
+
+// Task-specific subscription
+ws.connect(taskId)
 ws.subscribe(taskId)
-ws.onEvent((event) => { ... })
+ws.on('all', (event) => { ... })
 ws.unsubscribe()
+
+// Global subscription (receives ALL task events)
+ws.connect('*')  // or ws.subscribeGlobal()
+ws.on('all', (event) => { ... })
+
+// Helper for task-specific subscription with cleanup
+const cleanup = subscribeToTaskWS(taskId, onEvent, onStatus)
+cleanup()  // Unsubscribe
+
+// Helper for global subscription (used by layout)
+const cleanup = initGlobalWebSocket(onEvent, onStatus)
+cleanup()  // Unsubscribe
 ```
+
+### Global WebSocket Architecture
+
+The app uses a centralized WebSocket pattern:
+
+1. **Layout (`+layout.svelte`)** initializes global WebSocket with `"*"` subscription on app startup
+2. **Backend** publishes all task events to global subscribers AND task-specific subscribers
+3. **Layout** receives events and updates the global task store
+4. **Pages** subscribe to the task store for reactive updates (no individual WebSocket needed)
+
+This ensures real-time updates work across all pages without page refreshes.
+
+### Event Types
+
+| Event | Data | Purpose |
+|-------|------|---------|
+| `state` | `TaskState` | Full task state update |
+| `phase` | `{phase, status}` | Phase started/completed/failed |
+| `transcript` | `TranscriptLine` | Streaming conversation |
+| `tokens` | `TokenUpdate` | Token usage |
+| `complete` | `{status, duration}` | Task finished |
+| `error` | `{message, fatal}` | Error occurred |
 
 ## Keyboard Shortcuts
 

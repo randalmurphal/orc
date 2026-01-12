@@ -2,29 +2,30 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import {
-		listTasks,
 		createTask,
 		runTask,
 		pauseTask,
 		resumeTask,
 		deleteTask,
-		listProjectTasks,
 		createProjectTask,
 		runProjectTask,
 		pauseProjectTask,
 		resumeProjectTask,
-		deleteProjectTask,
-		type PaginatedTasks
+		deleteProjectTask
 	} from '$lib/api';
 	import type { Task } from '$lib/types';
 	import TaskCard from '$lib/components/TaskCard.svelte';
 	import Modal from '$lib/components/overlays/Modal.svelte';
 	import { currentProjectId, currentProject } from '$lib/stores/project';
+	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks, addTask, removeTask } from '$lib/stores/tasks';
 	import { setupTaskListShortcuts, getShortcutManager } from '$lib/shortcuts';
 	import { toast } from '$lib/stores/toast.svelte';
 
-	let tasks = $state<Task[]>([]);
-	let loading = $state(true);
+	// Get reactive values from stores
+	let allTasks = $derived($tasksStore);
+	let loading = $derived($tasksLoading);
+	let storeError = $derived($tasksError);
+
 	let error = $state<string | null>(null);
 	let showNewTask = $state(false);
 	let newTaskTitle = $state('');
@@ -39,17 +40,10 @@
 	let weightFilter = $state<string>('all');
 	let sortBy = $state<'recent' | 'oldest' | 'status'>('recent');
 
-	// Pagination state
-	let currentPage = $state(1);
-	let totalPages = $state(1);
-	let total = $state(0);
-	let limit = $state(20);
-	let usePagination = $state(false);
-
-	// Subscribe to project changes
+	// Sync store error to local error
 	$effect(() => {
-		if ($currentProjectId !== undefined) {
-			loadTasks();
+		if (storeError) {
+			error = storeError;
 		}
 	});
 
@@ -71,8 +65,6 @@
 
 	// Listen for new task event from command palette
 	onMount(() => {
-		loadTasks();
-
 		function handleNewTask() {
 			showNewTask = true;
 		}
@@ -141,46 +133,21 @@
 		}
 	}
 
-	async function loadTasks() {
-		loading = true;
-		error = null;
-		try {
-			if ($currentProjectId) {
-				tasks = await listProjectTasks($currentProjectId);
-				total = tasks.length;
-				totalPages = 1;
-				usePagination = false;
-			} else if (usePagination) {
-				const result = (await listTasks({ page: currentPage, limit })) as PaginatedTasks;
-				tasks = result.tasks;
-				total = result.total;
-				totalPages = result.total_pages;
-			} else {
-				const result = await listTasks();
-				tasks = result as Task[];
-				total = tasks.length;
-				totalPages = 1;
-			}
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load tasks';
-		} finally {
-			loading = false;
-		}
-	}
-
 	async function handleCreateTask() {
 		if (!newTaskTitle.trim()) return;
 		try {
 			const description = newTaskDescription.trim() || undefined;
+			let newTask: Task;
 			if ($currentProjectId) {
-				await createProjectTask($currentProjectId, newTaskTitle.trim(), description);
+				newTask = await createProjectTask($currentProjectId, newTaskTitle.trim(), description);
 			} else {
-				await createTask(newTaskTitle.trim(), description);
+				newTask = await createTask(newTaskTitle.trim(), description);
 			}
+			// Add the new task to the store immediately
+			addTask(newTask);
 			newTaskTitle = '';
 			newTaskDescription = '';
 			showNewTask = false;
-			await loadTasks();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to create task';
 		}
@@ -193,7 +160,7 @@
 			} else {
 				await runTask(id);
 			}
-			await loadTasks();
+			// WebSocket will update task status via global event handler
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to run task';
 		}
@@ -206,7 +173,7 @@
 			} else {
 				await pauseTask(id);
 			}
-			await loadTasks();
+			// WebSocket will update task status via global event handler
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to pause task';
 		}
@@ -219,7 +186,7 @@
 			} else {
 				await resumeTask(id);
 			}
-			await loadTasks();
+			// WebSocket will update task status via global event handler
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to resume task';
 		}
@@ -232,21 +199,16 @@
 			} else {
 				await deleteTask(id);
 			}
-			await loadTasks();
+			// Remove from store immediately
+			removeTask(id);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to delete task';
 		}
 	}
 
-	function goToPage(page: number) {
-		if (page < 1 || page > totalPages) return;
-		currentPage = page;
-		loadTasks();
-	}
-
 	// Derived filtered tasks
 	const filteredTasks = $derived(() => {
-		let result = [...tasks];
+		let result = [...allTasks];
 
 		// Status filter
 		if (statusFilter === 'active') {
@@ -285,10 +247,10 @@
 
 	// Status counts for tabs
 	const statusCounts = $derived(() => ({
-		all: tasks.length,
-		active: tasks.filter((t) => !['completed', 'failed'].includes(t.status)).length,
-		completed: tasks.filter((t) => t.status === 'completed').length,
-		failed: tasks.filter((t) => t.status === 'failed').length
+		all: allTasks.length,
+		active: allTasks.filter((t) => !['completed', 'failed'].includes(t.status)).length,
+		completed: allTasks.filter((t) => t.status === 'completed').length,
+		failed: allTasks.filter((t) => t.status === 'failed').length
 	}));
 
 	// Available weights
@@ -403,7 +365,7 @@
 		</div>
 	{:else if filteredTasks().length === 0}
 		<div class="empty-state">
-			{#if tasks.length === 0}
+			{#if allTasks.length === 0}
 				<div class="empty-icon">
 					<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
 						<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -461,37 +423,6 @@
 				</div>
 			{/each}
 		</div>
-
-		<!-- Pagination -->
-		{#if usePagination && totalPages > 1}
-			<div class="pagination">
-				<button class="page-btn" onclick={() => goToPage(1)} disabled={currentPage === 1}>
-					First
-				</button>
-				<button
-					class="page-btn"
-					onclick={() => goToPage(currentPage - 1)}
-					disabled={currentPage === 1}
-				>
-					Prev
-				</button>
-				<span class="page-info">Page {currentPage} of {totalPages}</span>
-				<button
-					class="page-btn"
-					onclick={() => goToPage(currentPage + 1)}
-					disabled={currentPage === totalPages}
-				>
-					Next
-				</button>
-				<button
-					class="page-btn"
-					onclick={() => goToPage(totalPages)}
-					disabled={currentPage === totalPages}
-				>
-					Last
-				</button>
-			</div>
-		{/if}
 	{/if}
 </div>
 
