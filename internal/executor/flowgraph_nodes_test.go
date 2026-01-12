@@ -190,7 +190,9 @@ func TestBuildPromptNode_TriesIDAfterName(t *testing.T) {
 }
 
 func TestCheckCompletionNode_DetectsComplete(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 
 	phase := &plan.Phase{ID: "implement"}
 	testState := state.New("TASK-COMP-001")
@@ -218,7 +220,9 @@ func TestCheckCompletionNode_DetectsComplete(t *testing.T) {
 }
 
 func TestCheckCompletionNode_DetectsPhaseSpecificComplete(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 
 	phase := &plan.Phase{ID: "test"}
 	testState := state.New("TASK-COMP-002")
@@ -243,7 +247,9 @@ func TestCheckCompletionNode_DetectsPhaseSpecificComplete(t *testing.T) {
 }
 
 func TestCheckCompletionNode_DetectsBlocked(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 
 	phase := &plan.Phase{ID: "spec"}
 	testState := state.New("TASK-BLOCK-001")
@@ -271,7 +277,9 @@ func TestCheckCompletionNode_DetectsBlocked(t *testing.T) {
 }
 
 func TestCheckCompletionNode_NoMarkers(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 
 	phase := &plan.Phase{ID: "implement"}
 	testState := state.New("TASK-CONT-001")
@@ -299,7 +307,9 @@ func TestCheckCompletionNode_NoMarkers(t *testing.T) {
 }
 
 func TestCheckCompletionNode_UpdatesState(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 
 	phase := &plan.Phase{ID: "implement"}
 	testState := state.New("TASK-STATE-001")
@@ -334,7 +344,9 @@ func TestCheckCompletionNode_UpdatesState(t *testing.T) {
 }
 
 func TestCheckCompletionNode_NilState(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 
 	phase := &plan.Phase{ID: "implement"}
 
@@ -481,7 +493,9 @@ func TestSaveTranscript_CreatesDirIfMissing(t *testing.T) {
 }
 
 func TestRenderTemplate_AllVariables(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 
 	ps := PhaseState{
 		TaskID:          "TASK-RENDER-001",
@@ -524,7 +538,9 @@ Retry: Previous attempt failed`
 }
 
 func TestRenderTemplate_EmptyValues(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 
 	ps := PhaseState{
 		TaskID:    "TASK-EMPTY-001",
@@ -573,7 +589,9 @@ func TestCommitCheckpointNode_NoGitOps(t *testing.T) {
 }
 
 func TestExecuteClaudeNode_NoClient(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 
 	nodeFunc := e.executeClaudeNode()
 
@@ -597,7 +615,9 @@ func TestExecuteClaudeNode_NoClient(t *testing.T) {
 }
 
 func TestExecuteClaudeNode_Success(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 
 	// Create mock client
 	mockClient := claude.NewMockClient("Implementation complete!")
@@ -625,7 +645,9 @@ func TestExecuteClaudeNode_Success(t *testing.T) {
 }
 
 func TestExecutePhase_Flowgraph_Complete(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 	e.SetUseSessionExecution(false) // Force flowgraph path
 
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
@@ -665,6 +687,7 @@ func TestExecutePhase_Flowgraph_Complete(t *testing.T) {
 func TestExecutePhase_Flowgraph_MaxIterations(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.MaxIterations = 2 // Low for testing
+	cfg.WorkDir = t.TempDir()
 	e := New(cfg)
 	e.SetUseSessionExecution(false)
 
@@ -700,7 +723,9 @@ func TestExecutePhase_Flowgraph_MaxIterations(t *testing.T) {
 }
 
 func TestExecutePhase_Flowgraph_Blocked(t *testing.T) {
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
 	e.SetUseSessionExecution(false)
 
 	mockClient := claude.NewMockClient("<phase_blocked>Need clarification</phase_blocked>")

@@ -73,7 +73,9 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 			s.runningTasksMu.Unlock()
 		}()
 
-		exec := executor.NewWithConfig(executor.ConfigFromOrc(s.orcConfig), s.orcConfig)
+		execCfg := executor.ConfigFromOrc(s.orcConfig)
+		execCfg.WorkDir = s.workDir
+		exec := executor.NewWithConfig(execCfg, s.orcConfig)
 		exec.SetPublisher(s.publisher)
 
 		// Execute with event publishing

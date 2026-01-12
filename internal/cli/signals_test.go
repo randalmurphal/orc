@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -37,6 +38,14 @@ func TestSetupSignalHandler(t *testing.T) {
 }
 
 func TestInterruptHandler(t *testing.T) {
+	// Use temp directory to avoid pollution from Cleanup's GracefulShutdown
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	t.Cleanup(func() {
+		os.Chdir(origDir)
+	})
+
 	tsk := task.New("TASK-001", "Test task")
 	st := state.New("TASK-001")
 
@@ -87,18 +96,33 @@ func TestWaitWithTimeout(t *testing.T) {
 }
 
 func TestGracefulShutdown(t *testing.T) {
-	// This test requires a temporary directory setup
-	// Just verify the function signature works
+	// Use a temp directory to test graceful shutdown behavior
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	t.Cleanup(func() {
+		os.Chdir(origDir)
+	})
+
 	tsk := &task.Task{ID: "TASK-001"}
 	st := state.New("TASK-001")
 	st.StartPhase("implement")
 
-	// GracefulShutdown will fail because no .orc directory exists
-	// but we're just testing the logic flow
+	// GracefulShutdown saves state and task
 	err := GracefulShutdown(tsk, st, "implement")
 
-	// Error is expected since we can't save to non-existent directory
-	if err == nil {
-		t.Log("GracefulShutdown succeeded (directory might exist)")
+	// Should succeed (creates directories as needed)
+	if err != nil {
+		t.Errorf("GracefulShutdown failed: %v", err)
+	}
+
+	// Verify task status was updated to blocked
+	if tsk.Status != task.StatusBlocked {
+		t.Errorf("expected task status %v, got %v", task.StatusBlocked, tsk.Status)
+	}
+
+	// Verify state was interrupted
+	if st.Status != state.StatusInterrupted {
+		t.Errorf("expected state status %v, got %v", state.StatusInterrupted, st.Status)
 	}
 }

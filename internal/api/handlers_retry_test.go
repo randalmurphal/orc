@@ -24,6 +24,14 @@ func setupRetryTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) (
 
 	tmpDir := t.TempDir()
 
+	// Create .orc directory with config that disables worktrees
+	orcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(orcDir, 0755)
+	configYAML := `worktree:
+  enabled: false
+`
+	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
+
 	// Create task directory
 	taskID = "TASK-RETRY-001"
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
@@ -685,7 +693,7 @@ func TestHandleRetryTask_LogsWarningOnCommentFetchError(t *testing.T) {
 	defer cleanup()
 
 	// Remove the database to simulate an error condition
-	os.RemoveAll(".orc/orc.db")
+	os.RemoveAll(filepath.Join(srv.workDir, ".orc", "orc.db"))
 
 	body := bytes.NewBufferString(`{"include_review_comments": true}`)
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/retry", taskID), body)

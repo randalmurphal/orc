@@ -170,8 +170,8 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Save plan
-	if err := p.Save(id); err != nil {
+	// Save plan to taskDir
+	if err := p.SaveTo(taskDir); err != nil {
 		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
 		return
 	}
