@@ -307,6 +307,18 @@ type ReviewConfig struct {
 	RequirePass bool `yaml:"require_pass"`
 }
 
+// PlanConfig defines spec requirements and validation configuration.
+type PlanConfig struct {
+	// RequireSpecForExecution blocks execution if spec is missing/invalid (default: false)
+	RequireSpecForExecution bool `yaml:"require_spec_for_execution"`
+	// WarnOnMissingSpec warns but doesn't block when spec is missing (default: true)
+	WarnOnMissingSpec bool `yaml:"warn_on_missing_spec"`
+	// SkipValidationWeights skips spec validation for these weights (default: [trivial])
+	SkipValidationWeights []string `yaml:"skip_validation_weights,omitempty"`
+	// MinimumSections are the required sections in a spec (default: [intent, success_criteria, testing])
+	MinimumSections []string `yaml:"minimum_sections,omitempty"`
+}
+
 // SubtasksConfig defines sub-task queue configuration.
 type SubtasksConfig struct {
 	// AllowCreation allows agents to propose sub-tasks (default: true)
@@ -485,6 +497,9 @@ type Config struct {
 
 	// Review configuration
 	Review ReviewConfig `yaml:"review"`
+
+	// Plan/spec configuration
+	Plan PlanConfig `yaml:"plan"`
 
 	// Sub-task queue configuration
 	Subtasks SubtasksConfig `yaml:"subtasks"`
@@ -682,6 +697,12 @@ func Default() *Config {
 			Enabled:     true,
 			Rounds:      2,
 			RequirePass: true,
+		},
+		Plan: PlanConfig{
+			RequireSpecForExecution: false, // Don't block by default
+			WarnOnMissingSpec:       true,  // Warn but don't block
+			SkipValidationWeights:   []string{"trivial"},
+			MinimumSections:         []string{"intent", "success_criteria", "testing"},
 		},
 		Subtasks: SubtasksConfig{
 			AllowCreation: true,

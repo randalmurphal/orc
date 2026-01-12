@@ -14,8 +14,9 @@ import (
 
 func newFeatureCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "feature <name>",
-		Short: "Create a feature (initiative + spec + tasks)",
+		Use:        "feature <name>",
+		Deprecated: "Use 'orc plan' with --create-initiative. Example: orc plan \"feature\" --create-initiative --create-tasks",
+		Short:      "Create a feature (initiative + spec + tasks)",
 		Long: `Create a complete feature with initiative, spec, and tasks.
 
 This is a combined workflow that:

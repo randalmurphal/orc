@@ -21,6 +21,11 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 	// Set current task directory for saving files
 	e.currentTaskDir = e.taskDir(t.ID)
 
+	// Check spec requirements for non-trivial tasks
+	if err := e.checkSpecRequirements(t); err != nil {
+		return err
+	}
+
 	// Update task status
 	t.Status = task.StatusRunning
 	now := time.Now()
@@ -403,4 +408,46 @@ func (e *Executor) ResumeFromPhase(ctx context.Context, t *task.Task, p *plan.Pl
 
 	// Use ExecuteTask which handles gates and retry
 	return e.ExecuteTask(ctx, t, resumePlan, s)
+}
+
+// checkSpecRequirements checks if a task has a valid spec for non-trivial weights.
+// Returns an error if spec is required but missing or invalid.
+func (e *Executor) checkSpecRequirements(t *task.Task) error {
+	// Trivial tasks don't require specs
+	if t.Weight == task.WeightTrivial {
+		return nil
+	}
+
+	// Check if spec validation is enabled in config
+	if e.orcConfig.Plan.RequireSpecForExecution {
+		// Check if this weight should skip validation
+		for _, skipWeight := range e.orcConfig.Plan.SkipValidationWeights {
+			if string(t.Weight) == skipWeight {
+				return nil
+			}
+		}
+
+		// Check if spec exists and is valid
+		if !task.SpecExists(t.ID) {
+			e.logger.Warn("task has no spec", "task", t.ID, "weight", t.Weight)
+			return fmt.Errorf("task %s requires a spec for weight '%s' - run 'orc plan %s' to create one", t.ID, t.Weight, t.ID)
+		}
+
+		// Validate spec content
+		if !task.HasValidSpec(t.ID, t.Weight) {
+			e.logger.Warn("task spec is invalid", "task", t.ID, "weight", t.Weight)
+			return fmt.Errorf("task %s has an incomplete spec - run 'orc plan %s' to update it", t.ID, t.ID)
+		}
+	} else if e.orcConfig.Plan.WarnOnMissingSpec {
+		// Just warn, don't block
+		if !task.SpecExists(t.ID) {
+			e.logger.Warn("task has no spec (execution will continue)",
+				"task", t.ID,
+				"weight", t.Weight,
+				"hint", "run 'orc plan "+t.ID+"' to create a spec",
+			)
+		}
+	}
+
+	return nil
 }

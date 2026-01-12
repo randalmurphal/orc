@@ -7,40 +7,38 @@ import (
 	"os"
 	"strings"
 
-	"github.com/randalmurphal/orc/internal/planner"
 	"github.com/spf13/cobra"
+
+	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/plan_session"
+	"github.com/randalmurphal/orc/internal/planner"
 )
 
 var planCmd = &cobra.Command{
-	Use:   "plan",
-	Short: "Generate tasks from specification documents",
-	Long: `Reads specification documents and uses Claude to generate a task breakdown.
+	Use:   "plan [TARGET]",
+	Short: "Start interactive planning session or generate tasks from specs",
+	Long: `Plan command supports two modes:
 
-The plan command:
-1. Loads spec files from the specified directory (default: .spec/)
-2. Generates a planning prompt with all spec content
-3. Runs Claude to analyze specs and propose tasks
-4. Displays the proposed tasks for approval
-5. Creates tasks with dependencies
+INTERACTIVE MODE (default):
+  Plan with Claude Code to create specifications interactively.
 
-Examples:
-  # Plan from default .spec/ directory
-  orc plan
+  TARGET can be:
+    - A task ID (e.g., TASK-001) to plan/refine an existing task
+    - A feature title (e.g., "Add user auth") to create a new feature spec
 
-  # Plan from custom directory
-  orc plan --from docs/specs/
+  Examples:
+    orc plan TASK-001                     # Plan existing task
+    orc plan "Add user authentication"    # Create feature spec
+    orc plan "Refactor API" --create-tasks  # Create spec and generate tasks
+    orc plan TASK-001 --initiative INIT-001 # Link to initiative
 
-  # Create tasks without confirmation
-  orc plan --yes
+BATCH MODE (--from):
+  Read existing spec files and generate tasks from them.
 
-  # Link tasks to an existing initiative
-  orc plan --initiative INIT-001
-
-  # Create a new initiative for the tasks
-  orc plan --create-initiative
-
-  # Show prompt without running Claude
-  orc plan --dry-run`,
+  Examples:
+    orc plan --from .spec/                # Read specs from directory
+    orc plan --from docs/specs/ --yes     # Create tasks without confirmation`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: runPlan,
 }
 
@@ -52,21 +50,115 @@ var (
 	planCreateInitiative bool
 	planModel            string
 	planInclude          []string
+	planWeight           string
+	planCreateTasks      bool
+	planSkipValidation   bool
+	planShared           bool
 )
 
 func init() {
 	rootCmd.AddCommand(planCmd)
 
-	planCmd.Flags().StringVarP(&planFrom, "from", "f", ".spec", "Directory containing spec documents")
-	planCmd.Flags().BoolVarP(&planYes, "yes", "y", false, "Create tasks without confirmation")
-	planCmd.Flags().BoolVar(&planDryRun, "dry-run", false, "Show prompt without running Claude")
-	planCmd.Flags().StringVarP(&planInitiative, "initiative", "i", "", "Link tasks to existing initiative")
-	planCmd.Flags().BoolVarP(&planCreateInitiative, "create-initiative", "I", false, "Create new initiative for tasks")
+	// Interactive mode flags
+	planCmd.Flags().StringVarP(&planInitiative, "initiative", "i", "", "Link to existing initiative")
 	planCmd.Flags().StringVarP(&planModel, "model", "m", "", "Claude model to use")
-	planCmd.Flags().StringSliceVar(&planInclude, "include", []string{"*.md"}, "File patterns to include")
+	planCmd.Flags().StringVarP(&planWeight, "weight", "w", "", "Pre-set task weight (skip asking)")
+	planCmd.Flags().BoolVarP(&planCreateTasks, "create-tasks", "t", false, "Create tasks from spec output (feature mode)")
+	planCmd.Flags().Bool("skip-validation", false, "Skip spec validation")
+	planCmd.Flags().BoolVar(&planShared, "shared", false, "Use shared initiative")
+
+	// Batch mode flags
+	planCmd.Flags().StringVarP(&planFrom, "from", "f", "", "Directory containing spec documents (batch mode)")
+	planCmd.Flags().BoolVarP(&planYes, "yes", "y", false, "Create tasks without confirmation (batch mode)")
+	planCmd.Flags().BoolVarP(&planCreateInitiative, "create-initiative", "I", false, "Create new initiative for tasks (batch mode)")
+	planCmd.Flags().StringSliceVar(&planInclude, "include", []string{"*.md"}, "File patterns to include (batch mode)")
+
+	// Shared flags
+	planCmd.Flags().BoolVar(&planDryRun, "dry-run", false, "Show prompt without running")
 }
 
 func runPlan(cmd *cobra.Command, args []string) error {
+	// Check if we're in batch mode (--from specified)
+	if planFrom != "" {
+		return runPlanBatch(cmd, args)
+	}
+
+	// Interactive mode
+	return runPlanInteractive(cmd, args)
+}
+
+// runPlanInteractive handles the interactive Claude Code planning session.
+func runPlanInteractive(cmd *cobra.Command, args []string) error {
+	if err := config.RequireInit(); err != nil {
+		return err
+	}
+
+	target := ""
+	if len(args) > 0 {
+		target = args[0]
+	}
+
+	skipValidation, _ := cmd.Flags().GetBool("skip-validation")
+
+	ctx := context.Background()
+
+	result, err := plan_session.Run(ctx, target, plan_session.Options{
+		WorkDir:        ".",
+		Model:          planModel,
+		InitiativeID:   planInitiative,
+		Weight:         planWeight,
+		CreateTasks:    planCreateTasks,
+		DryRun:         planDryRun,
+		SkipValidation: skipValidation,
+		Shared:         planShared,
+	})
+	if err != nil {
+		return fmt.Errorf("planning session failed: %w", err)
+	}
+
+	if planDryRun {
+		return nil
+	}
+
+	// Show results
+	if result.SpecPath != "" {
+		fmt.Printf("\nSpec created: %s\n", result.SpecPath)
+	}
+
+	if result.TaskID != "" {
+		fmt.Printf("Task: %s\n", result.TaskID)
+	}
+
+	if len(result.TaskIDs) > 0 {
+		fmt.Printf("Tasks created: %v\n", result.TaskIDs)
+	}
+
+	// Show validation results
+	if result.ValidationResult != nil {
+		if result.ValidationResult.Valid {
+			if !plain {
+				fmt.Println("✓ Spec validation passed")
+			} else {
+				fmt.Println("[OK] Spec validation passed")
+			}
+		} else {
+			if !plain {
+				fmt.Println("⚠ Spec validation issues:")
+			} else {
+				fmt.Println("[WARN] Spec validation issues:")
+			}
+			for _, issue := range result.ValidationResult.Issues {
+				fmt.Printf("  - %s\n", issue)
+			}
+			fmt.Println("\nRun with --skip-validation to bypass, or edit the spec to add missing sections.")
+		}
+	}
+
+	return nil
+}
+
+// runPlanBatch handles the batch mode - reading existing specs and generating tasks.
+func runPlanBatch(cmd *cobra.Command, args []string) error {
 	// Get working directory
 	wd, err := os.Getwd()
 	if err != nil {
