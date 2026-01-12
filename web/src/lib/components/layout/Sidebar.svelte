@@ -60,7 +60,8 @@
 						{ label: 'Prompts', href: '/environment/orchestrator/prompts', icon: 'prompts' },
 						{ label: 'Scripts', href: '/environment/orchestrator/scripts', icon: 'scripts' },
 						{ label: 'Automation', href: '/environment/orchestrator/automation', icon: 'config' },
-						{ label: 'Export', href: '/environment/orchestrator/export', icon: 'export' }
+						{ label: 'Export', href: '/environment/orchestrator/export', icon: 'export' },
+						{ label: 'Knowledge', href: '/environment/knowledge', icon: 'database' }
 					]
 				}
 			]

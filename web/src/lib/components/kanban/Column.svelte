@@ -3,7 +3,7 @@
 	import type { Task } from '$lib/types';
 
 	interface Props {
-		column: { id: string; title: string; statuses: string[] };
+		column: { id: string; title: string; phases: string[] };
 		tasks: Task[];
 		onDrop: (task: Task) => void;
 		onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;

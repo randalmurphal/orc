@@ -195,6 +195,18 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/subtasks/{id}/reject", cors(s.handleRejectSubtask))
 	s.mux.HandleFunc("DELETE /api/subtasks/{id}", cors(s.handleDeleteSubtask))
 
+	// Knowledge queue (patterns, gotchas, decisions)
+	s.mux.HandleFunc("GET /api/knowledge", cors(s.handleListKnowledge))
+	s.mux.HandleFunc("GET /api/knowledge/status", cors(s.handleGetKnowledgeStatus))
+	s.mux.HandleFunc("GET /api/knowledge/stale", cors(s.handleListStaleKnowledge))
+	s.mux.HandleFunc("POST /api/knowledge", cors(s.handleCreateKnowledge))
+	s.mux.HandleFunc("POST /api/knowledge/approve-all", cors(s.handleApproveAllKnowledge))
+	s.mux.HandleFunc("GET /api/knowledge/{id}", cors(s.handleGetKnowledge))
+	s.mux.HandleFunc("POST /api/knowledge/{id}/approve", cors(s.handleApproveKnowledge))
+	s.mux.HandleFunc("POST /api/knowledge/{id}/reject", cors(s.handleRejectKnowledge))
+	s.mux.HandleFunc("POST /api/knowledge/{id}/validate", cors(s.handleValidateKnowledge))
+	s.mux.HandleFunc("DELETE /api/knowledge/{id}", cors(s.handleDeleteKnowledge))
+
 	// Review comments (code review UI)
 	s.mux.HandleFunc("GET /api/tasks/{id}/review/comments", cors(s.handleListReviewComments))
 	s.mux.HandleFunc("POST /api/tasks/{id}/review/comments", cors(s.handleCreateReviewComment))
@@ -500,7 +512,6 @@ func (s *Server) cancelTask(id string) (map[string]any, error) {
 func (s *Server) Publisher() events.Publisher {
 	return s.publisher
 }
-
 
 // getProjectRoot returns the current project root directory.
 func (s *Server) getProjectRoot() string {

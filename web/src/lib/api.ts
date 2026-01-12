@@ -923,3 +923,106 @@ export async function updateExportConfig(config: Partial<ExportConfig>): Promise
 		body: JSON.stringify(config)
 	});
 }
+
+// Knowledge Queue
+export type KnowledgeType = 'pattern' | 'gotcha' | 'decision';
+export type KnowledgeStatus = 'pending' | 'approved' | 'rejected';
+export type KnowledgeScope = 'project' | 'global';
+
+export interface KnowledgeEntry {
+	id: string;
+	type: KnowledgeType;
+	name: string;
+	description: string;
+	scope: KnowledgeScope;
+	source_task?: string;
+	status: KnowledgeStatus;
+	proposed_by?: string;
+	proposed_at: string;
+	approved_by?: string;
+	approved_at?: string;
+	rejected_reason?: string;
+	validated_at?: string;
+	validated_by?: string;
+}
+
+export interface KnowledgeStatusResponse {
+	pending_count: number;
+	stale_count: number;
+	approved_count: number;
+}
+
+export async function listKnowledge(options?: { status?: KnowledgeStatus; type?: KnowledgeType }): Promise<KnowledgeEntry[]> {
+	const params = new URLSearchParams();
+	if (options?.status) params.set('status', options.status);
+	if (options?.type) params.set('type', options.type);
+	const query = params.toString();
+	return fetchJSON<KnowledgeEntry[]>(`/knowledge${query ? '?' + query : ''}`);
+}
+
+export async function getKnowledgeStatus(): Promise<KnowledgeStatusResponse> {
+	return fetchJSON<KnowledgeStatusResponse>('/knowledge/status');
+}
+
+export async function listStaleKnowledge(days?: number): Promise<KnowledgeEntry[]> {
+	const query = days ? `?days=${days}` : '';
+	return fetchJSON<KnowledgeEntry[]>(`/knowledge/stale${query}`);
+}
+
+export async function createKnowledge(entry: {
+	type: KnowledgeType;
+	name: string;
+	description: string;
+	source_task?: string;
+	proposed_by?: string;
+}): Promise<KnowledgeEntry> {
+	return fetchJSON<KnowledgeEntry>('/knowledge', {
+		method: 'POST',
+		body: JSON.stringify(entry)
+	});
+}
+
+export async function getKnowledge(id: string): Promise<KnowledgeEntry> {
+	return fetchJSON<KnowledgeEntry>(`/knowledge/${id}`);
+}
+
+export async function approveKnowledge(id: string, approvedBy?: string): Promise<KnowledgeEntry> {
+	return fetchJSON<KnowledgeEntry>(`/knowledge/${id}/approve`, {
+		method: 'POST',
+		body: JSON.stringify({ approved_by: approvedBy })
+	});
+}
+
+export async function approveAllKnowledge(approvedBy?: string): Promise<{ approved_count: number }> {
+	return fetchJSON<{ approved_count: number }>('/knowledge/approve-all', {
+		method: 'POST',
+		body: JSON.stringify({ approved_by: approvedBy })
+	});
+}
+
+export async function validateKnowledge(id: string, validatedBy?: string): Promise<KnowledgeEntry> {
+	return fetchJSON<KnowledgeEntry>(`/knowledge/${id}/validate`, {
+		method: 'POST',
+		body: JSON.stringify({ validated_by: validatedBy })
+	});
+}
+
+export async function rejectKnowledge(id: string, reason?: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/knowledge/${id}/reject`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ reason })
+	});
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+}
+
+export async function deleteKnowledge(id: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/knowledge/${id}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+}

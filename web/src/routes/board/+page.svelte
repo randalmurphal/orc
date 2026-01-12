@@ -34,8 +34,8 @@
 		}
 	}
 
-	function handleRefresh() {
-		loadTasks();
+	async function handleRefresh() {
+		await loadTasks();
 	}
 </script>
 
