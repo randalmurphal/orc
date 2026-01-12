@@ -17,6 +17,14 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// newTestExecutor creates an executor configured for test isolation.
+func newTestExecutor(t *testing.T) *Executor {
+	t.Helper()
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	return New(cfg)
+}
+
 func TestResolveClaudePath(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -151,7 +159,7 @@ func TestNewWithoutCheckpoints(t *testing.T) {
 }
 
 func TestRenderTemplate(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 
 	state := PhaseState{
 		TaskID:    "TASK-001",
@@ -171,7 +179,7 @@ func TestRenderTemplate(t *testing.T) {
 }
 
 func TestRenderTemplateWithPriorContent(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 
 	state := PhaseState{
 		TaskID:          "TASK-001",
@@ -250,7 +258,7 @@ func TestResult(t *testing.T) {
 }
 
 func TestRenderTemplateWithRetryContext(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 
 	state := PhaseState{
 		TaskID:       "TASK-001",
@@ -270,7 +278,7 @@ func TestRenderTemplateWithRetryContext(t *testing.T) {
 }
 
 func TestRenderTemplateWithDescription(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 
 	state := PhaseState{
 		TaskID:          "TASK-002",
@@ -290,7 +298,7 @@ func TestRenderTemplateWithDescription(t *testing.T) {
 }
 
 func TestRenderTemplateWithEmptyValues(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 
 	state := PhaseState{
 		TaskID:    "TASK-003",
@@ -358,7 +366,7 @@ func TestResultWithError(t *testing.T) {
 }
 
 func TestSetPublisher(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 
 	if e.publisher != nil {
 		t.Error("publisher should be nil initially")
@@ -479,7 +487,7 @@ func TestNewWithConfig_NilOrcConfig(t *testing.T) {
 }
 
 func TestSetClient(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>")
 	e.SetClient(mockClient)
@@ -491,7 +499,7 @@ func TestSetClient(t *testing.T) {
 }
 
 func TestPublishHelpers(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
 
@@ -526,7 +534,7 @@ func TestPublishHelpers(t *testing.T) {
 }
 
 func TestPublishPhaseComplete(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
 
@@ -553,7 +561,7 @@ func TestPublishPhaseComplete(t *testing.T) {
 }
 
 func TestPublishPhaseFailed(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
 
@@ -581,7 +589,7 @@ func TestPublishPhaseFailed(t *testing.T) {
 }
 
 func TestPublishTranscript(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
 
@@ -614,7 +622,7 @@ func TestPublishTranscript(t *testing.T) {
 }
 
 func TestPublishTokens(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
 
@@ -647,7 +655,7 @@ func TestPublishTokens(t *testing.T) {
 }
 
 func TestPublishError(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
 
@@ -680,7 +688,7 @@ func TestPublishError(t *testing.T) {
 }
 
 func TestPublishWithNoPublisher(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	// No publisher set - should not panic
 	e.publishPhaseStart("TASK-001", "test")
 	e.publishPhaseComplete("TASK-001", "test", "sha")
@@ -691,7 +699,7 @@ func TestPublishWithNoPublisher(t *testing.T) {
 }
 
 func TestExecutePhase_Complete(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Implementation done.")
 	e.SetClient(mockClient)
 
@@ -736,6 +744,7 @@ func TestExecutePhase_Complete(t *testing.T) {
 func TestExecutePhase_MaxIterations(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.MaxIterations = 2 // Low for testing
+	cfg.WorkDir = t.TempDir()
 	e := New(cfg)
 
 	// Mock that never completes
@@ -767,7 +776,7 @@ func TestExecutePhase_MaxIterations(t *testing.T) {
 }
 
 func TestExecutePhase_Blocked(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	mockClient := claude.NewMockClient("<phase_blocked>Need clarification on requirements</phase_blocked>")
 	e.SetClient(mockClient)
 
@@ -799,7 +808,7 @@ func TestExecutePhase_Blocked(t *testing.T) {
 }
 
 func TestExecutePhase_ContextCancellation(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 
 	// Mock that takes time (simulated by the mock sleeping)
 	mockClient := claude.NewMockClient("Response")
@@ -834,7 +843,7 @@ func TestExecutePhase_ContextCancellation(t *testing.T) {
 }
 
 func TestExecutePhase_WithPublisher(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
 
@@ -879,7 +888,7 @@ func TestExecutePhase_WithPublisher(t *testing.T) {
 }
 
 func TestPublishState(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
 
@@ -1090,7 +1099,7 @@ func TestSaveRetryContextFile_MultipleAttempts(t *testing.T) {
 }
 
 func TestBuildPromptNode_InlinePrompt(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 
 	// Create a phase with inline prompt (no template file)
 	testPhase := &plan.Phase{
@@ -1126,7 +1135,7 @@ func TestBuildPromptNode_InlinePrompt(t *testing.T) {
 }
 
 func TestBuildPromptNode_NoPrompt(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 
 	// Create a phase with no prompt and no template
 	testPhase := &plan.Phase{
@@ -1151,7 +1160,7 @@ func TestBuildPromptNode_NoPrompt(t *testing.T) {
 }
 
 func TestExecuteWithRetry_Success(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
 	e.SetClient(mockClient)
 
@@ -1183,7 +1192,7 @@ func TestExecuteWithRetry_Success(t *testing.T) {
 }
 
 func TestExecuteWithRetry_ContextCancelled(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 	mockClient := claude.NewMockClient("Still working...")
 	e.SetClient(mockClient)
 
@@ -1651,7 +1660,7 @@ func TestResumeFromPhase_PhaseNotFound(t *testing.T) {
 // === ExecuteWithRetry Tests ===
 
 func TestExecuteWithRetry_RetryOnTransientError(t *testing.T) {
-	e := New(DefaultConfig())
+	e := newTestExecutor(t)
 
 	// Create a mock client that fails with an error
 	mockClient := claude.NewMockClient("").

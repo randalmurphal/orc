@@ -25,6 +25,14 @@ func setupGitHubTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) 
 
 	tmpDir := t.TempDir()
 
+	// Create .orc directory with config that disables worktrees
+	orcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(orcDir, 0755)
+	configYAML := `worktree:
+  enabled: false
+`
+	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
+
 	// Create task directory
 	taskID = "TASK-GH-001"
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)

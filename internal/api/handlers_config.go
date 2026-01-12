@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
@@ -11,7 +12,8 @@ import (
 
 // handleGetConfig returns orc configuration.
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
-	cfg, err := config.Load()
+	configPath := filepath.Join(s.workDir, ".orc", "config.yaml")
+	cfg, err := config.LoadFrom(configPath)
 	if err != nil {
 		cfg = config.Default()
 	}
@@ -64,8 +66,9 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load existing config
-	cfg, err := config.Load()
+	// Load existing config from workDir
+	configPath := filepath.Join(s.workDir, ".orc", "config.yaml")
+	cfg, err := config.LoadFrom(configPath)
 	if err != nil {
 		cfg = config.Default()
 	}
@@ -114,8 +117,8 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Save config
-	if err := cfg.Save(); err != nil {
+	// Save config to workDir
+	if err := cfg.SaveTo(configPath); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save config: %v", err), http.StatusInternalServerError)
 		return
 	}

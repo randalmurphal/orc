@@ -452,7 +452,9 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 				s.runningTasksMu.Unlock()
 			}()
 
-			exec := executor.NewWithConfig(executor.ConfigFromOrc(s.orcConfig), s.orcConfig)
+			execCfg := executor.ConfigFromOrc(s.orcConfig)
+			execCfg.WorkDir = s.workDir
+			exec := executor.NewWithConfig(execCfg, s.orcConfig)
 			exec.SetPublisher(s.publisher)
 			err := exec.ResumeFromPhase(ctx, t, p, st, resumePhase)
 			if err != nil {
