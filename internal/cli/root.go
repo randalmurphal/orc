@@ -14,6 +14,7 @@ var (
 	verbose bool
 	quiet   bool
 	jsonOut bool
+	plain   bool // Disable emoji/unicode for terminal compatibility
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -50,6 +51,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "suppress non-essential output")
 	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "output as JSON")
+	rootCmd.PersistentFlags().BoolVar(&plain, "plain", false, "plain output without emoji (for terminal compatibility)")
 
 	// Add subcommands
 	rootCmd.AddCommand(newInitCmd())

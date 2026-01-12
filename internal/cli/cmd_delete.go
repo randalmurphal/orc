@@ -14,8 +14,9 @@ import (
 // newDeleteCmd creates the delete command
 func newDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <task-id>",
-		Short: "Delete a task",
+		Use:     "delete <task-id>",
+		Aliases: []string{"rm", "remove"},
+		Short:   "Delete a task",
 		Long: `Delete a task and its associated files.
 
 Running tasks cannot be deleted - pause them first.

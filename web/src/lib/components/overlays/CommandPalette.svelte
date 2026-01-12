@@ -195,6 +195,17 @@
 		);
 	});
 
+	// Highlight matching text in search results
+	function highlightMatch(text: string, query: string): string {
+		if (!query.trim()) return text;
+		const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
+		return text.replace(regex, '<mark>$1</mark>');
+	}
+
+	function escapeRegex(str: string): string {
+		return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	}
+
 	// Group by category
 	const groupedCommands = $derived(() => {
 		const filtered = filteredCommands();
@@ -300,11 +311,11 @@
 							>
 								<span class="item-icon">{cmd.icon}</span>
 								<div class="item-content">
-									<span class="item-label">{cmd.label}</span>
-									{#if cmd.description}
-										<span class="item-description">{cmd.description}</span>
-									{/if}
-								</div>
+								<span class="item-label">{@html highlightMatch(cmd.label, searchQuery)}</span>
+								{#if cmd.description}
+									<span class="item-description">{@html highlightMatch(cmd.description, searchQuery)}</span>
+								{/if}
+							</div>
 								{#if cmd.shortcut}
 									<kbd class="item-shortcut">{formatShortcut(cmd.shortcut)}</kbd>
 								{/if}
@@ -478,6 +489,15 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	/* Search match highlighting */
+	.item-label :global(mark),
+	.item-description :global(mark) {
+		background: var(--accent-subtle);
+		color: var(--accent-primary);
+		border-radius: 2px;
+		padding: 0 2px;
 	}
 
 	.item-shortcut {

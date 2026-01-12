@@ -105,6 +105,69 @@ Resumes from checkpoint:
 | `--verbose, -v` | Enable verbose output |
 | `--quiet, -q` | Suppress non-essential output |
 | `--profile, -p` | Automation profile (auto/fast/safe/strict) |
+| `--plain` | Disable emoji/unicode for terminal compatibility |
+
+## Command Aliases
+
+| Alias | Command | Description |
+|-------|---------|-------------|
+| `ls` | `list` | List all tasks |
+| `st` | `status` | Show orc status |
+| `rm` | `delete` | Delete a task |
+| `remove` | `delete` | Delete a task |
+
+## Enhanced Commands
+
+### `orc log`
+Show task transcripts with content (not just file listing).
+
+| Flag | Description |
+|------|-------------|
+| `--list, -l` | List transcript files only (no content) |
+| `--phase, -p` | Show specific phase transcript |
+| `--all, -a` | Show all transcripts |
+| `--tail, -n` | Show last N lines (default: 100) |
+| `--follow, -f` | Stream new lines (like tail -f) |
+
+### `orc status`
+Priority-based status display with sections: Blocked → Running → Paused → Recent.
+
+| Flag | Description |
+|------|-------------|
+| `--all, -a` | Show all tasks including completed |
+| `--watch, -w` | Refresh status every 5 seconds |
+
+### `orc rewind`
+Reset task to before a specific phase.
+
+| Flag | Description |
+|------|-------------|
+| `--to` | Phase to rewind to (required) |
+| `--force, -f` | Skip confirmation (for automation) |
+
+### `orc stop`
+Permanently stop task and mark as failed (unlike `pause` which allows resume).
+
+| Flag | Description |
+|------|-------------|
+| `--force, -f` | Skip confirmation prompt |
+
+### `orc initiative run`
+Run tasks from an initiative.
+
+| Flag | Description |
+|------|-------------|
+| `--execute` | Actually run tasks (default: preview only) |
+| `--parallel` | Run ready tasks in parallel |
+| `--profile` | Override automation profile |
+
+### `orc config docs`
+Show searchable configuration documentation.
+
+| Flag | Description |
+|------|-------------|
+| `--category, -c` | Filter by category |
+| `--search, -s` | Search config options |
 
 ## Exit Codes
 

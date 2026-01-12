@@ -417,16 +417,22 @@ The plugin is installed automatically by `orc init` to `.claude/plugins/orc/`.
 | `orc init` | Initialize .orc/ in current directory (instant, <500ms) |
 | `orc setup` | Claude-powered interactive project setup |
 | `orc new "title"` | Create task, classify weight, generate plan |
+| `orc list` (alias: `ls`) | List all tasks |
 | `orc run TASK-ID` | Execute task phases (auto by default) |
 | `orc run TASK-ID -p safe` | Execute with specific profile |
 | `orc serve` | Start API server for web UI |
 | `orc config` | Show/set configuration |
 | `orc config profile X` | Set automation profile |
-| `orc pause TASK-ID` | Pause execution, save state |
+| `orc config docs` | Show searchable config documentation |
+| `orc pause TASK-ID` | Pause execution, save state (resumable) |
+| `orc stop TASK-ID` | Stop permanently, mark as failed (not resumable) |
 | `orc resume TASK-ID` | Continue from checkpoint |
-| `orc rewind TASK-ID --to X` | Reset to before phase X |
-| `orc status` | Show running tasks |
-| `orc delete TASK-ID` | Delete task and its files |
+| `orc rewind TASK-ID --to X` | Reset to before phase X (use `--force` for automation) |
+| `orc status` (alias: `st`) | Priority-based status (blocked/running/paused/recent) |
+| `orc status --watch` | Refresh status every 5 seconds |
+| `orc log TASK-ID` | Show transcript content (not just files) |
+| `orc log TASK-ID --follow` | Stream transcript like tail -f |
+| `orc delete TASK-ID` (alias: `rm`) | Delete task and its files |
 | `orc diff TASK-ID` | Show git diff for task changes |
 | `orc pool init` | Initialize token pool directory |
 | `orc pool add <name>` | Add OAuth account to pool |
@@ -442,7 +448,9 @@ The plugin is installed automatically by `orc init` to `.claude/plugins/orc/`.
 | `orc initiative show <id>` | Show initiative details |
 | `orc initiative add-task <init-id> <task-id>` | Link task to initiative |
 | `orc initiative decide <init-id> <decision>` | Record decision |
-| `orc initiative run <id>` | Run all initiative tasks in order |
+| `orc initiative run <id>` | Preview tasks; add `--execute` to run |
+
+**Global Flags:** `--plain` disables emoji for terminal compatibility.
 
 ## Web UI
 

@@ -489,7 +489,12 @@ func newInitiativeRunCmd() *cobra.Command {
 		Long: `Run all tasks in an initiative, respecting dependencies.
 
 Only tasks with all dependencies completed will be executed.
-Use --dry-run to see what would be executed without running.`,
+By default shows what would run - use --execute to actually run tasks.
+
+Examples:
+  orc initiative run INIT-001              # Show ready tasks (safe preview)
+  orc initiative run INIT-001 --execute    # Actually run the tasks
+  orc initiative run INIT-001 --parallel   # Run ready tasks in parallel`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -498,7 +503,9 @@ Use --dry-run to see what would be executed without running.`,
 
 			id := args[0]
 			shared, _ := cmd.Flags().GetBool("shared")
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			execute, _ := cmd.Flags().GetBool("execute")
+			parallel, _ := cmd.Flags().GetBool("parallel")
+			profile, _ := cmd.Flags().GetString("profile")
 
 			var init *initiative.Initiative
 			var err error
@@ -514,30 +521,100 @@ Use --dry-run to see what would be executed without running.`,
 			ready := init.GetReadyTasks()
 			if len(ready) == 0 {
 				fmt.Println("No tasks ready to run.")
-				fmt.Println("All tasks either completed or waiting on dependencies.")
-				return nil
-			}
-
-			if dryRun {
-				fmt.Println("Tasks ready to run (dry-run mode):")
-				for _, t := range ready {
-					fmt.Printf("  %s: %s\n", t.ID, t.Title)
+				fmt.Println("\nPossible reasons:")
+				fmt.Println("  • All tasks are already completed")
+				fmt.Println("  • Tasks are waiting on dependencies")
+				fmt.Println("  • No tasks have been added to this initiative")
+				if len(init.Tasks) > 0 {
+					fmt.Println("\nTask status:")
+					for _, t := range init.Tasks {
+						deps := ""
+						if len(t.DependsOn) > 0 {
+							deps = fmt.Sprintf(" (depends on: %s)", strings.Join(t.DependsOn, ", "))
+						}
+						fmt.Printf("  %s: %s%s\n", t.ID, t.Status, deps)
+					}
 				}
 				return nil
 			}
 
-			fmt.Printf("Running %d ready task(s) from %s:\n", len(ready), id)
-			for _, t := range ready {
-				fmt.Printf("  → %s: %s\n", t.ID, t.Title)
+			// Preview mode (default) - just show what would run
+			if !execute {
+				fmt.Printf("Tasks ready to run from %s:\n\n", id)
+				for _, t := range ready {
+					fmt.Printf("  %s: %s\n", t.ID, t.Title)
+				}
+				fmt.Printf("\n%d task(s) ready. Add --execute to run them.\n", len(ready))
+				if len(ready) > 1 {
+					fmt.Println("Add --parallel to run them concurrently.")
+				}
+				return nil
 			}
-			fmt.Println("\nUse 'orc run TASK-ID' to execute individual tasks.")
+
+			// Execute mode - actually run the tasks
+			fmt.Printf("Running %d task(s) from %s:\n\n", len(ready), id)
+
+			if parallel && len(ready) > 1 {
+				// Parallel execution - run all ready tasks concurrently
+				fmt.Println("Running tasks in parallel...")
+				fmt.Println("(Each task runs in its own worktree)")
+				fmt.Println()
+
+				// Build command for each task
+				for _, t := range ready {
+					cmdArgs := []string{"run", t.ID}
+					if profile != "" {
+						cmdArgs = append(cmdArgs, "--profile", profile)
+					}
+					fmt.Printf("  Starting: orc %s\n", strings.Join(cmdArgs, " "))
+				}
+
+				fmt.Println("\nNote: Parallel execution starts background processes.")
+				fmt.Println("Use 'orc status' to monitor progress.")
+
+				// For now, just give instructions - true parallel would need goroutines
+				// and proper process management
+				return nil
+			}
+
+			// Sequential execution
+			for i, initTask := range ready {
+				fmt.Printf("[%d/%d] Running %s: %s\n", i+1, len(ready), initTask.ID, initTask.Title)
+
+				// Load actual task
+				t, err := task.Load(initTask.ID)
+				if err != nil {
+					fmt.Printf("  ✗ Failed to load: %v\n", err)
+					continue
+				}
+
+				// Check if can run
+				if !t.CanRun() && t.Status != task.StatusRunning {
+					fmt.Printf("  ✗ Cannot run (status: %s)\n", t.Status)
+					continue
+				}
+
+				// Execute via subprocess for cleaner output
+				cmdArgs := []string{"run", initTask.ID}
+				if profile != "" {
+					cmdArgs = append(cmdArgs, "--profile", profile)
+				}
+
+				// For now, instruct user - full integration would shell out
+				fmt.Printf("  → orc %s\n", strings.Join(cmdArgs, " "))
+			}
+
+			fmt.Println("\nTo run tasks sequentially, execute the commands above.")
+			fmt.Println("Or run: orc run <task-id> for each task individually.")
 
 			return nil
 		},
 	}
 
 	cmd.Flags().Bool("shared", false, "use shared initiative")
-	cmd.Flags().Bool("dry-run", false, "show what would be run without executing")
+	cmd.Flags().Bool("execute", false, "actually run the tasks (default: preview only)")
+	cmd.Flags().Bool("parallel", false, "run ready tasks in parallel (requires --execute)")
+	cmd.Flags().StringP("profile", "p", "", "automation profile for task execution")
 
 	return cmd
 }

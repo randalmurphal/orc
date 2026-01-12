@@ -422,22 +422,35 @@ Comments are displayed inline below relevant diff lines, with a count badge on t
 
 ## Settings Hub
 
-The `/settings` page provides a unified configuration interface with three tabs:
+The `/settings` page provides a unified configuration interface with three tabs. **Defaults to Quick Access** for better discoverability.
+
+### Quick Access Tab (Default)
+- **Getting Started Guides**: Workflow recommendations (Quick Start, Safe Mode, Team Setup)
+- **Configuration Pages Grid**: Links to Prompts, CLAUDE.md, Skills, Hooks, MCP, Tools, Agents, Scripts
+- **Keyboard Tip**: Reminder about command palette navigation
 
 ### Orc Config Tab
+- **Search filter**: Filter settings by keyword
+- **Inline help**: Tips and descriptions for each setting
+- **"Common" badges**: Highlights frequently-changed settings (Profile, Retry, Model)
 - Automation profile (auto/fast/safe/strict)
-- Model selection
-- Max iterations, timeout
-- Retry settings, worktree isolation
+- Model selection, max iterations, timeout
+- Retry settings, git branch/commit prefixes
 
 ### Claude Settings Tab
-- Model, max tokens, custom prompt
-- Environment variables
-- Permission settings
+- Environment variables with add/remove
+- Status line configuration
+- Effective settings preview (merged JSON)
 
-### Quick Access Tab
-Grid of links to all configuration pages:
-- Prompts, CLAUDE.md, Skills, Hooks
-- MCP, Tools, Agents, Scripts
+All Claude Code configuration is accessible through the Quick Access grid, keeping the sidebar minimal while providing full access to all settings.
 
-All Claude Code configuration (prompts, agents, scripts, MCP, hooks, skills) is accessible through the Quick Access grid, keeping the sidebar minimal while providing full access to all settings.
+## UX Enhancements
+
+### Command Palette
+- **Search highlighting**: Matching text is highlighted with `<mark>` tags
+- **Grouped results**: Commands organized by category
+- **Keyboard navigation**: Arrow keys + Enter to select
+
+### Task List
+- **Keyboard shortcuts hints bar**: Shows `j/k` navigate, `Enter` open, `r` run, `p` pause, `d` delete, `?` help
+- **Appears when tasks are selected**: Contextual guidance for power users

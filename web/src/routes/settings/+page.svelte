@@ -23,8 +23,11 @@
 	let error = $state<string | null>(null);
 	let success = $state<string | null>(null);
 
-	// Active tab
-	let activeTab = $state<'config' | 'claude' | 'quick'>('config');
+	// Active tab - default to quick for better discoverability
+	let activeTab = $state<'config' | 'claude' | 'quick'>('quick');
+
+	// Config search
+	let configSearch = $state('');
 
 	// Config form state
 	let editProfile = $state('');
@@ -53,6 +56,70 @@
 		safe: 'AI reviews, human only for merge',
 		strict: 'Human gates on spec/review/merge'
 	};
+
+	// Configuration documentation for inline help
+	const configDocs: Record<string, { description: string; tip?: string; common?: boolean }> = {
+		profile: {
+			description: 'Controls how much automation vs human oversight',
+			tip: 'Start with "auto" for experimentation, use "safe" or "strict" for production',
+			common: true
+		},
+		gates_default: {
+			description: 'Default approval type for phase transitions',
+			tip: '"auto" proceeds automatically, "human" requires approval, "ai" uses AI review'
+		},
+		retry_enabled: {
+			description: 'Automatically retry failed phases with feedback',
+			tip: 'When tests fail, orc will retry implementation with the failure context',
+			common: true
+		},
+		retry_max: {
+			description: 'Maximum retry attempts before giving up'
+		},
+		model: {
+			description: 'Claude model for task execution',
+			tip: 'claude-sonnet-4 is recommended for most tasks',
+			common: true
+		},
+		max_iterations: {
+			description: 'Max Claude conversation turns per phase',
+			tip: 'Increase for complex tasks that need more back-and-forth'
+		},
+		timeout: {
+			description: 'Max duration per phase (e.g., "30m", "1h")',
+			tip: 'Prevents runaway tasks'
+		},
+		branch_prefix: {
+			description: 'Prefix for task branches',
+			tip: 'e.g., "orc/" creates branches like "orc/TASK-001"'
+		},
+		commit_prefix: {
+			description: 'Prefix for commit messages',
+			tip: 'e.g., "[orc]" creates commits like "[orc] TASK-001: implement"'
+		}
+	};
+
+	// Workflow recommendations for Getting Started
+	const workflowGuides = [
+		{
+			title: 'Quick Start',
+			description: 'Get started with minimal configuration',
+			steps: ['Create task: orc new "description"', 'Run it: orc run TASK-001', 'Watch progress in web UI'],
+			icon: 'play'
+		},
+		{
+			title: 'Safe Mode',
+			description: 'Add oversight for production work',
+			steps: ['Set profile to "safe"', 'Configure prompts for your codebase', 'Enable review rounds'],
+			icon: 'shield'
+		},
+		{
+			title: 'Team Setup',
+			description: 'Collaborate with activity tracking',
+			steps: ['Enable task claiming', 'Configure shared database', 'Set visibility preferences'],
+			icon: 'users'
+		}
+	];
 
 	// Quick access items
 	const quickAccessItems = [
@@ -257,14 +324,25 @@
 						<h2>Orc Configuration</h2>
 						<p class="subtitle">.orc/config.yaml - Task orchestration settings</p>
 					</div>
-					<button class="btn-primary" onclick={saveConfig} disabled={saving}>
-						{saving ? 'Saving...' : 'Save'}
-					</button>
+					<div class="header-actions">
+						<div class="search-box">
+							<Icon name="search" size={14} />
+							<input
+								type="text"
+								placeholder="Search settings..."
+								bind:value={configSearch}
+								class="search-input"
+							/>
+						</div>
+						<button class="btn-primary" onclick={saveConfig} disabled={saving}>
+							{saving ? 'Saving...' : 'Save'}
+						</button>
+					</div>
 				</div>
 
 				<div class="config-grid">
 					<!-- Automation Section -->
-					<div class="config-section">
+					<div class="config-section" class:hidden={configSearch && !['profile', 'gate', 'retry', 'automation'].some(k => k.includes(configSearch.toLowerCase()))}>
 						<div class="section-header">
 							<div class="section-icon automation">
 								<Icon name="settings" size={18} />
@@ -273,29 +351,51 @@
 						</div>
 
 						<div class="form-grid">
-							<div class="form-group">
-								<label for="profile">Profile</label>
+							<div class="form-group" class:highlight={configDocs.profile.common}>
+								<div class="label-row">
+									<label for="profile">Profile</label>
+									{#if configDocs.profile.common}
+										<span class="common-badge">Common</span>
+									{/if}
+								</div>
 								<select id="profile" bind:value={editProfile}>
 									{#each profiles as p}
 										<option value={p}>{p}</option>
 									{/each}
 								</select>
 								<span class="hint">{profileDescriptions[editProfile]}</span>
+								{#if configDocs.profile.tip}
+									<span class="tip"><Icon name="info" size={12} /> {configDocs.profile.tip}</span>
+								{/if}
 							</div>
 
 							<div class="form-group">
-								<label for="gates_default">Default Gate</label>
+								<div class="label-row">
+									<label for="gates_default">Default Gate</label>
+								</div>
 								<select id="gates_default" bind:value={editGatesDefault}>
 									{#each gateTypes as g}
 										<option value={g}>{g}</option>
 									{/each}
 								</select>
+								<span class="hint">{configDocs.gates_default.description}</span>
+								{#if configDocs.gates_default.tip}
+									<span class="tip"><Icon name="info" size={12} /> {configDocs.gates_default.tip}</span>
+								{/if}
 							</div>
 
-							<div class="form-group toggle-row">
+							<div class="form-group toggle-row" class:highlight={configDocs.retry_enabled.common}>
 								<div class="toggle-info">
-									<label for="retry_enabled">Enable Retry</label>
-									<span class="hint">Auto-retry failed phases</span>
+									<div class="label-row">
+										<label for="retry_enabled">Enable Retry</label>
+										{#if configDocs.retry_enabled.common}
+											<span class="common-badge">Common</span>
+										{/if}
+									</div>
+									<span class="hint">{configDocs.retry_enabled.description}</span>
+									{#if configDocs.retry_enabled.tip}
+										<span class="tip"><Icon name="info" size={12} /> {configDocs.retry_enabled.tip}</span>
+									{/if}
 								</div>
 								<label class="toggle">
 									<input type="checkbox" id="retry_enabled" bind:checked={editRetryEnabled} />
@@ -306,12 +406,13 @@
 							<div class="form-group">
 								<label for="retry_max">Max Retries</label>
 								<input type="number" id="retry_max" bind:value={editRetryMax} min="0" max="10" />
+								<span class="hint">{configDocs.retry_max.description}</span>
 							</div>
 						</div>
 					</div>
 
 					<!-- Execution Section -->
-					<div class="config-section">
+					<div class="config-section" class:hidden={configSearch && !['model', 'iteration', 'timeout', 'execution'].some(k => k.includes(configSearch.toLowerCase()))}>
 						<div class="section-header">
 							<div class="section-icon execution">
 								<Icon name="play" size={18} />
@@ -320,25 +421,42 @@
 						</div>
 
 						<div class="form-grid">
-							<div class="form-group full-width">
-								<label for="model">Model</label>
+							<div class="form-group full-width" class:highlight={configDocs.model.common}>
+								<div class="label-row">
+									<label for="model">Model</label>
+									{#if configDocs.model.common}
+										<span class="common-badge">Common</span>
+									{/if}
+								</div>
 								<input type="text" id="model" bind:value={editModel} placeholder="claude-sonnet-4-20250514" />
+								<span class="hint">{configDocs.model.description}</span>
+								{#if configDocs.model.tip}
+									<span class="tip"><Icon name="info" size={12} /> {configDocs.model.tip}</span>
+								{/if}
 							</div>
 
 							<div class="form-group">
 								<label for="max_iterations">Max Iterations</label>
 								<input type="number" id="max_iterations" bind:value={editMaxIterations} min="1" max="100" />
+								<span class="hint">{configDocs.max_iterations.description}</span>
+								{#if configDocs.max_iterations.tip}
+									<span class="tip"><Icon name="info" size={12} /> {configDocs.max_iterations.tip}</span>
+								{/if}
 							</div>
 
 							<div class="form-group">
 								<label for="timeout">Timeout</label>
 								<input type="text" id="timeout" bind:value={editTimeout} placeholder="30m" />
+								<span class="hint">{configDocs.timeout.description}</span>
+								{#if configDocs.timeout.tip}
+									<span class="tip"><Icon name="info" size={12} /> {configDocs.timeout.tip}</span>
+								{/if}
 							</div>
 						</div>
 					</div>
 
 					<!-- Git Section -->
-					<div class="config-section">
+					<div class="config-section" class:hidden={configSearch && !['git', 'branch', 'commit', 'prefix'].some(k => k.includes(configSearch.toLowerCase()))}>
 						<div class="section-header">
 							<div class="section-icon git">
 								<Icon name="branch" size={18} />
@@ -350,14 +468,28 @@
 							<div class="form-group">
 								<label for="branch_prefix">Branch Prefix</label>
 								<input type="text" id="branch_prefix" bind:value={editBranchPrefix} placeholder="orc/" />
+								<span class="hint">{configDocs.branch_prefix.description}</span>
+								{#if configDocs.branch_prefix.tip}
+									<span class="tip"><Icon name="info" size={12} /> {configDocs.branch_prefix.tip}</span>
+								{/if}
 							</div>
 
 							<div class="form-group">
 								<label for="commit_prefix">Commit Prefix</label>
 								<input type="text" id="commit_prefix" bind:value={editCommitPrefix} placeholder="[orc]" />
+								<span class="hint">{configDocs.commit_prefix.description}</span>
+								{#if configDocs.commit_prefix.tip}
+									<span class="tip"><Icon name="info" size={12} /> {configDocs.commit_prefix.tip}</span>
+								{/if}
 							</div>
 						</div>
 					</div>
+				</div>
+
+				<!-- CLI tip -->
+				<div class="cli-tip">
+					<Icon name="terminal" size={14} />
+					<span>Run <code>orc config docs</code> for full configuration reference with all options</span>
 				</div>
 			</div>
 		{/if}
@@ -484,26 +616,59 @@
 			<div class="tab-content">
 				<div class="content-header">
 					<div>
-						<h2>Quick Access</h2>
-						<p class="subtitle">Jump to Claude configuration pages</p>
+						<h2>Settings & Configuration</h2>
+						<p class="subtitle">Configure orc and Claude for your workflow</p>
 					</div>
 				</div>
 
-				<div class="quick-access-grid">
-					{#each quickAccessItems as item}
-						<a href={item.href} class="quick-card">
-							<div class="quick-icon">
-								<Icon name={item.icon} size={24} />
+				<!-- Getting Started Guides -->
+				<div class="guides-section">
+					<h3 class="guides-title">Getting Started</h3>
+					<div class="guides-grid">
+						{#each workflowGuides as guide}
+							<div class="guide-card">
+								<div class="guide-icon">
+									<Icon name={guide.icon} size={20} />
+								</div>
+								<div class="guide-content">
+									<h4>{guide.title}</h4>
+									<p>{guide.description}</p>
+									<ul class="guide-steps">
+										{#each guide.steps as step}
+											<li>{step}</li>
+										{/each}
+									</ul>
+								</div>
 							</div>
-							<div class="quick-info">
-								<h4>{item.label}</h4>
-								<p>{item.description}</p>
-							</div>
-							<div class="quick-arrow">
-								<Icon name="chevron-right" size={16} />
-							</div>
-						</a>
-					{/each}
+						{/each}
+					</div>
+				</div>
+
+				<!-- Configuration Pages -->
+				<div class="config-pages-section">
+					<h3 class="section-title">Configuration Pages</h3>
+					<div class="quick-access-grid">
+						{#each quickAccessItems as item}
+							<a href={item.href} class="quick-card">
+								<div class="quick-icon">
+									<Icon name={item.icon} size={24} />
+								</div>
+								<div class="quick-info">
+									<h4>{item.label}</h4>
+									<p>{item.description}</p>
+								</div>
+								<div class="quick-arrow">
+									<Icon name="chevron-right" size={16} />
+								</div>
+							</a>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Keyboard Tip -->
+				<div class="keyboard-tip">
+					<Icon name="keyboard" size={14} />
+					<span>Press <kbd>Cmd+K</kbd> to open command palette and jump to any page</span>
 				</div>
 			</div>
 		{/if}
@@ -1046,5 +1211,229 @@
 		opacity: 1;
 		color: var(--accent-primary);
 		transform: translateX(4px);
+	}
+
+	/* Header Actions */
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	.search-box {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		color: var(--text-muted);
+	}
+
+	.search-box:focus-within {
+		border-color: var(--accent-primary);
+		box-shadow: 0 0 0 3px var(--accent-glow);
+	}
+
+	.search-box .search-input {
+		border: none;
+		background: transparent;
+		outline: none;
+		color: var(--text-primary);
+		font-size: var(--text-sm);
+		width: 140px;
+	}
+
+	.search-box .search-input::placeholder {
+		color: var(--text-muted);
+	}
+
+	/* Label Row */
+	.label-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	/* Common Badge */
+	.common-badge {
+		font-size: var(--text-2xs);
+		font-weight: var(--font-medium);
+		color: var(--accent-primary);
+		background: var(--accent-subtle);
+		padding: 1px 6px;
+		border-radius: var(--radius-full);
+	}
+
+	/* Highlighted form groups */
+	.form-group.highlight {
+		position: relative;
+	}
+
+	.form-group.highlight::before {
+		content: '';
+		position: absolute;
+		left: -8px;
+		top: 0;
+		bottom: 0;
+		width: 3px;
+		background: var(--accent-primary);
+		border-radius: 2px;
+	}
+
+	/* Tip text */
+	.tip {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-1-5);
+		font-size: var(--text-xs);
+		color: var(--accent-primary);
+		margin-top: var(--space-1);
+		padding: var(--space-2);
+		background: var(--accent-subtle);
+		border-radius: var(--radius-sm);
+	}
+
+	/* Hidden sections */
+	.config-section.hidden {
+		display: none;
+	}
+
+	/* CLI Tip */
+	.cli-tip {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin-top: var(--space-5);
+		padding: var(--space-3) var(--space-4);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+	}
+
+	.cli-tip code {
+		font-family: var(--font-mono);
+		background: var(--bg-tertiary);
+		padding: 2px 6px;
+		border-radius: var(--radius-sm);
+		color: var(--text-primary);
+	}
+
+	/* Getting Started Guides */
+	.guides-section {
+		margin-bottom: var(--space-6);
+	}
+
+	.guides-title,
+	.section-title {
+		font-size: var(--text-sm);
+		font-weight: var(--font-semibold);
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		margin-bottom: var(--space-4);
+	}
+
+	.guides-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--space-4);
+	}
+
+	@media (max-width: 900px) {
+		.guides-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	.guide-card {
+		display: flex;
+		gap: var(--space-3);
+		padding: var(--space-4);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-lg);
+	}
+
+	.guide-icon {
+		flex-shrink: 0;
+		width: 36px;
+		height: 36px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--accent-subtle);
+		color: var(--accent-primary);
+		border-radius: var(--radius-md);
+	}
+
+	.guide-content h4 {
+		font-size: var(--text-sm);
+		font-weight: var(--font-semibold);
+		color: var(--text-primary);
+		margin: 0 0 var(--space-1);
+	}
+
+	.guide-content > p {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-3);
+	}
+
+	.guide-steps {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.guide-steps li {
+		font-size: var(--text-xs);
+		color: var(--text-secondary);
+		padding: var(--space-1) 0;
+		padding-left: var(--space-4);
+		position: relative;
+	}
+
+	.guide-steps li::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 6px;
+		height: 6px;
+		background: var(--accent-muted);
+		border-radius: 50%;
+	}
+
+	/* Config Pages Section */
+	.config-pages-section {
+		margin-bottom: var(--space-6);
+	}
+
+	/* Keyboard Tip */
+	.keyboard-tip {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		padding: var(--space-3);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+	}
+
+	.keyboard-tip kbd {
+		padding: var(--space-0-5) var(--space-1-5);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-sm);
+		font-family: var(--font-mono);
+		font-size: var(--text-2xs);
 	}
 </style>
