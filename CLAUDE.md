@@ -46,6 +46,7 @@ make dev-full # API (:8080) + frontend (:5173)
 | `project/` | Multi-project registry | Project discovery, registry management |
 | `tokenpool/` | OAuth token pool for rate limit failover | Account rotation, state persistence |
 | `db/` | SQLite persistence (global + project) | FTS search, cost tracking, migrations |
+| `storage/` | Storage backend abstraction | Backend interface, hybrid/file/database modes, export |
 | `bootstrap/` | Instant project initialization | <500ms init, no prompts |
 | `setup/` | Claude-powered interactive setup | Prompt generation, validation |
 
@@ -101,6 +102,69 @@ orc config show --source
 # profile = strict (from env ORC_PROFILE)
 # model = claude-sonnet (from project)
 # retry.enabled = true (from user)
+```
+
+## Storage Configuration
+
+Orc uses a hybrid storage architecture: YAML files as the source of truth with SQLite for full-text search and caching.
+
+```yaml
+storage:
+  mode: hybrid              # hybrid | files | database
+
+  files:
+    cleanup_on_complete: true   # Remove task files after completion
+
+  database:
+    cache_transcripts: true     # Enable FTS search for transcripts
+    retention_days: 90          # Auto-cleanup old entries
+
+  export:
+    enabled: false              # Master toggle for auto-export
+    preset: ""                  # minimal | standard | full
+    task_definition: true       # Export task.yaml, plan.yaml
+    final_state: true           # Export state.yaml
+    transcripts: false          # Export full transcripts (large)
+    context_summary: true       # Export context.md
+```
+
+**Storage Modes:**
+
+| Mode | Primary | Secondary | Use Case |
+|------|---------|-----------|----------|
+| `hybrid` (default) | YAML files | SQLite cache | Best of both worlds |
+| `files` | YAML files only | None | Minimal, git-friendly |
+| `database` | SQLite/Postgres | Files materialized | Team/enterprise |
+
+**Export Presets:**
+
+| Preset | Includes |
+|--------|----------|
+| `minimal` | Task definition only |
+| `standard` | Definition + state + context |
+| `full` | Everything including transcripts |
+
+**Environment Variables:**
+```bash
+ORC_STORAGE_MODE=hybrid
+ORC_STORAGE_FILES_CLEANUP=true
+ORC_STORAGE_DB_CACHE=true
+ORC_STORAGE_DB_RETENTION_DAYS=90
+ORC_STORAGE_EXPORT_ENABLED=false
+ORC_STORAGE_EXPORT_PRESET=standard
+```
+
+**CLI Commands:**
+```bash
+# Search transcripts
+orc search "error handling"
+orc search "API" --task TASK-001 --limit 20
+
+# Export task artifacts
+orc export TASK-001                    # Uses config defaults
+orc export TASK-001 --all              # Export everything
+orc export TASK-001 --state --context  # Specific items
+orc export TASK-001 --to-branch        # Export to .orc/exports/
 ```
 
 ## Task Weight → Phases
@@ -670,6 +734,13 @@ The dashboard (`/dashboard`) displays:
 | POST | `/api/tasks/:id/github/pr/comments/sync` | Sync local review comments to PR |
 | POST | `/api/tasks/:id/github/pr/comments/:commentId/autofix` | Queue auto-fix for a review comment |
 | GET | `/api/tasks/:id/github/pr/checks` | Get CI check run status |
+
+### Export
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/tasks/:id/export` | Export task artifacts (body: `{"task_definition": true, "final_state": true, "context_summary": true, "transcripts": false, "to_branch": false}`) |
+| GET | `/api/config/export` | Get export configuration |
+| PUT | `/api/config/export` | Update export configuration |
 
 ### Config & Real-time
 | Method | Endpoint | Description |
