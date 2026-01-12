@@ -1,9 +1,0 @@
-id: TASK-006
-title: Add a greeting.go file with a simple Hello World function
-weight: medium
-status: completed
-branch: orc/TASK-006
-created_at: 2026-01-11T16:51:09.58000691-06:00
-updated_at: 2026-01-11T17:55:32.363445055-06:00
-started_at: 2026-01-11T17:50:32.29659282-06:00
-completed_at: 2026-01-11T17:55:32.363442109-06:00
