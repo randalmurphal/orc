@@ -82,6 +82,13 @@ export interface TranscriptLine {
 	content: string;
 }
 
+// Full transcript file from API
+export interface TranscriptFile {
+	filename: string;
+	content: string;
+	created_at: string;
+}
+
 export interface Project {
 	id: string;
 	name: string;
