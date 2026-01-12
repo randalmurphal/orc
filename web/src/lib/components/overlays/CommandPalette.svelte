@@ -24,6 +24,7 @@
 	}
 
 	const commands: Command[] = [
+		// Tasks
 		{
 			id: 'new-task',
 			label: 'New Task',
@@ -32,7 +33,6 @@
 			shortcut: 'N',
 			action: () => {
 				onClose();
-				// Trigger new task modal
 				window.dispatchEvent(new CustomEvent('orc:new-task'));
 			},
 			category: 'Tasks'
@@ -49,26 +49,27 @@
 			category: 'Navigation'
 		},
 		{
-			id: 'go-prompts',
-			label: 'Go to Prompts',
-			description: 'Manage prompt templates',
-			icon: '\u2630', // ☰
+			id: 'go-dashboard',
+			label: 'Go to Dashboard',
+			description: 'Overview and quick stats',
+			icon: '\u25A0', // ■
 			action: () => {
 				onClose();
-				goto('/prompts');
+				goto('/dashboard');
 			},
 			category: 'Navigation'
 		},
+		// Environment
 		{
-			id: 'go-claudemd',
-			label: 'Go to CLAUDE.md',
-			description: 'Edit project instructions',
-			icon: '\u2630', // ☰
+			id: 'go-environment',
+			label: 'Go to Environment',
+			description: 'Claude ecosystem overview',
+			icon: '\u2699', // ⚙
 			action: () => {
 				onClose();
-				goto('/claudemd');
+				goto('/environment');
 			},
-			category: 'Navigation'
+			category: 'Environment'
 		},
 		{
 			id: 'go-skills',
@@ -77,9 +78,9 @@
 			icon: '\u26A1', // ⚡
 			action: () => {
 				onClose();
-				goto('/skills');
+				goto('/environment/claude/skills');
 			},
-			category: 'Navigation'
+			category: 'Environment'
 		},
 		{
 			id: 'go-hooks',
@@ -88,31 +89,9 @@
 			icon: '\u21BB', // ↻
 			action: () => {
 				onClose();
-				goto('/hooks');
+				goto('/environment/claude/hooks');
 			},
-			category: 'Navigation'
-		},
-		{
-			id: 'go-mcp',
-			label: 'Go to MCP Servers',
-			description: 'Manage MCP integrations',
-			icon: '\u229A', // ⊚
-			action: () => {
-				onClose();
-				goto('/mcp');
-			},
-			category: 'Navigation'
-		},
-		{
-			id: 'go-tools',
-			label: 'Go to Tools',
-			description: 'Tool permissions',
-			icon: '\u2692', // ⚒
-			action: () => {
-				onClose();
-				goto('/tools');
-			},
-			category: 'Navigation'
+			category: 'Environment'
 		},
 		{
 			id: 'go-agents',
@@ -121,9 +100,42 @@
 			icon: '\u2726', // ✦
 			action: () => {
 				onClose();
-				goto('/agents');
+				goto('/environment/claude/agents');
 			},
-			category: 'Navigation'
+			category: 'Environment'
+		},
+		{
+			id: 'go-tools',
+			label: 'Go to Tools',
+			description: 'Tool permissions',
+			icon: '\u2692', // ⚒
+			action: () => {
+				onClose();
+				goto('/environment/claude/tools');
+			},
+			category: 'Environment'
+		},
+		{
+			id: 'go-mcp',
+			label: 'Go to MCP Servers',
+			description: 'Manage MCP integrations',
+			icon: '\u229A', // ⊚
+			action: () => {
+				onClose();
+				goto('/environment/claude/mcp');
+			},
+			category: 'Environment'
+		},
+		{
+			id: 'go-prompts',
+			label: 'Go to Prompts',
+			description: 'Manage prompt templates',
+			icon: '\u2630', // ☰
+			action: () => {
+				onClose();
+				goto('/environment/orchestrator/prompts');
+			},
+			category: 'Environment'
 		},
 		{
 			id: 'go-scripts',
@@ -132,32 +144,55 @@
 			icon: '\u2630', // ☰
 			action: () => {
 				onClose();
-				goto('/scripts');
+				goto('/environment/orchestrator/scripts');
 			},
-			category: 'Navigation'
+			category: 'Environment'
 		},
 		{
-			id: 'go-settings',
-			label: 'Go to Settings',
-			description: 'Project settings',
-			icon: '\u2699', // ⚙
-			action: () => {
-				onClose();
-				goto('/settings');
-			},
-			category: 'Navigation'
-		},
-		{
-			id: 'go-config',
-			label: 'Go to Config',
+			id: 'go-automation',
+			label: 'Go to Automation',
 			description: 'Orc configuration',
 			icon: '\u2699', // ⚙
 			action: () => {
 				onClose();
-				goto('/config');
+				goto('/environment/orchestrator/automation');
 			},
-			category: 'Navigation'
+			category: 'Environment'
 		},
+		{
+			id: 'go-export',
+			label: 'Go to Export',
+			description: 'Export configuration',
+			icon: '\u2B06', // ⬆
+			action: () => {
+				onClose();
+				goto('/environment/orchestrator/export');
+			},
+			category: 'Environment'
+		},
+		{
+			id: 'go-docs',
+			label: 'Go to Documentation',
+			description: 'CLAUDE.md hierarchy',
+			icon: '\u2630', // ☰
+			action: () => {
+				onClose();
+				goto('/environment/docs');
+			},
+			category: 'Environment'
+		},
+		{
+			id: 'go-preferences',
+			label: 'Go to Preferences',
+			description: 'Personal and global settings',
+			icon: '\u2699', // ⚙
+			action: () => {
+				onClose();
+				goto('/preferences');
+			},
+			category: 'Settings'
+		},
+		// Projects & View
 		{
 			id: 'switch-project',
 			label: 'Switch Project',

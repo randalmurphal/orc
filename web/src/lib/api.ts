@@ -256,6 +256,15 @@ export interface Config {
 	};
 }
 
+export interface ConfigSourceInfo {
+	source: string; // 'default' | 'shared' | 'personal' | 'env' | 'flag'
+	path?: string;
+}
+
+export interface ConfigWithSources extends Config {
+	sources?: Record<string, ConfigSourceInfo>;
+}
+
 export interface ConfigUpdateRequest {
 	profile?: string;
 	automation?: {
@@ -276,6 +285,10 @@ export interface ConfigUpdateRequest {
 
 export async function getConfig(): Promise<Config> {
 	return fetchJSON<Config>('/config');
+}
+
+export async function getConfigWithSources(): Promise<ConfigWithSources> {
+	return fetchJSON<ConfigWithSources>('/config?with_sources=true');
 }
 
 export async function updateConfig(req: ConfigUpdateRequest): Promise<Config> {
@@ -382,6 +395,28 @@ export async function updateSettings(settings: Settings): Promise<Settings> {
 		method: 'PUT',
 		body: JSON.stringify(settings)
 	});
+}
+
+// Settings Hierarchy (with source tracking)
+export interface SettingsSourceInfo {
+	source: string; // 'global' | 'project' | 'default'
+	path?: string;
+}
+
+export interface SettingsLevel {
+	path: string;
+	settings?: Settings;
+}
+
+export interface SettingsHierarchy {
+	merged: Settings | null;
+	global: SettingsLevel;
+	project: SettingsLevel;
+	sources: Record<string, SettingsSourceInfo>;
+}
+
+export async function getSettingsHierarchy(): Promise<SettingsHierarchy> {
+	return fetchJSON<SettingsHierarchy>('/settings/hierarchy');
 }
 
 // Tools

@@ -28,7 +28,8 @@
 			shortcuts: [
 				{ keys: 'g d', description: 'Go to dashboard' },
 				{ keys: 'g t', description: 'Go to tasks' },
-				{ keys: 'g s', description: 'Go to settings' },
+				{ keys: 'g e', description: 'Go to environment' },
+				{ keys: 'g r', description: 'Go to preferences' },
 				{ keys: 'g p', description: 'Go to prompts' },
 				{ keys: 'g h', description: 'Go to hooks' },
 				{ keys: 'g k', description: 'Go to skills' }

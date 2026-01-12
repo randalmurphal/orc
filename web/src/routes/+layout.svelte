@@ -117,10 +117,11 @@
 			// Navigation sequences
 			onGoDashboard: () => goto('/dashboard'),
 			onGoTasks: () => goto('/'),
-			onGoSettings: () => goto('/settings'),
-			onGoPrompts: () => goto('/prompts'),
-			onGoHooks: () => goto('/hooks'),
-			onGoSkills: () => goto('/skills')
+			onGoEnvironment: () => goto('/environment'),
+			onGoPreferences: () => goto('/preferences'),
+			onGoPrompts: () => goto('/environment/orchestrator/prompts'),
+			onGoHooks: () => goto('/environment/claude/hooks'),
+			onGoSkills: () => goto('/environment/claude/skills')
 		});
 
 		// Additional shortcuts not in the manager (Cmd+P for project switcher)

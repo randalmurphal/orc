@@ -16,6 +16,14 @@ describe('DiffViewer', () => {
 		vi.clearAllMocks();
 	});
 
+	// Helper to mock the comments API response
+	function mockCommentsResponse(comments: unknown[] = []) {
+		return {
+			ok: true,
+			json: () => Promise.resolve(comments)
+		};
+	}
+
 	function mockDiffResponse(files: FileDiff[] = []): DiffResult {
 		return {
 			base: 'main',
@@ -49,11 +57,13 @@ describe('DiffViewer', () => {
 		});
 
 		it('shows error state when fetch fails', async () => {
-			mockFetch.mockResolvedValueOnce({
-				ok: false,
-				status: 500,
-				statusText: 'Internal Server Error'
-			});
+			mockFetch
+				.mockResolvedValueOnce({
+					ok: false,
+					status: 500,
+					statusText: 'Internal Server Error'
+				})
+				.mockResolvedValueOnce(mockCommentsResponse([])); // comments
 
 			render(DiffViewer, { props: { taskId: 'TASK-001' } });
 
@@ -63,10 +73,12 @@ describe('DiffViewer', () => {
 		});
 
 		it('shows empty state when no files changed', async () => {
-			mockFetch.mockResolvedValueOnce({
-				ok: true,
-				json: () => Promise.resolve(mockDiffResponse([]))
-			});
+			mockFetch
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(mockDiffResponse([]))
+				})
+				.mockResolvedValueOnce(mockCommentsResponse([])); // comments
 
 			render(DiffViewer, { props: { taskId: 'TASK-001' } });
 
@@ -84,6 +96,7 @@ describe('DiffViewer', () => {
 					ok: true,
 					json: () => Promise.resolve(diff)
 				})
+				.mockResolvedValueOnce(mockCommentsResponse([])) // comments
 				.mockResolvedValueOnce({
 					ok: true,
 					json: () =>
@@ -117,21 +130,20 @@ describe('DiffViewer', () => {
 			const fileData = mockFile('src/app.ts');
 			const diff = mockDiffResponse([fileData]);
 
-			// Mock initial diff load
-			mockFetch.mockResolvedValueOnce({
-				ok: true,
-				json: () => Promise.resolve(diff)
-			});
-
-			// Mock file hunks load
-			mockFetch.mockResolvedValueOnce({
-				ok: true,
-				json: () =>
-					Promise.resolve({
-						...fileData,
-						hunks: [{ old_start: 1, old_lines: 5, new_start: 1, new_lines: 7, lines: [] }]
-					})
-			});
+			mockFetch
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(diff)
+				})
+				.mockResolvedValueOnce(mockCommentsResponse([])) // comments
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							...fileData,
+							hunks: [{ old_start: 1, old_lines: 5, new_start: 1, new_lines: 7, lines: [] }]
+						})
+				});
 
 			render(DiffViewer, { props: { taskId: 'TASK-001' } });
 
@@ -146,7 +158,7 @@ describe('DiffViewer', () => {
 
 				// Wait for hunks to load
 				await waitFor(() => {
-					expect(mockFetch).toHaveBeenCalledTimes(2);
+					expect(mockFetch).toHaveBeenCalledTimes(3);
 				});
 
 				// Collapse - this should create a new Set
@@ -164,6 +176,7 @@ describe('DiffViewer', () => {
 					ok: true,
 					json: () => Promise.resolve(diff)
 				})
+				.mockResolvedValueOnce(mockCommentsResponse([])) // comments
 				.mockResolvedValueOnce({
 					ok: false,
 					status: 404,
@@ -183,7 +196,7 @@ describe('DiffViewer', () => {
 
 			// Verify the error fetch was attempted
 			await waitFor(() => {
-				expect(mockFetch).toHaveBeenCalledTimes(2);
+				expect(mockFetch).toHaveBeenCalledTimes(3);
 			});
 		});
 
@@ -195,6 +208,7 @@ describe('DiffViewer', () => {
 					ok: true,
 					json: () => Promise.resolve(diff)
 				})
+				.mockResolvedValueOnce(mockCommentsResponse([])) // comments
 				.mockRejectedValueOnce(new Error('Network error'));
 
 			render(DiffViewer, { props: { taskId: 'TASK-001' } });
@@ -210,17 +224,19 @@ describe('DiffViewer', () => {
 
 			// Verify the error fetch was attempted
 			await waitFor(() => {
-				expect(mockFetch).toHaveBeenCalledTimes(2);
+				expect(mockFetch).toHaveBeenCalledTimes(3);
 			});
 		});
 	});
 
 	describe('ARIA attributes', () => {
 		it('has role="tablist" on view toggle container', async () => {
-			mockFetch.mockResolvedValueOnce({
-				ok: true,
-				json: () => Promise.resolve(mockDiffResponse([mockFile('src/app.ts')]))
-			});
+			mockFetch
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(mockDiffResponse([mockFile('src/app.ts')]))
+				})
+				.mockResolvedValueOnce(mockCommentsResponse([])); // comments
 
 			render(DiffViewer, { props: { taskId: 'TASK-001' } });
 
@@ -231,10 +247,12 @@ describe('DiffViewer', () => {
 		});
 
 		it('has role="tab" on Split/Unified buttons', async () => {
-			mockFetch.mockResolvedValueOnce({
-				ok: true,
-				json: () => Promise.resolve(mockDiffResponse([mockFile('src/app.ts')]))
-			});
+			mockFetch
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(mockDiffResponse([mockFile('src/app.ts')]))
+				})
+				.mockResolvedValueOnce(mockCommentsResponse([])); // comments
 
 			render(DiffViewer, { props: { taskId: 'TASK-001' } });
 
@@ -247,10 +265,12 @@ describe('DiffViewer', () => {
 		});
 
 		it('sets aria-selected correctly on view toggle buttons', async () => {
-			mockFetch.mockResolvedValueOnce({
-				ok: true,
-				json: () => Promise.resolve(mockDiffResponse([mockFile('src/app.ts')]))
-			});
+			mockFetch
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(mockDiffResponse([mockFile('src/app.ts')]))
+				})
+				.mockResolvedValueOnce(mockCommentsResponse([])); // comments
 
 			render(DiffViewer, { props: { taskId: 'TASK-001' } });
 
@@ -265,10 +285,12 @@ describe('DiffViewer', () => {
 		});
 
 		it('updates aria-selected when switching view mode', async () => {
-			mockFetch.mockResolvedValueOnce({
-				ok: true,
-				json: () => Promise.resolve(mockDiffResponse([mockFile('src/app.ts')]))
-			});
+			mockFetch
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(mockDiffResponse([mockFile('src/app.ts')]))
+				})
+				.mockResolvedValueOnce(mockCommentsResponse([])); // comments
 
 			render(DiffViewer, { props: { taskId: 'TASK-001' } });
 
@@ -286,11 +308,13 @@ describe('DiffViewer', () => {
 
 	describe('expand/collapse all functionality', () => {
 		it('shows expand all button when files exist', async () => {
-			mockFetch.mockResolvedValueOnce({
-				ok: true,
-				json: () =>
-					Promise.resolve(mockDiffResponse([mockFile('src/a.ts'), mockFile('src/b.ts')]))
-			});
+			mockFetch
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve(mockDiffResponse([mockFile('src/a.ts'), mockFile('src/b.ts')]))
+				})
+				.mockResolvedValueOnce(mockCommentsResponse([])); // comments
 
 			render(DiffViewer, { props: { taskId: 'TASK-001' } });
 
@@ -300,10 +324,12 @@ describe('DiffViewer', () => {
 		});
 
 		it('does not show expand button when no files', async () => {
-			mockFetch.mockResolvedValueOnce({
-				ok: true,
-				json: () => Promise.resolve(mockDiffResponse([]))
-			});
+			mockFetch
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(mockDiffResponse([]))
+				})
+				.mockResolvedValueOnce(mockCommentsResponse([])); // comments
 
 			render(DiffViewer, { props: { taskId: 'TASK-001' } });
 

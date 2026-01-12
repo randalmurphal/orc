@@ -57,3 +57,148 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 
 	s.jsonResponse(w, settings)
 }
+
+// SettingsHierarchyResponse contains settings from each level with source tracking.
+type SettingsHierarchyResponse struct {
+	Merged  *claudeconfig.Settings           `json:"merged"`
+	Global  *SettingsLevel                   `json:"global"`
+	Project *SettingsLevel                   `json:"project"`
+	Sources map[string]SettingsSourceInfo    `json:"sources"`
+}
+
+// SettingsLevel represents settings from a specific level.
+type SettingsLevel struct {
+	Path     string               `json:"path"`
+	Settings *claudeconfig.Settings `json:"settings,omitempty"`
+}
+
+// SettingsSourceInfo indicates which level a setting came from.
+type SettingsSourceInfo struct {
+	Source string `json:"source"` // "global", "project", or "default"
+	Path   string `json:"path,omitempty"`
+}
+
+// handleGetSettingsHierarchy returns settings with source information.
+func (s *Server) handleGetSettingsHierarchy(w http.ResponseWriter, r *http.Request) {
+	projectRoot := s.getProjectRoot()
+
+	// Load settings from each level
+	globalSettings, _ := claudeconfig.LoadGlobalSettings()
+	projectSettings, _ := claudeconfig.LoadProjectSettings(projectRoot)
+	mergedSettings, _ := claudeconfig.LoadSettings(projectRoot)
+
+	// Determine global path
+	globalPath, _ := claudeconfig.GlobalSettingsPath()
+
+	// Determine project path
+	projectPath := projectRoot + "/.claude/settings.json"
+
+	// Build sources map by comparing merged values to each level
+	sources := make(map[string]SettingsSourceInfo)
+
+	// Check env settings
+	if mergedSettings != nil && mergedSettings.Env != nil {
+		for key := range mergedSettings.Env {
+			source := determineSettingSource(key, "env", globalSettings, projectSettings)
+			sources["env."+key] = source
+		}
+	}
+
+	// Check hooks
+	if mergedSettings != nil && mergedSettings.Hooks != nil {
+		for event := range mergedSettings.Hooks {
+			source := determineHookSource(event, globalSettings, projectSettings, globalPath, projectPath)
+			sources["hooks."+event] = source
+		}
+	}
+
+	// Check permissions (allow/deny lists)
+	if mergedSettings != nil && mergedSettings.Permissions != nil {
+		if len(mergedSettings.Permissions.Allow) > 0 {
+			source := "default"
+			path := ""
+			if projectSettings != nil && projectSettings.Permissions != nil && len(projectSettings.Permissions.Allow) > 0 {
+				source = "project"
+				path = projectPath
+			} else if globalSettings != nil && globalSettings.Permissions != nil && len(globalSettings.Permissions.Allow) > 0 {
+				source = "global"
+				path = globalPath
+			}
+			sources["permissions.allow"] = SettingsSourceInfo{Source: source, Path: path}
+		}
+
+		if len(mergedSettings.Permissions.Deny) > 0 {
+			source := "default"
+			path := ""
+			if projectSettings != nil && projectSettings.Permissions != nil && len(projectSettings.Permissions.Deny) > 0 {
+				source = "project"
+				path = projectPath
+			} else if globalSettings != nil && globalSettings.Permissions != nil && len(globalSettings.Permissions.Deny) > 0 {
+				source = "global"
+				path = globalPath
+			}
+			sources["permissions.deny"] = SettingsSourceInfo{Source: source, Path: path}
+		}
+	}
+
+	// Check statusLine
+	if mergedSettings != nil && mergedSettings.StatusLine != nil {
+		source := "default"
+		path := ""
+		if projectSettings != nil && projectSettings.StatusLine != nil {
+			source = "project"
+			path = projectPath
+		} else if globalSettings != nil && globalSettings.StatusLine != nil {
+			source = "global"
+			path = globalPath
+		}
+		sources["statusLine"] = SettingsSourceInfo{Source: source, Path: path}
+	}
+
+	response := SettingsHierarchyResponse{
+		Merged: mergedSettings,
+		Global: &SettingsLevel{
+			Path:     globalPath,
+			Settings: globalSettings,
+		},
+		Project: &SettingsLevel{
+			Path:     projectPath,
+			Settings: projectSettings,
+		},
+		Sources: sources,
+	}
+
+	s.jsonResponse(w, response)
+}
+
+// determineSettingSource determines which level a setting came from.
+func determineSettingSource(key, settingType string, global, project *claudeconfig.Settings) SettingsSourceInfo {
+	if settingType == "env" {
+		if project != nil && project.Env != nil {
+			if _, ok := project.Env[key]; ok {
+				return SettingsSourceInfo{Source: "project"}
+			}
+		}
+		if global != nil && global.Env != nil {
+			if _, ok := global.Env[key]; ok {
+				return SettingsSourceInfo{Source: "global"}
+			}
+		}
+	}
+	return SettingsSourceInfo{Source: "default"}
+}
+
+// determineHookSource determines which level a hook came from.
+func determineHookSource(event string, global, project *claudeconfig.Settings, globalPath, projectPath string) SettingsSourceInfo {
+	if project != nil && project.Hooks != nil {
+		if _, ok := project.Hooks[event]; ok {
+			return SettingsSourceInfo{Source: "project", Path: projectPath}
+		}
+	}
+	if global != nil && global.Hooks != nil {
+		if _, ok := global.Hooks[event]; ok {
+			return SettingsSourceInfo{Source: "global", Path: globalPath}
+		}
+	}
+	return SettingsSourceInfo{Source: "default"}
+}

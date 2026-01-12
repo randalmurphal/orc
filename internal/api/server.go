@@ -247,6 +247,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/settings", cors(s.handleGetSettings))
 	s.mux.HandleFunc("GET /api/settings/global", cors(s.handleGetGlobalSettings))
 	s.mux.HandleFunc("GET /api/settings/project", cors(s.handleGetProjectSettings))
+	s.mux.HandleFunc("GET /api/settings/hierarchy", cors(s.handleGetSettingsHierarchy))
 	s.mux.HandleFunc("PUT /api/settings", cors(s.handleUpdateSettings))
 
 	// Tools (available Claude Code tools with permissions)
