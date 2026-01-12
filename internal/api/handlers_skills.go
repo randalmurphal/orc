@@ -12,8 +12,22 @@ import (
 )
 
 // handleListSkills returns all discovered skills.
+// Supports ?scope=global to list from ~/.claude/skills/ instead of project.
 func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
-	claudeDir := filepath.Join(s.getProjectRoot(), ".claude")
+	scope := r.URL.Query().Get("scope")
+
+	var claudeDir string
+	if scope == "global" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			s.jsonError(w, "failed to get home directory", http.StatusInternalServerError)
+			return
+		}
+		claudeDir = filepath.Join(homeDir, ".claude")
+	} else {
+		claudeDir = filepath.Join(s.getProjectRoot(), ".claude")
+	}
+
 	skills, err := claudeconfig.DiscoverSkills(claudeDir)
 	if err != nil {
 		// No skills directory is OK - return empty list
@@ -35,9 +49,22 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleGetSkill returns a specific skill by name.
+// Supports ?scope=global to get from ~/.claude/skills/ instead of project.
 func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	skillPath := filepath.Join(s.getProjectRoot(), ".claude", "skills", name, "SKILL.md")
+	scope := r.URL.Query().Get("scope")
+
+	var skillPath string
+	if scope == "global" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			s.jsonError(w, "failed to get home directory", http.StatusInternalServerError)
+			return
+		}
+		skillPath = filepath.Join(homeDir, ".claude", "skills", name, "SKILL.md")
+	} else {
+		skillPath = filepath.Join(s.getProjectRoot(), ".claude", "skills", name, "SKILL.md")
+	}
 
 	skill, err := claudeconfig.ParseSkillMD(skillPath)
 	if err != nil {
@@ -49,6 +76,7 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleCreateSkill creates a new skill in SKILL.md format.
+// Supports ?scope=global to create in ~/.claude/skills/ instead of project.
 func (s *Server) handleCreateSkill(w http.ResponseWriter, r *http.Request) {
 	var skill claudeconfig.Skill
 	if err := json.NewDecoder(r.Body).Decode(&skill); err != nil {
@@ -61,9 +89,20 @@ func (s *Server) handleCreateSkill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// WriteSkillMD creates SKILL.md inside the given directory,
-	// so we pass the skill-specific directory (.claude/skills/{name}/)
-	skillDir := filepath.Join(s.getProjectRoot(), ".claude", "skills", skill.Name)
+	scope := r.URL.Query().Get("scope")
+	var skillDir string
+	if scope == "global" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			s.jsonError(w, "failed to get home directory", http.StatusInternalServerError)
+			return
+		}
+		skillDir = filepath.Join(homeDir, ".claude", "skills", skill.Name)
+	} else {
+		skillDir = filepath.Join(s.getProjectRoot(), ".claude", "skills", skill.Name)
+	}
+
+	// WriteSkillMD creates SKILL.md inside the given directory
 	if err := claudeconfig.WriteSkillMD(&skill, skillDir); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to create skill: %v", err), http.StatusInternalServerError)
 		return
@@ -74,9 +113,24 @@ func (s *Server) handleCreateSkill(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdateSkill updates an existing skill.
+// Supports ?scope=global to update in ~/.claude/skills/ instead of project.
 func (s *Server) handleUpdateSkill(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	skillDir := filepath.Join(s.getProjectRoot(), ".claude", "skills", name)
+	scope := r.URL.Query().Get("scope")
+
+	var baseDir string
+	if scope == "global" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			s.jsonError(w, "failed to get home directory", http.StatusInternalServerError)
+			return
+		}
+		baseDir = filepath.Join(homeDir, ".claude", "skills")
+	} else {
+		baseDir = filepath.Join(s.getProjectRoot(), ".claude", "skills")
+	}
+
+	skillDir := filepath.Join(baseDir, name)
 
 	// Check if skill exists
 	if _, err := os.Stat(filepath.Join(skillDir, "SKILL.md")); os.IsNotExist(err) {
@@ -92,7 +146,7 @@ func (s *Server) handleUpdateSkill(w http.ResponseWriter, r *http.Request) {
 
 	// If name changed, we need to rename the directory
 	if skill.Name != "" && skill.Name != name {
-		newDir := filepath.Join(s.getProjectRoot(), ".claude", "skills", skill.Name)
+		newDir := filepath.Join(baseDir, skill.Name)
 		if err := os.Rename(skillDir, newDir); err != nil {
 			s.jsonError(w, fmt.Sprintf("failed to rename skill: %v", err), http.StatusInternalServerError)
 			return
@@ -112,9 +166,22 @@ func (s *Server) handleUpdateSkill(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleDeleteSkill deletes a skill directory.
+// Supports ?scope=global to delete from ~/.claude/skills/ instead of project.
 func (s *Server) handleDeleteSkill(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	skillDir := filepath.Join(s.getProjectRoot(), ".claude", "skills", name)
+	scope := r.URL.Query().Get("scope")
+
+	var skillDir string
+	if scope == "global" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			s.jsonError(w, "failed to get home directory", http.StatusInternalServerError)
+			return
+		}
+		skillDir = filepath.Join(homeDir, ".claude", "skills", name)
+	} else {
+		skillDir = filepath.Join(s.getProjectRoot(), ".claude", "skills", name)
+	}
 
 	if _, err := os.Stat(skillDir); os.IsNotExist(err) {
 		s.jsonError(w, "skill not found", http.StatusNotFound)

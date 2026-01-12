@@ -48,15 +48,15 @@ func TestIsProtectedBranch(t *testing.T) {
 		protected []string
 		want      bool
 	}{
-		{"main", nil, true},                                    // Uses default list
-		{"master", nil, true},                                  // Uses default list
-		{"develop", nil, true},                                 // Uses default list
-		{"release", nil, true},                                 // Uses default list
-		{"orc/TASK-001", nil, false},                           // Task branch not protected
-		{"feature/foo", nil, false},                            // Feature branch not protected
-		{"main", []string{"main", "production"}, true},         // Custom list
-		{"master", []string{"main", "production"}, false},      // Not in custom list
-		{"production", []string{"main", "production"}, true},   // In custom list
+		{"main", nil, true},                                  // Uses default list
+		{"master", nil, true},                                // Uses default list
+		{"develop", nil, true},                               // Uses default list
+		{"release", nil, true},                               // Uses default list
+		{"orc/TASK-001", nil, false},                         // Task branch not protected
+		{"feature/foo", nil, false},                          // Feature branch not protected
+		{"main", []string{"main", "production"}, true},       // Custom list
+		{"master", []string{"main", "production"}, false},    // Not in custom list
+		{"production", []string{"main", "production"}, true}, // In custom list
 	}
 
 	for _, tt := range tests {

@@ -52,18 +52,18 @@ func (e *Executor) renderTemplate(tmpl string, s PhaseState) string {
 
 	// Simple variable replacement
 	replacements := map[string]string{
-		"{{TASK_ID}}":               s.TaskID,
-		"{{TASK_TITLE}}":            s.TaskTitle,
-		"{{TASK_DESCRIPTION}}":      s.TaskDescription,
-		"{{PHASE}}":                 s.Phase,
-		"{{WEIGHT}}":                s.Weight,
-		"{{ITERATION}}":             fmt.Sprintf("%d", s.Iteration),
-		"{{RESEARCH_CONTENT}}":      s.ResearchContent,
-		"{{SPEC_CONTENT}}":          specContent,
-		"{{DESIGN_CONTENT}}":        s.DesignContent,
-		"{{IMPLEMENT_CONTENT}}":     s.ImplementContent,
+		"{{TASK_ID}}":                s.TaskID,
+		"{{TASK_TITLE}}":             s.TaskTitle,
+		"{{TASK_DESCRIPTION}}":       s.TaskDescription,
+		"{{PHASE}}":                  s.Phase,
+		"{{WEIGHT}}":                 s.Weight,
+		"{{ITERATION}}":              fmt.Sprintf("%d", s.Iteration),
+		"{{RESEARCH_CONTENT}}":       s.ResearchContent,
+		"{{SPEC_CONTENT}}":           specContent,
+		"{{DESIGN_CONTENT}}":         s.DesignContent,
+		"{{IMPLEMENT_CONTENT}}":      s.ImplementContent,
 		"{{IMPLEMENTATION_SUMMARY}}": s.ImplementContent, // Alias for template compatibility
-		"{{RETRY_CONTEXT}}":         s.RetryContext,
+		"{{RETRY_CONTEXT}}":          s.RetryContext,
 
 		// Worktree context variables
 		"{{WORKTREE_PATH}}": s.WorktreePath,

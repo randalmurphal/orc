@@ -19,10 +19,10 @@ import (
 
 // ExportData contains all data for a task export.
 type ExportData struct {
-	Task        *task.Task            `yaml:"task"`
-	Plan        *plan.Plan            `yaml:"plan,omitempty"`
-	State       *state.State          `yaml:"state,omitempty"`
-	Transcripts []db.Transcript       `yaml:"transcripts,omitempty"`
+	Task        *task.Task      `yaml:"task"`
+	Plan        *plan.Plan      `yaml:"plan,omitempty"`
+	State       *state.State    `yaml:"state,omitempty"`
+	Transcripts []db.Transcript `yaml:"transcripts,omitempty"`
 }
 
 // newExportCmd creates the export command

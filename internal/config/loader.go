@@ -70,7 +70,7 @@ func (l *Loader) Load() (*TrackedConfig, error) {
 	// Level 3: Shared (team/project defaults)
 	// Load .orc/config.yaml first, then .orc/shared/config.yaml can override
 	l.loadLevel(tc, LevelShared, SourceShared, []string{
-		filepath.Join(l.projectDir, OrcDir, ConfigFileName),          // .orc/config.yaml
+		filepath.Join(l.projectDir, OrcDir, ConfigFileName),           // .orc/config.yaml
 		filepath.Join(l.projectDir, OrcDir, "shared", ConfigFileName), // .orc/shared/config.yaml
 	})
 
@@ -168,7 +168,6 @@ func mergeFromFileWithPath(tc *TrackedConfig, path string, source ConfigSource) 
 	return nil
 }
 
-
 // mergeConfigWithPath merges fileCfg into tc.Config, tracking sources with path.
 func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]interface{}, source ConfigSource, path string) {
 	cfg := tc.Config
@@ -261,7 +260,6 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 		mergeDatabaseConfigWithPath(cfg, fileCfg, rawDatabase, tc, source, path)
 	}
 }
-
 
 func mergeGatesConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
 	if _, ok := raw["default_type"]; ok {

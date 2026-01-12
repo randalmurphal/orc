@@ -60,9 +60,9 @@ type SessionInfo struct {
 
 // CostTracking tracks cost information for the task.
 type CostTracking struct {
-	TotalCostUSD  float64               `yaml:"total_cost_usd" json:"total_cost_usd"`
-	PhaseCosts    map[string]float64    `yaml:"phase_costs,omitempty" json:"phase_costs,omitempty"`
-	LastUpdatedAt time.Time             `yaml:"last_updated_at,omitempty" json:"last_updated_at,omitempty"`
+	TotalCostUSD  float64            `yaml:"total_cost_usd" json:"total_cost_usd"`
+	PhaseCosts    map[string]float64 `yaml:"phase_costs,omitempty" json:"phase_costs,omitempty"`
+	LastUpdatedAt time.Time          `yaml:"last_updated_at,omitempty" json:"last_updated_at,omitempty"`
 }
 
 // PhaseState represents the state of a single phase.

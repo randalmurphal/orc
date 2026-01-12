@@ -17,12 +17,12 @@ var builtinPromptTemplate string
 // PromptData contains the data used to generate the setup prompt.
 type PromptData struct {
 	// Project detection info
-	Language      string
-	Frameworks    []string
-	BuildTools    []string
-	HasTests      bool
-	TestCommand   string
-	LintCommand   string
+	Language    string
+	Frameworks  []string
+	BuildTools  []string
+	HasTests    bool
+	TestCommand string
+	LintCommand string
 
 	// Existing CLAUDE.md content (if any)
 	ExistingClaudeMD string

@@ -7,14 +7,14 @@ import (
 
 func TestParseGoTestOutput(t *testing.T) {
 	tests := []struct {
-		name           string
-		output         string
-		wantPassed     int
-		wantFailed     int
-		wantSkipped    int
-		wantCoverage   float64
-		wantFailures   int
-		wantFramework  string
+		name          string
+		output        string
+		wantPassed    int
+		wantFailed    int
+		wantSkipped   int
+		wantCoverage  float64
+		wantFailures  int
+		wantFramework string
 	}{
 		{
 			name: "all passing",
@@ -107,12 +107,12 @@ FAIL	example.com/broken	0.002s`,
 
 func TestParseJestOutput(t *testing.T) {
 	tests := []struct {
-		name           string
-		output         string
-		wantPassed     int
-		wantFailed     int
-		wantSkipped    int
-		wantFramework  string
+		name          string
+		output        string
+		wantPassed    int
+		wantFailed    int
+		wantSkipped   int
+		wantFramework string
 	}{
 		{
 			name: "all passing",
@@ -192,12 +192,12 @@ Time:        0.5 s`,
 
 func TestParsePytestOutput(t *testing.T) {
 	tests := []struct {
-		name           string
-		output         string
-		wantPassed     int
-		wantFailed     int
-		wantSkipped    int
-		wantFramework  string
+		name          string
+		output        string
+		wantPassed    int
+		wantFailed    int
+		wantSkipped   int
+		wantFramework string
 	}{
 		{
 			name: "all passing",
@@ -322,9 +322,9 @@ test_math.py ..                                                          [100%]
 
 func TestBuildTestRetryContext(t *testing.T) {
 	tests := []struct {
-		name       string
-		result     *ParsedTestResult
-		wantEmpty  bool
+		name         string
+		result       *ParsedTestResult
+		wantEmpty    bool
 		wantContains []string
 	}{
 		{

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import {
 		listAgents,
 		getAgent,
@@ -11,29 +12,37 @@
 		type SkillInfo
 	} from '$lib/api';
 
-	let agents: SubAgent[] = [];
-	let skills: SkillInfo[] = [];
-	let selectedAgent: SubAgent | null = null;
-	let isCreating = false;
-	let loading = true;
-	let saving = false;
-	let error: string | null = null;
-	let success: string | null = null;
+	let agents = $state<SubAgent[]>([]);
+	let skills = $state<SkillInfo[]>([]);
+	let selectedAgent = $state<SubAgent | null>(null);
+	let isCreating = $state(false);
+	let loading = $state(true);
+	let saving = $state(false);
+	let error = $state<string | null>(null);
+	let success = $state<string | null>(null);
 
 	// Form fields
-	let formName = '';
-	let formDescription = '';
-	let formModel = '';
-	let formPrompt = '';
-	let formWorkDir = '';
-	let formTimeout = '';
-	let formSkillRefs: string[] = [];
-	let formAllowTools = '';
-	let formDenyTools = '';
+	let formName = $state('');
+	let formDescription = $state('');
+	let formModel = $state('');
+	let formPrompt = $state('');
+	let formWorkDir = $state('');
+	let formTimeout = $state('');
+	let formSkillRefs = $state<string[]>([]);
+	let formAllowTools = $state('');
+	let formDenyTools = $state('');
+
+	// Get scope from URL params
+	const scope = $derived($page.url.searchParams.get('scope') as 'global' | null);
+	const isGlobal = $derived(scope === 'global');
+	const scopeParam = $derived(isGlobal ? 'global' : undefined);
 
 	onMount(async () => {
 		try {
-			[agents, skills] = await Promise.all([listAgents(), listSkills()]);
+			// Read scope directly from URL on mount
+			const urlScope = new URL(window.location.href).searchParams.get('scope');
+			const initialScope = urlScope === 'global' ? 'global' : undefined;
+			[agents, skills] = await Promise.all([listAgents(initialScope), listSkills(initialScope)]);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load agents';
 		} finally {
@@ -55,8 +64,14 @@
 			formWorkDir = selectedAgent.work_dir || '';
 			formTimeout = selectedAgent.timeout || '';
 			formSkillRefs = selectedAgent.skill_refs || [];
-			formAllowTools = selectedAgent.tools?.allow?.join(', ') || '';
-			formDenyTools = selectedAgent.tools?.deny?.join(', ') || '';
+			// Handle tools being either ToolPermissions object or string (from global .md files)
+			if (selectedAgent.tools && typeof selectedAgent.tools === 'object') {
+				formAllowTools = selectedAgent.tools.allow?.join(', ') || '';
+				formDenyTools = selectedAgent.tools.deny?.join(', ') || '';
+			} else {
+				formAllowTools = typeof selectedAgent.tools === 'string' ? selectedAgent.tools : '';
+				formDenyTools = '';
+			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load agent';
 		}
@@ -175,7 +190,7 @@
 				<h1>Sub-Agents</h1>
 				<p class="subtitle">Define agents for task delegation</p>
 			</div>
-			<button class="btn btn-primary" on:click={startCreate}>New Agent</button>
+			<button class="btn btn-primary" onclick={startCreate}>New Agent</button>
 		</div>
 	</header>
 
@@ -203,7 +218,7 @@
 								<button
 									class="agent-item"
 									class:selected={selectedAgent?.name === agent.name}
-									on:click={() => selectAgentByName(agent.name)}
+									onclick={() => selectAgentByName(agent.name)}
 								>
 									<span class="agent-name">{agent.name}</span>
 									{#if agent.description}
@@ -222,13 +237,13 @@
 					<div class="editor-header">
 						<h2>{isCreating ? 'New Agent' : selectedAgent?.name}</h2>
 						{#if selectedAgent && !isCreating}
-							<button class="btn btn-danger" on:click={handleDelete} disabled={saving}>
+							<button class="btn btn-danger" onclick={handleDelete} disabled={saving}>
 								Delete
 							</button>
 						{/if}
 					</div>
 
-					<form class="agent-form" on:submit|preventDefault={handleSave}>
+					<form class="agent-form" onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
 						<div class="form-row">
 							<div class="form-group">
 								<label for="name">Name</label>
@@ -317,7 +332,7 @@
 											type="button"
 											class="skill-chip"
 											class:selected={formSkillRefs.includes(skill.name)}
-											on:click={() => toggleSkillRef(skill.name)}
+											onclick={() => toggleSkillRef(skill.name)}
 										>
 											{skill.name}
 										</button>

@@ -747,11 +747,11 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 	s.logger.Info("escalated task", "task", taskID, "reason", req.Reason)
 
 	s.jsonResponse(w, map[string]any{
-		"status":    "escalated",
-		"task_id":   taskID,
-		"phase":     "implement",
-		"reason":    req.Reason,
-		"attempt":   attempt,
+		"status":  "escalated",
+		"task_id": taskID,
+		"phase":   "implement",
+		"reason":  req.Reason,
+		"attempt": attempt,
 	})
 }
 

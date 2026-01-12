@@ -74,11 +74,11 @@ func Run(ctx context.Context, title string, opts Options) (*Result, error) {
 
 	// Generate prompt
 	prompt, err := GeneratePrompt(PromptData{
-		Title:        title,
-		WorkDir:      opts.WorkDir,
-		Detection:    detection,
-		Initiative:   init,
-		CreateTasks:  opts.CreateTasks,
+		Title:       title,
+		WorkDir:     opts.WorkDir,
+		Detection:   detection,
+		Initiative:  init,
+		CreateTasks: opts.CreateTasks,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("generate prompt: %w", err)

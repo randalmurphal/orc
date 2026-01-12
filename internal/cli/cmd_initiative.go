@@ -662,4 +662,3 @@ func newInitiativeDeleteCmd() *cobra.Command {
 
 	return cmd
 }
-

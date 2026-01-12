@@ -53,14 +53,14 @@ type QAIssue struct {
 
 // QAResult represents the complete result of a QA session.
 type QAResult struct {
-	Status         QAStatus   `json:"status"`
-	Summary        string     `json:"summary"`
-	TestsWritten   []QATest   `json:"tests_written,omitempty"`
-	TestsRun       *QATestRun `json:"tests_run,omitempty"`
+	Status         QAStatus    `json:"status"`
+	Summary        string      `json:"summary"`
+	TestsWritten   []QATest    `json:"tests_written,omitempty"`
+	TestsRun       *QATestRun  `json:"tests_run,omitempty"`
 	Coverage       *QACoverage `json:"coverage,omitempty"`
-	Documentation  []QADoc    `json:"documentation,omitempty"`
-	Issues         []QAIssue  `json:"issues,omitempty"`
-	Recommendation string     `json:"recommendation"`
+	Documentation  []QADoc     `json:"documentation,omitempty"`
+	Issues         []QAIssue   `json:"issues,omitempty"`
+	Recommendation string      `json:"recommendation"`
 }
 
 // ShouldRunQA checks if QA should run based on config and task weight.

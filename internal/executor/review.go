@@ -12,8 +12,8 @@ import (
 type ReviewDecisionStatus string
 
 const (
-	ReviewStatusPass          ReviewDecisionStatus = "pass"
-	ReviewStatusFail          ReviewDecisionStatus = "fail"
+	ReviewStatusPass           ReviewDecisionStatus = "pass"
+	ReviewStatusFail           ReviewDecisionStatus = "fail"
 	ReviewStatusNeedsUserInput ReviewDecisionStatus = "needs_user_input"
 )
 

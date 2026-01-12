@@ -29,12 +29,12 @@ type createPRRequest struct {
 
 // syncCommentsResponse is the response for comment sync.
 type syncCommentsResponse struct {
-	Synced    int    `json:"synced"`
-	Skipped   int    `json:"skipped"`
-	Errors    int    `json:"errors"`
-	Total     int    `json:"total"`
-	PRNumber  int    `json:"pr_number"`
-	Message   string `json:"message,omitempty"`
+	Synced   int    `json:"synced"`
+	Skipped  int    `json:"skipped"`
+	Errors   int    `json:"errors"`
+	Total    int    `json:"total"`
+	PRNumber int    `json:"pr_number"`
+	Message  string `json:"message,omitempty"`
 }
 
 // autoFixResponse is the response for auto-fix.
@@ -340,13 +340,13 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 	openComments, _ := pdb.ListReviewComments(taskID, "open")
 
 	opts := executor.RetryOptions{
-		FailedPhase:     t.CurrentPhase,
-		FailureReason:   fmt.Sprintf("Auto-fix requested for comment: %s", truncateString(comment.Content, 100)),
-		PRComments:      []executor.PRCommentFeedback{prFeedback},
-		ReviewComments:  openComments,
-		AttemptNumber:   1,
-		MaxAttempts:     3,
-		Instructions:    fmt.Sprintf("Fix the issue in %s at line %d: %s", comment.FilePath, comment.LineNumber, comment.Content),
+		FailedPhase:    t.CurrentPhase,
+		FailureReason:  fmt.Sprintf("Auto-fix requested for comment: %s", truncateString(comment.Content, 100)),
+		PRComments:     []executor.PRCommentFeedback{prFeedback},
+		ReviewComments: openComments,
+		AttemptNumber:  1,
+		MaxAttempts:    3,
+		Instructions:   fmt.Sprintf("Fix the issue in %s at line %d: %s", comment.FilePath, comment.LineNumber, comment.Content),
 	}
 
 	// Build and set retry context in state

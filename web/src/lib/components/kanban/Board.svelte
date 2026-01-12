@@ -227,19 +227,19 @@
 <style>
 	.board {
 		display: flex;
-		gap: var(--space-4);
+		gap: var(--space-3);
 		flex: 1;
 		min-height: 0;
 		overflow-x: auto;
-		padding: 0 var(--space-4) var(--space-2);
-		justify-content: center;
-		max-width: 100%;
+		padding-bottom: var(--space-2);
+		/* Let columns fill available space, scroll if needed */
 	}
 
-	/* When there's not enough space, allow scrolling and left-align */
-	@media (max-width: 1700px) {
+	/* Ensure board doesn't overflow container */
+	@media (min-width: 1400px) {
 		.board {
-			justify-content: flex-start;
+			/* On larger screens, columns can be slightly wider */
+			gap: var(--space-4);
 		}
 	}
 
