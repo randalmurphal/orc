@@ -4,11 +4,16 @@ import (
 	"sync"
 )
 
+// GlobalTaskID is the special task ID for subscribing to all task events.
+// Subscribers to this ID receive events for ALL tasks.
+const GlobalTaskID = "*"
+
 // Publisher defines the interface for event publishing.
 type Publisher interface {
 	// Publish sends an event to all subscribers of the task.
 	Publish(event Event)
 	// Subscribe returns a channel that receives events for the given task.
+	// Use GlobalTaskID ("*") to receive events for all tasks.
 	Subscribe(taskID string) <-chan Event
 	// Unsubscribe removes a subscription channel.
 	Unsubscribe(taskID string, ch <-chan Event)
@@ -47,6 +52,7 @@ func NewMemoryPublisher(opts ...PublisherOption) *MemoryPublisher {
 }
 
 // Publish sends an event to all subscribers of the task.
+// Also sends to global subscribers (those subscribed to GlobalTaskID).
 // Non-blocking: skips subscribers with full buffers.
 func (p *MemoryPublisher) Publish(event Event) {
 	p.mu.RLock()
@@ -56,12 +62,25 @@ func (p *MemoryPublisher) Publish(event Event) {
 		return
 	}
 
+	// Send to task-specific subscribers
 	subs := p.subscribers[event.TaskID]
 	for _, ch := range subs {
 		select {
 		case ch <- event:
 		default:
 			// Skip if channel buffer is full (non-blocking)
+		}
+	}
+
+	// Also send to global subscribers (if not already a global subscription)
+	if event.TaskID != GlobalTaskID {
+		globalSubs := p.subscribers[GlobalTaskID]
+		for _, ch := range globalSubs {
+			select {
+			case ch <- event:
+			default:
+				// Skip if channel buffer is full (non-blocking)
+			}
 		}
 	}
 }

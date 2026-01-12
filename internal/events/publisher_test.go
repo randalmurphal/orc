@@ -358,3 +358,90 @@ func TestCompleteData(t *testing.T) {
 		t.Errorf("expected status completed, got %s", data.Status)
 	}
 }
+
+func TestMemoryPublisher_GlobalSubscription(t *testing.T) {
+	pub := NewMemoryPublisher()
+	defer pub.Close()
+
+	// Subscribe to global events (all tasks)
+	globalCh := pub.Subscribe(GlobalTaskID)
+	// Also subscribe to specific task
+	task1Ch := pub.Subscribe("TASK-001")
+
+	// Publish event to TASK-001
+	event1 := NewEvent(EventState, "TASK-001", "task1 data")
+	pub.Publish(event1)
+
+	// Global subscriber should receive TASK-001 event
+	select {
+	case received := <-globalCh:
+		if received.TaskID != "TASK-001" {
+			t.Errorf("global subscriber: expected task ID TASK-001, got %s", received.TaskID)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("global subscriber should have received TASK-001 event")
+	}
+
+	// Specific subscriber should also receive
+	select {
+	case received := <-task1Ch:
+		if received.TaskID != "TASK-001" {
+			t.Errorf("specific subscriber: expected task ID TASK-001, got %s", received.TaskID)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("specific subscriber should have received TASK-001 event")
+	}
+
+	// Publish event to TASK-002
+	event2 := NewEvent(EventPhase, "TASK-002", "task2 data")
+	pub.Publish(event2)
+
+	// Global subscriber should receive TASK-002 event
+	select {
+	case received := <-globalCh:
+		if received.TaskID != "TASK-002" {
+			t.Errorf("global subscriber: expected task ID TASK-002, got %s", received.TaskID)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("global subscriber should have received TASK-002 event")
+	}
+
+	// Specific TASK-001 subscriber should NOT receive TASK-002 event
+	select {
+	case <-task1Ch:
+		t.Error("TASK-001 subscriber should NOT have received TASK-002 event")
+	case <-time.After(50 * time.Millisecond):
+		// Expected - no event for wrong task
+	}
+}
+
+func TestMemoryPublisher_GlobalSubscriptionMultipleTasks(t *testing.T) {
+	pub := NewMemoryPublisher()
+	defer pub.Close()
+
+	// Subscribe globally
+	globalCh := pub.Subscribe(GlobalTaskID)
+
+	// Publish events for multiple tasks
+	tasks := []string{"TASK-001", "TASK-002", "TASK-003"}
+	for _, taskID := range tasks {
+		pub.Publish(NewEvent(EventState, taskID, "data"))
+	}
+
+	// Global subscriber should receive all events
+	received := make(map[string]bool)
+	for i := 0; i < len(tasks); i++ {
+		select {
+		case event := <-globalCh:
+			received[event.TaskID] = true
+		case <-time.After(100 * time.Millisecond):
+			t.Errorf("global subscriber should have received event %d", i+1)
+		}
+	}
+
+	for _, taskID := range tasks {
+		if !received[taskID] {
+			t.Errorf("global subscriber should have received event for %s", taskID)
+		}
+	}
+}

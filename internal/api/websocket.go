@@ -190,16 +190,17 @@ func (h *WSHandler) handleMessage(c *wsConnection, data []byte) {
 }
 
 // handleSubscribe subscribes the connection to a task's events.
+// Use taskID "*" to subscribe to all task events (global subscription).
 func (h *WSHandler) handleSubscribe(c *wsConnection, taskID string) {
 	if taskID == "" {
-		h.sendError(c, "task_id required for subscribe")
+		h.sendError(c, "task_id required for subscribe (use \"*\" for all tasks)")
 		return
 	}
 
 	// Unsubscribe from previous task if any
 	h.handleUnsubscribe(c)
 
-	// Subscribe to new task
+	// Subscribe to new task (or global if taskID is "*")
 	c.mu.Lock()
 	c.taskID = taskID
 	c.eventChan = h.publisher.Subscribe(taskID)
@@ -215,7 +216,11 @@ func (h *WSHandler) handleSubscribe(c *wsConnection, taskID string) {
 		"task_id": taskID,
 	})
 
-	h.logger.Debug("websocket subscribed", "task_id", taskID)
+	if taskID == events.GlobalTaskID {
+		h.logger.Debug("websocket subscribed to all tasks (global)")
+	} else {
+		h.logger.Debug("websocket subscribed", "task_id", taskID)
+	}
 }
 
 // handleUnsubscribe unsubscribes the connection from current task.

@@ -4,6 +4,9 @@
 
 export type WSEventType = 'state' | 'transcript' | 'phase' | 'tokens' | 'error' | 'complete';
 
+// Special task ID for subscribing to all task events
+export const GLOBAL_TASK_ID = '*';
+
 export interface WSEvent {
 	type: 'event';
 	event: WSEventType;
@@ -125,6 +128,20 @@ export class OrcWebSocket {
 
 		this.taskId = taskId;
 		this.send({ type: 'subscribe', task_id: taskId });
+	}
+
+	/**
+	 * Subscribe to ALL task events (global subscription)
+	 */
+	subscribeGlobal(): void {
+		this.subscribe(GLOBAL_TASK_ID);
+	}
+
+	/**
+	 * Check if currently subscribed globally
+	 */
+	isGlobalSubscription(): boolean {
+		return this.taskId === GLOBAL_TASK_ID;
 	}
 
 	/**
@@ -336,6 +353,43 @@ export function subscribeToTaskWS(
 
 	// Connect and subscribe
 	ws.connect(taskId);
+
+	// Return cleanup function
+	return () => {
+		unsubEvent();
+		unsubStatus?.();
+		ws.unsubscribe();
+	};
+}
+
+/**
+ * Initialize global WebSocket subscription for real-time task updates.
+ * This subscribes to ALL task events and updates the global task store.
+ * Should be called once at app startup (in +layout.svelte).
+ * Returns cleanup function.
+ */
+export function initGlobalWebSocket(
+	onEvent?: (taskId: string, eventType: WSEventType, data: unknown) => void,
+	onStatus?: (status: ConnectionStatus) => void
+): () => void {
+	const ws = getWebSocket();
+
+	// Set up event listener for all events
+	const unsubEvent = ws.on('all', (event) => {
+		if ('event' in event) {
+			const wsEvent = event as WSEvent;
+			onEvent?.(wsEvent.task_id, wsEvent.event, wsEvent.data);
+		}
+	});
+
+	// Set up status listener if provided
+	let unsubStatus: (() => void) | undefined;
+	if (onStatus) {
+		unsubStatus = ws.onStatusChange(onStatus);
+	}
+
+	// Connect and subscribe to global events
+	ws.connect(GLOBAL_TASK_ID);
 
 	// Return cleanup function
 	return () => {
