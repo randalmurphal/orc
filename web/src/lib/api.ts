@@ -639,6 +639,156 @@ export async function deleteMCPServer(name: string): Promise<void> {
 	}
 }
 
+// Plugins (.claude/plugins/)
+export type PluginScope = 'global' | 'project';
+
+export interface PluginAuthor {
+	name: string;
+	email?: string;
+	url?: string;
+}
+
+export interface PluginInfo {
+	name: string;
+	description: string;
+	author: string;
+	path: string;
+	scope: PluginScope;
+	enabled: boolean;
+	version?: string;
+	has_commands: boolean;
+	command_count: number;
+}
+
+export interface PluginCommand {
+	name: string;
+	description: string;
+	argument_hint?: string;
+}
+
+export interface Plugin {
+	name: string;
+	description: string;
+	author?: PluginAuthor;
+	homepage?: string;
+	keywords?: string[];
+	path: string;
+	scope: PluginScope;
+	enabled: boolean;
+	version?: string;
+	installed_at?: string;
+	updated_at?: string;
+	has_commands: boolean;
+	has_hooks: boolean;
+	has_scripts: boolean;
+}
+
+export interface MarketplacePlugin {
+	name: string;
+	description: string;
+	author: PluginAuthor;
+	version: string;
+	repository?: string;
+	downloads?: number;
+	keywords?: string[];
+}
+
+export interface PluginUpdateInfo {
+	name: string;
+	current_version: string;
+	latest_version: string;
+	scope: PluginScope;
+}
+
+export interface PluginResponse {
+	plugin?: Plugin;
+	requires_restart: boolean;
+	message?: string;
+}
+
+export interface MarketplaceBrowseResponse {
+	plugins: MarketplacePlugin[];
+	total: number;
+	page: number;
+	limit: number;
+	cached: boolean;
+	cache_age_seconds?: number;
+}
+
+// Local plugin management
+export async function listPlugins(scope?: PluginScope): Promise<PluginInfo[]> {
+	const query = scope ? `?scope=${scope}` : '';
+	return fetchJSON<PluginInfo[]>(`/plugins${query}`);
+}
+
+export async function getPlugin(name: string, scope?: PluginScope): Promise<Plugin> {
+	const query = scope ? `?scope=${scope}` : '';
+	return fetchJSON<Plugin>(`/plugins/${name}${query}`);
+}
+
+export async function enablePlugin(name: string, scope?: PluginScope): Promise<PluginResponse> {
+	const query = scope ? `?scope=${scope}` : '';
+	return fetchJSON<PluginResponse>(`/plugins/${name}/enable${query}`, {
+		method: 'POST'
+	});
+}
+
+export async function disablePlugin(name: string, scope?: PluginScope): Promise<PluginResponse> {
+	const query = scope ? `?scope=${scope}` : '';
+	return fetchJSON<PluginResponse>(`/plugins/${name}/disable${query}`, {
+		method: 'POST'
+	});
+}
+
+export async function uninstallPlugin(name: string, scope?: PluginScope): Promise<PluginResponse> {
+	const query = scope ? `?scope=${scope}` : '';
+	return fetchJSON<PluginResponse>(`/plugins/${name}${query}`, {
+		method: 'DELETE'
+	});
+}
+
+export async function listPluginCommands(name: string, scope?: PluginScope): Promise<PluginCommand[]> {
+	const query = scope ? `?scope=${scope}` : '';
+	return fetchJSON<PluginCommand[]>(`/plugins/${name}/commands${query}`);
+}
+
+// Marketplace
+export async function browseMarketplace(page?: number, limit?: number): Promise<MarketplaceBrowseResponse> {
+	const params = new URLSearchParams();
+	if (page) params.set('page', String(page));
+	if (limit) params.set('limit', String(limit));
+	const query = params.toString();
+	return fetchJSON<MarketplaceBrowseResponse>(`/plugins/marketplace${query ? '?' + query : ''}`);
+}
+
+export async function searchMarketplace(query: string): Promise<MarketplacePlugin[]> {
+	return fetchJSON<MarketplacePlugin[]>(`/plugins/marketplace/search?q=${encodeURIComponent(query)}`);
+}
+
+export async function getMarketplacePlugin(name: string): Promise<MarketplacePlugin> {
+	return fetchJSON<MarketplacePlugin>(`/plugins/marketplace/${name}`);
+}
+
+export async function installPlugin(name: string, scope?: PluginScope, version?: string): Promise<PluginResponse> {
+	const query = scope ? `?scope=${scope}` : '';
+	return fetchJSON<PluginResponse>(`/plugins/marketplace/${name}/install${query}`, {
+		method: 'POST',
+		body: version ? JSON.stringify({ version }) : undefined
+	});
+}
+
+// Plugin updates
+export async function checkPluginUpdates(): Promise<PluginUpdateInfo[]> {
+	return fetchJSON<PluginUpdateInfo[]>('/plugins/updates');
+}
+
+export async function updatePlugin(name: string, scope?: PluginScope): Promise<PluginResponse> {
+	const query = scope ? `?scope=${scope}` : '';
+	return fetchJSON<PluginResponse>(`/plugins/${name}/update${query}`, {
+		method: 'POST'
+	});
+}
+
 // Project Task operations
 export async function getProjectTask(projectId: string, taskId: string): Promise<Task> {
 	return fetchJSON<Task>(`/projects/${projectId}/tasks/${taskId}`);

@@ -40,6 +40,16 @@ type (
 	// Services
 	AgentService  = claudeconfig.AgentService
 	ScriptService = claudeconfig.ScriptService
+
+	// Plugin types
+	Plugin            = claudeconfig.Plugin
+	PluginInfo        = claudeconfig.PluginInfo
+	PluginAuthor      = claudeconfig.PluginAuthor
+	PluginScope       = claudeconfig.PluginScope
+	PluginCommand     = claudeconfig.PluginCommand
+	PluginService     = claudeconfig.PluginService
+	MarketplacePlugin = claudeconfig.MarketplacePlugin
+	PluginUpdateInfo  = claudeconfig.PluginUpdateInfo
 )
 
 // Re-export hook event constants
@@ -49,6 +59,12 @@ const (
 	HookPreCompact  = claudeconfig.HookPreCompact
 	HookPrePrompt   = claudeconfig.HookPrePrompt
 	HookStop        = claudeconfig.HookStop
+)
+
+// Re-export plugin scope constants
+const (
+	PluginScopeGlobal  = claudeconfig.PluginScopeGlobal
+	PluginScopeProject = claudeconfig.PluginScopeProject
 )
 
 // Re-export errors
@@ -94,4 +110,11 @@ var (
 	// Service constructors
 	NewAgentService  = claudeconfig.NewAgentService
 	NewScriptService = claudeconfig.NewScriptService
+
+	// Plugins
+	ParsePluginJSON    = claudeconfig.ParsePluginJSON
+	DiscoverPlugins    = claudeconfig.DiscoverPlugins
+	NewPluginService   = claudeconfig.NewPluginService
+	GlobalPluginsDir   = claudeconfig.GlobalPluginsDir
+	ProjectPluginsDir  = claudeconfig.ProjectPluginsDir
 )

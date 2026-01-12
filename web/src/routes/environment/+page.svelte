@@ -12,6 +12,7 @@
 		listPrompts,
 		listScripts,
 		getClaudeMDHierarchy,
+		listPlugins,
 		type SkillInfo,
 		type Hook,
 		type SubAgent,
@@ -21,7 +22,8 @@
 		type Config,
 		type PromptInfo,
 		type ProjectScript,
-		type ClaudeMDHierarchy
+		type ClaudeMDHierarchy,
+		type PluginInfo
 	} from '$lib/api';
 
 	// State
@@ -39,6 +41,7 @@
 	let prompts = $state<PromptInfo[]>([]);
 	let scripts = $state<ProjectScript[]>([]);
 	let claudeMD = $state<ClaudeMDHierarchy | null>(null);
+	let plugins = $state<PluginInfo[]>([]);
 
 	// Expanded sections
 	let expandedSections = $state<Set<string>>(new Set());
@@ -64,7 +67,8 @@
 				configRes,
 				promptsRes,
 				scriptsRes,
-				claudeMDRes
+				claudeMDRes,
+				pluginsRes
 			] = await Promise.all([
 				listSkills().catch(() => []),
 				listHooks().catch(() => ({})),
@@ -75,7 +79,8 @@
 				getConfig().catch(() => null),
 				listPrompts().catch(() => []),
 				listScripts().catch(() => []),
-				getClaudeMDHierarchy().catch(() => null)
+				getClaudeMDHierarchy().catch(() => null),
+				listPlugins().catch(() => [])
 			]);
 
 			skills = skillsRes;
@@ -88,6 +93,7 @@
 			prompts = promptsRes;
 			scripts = scriptsRes;
 			claudeMD = claudeMDRes;
+			plugins = pluginsRes;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load environment data';
 		} finally {
@@ -101,6 +107,7 @@
 	const mcpConnected = $derived(mcpServers.filter((s) => !s.disabled).length);
 	const deniedToolsCount = $derived(toolPermissions?.deny?.length || 0);
 	const overriddenPrompts = $derived(prompts.filter((p) => p.has_override).length);
+	const enabledPlugins = $derived(plugins.filter((p) => p.enabled).length);
 	const claudeMDLevels = $derived(
 		claudeMD
 			? [claudeMD.global, claudeMD.user, claudeMD.project].filter((c) => c?.content).length
@@ -169,7 +176,7 @@
 						<div class="section-title">
 							<h2>Claude Code</h2>
 							<p class="section-summary">
-								Skills ({skills.length}) • Hooks ({hookCount}) • Agents ({agents.length}) • MCP ({mcpConnected}
+								Skills ({skills.length}) • Plugins ({enabledPlugins}/{plugins.length}) • Hooks ({hookCount}) • MCP ({mcpConnected}
 								connected)
 							</p>
 						</div>
@@ -200,6 +207,17 @@
 								<div class="card-info">
 									<h3>Skills</h3>
 									<p>{skills.length} configured</p>
+								</div>
+								<Icon name="chevron-right" size={14} class="card-arrow" />
+							</a>
+
+							<a href="/environment/claude/plugins" class="config-card">
+								<div class="card-icon">
+									<Icon name="plugin" size={18} />
+								</div>
+								<div class="card-info">
+									<h3>Plugins</h3>
+									<p>{enabledPlugins} of {plugins.length} enabled</p>
 								</div>
 								<Icon name="chevron-right" size={14} class="card-arrow" />
 							</a>
