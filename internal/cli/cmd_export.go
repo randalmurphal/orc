@@ -9,9 +9,11 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -28,92 +30,176 @@ func newExportCmd() *cobra.Command {
 	var outputFile string
 	var withTranscripts bool
 	var withState bool
+	var withContext bool
+	var toBranch bool
+	var all bool
 
 	cmd := &cobra.Command{
 		Use:   "export <task-id>",
-		Short: "Export task to YAML",
-		Long: `Export a task and its related data to YAML format.
+		Short: "Export task to YAML or branch",
+		Long: `Export a task and its related data.
 
-The exported YAML includes:
-  • Task definition (ID, title, weight, status)
-  • Plan (phases and configuration)
-  • State (optional, with --state)
-  • Transcripts (optional, with --transcripts)
+Two export modes are available:
 
-Use this for:
-  • Backing up task data
-  • Moving tasks between projects
-  • Version controlling task definitions
-  • Creating templates from existing tasks
+1. YAML Export (default):
+   Exports task data to a YAML file for backup/migration.
+   • Task definition (ID, title, weight, status)
+   • Plan (phases and configuration)
+   • State (optional, with --state)
+   • Transcripts (optional, with --transcripts)
 
-Example:
-  orc export TASK-001                    # Output to stdout
-  orc export TASK-001 -o task.yaml       # Output to file
-  orc export TASK-001 --transcripts      # Include transcripts`,
+2. Branch Export (--to-branch):
+   Exports task artifacts to .orc/exports/{task-id}/ directory.
+   This is useful for including task context in PRs.
+   • task.yaml, plan.yaml (always)
+   • state.yaml (with --state)
+   • context.md (with --context)
+   • transcripts/ (with --transcripts)
+
+Examples:
+  orc export TASK-001                    # YAML to stdout
+  orc export TASK-001 -o task.yaml       # YAML to file
+  orc export TASK-001 --to-branch        # Export to .orc/exports/
+  orc export TASK-001 --to-branch --all  # Export everything
+  orc export TASK-001 --context          # Include context.md summary`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			taskID := args[0]
 
-			// Load task
-			t, err := task.Load(taskID)
-			if err != nil {
-				return fmt.Errorf("load task: %w", err)
+			// If --all is set, enable all export flags
+			if all {
+				withState = true
+				withTranscripts = true
+				withContext = true
 			}
 
-			export := &ExportData{Task: t}
-
-			// Load plan
-			p, err := plan.Load(taskID)
-			if err == nil {
-				export.Plan = p
+			// Branch export mode
+			if toBranch {
+				return exportToBranchDir(taskID, withState, withTranscripts, withContext)
 			}
 
-			// Load state if requested
-			if withState {
-				s, err := state.Load(taskID)
-				if err == nil {
-					export.State = s
-				}
-			}
-
-			// Load transcripts if requested
-			if withTranscripts {
-				wd, _ := os.Getwd()
-				pdb, err := db.OpenProject(wd)
-				if err == nil {
-					defer pdb.Close()
-					transcripts, err := pdb.GetTranscripts(taskID)
-					if err == nil {
-						export.Transcripts = transcripts
-					}
-				}
-			}
-
-			// Marshal to YAML
-			data, err := yaml.Marshal(export)
-			if err != nil {
-				return fmt.Errorf("marshal yaml: %w", err)
-			}
-
-			// Output
-			if outputFile != "" {
-				if err := os.WriteFile(outputFile, data, 0644); err != nil {
-					return fmt.Errorf("write file: %w", err)
-				}
-				fmt.Printf("Exported task %s to %s\n", taskID, outputFile)
-			} else {
-				fmt.Print(string(data))
-			}
-
-			return nil
+			// Legacy YAML export mode
+			return exportToYAML(taskID, outputFile, withState, withTranscripts)
 		},
 	}
 
 	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "output file path (default: stdout)")
 	cmd.Flags().BoolVar(&withTranscripts, "transcripts", false, "include transcript content")
 	cmd.Flags().BoolVar(&withState, "state", false, "include execution state")
+	cmd.Flags().BoolVar(&withContext, "context", false, "include context.md summary")
+	cmd.Flags().BoolVar(&toBranch, "to-branch", false, "export to .orc/exports/ directory")
+	cmd.Flags().BoolVar(&all, "all", false, "export all available data")
 
 	return cmd
+}
+
+// exportToYAML performs the legacy YAML export for backup/migration.
+func exportToYAML(taskID, outputFile string, withState, withTranscripts bool) error {
+	// Load task
+	t, err := task.Load(taskID)
+	if err != nil {
+		return fmt.Errorf("load task: %w", err)
+	}
+
+	export := &ExportData{Task: t}
+
+	// Load plan
+	p, err := plan.Load(taskID)
+	if err == nil {
+		export.Plan = p
+	} else {
+		fmt.Fprintf(os.Stderr, "Warning: could not load plan: %v\n", err)
+	}
+
+	// Load state if requested
+	if withState {
+		s, err := state.Load(taskID)
+		if err == nil {
+			export.State = s
+		} else {
+			fmt.Fprintf(os.Stderr, "Warning: could not load state: %v\n", err)
+		}
+	}
+
+	// Load transcripts if requested
+	if withTranscripts {
+		wd, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not get working directory for transcripts: %v\n", err)
+		} else {
+			pdb, err := db.OpenProject(wd)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not open database for transcripts: %v\n", err)
+			} else {
+				defer pdb.Close()
+				transcripts, err := pdb.GetTranscripts(taskID)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: could not load transcripts: %v\n", err)
+				} else {
+					export.Transcripts = transcripts
+				}
+			}
+		}
+	}
+
+	// Marshal to YAML
+	data, err := yaml.Marshal(export)
+	if err != nil {
+		return fmt.Errorf("marshal yaml: %w", err)
+	}
+
+	// Output
+	if outputFile != "" {
+		if err := os.WriteFile(outputFile, data, 0644); err != nil {
+			return fmt.Errorf("write file: %w", err)
+		}
+		fmt.Printf("Exported task %s to %s\n", taskID, outputFile)
+	} else {
+		fmt.Print(string(data))
+	}
+
+	return nil
+}
+
+// exportToBranchDir exports task artifacts to .orc/exports/ using the storage package.
+func exportToBranchDir(taskID string, withState, withTranscripts, withContext bool) error {
+	// Load config
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	// Get project path
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+
+	// Create storage backend
+	backend, err := storage.NewBackend(cwd, &cfg.Storage)
+	if err != nil {
+		return fmt.Errorf("create storage backend: %w", err)
+	}
+	defer backend.Close()
+
+	// Create export service
+	exportSvc := storage.NewExportService(backend, &cfg.Storage)
+
+	// Build export options
+	opts := &storage.ExportOptions{
+		TaskDefinition: true, // Always include task definition
+		FinalState:     withState,
+		Transcripts:    withTranscripts,
+		ContextSummary: withContext,
+	}
+
+	// Perform export
+	if err := exportSvc.Export(taskID, opts); err != nil {
+		return fmt.Errorf("export: %w", err)
+	}
+
+	fmt.Printf("Exported task %s to .orc/exports/%s/\n", taskID, taskID)
+	return nil
 }
 
 // newImportCmd creates the import command

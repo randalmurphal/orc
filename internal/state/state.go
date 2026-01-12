@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -158,12 +159,8 @@ func (s *State) Save() error {
 	return s.SaveTo(dir)
 }
 
-// SaveTo persists the state to a specific directory.
+// SaveTo persists the state to a specific directory using atomic writes.
 func (s *State) SaveTo(dir string) error {
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("create task directory: %w", err)
-	}
-
 	s.UpdatedAt = time.Now()
 
 	data, err := yaml.Marshal(s)
@@ -172,7 +169,7 @@ func (s *State) SaveTo(dir string) error {
 	}
 
 	path := filepath.Join(dir, StateFileName)
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := util.AtomicWriteFile(path, data, 0644); err != nil {
 		return fmt.Errorf("write state: %w", err)
 	}
 

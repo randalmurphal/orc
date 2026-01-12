@@ -329,6 +329,87 @@ type DatabaseConfig struct {
 	Postgres PostgresConfig `yaml:"postgres"`
 }
 
+// StorageMode defines how orc stores task data.
+type StorageMode string
+
+const (
+	// StorageModeHybrid uses YAML files as primary with SQLite cache for search
+	StorageModeHybrid StorageMode = "hybrid"
+	// StorageModeFiles uses YAML files only (minimal, git-friendly)
+	StorageModeFiles StorageMode = "files"
+	// StorageModeDatabase uses database as primary (team/enterprise)
+	StorageModeDatabase StorageMode = "database"
+)
+
+// FileStorageConfig defines file-based storage settings.
+type FileStorageConfig struct {
+	// CleanupOnComplete removes task files after successful completion
+	// Default: true (keeps .orc/tasks/ clean)
+	CleanupOnComplete bool `yaml:"cleanup_on_complete"`
+}
+
+// DatabaseStorageConfig defines database storage settings.
+type DatabaseStorageConfig struct {
+	// CacheTranscripts enables FTS search for transcripts
+	// Default: true
+	CacheTranscripts bool `yaml:"cache_transcripts"`
+
+	// RetentionDays is how long to keep entries before cleanup
+	// Default: 90
+	RetentionDays int `yaml:"retention_days"`
+}
+
+// ExportPreset defines a preset export configuration.
+type ExportPreset string
+
+const (
+	// ExportPresetMinimal exports only task.yaml
+	ExportPresetMinimal ExportPreset = "minimal"
+	// ExportPresetStandard exports task definition + final state
+	ExportPresetStandard ExportPreset = "standard"
+	// ExportPresetFull exports everything including transcripts
+	ExportPresetFull ExportPreset = "full"
+)
+
+// ExportConfig defines what to export to branch on PR creation.
+type ExportConfig struct {
+	// Enabled is the master toggle for export (default: false)
+	Enabled bool `yaml:"enabled"`
+
+	// Preset sets a predefined export configuration (overrides individual flags)
+	// Values: minimal, standard, full
+	Preset ExportPreset `yaml:"preset,omitempty"`
+
+	// TaskDefinition exports task.yaml and plan.yaml
+	TaskDefinition bool `yaml:"task_definition"`
+
+	// FinalState exports state.yaml
+	FinalState bool `yaml:"final_state"`
+
+	// Transcripts exports full conversation logs (usually large)
+	Transcripts bool `yaml:"transcripts"`
+
+	// ContextSummary exports generated context.md
+	ContextSummary bool `yaml:"context_summary"`
+}
+
+// StorageConfig defines how orc stores and exports task data.
+// This is separate from DatabaseConfig which handles connection settings.
+type StorageConfig struct {
+	// Mode is the storage mode: hybrid | files | database
+	// Default: hybrid (best of both worlds for solo devs)
+	Mode StorageMode `yaml:"mode"`
+
+	// Files contains file storage settings
+	Files FileStorageConfig `yaml:"files"`
+
+	// Database contains database storage settings
+	Database DatabaseStorageConfig `yaml:"database"`
+
+	// Export contains settings for exporting to branch
+	Export ExportConfig `yaml:"export"`
+}
+
 // SQLiteConfig defines SQLite-specific settings.
 type SQLiteConfig struct {
 	// Path for project database (relative to project root)
@@ -410,6 +491,9 @@ type Config struct {
 
 	// Database configuration
 	Database DatabaseConfig `yaml:"database"`
+
+	// Storage configuration
+	Storage StorageConfig `yaml:"storage"`
 
 	// Model settings
 	Model         string `yaml:"model"`
@@ -617,6 +701,23 @@ func Default() *Config {
 				User:     "orc",
 				SSLMode:  "disable",
 				PoolMax:  10,
+			},
+		},
+		Storage: StorageConfig{
+			Mode: StorageModeHybrid, // Best of both worlds for solo devs
+			Files: FileStorageConfig{
+				CleanupOnComplete: true, // Keep .orc/tasks/ clean
+			},
+			Database: DatabaseStorageConfig{
+				CacheTranscripts: true, // FTS search enabled by default
+				RetentionDays:    90,   // Auto-cleanup old entries
+			},
+			Export: ExportConfig{
+				Enabled:        false, // Nothing exported by default
+				TaskDefinition: true,  // When enabled, export task.yaml + plan.yaml
+				FinalState:     true,  // When enabled, export state.yaml
+				Transcripts:    false, // Usually too large
+				ContextSummary: true,  // When enabled, export context.md
 			},
 		},
 		Model: "claude-opus-4-5-20251101",
@@ -896,6 +997,11 @@ func (c *Config) Validate() error {
 			"if you need to run without worktrees, contact maintainers to discuss your use case")
 	}
 
+	// Validate storage configuration
+	if err := c.validateStorage(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -917,4 +1023,68 @@ func contains(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// ValidStorageModes are the allowed values for storage.mode
+var ValidStorageModes = []string{string(StorageModeHybrid), string(StorageModeFiles), string(StorageModeDatabase)}
+
+// ValidExportPresets are the allowed values for storage.export.preset
+var ValidExportPresets = []string{string(ExportPresetMinimal), string(ExportPresetStandard), string(ExportPresetFull), ""}
+
+// ResolveExportConfig returns the effective export configuration,
+// applying preset overrides if a preset is specified.
+func (c *StorageConfig) ResolveExportConfig() ExportConfig {
+	if c.Export.Preset == "" {
+		return c.Export
+	}
+
+	result := c.Export
+	switch c.Export.Preset {
+	case ExportPresetMinimal:
+		result.TaskDefinition = true
+		result.FinalState = false
+		result.Transcripts = false
+		result.ContextSummary = false
+	case ExportPresetStandard:
+		result.TaskDefinition = true
+		result.FinalState = true
+		result.Transcripts = false
+		result.ContextSummary = true
+	case ExportPresetFull:
+		result.TaskDefinition = true
+		result.FinalState = true
+		result.Transcripts = true
+		result.ContextSummary = true
+	}
+	return result
+}
+
+// ShouldExport returns true if any export is enabled and the master toggle is on.
+func (c *StorageConfig) ShouldExport() bool {
+	if !c.Export.Enabled {
+		return false
+	}
+	resolved := c.ResolveExportConfig()
+	return resolved.TaskDefinition || resolved.FinalState ||
+		resolved.Transcripts || resolved.ContextSummary
+}
+
+// validateStorage validates the storage configuration.
+func (c *Config) validateStorage() error {
+	if c.Storage.Mode != "" && !contains(ValidStorageModes, string(c.Storage.Mode)) {
+		return fmt.Errorf("invalid storage.mode: %s (must be one of: %v)",
+			c.Storage.Mode, ValidStorageModes)
+	}
+
+	if c.Storage.Export.Preset != "" && !contains(ValidExportPresets, string(c.Storage.Export.Preset)) {
+		return fmt.Errorf("invalid storage.export.preset: %s (must be one of: %v)",
+			c.Storage.Export.Preset, ValidExportPresets)
+	}
+
+	// Validate retention days - must be between 0 and 3650 (10 years)
+	if c.Storage.Database.RetentionDays < 0 || c.Storage.Database.RetentionDays > 3650 {
+		return fmt.Errorf("storage.database.retention_days must be between 0 and 3650")
+	}
+
+	return nil
 }
