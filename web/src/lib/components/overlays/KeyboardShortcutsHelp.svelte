@@ -1,6 +1,5 @@
 <script lang="ts">
 	import Modal from './Modal.svelte';
-	import { getShortcutManager, SHORTCUTS } from '$lib/shortcuts';
 
 	interface Props {
 		open: boolean;

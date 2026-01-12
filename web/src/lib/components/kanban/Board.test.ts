@@ -329,18 +329,19 @@ describe('Board', () => {
 	describe('column phase mappings', () => {
 		const columnConfig = [
 			{ id: 'queued', title: 'Queued', phases: [] },
-			{ id: 'spec', title: 'Spec', phases: ['research', 'spec'] },
+			{ id: 'spec', title: 'Spec', phases: ['research', 'spec', 'design'] },
 			{ id: 'implement', title: 'Implement', phases: ['implement'] },
 			{ id: 'test', title: 'Test', phases: ['test'] },
 			{ id: 'review', title: 'Review', phases: ['docs', 'validate', 'review'] },
 			{ id: 'done', title: 'Done', phases: [] }
 		];
 
-		it('Spec column includes research and spec phases', () => {
+		it('Spec column includes research, spec, and design phases', () => {
 			const specColumn = columnConfig.find((c) => c.id === 'spec');
 			expect(specColumn?.phases).toContain('research');
 			expect(specColumn?.phases).toContain('spec');
-			expect(specColumn?.phases).toHaveLength(2);
+			expect(specColumn?.phases).toContain('design');
+			expect(specColumn?.phases).toHaveLength(3);
 		});
 
 		it('Implement column includes only implement phase', () => {
@@ -382,7 +383,7 @@ describe('Board', () => {
 			expect(true).toBe(true);
 		});
 
-		it('returns implement as default for unrecognized phases', () => {
+		it('returns implement as default for unrecognized phases', async () => {
 			// Tasks with unknown phases should default to implement
 			const task = createMockTask({
 				status: 'running',
@@ -399,7 +400,7 @@ describe('Board', () => {
 			});
 
 			// Task should still render (in implement column as default)
-			waitFor(() => {
+			await waitFor(() => {
 				expect(screen.getByText('Unknown Phase Task')).toBeInTheDocument();
 			});
 		});

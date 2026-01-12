@@ -394,7 +394,7 @@ The board uses phase-based columns matching the orchestration workflow:
 ```typescript
 const columns = [
   { id: 'queued', title: 'Queued', phases: [] },           // Tasks not yet started
-  { id: 'spec', title: 'Spec', phases: ['research', 'spec'] },
+  { id: 'spec', title: 'Spec', phases: ['research', 'spec', 'design'] },
   { id: 'implement', title: 'Implement', phases: ['implement'] },
   { id: 'test', title: 'Test', phases: ['test'] },
   { id: 'review', title: 'Review', phases: ['docs', 'validate', 'review'] },

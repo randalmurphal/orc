@@ -27,10 +27,12 @@ class ShortcutManager {
 	private sequenceTimeout: ReturnType<typeof setTimeout> | null = null;
 	private enabled = true;
 	private currentContext: 'global' | 'tasks' | 'editor' = 'global';
+	private boundHandleKeydown: (e: KeyboardEvent) => void;
 
 	constructor() {
+		this.boundHandleKeydown = this.handleKeydown.bind(this);
 		if (typeof window !== 'undefined') {
-			window.addEventListener('keydown', this.handleKeydown.bind(this));
+			window.addEventListener('keydown', this.boundHandleKeydown);
 		}
 	}
 
@@ -235,7 +237,7 @@ class ShortcutManager {
 	 */
 	destroy(): void {
 		if (typeof window !== 'undefined') {
-			window.removeEventListener('keydown', this.handleKeydown.bind(this));
+			window.removeEventListener('keydown', this.boundHandleKeydown);
 		}
 	}
 }
