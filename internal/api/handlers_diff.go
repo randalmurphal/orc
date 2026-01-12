@@ -17,7 +17,7 @@ func (s *Server) handleGetDiff(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
 	// Load task to get branch
-	t, err := task.Load(taskID)
+	t, err := task.LoadFrom(s.workDir, taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
@@ -89,7 +89,7 @@ func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 	// Remove leading slash if present
 	filePath = strings.TrimPrefix(filePath, "/")
 
-	t, err := task.Load(taskID)
+	t, err := task.LoadFrom(s.workDir, taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
@@ -120,7 +120,7 @@ func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
-	t, err := task.Load(taskID)
+	t, err := task.LoadFrom(s.workDir, taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return

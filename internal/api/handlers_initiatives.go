@@ -250,7 +250,7 @@ func (s *Server) handleAddInitiativeTask(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Load task to get title
-	t, err := task.Load(req.TaskID)
+	t, err := task.LoadFrom(s.workDir, req.TaskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return

@@ -114,7 +114,12 @@ func (t *Task) CanRun() bool {
 
 // Load loads a task from disk by ID.
 func Load(id string) (*Task, error) {
-	path := filepath.Join(OrcDir, TasksDir, id, "task.yaml")
+	return LoadFrom(".", id)
+}
+
+// LoadFrom loads a task from a specific project directory.
+func LoadFrom(projectDir, id string) (*Task, error) {
+	path := filepath.Join(projectDir, OrcDir, TasksDir, id, "task.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -139,78 +144,32 @@ func (t *Task) Save() error {
 
 // LoadAll loads all tasks from disk.
 func LoadAll() ([]*Task, error) {
-	tasksDir := filepath.Join(OrcDir, TasksDir)
-
-	entries, err := os.ReadDir(tasksDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil // No tasks yet
-		}
-		return nil, fmt.Errorf("read tasks directory: %w", err)
-	}
-
-	var tasks []*Task
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		t, err := Load(entry.Name())
-		if err != nil {
-			continue // Skip invalid tasks
-		}
-		tasks = append(tasks, t)
-	}
-
-	// Sort by creation time (newest first)
-	sort.Slice(tasks, func(i, j int) bool {
-		return tasks[i].CreatedAt.After(tasks[j].CreatedAt)
-	})
-
-	return tasks, nil
+	return LoadAllFrom(filepath.Join(OrcDir, TasksDir))
 }
 
 // NextID generates the next task ID (TASK-001, TASK-002, etc.).
 func NextID() (string, error) {
-	tasksDir := filepath.Join(OrcDir, TasksDir)
-
-	entries, err := os.ReadDir(tasksDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "TASK-001", nil
-		}
-		return "", fmt.Errorf("read tasks directory: %w", err)
-	}
-
-	// Find the highest existing ID
-	taskIDRegex := regexp.MustCompile(`^TASK-(\d+)$`)
-	maxNum := 0
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		matches := taskIDRegex.FindStringSubmatch(entry.Name())
-		if len(matches) == 2 {
-			num, _ := strconv.Atoi(matches[1])
-			if num > maxNum {
-				maxNum = num
-			}
-		}
-	}
-
-	return fmt.Sprintf("TASK-%03d", maxNum+1), nil
+	return NextIDIn(filepath.Join(OrcDir, TasksDir))
 }
 
 // TaskDir returns the directory path for a task.
 func TaskDir(id string) string {
-	return filepath.Join(OrcDir, TasksDir, id)
+	return TaskDirIn(".", id)
+}
+
+// TaskDirIn returns the directory path for a task in a specific project.
+func TaskDirIn(projectDir, id string) string {
+	return filepath.Join(projectDir, OrcDir, TasksDir, id)
 }
 
 // Exists returns true if a task exists.
 func Exists(id string) bool {
-	path := filepath.Join(OrcDir, TasksDir, id, "task.yaml")
+	return ExistsIn(".", id)
+}
+
+// ExistsIn returns true if a task exists in a specific project.
+func ExistsIn(projectDir, id string) bool {
+	path := filepath.Join(projectDir, OrcDir, TasksDir, id, "task.yaml")
 	_, err := os.Stat(path)
 	return err == nil
 }
@@ -218,7 +177,12 @@ func Exists(id string) bool {
 // Delete removes a task and all its associated files.
 // Returns an error if the task is currently running.
 func Delete(id string) error {
-	t, err := Load(id)
+	return DeleteIn(".", id)
+}
+
+// DeleteIn removes a task from a specific project directory.
+func DeleteIn(projectDir, id string) error {
+	t, err := LoadFrom(projectDir, id)
 	if err != nil {
 		return fmt.Errorf("task %s not found", id)
 	}
@@ -227,7 +191,7 @@ func Delete(id string) error {
 		return fmt.Errorf("cannot delete running task %s", id)
 	}
 
-	taskDir := TaskDir(id)
+	taskDir := TaskDirIn(projectDir, id)
 	return os.RemoveAll(taskDir)
 }
 

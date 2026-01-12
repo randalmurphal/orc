@@ -193,6 +193,32 @@ func (t *Template) Save(global bool) error {
 	return nil
 }
 
+// SaveTo saves the template to a specific base directory.
+func (t *Template) SaveTo(baseDir string) error {
+	templateDir := filepath.Join(baseDir, t.Name)
+	if err := os.MkdirAll(templateDir, 0755); err != nil {
+		return fmt.Errorf("create template directory: %w", err)
+	}
+
+	t.Path = templateDir
+	t.Version = 1
+	if t.CreatedAt.IsZero() {
+		t.CreatedAt = time.Now()
+	}
+
+	data, err := yaml.Marshal(t)
+	if err != nil {
+		return fmt.Errorf("marshal template: %w", err)
+	}
+
+	templatePath := filepath.Join(templateDir, TemplateFileName)
+	if err := os.WriteFile(templatePath, data, 0644); err != nil {
+		return fmt.Errorf("write template: %w", err)
+	}
+
+	return nil
+}
+
 // Delete removes the template from disk.
 func (t *Template) Delete() error {
 	if t.Scope == ScopeBuiltin {
@@ -220,6 +246,25 @@ func List() ([]TemplateInfo, error) {
 	globalTemplates, err := listFromDir(GlobalTemplatesDir(), ScopeGlobal)
 	if err == nil {
 		templates = append(templates, globalTemplates...)
+	}
+
+	// Built-in templates
+	builtinTemplates, err := listBuiltin()
+	if err == nil {
+		templates = append(templates, builtinTemplates...)
+	}
+
+	return templates, nil
+}
+
+// ListFrom returns templates from a specific base directory plus built-ins.
+func ListFrom(projectTemplatesDir string) ([]TemplateInfo, error) {
+	var templates []TemplateInfo
+
+	// Project templates from specified directory
+	projectTemplates, err := listFromDir(projectTemplatesDir, ScopeProject)
+	if err == nil {
+		templates = append(templates, projectTemplates...)
 	}
 
 	// Built-in templates

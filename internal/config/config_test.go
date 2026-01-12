@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -135,12 +136,13 @@ func TestDefault_DocumentationConfig(t *testing.T) {
 func TestSaveAndLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
 	// Create config directory
-	os.MkdirAll(tmpDir+"/.orc", 0755)
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	configPath := filepath.Join(orcDir, "config.yaml")
 
 	// Create and save config
 	cfg := Default()
@@ -148,15 +150,15 @@ func TestSaveAndLoad(t *testing.T) {
 	cfg.MaxIterations = 50
 	cfg.Timeout = 15 * time.Minute
 
-	err := cfg.Save()
+	err := cfg.SaveTo(configPath)
 	if err != nil {
-		t.Fatalf("Save() failed: %v", err)
+		t.Fatalf("SaveTo() failed: %v", err)
 	}
 
 	// Load config
-	loaded, err := Load()
+	loaded, err := LoadFrom(configPath)
 	if err != nil {
-		t.Fatalf("Load() failed: %v", err)
+		t.Fatalf("LoadFrom() failed: %v", err)
 	}
 
 	if loaded.Model != cfg.Model {
@@ -175,80 +177,70 @@ func TestSaveAndLoad(t *testing.T) {
 func TestInit(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
 	// Init should succeed
-	err := Init(false)
+	err := InitAt(tmpDir, false)
 	if err != nil {
-		t.Fatalf("Init() failed: %v", err)
+		t.Fatalf("InitAt() failed: %v", err)
 	}
 
 	// Verify .orc directory exists
-	if _, err := os.Stat(OrcDir); os.IsNotExist(err) {
+	orcDir := filepath.Join(tmpDir, OrcDir)
+	if _, err := os.Stat(orcDir); os.IsNotExist(err) {
 		t.Error(".orc directory was not created")
 	}
 
 	// Verify tasks directory exists
-	if _, err := os.Stat(OrcDir + "/tasks"); os.IsNotExist(err) {
+	tasksDir := filepath.Join(orcDir, "tasks")
+	if _, err := os.Stat(tasksDir); os.IsNotExist(err) {
 		t.Error(".orc/tasks directory was not created")
 	}
 
 	// Init again should fail without force
-	err = Init(false)
+	err = InitAt(tmpDir, false)
 	if err == nil {
-		t.Error("Init() should fail when already initialized")
+		t.Error("InitAt() should fail when already initialized")
 	}
 
 	// Init with force should succeed
-	err = Init(true)
+	err = InitAt(tmpDir, true)
 	if err != nil {
-		t.Fatalf("Init() with force failed: %v", err)
+		t.Fatalf("InitAt() with force failed: %v", err)
 	}
 }
 
 func TestIsInitialized(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
 	// Not initialized
-	if IsInitialized() {
-		t.Error("IsInitialized() = true before init")
+	if IsInitializedAt(tmpDir) {
+		t.Error("IsInitializedAt() = true before init")
 	}
 
 	// Initialize
-	Init(false)
+	InitAt(tmpDir, false)
 
 	// Now initialized
-	if !IsInitialized() {
-		t.Error("IsInitialized() = false after init")
+	if !IsInitializedAt(tmpDir) {
+		t.Error("IsInitializedAt() = false after init")
 	}
 }
 
 func TestRequireInit(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
 	// Should error before init
-	err := RequireInit()
+	err := RequireInitAt(tmpDir)
 	if err == nil {
-		t.Error("RequireInit() should error when not initialized")
+		t.Error("RequireInitAt() should error when not initialized")
 	}
 
 	// Initialize
-	Init(false)
+	InitAt(tmpDir, false)
 
 	// Should succeed after init
-	err = RequireInit()
+	err = RequireInitAt(tmpDir)
 	if err != nil {
-		t.Errorf("RequireInit() failed after init: %v", err)
+		t.Errorf("RequireInitAt() failed after init: %v", err)
 	}
 }
 

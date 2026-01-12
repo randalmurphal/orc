@@ -52,7 +52,7 @@ func (s *Server) handleRetryTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load task to get current state
-	t, err := task.Load(taskID)
+	t, err := task.LoadFrom(s.workDir, taskID)
 	if err != nil {
 		s.jsonError(w, "task not found: "+err.Error(), http.StatusNotFound)
 		return
@@ -67,7 +67,7 @@ func (s *Server) handleRetryTask(w http.ResponseWriter, r *http.Request) {
 	defer pdb.Close()
 
 	// Load state to get attempt number from retry context
-	st, _ := state.Load(taskID)
+	st, _ := state.LoadFrom(s.workDir, taskID)
 	attemptNumber := 1
 	if st != nil && st.RetryContext != nil {
 		attemptNumber = st.RetryContext.Attempt + 1
@@ -131,7 +131,7 @@ func (s *Server) handleGetRetryPreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load task to get current phase
-	t, err := task.Load(taskID)
+	t, err := task.LoadFrom(s.workDir, taskID)
 	if err != nil {
 		s.jsonError(w, "task not found: "+err.Error(), http.StatusNotFound)
 		return
@@ -153,7 +153,7 @@ func (s *Server) handleGetRetryPreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load state to get attempt number from retry context
-	st, _ := state.Load(taskID)
+	st, _ := state.LoadFrom(s.workDir, taskID)
 	attemptNumber := 1
 	if st != nil && st.RetryContext != nil {
 		attemptNumber = st.RetryContext.Attempt + 1
@@ -202,7 +202,7 @@ func (s *Server) handleRetryWithFeedback(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Load task
-	t, err := task.Load(taskID)
+	t, err := task.LoadFrom(s.workDir, taskID)
 	if err != nil {
 		s.jsonError(w, "task not found: "+err.Error(), http.StatusNotFound)
 		return
@@ -226,7 +226,7 @@ func (s *Server) handleRetryWithFeedback(w http.ResponseWriter, r *http.Request)
 	transcripts, _ := pdb.GetTranscripts(taskID)
 
 	// Load state to get attempt number from retry context
-	st, _ := state.Load(taskID)
+	st, _ := state.LoadFrom(s.workDir, taskID)
 	attemptNumber := 1
 	if st != nil && st.RetryContext != nil {
 		attemptNumber = st.RetryContext.Attempt + 1

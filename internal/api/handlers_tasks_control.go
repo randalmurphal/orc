@@ -25,7 +25,7 @@ func truncate(s string, maxLen int) string {
 // handleRunTask starts task execution.
 func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := task.Load(id)
+	t, err := task.LoadFrom(s.workDir, id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -45,13 +45,13 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load plan and state
-	p, err := plan.Load(id)
+	p, err := plan.LoadFrom(s.workDir, id)
 	if err != nil {
 		s.jsonError(w, "plan not found", http.StatusNotFound)
 		return
 	}
 
-	st, err := state.Load(id)
+	st, err := state.LoadFrom(s.workDir, id)
 	if err != nil {
 		// Create new state if it doesn't exist
 		st = state.New(id)
@@ -87,7 +87,7 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Reload and publish final state
-		if finalState, err := state.Load(id); err == nil {
+		if finalState, err := state.LoadFrom(s.workDir, id); err == nil {
 			s.Publish(id, Event{Type: "state", Data: finalState})
 		}
 	}()
@@ -98,14 +98,14 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 // handlePauseTask pauses task execution.
 func (s *Server) handlePauseTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := task.Load(id)
+	t, err := task.LoadFrom(s.workDir, id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
 	t.Status = task.StatusPaused
-	if err := t.Save(); err != nil {
+	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}
@@ -116,14 +116,14 @@ func (s *Server) handlePauseTask(w http.ResponseWriter, r *http.Request) {
 // handleResumeTask resumes task execution.
 func (s *Server) handleResumeTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := task.Load(id)
+	t, err := task.LoadFrom(s.workDir, id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
 	t.Status = task.StatusRunning
-	if err := t.Save(); err != nil {
+	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}
@@ -136,7 +136,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	// Verify task exists
-	if !task.Exists(id) {
+	if !task.ExistsIn(s.workDir, id) {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
@@ -169,7 +169,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Send initial state
-	if st, err := state.Load(id); err == nil {
+	if st, err := state.LoadFrom(s.workDir, id); err == nil {
 		data, _ := json.Marshal(st)
 		fmt.Fprintf(w, "event: state\ndata: %s\n\n", data)
 		if f, ok := w.(http.Flusher); ok {

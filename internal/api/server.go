@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -23,9 +24,10 @@ import (
 
 // Server is the orc API server.
 type Server struct {
-	addr   string
-	mux    *http.ServeMux
-	logger *slog.Logger
+	addr    string
+	workDir string // Project directory
+	mux     *http.ServeMux
+	logger  *slog.Logger
 
 	// Orc configuration
 	orcConfig *config.Config
@@ -54,15 +56,17 @@ type Event struct {
 
 // Config holds server configuration.
 type Config struct {
-	Addr   string
-	Logger *slog.Logger
+	Addr    string
+	WorkDir string // Project directory (defaults to ".")
+	Logger  *slog.Logger
 }
 
 // DefaultConfig returns the default server configuration.
 func DefaultConfig() *Config {
 	return &Config{
-		Addr:   ":8080",
-		Logger: slog.Default(),
+		Addr:    ":8080",
+		WorkDir: ".",
+		Logger:  slog.Default(),
 	}
 }
 
@@ -78,8 +82,15 @@ func New(cfg *Config) *Server {
 		logger = slog.Default()
 	}
 
-	// Load orc configuration
-	orcCfg, err := config.Load()
+	// Set default work directory
+	workDir := cfg.WorkDir
+	if workDir == "" {
+		workDir = "."
+	}
+
+	// Load orc configuration from the work directory
+	configPath := filepath.Join(workDir, ".orc", "config.yaml")
+	orcCfg, err := config.LoadFrom(configPath)
 	if err != nil {
 		logger.Warn("failed to load orc config, using defaults", "error", err)
 		orcCfg = config.Default()
@@ -90,6 +101,7 @@ func New(cfg *Config) *Server {
 
 	s := &Server{
 		addr:         cfg.Addr,
+		workDir:      workDir,
 		mux:          http.NewServeMux(),
 		logger:       logger,
 		orcConfig:    orcCfg,
@@ -379,13 +391,13 @@ func (s *Server) handleOrcError(w http.ResponseWriter, err *orcerrors.OrcError) 
 
 // pauseTask pauses a running task (called by WebSocket handler).
 func (s *Server) pauseTask(id string) (map[string]any, error) {
-	t, err := task.Load(id)
+	t, err := task.LoadFrom(s.workDir, id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
 	t.Status = task.StatusPaused
-	if err := t.Save(); err != nil {
+	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
@@ -397,7 +409,7 @@ func (s *Server) pauseTask(id string) (map[string]any, error) {
 
 // resumeTask resumes a paused task (called by WebSocket handler).
 func (s *Server) resumeTask(id string) (map[string]any, error) {
-	t, err := task.Load(id)
+	t, err := task.LoadFrom(s.workDir, id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
@@ -405,17 +417,17 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 	// If task was paused, restart execution
 	if t.Status == task.StatusPaused {
 		t.Status = task.StatusRunning
-		if err := t.Save(); err != nil {
+		if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
 			return nil, fmt.Errorf("failed to update task: %w", err)
 		}
 
 		// Resume execution
-		p, err := plan.Load(id)
+		p, err := plan.LoadFrom(s.workDir, id)
 		if err != nil {
 			return nil, fmt.Errorf("plan not found")
 		}
 
-		st, err := state.Load(id)
+		st, err := state.LoadFrom(s.workDir, id)
 		if err != nil {
 			return nil, fmt.Errorf("state not found")
 		}
@@ -465,13 +477,13 @@ func (s *Server) cancelTask(id string) (map[string]any, error) {
 		cancel()
 	}
 
-	t, err := task.Load(id)
+	t, err := task.LoadFrom(s.workDir, id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
 	t.Status = task.StatusFailed
-	if err := t.Save(); err != nil {
+	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
@@ -489,7 +501,10 @@ func (s *Server) Publisher() events.Publisher {
 
 // getProjectRoot returns the current project root directory.
 func (s *Server) getProjectRoot() string {
-	// Use current working directory as project root
+	// Use workDir if set, otherwise fall back to current working directory
+	if s.workDir != "" {
+		return s.workDir
+	}
 	wd, err := os.Getwd()
 	if err != nil {
 		return "."

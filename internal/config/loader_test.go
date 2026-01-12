@@ -9,16 +9,13 @@ import (
 func TestLoadWithSources_DefaultsOnly(t *testing.T) {
 	// Use a temp dir with no config files
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Use empty home to avoid picking up real user config
 	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Check defaults are loaded
@@ -34,26 +31,24 @@ func TestLoadWithSources_DefaultsOnly(t *testing.T) {
 
 func TestLoadWithSources_SharedConfig(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Use empty home to avoid picking up real user config
 	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
 
 	// Create shared config (.orc/config.yaml)
-	os.MkdirAll(".orc", 0755)
+	orcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(orcDir, 0755)
 	sharedConfig := `
 profile: strict
 model: claude-sonnet
 gates:
   default_type: human
 `
-	os.WriteFile(".orc/config.yaml", []byte(sharedConfig), 0644)
+	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(sharedConfig), 0644)
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Check shared config is loaded
@@ -86,23 +81,22 @@ gates:
 
 func TestLoadWithSources_SharedDirConfig(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Use empty home
 	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
 
 	// Create .orc/config.yaml with one value
-	os.MkdirAll(".orc/shared", 0755)
-	os.WriteFile(".orc/config.yaml", []byte("profile: safe\nmodel: model-a"), 0644)
+	orcDir := filepath.Join(tmpDir, ".orc")
+	sharedDir := filepath.Join(orcDir, "shared")
+	os.MkdirAll(sharedDir, 0755)
+	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("profile: safe\nmodel: model-a"), 0644)
 
 	// Create .orc/shared/config.yaml that overrides
-	os.WriteFile(".orc/shared/config.yaml", []byte("model: model-b"), 0644)
+	os.WriteFile(filepath.Join(sharedDir, "config.yaml"), []byte("model: model-b"), 0644)
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Profile from .orc/config.yaml (not overridden)
@@ -126,9 +120,6 @@ func TestLoadWithSources_SharedDirConfig(t *testing.T) {
 
 func TestLoadWithSources_PersonalConfig(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create a fake home directory
 	fakeHome := filepath.Join(tmpDir, "home")
@@ -145,9 +136,9 @@ retry:
 `
 	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"), []byte(userConfig), 0644)
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Check user config is loaded
@@ -169,9 +160,6 @@ retry:
 
 func TestLoadWithSources_LocalConfig(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create fake home with global personal config
 	fakeHome := filepath.Join(tmpDir, "home")
@@ -181,12 +169,13 @@ func TestLoadWithSources_LocalConfig(t *testing.T) {
 		[]byte("profile: safe\nmodel: global-model"), 0644)
 
 	// Create local personal config (.orc/local/config.yaml)
-	os.MkdirAll(".orc/local", 0755)
-	os.WriteFile(".orc/local/config.yaml", []byte("model: local-model"), 0644)
+	localDir := filepath.Join(tmpDir, ".orc", "local")
+	os.MkdirAll(localDir, 0755)
+	os.WriteFile(filepath.Join(localDir, "config.yaml"), []byte("model: local-model"), 0644)
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Profile from ~/.orc/config.yaml (not overridden)
@@ -210,25 +199,23 @@ func TestLoadWithSources_LocalConfig(t *testing.T) {
 
 func TestLoadWithSources_EnvOverrides(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Use empty home
 	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
 
 	// Create shared config
-	os.MkdirAll(".orc", 0755)
-	os.WriteFile(".orc/config.yaml", []byte("profile: auto"), 0644)
+	orcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(orcDir, 0755)
+	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("profile: auto"), 0644)
 
 	// Set env var
 	t.Setenv("ORC_PROFILE", "strict")
 	t.Setenv("ORC_MODEL", "claude-sonnet")
 	t.Setenv("ORC_RETRY_ENABLED", "false")
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Check env overrides everything
@@ -258,9 +245,6 @@ func TestLoadWithSources_EnvOverrides(t *testing.T) {
 // Personal settings (user preferences) override shared settings (team defaults).
 func TestLoadWithSources_PersonalBeatsShared(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create fake home
 	fakeHome := filepath.Join(tmpDir, "home")
@@ -272,13 +256,14 @@ func TestLoadWithSources_PersonalBeatsShared(t *testing.T) {
 		[]byte("profile: safe"), 0644)
 
 	// Shared config sets profile to strict (team default)
-	os.MkdirAll(".orc", 0755)
-	os.WriteFile(".orc/config.yaml",
+	orcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(orcDir, 0755)
+	os.WriteFile(filepath.Join(orcDir, "config.yaml"),
 		[]byte("profile: strict"), 0644)
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Personal should override shared
@@ -293,9 +278,6 @@ func TestLoadWithSources_PersonalBeatsShared(t *testing.T) {
 // TestLoadWithSources_RuntimeBeatsPersonal verifies runtime (env) beats personal.
 func TestLoadWithSources_RuntimeBeatsPersonal(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create fake home
 	fakeHome := filepath.Join(tmpDir, "home")
@@ -309,9 +291,9 @@ func TestLoadWithSources_RuntimeBeatsPersonal(t *testing.T) {
 	// Runtime (env) should win
 	t.Setenv("ORC_PROFILE", "strict")
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Runtime (env) should override personal
@@ -326,9 +308,6 @@ func TestLoadWithSources_RuntimeBeatsPersonal(t *testing.T) {
 // TestLoadWithSources_FullHierarchy tests all 4 levels together.
 func TestLoadWithSources_FullHierarchy(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create fake home
 	fakeHome := filepath.Join(tmpDir, "home")
@@ -336,8 +315,9 @@ func TestLoadWithSources_FullHierarchy(t *testing.T) {
 	t.Setenv("HOME", fakeHome)
 
 	// Level 3 (Shared): team defaults
-	os.MkdirAll(".orc", 0755)
-	os.WriteFile(".orc/config.yaml", []byte(`
+	orcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(orcDir, 0755)
+	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(`
 profile: auto
 model: shared-model
 max_iterations: 10
@@ -353,9 +333,9 @@ model: personal-model
 	// Level 1 (Runtime): env override
 	t.Setenv("ORC_MODEL", "runtime-model")
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Profile: personal beats shared
@@ -398,9 +378,6 @@ model: personal-model
 
 func TestLoadWithSources_SourcePathTracking(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create fake home
 	fakeHome := filepath.Join(tmpDir, "home")
@@ -408,14 +385,15 @@ func TestLoadWithSources_SourcePathTracking(t *testing.T) {
 	t.Setenv("HOME", fakeHome)
 
 	// Create configs
-	os.MkdirAll(".orc", 0755)
-	os.WriteFile(".orc/config.yaml", []byte("profile: strict"), 0644)
+	orcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(orcDir, 0755)
+	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("profile: strict"), 0644)
 	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
 		[]byte("model: my-model"), 0644)
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Check TrackedSource includes file path
@@ -438,17 +416,14 @@ func TestLoadWithSources_SourcePathTracking(t *testing.T) {
 
 func TestLoadWithSources_MissingFilesOK(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Use empty home - no config files anywhere
 	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
 
 	// No .orc directory, no config files - should still work with defaults
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed with missing files: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed with missing files: %v", err)
 	}
 
 	// Should have defaults
@@ -673,9 +648,6 @@ func TestBackwardCompatibility_DeprecatedSources(t *testing.T) {
 // TestLoadWithSources_EnvSourceHasNoPath verifies that env var sources have empty path.
 func TestLoadWithSources_EnvSourceHasNoPath(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Use empty home
 	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
@@ -683,9 +655,9 @@ func TestLoadWithSources_EnvSourceHasNoPath(t *testing.T) {
 	// Set env var
 	t.Setenv("ORC_PROFILE", "strict")
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Env source should have empty path
@@ -793,15 +765,13 @@ func TestApplyEnvVars_Database(t *testing.T) {
 
 func TestLoadWithSources_DatabaseConfig(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Use empty home
 	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
 
 	// Create shared config with database settings
-	os.MkdirAll(".orc", 0755)
+	orcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(orcDir, 0755)
 	dbConfig := `
 database:
   driver: postgres
@@ -812,11 +782,11 @@ database:
     user: team_user
     ssl_mode: require
 `
-	os.WriteFile(".orc/config.yaml", []byte(dbConfig), 0644)
+	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(dbConfig), 0644)
 
-	tc, err := LoadWithSources()
+	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadWithSources failed: %v", err)
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
 	// Check database config is loaded

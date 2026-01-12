@@ -3,13 +3,20 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"path/filepath"
 
 	"github.com/randalmurphal/orc/internal/prompt"
 )
 
+// promptService returns a prompt service for the current project.
+func (s *Server) promptService() *prompt.Service {
+	orcDir := filepath.Join(s.workDir, ".orc")
+	return prompt.NewService(orcDir)
+}
+
 // handleListPrompts returns all available prompts.
 func (s *Server) handleListPrompts(w http.ResponseWriter, r *http.Request) {
-	svc := prompt.DefaultService()
+	svc := s.promptService()
 	prompts, err := svc.List()
 	if err != nil {
 		s.jsonError(w, "failed to list prompts", http.StatusInternalServerError)
@@ -28,7 +35,7 @@ func (s *Server) handleGetPromptVariables(w http.ResponseWriter, r *http.Request
 // handleGetPrompt returns a specific prompt by phase.
 func (s *Server) handleGetPrompt(w http.ResponseWriter, r *http.Request) {
 	phase := r.PathValue("phase")
-	svc := prompt.DefaultService()
+	svc := s.promptService()
 
 	p, err := svc.Get(phase)
 	if err != nil {
@@ -42,7 +49,7 @@ func (s *Server) handleGetPrompt(w http.ResponseWriter, r *http.Request) {
 // handleGetPromptDefault returns the embedded default prompt for a phase.
 func (s *Server) handleGetPromptDefault(w http.ResponseWriter, r *http.Request) {
 	phase := r.PathValue("phase")
-	svc := prompt.DefaultService()
+	svc := s.promptService()
 
 	p, err := svc.GetDefault(phase)
 	if err != nil {
@@ -71,7 +78,7 @@ func (s *Server) handleSavePrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	svc := prompt.DefaultService()
+	svc := s.promptService()
 	if err := svc.Save(phase, req.Content); err != nil {
 		s.jsonError(w, "failed to save prompt", http.StatusInternalServerError)
 		return
@@ -90,7 +97,7 @@ func (s *Server) handleSavePrompt(w http.ResponseWriter, r *http.Request) {
 // handleDeletePrompt deletes a project prompt override.
 func (s *Server) handleDeletePrompt(w http.ResponseWriter, r *http.Request) {
 	phase := r.PathValue("phase")
-	svc := prompt.DefaultService()
+	svc := s.promptService()
 
 	// Check if override exists
 	if !svc.HasOverride(phase) {

@@ -13,6 +13,7 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // === Retry Handler Tests ===
@@ -22,12 +23,10 @@ func setupRetryTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) (
 	t.Helper()
 
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
 
 	// Create task directory
 	taskID = "TASK-RETRY-001"
-	taskDir := filepath.Join(".orc", "tasks", taskID)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
 	os.MkdirAll(taskDir, 0755)
 
 	// Create task.yaml
@@ -72,10 +71,10 @@ tokens:
 		opt(t, tmpDir, taskID)
 	}
 
-	srv = New(nil)
+	srv = New(&Config{WorkDir: tmpDir})
 
 	cleanup = func() {
-		os.Chdir(origDir)
+		// No cleanup needed - t.TempDir() handles cleanup
 	}
 
 	return srv, taskID, cleanup
@@ -115,7 +114,7 @@ func withRetryContext(attempt int) func(*testing.T, string, string) {
 	return func(t *testing.T, tmpDir, taskID string) {
 		t.Helper()
 
-		st, err := state.Load(taskID)
+		st, err := state.LoadFrom(tmpDir, taskID)
 		if err != nil {
 			// Create new state if loading fails
 			st = state.New(taskID)
@@ -129,7 +128,8 @@ func withRetryContext(attempt int) func(*testing.T, string, string) {
 			ContextFile:   "",
 		}
 
-		if err := st.Save(); err != nil {
+		taskDir := task.TaskDirIn(tmpDir, taskID)
+		if err := st.SaveTo(taskDir); err != nil {
 			t.Fatalf("failed to save state with retry context: %v", err)
 		}
 	}
@@ -784,11 +784,8 @@ func TestRetryPreviewResponse_Structure(t *testing.T) {
 
 func TestHandleRetryTask_EmptyTaskID(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	// Empty task ID in URL - Go mux may redirect or return 404
 	req := httptest.NewRequest("POST", "/api/tasks//retry", nil)
@@ -805,13 +802,10 @@ func TestHandleRetryTask_EmptyTaskID(t *testing.T) {
 
 func TestHandleRetryTask_NoState(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task without state file
 	taskID := "TASK-NOSTATE"
-	taskDir := filepath.Join(".orc", "tasks", taskID)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := fmt.Sprintf(`id: %s
@@ -823,7 +817,7 @@ updated_at: 2025-01-01T00:00:00Z
 `, taskID)
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/retry", taskID), nil)
 	w := httptest.NewRecorder()

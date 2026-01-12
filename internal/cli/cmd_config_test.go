@@ -1,5 +1,11 @@
 package cli
 
+// NOTE: Tests in this file use os.Chdir() which is process-wide and not goroutine-safe.
+// These tests MUST NOT use t.Parallel() and run sequentially within this package.
+// This is necessary because the CLI commands internally call config.LoadWithSources()
+// which uses os.Getwd() to find the project root. There is currently no environment
+// variable or parameter to override this behavior.
+
 import (
 	"bytes"
 	"os"
@@ -10,8 +16,28 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 )
 
-func TestConfigShowCmd_OutputsValidYAML(t *testing.T) {
+// withTempDir creates a temp directory, changes to it, and restores the original
+// working directory when the test completes. It calls t.Fatal on any error.
+func withTempDir(t *testing.T) string {
+	t.Helper()
 	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir to temp dir: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+	return tmpDir
+}
+
+func TestConfigShowCmd_OutputsValidYAML(t *testing.T) {
+	tmpDir := withTempDir(t)
 
 	// Create .orc directory with config
 	orcDir := filepath.Join(tmpDir, ".orc")
@@ -26,11 +52,6 @@ model: test-model
 	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
-
-	// Change to temp dir
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
 
 	// Capture output
 	var buf bytes.Buffer
@@ -58,7 +79,7 @@ model: test-model
 }
 
 func TestConfigShowCmd_WithSource(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
@@ -70,10 +91,6 @@ func TestConfigShowCmd_WithSource(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
-
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
 
 	var buf bytes.Buffer
 	cmd := newConfigShowCmd()
@@ -99,7 +116,7 @@ func TestConfigShowCmd_WithSource(t *testing.T) {
 }
 
 func TestConfigGetCmd_RetrievesNestedKeys(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
@@ -114,10 +131,6 @@ retry:
 	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
-
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
 
 	tests := []struct {
 		key  string
@@ -149,7 +162,7 @@ retry:
 }
 
 func TestConfigGetCmd_WithSource(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
@@ -161,10 +174,6 @@ func TestConfigGetCmd_WithSource(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
-
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
 
 	var buf bytes.Buffer
 	cmd := newConfigGetCmd()
@@ -189,17 +198,13 @@ func TestConfigGetCmd_WithSource(t *testing.T) {
 }
 
 func TestConfigSetCmd_WritesToCorrectFile(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	// Create .orc directory
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc dir: %v", err)
 	}
-
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
 
 	// Test setting to project config
 	var buf bytes.Buffer
@@ -235,17 +240,13 @@ func TestConfigSetCmd_WritesToCorrectFile(t *testing.T) {
 }
 
 func TestConfigSetCmd_WritesToShared(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	sharedDir := filepath.Join(orcDir, "shared")
 	if err := os.MkdirAll(sharedDir, 0755); err != nil {
 		t.Fatalf("create shared dir: %v", err)
 	}
-
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
 
 	var buf bytes.Buffer
 	cmd := newConfigSetCmd()
@@ -271,7 +272,7 @@ func TestConfigSetCmd_WritesToShared(t *testing.T) {
 }
 
 func TestConfigResolutionCmd_ShowsAllLevels(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
@@ -283,10 +284,6 @@ func TestConfigResolutionCmd_ShowsAllLevels(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
-
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
 
 	var buf bytes.Buffer
 	cmd := newConfigResolutionCmd()
@@ -389,17 +386,11 @@ func TestFormatResolutionPath(t *testing.T) {
 }
 
 func TestConfigGetCmd_InvalidKey(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc dir: %v", err)
-	}
-
-	oldWd, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldWd) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("chdir: %v", err)
 	}
 
 	var buf bytes.Buffer
@@ -415,17 +406,11 @@ func TestConfigGetCmd_InvalidKey(t *testing.T) {
 }
 
 func TestConfigSetCmd_InvalidKey(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc dir: %v", err)
-	}
-
-	oldWd, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldWd) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("chdir: %v", err)
 	}
 
 	var buf bytes.Buffer
@@ -441,17 +426,11 @@ func TestConfigSetCmd_InvalidKey(t *testing.T) {
 }
 
 func TestConfigSetCmd_MutuallyExclusiveFlags(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc dir: %v", err)
-	}
-
-	oldWd, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldWd) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("chdir: %v", err)
 	}
 
 	var buf bytes.Buffer
@@ -470,7 +449,7 @@ func TestConfigSetCmd_MutuallyExclusiveFlags(t *testing.T) {
 }
 
 func TestConfigSetCmd_WritesToUser(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	// Create .orc directory for project
 	orcDir := filepath.Join(tmpDir, ".orc")
@@ -485,18 +464,8 @@ func TestConfigSetCmd_WritesToUser(t *testing.T) {
 		t.Fatalf("create user .orc dir: %v", err)
 	}
 
-	// Save old HOME and set new
-	oldHome := os.Getenv("HOME")
-	if err := os.Setenv("HOME", homeDir); err != nil {
-		t.Fatalf("set HOME: %v", err)
-	}
-	defer func() { _ = os.Setenv("HOME", oldHome) }()
-
-	oldWd, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldWd) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
+	// Set HOME to fake home dir (uses t.Setenv for automatic cleanup)
+	t.Setenv("HOME", homeDir)
 
 	var buf bytes.Buffer
 	cmd := newConfigSetCmd()
@@ -533,17 +502,11 @@ func TestConfigSetCmd_WritesToUser(t *testing.T) {
 func TestConfigResolutionCmd_UnknownKey(t *testing.T) {
 	// Resolution for unknown keys shows the chain with empty values
 	// This is expected behavior - it doesn't error, just shows nothing is set
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc dir: %v", err)
-	}
-
-	oldWd, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldWd) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("chdir: %v", err)
 	}
 
 	var buf bytes.Buffer
@@ -569,17 +532,11 @@ func TestConfigResolutionCmd_UnknownKey(t *testing.T) {
 }
 
 func TestConfigResolutionCmd_FormatsRuntimeEntries(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := withTempDir(t)
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc dir: %v", err)
-	}
-
-	oldWd, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldWd) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("chdir: %v", err)
 	}
 
 	var buf bytes.Buffer

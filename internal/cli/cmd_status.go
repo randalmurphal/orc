@@ -185,7 +185,7 @@ func showStatus(showAll bool) error {
 }
 
 func watchStatus(showAll bool) error {
-	fmt.Println("Watching status (Ctrl+C to stop)...\n")
+	fmt.Println("Watching status (Ctrl+C to stop)...")
 	for {
 		// Clear screen
 		fmt.Print("\033[H\033[2J")

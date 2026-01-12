@@ -289,21 +289,21 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load task
-	t, err := task.Load(taskID)
+	t, err := task.LoadFrom(s.workDir, taskID)
 	if err != nil {
 		s.jsonError(w, "task not found: "+err.Error(), http.StatusNotFound)
 		return
 	}
 
 	// Load plan
-	p, err := plan.Load(taskID)
+	p, err := plan.LoadFrom(s.workDir, taskID)
 	if err != nil {
 		s.jsonError(w, "plan not found: "+err.Error(), http.StatusNotFound)
 		return
 	}
 
 	// Load or create state
-	st, err := state.Load(taskID)
+	st, err := state.LoadFrom(s.workDir, taskID)
 	if err != nil {
 		st = state.New(taskID)
 	}
@@ -337,11 +337,12 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 	st.CompletedAt = nil
 
 	// Save plan and state
-	if err := p.Save(taskID); err != nil {
+	taskDir := task.TaskDirIn(s.workDir, taskID)
+	if err := p.SaveTo(taskDir); err != nil {
 		s.jsonError(w, "failed to save plan: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := st.Save(); err != nil {
+	if err := st.SaveTo(taskDir); err != nil {
 		s.jsonError(w, "failed to save state: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -349,7 +350,7 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 	// Reset task status to allow re-running
 	t.Status = task.StatusRunning
 	t.CompletedAt = nil
-	if err := t.Save(); err != nil {
+	if err := t.SaveTo(task.TaskDirIn(s.workDir, taskID)); err != nil {
 		s.jsonError(w, "failed to update task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -396,7 +397,7 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Reload and publish final state
-		if finalState, loadErr := state.Load(taskID); loadErr == nil {
+		if finalState, loadErr := state.LoadFrom(s.workDir, taskID); loadErr == nil {
 			s.Publish(taskID, Event{Type: "state", Data: finalState})
 		}
 	}()

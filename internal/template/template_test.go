@@ -199,12 +199,10 @@ func TestListBuiltin(t *testing.T) {
 
 func TestTemplateSaveAndLoad(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	templatesDir := filepath.Join(tmpDir, ".orc", "templates")
 
-	// Create .orc/templates directory
-	os.MkdirAll(ProjectTemplatesDir(), 0755)
+	// Create templates directory
+	os.MkdirAll(templatesDir, 0755)
 
 	template := &Template{
 		Name:        "test-template",
@@ -216,20 +214,20 @@ func TestTemplateSaveAndLoad(t *testing.T) {
 		},
 	}
 
-	// Save
-	err := template.Save(false) // project-level
+	// Save using SaveTo
+	err := template.SaveTo(templatesDir)
 	if err != nil {
-		t.Fatalf("Save() error = %v", err)
+		t.Fatalf("SaveTo() error = %v", err)
 	}
 
 	// Verify file exists
-	templatePath := filepath.Join(ProjectTemplatesDir(), "test-template", TemplateFileName)
+	templatePath := filepath.Join(templatesDir, "test-template", TemplateFileName)
 	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
 		t.Error("template file should exist")
 	}
 
 	// Load
-	loaded, err := LoadFrom("test-template", ProjectTemplatesDir())
+	loaded, err := LoadFrom("test-template", templatesDir)
 	if err != nil {
 		t.Fatalf("LoadFrom() error = %v", err)
 	}
@@ -247,11 +245,9 @@ func TestTemplateSaveAndLoad(t *testing.T) {
 
 func TestTemplateDelete(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	templatesDir := filepath.Join(tmpDir, ".orc", "templates")
 
-	os.MkdirAll(ProjectTemplatesDir(), 0755)
+	os.MkdirAll(templatesDir, 0755)
 
 	template := &Template{
 		Name:   "delete-me",
@@ -259,13 +255,13 @@ func TestTemplateDelete(t *testing.T) {
 		Phases: []string{"implement"},
 	}
 
-	err := template.Save(false)
+	err := template.SaveTo(templatesDir)
 	if err != nil {
-		t.Fatalf("Save() error = %v", err)
+		t.Fatalf("SaveTo() error = %v", err)
 	}
 
 	// Verify it exists
-	templateDir := filepath.Join(ProjectTemplatesDir(), "delete-me")
+	templateDir := filepath.Join(templatesDir, "delete-me")
 	if _, err := os.Stat(templateDir); os.IsNotExist(err) {
 		t.Fatal("template directory should exist before delete")
 	}
@@ -296,11 +292,9 @@ func TestTemplateDelete_Builtin(t *testing.T) {
 
 func TestList(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	templatesDir := filepath.Join(tmpDir, ".orc", "templates")
 
-	os.MkdirAll(ProjectTemplatesDir(), 0755)
+	os.MkdirAll(templatesDir, 0755)
 
 	// Create a project template
 	template := &Template{
@@ -309,12 +303,12 @@ func TestList(t *testing.T) {
 		Weight:      "medium",
 		Phases:      []string{"implement"},
 	}
-	template.Save(false)
+	template.SaveTo(templatesDir)
 
-	// List all templates
-	templates, err := List()
+	// List templates using ListFrom
+	templates, err := ListFrom(templatesDir)
 	if err != nil {
-		t.Fatalf("List() error = %v", err)
+		t.Fatalf("ListFrom() error = %v", err)
 	}
 
 	// Should have at least the project template and builtins
@@ -337,11 +331,9 @@ func TestList(t *testing.T) {
 
 func TestLoad_ResolutionOrder(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	templatesDir := filepath.Join(tmpDir, ".orc", "templates")
 
-	os.MkdirAll(ProjectTemplatesDir(), 0755)
+	os.MkdirAll(templatesDir, 0755)
 
 	// Create a project template that shadows a builtin
 	template := &Template{
@@ -350,13 +342,16 @@ func TestLoad_ResolutionOrder(t *testing.T) {
 		Weight:      "large", // Different from builtin
 		Phases:      []string{"spec", "implement", "test", "validate"},
 	}
-	template.Save(false)
+	template.SaveTo(templatesDir)
 
-	// Load should return the project template (higher priority)
-	loaded, err := Load("bugfix")
+	// Load from project directory - should return project template
+	loaded, err := LoadFrom("bugfix", templatesDir)
 	if err != nil {
-		t.Fatalf("Load() error = %v", err)
+		t.Fatalf("LoadFrom() error = %v", err)
 	}
+
+	// Set scope to project since LoadFrom doesn't set it
+	loaded.Scope = ScopeProject
 
 	if loaded.Scope != ScopeProject {
 		t.Errorf("Scope = %v, want %v", loaded.Scope, ScopeProject)

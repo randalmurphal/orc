@@ -1,5 +1,11 @@
 package cli
 
+// NOTE: Tests in this file use os.Chdir() which is process-wide and not goroutine-safe.
+// These tests MUST NOT use t.Parallel() and run sequentially within this package.
+// This is necessary because runTeamInit() calls findProjectRoot() which uses os.Getwd()
+// to locate the .orc directory. There is currently no environment variable or parameter
+// to override this behavior.
+
 import (
 	"os"
 	"path/filepath"
@@ -7,6 +13,27 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+// withTempDirForTeam creates a temp directory, changes to it, and restores the original
+// working directory when the test completes. It calls t.Fatal on any error.
+// This is duplicated from cmd_config_test.go to keep tests self-contained.
+func withTempDirForTeam(t *testing.T) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir to temp dir: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+	return tmpDir
+}
 
 func TestLoadTeamRegistry(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -102,22 +129,10 @@ func TestSaveTeamRegistry(t *testing.T) {
 }
 
 func TestTeamInitCreatesDirectoryStructure(t *testing.T) {
-	// Save and restore working directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("get cwd: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
-
-	tmpDir := t.TempDir()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
+	tmpDir := withTempDirForTeam(t)
 
 	// Create .orc directory so findProjectRoot can find it
-	if err := os.MkdirAll(".orc", 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
 		t.Fatalf("mkdir .orc: %v", err)
 	}
 
@@ -184,27 +199,15 @@ func TestTeamInitCreatesDirectoryStructure(t *testing.T) {
 }
 
 func TestTeamInitFailsWithoutForce(t *testing.T) {
-	// Save and restore working directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("get cwd: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
-
-	tmpDir := t.TempDir()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
+	tmpDir := withTempDirForTeam(t)
 
 	// Create .orc/shared directory (both .orc for findProjectRoot and shared for the test)
-	if err := os.MkdirAll(".orc/shared", 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc/shared"), 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 
 	// Should fail without force
-	err = runTeamInit(false)
+	err := runTeamInit(false)
 	if err == nil {
 		t.Error("expected error when shared directory exists")
 	}
