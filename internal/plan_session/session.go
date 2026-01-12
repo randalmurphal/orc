@@ -193,17 +193,25 @@ func runTaskMode(ctx context.Context, taskID string, opts Options, detection *db
 		TaskID: taskID,
 	}
 
-	// Find the spec file
-	specPath := task.SpecPath(taskID)
+	// Find the spec file (use path-aware function)
+	specPath := task.SpecPathIn(opts.WorkDir, taskID)
 	if _, err := os.Stat(specPath); err == nil {
 		result.SpecPath = specPath
 
 		// Validate spec if not skipped
 		if !opts.SkipValidation {
-			spec, err := task.LoadSpec(taskID)
+			spec, err := task.LoadSpecIn(opts.WorkDir, taskID)
 			if err == nil && spec != nil {
 				result.ValidationResult = ValidateSpec(spec.Content, t.Weight)
 			}
+		}
+
+		// Update task status to planned (spec created)
+		t.Status = task.StatusPlanned
+		taskDir := task.TaskDirIn(opts.WorkDir, taskID)
+		if saveErr := t.SaveTo(taskDir); saveErr != nil {
+			// Log but don't fail - spec was created successfully
+			fmt.Fprintf(os.Stderr, "Warning: could not update task status: %v\n", saveErr)
 		}
 	}
 

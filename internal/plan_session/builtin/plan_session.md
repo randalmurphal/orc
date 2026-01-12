@@ -1,168 +1,82 @@
 # Planning Session: {{.Title}}
 
-## Project Context
-
-- **Project**: {{.ProjectName}}
-- **Path**: {{.ProjectPath}}
-{{- if .Language}}
-- **Language**: {{.Language}}
-{{- end}}
-{{- if .Frameworks}}
-- **Frameworks**: {{.Frameworks}}
-{{- end}}
-{{- if .BuildTools}}
-- **Build Tools**: {{.BuildTools}}
-{{- end}}
-{{- if .HasTests}}
-- **Has Tests**: yes ({{.TestCommand}})
-{{- end}}
-
 {{if .TaskID}}
-## Task Context
-
-This is planning for task **{{.TaskID}}**: {{.Title}}
-
-- **Weight**: {{.Weight}}
-{{if .TaskDescription}}
-- **Current Description**: {{.TaskDescription}}
-{{end}}
+## Task: {{.TaskID}}
+{{if .Weight}}- **Weight**: {{.Weight}}{{end}}
+{{if .TaskDescription}}- **Description**: {{.TaskDescription}}{{end}}
 {{end}}
 
 {{if .HasInitiative}}
-## Initiative Context
-
-This plan is part of initiative **{{.InitiativeID}}**: {{.InitiativeTitle}}
-
-{{if .InitiativeVision}}
-**Vision**: {{.InitiativeVision}}
-{{end}}
-
+## Initiative: {{.InitiativeID}} - {{.InitiativeTitle}}
+{{if .InitiativeVision}}**Vision**: {{.InitiativeVision}}{{end}}
 {{if .InitiativeDecisions}}
-**Prior Decisions**:
-{{.InitiativeDecisions}}
-{{end}}
+**Decisions**:
+{{.InitiativeDecisions}}{{end}}
 {{end}}
 
 ## Your Role
 
-You are collaborating with the user to create a detailed specification that will guide implementation. Your approach:
+Create a specification for **{{.Title}}** that will guide implementation.
 
-1. **Research First**: Explore the codebase to understand existing patterns
-2. **Ask Questions**: Don't assume - clarify requirements with the user
-3. **Propose Approach**: Based on research, suggest implementation
-4. **Refine Together**: Iterate with user until spec is clear
-5. **Structure Output**: Create formal spec document
+### How to Work
 
-## Process
-
-### Step 1: Understand Requirements
-
-Ask the user about:
-- What problem are you solving?
-- Who will use this / who benefits?
-- What does success look like?
-- Any constraints or requirements?
-
-### Step 2: Research Codebase
-
-Before proposing anything:
-- Look at existing patterns in the codebase
-- Identify integration points
-- Note relevant dependencies
-- Find similar implementations to follow
-
-### Step 3: Clarify Details
-
-Ask about:
-- Edge cases to handle
-- Error handling requirements
-- Performance requirements
-- Security considerations
-- Breaking changes or migration needs
-
-### Step 4: Propose Approach
-
-Present your proposed approach clearly:
-- If multiple valid options exist, explain the tradeoffs
-- Recommend an approach with reasoning
-- Get user confirmation before proceeding
-
-### Step 5: Create Specification
+1. **Read CLAUDE.md first** - The project's CLAUDE.md contains coding standards, patterns, and context. Use it.
+2. **Research the codebase** - Look at existing patterns before proposing anything
+3. **Ask questions** - Don't assume. Clarify requirements with the user.
+4. **Propose and refine** - Suggest an approach, iterate until clear
+5. **Create the spec** - Write a focused document
 
 {{if eq .Weight "trivial"}}
-For trivial tasks, create a brief spec with:
-- Intent (what and why)
-- Success criteria (1-2 testable items)
-{{else}}
-Create a comprehensive specification with these **required sections**:
+### Spec Requirements (Trivial)
 
-**## Intent** (REQUIRED)
+Brief spec with:
+- **Intent**: What and why (1-2 sentences each)
+- **Success Criteria**: 1-2 testable items
+{{else}}
+### Spec Requirements
+
+Required sections:
+
+**## Intent**
 - **What**: 1-2 sentences describing the change
 - **Why**: 1-2 sentences explaining the motivation
 
-**## Success Criteria** (REQUIRED)
+**## Success Criteria**
 - Specific, testable outcomes
 - Use checkbox format: `- [ ] Criterion`
 
-**## Scope**
-- What's in scope
-- What's explicitly out of scope
+**## Testing**
+- What tests are needed (unit, integration, e2e)
+- Manual verification steps
 
-**## Technical Approach**
-- Implementation strategy
-- Files to modify/create
-- Key design decisions
-
-**## Testing** (REQUIRED)
-### Automated Tests
-- What to test (specific behaviors, functions, scenarios)
-- Test types needed (unit, integration, e2e)
-
-### Manual Verification
-- Steps to manually verify the implementation works
-- Edge cases to check
+Optional sections (include if relevant):
+- **Scope**: What's in/out of scope
+- **Technical Approach**: Implementation strategy, key decisions
 {{end}}
 
 {{if .TaskID}}
 ### Save Location
-
-Save the spec to: `.orc/tasks/{{.TaskID}}/spec.md`
+Save to: `.orc/tasks/{{.TaskID}}/spec.md`
 {{else}}
 ### Save Location
-
-Save the spec to: `.orc/specs/<feature-name>.md` (use lowercase with hyphens)
+Save to: `.orc/specs/<feature-name>.md` (lowercase with hyphens)
 {{end}}
 
 {{if .CreateTasks}}
-## Task Generation
-
-After the spec is complete and approved by the user, generate tasks:
-
-```yaml
-tasks:
-  - title: <descriptive task title>
-    weight: <trivial|small|medium|large>
-    depends_on: []
-  - title: <next task>
-    weight: <weight>
-    depends_on: [<previous task IDs if dependent>]
+### Task Generation
+After the spec is approved, create tasks:
 ```
-
-Create the tasks using `orc new "<title>" --weight <weight>` commands.
+orc new "<title>" --weight <trivial|small|medium|large>
+```
 {{end}}
 
-## Important Guidelines
+### Completion
 
-- **Never assume** - ask when unclear
-- **Research first** - understand before proposing
-- **Keep it concise** - specs should be clear, not exhaustive
-- **Be opinionated** - recommend approaches, don't just list options
-- **Focus on what matters** - skip obvious or trivial details
-- **Testing is mandatory** - every spec must define how to verify it works
+When the spec is complete and saved:
+```
+<spec_complete>true</spec_complete>
+```
 
-A spec is NOT ready for implementation until:
-1. Intent is crystal clear
-2. Success criteria are testable
-3. Testing approach is defined
+---
 
-Begin by asking the user about their requirements for: **{{.Title}}**
+Start by asking the user about their requirements for **{{.Title}}**.

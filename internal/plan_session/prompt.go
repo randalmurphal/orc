@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -14,6 +15,9 @@ import (
 
 //go:embed builtin/plan_session.md
 var builtinPromptTemplate string
+
+// PromptOverridePath is the path to the user-overridable prompt template.
+const PromptOverridePath = ".orc/prompts/plan.md"
 
 // PromptData contains the data used to generate the planning prompt.
 type PromptData struct {
@@ -47,6 +51,15 @@ type PromptData struct {
 
 // GeneratePrompt creates the planning session prompt.
 func GeneratePrompt(data PromptData) (string, error) {
+	// Load template (check for override first)
+	templateContent := builtinPromptTemplate
+	if data.WorkDir != "" {
+		overridePath := filepath.Join(data.WorkDir, PromptOverridePath)
+		if content, err := os.ReadFile(overridePath); err == nil {
+			templateContent = string(content)
+		}
+	}
+
 	// Build template data
 	tmplData := map[string]any{
 		"Mode":        string(data.Mode),
@@ -82,7 +95,7 @@ func GeneratePrompt(data PromptData) (string, error) {
 	}
 
 	// Parse and execute template
-	tmpl, err := template.New("plan").Parse(builtinPromptTemplate)
+	tmpl, err := template.New("plan").Parse(templateContent)
 	if err != nil {
 		return "", fmt.Errorf("parse template: %w", err)
 	}

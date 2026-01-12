@@ -36,6 +36,11 @@ func SpecPath(taskID string) string {
 	return filepath.Join(OrcDir, TasksDir, taskID, "spec.md")
 }
 
+// SpecPathIn returns the path to the spec file for a task in a specific directory.
+func SpecPathIn(workDir, taskID string) string {
+	return filepath.Join(workDir, OrcDir, TasksDir, taskID, "spec.md")
+}
+
 // SpecMetadataPath returns the path to the spec metadata file.
 func SpecMetadataPath(taskID string) string {
 	return filepath.Join(OrcDir, TasksDir, taskID, "spec_meta.yaml")
@@ -260,6 +265,24 @@ func HasValidSpec(taskID string, weight Weight) bool {
 
 	result := ValidateSpec(spec.Content, weight)
 	return result.Valid
+}
+
+// HasValidSpecIn checks if a task has a valid spec file in a specific directory.
+func HasValidSpecIn(workDir, taskID string, weight Weight) bool {
+	taskDir := filepath.Join(workDir, OrcDir, TasksDir, taskID)
+	spec, err := LoadSpecFrom(taskDir)
+	if err != nil || spec == nil {
+		return false
+	}
+
+	result := ValidateSpec(spec.Content, weight)
+	return result.Valid
+}
+
+// LoadSpecIn loads a spec from a task in a specific working directory.
+func LoadSpecIn(workDir, taskID string) (*Spec, error) {
+	taskDir := filepath.Join(workDir, OrcDir, TasksDir, taskID)
+	return LoadSpecFrom(taskDir)
 }
 
 // hasSection checks if a markdown section with the given name exists.
