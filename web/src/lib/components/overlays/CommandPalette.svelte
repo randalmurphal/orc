@@ -171,6 +171,17 @@
 			category: 'Environment'
 		},
 		{
+			id: 'go-knowledge',
+			label: 'Go to Knowledge',
+			description: 'Knowledge queue (patterns, gotchas, decisions)',
+			icon: '\uD83D\uDCDA', // 📚
+			action: () => {
+				onClose();
+				goto('/environment/knowledge');
+			},
+			category: 'Environment'
+		},
+		{
 			id: 'go-docs',
 			label: 'Go to Documentation',
 			description: 'CLAUDE.md hierarchy',

@@ -176,6 +176,14 @@ func Run(opts Options) (*Result, error) {
 		fmt.Printf("Updated: CLAUDE.md (orc workflow documentation)\n")
 	}
 
+	// 10. Inject knowledge section into CLAUDE.md
+	if err := InjectKnowledgeSection(opts.WorkDir); err != nil {
+		// Non-fatal - just warn
+		fmt.Fprintf(os.Stderr, "Warning: could not add knowledge section to CLAUDE.md: %v\n", err)
+	} else {
+		fmt.Printf("Updated: CLAUDE.md (knowledge capture section)\n")
+	}
+
 	return &Result{
 		Duration:     time.Since(start),
 		ProjectID:    proj.ID,

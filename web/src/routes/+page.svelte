@@ -733,45 +733,6 @@
 		margin-top: var(--space-2);
 	}
 
-	/* Pagination */
-	.pagination {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: var(--space-2);
-		margin-top: var(--space-6);
-		padding-top: var(--space-6);
-		border-top: 1px solid var(--border-subtle);
-	}
-
-	.page-btn {
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border-default);
-		border-radius: var(--radius-md);
-		font-size: var(--text-sm);
-		color: var(--text-secondary);
-		cursor: pointer;
-		transition: all var(--duration-fast) var(--ease-out);
-	}
-
-	.page-btn:hover:not(:disabled) {
-		background: var(--bg-tertiary);
-		border-color: var(--accent-primary);
-		color: var(--text-primary);
-	}
-
-	.page-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.page-info {
-		font-size: var(--text-sm);
-		color: var(--text-muted);
-		padding: 0 var(--space-4);
-	}
-
 	/* New Task Form */
 	.new-task-form {
 		padding: var(--space-5);

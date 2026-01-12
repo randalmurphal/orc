@@ -81,6 +81,30 @@ Ensure CLAUDE.md files are:
 - All examples are runnable
 - No TODO/FIXME placeholders in final docs
 
+### Step 6: Update Project Knowledge
+
+Review what you learned during this task and update CLAUDE.md's knowledge section.
+
+Look for the section between `<!-- orc:knowledge:begin -->` and `<!-- orc:knowledge:end -->`:
+
+1. **Patterns Learned**: If you established a reusable code pattern, add a row to the table
+   - Pattern name, brief description, task ID as source
+   - Example: `| Functional options | Config via With* functions | TASK-003 |`
+
+2. **Known Gotchas**: If something didn't work as expected, document the resolution
+   - What the issue was, how to resolve it, task ID
+   - Example: `| SQLite locks | Use WAL mode | TASK-002 |`
+
+3. **Decisions**: If you made an architectural or design decision, capture the rationale
+   - What was decided, why, task ID
+   - Example: `| PostgreSQL over SQLite | Need concurrent writes | TASK-005 |`
+
+**Guidelines:**
+- Keep entries concise (one line per item)
+- Only add genuinely reusable knowledge
+- Skip if nothing new was learned (empty tables are fine)
+- Edit the tables directly - no special markup needed
+
 ## Output Format
 
 Create a documentation summary and wrap it in artifact tags for automatic persistence:
