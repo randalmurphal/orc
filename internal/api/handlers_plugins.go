@@ -15,20 +15,25 @@ import (
 // The underlying claudeconfig.Plugin has json:"-" on metadata fields,
 // so we need this wrapper to return full plugin details via API.
 type PluginDetail struct {
-	Name        string                  `json:"name"`
-	Description string                  `json:"description"`
+	Name        string                     `json:"name"`
+	Description string                     `json:"description"`
 	Author      *claudeconfig.PluginAuthor `json:"author,omitempty"`
-	Homepage    string                  `json:"homepage,omitempty"`
-	Keywords    []string                `json:"keywords,omitempty"`
-	Path        string                  `json:"path"`
-	Scope       claudeconfig.PluginScope `json:"scope"`
-	Enabled     bool                    `json:"enabled"`
-	Version     string                  `json:"version,omitempty"`
-	InstalledAt string                  `json:"installed_at,omitempty"`
-	UpdatedAt   string                  `json:"updated_at,omitempty"`
-	HasCommands bool                    `json:"has_commands"`
-	HasHooks    bool                    `json:"has_hooks"`
-	HasScripts  bool                    `json:"has_scripts"`
+	Homepage    string                     `json:"homepage,omitempty"`
+	Keywords    []string                   `json:"keywords,omitempty"`
+	Path        string                     `json:"path"`
+	Scope       claudeconfig.PluginScope   `json:"scope"`
+	Enabled     bool                       `json:"enabled"`
+	Version     string                     `json:"version,omitempty"`
+	InstalledAt string                     `json:"installed_at,omitempty"`
+	UpdatedAt   string                     `json:"updated_at,omitempty"`
+	HasCommands bool                       `json:"has_commands"`
+	HasHooks    bool                       `json:"has_hooks"`
+	HasScripts  bool                       `json:"has_scripts"`
+
+	// Discovered resources
+	Commands   []claudeconfig.PluginCommand   `json:"commands,omitempty"`
+	MCPServers []claudeconfig.PluginMCPServer `json:"mcp_servers,omitempty"`
+	Hooks      []claudeconfig.PluginHook      `json:"hooks,omitempty"`
 }
 
 // pluginToDetail converts a Plugin to a PluginDetail for JSON serialization.
@@ -45,6 +50,9 @@ func pluginToDetail(p *claudeconfig.Plugin) PluginDetail {
 		HasCommands: p.HasCommands,
 		HasHooks:    p.HasHooks,
 		HasScripts:  p.HasScripts,
+		Commands:    p.Commands,
+		MCPServers:  p.MCPServers,
+		Hooks:       p.Hooks,
 	}
 	if p.Author.Name != "" {
 		d.Author = &p.Author
@@ -228,6 +236,103 @@ func (s *Server) handleListPluginCommands(w http.ResponseWriter, r *http.Request
 	}
 
 	s.jsonResponse(w, commands)
+}
+
+// PluginResourcesResponse contains aggregated resources from all plugins.
+type PluginResourcesResponse struct {
+	MCPServers []PluginMCPServerWithSource `json:"mcp_servers"`
+	Hooks      []PluginHookWithSource      `json:"hooks"`
+	Commands   []PluginCommandWithSource   `json:"commands"`
+}
+
+// PluginMCPServerWithSource is an MCP server with plugin source info.
+type PluginMCPServerWithSource struct {
+	claudeconfig.PluginMCPServer
+	PluginName  string                   `json:"plugin_name"`
+	PluginScope claudeconfig.PluginScope `json:"plugin_scope"`
+}
+
+// PluginHookWithSource is a hook with plugin source info.
+type PluginHookWithSource struct {
+	claudeconfig.PluginHook
+	PluginName  string                   `json:"plugin_name"`
+	PluginScope claudeconfig.PluginScope `json:"plugin_scope"`
+}
+
+// PluginCommandWithSource is a command with plugin source info.
+type PluginCommandWithSource struct {
+	claudeconfig.PluginCommand
+	PluginName  string                   `json:"plugin_name"`
+	PluginScope claudeconfig.PluginScope `json:"plugin_scope"`
+}
+
+// handleListPluginResources returns aggregated resources from all plugins.
+// This allows the MCP Servers and Hooks views to show plugin-provided resources.
+func (s *Server) handleListPluginResources(w http.ResponseWriter, r *http.Request) {
+	svc, err := claudeconfig.NewPluginService(s.getProjectRoot())
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to create plugin service: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Get plugins from both scopes
+	globalInfos, _ := svc.ListByScope(claudeconfig.PluginScopeGlobal)
+	projectInfos, _ := svc.ListByScope(claudeconfig.PluginScopeProject)
+
+	var response PluginResourcesResponse
+
+	// Helper to process plugins from a scope
+	processPlugins := func(infos []claudeconfig.PluginInfo, scope claudeconfig.PluginScope) {
+		for _, info := range infos {
+			plugin, err := svc.Get(info.Name, scope)
+			if err != nil {
+				continue
+			}
+
+			// Add MCP servers
+			for _, server := range plugin.MCPServers {
+				response.MCPServers = append(response.MCPServers, PluginMCPServerWithSource{
+					PluginMCPServer: server,
+					PluginName:      plugin.Name,
+					PluginScope:     scope,
+				})
+			}
+
+			// Add hooks
+			for _, hook := range plugin.Hooks {
+				response.Hooks = append(response.Hooks, PluginHookWithSource{
+					PluginHook:  hook,
+					PluginName:  plugin.Name,
+					PluginScope: scope,
+				})
+			}
+
+			// Add commands
+			for _, cmd := range plugin.Commands {
+				response.Commands = append(response.Commands, PluginCommandWithSource{
+					PluginCommand: cmd,
+					PluginName:    plugin.Name,
+					PluginScope:   scope,
+				})
+			}
+		}
+	}
+
+	processPlugins(globalInfos, claudeconfig.PluginScopeGlobal)
+	processPlugins(projectInfos, claudeconfig.PluginScopeProject)
+
+	// Ensure non-nil slices for JSON
+	if response.MCPServers == nil {
+		response.MCPServers = []PluginMCPServerWithSource{}
+	}
+	if response.Hooks == nil {
+		response.Hooks = []PluginHookWithSource{}
+	}
+	if response.Commands == nil {
+		response.Commands = []PluginCommandWithSource{}
+	}
+
+	s.jsonResponse(w, response)
 }
 
 // === Marketplace ===

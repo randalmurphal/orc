@@ -680,6 +680,24 @@ export interface PluginCommand {
 	name: string;
 	description: string;
 	argument_hint?: string;
+	file_path?: string;
+}
+
+export interface PluginMCPServer {
+	name: string;
+	command: string;
+	args?: string[];
+	env?: Record<string, string>;
+	url?: string;
+	type?: string;
+}
+
+export interface PluginHook {
+	event: string;
+	type: string;
+	command: string;
+	matcher?: string;
+	description?: string;
 }
 
 export interface Plugin {
@@ -697,6 +715,10 @@ export interface Plugin {
 	has_commands: boolean;
 	has_hooks: boolean;
 	has_scripts: boolean;
+	// Discovered resources
+	commands?: PluginCommand[];
+	mcp_servers?: PluginMCPServer[];
+	hooks?: PluginHook[];
 }
 
 export interface MarketplacePlugin {
@@ -766,6 +788,32 @@ export async function uninstallPlugin(name: string, scope?: PluginScope): Promis
 export async function listPluginCommands(name: string, scope?: PluginScope): Promise<PluginCommand[]> {
 	const query = scope ? `?scope=${scope}` : '';
 	return fetchJSON<PluginCommand[]>(`/plugins/${name}/commands${query}`);
+}
+
+// Plugin resources with source info
+export interface PluginMCPServerWithSource extends PluginMCPServer {
+	plugin_name: string;
+	plugin_scope: PluginScope;
+}
+
+export interface PluginHookWithSource extends PluginHook {
+	plugin_name: string;
+	plugin_scope: PluginScope;
+}
+
+export interface PluginCommandWithSource extends PluginCommand {
+	plugin_name: string;
+	plugin_scope: PluginScope;
+}
+
+export interface PluginResourcesResponse {
+	mcp_servers: PluginMCPServerWithSource[];
+	hooks: PluginHookWithSource[];
+	commands: PluginCommandWithSource[];
+}
+
+export async function getPluginResources(): Promise<PluginResourcesResponse> {
+	return fetchJSON<PluginResourcesResponse>('/plugins/resources');
 }
 
 // Marketplace (separate API prefix to avoid route conflicts)

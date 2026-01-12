@@ -296,6 +296,7 @@ func (s *Server) registerRoutes() {
 
 	// Plugins - Local (.claude/plugins/)
 	s.mux.HandleFunc("GET /api/plugins", cors(s.handleListPlugins))
+	s.mux.HandleFunc("GET /api/plugins/resources", cors(s.handleListPluginResources))
 	s.mux.HandleFunc("GET /api/plugins/updates", cors(s.handleCheckPluginUpdates))
 	s.mux.HandleFunc("GET /api/plugins/{name}", cors(s.handleGetPlugin))
 	s.mux.HandleFunc("GET /api/plugins/{name}/commands", cors(s.handleListPluginCommands))
