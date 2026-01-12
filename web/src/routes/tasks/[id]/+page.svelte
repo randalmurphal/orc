@@ -30,7 +30,7 @@
 		type WSEventType,
 		getWebSocket
 	} from '$lib/websocket';
-	import type { Task, TaskState, Plan, TranscriptLine } from '$lib/types';
+	import type { Task, TaskState, Plan, TranscriptFile } from '$lib/types';
 	import TaskHeader from '$lib/components/task/TaskHeader.svelte';
 	import TabNav, { type TabId } from '$lib/components/task/TabNav.svelte';
 	import PRActions from '$lib/components/task/PRActions.svelte';
@@ -42,7 +42,7 @@
 	let task = $state<Task | null>(null);
 	let taskState = $state<TaskState | null>(null);
 	let plan = $state<Plan | null>(null);
-	let transcript = $state<TranscriptLine[]>([]);
+	let transcriptFiles = $state<TranscriptFile[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let connectionStatus = $state<ConnectionStatus>('disconnected');
@@ -134,12 +134,12 @@
 			let t: Task;
 			let s: TaskState | null;
 			let p: Plan | null;
-			let transcriptFiles: { filename: string; content: string; created_at: string }[];
+			let files: TranscriptFile[];
 
 			// Try project-scoped endpoints first if projectId is set
 			if (projectId) {
 				try {
-					[t, s, p, transcriptFiles] = await Promise.all([
+					[t, s, p, files] = await Promise.all([
 						getProjectTask(projectId, taskId),
 						getProjectTaskState(projectId, taskId).catch(() => null),
 						getProjectTaskPlan(projectId, taskId).catch(() => null),
@@ -148,7 +148,7 @@
 				} catch (projectError) {
 					// Fall back to CWD-based endpoints if project-scoped fails
 					console.warn('Project-scoped load failed, falling back to CWD-based endpoints');
-					[t, s, p, transcriptFiles] = await Promise.all([
+					[t, s, p, files] = await Promise.all([
 						getTask(taskId),
 						getTaskState(taskId).catch(() => null),
 						getTaskPlan(taskId).catch(() => null),
@@ -156,7 +156,7 @@
 					]);
 				}
 			} else {
-				[t, s, p, transcriptFiles] = await Promise.all([
+				[t, s, p, files] = await Promise.all([
 					getTask(taskId),
 					getTaskState(taskId).catch(() => null),
 					getTaskPlan(taskId).catch(() => null),
@@ -167,7 +167,7 @@
 			task = t;
 			taskState = s;
 			plan = p;
-			transcript = parseTranscriptFiles(transcriptFiles);
+			transcriptFiles = files;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load task';
 		} finally {
@@ -183,37 +183,6 @@
 		]);
 		diffStats = ds;
 		reviewStats = rs;
-	}
-
-	function parseTranscriptFiles(
-		files: { filename: string; content: string; created_at: string }[]
-	): TranscriptLine[] {
-		const lines: TranscriptLine[] = [];
-
-		for (const file of files) {
-			const parts = file.content.split(/^## /m);
-
-			for (const part of parts) {
-				if (!part.trim()) continue;
-
-				if (part.startsWith('Prompt\n')) {
-					lines.push({
-						type: 'prompt',
-						content: part.replace('Prompt\n', '').split('\n## ')[0].trim(),
-						timestamp: file.created_at
-					});
-				} else if (part.startsWith('Response\n')) {
-					const responseContent = part.replace('Response\n', '').split('\n---')[0].trim();
-					lines.push({
-						type: 'response',
-						content: responseContent,
-						timestamp: file.created_at
-					});
-				}
-			}
-		}
-
-		return lines;
 	}
 
 	// Track streaming response content for live updates
@@ -242,18 +211,10 @@
 							streamingContent = '';
 						}
 						streamingContent += transcriptData.content;
-					} else {
-						// Full prompt or response - add to transcript
-						const line: TranscriptLine = {
-							type: transcriptData.type === 'prompt' ? 'prompt' : 'response',
-							content: transcriptData.content,
-							timestamp: new Date().toISOString()
-						};
-						transcript = [...transcript, line];
-						// Clear streaming content when we get a full response
-						if (transcriptData.type === 'response') {
-							streamingContent = '';
-						}
+					} else if (transcriptData.type === 'response') {
+						// Full response received - reload to get persisted transcript file
+						streamingContent = '';
+						loadTaskData();
 					}
 				} else if (eventType === 'tokens') {
 					// Update token display in real-time
@@ -542,7 +503,7 @@
 					<DiffViewer {taskId} />
 				</div>
 			{:else if activeTab === 'transcript'}
-				<Transcript lines={transcript} {taskId} {streamingContent} />
+				<Transcript files={transcriptFiles} taskId={task.id} {streamingContent} />
 			{/if}
 		</div>
 	</div>
