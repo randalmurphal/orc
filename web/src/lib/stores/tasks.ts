@@ -78,35 +78,55 @@ export async function loadTasks(): Promise<void> {
 	}
 }
 
+// Track pending task fetches to avoid duplicate requests
+const pendingFetches = new Set<string>();
+
 // Update a single task in the store (from WebSocket event)
 export function updateTask(taskId: string, updates: Partial<Task>): void {
+	let taskFound = false;
 	tasks.update(current => {
 		const idx = current.findIndex(t => t.id === taskId);
 		if (idx >= 0) {
-			// Update existing task
-			current[idx] = { ...current[idx], ...updates };
-			return [...current];
+			// Update existing task (create new object to avoid mutation issues)
+			taskFound = true;
+			return current.map((t, i) => i === idx ? { ...t, ...updates } : t);
 		}
-		// Task not found - might be new, trigger a refresh
 		return current;
 	});
+
+	// Task not found - fetch it from API (if not already fetching)
+	if (!taskFound && !pendingFetches.has(taskId)) {
+		pendingFetches.add(taskId);
+		refreshTask(taskId).finally(() => {
+			pendingFetches.delete(taskId);
+		});
+	}
 }
 
 // Update task status (common operation from WebSocket)
 export function updateTaskStatus(taskId: string, status: Task['status'], currentPhase?: string): void {
+	let taskFound = false;
 	tasks.update(current => {
 		const idx = current.findIndex(t => t.id === taskId);
 		if (idx >= 0) {
-			current[idx] = {
-				...current[idx],
+			taskFound = true;
+			return current.map((t, i) => i === idx ? {
+				...t,
 				status,
-				current_phase: currentPhase ?? current[idx].current_phase,
+				current_phase: currentPhase ?? t.current_phase,
 				updated_at: new Date().toISOString()
-			};
-			return [...current];
+			} : t);
 		}
 		return current;
 	});
+
+	// Task not found - fetch it from API (if not already fetching)
+	if (!taskFound && !pendingFetches.has(taskId)) {
+		pendingFetches.add(taskId);
+		refreshTask(taskId).finally(() => {
+			pendingFetches.delete(taskId);
+		});
+	}
 }
 
 // Update task state (from WebSocket state event)

@@ -1,67 +1,41 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 	import Board from '$lib/components/kanban/Board.svelte';
-	import { listProjectTasks, runProjectTask, pauseProjectTask, resumeProjectTask, escalateProjectTask } from '$lib/api';
+	import { runProjectTask, pauseProjectTask, resumeProjectTask, escalateProjectTask } from '$lib/api';
 	import { currentProjectId } from '$lib/stores/project';
-	import type { Task } from '$lib/types';
+	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks } from '$lib/stores/tasks';
 
-	let tasks = $state<Task[]>([]);
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-
-	// Subscribe to project changes
-	let projectId = $state<string | null>(null);
-	$effect(() => {
-		const unsubscribe = currentProjectId.subscribe(id => {
-			projectId = id;
-			if (id) {
-				loadTasks();
-			}
-		});
-		return unsubscribe;
-	});
-
-	onMount(async () => {
-		// Initial load handled by $effect when projectId is set
-	});
-
-	async function loadTasks() {
-		if (!projectId) {
-			tasks = [];
-			loading = false;
-			return;
-		}
-		loading = true;
-		error = null;
-		try {
-			tasks = await listProjectTasks(projectId);
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load tasks';
-		} finally {
-			loading = false;
-		}
-	}
+	// Reactive binding to global task store
+	let tasks = $derived($tasksStore);
+	let loading = $derived($tasksLoading);
+	let error = $derived($tasksError);
 
 	async function handleAction(taskId: string, action: 'run' | 'pause' | 'resume') {
+		const projectId = get(currentProjectId);
 		if (!projectId) return;
 		try {
 			if (action === 'run') await runProjectTask(projectId, taskId);
 			else if (action === 'pause') await pauseProjectTask(projectId, taskId);
 			else if (action === 'resume') await resumeProjectTask(projectId, taskId);
-			await loadTasks();
+			// No need to reload - WebSocket will update the global store
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Action failed';
+			console.error('Action failed:', e);
 		}
 	}
 
 	async function handleEscalate(taskId: string, reason: string) {
+		const projectId = get(currentProjectId);
 		if (!projectId) return;
 		try {
 			await escalateProjectTask(projectId, taskId, reason);
-			await loadTasks();
+			// No need to reload - WebSocket will update the global store
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Escalation failed';
+			console.error('Escalation failed:', e);
 		}
+	}
+
+	function handleRefresh() {
+		loadTasks();
 	}
 </script>
 
@@ -76,7 +50,7 @@
 			<span class="task-count">{tasks.length} tasks</span>
 		</div>
 		<div class="header-actions">
-			<button class="refresh-btn" onclick={loadTasks} disabled={loading}>
+			<button class="refresh-btn" onclick={handleRefresh} disabled={loading}>
 				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 					<polyline points="23 4 23 10 17 10" />
 					<polyline points="1 20 1 14 7 14" />
@@ -107,10 +81,10 @@
 				<line x1="12" y1="16" x2="12.01" y2="16" />
 			</svg>
 			<span>{error}</span>
-			<button onclick={loadTasks}>Try Again</button>
+			<button onclick={handleRefresh}>Try Again</button>
 		</div>
 	{:else}
-		<Board {tasks} onAction={handleAction} onEscalate={handleEscalate} onRefresh={loadTasks} />
+		<Board {tasks} onAction={handleAction} onEscalate={handleEscalate} onRefresh={handleRefresh} />
 	{/if}
 </div>
 
