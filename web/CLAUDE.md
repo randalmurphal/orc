@@ -387,23 +387,32 @@ For large diffs (10K+ lines), use `VirtualScroller.svelte`:
 
 ## Kanban Board Patterns
 
-### Column Mapping
+### Phase-Based Columns
+
+The board uses phase-based columns matching the orchestration workflow:
 
 ```typescript
 const columns = [
-  { id: 'created', title: 'To Do', statuses: ['created', 'classifying', 'planned'] },
-  { id: 'running', title: 'In Progress', statuses: ['running'] },
-  { id: 'review', title: 'In Review', statuses: ['paused', 'blocked'] },
-  { id: 'done', title: 'Done', statuses: ['completed', 'failed'] }
+  { id: 'queued', title: 'Queued', phases: [] },           // Tasks not yet started
+  { id: 'spec', title: 'Spec', phases: ['research', 'spec'] },
+  { id: 'implement', title: 'Implement', phases: ['implement'] },
+  { id: 'test', title: 'Test', phases: ['test'] },
+  { id: 'review', title: 'Review', phases: ['docs', 'validate', 'review'] },
+  { id: 'done', title: 'Done', phases: [] }                // Terminal statuses
 ];
 ```
+
+Tasks are placed in columns based on their `current_phase`:
+- Tasks without a phase (created, classifying, planned) → Queued
+- Running/paused/blocked tasks → Column matching their current phase
+- Completed/failed tasks → Done (regardless of phase)
 
 ### Drag and Drop with Confirmation
 
 Actions triggered by dropping tasks into columns require confirmation:
-- Drop to "In Progress" → Confirm "Run task?"
-- Drop to "In Review" → Confirm "Pause task?"
-- Drop to "Done" → Confirm "Mark complete?"
+- Drop from "Queued" to any phase → Confirm "Run task?"
+- Drop paused/blocked task to phase → Confirm "Resume task?"
+- Drop running task backward → Opens escalation modal
 
 Button actions on TaskCard are always available without drag-drop.
 

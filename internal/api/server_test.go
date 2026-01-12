@@ -1264,6 +1264,101 @@ func TestUpdateConfigEndpoint_InvalidBody(t *testing.T) {
 	}
 }
 
+func TestGetConfigWithSourcesEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .orc directory and config
+	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	configContent := `profile: safe
+model: claude-sonnet
+`
+	os.WriteFile(filepath.Join(tmpDir, ".orc", "config.yaml"), []byte(configContent), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	req := httptest.NewRequest("GET", "/api/config?with_sources=true", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Parse response
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// Should have sources field
+	sources, ok := resp["sources"].(map[string]any)
+	if !ok {
+		t.Fatal("expected sources field in response")
+	}
+
+	// Check that profile source is tracked
+	profileSource, ok := sources["profile"].(map[string]any)
+	if !ok {
+		t.Fatal("expected profile in sources")
+	}
+
+	if profileSource["source"] == "" {
+		t.Error("expected non-empty source for profile")
+	}
+}
+
+func TestGetSettingsHierarchyEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .claude directory
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+
+	// Create project settings
+	projectSettings := `{"env": {"PROJECT_VAR": "project_value"}}`
+	os.WriteFile(filepath.Join(tmpDir, ".claude", "settings.json"), []byte(projectSettings), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	req := httptest.NewRequest("GET", "/api/settings/hierarchy", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Parse response
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// Should have merged, global, project, and sources fields
+	if _, ok := resp["merged"]; !ok {
+		t.Error("expected merged field in response")
+	}
+	if _, ok := resp["global"]; !ok {
+		t.Error("expected global field in response")
+	}
+	if _, ok := resp["project"]; !ok {
+		t.Error("expected project field in response")
+	}
+	if _, ok := resp["sources"]; !ok {
+		t.Error("expected sources field in response")
+	}
+
+	// Check project path is set
+	project, ok := resp["project"].(map[string]any)
+	if !ok {
+		t.Fatal("expected project to be an object")
+	}
+	if project["path"] == "" {
+		t.Error("expected non-empty project path")
+	}
+}
+
 // === Publisher Test ===
 
 func TestServerPublisher(t *testing.T) {

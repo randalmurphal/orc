@@ -17,33 +17,57 @@
 	let escalateTask = $state<Task | null>(null);
 	let escalateReason = $state('');
 
+	// Phase-based columns matching orchestration workflow
 	const columns = [
-		{ id: 'todo', title: 'To Do', statuses: ['created', 'classifying', 'planned'] },
-		{ id: 'running', title: 'In Progress', statuses: ['running'] },
-		{ id: 'review', title: 'Review', statuses: ['paused'] },
-		{ id: 'qa', title: 'QA', statuses: ['blocked'] },
-		{ id: 'done', title: 'Done', statuses: ['completed', 'failed'] }
+		{ id: 'queued', title: 'Queued', phases: [] as string[] }, // No phase yet
+		{ id: 'spec', title: 'Spec', phases: ['research', 'spec'] },
+		{ id: 'implement', title: 'Implement', phases: ['implement'] },
+		{ id: 'test', title: 'Test', phases: ['test'] },
+		{ id: 'review', title: 'Review', phases: ['docs', 'validate', 'review'] },
+		{ id: 'done', title: 'Done', phases: [] as string[] } // Terminal statuses
 	];
 
 	let confirmModal = $state<{ task: Task; action: string; targetColumn: string } | null>(null);
 	let actionLoading = $state(false);
 
+	// Determine which column a task belongs to based on phase and status
+	function getTaskColumn(task: Task): string {
+		// Terminal statuses always go to Done
+		if (task.status === 'completed' || task.status === 'failed') {
+			return 'done';
+		}
+
+		// Tasks not yet started go to Queued
+		if (!task.current_phase || ['created', 'classifying', 'planned'].includes(task.status)) {
+			return 'queued';
+		}
+
+		// Running, paused, or blocked tasks go to their current phase column
+		for (const col of columns) {
+			if (col.phases.includes(task.current_phase)) {
+				return col.id;
+			}
+		}
+
+		// Default to implement if phase not recognized
+		return 'implement';
+	}
+
 	// Group tasks by column
 	const tasksByColumn = $derived.by(() => {
 		const grouped: Record<string, Task[]> = {};
 		for (const col of columns) {
-			grouped[col.id] = tasks.filter((t) => col.statuses.includes(t.status));
+			grouped[col.id] = [];
+		}
+		for (const task of tasks) {
+			const colId = getTaskColumn(task);
+			grouped[colId].push(task);
 		}
 		return grouped;
 	});
 
 	function getSourceColumn(task: Task): string {
-		for (const col of columns) {
-			if (col.statuses.includes(task.status)) {
-				return col.id;
-			}
-		}
-		return 'todo';
+		return getTaskColumn(task);
 	}
 
 	function handleDrop(columnId: string, task: Task) {
@@ -60,21 +84,20 @@
 		// Determine action based on current status and target column
 		let action: string | null = null;
 
-		if (columnId === 'running') {
-			// Moving to In Progress - run or resume
-			if (task.status === 'paused' || task.status === 'blocked') {
-				action = 'resume';
-			} else if (['created', 'classifying', 'planned'].includes(task.status)) {
-				action = 'run';
-			}
-		} else if (columnId === 'review' && task.status === 'running') {
-			// Moving from running to review - pause
-			action = 'pause';
-		} else if (columnId === 'qa' && task.status === 'running') {
-			// Moving from running to QA - pause (will be marked as blocked by QA process)
-			action = 'pause';
-		} else if (columnId === 'todo' && (sourceColumnId === 'review' || sourceColumnId === 'qa')) {
-			// Escalating from Review/QA back to To Do for re-implementation
+		// Moving from Queued to any phase column - start the task
+		if (sourceColumnId === 'queued' && columnId !== 'done') {
+			action = 'run';
+		}
+		// Moving a paused/blocked task to any phase column - resume
+		else if ((task.status === 'paused' || task.status === 'blocked') && columnId !== 'done' && columnId !== 'queued') {
+			action = 'resume';
+		}
+		// Moving a running task to Queued - pause and escalate
+		else if (task.status === 'running' && columnId === 'queued') {
+			action = 'escalate';
+		}
+		// Moving a running task backward (e.g., from Test to Implement) - escalate
+		else if (task.status === 'running' && getColumnIndex(columnId) < getColumnIndex(sourceColumnId)) {
 			action = 'escalate';
 		}
 
@@ -86,6 +109,10 @@
 		} else if (action) {
 			confirmModal = { task, action, targetColumn: column.title };
 		}
+	}
+
+	function getColumnIndex(columnId: string): number {
+		return columns.findIndex((c) => c.id === columnId);
 	}
 
 	async function confirmAction() {
@@ -155,7 +182,7 @@
 	<div class="modal-backdrop" onclick={cancelEscalate} onkeydown={(e) => e.key === 'Escape' && cancelEscalate()} role="presentation">
 		<div class="escalate-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="dialog" aria-labelledby="escalate-title" tabindex="-1">
 			<div class="modal-header">
-				<h3 id="escalate-title">Escalate to Implementation</h3>
+				<h3 id="escalate-title">Escalate Task</h3>
 				<button class="close-btn" onclick={cancelEscalate} aria-label="Close">
 					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<line x1="18" y1="6" x2="6" y2="18" />
@@ -176,7 +203,7 @@
 					></textarea>
 				</label>
 				<p class="hint">
-					The task will be moved back to "To Do" and re-run with this context injected into the implementation phase.
+					The task will be paused and moved back to Queued. When re-run, this context will be injected into the phase prompt.
 				</p>
 			</div>
 			<div class="modal-footer">

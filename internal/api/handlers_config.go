@@ -10,15 +10,27 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 )
 
-// handleGetConfig returns orc configuration.
-func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
-	configPath := filepath.Join(s.workDir, ".orc", "config.yaml")
-	cfg, err := config.LoadFrom(configPath)
-	if err != nil {
-		cfg = config.Default()
-	}
+// ConfigSourceInfo represents source information for a config value.
+type ConfigSourceInfo struct {
+	Source string `json:"source"`
+	Path   string `json:"path,omitempty"`
+}
 
-	s.jsonResponse(w, map[string]any{
+// handleGetConfig returns orc configuration with optional source tracking.
+// Query params:
+//   - with_sources=true: Include source metadata for each config value
+func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
+	withSources := r.URL.Query().Get("with_sources") == "true"
+
+	// Load config with source tracking
+	tc, err := config.LoadWithSourcesFrom(s.workDir)
+	if err != nil {
+		// Fall back to defaults
+		tc = config.NewTrackedConfig()
+	}
+	cfg := tc.Config
+
+	response := map[string]any{
 		"version": "1.0.0",
 		"profile": cfg.Profile,
 		"automation": map[string]any{
@@ -36,7 +48,37 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 			"branch_prefix": cfg.BranchPrefix,
 			"commit_prefix": cfg.CommitPrefix,
 		},
-	})
+	}
+
+	// Include source metadata if requested
+	if withSources {
+		sources := make(map[string]ConfigSourceInfo)
+
+		// Map config paths to their sources
+		sourceKeys := []string{
+			"profile",
+			"model",
+			"max_iterations",
+			"timeout",
+			"gates.default_type",
+			"retry.enabled",
+			"retry.max_retries",
+			"branch_prefix",
+			"commit_prefix",
+		}
+
+		for _, key := range sourceKeys {
+			ts := tc.GetTrackedSource(key)
+			sources[key] = ConfigSourceInfo{
+				Source: string(ts.Source),
+				Path:   ts.Path,
+			}
+		}
+
+		response["sources"] = sources
+	}
+
+	s.jsonResponse(w, response)
 }
 
 // ConfigUpdateRequest represents a config update request.

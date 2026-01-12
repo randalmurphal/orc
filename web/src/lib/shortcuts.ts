@@ -265,7 +265,8 @@ export const SHORTCUTS = {
 	// Navigation sequences
 	GO_DASHBOARD: { keys: ['g', 'd'], description: 'Go to dashboard' },
 	GO_TASKS: { keys: ['g', 't'], description: 'Go to tasks' },
-	GO_SETTINGS: { keys: ['g', 's'], description: 'Go to settings' },
+	GO_ENVIRONMENT: { keys: ['g', 'e'], description: 'Go to environment' },
+	GO_PREFERENCES: { keys: ['g', 'r'], description: 'Go to preferences' },
 	GO_PROMPTS: { keys: ['g', 'p'], description: 'Go to prompts' },
 	GO_HOOKS: { keys: ['g', 'h'], description: 'Go to hooks' },
 	GO_SKILLS: { keys: ['g', 'k'], description: 'Go to skills' },
@@ -291,7 +292,8 @@ export function setupGlobalShortcuts(callbacks: {
 	onEscape?: ShortcutCallback;
 	onGoDashboard?: ShortcutCallback;
 	onGoTasks?: ShortcutCallback;
-	onGoSettings?: ShortcutCallback;
+	onGoEnvironment?: ShortcutCallback;
+	onGoPreferences?: ShortcutCallback;
 	onGoPrompts?: ShortcutCallback;
 	onGoHooks?: ShortcutCallback;
 	onGoSkills?: ShortcutCallback;
@@ -373,11 +375,20 @@ export function setupGlobalShortcuts(callbacks: {
 		);
 	}
 
-	if (callbacks.onGoSettings) {
+	if (callbacks.onGoEnvironment) {
 		unsubscribers.push(
 			manager.registerSequence({
-				...SHORTCUTS.GO_SETTINGS,
-				action: callbacks.onGoSettings
+				...SHORTCUTS.GO_ENVIRONMENT,
+				action: callbacks.onGoEnvironment
+			})
+		);
+	}
+
+	if (callbacks.onGoPreferences) {
+		unsubscribers.push(
+			manager.registerSequence({
+				...SHORTCUTS.GO_PREFERENCES,
+				action: callbacks.onGoPreferences
 			})
 		);
 	}
