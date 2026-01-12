@@ -2,8 +2,9 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/randalmurphal/llmkit/claudeconfig"
 )
@@ -11,11 +12,39 @@ import (
 // === Agents Handlers ===
 
 // handleListAgents returns all sub-agent definitions.
+// Supports ?scope=global to list from ~/.claude/agents/ .md files.
+// For project scope, uses AgentService which reads from settings.json.
 func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
+	scope := r.URL.Query().Get("scope")
+
+	if scope == "global" {
+		// Global agents are stored as .md files in ~/.claude/agents/
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			s.jsonError(w, "failed to get home directory", http.StatusInternalServerError)
+			return
+		}
+		agents, err := claudeconfig.DiscoverAgents(filepath.Join(homeDir, ".claude"))
+		if err != nil {
+			// No agents directory is OK - return empty list
+			s.jsonResponse(w, []claudeconfig.AgentInfo{})
+			return
+		}
+		// Convert to AgentInfo for response
+		infos := make([]claudeconfig.AgentInfo, 0, len(agents))
+		for _, a := range agents {
+			infos = append(infos, a.Info())
+		}
+		s.jsonResponse(w, infos)
+		return
+	}
+
+	// Project agents from settings.json
 	svc := claudeconfig.NewAgentService(s.getProjectRoot())
 	agents, err := svc.List()
 	if err != nil {
-		s.jsonError(w, fmt.Sprintf("failed to list agents: %v", err), http.StatusInternalServerError)
+		// No agents configured is OK - return empty list
+		s.jsonResponse(w, []claudeconfig.SubAgent{})
 		return
 	}
 

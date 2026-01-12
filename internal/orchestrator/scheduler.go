@@ -68,8 +68,8 @@ func (pq *TaskQueue) Pop() any {
 type Scheduler struct {
 	queue         TaskQueue
 	maxConcurrent int
-	completed     map[string]bool // Task ID -> completed
-	running       map[string]bool // Task ID -> running
+	completed     map[string]bool     // Task ID -> completed
+	running       map[string]bool     // Task ID -> running
 	taskDeps      map[string][]string // Task ID -> dependencies
 	mu            sync.RWMutex
 }

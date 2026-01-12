@@ -25,8 +25,12 @@
 		'automation': 'Automation',
 		'export': 'Export',
 		'docs': 'Documentation',
-		'preferences': 'Preferences'
+		'preferences': 'Preferences',
+		'knowledge': 'Knowledge Queue'
 	};
+
+	// Category segments that don't have their own page - link to parent instead
+	const categorySegments = new Set(['claude', 'orchestrator']);
 
 	const items = $derived.by(() => {
 		const pathname = $page.url.pathname;
@@ -47,9 +51,19 @@
 			const label = routeLabels[segment] || segment;
 			const isLast = i === segments.length - 1;
 
+			// For category segments (claude, orchestrator), link to /environment instead
+			let href: string | undefined;
+			if (isLast) {
+				href = undefined;
+			} else if (categorySegments.has(segment)) {
+				href = '/environment';
+			} else {
+				href = currentPath;
+			}
+
 			crumbs.push({
 				label,
-				href: isLast ? undefined : currentPath
+				href
 			});
 		}
 

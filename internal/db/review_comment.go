@@ -21,24 +21,24 @@ const (
 type ReviewCommentStatus string
 
 const (
-	CommentStatusOpen    ReviewCommentStatus = "open"
+	CommentStatusOpen     ReviewCommentStatus = "open"
 	CommentStatusResolved ReviewCommentStatus = "resolved"
-	CommentStatusWontFix ReviewCommentStatus = "wont_fix"
+	CommentStatusWontFix  ReviewCommentStatus = "wont_fix"
 )
 
 // ReviewComment represents a code review comment.
 type ReviewComment struct {
-	ID          string              `json:"id"`
-	TaskID      string              `json:"task_id"`
-	ReviewRound int                 `json:"review_round"`
-	FilePath    string              `json:"file_path,omitempty"`
-	LineNumber  int                 `json:"line_number,omitempty"`
-	Content     string              `json:"content"`
+	ID          string                `json:"id"`
+	TaskID      string                `json:"task_id"`
+	ReviewRound int                   `json:"review_round"`
+	FilePath    string                `json:"file_path,omitempty"`
+	LineNumber  int                   `json:"line_number,omitempty"`
+	Content     string                `json:"content"`
 	Severity    ReviewCommentSeverity `json:"severity"`
-	Status      ReviewCommentStatus `json:"status"`
-	CreatedAt   time.Time           `json:"created_at"`
-	ResolvedAt  *time.Time          `json:"resolved_at,omitempty"`
-	ResolvedBy  string              `json:"resolved_by,omitempty"`
+	Status      ReviewCommentStatus   `json:"status"`
+	CreatedAt   time.Time             `json:"created_at"`
+	ResolvedAt  *time.Time            `json:"resolved_at,omitempty"`
+	ResolvedBy  string                `json:"resolved_by,omitempty"`
 }
 
 // CreateReviewComment adds a new review comment.

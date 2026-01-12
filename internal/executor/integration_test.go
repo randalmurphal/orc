@@ -23,10 +23,10 @@ import (
 // IntegrationTestCosts tracks token usage and costs for integration tests
 type IntegrationTestCosts struct {
 	mu           sync.Mutex
-	TotalInputs  int              `json:"total_inputs"`
-	TotalOutputs int              `json:"total_outputs"`
-	TotalCost    float64          `json:"total_cost"`
-	Tests        []TestCostEntry  `json:"tests"`
+	TotalInputs  int             `json:"total_inputs"`
+	TotalOutputs int             `json:"total_outputs"`
+	TotalCost    float64         `json:"total_cost"`
+	Tests        []TestCostEntry `json:"tests"`
 }
 
 // TestCostEntry records cost for a single test

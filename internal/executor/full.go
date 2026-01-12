@@ -30,8 +30,8 @@ type FullExecutor struct {
 	logger       *slog.Logger
 	config       ExecutorConfig
 	workingDir   string
-	taskDir      string              // Directory for task-specific files
-	stateUpdater func(*state.State)  // Callback to persist state changes
+	taskDir      string             // Directory for task-specific files
+	stateUpdater func(*state.State) // Callback to persist state changes
 }
 
 // FullExecutorOption configures a FullExecutor.
@@ -379,4 +379,3 @@ func (e *FullExecutor) removeCheckpoint(taskID, phaseID string) {
 	path := e.checkpointPath(taskID, phaseID)
 	_ = os.Remove(path) // Intentionally ignore - file may not exist
 }
-

@@ -27,7 +27,7 @@ const (
 
 // WSMessage represents a WebSocket message.
 type WSMessage struct {
-	Type   string          `json:"type"`   // subscribe, unsubscribe, command, event
+	Type   string          `json:"type"` // subscribe, unsubscribe, command, event
 	TaskID string          `json:"task_id,omitempty"`
 	Action string          `json:"action,omitempty"` // pause, resume, cancel
 	Data   json.RawMessage `json:"data,omitempty"`

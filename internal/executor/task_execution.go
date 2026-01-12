@@ -103,6 +103,11 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			s.ClearRetryContext()
 		}
 
+		// Post-phase knowledge extraction for docs phase (fallback mechanism)
+		if phase.ID == "docs" {
+			e.tryKnowledgeExtraction(t.ID)
+		}
+
 		// Save state and plan
 		if err := s.SaveTo(e.currentTaskDir); err != nil {
 			return fmt.Errorf("save state: %w", err)

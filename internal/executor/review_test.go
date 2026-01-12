@@ -94,9 +94,9 @@ func TestParseReviewFindings(t *testing.T) {
 		wantIssue int
 	}{
 		{
-			name:    "no review_findings block",
+			name:     "no review_findings block",
 			response: "Some random response without the expected block",
-			wantErr: true,
+			wantErr:  true,
 		},
 		{
 			name: "valid findings with issues",
@@ -498,4 +498,3 @@ func TestFormatFindingsForRound2(t *testing.T) {
 		}
 	})
 }
-

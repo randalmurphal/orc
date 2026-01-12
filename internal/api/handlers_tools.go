@@ -11,6 +11,9 @@ import (
 // === Tools Handlers ===
 
 // handleListTools returns all available Claude Code tools.
+// Note: The list of available tools is the same regardless of scope.
+// Scope affects permissions (allow/deny), not the tool list itself.
+// Supports ?scope=global for API consistency.
 func (s *Server) handleListTools(w http.ResponseWriter, r *http.Request) {
 	// Check if grouping by category is requested
 	if r.URL.Query().Get("by_category") == "true" {
@@ -19,6 +22,7 @@ func (s *Server) handleListTools(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Tools list is the same regardless of scope
 	tools := claudeconfig.AvailableTools()
 	s.jsonResponse(w, tools)
 }

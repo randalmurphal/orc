@@ -262,11 +262,10 @@
 	.main-area {
 		flex: 1;
 		margin-left: var(--sidebar-width-collapsed);
-		/* Add extra padding on right to compensate for sidebar, making the center point match viewport center */
-		padding-right: var(--sidebar-width-collapsed);
 		display: flex;
 		flex-direction: column;
-		min-height: 100vh;
+		height: 100vh;
+		overflow: hidden;
 		transition: margin-left var(--duration-normal) var(--ease-out);
 	}
 
@@ -274,6 +273,7 @@
 		flex: 1;
 		padding: var(--space-6);
 		overflow-y: auto;
+		overflow-x: hidden;
 		/* Center children within the now-balanced main-area */
 		display: flex;
 		flex-direction: column;
@@ -283,5 +283,11 @@
 	main > :global(*) {
 		width: 100%;
 		max-width: 1200px;
+	}
+
+	/* Full-width pages like the board need to break out of centering */
+	main > :global(.full-width) {
+		max-width: calc(100vw - var(--sidebar-width-collapsed) - var(--space-6) * 2);
+		align-self: stretch;
 	}
 </style>

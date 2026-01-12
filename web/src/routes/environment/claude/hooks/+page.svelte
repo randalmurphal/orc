@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import {
 		listHooks,
 		getHookTypes,
@@ -11,30 +12,57 @@
 		type HookEntry
 	} from '$lib/api';
 
-	let hooksMap: HooksMap = {};
-	let hookEvents: HookEvent[] = [];
-	let selectedEvent: HookEvent | null = null;
-	let selectedHookIndex: number | null = null;
-	let isCreating = false;
-	let loading = true;
-	let saving = false;
-	let error: string | null = null;
-	let success: string | null = null;
+	let hooksMap = $state<HooksMap>({});
+	let hookEvents = $state<HookEvent[]>([]);
+	let selectedEvent = $state<HookEvent | null>(null);
+	let selectedHookIndex = $state<number | null>(null);
+	let isCreating = $state(false);
+	let loading = $state(true);
+	let saving = $state(false);
+	let error = $state<string | null>(null);
+	let success = $state<string | null>(null);
 
 	// Form fields for a single hook
-	let formMatcher = '';
-	let formCommand = '';
-	let formEvent: HookEvent = 'PreToolUse';
+	let formMatcher = $state('');
+	let formCommand = $state('');
+	let formEvent = $state<HookEvent>('PreToolUse');
+
+	// Get scope from URL params
+	const scope = $derived($page.url.searchParams.get('scope') as 'global' | 'project' | null);
+	const isGlobal = $derived(scope === 'global');
+	const scopeParam = $derived(isGlobal ? 'global' : undefined);
+	const settingsPath = $derived(isGlobal ? '~/.claude/settings.json' : '.claude/settings.json');
 
 	onMount(async () => {
 		try {
-			[hooksMap, hookEvents] = await Promise.all([listHooks(), getHookTypes()]);
+			// Read scope directly from URL on mount
+			const urlScope = new URL(window.location.href).searchParams.get('scope');
+			const initialScope = urlScope === 'global' ? 'global' : undefined;
+			[hooksMap, hookEvents] = await Promise.all([listHooks(initialScope), getHookTypes()]);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load hooks';
 		} finally {
 			loading = false;
 		}
 	});
+
+	// Reload hooks when scope changes
+	$effect(() => {
+		if (!loading) {
+			loadHooks();
+		}
+	});
+
+	async function loadHooks() {
+		try {
+			hooksMap = await listHooks(scopeParam);
+			selectedEvent = null;
+			selectedHookIndex = null;
+			isCreating = false;
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to load hooks';
+		}
+	}
 
 	function selectHook(event: HookEvent, index: number) {
 		error = null;
@@ -79,9 +107,9 @@
 		};
 
 		try {
-			await createHook(formEvent, hook);
+			await createHook(formEvent, hook, scopeParam);
 			success = 'Hook saved successfully';
-			hooksMap = await listHooks();
+			hooksMap = await listHooks(scopeParam);
 
 			if (isCreating) {
 				isCreating = false;
@@ -105,8 +133,8 @@
 		success = null;
 
 		try {
-			await deleteHook(selectedEvent);
-			hooksMap = await listHooks();
+			await deleteHook(selectedEvent, scopeParam);
+			hooksMap = await listHooks(scopeParam);
 			selectedEvent = null;
 			selectedHookIndex = null;
 			isCreating = false;
@@ -125,23 +153,29 @@
 	}
 
 	// Flatten hooks for display
-	$: flatHooks = Object.entries(hooksMap).flatMap(([event, hooks]) =>
+	const flatHooks = $derived(Object.entries(hooksMap).flatMap(([event, hooks]) =>
 		hooks.map((hook, index) => ({ event: event as HookEvent, hook, index }))
-	);
+	));
 </script>
 
 <svelte:head>
-	<title>Hooks - orc</title>
+	<title>{isGlobal ? 'Global ' : ''}Hooks - orc</title>
 </svelte:head>
 
 <div class="hooks-page">
 	<header class="page-header">
 		<div class="header-content">
 			<div>
-				<h1>Claude Code Hooks</h1>
-				<p class="subtitle">Manage hooks in .claude/settings.json</p>
+				<h1>{isGlobal ? 'Global ' : ''}Claude Code Hooks</h1>
+				<p class="subtitle">Manage hooks in {settingsPath}</p>
 			</div>
-			<button class="btn btn-primary" on:click={startCreate}>New Hook</button>
+			<div class="header-actions">
+				<div class="scope-toggle">
+					<a href="/environment/claude/hooks" class="scope-btn" class:active={!isGlobal}>Project</a>
+					<a href="/environment/claude/hooks?scope=global" class="scope-btn" class:active={isGlobal}>Global</a>
+				</div>
+				<button class="btn btn-primary" onclick={startCreate}>New Hook</button>
+			</div>
 		</div>
 	</header>
 
@@ -169,7 +203,7 @@
 								<button
 									class="hook-item"
 									class:selected={selectedEvent === event && selectedHookIndex === index}
-									on:click={() => selectHook(event, index)}
+									onclick={() => selectHook(event, index)}
 								>
 									<span class="hook-name">{hook.matcher}</span>
 									<span class="badge {getEventBadgeClass(event)}">{event}</span>
@@ -186,13 +220,13 @@
 					<div class="editor-header">
 						<h2>{isCreating ? 'New Hook' : formMatcher || 'Edit Hook'}</h2>
 						{#if selectedEvent && !isCreating}
-							<button class="btn btn-danger" on:click={handleDelete} disabled={saving}>
+							<button class="btn btn-danger" onclick={handleDelete} disabled={saving}>
 								Delete Event
 							</button>
 						{/if}
 					</div>
 
-					<form class="hook-form" on:submit|preventDefault={handleSave}>
+					<form class="hook-form" onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
 						<div class="form-group">
 							<label for="event">Event</label>
 							<select id="event" bind:value={formEvent} disabled={!isCreating}>
@@ -255,6 +289,39 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
+	}
+
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.scope-toggle {
+		display: flex;
+		background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
+		border-radius: 6px;
+		padding: 2px;
+	}
+
+	.scope-btn {
+		padding: 0.375rem 0.75rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: var(--text-secondary);
+		text-decoration: none;
+		border-radius: 4px;
+		transition: all 0.15s ease;
+	}
+
+	.scope-btn:hover {
+		color: var(--text-primary);
+	}
+
+	.scope-btn.active {
+		background: var(--bg-primary);
+		color: var(--text-primary);
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 	}
 
 	.subtitle {

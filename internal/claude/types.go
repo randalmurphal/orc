@@ -86,10 +86,10 @@ var (
 	SaveProjectClaudeMD   = claudeconfig.SaveProjectClaudeMD
 
 	// Tools
-	AvailableTools   = claudeconfig.AvailableTools
-	ToolsByCategory  = claudeconfig.ToolsByCategory
-	GetTool          = claudeconfig.GetTool
-	ToolCategories   = claudeconfig.ToolCategories
+	AvailableTools  = claudeconfig.AvailableTools
+	ToolsByCategory = claudeconfig.ToolsByCategory
+	GetTool         = claudeconfig.GetTool
+	ToolCategories  = claudeconfig.ToolCategories
 
 	// Service constructors
 	NewAgentService  = claudeconfig.NewAgentService
