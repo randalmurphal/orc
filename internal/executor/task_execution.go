@@ -11,7 +11,6 @@ import (
 	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
-	"github.com/randalmurphal/orc/internal/lock"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
@@ -129,24 +128,11 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 }
 
 // setupWorktreeForTask creates or reuses an isolated worktree for the task.
-// Uses PIDGuard to prevent same-user double-runs.
 func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 	worktreePath, err := e.setupWorktree(t.ID)
 	if err != nil {
 		return fmt.Errorf("setup worktree: %w", err)
 	}
-
-	// Check PID guard before proceeding (prevents same user running same task twice)
-	pidGuard := lock.NewPIDGuard(worktreePath)
-	if err := pidGuard.Check(); err != nil {
-		return fmt.Errorf("task already running: %w", err)
-	}
-
-	// Acquire PID guard
-	if err := pidGuard.Acquire(); err != nil {
-		return fmt.Errorf("acquire pid guard: %w", err)
-	}
-	e.pidGuard = pidGuard
 
 	e.worktreePath = worktreePath
 	e.worktreeGit = e.gitOps.InWorktree(worktreePath)
@@ -200,14 +186,7 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 }
 
 // cleanupWorktreeForTask removes the worktree based on config and task status.
-// Always releases PID guard regardless of cleanup decision.
 func (e *Executor) cleanupWorktreeForTask(t *task.Task) {
-	// Always release PID guard
-	if e.pidGuard != nil {
-		e.pidGuard.Release()
-		e.pidGuard = nil
-	}
-
 	if e.worktreePath != "" {
 		shouldCleanup := (t.Status == task.StatusCompleted && e.orcConfig.Worktree.CleanupOnComplete) ||
 			(t.Status == task.StatusFailed && e.orcConfig.Worktree.CleanupOnFail)
