@@ -13,8 +13,9 @@ import (
 
 func newSpecCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "spec <title>",
-		Short: "Start interactive spec session with Claude",
+		Use:        "spec <title>",
+		Deprecated: "Use 'orc plan' instead. Example: orc plan \"feature title\"",
+		Short:      "Start interactive spec session with Claude",
 		Long: `Start an interactive Claude session to collaboratively create a specification.
 
 The session will:

@@ -49,6 +49,7 @@ make dev-full # API (:8080) + frontend (:5173)
 | `storage/` | Storage backend abstraction | Backend interface, hybrid/file/database modes, export |
 | `bootstrap/` | Instant project initialization | <500ms init, no prompts |
 | `setup/` | Claude-powered interactive setup | Prompt generation, validation |
+| `plan_session/` | Interactive planning sessions | Claude Code spec creation, validation |
 
 ## Dependencies
 
@@ -250,6 +251,36 @@ qa:
 </qa_result>
 ```
 
+## Plan Configuration
+
+Interactive planning sessions create specs for tasks before execution.
+
+```yaml
+plan:
+  require_spec_for_execution: false  # Block execution without spec (default: false)
+  warn_on_missing_spec: true         # Warn but don't block (default: true)
+  skip_validation_weights:           # Skip validation for these weights
+    - trivial
+  minimum_sections:                  # Required spec sections
+    - intent
+    - success_criteria
+    - testing
+```
+
+**Environment Variables:**
+```bash
+ORC_PLAN_REQUIRE_SPEC=true
+ORC_PLAN_WARN_MISSING=true
+ORC_PLAN_SKIP_WEIGHTS=trivial
+```
+
+**Spec file location:** `.orc/tasks/TASK-001/spec.md`
+
+**Required sections for non-trivial tasks:**
+- **Intent**: What is being built and why
+- **Success Criteria**: Testable outcomes (checkbox format)
+- **Testing**: Automated tests + manual verification steps
+
 ## Sub-task Queue
 
 Agents can propose sub-tasks during implementation for later review.
@@ -440,6 +471,7 @@ completion:
     ├── task.yaml        # Definition
     ├── plan.yaml        # Phase sequence
     ├── state.yaml       # Execution state
+    ├── spec.md          # Task specification (created by orc plan)
     └── transcripts/     # Claude conversation logs
 
 .claude/
@@ -480,6 +512,8 @@ The plugin is installed automatically by `orc init` to `.claude/plugins/orc/`.
 | `orc go --stream` | Stream Claude transcript to stdout |
 | `orc init` | Initialize .orc/ in current directory (instant, <500ms) |
 | `orc setup` | Claude-powered interactive project setup |
+| `orc plan TASK-ID` | Interactive Claude Code session to create task spec |
+| `orc plan "title"` | Create feature spec (optionally generates tasks) |
 | `orc new "title"` | Create task, classify weight, generate plan |
 | `orc list` (alias: `ls`) | List all tasks |
 | `orc run TASK-ID` | Execute task phases (auto by default) |
