@@ -18,7 +18,7 @@ import (
 // handleGetState returns task execution state.
 func (s *Server) handleGetState(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	st, err := state.Load(id)
+	st, err := state.LoadFrom(s.workDir, id)
 	if err != nil {
 		s.jsonError(w, "state not found", http.StatusNotFound)
 		return
@@ -30,7 +30,7 @@ func (s *Server) handleGetState(w http.ResponseWriter, r *http.Request) {
 // handleGetPlan returns task plan.
 func (s *Server) handleGetPlan(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	p, err := plan.Load(id)
+	p, err := plan.LoadFrom(s.workDir, id)
 	if err != nil {
 		s.jsonError(w, "plan not found", http.StatusNotFound)
 		return
@@ -42,7 +42,7 @@ func (s *Server) handleGetPlan(w http.ResponseWriter, r *http.Request) {
 // handleGetSession returns session information for a task.
 func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	st, err := state.Load(id)
+	st, err := state.LoadFrom(s.workDir, id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -59,7 +59,7 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 // handleGetTokens returns token usage and cost for a task.
 func (s *Server) handleGetTokens(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	st, err := state.Load(id)
+	st, err := state.LoadFrom(s.workDir, id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -106,7 +106,7 @@ func (s *Server) handleGetCostSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load all states
-	states, err := state.LoadAllStates()
+	states, err := state.LoadAllStatesFrom(s.workDir)
 	if err != nil {
 		s.jsonError(w, "failed to load task states", http.StatusInternalServerError)
 		return
@@ -182,13 +182,13 @@ func (s *Server) handleGetTranscripts(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	// Verify task exists
-	if !task.Exists(id) {
+	if !task.ExistsIn(s.workDir, id) {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
 	// Read transcript files
-	transcriptsDir := task.TaskDir(id) + "/transcripts"
+	transcriptsDir := task.TaskDirIn(s.workDir, id) + "/transcripts"
 	entries, err := os.ReadDir(transcriptsDir)
 	if err != nil {
 		// No transcripts yet is OK

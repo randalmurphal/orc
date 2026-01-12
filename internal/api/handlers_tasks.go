@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/randalmurphal/orc/internal/db"
@@ -25,7 +26,7 @@ func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 	}
 
 	// Load from YAML and sync to database
-	t, err := task.Load(taskID)
+	t, err := task.LoadFrom(s.workDir, taskID)
 	if err != nil {
 		return fmt.Errorf("load task from yaml: %w", err)
 	}
@@ -52,7 +53,8 @@ func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 
 // handleListTasks returns all tasks with optional pagination.
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
-	tasks, err := task.LoadAll()
+	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
+	tasks, err := task.LoadAllFrom(tasksDir)
 	if err != nil {
 		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
 		return
@@ -131,7 +133,8 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := task.NextID()
+	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
+	id, err := task.NextIDIn(tasksDir)
 	if err != nil {
 		s.jsonError(w, "failed to generate task ID", http.StatusInternalServerError)
 		return
@@ -146,7 +149,8 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		t.Weight = task.WeightMedium
 	}
 
-	if err := t.Save(); err != nil {
+	taskDir := task.TaskDirIn(s.workDir, id)
+	if err := t.SaveTo(taskDir); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
@@ -174,7 +178,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 
 	// Update task status to planned
 	t.Status = task.StatusPlanned
-	if err := t.Save(); err != nil {
+	if err := t.SaveTo(taskDir); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}
@@ -186,7 +190,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 // handleGetTask returns a specific task.
 func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := task.Load(id)
+	t, err := task.LoadFrom(s.workDir, id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -200,7 +204,7 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	// Check if task is running
-	t, err := task.Load(id)
+	t, err := task.LoadFrom(s.workDir, id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -212,7 +216,7 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete task
-	if err := task.Delete(id); err != nil {
+	if err := task.DeleteIn(s.workDir, id); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to delete task: %v", err), http.StatusInternalServerError)
 		return
 	}

@@ -137,17 +137,14 @@ func TestIntegration_ExecutePhase_Complete(t *testing.T) {
 	skipIfNoRealClaude(t)
 
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to temp dir: %v", err)
-	}
-	defer func() { _ = os.Chdir(origDir) }()
+	taskDir := filepath.Join(tmpDir, ".orc/tasks/INT-001")
 
-	if err := os.MkdirAll(".orc/tasks/INT-001", 0755); err != nil {
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		t.Fatalf("failed to create task dir: %v", err)
 	}
 
 	cfg := DefaultConfig()
+	cfg.WorkDir = tmpDir
 	e := New(cfg)
 
 	// Use real Claude client
@@ -194,17 +191,14 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 	skipIfNoRealClaude(t)
 
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to temp dir: %v", err)
-	}
-	defer func() { _ = os.Chdir(origDir) }()
+	taskDir := filepath.Join(tmpDir, ".orc/tasks/INT-002")
 
-	if err := os.MkdirAll(".orc/tasks/INT-002", 0755); err != nil {
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		t.Fatalf("failed to create task dir: %v", err)
 	}
 
 	cfg := DefaultConfig()
+	cfg.WorkDir = tmpDir
 	e := New(cfg)
 
 	client := claude.NewClaudeCLI(claude.WithDangerouslySkipPermissions())
@@ -219,7 +213,7 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 	testTask := task.New("INT-002", "Integration test task")
 	testTask.Weight = task.WeightTrivial
 	testTask.Status = task.StatusPlanned
-	if err := testTask.Save(); err != nil {
+	if err := testTask.SaveTo(taskDir); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -235,7 +229,7 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.Save("INT-002"); err != nil {
+	if err := testPlan.SaveTo(taskDir); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -272,13 +266,13 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 	<-done
 
 	// Track costs from state
-	reloadedState, _ := state.Load("INT-002")
+	reloadedState, _ := state.LoadFrom(tmpDir, "INT-002")
 	costs.Add(t.Name(),
 		reloadedState.Tokens.InputTokens,
 		reloadedState.Tokens.OutputTokens,
 		duration)
 
-	reloadedTask, _ := task.Load("INT-002")
+	reloadedTask, _ := task.LoadFrom(tmpDir, "INT-002")
 	if reloadedTask.Status != task.StatusCompleted {
 		t.Errorf("task status = %s, want completed", reloadedTask.Status)
 	}
@@ -290,18 +284,15 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 	skipIfNoRealClaude(t)
 
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to temp dir: %v", err)
-	}
-	defer func() { _ = os.Chdir(origDir) }()
+	taskDir := filepath.Join(tmpDir, ".orc/tasks/INT-003")
 
-	if err := os.MkdirAll(".orc/tasks/INT-003", 0755); err != nil {
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		t.Fatalf("failed to create task dir: %v", err)
 	}
 
 	cfg := DefaultConfig()
 	cfg.MaxIterations = 5
+	cfg.WorkDir = tmpDir
 	e := New(cfg)
 
 	client := claude.NewClaudeCLI(claude.WithDangerouslySkipPermissions())
@@ -310,7 +301,7 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 	testTask := task.New("INT-003", "Multi-phase integration test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	if err := testTask.Save(); err != nil {
+	if err := testTask.SaveTo(taskDir); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -330,7 +321,7 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.Save("INT-003"); err != nil {
+	if err := testPlan.SaveTo(taskDir); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -347,13 +338,13 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 		t.Fatalf("ExecuteTask failed: %v", err)
 	}
 
-	reloadedState, _ := state.Load("INT-003")
+	reloadedState, _ := state.LoadFrom(tmpDir, "INT-003")
 	costs.Add(t.Name(),
 		reloadedState.Tokens.InputTokens,
 		reloadedState.Tokens.OutputTokens,
 		duration)
 
-	reloadedTask, _ := task.Load("INT-003")
+	reloadedTask, _ := task.LoadFrom(tmpDir, "INT-003")
 	if reloadedTask.Status != task.StatusCompleted {
 		t.Errorf("task status = %s, want completed", reloadedTask.Status)
 	}
@@ -373,17 +364,14 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 	skipIfNoRealClaude(t)
 
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to temp dir: %v", err)
-	}
-	defer func() { _ = os.Chdir(origDir) }()
+	taskDir := filepath.Join(tmpDir, ".orc/tasks/INT-004")
 
-	if err := os.MkdirAll(".orc/tasks/INT-004", 0755); err != nil {
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		t.Fatalf("failed to create task dir: %v", err)
 	}
 
 	cfg := DefaultConfig()
+	cfg.WorkDir = tmpDir
 	e := New(cfg)
 
 	client := claude.NewClaudeCLI(claude.WithDangerouslySkipPermissions())
@@ -392,7 +380,7 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 	testTask := task.New("INT-004", "Pause/Resume test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	if err := testTask.Save(); err != nil {
+	if err := testTask.SaveTo(taskDir); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -410,7 +398,7 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.Save("INT-004"); err != nil {
+	if err := testPlan.SaveTo(taskDir); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -429,22 +417,22 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 	// Simulate pause
 	testState.InterruptPhase("phase1")
 	testTask.Status = task.StatusPaused
-	if err := testState.Save(); err != nil {
+	if err := testState.SaveTo(taskDir); err != nil {
 		t.Fatalf("failed to save state: %v", err)
 	}
-	if err := testTask.Save(); err != nil {
+	if err := testTask.SaveTo(taskDir); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Verify paused state
-	reloadedTask, _ := task.Load("INT-004")
+	reloadedTask, _ := task.LoadFrom(tmpDir, "INT-004")
 	if reloadedTask.Status != task.StatusPaused {
 		t.Error("Task should be paused")
 	}
 
 	// Resume and execute phase2
 	testTask.Status = task.StatusRunning
-	if err := testTask.Save(); err != nil {
+	if err := testTask.SaveTo(taskDir); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -471,17 +459,15 @@ func TestMock_ExecutePhase_Complete(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to temp dir: %v", err)
-	}
-	defer func() { _ = os.Chdir(origDir) }()
+	taskDir := filepath.Join(tmpDir, ".orc/tasks/MOCK-001")
 
-	if err := os.MkdirAll(".orc/tasks/MOCK-001", 0755); err != nil {
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		t.Fatalf("failed to create task dir: %v", err)
 	}
 
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = tmpDir
+	e := New(cfg)
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
 	e.SetClient(mockClient)
 
@@ -517,17 +503,15 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to temp dir: %v", err)
-	}
-	defer func() { _ = os.Chdir(origDir) }()
+	taskDir := filepath.Join(tmpDir, ".orc/tasks/MOCK-002")
 
-	if err := os.MkdirAll(".orc/tasks/MOCK-002", 0755); err != nil {
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		t.Fatalf("failed to create task dir: %v", err)
 	}
 
-	e := New(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorkDir = tmpDir
+	e := New(cfg)
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>")
 	e.SetClient(mockClient)
 
@@ -539,7 +523,7 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 	testTask := task.New("MOCK-002", "Event test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	if err := testTask.Save(); err != nil {
+	if err := testTask.SaveTo(taskDir); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -549,7 +533,7 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 			{ID: "implement", Prompt: "Test"},
 		},
 	}
-	if err := testPlan.Save("MOCK-002"); err != nil {
+	if err := testPlan.SaveTo(taskDir); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 

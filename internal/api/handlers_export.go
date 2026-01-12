@@ -43,7 +43,7 @@ func (s *Server) handleExportTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if task exists
-	if !task.Exists(taskID) {
+	if !task.ExistsIn(s.workDir, taskID) {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -67,15 +67,19 @@ func (s *Server) handleExportTask(w http.ResponseWriter, r *http.Request) {
 	// Build export options from request or defaults
 	opts := buildExportOptions(&req, &cfg.Storage)
 
-	// Get project path (current working directory)
-	cwd, err := os.Getwd()
-	if err != nil {
-		s.jsonError(w, "failed to get working directory: "+err.Error(), http.StatusInternalServerError)
-		return
+	// Get project path from workDir
+	projectPath := s.workDir
+	if projectPath == "" {
+		var err error
+		projectPath, err = os.Getwd()
+		if err != nil {
+			s.jsonError(w, "failed to get working directory: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Create storage backend
-	backend, err := storage.NewBackend(cwd, &cfg.Storage)
+	backend, err := storage.NewBackend(projectPath, &cfg.Storage)
 	if err != nil {
 		s.jsonError(w, "failed to create storage backend: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -88,7 +92,7 @@ func (s *Server) handleExportTask(w http.ResponseWriter, r *http.Request) {
 	// Perform export
 	if req.ToBranch {
 		// Get current branch for the task
-		t, err := task.Load(taskID)
+		t, err := task.LoadFrom(s.workDir, taskID)
 		if err != nil {
 			s.jsonError(w, "failed to load task: "+err.Error(), http.StatusInternalServerError)
 			return

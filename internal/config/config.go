@@ -835,19 +835,25 @@ func (c *Config) SaveTo(path string) error {
 	return nil
 }
 
-// Init initializes the orc directory structure.
+// Init initializes the orc directory structure in the current directory.
 func Init(force bool) error {
+	return InitAt(".", force)
+}
+
+// InitAt initializes the orc directory structure at the specified base path.
+func InitAt(basePath string, force bool) error {
+	orcDir := filepath.Join(basePath, OrcDir)
 	// Check if already initialized
 	if !force {
-		if _, err := os.Stat(OrcDir); err == nil {
+		if _, err := os.Stat(orcDir); err == nil {
 			return fmt.Errorf("orc already initialized (use --force to overwrite)")
 		}
 	}
 
 	// Create directory structure
 	dirs := []string{
-		OrcDir,
-		filepath.Join(OrcDir, "tasks"),
+		orcDir,
+		filepath.Join(orcDir, "tasks"),
 	}
 
 	for _, dir := range dirs {
@@ -858,7 +864,7 @@ func Init(force bool) error {
 
 	// Write default config
 	cfg := Default()
-	if err := cfg.Save(); err != nil {
+	if err := cfg.SaveTo(filepath.Join(orcDir, ConfigFileName)); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}
 
@@ -867,13 +873,23 @@ func Init(force bool) error {
 
 // IsInitialized returns true if orc is initialized in the current directory.
 func IsInitialized() bool {
-	_, err := os.Stat(OrcDir)
+	return IsInitializedAt(".")
+}
+
+// IsInitializedAt returns true if orc is initialized at the specified base path.
+func IsInitializedAt(basePath string) bool {
+	_, err := os.Stat(filepath.Join(basePath, OrcDir))
 	return err == nil
 }
 
-// RequireInit returns an error if orc is not initialized.
+// RequireInit returns an error if orc is not initialized in the current directory.
 func RequireInit() error {
-	if !IsInitialized() {
+	return RequireInitAt(".")
+}
+
+// RequireInitAt returns an error if orc is not initialized at the specified base path.
+func RequireInitAt(basePath string) error {
+	if !IsInitializedAt(basePath) {
 		return fmt.Errorf("not an orc project (no %s directory). Run 'orc init' first", OrcDir)
 	}
 	return nil

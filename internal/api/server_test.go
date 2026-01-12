@@ -204,14 +204,11 @@ func TestDeletePromptEndpoint_NoOverride(t *testing.T) {
 
 func TestListHooksEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create .claude directory
-	os.MkdirAll(".claude", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/hooks", nil)
 	w := httptest.NewRecorder()
@@ -258,15 +255,12 @@ func TestGetHookTypesEndpoint(t *testing.T) {
 
 func TestGetHookEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create empty settings
-	os.MkdirAll(".claude", 0755)
-	os.WriteFile(".claude/settings.json", []byte(`{}`), 0644)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	os.WriteFile(filepath.Join(tmpDir, ".claude", "settings.json"), []byte(`{}`), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/hooks/PreToolUse", nil)
 	w := httptest.NewRecorder()
@@ -295,14 +289,11 @@ func TestCreateHookEndpoint_InvalidBody(t *testing.T) {
 
 func TestCreateHookEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create .claude directory
-	os.MkdirAll(".claude", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	// New format: event + hook
 	body := `{"event": "PreToolUse", "hook": {"matcher": "Read", "hooks": [{"type": "command", "command": "echo test"}]}}`
@@ -319,15 +310,12 @@ func TestCreateHookEndpoint_Success(t *testing.T) {
 
 func TestDeleteHookEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create empty settings
-	os.MkdirAll(".claude", 0755)
-	os.WriteFile(".claude/settings.json", []byte(`{}`), 0644)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	os.WriteFile(filepath.Join(tmpDir, ".claude", "settings.json"), []byte(`{}`), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("DELETE", "/api/hooks/PreToolUse", nil)
 	w := httptest.NewRecorder()
@@ -343,14 +331,11 @@ func TestDeleteHookEndpoint_NotFound(t *testing.T) {
 
 func TestListSkillsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create .claude/skills directory
-	os.MkdirAll(".claude/skills", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/skills", nil)
 	w := httptest.NewRecorder()
@@ -374,13 +359,10 @@ func TestListSkillsEndpoint(t *testing.T) {
 
 func TestGetSkillEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".claude/skills", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/skills/nonexistent", nil)
 	w := httptest.NewRecorder()
@@ -424,14 +406,11 @@ func TestCreateSkillEndpoint_MissingName(t *testing.T) {
 
 func TestCreateSkillEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create .claude/skills directory
-	os.MkdirAll(".claude/skills", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := `{"name": "test-skill", "description": "A test skill", "content": "Do something useful"}`
 	req := httptest.NewRequest("POST", "/api/skills", bytes.NewBufferString(body))
@@ -445,7 +424,7 @@ func TestCreateSkillEndpoint_Success(t *testing.T) {
 	}
 
 	// Verify the SKILL.md was created
-	skillPath := filepath.Join(".claude", "skills", "test-skill", "SKILL.md")
+	skillPath := filepath.Join(tmpDir, ".claude", "skills", "test-skill", "SKILL.md")
 	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
 		t.Error("expected SKILL.md file to be created")
 	}
@@ -453,13 +432,10 @@ func TestCreateSkillEndpoint_Success(t *testing.T) {
 
 func TestDeleteSkillEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".claude/skills", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("DELETE", "/api/skills/nonexistent", nil)
 	w := httptest.NewRecorder()
@@ -473,12 +449,9 @@ func TestDeleteSkillEndpoint_NotFound(t *testing.T) {
 
 func TestDeleteSkillEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create skill directory with SKILL.md
-	skillDir := filepath.Join(".claude", "skills", "delete-skill")
+	skillDir := filepath.Join(tmpDir, ".claude", "skills", "delete-skill")
 	os.MkdirAll(skillDir, 0755)
 	skillMD := `---
 name: delete-skill
@@ -488,7 +461,7 @@ Some content
 `
 	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillMD), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("DELETE", "/api/skills/delete-skill", nil)
 	w := httptest.NewRecorder()
@@ -509,13 +482,10 @@ Some content
 
 func TestGetSettingsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".claude", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/settings", nil)
 	w := httptest.NewRecorder()
@@ -529,13 +499,10 @@ func TestGetSettingsEndpoint(t *testing.T) {
 
 func TestUpdateSettingsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".claude", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := `{"env": {"TEST_VAR": "test_value"}}`
 	req := httptest.NewRequest("PUT", "/api/settings", bytes.NewBufferString(body))
@@ -597,13 +564,10 @@ func TestListToolsByCategory(t *testing.T) {
 
 func TestGetToolPermissionsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".claude", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/tools/permissions", nil)
 	w := httptest.NewRecorder()
@@ -617,13 +581,10 @@ func TestGetToolPermissionsEndpoint(t *testing.T) {
 
 func TestUpdateToolPermissionsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".claude", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := `{"allow": ["Read", "Write"], "deny": ["Bash"]}`
 	req := httptest.NewRequest("PUT", "/api/tools/permissions", bytes.NewBufferString(body))
@@ -641,13 +602,10 @@ func TestUpdateToolPermissionsEndpoint(t *testing.T) {
 
 func TestListAgentsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".claude", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/agents", nil)
 	w := httptest.NewRecorder()
@@ -661,13 +619,10 @@ func TestListAgentsEndpoint(t *testing.T) {
 
 func TestCreateAgentEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".claude", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := `{"name": "test-agent", "description": "A test agent"}`
 	req := httptest.NewRequest("POST", "/api/agents", bytes.NewBufferString(body))
@@ -683,13 +638,10 @@ func TestCreateAgentEndpoint(t *testing.T) {
 
 func TestGetAgentEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".claude", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/agents/nonexistent", nil)
 	w := httptest.NewRecorder()
@@ -705,13 +657,10 @@ func TestGetAgentEndpoint_NotFound(t *testing.T) {
 
 func TestListScriptsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".claude", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/scripts", nil)
 	w := httptest.NewRecorder()
@@ -725,16 +674,13 @@ func TestListScriptsEndpoint(t *testing.T) {
 
 func TestDiscoverScriptsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create scripts directory with a test script
-	scriptsDir := filepath.Join(".claude", "scripts")
+	scriptsDir := filepath.Join(tmpDir, ".claude", "scripts")
 	os.MkdirAll(scriptsDir, 0755)
 	os.WriteFile(filepath.Join(scriptsDir, "test.sh"), []byte("#!/bin/bash\n# Test script\necho hello"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", "/api/scripts/discover", nil)
 	w := httptest.NewRecorder()
@@ -759,14 +705,11 @@ func TestDiscoverScriptsEndpoint(t *testing.T) {
 
 func TestGetClaudeMDEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create CLAUDE.md
-	os.WriteFile("CLAUDE.md", []byte("# Project CLAUDE.md\n\nTest content"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte("# Project CLAUDE.md\n\nTest content"), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/claudemd", nil)
 	w := httptest.NewRecorder()
@@ -789,11 +732,8 @@ func TestGetClaudeMDEndpoint(t *testing.T) {
 
 func TestGetClaudeMDEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/claudemd", nil)
 	w := httptest.NewRecorder()
@@ -807,11 +747,8 @@ func TestGetClaudeMDEndpoint_NotFound(t *testing.T) {
 
 func TestUpdateClaudeMDEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := `{"content": "# Updated CLAUDE.md\n\nNew content"}`
 	req := httptest.NewRequest("PUT", "/api/claudemd", bytes.NewBufferString(body))
@@ -825,7 +762,7 @@ func TestUpdateClaudeMDEndpoint(t *testing.T) {
 	}
 
 	// Verify file was written
-	content, err := os.ReadFile("CLAUDE.md")
+	content, err := os.ReadFile(filepath.Join(tmpDir, "CLAUDE.md"))
 	if err != nil {
 		t.Fatalf("failed to read CLAUDE.md: %v", err)
 	}
@@ -836,14 +773,11 @@ func TestUpdateClaudeMDEndpoint(t *testing.T) {
 
 func TestGetClaudeMDHierarchyEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create project CLAUDE.md
-	os.WriteFile("CLAUDE.md", []byte("# Project"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte("# Project"), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/claudemd/hierarchy", nil)
 	w := httptest.NewRecorder()
@@ -869,14 +803,11 @@ func TestGetClaudeMDHierarchyEndpoint(t *testing.T) {
 func TestListTasksEndpoint_EmptyDir(t *testing.T) {
 	// Create temp dir for .orc
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create minimal .orc structure
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/tasks", nil)
 	w := httptest.NewRecorder()
@@ -899,12 +830,9 @@ func TestListTasksEndpoint_EmptyDir(t *testing.T) {
 
 func TestListTasksEndpoint_WithTasks(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task directory and file
-	taskDir := filepath.Join(".orc", "tasks", "TASK-001")
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-001")
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := `id: TASK-001
@@ -917,7 +845,7 @@ updated_at: 2024-01-01T00:00:00Z
 `
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/tasks", nil)
 	w := httptest.NewRecorder()
@@ -944,13 +872,10 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestListTasksEndpoint_Pagination(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create multiple tasks for pagination testing
 	for i := 1; i <= 25; i++ {
-		taskDir := filepath.Join(".orc", "tasks", fmt.Sprintf("TASK-%03d", i))
+		taskDir := filepath.Join(tmpDir, ".orc", "tasks", fmt.Sprintf("TASK-%03d", i))
 		os.MkdirAll(taskDir, 0755)
 
 		taskYAML := fmt.Sprintf(`id: TASK-%03d
@@ -964,7 +889,7 @@ updated_at: 2024-01-01T00:00:00Z
 		os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 	}
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	// Test pagination with page=1, limit=10
 	req := httptest.NewRequest("GET", "/api/tasks?page=1&limit=10", nil)
@@ -1003,12 +928,9 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetTaskEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task
-	taskDir := filepath.Join(".orc", "tasks", "TASK-002")
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-002")
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := `id: TASK-002
@@ -1021,7 +943,7 @@ updated_at: 2024-01-01T00:00:00Z
 `
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/tasks/TASK-002", nil)
 	w := httptest.NewRecorder()
@@ -1048,13 +970,10 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetTaskEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/tasks/NONEXISTENT", nil)
 	w := httptest.NewRecorder()
@@ -1068,13 +987,10 @@ func TestGetTaskEndpoint_NotFound(t *testing.T) {
 
 func TestCreateTaskEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := bytes.NewBufferString(`{"title":"New Task","description":"Create test","weight":"small"}`)
 	req := httptest.NewRequest("POST", "/api/tasks", body)
@@ -1103,13 +1019,10 @@ func TestCreateTaskEndpoint(t *testing.T) {
 
 func TestCreateTaskEndpoint_MissingTitle(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := bytes.NewBufferString(`{"description":"No title"}`)
 	req := httptest.NewRequest("POST", "/api/tasks", body)
@@ -1140,17 +1053,20 @@ func TestCreateTaskEndpoint_InvalidJSON(t *testing.T) {
 
 func TestDeleteTaskEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create a task to delete
-	os.MkdirAll(".orc/tasks/TASK-DEL-001", 0755)
-	testTask := task.New("TASK-DEL-001", "Delete Test")
-	testTask.Status = task.StatusCompleted
-	testTask.Save()
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-DEL-001")
+	os.MkdirAll(taskDir, 0755)
+	taskYAML := `id: TASK-DEL-001
+title: Delete Test
+status: completed
+weight: small
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("DELETE", "/api/tasks/TASK-DEL-001", nil)
 	w := httptest.NewRecorder()
@@ -1162,20 +1078,17 @@ func TestDeleteTaskEndpoint_Success(t *testing.T) {
 	}
 
 	// Verify task was deleted
-	if task.Exists("TASK-DEL-001") {
+	if task.ExistsIn(tmpDir, "TASK-DEL-001") {
 		t.Error("task should have been deleted")
 	}
 }
 
 func TestDeleteTaskEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("DELETE", "/api/tasks/TASK-NONEXISTENT", nil)
 	w := httptest.NewRecorder()
@@ -1189,17 +1102,20 @@ func TestDeleteTaskEndpoint_NotFound(t *testing.T) {
 
 func TestDeleteTaskEndpoint_RunningTask(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create a running task
-	os.MkdirAll(".orc/tasks/TASK-RUN-001", 0755)
-	testTask := task.New("TASK-RUN-001", "Running Task")
-	testTask.Status = task.StatusRunning
-	testTask.Save()
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-RUN-001")
+	os.MkdirAll(taskDir, 0755)
+	taskYAML := `id: TASK-RUN-001
+title: Running Task
+status: running
+weight: small
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("DELETE", "/api/tasks/TASK-RUN-001", nil)
 	w := httptest.NewRecorder()
@@ -1211,7 +1127,7 @@ func TestDeleteTaskEndpoint_RunningTask(t *testing.T) {
 	}
 
 	// Verify task still exists
-	if !task.Exists("TASK-RUN-001") {
+	if !task.ExistsIn(tmpDir, "TASK-RUN-001") {
 		t.Error("running task should not have been deleted")
 	}
 }
@@ -1247,20 +1163,17 @@ type TranscriptFile struct {
 
 func TestGetConfigEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create config directory and file
-	os.MkdirAll(".orc", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 	configYAML := `version: 1
 model: claude-sonnet-4-20250514
 max_iterations: 30
 timeout: 10m
 `
-	os.WriteFile(".orc/config.yaml", []byte(configYAML), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".orc", "config.yaml"), []byte(configYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/config", nil)
 	w := httptest.NewRecorder()
@@ -1274,12 +1187,9 @@ timeout: 10m
 
 func TestGetConfigEndpoint_NoConfig(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// No config file exists
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/config", nil)
 	w := httptest.NewRecorder()
@@ -1294,14 +1204,11 @@ func TestGetConfigEndpoint_NoConfig(t *testing.T) {
 
 func TestUpdateConfigEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create config directory
-	os.MkdirAll(".orc", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	// Update config with new values
 	body := bytes.NewBufferString(`{
@@ -1430,14 +1337,11 @@ func TestPublishNoSubscribers(t *testing.T) {
 
 func TestSavePromptEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create .orc/prompts directory
-	os.MkdirAll(".orc/prompts", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "prompts"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := bytes.NewBufferString(`{"content":"Custom prompt content for testing"}`)
 	req := httptest.NewRequest("PUT", "/api/prompts/implement", body)
@@ -1451,7 +1355,7 @@ func TestSavePromptEndpoint_Success(t *testing.T) {
 	}
 
 	// Verify prompt was saved
-	content, err := os.ReadFile(".orc/prompts/implement.md")
+	content, err := os.ReadFile(filepath.Join(tmpDir, ".orc", "prompts", "implement.md"))
 	if err != nil {
 		t.Errorf("failed to read saved prompt: %v", err)
 	}
@@ -1462,15 +1366,12 @@ func TestSavePromptEndpoint_Success(t *testing.T) {
 
 func TestDeletePromptEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create .orc/prompts directory with a prompt
-	os.MkdirAll(".orc/prompts", 0755)
-	os.WriteFile(".orc/prompts/test.md", []byte("test content"), 0644)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "prompts"), 0755)
+	os.WriteFile(filepath.Join(tmpDir, ".orc", "prompts", "test.md"), []byte("test content"), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("DELETE", "/api/prompts/test", nil)
 	w := httptest.NewRecorder()
@@ -1482,7 +1383,7 @@ func TestDeletePromptEndpoint_Success(t *testing.T) {
 	}
 
 	// Verify file was deleted
-	if _, err := os.Stat(".orc/prompts/test.md"); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(tmpDir, ".orc", "prompts", "test.md")); !os.IsNotExist(err) {
 		t.Error("expected prompt file to be deleted")
 	}
 }
@@ -1491,12 +1392,9 @@ func TestDeletePromptEndpoint_Success(t *testing.T) {
 
 func TestGetPlanEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task with plan file
-	taskDir := filepath.Join(".orc", "tasks", "TASK-010")
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-010")
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := `id: TASK-010
@@ -1518,7 +1416,7 @@ phases:
 `
 	os.WriteFile(filepath.Join(taskDir, "plan.yaml"), []byte(planYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/tasks/TASK-010/plan", nil)
 	w := httptest.NewRecorder()
@@ -1534,12 +1432,9 @@ phases:
 
 func TestRunTaskEndpoint_TaskCannotRun(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task with running status
-	taskDir := filepath.Join(".orc", "tasks", "TASK-011")
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-011")
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := `id: TASK-011
@@ -1551,7 +1446,7 @@ updated_at: 2024-01-01T00:00:00Z
 `
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", "/api/tasks/TASK-011/run", nil)
 	w := httptest.NewRecorder()
@@ -1565,12 +1460,9 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestRunTaskEndpoint_NoPlan(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task without plan file (status must allow running)
-	taskDir := filepath.Join(".orc", "tasks", "TASK-012")
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-012")
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := `id: TASK-012
@@ -1582,7 +1474,7 @@ updated_at: 2024-01-01T00:00:00Z
 `
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", "/api/tasks/TASK-012/run", nil)
 	w := httptest.NewRecorder()
@@ -1598,12 +1490,9 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestPauseTaskEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create running task
-	taskDir := filepath.Join(".orc", "tasks", "TASK-013")
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-013")
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := `id: TASK-013
@@ -1615,7 +1504,7 @@ updated_at: 2024-01-01T00:00:00Z
 `
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", "/api/tasks/TASK-013/pause", nil)
 	w := httptest.NewRecorder()
@@ -1636,13 +1525,10 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestPauseTaskEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/pause", nil)
 	w := httptest.NewRecorder()
@@ -1656,12 +1542,9 @@ func TestPauseTaskEndpoint_NotFound(t *testing.T) {
 
 func TestResumeTaskEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create paused task
-	taskDir := filepath.Join(".orc", "tasks", "TASK-014")
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-014")
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := `id: TASK-014
@@ -1673,7 +1556,7 @@ updated_at: 2024-01-01T00:00:00Z
 `
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", "/api/tasks/TASK-014/resume", nil)
 	w := httptest.NewRecorder()
@@ -1694,13 +1577,10 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestResumeTaskEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/resume", nil)
 	w := httptest.NewRecorder()
@@ -1716,13 +1596,10 @@ func TestResumeTaskEndpoint_NotFound(t *testing.T) {
 
 func TestStreamEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/tasks/NONEXISTENT/stream", nil)
 	w := httptest.NewRecorder()
@@ -1738,12 +1615,9 @@ func TestStreamEndpoint_TaskNotFound(t *testing.T) {
 
 func TestGetTranscriptsEndpoint_Empty(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task with empty transcripts directory
-	taskDir := filepath.Join(".orc", "tasks", "TASK-TRANS-001")
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TRANS-001")
 	os.MkdirAll(filepath.Join(taskDir, "transcripts"), 0755)
 
 	taskYAML := `id: TASK-TRANS-001
@@ -1755,7 +1629,7 @@ updated_at: 2024-01-01T00:00:00Z
 `
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/tasks/TASK-TRANS-001/transcripts", nil)
 	w := httptest.NewRecorder()
@@ -1776,12 +1650,9 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetTranscriptsEndpoint_WithTranscripts(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task with transcripts
-	taskDir := filepath.Join(".orc", "tasks", "TASK-TRANS-002")
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TRANS-002")
 	transcriptsDir := filepath.Join(taskDir, "transcripts")
 	os.MkdirAll(transcriptsDir, 0755)
 
@@ -1801,7 +1672,7 @@ Implementation done!
 `
 	os.WriteFile(filepath.Join(transcriptsDir, "implement-001.md"), []byte(transcriptContent), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/tasks/TASK-TRANS-002/transcripts", nil)
 	w := httptest.NewRecorder()
@@ -1823,13 +1694,10 @@ Implementation done!
 
 func TestCreateTaskEndpoint_WithWeight(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := `{"title": "Test Task", "weight": "large"}`
 	req := httptest.NewRequest("POST", "/api/tasks", bytes.NewBufferString(body))
@@ -1851,13 +1719,10 @@ func TestCreateTaskEndpoint_WithWeight(t *testing.T) {
 
 func TestCreateTaskEndpoint_WithDescription(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := `{"title": "Test Task", "description": "Detailed description here"}`
 	req := httptest.NewRequest("POST", "/api/tasks", bytes.NewBufferString(body))
@@ -2173,14 +2038,11 @@ func TestProjectNotFound(t *testing.T) {
 
 func TestGetCostSummaryEndpoint_Empty(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create minimal .orc structure with no tasks
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/cost/summary", nil)
 	w := httptest.NewRecorder()
@@ -2203,12 +2065,9 @@ func TestGetCostSummaryEndpoint_Empty(t *testing.T) {
 
 func TestGetCostSummaryEndpoint_WithTasks(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task with cost data
-	taskDir := filepath.Join(".orc", "tasks", "TASK-COST-001")
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-COST-001")
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := `id: TASK-COST-001
@@ -2244,7 +2103,7 @@ cost:
 `
 	os.WriteFile(filepath.Join(taskDir, "state.yaml"), []byte(stateYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/cost/summary", nil)
 	w := httptest.NewRecorder()
@@ -2277,12 +2136,9 @@ cost:
 
 func TestGetCostSummaryEndpoint_PeriodFiltering(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create old task (more than a week old)
-	oldTaskDir := filepath.Join(".orc", "tasks", "TASK-OLD")
+	oldTaskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-OLD")
 	os.MkdirAll(oldTaskDir, 0755)
 
 	oldTaskYAML := `id: TASK-OLD
@@ -2308,7 +2164,7 @@ cost:
 	os.WriteFile(filepath.Join(oldTaskDir, "state.yaml"), []byte(oldStateYAML), 0644)
 
 	// Create recent task
-	recentTaskDir := filepath.Join(".orc", "tasks", "TASK-NEW")
+	recentTaskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-NEW")
 	os.MkdirAll(recentTaskDir, 0755)
 
 	now := time.Now().Format(time.RFC3339)
@@ -2334,7 +2190,7 @@ cost:
 `, now, now)
 	os.WriteFile(filepath.Join(recentTaskDir, "state.yaml"), []byte(recentStateYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	// Test with period=week (should only include recent task)
 	req := httptest.NewRequest("GET", "/api/cost/summary?period=week", nil)
@@ -2373,13 +2229,10 @@ cost:
 
 func TestGetCostSummaryEndpoint_InvalidPeriod(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	// Invalid period with no 'since' should still work (falls through to no filter)
 	req := httptest.NewRequest("GET", "/api/cost/summary?period=invalid", nil)
@@ -2395,13 +2248,10 @@ func TestGetCostSummaryEndpoint_InvalidPeriod(t *testing.T) {
 
 func TestGetCostSummaryEndpoint_InvalidSinceParameter(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
-	os.MkdirAll(".orc/tasks", 0755)
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	// Invalid 'since' parameter should return error
 	req := httptest.NewRequest("GET", "/api/cost/summary?period=custom&since=not-a-date", nil)

@@ -24,12 +24,10 @@ func setupGitHubTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) 
 	t.Helper()
 
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
 
 	// Create task directory
 	taskID = "TASK-GH-001"
-	taskDir := filepath.Join(".orc", "tasks", taskID)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
 	os.MkdirAll(taskDir, 0755)
 
 	// Create task.yaml with branch
@@ -79,10 +77,10 @@ tokens:
 		opt(t, tmpDir, taskID)
 	}
 
-	srv = New(nil)
+	srv = New(&Config{WorkDir: tmpDir})
 
 	cleanup = func() {
-		os.Chdir(origDir)
+		// No cleanup needed - t.TempDir() handles cleanup
 	}
 
 	return srv, taskID, cleanup
@@ -188,7 +186,7 @@ func TestHandleAutoFixComment_BuildsRetryContext(t *testing.T) {
 	}
 
 	// Verify state was updated with retry context
-	st, err := state.Load(taskID)
+	st, err := state.LoadFrom(srv.workDir, taskID)
 	if err != nil {
 		t.Fatalf("failed to load state: %v", err)
 	}
@@ -221,7 +219,7 @@ func TestHandleAutoFixComment_StoresMetadata(t *testing.T) {
 	}
 
 	// Verify task metadata was updated
-	tsk, err := task.Load(taskID)
+	tsk, err := task.LoadFrom(srv.workDir, taskID)
 	if err != nil {
 		t.Fatalf("failed to load task: %v", err)
 	}
@@ -255,9 +253,9 @@ func TestHandleAutoFixComment_UpdatesCompletedTaskStatus(t *testing.T) {
 	defer cleanup()
 
 	// Set task to completed status first
-	tsk, _ := task.Load(taskID)
+	tsk, _ := task.LoadFrom(srv.workDir, taskID)
 	tsk.Status = task.StatusCompleted
-	tsk.Save()
+	tsk.SaveTo(task.TaskDirIn(srv.workDir, taskID))
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/github/pr/comments/RC-status1/autofix", taskID), nil)
 	w := httptest.NewRecorder()
@@ -269,7 +267,7 @@ func TestHandleAutoFixComment_UpdatesCompletedTaskStatus(t *testing.T) {
 	}
 
 	// Verify task status was reset to planned for re-execution
-	reloadedTask, _ := task.Load(taskID)
+	reloadedTask, _ := task.LoadFrom(srv.workDir, taskID)
 	if reloadedTask.Status != task.StatusPlanned {
 		t.Errorf("expected status to be reset to planned, got %s", reloadedTask.Status)
 	}
@@ -294,13 +292,10 @@ func TestHandleReplyToPRComment_TaskNotFound(t *testing.T) {
 
 func TestHandleReplyToPRComment_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task without branch
 	taskID := "TASK-NOBRANCH"
-	taskDir := filepath.Join(".orc", "tasks", taskID)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := fmt.Sprintf(`id: %s
@@ -311,7 +306,7 @@ updated_at: 2025-01-01T00:00:00Z
 `, taskID)
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := bytes.NewBufferString(`{"body": "Reply text"}`)
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/github/pr/comments/123/reply", taskID), body)
@@ -402,13 +397,10 @@ func TestHandleImportPRComments_TaskNotFound(t *testing.T) {
 
 func TestHandleImportPRComments_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task without branch
 	taskID := "TASK-NOBRANCH2"
-	taskDir := filepath.Join(".orc", "tasks", taskID)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := fmt.Sprintf(`id: %s
@@ -419,7 +411,7 @@ updated_at: 2025-01-01T00:00:00Z
 `, taskID)
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/github/pr/comments/import", taskID), nil)
 	w := httptest.NewRecorder()
@@ -448,13 +440,10 @@ func TestHandleListPRChecks_TaskNotFound(t *testing.T) {
 
 func TestHandleListPRChecks_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task without branch
 	taskID := "TASK-NOBRANCH3"
-	taskDir := filepath.Join(".orc", "tasks", taskID)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := fmt.Sprintf(`id: %s
@@ -465,7 +454,7 @@ updated_at: 2025-01-01T00:00:00Z
 `, taskID)
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/tasks/%s/github/pr/checks", taskID), nil)
 	w := httptest.NewRecorder()
@@ -550,13 +539,10 @@ func TestHandleCreatePR_TaskNotFound(t *testing.T) {
 
 func TestHandleCreatePR_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task without branch
 	taskID := "TASK-NOBRANCH4"
-	taskDir := filepath.Join(".orc", "tasks", taskID)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := fmt.Sprintf(`id: %s
@@ -567,7 +553,7 @@ updated_at: 2025-01-01T00:00:00Z
 `, taskID)
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/github/pr", taskID), nil)
 	w := httptest.NewRecorder()
@@ -623,13 +609,10 @@ func TestHandleGetPR_TaskNotFound(t *testing.T) {
 
 func TestHandleGetPR_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task without branch
 	taskID := "TASK-NOBRANCH5"
-	taskDir := filepath.Join(".orc", "tasks", taskID)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := fmt.Sprintf(`id: %s
@@ -640,7 +623,7 @@ updated_at: 2025-01-01T00:00:00Z
 `, taskID)
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/tasks/%s/github/pr", taskID), nil)
 	w := httptest.NewRecorder()
@@ -669,13 +652,10 @@ func TestHandleMergePR_TaskNotFound(t *testing.T) {
 
 func TestHandleMergePR_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task without branch
 	taskID := "TASK-NOBRANCH6"
-	taskDir := filepath.Join(".orc", "tasks", taskID)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := fmt.Sprintf(`id: %s
@@ -686,7 +666,7 @@ updated_at: 2025-01-01T00:00:00Z
 `, taskID)
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/github/pr/merge", taskID), nil)
 	w := httptest.NewRecorder()
@@ -715,13 +695,10 @@ func TestHandleSyncPRComments_TaskNotFound(t *testing.T) {
 
 func TestHandleSyncPRComments_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	// Create task without branch
 	taskID := "TASK-NOBRANCH7"
-	taskDir := filepath.Join(".orc", "tasks", taskID)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
 	os.MkdirAll(taskDir, 0755)
 
 	taskYAML := fmt.Sprintf(`id: %s
@@ -732,7 +709,7 @@ updated_at: 2025-01-01T00:00:00Z
 `, taskID)
 	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/github/pr/comments/sync", taskID), nil)
 	w := httptest.NewRecorder()
@@ -916,13 +893,13 @@ func TestHandleAutoFixComment_LoadsPlanAndState(t *testing.T) {
 	}
 
 	// Verify plan is loadable
-	_, err := plan.Load(taskID)
+	_, err := plan.LoadFrom(srv.workDir, taskID)
 	if err != nil {
 		t.Errorf("expected plan to be loadable: %v", err)
 	}
 
 	// Verify state has retry context
-	st, err := state.Load(taskID)
+	st, err := state.LoadFrom(srv.workDir, taskID)
 	if err != nil {
 		t.Errorf("expected state to be loadable: %v", err)
 	}

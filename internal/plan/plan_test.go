@@ -2,6 +2,7 @@ package plan
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/task"
@@ -154,15 +155,12 @@ func TestGeneratorGenerate(t *testing.T) {
 
 func TestSaveAndLoad(t *testing.T) {
 	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir, "TASK-001")
 
-	err := os.MkdirAll(tmpDir+"/.orc/tasks/TASK-001", 0755)
+	err := os.MkdirAll(taskDir, 0755)
 	if err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
-
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
 
 	// Create and save plan
 	p := &Plan{
@@ -176,15 +174,15 @@ func TestSaveAndLoad(t *testing.T) {
 		},
 	}
 
-	err = p.Save("TASK-001")
+	err = p.SaveTo(taskDir)
 	if err != nil {
-		t.Fatalf("Save() failed: %v", err)
+		t.Fatalf("SaveTo() failed: %v", err)
 	}
 
 	// Load plan
-	loaded, err := Load("TASK-001")
+	loaded, err := LoadFrom(tmpDir, "TASK-001")
 	if err != nil {
-		t.Fatalf("Load() failed: %v", err)
+		t.Fatalf("LoadFrom() failed: %v", err)
 	}
 
 	if loaded.TaskID != p.TaskID {
@@ -215,17 +213,14 @@ func TestPlanError(t *testing.T) {
 
 func TestLoadNonExistentPlan(t *testing.T) {
 	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir, "TASK-999")
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
+	// Create task directory but no plan file
+	os.MkdirAll(taskDir, 0755)
 
-	// Create .orc directory but no plan
-	os.MkdirAll(tmpDir+"/.orc/tasks/TASK-999", 0755)
-
-	_, err := Load("TASK-999")
+	_, err := LoadFrom(tmpDir, "TASK-999")
 	if err == nil {
-		t.Error("Load() should return error for non-existent plan")
+		t.Error("LoadFrom() should return error for non-existent plan")
 	}
 }
 

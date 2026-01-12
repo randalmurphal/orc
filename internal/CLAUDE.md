@@ -97,6 +97,39 @@ Run specific package:
 go test ./internal/executor/... -v
 ```
 
+### Test Isolation Pattern
+
+**NEVER use `os.Chdir()` in tests** - it's process-wide and not goroutine-safe.
+
+Instead, use explicit path parameters with `t.TempDir()`:
+
+```go
+func TestSomething(t *testing.T) {
+    tmpDir := t.TempDir()
+
+    // Initialize in temp directory
+    err := config.InitAt(tmpDir, false)
+
+    // Load from temp directory
+    task, err := task.LoadFrom(tmpDir, "TASK-001")
+
+    // Save to temp directory
+    err = task.SaveTo(filepath.Join(tmpDir, ".orc", "tasks", task.ID))
+}
+```
+
+**Path-aware function variants:**
+
+| Package | Functions |
+|---------|-----------|
+| `task` | `LoadFrom(projectDir, id)`, `LoadAllFrom(tasksDir)`, `TaskDirIn(projectDir, id)`, `ExistsIn(projectDir, id)`, `DeleteIn(projectDir, id)`, `NextIDIn(tasksDir)` |
+| `state` | `LoadFrom(projectDir, taskID)`, `LoadAllStatesFrom(projectDir)` |
+| `plan` | `LoadFrom(projectDir, taskID)` |
+| `config` | `InitAt(basePath, force)`, `IsInitializedAt(basePath)`, `RequireInitAt(basePath)` |
+| `template` | `SaveTo(baseDir)`, `ListFrom(projectTemplatesDir)` |
+
+The API server uses `WorkDir` in its config to specify the project directory.
+
 ## Package Details
 
 See package-specific CLAUDE.md files:

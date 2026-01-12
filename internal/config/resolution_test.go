@@ -35,12 +35,7 @@ profile: safe
 		t.Fatalf("write personal config: %v", err)
 	}
 
-	// Change to project directory
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(projectDir)
-
-	// Create loader with custom paths
+	// Create loader with custom paths (no os.Chdir needed)
 	loader := &Loader{
 		projectDir: projectDir,
 		userDir:    userDir,
@@ -97,13 +92,8 @@ func TestLoader_GetResolutionChain_EnvOverride(t *testing.T) {
 `
 	os.WriteFile(filepath.Join(projectDir, OrcDir, ConfigFileName), []byte(config), 0644)
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(projectDir)
-
 	// Set env var override
-	os.Setenv("ORC_MODEL", "env-model")
-	defer os.Unsetenv("ORC_MODEL")
+	t.Setenv("ORC_MODEL", "env-model")
 
 	loader := &Loader{
 		projectDir: projectDir,

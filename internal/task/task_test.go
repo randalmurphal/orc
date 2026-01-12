@@ -2,6 +2,7 @@ package task
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -77,40 +78,29 @@ func TestCanRun(t *testing.T) {
 }
 
 func TestSaveAndLoad(t *testing.T) {
-	// Create temp directory
 	tmpDir := t.TempDir()
-	oldOrcDir := OrcDir
+	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
 
-	// Override OrcDir for testing
-	defer func() {
-		// Can't change const, so we test Save/Load with actual directory
-	}()
-
-	// Create .orc directory in temp
-	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	// Create task directory
+	err := os.MkdirAll(taskDir, 0755)
 	if err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
-
-	// Change to temp directory
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
 
 	// Create and save task
 	task := New("TASK-001", "Test task")
 	task.Weight = WeightMedium
 	task.Description = "Test description"
 
-	err = task.Save()
+	err = task.SaveTo(taskDir)
 	if err != nil {
-		t.Fatalf("Save() failed: %v", err)
+		t.Fatalf("SaveTo() failed: %v", err)
 	}
 
 	// Load task
-	loaded, err := Load("TASK-001")
+	loaded, err := LoadFrom(tmpDir, "TASK-001")
 	if err != nil {
-		t.Fatalf("Load() failed: %v", err)
+		t.Fatalf("LoadFrom() failed: %v", err)
 	}
 
 	if loaded.ID != task.ID {
@@ -128,42 +118,34 @@ func TestSaveAndLoad(t *testing.T) {
 	if loaded.Description != task.Description {
 		t.Errorf("loaded Description = %s, want %s", loaded.Description, task.Description)
 	}
-
-	_ = oldOrcDir
 }
 
 func TestNextID(t *testing.T) {
 	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
 
-	// Create .orc directory
-	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	// First ID should be TASK-001 (no tasks directory yet)
+	id, err := NextIDIn(tasksDir)
 	if err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
-	// First ID should be TASK-001
-	id, err := NextID()
-	if err != nil {
-		t.Fatalf("NextID() failed: %v", err)
+		t.Fatalf("NextIDIn() failed: %v", err)
 	}
 	if id != "TASK-001" {
-		t.Errorf("NextID() = %s, want TASK-001", id)
+		t.Errorf("NextIDIn() = %s, want TASK-001", id)
 	}
 
-	// Create task directory
-	os.MkdirAll(tmpDir+"/.orc/tasks/TASK-001", 0755)
+	// Create tasks directory and first task
+	err = os.MkdirAll(filepath.Join(tasksDir, "TASK-001"), 0755)
+	if err != nil {
+		t.Fatalf("failed to create task directory: %v", err)
+	}
 
 	// Second ID should be TASK-002
-	id, err = NextID()
+	id, err = NextIDIn(tasksDir)
 	if err != nil {
-		t.Fatalf("NextID() failed: %v", err)
+		t.Fatalf("NextIDIn() failed: %v", err)
 	}
 	if id != "TASK-002" {
-		t.Errorf("NextID() = %s, want TASK-002", id)
+		t.Errorf("NextIDIn() = %s, want TASK-002", id)
 	}
 }
 
@@ -177,33 +159,30 @@ func TestTaskDir(t *testing.T) {
 
 func TestLoadAll(t *testing.T) {
 	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
 
-	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	err := os.MkdirAll(tasksDir, 0755)
 	if err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
 	// Create two tasks
 	task1 := New("TASK-001", "First task")
 	task1.CreatedAt = time.Now().Add(-time.Hour)
-	task1.Save()
+	task1.SaveTo(filepath.Join(tasksDir, "TASK-001"))
 
 	task2 := New("TASK-002", "Second task")
 	task2.CreatedAt = time.Now()
-	task2.Save()
+	task2.SaveTo(filepath.Join(tasksDir, "TASK-002"))
 
 	// Load all
-	tasks, err := LoadAll()
+	tasks, err := LoadAllFrom(tasksDir)
 	if err != nil {
-		t.Fatalf("LoadAll() failed: %v", err)
+		t.Fatalf("LoadAllFrom() failed: %v", err)
 	}
 
 	if len(tasks) != 2 {
-		t.Errorf("LoadAll() returned %d tasks, want 2", len(tasks))
+		t.Errorf("LoadAllFrom() returned %d tasks, want 2", len(tasks))
 	}
 
 	// Should be sorted by creation time (newest first)
@@ -214,181 +193,160 @@ func TestLoadAll(t *testing.T) {
 
 func TestExists(t *testing.T) {
 	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
 
-	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	err := os.MkdirAll(tasksDir, 0755)
 	if err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
 	// Non-existent task
-	if Exists("TASK-999") {
-		t.Error("Exists() = true for non-existent task")
+	if ExistsIn(tmpDir, "TASK-999") {
+		t.Error("ExistsIn() = true for non-existent task")
 	}
 
 	// Create task
 	task := New("TASK-001", "Test task")
-	task.Save()
+	task.SaveTo(filepath.Join(tasksDir, "TASK-001"))
 
 	// Existing task
-	if !Exists("TASK-001") {
-		t.Error("Exists() = false for existing task")
+	if !ExistsIn(tmpDir, "TASK-001") {
+		t.Error("ExistsIn() = false for existing task")
 	}
 }
 
 func TestLoadNonExistentTask(t *testing.T) {
 	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
 
-	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	err := os.MkdirAll(tasksDir, 0755)
 	if err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
-	_, err = Load("TASK-999")
+	_, err = LoadFrom(tmpDir, "TASK-999")
 	if err == nil {
-		t.Error("Load() should return error for non-existent task")
+		t.Error("LoadFrom() should return error for non-existent task")
 	}
 }
 
 func TestLoadAllEmpty(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
-	// No .orc directory at all
-	tasks, err := LoadAll()
+	// No tasks directory at all
+	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
+	tasks, err := LoadAllFrom(tasksDir)
 	if err != nil {
-		t.Fatalf("LoadAll() on empty dir should not error: %v", err)
+		t.Fatalf("LoadAllFrom() on empty dir should not error: %v", err)
 	}
 	if len(tasks) != 0 {
-		t.Error("LoadAll() on empty dir should return nil/empty")
+		t.Error("LoadAllFrom() on empty dir should return nil/empty")
 	}
 }
 
 func TestLoadAllSkipsNonDirs(t *testing.T) {
 	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
 
-	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	err := os.MkdirAll(tasksDir, 0755)
 	if err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
 	// Create a regular file in tasks directory (should be skipped)
-	os.WriteFile(tmpDir+"/.orc/tasks/.gitkeep", []byte(""), 0644)
+	err = os.WriteFile(filepath.Join(tasksDir, ".gitkeep"), []byte(""), 0644)
+	if err != nil {
+		t.Fatalf("failed to create .gitkeep: %v", err)
+	}
 
 	// Create a valid task
 	task := New("TASK-001", "Test task")
-	task.Save()
+	task.SaveTo(filepath.Join(tasksDir, "TASK-001"))
 
-	tasks, err := LoadAll()
+	tasks, err := LoadAllFrom(tasksDir)
 	if err != nil {
-		t.Fatalf("LoadAll() failed: %v", err)
+		t.Fatalf("LoadAllFrom() failed: %v", err)
 	}
 
 	// Should only have the valid task, not the .gitkeep file
 	if len(tasks) != 1 {
-		t.Errorf("LoadAll() returned %d tasks, want 1", len(tasks))
+		t.Errorf("LoadAllFrom() returned %d tasks, want 1", len(tasks))
 	}
 }
 
 func TestNextIDWithGaps(t *testing.T) {
 	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
 
-	err := os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	err := os.MkdirAll(tasksDir, 0755)
 	if err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
 	// Create TASK-001 and TASK-003 (gap at 002)
-	os.MkdirAll(tmpDir+"/.orc/tasks/TASK-001", 0755)
-	os.MkdirAll(tmpDir+"/.orc/tasks/TASK-003", 0755)
+	os.MkdirAll(filepath.Join(tasksDir, "TASK-001"), 0755)
+	os.MkdirAll(filepath.Join(tasksDir, "TASK-003"), 0755)
 
-	// NextID should give TASK-004 (highest + 1)
-	id, err := NextID()
+	// NextIDIn should give TASK-004 (highest + 1)
+	id, err := NextIDIn(tasksDir)
 	if err != nil {
-		t.Fatalf("NextID() failed: %v", err)
+		t.Fatalf("NextIDIn() failed: %v", err)
 	}
 	if id != "TASK-004" {
-		t.Errorf("NextID() = %s, want TASK-004", id)
+		t.Errorf("NextIDIn() = %s, want TASK-004", id)
 	}
 }
 
 func TestDelete(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
-
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
+	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
+	os.MkdirAll(tasksDir, 0755)
 
 	task := New("TASK-001", "Test task")
 	task.Status = StatusCompleted
-	task.Save()
+	task.SaveTo(filepath.Join(tasksDir, "TASK-001"))
 
-	if !Exists("TASK-001") {
+	if !ExistsIn(tmpDir, "TASK-001") {
 		t.Error("Task should exist before delete")
 	}
 
-	err := Delete("TASK-001")
+	err := DeleteIn(tmpDir, "TASK-001")
 	if err != nil {
-		t.Fatalf("Delete() failed: %v", err)
+		t.Fatalf("DeleteIn() failed: %v", err)
 	}
 
-	if Exists("TASK-001") {
+	if ExistsIn(tmpDir, "TASK-001") {
 		t.Error("Task should not exist after delete")
 	}
 }
 
 func TestDelete_RunningTask(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
-
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
+	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
+	os.MkdirAll(tasksDir, 0755)
 
 	task := New("TASK-001", "Running task")
 	task.Status = StatusRunning
-	task.Save()
+	task.SaveTo(filepath.Join(tasksDir, "TASK-001"))
 
-	err := Delete("TASK-001")
+	err := DeleteIn(tmpDir, "TASK-001")
 	if err == nil {
-		t.Error("Delete() should fail for running task")
+		t.Error("DeleteIn() should fail for running task")
 	}
 
-	if !Exists("TASK-001") {
+	if !ExistsIn(tmpDir, "TASK-001") {
 		t.Error("Running task should still exist after failed delete")
 	}
 }
 
 func TestDelete_NonExistent(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
+	os.MkdirAll(tasksDir, 0755)
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
-	err := Delete("TASK-999")
+	err := DeleteIn(tmpDir, "TASK-999")
 	if err == nil {
-		t.Error("Delete() should fail for non-existent task")
+		t.Error("DeleteIn() should fail for non-existent task")
 	}
 }
 

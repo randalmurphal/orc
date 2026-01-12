@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/state"
@@ -24,7 +25,8 @@ type DashboardStats struct {
 
 // handleGetDashboardStats returns dashboard statistics.
 func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request) {
-	tasks, err := task.LoadAll()
+	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
+	tasks, err := task.LoadAllFrom(tasksDir)
 	if err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to load tasks: %v", err), http.StatusInternalServerError)
 		return
@@ -57,7 +59,7 @@ func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request)
 		}
 
 		// Load state for token counts
-		if st, err := state.Load(t.ID); err == nil && st != nil {
+		if st, err := state.LoadFrom(s.workDir, t.ID); err == nil && st != nil {
 			stats.Tokens += int64(st.Tokens.TotalTokens)
 		}
 	}

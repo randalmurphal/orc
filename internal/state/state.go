@@ -127,12 +127,17 @@ func New(taskID string) *State {
 
 // Load loads state from disk for a given task ID.
 func Load(taskID string) (*State, error) {
-	path := filepath.Join(task.OrcDir, task.TasksDir, taskID, StateFileName)
+	return LoadFrom(".", taskID)
+}
+
+// LoadFrom loads state from a specific project directory.
+func LoadFrom(projectDir, taskID string) (*State, error) {
+	path := filepath.Join(projectDir, task.OrcDir, task.TasksDir, taskID, StateFileName)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Check if the task exists - if so, return empty state; otherwise error
-			if task.Exists(taskID) {
+			if task.ExistsIn(projectDir, taskID) {
 				return New(taskID), nil
 			}
 			return nil, fmt.Errorf("task %s not found", taskID)
@@ -404,7 +409,12 @@ func (s *State) GetSessionID() string {
 
 // LoadAllStates loads state for all tasks.
 func LoadAllStates() ([]*State, error) {
-	tasksDir := filepath.Join(task.OrcDir, task.TasksDir)
+	return LoadAllStatesFrom("")
+}
+
+// LoadAllStatesFrom loads state for all tasks from a specific project directory.
+func LoadAllStatesFrom(projectDir string) ([]*State, error) {
+	tasksDir := filepath.Join(projectDir, task.OrcDir, task.TasksDir)
 	entries, err := os.ReadDir(tasksDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -419,7 +429,7 @@ func LoadAllStates() ([]*State, error) {
 			continue
 		}
 
-		s, err := Load(entry.Name())
+		s, err := LoadFrom(projectDir, entry.Name())
 		if err != nil {
 			continue // Skip tasks that can't be loaded
 		}

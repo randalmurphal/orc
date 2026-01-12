@@ -167,7 +167,12 @@ func (e planError) Error() string { return string(e) }
 
 // Load loads a plan from disk for a given task ID.
 func Load(taskID string) (*Plan, error) {
-	path := filepath.Join(task.OrcDir, task.TasksDir, taskID, PlanFileName)
+	return LoadFrom(".", taskID)
+}
+
+// LoadFrom loads a plan from a specific project directory.
+func LoadFrom(projectDir, taskID string) (*Plan, error) {
+	path := filepath.Join(projectDir, task.OrcDir, task.TasksDir, taskID, PlanFileName)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {

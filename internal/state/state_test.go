@@ -2,7 +2,10 @@ package state
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 func TestNew(t *testing.T) {
@@ -215,30 +218,31 @@ func TestIsPhaseCompleted(t *testing.T) {
 
 func TestSaveAndLoad(t *testing.T) {
 	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir, "TASK-001")
 
-	err := os.MkdirAll(tmpDir+"/.orc/tasks/TASK-001", 0755)
+	err := os.MkdirAll(taskDir, 0755)
 	if err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
+	// Create a task.yaml so task.ExistsIn returns true
+	tsk := task.New("TASK-001", "Test task")
+	tsk.SaveTo(taskDir)
 
 	// Create and save state
 	s := New("TASK-001")
 	s.StartPhase("implement")
 	s.AddTokens(100, 50)
 
-	err = s.Save()
+	err = s.SaveTo(taskDir)
 	if err != nil {
-		t.Fatalf("Save() failed: %v", err)
+		t.Fatalf("SaveTo() failed: %v", err)
 	}
 
 	// Load state
-	loaded, err := Load("TASK-001")
+	loaded, err := LoadFrom(tmpDir, "TASK-001")
 	if err != nil {
-		t.Fatalf("Load() failed: %v", err)
+		t.Fatalf("LoadFrom() failed: %v", err)
 	}
 
 	if loaded.TaskID != s.TaskID {
@@ -380,17 +384,14 @@ func TestSkipPhase(t *testing.T) {
 
 func TestLoadNonExistentTask(t *testing.T) {
 	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir)
 
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tmpDir)
-
-	// Create .orc directory but not the task
-	os.MkdirAll(tmpDir+"/.orc/tasks", 0755)
+	// Create tasks directory but not the task
+	os.MkdirAll(tasksDir, 0755)
 
 	// Try to load non-existent task
-	_, err := Load("TASK-999")
+	_, err := LoadFrom(tmpDir, "TASK-999")
 	if err == nil {
-		t.Error("Load() should return error for non-existent task")
+		t.Error("LoadFrom() should return error for non-existent task")
 	}
 }
