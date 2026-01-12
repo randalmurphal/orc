@@ -34,6 +34,7 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 're
 export class OrcWebSocket {
 	private ws: WebSocket | null = null;
 	private taskId: string | null = null;
+	private primarySubscription: string | null = null; // Default subscription to restore on reconnect
 	private listeners = new Map<string, Set<WSCallback>>();
 	private statusListeners = new Set<(status: ConnectionStatus) => void>();
 	private reconnectAttempts = 0;
@@ -113,6 +114,7 @@ export class OrcWebSocket {
 		}
 
 		this.taskId = null;
+		this.primarySubscription = null;
 		this.setStatus('disconnected');
 	}
 
@@ -132,9 +134,26 @@ export class OrcWebSocket {
 
 	/**
 	 * Subscribe to ALL task events (global subscription)
+	 * This also sets global as the primary subscription for reconnection.
 	 */
 	subscribeGlobal(): void {
+		this.primarySubscription = GLOBAL_TASK_ID;
 		this.subscribe(GLOBAL_TASK_ID);
+	}
+
+	/**
+	 * Set the primary subscription to restore on reconnection.
+	 * Use GLOBAL_TASK_ID for global subscription.
+	 */
+	setPrimarySubscription(taskId: string | null): void {
+		this.primarySubscription = taskId;
+	}
+
+	/**
+	 * Get the primary subscription
+	 */
+	getPrimarySubscription(): string | null {
+		return this.primarySubscription;
 	}
 
 	/**
@@ -285,7 +304,10 @@ export class OrcWebSocket {
 		console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
 		this.reconnectTimer = setTimeout(() => {
-			this.connect(this.taskId || undefined);
+			// Prefer primary subscription (e.g., global) over current taskId
+			// This ensures we restore global subscription after temporary task-specific ones
+			const subscriptionToRestore = this.primarySubscription || this.taskId || undefined;
+			this.connect(subscriptionToRestore);
 		}, delay);
 	}
 
@@ -328,6 +350,10 @@ export function getWebSocket(baseUrl?: string): OrcWebSocket {
 /**
  * Subscribe to task events using WebSocket
  * Returns cleanup function
+ *
+ * Note: This will override any existing subscription (including global).
+ * For pages that need task-specific events while layout has global subscription,
+ * consider just adding event listeners without resubscribing.
  */
 export function subscribeToTaskWS(
 	taskId: string,
@@ -354,11 +380,19 @@ export function subscribeToTaskWS(
 	// Connect and subscribe
 	ws.connect(taskId);
 
+	// Capture the taskId we subscribed to
+	const subscribedTaskId = taskId;
+
 	// Return cleanup function
+	// Only unsubscribe if we're still subscribed to the same task
+	// (prevents interfering with other subscriptions like global)
 	return () => {
 		unsubEvent();
 		unsubStatus?.();
-		ws.unsubscribe();
+		// Only unsubscribe if our subscription is still active
+		if (ws.getTaskId() === subscribedTaskId) {
+			ws.unsubscribe();
+		}
 	};
 }
 
@@ -388,13 +422,20 @@ export function initGlobalWebSocket(
 		unsubStatus = ws.onStatusChange(onStatus);
 	}
 
+	// Set global as the primary subscription for reconnection
+	ws.setPrimarySubscription(GLOBAL_TASK_ID);
+
 	// Connect and subscribe to global events
 	ws.connect(GLOBAL_TASK_ID);
 
 	// Return cleanup function
+	// Only unsubscribe if we're still subscribed globally
 	return () => {
 		unsubEvent();
 		unsubStatus?.();
-		ws.unsubscribe();
+		// Only unsubscribe if global subscription is still active
+		if (ws.getTaskId() === GLOBAL_TASK_ID) {
+			ws.unsubscribe();
+		}
 	};
 }

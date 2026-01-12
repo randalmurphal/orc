@@ -56,7 +56,7 @@
 
 	// Get selected task from filtered list
 	function getSelectedTask(): Task | null {
-		const filtered = filteredTasks();
+		const filtered = filteredTasks;
 		if (selectedIndex >= 0 && selectedIndex < filtered.length) {
 			return filtered[selectedIndex];
 		}
@@ -72,7 +72,7 @@
 		// Setup task list keyboard shortcuts
 		cleanupShortcuts = setupTaskListShortcuts({
 			onNavDown: () => {
-				const filtered = filteredTasks();
+				const filtered = filteredTasks;
 				if (filtered.length > 0) {
 					selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1);
 					scrollToSelected();
@@ -206,8 +206,8 @@
 		}
 	}
 
-	// Derived filtered tasks
-	const filteredTasks = $derived(() => {
+	// Derived filtered tasks (memoized - only recomputes when dependencies change)
+	const filteredTasks = $derived.by(() => {
 		let result = [...allTasks];
 
 		// Status filter
@@ -245,8 +245,8 @@
 		return result;
 	});
 
-	// Status counts for tabs
-	const statusCounts = $derived(() => ({
+	// Status counts for tabs (memoized)
+	const statusCounts = $derived.by(() => ({
 		all: allTasks.length,
 		active: allTasks.filter((t) => !['completed', 'failed'].includes(t.status)).length,
 		completed: allTasks.filter((t) => t.status === 'completed').length,
@@ -292,7 +292,7 @@
 				onclick={() => (statusFilter = 'all')}
 			>
 				All
-				<span class="tab-count">{statusCounts().all}</span>
+				<span class="tab-count">{statusCounts.all}</span>
 			</button>
 			<button
 				class="status-tab"
@@ -300,7 +300,7 @@
 				onclick={() => (statusFilter = 'active')}
 			>
 				Active
-				<span class="tab-count">{statusCounts().active}</span>
+				<span class="tab-count">{statusCounts.active}</span>
 			</button>
 			<button
 				class="status-tab"
@@ -308,7 +308,7 @@
 				onclick={() => (statusFilter = 'completed')}
 			>
 				Completed
-				<span class="tab-count">{statusCounts().completed}</span>
+				<span class="tab-count">{statusCounts.completed}</span>
 			</button>
 			<button
 				class="status-tab"
@@ -316,7 +316,7 @@
 				onclick={() => (statusFilter = 'failed')}
 			>
 				Failed
-				<span class="tab-count">{statusCounts().failed}</span>
+				<span class="tab-count">{statusCounts.failed}</span>
 			</button>
 		</div>
 
@@ -357,13 +357,25 @@
 		</div>
 	</div>
 
+	<!-- Keyboard Hints -->
+	{#if filteredTasks.length > 0 && selectedIndex >= 0}
+		<div class="keyboard-hints">
+			<span class="hint"><kbd>j</kbd><kbd>k</kbd> navigate</span>
+			<span class="hint"><kbd>Enter</kbd> open</span>
+			<span class="hint"><kbd>r</kbd> run</span>
+			<span class="hint"><kbd>p</kbd> pause</span>
+			<span class="hint"><kbd>d</kbd> delete</span>
+			<span class="hint"><kbd>?</kbd> all shortcuts</span>
+		</div>
+	{/if}
+
 	<!-- Task List -->
 	{#if loading}
 		<div class="loading-state">
 			<div class="spinner"></div>
 			<span>Loading tasks...</span>
 		</div>
-	{:else if filteredTasks().length === 0}
+	{:else if filteredTasks.length === 0}
 		<div class="empty-state">
 			{#if allTasks.length === 0}
 				<div class="empty-icon">
@@ -404,7 +416,7 @@
 		</div>
 	{:else}
 		<div class="task-list">
-			{#each filteredTasks() as task, index (task.id)}
+			{#each filteredTasks as task, index (task.id)}
 				<div
 					class="task-card-wrapper"
 					class:selected={index === selectedIndex}
@@ -840,5 +852,40 @@
 		display: flex;
 		justify-content: flex-end;
 		gap: var(--space-3);
+	}
+
+	/* Keyboard Hints */
+	.keyboard-hints {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-4);
+		padding: var(--space-2) var(--space-4);
+		background: var(--bg-secondary);
+		border-radius: var(--radius-md);
+		margin-bottom: var(--space-4);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+	}
+
+	.keyboard-hints .hint {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+	}
+
+	.keyboard-hints kbd {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 18px;
+		height: 18px;
+		padding: 0 var(--space-1);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-sm);
+		font-family: var(--font-mono);
+		font-size: var(--text-2xs);
+		color: var(--text-secondary);
 	}
 </style>
