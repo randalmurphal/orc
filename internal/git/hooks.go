@@ -177,10 +177,7 @@ exit 0
 
 // writeExecutableFile writes content to a file and makes it executable.
 func writeExecutableFile(path, content string) error {
-	if err := os.WriteFile(path, []byte(content), 0755); err != nil {
-		return err
-	}
-	return nil
+	return os.WriteFile(path, []byte(content), 0755)
 }
 
 // IsProtectedBranch checks if a branch name is in the protected list.
@@ -201,7 +198,8 @@ func IsProtectedBranch(branch string, protectedBranches []string) bool {
 func (g *Git) RemoveWorktreeHooks(worktreePath string) error {
 	worktreeGitDir, err := g.getWorktreeGitDir(worktreePath)
 	if err != nil {
-		// Worktree might already be partially cleaned up
+		// Worktree might already be partially cleaned up - log but don't fail
+		fmt.Fprintf(os.Stderr, "warning: could not get worktree git dir for hook cleanup: %v\n", err)
 		return nil
 	}
 

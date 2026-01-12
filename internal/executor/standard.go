@@ -58,6 +58,11 @@ func WithWorkingDir(dir string) StandardExecutorOption {
 	return func(e *StandardExecutor) { e.workingDir = dir }
 }
 
+// getTargetBranch returns the target branch from config, defaulting to "main".
+func (e *StandardExecutor) getTargetBranch() string {
+	return e.config.GetTargetBranch()
+}
+
 // NewStandardExecutor creates a new standard executor.
 func NewStandardExecutor(mgr session.SessionManager, opts ...StandardExecutorOption) *StandardExecutor {
 	e := &StandardExecutor{
@@ -122,7 +127,15 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
-	vars := BuildTemplateVars(t, p, s, 0, "")
+	vars := BuildTemplateVars(t, p, s, 0, LoadRetryContextForPhase(s))
+
+	// Add worktree context for template rendering
+	if e.workingDir != "" {
+		vars.WorktreePath = e.workingDir
+		vars.TaskBranch = t.Branch
+		vars.TargetBranch = e.getTargetBranch()
+	}
+
 	promptText := RenderTemplate(tmpl, vars)
 
 	// Iteration loop

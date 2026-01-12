@@ -188,6 +188,7 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 		session.WithDefaultSessionOptions(
 			session.WithModel(e.config.Model),
 			session.WithWorkdir(worktreePath),
+			session.WithClaudePath(claudePath),
 			session.WithPermissions(e.config.DangerouslySkipPermissions),
 		),
 	)

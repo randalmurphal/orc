@@ -306,9 +306,9 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 			s.runningTasksMu.Unlock()
 		}()
 
-		cfg := executor.DefaultConfig()
+		cfg := executor.ConfigFromOrc(s.orcConfig)
 		cfg.WorkDir = projectPath
-		exec := executor.New(cfg)
+		exec := executor.NewWithConfig(cfg, s.orcConfig)
 		exec.SetPublisher(s.publisher)
 
 		if err := exec.ExecuteTask(ctx, t, &p, &st); err != nil {
@@ -470,9 +470,9 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 			s.runningTasksMu.Unlock()
 		}()
 
-		cfg := executor.DefaultConfig()
+		cfg := executor.ConfigFromOrc(s.orcConfig)
 		cfg.WorkDir = projectPath
-		exec := executor.New(cfg)
+		exec := executor.NewWithConfig(cfg, s.orcConfig)
 		exec.SetPublisher(s.publisher)
 
 		if err := exec.ExecuteTask(ctx, t, &p, &st); err != nil {

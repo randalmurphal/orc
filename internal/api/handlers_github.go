@@ -394,7 +394,7 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 			s.runningTasksMu.Unlock()
 		}()
 
-		exec := executor.New(executor.DefaultConfig())
+		exec := executor.NewWithConfig(executor.ConfigFromOrc(s.orcConfig), s.orcConfig)
 		exec.SetPublisher(s.publisher)
 
 		// Resume from implement phase with retry context

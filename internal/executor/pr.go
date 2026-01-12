@@ -109,9 +109,9 @@ func (e *Executor) directMerge(ctx context.Context, t *task.Task) error {
 		return fmt.Errorf("merge %s: %w", taskBranch, err)
 	}
 
-	// Push to remote - use PushUnsafe since we've already validated the branch
-	// and this is a non-protected branch
-	if err := gitOps.PushUnsafe("origin", cfg.TargetBranch, false); err != nil {
+	// Push to remote - Push() will validate protected branches but we've already
+	// confirmed this is a non-protected branch above, so this is safe
+	if err := gitOps.Push("origin", cfg.TargetBranch, false); err != nil {
 		e.logger.Warn("failed to push after merge", "error", err)
 	}
 

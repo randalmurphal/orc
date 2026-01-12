@@ -353,3 +353,207 @@ func findSubstring(s, substr string) bool {
 	}
 	return false
 }
+
+func TestRenderTemplate_WorktreeVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		vars     TemplateVars
+		want     string
+	}{
+		{
+			name:     "worktree path substitution",
+			template: "Working in: {{WORKTREE_PATH}}",
+			vars: TemplateVars{
+				WorktreePath: "/home/user/.orc/worktrees/orc-TASK-001",
+			},
+			want: "Working in: /home/user/.orc/worktrees/orc-TASK-001",
+		},
+		{
+			name:     "task branch substitution",
+			template: "Branch: {{TASK_BRANCH}}",
+			vars: TemplateVars{
+				TaskBranch: "orc/TASK-001",
+			},
+			want: "Branch: orc/TASK-001",
+		},
+		{
+			name:     "target branch substitution",
+			template: "Merge to: {{TARGET_BRANCH}}",
+			vars: TemplateVars{
+				TargetBranch: "main",
+			},
+			want: "Merge to: main",
+		},
+		{
+			name:     "all worktree variables together",
+			template: "Path: {{WORKTREE_PATH}}, Branch: {{TASK_BRANCH}}, Target: {{TARGET_BRANCH}}",
+			vars: TemplateVars{
+				WorktreePath: "/tmp/worktree",
+				TaskBranch:   "orc/TASK-002",
+				TargetBranch: "develop",
+			},
+			want: "Path: /tmp/worktree, Branch: orc/TASK-002, Target: develop",
+		},
+		{
+			name:     "empty worktree variables replaced with empty",
+			template: "{{WORKTREE_PATH}}|{{TASK_BRANCH}}|{{TARGET_BRANCH}}",
+			vars:     TemplateVars{},
+			want:     "||",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RenderTemplate(tt.template, tt.vars)
+			if got != tt.want {
+				t.Errorf("RenderTemplate() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildTemplateVarsWithWorktree(t *testing.T) {
+	taskObj := &task.Task{
+		ID:          "TASK-001",
+		Title:       "Test Task",
+		Description: "Test description",
+		Weight:      task.WeightMedium,
+	}
+	phaseObj := &plan.Phase{
+		ID:   "implement",
+		Name: "Implementation",
+	}
+	wctx := WorktreeContext{
+		WorktreePath: "/home/user/.orc/worktrees/orc-TASK-001",
+		TaskBranch:   "orc/TASK-001",
+		TargetBranch: "main",
+	}
+
+	vars := BuildTemplateVarsWithWorktree(taskObj, phaseObj, nil, 1, "", wctx)
+
+	// Check worktree context fields
+	if vars.WorktreePath != wctx.WorktreePath {
+		t.Errorf("WorktreePath = %q, want %q", vars.WorktreePath, wctx.WorktreePath)
+	}
+	if vars.TaskBranch != wctx.TaskBranch {
+		t.Errorf("TaskBranch = %q, want %q", vars.TaskBranch, wctx.TaskBranch)
+	}
+	if vars.TargetBranch != wctx.TargetBranch {
+		t.Errorf("TargetBranch = %q, want %q", vars.TargetBranch, wctx.TargetBranch)
+	}
+
+	// Check that regular fields are also populated
+	if vars.TaskID != "TASK-001" {
+		t.Errorf("TaskID = %q, want TASK-001", vars.TaskID)
+	}
+	if vars.Phase != "implement" {
+		t.Errorf("Phase = %q, want implement", vars.Phase)
+	}
+}
+
+func TestTemplateVars_WithWorktreeContext(t *testing.T) {
+	vars := TemplateVars{
+		TaskID:    "TASK-001",
+		TaskTitle: "Test",
+		Phase:     "spec",
+		Weight:    "medium",
+	}
+
+	wctx := WorktreeContext{
+		WorktreePath: "/tmp/worktree",
+		TaskBranch:   "orc/TASK-001",
+		TargetBranch: "develop",
+	}
+
+	result := vars.WithWorktreeContext(wctx)
+
+	// Worktree fields should be populated
+	if result.WorktreePath != "/tmp/worktree" {
+		t.Errorf("WorktreePath = %q, want /tmp/worktree", result.WorktreePath)
+	}
+	if result.TaskBranch != "orc/TASK-001" {
+		t.Errorf("TaskBranch = %q, want orc/TASK-001", result.TaskBranch)
+	}
+	if result.TargetBranch != "develop" {
+		t.Errorf("TargetBranch = %q, want develop", result.TargetBranch)
+	}
+
+	// Original fields should still be there
+	if result.TaskID != "TASK-001" {
+		t.Errorf("TaskID = %q, want TASK-001", result.TaskID)
+	}
+
+	// Original vars should be unmodified (value receiver)
+	if vars.WorktreePath != "" {
+		t.Errorf("original WorktreePath modified to %q, should be empty", vars.WorktreePath)
+	}
+}
+
+func TestExecutorConfig_GetTargetBranch(t *testing.T) {
+	tests := []struct {
+		name   string
+		config ExecutorConfig
+		want   string
+	}{
+		{
+			name:   "empty target branch defaults to main",
+			config: ExecutorConfig{},
+			want:   "main",
+		},
+		{
+			name: "explicit target branch returned",
+			config: ExecutorConfig{
+				TargetBranch: "develop",
+			},
+			want: "develop",
+		},
+		{
+			name: "custom target branch",
+			config: ExecutorConfig{
+				TargetBranch: "production",
+			},
+			want: "production",
+		},
+		{
+			name: "main is explicit (not default)",
+			config: ExecutorConfig{
+				TargetBranch: "main",
+			},
+			want: "main",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.config.GetTargetBranch()
+			if got != tt.want {
+				t.Errorf("GetTargetBranch() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDefaultConfigForWeight_TargetBranch(t *testing.T) {
+	weights := []task.Weight{
+		task.WeightTrivial,
+		task.WeightSmall,
+		task.WeightMedium,
+		task.WeightLarge,
+		task.WeightGreenfield,
+	}
+
+	for _, w := range weights {
+		t.Run(string(w), func(t *testing.T) {
+			cfg := DefaultConfigForWeight(w)
+			// All default configs should have empty TargetBranch (defaults to "main")
+			if cfg.TargetBranch != "" {
+				t.Errorf("DefaultConfigForWeight(%s).TargetBranch = %q, want empty", w, cfg.TargetBranch)
+			}
+			// GetTargetBranch should return "main" for all defaults
+			if cfg.GetTargetBranch() != "main" {
+				t.Errorf("DefaultConfigForWeight(%s).GetTargetBranch() = %q, want main", w, cfg.GetTargetBranch())
+			}
+		})
+	}
+}

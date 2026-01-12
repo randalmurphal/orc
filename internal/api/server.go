@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/diff"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/events"
@@ -25,6 +26,9 @@ type Server struct {
 	addr   string
 	mux    *http.ServeMux
 	logger *slog.Logger
+
+	// Orc configuration
+	orcConfig *config.Config
 
 	// Event publisher for real-time updates
 	publisher events.Publisher
@@ -74,6 +78,13 @@ func New(cfg *Config) *Server {
 		logger = slog.Default()
 	}
 
+	// Load orc configuration
+	orcCfg, err := config.Load()
+	if err != nil {
+		logger.Warn("failed to load orc config, using defaults", "error", err)
+		orcCfg = config.Default()
+	}
+
 	// Create event publisher
 	pub := events.NewMemoryPublisher()
 
@@ -81,6 +92,7 @@ func New(cfg *Config) *Server {
 		addr:         cfg.Addr,
 		mux:          http.NewServeMux(),
 		logger:       logger,
+		orcConfig:    orcCfg,
 		publisher:    pub,
 		subscribers:  make(map[string][]chan Event),
 		runningTasks: make(map[string]context.CancelFunc),
@@ -421,7 +433,7 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 				s.runningTasksMu.Unlock()
 			}()
 
-			exec := executor.New(executor.DefaultConfig())
+			exec := executor.NewWithConfig(executor.ConfigFromOrc(s.orcConfig), s.orcConfig)
 			exec.SetPublisher(s.publisher)
 			err := exec.ResumeFromPhase(ctx, t, p, st, resumePhase)
 			if err != nil {

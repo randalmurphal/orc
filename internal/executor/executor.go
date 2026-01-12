@@ -53,6 +53,11 @@ type PhaseState struct {
 
 	// Retry context (populated when retrying from a failed phase)
 	RetryContext string
+
+	// Worktree context (for template rendering)
+	WorktreePath string
+	TaskBranch   string
+	TargetBranch string
 }
 
 // Config, DefaultConfig, and ConfigFromOrc are defined in config.go
@@ -246,6 +251,14 @@ func (e *Executor) SetClient(c claude.Client) {
 // When disabled, falls back to the legacy flowgraph-based execution.
 func (e *Executor) SetUseSessionExecution(use bool) {
 	e.useSessionExecution = use
+}
+
+// getTargetBranch returns the target branch from orc config, defaulting to "main".
+func (e *Executor) getTargetBranch() string {
+	if e.orcConfig != nil && e.orcConfig.Completion.TargetBranch != "" {
+		return e.orcConfig.Completion.TargetBranch
+	}
+	return "main"
 }
 
 // getPhaseExecutor returns the appropriate phase executor for the given weight.

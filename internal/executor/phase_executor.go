@@ -34,6 +34,18 @@ type ExecutorConfig struct {
 
 	// Model specifies which model to use (empty = default).
 	Model string
+
+	// TargetBranch is the target branch for merging (used in prompt templates).
+	// Defaults to "main" if empty.
+	TargetBranch string
+}
+
+// GetTargetBranch returns the target branch, defaulting to "main" if not set.
+func (c ExecutorConfig) GetTargetBranch() string {
+	if c.TargetBranch == "" {
+		return "main"
+	}
+	return c.TargetBranch
 }
 
 // DefaultConfigForWeight returns the recommended configuration for a task weight.

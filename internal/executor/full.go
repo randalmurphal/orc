@@ -72,6 +72,11 @@ func WithStateUpdater(fn func(*state.State)) FullExecutorOption {
 	return func(e *FullExecutor) { e.stateUpdater = fn }
 }
 
+// getTargetBranch returns the target branch from config, defaulting to "main".
+func (e *FullExecutor) getTargetBranch() string {
+	return e.config.GetTargetBranch()
+}
+
 // NewFullExecutor creates a new full executor.
 func NewFullExecutor(mgr session.SessionManager, opts ...FullExecutorOption) *FullExecutor {
 	e := &FullExecutor{
@@ -158,7 +163,15 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
-	vars := BuildTemplateVars(t, p, s, startIteration, "")
+	vars := BuildTemplateVars(t, p, s, startIteration, LoadRetryContextForPhase(s))
+
+	// Add worktree context for template rendering
+	if e.workingDir != "" {
+		vars.WorktreePath = e.workingDir
+		vars.TaskBranch = t.Branch
+		vars.TargetBranch = e.getTargetBranch()
+	}
+
 	promptText := RenderTemplate(tmpl, vars)
 
 	// Iteration loop with checkpointing

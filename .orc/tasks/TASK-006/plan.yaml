@@ -27,7 +27,7 @@ phases:
         type: auto
       checkpoint: true
       status: completed
-      commit_sha: d544220fc19a8f50f09bb9648c24a25028b94ecf
+      commit_sha: 2990dc2107bfb4218cfa3955c0a1b6fef7f52830
     - id: test
       name: test
       prompt: |
@@ -52,7 +52,7 @@ phases:
         type: auto
       checkpoint: true
       status: completed
-      commit_sha: 1757447e251c7a4b9e64c8dcb01667b02d2a33b0
+      commit_sha: 3fa5d0518ef78adce92766ef423269da59489fa8
     - id: docs
       name: docs
       prompt: |
@@ -77,4 +77,4 @@ phases:
         type: auto
       checkpoint: true
       status: completed
-      commit_sha: db2d46d39875bd9fa66c22b1aec52db0936522c4
+      commit_sha: eb4684c77e8d0bbcc0352f37fc2eabb0c45a93db
