@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/util"
 	"github.com/randalmurphal/orc/templates"
 	"gopkg.in/yaml.v3"
 )
@@ -183,39 +184,21 @@ func Load(taskID string) (*Plan, error) {
 	return &p, nil
 }
 
-// Save persists the plan to disk.
+// Save persists the plan to disk using atomic writes.
 func (p *Plan) Save(taskID string) error {
 	dir := filepath.Join(task.OrcDir, task.TasksDir, taskID)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("create task directory: %w", err)
-	}
-
-	data, err := yaml.Marshal(p)
-	if err != nil {
-		return fmt.Errorf("marshal plan: %w", err)
-	}
-
-	path := filepath.Join(dir, PlanFileName)
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("write plan: %w", err)
-	}
-
-	return nil
+	return p.SaveTo(dir)
 }
 
-// SaveTo saves the plan to a specific directory.
+// SaveTo saves the plan to a specific directory using atomic writes.
 func (p *Plan) SaveTo(dir string) error {
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("create directory: %w", err)
-	}
-
 	data, err := yaml.Marshal(p)
 	if err != nil {
 		return fmt.Errorf("marshal plan: %w", err)
 	}
 
 	path := filepath.Join(dir, PlanFileName)
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := util.AtomicWriteFile(path, data, 0644); err != nil {
 		return fmt.Errorf("write plan: %w", err)
 	}
 

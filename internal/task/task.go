@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -130,26 +131,10 @@ func Load(id string) (*Task, error) {
 	return &t, nil
 }
 
-// Save persists the task to disk.
+// Save persists the task to disk using atomic writes.
 func (t *Task) Save() error {
 	dir := filepath.Join(OrcDir, TasksDir, t.ID)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("create task directory: %w", err)
-	}
-
-	t.UpdatedAt = time.Now()
-
-	data, err := yaml.Marshal(t)
-	if err != nil {
-		return fmt.Errorf("marshal task: %w", err)
-	}
-
-	path := filepath.Join(dir, "task.yaml")
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("write task: %w", err)
-	}
-
-	return nil
+	return t.SaveTo(dir)
 }
 
 // LoadAll loads all tasks from disk.
@@ -246,12 +231,8 @@ func Delete(id string) error {
 	return os.RemoveAll(taskDir)
 }
 
-// SaveTo persists the task to a specific directory.
+// SaveTo persists the task to a specific directory using atomic writes.
 func (t *Task) SaveTo(dir string) error {
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("create task directory: %w", err)
-	}
-
 	t.UpdatedAt = time.Now()
 
 	data, err := yaml.Marshal(t)
@@ -260,7 +241,7 @@ func (t *Task) SaveTo(dir string) error {
 	}
 
 	path := filepath.Join(dir, "task.yaml")
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := util.AtomicWriteFile(path, data, 0644); err != nil {
 		return fmt.Errorf("write task: %w", err)
 	}
 

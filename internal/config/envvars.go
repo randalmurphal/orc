@@ -57,6 +57,17 @@ var EnvVarMapping = map[string]string{
 	"ORC_DB_NAME":     "database.postgres.database",
 	"ORC_DB_USER":     "database.postgres.user",
 	"ORC_DB_SSL_MODE": "database.postgres.ssl_mode",
+	// Storage settings
+	"ORC_STORAGE_MODE":               "storage.mode",
+	"ORC_STORAGE_FILES_CLEANUP":      "storage.files.cleanup_on_complete",
+	"ORC_STORAGE_DB_CACHE":           "storage.database.cache_transcripts",
+	"ORC_STORAGE_DB_RETENTION_DAYS":  "storage.database.retention_days",
+	"ORC_STORAGE_EXPORT_ENABLED":     "storage.export.enabled",
+	"ORC_STORAGE_EXPORT_PRESET":      "storage.export.preset",
+	"ORC_STORAGE_EXPORT_TASK":        "storage.export.task_definition",
+	"ORC_STORAGE_EXPORT_STATE":       "storage.export.final_state",
+	"ORC_STORAGE_EXPORT_TRANSCRIPTS": "storage.export.transcripts",
+	"ORC_STORAGE_EXPORT_CONTEXT":     "storage.export.context_summary",
 }
 
 // ApplyEnvVars applies environment variable overrides to a TrackedConfig.
@@ -194,6 +205,29 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 		cfg.Database.Postgres.User = value
 	case "database.postgres.ssl_mode":
 		cfg.Database.Postgres.SSLMode = value
+	// Storage settings
+	case "storage.mode":
+		cfg.Storage.Mode = StorageMode(value)
+	case "storage.files.cleanup_on_complete":
+		cfg.Storage.Files.CleanupOnComplete = parseBool(value)
+	case "storage.database.cache_transcripts":
+		cfg.Storage.Database.CacheTranscripts = parseBool(value)
+	case "storage.database.retention_days":
+		if v, err := strconv.Atoi(value); err == nil {
+			cfg.Storage.Database.RetentionDays = v
+		}
+	case "storage.export.enabled":
+		cfg.Storage.Export.Enabled = parseBool(value)
+	case "storage.export.preset":
+		cfg.Storage.Export.Preset = ExportPreset(value)
+	case "storage.export.task_definition":
+		cfg.Storage.Export.TaskDefinition = parseBool(value)
+	case "storage.export.final_state":
+		cfg.Storage.Export.FinalState = parseBool(value)
+	case "storage.export.transcripts":
+		cfg.Storage.Export.Transcripts = parseBool(value)
+	case "storage.export.context_summary":
+		cfg.Storage.Export.ContextSummary = parseBool(value)
 	default:
 		return false
 	}

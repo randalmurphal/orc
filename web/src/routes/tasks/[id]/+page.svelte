@@ -34,6 +34,7 @@
 	import TaskHeader from '$lib/components/task/TaskHeader.svelte';
 	import TabNav, { type TabId } from '$lib/components/task/TabNav.svelte';
 	import PRActions from '$lib/components/task/PRActions.svelte';
+	import ExportPanel from '$lib/components/task/ExportPanel.svelte';
 	import Timeline from '$lib/components/Timeline.svelte';
 	import Transcript from '$lib/components/Transcript.svelte';
 	import DiffViewer from '$lib/components/diff/DiffViewer.svelte';
@@ -410,6 +411,9 @@
 		<div class="pr-section">
 			<PRActions taskId={task.id} taskBranch={task.branch} taskStatus={task.status} />
 		</div>
+
+		<!-- Export Panel (for completed tasks) -->
+		<ExportPanel taskId={task.id} taskStatus={task.status} />
 
 		<!-- Tab Navigation -->
 		<div class="tab-section">
