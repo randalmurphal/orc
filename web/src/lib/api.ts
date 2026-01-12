@@ -768,26 +768,26 @@ export async function listPluginCommands(name: string, scope?: PluginScope): Pro
 	return fetchJSON<PluginCommand[]>(`/plugins/${name}/commands${query}`);
 }
 
-// Marketplace
+// Marketplace (separate API prefix to avoid route conflicts)
 export async function browseMarketplace(page?: number, limit?: number): Promise<MarketplaceBrowseResponse> {
 	const params = new URLSearchParams();
 	if (page) params.set('page', String(page));
 	if (limit) params.set('limit', String(limit));
 	const query = params.toString();
-	return fetchJSON<MarketplaceBrowseResponse>(`/plugins/marketplace${query ? '?' + query : ''}`);
+	return fetchJSON<MarketplaceBrowseResponse>(`/marketplace/plugins${query ? '?' + query : ''}`);
 }
 
 export async function searchMarketplace(query: string): Promise<MarketplacePlugin[]> {
-	return fetchJSON<MarketplacePlugin[]>(`/plugins/marketplace/search?q=${encodeURIComponent(query)}`);
+	return fetchJSON<MarketplacePlugin[]>(`/marketplace/plugins/search?q=${encodeURIComponent(query)}`);
 }
 
 export async function getMarketplacePlugin(name: string): Promise<MarketplacePlugin> {
-	return fetchJSON<MarketplacePlugin>(`/plugins/marketplace/${name}`);
+	return fetchJSON<MarketplacePlugin>(`/marketplace/plugins/${name}`);
 }
 
 export async function installPlugin(name: string, scope?: PluginScope, version?: string): Promise<PluginResponse> {
 	const query = scope ? `?scope=${scope}` : '';
-	return fetchJSON<PluginResponse>(`/plugins/marketplace/${name}/install${query}`, {
+	return fetchJSON<PluginResponse>(`/marketplace/plugins/${name}/install${query}`, {
 		method: 'POST',
 		body: version ? JSON.stringify({ version }) : undefined
 	});
