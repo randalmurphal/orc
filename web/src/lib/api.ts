@@ -844,3 +844,47 @@ export async function mergePR(taskId: string, options?: {
 export async function getPRChecks(taskId: string): Promise<GetChecksResponse> {
 	return fetchJSON<GetChecksResponse>(`/tasks/${taskId}/github/pr/checks`);
 }
+
+// Export
+export interface ExportConfig {
+	enabled: boolean;
+	preset: string;
+	task_definition: boolean;
+	final_state: boolean;
+	transcripts: boolean;
+	context_summary: boolean;
+}
+
+export interface ExportRequest {
+	task_definition?: boolean;
+	final_state?: boolean;
+	transcripts?: boolean;
+	context_summary?: boolean;
+	to_branch?: boolean;
+}
+
+export interface ExportResponse {
+	success: boolean;
+	task_id: string;
+	exported_to: string;
+	files?: string[];
+	committed_sha?: string;
+}
+
+export async function exportTask(taskId: string, options: ExportRequest): Promise<ExportResponse> {
+	return fetchJSON<ExportResponse>(`/tasks/${taskId}/export`, {
+		method: 'POST',
+		body: JSON.stringify(options)
+	});
+}
+
+export async function getExportConfig(): Promise<ExportConfig> {
+	return fetchJSON<ExportConfig>('/config/export');
+}
+
+export async function updateExportConfig(config: Partial<ExportConfig>): Promise<ExportConfig> {
+	return fetchJSON<ExportConfig>('/config/export', {
+		method: 'PUT',
+		body: JSON.stringify(config)
+	});
+}

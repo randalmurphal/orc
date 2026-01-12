@@ -24,6 +24,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `project/` | Multi-project registry | `Registry`, `Project` |
 | `prompt/` | Prompt template management | `Service` |
 | `state/` | Execution state persistence | `State` |
+| `storage/` | Storage backend abstraction layer | `Backend`, `HybridBackend`, `ExportService` |
 | `task/` | Task model and YAML persistence | `Task`, `Store` |
 | `setup/` | Claude-powered interactive setup | `Run`, `Spawner`, `Validator` |
 | `template/` | Go template rendering | `Engine` |
@@ -43,15 +44,18 @@ cmd/orc
         │   │   ├── plan/
         │   │   ├── prompt/
         │   │   ├── state/
+        │   │   ├── storage/
         │   │   ├── task/
         │   │   └── tokenpool/
         │   ├── project/
         │   ├── prompt/
+        │   ├── storage/
         │   └── task/
         ├── executor/
         ├── git/
         ├── plan/
         ├── state/
+        ├── storage/
         └── task/
 ```
 

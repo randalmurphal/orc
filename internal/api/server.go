@@ -153,6 +153,13 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/tasks/{id}/retry/preview", cors(s.handleGetRetryPreview))
 	s.mux.HandleFunc("POST /api/tasks/{id}/retry/feedback", cors(s.handleRetryWithFeedback))
 
+	// Task export (export artifacts to branch or directory)
+	s.mux.HandleFunc("POST /api/tasks/{id}/export", cors(s.handleExportTask))
+
+	// Export configuration
+	s.mux.HandleFunc("GET /api/config/export", cors(s.handleGetExportConfig))
+	s.mux.HandleFunc("PUT /api/config/export", cors(s.handleUpdateExportConfig))
+
 	// SSE streaming (legacy)
 	s.mux.HandleFunc("GET /api/tasks/{id}/stream", s.handleStream)
 
