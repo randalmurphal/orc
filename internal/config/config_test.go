@@ -518,3 +518,33 @@ func TestDSN_Postgres(t *testing.T) {
 		t.Errorf("GlobalDSN() = %s, want %s", globalDSN, expected)
 	}
 }
+
+func TestDefault_PlanConfig(t *testing.T) {
+	cfg := Default()
+
+	// RequireSpecForExecution should default to false
+	if cfg.Plan.RequireSpecForExecution {
+		t.Error("Plan.RequireSpecForExecution should default to false")
+	}
+
+	// WarnOnMissingSpec should default to true
+	if !cfg.Plan.WarnOnMissingSpec {
+		t.Error("Plan.WarnOnMissingSpec should default to true")
+	}
+
+	// SkipValidationWeights should default to [trivial]
+	if len(cfg.Plan.SkipValidationWeights) != 1 || cfg.Plan.SkipValidationWeights[0] != "trivial" {
+		t.Errorf("Plan.SkipValidationWeights = %v, want [trivial]", cfg.Plan.SkipValidationWeights)
+	}
+
+	// MinimumSections should default to intent, success_criteria, testing
+	expected := []string{"intent", "success_criteria", "testing"}
+	if len(cfg.Plan.MinimumSections) != 3 {
+		t.Errorf("Plan.MinimumSections = %v, want %v", cfg.Plan.MinimumSections, expected)
+	}
+	for i, section := range expected {
+		if i < len(cfg.Plan.MinimumSections) && cfg.Plan.MinimumSections[i] != section {
+			t.Errorf("Plan.MinimumSections[%d] = %s, want %s", i, cfg.Plan.MinimumSections[i], section)
+		}
+	}
+}
