@@ -57,7 +57,31 @@ Example:
 
 			// Check if task can run
 			if !t.CanRun() && t.Status != task.StatusRunning {
-				return fmt.Errorf("task cannot be run (status: %s)", t.Status)
+				// Provide helpful error message based on status
+				switch t.Status {
+				case task.StatusPaused:
+					fmt.Printf("Task %s is paused.\n\n", id)
+					fmt.Printf("To resume:  orc resume %s\n", id)
+					fmt.Printf("To restart: orc rewind %s --to <phase>\n", id)
+					return nil
+				case task.StatusBlocked:
+					fmt.Printf("Task %s is blocked and needs user input.\n\n", id)
+					fmt.Println("Check the task for pending questions or approvals.")
+					fmt.Printf("To view:    orc show %s\n", id)
+					return nil
+				case task.StatusCompleted:
+					fmt.Printf("Task %s is already completed.\n\n", id)
+					fmt.Printf("To rerun:   orc rewind %s --to <phase>\n", id)
+					fmt.Printf("To view:    orc show %s\n", id)
+					return nil
+				case task.StatusFailed:
+					fmt.Printf("Task %s has failed.\n\n", id)
+					fmt.Printf("To retry:   orc rewind %s --to <phase>\n", id)
+					fmt.Printf("To view:    orc log %s\n", id)
+					return nil
+				default:
+					return fmt.Errorf("task cannot be run (status: %s)", t.Status)
+				}
 			}
 
 			// Load plan

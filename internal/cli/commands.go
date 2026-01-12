@@ -8,7 +8,11 @@ import (
 
 // Helper functions
 
+// statusIcon returns an icon for task status, respecting the --plain flag
 func statusIcon(status task.Status) string {
+	if plain {
+		return statusText(status)
+	}
 	switch status {
 	case task.StatusCreated:
 		return "📝"
@@ -31,7 +35,33 @@ func statusIcon(status task.Status) string {
 	}
 }
 
+// statusText returns a plain text status indicator
+func statusText(status task.Status) string {
+	switch status {
+	case task.StatusCreated:
+		return "[NEW]"
+	case task.StatusClassifying:
+		return "[...]"
+	case task.StatusPlanned:
+		return "[RDY]"
+	case task.StatusRunning:
+		return "[RUN]"
+	case task.StatusPaused:
+		return "[PSE]"
+	case task.StatusBlocked:
+		return "[BLK]"
+	case task.StatusCompleted:
+		return "[OK]"
+	case task.StatusFailed:
+		return "[ERR]"
+	default:
+		return "[???]"
+	}
+}
+
+// phaseStatusIcon returns an icon for phase status
 func phaseStatusIcon(status plan.PhaseStatus) string {
+	// Phase status icons are already ASCII-safe, no plain mode needed
 	switch status {
 	case plan.PhasePending:
 		return "○"

@@ -21,9 +21,10 @@ func newRewindCmd() *cobra.Command {
 This uses git reset to restore the codebase state at that checkpoint.
 All changes after that checkpoint will be lost.
 
-Example:
+Examples:
   orc rewind TASK-001 --to spec
-  orc rewind TASK-001 --to implement`,
+  orc rewind TASK-001 --to implement
+  orc rewind TASK-001 --to implement --force  # Skip confirmation (for scripts)`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -32,6 +33,7 @@ Example:
 
 			id := args[0]
 			toPhase, _ := cmd.Flags().GetString("to")
+			force, _ := cmd.Flags().GetBool("force")
 
 			if toPhase == "" {
 				return fmt.Errorf("--to flag is required")
@@ -45,22 +47,33 @@ Example:
 
 			phase := p.GetPhase(toPhase)
 			if phase == nil {
+				// Show available phases
+				fmt.Printf("Phase '%s' not found.\n\nAvailable phases:\n", toPhase)
+				for _, ph := range p.Phases {
+					checkpoint := ""
+					if ph.CommitSHA != "" {
+						checkpoint = fmt.Sprintf(" (checkpoint: %s)", ph.CommitSHA[:7])
+					}
+					fmt.Printf("  %s%s\n", ph.ID, checkpoint)
+				}
 				return fmt.Errorf("phase %s not found", toPhase)
 			}
 
 			if phase.CommitSHA == "" {
-				return fmt.Errorf("phase %s has no checkpoint", toPhase)
+				return fmt.Errorf("phase %s has no checkpoint (has it completed?)", toPhase)
 			}
 
-			fmt.Printf("⚠️  This will reset to commit %s\n", phase.CommitSHA[:7])
-			fmt.Println("   All changes after this point will be lost!")
-			fmt.Print("   Continue? [y/N]: ")
+			if !force {
+				fmt.Printf("⚠️  This will reset to commit %s\n", phase.CommitSHA[:7])
+				fmt.Println("   All changes after this point will be lost!")
+				fmt.Print("   Continue? [y/N]: ")
 
-			var input string
-			fmt.Scanln(&input)
-			if input != "y" && input != "Y" {
-				fmt.Println("Aborted")
-				return nil
+				var input string
+				fmt.Scanln(&input)
+				if input != "y" && input != "Y" {
+					fmt.Println("Aborted")
+					return nil
+				}
 			}
 
 			// Load state and reset phases after this one
@@ -101,6 +114,7 @@ Example:
 		},
 	}
 	cmd.Flags().String("to", "", "phase to rewind to (required)")
+	cmd.Flags().BoolP("force", "f", false, "skip confirmation prompt (for scripts/automation)")
 	cmd.MarkFlagRequired("to")
 	return cmd
 }

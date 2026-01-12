@@ -55,6 +55,7 @@ Examples:
 	cmd.AddCommand(newConfigSetCmd())
 	cmd.AddCommand(newConfigResolutionCmd())
 	cmd.AddCommand(newConfigEditCmd())
+	cmd.AddCommand(newConfigDocsCmd())
 
 	return cmd
 }
@@ -446,6 +447,181 @@ Examples:
 	cmd.Flags().BoolVar(&editProject, "project", false, "Edit project config (.orc/config.yaml)")
 	cmd.Flags().BoolVar(&editShared, "shared", false, "Edit shared config (.orc/shared/config.yaml)")
 	cmd.MarkFlagsMutuallyExclusive("project", "shared")
+
+	return cmd
+}
+
+// ConfigDoc describes a configuration option
+type ConfigDoc struct {
+	Key         string
+	Type        string
+	Default     string
+	EnvVar      string
+	Description string
+	Category    string
+}
+
+// getConfigDocs returns documentation for all config options
+func getConfigDocs() []ConfigDoc {
+	return []ConfigDoc{
+		// Core
+		{Key: "profile", Type: "string", Default: "auto", EnvVar: "ORC_PROFILE", Description: "Automation profile (auto, fast, safe, strict)", Category: "Core"},
+		{Key: "model", Type: "string", Default: "claude-sonnet-4", EnvVar: "ORC_MODEL", Description: "Claude model to use", Category: "Core"},
+		{Key: "fallback_model", Type: "string", Default: "claude-sonnet-4", EnvVar: "ORC_FALLBACK_MODEL", Description: "Fallback model when primary fails", Category: "Core"},
+		{Key: "max_iterations", Type: "int", Default: "50", EnvVar: "ORC_MAX_ITERATIONS", Description: "Maximum Claude iterations per phase", Category: "Core"},
+		{Key: "timeout", Type: "duration", Default: "30m", EnvVar: "ORC_TIMEOUT", Description: "Maximum time per phase", Category: "Core"},
+
+		// Gates
+		{Key: "gates.default_type", Type: "string", Default: "auto", EnvVar: "ORC_GATES_DEFAULT", Description: "Default gate type (auto, ai, human)", Category: "Gates"},
+		{Key: "gates.auto_approve_on_success", Type: "bool", Default: "true", EnvVar: "", Description: "Auto-approve gates when phase succeeds", Category: "Gates"},
+		{Key: "gates.retry_on_failure", Type: "bool", Default: "true", EnvVar: "", Description: "Retry when AI gate fails", Category: "Gates"},
+		{Key: "gates.max_retries", Type: "int", Default: "2", EnvVar: "", Description: "Max AI gate retries", Category: "Gates"},
+
+		// Retry
+		{Key: "retry.enabled", Type: "bool", Default: "true", EnvVar: "ORC_RETRY_ENABLED", Description: "Enable cross-phase retry", Category: "Retry"},
+		{Key: "retry.max_retries", Type: "int", Default: "3", EnvVar: "ORC_RETRY_MAX", Description: "Max retry attempts", Category: "Retry"},
+
+		// Worktree
+		{Key: "worktree.enabled", Type: "bool", Default: "true", EnvVar: "ORC_WORKTREE_ENABLED", Description: "Enable git worktree isolation", Category: "Worktree"},
+		{Key: "worktree.dir", Type: "string", Default: ".orc/worktrees", EnvVar: "", Description: "Worktree directory", Category: "Worktree"},
+		{Key: "worktree.cleanup_on_complete", Type: "bool", Default: "true", EnvVar: "", Description: "Remove worktree after success", Category: "Worktree"},
+		{Key: "worktree.cleanup_on_fail", Type: "bool", Default: "false", EnvVar: "", Description: "Remove worktree after failure", Category: "Worktree"},
+
+		// Review
+		{Key: "review.enabled", Type: "bool", Default: "true", EnvVar: "", Description: "Enable code review phase", Category: "Review"},
+		{Key: "review.rounds", Type: "int", Default: "2", EnvVar: "", Description: "Number of review rounds", Category: "Review"},
+		{Key: "review.require_pass", Type: "bool", Default: "true", EnvVar: "", Description: "Require passing review to continue", Category: "Review"},
+
+		// QA
+		{Key: "qa.enabled", Type: "bool", Default: "true", EnvVar: "", Description: "Enable QA phase", Category: "QA"},
+		{Key: "qa.require_e2e", Type: "bool", Default: "false", EnvVar: "", Description: "Require E2E tests to pass", Category: "QA"},
+		{Key: "qa.generate_docs", Type: "bool", Default: "true", EnvVar: "", Description: "Auto-generate feature docs", Category: "QA"},
+
+		// Testing
+		{Key: "testing.required", Type: "bool", Default: "true", EnvVar: "", Description: "Require tests to pass", Category: "Testing"},
+		{Key: "testing.coverage_threshold", Type: "int", Default: "0", EnvVar: "", Description: "Minimum coverage percentage (0 = disabled)", Category: "Testing"},
+
+		// Completion
+		{Key: "completion.action", Type: "string", Default: "pr", EnvVar: "", Description: "Action after completion (pr, merge, none)", Category: "Completion"},
+		{Key: "completion.target_branch", Type: "string", Default: "main", EnvVar: "", Description: "Branch to merge into", Category: "Completion"},
+		{Key: "completion.delete_branch", Type: "bool", Default: "true", EnvVar: "", Description: "Delete task branch after merge", Category: "Completion"},
+		{Key: "completion.pr.auto_merge", Type: "bool", Default: "true", EnvVar: "", Description: "Enable auto-merge when PR approved", Category: "Completion"},
+
+		// Team
+		{Key: "team.name", Type: "string", Default: "", EnvVar: "ORC_TEAM_NAME", Description: "Organization/team name", Category: "Team"},
+		{Key: "team.activity_logging", Type: "bool", Default: "true", EnvVar: "ORC_TEAM_ACTIVITY_LOG", Description: "Log all actions as history", Category: "Team"},
+		{Key: "team.task_claiming", Type: "bool", Default: "false", EnvVar: "ORC_TEAM_TASK_CLAIMING", Description: "Enable task assignment", Category: "Team"},
+		{Key: "team.mode", Type: "string", Default: "local", EnvVar: "ORC_TEAM_MODE", Description: "Team mode (local, shared_db)", Category: "Team"},
+
+		// Token Pool
+		{Key: "pool.enabled", Type: "bool", Default: "true", EnvVar: "", Description: "Enable OAuth token pool", Category: "Token Pool"},
+		{Key: "pool.config_path", Type: "string", Default: "~/.orc/token-pool/pool.yaml", EnvVar: "", Description: "Token pool config path", Category: "Token Pool"},
+
+		// Subtasks
+		{Key: "subtasks.allow_creation", Type: "bool", Default: "true", EnvVar: "", Description: "Allow agents to propose sub-tasks", Category: "Subtasks"},
+		{Key: "subtasks.auto_approve", Type: "bool", Default: "false", EnvVar: "", Description: "Auto-approve sub-tasks", Category: "Subtasks"},
+		{Key: "subtasks.max_pending", Type: "int", Default: "10", EnvVar: "", Description: "Max pending sub-tasks per task", Category: "Subtasks"},
+
+		// Server
+		{Key: "server.host", Type: "string", Default: "localhost", EnvVar: "", Description: "API server host", Category: "Server"},
+		{Key: "server.port", Type: "int", Default: "8080", EnvVar: "", Description: "API server port", Category: "Server"},
+	}
+}
+
+// newConfigDocsCmd creates the 'config docs' subcommand.
+func newConfigDocsCmd() *cobra.Command {
+	var (
+		category string
+		search   string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "docs",
+		Short: "Show all available configuration options",
+		Long: `Display documentation for all orc configuration options.
+
+This shows every configurable setting with:
+  - Key name (for YAML config files)
+  - Type and default value
+  - Environment variable override (if available)
+  - Description
+
+Examples:
+  orc config docs                    # Show all options
+  orc config docs --category Gates   # Filter by category
+  orc config docs --search retry     # Search for options`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			docs := getConfigDocs()
+
+			// Filter by category
+			if category != "" {
+				filtered := make([]ConfigDoc, 0)
+				for _, d := range docs {
+					if strings.EqualFold(d.Category, category) {
+						filtered = append(filtered, d)
+					}
+				}
+				docs = filtered
+			}
+
+			// Filter by search
+			if search != "" {
+				filtered := make([]ConfigDoc, 0)
+				searchLower := strings.ToLower(search)
+				for _, d := range docs {
+					if strings.Contains(strings.ToLower(d.Key), searchLower) ||
+						strings.Contains(strings.ToLower(d.Description), searchLower) {
+						filtered = append(filtered, d)
+					}
+				}
+				docs = filtered
+			}
+
+			if len(docs) == 0 {
+				fmt.Println("No matching configuration options found.")
+				return nil
+			}
+
+			// Group by category
+			byCategory := make(map[string][]ConfigDoc)
+			var categories []string
+			for _, d := range docs {
+				if _, exists := byCategory[d.Category]; !exists {
+					categories = append(categories, d.Category)
+				}
+				byCategory[d.Category] = append(byCategory[d.Category], d)
+			}
+
+			// Print
+			for i, cat := range categories {
+				if i > 0 {
+					fmt.Println()
+				}
+				fmt.Printf("═══ %s ═══\n\n", cat)
+
+				for _, d := range byCategory[cat] {
+					fmt.Printf("  %s\n", d.Key)
+					fmt.Printf("    Type:    %s (default: %s)\n", d.Type, d.Default)
+					if d.EnvVar != "" {
+						fmt.Printf("    Env:     %s\n", d.EnvVar)
+					}
+					fmt.Printf("    %s\n\n", d.Description)
+				}
+			}
+
+			// Show quick tips
+			fmt.Println("───────────────────────────────────")
+			fmt.Println("Quick commands:")
+			fmt.Println("  orc config show                  View current config")
+			fmt.Println("  orc config set <key> <value>     Set a value")
+			fmt.Println("  orc config resolution <key>      See where value comes from")
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&category, "category", "c", "", "Filter by category")
+	cmd.Flags().StringVarP(&search, "search", "s", "", "Search for options")
 
 	return cmd
 }
