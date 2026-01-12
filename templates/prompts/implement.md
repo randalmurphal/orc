@@ -8,6 +8,23 @@ You are implementing a task according to its specification.
 **Task**: {{TASK_TITLE}}
 **Weight**: {{WEIGHT}}
 
+## Worktree Safety
+
+You are working in an **isolated git worktree**. This ensures your changes don't affect other work.
+
+| Property | Value |
+|----------|-------|
+| Worktree Path | `{{WORKTREE_PATH}}` |
+| Task Branch | `{{TASK_BRANCH}}` |
+| Target Branch | `{{TARGET_BRANCH}}` |
+
+**CRITICAL SAFETY RULES:**
+- You are on branch `{{TASK_BRANCH}}` - all commits go here
+- **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch (main, master, develop, release)
+- **DO NOT** checkout `{{TARGET_BRANCH}}` - stay on your task branch
+- All merging is handled via PR after all phases complete
+- Git hooks are active to prevent accidental protected branch modifications
+
 ## Specification
 
 {{SPEC_CONTENT}}

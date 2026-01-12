@@ -257,6 +257,11 @@ func GetVariableReference() map[string]string {
 		"{{SPEC_CONTENT}}":     "Output from the spec phase (if applicable)",
 		"{{DESIGN_CONTENT}}":   "Output from the design phase (if applicable)",
 		"{{RETRY_CONTEXT}}":    "Context from failed phase when retrying",
+
+		// Worktree context variables
+		"{{WORKTREE_PATH}}": "Absolute path to the isolated worktree directory",
+		"{{TASK_BRANCH}}":   "The git branch for this task (e.g., orc/TASK-001)",
+		"{{TARGET_BRANCH}}": "The target branch for merging (e.g., main)",
 	}
 }
 
