@@ -21,29 +21,29 @@
 		type PluginUpdateInfo
 	} from '$lib/api';
 
-	// State
-	let activeTab: 'installed' | 'marketplace' = 'installed';
-	let scope: PluginScope | undefined = undefined; // undefined = merged view
-	let loading = true;
-	let saving = false;
-	let error: string | null = null;
-	let success: string | null = null;
-	let restartNeeded = false;
+	// State (using Svelte 5 runes)
+	let activeTab = $state<'installed' | 'marketplace'>('installed');
+	let scope = $state<PluginScope | undefined>(undefined); // undefined = merged view
+	let loading = $state(true);
+	let saving = $state(false);
+	let error = $state<string | null>(null);
+	let success = $state<string | null>(null);
+	let restartNeeded = $state(false);
 
 	// Installed plugins
-	let plugins: PluginInfo[] = [];
-	let selectedPlugin: Plugin | null = null;
-	let pluginCommands: PluginCommand[] = [];
-	let updates: PluginUpdateInfo[] = [];
+	let plugins = $state<PluginInfo[]>([]);
+	let selectedPlugin = $state<Plugin | null>(null);
+	let pluginCommands = $state<PluginCommand[]>([]);
+	let updates = $state<PluginUpdateInfo[]>([]);
 
 	// Marketplace
-	let marketplacePlugins: MarketplacePlugin[] = [];
-	let marketplaceLoading = false;
-	let marketplaceError: string | null = null;
-	let searchQuery = '';
-	let marketplacePage = 1;
-	let marketplaceTotal = 0;
-	let selectedMarketplacePlugin: MarketplacePlugin | null = null;
+	let marketplacePlugins = $state<MarketplacePlugin[]>([]);
+	let marketplaceLoading = $state(false);
+	let marketplaceError = $state<string | null>(null);
+	let searchQuery = $state('');
+	let marketplacePage = $state(1);
+	let marketplaceTotal = $state(0);
+	let selectedMarketplacePlugin = $state<MarketplacePlugin | null>(null);
 
 	onMount(async () => {
 		await loadPlugins();
@@ -234,7 +234,7 @@
 			<button
 				class="tab"
 				class:active={activeTab === 'installed'}
-				on:click={() => switchTab('installed')}
+				onclick={() => switchTab('installed')}
 			>
 				Installed
 				{#if plugins.length > 0}
@@ -244,7 +244,7 @@
 			<button
 				class="tab"
 				class:active={activeTab === 'marketplace'}
-				on:click={() => switchTab('marketplace')}
+				onclick={() => switchTab('marketplace')}
 			>
 				Marketplace
 			</button>
@@ -270,13 +270,13 @@
 		<!-- Scope Filter -->
 		<div class="scope-filter">
 			<span class="filter-label">Scope:</span>
-			<button class="scope-btn" class:active={scope === undefined} on:click={() => changeScope(undefined)}>
+			<button class="scope-btn" class:active={scope === undefined} onclick={() => changeScope(undefined)}>
 				All
 			</button>
-			<button class="scope-btn" class:active={scope === 'global'} on:click={() => changeScope('global')}>
+			<button class="scope-btn" class:active={scope === 'global'} onclick={() => changeScope('global')}>
 				Global
 			</button>
-			<button class="scope-btn" class:active={scope === 'project'} on:click={() => changeScope('project')}>
+			<button class="scope-btn" class:active={scope === 'project'} onclick={() => changeScope('project')}>
 				Project
 			</button>
 		</div>
@@ -290,7 +290,7 @@
 					<h2>Plugins</h2>
 					{#if plugins.length === 0}
 						<p class="empty-message">No plugins installed</p>
-						<button class="btn btn-link" on:click={() => switchTab('marketplace')}>
+						<button class="btn btn-link" onclick={() => switchTab('marketplace')}>
 							Browse marketplace
 						</button>
 					{:else}
@@ -302,7 +302,7 @@
 										class="plugin-item"
 										class:selected={selectedPlugin?.name === plugin.name &&
 											selectedPlugin?.scope === plugin.scope}
-										on:click={() => selectPlugin(plugin)}
+										onclick={() => selectPlugin(plugin)}
 									>
 										<div class="plugin-main">
 											<span class="plugin-name">{plugin.name}</span>
@@ -327,7 +327,7 @@
 											type="checkbox"
 											checked={plugin.enabled}
 											disabled={saving}
-											on:change={() => togglePlugin(plugin)}
+											onchange={() => togglePlugin(plugin)}
 										/>
 										<span class="toggle-slider"></span>
 									</label>
@@ -352,7 +352,7 @@
 								{#if pluginUpdate}
 									<button
 										class="btn btn-secondary"
-										on:click={() =>
+										onclick={() =>
 											handleUpdate({
 												name: selectedPlugin!.name,
 												scope: selectedPlugin!.scope
@@ -362,7 +362,7 @@
 										Update to {pluginUpdate.latest_version}
 									</button>
 								{/if}
-								<button class="btn btn-danger" on:click={handleUninstall} disabled={saving}>
+								<button class="btn btn-danger" onclick={handleUninstall} disabled={saving}>
 									Uninstall
 								</button>
 							</div>
@@ -459,7 +459,7 @@
 	{:else}
 		<!-- Marketplace Tab -->
 		<div class="marketplace-header">
-			<form class="search-form" on:submit|preventDefault={handleSearch}>
+			<form class="search-form" onsubmit={(e) => { e.preventDefault(); handleSearch(); }}>
 				<input
 					type="text"
 					placeholder="Search plugins..."
@@ -476,7 +476,7 @@
 			<div class="marketplace-error">
 				<Icon name="error" size={24} />
 				<p>{marketplaceError}</p>
-				<button class="btn btn-secondary" on:click={loadMarketplace}>Retry</button>
+				<button class="btn btn-secondary" onclick={loadMarketplace}>Retry</button>
 			</div>
 		{:else}
 			<div class="plugins-layout">
@@ -491,7 +491,7 @@
 									<button
 										class="plugin-item"
 										class:selected={selectedMarketplacePlugin?.name === mp.name}
-										on:click={() => selectMarketplacePlugin(mp)}
+										onclick={() => selectMarketplacePlugin(mp)}
 									>
 										<div class="plugin-main">
 											<span class="plugin-name">{mp.name}</span>
@@ -528,14 +528,14 @@
 								{:else}
 									<button
 										class="btn btn-primary"
-										on:click={() => handleInstall(selectedMarketplacePlugin!, 'project')}
+										onclick={() => handleInstall(selectedMarketplacePlugin!, 'project')}
 										disabled={saving}
 									>
 										Install (Project)
 									</button>
 									<button
 										class="btn btn-secondary"
-										on:click={() => handleInstall(selectedMarketplacePlugin!, 'global')}
+										onclick={() => handleInstall(selectedMarketplacePlugin!, 'global')}
 										disabled={saving}
 									>
 										Install (Global)
