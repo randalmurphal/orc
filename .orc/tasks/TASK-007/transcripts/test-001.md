@@ -8,9 +8,25 @@ You are writing and running tests to verify the implementation.
 
 ## Context
 
-**Task ID**: TASK-006
-**Task**: Add a greeting.go file with a simple Hello World function
-**Weight**: medium
+**Task ID**: TASK-007
+**Task**: Test retry context: create a simple calculator.go file with Add, Subtract, Multiply functions
+**Weight**: small
+
+## Worktree Safety
+
+You are working in an **isolated git worktree**.
+
+| Property | Value |
+|----------|-------|
+| Worktree Path | `{{WORKTREE_PATH}}` |
+| Task Branch | `{{TASK_BRANCH}}` |
+| Target Branch | `{{TARGET_BRANCH}}` |
+
+**CRITICAL SAFETY RULES:**
+- All commits go to branch `{{TASK_BRANCH}}`
+- **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch
+- **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
+- Merging happens via PR after all phases complete
 
 ## Specification
 
@@ -20,7 +36,7 @@ You are writing and running tests to verify the implementation.
 
 ## Implementation Summary
 
-**Task**: Add a greeting.go file with a simple Hello World function
+**Task**: Test retry context: create a simple calculator.go file with Add, Subtract, Multiply functions
 
 ### Files Changed
 - [file1]: [description]
@@ -115,7 +131,7 @@ If coverage is low:
 
 ```bash
 git add -A
-git commit -m "[orc] TASK-006: test - completed
+git commit -m "[orc] TASK-007: test - completed
 
 Phase: test
 Status: completed
@@ -149,29 +165,23 @@ needs: [specific failures to fix]
 
 ### Test Summary
 
-**Tests**: 6/6 passing
+**Tests**: 18/18 passing (6 test functions, 15 subtests, 3 example tests)
 **Coverage**: 100%
-**Commit**: fa4c0b8
+**Commit**: 99cc2d4
 
 ### Tests Written
-- `internal/greeting/greeting_test.go`: 6 tests
-
-| Test | Purpose |
-|------|---------|
-| `TestHello` | Verifies exact output matches "Hello, World!" |
-| `TestHello_ReturnsNonEmpty` | Validates non-empty string return |
-| `TestHello_ContainsHello` | Verifies greeting starts with "Hello" |
-| `TestHello_ContainsWorld` | Verifies "World" appears in output |
-| `TestHello_Idempotent` | Confirms multiple calls return same result |
-| `BenchmarkHello` | Performance baseline (~1.18ns/op, 0 allocs) |
-| `ExampleHello` | Documentation example with expected output |
+- `pkg/calculator/calculator_test.go`: 6 tests (3 unit + 3 example)
+  - `TestAdd`: 5 subtests (positive, zeros, negative/positive, both negative, large numbers)
+  - `TestSubtract`: 5 subtests (positive result, zeros, negative result, subtracting negative, equal numbers)
+  - `TestMultiply`: 5 subtests (positive, zero, negative/positive, both negative, multiply by one)
+  - `ExampleAdd`, `ExampleSubtract`, `ExampleMultiply`: Documentation examples
 
 ### Coverage by Package
-- `internal/greeting`: 100%
+- `pkg/calculator`: 100%
 
 <phase_complete>true</phase_complete>
 
 ---
-Tokens: 1477 input, 2975 output
+Tokens: 17 input, 3427 output
 Complete: true
 Blocked: false

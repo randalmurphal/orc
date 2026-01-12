@@ -73,7 +73,7 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 			s.runningTasksMu.Unlock()
 		}()
 
-		exec := executor.New(executor.DefaultConfig())
+		exec := executor.NewWithConfig(executor.ConfigFromOrc(s.orcConfig), s.orcConfig)
 		exec.SetPublisher(s.publisher)
 
 		// Execute with event publishing

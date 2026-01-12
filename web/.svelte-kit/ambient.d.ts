@@ -42,6 +42,7 @@ declare module '$env/static/private' {
 	export const PWD: string;
 	export const USERPROFILE: string;
 	export const LOGNAME: string;
+	export const _: string;
 	export const NoDefaultCurrentDirectoryInExePath: string;
 	export const FZF_DEFAULT_COMMAND: string;
 	export const REPOS_PATH: string;
@@ -58,8 +59,10 @@ declare module '$env/static/private' {
 	export const __MISE_DIFF: string;
 	export const VIRTUAL_ENV_DISABLE_PROMPT: string;
 	export const GOROOT: string;
+	export const MFLAGS: string;
 	export const __MISE_ORIG_PATH: string;
 	export const npm_lifecycle_script: string;
+	export const MAKEFLAGS: string;
 	export const TERM: string;
 	export const npm_package_name: string;
 	export const ZSH: string;
@@ -72,6 +75,7 @@ declare module '$env/static/private' {
 	export const SHLVL: string;
 	export const GIT_EDITOR: string;
 	export const PAGER: string;
+	export const MAKELEVEL: string;
 	export const VIRTUAL_ENV_PROMPT: string;
 	export const npm_config_user_agent: string;
 	export const OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: string;
@@ -92,7 +96,6 @@ declare module '$env/static/private' {
 	export const OLDPWD: string;
 	export const GOPATH: string;
 	export const TERM_PROGRAM: string;
-	export const _: string;
 	export const __MISE_SHIM: string;
 	export const NODE_ENV: string;
 }
@@ -140,6 +143,7 @@ declare module '$env/dynamic/private' {
 		PWD: string;
 		USERPROFILE: string;
 		LOGNAME: string;
+		_: string;
 		NoDefaultCurrentDirectoryInExePath: string;
 		FZF_DEFAULT_COMMAND: string;
 		REPOS_PATH: string;
@@ -156,8 +160,10 @@ declare module '$env/dynamic/private' {
 		__MISE_DIFF: string;
 		VIRTUAL_ENV_DISABLE_PROMPT: string;
 		GOROOT: string;
+		MFLAGS: string;
 		__MISE_ORIG_PATH: string;
 		npm_lifecycle_script: string;
+		MAKEFLAGS: string;
 		TERM: string;
 		npm_package_name: string;
 		ZSH: string;
@@ -170,6 +176,7 @@ declare module '$env/dynamic/private' {
 		SHLVL: string;
 		GIT_EDITOR: string;
 		PAGER: string;
+		MAKELEVEL: string;
 		VIRTUAL_ENV_PROMPT: string;
 		npm_config_user_agent: string;
 		OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: string;
@@ -190,7 +197,6 @@ declare module '$env/dynamic/private' {
 		OLDPWD: string;
 		GOPATH: string;
 		TERM_PROGRAM: string;
-		_: string;
 		__MISE_SHIM: string;
 		NODE_ENV: string;
 		[key: `PUBLIC_${string}`]: undefined;

@@ -313,6 +313,34 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 
 	// Set retry context in state - use "review" as the from phase
 	st.SetRetryContext("review", "implement", "Review comments require fixes", retryContext, 1)
+
+	// Reset implement phase and all later phases to pending (like rewind does)
+	foundTarget := false
+	for i := range p.Phases {
+		if p.Phases[i].ID == "implement" {
+			foundTarget = true
+		}
+		if foundTarget {
+			p.Phases[i].Status = plan.PhasePending
+			p.Phases[i].CommitSHA = ""
+			if st.Phases[p.Phases[i].ID] != nil {
+				st.Phases[p.Phases[i].ID].Status = state.StatusPending
+				st.Phases[p.Phases[i].ID].CompletedAt = nil
+			}
+		}
+	}
+
+	// Update state to point to implement phase
+	st.Status = state.StatusRunning
+	st.CurrentPhase = "implement"
+	st.CurrentIteration = 1
+	st.CompletedAt = nil
+
+	// Save plan and state
+	if err := p.Save(taskID); err != nil {
+		s.jsonError(w, "failed to save plan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 	if err := st.Save(); err != nil {
 		s.jsonError(w, "failed to save state: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -320,6 +348,7 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 
 	// Reset task status to allow re-running
 	t.Status = task.StatusRunning
+	t.CompletedAt = nil
 	if err := t.Save(); err != nil {
 		s.jsonError(w, "failed to update task: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -341,7 +370,7 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 			s.runningTasksMu.Unlock()
 		}()
 
-		exec := executor.New(executor.DefaultConfig())
+		exec := executor.NewWithConfig(executor.ConfigFromOrc(s.orcConfig), s.orcConfig)
 		exec.SetPublisher(s.publisher)
 
 		// Execute with event publishing
@@ -352,6 +381,18 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 		} else {
 			s.logger.Info("task execution completed", "task", taskID)
 			s.Publish(taskID, Event{Type: "complete", Data: map[string]string{"status": "completed"}})
+
+			// Auto-resolve all open comments that were sent to the agent
+			if pdb, dbErr := db.OpenProject(s.getProjectRoot()); dbErr == nil {
+				defer pdb.Close()
+				for _, comment := range comments {
+					if updateErr := pdb.ResolveReviewComment(comment.ID, "agent", db.CommentStatusResolved); updateErr != nil {
+						s.logger.Warn("failed to auto-resolve comment", "comment_id", comment.ID, "error", updateErr)
+					} else {
+						s.logger.Info("auto-resolved review comment", "comment_id", comment.ID)
+					}
+				}
+			}
 		}
 
 		// Reload and publish final state

@@ -8,6 +8,23 @@ You are performing a validation review after the implementation agent addressed 
 **Task**: {{TASK_TITLE}}
 **Weight**: {{WEIGHT}}
 
+## Worktree Safety
+
+You are working in an **isolated git worktree**.
+
+| Property | Value |
+|----------|-------|
+| Worktree Path | `{{WORKTREE_PATH}}` |
+| Task Branch | `{{TASK_BRANCH}}` |
+| Target Branch | `{{TARGET_BRANCH}}` |
+
+**CRITICAL SAFETY RULES:**
+- All commits go to branch `{{TASK_BRANCH}}`
+- **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch
+- **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
+- Merging happens via PR after all phases complete
+- Git hooks are active to prevent accidental protected branch modifications
+
 ## Round 1 Findings
 
 {{REVIEW_FINDINGS}}

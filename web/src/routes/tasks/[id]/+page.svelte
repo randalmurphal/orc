@@ -131,19 +131,38 @@
 		error = null;
 
 		try {
-			const [t, s, p, transcriptFiles] = projectId
-				? await Promise.all([
+			let t: Task;
+			let s: TaskState | null;
+			let p: Plan | null;
+			let transcriptFiles: { filename: string; content: string; created_at: string }[];
+
+			// Try project-scoped endpoints first if projectId is set
+			if (projectId) {
+				try {
+					[t, s, p, transcriptFiles] = await Promise.all([
 						getProjectTask(projectId, taskId),
 						getProjectTaskState(projectId, taskId).catch(() => null),
 						getProjectTaskPlan(projectId, taskId).catch(() => null),
 						getProjectTranscripts(projectId, taskId).catch(() => [])
-					])
-				: await Promise.all([
+					]);
+				} catch (projectError) {
+					// Fall back to CWD-based endpoints if project-scoped fails
+					console.warn('Project-scoped load failed, falling back to CWD-based endpoints');
+					[t, s, p, transcriptFiles] = await Promise.all([
 						getTask(taskId),
 						getTaskState(taskId).catch(() => null),
 						getTaskPlan(taskId).catch(() => null),
 						getTranscripts(taskId).catch(() => [])
 					]);
+				}
+			} else {
+				[t, s, p, transcriptFiles] = await Promise.all([
+					getTask(taskId),
+					getTaskState(taskId).catch(() => null),
+					getTaskPlan(taskId).catch(() => null),
+					getTranscripts(taskId).catch(() => [])
+				]);
+			}
 
 			task = t;
 			taskState = s;

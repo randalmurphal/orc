@@ -103,6 +103,11 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 	// Build template vars to get prior phase content
 	templateVars := BuildTemplateVars(t, p, s, 0, "")
 
+	// Build worktree context
+	worktreePath := e.worktreePath
+	taskBranch := t.Branch
+	targetBranch := e.getTargetBranch()
+
 	// Initial state with retry context if applicable
 	initialState := PhaseState{
 		TaskID:           t.ID,
@@ -116,6 +121,9 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 		SpecContent:      templateVars.SpecContent,
 		DesignContent:    templateVars.DesignContent,
 		ImplementContent: templateVars.ImplementContent,
+		WorktreePath:     worktreePath,
+		TaskBranch:       taskBranch,
+		TargetBranch:     targetBranch,
 	}
 
 	// Run with checkpointing if enabled

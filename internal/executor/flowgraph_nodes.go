@@ -16,7 +16,14 @@ import (
 // buildPromptNode creates the prompt building node.
 func (e *Executor) buildPromptNode(p *plan.Phase) flowgraph.NodeFunc[PhaseState] {
 	return func(ctx flowgraph.Context, s PhaseState) (PhaseState, error) {
-		// Load template from templates/prompts/{phase}.md
+		// Check inline prompt first (matches LoadPromptTemplate behavior)
+		if p.Prompt != "" {
+			s.Prompt = e.renderTemplate(p.Prompt, s)
+			s.Iteration++
+			return s, nil
+		}
+
+		// Fall back to template file: templates/prompts/{phase}.md
 		templatePath := filepath.Join(e.config.TemplatesDir, "prompts", p.Name+".md")
 		tmplContent, err := os.ReadFile(templatePath)
 		if err != nil {
@@ -24,14 +31,7 @@ func (e *Executor) buildPromptNode(p *plan.Phase) flowgraph.NodeFunc[PhaseState]
 			templatePath = filepath.Join(e.config.TemplatesDir, "prompts", p.ID+".md")
 			tmplContent, err = os.ReadFile(templatePath)
 			if err != nil {
-				// Use inline prompt from plan if template doesn't exist
-				if p.Prompt != "" {
-					s.Prompt = e.renderTemplate(p.Prompt, s)
-				} else {
-					return s, fmt.Errorf("no prompt template found for phase %s", p.ID)
-				}
-				s.Iteration++
-				return s, nil
+				return s, fmt.Errorf("no prompt template found for phase %s", p.ID)
 			}
 		}
 
@@ -64,6 +64,11 @@ func (e *Executor) renderTemplate(tmpl string, s PhaseState) string {
 		"{{IMPLEMENT_CONTENT}}":     s.ImplementContent,
 		"{{IMPLEMENTATION_SUMMARY}}": s.ImplementContent, // Alias for template compatibility
 		"{{RETRY_CONTEXT}}":         s.RetryContext,
+
+		// Worktree context variables
+		"{{WORKTREE_PATH}}": s.WorktreePath,
+		"{{TASK_BRANCH}}":   s.TaskBranch,
+		"{{TARGET_BRANCH}}": s.TargetBranch,
 	}
 
 	result := tmpl

@@ -74,6 +74,35 @@ The `{{TASK_DESCRIPTION}}` variable includes the full description provided when 
 | `{{WEIGHT}}` | Task weight (trivial/small/medium/large/greenfield) |
 | `{{ITERATION}}` | Current iteration number |
 | `{{RETRY_CONTEXT}}` | Retry information (if retrying after failure) |
+| `{{WORKTREE_PATH}}` | Absolute path to isolated worktree (if worktree enabled) |
+| `{{TASK_BRANCH}}` | Git branch for this task (e.g., orc/TASK-001) |
+| `{{TARGET_BRANCH}}` | Branch to merge into (from config, defaults to main) |
+
+### Worktree Safety Variables
+
+When worktree isolation is enabled, prompts receive additional context for safety:
+
+```markdown
+## Worktree Safety
+
+You are working in an **isolated git worktree**.
+
+| Property | Value |
+|----------|-------|
+| Worktree Path | `{{WORKTREE_PATH}}` |
+| Task Branch | `{{TASK_BRANCH}}` |
+| Target Branch | `{{TARGET_BRANCH}}` |
+
+**CRITICAL SAFETY RULES:**
+- All commits go to branch `{{TASK_BRANCH}}`
+- **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch
+- Merging happens via PR after all phases complete
+```
+
+Protected branches (main, master, develop, release) are enforced at multiple levels:
+1. **Prompt instructions** - AI is told not to push to protected branches
+2. **Code-level validation** - `git.Push()` blocks protected branch pushes
+3. **Git hooks** - Pre-push hooks in worktree block protected pushes
 
 ### Prompt Structure
 

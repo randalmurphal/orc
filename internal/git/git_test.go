@@ -453,3 +453,150 @@ func TestProtectedBranches_CustomConfig(t *testing.T) {
 		t.Error("prod should be protected with custom config")
 	}
 }
+
+// TestInjectWorktreeHooks_Integration tests hook injection into a real worktree
+func TestInjectWorktreeHooks_Integration(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+	worktreePath, err := g.CreateWorktree("TASK-002", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-002")
+
+	// Check that hooks were created in worktree's git directory
+	// The .git file in worktree points to the actual git directory
+	gitFile := filepath.Join(worktreePath, ".git")
+	content, err := os.ReadFile(gitFile)
+	if err != nil {
+		t.Fatalf("failed to read .git file: %v", err)
+	}
+
+	// Parse gitdir path
+	line := strings.TrimSpace(string(content))
+	if !strings.HasPrefix(line, "gitdir: ") {
+		t.Fatalf("unexpected .git file format: %s", line)
+	}
+	gitDir := strings.TrimPrefix(line, "gitdir: ")
+
+	// Check hooks directory exists
+	hooksDir := filepath.Join(gitDir, "hooks")
+	info, err := os.Stat(hooksDir)
+	if err != nil {
+		t.Fatalf("hooks directory not created: %v", err)
+	}
+	if !info.IsDir() {
+		t.Error("hooks path should be a directory")
+	}
+
+	// Check pre-push hook exists and is executable
+	prePushPath := filepath.Join(hooksDir, "pre-push")
+	info, err = os.Stat(prePushPath)
+	if err != nil {
+		t.Fatalf("pre-push hook not created: %v", err)
+	}
+	if info.Mode()&0111 == 0 {
+		t.Error("pre-push hook should be executable")
+	}
+
+	// Check pre-commit hook exists and is executable
+	preCommitPath := filepath.Join(hooksDir, "pre-commit")
+	info, err = os.Stat(preCommitPath)
+	if err != nil {
+		t.Fatalf("pre-commit hook not created: %v", err)
+	}
+	if info.Mode()&0111 == 0 {
+		t.Error("pre-commit hook should be executable")
+	}
+
+	// Verify hook content contains expected values
+	prePushContent, _ := os.ReadFile(prePushPath)
+	if !strings.Contains(string(prePushContent), "TASK-002") {
+		t.Error("pre-push hook should contain task ID")
+	}
+	if !strings.Contains(string(prePushContent), "orc/TASK-002") {
+		t.Error("pre-push hook should contain task branch")
+	}
+
+	// Verify core.hooksPath is set in worktree config
+	wtGit := g.InWorktree(worktreePath)
+	output, err := wtGit.Context().RunGit("config", "--local", "--get", "core.hooksPath")
+	if err != nil {
+		t.Fatalf("failed to get core.hooksPath: %v", err)
+	}
+	if !strings.Contains(strings.TrimSpace(output), "hooks") {
+		t.Errorf("core.hooksPath should be set, got: %s", output)
+	}
+}
+
+// TestRemoveWorktreeHooks_Integration tests hook removal during cleanup
+func TestRemoveWorktreeHooks_Integration(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+	worktreePath, err := g.CreateWorktree("TASK-003", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+
+	// Get hooks directory path before cleanup
+	gitFile := filepath.Join(worktreePath, ".git")
+	content, _ := os.ReadFile(gitFile)
+	line := strings.TrimSpace(string(content))
+	gitDir := strings.TrimPrefix(line, "gitdir: ")
+	hooksDir := filepath.Join(gitDir, "hooks")
+
+	// Verify hooks exist
+	if _, err := os.Stat(hooksDir); os.IsNotExist(err) {
+		t.Fatal("hooks directory should exist before cleanup")
+	}
+
+	// Remove hooks explicitly
+	err = g.RemoveWorktreeHooks(worktreePath)
+	if err != nil {
+		t.Fatalf("RemoveWorktreeHooks() failed: %v", err)
+	}
+
+	// Verify hooks directory is removed
+	if _, err := os.Stat(hooksDir); !os.IsNotExist(err) {
+		t.Error("hooks directory should be removed after RemoveWorktreeHooks()")
+	}
+
+	// Cleanup worktree
+	g.CleanupWorktree("TASK-003")
+}
+
+// TestCreateWorktree_HooksContainProtectedBranches tests hooks contain all protected branches
+func TestCreateWorktree_HooksContainProtectedBranches(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+	worktreePath, err := g.CreateWorktree("TASK-004", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-004")
+
+	// Read pre-push hook content
+	gitFile := filepath.Join(worktreePath, ".git")
+	content, _ := os.ReadFile(gitFile)
+	line := strings.TrimSpace(string(content))
+	gitDir := strings.TrimPrefix(line, "gitdir: ")
+	prePushPath := filepath.Join(gitDir, "hooks", "pre-push")
+
+	hookContent, err := os.ReadFile(prePushPath)
+	if err != nil {
+		t.Fatalf("failed to read pre-push hook: %v", err)
+	}
+
+	// Verify all default protected branches are in the hook
+	for _, branch := range DefaultProtectedBranches {
+		if !strings.Contains(string(hookContent), branch) {
+			t.Errorf("pre-push hook should contain protected branch %q", branch)
+		}
+	}
+}

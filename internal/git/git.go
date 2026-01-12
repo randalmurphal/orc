@@ -2,6 +2,7 @@
 package git
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -115,7 +116,9 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 	if err := g.InjectWorktreeHooks(worktreePath, hookCfg); err != nil {
 		// Log warning but don't fail - hooks are defense in depth
 		// The Push() protection will still work at the code level
-		fmt.Fprintf(os.Stderr, "warning: failed to inject worktree hooks: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\n⚠️  WARNING: Failed to inject worktree safety hooks: %v\n", err)
+		fmt.Fprintf(os.Stderr, "   Branch protection is still active at the code level.\n")
+		fmt.Fprintf(os.Stderr, "   Manual 'git push' to protected branches may not be blocked.\n\n")
 	}
 
 	return worktreePath, nil
@@ -241,7 +244,7 @@ func (g *Git) Rebase(target string) error {
 }
 
 // ErrProtectedBranch is returned when attempting to push to a protected branch.
-var ErrProtectedBranch = fmt.Errorf("push to protected branch blocked")
+var ErrProtectedBranch = errors.New("push to protected branch blocked")
 
 // Push pushes the current branch to remote.
 // Returns ErrProtectedBranch if attempting to push to a protected branch.

@@ -133,3 +133,53 @@ func TestHookConfig_CustomProtectedBranches(t *testing.T) {
 		t.Error("hook should contain custom protected branch 'staging'")
 	}
 }
+
+func TestIsProtectedBranch_ReleaseBranch(t *testing.T) {
+	// Specifically test release branch protection
+	if !IsProtectedBranch("release", nil) {
+		t.Error("release should be protected by default")
+	}
+
+	// release/1.0 should NOT be protected (it's not "release" exactly)
+	if IsProtectedBranch("release/1.0", nil) {
+		t.Error("release/1.0 should not be protected (not exact match)")
+	}
+}
+
+func TestIsProtectedBranch_EmptyInput(t *testing.T) {
+	// Empty branch name should not be protected
+	if IsProtectedBranch("", nil) {
+		t.Error("empty branch name should not be protected")
+	}
+
+	// Empty protected list with empty branch
+	if IsProtectedBranch("", []string{}) {
+		t.Error("empty branch name should not be protected even with empty list")
+	}
+}
+
+func TestPrePushHook_BlocksAllProtectedBranches(t *testing.T) {
+	hook := generatePrePushHook("orc/TASK-001", "TASK-001", nil)
+
+	// Verify all default protected branches are in the hook
+	for _, branch := range DefaultProtectedBranches {
+		if !strings.Contains(hook, branch) {
+			t.Errorf("pre-push hook should contain default protected branch %q", branch)
+		}
+	}
+}
+
+func TestPreCommitHook_WarningMessage(t *testing.T) {
+	hook := generatePreCommitHook("orc/TASK-001", "TASK-001")
+
+	// Verify warning elements
+	if !strings.Contains(hook, "WARNING") {
+		t.Error("pre-commit hook should contain WARNING for unexpected branch")
+	}
+	if !strings.Contains(hook, "Expected branch") {
+		t.Error("pre-commit hook should mention expected branch")
+	}
+	if !strings.Contains(hook, "exit 0") {
+		t.Error("pre-commit hook should exit 0 (allow commit with warning)")
+	}
+}
