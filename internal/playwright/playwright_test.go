@@ -4,7 +4,18 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/randalmurphal/llmkit/claudeconfig"
 )
+
+// Helper functions for testing
+func loadMCPConfig(projectRoot string) (*claudeconfig.MCPConfig, error) {
+	return claudeconfig.LoadProjectMCPConfig(projectRoot)
+}
+
+func saveMCPConfig(projectRoot string, cfg *claudeconfig.MCPConfig) error {
+	return claudeconfig.SaveProjectMCPConfig(projectRoot, cfg)
+}
 
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
@@ -182,5 +193,53 @@ func TestEnsureMCPServer_Idempotent(t *testing.T) {
 
 	if mcpPath1 != mcpPath2 {
 		t.Errorf("expected same path, got %q and %q", mcpPath1, mcpPath2)
+	}
+}
+
+func TestEnsureMCPServer_ReenableDisabled(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// First, create a config with Playwright server
+	cfg := &Config{
+		Enabled:  true,
+		Headless: true,
+		Browser:  "chromium",
+	}
+
+	_, err := EnsureMCPServer(tmpDir, cfg)
+	if err != nil {
+		t.Fatalf("EnsureMCPServer() initial error = %v", err)
+	}
+
+	// Manually disable the server by modifying the config
+	mcpConfig, err := loadMCPConfig(tmpDir)
+	if err != nil {
+		t.Fatalf("loadMCPConfig() error = %v", err)
+	}
+
+	server := mcpConfig.GetServer(ServerName)
+	if server == nil {
+		t.Fatal("expected playwright server to exist")
+	}
+	server.Disabled = true
+
+	if err := saveMCPConfig(tmpDir, mcpConfig); err != nil {
+		t.Fatalf("saveMCPConfig() error = %v", err)
+	}
+
+	// Verify server is now disabled
+	if IsServerConfigured(tmpDir) {
+		t.Error("expected IsServerConfigured to return false after disabling")
+	}
+
+	// Re-enable by calling EnsureMCPServer again
+	_, err = EnsureMCPServer(tmpDir, cfg)
+	if err != nil {
+		t.Fatalf("EnsureMCPServer() re-enable error = %v", err)
+	}
+
+	// Verify server is now enabled again
+	if !IsServerConfigured(tmpDir) {
+		t.Error("expected IsServerConfigured to return true after re-enabling")
 	}
 }
