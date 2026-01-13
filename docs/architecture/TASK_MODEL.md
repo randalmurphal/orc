@@ -16,6 +16,7 @@ description: |
 
 weight: medium           # trivial | small | medium | large | greenfield
 status: running          # created | classifying | planned | running | paused | blocked | completed | failed
+current_phase: implement # Phase currently being executed (updated by executor)
 branch: orc/TASK-001
 
 # Testing flags (auto-detected during task creation)
