@@ -354,9 +354,11 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	// Return task with updated status so frontend can update store immediately
 	s.jsonResponse(w, map[string]any{
 		"status":  "started",
 		"task_id": taskID,
+		"task":    t,
 	})
 }
 
