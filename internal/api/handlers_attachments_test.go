@@ -483,3 +483,237 @@ updated_at: 2024-01-01T00:00:00Z
 		t.Error("expected attachment file to be deleted")
 	}
 }
+
+// === Security Edge Cases ===
+
+func TestGetAttachmentEndpoint_PathTraversal(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task directory
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SEC-001")
+	attachmentsDir := filepath.Join(taskDir, "attachments")
+	os.MkdirAll(attachmentsDir, 0755)
+
+	taskYAML := `id: TASK-SEC-001
+title: Security Test
+status: running
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	// Create a file in attachments to make sure it exists
+	os.WriteFile(filepath.Join(attachmentsDir, "safe.txt"), []byte("Safe content"), 0644)
+
+	// Also create a "sensitive" file outside the attachments directory
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	pathTraversalAttempts := []string{
+		"../../../etc/passwd",
+		"..%2F..%2F..%2Fetc%2Fpasswd",
+		"....//....//etc/passwd",
+		"..\\..\\..\\etc\\passwd",
+		"..%5C..%5C..%5Cetc%5Cpasswd",
+		"../task.yaml",
+		"..%2ftask.yaml",
+	}
+
+	for _, attempt := range pathTraversalAttempts {
+		req := httptest.NewRequest("GET", "/api/tasks/TASK-SEC-001/attachments/"+attempt, nil)
+		w := httptest.NewRecorder()
+
+		srv.mux.ServeHTTP(w, req)
+
+		// Should be either 400 (bad request) or 404 (not found) but NOT 200
+		if w.Code == http.StatusOK {
+			t.Errorf("path traversal attempt %q should not succeed with status 200", attempt)
+		}
+	}
+}
+
+func TestUploadAttachmentEndpoint_PathTraversalInFilename(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task directory
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SEC-002")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-SEC-002
+title: Security Test
+status: running
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	maliciousFilenames := []string{
+		"../../../etc/malicious.txt",
+		"..%2F..%2Fetc%2Fmalicious.txt",
+		"../task.yaml",
+	}
+
+	for _, maliciousName := range maliciousFilenames {
+		body := new(bytes.Buffer)
+		writer := multipart.NewWriter(body)
+		writer.WriteField("filename", maliciousName)
+		part, _ := writer.CreateFormFile("file", "innocent.txt")
+		part.Write([]byte("Malicious content"))
+		writer.Close()
+
+		req := httptest.NewRequest("POST", "/api/tasks/TASK-SEC-002/attachments", body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		w := httptest.NewRecorder()
+
+		srv.mux.ServeHTTP(w, req)
+
+		// The handler should sanitize the filename using filepath.Base
+		// So it should succeed but write to a safe location
+		if w.Code == http.StatusCreated {
+			var attachment task.Attachment
+			json.NewDecoder(w.Body).Decode(&attachment)
+
+			// Filename should be sanitized (no path components)
+			if attachment.Filename != filepath.Base(maliciousName) {
+				// If it's not exactly the base, check it doesn't have path separators
+				if filepath.Dir(attachment.Filename) != "." && attachment.Filename != filepath.Base(maliciousName) {
+					t.Errorf("filename %q was not properly sanitized, got %q", maliciousName, attachment.Filename)
+				}
+			}
+
+			// Verify file was NOT created outside attachments directory
+			// Check parent directories don't have the file
+			badPath := filepath.Join(tmpDir, ".orc", "tasks", "malicious.txt")
+			if _, err := os.Stat(badPath); !os.IsNotExist(err) {
+				t.Errorf("malicious file was created at %q", badPath)
+			}
+		}
+	}
+}
+
+func TestDeleteAttachmentEndpoint_PathTraversal(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task directory
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SEC-003")
+	attachmentsDir := filepath.Join(taskDir, "attachments")
+	os.MkdirAll(attachmentsDir, 0755)
+
+	taskYAML := `id: TASK-SEC-003
+title: Security Test
+status: running
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	// Create a file we want to protect
+	sensitiveFile := filepath.Join(taskDir, "sensitive.txt")
+	os.WriteFile(sensitiveFile, []byte("Sensitive data"), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	pathTraversalAttempts := []string{
+		"../sensitive.txt",
+		"..%2Fsensitive.txt",
+		"../task.yaml",
+	}
+
+	for _, attempt := range pathTraversalAttempts {
+		req := httptest.NewRequest("DELETE", "/api/tasks/TASK-SEC-003/attachments/"+attempt, nil)
+		w := httptest.NewRecorder()
+
+		srv.mux.ServeHTTP(w, req)
+
+		// The handler uses filepath.Base which should strip path traversal
+		// So it should fail with 404 (file not found in attachments dir)
+		if w.Code == http.StatusNoContent {
+			t.Errorf("path traversal delete attempt %q should not succeed", attempt)
+		}
+
+		// Verify sensitive file still exists
+		if _, err := os.Stat(sensitiveFile); os.IsNotExist(err) {
+			t.Errorf("sensitive file was deleted by path traversal attempt %q", attempt)
+		}
+	}
+}
+
+func TestUploadAttachmentEndpoint_EmptyFilename(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SEC-004")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-SEC-004
+title: Security Test
+status: running
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Create multipart form with empty filename override
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	writer.WriteField("filename", "")
+	part, _ := writer.CreateFormFile("file", "") // Empty original filename too
+	part.Write([]byte("content"))
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-SEC-004/attachments", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	// Should reject empty filename
+	if w.Code == http.StatusCreated {
+		t.Error("should reject empty filename")
+	}
+}
+
+func TestUploadAttachmentEndpoint_DotFilename(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SEC-005")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-SEC-005
+title: Security Test
+status: running
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Create multipart form with "." as filename
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	writer.WriteField("filename", ".")
+	part, _ := writer.CreateFormFile("file", "original.txt")
+	part.Write([]byte("content"))
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-SEC-005/attachments", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	// Should reject "." as filename
+	if w.Code == http.StatusCreated {
+		t.Error("should reject '.' as filename")
+	}
+}
