@@ -154,6 +154,10 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 		claude.WithModel(e.config.Model),
 		claude.WithWorkdir(worktreePath),
 		claude.WithTimeout(e.config.Timeout),
+		// Disable go.work to avoid "directory prefix does not contain modules listed in go.work"
+		// error when running go commands in worktrees. The parent repo's go.work has relative
+		// paths that don't work from the worktree location.
+		claude.WithEnvVar("GOWORK", "off"),
 	}
 	// Resolve Claude path to absolute to ensure it works with worktree cmd.Dir
 	claudePath := resolveClaudePath(e.config.ClaudePath)
@@ -186,6 +190,8 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 			session.WithWorkdir(worktreePath),
 			session.WithClaudePath(claudePath),
 			session.WithPermissions(e.config.DangerouslySkipPermissions),
+			// Disable go.work in sessions (same reason as above)
+			session.WithEnv(map[string]string{"GOWORK": "off"}),
 		),
 	)
 
