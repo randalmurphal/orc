@@ -65,6 +65,17 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 
 		e.logger.Info("executing phase", "phase", phase.ID, "task", t.ID)
 
+		// Sync with target branch before phase if configured
+		if err := e.syncBeforePhase(ctx, t, phase.ID); err != nil {
+			// Sync failures are treated as phase failures for retry handling
+			e.logger.Error("pre-phase sync failed", "phase", phase.ID, "error", err)
+			s.FailPhase(phase.ID, err)
+			if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+				e.logger.Error("failed to save state on sync failure", "error", saveErr)
+			}
+			return fmt.Errorf("pre-phase sync for %s: %w", phase.ID, err)
+		}
+
 		// Publish phase start event
 		e.publishPhaseStart(t.ID, phase.ID)
 		e.publishState(t.ID, s)

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -41,12 +42,39 @@ func (e *Executor) runCompletion(ctx context.Context, t *task.Task) error {
 	}
 }
 
-// syncWithTarget rebases the task branch onto the target branch.
+// ErrSyncConflict is returned when sync encounters merge conflicts.
+var ErrSyncConflict = errors.New("sync conflict detected")
+
+// SyncPhase indicates when sync is being performed.
+type SyncPhase string
+
+const (
+	// SyncPhaseStart indicates sync at task start or phase start
+	SyncPhaseStart SyncPhase = "start"
+	// SyncPhaseCompletion indicates sync before PR/merge
+	SyncPhaseCompletion SyncPhase = "completion"
+)
+
+// syncWithTarget syncs the task branch with the target branch according to config.
+// Returns ErrSyncConflict if conflicts are detected and fail_on_conflict is true.
 func (e *Executor) syncWithTarget(ctx context.Context, t *task.Task) error {
+	return e.syncWithTargetPhase(ctx, t, SyncPhaseCompletion)
+}
+
+// syncWithTargetPhase syncs the task branch with the target branch.
+// The phase parameter indicates when sync is being called (for logging/metrics).
+func (e *Executor) syncWithTargetPhase(ctx context.Context, t *task.Task, phase SyncPhase) error {
 	cfg := e.orcConfig.Completion
+	syncCfg := cfg.Sync
 	targetBranch := cfg.TargetBranch
 	if targetBranch == "" {
 		targetBranch = "main"
+	}
+
+	// Check if sync should be skipped for this weight
+	if !e.orcConfig.ShouldSyncForWeight(string(t.Weight)) {
+		e.logger.Debug("skipping sync for weight", "weight", t.Weight)
+		return nil
 	}
 
 	// Use worktree git if available
@@ -55,21 +83,110 @@ func (e *Executor) syncWithTarget(ctx context.Context, t *task.Task) error {
 		gitOps = e.worktreeGit
 	}
 
-	e.logger.Info("syncing with target branch", "target", targetBranch)
+	e.logger.Info("syncing with target branch",
+		"target", targetBranch,
+		"phase", phase,
+		"strategy", syncCfg.Strategy)
 
 	// Fetch latest from remote
 	if err := gitOps.Fetch("origin"); err != nil {
 		e.logger.Warn("fetch failed, continuing anyway", "error", err)
 	}
 
-	// Rebase onto target
 	target := "origin/" + targetBranch
-	if err := gitOps.Rebase(target); err != nil {
+
+	// For detect-only strategy, just check for conflicts without modifying
+	if syncCfg.Strategy == config.SyncStrategyDetect {
+		return e.detectConflictsOnly(gitOps, target, t.ID, syncCfg)
+	}
+
+	// Perform rebase with conflict detection
+	result, err := gitOps.RebaseWithConflictCheck(target)
+	if err != nil {
+		if errors.Is(err, git.ErrMergeConflict) {
+			return e.handleSyncConflict(result, t.ID, syncCfg)
+		}
 		return fmt.Errorf("rebase onto %s: %w", target, err)
 	}
 
-	e.logger.Info("synced with target branch", "target", targetBranch)
+	if result.CommitsBehind == 0 {
+		e.logger.Info("branch already up-to-date with target", "target", targetBranch)
+	} else {
+		e.logger.Info("synced with target branch",
+			"target", targetBranch,
+			"commits_ahead", result.CommitsAhead,
+			"commits_behind", result.CommitsBehind)
+	}
+
 	return nil
+}
+
+// detectConflictsOnly checks for conflicts without attempting resolution.
+func (e *Executor) detectConflictsOnly(gitOps *git.Git, target, taskID string, syncCfg config.SyncConfig) error {
+	result, err := gitOps.DetectConflicts(target)
+	if err != nil {
+		return fmt.Errorf("detect conflicts: %w", err)
+	}
+
+	if result.ConflictsDetected {
+		return e.handleSyncConflict(result, taskID, syncCfg)
+	}
+
+	if result.CommitsBehind > 0 {
+		e.logger.Info("branch is behind target but no conflicts detected",
+			"commits_behind", result.CommitsBehind,
+			"hint", "rebase will be required before merge")
+	}
+
+	return nil
+}
+
+// handleSyncConflict handles merge conflicts according to config.
+func (e *Executor) handleSyncConflict(result *git.SyncResult, taskID string, syncCfg config.SyncConfig) error {
+	conflictCount := len(result.ConflictFiles)
+
+	e.logger.Error("merge conflicts detected",
+		"task", taskID,
+		"conflict_files", conflictCount,
+		"files", result.ConflictFiles)
+
+	// Check max conflict files threshold
+	if syncCfg.MaxConflictFiles > 0 && conflictCount > syncCfg.MaxConflictFiles {
+		return fmt.Errorf("%w: %d files with conflicts exceeds max allowed (%d): %v",
+			ErrSyncConflict, conflictCount, syncCfg.MaxConflictFiles, result.ConflictFiles)
+	}
+
+	// Fail on conflict if configured
+	if syncCfg.FailOnConflict {
+		return fmt.Errorf("%w: %d files have conflicts with target branch: %v\n"+
+			"  Resolution options:\n"+
+			"    1. Manually resolve conflicts and retry\n"+
+			"    2. Rebase your changes onto the latest target branch\n"+
+			"    3. Set completion.sync.fail_on_conflict: false to allow PR with conflicts",
+			ErrSyncConflict, conflictCount, result.ConflictFiles)
+	}
+
+	// If not failing, just warn and continue
+	e.logger.Warn("continuing despite conflicts (fail_on_conflict: false)",
+		"conflict_files", conflictCount)
+
+	return nil
+}
+
+// syncBeforePhase performs sync if configured for phase-start strategy.
+// Returns nil if sync is not configured for phase start.
+func (e *Executor) syncBeforePhase(ctx context.Context, t *task.Task, phaseID string) error {
+	if !e.orcConfig.ShouldSyncBeforePhase() {
+		return nil
+	}
+
+	if e.gitOps == nil {
+		e.logger.Debug("skipping pre-phase sync: git ops not available")
+		return nil
+	}
+
+	e.logger.Info("syncing before phase execution", "phase", phaseID)
+	return e.syncWithTargetPhase(ctx, t, SyncPhaseStart)
 }
 
 // ErrDirectMergeBlocked is returned when direct merge to a protected branch is blocked.

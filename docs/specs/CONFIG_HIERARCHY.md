@@ -210,6 +210,11 @@ completion:
     labels: [automated]                # Labels applied to PR (gracefully skipped if missing)
     draft: false
     auto_merge: true
+  sync:
+    strategy: completion               # none | phase | completion | detect
+    fail_on_conflict: true             # Abort on conflicts vs continue with warning
+    max_conflict_files: 0              # Max files with conflicts before aborting (0 = unlimited)
+    skip_for_weights: [trivial]        # Skip sync for these task weights
 
 # Git settings
 git:
@@ -454,8 +459,10 @@ var envMapping = map[string]string{
     "ORC_GATES_MAX_RETRIES": "gates.max_retries",
     "ORC_WORKTREE_ENABLED":  "worktree.enabled",
     "ORC_WORKTREE_DIR":      "worktree.dir",
-    "ORC_COMPLETION_ACTION": "completion.action",
-    "ORC_BRANCH_PREFIX":     "git.branch_prefix",
+    "ORC_COMPLETION_ACTION":          "completion.action",
+    "ORC_SYNC_STRATEGY":              "completion.sync.strategy",
+    "ORC_SYNC_FAIL_ON_CONFLICT":      "completion.sync.fail_on_conflict",
+    "ORC_BRANCH_PREFIX":              "git.branch_prefix",
     "ORC_COMMIT_PREFIX":     "git.commit_prefix",
     "ORC_POOL_ENABLED":      "pool.enabled",
     "ORC_HOST":              "server.host",
