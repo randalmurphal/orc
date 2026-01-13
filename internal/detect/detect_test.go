@@ -275,3 +275,141 @@ require (
 		t.Error("expected HasDocker=true")
 	}
 }
+
+func TestDetectJSFramework_Angular(t *testing.T) {
+	dir := t.TempDir()
+	pkg := `{"dependencies": {"@angular/core": "^17.0.0"}}`
+	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
+	os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte("{}"), 0644)
+
+	frameworks := detectFrameworks(dir, ProjectTypeTypeScript)
+	if len(frameworks) != 1 || frameworks[0] != FrameworkAngular {
+		t.Errorf("expected [angular], got %v", frameworks)
+	}
+}
+
+func TestDetectFrontend_WithFramework(t *testing.T) {
+	tests := []struct {
+		name       string
+		frameworks []Framework
+		expected   bool
+	}{
+		{"react", []Framework{FrameworkReact}, true},
+		{"nextjs", []Framework{FrameworkNextJS}, true},
+		{"vue", []Framework{FrameworkVue}, true},
+		{"svelte", []Framework{FrameworkSvelte}, true},
+		{"angular", []Framework{FrameworkAngular}, true},
+		{"express only", []Framework{FrameworkExpress}, false},
+		{"gin only", []Framework{FrameworkGin}, false},
+		{"no frameworks", []Framework{}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			got := detectFrontend(dir, tt.frameworks)
+			if got != tt.expected {
+				t.Errorf("detectFrontend() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestDetectFrontend_WithDirectory(t *testing.T) {
+	tests := []struct {
+		name     string
+		dir      string
+		file     string
+		expected bool
+	}{
+		{"web dir with tsx", "web", "App.tsx", true},
+		{"frontend dir with jsx", "frontend", "index.jsx", true},
+		{"client dir with vue", "client", "App.vue", true},
+		{"src/components with tsx", "src/components", "Button.tsx", true},
+		{"src/pages with jsx", "src/pages", "index.jsx", true},
+		{"components with svelte", "components", "App.svelte", true},
+		{"app dir with tsx", "app", "page.tsx", true},
+		{"pages dir with jsx", "pages", "index.jsx", true},
+		{"empty web dir", "web", "", false},
+		{"random dir", "lib", "utils.ts", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			subdir := filepath.Join(dir, tt.dir)
+			os.MkdirAll(subdir, 0755)
+			if tt.file != "" {
+				os.WriteFile(filepath.Join(subdir, tt.file), []byte("// frontend code"), 0644)
+			}
+
+			got := detectFrontend(dir, nil)
+			if got != tt.expected {
+				t.Errorf("detectFrontend(%s) = %v, want %v", tt.name, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestDetect_HasFrontend(t *testing.T) {
+	// Test with React project
+	dir := t.TempDir()
+	pkg := `{"dependencies": {"react": "^18.0.0"}}`
+	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
+	os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte("{}"), 0644)
+
+	d, err := Detect(dir)
+	if err != nil {
+		t.Fatalf("Detect failed: %v", err)
+	}
+	if !d.HasFrontend {
+		t.Error("expected HasFrontend=true for React project")
+	}
+
+	// Test with Go backend project
+	dir2 := t.TempDir()
+	gomod := `module test
+go 1.22
+require github.com/gin-gonic/gin v1.9.0
+`
+	os.WriteFile(filepath.Join(dir2, "go.mod"), []byte(gomod), 0644)
+
+	d2, err := Detect(dir2)
+	if err != nil {
+		t.Fatalf("Detect failed: %v", err)
+	}
+	if d2.HasFrontend {
+		t.Error("expected HasFrontend=false for Go backend project")
+	}
+}
+
+func TestIsFrontendDir(t *testing.T) {
+	tests := []struct {
+		name     string
+		files    []string
+		expected bool
+	}{
+		{"tsx files", []string{"App.tsx"}, true},
+		{"jsx files", []string{"index.jsx"}, true},
+		{"vue files", []string{"App.vue"}, true},
+		{"svelte files", []string{"App.svelte"}, true},
+		{"html files", []string{"index.html"}, true},
+		{"only ts files", []string{"utils.ts"}, false},
+		{"only js files", []string{"config.js"}, false},
+		{"empty dir", []string{}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for _, f := range tt.files {
+				os.WriteFile(filepath.Join(dir, f), []byte("// code"), 0644)
+			}
+
+			got := isFrontendDir(dir)
+			if got != tt.expected {
+				t.Errorf("isFrontendDir() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}

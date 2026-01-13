@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/detect"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/template"
@@ -102,6 +103,14 @@ Example:
 				t.Weight = task.WeightMedium
 			}
 
+			// Detect project characteristics for testing requirements
+			// This is a fast operation (<10ms) so we run it on every task creation
+			detection, _ := detect.Detect(".")
+			hasFrontend := detection != nil && detection.HasFrontend
+
+			// Set testing requirements based on project and task content
+			t.SetTestingRequirements(hasFrontend)
+
 			// Save task
 			if err := t.Save(); err != nil {
 				return fmt.Errorf("save task: %w", err)
@@ -161,6 +170,24 @@ Example:
 			fmt.Printf("   Phases: %d\n", len(p.Phases))
 			if tpl != nil {
 				fmt.Printf("   Template: %s\n", tpl.Name)
+			}
+			if t.RequiresUITesting {
+				fmt.Printf("   UI Testing: required (detected from task description)\n")
+			}
+			if t.TestingRequirements != nil {
+				var reqs []string
+				if t.TestingRequirements.Unit {
+					reqs = append(reqs, "unit")
+				}
+				if t.TestingRequirements.E2E {
+					reqs = append(reqs, "e2e")
+				}
+				if t.TestingRequirements.Visual {
+					reqs = append(reqs, "visual")
+				}
+				if len(reqs) > 0 {
+					fmt.Printf("   Testing: %s\n", strings.Join(reqs, ", "))
+				}
 			}
 			fmt.Println("\nNext steps:")
 			fmt.Printf("  orc run %s    - Execute the task\n", id)
