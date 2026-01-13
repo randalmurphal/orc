@@ -247,6 +247,8 @@ orc run TASK-ID --profile X  # Execute with specific profile
 orc pause TASK-ID            # Pause with checkpoint
 orc resume TASK-ID           # Continue from checkpoint
 orc rewind TASK-ID --to X    # Roll back to phase X
+orc reset TASK-ID            # Clear progress for fresh retry
+orc resolve TASK-ID          # Mark failed task as resolved
 orc approve TASK-ID          # Approve human gate
 orc delete TASK-ID           # Delete task and files
 ```

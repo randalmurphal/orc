@@ -16,7 +16,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `template.go` | CLI output templates |
 | `errors.go` | CLI error types and formatting |
 
-### Command Files (25 total)
+### Command Files (26 total)
 
 | File | Command | Description |
 |------|---------|-------------|
@@ -32,6 +32,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_resume.go` | `orc resume TASK-ID` | Resume paused task |
 | `cmd_rewind.go` | `orc rewind TASK-ID --to PHASE` | Reset to before phase |
 | `cmd_reset.go` | `orc reset TASK-ID` | Reset task to initial state for retry |
+| `cmd_resolve.go` | `orc resolve TASK-ID` | Mark failed task as resolved without re-running |
 | `cmd_status.go` | `orc status` | Show running tasks |
 | `cmd_log.go` | `orc log TASK-ID` | Show task transcripts |
 | `cmd_diff.go` | `orc diff TASK-ID` | Show task changes |
@@ -157,6 +158,16 @@ Reset task to initial state (planned), clearing all execution progress.
 | `--force, -f` | Skip confirmation and safety checks |
 
 Unlike `rewind` (which goes to a specific checkpoint), `reset` clears everything for a complete fresh start.
+
+### `orc resolve`
+Mark a failed task as resolved/completed without re-running.
+
+| Flag | Description |
+|------|-------------|
+| `--message, -m` | Resolution message explaining why task was resolved |
+| `--force, -f` | Skip confirmation prompt |
+
+Unlike `reset` (which clears for retry), `resolve` closes the task while preserving execution state. Only works on failed tasks.
 
 ### `orc stop`
 Permanently stop task and mark as failed (unlike `pause` which allows resume).
