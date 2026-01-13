@@ -1,0 +1,86 @@
+task:
+    id: TASK-030
+    title: There should be a new task button from all pages on the top of the page, like how its displayed on the tasks page already near the commands in the top right.
+    weight: medium
+    status: planned
+    branch: orc/TASK-030
+    created_at: 2026-01-13T00:27:02.152980317-06:00
+    updated_at: 2026-01-13T00:27:02.158687493-06:00
+plan:
+    version: 1
+    task_id: TASK-030
+    weight: medium
+    description: Medium task - implement with review, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following feature/task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Plan your implementation approach
+            2. Implement the required changes
+            3. Write/update tests alongside code
+            4. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Review code for quality issues
+            3. Check for edge cases and security issues
+            4. Fix any problems found
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
