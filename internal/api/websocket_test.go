@@ -396,3 +396,192 @@ func TestWSHandler_CORSUpgrader(t *testing.T) {
 	}
 	ws.Close()
 }
+
+func TestWSHandler_GlobalSubscription(t *testing.T) {
+	pub := events.NewMemoryPublisher()
+	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
+	handler := NewWSHandler(pub, server, nil)
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http")
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer ws.Close()
+
+	// Subscribe globally (using "*")
+	msg := WSMessage{Type: "subscribe", TaskID: events.GlobalTaskID}
+	if err := ws.WriteJSON(msg); err != nil {
+		t.Fatalf("failed to send subscribe: %v", err)
+	}
+
+	// Read subscription confirmation
+	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, data, err := ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read subscription response: %v", err)
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(data, &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if resp["type"] != "subscribed" {
+		t.Errorf("expected type 'subscribed', got %v", resp["type"])
+	}
+	if resp["task_id"] != "*" {
+		t.Errorf("expected task_id '*', got %v", resp["task_id"])
+	}
+}
+
+func TestWSHandler_GlobalSubscription_ReceivesAllTaskEvents(t *testing.T) {
+	pub := events.NewMemoryPublisher()
+	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
+	handler := NewWSHandler(pub, server, nil)
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http")
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer ws.Close()
+
+	// Subscribe globally
+	msg := WSMessage{Type: "subscribe", TaskID: events.GlobalTaskID}
+	if err := ws.WriteJSON(msg); err != nil {
+		t.Fatalf("failed to send subscribe: %v", err)
+	}
+
+	// Read subscription confirmation
+	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read subscription response: %v", err)
+	}
+
+	// Publish events for different tasks
+	pub.Publish(events.NewEvent(events.EventState, "TASK-001", map[string]string{"status": "running"}))
+	pub.Publish(events.NewEvent(events.EventState, "TASK-002", map[string]string{"status": "completed"}))
+
+	// Give time for events to be forwarded
+	time.Sleep(100 * time.Millisecond)
+
+	// Should receive both events
+	receivedTasks := make(map[string]bool)
+	for i := 0; i < 2; i++ {
+		ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_, data, err := ws.ReadMessage()
+		if err != nil {
+			t.Fatalf("failed to read event %d: %v", i+1, err)
+		}
+
+		var resp map[string]any
+		if err := json.Unmarshal(data, &resp); err != nil {
+			t.Fatalf("failed to parse event %d: %v", i+1, err)
+		}
+
+		if resp["type"] != "event" {
+			t.Errorf("expected type 'event', got %v", resp["type"])
+		}
+		taskID := resp["task_id"].(string)
+		receivedTasks[taskID] = true
+	}
+
+	if !receivedTasks["TASK-001"] {
+		t.Error("expected to receive event for TASK-001")
+	}
+	if !receivedTasks["TASK-002"] {
+		t.Error("expected to receive event for TASK-002")
+	}
+}
+
+func TestWSHandler_GlobalSubscription_FileWatcherEvents(t *testing.T) {
+	pub := events.NewMemoryPublisher()
+	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
+	handler := NewWSHandler(pub, server, nil)
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http")
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer ws.Close()
+
+	// Subscribe globally
+	msg := WSMessage{Type: "subscribe", TaskID: events.GlobalTaskID}
+	if err := ws.WriteJSON(msg); err != nil {
+		t.Fatalf("failed to send subscribe: %v", err)
+	}
+
+	// Read subscription confirmation
+	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read subscription response: %v", err)
+	}
+
+	// Simulate file watcher events (task_created, task_updated, task_deleted)
+	testCases := []struct {
+		eventType events.EventType
+		taskID    string
+		data      map[string]any
+	}{
+		{
+			eventType: events.EventTaskCreated,
+			taskID:    "TASK-NEW",
+			data:      map[string]any{"task": map[string]string{"id": "TASK-NEW", "title": "New Task"}},
+		},
+		{
+			eventType: events.EventTaskUpdated,
+			taskID:    "TASK-001",
+			data:      map[string]any{"task": map[string]string{"id": "TASK-001", "status": "running"}},
+		},
+		{
+			eventType: events.EventTaskDeleted,
+			taskID:    "TASK-OLD",
+			data:      map[string]any{"task_id": "TASK-OLD"},
+		},
+	}
+
+	// Publish all events
+	for _, tc := range testCases {
+		pub.Publish(events.NewEvent(tc.eventType, tc.taskID, tc.data))
+	}
+
+	// Give time for events to be forwarded
+	time.Sleep(100 * time.Millisecond)
+
+	// Should receive all file watcher events
+	for i, tc := range testCases {
+		ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_, data, err := ws.ReadMessage()
+		if err != nil {
+			t.Fatalf("failed to read event %d (%s): %v", i+1, tc.eventType, err)
+		}
+
+		var resp map[string]any
+		if err := json.Unmarshal(data, &resp); err != nil {
+			t.Fatalf("failed to parse event %d: %v", i+1, err)
+		}
+
+		if resp["type"] != "event" {
+			t.Errorf("event %d: expected type 'event', got %v", i+1, resp["type"])
+		}
+		if resp["event"] != string(tc.eventType) {
+			t.Errorf("event %d: expected event '%s', got %v", i+1, tc.eventType, resp["event"])
+		}
+		if resp["task_id"] != tc.taskID {
+			t.Errorf("event %d: expected task_id '%s', got %v", i+1, tc.taskID, resp["task_id"])
+		}
+	}
+}
