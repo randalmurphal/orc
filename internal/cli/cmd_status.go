@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -67,8 +68,19 @@ func showStatus(showAll bool) error {
 		return nil
 	}
 
+	// Check for orphaned tasks
+	orphans, err := state.FindOrphanedTasks()
+	if err != nil {
+		// Log but don't fail - orphan detection is supplementary
+		fmt.Fprintf(os.Stderr, "warning: could not check for orphaned tasks: %v\n", err)
+	}
+	orphanedIDs := make(map[string]state.OrphanInfo)
+	for _, o := range orphans {
+		orphanedIDs[o.TaskID] = o
+	}
+
 	// Categorize tasks
-	var blocked, running, paused, recent, other []*task.Task
+	var blocked, running, orphaned, paused, recent, other []*task.Task
 	now := time.Now()
 	dayAgo := now.Add(-24 * time.Hour)
 
@@ -77,7 +89,12 @@ func showStatus(showAll bool) error {
 		case task.StatusBlocked:
 			blocked = append(blocked, t)
 		case task.StatusRunning:
-			running = append(running, t)
+			// Check if this running task is actually orphaned
+			if _, isOrphaned := orphanedIDs[t.ID]; isOrphaned {
+				orphaned = append(orphaned, t)
+			} else {
+				running = append(running, t)
+			}
 		case task.StatusPaused:
 			paused = append(paused, t)
 		case task.StatusCompleted, task.StatusFailed:
@@ -99,9 +116,34 @@ func showStatus(showAll bool) error {
 	// Print sections with priority ordering
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
+	// Orphaned tasks (highest priority - executor died)
+	if len(orphaned) > 0 {
+		if plain {
+			fmt.Println("ORPHANED (executor died)")
+		} else {
+			fmt.Println("\u26a0\ufe0f  ORPHANED (executor died)")
+		}
+		fmt.Println()
+		for _, t := range orphaned {
+			info := orphanedIDs[t.ID]
+			reason := info.Reason
+			if reason == "" {
+				reason = "unknown"
+			}
+			fmt.Fprintf(w, "  %s\t%s\t(%s)\n", t.ID, truncate(t.Title, 35), reason)
+		}
+		w.Flush()
+		fmt.Println("  Use 'orc resume <task-id>' to continue these tasks")
+		fmt.Println()
+	}
+
 	// Attention needed (blocked)
 	if len(blocked) > 0 {
-		fmt.Println("⚠️  ATTENTION NEEDED")
+		if plain {
+			fmt.Println("ATTENTION NEEDED")
+		} else {
+			fmt.Println("\u26a0\ufe0f  ATTENTION NEEDED")
+		}
 		fmt.Println()
 		for _, t := range blocked {
 			fmt.Fprintf(w, "  %s\t%s\t%s\n", t.ID, truncate(t.Title, 40), "(blocked - needs input)")
@@ -115,7 +157,7 @@ func showStatus(showAll bool) error {
 		if plain {
 			fmt.Println("RUNNING")
 		} else {
-			fmt.Println("⏳ RUNNING")
+			fmt.Println("\u23f3 RUNNING")
 		}
 		fmt.Println()
 		for _, t := range running {
@@ -178,8 +220,13 @@ func showStatus(showAll bool) error {
 		}
 	}
 
-	fmt.Printf("─── %d tasks (%d running, %d blocked, %d completed) ───\n",
-		total, len(running), len(blocked), completed)
+	if len(orphaned) > 0 {
+		fmt.Printf("─── %d tasks (%d running, %d orphaned, %d blocked, %d completed) ───\n",
+			total, len(running), len(orphaned), len(blocked), completed)
+	} else {
+		fmt.Printf("─── %d tasks (%d running, %d blocked, %d completed) ───\n",
+			total, len(running), len(blocked), completed)
+	}
 
 	return nil
 }

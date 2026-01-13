@@ -47,6 +47,7 @@ export interface TaskState {
 	phases: Record<string, PhaseState>;
 	gates: GateDecision[];
 	tokens: TokenUsage;
+	execution?: ExecutionInfo;
 	error?: string;
 	retries?: number;
 }
@@ -59,6 +60,14 @@ export interface PhaseState {
 	commit_sha?: string;
 	error?: string;
 	tokens: TokenUsage;
+}
+
+// ExecutionInfo tracks the process executing a task
+export interface ExecutionInfo {
+	pid: number;
+	hostname: string;
+	started_at: string;
+	last_heartbeat: string;
 }
 
 export interface GateDecision {

@@ -2,7 +2,7 @@
  * Shared status style utilities for consistent styling across components
  */
 
-import type { TaskStatus, TaskWeight, PhaseStatus } from '$lib/types';
+import type { TaskStatus, TaskWeight, PhaseStatus, ExecutionInfo } from '$lib/types';
 
 // Style definition types
 export interface StatusStyle {
@@ -226,4 +226,42 @@ export function isPausableStatus(status: string): boolean {
  */
 export function isResumableStatus(status: string): boolean {
 	return status === 'paused';
+}
+
+/**
+ * Check if a task appears to be orphaned (running but executor is dead).
+ * This is a client-side heuristic - the server performs the actual PID check.
+ * @param status The task status
+ * @param execution The execution info from state
+ * @param staleThresholdMs How long without heartbeat before considered stale (default 5 min)
+ */
+export function isOrphanedTask(
+	status: string,
+	execution?: ExecutionInfo,
+	staleThresholdMs: number = 5 * 60 * 1000
+): boolean {
+	// Only running tasks can be orphaned
+	if (status !== 'running') {
+		return false;
+	}
+
+	// No execution info suggests legacy state or orphaned
+	if (!execution) {
+		return true;
+	}
+
+	// Check if heartbeat is stale
+	const lastHeartbeat = new Date(execution.last_heartbeat).getTime();
+	const now = Date.now();
+	return now - lastHeartbeat > staleThresholdMs;
+}
+
+/**
+ * Get a display label for orphaned status
+ */
+export function getOrphanReason(execution?: ExecutionInfo): string {
+	if (!execution) {
+		return 'No executor info';
+	}
+	return `Executor PID ${execution.pid} on ${execution.hostname} - heartbeat stale`;
 }
