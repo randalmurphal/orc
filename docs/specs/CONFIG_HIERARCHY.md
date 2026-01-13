@@ -199,6 +199,15 @@ executor:
   checkpoint_interval: 0               # 0 = phase-complete only
   max_retries: 5                       # Max retry attempts when phase fails (default: 5)
 
+# Artifact skip detection
+artifact_skip:
+  enabled: true                        # Check for existing artifacts (default: true)
+  auto_skip: false                     # Skip without prompting (default: false, --auto-skip flag overrides)
+  phases:                              # Phases to check for artifacts
+    - spec                             # spec.md with valid content
+    - research                         # artifacts/research.md or research in spec
+    - docs                             # artifacts/docs.md
+
 # Worktree isolation
 worktree:
   enabled: true
@@ -274,6 +283,7 @@ team:
 | `profile` | Always | Can suggest default |
 | `gates` | Always | Can set defaults |
 | `retry` | Always | Can set defaults |
+| `artifact_skip` | Always | Can set defaults |
 | `worktree` | Always | Can set defaults |
 | `completion` | Project | Project level |
 | `git` | Project | Project level |

@@ -168,7 +168,7 @@ orc edit TASK-001 -d "Updated description" -t "New title"
 Execute or resume a task.
 
 ```bash
-orc run <task-id> [--phase <phase>] [--continue] [--dry-run] [--profile <profile>]
+orc run <task-id> [--phase <phase>] [--continue] [--dry-run] [--profile <profile>] [--auto-skip]
 ```
 
 | Option | Description |
@@ -177,6 +177,28 @@ orc run <task-id> [--phase <phase>] [--continue] [--dry-run] [--profile <profile
 | `--continue`, `-C` | Resume from last position |
 | `--dry-run` | Show execution plan only |
 | `--profile`, `-P` | Automation profile (auto, fast, safe, strict) |
+| `--auto-skip` | Automatically skip phases with existing artifacts |
+
+**Artifact Detection**:
+
+When running a task, orc detects if artifacts from previous runs exist (e.g., `spec.md` for spec phase). By default, it prompts:
+
+```
+📄 spec.md already exists. Skip spec phase? [Y/n]:
+```
+
+With `--auto-skip`, phases with existing artifacts are skipped automatically without prompting.
+
+| Phase | Detected Artifacts | Auto-Skippable |
+|-------|-------------------|----------------|
+| `spec` | `spec.md` with valid content (50+ chars) | Yes |
+| `research` | `artifacts/research.md` or research section in spec.md | Yes |
+| `docs` | `artifacts/docs.md` | Yes |
+| `implement` | Never detected (too complex to validate) | No |
+| `test` | `test-results/report.json` (detected but requires re-run) | No |
+| `validate` | `artifacts/validate.md` (detected but requires re-run) | No |
+
+Skip reasons are recorded in `state.yaml` for audit purposes.
 
 **Automation Profiles**:
 
@@ -192,6 +214,7 @@ orc run <task-id> [--phase <phase>] [--continue] [--dry-run] [--profile <profile
 orc run TASK-001                     # Run with default auto profile
 orc run TASK-001 --profile safe      # Human approval on merge
 orc run TASK-001 --profile strict    # Human approval on spec and merge
+orc run TASK-001 --auto-skip         # Skip phases with existing artifacts
 ```
 
 ---

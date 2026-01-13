@@ -144,6 +144,13 @@ phases:
     artifacts:
       - .orc/tasks/TASK-001/artifacts/spec.md
 
+  # Example of a skipped phase (artifact already existed)
+  research:
+    status: skipped
+    completed_at: 2026-01-10T10:31:30Z
+    iterations: 0
+    error: "skipped: artifact exists: research content found in spec.md"
+
   implement:
     status: running
     started_at: 2026-01-10T10:45:00Z
@@ -160,6 +167,12 @@ gates:
     decision: approved
     timestamp: 2026-01-10T10:45:00Z
     rationale: "Spec covers all requirements"
+  # Skip decisions are also recorded as gates for audit trail
+  - phase: research
+    type: skip
+    decision: approved
+    timestamp: 2026-01-10T10:31:30Z
+    rationale: "artifact exists: research content found in spec.md"
 
 errors: []
 

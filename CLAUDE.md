@@ -75,6 +75,25 @@ Failed phases trigger automatic retry from earlier phase:
 
 Retry phase receives `{{RETRY_CONTEXT}}` with failure details.
 
+### Artifact Detection
+
+When running a task, orc detects existing artifacts and offers to skip phases:
+
+```
+📄 spec.md already exists. Skip spec phase? [Y/n]:
+```
+
+| Phase | Auto-Skippable | Artifacts Detected |
+|-------|----------------|-------------------|
+| spec | Yes | `spec.md` with valid content |
+| research | Yes | `artifacts/research.md` or in spec |
+| docs | Yes | `artifacts/docs.md` |
+| implement | No | Never (too complex) |
+| test | No | Must re-run against current code |
+| validate | No | Must verify current state |
+
+Use `--auto-skip` to skip automatically without prompting. Skip reasons are recorded in `state.yaml`.
+
 ## Configuration
 
 **Hierarchy** (later overrides earlier): Defaults → `/etc/orc/` → `~/.orc/` → `.orc/` → `ORC_*` env
@@ -103,6 +122,8 @@ orc config profile strict
 | `team.mode` | local/shared_db | `docs/specs/TEAM_ARCHITECTURE.md` |
 | `completion.action` | pr/merge/none | - |
 | `completion.sync.strategy` | Branch sync timing | `docs/architecture/GIT_INTEGRATION.md` |
+| `artifact_skip.enabled` | Detect existing artifacts | `docs/architecture/PHASE_MODEL.md` |
+| `artifact_skip.auto_skip` | Skip without prompting | `docs/architecture/PHASE_MODEL.md` |
 
 **All config:** `orc config docs` or `docs/specs/CONFIG_HIERARCHY.md`
 
@@ -292,6 +313,7 @@ Patterns, gotchas, and decisions learned during development.
 | Executor PID tracking | Track executor PID + heartbeat in state.yaml to detect orphaned tasks (running but executor dead) | TASK-046 |
 | Atomic status+phase updates | Set `current_phase` atomically with `status=running` to avoid UI timing issues (task shows in wrong column) | TASK-057 |
 | Plan regeneration on weight change | When task weight changes, plan.yaml auto-regenerates with new phases; completed/skipped phases preserved if they exist in both plans | TASK-003 |
+| Artifact detection for phase skip | Before running phases, check if artifacts exist (spec.md, research.md, docs.md) and offer to skip; use `--auto-skip` for non-interactive mode | TASK-004 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

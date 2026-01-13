@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/task"
@@ -307,13 +308,36 @@ func (s *State) GetResumePhase() string {
 	return ""
 }
 
-// IsPhaseCompleted returns true if a phase is completed.
+// IsPhaseCompleted returns true if a phase is completed or skipped.
+// Both completed and skipped phases should not be re-executed.
 func (s *State) IsPhaseCompleted(phaseID string) bool {
 	ps, ok := s.Phases[phaseID]
 	if !ok {
 		return false
 	}
-	return ps.Status == StatusCompleted
+	return ps.Status == StatusCompleted || ps.Status == StatusSkipped
+}
+
+// IsPhaseSkipped returns true if a phase was skipped.
+func (s *State) IsPhaseSkipped(phaseID string) bool {
+	ps, ok := s.Phases[phaseID]
+	if !ok {
+		return false
+	}
+	return ps.Status == StatusSkipped
+}
+
+// GetSkipReason returns the skip reason for a phase, if any.
+func (s *State) GetSkipReason(phaseID string) string {
+	ps, ok := s.Phases[phaseID]
+	if !ok || ps.Status != StatusSkipped {
+		return ""
+	}
+	// Skip reason is stored in the Error field with "skipped: " prefix
+	if strings.HasPrefix(ps.Error, "skipped: ") {
+		return strings.TrimPrefix(ps.Error, "skipped: ")
+	}
+	return ps.Error
 }
 
 // ResetPhase resets a phase to pending state for retry.

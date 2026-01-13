@@ -790,3 +790,28 @@ func TestDefault_RetryAndGatesMaxRetries(t *testing.T) {
 		t.Errorf("Gates.MaxRetries = %d, want 5", cfg.Gates.MaxRetries)
 	}
 }
+
+func TestDefault_ArtifactSkipConfig(t *testing.T) {
+	cfg := Default()
+
+	// Enabled should be true by default
+	if !cfg.ArtifactSkip.Enabled {
+		t.Error("ArtifactSkip.Enabled should default to true")
+	}
+
+	// AutoSkip should be false by default (prompt user)
+	if cfg.ArtifactSkip.AutoSkip {
+		t.Error("ArtifactSkip.AutoSkip should default to false")
+	}
+
+	// Default phases to check
+	expectedPhases := []string{"spec", "research", "docs"}
+	if len(cfg.ArtifactSkip.Phases) != len(expectedPhases) {
+		t.Errorf("ArtifactSkip.Phases = %v, want %v", cfg.ArtifactSkip.Phases, expectedPhases)
+	}
+	for i, want := range expectedPhases {
+		if cfg.ArtifactSkip.Phases[i] != want {
+			t.Errorf("ArtifactSkip.Phases[%d] = %s, want %s", i, cfg.ArtifactSkip.Phases[i], want)
+		}
+	}
+}

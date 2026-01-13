@@ -472,3 +472,75 @@ func TestReset(t *testing.T) {
 		t.Errorf("TotalTokens = %d, want 1500 (should preserve historical data)", s.Tokens.TotalTokens)
 	}
 }
+
+func TestIsPhaseCompleted_IncludesSkipped(t *testing.T) {
+	s := New("TASK-001")
+
+	// Set up phases
+	s.StartPhase("spec")
+	s.CompletePhase("spec", "abc123")
+	s.StartPhase("research")
+	s.SkipPhase("research", "already have research")
+	s.Phases["implement"] = &PhaseState{Status: StatusPending}
+
+	tests := []struct {
+		phaseID string
+		want    bool
+	}{
+		{"spec", true},      // Completed
+		{"research", true},  // Skipped - should also be considered "completed" (done)
+		{"implement", false}, // Pending
+		{"unknown", false},  // Not in map
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.phaseID, func(t *testing.T) {
+			got := s.IsPhaseCompleted(tt.phaseID)
+			if got != tt.want {
+				t.Errorf("IsPhaseCompleted(%s) = %v, want %v", tt.phaseID, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsPhaseSkipped(t *testing.T) {
+	s := New("TASK-001")
+
+	s.StartPhase("spec")
+	s.CompletePhase("spec", "abc123")
+	s.SkipPhase("research", "artifact exists")
+
+	if s.IsPhaseSkipped("spec") {
+		t.Error("IsPhaseSkipped(spec) should be false for completed phase")
+	}
+	if !s.IsPhaseSkipped("research") {
+		t.Error("IsPhaseSkipped(research) should be true for skipped phase")
+	}
+	if s.IsPhaseSkipped("unknown") {
+		t.Error("IsPhaseSkipped(unknown) should be false for unknown phase")
+	}
+}
+
+func TestGetSkipReason(t *testing.T) {
+	s := New("TASK-001")
+
+	// Phase with skip reason
+	s.SkipPhase("spec", "artifact exists: spec.md")
+
+	reason := s.GetSkipReason("spec")
+	if reason != "artifact exists: spec.md" {
+		t.Errorf("GetSkipReason(spec) = %q, want %q", reason, "artifact exists: spec.md")
+	}
+
+	// Completed phase has no skip reason
+	s.StartPhase("implement")
+	s.CompletePhase("implement", "abc123")
+	if s.GetSkipReason("implement") != "" {
+		t.Error("GetSkipReason(implement) should be empty for completed phase")
+	}
+
+	// Unknown phase
+	if s.GetSkipReason("unknown") != "" {
+		t.Error("GetSkipReason(unknown) should be empty for unknown phase")
+	}
+}
