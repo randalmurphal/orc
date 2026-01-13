@@ -85,15 +85,20 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 
-	// 2. Create minimal config.yaml
-	cfg := config.Default()
-	if opts.Profile != "" {
-		cfg.ApplyProfile(opts.Profile)
-	}
+	// 2. Create minimal config.yaml (only if it doesn't exist)
 	configPath := filepath.Join(orcDir, "config.yaml")
-	if err := cfg.SaveTo(configPath); err != nil {
-		return nil, fmt.Errorf("write config: %w", err)
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		cfg := config.Default()
+		if opts.Profile != "" {
+			cfg.ApplyProfile(opts.Profile)
+		}
+		if err := cfg.SaveTo(configPath); err != nil {
+			return nil, fmt.Errorf("write config: %w", err)
+		}
+	} else if err != nil {
+		return nil, fmt.Errorf("check config: %w", err)
 	}
+	// If config exists, preserve user customizations
 
 	// 3. Create project SQLite database and run migrations
 	pdb, err := db.OpenProject(opts.WorkDir)
