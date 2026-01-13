@@ -52,10 +52,10 @@ test.describe('Sidebar', () => {
 		const sidebar = page.locator('.sidebar');
 		await expect(sidebar).not.toHaveClass(/expanded/);
 
-		// Click the expand button (visible when collapsed)
-		const expandBtn = page.locator('.expand-btn');
-		await expect(expandBtn).toBeVisible();
-		await expandBtn.click();
+		// Click the toggle button (same button in both states, just different icon/label)
+		const toggleBtn = page.locator('.toggle-btn');
+		await expect(toggleBtn).toBeVisible();
+		await toggleBtn.click();
 
 		// Wait for transition
 		await page.waitForTimeout(300);
@@ -111,8 +111,8 @@ test.describe('Sidebar', () => {
 		await page.goto('/');
 
 		// Expand the sidebar
-		const expandBtn = page.locator('.expand-btn');
-		await expandBtn.click();
+		const toggleBtn = page.locator('.toggle-btn');
+		await toggleBtn.click();
 		await page.waitForTimeout(300);
 
 		// Reload the page

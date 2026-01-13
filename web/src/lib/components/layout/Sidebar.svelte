@@ -173,22 +173,20 @@
 >
 	<!-- Logo -->
 	<div class="logo-section">
-		<a href="/" class="logo">
-			<span class="logo-icon">&gt;_</span>
-			{#if expanded}
-				<span class="logo-text">ORC</span>
-			{/if}
-		</a>
 		{#if expanded}
-			<button
-				class="toggle-btn"
-				onclick={toggleSidebar}
-				title="Collapse sidebar"
-				aria-label="Collapse sidebar"
-			>
-				<Icon name="panel-left-close" size={16} />
-			</button>
+			<a href="/" class="logo">
+				<span class="logo-icon">&gt;_</span>
+				<span class="logo-text">ORC</span>
+			</a>
 		{/if}
+		<button
+			class="toggle-btn"
+			onclick={toggleSidebar}
+			title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+			aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+		>
+			<Icon name={expanded ? 'panel-left-close' : 'panel-left-open'} size={18} />
+		</button>
 	</div>
 
 	<!-- Scrollable Navigation -->
@@ -325,18 +323,8 @@
 		</nav>
 	</div>
 
-	<!-- Bottom Section: Expand button (when collapsed) and Preferences -->
+	<!-- Bottom Section: Preferences -->
 	<div class="bottom-section">
-		{#if !expanded}
-			<button
-				class="expand-btn"
-				onclick={toggleSidebar}
-				title="Expand sidebar"
-				aria-label="Expand sidebar"
-			>
-				<Icon name="panel-left-open" size={18} />
-			</button>
-		{/if}
 		<div class="nav-divider"></div>
 		<nav class="nav-section">
 			<ul class="nav-list">
@@ -398,6 +386,11 @@
 		flex-shrink: 0;
 	}
 
+	/* Center toggle button when collapsed (no logo visible) */
+	.sidebar:not(.expanded) .logo-section {
+		justify-content: center;
+	}
+
 	.logo {
 		display: flex;
 		align-items: center;
@@ -424,44 +417,24 @@
 	}
 
 	.toggle-btn {
-		width: 28px;
-		height: 28px;
+		width: 32px;
+		height: 32px;
 		padding: var(--space-1);
-		background: transparent;
-		border: none;
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-md);
-		color: var(--text-muted);
+		color: var(--text-secondary);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		flex-shrink: 0;
 		transition: all var(--duration-fast) var(--ease-out);
 	}
 
 	.toggle-btn:hover {
-		background: var(--bg-tertiary);
-		color: var(--text-secondary);
-	}
-
-	.expand-btn {
-		width: calc(var(--sidebar-width-collapsed) - var(--space-4));
-		height: 36px;
-		margin: var(--space-2);
-		padding: var(--space-2);
-		background: transparent;
-		border: 1px solid var(--border-subtle);
-		border-radius: var(--radius-md);
-		color: var(--text-muted);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all var(--duration-fast) var(--ease-out);
-	}
-
-	.expand-btn:hover {
-		background: var(--bg-tertiary);
-		color: var(--text-secondary);
+		background: var(--bg-hover);
+		color: var(--text-primary);
 		border-color: var(--border-default);
 	}
 
