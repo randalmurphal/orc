@@ -2375,6 +2375,325 @@ func TestGetCostSummaryEndpoint_InvalidSinceParameter(t *testing.T) {
 	}
 }
 
+// === Update Task API Tests ===
+
+func TestUpdateTaskEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task to update
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-UPD-001")
+	os.MkdirAll(taskDir, 0755)
+	taskYAML := `id: TASK-UPD-001
+title: Original Title
+description: Original description
+status: planned
+weight: small
+branch: orc/TASK-UPD-001
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Update title and description
+	body := bytes.NewBufferString(`{"title":"Updated Title","description":"Updated description"}`)
+	req := httptest.NewRequest("PATCH", "/api/tasks/TASK-UPD-001", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var tsk task.Task
+	if err := json.NewDecoder(w.Body).Decode(&tsk); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if tsk.Title != "Updated Title" {
+		t.Errorf("expected title 'Updated Title', got %q", tsk.Title)
+	}
+
+	if tsk.Description != "Updated description" {
+		t.Errorf("expected description 'Updated description', got %q", tsk.Description)
+	}
+}
+
+func TestUpdateTaskEndpoint_UpdateWeight(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task to update
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-UPD-002")
+	os.MkdirAll(taskDir, 0755)
+	taskYAML := `id: TASK-UPD-002
+title: Weight Test
+status: planned
+weight: small
+branch: orc/TASK-UPD-002
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Update weight
+	body := bytes.NewBufferString(`{"weight":"large"}`)
+	req := httptest.NewRequest("PATCH", "/api/tasks/TASK-UPD-002", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var tsk task.Task
+	if err := json.NewDecoder(w.Body).Decode(&tsk); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if tsk.Weight != task.WeightLarge {
+		t.Errorf("expected weight 'large', got %q", tsk.Weight)
+	}
+}
+
+func TestUpdateTaskEndpoint_InvalidWeight(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-UPD-003")
+	os.MkdirAll(taskDir, 0755)
+	taskYAML := `id: TASK-UPD-003
+title: Invalid Weight Test
+status: planned
+weight: small
+branch: orc/TASK-UPD-003
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Try to set invalid weight
+	body := bytes.NewBufferString(`{"weight":"invalid"}`)
+	req := httptest.NewRequest("PATCH", "/api/tasks/TASK-UPD-003", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateTaskEndpoint_EmptyTitle(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-UPD-004")
+	os.MkdirAll(taskDir, 0755)
+	taskYAML := `id: TASK-UPD-004
+title: Empty Title Test
+status: planned
+weight: small
+branch: orc/TASK-UPD-004
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Try to set empty title
+	body := bytes.NewBufferString(`{"title":""}`)
+	req := httptest.NewRequest("PATCH", "/api/tasks/TASK-UPD-004", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateTaskEndpoint_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	body := bytes.NewBufferString(`{"title":"Updated Title"}`)
+	req := httptest.NewRequest("PATCH", "/api/tasks/TASK-NONEXISTENT", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateTaskEndpoint_RunningTask(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create running task
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-UPD-RUN")
+	os.MkdirAll(taskDir, 0755)
+	taskYAML := `id: TASK-UPD-RUN
+title: Running Task
+status: running
+weight: small
+branch: orc/TASK-UPD-RUN
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Try to update running task
+	body := bytes.NewBufferString(`{"title":"New Title"}`)
+	req := httptest.NewRequest("PATCH", "/api/tasks/TASK-UPD-RUN", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected status 409, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateTaskEndpoint_InvalidJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-UPD-JSON")
+	os.MkdirAll(taskDir, 0755)
+	taskYAML := `id: TASK-UPD-JSON
+title: JSON Test
+status: planned
+weight: small
+branch: orc/TASK-UPD-JSON
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	body := bytes.NewBufferString(`{invalid json}`)
+	req := httptest.NewRequest("PATCH", "/api/tasks/TASK-UPD-JSON", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateTaskEndpoint_Metadata(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-UPD-META")
+	os.MkdirAll(taskDir, 0755)
+	taskYAML := `id: TASK-UPD-META
+title: Metadata Test
+status: planned
+weight: small
+branch: orc/TASK-UPD-META
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Add metadata
+	body := bytes.NewBufferString(`{"metadata":{"priority":"high","owner":"user1"}}`)
+	req := httptest.NewRequest("PATCH", "/api/tasks/TASK-UPD-META", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var tsk task.Task
+	if err := json.NewDecoder(w.Body).Decode(&tsk); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if tsk.Metadata["priority"] != "high" {
+		t.Errorf("expected metadata['priority']='high', got %q", tsk.Metadata["priority"])
+	}
+	if tsk.Metadata["owner"] != "user1" {
+		t.Errorf("expected metadata['owner']='user1', got %q", tsk.Metadata["owner"])
+	}
+}
+
+func TestUpdateTaskEndpoint_PartialUpdate(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task with all fields populated
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-UPD-PARTIAL")
+	os.MkdirAll(taskDir, 0755)
+	taskYAML := `id: TASK-UPD-PARTIAL
+title: Original Title
+description: Original description
+status: planned
+weight: medium
+branch: orc/TASK-UPD-PARTIAL
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Only update title, keep other fields
+	body := bytes.NewBufferString(`{"title":"Updated Title Only"}`)
+	req := httptest.NewRequest("PATCH", "/api/tasks/TASK-UPD-PARTIAL", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var tsk task.Task
+	if err := json.NewDecoder(w.Body).Decode(&tsk); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if tsk.Title != "Updated Title Only" {
+		t.Errorf("expected title 'Updated Title Only', got %q", tsk.Title)
+	}
+	// Other fields should remain unchanged
+	if tsk.Description != "Original description" {
+		t.Errorf("expected description 'Original description', got %q", tsk.Description)
+	}
+	if tsk.Weight != task.WeightMedium {
+		t.Errorf("expected weight 'medium', got %q", tsk.Weight)
+	}
+}
 // === Default Project API Tests ===
 
 func TestGetDefaultProjectEndpoint_Empty(t *testing.T) {
