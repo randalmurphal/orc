@@ -340,3 +340,96 @@ func TestUnregister_NotFound(t *testing.T) {
 		t.Error("Unregister() should fail for nonexistent project")
 	}
 }
+
+func TestDefaultProject(t *testing.T) {
+	tmpDir := t.TempDir()
+	projectDir := filepath.Join(tmpDir, "test-project")
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("create project dir: %v", err)
+	}
+
+	reg := &Registry{Projects: []Project{}}
+
+	// Register a project
+	proj, err := reg.Register(projectDir)
+	if err != nil {
+		t.Fatalf("Register() failed: %v", err)
+	}
+
+	// Initially no default
+	if reg.GetDefault() != "" {
+		t.Error("GetDefault() should return empty string initially")
+	}
+
+	// Set default project
+	err = reg.SetDefault(proj.ID)
+	if err != nil {
+		t.Fatalf("SetDefault() failed: %v", err)
+	}
+
+	if reg.GetDefault() != proj.ID {
+		t.Errorf("GetDefault() = %s, want %s", reg.GetDefault(), proj.ID)
+	}
+
+	// Clear default
+	err = reg.SetDefault("")
+	if err != nil {
+		t.Fatalf("SetDefault('') failed: %v", err)
+	}
+
+	if reg.GetDefault() != "" {
+		t.Error("GetDefault() should return empty string after clearing")
+	}
+}
+
+func TestDefaultProject_NotFound(t *testing.T) {
+	reg := &Registry{Projects: []Project{}}
+
+	err := reg.SetDefault("nonexistent-id")
+	if err == nil {
+		t.Error("SetDefault() should fail for nonexistent project")
+	}
+}
+
+func TestDefaultProject_Persistence(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	projectDir := filepath.Join(tmpDir, "my-project")
+	os.MkdirAll(projectDir, 0755)
+
+	// Register and set default
+	proj, err := RegisterProject(projectDir)
+	if err != nil {
+		t.Fatalf("RegisterProject() failed: %v", err)
+	}
+
+	err = SetDefaultProject(proj.ID)
+	if err != nil {
+		t.Fatalf("SetDefaultProject() failed: %v", err)
+	}
+
+	// Load fresh and verify
+	defaultID, err := GetDefaultProject()
+	if err != nil {
+		t.Fatalf("GetDefaultProject() failed: %v", err)
+	}
+
+	if defaultID != proj.ID {
+		t.Errorf("GetDefaultProject() = %s, want %s", defaultID, proj.ID)
+	}
+}
+
+func TestDefaultProject_SetNonexistent(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	err := SetDefaultProject("nonexistent-id")
+	if err == nil {
+		t.Error("SetDefaultProject() should fail for nonexistent project")
+	}
+}

@@ -2694,3 +2694,152 @@ updated_at: 2024-01-01T00:00:00Z
 		t.Errorf("expected weight 'medium', got %q", tsk.Weight)
 	}
 }
+// === Default Project API Tests ===
+
+func TestGetDefaultProjectEndpoint_Empty(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/projects/default", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Empty default is OK
+	if resp["default_project"] != "" {
+		t.Errorf("expected empty default_project, got %q", resp["default_project"])
+	}
+}
+
+func TestSetDefaultProjectEndpoint_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	// Create a project
+	projectDir := filepath.Join(tmpDir, "test-project")
+	os.MkdirAll(projectDir, 0755)
+
+	// Register the project
+	globalOrcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(globalOrcDir, 0755)
+
+	projectsYAML := `projects:
+  - id: test-proj-123
+    name: test-project
+    path: ` + projectDir + `
+    created_at: 2025-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(globalOrcDir, "projects.yaml"), []byte(projectsYAML), 0644)
+
+	srv := New(nil)
+
+	// Set the default project
+	body := bytes.NewBufferString(`{"project_id": "test-proj-123"}`)
+	req := httptest.NewRequest("PUT", "/api/projects/default", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["default_project"] != "test-proj-123" {
+		t.Errorf("expected default_project 'test-proj-123', got %q", resp["default_project"])
+	}
+
+	// Verify by getting it
+	req = httptest.NewRequest("GET", "/api/projects/default", nil)
+	w = httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["default_project"] != "test-proj-123" {
+		t.Errorf("expected default_project 'test-proj-123' after set, got %q", resp["default_project"])
+	}
+}
+
+func TestSetDefaultProjectEndpoint_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	srv := New(nil)
+
+	body := bytes.NewBufferString(`{"project_id": "nonexistent-id"}`)
+	req := httptest.NewRequest("PUT", "/api/projects/default", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSetDefaultProjectEndpoint_ClearDefault(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	// Create global orc dir
+	globalOrcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(globalOrcDir, 0755)
+
+	srv := New(nil)
+
+	// Setting empty project_id clears the default
+	body := bytes.NewBufferString(`{"project_id": ""}`)
+	req := httptest.NewRequest("PUT", "/api/projects/default", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSetDefaultProjectEndpoint_InvalidBody(t *testing.T) {
+	srv := New(nil)
+
+	body := bytes.NewBufferString(`invalid json`)
+	req := httptest.NewRequest("PUT", "/api/projects/default", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}

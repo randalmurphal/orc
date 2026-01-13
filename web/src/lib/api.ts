@@ -379,6 +379,18 @@ export async function getProject(id: string): Promise<Project> {
 	return fetchJSON<Project>(`/projects/${id}`);
 }
 
+export async function getDefaultProject(): Promise<string> {
+	const response = await fetchJSON<{ default_project: string }>('/projects/default');
+	return response.default_project;
+}
+
+export async function setDefaultProject(projectId: string): Promise<void> {
+	await fetchJSON<{ default_project: string }>('/projects/default', {
+		method: 'PUT',
+		body: JSON.stringify({ project_id: projectId })
+	});
+}
+
 export async function listProjectTasks(projectId: string): Promise<Task[]> {
 	return fetchJSON<Task[]>(`/projects/${projectId}/tasks`);
 }
