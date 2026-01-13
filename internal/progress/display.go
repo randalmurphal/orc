@@ -150,11 +150,10 @@ func (d *Display) TaskComplete(totalTokens int, totalDuration time.Duration) {
 }
 
 // TaskFailed announces task failure.
+// Note: Task failures are always shown, even in quiet mode, to ensure errors
+// are never silently swallowed.
 func (d *Display) TaskFailed(err error) {
-	if d.quiet {
-		return
-	}
-
+	// Always show task failures - errors should never be silent
 	fmt.Printf("\n💥 Task %s failed: %s\n", d.taskID, err)
 }
 

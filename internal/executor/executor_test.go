@@ -1867,8 +1867,89 @@ func TestSaveTranscript(t *testing.T) {
 	}
 }
 
-// TestExecuteTask_UpdatesTaskCurrentPhase verifies that task.CurrentPhase is updated
-// when a phase starts, so that 'orc status' shows the current phase correctly.
+// TestFailSetup_UpdatesTaskStatus verifies that when setup fails (e.g., worktree creation),
+// the task status is properly updated to "failed" and the error is stored.
+func TestFailSetup_UpdatesTaskStatus(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-SETUP-FAIL")
+
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
+
+	// Create task
+	testTask := task.New("TASK-SETUP-FAIL", "Setup Failure Test")
+	testTask.Weight = task.WeightSmall
+	testTask.Status = task.StatusRunning // Set to running as if execution started
+	if err := testTask.SaveTo(taskDir); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create state
+	testState := state.New("TASK-SETUP-FAIL")
+
+	// Create executor
+	cfg := DefaultConfig()
+	cfg.WorkDir = tmpDir
+	e := New(cfg)
+	e.currentTaskDir = taskDir
+
+	// Setup publisher to capture error events
+	pub := events.NewMemoryPublisher()
+	e.SetPublisher(pub)
+	ch := pub.Subscribe("TASK-SETUP-FAIL")
+	defer pub.Unsubscribe("TASK-SETUP-FAIL", ch)
+
+	// Simulate a setup failure
+	setupErr := fmt.Errorf("create worktree: git error: unable to create branch")
+	e.failSetup(testTask, testState, setupErr)
+
+	// Verify task status was updated to failed
+	if testTask.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want failed", testTask.Status)
+	}
+
+	// Reload from disk to verify persistence
+	reloadedTask, err := task.LoadFrom(tmpDir, "TASK-SETUP-FAIL")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+	if reloadedTask.Status != task.StatusFailed {
+		t.Errorf("reloaded task status = %s, want failed", reloadedTask.Status)
+	}
+
+	// Verify state error was set
+	if testState.Error == "" {
+		t.Error("state.Error should be set")
+	}
+	if !strings.Contains(testState.Error, "create worktree") {
+		t.Errorf("state.Error = %q, should contain 'create worktree'", testState.Error)
+	}
+
+	// Verify error event was published
+	select {
+	case event := <-ch:
+		if event.Type != events.EventError {
+			t.Errorf("expected EventError, got %v", event.Type)
+		}
+		data, ok := event.Data.(events.ErrorData)
+		if !ok {
+			t.Fatalf("expected ErrorData, got %T", event.Data)
+		}
+		if data.Phase != "setup" {
+			t.Errorf("expected phase 'setup', got %s", data.Phase)
+		}
+		if !data.Fatal {
+			t.Error("expected fatal error")
+		}
+		if !strings.Contains(data.Message, "create worktree") {
+			t.Errorf("expected error message to contain 'create worktree', got %s", data.Message)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for error event")
+	}
+}
+
 func TestExecuteTask_UpdatesTaskCurrentPhase(t *testing.T) {
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-PHASE-001")

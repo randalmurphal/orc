@@ -106,6 +106,8 @@ func TestTaskComplete(t *testing.T) {
 }
 
 func TestTaskFailed(t *testing.T) {
+	// TaskFailed always prints, even in quiet mode, because errors should
+	// never be silently swallowed. This test verifies it doesn't panic.
 	d := New("TASK-001", true) // quiet mode
 
 	d.TaskFailed(testError("something went wrong"))
