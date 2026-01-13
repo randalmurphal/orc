@@ -52,8 +52,8 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 	// Setup worktree if enabled
 	if e.orcConfig.Worktree.Enabled && e.gitOps != nil {
 		if err := e.setupWorktreeForTask(t); err != nil {
-			e.failSetup(t, s, fmt.Errorf("setup worktree: %w", err))
-			return fmt.Errorf("setup worktree: %w", err)
+			e.failSetup(t, s, err)
+			return err
 		}
 		// Cleanup worktree on exit based on config and success
 		defer e.cleanupWorktreeForTask(t)
