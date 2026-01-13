@@ -245,6 +245,50 @@ summary := FormatQAResultSummary(result)
 shouldRun := ShouldRunQA(cfg, weight)
 ```
 
+## Session Adapter (session_adapter.go)
+
+LLM session abstraction with token tracking.
+
+**Types:**
+- `SessionAdapter` - Wraps Claude session for headless execution
+- `TurnResult` - Single turn result with content and completion flags
+- `TokenUsage` - Token counts from Claude response
+
+**Token Usage:**
+
+Claude reports tokens in multiple fields that must be combined to get the actual context size:
+
+```go
+type TokenUsage struct {
+    InputTokens              int  // Raw input tokens (uncached portion)
+    OutputTokens             int  // Output tokens generated
+    CacheCreationInputTokens int  // Tokens written to cache
+    CacheReadInputTokens     int  // Tokens read from cache
+}
+
+// EffectiveInputTokens returns actual context size (input + cached)
+func (u TokenUsage) EffectiveInputTokens() int {
+    return u.InputTokens + u.CacheCreationInputTokens + u.CacheReadInputTokens
+}
+
+// EffectiveTotalTokens returns total tokens including cached inputs
+func (u TokenUsage) EffectiveTotalTokens() int {
+    return u.EffectiveInputTokens() + u.OutputTokens
+}
+```
+
+**Important:** Raw `InputTokens` can appear misleadingly low (e.g., 56 tokens) when most of the prompt is served from cache. Always use `EffectiveInputTokens()` when displaying or tracking context size.
+
+**Turn Execution:**
+```go
+adapter := NewSessionAdapter(client, opts)
+result, err := adapter.ExecuteTurn(ctx, prompt)
+
+// Use effective tokens for accurate tracking
+effectiveInput := result.Usage.EffectiveInputTokens()
+totalTokens := result.Usage.EffectiveTotalTokens()
+```
+
 ## Testing
 
 ```bash
@@ -268,3 +312,4 @@ Test coverage for each module:
 - `test_parser_test.go` - Framework detection, parsing, coverage validation
 - `review_test.go` - Review findings/decision parsing, edge cases
 - `qa_test.go` - QA result parsing, status validation
+- `session_adapter_test.go` - Token usage calculations, effective token methods
