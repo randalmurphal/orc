@@ -165,13 +165,8 @@ func Run(opts Options) (*Result, error) {
 		fmt.Printf("Installed: .claude/hooks/orc-stop.sh (ralph-style loop hook)\n")
 	}
 
-	// 8. Configure orc marketplace in .claude/settings.json
-	if err := InstallPlugins(opts.WorkDir); err != nil {
-		// Non-fatal - just warn
-		fmt.Fprintf(os.Stderr, "Warning: could not configure orc plugin: %v\n", err)
-	} else {
-		fmt.Printf("Configured: .claude/settings.json (orc marketplace + plugin enabled)\n")
-	}
+	// 8. Plugin installation is manual - user runs commands in Claude Code
+	// (extraKnownMarketplaces in settings.json doesn't work reliably)
 
 	// 9. Inject orc section into CLAUDE.md
 	if err := InjectOrcSection(opts.WorkDir); err != nil {
