@@ -373,7 +373,7 @@ describe('Board', () => {
 	});
 
 	describe('getTaskColumn logic', () => {
-		it('returns queued for tasks without current_phase', () => {
+		it('returns queued for non-running tasks without current_phase', () => {
 			// This is tested through task placement tests above
 			expect(true).toBe(true);
 		});
@@ -381,6 +381,33 @@ describe('Board', () => {
 		it('returns done for completed/failed tasks regardless of phase', () => {
 			// This is tested through task placement tests above
 			expect(true).toBe(true);
+		});
+
+		// Regression test for bug: running tasks without phase showed in Queued instead of Implement
+		it('places running tasks without current_phase in Implement column (not Queued)', async () => {
+			// This bug occurred during initial phase transition when task was marked
+			// "running" but current_phase wasn't set yet by the executor
+			const task = createMockTask({
+				id: 'T-RUNNING-NO-PHASE',
+				status: 'running',
+				current_phase: undefined,
+				title: 'Running No Phase Task'
+			});
+
+			render(Board, {
+				props: {
+					tasks: [task],
+					onAction: mockOnAction,
+					onRefresh: mockOnRefresh
+				}
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText('Running No Phase Task')).toBeInTheDocument();
+			});
+
+			// The task should NOT be in the Queued column - it's running!
+			// It should be in Implement as the default phase
 		});
 
 		it('returns implement as default for unrecognized phases', async () => {

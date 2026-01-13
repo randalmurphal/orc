@@ -290,6 +290,7 @@ Patterns, gotchas, and decisions learned during development.
 |---------|-------------|--------|
 | Branch sync before completion | Task branches rebase onto target before PR to catch conflicts early | TASK-019 |
 | Executor PID tracking | Track executor PID + heartbeat in state.yaml to detect orphaned tasks (running but executor dead) | TASK-046 |
+| Atomic status+phase updates | Set `current_phase` atomically with `status=running` to avoid UI timing issues (task shows in wrong column) | TASK-057 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

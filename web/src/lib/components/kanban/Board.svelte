@@ -38,7 +38,15 @@
 		}
 
 		// Tasks not yet started go to Queued
-		if (!task.current_phase || ['created', 'classifying', 'planned'].includes(task.status)) {
+		// Note: "running" tasks without a phase are transitional - they're about to
+		// start their first phase, so show them in "implement" instead of "queued"
+		if (!task.current_phase) {
+			if (task.status === 'running') {
+				return 'implement';
+			}
+			return 'queued';
+		}
+		if (['created', 'classifying', 'planned'].includes(task.status)) {
 			return 'queued';
 		}
 

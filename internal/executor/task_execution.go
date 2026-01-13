@@ -31,10 +31,15 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 	hostname, _ := os.Hostname()
 	s.StartExecution(os.Getpid(), hostname)
 
-	// Update task status
+	// Update task status and initial phase atomically
+	// Setting CurrentPhase before saving ensures the UI shows the task
+	// in the correct column (e.g., "implement") rather than "queued"
 	t.Status = task.StatusRunning
 	now := time.Now()
 	t.StartedAt = &now
+	if len(p.Phases) > 0 {
+		t.CurrentPhase = p.Phases[0].ID
+	}
 	if err := t.SaveTo(e.currentTaskDir); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}

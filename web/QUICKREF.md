@@ -48,8 +48,9 @@ const columns = [
 ```
 
 **Task placement rules:**
-- No phase (created/classifying/planned) → Queued
-- Running/paused/blocked → Column matching current phase
+- No phase + not running (created/classifying/planned) → Queued
+- No phase + running → Implement (transitional state during startup)
+- Running/paused/blocked with phase → Column matching current phase
 - Completed/failed → Done (regardless of phase)
 
 ### Drag-Drop Confirmation
