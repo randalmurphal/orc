@@ -17,6 +17,20 @@ make dev-full               # API (:8080) + frontend (:5173)
 ./bin/orc init && ./bin/orc new "task description" && ./bin/orc run TASK-001
 ```
 
+## Claude Code Plugin
+
+The orc plugin for Claude Code lives in a separate lightweight repo to avoid cloning the full codebase:
+
+**Repo:** [randalmurphal/orc-claude-plugin](https://github.com/randalmurphal/orc-claude-plugin)
+
+Install in Claude Code:
+```
+/plugin marketplace add randalmurphal/orc-claude-plugin
+/plugin install orc@orc
+```
+
+Commands: `/orc:init`, `/orc:status`, `/orc:continue`, `/orc:review`, `/orc:qa`, `/orc:propose`
+
 ## Project Structure
 
 | Path | Purpose | Details |
@@ -106,7 +120,7 @@ orc config profile strict
     └── transcripts/
 
 .claude/                         # Claude Code
-├── settings.json, plugins/orc/, skills/
+├── settings.json, hooks/, skills/
 ```
 
 ## Commands
