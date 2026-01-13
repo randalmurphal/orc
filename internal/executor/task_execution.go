@@ -5,6 +5,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude"
@@ -26,12 +27,21 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		return err
 	}
 
+	// Record execution info for orphan detection
+	hostname, _ := os.Hostname()
+	s.StartExecution(os.Getpid(), hostname)
+
 	// Update task status
 	t.Status = task.StatusRunning
 	now := time.Now()
 	t.StartedAt = &now
 	if err := t.SaveTo(e.currentTaskDir); err != nil {
 		return fmt.Errorf("save task: %w", err)
+	}
+
+	// Save initial state with execution info
+	if err := s.SaveTo(e.currentTaskDir); err != nil {
+		return fmt.Errorf("save state: %w", err)
 	}
 
 	// Setup worktree if enabled
@@ -57,8 +67,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			continue
 		}
 
-		// Start phase
+		// Start phase and update heartbeat
 		s.StartPhase(phase.ID)
+		s.UpdateHeartbeat()
 		if err := s.SaveTo(e.currentTaskDir); err != nil {
 			return fmt.Errorf("save state: %w", err)
 		}
@@ -277,6 +288,7 @@ func (e *Executor) handlePhaseFailure(phaseID string, err error, result *Result,
 // failTask handles marking a task as failed.
 func (e *Executor) failTask(t *task.Task, phase *plan.Phase, s *state.State, err error) {
 	s.FailPhase(phase.ID, err)
+	s.ClearExecution() // Clear execution tracking on failure
 	if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
 		e.logger.Error("failed to save state on failure", "error", saveErr)
 	}
@@ -354,6 +366,7 @@ func (e *Executor) handleGateEvaluation(ctx context.Context, phase *plan.Phase, 
 // completeTask finalizes the task after all phases are done.
 func (e *Executor) completeTask(ctx context.Context, t *task.Task, s *state.State) error {
 	s.Complete()
+	s.ClearExecution() // Clear execution tracking on completion
 	if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
 		e.logger.Error("failed to save state on completion", "error", saveErr)
 	}
