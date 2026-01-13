@@ -13,6 +13,7 @@ import (
 	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/playwright"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -170,6 +171,32 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		vars.WorktreePath = e.workingDir
 		vars.TaskBranch = t.Branch
 		vars.TargetBranch = e.getTargetBranch()
+	}
+
+	// Add UI testing context if task requires it
+	if t.RequiresUITesting {
+		projectDir := "."
+		if e.workingDir != "" {
+			projectDir = e.workingDir
+		}
+
+		// Set up screenshot directory in task attachments
+		screenshotDir := playwright.GetScreenshotDir(projectDir, t.ID)
+		if err := playwright.EnsureScreenshotDir(screenshotDir); err != nil {
+			e.logger.Warn("failed to create screenshot directory", "error", err)
+		}
+
+		vars = vars.WithUITestingContext(UITestingContext{
+			RequiresUITesting: true,
+			ScreenshotDir:     screenshotDir,
+			TestResults:       loadPriorContent(task.TaskDir(t.ID), s, "test"),
+		})
+
+		e.logger.Info("UI testing enabled (full)",
+			"task", t.ID,
+			"phase", p.ID,
+			"screenshot_dir", screenshotDir,
+		)
 	}
 
 	promptText := RenderTemplate(tmpl, vars)

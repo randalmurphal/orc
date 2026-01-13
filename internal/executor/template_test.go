@@ -557,3 +557,126 @@ func TestDefaultConfigForWeight_TargetBranch(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderTemplate_UITestingVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		vars     TemplateVars
+		want     string
+	}{
+		{
+			name:     "requires ui testing true",
+			template: "UI Testing: {{REQUIRES_UI_TESTING}}",
+			vars: TemplateVars{
+				RequiresUITesting: true,
+			},
+			want: "UI Testing: true",
+		},
+		{
+			name:     "requires ui testing false",
+			template: "UI Testing: {{REQUIRES_UI_TESTING}}",
+			vars: TemplateVars{
+				RequiresUITesting: false,
+			},
+			want: "UI Testing: ",
+		},
+		{
+			name:     "screenshot directory",
+			template: "Save to: {{SCREENSHOT_DIR}}/image.png",
+			vars: TemplateVars{
+				ScreenshotDir: "/path/to/screenshots",
+			},
+			want: "Save to: /path/to/screenshots/image.png",
+		},
+		{
+			name:     "test results",
+			template: "Previous results: {{TEST_RESULTS}}",
+			vars: TemplateVars{
+				TestResults: "All 10 tests passed",
+			},
+			want: "Previous results: All 10 tests passed",
+		},
+		{
+			name:     "all ui testing variables together",
+			template: "UI: {{REQUIRES_UI_TESTING}}, Dir: {{SCREENSHOT_DIR}}, Results: {{TEST_RESULTS}}",
+			vars: TemplateVars{
+				RequiresUITesting: true,
+				ScreenshotDir:     "/screenshots",
+				TestResults:       "Passed",
+			},
+			want: "UI: true, Dir: /screenshots, Results: Passed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RenderTemplate(tt.template, tt.vars)
+			if got != tt.want {
+				t.Errorf("RenderTemplate() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTemplateVars_WithUITestingContext(t *testing.T) {
+	vars := TemplateVars{
+		TaskID:    "TASK-001",
+		TaskTitle: "Test",
+		Phase:     "test",
+		Weight:    "medium",
+	}
+
+	uiCtx := UITestingContext{
+		RequiresUITesting: true,
+		ScreenshotDir:     "/path/to/screenshots",
+		TestResults:       "All tests passed",
+	}
+
+	result := vars.WithUITestingContext(uiCtx)
+
+	// UI testing fields should be populated
+	if !result.RequiresUITesting {
+		t.Error("RequiresUITesting should be true")
+	}
+	if result.ScreenshotDir != "/path/to/screenshots" {
+		t.Errorf("ScreenshotDir = %q, want /path/to/screenshots", result.ScreenshotDir)
+	}
+	if result.TestResults != "All tests passed" {
+		t.Errorf("TestResults = %q, want 'All tests passed'", result.TestResults)
+	}
+
+	// Original fields should still be there
+	if result.TaskID != "TASK-001" {
+		t.Errorf("TaskID = %q, want TASK-001", result.TaskID)
+	}
+	if result.Phase != "test" {
+		t.Errorf("Phase = %q, want test", result.Phase)
+	}
+
+	// Original vars should be unmodified (value receiver)
+	if vars.RequiresUITesting {
+		t.Error("original RequiresUITesting should be false")
+	}
+	if vars.ScreenshotDir != "" {
+		t.Errorf("original ScreenshotDir modified to %q, should be empty", vars.ScreenshotDir)
+	}
+}
+
+func TestUITestingContext_ZeroValue(t *testing.T) {
+	var ctx UITestingContext
+
+	// Zero value should be safe to use
+	vars := TemplateVars{TaskID: "TASK-001"}
+	result := vars.WithUITestingContext(ctx)
+
+	if result.RequiresUITesting {
+		t.Error("zero value RequiresUITesting should be false")
+	}
+	if result.ScreenshotDir != "" {
+		t.Errorf("zero value ScreenshotDir = %q, want empty", result.ScreenshotDir)
+	}
+	if result.TestResults != "" {
+		t.Errorf("zero value TestResults = %q, want empty", result.TestResults)
+	}
+}
