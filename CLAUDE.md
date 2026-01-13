@@ -248,6 +248,8 @@ Patterns, gotchas, and decisions learned during development.
 | Issue | Resolution | Source |
 |-------|------------|--------|
 | PR labels in config don't exist on repo | Orc warns and creates PR without labels (graceful degradation) | TASK-015 |
+| `go:embed` fails without static dir | Run `make test` (creates placeholder) or `mkdir -p internal/api/static` | TASK-016 |
+| Tests fail with `go.work` | Use `GOWORK=off go test` or `make test` | TASK-016 |
 
 ### Decisions
 | Decision | Rationale | Source |
