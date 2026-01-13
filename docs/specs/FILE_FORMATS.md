@@ -65,6 +65,7 @@ description: |
 
 weight: medium
 status: running
+current_phase: implement          # Phase currently being executed (updated by executor)
 branch: orc/TASK-001
 
 # UI Testing Detection (auto-detected from task content)
