@@ -1,3 +1,11 @@
+<!--
+	NewTaskModal - Global modal for creating new tasks
+
+	Lives in +layout.svelte so it can be triggered from any page via:
+	  window.dispatchEvent(new CustomEvent('orc:new-task'))
+
+	Also triggered by Cmd+N keyboard shortcut.
+-->
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { createTask, createProjectTask } from '$lib/api';
