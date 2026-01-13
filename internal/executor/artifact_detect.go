@@ -2,6 +2,7 @@
 package executor
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,10 +10,18 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+const (
+	// maxArtifactFileSize is the maximum size we'll read for artifact detection.
+	// This prevents memory exhaustion from maliciously large files.
+	maxArtifactFileSize = 5 * 1024 * 1024 // 5 MB
+
+	// minMeaningfulContent is the minimum content length to consider an artifact valid.
+	minMeaningfulContent = 50
+)
+
 // ArtifactDetector checks for existing phase artifacts.
 type ArtifactDetector struct {
 	taskDir string
-	taskID  string
 	weight  task.Weight
 }
 
@@ -20,18 +29,38 @@ type ArtifactDetector struct {
 func NewArtifactDetector(taskID string, weight task.Weight) *ArtifactDetector {
 	return &ArtifactDetector{
 		taskDir: task.TaskDir(taskID),
-		taskID:  taskID,
 		weight:  weight,
 	}
 }
 
 // NewArtifactDetectorWithDir creates a detector for a task in a specific directory.
-func NewArtifactDetectorWithDir(taskDir, taskID string, weight task.Weight) *ArtifactDetector {
+// The taskID parameter is kept for API compatibility but not stored.
+func NewArtifactDetectorWithDir(taskDir, _ string, weight task.Weight) *ArtifactDetector {
 	return &ArtifactDetector{
 		taskDir: taskDir,
-		taskID:  taskID,
 		weight:  weight,
 	}
+}
+
+// readFileLimited reads a file up to maxArtifactFileSize bytes.
+// Returns the content or an error if the file is too large or unreadable.
+func readFileLimited(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	// Check file size first
+	info, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() > maxArtifactFileSize {
+		return nil, io.ErrUnexpectedEOF // File too large
+	}
+
+	return io.ReadAll(io.LimitReader(f, maxArtifactFileSize))
 }
 
 // ArtifactStatus represents what artifacts exist for a phase.
@@ -84,21 +113,21 @@ func (d *ArtifactDetector) detectSpecArtifacts() *ArtifactStatus {
 	}
 
 	specPath := filepath.Join(d.taskDir, "spec.md")
-	if _, err := os.Stat(specPath); err != nil {
-		status.Description = "no spec.md file"
-		return status
-	}
 
-	// Read and validate spec content
-	content, err := os.ReadFile(specPath)
+	// Read and validate spec content (readFileLimited handles file-not-found)
+	content, err := readFileLimited(specPath)
 	if err != nil {
-		status.Description = "spec.md exists but unreadable"
+		if os.IsNotExist(err) {
+			status.Description = "no spec.md file"
+		} else {
+			status.Description = "spec.md exists but unreadable"
+		}
 		return status
 	}
 
 	// Check if spec has meaningful content
 	contentStr := string(content)
-	if len(strings.TrimSpace(contentStr)) < 50 {
+	if len(strings.TrimSpace(contentStr)) < minMeaningfulContent {
 		status.Description = "spec.md exists but appears empty or minimal"
 		return status
 	}
@@ -128,9 +157,8 @@ func (d *ArtifactDetector) detectResearchArtifacts() *ArtifactStatus {
 
 	// Check for research artifact file
 	researchPath := filepath.Join(d.taskDir, "artifacts", "research.md")
-	if _, err := os.Stat(researchPath); err == nil {
-		content, err := os.ReadFile(researchPath)
-		if err == nil && len(strings.TrimSpace(string(content))) > 50 {
+	if content, err := readFileLimited(researchPath); err == nil {
+		if len(strings.TrimSpace(string(content))) > minMeaningfulContent {
 			status.HasArtifacts = true
 			status.Artifacts = []string{"artifacts/research.md"}
 			status.Description = "research.md artifact exists"
@@ -141,7 +169,7 @@ func (d *ArtifactDetector) detectResearchArtifacts() *ArtifactStatus {
 
 	// Also check for research content in spec.md (sometimes embedded)
 	specPath := filepath.Join(d.taskDir, "spec.md")
-	if content, err := os.ReadFile(specPath); err == nil {
+	if content, err := readFileLimited(specPath); err == nil {
 		contentStr := strings.ToLower(string(content))
 		if strings.Contains(contentStr, "## research") || strings.Contains(contentStr, "# research") {
 			status.HasArtifacts = true

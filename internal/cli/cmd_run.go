@@ -148,9 +148,14 @@ Example:
 							fmt.Printf("\n📄 %s already exists. Skip %s phase? [Y/n]: ",
 								strings.Join(status.Artifacts, ", "), phaseID)
 							reader := bufio.NewReader(os.Stdin)
-							input, _ := reader.ReadString('\n')
-							input = strings.TrimSpace(strings.ToLower(input))
-							shouldSkip = input == "" || input == "y" || input == "yes"
+							input, err := reader.ReadString('\n')
+							if err != nil {
+								// On EOF or error, don't skip - safer to run the phase
+								shouldSkip = false
+							} else {
+								input = strings.TrimSpace(strings.ToLower(input))
+								shouldSkip = input == "" || input == "y" || input == "yes"
+							}
 						}
 
 						if shouldSkip {
