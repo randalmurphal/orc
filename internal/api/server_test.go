@@ -740,8 +740,20 @@ func TestGetClaudeMDEndpoint_NotFound(t *testing.T) {
 
 	srv.mux.ServeHTTP(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", w.Code)
+	// API returns 200 with empty content when CLAUDE.md doesn't exist
+	// (allows UI to show editor for new file)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var claudeMD claudeconfig.ClaudeMD
+	if err := json.NewDecoder(w.Body).Decode(&claudeMD); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Content should be empty for non-existent file
+	if claudeMD.Content != "" {
+		t.Errorf("expected empty content for non-existent file, got %q", claudeMD.Content)
 	}
 }
 

@@ -84,10 +84,12 @@ embed-frontend:
 
 ## test: Run tests locally
 test:
+	@mkdir -p internal/api/static
 	go test -v -race -cover ./...
 
 ## test-short: Run tests without race detector (faster)
 test-short:
+	@mkdir -p internal/api/static
 	go test -v -cover ./...
 
 ## lint: Run linters locally
@@ -204,12 +206,14 @@ dev-full:
 
 ## coverage: Generate test coverage report
 coverage:
+	@mkdir -p internal/api/static
 	go test -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
 ## coverage-func: Show coverage by function
 coverage-func:
+	@mkdir -p internal/api/static
 	go test -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out
 

@@ -30,13 +30,13 @@ func TestGeneratePrompt(t *testing.T) {
 		t.Fatalf("GeneratePrompt failed: %v", err)
 	}
 
-	// Check key sections are present
+	// Check key sections are present (matching actual template content)
 	checks := []string{
-		"Project Detection Results",
+		"## Project Detection",
 		"| **Language** | go |",
 		"cobra",
 		"go test ./...",
-		"Your Task",
+		"## Your Instructions",
 	}
 
 	for _, check := range checks {
