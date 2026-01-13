@@ -198,10 +198,12 @@ sync:
 # Retry behavior
 retry:
   enabled: true
-  max_retries: 3
   retry_map:
     test: implement      # Test failures retry from implement
     validate: implement
+
+executor:
+  max_retries: 5         # Max retry attempts per phase (default: 5)
 
 # Code review
 review:
