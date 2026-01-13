@@ -2,6 +2,7 @@
 package plan
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -333,7 +334,13 @@ func RegeneratePlan(t *task.Task, oldPlan *Plan) (*RegenerateResult, error) {
 // Returns the regeneration result or an error.
 func RegeneratePlanForTask(projectDir string, t *task.Task) (*RegenerateResult, error) {
 	// Load the old plan to preserve phase statuses
-	oldPlan, _ := LoadFrom(projectDir, t.ID) // Ignore error, oldPlan may not exist
+	// Only ignore "not found" errors - other errors might indicate a real problem
+	oldPlan, err := LoadFrom(projectDir, t.ID)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		// Non-"not found" error - plan file exists but couldn't be read
+		// Proceed without old plan (will lose phase statuses) but log would be appropriate
+		oldPlan = nil
+	}
 
 	// Regenerate the plan
 	result, err := RegeneratePlan(t, oldPlan)

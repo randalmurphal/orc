@@ -307,22 +307,24 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	if weightChanged {
 		result, err := plan.RegeneratePlanForTask(s.workDir, t)
 		if err != nil {
-			// Log the error but don't fail the update
+			// Plan regeneration failed - return error to client
+			// The task has been saved with new weight, but plan is stale
 			s.logger.Error("failed to regenerate plan for weight change",
 				"taskID", id,
 				"oldWeight", oldWeight,
 				"newWeight", t.Weight,
 				"error", err,
 			)
-		} else {
-			s.logger.Info("plan regenerated for weight change",
-				"taskID", id,
-				"oldWeight", oldWeight,
-				"newWeight", t.Weight,
-				"preservedPhases", result.PreservedPhases,
-				"resetPhases", result.ResetPhases,
-			)
+			s.jsonError(w, fmt.Sprintf("task updated but plan regeneration failed: %v", err), http.StatusInternalServerError)
+			return
 		}
+		s.logger.Info("plan regenerated for weight change",
+			"taskID", id,
+			"oldWeight", oldWeight,
+			"newWeight", t.Weight,
+			"preservedPhases", result.PreservedPhases,
+			"resetPhases", result.ResetPhases,
+		)
 	}
 
 	s.jsonResponse(w, t)

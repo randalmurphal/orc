@@ -321,7 +321,7 @@ func (w *Watcher) publishTaskEvent(taskID string) {
 		// Check for weight change and regenerate plan if needed
 		if oldWeight, hasOldWeight := w.getWeight(taskID); hasOldWeight {
 			if oldWeight != t.Weight {
-				w.logger.Info("task weight changed, regenerating plan",
+				w.logger.Info("task weight changed",
 					"taskID", taskID,
 					"oldWeight", oldWeight,
 					"newWeight", t.Weight,
@@ -329,18 +329,27 @@ func (w *Watcher) publishTaskEvent(taskID string) {
 
 				// Only regenerate if task is not running
 				if t.Status != task.StatusRunning {
-					result, err := plan.RegeneratePlanForTask(w.workDir, t)
-					if err != nil {
-						w.logger.Error("failed to regenerate plan for weight change",
+					// Check if plan already matches new weight (API/CLI already regenerated)
+					existingPlan, err := plan.LoadFrom(w.workDir, taskID)
+					if err == nil && existingPlan.Weight == t.Weight {
+						w.logger.Debug("plan already matches new weight, skipping regeneration",
 							"taskID", taskID,
-							"error", err,
 						)
 					} else {
-						w.logger.Info("plan regenerated for weight change",
-							"taskID", taskID,
-							"preservedPhases", result.PreservedPhases,
-							"resetPhases", result.ResetPhases,
-						)
+						// Plan doesn't exist or has wrong weight - regenerate
+						result, err := plan.RegeneratePlanForTask(w.workDir, t)
+						if err != nil {
+							w.logger.Error("failed to regenerate plan for weight change",
+								"taskID", taskID,
+								"error", err,
+							)
+						} else {
+							w.logger.Info("plan regenerated for weight change",
+								"taskID", taskID,
+								"preservedPhases", result.PreservedPhases,
+								"resetPhases", result.ResetPhases,
+							)
+						}
 					}
 				} else {
 					w.logger.Warn("skipping plan regeneration for running task",
