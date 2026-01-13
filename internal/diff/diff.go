@@ -120,6 +120,11 @@ func (s *Service) GetFileList(ctx context.Context, base, head string) ([]FileDif
 		}
 	}
 
+	// Ensure we never return nil (Go JSON serializes nil slices as null, which crashes frontend)
+	if files == nil {
+		files = []FileDiff{}
+	}
+
 	return files, nil
 }
 
