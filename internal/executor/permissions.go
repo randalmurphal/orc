@@ -47,10 +47,21 @@ func (e *Executor) LoadProjectToolPermissions(projectRoot string) error {
 
 // rebuildClient recreates the Claude client with current config settings.
 func (e *Executor) rebuildClient() {
+	workdir := e.config.WorkDir
+	// Use worktree path if we're in a worktree context
+	if e.worktreePath != "" {
+		workdir = e.worktreePath
+	}
+
 	clientOpts := []claude.ClaudeOption{
 		claude.WithModel(e.config.Model),
-		claude.WithWorkdir(e.config.WorkDir),
+		claude.WithWorkdir(workdir),
 		claude.WithTimeout(e.config.Timeout),
+	}
+
+	// Disable go.work in worktree context to avoid path resolution issues
+	if e.worktreePath != "" {
+		clientOpts = append(clientOpts, claude.WithEnvVar("GOWORK", "off"))
 	}
 
 	// Resolve Claude path to absolute to ensure it works with worktrees

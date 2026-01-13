@@ -32,11 +32,11 @@ func TestGeneratePrompt(t *testing.T) {
 
 	// Check key sections are present
 	checks := []string{
-		"Project Detection Results",
+		"Project Detection",
 		"| **Language** | go |",
 		"cobra",
 		"go test ./...",
-		"Your Task",
+		"Your Instructions",
 	}
 
 	for _, check := range checks {
