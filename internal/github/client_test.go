@@ -257,6 +257,69 @@ func TestClient_GetPRByURL(t *testing.T) {
 	}
 }
 
+func TestIsLabelError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "label not found",
+			err:      errors.New("could not add label: automated not found"),
+			expected: true,
+		},
+		{
+			name:     "label not found uppercase",
+			err:      errors.New("Could not add Label: AUTOMATED not found"),
+			expected: true,
+		},
+		{
+			name:     "multiple labels not found",
+			err:      errors.New("could not add label: bug-fix not found"),
+			expected: true,
+		},
+		{
+			name:     "gh cli error with label",
+			err:      errors.New("gh pr create: label 'automated' not found: exit status 1"),
+			expected: true,
+		},
+		{
+			name:     "unrelated error",
+			err:      errors.New("network timeout"),
+			expected: false,
+		},
+		{
+			name:     "auth error",
+			err:      errors.New("gh: not authenticated"),
+			expected: false,
+		},
+		{
+			name:     "branch not found",
+			err:      errors.New("branch not found: feature-branch"),
+			expected: false,
+		},
+		{
+			name:     "generic not found without label",
+			err:      errors.New("repository not found"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isLabelError(tt.err)
+			if got != tt.expected {
+				t.Errorf("isLabelError(%v) = %v, want %v", tt.err, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestIntegration_RealRepo(t *testing.T) {
 	// Integration test that runs against the actual orc repo
 	// Only runs if we're in the orc repo and gh is authenticated
