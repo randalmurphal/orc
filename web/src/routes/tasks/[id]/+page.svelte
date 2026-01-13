@@ -38,7 +38,10 @@
 	import Timeline from '$lib/components/Timeline.svelte';
 	import Transcript from '$lib/components/Transcript.svelte';
 	import DiffViewer from '$lib/components/diff/DiffViewer.svelte';
+	import Attachments from '$lib/components/task/Attachments.svelte';
 	import { currentProjectId } from '$lib/stores/project';
+	import { listAttachments } from '$lib/api';
+	import type { Attachment } from '$lib/types';
 
 	let task = $state<Task | null>(null);
 	let taskState = $state<TaskState | null>(null);
@@ -53,6 +56,7 @@
 	let activeTab = $state<TabId>('timeline');
 	let diffStats = $state<DiffStatsResponse | null>(null);
 	let reviewStats = $state<ReviewStatsResponse | null>(null);
+	let attachments = $state<Attachment[]>([]);
 
 	const taskId = $derived($page.params.id ?? '');
 	// Subscribe to currentProjectId reactively - use $effect to track changes
@@ -71,7 +75,7 @@
 		// Support old 'review' tab URL by redirecting to 'changes'
 		if (urlTab === 'review') {
 			activeTab = 'changes' as TabId;
-		} else if (urlTab && ['timeline', 'changes', 'transcript'].includes(urlTab)) {
+		} else if (urlTab && ['timeline', 'changes', 'transcript', 'attachments'].includes(urlTab)) {
 			activeTab = urlTab as TabId;
 		}
 	});
@@ -97,6 +101,13 @@
 		return parts.length > 0 ? parts.join(' · ') : null;
 	});
 
+	// Count attachments with images first
+	const attachmentsBadge = $derived(
+		attachments.length > 0
+			? `${attachments.filter((a) => a.is_image).length} img, ${attachments.filter((a) => !a.is_image).length} file`
+			: null
+	);
+
 	const tabs = $derived([
 		{
 			id: 'timeline' as TabId,
@@ -113,6 +124,11 @@
 			id: 'transcript' as TabId,
 			label: 'Transcript',
 			badge: null
+		},
+		{
+			id: 'attachments' as TabId,
+			label: 'Attachments',
+			badge: attachments.length > 0 ? String(attachments.length) : null
 		}
 	]);
 
@@ -178,12 +194,14 @@
 
 	async function loadBadgeStats() {
 		// Load stats for tab badges in parallel
-		const [ds, rs] = await Promise.all([
+		const [ds, rs, atts] = await Promise.all([
 			getDiffStats(taskId).catch(() => null),
-			getReviewStats(taskId).catch(() => null)
+			getReviewStats(taskId).catch(() => null),
+			listAttachments(taskId).catch(() => [])
 		]);
 		diffStats = ds;
 		reviewStats = rs;
+		attachments = atts;
 	}
 
 	// Track streaming response content for live updates
@@ -508,6 +526,10 @@
 				</div>
 			{:else if activeTab === 'transcript'}
 				<Transcript files={transcriptFiles} taskId={task.id} {streamingContent} />
+			{:else if activeTab === 'attachments'}
+				<div class="attachments-container">
+					<Attachments {taskId} />
+				</div>
 			{/if}
 		</div>
 	</div>
@@ -655,6 +677,11 @@
 	.diff-container {
 		min-height: 500px;
 		max-height: calc(100vh - 300px);
+	}
+
+	/* Attachments Container */
+	.attachments-container {
+		min-height: 300px;
 	}
 
 	/* Stats Grid */
