@@ -22,7 +22,7 @@ web/src/
 │   │   ├── diff/         # DiffViewer, DiffFile, DiffHunk, VirtualScroller
 │   │   ├── kanban/       # Board, Column, TaskCard
 │   │   ├── layout/       # Header, Sidebar
-│   │   ├── overlays/     # Modal, CommandPalette
+│   │   ├── overlays/     # Modal, CommandPalette, NewTaskModal, KeyboardShortcutsHelp
 │   │   ├── review/       # CommentForm, CommentThread, ReviewPanel
 │   │   ├── task/         # TaskHeader, TaskEditModal, Timeline, Transcript, RetryPanel, Attachments
 │   │   └── ui/           # Icon, StatusIndicator, Toast
@@ -108,6 +108,23 @@ bunx playwright test  # E2E tests
 ```
 
 **Common mistakes:** `let x = []` without `$state()`, `$:` reactive statements, `on:click` handlers.
+
+## Global Modal Pattern
+
+Modals that can be triggered from multiple pages (via keyboard shortcuts, command palette, etc.) live in `+layout.svelte`:
+
+| Modal | Trigger Event | Keyboard |
+|-------|--------------|----------|
+| `NewTaskModal` | `orc:new-task` | `Cmd+N` |
+| `CommandPalette` | `orc:command-palette` | `Cmd+K` |
+| `KeyboardShortcutsHelp` | `orc:show-shortcuts` | `?` |
+
+**To trigger from any page:**
+```svelte
+window.dispatchEvent(new CustomEvent('orc:new-task'));
+```
+
+Page-specific modals (like `TaskEditModal`) can live in individual routes.
 
 ## WebSocket Architecture
 
