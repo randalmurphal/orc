@@ -100,6 +100,22 @@ status: running
 started_at: 2026-01-10T10:31:00Z
 total_duration: 2h15m
 
+# Execution tracking (for orphan detection)
+execution:
+  pid: 12345                        # Process ID of executor
+  hostname: dev-laptop              # Machine running the executor
+  started_at: 2026-01-10T10:31:00Z  # When this execution began
+  last_heartbeat: 2026-01-10T12:30:00Z  # Last executor heartbeat
+
+# Claude session info (for resume support)
+session:
+  id: sess_abc123                   # Claude session ID
+  model: claude-opus-4-5-20251101
+  status: active
+  created_at: 2026-01-10T10:31:00Z
+  last_activity: 2026-01-10T12:30:00Z
+  turn_count: 15
+
 phases:
   classify:
     status: completed

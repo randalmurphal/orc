@@ -196,6 +196,38 @@ orc run TASK-001 --profile strict    # Human approval on spec and merge
 
 ---
 
+### orc resume
+
+Resume a paused, blocked, interrupted, or orphaned task.
+
+```bash
+orc resume <task-id> [--force] [--stream]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--force`, `-f` | Force resume even if task appears to be running |
+| `--stream` | Stream Claude transcript to stdout |
+
+**Orphan Detection**: Tasks that show as "running" but whose executor process has died are automatically detected and handled:
+1. Detects orphaned state (executor PID no longer running or heartbeat stale >5 min)
+2. Marks task as interrupted
+3. Resumes execution from the last phase
+
+**Session Resume**: If the task has a Claude session ID, it is displayed to allow direct Claude access:
+```
+Session ID: sess_abc123 (use 'claude --resume sess_abc123' for direct Claude access)
+```
+
+**Examples**:
+```bash
+orc resume TASK-001              # Resume paused/blocked task
+orc resume TASK-001 --force      # Force resume even if task appears running
+orc resume TASK-001 --stream     # Resume with live transcript output
+```
+
+---
+
 ### orc pause
 
 Pause a running task.
@@ -402,19 +434,48 @@ orc diff <task-id> [--phase <phase>] [--stat]
 Show overall orc status.
 
 ```bash
-orc status
+orc status [--all] [--watch]
 ```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--all`, `-a` | Include all tasks (not just active) | false |
+| `--watch`, `-w` | Refresh status every 5 seconds | false |
+
+**Status Categories** (in priority order):
+1. **Orphaned** - Tasks marked running but executor process died
+2. **Attention Needed** - Blocked tasks requiring input
+3. **Running** - Active tasks in progress
+4. **Paused** - Tasks that can be resumed
+5. **Recent** - Completed/failed in last 24h
 
 **Output**:
 ```
-orc v1.0.0
-Config: ./orc.yaml
-Data: ./.orc
+⚠️  ORPHANED (executor died)
 
-Active Tasks: 3
-  TASK-001  medium   running   implement  Add user auth
+  TASK-002  Fix login validation  (executor process not running)
+  Use 'orc resume <task-id>' to continue these tasks
 
-Completed Today: 2
+⚠️  ATTENTION NEEDED
+
+  TASK-003  Add OAuth2  (blocked - needs input)
+
+⏳ RUNNING
+
+  TASK-001  Add user auth  [implement]
+
+RECENT (24h)
+
+  ✓  TASK-004  Fix typo  5 hours ago
+
+─── 4 tasks (1 running, 1 orphaned, 1 blocked, 1 completed) ───
+```
+
+**Examples**:
+```bash
+orc status           # Quick overview
+orc status --all     # Include all tasks
+orc status --watch   # Refresh every 5s
 ```
 
 ---
