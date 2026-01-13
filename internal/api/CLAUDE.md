@@ -11,11 +11,12 @@ REST API server with WebSocket support for real-time updates.
 | `middleware.go` | CORS middleware | ~50 |
 | `response.go` | JSON response helpers, error handling | ~80 |
 
-### Handler Files (16 total)
+### Handler Files (17 total)
 
 | File | Endpoints | Description |
 |------|-----------|-------------|
 | `handlers_tasks.go` | `/api/tasks/*` | Task CRUD operations |
+| `handlers_attachments.go` | `attachments` | Task file attachments (upload, download, delete) |
 | `handlers_tasks_control.go` | `run`, `pause`, `resume` | Task execution control |
 | `handlers_tasks_state.go` | `state`, `plan`, `transcripts`, `stream` | Task state and streaming |
 | `handlers_projects.go` | `/api/projects/*` | Project-scoped task operations |
@@ -38,7 +39,7 @@ REST API server with WebSocket support for real-time updates.
 ```
 Server
 ├── Routes (chi router)
-│   ├── /api/tasks/* → handlers_tasks*.go
+│   ├── /api/tasks/* → handlers_tasks*.go, handlers_attachments.go
 │   ├── /api/initiatives/* → handlers_initiatives.go
 │   ├── /api/projects/* → handlers_projects.go
 │   ├── /api/prompts/* → handlers_prompts.go
