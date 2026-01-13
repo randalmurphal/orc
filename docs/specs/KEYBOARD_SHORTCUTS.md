@@ -40,6 +40,7 @@ Available from any page:
 | `g p` | Go to Prompts | Navigate to prompts |
 | `/` | Search | Focus search input |
 | `?` | Help | Show keyboard shortcuts |
+| `⌘B` / `Ctrl+B` | Toggle sidebar | Expand/collapse sidebar |
 | `Esc` | Close/Cancel | Close modal, cancel action |
 
 ### Task List Shortcuts

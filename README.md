@@ -304,6 +304,7 @@ orc serve  # localhost:8080
 |-----|--------|
 | `⌘K` | Command palette |
 | `⌘N` | New task |
+| `⌘B` | Toggle sidebar |
 | `j/k` | Navigate task list |
 | `Enter` | Open selected |
 | `r` | Run task |
