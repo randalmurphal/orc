@@ -48,7 +48,12 @@ Go through each success criterion from the spec:
 
 ### Step 2: E2E Validation with Playwright MCP
 
-For any UI components, use Playwright MCP tools for full end-to-end testing:
+{{REQUIRES_UI_TESTING}}
+
+For any UI components, use Playwright MCP tools for full end-to-end testing.
+
+**Screenshot Directory**: `{{SCREENSHOT_DIR}}`
+Save all validation screenshots here for automatic attachment to the task.
 
 #### Available Tools
 
@@ -59,7 +64,7 @@ For any UI components, use Playwright MCP tools for full end-to-end testing:
 | `browser_click` | Click buttons, links |
 | `browser_fill_form` | Fill form fields |
 | `browser_type` | Type into inputs |
-| `browser_take_screenshot` | Visual verification |
+| `browser_take_screenshot` | Visual verification - save to `{{SCREENSHOT_DIR}}` |
 | `browser_console_messages` | Check for JS errors |
 | `browser_network_requests` | Verify API calls |
 
@@ -71,8 +76,16 @@ For each UI component:
 2. **Snapshot**: `browser_snapshot` to verify accessibility
 3. **Interact**: Test all interactions (click, type, submit)
 4. **Verify State**: `browser_snapshot` after each action
-5. **Check Errors**: `browser_console_messages` for JS errors
-6. **Verify API**: `browser_network_requests` for failed calls
+5. **Capture Visual**: `browser_take_screenshot` with filename `{{SCREENSHOT_DIR}}/validate-{component}-{state}.png`
+6. **Check Errors**: `browser_console_messages` for JS errors
+7. **Verify API**: `browser_network_requests` for failed calls
+
+#### Screenshot Naming for Validation
+
+Save screenshots with descriptive names to `{{SCREENSHOT_DIR}}`:
+- `validate-{component}-before.png` - State before validation
+- `validate-{component}-after.png` - State after successful validation
+- `validate-{component}-error.png` - Any error states found
 
 ### Step 3: Run Full Test Suite
 
@@ -144,6 +157,13 @@ If there are conflicts:
 |-----------|-------|--------|
 | [Component 1] | [count] | ✓ PASS |
 | [Component 2] | [count] | ✓ PASS |
+
+## Screenshots Captured
+
+| Screenshot | Description |
+|------------|-------------|
+| validate-{component}-before.png | Initial state |
+| validate-{component}-after.png | Final validated state |
 
 ## Final Checks
 
