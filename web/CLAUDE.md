@@ -22,7 +22,7 @@ web/src/
 │   │   ├── kanban/       # Board, Column, TaskCard
 │   │   ├── layout/       # Header, Sidebar
 │   │   ├── overlays/     # Modal, CommandPalette
-│   │   ├── task/         # TaskHeader, Timeline, Transcript, RetryPanel
+│   │   ├── task/         # TaskHeader, Timeline, Transcript, RetryPanel, Attachments
 │   │   └── ui/           # Icon, StatusIndicator, Toast
 │   ├── stores/           # tasks.ts, project.ts, sidebar.ts, toast.svelte.ts
 │   ├── utils/            # format.ts, status.ts, platform.ts
@@ -38,7 +38,7 @@ web/src/
 |----------|------------|---------|
 | Layout | Header, Sidebar | Navigation, project switcher |
 | Dashboard | Stats, QuickActions, ActiveTasks, RecentActivity | Overview page |
-| Task | TaskCard, Timeline, Transcript, TaskHeader, PRActions | Task detail |
+| Task | TaskCard, Timeline, Transcript, TaskHeader, PRActions, Attachments | Task detail |
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
 | Kanban | Board, Column, TaskCard, ConfirmModal | Board view |
 | UI | Icon (34 icons), StatusIndicator, Toast, Modal | Shared components |
@@ -101,6 +101,16 @@ Global WebSocket in `+layout.svelte` subscribes with `"*"`. All task events flow
 
 See `QUICKREF.md` for subscription helpers.
 
+## Attachments
+
+Task attachments (images, files) are managed through the Attachments component:
+- Drag-and-drop upload with visual feedback
+- Image gallery with thumbnails and lightbox viewer
+- File list with metadata (size, date)
+- Supports delete with confirmation
+
+API functions: `listAttachments()`, `uploadAttachment()`, `getAttachmentUrl()`, `deleteAttachment()`
+
 ## Review Workflow
 
 "Changes" tab combines diff + inline review:
@@ -118,7 +128,7 @@ See `QUICKREF.md` for component hierarchy.
 | `/` | Dashboard |
 | `/board` | Kanban board |
 | `/tasks` | Task list |
-| `/tasks/:id` | Task detail (Timeline/Changes/Transcript tabs) |
+| `/tasks/:id` | Task detail (Timeline/Changes/Transcript/Attachments tabs) |
 | `/environment` | Environment hub (Claude Code + Orchestrator config) |
 | `/environment/docs` | CLAUDE.md editor (`?scope=global\|user\|project`) |
 | `/environment/claude/skills` | Skills (`?scope=global`) |

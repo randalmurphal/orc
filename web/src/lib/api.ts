@@ -1,4 +1,4 @@
-import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary } from './types';
+import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary, Attachment } from './types';
 
 const API_BASE = '/api';
 
@@ -1238,5 +1238,44 @@ export async function deleteKnowledge(id: string): Promise<void> {
 	if (!res.ok && res.status !== 204) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Request failed');
+	}
+}
+
+// Attachments
+export async function listAttachments(taskId: string): Promise<Attachment[]> {
+	return fetchJSON<Attachment[]>(`/tasks/${taskId}/attachments`);
+}
+
+export async function uploadAttachment(taskId: string, file: File, filename?: string): Promise<Attachment> {
+	const formData = new FormData();
+	formData.append('file', file);
+	if (filename) {
+		formData.append('filename', filename);
+	}
+
+	const res = await fetch(`${API_BASE}/tasks/${taskId}/attachments`, {
+		method: 'POST',
+		body: formData
+	});
+
+	if (!res.ok) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Upload failed');
+	}
+
+	return res.json();
+}
+
+export function getAttachmentUrl(taskId: string, filename: string): string {
+	return `${API_BASE}/tasks/${taskId}/attachments/${encodeURIComponent(filename)}`;
+}
+
+export async function deleteAttachment(taskId: string, filename: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/tasks/${taskId}/attachments/${encodeURIComponent(filename)}`, {
+		method: 'DELETE'
+	});
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Delete failed');
 	}
 }

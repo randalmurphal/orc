@@ -157,6 +157,12 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/tasks/{id}/session", cors(s.handleGetSession))
 	s.mux.HandleFunc("GET /api/tasks/{id}/tokens", cors(s.handleGetTokens))
 
+	// Task attachments
+	s.mux.HandleFunc("GET /api/tasks/{id}/attachments", cors(s.handleListAttachments))
+	s.mux.HandleFunc("POST /api/tasks/{id}/attachments", cors(s.handleUploadAttachment))
+	s.mux.HandleFunc("GET /api/tasks/{id}/attachments/{filename}", cors(s.handleGetAttachment))
+	s.mux.HandleFunc("DELETE /api/tasks/{id}/attachments/{filename}", cors(s.handleDeleteAttachment))
+
 	// Task diff (git changes visualization)
 	s.mux.HandleFunc("GET /api/tasks/{id}/diff", cors(s.handleGetDiff))
 	s.mux.HandleFunc("GET /api/tasks/{id}/diff/stats", cors(s.handleGetDiffStats))

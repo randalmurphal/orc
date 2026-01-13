@@ -33,6 +33,32 @@ CWD-based task operations.
 | POST | `/api/tasks/:id/resume` | Resume task |
 | POST | `/api/tasks/:id/rewind` | Rewind to phase (`{"phase": "implement"}`) |
 
+### Task Attachments
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tasks/:id/attachments` | List attachments |
+| POST | `/api/tasks/:id/attachments` | Upload attachment (multipart/form-data, max 32MB) |
+| GET | `/api/tasks/:id/attachments/:filename` | Get attachment file |
+| DELETE | `/api/tasks/:id/attachments/:filename` | Delete attachment |
+
+**Attachment response:**
+```json
+{
+  "filename": "screenshot.png",
+  "size": 45678,
+  "content_type": "image/png",
+  "created_at": "2026-01-10T10:30:00Z",
+  "is_image": true
+}
+```
+
+**Upload:** Use `multipart/form-data` with file in the `file` field. Optional `filename` field overrides original filename.
+
+**Download headers:**
+- Images: `Content-Disposition: inline` (renders in browser)
+- Other files: `Content-Disposition: attachment` (triggers download)
+
 ### Task Export
 
 | Method | Endpoint | Description |

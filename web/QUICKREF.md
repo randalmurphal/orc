@@ -168,6 +168,14 @@ deleteReviewComment(taskId, commentId)
 retryWithReview(taskId, { include_comments: true })
 ```
 
+### Attachments
+```typescript
+listAttachments(taskId)
+uploadAttachment(taskId, file, filename?)
+getAttachmentUrl(taskId, filename)
+deleteAttachment(taskId, filename)
+```
+
 ### GitHub
 ```typescript
 createPR(taskId), getPRDetails(taskId)
