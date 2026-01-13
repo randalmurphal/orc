@@ -207,7 +207,7 @@ completion:
   pr:
     title: '[orc] {{TASK_TITLE}}'
     body_template: templates/pr-body.md
-    labels: [automated]
+    labels: [automated]                # Labels applied to PR (gracefully skipped if missing)
     draft: false
     auto_merge: true
 
