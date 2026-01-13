@@ -106,7 +106,8 @@ func (e *Executor) executeClaudeNode() flowgraph.NodeFunc[PhaseState] {
 
 		s.Response = resp.Content
 		// Use effective input tokens (includes cache) to show actual context size
-		effectiveInput := resp.Usage.EffectiveInputTokens()
+		// Note: claude.TokenUsage doesn't have EffectiveInputTokens method, so compute directly
+		effectiveInput := resp.Usage.InputTokens + resp.Usage.CacheCreationInputTokens + resp.Usage.CacheReadInputTokens
 		s.InputTokens += effectiveInput
 		s.OutputTokens += resp.Usage.OutputTokens
 		s.TokensUsed += effectiveInput + resp.Usage.OutputTokens

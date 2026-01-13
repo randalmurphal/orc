@@ -120,7 +120,8 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		}
 
 		// Use effective input tokens (includes cache) to show actual context size
-		result.InputTokens += resp.Usage.EffectiveInputTokens()
+		// Note: claude.TokenUsage doesn't have EffectiveInputTokens method, so compute directly
+		result.InputTokens += resp.Usage.InputTokens + resp.Usage.CacheCreationInputTokens + resp.Usage.CacheReadInputTokens
 		result.OutputTokens += resp.Usage.OutputTokens
 		result.Iterations = iteration
 		lastResponse = resp.Content
