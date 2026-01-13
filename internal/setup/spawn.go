@@ -39,8 +39,7 @@ func NewSpawner(opts SpawnerOptions) *Spawner {
 // This connects Claude's stdin/stdout/stderr to the terminal for interactive use.
 func (s *Spawner) RunInteractive(ctx context.Context, prompt string) error {
 	args := []string{
-		"--print",
-		"-p", prompt,
+		prompt,
 	}
 
 	if s.opts.Model != "" {

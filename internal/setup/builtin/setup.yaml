@@ -1,9 +1,8 @@
 # orc Setup Prompt Template
-# This template generates the prompt for interactive project setup
 
-You are setting up a project for use with orc, a Claude Code task orchestrator.
+You are configuring a project for orc, a task orchestrator that runs Claude Code in phases (spec → implement → test → validate).
 
-## Project Detection Results
+## Project Detection
 
 | Property | Value |
 |----------|-------|
@@ -21,62 +20,53 @@ You are setting up a project for use with orc, a Claude Code task orchestrator.
 {{if .ExistingClaudeMD}}
 ## Existing CLAUDE.md
 
-The project already has a CLAUDE.md file with this content:
-
 ```markdown
 {{.ExistingClaudeMD}}
 ```
 
-Your task is to ADD an orc-specific section to this file, not replace it.
+ADD an orc section to this file. Do not replace existing content.
 {{end}}
 
-## Your Task
+## Your Instructions
 
-Configure this project for optimal use with orc. Based on the project size, take the appropriate approach:
+1. **Explore the project** - Understand structure, patterns, conventions
+2. **Update CLAUDE.md** - Add orc-specific section with task weights and phase preferences
+3. **Configure .orc/config.yaml** - Set test commands, review settings, automation profile
+4. **Ask the user** what areas they want to focus on (especially for {{.ProjectSize}} projects)
 
-{{if eq .ProjectSize "small"}}
-### Small Project Approach
-- Quick scan of the codebase structure
-- Add minimal orc section to CLAUDE.md
-- Document key entry points and patterns
-{{else if eq .ProjectSize "medium"}}
-### Medium Project Approach
-- Sample key files to understand patterns
-- Document code conventions and architecture
-- Create helpful prompts if patterns are complex
-{{else if eq .ProjectSize "large"}}
-### Large Project Approach
-- Ask what areas the user wants to focus on
-- Document incrementally, starting with priority areas
-- Consider creating a project-profile.yaml for common settings
-{{else}}
-### Monorepo Approach
-- Ask which packages/projects to focus on
-- Create per-package documentation if needed
-- Set up workspace-aware configuration
-{{end}}
+### Configuration to Set
 
-## Actions to Consider
+In `.orc/config.yaml`, configure based on what you discover:
+- `test.unit`, `test.integration`, `test.e2e` - actual commands for this project
+- `review.rounds` - 1 for simple projects, 2 for complex
+- `automation.profile` - auto/fast/safe/strict based on user preference
+- `worktree.enabled` - true for isolated task branches
 
-1. **CLAUDE.md Update** (Recommended)
-   - Add an "## orc" section with:
-     - Task weights for common operations
-     - Phase preferences for this project
-     - Any project-specific gates or approval flows
+### CLAUDE.md orc Section
 
-2. **Skills** (Optional)
-   - Create `.claude/skills/` if project has complex patterns worth documenting
-   - Skills should be concise (< 200 lines) and focused
+Add a section documenting:
+- Task weight examples specific to this codebase
+- Phase preferences (which phases to skip/require)
+- Quality gates if the project has specific requirements
 
-3. **Prompts** (Optional)
-   - Create `.orc/prompts/` overrides if default phase prompts don't fit
-   - Only create what's needed - defaults work for most projects
+## When Complete
 
-## Guidelines
+End with a **Next Steps** summary:
 
-- **Be concise** - use tables over prose, bullet points over paragraphs
-- **Focus on automation** - what would help orc run tasks with less friction?
-- **Don't over-engineer** - start minimal, user can add more later
-- **Ask when unclear** - if the project structure is unusual, ask for guidance
+1. **What you configured** - Brief table of changes made
+2. **What still needs setup** - Any gaps (missing test commands, unclear patterns)
+3. **First task suggestions** - 2-3 concrete tasks based on project state, like:
+   - Incomplete features you noticed
+   - Missing tests for existing code
+   - Documentation gaps
+4. **How to proceed**:
+   ```bash
+   # Create and run a task
+   orc new "your task description"
+   orc run TASK-001
 
-Ready to begin? Start by exploring the project to understand its structure.
+   # Or use the web UI
+   orc serve  # opens dashboard at localhost:8080
+   ```
+
+Be specific. Reference actual files and patterns you found. No generic advice.
