@@ -600,3 +600,250 @@ func TestCreateWorktree_HooksContainProtectedBranches(t *testing.T) {
 		}
 	}
 }
+
+// TestSyncResult tests the SyncResult struct
+func TestSyncResult(t *testing.T) {
+	result := &SyncResult{
+		Synced:            true,
+		ConflictsDetected: false,
+		ConflictFiles:     nil,
+		CommitsBehind:     0,
+		CommitsAhead:      5,
+	}
+
+	if !result.Synced {
+		t.Error("Synced should be true")
+	}
+	if result.ConflictsDetected {
+		t.Error("ConflictsDetected should be false")
+	}
+	if result.CommitsAhead != 5 {
+		t.Errorf("CommitsAhead = %d, want 5", result.CommitsAhead)
+	}
+}
+
+// TestGetCommitCounts tests the commit count calculation
+func TestGetCommitCounts(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-005")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Add commits to task branch
+	testFile := filepath.Join(tmpDir, "feature.txt")
+	os.WriteFile(testFile, []byte("feature"), 0644)
+	_, _ = g.CreateCheckpoint("TASK-005", "implement", "add feature")
+
+	// Get commit counts relative to base
+	ahead, behind, err := g.getCommitCounts(baseBranch)
+	if err != nil {
+		t.Fatalf("getCommitCounts() failed: %v", err)
+	}
+
+	// Task branch should be ahead by 1 commit
+	if ahead != 1 {
+		t.Errorf("ahead = %d, want 1", ahead)
+	}
+	// Task branch should not be behind
+	if behind != 0 {
+		t.Errorf("behind = %d, want 0", behind)
+	}
+}
+
+// TestDetectConflicts_NoConflicts tests conflict detection when no conflicts exist
+func TestDetectConflicts_NoConflicts(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-006")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Add a commit that doesn't conflict
+	testFile := filepath.Join(tmpDir, "new-feature.txt")
+	os.WriteFile(testFile, []byte("new feature"), 0644)
+	_, _ = g.CreateCheckpoint("TASK-006", "implement", "add new feature")
+
+	// Detect conflicts - should find none
+	result, err := g.DetectConflicts(baseBranch)
+	if err != nil {
+		t.Fatalf("DetectConflicts() failed: %v", err)
+	}
+
+	// Should not detect conflicts for new file
+	if result.ConflictsDetected {
+		t.Errorf("ConflictsDetected = true, want false (files: %v)", result.ConflictFiles)
+	}
+}
+
+// TestDetectConflicts_WithConflicts tests conflict detection when conflicts exist
+func TestDetectConflicts_WithConflicts(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-007")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Modify README on task branch
+	readmeFile := filepath.Join(tmpDir, "README.md")
+	os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644)
+	_, _ = g.CreateCheckpoint("TASK-007", "implement", "modify readme on task")
+
+	// Switch back to base branch and make conflicting change
+	cmd := exec.Command("git", "checkout", baseBranch)
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to checkout base branch: %v", err)
+	}
+
+	os.WriteFile(readmeFile, []byte("# Base branch changes\n"), 0644)
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	cmd = exec.Command("git", "commit", "-m", "modify readme on base")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit on base: %v", err)
+	}
+
+	// Switch to task branch
+	err = g.SwitchBranch("TASK-007")
+	if err != nil {
+		t.Fatalf("SwitchBranch() failed: %v", err)
+	}
+
+	// Detect conflicts - should find conflict
+	result, err := g.DetectConflicts(baseBranch)
+	if err != nil {
+		t.Fatalf("DetectConflicts() failed: %v", err)
+	}
+
+	// Should detect conflict on README.md
+	if !result.ConflictsDetected {
+		t.Error("ConflictsDetected = false, want true")
+	}
+	if len(result.ConflictFiles) == 0 {
+		t.Error("ConflictFiles should not be empty")
+	}
+}
+
+// TestRebaseWithConflictCheck_Success tests successful rebase
+func TestRebaseWithConflictCheck_Success(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-008")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Add a non-conflicting commit
+	testFile := filepath.Join(tmpDir, "feature.txt")
+	os.WriteFile(testFile, []byte("feature"), 0644)
+	_, _ = g.CreateCheckpoint("TASK-008", "implement", "add feature")
+
+	// Rebase should succeed with no conflicts
+	result, err := g.RebaseWithConflictCheck(baseBranch)
+	if err != nil {
+		t.Fatalf("RebaseWithConflictCheck() failed: %v", err)
+	}
+
+	// Should indicate sync success
+	if !result.Synced {
+		t.Error("Synced = false, want true")
+	}
+	if result.ConflictsDetected {
+		t.Errorf("ConflictsDetected = true, want false (files: %v)", result.ConflictFiles)
+	}
+}
+
+// TestRebaseWithConflictCheck_Conflict tests rebase with conflicts
+func TestRebaseWithConflictCheck_Conflict(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-009")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Modify README on task branch
+	readmeFile := filepath.Join(tmpDir, "README.md")
+	os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644)
+	_, _ = g.CreateCheckpoint("TASK-009", "implement", "modify readme on task")
+
+	// Switch back to base branch and make conflicting change
+	cmd := exec.Command("git", "checkout", baseBranch)
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to checkout base branch: %v", err)
+	}
+
+	os.WriteFile(readmeFile, []byte("# Base branch changes\n"), 0644)
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	cmd = exec.Command("git", "commit", "-m", "modify readme on base")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit on base: %v", err)
+	}
+
+	// Switch to task branch
+	err = g.SwitchBranch("TASK-009")
+	if err != nil {
+		t.Fatalf("SwitchBranch() failed: %v", err)
+	}
+
+	// Rebase should fail with conflict
+	result, err := g.RebaseWithConflictCheck(baseBranch)
+	if err == nil {
+		t.Fatal("RebaseWithConflictCheck() should fail on conflict")
+	}
+
+	// Should return ErrMergeConflict
+	if !strings.Contains(err.Error(), "merge conflict") {
+		t.Errorf("error should mention merge conflict, got: %v", err)
+	}
+
+	// Result should indicate conflicts
+	if !result.ConflictsDetected {
+		t.Error("ConflictsDetected = false, want true")
+	}
+	if len(result.ConflictFiles) == 0 {
+		t.Error("ConflictFiles should not be empty")
+	}
+}
+
+// TestAbortRebase tests aborting an in-progress rebase
+func TestAbortRebase(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// AbortRebase when no rebase is in progress should not panic
+	// It may return an error but should not panic
+	_ = g.AbortRebase()
+}

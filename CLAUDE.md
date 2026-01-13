@@ -102,6 +102,7 @@ orc config profile strict
 | `pool.enabled` | OAuth token rotation | - |
 | `team.mode` | local/shared_db | `docs/specs/TEAM_ARCHITECTURE.md` |
 | `completion.action` | pr/merge/none | - |
+| `completion.sync.strategy` | Branch sync timing | `docs/architecture/GIT_INTEGRATION.md` |
 
 **All config:** `orc config docs` or `docs/specs/CONFIG_HIERARCHY.md`
 
@@ -243,6 +244,7 @@ Patterns, gotchas, and decisions learned during development.
 ### Patterns Learned
 | Pattern | Description | Source |
 |---------|-------------|--------|
+| Branch sync before completion | Task branches rebase onto target before PR to catch conflicts early | TASK-019 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
@@ -255,5 +257,6 @@ Patterns, gotchas, and decisions learned during development.
 ### Decisions
 | Decision | Rationale | Source |
 |----------|-----------|--------|
+| Sync at completion (default) | Balance safety vs overhead; phase-level sync adds latency for marginal benefit | TASK-019 |
 
 <!-- orc:knowledge:end -->

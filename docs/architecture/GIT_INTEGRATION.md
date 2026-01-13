@@ -155,6 +155,78 @@ func Fork(taskID, newTaskID, commitRef string) error {
 
 ---
 
+## Branch Synchronization
+
+Parallel tasks can diverge from the target branch, causing merge conflicts at completion. Orc automatically syncs task branches with the target branch to detect and resolve conflicts early.
+
+### Sync Strategies
+
+| Strategy | When Sync Happens | Use Case |
+|----------|------------------|----------|
+| `none` | Never | Manual sync only, full control |
+| `phase` | Before each phase starts | Maximum conflict detection, slight overhead |
+| `completion` | Before PR/merge (default) | Balance of safety and efficiency |
+| `detect` | At completion, detection only | Fail-fast without auto-resolution |
+
+### Configuration
+
+```yaml
+# .orc/config.yaml
+completion:
+  sync:
+    strategy: completion     # none | phase | completion | detect
+    fail_on_conflict: true   # Abort on conflicts (default: true)
+    max_conflict_files: 0    # Max conflict files before abort (0 = unlimited)
+    skip_for_weights:        # Skip sync for trivial tasks
+      - trivial
+```
+
+### Conflict Handling
+
+When conflicts are detected:
+
+1. **fail_on_conflict: true** (default) — Task fails with clear error message listing conflicting files and resolution options
+2. **fail_on_conflict: false** — Warning logged, PR created (may have merge conflicts)
+
+Resolution options on conflict:
+- Manually resolve conflicts and retry task
+- Rebase your changes onto latest target branch
+- Set `fail_on_conflict: false` to allow PR with conflicts
+
+### Sync Process
+
+```
+1. Fetch latest from origin
+2. Check commits behind target branch
+3. If strategy is 'detect':
+   - Use git merge-tree to detect conflicts without modifying working tree
+   - Fail if conflicts found
+4. If strategy is 'phase' or 'completion':
+   - Attempt rebase onto target
+   - On conflict: abort rebase, report conflicting files, fail task
+   - On success: continue with synced branch
+```
+
+### Why Sync Matters
+
+Without sync, parallel tasks can diverge significantly:
+
+```
+main:     A → B → C → D → E (other tasks merged)
+task-001: A → X → Y        (started from A, unaware of B-E)
+task-002: A → Z            (also started from A)
+```
+
+When task-001 completes and creates a PR, it may conflict with changes in B-E. With sync enabled:
+
+```
+task-001 (after sync): A → B → C → D → E → X' → Y'
+```
+
+The task rebases onto the latest target, catching conflicts before PR creation.
+
+---
+
 ## Merge Strategy
 
 ### Squash Merge (Default)

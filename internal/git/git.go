@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	devgit "github.com/randalmurphal/devflow/git"
@@ -291,4 +292,176 @@ func (g *Git) GetRemoteURL() (string, error) {
 // Context returns the underlying devflow git context.
 func (g *Git) Context() *devgit.Context {
 	return g.ctx
+}
+
+// SyncResult contains the result of a sync operation.
+type SyncResult struct {
+	// Synced indicates whether sync was performed successfully
+	Synced bool
+	// ConflictsDetected indicates merge conflicts were found
+	ConflictsDetected bool
+	// ConflictFiles lists files with conflicts
+	ConflictFiles []string
+	// CommitsBehind is the number of commits the branch is behind target
+	CommitsBehind int
+	// CommitsAhead is the number of commits the branch is ahead of target
+	CommitsAhead int
+}
+
+// ErrMergeConflict is returned when a merge/rebase encounters conflicts.
+var ErrMergeConflict = errors.New("merge conflict detected")
+
+// DetectConflicts checks if the current branch would have conflicts when merged with target.
+// This performs a dry-run merge without modifying the working tree.
+func (g *Git) DetectConflicts(target string) (*SyncResult, error) {
+	result := &SyncResult{}
+
+	// Get commit counts
+	ahead, behind, err := g.getCommitCounts(target)
+	if err != nil {
+		return nil, fmt.Errorf("get commit counts: %w", err)
+	}
+	result.CommitsAhead = ahead
+	result.CommitsBehind = behind
+
+	// If up-to-date, no conflicts possible
+	if behind == 0 {
+		result.Synced = true
+		return result, nil
+	}
+
+	// Use git merge-tree to detect conflicts without modifying working tree
+	// This requires git 2.38+ with the --write-tree option
+	currentBranch, err := g.ctx.CurrentBranch()
+	if err != nil {
+		return nil, fmt.Errorf("get current branch: %w", err)
+	}
+
+	// Get merge base
+	mergeBase, err := g.ctx.RunGit("merge-base", currentBranch, target)
+	if err != nil {
+		return nil, fmt.Errorf("get merge base: %w", err)
+	}
+	mergeBase = strings.TrimSpace(mergeBase)
+
+	// Try merge-tree with --write-tree (git 2.38+)
+	output, err := g.ctx.RunGit("merge-tree", "--write-tree", "--no-messages", mergeBase, currentBranch, target)
+	if err != nil {
+		// If merge-tree fails, fall back to actual merge attempt
+		return g.detectConflictsViaMerge(target)
+	}
+
+	// Parse output - if there are conflict markers, we have conflicts
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "CONFLICT") {
+			result.ConflictsDetected = true
+			// Extract file name from conflict line if possible
+			// Format: "CONFLICT (content): Merge conflict in <file>"
+			if idx := strings.Index(line, " in "); idx != -1 {
+				file := strings.TrimSpace(line[idx+4:])
+				result.ConflictFiles = append(result.ConflictFiles, file)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// detectConflictsViaMerge performs conflict detection via an actual merge attempt.
+// Falls back for older git versions that don't support merge-tree --write-tree.
+func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
+	result := &SyncResult{}
+
+	// Get current HEAD for potential abort
+	head, err := g.ctx.HeadCommit()
+	if err != nil {
+		return nil, fmt.Errorf("get HEAD: %w", err)
+	}
+
+	// Attempt merge with --no-commit to detect conflicts
+	_, mergeErr := g.ctx.RunGit("merge", "--no-commit", "--no-ff", target)
+
+	// Check for conflicts by looking at unmerged files
+	if mergeErr != nil {
+		// List unmerged files
+		output, _ := g.ctx.RunGit("diff", "--name-only", "--diff-filter=U")
+		if output != "" {
+			result.ConflictsDetected = true
+			result.ConflictFiles = strings.Split(strings.TrimSpace(output), "\n")
+		}
+	}
+
+	// Abort the merge attempt
+	_, _ = g.ctx.RunGit("merge", "--abort")
+	// Reset to original HEAD just in case
+	_, _ = g.ctx.RunGit("reset", "--hard", head)
+
+	return result, nil
+}
+
+// getCommitCounts returns (ahead, behind) commit counts relative to target.
+func (g *Git) getCommitCounts(target string) (int, int, error) {
+	// git rev-list --count --left-right HEAD...target
+	output, err := g.ctx.RunGit("rev-list", "--count", "--left-right", "HEAD..."+target)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	parts := strings.Fields(strings.TrimSpace(output))
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("unexpected rev-list output: %s", output)
+	}
+
+	ahead := 0
+	behind := 0
+	fmt.Sscanf(parts[0], "%d", &ahead)
+	fmt.Sscanf(parts[1], "%d", &behind)
+
+	return ahead, behind, nil
+}
+
+// RebaseWithConflictCheck rebases onto target and returns details about any conflicts.
+// If conflicts occur, the rebase is aborted and ErrMergeConflict is returned.
+func (g *Git) RebaseWithConflictCheck(target string) (*SyncResult, error) {
+	result := &SyncResult{}
+
+	// Get initial state
+	ahead, behind, err := g.getCommitCounts(target)
+	if err != nil {
+		return nil, fmt.Errorf("get commit counts: %w", err)
+	}
+	result.CommitsAhead = ahead
+	result.CommitsBehind = behind
+
+	// If already up-to-date, no rebase needed
+	if behind == 0 {
+		result.Synced = true
+		return result, nil
+	}
+
+	// Attempt rebase
+	_, rebaseErr := g.ctx.RunGit("rebase", target)
+	if rebaseErr != nil {
+		// Check for conflicts
+		output, _ := g.ctx.RunGit("diff", "--name-only", "--diff-filter=U")
+		if output != "" {
+			result.ConflictsDetected = true
+			result.ConflictFiles = strings.Split(strings.TrimSpace(output), "\n")
+		}
+
+		// Abort the rebase
+		_, _ = g.ctx.RunGit("rebase", "--abort")
+
+		return result, fmt.Errorf("%w: %d files have conflicts", ErrMergeConflict, len(result.ConflictFiles))
+	}
+
+	result.Synced = true
+	return result, nil
+}
+
+// AbortRebase aborts any in-progress rebase.
+func (g *Git) AbortRebase() error {
+	_, err := g.ctx.RunGit("rebase", "--abort")
+	return err
 }
