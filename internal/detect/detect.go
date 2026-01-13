@@ -37,6 +37,7 @@ const (
 	FrameworkNextJS  Framework = "nextjs"
 	FrameworkVue     Framework = "vue"
 	FrameworkSvelte  Framework = "svelte"
+	FrameworkAngular Framework = "angular"
 	FrameworkExpress Framework = "express"
 	FrameworkNestJS  Framework = "nestjs"
 
@@ -68,6 +69,7 @@ type Detection struct {
 	HasDocker  bool        `yaml:"has_docker" json:"has_docker"`
 	HasCI      bool        `yaml:"has_ci" json:"has_ci"`
 	HasTests   bool        `yaml:"has_tests" json:"has_tests"`
+	HasFrontend bool       `yaml:"has_frontend" json:"has_frontend"`
 
 	// Inferred commands
 	TestCommand  string `yaml:"test_command,omitempty" json:"test_command,omitempty"`
@@ -104,6 +106,9 @@ func Detect(path string) (*Detection, error) {
 
 	// Detect tests
 	d.HasTests = detectTests(path, d.Language)
+
+	// Detect frontend
+	d.HasFrontend = detectFrontend(path, d.Frameworks)
 
 	// Infer commands
 	d.TestCommand = inferTestCommand(d)
@@ -180,6 +185,9 @@ func detectFrameworks(path string, lang ProjectType) []Framework {
 			}
 			if _, ok := deps["svelte"]; ok {
 				frameworks = append(frameworks, FrameworkSvelte)
+			}
+			if _, ok := deps["@angular/core"]; ok {
+				frameworks = append(frameworks, FrameworkAngular)
 			}
 			if _, ok := deps["express"]; ok {
 				frameworks = append(frameworks, FrameworkExpress)
@@ -260,6 +268,89 @@ func detectTests(path string, lang ProjectType) bool {
 		return fileExists(filepath.Join(path, "pytest.ini")) ||
 			fileExists(filepath.Join(path, "conftest.py")) ||
 			dirExists(filepath.Join(path, "tests"))
+	}
+
+	return false
+}
+
+// detectFrontend checks if the project has frontend components.
+// Returns true if any of the following are detected:
+// - Frontend frameworks (React, Vue, Svelte, Next.js, Angular)
+// - Frontend directories (web/, frontend/, src/components/)
+// - Package.json with frontend dependencies
+func detectFrontend(path string, frameworks []Framework) bool {
+	// Check for frontend frameworks
+	frontendFrameworks := map[Framework]bool{
+		FrameworkReact:   true,
+		FrameworkNextJS:  true,
+		FrameworkVue:     true,
+		FrameworkSvelte:  true,
+		FrameworkAngular: true,
+	}
+	for _, f := range frameworks {
+		if frontendFrameworks[f] {
+			return true
+		}
+	}
+
+	// Check for common frontend directories
+	frontendDirs := []string{
+		"web",
+		"frontend",
+		"client",
+		"src/components",
+		"src/pages",
+		"src/views",
+		"app",      // Next.js app router
+		"pages",    // Next.js pages router
+		"components",
+	}
+	for _, dir := range frontendDirs {
+		if dirExists(filepath.Join(path, dir)) {
+			// Additional validation: check if it looks like a frontend directory
+			// (not just any random "app" directory)
+			if isFrontendDir(filepath.Join(path, dir)) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// isFrontendDir checks if a directory appears to contain frontend code.
+func isFrontendDir(dir string) bool {
+	// Look for common frontend file patterns
+	frontendPatterns := []string{
+		"*.tsx",
+		"*.jsx",
+		"*.vue",
+		"*.svelte",
+		"*.html",
+	}
+
+	for _, pattern := range frontendPatterns {
+		matches, _ := filepath.Glob(filepath.Join(dir, pattern))
+		if len(matches) > 0 {
+			return true
+		}
+	}
+
+	// Check for index files commonly found in frontend dirs
+	indexFiles := []string{
+		"index.tsx",
+		"index.jsx",
+		"index.ts",
+		"index.js",
+		"App.tsx",
+		"App.jsx",
+		"App.vue",
+		"App.svelte",
+	}
+	for _, f := range indexFiles {
+		if fileExists(filepath.Join(dir, f)) {
+			return true
+		}
 	}
 
 	return false

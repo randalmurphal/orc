@@ -1,4 +1,4 @@
-import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary, Attachment, TaskComment, CreateTaskCommentRequest, UpdateTaskCommentRequest, TaskCommentStats } from './types';
+import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary, Attachment, TaskComment, CreateTaskCommentRequest, UpdateTaskCommentRequest, TaskCommentStats, TestResultsInfo, Screenshot, TestReport } from './types';
 
 const API_BASE = '/api';
 
@@ -1322,4 +1322,58 @@ export async function deleteAttachment(taskId: string, filename: string): Promis
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Delete failed');
 	}
+}
+
+// Test Results (Playwright)
+export async function getTestResults(taskId: string): Promise<TestResultsInfo> {
+	return fetchJSON<TestResultsInfo>(`/tasks/${taskId}/test-results`);
+}
+
+export async function listScreenshots(taskId: string): Promise<Screenshot[]> {
+	return fetchJSON<Screenshot[]>(`/tasks/${taskId}/test-results/screenshots`);
+}
+
+export function getScreenshotUrl(taskId: string, filename: string): string {
+	return `${API_BASE}/tasks/${taskId}/test-results/screenshots/${encodeURIComponent(filename)}`;
+}
+
+export async function uploadScreenshot(taskId: string, file: File, filename?: string): Promise<Screenshot> {
+	const formData = new FormData();
+	formData.append('file', file);
+	if (filename) {
+		formData.append('filename', filename);
+	}
+
+	const res = await fetch(`${API_BASE}/tasks/${taskId}/test-results/screenshots`, {
+		method: 'POST',
+		body: formData
+	});
+
+	if (!res.ok) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Upload failed');
+	}
+
+	return res.json();
+}
+
+export async function saveTestReport(taskId: string, report: TestReport): Promise<void> {
+	await fetchJSON(`/tasks/${taskId}/test-results`, {
+		method: 'POST',
+		body: JSON.stringify(report)
+	});
+}
+
+export async function initTestResults(taskId: string): Promise<{ status: string; path: string }> {
+	return fetchJSON(`/tasks/${taskId}/test-results/init`, {
+		method: 'POST'
+	});
+}
+
+export function getHTMLReportUrl(taskId: string): string {
+	return `${API_BASE}/tasks/${taskId}/test-results/report`;
+}
+
+export function getTraceUrl(taskId: string, filename: string): string {
+	return `${API_BASE}/tasks/${taskId}/test-results/traces/${encodeURIComponent(filename)}`;
 }

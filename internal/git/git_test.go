@@ -847,3 +847,109 @@ func TestAbortRebase(t *testing.T) {
 	// It may return an error but should not panic
 	_ = g.AbortRebase()
 }
+
+// TestPruneWorktrees tests the PruneWorktrees method
+func TestPruneWorktrees(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// PruneWorktrees should succeed even when there's nothing to prune
+	err := g.PruneWorktrees()
+	if err != nil {
+		t.Fatalf("PruneWorktrees() failed: %v", err)
+	}
+}
+
+// TestCreateWorktree_StaleWorktree tests that CreateWorktree handles stale registrations
+func TestCreateWorktree_StaleWorktree(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a worktree first
+	worktreePath, err := g.CreateWorktree("TASK-STALE", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+
+	// Manually delete the worktree directory (simulating stale registration)
+	if err := os.RemoveAll(worktreePath); err != nil {
+		t.Fatalf("failed to remove worktree directory: %v", err)
+	}
+
+	// Verify directory is gone but git still thinks worktree exists
+	if _, err := os.Stat(worktreePath); !os.IsNotExist(err) {
+		t.Fatal("worktree directory should not exist")
+	}
+
+	// git worktree list should still show the stale worktree
+	output, err := g.ctx.RunGit("worktree", "list")
+	if err != nil {
+		t.Fatalf("git worktree list failed: %v", err)
+	}
+	if !strings.Contains(output, "orc-TASK-STALE") {
+		t.Skip("git may have auto-pruned the stale worktree")
+	}
+
+	// Now try to create the same worktree again - should succeed due to auto-prune
+	worktreePath2, err := g.CreateWorktree("TASK-STALE", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() should auto-prune stale worktree: %v", err)
+	}
+
+	// Verify worktree was created
+	if _, err := os.Stat(worktreePath2); os.IsNotExist(err) {
+		t.Error("worktree should exist after re-creation")
+	}
+
+	// Cleanup
+	g.CleanupWorktree("TASK-STALE")
+}
+
+// TestCreateWorktree_StaleWorktree_ExistingBranch tests stale worktree with existing branch
+func TestCreateWorktree_StaleWorktree_ExistingBranch(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a worktree first
+	worktreePath, err := g.CreateWorktree("TASK-STALE2", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+
+	// Make a commit in the worktree so the branch has content
+	wtGit := g.InWorktree(worktreePath)
+	testFile := filepath.Join(worktreePath, "stale-test.txt")
+	os.WriteFile(testFile, []byte("test"), 0644)
+	_, _ = wtGit.CreateCheckpoint("TASK-STALE2", "implement", "test commit")
+
+	// Manually delete the worktree directory (simulating stale registration)
+	if err := os.RemoveAll(worktreePath); err != nil {
+		t.Fatalf("failed to remove worktree directory: %v", err)
+	}
+
+	// Now the branch exists but worktree registration is stale
+	// Try to create the worktree again - should succeed
+	worktreePath2, err := g.CreateWorktree("TASK-STALE2", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() should handle stale worktree with existing branch: %v", err)
+	}
+
+	// Verify worktree was created with the existing branch
+	wtGit2 := g.InWorktree(worktreePath2)
+	branch, _ := wtGit2.GetCurrentBranch()
+	if branch != "orc/TASK-STALE2" {
+		t.Errorf("worktree should be on orc/TASK-STALE2, got %s", branch)
+	}
+
+	// Verify the file from the previous commit exists
+	if _, err := os.Stat(testFile); os.IsNotExist(err) {
+		t.Error("stale-test.txt should exist from previous commit")
+	}
+
+	// Cleanup
+	g.CleanupWorktree("TASK-STALE2")
+}

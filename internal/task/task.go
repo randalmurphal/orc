@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/util"
@@ -61,6 +62,16 @@ const (
 	StatusFailed      Status = "failed"
 )
 
+// TestingRequirements specifies what types of testing are needed for a task.
+type TestingRequirements struct {
+	// Unit indicates if unit tests are required
+	Unit bool `yaml:"unit,omitempty" json:"unit,omitempty"`
+	// E2E indicates if end-to-end/integration tests are required
+	E2E bool `yaml:"e2e,omitempty" json:"e2e,omitempty"`
+	// Visual indicates if visual regression tests are required
+	Visual bool `yaml:"visual,omitempty" json:"visual,omitempty"`
+}
+
 // Task represents a unit of work to be orchestrated.
 type Task struct {
 	// ID is the unique identifier (e.g., TASK-001)
@@ -83,6 +94,13 @@ type Task struct {
 
 	// Branch is the git branch for this task (e.g., orc/TASK-001)
 	Branch string `yaml:"branch" json:"branch"`
+
+	// RequiresUITesting indicates if this task involves UI changes
+	// that should be validated with Playwright or similar tools
+	RequiresUITesting bool `yaml:"requires_ui_testing,omitempty" json:"requires_ui_testing,omitempty"`
+
+	// TestingRequirements specifies what types of testing are needed
+	TestingRequirements *TestingRequirements `yaml:"testing_requirements,omitempty" json:"testing_requirements,omitempty"`
 
 	// CreatedAt is when the task was created
 	CreatedAt time.Time `yaml:"created_at" json:"created_at"`
@@ -125,6 +143,63 @@ func (t *Task) CanRun() bool {
 		t.Status == StatusPlanned ||
 		t.Status == StatusPaused ||
 		t.Status == StatusBlocked
+}
+
+// uiKeywords contains words that suggest a task involves UI work.
+// These are used to auto-detect tasks that require UI testing.
+var uiKeywords = []string{
+	"ui", "frontend", "button", "form", "page", "modal", "dialog",
+	"component", "widget", "layout", "style", "css", "design",
+	"responsive", "mobile", "desktop", "navigation", "menu",
+	"sidebar", "header", "footer", "dashboard", "table", "grid",
+	"card", "input", "dropdown", "select", "checkbox", "radio",
+	"tooltip", "popover", "toast", "notification", "alert",
+	"animation", "transition", "theme", "dark mode", "light mode",
+	"accessibility", "a11y", "screen reader", "keyboard navigation",
+	"click", "hover", "focus", "scroll", "drag", "drop",
+}
+
+// DetectUITesting checks if a task description suggests UI testing is needed.
+// Returns true if the title or description contains UI-related keywords.
+func DetectUITesting(title, description string) bool {
+	text := strings.ToLower(title + " " + description)
+	for _, keyword := range uiKeywords {
+		if strings.Contains(text, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+// SetTestingRequirements configures testing requirements based on project and task context.
+func (t *Task) SetTestingRequirements(hasFrontend bool) {
+	// Auto-detect UI testing from task description
+	t.RequiresUITesting = DetectUITesting(t.Title, t.Description)
+
+	// Initialize testing requirements if not set
+	if t.TestingRequirements == nil {
+		t.TestingRequirements = &TestingRequirements{}
+	}
+
+	// Unit tests are always recommended for non-trivial tasks
+	if t.Weight != WeightTrivial {
+		t.TestingRequirements.Unit = true
+	}
+
+	// E2E tests for frontend projects with UI tasks
+	if hasFrontend && t.RequiresUITesting {
+		t.TestingRequirements.E2E = true
+	}
+
+	// Visual tests for tasks explicitly mentioning visual/design concerns
+	text := strings.ToLower(t.Title + " " + t.Description)
+	visualKeywords := []string{"visual", "design", "style", "css", "theme", "layout", "responsive"}
+	for _, keyword := range visualKeywords {
+		if strings.Contains(text, keyword) {
+			t.TestingRequirements.Visual = true
+			break
+		}
+	}
 }
 
 // Load loads a task from disk by ID.

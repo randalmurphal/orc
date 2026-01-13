@@ -30,10 +30,34 @@ orc <command> [options] [arguments]
 Initialize orc in current directory.
 
 ```bash
-orc init [--force]
+orc init [--force] [--profile <profile>]
 ```
 
-Creates `.orc/` directory structure and `orc.yaml` config.
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--force` | Reinitialize existing project | false |
+| `--profile` | Automation profile (auto, fast, safe, strict) | auto |
+
+Creates `.orc/` directory structure, `orc.yaml` config, and detects project type.
+
+**Project Detection**: Automatically detects language, frameworks, and frontend presence. For frontend projects, recommends the Playwright plugin.
+
+**Output**:
+```
+Initialized orc in 42ms
+  Project ID: proj-abc123
+  Detected: typescript project with react, nextjs
+  Config: .orc/config.yaml
+
+Claude Code plugins (run once in Claude Code):
+  /plugin marketplace add randalmurphal/orc-claude-plugin
+  /plugin install orc@orc
+  /plugin install playwright@claude-plugins-official  # Frontend detected
+
+Next steps:
+  orc new "task description"  # Create a new task
+  orc serve                    # Start web UI at localhost:8080
+```
 
 ---
 
@@ -50,11 +74,33 @@ orc new <title> [--weight <weight>] [--description <desc>]
 | `--weight`, `-w` | Task weight: trivial/small/medium/large/greenfield | auto-classify |
 | `--description`, `-d` | Task description | opens editor |
 | `--branch`, `-b` | Custom branch name | `orc/TASK-XXX` |
+| `--template`, `-t` | Use template (bugfix, feature, refactor, migration, spike) | none |
+| `--var` | Template variable (KEY=VALUE), can be repeated | none |
+
+**Testing Detection**: Task creation automatically detects UI-related keywords in the title/description and sets:
+- `requires_ui_testing: true` for UI tasks
+- `testing_requirements.e2e: true` for frontend projects with UI tasks
 
 **Examples**:
 ```bash
 orc new "Fix typo in README" --weight trivial
 orc new "Add OAuth2 authentication" -w large -d "Support Google and GitHub"
+orc new "Add dark mode toggle button"   # Auto-detects UI testing required
+orc new -t bugfix "Fix memory leak"
+```
+
+**Output**:
+```
+Task created: TASK-001
+   Title:  Add dark mode toggle button
+   Weight: medium
+   Phases: 3
+   UI Testing: required (detected from task description)
+   Testing: unit, e2e, visual
+
+Next steps:
+  orc run TASK-001    - Execute the task
+  orc show TASK-001   - View task details
 ```
 
 ---
