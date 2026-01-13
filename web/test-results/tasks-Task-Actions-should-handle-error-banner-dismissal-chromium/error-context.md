@@ -1,0 +1,54 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - navigation "Main navigation" [ref=e4]:
+      - link ">_" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: ">_"
+      - generic [ref=e8]:
+        - navigation [ref=e9]:
+          - list [ref=e10]:
+            - listitem [ref=e11]:
+              - link "Dashboard" [ref=e12] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e14]
+            - listitem [ref=e19]:
+              - link "Tasks" [ref=e20] [cursor=pointer]:
+                - /url: /
+                - img [ref=e22]
+            - listitem [ref=e24]:
+              - link "Board" [ref=e25] [cursor=pointer]:
+                - /url: /board
+                - img [ref=e27]
+        - navigation [ref=e32]:
+          - link "Environment" [ref=e33] [cursor=pointer]:
+            - /url: /environment
+            - img [ref=e35]
+      - navigation [ref=e41]:
+        - list [ref=e42]:
+          - listitem [ref=e43]:
+            - link "Preferences" [ref=e44] [cursor=pointer]:
+              - /url: /preferences
+              - img [ref=e46]
+    - generic [ref=e49]:
+      - banner [ref=e50]:
+        - generic [ref=e51]:
+          - button "forex-platform" [ref=e52] [cursor=pointer]:
+            - img [ref=e54]
+            - generic [ref=e56]: forex-platform
+            - img [ref=e58]
+          - generic [ref=e60]:
+            - generic [ref=e61]: /
+            - heading "Task Details" [level=1] [ref=e62]
+        - button "Commands ^K" [ref=e64] [cursor=pointer]:
+          - generic [ref=e65]: Commands
+          - generic [ref=e66]: ^K
+      - main [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e69]: "!"
+          - paragraph [ref=e70]: Request failed
+          - button "Retry" [ref=e71] [cursor=pointer]
+  - region "Notifications"
+```

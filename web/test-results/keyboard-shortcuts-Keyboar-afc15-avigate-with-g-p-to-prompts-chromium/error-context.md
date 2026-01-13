@@ -1,0 +1,456 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - navigation "Main navigation" [ref=e4]:
+      - link ">_" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: ">_"
+      - generic [ref=e8]:
+        - navigation [ref=e9]:
+          - list [ref=e10]:
+            - listitem [ref=e11]:
+              - link "Dashboard" [ref=e12] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e14]
+            - listitem [ref=e19]:
+              - link "Tasks" [ref=e20] [cursor=pointer]:
+                - /url: /
+                - img [ref=e22]
+            - listitem [ref=e24]:
+              - link "Board" [ref=e25] [cursor=pointer]:
+                - /url: /board
+                - img [ref=e27]
+        - navigation [ref=e32]:
+          - link "Environment" [ref=e33] [cursor=pointer]:
+            - /url: /environment
+            - img [ref=e35]
+      - navigation [ref=e41]:
+        - list [ref=e42]:
+          - listitem [ref=e43]:
+            - link "Preferences" [ref=e44] [cursor=pointer]:
+              - /url: /preferences
+              - img [ref=e46]
+    - generic [ref=e49]:
+      - banner [ref=e50]:
+        - generic [ref=e51]:
+          - button "forex-platform" [ref=e52] [cursor=pointer]:
+            - img [ref=e54]
+            - generic [ref=e56]: forex-platform
+            - img [ref=e58]
+          - generic [ref=e60]:
+            - generic [ref=e61]: /
+            - heading "Tasks" [level=1] [ref=e62]
+        - generic [ref=e63]:
+          - button "Commands ^K" [ref=e64] [cursor=pointer]:
+            - generic [ref=e65]: Commands
+            - generic [ref=e66]: ^K
+          - button "New Task" [ref=e67] [cursor=pointer]:
+            - img [ref=e68]
+            - text: New Task
+      - main [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e71]:
+            - generic [ref=e72]:
+              - button "All 23" [ref=e73] [cursor=pointer]:
+                - text: All
+                - generic [ref=e74]: "23"
+              - button "Active 23" [ref=e75] [cursor=pointer]:
+                - text: Active
+                - generic [ref=e76]: "23"
+              - button "Completed 0" [ref=e77] [cursor=pointer]:
+                - text: Completed
+                - generic [ref=e78]: "0"
+              - button "Failed 0" [ref=e79] [cursor=pointer]:
+                - text: Failed
+                - generic [ref=e80]: "0"
+            - generic [ref=e81]:
+              - generic [ref=e82]:
+                - img
+                - textbox "Search tasks..." [ref=e85]
+              - combobox [ref=e86] [cursor=pointer]:
+                - option "All weights" [selected]
+                - option "trivial"
+                - option "small"
+                - option "medium"
+                - option "large"
+                - option "greenfield"
+              - combobox [ref=e87] [cursor=pointer]:
+                - option "Most recent" [selected]
+                - option "Oldest first"
+                - option "By status"
+              - button "New Task" [ref=e88] [cursor=pointer]:
+                - img
+                - text: New Task
+          - generic [ref=e89]:
+            - button "TASK-023 medium Screenshot verification - Playwright screenshots of all pages stored as proof 4h ago Run" [ref=e90]:
+              - link "TASK-023 medium Screenshot verification - Playwright screenshots of all pages stored as proof 4h ago Run" [ref=e91] [cursor=pointer]:
+                - /url: /tasks/TASK-023
+                - generic [ref=e95]:
+                  - generic [ref=e96]:
+                    - generic [ref=e97]: TASK-023
+                    - generic [ref=e98]: medium
+                  - heading "Screenshot verification - Playwright screenshots of all pages stored as proof" [level=3] [ref=e99]
+                - generic [ref=e100]:
+                  - generic [ref=e101]: 4h ago
+                  - generic [ref=e102]:
+                    - button "Run" [ref=e103]:
+                      - img [ref=e104]
+                      - text: Run
+                    - button "Delete task" [ref=e106]:
+                      - img [ref=e107]
+            - button "TASK-022 medium E2E test suite - Playwright tests for all trading workflows 4h ago Run" [ref=e109]:
+              - link "TASK-022 medium E2E test suite - Playwright tests for all trading workflows 4h ago Run" [ref=e110] [cursor=pointer]:
+                - /url: /tasks/TASK-022
+                - generic [ref=e114]:
+                  - generic [ref=e115]:
+                    - generic [ref=e116]: TASK-022
+                    - generic [ref=e117]: medium
+                  - heading "E2E test suite - Playwright tests for all trading workflows" [level=3] [ref=e118]
+                - generic [ref=e119]:
+                  - generic [ref=e120]: 4h ago
+                  - generic [ref=e121]:
+                    - button "Run" [ref=e122]:
+                      - img [ref=e123]
+                      - text: Run
+                    - button "Delete task" [ref=e125]:
+                      - img [ref=e126]
+            - button "TASK-021 medium Real-time price streaming - WebSocket connection with reconnection handling 4h ago Run" [ref=e128]:
+              - link "TASK-021 medium Real-time price streaming - WebSocket connection with reconnection handling 4h ago Run" [ref=e129] [cursor=pointer]:
+                - /url: /tasks/TASK-021
+                - generic [ref=e133]:
+                  - generic [ref=e134]:
+                    - generic [ref=e135]: TASK-021
+                    - generic [ref=e136]: medium
+                  - heading "Real-time price streaming - WebSocket connection with reconnection handling" [level=3] [ref=e137]
+                - generic [ref=e138]:
+                  - generic [ref=e139]: 4h ago
+                  - generic [ref=e140]:
+                    - button "Run" [ref=e141]:
+                      - img [ref=e142]
+                      - text: Run
+                    - button "Delete task" [ref=e144]:
+                      - img [ref=e145]
+            - button "TASK-020 medium Account summary UI - Balance, equity, margin level, free margin display 4h ago Run" [ref=e147]:
+              - link "TASK-020 medium Account summary UI - Balance, equity, margin level, free margin display 4h ago Run" [ref=e148] [cursor=pointer]:
+                - /url: /tasks/TASK-020
+                - generic [ref=e152]:
+                  - generic [ref=e153]:
+                    - generic [ref=e154]: TASK-020
+                    - generic [ref=e155]: medium
+                  - heading "Account summary UI - Balance, equity, margin level, free margin display" [level=3] [ref=e156]
+                - generic [ref=e157]:
+                  - generic [ref=e158]: 4h ago
+                  - generic [ref=e159]:
+                    - button "Run" [ref=e160]:
+                      - img [ref=e161]
+                      - text: Run
+                    - button "Delete task" [ref=e163]:
+                      - img [ref=e164]
+            - button "TASK-019 medium Positions and P&L dashboard - Open positions, unrealized P&L, margin display 4h ago Run" [ref=e166]:
+              - link "TASK-019 medium Positions and P&L dashboard - Open positions, unrealized P&L, margin display 4h ago Run" [ref=e167] [cursor=pointer]:
+                - /url: /tasks/TASK-019
+                - generic [ref=e171]:
+                  - generic [ref=e172]:
+                    - generic [ref=e173]: TASK-019
+                    - generic [ref=e174]: medium
+                  - heading "Positions and P&L dashboard - Open positions, unrealized P&L, margin display" [level=3] [ref=e175]
+                - generic [ref=e176]:
+                  - generic [ref=e177]: 4h ago
+                  - generic [ref=e178]:
+                    - button "Run" [ref=e179]:
+                      - img [ref=e180]
+                      - text: Run
+                    - button "Delete task" [ref=e182]:
+                      - img [ref=e183]
+            - button "TASK-018 medium Order placement UI - Market/limit orders, size input, symbol selector 4h ago Run" [ref=e185]:
+              - link "TASK-018 medium Order placement UI - Market/limit orders, size input, symbol selector 4h ago Run" [ref=e186] [cursor=pointer]:
+                - /url: /tasks/TASK-018
+                - generic [ref=e190]:
+                  - generic [ref=e191]:
+                    - generic [ref=e192]: TASK-018
+                    - generic [ref=e193]: medium
+                  - heading "Order placement UI - Market/limit orders, size input, symbol selector" [level=3] [ref=e194]
+                - generic [ref=e195]:
+                  - generic [ref=e196]: 4h ago
+                  - generic [ref=e197]:
+                    - button "Run" [ref=e198]:
+                      - img [ref=e199]
+                      - text: Run
+                    - button "Delete task" [ref=e201]:
+                      - img [ref=e202]
+            - button "TASK-017 medium TradingView chart integration - Lightweight Charts library with real-time updates 4h ago Run" [ref=e204]:
+              - link "TASK-017 medium TradingView chart integration - Lightweight Charts library with real-time updates 4h ago Run" [ref=e205] [cursor=pointer]:
+                - /url: /tasks/TASK-017
+                - generic [ref=e209]:
+                  - generic [ref=e210]:
+                    - generic [ref=e211]: TASK-017
+                    - generic [ref=e212]: medium
+                  - heading "TradingView chart integration - Lightweight Charts library with real-time updates" [level=3] [ref=e213]
+                - generic [ref=e214]:
+                  - generic [ref=e215]: 4h ago
+                  - generic [ref=e216]:
+                    - button "Run" [ref=e217]:
+                      - img [ref=e218]
+                      - text: Run
+                    - button "Delete task" [ref=e220]:
+                      - img [ref=e221]
+            - button "TASK-016 medium React frontend scaffolding - Vite, Tailwind, Connect-ES client generation 4h ago Run" [ref=e223]:
+              - link "TASK-016 medium React frontend scaffolding - Vite, Tailwind, Connect-ES client generation 4h ago Run" [ref=e224] [cursor=pointer]:
+                - /url: /tasks/TASK-016
+                - generic [ref=e228]:
+                  - generic [ref=e229]:
+                    - generic [ref=e230]: TASK-016
+                    - generic [ref=e231]: medium
+                  - heading "React frontend scaffolding - Vite, Tailwind, Connect-ES client generation" [level=3] [ref=e232]
+                - generic [ref=e233]:
+                  - generic [ref=e234]: 4h ago
+                  - generic [ref=e235]:
+                    - button "Run" [ref=e236]:
+                      - img [ref=e237]
+                      - text: Run
+                    - button "Delete task" [ref=e239]:
+                      - img [ref=e240]
+            - button "TASK-015 medium Market replay engine - Historical tick data playback with configurable speed 4h ago Run" [ref=e242]:
+              - link "TASK-015 medium Market replay engine - Historical tick data playback with configurable speed 4h ago Run" [ref=e243] [cursor=pointer]:
+                - /url: /tasks/TASK-015
+                - generic [ref=e247]:
+                  - generic [ref=e248]:
+                    - generic [ref=e249]: TASK-015
+                    - generic [ref=e250]: medium
+                  - heading "Market replay engine - Historical tick data playback with configurable speed" [level=3] [ref=e251]
+                - generic [ref=e252]:
+                  - generic [ref=e253]: 4h ago
+                  - generic [ref=e254]:
+                    - button "Run" [ref=e255]:
+                      - img [ref=e256]
+                      - text: Run
+                    - button "Delete task" [ref=e258]:
+                      - img [ref=e259]
+            - button "TASK-014 medium MarketDataService Connect-RPC - StreamPrices, GetCandles, GetMarketDepth 4h ago Run" [ref=e261]:
+              - link "TASK-014 medium MarketDataService Connect-RPC - StreamPrices, GetCandles, GetMarketDepth 4h ago Run" [ref=e262] [cursor=pointer]:
+                - /url: /tasks/TASK-014
+                - generic [ref=e266]:
+                  - generic [ref=e267]:
+                    - generic [ref=e268]: TASK-014
+                    - generic [ref=e269]: medium
+                  - heading "MarketDataService Connect-RPC - StreamPrices, GetCandles, GetMarketDepth" [level=3] [ref=e270]
+                - generic [ref=e271]:
+                  - generic [ref=e272]: 4h ago
+                  - generic [ref=e273]:
+                    - button "Run" [ref=e274]:
+                      - img [ref=e275]
+                      - text: Run
+                    - button "Delete task" [ref=e277]:
+                      - img [ref=e278]
+            - button "TASK-013 medium AccountService Connect-RPC - GetAccountSummary, ListTrades, GetPerformanceMetrics 4h ago Run" [ref=e280]:
+              - link "TASK-013 medium AccountService Connect-RPC - GetAccountSummary, ListTrades, GetPerformanceMetrics 4h ago Run" [ref=e281] [cursor=pointer]:
+                - /url: /tasks/TASK-013
+                - generic [ref=e285]:
+                  - generic [ref=e286]:
+                    - generic [ref=e287]: TASK-013
+                    - generic [ref=e288]: medium
+                  - heading "AccountService Connect-RPC - GetAccountSummary, ListTrades, GetPerformanceMetrics" [level=3] [ref=e289]
+                - generic [ref=e290]:
+                  - generic [ref=e291]: 4h ago
+                  - generic [ref=e292]:
+                    - button "Run" [ref=e293]:
+                      - img [ref=e294]
+                      - text: Run
+                    - button "Delete task" [ref=e296]:
+                      - img [ref=e297]
+            - button "TASK-012 medium TradingService Connect-RPC - PlaceOrder, ModifyOrder, CancelOrder, ClosePosition 4h ago Run" [ref=e299]:
+              - link "TASK-012 medium TradingService Connect-RPC - PlaceOrder, ModifyOrder, CancelOrder, ClosePosition 4h ago Run" [ref=e300] [cursor=pointer]:
+                - /url: /tasks/TASK-012
+                - generic [ref=e304]:
+                  - generic [ref=e305]:
+                    - generic [ref=e306]: TASK-012
+                    - generic [ref=e307]: medium
+                  - heading "TradingService Connect-RPC - PlaceOrder, ModifyOrder, CancelOrder, ClosePosition" [level=3] [ref=e308]
+                - generic [ref=e309]:
+                  - generic [ref=e310]: 4h ago
+                  - generic [ref=e311]:
+                    - button "Run" [ref=e312]:
+                      - img [ref=e313]
+                      - text: Run
+                    - button "Delete task" [ref=e315]:
+                      - img [ref=e316]
+            - button "TASK-011 medium NATS JetStream event bus - Real-time event streaming for price updates 4h ago Run" [ref=e318]:
+              - link "TASK-011 medium NATS JetStream event bus - Real-time event streaming for price updates 4h ago Run" [ref=e319] [cursor=pointer]:
+                - /url: /tasks/TASK-011
+                - generic [ref=e323]:
+                  - generic [ref=e324]:
+                    - generic [ref=e325]: TASK-011
+                    - generic [ref=e326]: medium
+                  - heading "NATS JetStream event bus - Real-time event streaming for price updates" [level=3] [ref=e327]
+                - generic [ref=e328]:
+                  - generic [ref=e329]: 4h ago
+                  - generic [ref=e330]:
+                    - button "Run" [ref=e331]:
+                      - img [ref=e332]
+                      - text: Run
+                    - button "Delete task" [ref=e334]:
+                      - img [ref=e335]
+            - button "TASK-010 medium QuestDB tick storage - High-performance tick data ingestion and queries 4h ago Run" [ref=e337]:
+              - link "TASK-010 medium QuestDB tick storage - High-performance tick data ingestion and queries 4h ago Run" [ref=e338] [cursor=pointer]:
+                - /url: /tasks/TASK-010
+                - generic [ref=e342]:
+                  - generic [ref=e343]:
+                    - generic [ref=e344]: TASK-010
+                    - generic [ref=e345]: medium
+                  - heading "QuestDB tick storage - High-performance tick data ingestion and queries" [level=3] [ref=e346]
+                - generic [ref=e347]:
+                  - generic [ref=e348]: 4h ago
+                  - generic [ref=e349]:
+                    - button "Run" [ref=e350]:
+                      - img [ref=e351]
+                      - text: Run
+                    - button "Delete task" [ref=e353]:
+                      - img [ref=e354]
+            - button "TASK-009 medium PostgreSQL repository layer - Account, trade, position persistence with pgx 4h ago Run" [ref=e356]:
+              - link "TASK-009 medium PostgreSQL repository layer - Account, trade, position persistence with pgx 4h ago Run" [ref=e357] [cursor=pointer]:
+                - /url: /tasks/TASK-009
+                - generic [ref=e361]:
+                  - generic [ref=e362]:
+                    - generic [ref=e363]: TASK-009
+                    - generic [ref=e364]: medium
+                  - heading "PostgreSQL repository layer - Account, trade, position persistence with pgx" [level=3] [ref=e365]
+                - generic [ref=e366]:
+                  - generic [ref=e367]: 4h ago
+                  - generic [ref=e368]:
+                    - button "Run" [ref=e369]:
+                      - img [ref=e370]
+                      - text: Run
+                    - button "Delete task" [ref=e372]:
+                      - img [ref=e373]
+            - button "TASK-008 medium Position manager - Track positions, P&L calculation, margin requirements 4h ago Run" [ref=e375]:
+              - link "TASK-008 medium Position manager - Track positions, P&L calculation, margin requirements 4h ago Run" [ref=e376] [cursor=pointer]:
+                - /url: /tasks/TASK-008
+                - generic [ref=e380]:
+                  - generic [ref=e381]:
+                    - generic [ref=e382]: TASK-008
+                    - generic [ref=e383]: medium
+                  - heading "Position manager - Track positions, P&L calculation, margin requirements" [level=3] [ref=e384]
+                - generic [ref=e385]:
+                  - generic [ref=e386]: 4h ago
+                  - generic [ref=e387]:
+                    - button "Run" [ref=e388]:
+                      - img [ref=e389]
+                      - text: Run
+                    - button "Delete task" [ref=e391]:
+                      - img [ref=e392]
+            - button "TASK-007 medium Slippage calculator - Market depth walk, volatility factor, latency simulation 4h ago Run" [ref=e394]:
+              - link "TASK-007 medium Slippage calculator - Market depth walk, volatility factor, latency simulation 4h ago Run" [ref=e395] [cursor=pointer]:
+                - /url: /tasks/TASK-007
+                - generic [ref=e399]:
+                  - generic [ref=e400]:
+                    - generic [ref=e401]: TASK-007
+                    - generic [ref=e402]: medium
+                  - heading "Slippage calculator - Market depth walk, volatility factor, latency simulation" [level=3] [ref=e403]
+                - generic [ref=e404]:
+                  - generic [ref=e405]: 4h ago
+                  - generic [ref=e406]:
+                    - button "Run" [ref=e407]:
+                      - img [ref=e408]
+                      - text: Run
+                    - button "Delete task" [ref=e410]:
+                      - img [ref=e411]
+            - button "TASK-006 medium Spread calculator - Dynamic spreads based on session, volatility, liquidity 4h ago Run" [ref=e413]:
+              - link "TASK-006 medium Spread calculator - Dynamic spreads based on session, volatility, liquidity 4h ago Run" [ref=e414] [cursor=pointer]:
+                - /url: /tasks/TASK-006
+                - generic [ref=e418]:
+                  - generic [ref=e419]:
+                    - generic [ref=e420]: TASK-006
+                    - generic [ref=e421]: medium
+                  - heading "Spread calculator - Dynamic spreads based on session, volatility, liquidity" [level=3] [ref=e422]
+                - generic [ref=e423]:
+                  - generic [ref=e424]: 4h ago
+                  - generic [ref=e425]:
+                    - button "Run" [ref=e426]:
+                      - img [ref=e427]
+                      - text: Run
+                    - button "Delete task" [ref=e429]:
+                      - img [ref=e430]
+            - button "TASK-005 medium Broker simulation models - A-Book STP, B-Book market maker, Hybrid classifier 4h ago Run" [ref=e432]:
+              - link "TASK-005 medium Broker simulation models - A-Book STP, B-Book market maker, Hybrid classifier 4h ago Run" [ref=e433] [cursor=pointer]:
+                - /url: /tasks/TASK-005
+                - generic [ref=e437]:
+                  - generic [ref=e438]:
+                    - generic [ref=e439]: TASK-005
+                    - generic [ref=e440]: medium
+                  - heading "Broker simulation models - A-Book STP, B-Book market maker, Hybrid classifier" [level=3] [ref=e441]
+                - generic [ref=e442]:
+                  - generic [ref=e443]: 4h ago
+                  - generic [ref=e444]:
+                    - button "Run" [ref=e445]:
+                      - img [ref=e446]
+                      - text: Run
+                    - button "Delete task" [ref=e448]:
+                      - img [ref=e449]
+            - button "TASK-004 medium Decimal and money primitives - Financial precision types for Go 4h ago Run" [ref=e451]:
+              - link "TASK-004 medium Decimal and money primitives - Financial precision types for Go 4h ago Run" [ref=e452] [cursor=pointer]:
+                - /url: /tasks/TASK-004
+                - generic [ref=e456]:
+                  - generic [ref=e457]:
+                    - generic [ref=e458]: TASK-004
+                    - generic [ref=e459]: medium
+                  - heading "Decimal and money primitives - Financial precision types for Go" [level=3] [ref=e460]
+                - generic [ref=e461]:
+                  - generic [ref=e462]: 4h ago
+                  - generic [ref=e463]:
+                    - button "Run" [ref=e464]:
+                      - img [ref=e465]
+                      - text: Run
+                    - button "Delete task" [ref=e467]:
+                      - img [ref=e468]
+            - button "TASK-003 medium Database schemas - PostgreSQL for accounts/trades, QuestDB for ticks 4h ago Run" [ref=e470]:
+              - link "TASK-003 medium Database schemas - PostgreSQL for accounts/trades, QuestDB for ticks 4h ago Run" [ref=e471] [cursor=pointer]:
+                - /url: /tasks/TASK-003
+                - generic [ref=e475]:
+                  - generic [ref=e476]:
+                    - generic [ref=e477]: TASK-003
+                    - generic [ref=e478]: medium
+                  - heading "Database schemas - PostgreSQL for accounts/trades, QuestDB for ticks" [level=3] [ref=e479]
+                - generic [ref=e480]:
+                  - generic [ref=e481]: 4h ago
+                  - generic [ref=e482]:
+                    - button "Run" [ref=e483]:
+                      - img [ref=e484]
+                      - text: Run
+                    - button "Delete task" [ref=e486]:
+                      - img [ref=e487]
+            - button "TASK-002 medium Connect-RPC proto definitions - TradingService, AccountService, MarketDataService 4h ago Run" [ref=e489]:
+              - link "TASK-002 medium Connect-RPC proto definitions - TradingService, AccountService, MarketDataService 4h ago Run" [ref=e490] [cursor=pointer]:
+                - /url: /tasks/TASK-002
+                - generic [ref=e494]:
+                  - generic [ref=e495]:
+                    - generic [ref=e496]: TASK-002
+                    - generic [ref=e497]: medium
+                  - heading "Connect-RPC proto definitions - TradingService, AccountService, MarketDataService" [level=3] [ref=e498]
+                - generic [ref=e499]:
+                  - generic [ref=e500]: 4h ago
+                  - generic [ref=e501]:
+                    - button "Run" [ref=e502]:
+                      - img [ref=e503]
+                      - text: Run
+                    - button "Delete task" [ref=e505]:
+                      - img [ref=e506]
+            - button "TASK-001 medium Project scaffolding - Go backend + React frontend monorepo with Docker Compose 4h ago Run" [ref=e508]:
+              - link "TASK-001 medium Project scaffolding - Go backend + React frontend monorepo with Docker Compose 4h ago Run" [ref=e509] [cursor=pointer]:
+                - /url: /tasks/TASK-001
+                - generic [ref=e513]:
+                  - generic [ref=e514]:
+                    - generic [ref=e515]: TASK-001
+                    - generic [ref=e516]: medium
+                  - heading "Project scaffolding - Go backend + React frontend monorepo with Docker Compose" [level=3] [ref=e517]
+                - generic [ref=e518]:
+                  - generic [ref=e519]: 4h ago
+                  - generic [ref=e520]:
+                    - button "Run" [ref=e521]:
+                      - img [ref=e522]
+                      - text: Run
+                    - button "Delete task" [ref=e524]:
+                      - img [ref=e525]
+  - region "Notifications"
+```
