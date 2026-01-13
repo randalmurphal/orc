@@ -92,6 +92,31 @@ orc show <task-id> [--checkpoints]
 
 ---
 
+### orc edit
+
+Edit task properties after creation.
+
+```bash
+orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>]
+```
+
+| Option | Description | Notes |
+|--------|-------------|-------|
+| `--title`, `-t` | New task title | |
+| `--description`, `-d` | New task description | |
+| `--weight`, `-w` | New weight (trivial/small/medium/large/greenfield) | Triggers plan regeneration |
+
+Weight changes regenerate the task plan with phases appropriate for the new weight. This resets all phase progress and requires the task to not be running.
+
+**Examples**:
+```bash
+orc edit TASK-001 --title "Better title"
+orc edit TASK-001 --weight large
+orc edit TASK-001 -d "Updated description" -t "New title"
+```
+
+---
+
 ### orc run
 
 Execute or resume a task.
