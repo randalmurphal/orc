@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -365,6 +366,182 @@ func TestIsImageContentType(t *testing.T) {
 		result := isImageContentType(tt.contentType)
 		if result != tt.expected {
 			t.Errorf("isImageContentType(%q) = %v, want %v", tt.contentType, result, tt.expected)
+		}
+	}
+}
+
+func TestListAttachments_WithSubdirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskID := "TASK-001"
+
+	// Create attachments directory with files and a subdirectory
+	attachmentsDir := AttachmentPath(tmpDir, taskID)
+	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a subdirectory (should be skipped)
+	if err := os.MkdirAll(filepath.Join(attachmentsDir, "subdir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a test file
+	if err := os.WriteFile(filepath.Join(attachmentsDir, "test.png"), []byte("PNG data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	attachments, err := ListAttachments(tmpDir, taskID)
+	if err != nil {
+		t.Fatalf("ListAttachments() error = %v", err)
+	}
+
+	// Should only have the file, not the subdirectory
+	if len(attachments) != 1 {
+		t.Errorf("ListAttachments() returned %d attachments, want 1 (should skip subdirectories)", len(attachments))
+	}
+}
+
+func TestListAttachments_ReadDirError(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskID := "TASK-001"
+
+	// Create attachments directory
+	attachmentsDir := AttachmentPath(tmpDir, taskID)
+	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make the directory unreadable
+	if err := os.Chmod(attachmentsDir, 0000); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(attachmentsDir, 0755) // Restore for cleanup
+
+	_, err := ListAttachments(tmpDir, taskID)
+	if err == nil {
+		t.Error("ListAttachments() should fail for unreadable directory")
+	}
+}
+
+func TestSaveAttachment_Overwrite(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskID := "TASK-001"
+
+	// Create task directory
+	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, taskID)
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Save first version
+	content1 := []byte("Version 1")
+	reader1 := bytes.NewReader(content1)
+	_, err := SaveAttachment(tmpDir, taskID, "test.txt", reader1)
+	if err != nil {
+		t.Fatalf("First SaveAttachment() error = %v", err)
+	}
+
+	// Save second version (overwrite)
+	content2 := []byte("Version 2 with more content")
+	reader2 := bytes.NewReader(content2)
+	attachment, err := SaveAttachment(tmpDir, taskID, "test.txt", reader2)
+	if err != nil {
+		t.Fatalf("Second SaveAttachment() error = %v", err)
+	}
+
+	// Verify the file was overwritten
+	if attachment.Size != int64(len(content2)) {
+		t.Errorf("Size = %d, want %d", attachment.Size, len(content2))
+	}
+
+	// Read and verify content
+	savedPath := filepath.Join(AttachmentPath(tmpDir, taskID), "test.txt")
+	savedContent, err := os.ReadFile(savedPath)
+	if err != nil {
+		t.Fatalf("Failed to read saved file: %v", err)
+	}
+	if !bytes.Equal(savedContent, content2) {
+		t.Error("Saved content does not match second version")
+	}
+}
+
+func TestSaveAttachment_EmptyFilename(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskID := "TASK-001"
+
+	// Create task directory
+	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, taskID)
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	reader := bytes.NewReader([]byte("test"))
+	_, err := SaveAttachment(tmpDir, taskID, "", reader)
+	// Empty filename should create temp file naming issues or be handled
+	// The current implementation would allow it but create unusual files
+	if err == nil {
+		// If it succeeds, check the file was created with empty name
+		files, _ := os.ReadDir(AttachmentPath(tmpDir, taskID))
+		// Empty filename is technically valid, just unusual
+		if len(files) == 0 {
+			t.Error("No file was created")
+		}
+	}
+}
+
+func TestDeleteAttachment_InvalidFilename(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskID := "TASK-001"
+
+	invalidFilenames := []string{
+		"../etc/passwd",
+		"path/to/file.txt",
+		"..",
+		".",
+	}
+
+	for _, filename := range invalidFilenames {
+		err := DeleteAttachment(tmpDir, taskID, filename)
+		if err == nil {
+			t.Errorf("DeleteAttachment(%q) should fail", filename)
+		}
+	}
+}
+
+func TestDetectContentType_AllFallbacks(t *testing.T) {
+	// Test all fallback cases in detectContentType
+	tests := []struct {
+		filename    string
+		expectedPfx []string // Multiple valid prefixes to allow for platform variations
+	}{
+		{"file.png", []string{"image/png"}},
+		{"file.PNG", []string{"image/png"}}, // Case insensitive
+		{"file.jpg", []string{"image/jpeg"}},
+		{"file.jpeg", []string{"image/jpeg"}},
+		{"file.gif", []string{"image/gif"}},
+		{"file.webp", []string{"image/webp"}},
+		{"file.svg", []string{"image/svg"}},
+		{"file.ico", []string{"image/"}}, // x-icon or vnd.microsoft.icon
+		{"file.pdf", []string{"application/pdf"}},
+		{"file.txt", []string{"text/plain"}},
+		{"file.md", []string{"text/"}}, // markdown or plain
+		{"file.json", []string{"application/json"}},
+		{"file.yaml", []string{"text/yaml", "application/yaml"}},
+		{"file.yml", []string{"text/yaml", "application/yaml"}},
+		{"noextension", []string{"application/octet-stream"}},
+	}
+
+	for _, tt := range tests {
+		result := detectContentType(tt.filename)
+		found := false
+		for _, pfx := range tt.expectedPfx {
+			if strings.HasPrefix(result, pfx) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("detectContentType(%q) = %q, want one of prefixes %v", tt.filename, result, tt.expectedPfx)
 		}
 	}
 }
