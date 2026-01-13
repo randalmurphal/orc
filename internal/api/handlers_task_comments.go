@@ -232,24 +232,19 @@ func (s *Server) handleGetTaskCommentStats(w http.ResponseWriter, r *http.Reques
 	}
 	defer pdb.Close()
 
-	totalCount, err := pdb.CountTaskComments(taskID)
+	stats, err := pdb.GetTaskCommentStats(taskID)
 	if err != nil {
-		s.jsonError(w, "failed to count task comments: "+err.Error(), http.StatusInternalServerError)
+		s.jsonError(w, "failed to get comment stats: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Count by author type
-	humanComments, _ := pdb.ListTaskCommentsByAuthorType(taskID, db.AuthorTypeHuman)
-	agentComments, _ := pdb.ListTaskCommentsByAuthorType(taskID, db.AuthorTypeAgent)
-	systemComments, _ := pdb.ListTaskCommentsByAuthorType(taskID, db.AuthorTypeSystem)
-
-	stats := map[string]any{
+	response := map[string]any{
 		"task_id":        taskID,
-		"total_comments": totalCount,
-		"human_count":    len(humanComments),
-		"agent_count":    len(agentComments),
-		"system_count":   len(systemComments),
+		"total_comments": stats.Total,
+		"human_count":    stats.HumanCount,
+		"agent_count":    stats.AgentCount,
+		"system_count":   stats.SystemCount,
 	}
 
-	s.jsonResponse(w, stats)
+	s.jsonResponse(w, response)
 }
