@@ -168,6 +168,16 @@ deleteReviewComment(taskId, commentId)
 retryWithReview(taskId, { include_comments: true })
 ```
 
+### Task Comments (Discussion)
+```typescript
+getTaskComments(taskId)                 // List all comments
+getTaskCommentsFiltered(taskId, { author_type?, phase? })
+createTaskComment(taskId, { author, author_type, content, phase? })
+updateTaskComment(taskId, commentId, { content, phase? })
+deleteTaskComment(taskId, commentId)
+getTaskCommentStats(taskId)             // { total, human_count, agent_count, system_count }
+```
+
 ### GitHub
 ```typescript
 createPR(taskId), getPRDetails(taskId)

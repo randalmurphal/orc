@@ -76,6 +76,7 @@ Embedded via `//go:embed schema/*.sql`:
 | `schema/project_005.sql` | Team members, task claims, activity log |
 | `schema/project_006.sql` | Knowledge queue (patterns, gotchas, decisions) |
 | `schema/project_007.sql` | Knowledge validation tracking (staleness) |
+| `schema/project_008.sql` | Task comments (human/agent/system notes) |
 
 ## Usage
 
@@ -164,6 +165,7 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 - `task_claims` - Task assignments/claims (task_id, member_id, claimed_at)
 - `activity_log` - Audit trail (action, task_id, member_id, details)
 - `knowledge_queue` - Knowledge approval queue (patterns, gotchas, decisions)
+- `task_comments` - Task comments/notes (author, author_type, content, phase)
 
 ## Dialect-Specific Queries
 
