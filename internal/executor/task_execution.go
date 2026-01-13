@@ -52,7 +52,8 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 	// Setup worktree if enabled
 	if e.orcConfig.Worktree.Enabled && e.gitOps != nil {
 		if err := e.setupWorktreeForTask(t); err != nil {
-			return err
+			e.failSetup(t, s, fmt.Errorf("setup worktree: %w", err))
+			return fmt.Errorf("setup worktree: %w", err)
 		}
 		// Cleanup worktree on exit based on config and success
 		defer e.cleanupWorktreeForTask(t)
@@ -294,6 +295,29 @@ func (e *Executor) handlePhaseFailure(phaseID string, err error, result *Result,
 	}
 
 	return false, 0
+}
+
+// failSetup handles marking a task as failed during setup (before any phase runs).
+// This is called when setup operations like worktree creation fail.
+func (e *Executor) failSetup(t *task.Task, s *state.State, err error) {
+	e.logger.Error("task setup failed", "task", t.ID, "error", err)
+
+	// Clear execution tracking and set error
+	s.ClearExecution()
+	s.Error = err.Error()
+	if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+		e.logger.Error("failed to save state on setup failure", "error", saveErr)
+	}
+
+	// Update task status
+	t.Status = task.StatusFailed
+	if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+		e.logger.Error("failed to save task on setup failure", "error", saveErr)
+	}
+
+	// Publish failure events - use "setup" as the phase identifier
+	e.publishError(t.ID, "setup", err.Error(), true)
+	e.publishState(t.ID, s)
 }
 
 // failTask handles marking a task as failed.
