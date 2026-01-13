@@ -1,12 +1,42 @@
-import { writable, derived, type Readable } from 'svelte/store';
+import { writable, derived, get, type Readable } from 'svelte/store';
 import type { Project } from '$lib/types';
-import { listProjects } from '$lib/api';
+import { listProjects, getDefaultProject, setDefaultProject as apiSetDefaultProject } from '$lib/api';
+
+const LOCAL_STORAGE_KEY = 'orc_current_project_id';
+
+// Helper to safely access localStorage (handles SSR and disabled storage)
+function getStoredProjectId(): string | null {
+	if (typeof window === 'undefined') return null;
+	try {
+		return localStorage.getItem(LOCAL_STORAGE_KEY);
+	} catch {
+		return null;
+	}
+}
+
+function setStoredProjectId(id: string | null): void {
+	if (typeof window === 'undefined') return;
+	try {
+		if (id) {
+			localStorage.setItem(LOCAL_STORAGE_KEY, id);
+		} else {
+			localStorage.removeItem(LOCAL_STORAGE_KEY);
+		}
+	} catch {
+		// Ignore storage errors
+	}
+}
 
 // Store for available projects
 export const projects = writable<Project[]>([]);
 
-// Store for currently selected project
-export const currentProjectId = writable<string | null>(null);
+// Store for currently selected project (initialized from localStorage)
+export const currentProjectId = writable<string | null>(getStoredProjectId());
+
+// Sync to localStorage whenever currentProjectId changes
+currentProjectId.subscribe(id => {
+	setStoredProjectId(id);
+});
 
 // Loading and error states
 export const projectsLoading = writable<boolean>(false);
@@ -30,17 +60,36 @@ export async function loadProjects(): Promise<void> {
 		const loaded = await listProjects();
 		projects.set(loaded);
 
-		// Auto-select first project if none selected
-		currentProjectId.update(current => {
-			if (!current && loaded.length > 0) {
-				return loaded[0].id;
+		// Get stored project ID from localStorage
+		const storedId = get(currentProjectId);
+
+		// Check if stored ID is valid
+		const storedIsValid = storedId && loaded.find(p => p.id === storedId);
+
+		if (storedIsValid) {
+			// localStorage selection is valid, use it
+			return;
+		}
+
+		// Try to get default project from server
+		let defaultId: string | null = null;
+		try {
+			const defaultProject = await getDefaultProject();
+			if (defaultProject && loaded.find(p => p.id === defaultProject)) {
+				defaultId = defaultProject;
 			}
-			// Ensure current selection is still valid
-			if (current && !loaded.find(p => p.id === current)) {
-				return loaded.length > 0 ? loaded[0].id : null;
-			}
-			return current;
-		});
+		} catch {
+			// Server doesn't have a default set, ignore
+		}
+
+		// Fall back to first project if no valid selection
+		if (defaultId) {
+			currentProjectId.set(defaultId);
+		} else if (loaded.length > 0) {
+			currentProjectId.set(loaded[0].id);
+		} else {
+			currentProjectId.set(null);
+		}
 	} catch (e) {
 		const errorMsg = e instanceof Error ? e.message : 'Failed to load projects';
 		projectsError.set(errorMsg);
@@ -50,7 +99,17 @@ export async function loadProjects(): Promise<void> {
 	}
 }
 
-// Select a project
+// Select a project (and persist to localStorage)
 export function selectProject(id: string): void {
 	currentProjectId.set(id);
+}
+
+// Set a project as the default (persisted to server)
+export async function setDefaultProject(id: string): Promise<void> {
+	try {
+		await apiSetDefaultProject(id);
+	} catch (e) {
+		console.error('Failed to set default project:', e);
+		throw e;
+	}
 }
