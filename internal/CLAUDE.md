@@ -87,15 +87,31 @@ type Publisher interface {
 
 ## Testing
 
-Each package has comprehensive tests. Run all:
+Each package has comprehensive tests. Use `make test` to run all tests with proper setup:
+```bash
+make test           # Handles prerequisites, runs with race detector
+make test-short     # Without race detector (faster)
+```
+
+Or run directly (requires prerequisites):
 ```bash
 go test ./internal/... -v
 ```
 
-Run specific package:
+### Test Prerequisites
+
+The API package uses `go:embed` for static frontend files. Tests require a placeholder:
 ```bash
-go test ./internal/executor/... -v
+mkdir -p internal/api/static
+echo "# Placeholder for go:embed" > internal/api/static/.gitkeep
 ```
+
+When using `go.work` for local dependency development, use `GOWORK=off` for test isolation:
+```bash
+GOWORK=off go test -v ./...
+```
+
+The Makefile handles both automatically.
 
 ### Test Isolation Pattern
 

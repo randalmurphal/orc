@@ -740,7 +740,7 @@ func TestGetClaudeMDEndpoint_EmptyProject(t *testing.T) {
 
 	srv.mux.ServeHTTP(w, req)
 
-	// Returns 200 with empty content for editing purposes (not 404)
+// Returns 200 with empty content for editing purposes (not 404)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}

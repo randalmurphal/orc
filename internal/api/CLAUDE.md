@@ -133,6 +133,14 @@ Without scope parameter, endpoints return project-level config (`.claude/`).
 
 ## Testing
 
+**Prerequisite**: The API package uses `go:embed` for static files. Before running tests directly:
+```bash
+mkdir -p internal/api/static
+echo "# Placeholder for go:embed" > internal/api/static/.gitkeep
+```
+
+Or use `make test` which handles this automatically.
+
 ```bash
 # Run API tests
 go test ./internal/api/... -v
