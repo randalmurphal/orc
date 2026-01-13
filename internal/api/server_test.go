@@ -1541,6 +1541,73 @@ phases:
 
 // === Run Task Additional Tests ===
 
+func TestRunTaskEndpoint_Success_UpdatesStatusAndReturnsTask(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task with planned status (can be run)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-RUN")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-RUN
+title: Test Task
+status: planned
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	// Create plan file (required for run)
+	planYAML := `phases:
+  - id: implement
+    status: pending
+`
+	os.WriteFile(filepath.Join(taskDir, "plan.yaml"), []byte(planYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-RUN/run", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Status string `json:"status"`
+		TaskID string `json:"task_id"`
+		Task   struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+		} `json:"task"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	// Verify response includes task with updated status
+	if response.Status != "started" {
+		t.Errorf("expected status 'started', got '%s'", response.Status)
+	}
+	if response.Task.ID != "TASK-RUN" {
+		t.Errorf("expected task id 'TASK-RUN', got '%s'", response.Task.ID)
+	}
+	if response.Task.Status != "running" {
+		t.Errorf("expected task status 'running', got '%s'", response.Task.Status)
+	}
+
+	// Verify task file was updated on disk
+	updatedTask, err := task.LoadFrom(tmpDir, "TASK-RUN")
+	if err != nil {
+		t.Fatalf("failed to load task: %v", err)
+	}
+	if updatedTask.Status != task.StatusRunning {
+		t.Errorf("expected disk task status 'running', got '%s'", updatedTask.Status)
+	}
+}
+
 func TestRunTaskEndpoint_TaskCannotRun(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -1950,6 +2017,86 @@ tokens:
 
 func cleanupProjectTestEnv(origHome string) {
 	os.Setenv("HOME", origHome)
+}
+
+func TestProjectTaskRun_ReturnsTask(t *testing.T) {
+	tmpDir := t.TempDir()
+	projectDir := filepath.Join(tmpDir, "test-project")
+	os.MkdirAll(projectDir, 0755)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	// Create global .orc directory where project registry lives
+	globalOrcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(globalOrcDir, 0755)
+	projectID := "test-proj-run"
+
+	// Create projects.yaml in the correct location ($HOME/.orc/projects.yaml)
+	projectsYAML := fmt.Sprintf(`projects:
+  - id: %s
+    name: test-project
+    path: %s
+    created_at: 2025-01-01T00:00:00Z
+`, projectID, projectDir)
+	os.WriteFile(filepath.Join(globalOrcDir, "projects.yaml"), []byte(projectsYAML), 0644)
+
+	// Create task directory
+	taskID := "TASK-PROJRUN"
+	taskDir := filepath.Join(projectDir, ".orc", "tasks", taskID)
+	os.MkdirAll(taskDir, 0755)
+
+	// Create task.yaml with planned status (can be run)
+	taskYAML := fmt.Sprintf(`id: %s
+title: Test Project Task
+weight: medium
+status: planned
+created_at: 2025-01-01T00:00:00Z
+updated_at: 2025-01-01T00:00:00Z
+`, taskID)
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	// Create plan.yaml
+	planYAML := `phases:
+  - id: implement
+    status: pending
+`
+	os.WriteFile(filepath.Join(taskDir, "plan.yaml"), []byte(planYAML), 0644)
+
+	srv := New(nil)
+
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/run", projectID, taskID), nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Status string `json:"status"`
+		TaskID string `json:"task_id"`
+		Task   struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+		} `json:"task"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	// Verify response includes task with updated status
+	if response.Status != "started" {
+		t.Errorf("expected status 'started', got '%s'", response.Status)
+	}
+	if response.Task.ID != taskID {
+		t.Errorf("expected task id '%s', got '%s'", taskID, response.Task.ID)
+	}
+	if response.Task.Status != "running" {
+		t.Errorf("expected task status 'running', got '%s'", response.Task.Status)
+	}
 }
 
 func TestProjectTaskPause_Success(t *testing.T) {
