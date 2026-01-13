@@ -2,11 +2,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import {
-		createTask,
-		runTask,
-		pauseTask,
-		resumeTask,
-		deleteTask,
 		createProjectTask,
 		runProjectTask,
 		pauseProjectTask,
@@ -135,14 +130,13 @@
 
 	async function handleCreateTask() {
 		if (!newTaskTitle.trim()) return;
+		if (!$currentProjectId) {
+			error = 'Please select a project first';
+			return;
+		}
 		try {
 			const description = newTaskDescription.trim() || undefined;
-			let newTask: Task;
-			if ($currentProjectId) {
-				newTask = await createProjectTask($currentProjectId, newTaskTitle.trim(), description);
-			} else {
-				newTask = await createTask(newTaskTitle.trim(), description);
-			}
+			const newTask = await createProjectTask($currentProjectId, newTaskTitle.trim(), description);
 			// Add the new task to the store immediately
 			addTask(newTask);
 			newTaskTitle = '';
@@ -154,12 +148,12 @@
 	}
 
 	async function handleRunTask(id: string) {
+		if (!$currentProjectId) {
+			error = 'Please select a project first';
+			return;
+		}
 		try {
-			if ($currentProjectId) {
-				await runProjectTask($currentProjectId, id);
-			} else {
-				await runTask(id);
-			}
+			await runProjectTask($currentProjectId, id);
 			// WebSocket will update task status via global event handler
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to run task';
@@ -167,12 +161,12 @@
 	}
 
 	async function handlePauseTask(id: string) {
+		if (!$currentProjectId) {
+			error = 'Please select a project first';
+			return;
+		}
 		try {
-			if ($currentProjectId) {
-				await pauseProjectTask($currentProjectId, id);
-			} else {
-				await pauseTask(id);
-			}
+			await pauseProjectTask($currentProjectId, id);
 			// WebSocket will update task status via global event handler
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to pause task';
@@ -180,12 +174,12 @@
 	}
 
 	async function handleResumeTask(id: string) {
+		if (!$currentProjectId) {
+			error = 'Please select a project first';
+			return;
+		}
 		try {
-			if ($currentProjectId) {
-				await resumeProjectTask($currentProjectId, id);
-			} else {
-				await resumeTask(id);
-			}
+			await resumeProjectTask($currentProjectId, id);
 			// WebSocket will update task status via global event handler
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to resume task';
@@ -193,12 +187,12 @@
 	}
 
 	async function handleDeleteTask(id: string) {
+		if (!$currentProjectId) {
+			error = 'Please select a project first';
+			return;
+		}
 		try {
-			if ($currentProjectId) {
-				await deleteProjectTask($currentProjectId, id);
-			} else {
-				await deleteTask(id);
-			}
+			await deleteProjectTask($currentProjectId, id);
 			// Remove from store immediately
 			removeTask(id);
 		} catch (e) {
@@ -377,7 +371,22 @@
 		</div>
 	{:else if filteredTasks.length === 0}
 		<div class="empty-state">
-			{#if allTasks.length === 0}
+			{#if !$currentProjectId}
+				<!-- No project selected -->
+				<div class="empty-icon">
+					<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+					</svg>
+				</div>
+				<h3>No project selected</h3>
+				<p>Select a project to view and manage tasks</p>
+				<button class="primary" onclick={() => window.dispatchEvent(new CustomEvent('orc:switch-project'))}>
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+					</svg>
+					Select Project
+				</button>
+			{:else if allTasks.length === 0}
 				<div class="empty-icon">
 					<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
 						<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
