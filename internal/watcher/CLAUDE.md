@@ -37,6 +37,18 @@ Publish Event → WebSocket Broadcast
 
 Task deletions are verified before publishing (100ms delay) to handle atomic saves and renames.
 
+### Weight Change Detection
+
+The watcher tracks task weights to detect changes:
+
+| Scenario | Behavior |
+|----------|----------|
+| Weight changes (non-running task) | Automatically regenerates plan.yaml with new phase sequence |
+| Weight changes (running task) | Logs warning, skips regeneration (would disrupt execution) |
+| Plan already matches new weight | Skips regeneration (API/CLI already handled it) |
+
+Phase statuses are preserved when regenerating: completed/skipped phases that exist in both old and new plans retain their status.
+
 ## Key Patterns
 
 ### Debouncing
@@ -102,3 +114,4 @@ Key test scenarios:
 - Content change filtering (hash-based)
 - Delete false positive handling
 - Debouncing behavior
+- Weight change detection and plan regeneration
