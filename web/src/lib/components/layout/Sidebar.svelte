@@ -3,7 +3,7 @@
 	import { browser } from '$app/environment';
 	import { formatShortcut } from '$lib/utils/platform';
 	import Icon from '$lib/components/ui/Icon.svelte';
-	import { sidebarPinned } from '$lib/stores/sidebar';
+	import { sidebarExpanded } from '$lib/stores/sidebar';
 
 	interface NavItem {
 		label: string;
@@ -87,17 +87,8 @@
 		icon: 'user'
 	};
 
-	// Sidebar state - expanded follows pinned state on mount and pin changes
-	let expanded = $state($sidebarPinned);
-	// Pin state is synced with store
-	let pinned = $derived($sidebarPinned);
-
-	// Keep expanded in sync when pinned changes externally
-	$effect(() => {
-		if (pinned) {
-			expanded = true;
-		}
-	});
+	// Sidebar expanded state is driven directly by store
+	let expanded = $derived($sidebarExpanded);
 
 	// Section/group expansion state (persisted in localStorage)
 	const STORAGE_KEY_SECTIONS = 'orc-sidebar-sections';
@@ -165,21 +156,8 @@
 		return $page.url.pathname.startsWith(basePath);
 	}
 
-	function handleMouseEnter() {
-		if (!pinned) {
-			expanded = true;
-		}
-	}
-
-	function handleMouseLeave() {
-		if (!pinned) {
-			expanded = false;
-		}
-	}
-
-	function togglePin() {
-		sidebarPinned.toggle();
-		expanded = !pinned; // Use current pinned value (before toggle completes)
+	function toggleSidebar() {
+		sidebarExpanded.toggle();
 	}
 
 	// Get work and environment sections
@@ -190,9 +168,6 @@
 <aside
 	class="sidebar"
 	class:expanded
-	class:pinned
-	onmouseenter={handleMouseEnter}
-	onmouseleave={handleMouseLeave}
 	role="navigation"
 	aria-label="Main navigation"
 >
@@ -206,13 +181,12 @@
 		</a>
 		{#if expanded}
 			<button
-				class="pin-btn"
-				class:active={pinned}
-				onclick={togglePin}
-				title={pinned ? 'Unpin sidebar' : 'Pin sidebar'}
-				aria-pressed={pinned}
+				class="toggle-btn"
+				onclick={toggleSidebar}
+				title="Collapse sidebar"
+				aria-label="Collapse sidebar"
 			>
-				<Icon name="pin" size={14} class={pinned ? 'pin-filled' : ''} />
+				<Icon name="panel-left-close" size={16} />
 			</button>
 		{/if}
 	</div>
@@ -351,8 +325,18 @@
 		</nav>
 	</div>
 
-	<!-- Bottom Section: Preferences -->
+	<!-- Bottom Section: Expand button (when collapsed) and Preferences -->
 	<div class="bottom-section">
+		{#if !expanded}
+			<button
+				class="expand-btn"
+				onclick={toggleSidebar}
+				title="Expand sidebar"
+				aria-label="Expand sidebar"
+			>
+				<Icon name="panel-left-open" size={18} />
+			</button>
+		{/if}
 		<div class="nav-divider"></div>
 		<nav class="nav-section">
 			<ul class="nav-list">
@@ -403,10 +387,6 @@
 		width: var(--sidebar-width-expanded);
 	}
 
-	.sidebar.pinned {
-		width: var(--sidebar-width-expanded);
-	}
-
 	/* Logo Section */
 	.logo-section {
 		display: flex;
@@ -443,7 +423,7 @@
 		animation: fade-in var(--duration-fast) var(--ease-out);
 	}
 
-	.pin-btn {
+	.toggle-btn {
 		width: 28px;
 		height: 28px;
 		padding: var(--space-1);
@@ -458,17 +438,31 @@
 		transition: all var(--duration-fast) var(--ease-out);
 	}
 
-	.pin-btn:hover {
+	.toggle-btn:hover {
 		background: var(--bg-tertiary);
 		color: var(--text-secondary);
 	}
 
-	.pin-btn.active {
-		color: var(--accent-primary);
+	.expand-btn {
+		width: calc(var(--sidebar-width-collapsed) - var(--space-4));
+		height: 36px;
+		margin: var(--space-2);
+		padding: var(--space-2);
+		background: transparent;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		color: var(--text-muted);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all var(--duration-fast) var(--ease-out);
 	}
 
-	.pin-btn.active :global(.pin-filled) {
-		fill: currentColor;
+	.expand-btn:hover {
+		background: var(--bg-tertiary);
+		color: var(--text-secondary);
+		border-color: var(--border-default);
 	}
 
 	/* Navigation Container */
