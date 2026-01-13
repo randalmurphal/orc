@@ -118,6 +118,13 @@ func TestConfigShowCmd_WithSource(t *testing.T) {
 func TestConfigGetCmd_RetrievesNestedKeys(t *testing.T) {
 	tmpDir := withTempDir(t)
 
+	// Isolate from real home config
+	homeDir := filepath.Join(tmpDir, "fakehome")
+	if err := os.MkdirAll(homeDir, 0755); err != nil {
+		t.Fatalf("create fake home: %v", err)
+	}
+	t.Setenv("HOME", homeDir)
+
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc dir: %v", err)
@@ -163,6 +170,13 @@ retry:
 
 func TestConfigGetCmd_WithSource(t *testing.T) {
 	tmpDir := withTempDir(t)
+
+	// Isolate from real home config
+	homeDir := filepath.Join(tmpDir, "fakehome")
+	if err := os.MkdirAll(homeDir, 0755); err != nil {
+		t.Fatalf("create fake home: %v", err)
+	}
+	t.Setenv("HOME", homeDir)
 
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
