@@ -212,3 +212,12 @@ export interface CheckSummary {
 	neutral: number;
 	total: number;
 }
+
+// Attachment types
+export interface Attachment {
+	filename: string;
+	size: number;
+	content_type: string;
+	created_at: string;
+	is_image: boolean;
+}
