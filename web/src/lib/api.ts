@@ -49,6 +49,20 @@ export async function createTask(title: string, description?: string, weight?: s
 	});
 }
 
+export interface UpdateTaskRequest {
+	title?: string;
+	description?: string;
+	weight?: string;
+	metadata?: Record<string, string>;
+}
+
+export async function updateTask(id: string, update: UpdateTaskRequest): Promise<Task> {
+	return fetchJSON<Task>(`/tasks/${id}`, {
+		method: 'PATCH',
+		body: JSON.stringify(update)
+	});
+}
+
 // Task state and plan
 export async function getTaskState(id: string): Promise<TaskState> {
 	return fetchJSON<TaskState>(`/tasks/${id}/state`);

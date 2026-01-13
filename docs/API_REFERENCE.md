@@ -24,6 +24,7 @@ CWD-based task operations.
 | GET | `/api/tasks` | List tasks (`?page=N&limit=N`) |
 | POST | `/api/tasks` | Create task |
 | GET | `/api/tasks/:id` | Get task |
+| PATCH | `/api/tasks/:id` | Update task (title, description, weight, metadata) |
 | DELETE | `/api/tasks/:id` | Delete task |
 | GET | `/api/tasks/:id/state` | Get execution state |
 | GET | `/api/tasks/:id/plan` | Get task plan |
@@ -32,6 +33,18 @@ CWD-based task operations.
 | POST | `/api/tasks/:id/pause` | Pause task |
 | POST | `/api/tasks/:id/resume` | Resume task |
 | POST | `/api/tasks/:id/rewind` | Rewind to phase (`{"phase": "implement"}`) |
+
+**Update task body (PATCH):**
+```json
+{
+  "title": "New title",
+  "description": "Updated description",
+  "weight": "medium",
+  "metadata": {"key": "value"}
+}
+```
+
+All fields are optional. Only provided fields are updated. Cannot update running tasks. Valid weights: `trivial`, `small`, `medium`, `large`, `greenfield`.
 
 ### Task Attachments
 

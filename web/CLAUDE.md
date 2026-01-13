@@ -24,7 +24,7 @@ web/src/
 │   │   ├── layout/       # Header, Sidebar
 │   │   ├── overlays/     # Modal, CommandPalette
 │   │   ├── review/       # CommentForm, CommentThread, ReviewPanel
-│   │   ├── task/         # TaskHeader, Timeline, Transcript, RetryPanel, Attachments
+│   │   ├── task/         # TaskHeader, TaskEditModal, Timeline, Transcript, RetryPanel, Attachments
 │   │   └── ui/           # Icon, StatusIndicator, Toast
 │   ├── stores/           # tasks.ts, project.ts, sidebar.ts, toast.svelte.ts
 │   ├── utils/            # format.ts, status.ts, platform.ts
@@ -40,7 +40,7 @@ web/src/
 |----------|------------|---------|
 | Layout | Header, Sidebar | Navigation, project switcher |
 | Dashboard | Stats, QuickActions, ActiveTasks, RecentActivity | Overview page |
-| Task | TaskCard, Timeline, Transcript, TaskHeader, PRActions, Attachments | Task detail |
+| Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments | Task detail |
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
 | Kanban | Board, Column, TaskCard, ConfirmModal | Board view |
 | Comments | TaskCommentsPanel, TaskCommentThread, TaskCommentForm | Task discussion notes |
@@ -159,6 +159,7 @@ See `QUICKREF.md` for full function list.
 // Common patterns
 await listTasks(projectId?)
 await runTask(taskId, projectId?)
+await updateTask(taskId, { title?, description?, weight?, metadata? })
 await createReviewComment(taskId, { file_path, line_number, content, severity })
 ```
 

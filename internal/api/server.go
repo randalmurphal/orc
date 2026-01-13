@@ -148,6 +148,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/tasks", cors(s.handleListTasks))
 	s.mux.HandleFunc("POST /api/tasks", cors(s.handleCreateTask))
 	s.mux.HandleFunc("GET /api/tasks/{id}", cors(s.handleGetTask))
+	s.mux.HandleFunc("PATCH /api/tasks/{id}", cors(s.handleUpdateTask))
 	s.mux.HandleFunc("DELETE /api/tasks/{id}", cors(s.handleDeleteTask))
 
 	// Task state and plan
