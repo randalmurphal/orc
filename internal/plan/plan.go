@@ -155,6 +155,15 @@ func (p *Plan) IsComplete() bool {
 	return true
 }
 
+// Reset resets all phases back to pending state.
+// All phase status and commit SHAs are cleared.
+func (p *Plan) Reset() {
+	for i := range p.Phases {
+		p.Phases[i].Status = PhasePending
+		p.Phases[i].CommitSHA = ""
+	}
+}
+
 // Errors
 var (
 	ErrNoTemplate = planError("no template found for weight")

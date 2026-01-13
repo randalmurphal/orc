@@ -65,6 +65,7 @@ func init() {
 	rootCmd.AddCommand(newStopCmd())
 	rootCmd.AddCommand(newResumeCmd())
 	rootCmd.AddCommand(newRewindCmd())
+	rootCmd.AddCommand(newResetCmd())
 	rootCmd.AddCommand(newStatusCmd())
 	rootCmd.AddCommand(newLogCmd())
 	rootCmd.AddCommand(newDiffCmd())

@@ -267,3 +267,38 @@ func TestLoadTemplateInvalidWeight(t *testing.T) {
 		t.Error("LoadTemplate should return error for invalid weight")
 	}
 }
+
+func TestReset(t *testing.T) {
+	p := &Plan{
+		Version:     1,
+		TaskID:      "TASK-001",
+		Weight:      task.WeightMedium,
+		Description: "Test plan",
+		Phases: []Phase{
+			{ID: "spec", Name: "Specification", Status: PhaseCompleted, CommitSHA: "abc123"},
+			{ID: "implement", Name: "Implementation", Status: PhaseFailed, CommitSHA: "def456"},
+			{ID: "test", Name: "Testing", Status: PhasePending, CommitSHA: ""},
+		},
+	}
+
+	// Reset the plan
+	p.Reset()
+
+	// Verify all phases are reset
+	for _, phase := range p.Phases {
+		if phase.Status != PhasePending {
+			t.Errorf("Phase %s status = %s, want %s", phase.ID, phase.Status, PhasePending)
+		}
+		if phase.CommitSHA != "" {
+			t.Errorf("Phase %s CommitSHA = %s, want empty", phase.ID, phase.CommitSHA)
+		}
+	}
+
+	// Verify other fields are preserved
+	if p.TaskID != "TASK-001" {
+		t.Errorf("TaskID = %s, want TASK-001", p.TaskID)
+	}
+	if p.Weight != task.WeightMedium {
+		t.Errorf("Weight = %s, want medium", p.Weight)
+	}
+}
