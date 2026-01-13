@@ -13,6 +13,7 @@ bin/
 web/.svelte-kit/
 web/build/
 web/node_modules/
+web/package-lock.json
 
 # Test artifacts
 coverage.out
