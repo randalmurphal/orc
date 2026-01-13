@@ -297,6 +297,44 @@ orc reset TASK-001 --force   # Skip confirmation (for scripts/automation)
 
 ---
 
+### orc resolve
+
+Mark a failed task as resolved without re-running.
+
+```bash
+orc resolve <task-id> [--message <msg>] [--force]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--message`, `-m` | Resolution message explaining why task was resolved |
+| `--force`, `-f` | Skip confirmation prompt |
+
+Marks a failed task as completed (resolved) without clearing its execution state. Unlike `reset` which clears progress for retry, `resolve` closes out a failed task while preserving the failure context.
+
+**Use cases**:
+- Issue was fixed manually outside of orc
+- Failure is no longer relevant (requirements changed)
+- Acknowledge and close out a failed task without retry
+
+**Metadata stored**:
+- `resolved: true` - Indicates task was resolved, not executed to completion
+- `resolved_at` - Timestamp of resolution
+- `resolution_message` - Optional explanation (if provided via `-m`)
+
+**Restrictions**:
+- Only failed tasks can be resolved
+- Confirmation prompt unless `--force` is used
+
+**Examples**:
+```bash
+orc resolve TASK-001                          # Resolve with confirmation
+orc resolve TASK-001 -m "Fixed manually"      # With resolution message
+orc resolve TASK-001 --force                  # Skip confirmation
+```
+
+---
+
 ### orc skip
 
 Skip a phase (mark as skipped without execution).
