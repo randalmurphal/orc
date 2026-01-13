@@ -41,7 +41,7 @@ Commands: `/orc:init`, `/orc:status`, `/orc:continue`, `/orc:review`, `/orc:qa`,
 | `web/` | Svelte 5 frontend | See `web/CLAUDE.md` |
 | `docs/` | Architecture, specs, ADRs | See `docs/CLAUDE.md` |
 
-**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `task/` (YAML persistence), `git/` (worktrees), `db/` (SQLite)
+**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `task/` (YAML persistence), `git/` (worktrees), `db/` (SQLite), `watcher/` (live refresh)
 
 ## Task Execution Model
 
@@ -176,6 +176,8 @@ For local dev: `make setup` creates `go.work` for sibling directories.
 make serve      # API :8080
 make web-dev    # Frontend :5173
 ```
+
+**Live refresh:** Task board auto-updates when tasks are created/modified/deleted via CLI or filesystem. File watcher monitors `.orc/tasks/` and broadcasts events over WebSocket.
 
 **Keyboard shortcuts:** `Cmd+K` (palette), `Cmd+N` (new task), `g t` (tasks), `j/k` (navigate)
 

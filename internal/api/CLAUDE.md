@@ -119,6 +119,7 @@ Without scope parameter, endpoints return project-level config (`.claude/`).
 ### Client Messages
 ```json
 {"type": "subscribe", "task_id": "TASK-001"}
+{"type": "subscribe", "task_id": "*"}              // Global subscription (all tasks)
 {"type": "unsubscribe"}
 {"type": "command", "task_id": "TASK-001", "action": "pause"}
 {"type": "ping"}
@@ -129,8 +130,24 @@ Without scope parameter, endpoints return project-level config (`.claude/`).
 {"type": "subscribed", "task_id": "TASK-001"}
 {"type": "event", "event_type": "state", "data": {...}}
 {"type": "event", "event_type": "transcript", "data": {...}}
+{"type": "event", "event_type": "task_created", "data": {"task": {...}}}
+{"type": "event", "event_type": "task_updated", "data": {"task": {...}}}
+{"type": "event", "event_type": "task_deleted", "data": {"task_id": "TASK-001"}}
 {"type": "pong"}
 ```
+
+### File Watcher Events
+
+The API server runs a file watcher that monitors `.orc/tasks/` for changes made outside the API (CLI, filesystem). Events are published to WebSocket clients subscribed to `"*"`:
+
+| Event | Trigger | Data |
+|-------|---------|------|
+| `task_created` | New `task.yaml` detected | `{task: Task}` |
+| `task_updated` | `task.yaml`, `plan.yaml`, or `spec.md` modified | `{task: Task}` |
+| `task_deleted` | Task directory removed (verified) | `{task_id: string}` |
+| `state` | `state.yaml` modified | `{raw: string}` |
+
+**Flow:** CLI/filesystem change → file watcher → debounce (500ms) → content hash check → publish event → WebSocket broadcast
 
 ## Testing
 

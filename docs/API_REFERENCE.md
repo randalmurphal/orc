@@ -454,6 +454,19 @@ Connect to `/api/ws` for real-time updates.
 | `tokens` | `TokenUpdate` | Token usage |
 | `complete` | `{status, duration}` | Task finished |
 | `error` | `{message, fatal}` | Error occurred |
+| `task_created` | `{task: Task}` | Task created via CLI/filesystem |
+| `task_updated` | `{task: Task}` | Task modified via CLI/filesystem |
+| `task_deleted` | `{task_id: string}` | Task deleted via CLI/filesystem |
+
+### Global Subscriptions
+
+Subscribe to `"*"` to receive file watcher events for all tasks:
+
+```json
+{"type": "subscribe", "task_id": "*"}
+```
+
+File watcher events (`task_created`, `task_updated`, `task_deleted`) are only broadcast to global subscribers. These events are triggered when tasks are created, modified, or deleted outside the API (e.g., via CLI or direct filesystem edits).
 
 ---
 
