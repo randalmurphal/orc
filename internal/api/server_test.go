@@ -1541,6 +1541,73 @@ phases:
 
 // === Run Task Additional Tests ===
 
+func TestRunTaskEndpoint_Success_UpdatesStatusAndReturnsTask(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task with planned status (can be run)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-RUN")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-RUN
+title: Test Task
+status: planned
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	// Create plan file (required for run)
+	planYAML := `phases:
+  - id: implement
+    status: pending
+`
+	os.WriteFile(filepath.Join(taskDir, "plan.yaml"), []byte(planYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-RUN/run", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Status string `json:"status"`
+		TaskID string `json:"task_id"`
+		Task   struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+		} `json:"task"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	// Verify response includes task with updated status
+	if response.Status != "started" {
+		t.Errorf("expected status 'started', got '%s'", response.Status)
+	}
+	if response.Task.ID != "TASK-RUN" {
+		t.Errorf("expected task id 'TASK-RUN', got '%s'", response.Task.ID)
+	}
+	if response.Task.Status != "running" {
+		t.Errorf("expected task status 'running', got '%s'", response.Task.Status)
+	}
+
+	// Verify task file was updated on disk
+	updatedTask, err := task.LoadFrom(tmpDir, "TASK-RUN")
+	if err != nil {
+		t.Fatalf("failed to load task: %v", err)
+	}
+	if updatedTask.Status != task.StatusRunning {
+		t.Errorf("expected disk task status 'running', got '%s'", updatedTask.Status)
+	}
+}
+
 func TestRunTaskEndpoint_TaskCannotRun(t *testing.T) {
 	tmpDir := t.TempDir()
 

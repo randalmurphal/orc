@@ -73,7 +73,13 @@ export async function getTaskPlan(id: string): Promise<Plan> {
 }
 
 // Task control
-export async function runTask(id: string): Promise<{ status: string; task_id: string }> {
+export interface RunTaskResponse {
+	status: string;
+	task_id: string;
+	task?: Task; // Task with updated status
+}
+
+export async function runTask(id: string): Promise<RunTaskResponse> {
 	return fetchJSON(`/tasks/${id}/run`, { method: 'POST' });
 }
 
@@ -892,7 +898,7 @@ export async function getProjectTaskPlan(projectId: string, taskId: string): Pro
 	return fetchJSON<Plan>(`/projects/${projectId}/tasks/${taskId}/plan`);
 }
 
-export async function runProjectTask(projectId: string, taskId: string): Promise<{ status: string; task_id: string }> {
+export async function runProjectTask(projectId: string, taskId: string): Promise<RunTaskResponse> {
 	return fetchJSON(`/projects/${projectId}/tasks/${taskId}/run`, { method: 'POST' });
 }
 
