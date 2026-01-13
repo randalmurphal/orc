@@ -510,3 +510,169 @@ func TestValidWeights(t *testing.T) {
 		}
 	}
 }
+
+func TestDetectUITesting(t *testing.T) {
+	tests := []struct {
+		title       string
+		description string
+		expected    bool
+	}{
+		{"Add login button", "", true},
+		{"Fix form validation", "", true},
+		{"Create user dashboard page", "", true},
+		{"Add modal dialog", "", true},
+		{"Update navigation menu", "", true},
+		{"Implement dark mode", "", true},
+		{"Fix CSS styling issue", "", true},
+		{"Add responsive layout", "", true},
+		{"Fix dropdown select", "", true},
+		{"Update tooltip behavior", "", true},
+		{"Fix database connection", "", false},
+		{"Update API endpoint", "", false},
+		{"Refactor auth service", "", false},
+		{"Add logging", "", false},
+		{"Fix memory leak in worker", "", false},
+		{"", "clicking the save button should save", true},
+		{"", "scroll to bottom on load", true},
+		{"Backend task", "update the component registry", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.title+tt.description, func(t *testing.T) {
+			got := DetectUITesting(tt.title, tt.description)
+			if got != tt.expected {
+				t.Errorf("DetectUITesting(%q, %q) = %v, want %v", tt.title, tt.description, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSetTestingRequirements_UnitTests(t *testing.T) {
+	// Trivial weight should not require unit tests
+	task1 := New("TASK-001", "Fix typo")
+	task1.Weight = WeightTrivial
+	task1.SetTestingRequirements(false)
+
+	if task1.TestingRequirements == nil {
+		t.Fatal("expected TestingRequirements to be initialized")
+	}
+	if task1.TestingRequirements.Unit {
+		t.Error("trivial tasks should not require unit tests")
+	}
+
+	// Non-trivial weight should require unit tests
+	task2 := New("TASK-002", "Add feature")
+	task2.Weight = WeightMedium
+	task2.SetTestingRequirements(false)
+
+	if !task2.TestingRequirements.Unit {
+		t.Error("medium weight tasks should require unit tests")
+	}
+}
+
+func TestSetTestingRequirements_E2ETests(t *testing.T) {
+	// UI task in frontend project should require E2E
+	task1 := New("TASK-001", "Add login button")
+	task1.Weight = WeightMedium
+	task1.SetTestingRequirements(true) // hasFrontend = true
+
+	if !task1.RequiresUITesting {
+		t.Error("expected RequiresUITesting=true for UI task")
+	}
+	if !task1.TestingRequirements.E2E {
+		t.Error("UI task in frontend project should require E2E tests")
+	}
+
+	// UI task in non-frontend project should not require E2E
+	task2 := New("TASK-002", "Add login button")
+	task2.Weight = WeightMedium
+	task2.SetTestingRequirements(false) // hasFrontend = false
+
+	if !task2.RequiresUITesting {
+		t.Error("expected RequiresUITesting=true for UI task")
+	}
+	if task2.TestingRequirements.E2E {
+		t.Error("UI task in non-frontend project should not require E2E tests")
+	}
+
+	// Non-UI task in frontend project should not require E2E
+	task3 := New("TASK-003", "Fix database query")
+	task3.Weight = WeightMedium
+	task3.SetTestingRequirements(true) // hasFrontend = true
+
+	if task3.RequiresUITesting {
+		t.Error("expected RequiresUITesting=false for non-UI task")
+	}
+	if task3.TestingRequirements.E2E {
+		t.Error("non-UI task should not require E2E tests")
+	}
+}
+
+func TestSetTestingRequirements_VisualTests(t *testing.T) {
+	tests := []struct {
+		title    string
+		expected bool
+	}{
+		{"Update visual design", true},
+		{"Fix CSS styling", true},
+		{"Implement new theme", true},
+		{"Update layout", true},
+		{"Make responsive", true},
+		{"Fix database bug", false},
+		{"Add API endpoint", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.title, func(t *testing.T) {
+			task := New("TASK-001", tt.title)
+			task.Weight = WeightMedium
+			task.SetTestingRequirements(true)
+
+			if task.TestingRequirements.Visual != tt.expected {
+				t.Errorf("Visual = %v, want %v for %q", task.TestingRequirements.Visual, tt.expected, tt.title)
+			}
+		})
+	}
+}
+
+func TestTestingRequirements_YAMLSerialization(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
+	os.MkdirAll(taskDir, 0755)
+
+	// Create task with testing requirements
+	task := New("TASK-001", "Add login button")
+	task.Weight = WeightMedium
+	task.RequiresUITesting = true
+	task.TestingRequirements = &TestingRequirements{
+		Unit:   true,
+		E2E:    true,
+		Visual: false,
+	}
+
+	if err := task.SaveTo(taskDir); err != nil {
+		t.Fatalf("SaveTo() failed: %v", err)
+	}
+
+	// Load and verify
+	loaded, err := LoadFrom(tmpDir, "TASK-001")
+	if err != nil {
+		t.Fatalf("LoadFrom() failed: %v", err)
+	}
+
+	if !loaded.RequiresUITesting {
+		t.Error("RequiresUITesting not preserved")
+	}
+	if loaded.TestingRequirements == nil {
+		t.Fatal("TestingRequirements not preserved")
+	}
+	if !loaded.TestingRequirements.Unit {
+		t.Error("TestingRequirements.Unit not preserved")
+	}
+	if !loaded.TestingRequirements.E2E {
+		t.Error("TestingRequirements.E2E not preserved")
+	}
+	if loaded.TestingRequirements.Visual {
+		t.Error("TestingRequirements.Visual incorrectly set")
+	}
+}
