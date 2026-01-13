@@ -16,7 +16,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `template.go` | CLI output templates |
 | `errors.go` | CLI error types and formatting |
 
-### Command Files (24 total)
+### Command Files (25 total)
 
 | File | Command | Description |
 |------|---------|-------------|
@@ -31,6 +31,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_pause.go` | `orc pause TASK-ID` | Pause running task |
 | `cmd_resume.go` | `orc resume TASK-ID` | Resume paused task |
 | `cmd_rewind.go` | `orc rewind TASK-ID --to PHASE` | Reset to before phase |
+| `cmd_reset.go` | `orc reset TASK-ID` | Reset task to initial state for retry |
 | `cmd_status.go` | `orc status` | Show running tasks |
 | `cmd_log.go` | `orc log TASK-ID` | Show task transcripts |
 | `cmd_diff.go` | `orc diff TASK-ID` | Show task changes |
@@ -147,6 +148,15 @@ Reset task to before a specific phase.
 |------|-------------|
 | `--to` | Phase to rewind to (required) |
 | `--force, -f` | Skip confirmation (for automation) |
+
+### `orc reset`
+Reset task to initial state (planned), clearing all execution progress.
+
+| Flag | Description |
+|------|-------------|
+| `--force, -f` | Skip confirmation and safety checks |
+
+Unlike `rewind` (which goes to a specific checkpoint), `reset` clears everything for a complete fresh start.
 
 ### `orc stop`
 Permanently stop task and mark as failed (unlike `pause` which allows resume).

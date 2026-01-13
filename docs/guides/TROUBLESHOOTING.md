@@ -37,6 +37,12 @@ orc show TASK-XXX --errors
 orc run TASK-XXX --continue
 ```
 
+**To start completely fresh**:
+```bash
+orc reset TASK-XXX   # Clear all progress and retry from beginning
+orc run TASK-XXX
+```
+
 ---
 
 ## Phase Never Completes (Infinite Loop)
@@ -109,6 +115,7 @@ A task is considered orphaned when:
 |--------|---------|-------|
 | Auto-resume | `orc resume TASK-XXX` | Detects orphan, marks as interrupted, resumes |
 | Force resume | `orc resume TASK-XXX --force` | For tasks that appear running but you know are not |
+| Reset | `orc reset TASK-XXX --force` | Start completely fresh (clears all progress) |
 | Check in Web UI | `orc serve` then view Dashboard | Orphaned tasks highlighted with warning |
 
 **The resume command automatically**:

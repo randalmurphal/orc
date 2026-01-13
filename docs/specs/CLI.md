@@ -265,6 +265,38 @@ orc rewind <task-id> --to <phase> [--hard]
 
 ---
 
+### orc reset
+
+Reset a task to initial state for retry.
+
+```bash
+orc reset <task-id> [--force]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--force`, `-f` | Skip confirmation and safety checks |
+
+Clears all execution progress and returns the task to `planned` status. Unlike `rewind` which goes back to a specific checkpoint, `reset` clears everything and starts from scratch.
+
+**Use cases**:
+- Retry a failed task from the beginning
+- Clear a blocked task and try again
+- Restart a paused task from scratch
+
+**Safeguards**:
+- Running tasks require `--force` or must be stopped first
+- Already-planned tasks are ignored (nothing to reset)
+- Confirmation prompt unless `--force` is used
+
+**Examples**:
+```bash
+orc reset TASK-001           # Reset with confirmation
+orc reset TASK-001 --force   # Skip confirmation (for scripts/automation)
+```
+
+---
+
 ### orc skip
 
 Skip a phase (mark as skipped without execution).
