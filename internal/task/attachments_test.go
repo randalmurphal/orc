@@ -100,10 +100,19 @@ func TestListAttachments_WithFiles(t *testing.T) {
 		t.Error("document.pdf not found in attachments")
 	}
 
-	// Check unknown extension
+	// Check unknown extension - may vary by platform
 	if a, ok := attachMap["unknown.xyz"]; ok {
-		if a.ContentType != "application/octet-stream" {
-			t.Errorf("unknown.xyz ContentType = %q, want %q", a.ContentType, "application/octet-stream")
+		// macOS may return "chemical/x-xyz" for .xyz files
+		validTypes := []string{"application/octet-stream", "chemical/x-xyz"}
+		valid := false
+		for _, t := range validTypes {
+			if a.ContentType == t {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			t.Errorf("unknown.xyz ContentType = %q, want one of %v", a.ContentType, validTypes)
 		}
 	} else {
 		t.Error("unknown.xyz not found in attachments")
@@ -322,7 +331,7 @@ func TestDetectContentType(t *testing.T) {
 		{"config.json", []string{"application/json"}},
 		{"config.yaml", []string{"text/yaml", "application/yaml"}},
 		{"config.yml", []string{"text/yaml", "application/yaml"}},
-		{"unknown.xyz", []string{"application/octet-stream"}},
+		{"unknown.xyz", []string{"application/octet-stream", "chemical/x-xyz"}}, // macOS may return chemical/x-xyz
 		{"noextension", []string{"application/octet-stream"}},
 	}
 
