@@ -52,11 +52,21 @@ web/src/
 | Store | Purpose |
 |-------|---------|
 | `tasks` | Global reactive task state, WebSocket updates |
-| `project` | Current project |
+| `project` | Current project selection with persistence |
 | `sidebar` | Collapsed state |
 | `toast` | Notification queue |
 
 **Task store** initialized in `+layout.svelte`, synced via global WebSocket. Pages subscribe for reactive updates.
+
+### Project Selection
+
+Project selection uses a 3-tier fallback system:
+
+1. **localStorage** (`orc_current_project_id`) - User's last selection in this browser
+2. **Server default** (`GET /api/projects/default`) - Global default from `~/.orc/projects.yaml`
+3. **First project** - Falls back to first available project
+
+This allows the server to run from any directory while the UI remembers the user's project choice. Use `setDefaultProject(id)` to persist a default server-side.
 
 ## Keyboard Shortcuts
 

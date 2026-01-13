@@ -122,9 +122,32 @@ Multi-project support via global registry.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/projects` | List registered projects |
+| GET | `/api/projects/default` | Get default project ID |
+| PUT | `/api/projects/default` | Set default project |
 | GET | `/api/projects/:id` | Get project details |
 | GET | `/api/projects/:id/tasks` | List tasks for project |
 | POST | `/api/projects/:id/tasks` | Create task in project |
+
+### Default Project
+
+The default project is used by the web UI when no project is selected in localStorage. Stored in `~/.orc/projects.yaml`.
+
+**Get default project:**
+```json
+// Response
+{"default_project": "abc123"}
+```
+
+**Set default project:**
+```json
+// Request
+{"project_id": "abc123"}
+
+// Response
+{"default_project": "abc123"}
+```
+
+Returns 404 if the specified project doesn't exist.
 
 ### Project Task Operations
 
