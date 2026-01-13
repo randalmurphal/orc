@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 
-	export type TabId = 'timeline' | 'changes' | 'transcript';
+	export type TabId = 'timeline' | 'changes' | 'transcript' | 'comments';
 
 	interface TabConfig {
 		id: TabId;

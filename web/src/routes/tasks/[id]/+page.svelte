@@ -38,7 +38,10 @@
 	import Timeline from '$lib/components/Timeline.svelte';
 	import Transcript from '$lib/components/Transcript.svelte';
 	import DiffViewer from '$lib/components/diff/DiffViewer.svelte';
+	import { TaskCommentsPanel } from '$lib/components/comments';
 	import { currentProjectId } from '$lib/stores/project';
+	import { getTaskCommentStats } from '$lib/api';
+	import type { TaskCommentStats } from '$lib/types';
 
 	let task = $state<Task | null>(null);
 	let taskState = $state<TaskState | null>(null);
@@ -53,6 +56,7 @@
 	let activeTab = $state<TabId>('timeline');
 	let diffStats = $state<DiffStatsResponse | null>(null);
 	let reviewStats = $state<ReviewStatsResponse | null>(null);
+	let commentStats = $state<TaskCommentStats | null>(null);
 
 	const taskId = $derived($page.params.id ?? '');
 	// Subscribe to currentProjectId reactively - use $effect to track changes
@@ -71,7 +75,7 @@
 		// Support old 'review' tab URL by redirecting to 'changes'
 		if (urlTab === 'review') {
 			activeTab = 'changes' as TabId;
-		} else if (urlTab && ['timeline', 'changes', 'transcript'].includes(urlTab)) {
+		} else if (urlTab && ['timeline', 'changes', 'transcript', 'comments'].includes(urlTab)) {
 			activeTab = urlTab as TabId;
 		}
 	});
@@ -113,6 +117,11 @@
 			id: 'transcript' as TabId,
 			label: 'Transcript',
 			badge: null
+		},
+		{
+			id: 'comments' as TabId,
+			label: 'Comments',
+			badge: commentStats?.total_comments ? String(commentStats.total_comments) : null
 		}
 	]);
 
@@ -178,12 +187,14 @@
 
 	async function loadBadgeStats() {
 		// Load stats for tab badges in parallel
-		const [ds, rs] = await Promise.all([
+		const [ds, rs, cs] = await Promise.all([
 			getDiffStats(taskId).catch(() => null),
-			getReviewStats(taskId).catch(() => null)
+			getReviewStats(taskId).catch(() => null),
+			getTaskCommentStats(taskId).catch(() => null)
 		]);
 		diffStats = ds;
 		reviewStats = rs;
+		commentStats = cs;
 	}
 
 	// Track streaming response content for live updates
@@ -508,6 +519,8 @@
 				</div>
 			{:else if activeTab === 'transcript'}
 				<Transcript files={transcriptFiles} taskId={task.id} {streamingContent} />
+			{:else if activeTab === 'comments'}
+				<TaskCommentsPanel taskId={task.id} phases={plan?.phases?.map(p => p.id) ?? []} />
 			{/if}
 		</div>
 	</div>

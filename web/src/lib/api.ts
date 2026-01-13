@@ -1,4 +1,4 @@
-import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary } from './types';
+import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary, TaskComment, CreateTaskCommentRequest, UpdateTaskCommentRequest, TaskCommentStats } from './types';
 
 const API_BASE = '/api';
 
@@ -1031,6 +1031,50 @@ export async function getReviewStats(taskId: string): Promise<ReviewStatsRespons
 			issues: comments.filter((c) => c.severity === 'issue' && c.status === 'open').length,
 			suggestions: comments.filter((c) => c.severity === 'suggestion' && c.status === 'open').length
 		};
+	} catch {
+		return null;
+	}
+}
+
+// Task Comments (general notes/discussion)
+export async function getTaskComments(taskId: string, authorType?: string, phase?: string): Promise<TaskComment[]> {
+	let url = `/tasks/${taskId}/comments`;
+	const params = new URLSearchParams();
+	if (authorType) params.set('author_type', authorType);
+	if (phase) params.set('phase', phase);
+	if (params.toString()) url += `?${params.toString()}`;
+	return fetchJSON<TaskComment[]>(url);
+}
+
+export async function getTaskComment(taskId: string, commentId: string): Promise<TaskComment> {
+	return fetchJSON<TaskComment>(`/tasks/${taskId}/comments/${commentId}`);
+}
+
+export async function createTaskComment(taskId: string, comment: CreateTaskCommentRequest): Promise<TaskComment> {
+	return fetchJSON<TaskComment>(`/tasks/${taskId}/comments`, {
+		method: 'POST',
+		body: JSON.stringify(comment)
+	});
+}
+
+export async function updateTaskComment(taskId: string, commentId: string, update: UpdateTaskCommentRequest): Promise<TaskComment> {
+	return fetchJSON<TaskComment>(`/tasks/${taskId}/comments/${commentId}`, {
+		method: 'PATCH',
+		body: JSON.stringify(update)
+	});
+}
+
+export async function deleteTaskComment(taskId: string, commentId: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/tasks/${taskId}/comments/${commentId}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to delete comment');
+	}
+}
+
+export async function getTaskCommentStats(taskId: string): Promise<TaskCommentStats | null> {
+	try {
+		return await fetchJSON<TaskCommentStats>(`/tasks/${taskId}/comments/stats`);
 	} catch {
 		return null;
 	}
