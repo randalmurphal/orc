@@ -374,14 +374,6 @@
 		font-size: 1rem;
 	}
 
-	.readonly-badge {
-		font-size: 0.75rem;
-		padding: 0.25rem 0.5rem;
-		border-radius: 4px;
-		background: var(--bg-tertiary, #e5e7eb);
-		color: var(--text-secondary);
-	}
-
 	.editor-content {
 		flex: 1;
 		padding: 1rem;
