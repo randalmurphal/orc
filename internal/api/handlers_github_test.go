@@ -891,6 +891,13 @@ func TestHandleAutoFixComment_LoadsPlanAndState(t *testing.T) {
 	srv, taskID, cleanup := setupGitHubTestEnv(t, withReviewComments([]db.ReviewComment{testComment}))
 	defer cleanup()
 
+	// Cancel any running tasks before test ends to avoid cleanup race
+	defer func() {
+		srv.cancelTask(taskID)
+		// Give goroutine time to exit
+		time.Sleep(50 * time.Millisecond)
+	}()
+
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/github/pr/comments/RC-loadtest/autofix", taskID), nil)
 	w := httptest.NewRecorder()
 

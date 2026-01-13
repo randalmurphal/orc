@@ -221,3 +221,37 @@ export interface Attachment {
 	created_at: string;
 	is_image: boolean;
 }
+
+// Task comment types (general notes/discussion, distinct from review comments)
+export type TaskCommentAuthorType = 'human' | 'agent' | 'system';
+
+export interface TaskComment {
+	id: string;
+	task_id: string;
+	author: string;
+	author_type: TaskCommentAuthorType;
+	content: string;
+	phase?: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreateTaskCommentRequest {
+	author?: string;
+	author_type?: TaskCommentAuthorType;
+	content: string;
+	phase?: string;
+}
+
+export interface UpdateTaskCommentRequest {
+	content?: string;
+	phase?: string;
+}
+
+export interface TaskCommentStats {
+	task_id: string;
+	total_comments: number;
+	human_count: number;
+	agent_count: number;
+	system_count: number;
+}

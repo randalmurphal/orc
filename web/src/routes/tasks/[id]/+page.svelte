@@ -39,9 +39,10 @@
 	import Transcript from '$lib/components/Transcript.svelte';
 	import DiffViewer from '$lib/components/diff/DiffViewer.svelte';
 	import Attachments from '$lib/components/task/Attachments.svelte';
+	import { TaskCommentsPanel } from '$lib/components/comments';
 	import { currentProjectId } from '$lib/stores/project';
-	import { listAttachments } from '$lib/api';
-	import type { Attachment } from '$lib/types';
+	import { listAttachments, getTaskCommentStats } from '$lib/api';
+	import type { Attachment, TaskCommentStats } from '$lib/types';
 
 	let task = $state<Task | null>(null);
 	let taskState = $state<TaskState | null>(null);
@@ -57,6 +58,7 @@
 	let diffStats = $state<DiffStatsResponse | null>(null);
 	let reviewStats = $state<ReviewStatsResponse | null>(null);
 	let attachments = $state<Attachment[]>([]);
+	let commentStats = $state<TaskCommentStats | null>(null);
 
 	const taskId = $derived($page.params.id ?? '');
 	// Subscribe to currentProjectId reactively - use $effect to track changes
@@ -75,7 +77,7 @@
 		// Support old 'review' tab URL by redirecting to 'changes'
 		if (urlTab === 'review') {
 			activeTab = 'changes' as TabId;
-		} else if (urlTab && ['timeline', 'changes', 'transcript', 'attachments'].includes(urlTab)) {
+		} else if (urlTab && ['timeline', 'changes', 'transcript', 'attachments', 'comments'].includes(urlTab)) {
 			activeTab = urlTab as TabId;
 		}
 	});
@@ -129,6 +131,11 @@
 			id: 'attachments' as TabId,
 			label: 'Attachments',
 			badge: attachments.length > 0 ? String(attachments.length) : null
+		},
+		{
+			id: 'comments' as TabId,
+			label: 'Comments',
+			badge: commentStats?.total_comments ? String(commentStats.total_comments) : null
 		}
 	]);
 
@@ -194,14 +201,16 @@
 
 	async function loadBadgeStats() {
 		// Load stats for tab badges in parallel
-		const [ds, rs, atts] = await Promise.all([
+		const [ds, rs, atts, cs] = await Promise.all([
 			getDiffStats(taskId).catch(() => null),
 			getReviewStats(taskId).catch(() => null),
-			listAttachments(taskId).catch(() => [])
+			listAttachments(taskId).catch(() => []),
+			getTaskCommentStats(taskId).catch(() => null)
 		]);
 		diffStats = ds;
 		reviewStats = rs;
 		attachments = atts;
+		commentStats = cs;
 	}
 
 	// Track streaming response content for live updates
@@ -530,6 +539,8 @@
 				<div class="attachments-container">
 					<Attachments {taskId} />
 				</div>
+			{:else if activeTab === 'comments'}
+				<TaskCommentsPanel taskId={task.id} phases={plan?.phases?.map(p => p.id) ?? []} />
 			{/if}
 		</div>
 	</div>

@@ -229,6 +229,14 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/tasks/{id}/review/retry", cors(s.handleReviewRetry))
 	s.mux.HandleFunc("GET /api/tasks/{id}/review/stats", cors(s.handleGetReviewStats))
 
+	// Task comments (general notes/discussion)
+	s.mux.HandleFunc("GET /api/tasks/{id}/comments", cors(s.handleListTaskComments))
+	s.mux.HandleFunc("POST /api/tasks/{id}/comments", cors(s.handleCreateTaskComment))
+	s.mux.HandleFunc("GET /api/tasks/{id}/comments/stats", cors(s.handleGetTaskCommentStats))
+	s.mux.HandleFunc("GET /api/tasks/{id}/comments/{commentId}", cors(s.handleGetTaskComment))
+	s.mux.HandleFunc("PATCH /api/tasks/{id}/comments/{commentId}", cors(s.handleUpdateTaskComment))
+	s.mux.HandleFunc("DELETE /api/tasks/{id}/comments/{commentId}", cors(s.handleDeleteTaskComment))
+
 	// GitHub PR integration
 	s.mux.HandleFunc("POST /api/tasks/{id}/github/pr", cors(s.handleCreatePR))
 	s.mux.HandleFunc("GET /api/tasks/{id}/github/pr", cors(s.handleGetPR))
