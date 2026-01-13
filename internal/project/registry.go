@@ -29,7 +29,8 @@ type Project struct {
 
 // Registry holds all registered projects.
 type Registry struct {
-	Projects []Project `yaml:"projects" json:"projects"`
+	Projects       []Project `yaml:"projects" json:"projects"`
+	DefaultProject string    `yaml:"default_project,omitempty" json:"default_project,omitempty"`
 }
 
 // GlobalPath returns the path to the global orc directory.
@@ -215,4 +216,51 @@ func ListProjects() ([]Project, error) {
 		return nil, err
 	}
 	return reg.ValidProjects(), nil
+}
+
+// GetDefault returns the ID of the default project.
+// Returns empty string if no default is set.
+func (r *Registry) GetDefault() string {
+	return r.DefaultProject
+}
+
+// SetDefault sets the default project by ID.
+// Returns an error if the project doesn't exist.
+func (r *Registry) SetDefault(id string) error {
+	// Empty string clears the default
+	if id == "" {
+		r.DefaultProject = ""
+		return nil
+	}
+
+	// Verify the project exists
+	_, err := r.Get(id)
+	if err != nil {
+		return fmt.Errorf("cannot set default: %w", err)
+	}
+	r.DefaultProject = id
+	return nil
+}
+
+// GetDefaultProject is a convenience function to get the default project ID.
+func GetDefaultProject() (string, error) {
+	reg, err := LoadRegistry()
+	if err != nil {
+		return "", err
+	}
+	return reg.GetDefault(), nil
+}
+
+// SetDefaultProject is a convenience function to set the default project.
+func SetDefaultProject(id string) error {
+	reg, err := LoadRegistry()
+	if err != nil {
+		return err
+	}
+
+	if err := reg.SetDefault(id); err != nil {
+		return err
+	}
+
+	return reg.Save()
 }
