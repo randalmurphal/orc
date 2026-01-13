@@ -1,7 +1,0 @@
-id: TASK-031
-title: Provide ability to attach screenshots to new task creations, both in the CLI and the web UI
-weight: medium
-status: planned
-branch: orc/TASK-031
-created_at: 2026-01-13T00:27:39.327680296-06:00
-updated_at: 2026-01-13T00:27:39.333683947-06:00

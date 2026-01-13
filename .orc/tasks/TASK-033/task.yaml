@@ -1,8 +1,0 @@
-id: TASK-033
-title: The project settings or global settings, i should be allowed to modify through the UI
-description: There shouldnt be read-only components in the web UI, if its something that can be properly integrated between web UI and actual state of things then lets do so according to best practices.
-weight: medium
-status: planned
-branch: orc/TASK-033
-created_at: 2026-01-13T00:31:04.386970022-06:00
-updated_at: 2026-01-13T00:31:04.396067661-06:00

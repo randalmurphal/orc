@@ -34,11 +34,9 @@ internal/api/static/
 .orc/orc.db
 
 # orc - Claude Code Task Orchestrator
+# Task runtime state should not be in git - use export/import for sharing
+.orc/tasks/
 .orc/orc.db-journal
 .orc/orc.db-wal
 .orc/orc.db-shm
-
-# Task data - track specs/state, ignore large runtime artifacts
-.orc/tasks/*/transcripts/
-.orc/tasks/*/test-results/
 .mcp.json

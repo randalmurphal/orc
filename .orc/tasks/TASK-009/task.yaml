@@ -1,8 +1,0 @@
-id: TASK-009
-title: Persist selected project in URL/localStorage to survive page refresh
-description: 'When viewing a project other than the server''s default, refreshing the page should keep you on that project - not revert to the server''s startup directory. Options: 1) Store projectId in URL params (?project=xxx), 2) Store in localStorage, 3) Both (URL takes precedence). Should also update browser history so back button works.'
-weight: medium
-status: planned
-branch: orc/TASK-009
-created_at: 2026-01-12T20:53:46.985242358-06:00
-updated_at: 2026-01-12T20:53:46.994199667-06:00

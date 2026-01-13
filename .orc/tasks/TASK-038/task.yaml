@@ -1,7 +1,0 @@
-id: TASK-038
-title: When something goes back to the implement phase, there should be an audit trail that explains the progress made on the ticket, with clickable items that will take you to relevant context if thats available and something that makes sense, otherwise it should just show the text display if theres nothing that it makes sense that a link will be taking you to somewhere.
-weight: medium
-status: planned
-branch: orc/TASK-038
-created_at: 2026-01-13T00:38:11.019772039-06:00
-updated_at: 2026-01-13T00:38:11.026019806-06:00

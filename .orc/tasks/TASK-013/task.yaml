@@ -1,8 +1,0 @@
-id: TASK-013
-title: Add timeout and progress indication for long-running Claude API calls
-description: 'Task phases can take 20+ minutes with no visible progress when Claude API is slow. Need: 1) Configurable timeout for API calls with graceful handling, 2) Periodic progress dots or heartbeat in streaming output, 3) Better indication of what''s happening (waiting for API, running tools, etc.), 4) Option to cancel long-running requests. Current behavior leaves user wondering if process is stuck.'
-weight: medium
-status: planned
-branch: orc/TASK-013
-created_at: 2026-01-12T21:05:32.97494202-06:00
-updated_at: 2026-01-12T21:05:32.981035936-06:00

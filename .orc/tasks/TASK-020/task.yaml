@@ -1,9 +1,0 @@
-id: TASK-020
-title: Add task attachments and image support
-description: 'Enable storing attachments (images, files) in task folders. Structure: .orc/tasks/TASK-XXX/attachments/. API endpoints: POST /api/tasks/{id}/attachments, GET /api/tasks/{id}/attachments, GET /api/tasks/{id}/attachments/{filename}. Web UI: render images inline in task detail view, show attachment list. This is foundational for screenshot capture during testing.'
-weight: large
-status: failed
-branch: orc/TASK-020
-created_at: 2026-01-12T22:08:45.520109753-06:00
-updated_at: 2026-01-12T23:17:52.913683386-06:00
-started_at: 2026-01-12T22:14:28.05973455-06:00
