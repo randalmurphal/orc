@@ -247,6 +247,7 @@ Patterns, gotchas, and decisions learned during development.
 ### Known Gotchas
 | Issue | Resolution | Source |
 |-------|------------|--------|
+| PR labels in config don't exist on repo | Orc warns and creates PR without labels (graceful degradation) | TASK-015 |
 
 ### Decisions
 | Decision | Rationale | Source |
