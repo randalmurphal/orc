@@ -319,6 +319,14 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 		output, err = e.runGH(ctx, args...)
 	}
 	if err != nil {
+		if isAuthError(err) {
+			return fmt.Errorf("%w: %v\n\n"+
+				"  To fix this, run:\n"+
+				"    gh auth login\n\n"+
+				"  Then retry with:\n"+
+				"    orc resume %s",
+				ErrGHNotAuthenticated, err, t.ID)
+		}
 		return fmt.Errorf("create PR: %w", err)
 	}
 
@@ -339,7 +347,13 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 	// Enable auto-merge if configured
 	if cfg.PR.AutoMerge && prURL != "" {
 		if _, err := e.runGH(ctx, "pr", "merge", prURL, "--auto", "--squash"); err != nil {
-			e.logger.Warn("failed to enable auto-merge", "error", err)
+			if isAuthError(err) {
+				e.logger.Warn("failed to enable auto-merge due to auth issue",
+					"error", err,
+					"hint", "run 'gh auth login' to fix")
+			} else {
+				e.logger.Warn("failed to enable auto-merge", "error", err)
+			}
 		} else {
 			e.logger.Info("enabled auto-merge", "task", t.ID)
 		}
@@ -385,6 +399,30 @@ func isLabelError(err error) bool {
 	errStr := strings.ToLower(err.Error())
 	return strings.Contains(errStr, "label") &&
 		(strings.Contains(errStr, "not found") || strings.Contains(errStr, "could not add"))
+}
+
+// ErrGHNotAuthenticated is returned when gh CLI is not authenticated.
+var ErrGHNotAuthenticated = errors.New("GitHub CLI not authenticated")
+
+// isAuthError checks if an error is related to gh CLI authentication.
+// Common patterns:
+// - "gh: not logged in" (older gh versions)
+// - "not authenticated" (from CheckGHAuth)
+// - "authentication required"
+// - "failed to authenticate"
+// - "401" or "Unauthorized"
+func isAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	return strings.Contains(errStr, "not logged in") ||
+		strings.Contains(errStr, "not authenticated") ||
+		strings.Contains(errStr, "authentication required") ||
+		strings.Contains(errStr, "failed to authenticate") ||
+		strings.Contains(errStr, "401") ||
+		strings.Contains(errStr, "unauthorized") ||
+		strings.Contains(errStr, "auth token")
 }
 
 // runGH executes a gh CLI command.

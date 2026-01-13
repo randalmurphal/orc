@@ -193,3 +193,97 @@ func TestSyncPhaseConstants(t *testing.T) {
 		t.Errorf("SyncPhaseCompletion = %s, want 'completion'", SyncPhaseCompletion)
 	}
 }
+
+func TestIsAuthError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "not logged in",
+			err:      errors.New("gh: not logged in"),
+			expected: true,
+		},
+		{
+			name:     "not authenticated",
+			err:      errors.New("gh not authenticated: You are not logged into any GitHub hosts"),
+			expected: true,
+		},
+		{
+			name:     "authentication required",
+			err:      errors.New("authentication required"),
+			expected: true,
+		},
+		{
+			name:     "failed to authenticate",
+			err:      errors.New("failed to authenticate with GitHub"),
+			expected: true,
+		},
+		{
+			name:     "401 unauthorized",
+			err:      errors.New("HTTP 401: Unauthorized"),
+			expected: true,
+		},
+		{
+			name:     "lowercase unauthorized",
+			err:      errors.New("request unauthorized"),
+			expected: true,
+		},
+		{
+			name:     "auth token error",
+			err:      errors.New("invalid auth token"),
+			expected: true,
+		},
+		{
+			name:     "unrelated error",
+			err:      errors.New("network timeout"),
+			expected: false,
+		},
+		{
+			name:     "label error is not auth",
+			err:      errors.New("could not add label: automated not found"),
+			expected: false,
+		},
+		{
+			name:     "branch not found",
+			err:      errors.New("branch not found: feature-branch"),
+			expected: false,
+		},
+		{
+			name:     "repository not found",
+			err:      errors.New("repository not found"),
+			expected: false,
+		},
+		{
+			name:     "generic error",
+			err:      errors.New("exit status 1"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isAuthError(tt.err)
+			if got != tt.expected {
+				t.Errorf("isAuthError(%v) = %v, want %v", tt.err, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestErrGHNotAuthenticated(t *testing.T) {
+	// ErrGHNotAuthenticated should be defined and usable
+	if ErrGHNotAuthenticated == nil {
+		t.Error("ErrGHNotAuthenticated should not be nil")
+	}
+	if ErrGHNotAuthenticated.Error() != "GitHub CLI not authenticated" {
+		t.Errorf("ErrGHNotAuthenticated.Error() = %s, want 'GitHub CLI not authenticated'",
+			ErrGHNotAuthenticated.Error())
+	}
+}
