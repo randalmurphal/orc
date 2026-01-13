@@ -844,6 +844,36 @@ func TestListTasksEndpoint_EmptyDir(t *testing.T) {
 	}
 }
 
+// TestListTasksEndpoint_NoOrcDir tests that the API returns an empty list
+// when started from a directory that is not an orc project (no .orc directory).
+// This is the fix for the issue where the server breaks when started from a
+// different directory than the project.
+func TestListTasksEndpoint_NoOrcDir(t *testing.T) {
+	// Create a temp dir that is NOT an orc project (no .orc)
+	tmpDir := t.TempDir()
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	req := httptest.NewRequest("GET", "/api/tasks", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	// Should return 200 OK with empty list, not error
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var tasks []task.Task
+	if err := json.NewDecoder(w.Body).Decode(&tasks); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(tasks) != 0 {
+		t.Errorf("expected 0 tasks, got %d", len(tasks))
+	}
+}
+
 func TestListTasksEndpoint_WithTasks(t *testing.T) {
 	tmpDir := t.TempDir()
 
