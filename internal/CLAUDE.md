@@ -25,7 +25,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `prompt/` | Prompt template management | `Service` |
 | `state/` | Execution state persistence | `State` |
 | `storage/` | Storage backend abstraction layer | `Backend`, `HybridBackend`, `ExportService` |
-| `task/` | Task model and YAML persistence | `Task`, `Store` |
+| `task/` | Task model, YAML persistence, attachments | `Task`, `Store`, `Attachment` |
 | `setup/` | Claude-powered interactive setup | `Run`, `Spawner`, `Validator` |
 | `template/` | Go template rendering | `Engine` |
 | `tokenpool/` | OAuth token pool for rate limit failover | `Pool`, `Account` |
@@ -138,7 +138,7 @@ func TestSomething(t *testing.T) {
 
 | Package | Functions |
 |---------|-----------|
-| `task` | `LoadFrom(projectDir, id)`, `LoadAllFrom(tasksDir)`, `TaskDirIn(projectDir, id)`, `ExistsIn(projectDir, id)`, `DeleteIn(projectDir, id)`, `NextIDIn(tasksDir)` |
+| `task` | `LoadFrom(projectDir, id)`, `LoadAllFrom(tasksDir)`, `TaskDirIn(projectDir, id)`, `ExistsIn(projectDir, id)`, `DeleteIn(projectDir, id)`, `NextIDIn(tasksDir)`, `ListAttachments(taskDir)`, `SaveAttachment(taskDir, filename, reader)`, `GetAttachment(taskDir, filename)`, `DeleteAttachment(taskDir, filename)` |
 | `state` | `LoadFrom(projectDir, taskID)`, `LoadAllStatesFrom(projectDir)` |
 | `plan` | `LoadFrom(projectDir, taskID)` |
 | `config` | `InitAt(basePath, force)`, `IsInitializedAt(basePath)`, `RequireInitAt(basePath)` |
