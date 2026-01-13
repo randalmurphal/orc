@@ -1,8 +1,8 @@
 # Project Detection
 
-**Status**: Planning
+**Status**: Implemented
 **Priority**: P1
-**Last Updated**: 2026-01-10
+**Last Updated**: 2026-01-12
 
 ---
 
@@ -77,7 +77,38 @@ Automatically detect project type and configure orc accordingly:
 | `sqlalchemy` in requirements | SQLAlchemy |
 | `pytest` in dev-dependencies | pytest |
 
-### 3. Tool Detection
+### 3. Frontend Detection
+
+Orc auto-detects frontend projects to enable Playwright testing recommendations.
+
+| Signal | Detection Method |
+|--------|------------------|
+| Frontend frameworks | React, Vue, Svelte, Angular, Next.js in dependencies |
+| Frontend directories | `web/`, `frontend/`, `client/`, `src/components/`, `src/pages/` |
+| Frontend files | `*.tsx`, `*.jsx`, `*.vue`, `*.svelte` in detected directories |
+
+The `has_frontend` field in `Detection` is set to `true` if any of these signals are detected.
+
+**Effect on `orc init`:**
+
+When `has_frontend: true`, the init output recommends installing the Playwright plugin:
+
+```
+Claude Code plugins (run once in Claude Code):
+  /plugin marketplace add randalmurphal/orc-claude-plugin
+  /plugin install orc@orc
+  /plugin install playwright@claude-plugins-official  # Frontend detected
+```
+
+**Effect on task creation:**
+
+When a task is created with UI-related keywords and the project `has_frontend: true`:
+- `requires_ui_testing` is set to `true`
+- `testing_requirements.e2e` is set to `true`
+
+---
+
+### 4. Tool Detection
 
 | Indicator | Tool |
 |-----------|------|
@@ -110,6 +141,8 @@ type ProjectInfo struct {
     HasDocker    bool     `yaml:"has_docker"`
     HasCI        bool     `yaml:"has_ci"`
     CIProvider   string   `yaml:"ci_provider"`   // "github", "gitlab"
+    HasTests     bool     `yaml:"has_tests"`
+    HasFrontend  bool     `yaml:"has_frontend"`  // Frontend project detected
 
     // Monorepo
     IsMonorepo   bool     `yaml:"is_monorepo"`
@@ -117,6 +150,9 @@ type ProjectInfo struct {
 
     // Confidence
     Confidence   float64  `yaml:"confidence"`    // 0.0-1.0
+
+    // Suggested skills
+    SuggestedSkills []string `yaml:"suggested_skills,omitempty"`
 }
 ```
 

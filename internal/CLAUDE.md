@@ -12,7 +12,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `claude/` | Re-exports llmkit/claudeconfig types | `Settings`, `Skill` |
 | `config/` | Configuration loading, hierarchy, env vars | `Config`, `TrackedConfig`, `ConfigSource` |
 | `db/` | SQLite persistence (global + project) | `GlobalDB`, `ProjectDB`, `Transcript` |
-| `detect/` | Project type detection | `Detector` |
+| `detect/` | Project type, framework, and frontend detection | `Detection`, `Detect()` |
 | `enhance/` | Task enhancement via AI | `Enhancer` |
 | `errors/` | Custom error types | `OrcError` |
 | `events/` | Event publishing for real-time updates | `Publisher`, `Event` |
@@ -25,7 +25,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `prompt/` | Prompt template management | `Service` |
 | `state/` | Execution state persistence | `State` |
 | `storage/` | Storage backend abstraction layer | `Backend`, `HybridBackend`, `ExportService` |
-| `task/` | Task model, YAML persistence, attachments | `Task`, `Store`, `Attachment` |
+| `task/` | Task model, YAML persistence, attachments, testing requirements | `Task`, `TestingRequirements`, `Store`, `Attachment` |
 | `setup/` | Claude-powered interactive setup | `Run`, `Spawner`, `Validator` |
 | `template/` | Go template rendering | `Engine` |
 | `tokenpool/` | OAuth token pool for rate limit failover | `Pool`, `Account` |
