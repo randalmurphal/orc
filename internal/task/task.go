@@ -32,6 +32,21 @@ const (
 	WeightGreenfield Weight = "greenfield"
 )
 
+// ValidWeights returns all valid weight values.
+func ValidWeights() []Weight {
+	return []Weight{WeightTrivial, WeightSmall, WeightMedium, WeightLarge, WeightGreenfield}
+}
+
+// IsValidWeight returns true if the weight is a valid weight value.
+func IsValidWeight(w Weight) bool {
+	switch w {
+	case WeightTrivial, WeightSmall, WeightMedium, WeightLarge, WeightGreenfield:
+		return true
+	default:
+		return false
+	}
+}
+
 // Status represents the current state of a task.
 type Status string
 
