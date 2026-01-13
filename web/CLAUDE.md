@@ -17,11 +17,13 @@ Svelte 5 SvelteKit application for the orc web UI.
 web/src/
 ├── lib/
 │   ├── components/
+│   │   ├── comments/     # TaskCommentsPanel, TaskCommentThread, TaskCommentForm
 │   │   ├── dashboard/    # Stats, actions, activity
 │   │   ├── diff/         # DiffViewer, DiffFile, DiffHunk, VirtualScroller
 │   │   ├── kanban/       # Board, Column, TaskCard
 │   │   ├── layout/       # Header, Sidebar
 │   │   ├── overlays/     # Modal, CommandPalette
+│   │   ├── review/       # CommentForm, CommentThread, ReviewPanel
 │   │   ├── task/         # TaskHeader, Timeline, Transcript, RetryPanel, Attachments
 │   │   └── ui/           # Icon, StatusIndicator, Toast
 │   ├── stores/           # tasks.ts, project.ts, sidebar.ts, toast.svelte.ts
@@ -41,6 +43,8 @@ web/src/
 | Task | TaskCard, Timeline, Transcript, TaskHeader, PRActions, Attachments | Task detail |
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
 | Kanban | Board, Column, TaskCard, ConfirmModal | Board view |
+| Comments | TaskCommentsPanel, TaskCommentThread, TaskCommentForm | Task discussion notes |
+| Review | CommentForm, CommentThread, ReviewPanel, ReviewSummary | Code review comments |
 | UI | Icon (34 icons), StatusIndicator, Toast, Modal | Shared components |
 
 ## State Management

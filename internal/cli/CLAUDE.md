@@ -16,7 +16,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `template.go` | CLI output templates |
 | `errors.go` | CLI error types and formatting |
 
-### Command Files (23 total)
+### Command Files (24 total)
 
 | File | Command | Description |
 |------|---------|-------------|
@@ -46,6 +46,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_export.go` | `orc import <file>` | Import task from YAML file |
 | `cmd_initiative.go` | `orc initiative [subcommand]` | Manage initiatives (grouped tasks) |
 | `cmd_knowledge.go` | `orc knowledge [subcommand]` | Manage project knowledge |
+| `cmd_comment.go` | `orc comment [subcommand]` | Manage task comments and notes |
 
 ## Command Structure
 
