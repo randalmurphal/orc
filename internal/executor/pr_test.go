@@ -173,3 +173,23 @@ func TestIsLabelError(t *testing.T) {
 		})
 	}
 }
+
+func TestErrSyncConflict(t *testing.T) {
+	// ErrSyncConflict should be defined and usable
+	if ErrSyncConflict == nil {
+		t.Error("ErrSyncConflict should not be nil")
+	}
+	if ErrSyncConflict.Error() != "sync conflict detected" {
+		t.Errorf("ErrSyncConflict.Error() = %s, want 'sync conflict detected'", ErrSyncConflict.Error())
+	}
+}
+
+func TestSyncPhaseConstants(t *testing.T) {
+	// Verify sync phase constants are defined
+	if SyncPhaseStart != "start" {
+		t.Errorf("SyncPhaseStart = %s, want 'start'", SyncPhaseStart)
+	}
+	if SyncPhaseCompletion != "completion" {
+		t.Errorf("SyncPhaseCompletion = %s, want 'completion'", SyncPhaseCompletion)
+	}
+}

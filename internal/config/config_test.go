@@ -548,3 +548,172 @@ func TestDefault_PlanConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestDefault_SyncConfig(t *testing.T) {
+	cfg := Default()
+
+	// Strategy should default to completion
+	if cfg.Completion.Sync.Strategy != SyncStrategyCompletion {
+		t.Errorf("Completion.Sync.Strategy = %s, want completion", cfg.Completion.Sync.Strategy)
+	}
+
+	// FailOnConflict should default to true
+	if !cfg.Completion.Sync.FailOnConflict {
+		t.Error("Completion.Sync.FailOnConflict should default to true")
+	}
+
+	// MaxConflictFiles should default to 0 (unlimited)
+	if cfg.Completion.Sync.MaxConflictFiles != 0 {
+		t.Errorf("Completion.Sync.MaxConflictFiles = %d, want 0", cfg.Completion.Sync.MaxConflictFiles)
+	}
+
+	// SkipForWeights should include trivial
+	if len(cfg.Completion.Sync.SkipForWeights) == 0 {
+		t.Fatal("Completion.Sync.SkipForWeights should not be empty")
+	}
+	if cfg.Completion.Sync.SkipForWeights[0] != "trivial" {
+		t.Errorf("Completion.Sync.SkipForWeights[0] = %s, want trivial", cfg.Completion.Sync.SkipForWeights[0])
+	}
+}
+
+func TestShouldSyncForWeight(t *testing.T) {
+	cfg := Default()
+
+	// Should sync for medium weight
+	if !cfg.ShouldSyncForWeight("medium") {
+		t.Error("ShouldSyncForWeight(medium) should return true")
+	}
+
+	// Should not sync for trivial weight (in skip list)
+	if cfg.ShouldSyncForWeight("trivial") {
+		t.Error("ShouldSyncForWeight(trivial) should return false")
+	}
+
+	// Should sync for large weight
+	if !cfg.ShouldSyncForWeight("large") {
+		t.Error("ShouldSyncForWeight(large) should return true")
+	}
+}
+
+func TestShouldSyncForWeight_StrategyNone(t *testing.T) {
+	cfg := Default()
+	cfg.Completion.Sync.Strategy = SyncStrategyNone
+
+	// Should not sync for any weight when strategy is none
+	if cfg.ShouldSyncForWeight("medium") {
+		t.Error("ShouldSyncForWeight should return false when strategy is none")
+	}
+	if cfg.ShouldSyncForWeight("large") {
+		t.Error("ShouldSyncForWeight should return false when strategy is none")
+	}
+}
+
+func TestShouldSyncBeforePhase(t *testing.T) {
+	tests := []struct {
+		strategy SyncStrategy
+		expected bool
+	}{
+		{SyncStrategyNone, false},
+		{SyncStrategyPhase, true},
+		{SyncStrategyCompletion, false},
+		{SyncStrategyDetect, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.strategy), func(t *testing.T) {
+			cfg := Default()
+			cfg.Completion.Sync.Strategy = tt.strategy
+
+			got := cfg.ShouldSyncBeforePhase()
+			if got != tt.expected {
+				t.Errorf("ShouldSyncBeforePhase() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestShouldSyncAtCompletion(t *testing.T) {
+	tests := []struct {
+		strategy SyncStrategy
+		expected bool
+	}{
+		{SyncStrategyNone, false},
+		{SyncStrategyPhase, false},
+		{SyncStrategyCompletion, true},
+		{SyncStrategyDetect, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.strategy), func(t *testing.T) {
+			cfg := Default()
+			cfg.Completion.Sync.Strategy = tt.strategy
+
+			got := cfg.ShouldSyncAtCompletion()
+			if got != tt.expected {
+				t.Errorf("ShouldSyncAtCompletion() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestShouldDetectConflictsOnly(t *testing.T) {
+	tests := []struct {
+		strategy SyncStrategy
+		expected bool
+	}{
+		{SyncStrategyNone, false},
+		{SyncStrategyPhase, false},
+		{SyncStrategyCompletion, false},
+		{SyncStrategyDetect, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.strategy), func(t *testing.T) {
+			cfg := Default()
+			cfg.Completion.Sync.Strategy = tt.strategy
+
+			got := cfg.ShouldDetectConflictsOnly()
+			if got != tt.expected {
+				t.Errorf("ShouldDetectConflictsOnly() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestValidate_InvalidSyncStrategy(t *testing.T) {
+	cfg := Default()
+	cfg.Completion.Sync.Strategy = "invalid"
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Error("Validate() should fail for invalid sync strategy")
+	}
+	if err != nil && !contains([]string{"completion.sync.strategy"}, "completion.sync.strategy") {
+		// Just check error is returned
+		t.Logf("Got expected error: %v", err)
+	}
+}
+
+func TestValidate_ValidSyncStrategies(t *testing.T) {
+	strategies := []SyncStrategy{
+		SyncStrategyNone,
+		SyncStrategyPhase,
+		SyncStrategyCompletion,
+		SyncStrategyDetect,
+		"", // empty should be valid
+	}
+
+	for _, strategy := range strategies {
+		t.Run(string(strategy), func(t *testing.T) {
+			cfg := Default()
+			cfg.Completion.Sync.Strategy = strategy
+
+			// The config has worktree.enabled = true by default which is required
+			// so we shouldn't get a validation error for sync strategy
+			err := cfg.Validate()
+			if err != nil {
+				t.Errorf("Validate() should succeed for strategy %q, got: %v", strategy, err)
+			}
+		})
+	}
+}

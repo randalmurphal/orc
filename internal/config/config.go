@@ -105,6 +105,35 @@ type PRConfig struct {
 	AutoMerge bool `yaml:"auto_merge"`
 }
 
+// SyncStrategy defines when to sync task branch with target.
+type SyncStrategy string
+
+const (
+	// SyncStrategyNone disables automatic sync
+	SyncStrategyNone SyncStrategy = "none"
+	// SyncStrategyPhase syncs at the start of each phase
+	SyncStrategyPhase SyncStrategy = "phase"
+	// SyncStrategyCompletion syncs only at task completion (before PR)
+	SyncStrategyCompletion SyncStrategy = "completion"
+	// SyncStrategyDetect only detects conflicts without resolving (fail-fast)
+	SyncStrategyDetect SyncStrategy = "detect"
+)
+
+// SyncConfig defines branch synchronization settings.
+type SyncConfig struct {
+	// Strategy defines when to sync: none, phase, completion, detect (default: completion)
+	Strategy SyncStrategy `yaml:"strategy"`
+
+	// FailOnConflict aborts execution on merge conflicts instead of attempting resolution (default: true)
+	FailOnConflict bool `yaml:"fail_on_conflict"`
+
+	// MaxConflictFiles is the max files with conflicts before aborting (0 = unlimited)
+	MaxConflictFiles int `yaml:"max_conflict_files"`
+
+	// SkipForWeights skips sync for these task weights
+	SkipForWeights []string `yaml:"skip_for_weights,omitempty"`
+}
+
 // CompletionConfig defines task completion behavior.
 type CompletionConfig struct {
 	// Action defines what happens on completion: "pr", "merge", "none" (default: "pr")
@@ -118,6 +147,9 @@ type CompletionConfig struct {
 
 	// PR settings (used when Action is "pr")
 	PR PRConfig `yaml:"pr"`
+
+	// Sync settings for branch synchronization
+	Sync SyncConfig `yaml:"sync"`
 
 	// WeightActions allows per-weight action overrides
 	// e.g., {"trivial": "none", "small": "merge"}
@@ -623,6 +655,12 @@ func Default() *Config {
 				Labels:       []string{"automated"},
 				AutoMerge:    true,
 			},
+			Sync: SyncConfig{
+				Strategy:       SyncStrategyCompletion, // Sync before PR creation by default
+				FailOnConflict: true,                   // Fail on conflicts by default - let user decide resolution
+				MaxConflictFiles: 0,                    // No limit by default
+				SkipForWeights:   []string{"trivial"},  // Skip sync for trivial tasks
+			},
 			// Safety defaults: use PR workflow for protected branches
 			// Direct merge is blocked for protected branches (main, master, develop, release)
 			WeightActions: map[string]string{
@@ -943,6 +981,35 @@ func (c *Config) ShouldSkipReview() bool {
 	return !c.Review.Enabled
 }
 
+// ShouldSyncForWeight returns true if sync should be performed for this weight.
+func (c *Config) ShouldSyncForWeight(weight string) bool {
+	if c.Completion.Sync.Strategy == SyncStrategyNone {
+		return false
+	}
+	for _, w := range c.Completion.Sync.SkipForWeights {
+		if w == weight {
+			return false
+		}
+	}
+	return true
+}
+
+// ShouldSyncBeforePhase returns true if sync should happen before each phase.
+func (c *Config) ShouldSyncBeforePhase() bool {
+	return c.Completion.Sync.Strategy == SyncStrategyPhase
+}
+
+// ShouldSyncAtCompletion returns true if sync should happen at task completion.
+func (c *Config) ShouldSyncAtCompletion() bool {
+	return c.Completion.Sync.Strategy == SyncStrategyCompletion ||
+		c.Completion.Sync.Strategy == SyncStrategyDetect
+}
+
+// ShouldDetectConflictsOnly returns true if we should only detect conflicts, not resolve.
+func (c *Config) ShouldDetectConflictsOnly() bool {
+	return c.Completion.Sync.Strategy == SyncStrategyDetect
+}
+
 // DSN returns the database connection string based on current config.
 func (c *Config) DSN() string {
 	if c.Database.Driver == "postgres" {
@@ -977,6 +1044,15 @@ var (
 	// ValidCompletionActions are the allowed values for completion.action
 	ValidCompletionActions = []string{"pr", "merge", "none", ""}
 
+	// ValidSyncStrategies are the allowed values for completion.sync.strategy
+	ValidSyncStrategies = []string{
+		string(SyncStrategyNone),
+		string(SyncStrategyPhase),
+		string(SyncStrategyCompletion),
+		string(SyncStrategyDetect),
+		"", // empty defaults to completion
+	}
+
 	// DefaultProtectedBranches are branches that cannot be directly merged to
 	DefaultProtectedBranches = []string{"main", "master", "develop", "release"}
 )
@@ -996,6 +1072,12 @@ func (c *Config) Validate() error {
 	if c.Completion.Action != "" && !contains(ValidCompletionActions, c.Completion.Action) {
 		return fmt.Errorf("invalid completion.action: %s (must be one of: pr, merge, none)",
 			c.Completion.Action)
+	}
+
+	// Validate sync strategy
+	if !contains(ValidSyncStrategies, string(c.Completion.Sync.Strategy)) {
+		return fmt.Errorf("invalid completion.sync.strategy: %s (must be one of: none, phase, completion, detect)",
+			c.Completion.Sync.Strategy)
 	}
 
 	// SAFETY: Block "merge" action when target is a protected branch
