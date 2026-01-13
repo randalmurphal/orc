@@ -16,6 +16,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -51,6 +52,10 @@ type Watcher struct {
 	// Content hashing to detect meaningful changes
 	hashes   map[string]string
 	hashesMu sync.RWMutex
+
+	// Task weight tracking for detecting weight changes
+	weights   map[string]task.Weight
+	weightsMu sync.RWMutex
 
 	// Lifecycle
 	done chan struct{}
@@ -94,6 +99,7 @@ func New(cfg *Config) (*Watcher, error) {
 		logger:    logger,
 		fsWatcher: fsWatcher,
 		hashes:    make(map[string]string),
+		weights:   make(map[string]task.Weight),
 		done:      make(chan struct{}),
 	}
 
@@ -291,6 +297,7 @@ func (w *Watcher) handleDebouncedEvent(taskID string, fileType FileType, path st
 }
 
 // publishTaskEvent publishes a task created or updated event.
+// It also detects weight changes and triggers plan regeneration.
 func (w *Watcher) publishTaskEvent(taskID string) {
 	// Load the task to get current data
 	t, err := task.LoadFrom(w.workDir, taskID)
@@ -306,13 +313,84 @@ func (w *Watcher) publishTaskEvent(taskID string) {
 	var eventType events.EventType
 	if isNew {
 		eventType = events.EventTaskCreated
+		// Record initial weight for new tasks
+		w.setWeight(taskID, t.Weight)
 	} else {
 		eventType = events.EventTaskUpdated
+
+		// Check for weight change and regenerate plan if needed
+		if oldWeight, hasOldWeight := w.getWeight(taskID); hasOldWeight {
+			if oldWeight != t.Weight {
+				w.logger.Info("task weight changed",
+					"taskID", taskID,
+					"oldWeight", oldWeight,
+					"newWeight", t.Weight,
+				)
+
+				// Only regenerate if task is not running
+				if t.Status != task.StatusRunning {
+					// Check if plan already matches new weight (API/CLI already regenerated)
+					existingPlan, err := plan.LoadFrom(w.workDir, taskID)
+					if err == nil && existingPlan.Weight == t.Weight {
+						w.logger.Debug("plan already matches new weight, skipping regeneration",
+							"taskID", taskID,
+						)
+					} else {
+						// Plan doesn't exist or has wrong weight - regenerate
+						result, err := plan.RegeneratePlanForTask(w.workDir, t)
+						if err != nil {
+							w.logger.Error("failed to regenerate plan for weight change",
+								"taskID", taskID,
+								"error", err,
+							)
+						} else {
+							w.logger.Info("plan regenerated for weight change",
+								"taskID", taskID,
+								"preservedPhases", result.PreservedPhases,
+								"resetPhases", result.ResetPhases,
+							)
+						}
+					}
+				} else {
+					w.logger.Warn("skipping plan regeneration for running task",
+						"taskID", taskID,
+					)
+				}
+
+				// Update tracked weight
+				w.setWeight(taskID, t.Weight)
+			}
+		} else {
+			// First time seeing this task, record weight
+			w.setWeight(taskID, t.Weight)
+		}
 	}
 
 	w.publisher.Publish(events.NewEvent(eventType, taskID, map[string]any{
 		"task": t,
 	}))
+}
+
+// getWeight returns the tracked weight for a task.
+func (w *Watcher) getWeight(taskID string) (task.Weight, bool) {
+	w.weightsMu.RLock()
+	defer w.weightsMu.RUnlock()
+	weight, ok := w.weights[taskID]
+	return weight, ok
+}
+
+// setWeight updates the tracked weight for a task.
+func (w *Watcher) setWeight(taskID string, weight task.Weight) {
+	w.weightsMu.Lock()
+	defer w.weightsMu.Unlock()
+	w.weights[taskID] = weight
+}
+
+// removeWeight removes the tracked weight for a task.
+func (w *Watcher) removeWeight(taskID string) {
+	w.weightsMu.Lock()
+	defer w.weightsMu.Unlock()
+	delete(w.weights, taskID)
 }
 
 // publishStateEvent publishes a state update event.
@@ -333,6 +411,9 @@ func (w *Watcher) publishStateEvent(taskID string) {
 
 // publishTaskDeleted publishes a task deleted event.
 func (w *Watcher) publishTaskDeleted(taskID string) {
+	// Clean up weight tracking for deleted task
+	w.removeWeight(taskID)
+
 	w.publisher.Publish(events.NewEvent(events.EventTaskDeleted, taskID, map[string]any{
 		"task_id": taskID,
 	}))

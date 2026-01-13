@@ -19,7 +19,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `executor/` | Phase execution engine | `Executor`, `Result` |
 | `gate/` | Quality gates and approval workflow | `Gate`, `Evaluator` |
 | `git/` | Git operations, worktrees | `Git`, `Checkpoint` |
-| `plan/` | Plan generation from templates | `Plan`, `Phase` |
+| `plan/` | Plan generation, regeneration on weight change | `Plan`, `Phase`, `RegeneratePlan` |
 | `progress/` | Progress tracking and display | `Tracker` |
 | `project/` | Multi-project registry | `Registry`, `Project` |
 | `prompt/` | Prompt template management | `Service` |
@@ -144,7 +144,7 @@ func TestSomething(t *testing.T) {
 |---------|-----------|
 | `task` | `LoadFrom(projectDir, id)`, `LoadAllFrom(tasksDir)`, `TaskDirIn(projectDir, id)`, `ExistsIn(projectDir, id)`, `DeleteIn(projectDir, id)`, `NextIDIn(tasksDir)`, `ListAttachments(taskDir)`, `SaveAttachment(taskDir, filename, reader)`, `GetAttachment(taskDir, filename)`, `DeleteAttachment(taskDir, filename)` |
 | `state` | `LoadFrom(projectDir, taskID)`, `LoadAllStatesFrom(projectDir)` |
-| `plan` | `LoadFrom(projectDir, taskID)` |
+| `plan` | `LoadFrom(projectDir, taskID)`, `RegeneratePlanForTask(projectDir, task)` |
 | `config` | `InitAt(basePath, force)`, `IsInitializedAt(basePath)`, `RequireInitAt(basePath)` |
 | `template` | `SaveTo(baseDir)`, `ListFrom(projectTemplatesDir)` |
 

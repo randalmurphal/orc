@@ -152,7 +152,7 @@ orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>]
 | `--description`, `-d` | New task description | |
 | `--weight`, `-w` | New weight (trivial/small/medium/large/greenfield) | Triggers plan regeneration |
 
-Weight changes regenerate the task plan with phases appropriate for the new weight. This resets all phase progress and requires the task to not be running.
+Weight changes regenerate the task plan with phases appropriate for the new weight. Completed/skipped phases that exist in both the old and new plans retain their status. Requires the task to not be running.
 
 **Examples**:
 ```bash
