@@ -472,3 +472,41 @@ func TestNextIDIn_SkipsNonMatching(t *testing.T) {
 		t.Errorf("NextIDIn() = %s, want TASK-002", id)
 	}
 }
+
+func TestIsValidWeight(t *testing.T) {
+	tests := []struct {
+		weight Weight
+		valid  bool
+	}{
+		{WeightTrivial, true},
+		{WeightSmall, true},
+		{WeightMedium, true},
+		{WeightLarge, true},
+		{WeightGreenfield, true},
+		{Weight("invalid"), false},
+		{Weight(""), false},
+		{Weight("huge"), false},
+		{Weight("LARGE"), false}, // case-sensitive
+	}
+
+	for _, tt := range tests {
+		if got := IsValidWeight(tt.weight); got != tt.valid {
+			t.Errorf("IsValidWeight(%q) = %v, want %v", tt.weight, got, tt.valid)
+		}
+	}
+}
+
+func TestValidWeights(t *testing.T) {
+	weights := ValidWeights()
+
+	if len(weights) != 5 {
+		t.Errorf("ValidWeights() returned %d weights, want 5", len(weights))
+	}
+
+	expected := []Weight{WeightTrivial, WeightSmall, WeightMedium, WeightLarge, WeightGreenfield}
+	for i, w := range expected {
+		if weights[i] != w {
+			t.Errorf("ValidWeights()[%d] = %s, want %s", i, weights[i], w)
+		}
+	}
+}
