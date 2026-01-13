@@ -300,6 +300,35 @@ grep "Duration:" .orc/tasks/TASK-XXX/transcripts/*.md
 
 ---
 
+## PR Creation Issues
+
+### Missing Labels Warning
+
+**Symptoms**:
+```
+WARN PR labels not found on repository, creating PR without labels
+```
+
+**Cause**: The configured `completion.pr.labels` reference labels that don't exist on the GitHub repository.
+
+**Behavior**: Orc gracefully handles this by:
+1. Detecting the label error from GitHub CLI
+2. Logging a warning
+3. Retrying PR creation without labels
+4. PR is created successfully without the missing labels
+
+**Solutions**:
+
+| Approach | Action |
+|----------|--------|
+| Create missing labels | Go to GitHub repo → Issues → Labels → New label |
+| Remove from config | Edit `completion.pr.labels` in `.orc/config.yaml` |
+| Ignore warning | No action needed - PR creation succeeds without labels |
+
+**Note**: This is informational only. The PR will be created successfully; labels are simply omitted when they don't exist on the repository.
+
+---
+
 ## Log Locations
 
 | File | Purpose |
