@@ -119,6 +119,17 @@ func (c *Client) Repo() string {
 	return c.repo
 }
 
+// isLabelError checks if an error is related to missing labels.
+// GitHub CLI returns errors like "could not add label: <name> not found".
+func isLabelError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	return strings.Contains(errStr, "label") &&
+		(strings.Contains(errStr, "not found") || strings.Contains(errStr, "could not add"))
+}
+
 // runGH executes a gh command and returns output.
 func (c *Client) runGH(ctx context.Context, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "gh", args...)
@@ -148,7 +159,8 @@ func (c *Client) CreatePR(ctx context.Context, opts PRCreateOptions) (*PR, error
 		args = append(args, "--draft")
 	}
 
-	for _, label := range opts.Labels {
+	labels := opts.Labels
+	for _, label := range labels {
 		args = append(args, "--label", label)
 	}
 
@@ -157,6 +169,28 @@ func (c *Client) CreatePR(ctx context.Context, opts PRCreateOptions) (*PR, error
 	}
 
 	output, err := c.runGH(ctx, args...)
+	if err != nil && len(labels) > 0 && isLabelError(err) {
+		// Labels failed - retry without labels
+		slog.Warn("PR labels not found on repository, creating PR without labels",
+			"labels", labels,
+			"error", err)
+
+		// Rebuild args without labels
+		args = []string{"pr", "create",
+			"--title", opts.Title,
+			"--body", opts.Body,
+			"--head", opts.Head,
+			"--base", opts.Base,
+		}
+		if opts.Draft {
+			args = append(args, "--draft")
+		}
+		for _, reviewer := range opts.Reviewers {
+			args = append(args, "--reviewer", reviewer)
+		}
+
+		output, err = c.runGH(ctx, args...)
+	}
 	if err != nil {
 		return nil, err
 	}

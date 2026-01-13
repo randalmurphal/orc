@@ -162,7 +162,8 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 	}
 
 	// Add labels
-	for _, label := range cfg.PR.Labels {
+	labels := cfg.PR.Labels
+	for _, label := range labels {
 		args = append(args, "--label", label)
 	}
 
@@ -178,6 +179,28 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 
 	// Run gh CLI
 	output, err := e.runGH(ctx, args...)
+	if err != nil && len(labels) > 0 && isLabelError(err) {
+		// Labels failed - retry without labels
+		e.logger.Warn("PR labels not found on repository, creating PR without labels",
+			"labels", labels,
+			"error", err)
+
+		// Rebuild args without labels
+		args = []string{"pr", "create",
+			"--title", title,
+			"--body", body,
+			"--base", cfg.TargetBranch,
+			"--head", taskBranch,
+		}
+		for _, reviewer := range cfg.PR.Reviewers {
+			args = append(args, "--reviewer", reviewer)
+		}
+		if cfg.PR.Draft {
+			args = append(args, "--draft")
+		}
+
+		output, err = e.runGH(ctx, args...)
+	}
 	if err != nil {
 		return fmt.Errorf("create PR: %w", err)
 	}
@@ -234,6 +257,17 @@ func (e *Executor) buildPRBody(t *task.Task) string {
 	sb.WriteString("*Created by [orc](https://github.com/randalmurphal/orc)*\n")
 
 	return sb.String()
+}
+
+// isLabelError checks if an error is related to missing labels.
+// GitHub CLI returns errors like "could not add label: <name> not found".
+func isLabelError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	return strings.Contains(errStr, "label") &&
+		(strings.Contains(errStr, "not found") || strings.Contains(errStr, "could not add"))
 }
 
 // runGH executes a gh CLI command.
