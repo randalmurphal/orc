@@ -53,6 +53,23 @@ const columns = [
 - Running/paused/blocked with phase → Column matching current phase
 - Completed/failed → Done (regardless of phase)
 
+### Task Organization (Queue & Priority)
+
+Tasks within each column are organized by:
+1. **Queue**: Active tasks shown first, backlog tasks in collapsible section
+2. **Priority**: Within each queue section, sorted by priority (critical → high → normal → low)
+
+```typescript
+// Sort order implementation
+const PRIORITY_ORDER = { critical: 0, high: 1, normal: 2, low: 3 };
+
+// Filter and sort tasks for a column
+const activeTasks = tasks.filter(t => t.queue !== 'backlog')
+  .sort((a, b) => PRIORITY_ORDER[a.priority || 'normal'] - PRIORITY_ORDER[b.priority || 'normal']);
+const backlogTasks = tasks.filter(t => t.queue === 'backlog')
+  .sort((a, b) => PRIORITY_ORDER[a.priority || 'normal'] - PRIORITY_ORDER[b.priority || 'normal']);
+```
+
 ### Drag-Drop Confirmation
 
 | Drop Action | Confirmation |

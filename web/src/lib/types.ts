@@ -2,6 +2,8 @@
 export type TaskWeight = 'trivial' | 'small' | 'medium' | 'large' | 'greenfield';
 export type TaskStatus = 'created' | 'classifying' | 'planned' | 'running' | 'paused' | 'blocked' | 'completed' | 'failed';
 export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+export type TaskQueue = 'active' | 'backlog';
+export type TaskPriority = 'critical' | 'high' | 'normal' | 'low';
 
 export interface Task {
 	id: string;
@@ -11,12 +13,30 @@ export interface Task {
 	status: TaskStatus;
 	current_phase?: string;
 	branch: string;
+	queue?: TaskQueue;
+	priority?: TaskPriority;
 	created_at: string;
 	updated_at: string;
 	started_at?: string;
 	completed_at?: string;
 	metadata?: Record<string, string>;
 }
+
+// Priority sort order (lower = higher priority)
+export const PRIORITY_ORDER: Record<TaskPriority, number> = {
+	critical: 0,
+	high: 1,
+	normal: 2,
+	low: 3
+};
+
+// Priority display labels and colors
+export const PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: string }> = {
+	critical: { label: 'Critical', color: 'var(--status-error)' },
+	high: { label: 'High', color: 'var(--status-warning)' },
+	normal: { label: 'Normal', color: 'var(--text-muted)' },
+	low: { label: 'Low', color: 'var(--text-muted)' }
+};
 
 export interface Phase {
 	id: string;

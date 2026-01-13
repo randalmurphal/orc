@@ -53,6 +53,8 @@ export interface UpdateTaskRequest {
 	title?: string;
 	description?: string;
 	weight?: string;
+	queue?: string;
+	priority?: string;
 	metadata?: Record<string, string>;
 }
 

@@ -364,10 +364,12 @@
 		editModalOpen = true;
 	}
 
-	async function handleSaveEdit(update: { title?: string; description?: string; weight?: string }) {
+	async function handleSaveEdit(update: { title?: string; description?: string; weight?: string; queue?: string; priority?: string }) {
 		if (!task) return;
 		const updatedTask = await updateTask(task.id, update);
 		task = updatedTask;
+		// Also update the global store so other components reflect the change
+		updateTaskInStore(task.id, updatedTask);
 	}
 </script>
 

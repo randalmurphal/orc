@@ -62,6 +62,76 @@ const (
 	StatusFailed      Status = "failed"
 )
 
+// Queue represents whether a task is in the active work queue or backlog.
+type Queue string
+
+const (
+	// QueueActive indicates tasks in the current work queue (shown on board).
+	QueueActive Queue = "active"
+	// QueueBacklog indicates tasks for later (hidden by default, shown in backlog section).
+	QueueBacklog Queue = "backlog"
+)
+
+// ValidQueues returns all valid queue values.
+func ValidQueues() []Queue {
+	return []Queue{QueueActive, QueueBacklog}
+}
+
+// IsValidQueue returns true if the queue is a valid queue value.
+func IsValidQueue(q Queue) bool {
+	switch q {
+	case QueueActive, QueueBacklog:
+		return true
+	default:
+		return false
+	}
+}
+
+// Priority represents the urgency/importance of a task.
+type Priority string
+
+const (
+	// PriorityCritical indicates urgent tasks that need immediate attention.
+	PriorityCritical Priority = "critical"
+	// PriorityHigh indicates important tasks that should be done soon.
+	PriorityHigh Priority = "high"
+	// PriorityNormal indicates regular tasks (default).
+	PriorityNormal Priority = "normal"
+	// PriorityLow indicates tasks that can wait.
+	PriorityLow Priority = "low"
+)
+
+// ValidPriorities returns all valid priority values.
+func ValidPriorities() []Priority {
+	return []Priority{PriorityCritical, PriorityHigh, PriorityNormal, PriorityLow}
+}
+
+// IsValidPriority returns true if the priority is a valid priority value.
+func IsValidPriority(p Priority) bool {
+	switch p {
+	case PriorityCritical, PriorityHigh, PriorityNormal, PriorityLow:
+		return true
+	default:
+		return false
+	}
+}
+
+// PriorityOrder returns a numeric value for sorting (lower = higher priority).
+func PriorityOrder(p Priority) int {
+	switch p {
+	case PriorityCritical:
+		return 0
+	case PriorityHigh:
+		return 1
+	case PriorityNormal:
+		return 2
+	case PriorityLow:
+		return 3
+	default:
+		return 2 // Default to normal
+	}
+}
+
 // TestingRequirements specifies what types of testing are needed for a task.
 type TestingRequirements struct {
 	// Unit indicates if unit tests are required
@@ -95,6 +165,14 @@ type Task struct {
 	// Branch is the git branch for this task (e.g., orc/TASK-001)
 	Branch string `yaml:"branch" json:"branch"`
 
+	// Queue indicates whether the task is in the active work queue or backlog.
+	// Active tasks are shown on the board, backlog tasks are hidden by default.
+	Queue Queue `yaml:"queue,omitempty" json:"queue,omitempty"`
+
+	// Priority indicates the urgency/importance of the task.
+	// Higher priority tasks are shown first within their column.
+	Priority Priority `yaml:"priority,omitempty" json:"priority,omitempty"`
+
 	// RequiresUITesting indicates if this task involves UI changes
 	// that should be validated with Playwright or similar tools
 	RequiresUITesting bool `yaml:"requires_ui_testing,omitempty" json:"requires_ui_testing,omitempty"`
@@ -126,10 +204,43 @@ func New(id, title string) *Task {
 		Title:     title,
 		Status:    StatusCreated,
 		Branch:    "orc/" + id,
+		Queue:     QueueActive,
+		Priority:  PriorityNormal,
 		CreatedAt: now,
 		UpdatedAt: now,
 		Metadata:  make(map[string]string),
 	}
+}
+
+// GetQueue returns the task's queue, defaulting to active if not set.
+func (t *Task) GetQueue() Queue {
+	if t.Queue == "" {
+		return QueueActive
+	}
+	return t.Queue
+}
+
+// GetPriority returns the task's priority, defaulting to normal if not set.
+func (t *Task) GetPriority() Priority {
+	if t.Priority == "" {
+		return PriorityNormal
+	}
+	return t.Priority
+}
+
+// IsBacklog returns true if the task is in the backlog queue.
+func (t *Task) IsBacklog() bool {
+	return t.GetQueue() == QueueBacklog
+}
+
+// MoveToBacklog moves the task to the backlog queue.
+func (t *Task) MoveToBacklog() {
+	t.Queue = QueueBacklog
+}
+
+// MoveToActive moves the task to the active queue.
+func (t *Task) MoveToActive() {
+	t.Queue = QueueActive
 }
 
 // IsTerminal returns true if the task is in a terminal state.

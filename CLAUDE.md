@@ -45,6 +45,27 @@ Commands: `/orc:init`, `/orc:status`, `/orc:continue`, `/orc:review`, `/orc:qa`,
 
 ## Task Execution Model
 
+### Task Organization
+
+Tasks support queue and priority organization to prevent cognitive overload:
+
+| Property | Values | Purpose |
+|----------|--------|---------|
+| Queue | `active`, `backlog` | Separates current work from "someday" items |
+| Priority | `critical`, `high`, `normal`, `low` | Urgency within a queue |
+
+**Queues:**
+- **Active** (default): Current work shown on the board
+- **Backlog**: Deferred tasks, collapsed by default in each column
+
+**Priorities:**
+- **Critical**: Urgent, needs immediate attention (pulsing indicator)
+- **High**: Important, should be done soon
+- **Normal**: Default priority
+- **Low**: Can wait
+
+Tasks are sorted by priority within each column. Higher priority tasks appear first.
+
 ### Weight Classification
 
 | Weight | Phases | Use Case |

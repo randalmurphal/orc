@@ -77,6 +77,7 @@ Embedded via `//go:embed schema/*.sql`:
 | `schema/project_006.sql` | Knowledge queue (patterns, gotchas, decisions) |
 | `schema/project_007.sql` | Knowledge validation tracking (staleness) |
 | `schema/project_008.sql` | Task comments (human/agent/system notes) |
+| `schema/project_009.sql` | Task queue (backlog/active) and priority fields |
 
 ## Usage
 
