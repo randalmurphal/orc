@@ -144,6 +144,48 @@ func TestFindClaudeInCommonLocations_NoMatch(t *testing.T) {
 	}
 }
 
+func TestFindClaudeInCommonLocations_SkipsNonExecutable(t *testing.T) {
+	// Create a temp directory with a non-executable file
+	tmpDir := t.TempDir()
+	nonExecFile := filepath.Join(tmpDir, "claude")
+
+	// Create file WITHOUT executable permission (0644)
+	if err := os.WriteFile(nonExecFile, []byte("#!/bin/sh\necho fake"), 0644); err != nil {
+		t.Fatalf("failed to create non-exec file: %v", err)
+	}
+
+	// Save original and replace with test location
+	originalLocations := commonClaudeLocations
+	commonClaudeLocations = []string{nonExecFile}
+	defer func() { commonClaudeLocations = originalLocations }()
+
+	result := findClaudeInCommonLocations()
+	if result != "" {
+		t.Errorf("findClaudeInCommonLocations() = %q, want empty (file not executable)", result)
+	}
+}
+
+func TestFindClaudeInCommonLocations_SkipsDirectories(t *testing.T) {
+	// Create a directory named "claude" (edge case: something might create a dir with this name)
+	tmpDir := t.TempDir()
+	claudeDir := filepath.Join(tmpDir, "claude")
+
+	// Create directory with executable permission
+	if err := os.MkdirAll(claudeDir, 0755); err != nil {
+		t.Fatalf("failed to create directory: %v", err)
+	}
+
+	// Save original and replace with test location
+	originalLocations := commonClaudeLocations
+	commonClaudeLocations = []string{claudeDir}
+	defer func() { commonClaudeLocations = originalLocations }()
+
+	result := findClaudeInCommonLocations()
+	if result != "" {
+		t.Errorf("findClaudeInCommonLocations() = %q, want empty (directory should be skipped)", result)
+	}
+}
+
 func TestResolveClaudePath_WithCommonLocations(t *testing.T) {
 	// Test that resolveClaudePath falls back to common locations
 	// when PATH lookup fails
