@@ -395,3 +395,80 @@ func TestLoadNonExistentTask(t *testing.T) {
 		t.Error("LoadFrom() should return error for non-existent task")
 	}
 }
+
+func TestReset(t *testing.T) {
+	s := New("TASK-001")
+
+	// Set up a task with various state
+	s.StartPhase("spec")
+	s.CompletePhase("spec", "abc123")
+	s.StartPhase("implement")
+	s.FailPhase("implement", &testError{"implementation failed"})
+	s.AddTokens(1000, 500)
+	s.RecordGateDecision("spec", "ai", true, "approved")
+	s.SetRetryContext("implement", "spec", "retry", "output", 1)
+	s.StartExecution(12345, "testhost")
+
+	// Verify pre-conditions
+	if s.Status != StatusFailed {
+		t.Errorf("Pre-reset status = %s, want %s", s.Status, StatusFailed)
+	}
+	if s.CurrentPhase != "implement" {
+		t.Errorf("Pre-reset CurrentPhase = %s, want implement", s.CurrentPhase)
+	}
+	if s.Execution == nil {
+		t.Error("Pre-reset Execution should not be nil")
+	}
+
+	// Reset the state
+	s.Reset()
+
+	// Verify state is reset
+	if s.Status != StatusPending {
+		t.Errorf("Status = %s, want %s", s.Status, StatusPending)
+	}
+
+	if s.CurrentPhase != "" {
+		t.Errorf("CurrentPhase = %s, want empty", s.CurrentPhase)
+	}
+
+	if s.CurrentIteration != 0 {
+		t.Errorf("CurrentIteration = %d, want 0", s.CurrentIteration)
+	}
+
+	if s.CompletedAt != nil {
+		t.Error("CompletedAt should be nil after reset")
+	}
+
+	if s.Error != "" {
+		t.Errorf("Error = %s, want empty", s.Error)
+	}
+
+	if s.RetryContext != nil {
+		t.Error("RetryContext should be nil after reset")
+	}
+
+	if s.Execution != nil {
+		t.Error("Execution should be nil after reset")
+	}
+
+	if s.Session != nil {
+		t.Error("Session should be nil after reset")
+	}
+
+	if s.Gates != nil {
+		t.Error("Gates should be nil after reset")
+	}
+
+	// Verify all phases are reset to pending
+	for phaseID, ps := range s.Phases {
+		if ps.Status != StatusPending {
+			t.Errorf("Phase %s status = %s, want %s", phaseID, ps.Status, StatusPending)
+		}
+	}
+
+	// Token counts are preserved (historical data)
+	if s.Tokens.TotalTokens != 1500 {
+		t.Errorf("TotalTokens = %d, want 1500 (should preserve historical data)", s.Tokens.TotalTokens)
+	}
+}

@@ -354,6 +354,31 @@ func (s *State) ClearRetryContext() {
 	s.UpdatedAt = time.Now()
 }
 
+// Reset resets the entire state back to initial pending state.
+// All phase progress, execution info, errors, and retry context are cleared.
+func (s *State) Reset() {
+	now := time.Now()
+
+	// Clear all phase states
+	for phaseID := range s.Phases {
+		s.Phases[phaseID] = &PhaseState{
+			Status: StatusPending,
+		}
+	}
+
+	// Reset to initial state
+	s.Status = StatusPending
+	s.CurrentPhase = ""
+	s.CurrentIteration = 0
+	s.CompletedAt = nil
+	s.Error = ""
+	s.RetryContext = nil
+	s.Execution = nil
+	s.Session = nil
+	s.Gates = nil
+	s.UpdatedAt = now
+}
+
 // GetRetryContext returns the current retry context.
 func (s *State) GetRetryContext() *RetryContext {
 	return s.RetryContext
