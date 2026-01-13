@@ -294,6 +294,52 @@ orc run TASK-001 --continue
 
 ---
 
+## Cross-Phase Retry
+
+When a later phase fails (e.g., tests fail), orc can automatically retry from an earlier phase with context about what went wrong.
+
+### Retry Flow
+
+```
+implement → test (FAIL) → implement (retry with failure context) → test (PASS)
+```
+
+### Configuration
+
+```yaml
+# .orc/config.yaml
+retry:
+  enabled: true
+  retry_map:
+    test: implement      # If test fails, retry from implement
+    validate: implement  # If validate fails, retry from implement
+
+executor:
+  max_retries: 5         # Max retry attempts per phase (default: 5)
+```
+
+The `executor.max_retries` setting controls how many times orc will retry before giving up. The default is 5 attempts.
+
+**Environment variable**: `ORC_EXECUTOR_MAX_RETRIES`
+
+### Retry Context
+
+When retrying, the phase receives a `{{RETRY_CONTEXT}}` template variable containing:
+- Which phase failed and why
+- The failure output (test errors, validation messages)
+- Attempt number
+
+This helps Claude understand what needs fixing.
+
+### Retry Limits
+
+| Setting | Location | Default | Description |
+|---------|----------|---------|-------------|
+| `executor.max_retries` | config.yaml | 5 | Primary setting for retry limit |
+| `retry.max_retries` | config.yaml | 5 | Deprecated, use `executor.max_retries` |
+
+---
+
 ## Transcript Storage
 
 ```
