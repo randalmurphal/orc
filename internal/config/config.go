@@ -186,6 +186,12 @@ type ExecutionConfig struct {
 	// Only applicable when UseSessionExecution is true with FullExecutor.
 	// Default: 1 for large/greenfield tasks, 0 for others
 	CheckpointInterval int `yaml:"checkpoint_interval"`
+
+	// MaxRetries is the maximum number of retry attempts when a phase fails.
+	// When a phase fails (e.g., tests fail), orc will retry from an earlier phase
+	// up to this many times before giving up.
+	// Default: 5
+	MaxRetries int `yaml:"max_retries"`
 }
 
 // PoolConfig defines token pool settings for automatic account switching.
@@ -625,12 +631,12 @@ func Default() *Config {
 			DefaultType:          "auto",
 			AutoApproveOnSuccess: true,
 			RetryOnFailure:       true,
-			MaxRetries:           2,
+			MaxRetries:           5,
 			// No phase or weight overrides by default - everything is auto
 		},
 		Retry: RetryConfig{
 			Enabled:    true,
-			MaxRetries: 2,
+			MaxRetries: 5,
 			// Default retry map: if test fails, go back to implement
 			RetryMap: map[string]string{
 				"test":      "implement",
@@ -671,7 +677,8 @@ func Default() *Config {
 		Execution: ExecutionConfig{
 			UseSessionExecution: false, // Default to flowgraph for compatibility
 			SessionPersistence:  true,
-			CheckpointInterval:  0, // Default to phase-complete only
+			CheckpointInterval:  0,  // Default to phase-complete only
+			MaxRetries:          5,  // Default retry limit for phase failures
 		},
 		Pool: PoolConfig{
 			Enabled:    false, // Disabled by default
@@ -795,12 +802,12 @@ func Default() *Config {
 func ProfilePresets(profile AutomationProfile) GateConfig {
 	switch profile {
 	case ProfileFast:
-		// Fast: everything auto, no AI review
+		// Fast: everything auto, no AI review, fewer retries for speed
 		return GateConfig{
 			DefaultType:          "auto",
 			AutoApproveOnSuccess: true,
 			RetryOnFailure:       true,
-			MaxRetries:           1,
+			MaxRetries:           2,
 		}
 	case ProfileSafe:
 		// Safe: AI reviews, human only for merge
@@ -808,7 +815,7 @@ func ProfilePresets(profile AutomationProfile) GateConfig {
 			DefaultType:          "auto",
 			AutoApproveOnSuccess: true,
 			RetryOnFailure:       true,
-			MaxRetries:           2,
+			MaxRetries:           5,
 			PhaseOverrides: map[string]string{
 				"review": "ai",
 				"merge":  "human",
@@ -820,7 +827,7 @@ func ProfilePresets(profile AutomationProfile) GateConfig {
 			DefaultType:          "auto",
 			AutoApproveOnSuccess: true,
 			RetryOnFailure:       true,
-			MaxRetries:           3,
+			MaxRetries:           5,
 			PhaseOverrides: map[string]string{
 				"spec":     "human",
 				"design":   "human",
@@ -835,7 +842,7 @@ func ProfilePresets(profile AutomationProfile) GateConfig {
 			DefaultType:          "auto",
 			AutoApproveOnSuccess: true,
 			RetryOnFailure:       true,
-			MaxRetries:           2,
+			MaxRetries:           5,
 		}
 	}
 }
@@ -979,6 +986,23 @@ func (c *Config) ShouldSkipQA(weight string) bool {
 // ShouldSkipReview returns true if review should be skipped.
 func (c *Config) ShouldSkipReview() bool {
 	return !c.Review.Enabled
+}
+
+// EffectiveMaxRetries returns the configured maximum retry attempts.
+// This checks executor.max_retries first (the primary config location),
+// then falls back to retry.max_retries for backward compatibility.
+// Returns 5 (the default) if neither is explicitly set.
+func (c *Config) EffectiveMaxRetries() int {
+	// executor.max_retries takes precedence
+	if c.Execution.MaxRetries > 0 {
+		return c.Execution.MaxRetries
+	}
+	// Fall back to retry.max_retries for backward compatibility
+	if c.Retry.MaxRetries > 0 {
+		return c.Retry.MaxRetries
+	}
+	// Default to 5
+	return 5
 }
 
 // ShouldSyncForWeight returns true if sync should be performed for this weight.

@@ -16,7 +16,7 @@ import (
 // Default retry constants
 const (
 	// DefaultMaxRetries is the default maximum number of retries per phase
-	DefaultMaxRetries = 2
+	DefaultMaxRetries = 5
 )
 
 // DefaultRetryMap returns the default mapping of failed phases to retry phases.

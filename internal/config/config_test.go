@@ -717,3 +717,76 @@ func TestValidate_ValidSyncStrategies(t *testing.T) {
 		})
 	}
 }
+
+func TestDefault_ExecutorMaxRetries(t *testing.T) {
+	cfg := Default()
+
+	// Default max retries should be 5
+	if cfg.Execution.MaxRetries != 5 {
+		t.Errorf("Execution.MaxRetries = %d, want 5", cfg.Execution.MaxRetries)
+	}
+}
+
+func TestEffectiveMaxRetries(t *testing.T) {
+	tests := []struct {
+		name            string
+		executorRetries int
+		retryMaxRetries int
+		expectedRetries int
+	}{
+		{
+			name:            "executor.max_retries takes precedence",
+			executorRetries: 3,
+			retryMaxRetries: 2,
+			expectedRetries: 3,
+		},
+		{
+			name:            "falls back to retry.max_retries when executor is 0",
+			executorRetries: 0,
+			retryMaxRetries: 4,
+			expectedRetries: 4,
+		},
+		{
+			name:            "returns default 5 when both are 0",
+			executorRetries: 0,
+			retryMaxRetries: 0,
+			expectedRetries: 5,
+		},
+		{
+			name:            "executor.max_retries of 1 is used",
+			executorRetries: 1,
+			retryMaxRetries: 10,
+			expectedRetries: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				Execution: ExecutionConfig{
+					MaxRetries: tt.executorRetries,
+				},
+				Retry: RetryConfig{
+					MaxRetries: tt.retryMaxRetries,
+				},
+			}
+
+			result := cfg.EffectiveMaxRetries()
+			if result != tt.expectedRetries {
+				t.Errorf("EffectiveMaxRetries() = %d, want %d", result, tt.expectedRetries)
+			}
+		})
+	}
+}
+
+func TestDefault_RetryAndGatesMaxRetries(t *testing.T) {
+	cfg := Default()
+
+	// All retry-related defaults should be 5
+	if cfg.Retry.MaxRetries != 5 {
+		t.Errorf("Retry.MaxRetries = %d, want 5", cfg.Retry.MaxRetries)
+	}
+	if cfg.Gates.MaxRetries != 5 {
+		t.Errorf("Gates.MaxRetries = %d, want 5", cfg.Gates.MaxRetries)
+	}
+}

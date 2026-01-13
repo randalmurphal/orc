@@ -42,13 +42,13 @@ func TestGetScreenshotDir(t *testing.T) {
 			name:       "current directory",
 			projectDir: ".",
 			taskID:     "TASK-001",
-			want:       filepath.Join(".", ".orc", "tasks", "TASK-001", "attachments"),
+			want:       filepath.Join(".", ".orc", "tasks", "TASK-001", "test-results", "screenshots"),
 		},
 		{
 			name:       "absolute path",
 			projectDir: "/home/user/project",
 			taskID:     "TASK-123",
-			want:       filepath.Join("/home/user/project", ".orc", "tasks", "TASK-123", "attachments"),
+			want:       filepath.Join("/home/user/project", ".orc", "tasks", "TASK-123", "test-results", "screenshots"),
 		},
 	}
 

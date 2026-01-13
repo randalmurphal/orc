@@ -475,11 +475,14 @@ func getConfigDocs() []ConfigDoc {
 		{Key: "gates.default_type", Type: "string", Default: "auto", EnvVar: "ORC_GATES_DEFAULT", Description: "Default gate type (auto, ai, human)", Category: "Gates"},
 		{Key: "gates.auto_approve_on_success", Type: "bool", Default: "true", EnvVar: "", Description: "Auto-approve gates when phase succeeds", Category: "Gates"},
 		{Key: "gates.retry_on_failure", Type: "bool", Default: "true", EnvVar: "", Description: "Retry when AI gate fails", Category: "Gates"},
-		{Key: "gates.max_retries", Type: "int", Default: "2", EnvVar: "", Description: "Max AI gate retries", Category: "Gates"},
+		{Key: "gates.max_retries", Type: "int", Default: "5", EnvVar: "ORC_GATES_MAX_RETRIES", Description: "Max AI gate retries", Category: "Gates"},
 
 		// Retry
 		{Key: "retry.enabled", Type: "bool", Default: "true", EnvVar: "ORC_RETRY_ENABLED", Description: "Enable cross-phase retry", Category: "Retry"},
-		{Key: "retry.max_retries", Type: "int", Default: "3", EnvVar: "ORC_RETRY_MAX", Description: "Max retry attempts", Category: "Retry"},
+		{Key: "retry.max_retries", Type: "int", Default: "5", EnvVar: "ORC_RETRY_MAX_RETRIES", Description: "Max retry attempts (deprecated: use executor.max_retries)", Category: "Retry"},
+
+		// Execution
+		{Key: "executor.max_retries", Type: "int", Default: "5", EnvVar: "ORC_EXECUTOR_MAX_RETRIES", Description: "Max retry attempts when a phase fails", Category: "Execution"},
 
 		// Worktree
 		{Key: "worktree.enabled", Type: "bool", Default: "true", EnvVar: "ORC_WORKTREE_ENABLED", Description: "Enable git worktree isolation", Category: "Worktree"},
