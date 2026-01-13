@@ -2,10 +2,12 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -36,10 +38,15 @@ Automation profiles control gate behavior:
   safe   - AI reviews, human approval only for merge
   strict - Human gates on spec/review/merge
 
+Artifact detection:
+  When artifacts from previous runs exist (e.g., spec.md), orc will prompt
+  whether to skip that phase. Use --auto-skip to skip automatically.
+
 Example:
   orc run TASK-001
   orc run TASK-001 --profile safe
-  orc run TASK-001 --phase implement  # run specific phase`,
+  orc run TASK-001 --auto-skip         # skip phases with existing artifacts
+  orc run TASK-001 --phase implement   # run specific phase`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -107,6 +114,70 @@ Example:
 				cfg.ApplyProfile(config.AutomationProfile(profile))
 			}
 
+			// Handle artifact detection and skip prompting
+			autoSkip, _ := cmd.Flags().GetBool("auto-skip")
+			if cfg.ArtifactSkip.Enabled {
+				// Override config with flag if specified
+				if autoSkip {
+					cfg.ArtifactSkip.AutoSkip = true
+				}
+
+				// Detect artifacts and prompt/skip as appropriate
+				taskDir := task.TaskDir(id)
+				detector := executor.NewArtifactDetectorWithDir(taskDir, id, t.Weight)
+
+				// Get phase IDs from plan
+				phaseIDs := make([]string, len(p.Phases))
+				for i, phase := range p.Phases {
+					phaseIDs[i] = phase.ID
+				}
+
+				// Check each configured phase for artifacts
+				for _, phaseID := range cfg.ArtifactSkip.Phases {
+					// Skip if phase not in plan or already completed
+					if !containsPhase(phaseIDs, phaseID) || s.IsPhaseCompleted(phaseID) {
+						continue
+					}
+
+					status := detector.DetectPhaseArtifacts(phaseID)
+					if status.HasArtifacts && status.CanAutoSkip {
+						shouldSkip := cfg.ArtifactSkip.AutoSkip
+
+						if !shouldSkip && !quiet {
+							// Prompt user
+							fmt.Printf("\n📄 %s already exists. Skip %s phase? [Y/n]: ",
+								strings.Join(status.Artifacts, ", "), phaseID)
+							reader := bufio.NewReader(os.Stdin)
+							input, _ := reader.ReadString('\n')
+							input = strings.TrimSpace(strings.ToLower(input))
+							shouldSkip = input == "" || input == "y" || input == "yes"
+						}
+
+						if shouldSkip {
+							reason := fmt.Sprintf("artifact exists: %s", status.Description)
+							s.SkipPhase(phaseID, reason)
+
+							// Also update plan status
+							if phase := p.GetPhase(phaseID); phase != nil {
+								phase.Status = plan.PhaseSkipped
+							}
+
+							if !quiet {
+								fmt.Printf("⊘ Skipping %s phase: %s\n", phaseID, reason)
+							}
+						}
+					}
+				}
+
+				// Save state and plan if any phases were skipped
+				if err := s.Save(); err != nil {
+					return fmt.Errorf("save state after artifact skip: %w", err)
+				}
+				if err := p.Save(id); err != nil {
+					return fmt.Errorf("save plan after artifact skip: %w", err)
+				}
+			}
+
 			// Set up signal handling for graceful shutdown
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -158,5 +229,16 @@ Example:
 	cmd.Flags().StringP("profile", "p", "", "automation profile (auto, fast, safe, strict)")
 	cmd.Flags().Bool("continue", false, "continue from last checkpoint")
 	cmd.Flags().Bool("stream", false, "stream Claude transcript to stdout")
+	cmd.Flags().Bool("auto-skip", false, "automatically skip phases with existing artifacts")
 	return cmd
+}
+
+// containsPhase checks if a phase ID is in the list.
+func containsPhase(phases []string, phaseID string) bool {
+	for _, p := range phases {
+		if p == phaseID {
+			return true
+		}
+	}
+	return false
 }
