@@ -12,7 +12,7 @@ const (
 	ClaudeSettingsFile = ".claude/settings.json"
 
 	// OrcMarketplace is the GitHub repo for the orc marketplace.
-	OrcMarketplace = "randalmurphal/orc"
+	OrcMarketplace = "randalmurphal/orc-claude-plugin"
 
 	// OrcPluginName is the name of the orc plugin.
 	OrcPluginName = "orc"

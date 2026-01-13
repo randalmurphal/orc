@@ -225,7 +225,7 @@ func PrintResult(r *Result) {
 	}
 	fmt.Printf("  Config: %s\n", r.ConfigPath)
 	fmt.Printf("\nClaude Code plugin (run once in Claude Code):\n")
-	fmt.Printf("  /plugin marketplace add randalmurphal/orc\n")
+	fmt.Printf("  /plugin marketplace add randalmurphal/orc-claude-plugin\n")
 	fmt.Printf("  /plugin install orc@orc\n")
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  orc new \"task description\"  # Create a new task\n")
