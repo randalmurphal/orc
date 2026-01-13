@@ -419,14 +419,36 @@ Rewinds to phase start and pauses.
 Show task transcripts.
 
 ```bash
-orc log <task-id> [--phase <phase>] [--tail <n>] [--follow]
+orc log <task-id> [--phase <phase>] [--tail <n>] [--follow] [--list] [--all]
 ```
 
-| Option | Description |
-|--------|-------------|
-| `--phase`, `-p` | Specific phase |
-| `--tail`, `-n` | Last N lines |
-| `--follow`, `-f` | Live output |
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--phase`, `-p` | Filter to specific phase (e.g., 'implement', 'test') | all |
+| `--tail`, `-n` | Number of lines to show (0 for all) | 100 |
+| `--follow`, `-f` | Stream new lines in real-time (like tail -f) | false |
+| `--list`, `-l` | List transcript files only (no content) | false |
+| `--all`, `-a` | Show all transcripts (not just latest) | false |
+
+**Real-time Streaming** (`--follow`):
+
+Uses filesystem notifications (fsnotify) for instant updates—no polling delay. Automatically falls back to polling (100ms interval) if filesystem watching is unavailable.
+
+Features:
+- Starts from end of file, showing only new content
+- Handles file truncation gracefully (resets to beginning)
+- Clean shutdown with Ctrl+C (prints any partial line before exit)
+
+**Examples**:
+```bash
+orc log TASK-001              # Show latest transcript (last 100 lines)
+orc log TASK-001 --all        # Show all transcripts
+orc log TASK-001 --phase test # Show specific phase transcript
+orc log TASK-001 --list       # List transcript files only
+orc log TASK-001 --tail 50    # Show last 50 lines
+orc log TASK-001 --tail 0     # Show entire transcript
+orc log TASK-001 --follow     # Stream new lines in real-time
+```
 
 ---
 
