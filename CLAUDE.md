@@ -250,6 +250,7 @@ Patterns, gotchas, and decisions learned during development.
 | PR labels in config don't exist on repo | Orc warns and creates PR without labels (graceful degradation) | TASK-015 |
 | `go:embed` fails without static dir | Run `make test` (creates placeholder) or `mkdir -p internal/api/static` | TASK-016 |
 | Tests fail with `go.work` | Use `GOWORK=off go test` or `make test` | TASK-016 |
+| Raw `InputTokens` appears misleadingly low | Use `EffectiveInputTokens()` which adds cached tokens to get actual context size | TASK-010 |
 
 ### Decisions
 | Decision | Rationale | Source |

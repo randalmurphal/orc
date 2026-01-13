@@ -425,6 +425,22 @@ Tokens come from Claude Code output (JSON format):
 }
 ```
 
+### Effective vs Raw Token Counts
+
+**Important:** Raw `input_tokens` alone can appear misleadingly low when prompt caching is active. Claude splits input across three fields:
+
+| Field | Description |
+|-------|-------------|
+| `input_tokens` | Uncached portion of input (can be as low as 50-100 tokens) |
+| `cache_creation_input_tokens` | Tokens being written to cache this turn |
+| `cache_read_input_tokens` | Tokens served from cache (often 10K-50K+) |
+
+**Effective input tokens** = `input_tokens` + `cache_creation_input_tokens` + `cache_read_input_tokens`
+
+Example: A 28K token prompt might report `input_tokens: 56` with `cache_read_input_tokens: 27944`. Displaying just the raw value would be misleading.
+
+All executors use `EffectiveInputTokens()` to show the actual context size. See `internal/executor/session_adapter.go` for implementation.
+
 ### Pricing Updates
 
 - Default pricing bundled with orc
