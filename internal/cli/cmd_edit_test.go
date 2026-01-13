@@ -1,5 +1,8 @@
 package cli
 
+// NOTE: Tests in this file use os.Chdir() which is process-wide and not goroutine-safe.
+// These tests MUST NOT use t.Parallel() and run sequentially within this package.
+
 import (
 	"os"
 	"path/filepath"
@@ -10,27 +13,34 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-func TestRegeneratePlanForWeight(t *testing.T) {
+// withEditTestDir creates a temp directory with task structure, changes to it,
+// and restores the original working directory when the test completes.
+func withEditTestDir(t *testing.T) string {
+	t.Helper()
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir)
-
-	// Create task directory
 	taskDir := filepath.Join(tasksDir, "TASK-001")
-	err := os.MkdirAll(taskDir, 0755)
-	if err != nil {
-		t.Fatalf("failed to create task directory: %v", err)
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
+		t.Fatalf("create task directory: %v", err)
 	}
 
-	// Change to temp directory to simulate project root
 	origDir, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("failed to get current directory: %v", err)
+		t.Fatalf("get working directory: %v", err)
 	}
-	defer os.Chdir(origDir)
-
 	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to temp directory: %v", err)
+		t.Fatalf("chdir to temp dir: %v", err)
 	}
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+	return tmpDir
+}
+
+func TestRegeneratePlanForWeight(t *testing.T) {
+	withEditTestDir(t)
 
 	// Create and save a task
 	tk := task.New("TASK-001", "Test task")
@@ -117,26 +127,7 @@ func TestRegeneratePlanForWeight(t *testing.T) {
 }
 
 func TestRegeneratePlanForWeight_NoExistingState(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir)
-
-	// Create task directory
-	taskDir := filepath.Join(tasksDir, "TASK-001")
-	err := os.MkdirAll(taskDir, 0755)
-	if err != nil {
-		t.Fatalf("failed to create task directory: %v", err)
-	}
-
-	// Change to temp directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get current directory: %v", err)
-	}
-	defer os.Chdir(origDir)
-
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to temp directory: %v", err)
-	}
+	withEditTestDir(t)
 
 	// Create and save a task
 	tk := task.New("TASK-001", "Test task")
