@@ -118,7 +118,8 @@ orc config profile strict
 ├── worktrees/                   # Isolated worktrees
 └── tasks/TASK-001/
     ├── task.yaml, plan.yaml, state.yaml, spec.md
-    └── transcripts/
+    ├── transcripts/
+    └── attachments/             # Task attachments (images, files)
 
 .claude/                         # Claude Code
 ├── settings.json, hooks/, skills/
@@ -220,7 +221,8 @@ Task specifications and state are stored in `.orc/tasks/`:
 ├── task.yaml      # Task metadata
 ├── spec.md        # Task specification
 ├── plan.yaml      # Phase sequence
-└── state.yaml     # Execution state
+├── state.yaml     # Execution state
+└── attachments/   # Images, files (for screenshots, etc.)
 ```
 
 ### CLI Commands
