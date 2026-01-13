@@ -730,7 +730,7 @@ func TestGetClaudeMDEndpoint(t *testing.T) {
 	}
 }
 
-func TestGetClaudeMDEndpoint_NotFound(t *testing.T) {
+func TestGetClaudeMDEndpoint_EmptyProject(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	srv := New(&Config{WorkDir: tmpDir})
@@ -740,8 +740,24 @@ func TestGetClaudeMDEndpoint_NotFound(t *testing.T) {
 
 	srv.mux.ServeHTTP(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", w.Code)
+	// Returns 200 with empty content for editing purposes (not 404)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var resp struct {
+		Content string `json:"content"`
+		Path    string `json:"path"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Content != "" {
+		t.Errorf("expected empty content, got %q", resp.Content)
+	}
+	if resp.Path == "" {
+		t.Error("expected path to be set")
 	}
 }
 

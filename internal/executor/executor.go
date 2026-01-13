@@ -419,10 +419,21 @@ func (e *Executor) SwitchToNextAccount() error {
 
 // rebuildClientWithToken rebuilds the Claude client with a new OAuth token.
 func (e *Executor) rebuildClientWithToken(token string) {
+	workdir := e.config.WorkDir
+	// Use worktree path if we're in a worktree context
+	if e.worktreePath != "" {
+		workdir = e.worktreePath
+	}
+
 	clientOpts := []claude.ClaudeOption{
 		claude.WithModel(e.config.Model),
-		claude.WithWorkdir(e.config.WorkDir),
+		claude.WithWorkdir(workdir),
 		claude.WithTimeout(e.config.Timeout),
+	}
+
+	// Disable go.work in worktree context to avoid path resolution issues
+	if e.worktreePath != "" {
+		clientOpts = append(clientOpts, claude.WithEnvVar("GOWORK", "off"))
 	}
 
 	// Resolve Claude path to absolute to ensure it works with worktrees
