@@ -119,10 +119,16 @@ orc config profile strict
 └── tasks/TASK-001/
     ├── task.yaml, plan.yaml, state.yaml, spec.md
     ├── transcripts/
-    └── attachments/             # Task attachments (images, files)
+    ├── attachments/             # Task attachments (images, files)
+    └── test-results/            # Playwright test results
+        ├── report.json, index.html
+        ├── screenshots/
+        └── traces/
 
 .claude/                         # Claude Code
 ├── settings.json, hooks/, skills/
+
+.mcp.json                        # MCP server configuration (auto-generated for UI tasks)
 ```
 
 ## Commands
@@ -195,6 +201,40 @@ make test       # Backend (Go)
 make web-test   # Frontend (Vitest)
 make e2e        # E2E (Playwright)
 ```
+
+## UI Testing with Playwright MCP
+
+Tasks involving UI changes automatically get Playwright MCP tools for E2E testing.
+
+### Auto-Detection
+
+When a task's title or description contains UI-related keywords (`button`, `form`, `page`, `modal`, `component`, etc.), orc:
+1. Sets `requires_ui_testing: true` in task.yaml
+2. Configures Playwright MCP server in `.mcp.json`
+3. Creates screenshot directory at `.orc/tasks/{id}/test-results/screenshots/`
+
+### Playwright MCP Tools
+
+| Tool | Purpose |
+|------|---------|
+| `browser_navigate` | Load pages/routes |
+| `browser_snapshot` | Capture accessibility tree (preferred for state verification) |
+| `browser_click` | Click elements by ref from snapshot |
+| `browser_type` | Type text into inputs |
+| `browser_fill_form` | Fill multiple form fields |
+| `browser_take_screenshot` | Visual verification |
+| `browser_console_messages` | Check for JavaScript errors |
+| `browser_network_requests` | Verify API calls |
+
+### Test Results
+
+Results are stored in `.orc/tasks/{id}/test-results/`:
+- `report.json` - Structured test report
+- `screenshots/` - Test screenshots
+- `traces/` - Playwright traces
+- `index.html` - HTML report (if generated)
+
+See `docs/specs/FILE_FORMATS.md` for full format specification.
 
 <!-- orc:begin -->
 ## Orc Orchestration

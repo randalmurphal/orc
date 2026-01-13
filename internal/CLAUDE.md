@@ -19,6 +19,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `executor/` | Phase execution engine | `Executor`, `Result` |
 | `gate/` | Quality gates and approval workflow | `Gate`, `Evaluator` |
 | `git/` | Git operations, worktrees | `Git`, `Checkpoint` |
+| `playwright/` | Playwright MCP server configuration for UI testing | `Config`, `EnsureMCPServer()` |
 | `plan/` | Plan generation from templates | `Plan`, `Phase` |
 | `progress/` | Progress tracking and display | `Tracker` |
 | `project/` | Multi-project registry | `Registry`, `Project` |
