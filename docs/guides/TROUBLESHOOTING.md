@@ -408,6 +408,47 @@ WARN PR labels not found on repository, creating PR without labels
 
 **Note**: This is informational only. The PR will be created successfully; labels are simply omitted when they don't exist on the repository.
 
+### GitHub CLI Not Authenticated
+
+**Symptoms**:
+```
+GitHub CLI not authenticated: exit status 1: ...
+```
+
+**Cause**: The `gh` CLI is not logged in to GitHub. This happens when:
+- Fresh machine setup without `gh auth login`
+- Auth token expired
+- Wrong account authenticated for this repository
+
+**Error Message Includes Fix**:
+
+When PR creation fails due to auth, orc shows:
+```
+GitHub CLI not authenticated: ...
+
+  To fix this, run:
+    gh auth login
+
+  Then retry with:
+    orc resume TASK-XXX
+```
+
+**Solutions**:
+
+| Method | Command | Notes |
+|--------|---------|-------|
+| Interactive login | `gh auth login` | Follow prompts for browser/token auth |
+| Token-based | `gh auth login --with-token < token.txt` | For CI/automation |
+| Check status | `gh auth status` | Verify which account is authenticated |
+| Switch account | `gh auth switch` | If multiple accounts configured |
+
+**After Authenticating**:
+```bash
+orc resume TASK-XXX    # Continues from where it left off
+```
+
+**Note**: Auto-merge enablement also requires authentication. If auto-merge fails with auth errors, orc logs a warning but doesn't fail the task - the PR is created successfully, just without auto-merge enabled.
+
 ---
 
 ## Log Locations
