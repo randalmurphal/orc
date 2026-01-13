@@ -13,6 +13,7 @@ import (
 // DashboardStats represents dashboard statistics.
 type DashboardStats struct {
 	Running   int     `json:"running"`
+	Orphaned  int     `json:"orphaned"`
 	Paused    int     `json:"paused"`
 	Blocked   int     `json:"blocked"`
 	Completed int     `json:"completed"`
@@ -40,9 +41,21 @@ func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request)
 	}
 
 	for _, t := range tasks {
+		// Load state for token counts and orphan detection
+		st, _ := state.LoadFrom(s.workDir, t.ID)
+
 		switch t.Status {
 		case task.StatusRunning:
-			stats.Running++
+			// Check if task is orphaned
+			if st != nil {
+				if isOrphaned, _ := st.CheckOrphaned(); isOrphaned {
+					stats.Orphaned++
+				} else {
+					stats.Running++
+				}
+			} else {
+				stats.Running++
+			}
 		case task.StatusPaused:
 			stats.Paused++
 		case task.StatusBlocked:
@@ -58,8 +71,8 @@ func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request)
 			stats.Today++
 		}
 
-		// Load state for token counts
-		if st, err := state.LoadFrom(s.workDir, t.ID); err == nil && st != nil {
+		// Add token counts from state
+		if st != nil {
 			stats.Tokens += int64(st.Tokens.TotalTokens)
 		}
 	}

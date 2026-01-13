@@ -75,6 +75,58 @@ orc pause TASK-XXX --reason "Investigating infinite loop"
 
 ---
 
+## Orphaned Tasks (Stuck in "Running")
+
+**Symptoms**:
+- Task shows as "running" but no executor process is active
+- `orc status` shows task in "ORPHANED" section
+- Task was running when machine crashed, session closed, or process was killed
+
+**Diagnosis**:
+```bash
+# Check task status
+orc status
+
+# View execution info
+cat .orc/tasks/TASK-XXX/state.yaml | grep -A5 "execution:"
+```
+
+**How Orphan Detection Works**:
+
+Orc tracks executor process information in `state.yaml`:
+- **PID**: Process ID of the executor
+- **Hostname**: Machine running the executor
+- **Heartbeat**: Last time executor updated state
+
+A task is considered orphaned when:
+1. Status is "running" but no execution info exists (legacy state)
+2. Status is "running" but executor PID is no longer alive
+3. Status is "running" but heartbeat is stale (>5 minutes)
+
+**Solutions**:
+
+| Method | Command | Notes |
+|--------|---------|-------|
+| Auto-resume | `orc resume TASK-XXX` | Detects orphan, marks as interrupted, resumes |
+| Force resume | `orc resume TASK-XXX --force` | For tasks that appear running but you know are not |
+| Check in Web UI | `orc serve` then view Dashboard | Orphaned tasks highlighted with warning |
+
+**The resume command automatically**:
+1. Checks if task is orphaned (executor dead or heartbeat stale)
+2. Marks the task as interrupted
+3. Clears stale execution info
+4. Resumes from the last active phase
+
+**Manual Recovery** (if auto-detection fails):
+```bash
+# Mark task as blocked (so it can be resumed)
+# Edit .orc/tasks/TASK-XXX/task.yaml: change status to "blocked"
+# Edit .orc/tasks/TASK-XXX/state.yaml: change status to "interrupted", remove execution block
+orc resume TASK-XXX
+```
+
+---
+
 ## Gate Rejection
 
 **Symptoms**:

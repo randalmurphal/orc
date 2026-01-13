@@ -44,6 +44,7 @@ type State struct {
 	Tokens           TokenUsage             `yaml:"tokens" json:"tokens"`
 	Cost             CostTracking           `yaml:"cost" json:"cost"`
 	Session          *SessionInfo           `yaml:"session,omitempty" json:"session,omitempty"`
+	Execution        *ExecutionInfo         `yaml:"execution,omitempty" json:"execution,omitempty"`
 	Error            string                 `yaml:"error,omitempty" json:"error,omitempty"`
 	RetryContext     *RetryContext          `yaml:"retry_context,omitempty" json:"retry_context,omitempty"`
 }
@@ -56,6 +57,19 @@ type SessionInfo struct {
 	CreatedAt    time.Time `yaml:"created_at" json:"created_at"`
 	LastActivity time.Time `yaml:"last_activity" json:"last_activity"`
 	TurnCount    int       `yaml:"turn_count" json:"turn_count"`
+}
+
+// ExecutionInfo tracks the process executing a task.
+// Used for orphan detection when a task claims to be "running" but its executor has died.
+type ExecutionInfo struct {
+	// PID is the process ID of the executor
+	PID int `yaml:"pid" json:"pid"`
+	// Hostname identifies the machine running the executor (for distributed setups)
+	Hostname string `yaml:"hostname" json:"hostname"`
+	// StartedAt is when this execution began
+	StartedAt time.Time `yaml:"started_at" json:"started_at"`
+	// LastHeartbeat is the last time the executor updated state
+	LastHeartbeat time.Time `yaml:"last_heartbeat" json:"last_heartbeat"`
 }
 
 // CostTracking tracks cost information for the task.
@@ -405,6 +419,40 @@ func (s *State) GetSessionID() string {
 		return s.Session.ID
 	}
 	return ""
+}
+
+// StartExecution records that an executor process has started running this task.
+func (s *State) StartExecution(pid int, hostname string) {
+	now := time.Now()
+	s.Execution = &ExecutionInfo{
+		PID:           pid,
+		Hostname:      hostname,
+		StartedAt:     now,
+		LastHeartbeat: now,
+	}
+	s.UpdatedAt = now
+}
+
+// UpdateHeartbeat updates the last heartbeat timestamp for the execution.
+func (s *State) UpdateHeartbeat() {
+	if s.Execution != nil {
+		s.Execution.LastHeartbeat = time.Now()
+	}
+	s.UpdatedAt = time.Now()
+}
+
+// ClearExecution removes execution tracking info (called on completion/failure).
+func (s *State) ClearExecution() {
+	s.Execution = nil
+	s.UpdatedAt = time.Now()
+}
+
+// GetExecutorPID returns the PID of the executor if available.
+func (s *State) GetExecutorPID() int {
+	if s.Execution != nil {
+		return s.Execution.PID
+	}
+	return 0
 }
 
 // LoadAllStates loads state for all tasks.

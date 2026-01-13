@@ -287,6 +287,7 @@ Patterns, gotchas, and decisions learned during development.
 | Pattern | Description | Source |
 |---------|-------------|--------|
 | Branch sync before completion | Task branches rebase onto target before PR to catch conflicts early | TASK-019 |
+| Executor PID tracking | Track executor PID + heartbeat in state.yaml to detect orphaned tasks (running but executor dead) | TASK-046 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
@@ -295,6 +296,7 @@ Patterns, gotchas, and decisions learned during development.
 | `go:embed` fails without static dir | Run `make test` (creates placeholder) or `mkdir -p internal/api/static` | TASK-016 |
 | Tests fail with `go.work` | Use `GOWORK=off go test` or `make test` | TASK-016 |
 | Raw `InputTokens` appears misleadingly low | Use `EffectiveInputTokens()` which adds cached tokens to get actual context size | TASK-010 |
+| Task stuck in "running" after crash | Use `orc resume TASK-XXX` (auto-detects orphaned state) or `--force` to override | TASK-046 |
 
 ### Decisions
 | Decision | Rationale | Source |
