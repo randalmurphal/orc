@@ -1,8 +1,0 @@
-id: TASK-037
-title: The commands dont work right in the context of a browser
-description: The commands are designed to use cmd for apple and ctrl for windows/linux, this doesn't make sense in a browser since those are reserved keys already. Need to figure out a sane alternative that doesn't conflict with any browsers or environments.
-weight: medium
-status: planned
-branch: orc/TASK-037
-created_at: 2026-01-13T00:36:22.215684973-06:00
-updated_at: 2026-01-13T00:36:22.222106564-06:00

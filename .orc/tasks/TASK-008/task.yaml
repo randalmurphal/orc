@@ -1,8 +1,0 @@
-id: TASK-008
-title: Task board should live refresh when tasks added via CLI or filesystem
-description: Currently the kanban board doesn't update in real-time when tasks are created via CLI or direct filesystem edits. The file watcher infrastructure exists (WebSocket events for task_created/task_updated/task_deleted) but the board may not be subscribed to these events properly. Verify the event flow from file watcher -> WebSocket -> board component and fix any gaps.
-weight: medium
-status: planned
-branch: orc/TASK-008
-created_at: 2026-01-12T20:53:45.875635282-06:00
-updated_at: 2026-01-12T20:53:45.884228112-06:00

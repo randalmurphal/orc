@@ -1,7 +1,0 @@
-id: TASK-041
-title: If there are comments or attachments on a ticket when starting it it should be available to the agents when they are gathering context, or auto-injected as a variable as we do with other things
-weight: medium
-status: planned
-branch: orc/TASK-041
-created_at: 2026-01-13T00:46:21.716829911-06:00
-updated_at: 2026-01-13T00:46:21.726638593-06:00

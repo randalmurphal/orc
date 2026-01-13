@@ -1,9 +1,0 @@
-id: TASK-024
-title: Store and display Playwright test results with screenshots
-description: 'Separate from general attachments, store Playwright test results in .orc/tasks/TASK-XXX/test-results/. Structure: screenshots/ (page captures), traces/ (Playwright traces), report.json (structured results), index.html (Playwright report). Web UI: dedicated ''Test Results'' tab showing: pass/fail summary, screenshot gallery with page names, trace viewer link, coverage if available. API: GET /api/tasks/{id}/test-results, GET /api/tasks/{id}/test-results/screenshots. Playwright config outputs here via ORC_TASK_ID env var.'
-weight: large
-status: failed
-branch: orc/TASK-024
-created_at: 2026-01-12T22:12:01.647615701-06:00
-updated_at: 2026-01-13T00:49:26.391519725-06:00
-started_at: 2026-01-12T23:51:26.749711063-06:00

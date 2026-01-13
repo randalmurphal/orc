@@ -1,9 +1,0 @@
-id: TASK-005
-title: Fix server to work regardless of startup directory
-description: 'The API server currently uses its cwd as the default project. This breaks when started from a different directory. Options: 1) Require explicit project selection in UI, 2) Use ''default project'' from global config, 3) Show project picker on first load. The /api/projects/{id}/tasks endpoint already works correctly - this is about the UX of /api/tasks and the web UI default behavior.'
-weight: medium
-status: running
-branch: orc/TASK-005
-created_at: 2026-01-12T20:44:45.27899221-06:00
-updated_at: 2026-01-13T01:31:59.87120211-06:00
-started_at: 2026-01-13T01:31:59.871202045-06:00

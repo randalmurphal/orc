@@ -1,8 +1,0 @@
-id: TASK-035
-title: Statusline modification should be sane statusline UI configurations, and it should translate into a proper script for the statusline that claude expects
-description: Should support providing the status line text like standard formatting, but also sane formatting for a user that doesnt know how to use that formatting.
-weight: medium
-status: planned
-branch: orc/TASK-035
-created_at: 2026-01-13T00:33:19.290529116-06:00
-updated_at: 2026-01-13T00:33:19.298704875-06:00
