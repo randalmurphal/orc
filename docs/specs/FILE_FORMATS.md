@@ -292,3 +292,59 @@ Use oauth2 library with provider-specific configs.
 - 24/24 passing
 - Coverage: 87%
 ```
+
+---
+
+## Task Comments (Database)
+
+Comments and notes are stored in the SQLite database (`orc.db`), not in YAML files.
+
+### Schema
+
+```sql
+CREATE TABLE task_comments (
+    id TEXT PRIMARY KEY,           -- TC-{8 hex chars}
+    task_id TEXT NOT NULL,         -- References tasks.id
+    author TEXT NOT NULL,          -- Author name (default: "anonymous")
+    author_type TEXT NOT NULL,     -- human | agent | system
+    content TEXT NOT NULL,         -- Comment content
+    phase TEXT,                    -- Optional: phase this relates to
+    created_at TEXT NOT NULL,      -- RFC3339 timestamp
+    updated_at TEXT NOT NULL       -- RFC3339 timestamp
+);
+```
+
+### JSON Format (API Response)
+
+```json
+{
+  "id": "TC-a1b2c3d4",
+  "task_id": "TASK-001",
+  "author": "claude",
+  "author_type": "agent",
+  "content": "This approach uses the existing auth flow\nwhich simplifies the implementation.",
+  "phase": "implement",
+  "created_at": "2026-01-10T10:30:00Z",
+  "updated_at": "2026-01-10T10:30:00Z"
+}
+```
+
+### Author Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `human` | Human user (default) | Review feedback, questions, notes |
+| `agent` | AI agent | Claude notes during execution |
+| `system` | System-generated | Automated process logs |
+
+### Comment Statistics
+
+```json
+{
+  "task_id": "TASK-001",
+  "total_comments": 5,
+  "human_count": 2,
+  "agent_count": 2,
+  "system_count": 1
+}
+```

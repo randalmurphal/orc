@@ -282,6 +282,65 @@ orc log <task-id> [--phase <phase>] [--tail <n>] [--follow]
 
 ---
 
+### orc comment
+
+Manage task comments and notes.
+
+```bash
+orc comment <subcommand> [options]
+```
+
+#### orc comment add
+
+Add a comment to a task.
+
+```bash
+orc comment add <task-id> <content> [--author <name>] [--type <type>] [--phase <phase>]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--author`, `-a` | Author name | anonymous |
+| `--type`, `-t` | Author type: human, agent, system | human |
+| `--phase`, `-p` | Phase this comment relates to | none |
+
+**Examples**:
+```bash
+orc comment add TASK-001 "This approach won't work with existing auth"
+orc comment add TASK-001 "Note: uses deprecated API" --author claude --type agent
+orc comment add TASK-001 "Review feedback addressed" --phase implement
+```
+
+#### orc comment list
+
+List comments for a task.
+
+```bash
+orc comment list <task-id> [--type <type>] [--phase <phase>]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--type`, `-t` | Filter by author type |
+| `--phase`, `-p` | Filter by phase |
+
+**Examples**:
+```bash
+orc comment list TASK-001
+orc comment list TASK-001 --type agent
+orc comment list TASK-001 --phase implement
+```
+
+#### orc comment delete
+
+Delete a comment.
+
+```bash
+orc comment delete <comment-id>
+```
+
+---
+
 ### orc diff
 
 Show changes made by task.

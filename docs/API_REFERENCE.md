@@ -45,6 +45,48 @@ CWD-based task operations.
 {"task_definition": true, "final_state": true, "context_summary": true, "transcripts": false}
 ```
 
+### Task Comments
+
+Comments and notes on tasks from humans, agents, or system.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tasks/:id/comments` | List comments (`?author_type=human|agent|system`, `?phase=implement`) |
+| POST | `/api/tasks/:id/comments` | Create comment |
+| GET | `/api/tasks/:id/comments/stats` | Get comment statistics |
+| GET | `/api/tasks/:id/comments/:commentId` | Get single comment |
+| PUT | `/api/tasks/:id/comments/:commentId` | Update comment |
+| DELETE | `/api/tasks/:id/comments/:commentId` | Delete comment |
+
+**Create comment body:**
+```json
+{
+  "author": "claude",
+  "author_type": "agent",
+  "content": "This approach uses the existing auth flow",
+  "phase": "implement"
+}
+```
+
+**Comment response:**
+```json
+{
+  "id": "TC-a1b2c3d4",
+  "task_id": "TASK-001",
+  "author": "claude",
+  "author_type": "agent",
+  "content": "This approach uses the existing auth flow",
+  "phase": "implement",
+  "created_at": "2026-01-10T10:30:00Z",
+  "updated_at": "2026-01-10T10:30:00Z"
+}
+```
+
+**Author types:**
+- `human` - Human user (default)
+- `agent` - AI agent (Claude during execution)
+- `system` - System-generated (automated processes)
+
 ---
 
 ## Projects
