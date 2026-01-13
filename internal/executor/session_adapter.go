@@ -119,6 +119,17 @@ type TokenUsage struct {
 	CacheReadInputTokens     int
 }
 
+// EffectiveInputTokens returns the total input context size including cached tokens.
+// This represents the actual prompt size that Claude processed.
+func (u TokenUsage) EffectiveInputTokens() int {
+	return u.InputTokens + u.CacheCreationInputTokens + u.CacheReadInputTokens
+}
+
+// EffectiveTotalTokens returns the total tokens including cached inputs.
+func (u TokenUsage) EffectiveTotalTokens() int {
+	return u.EffectiveInputTokens() + u.OutputTokens
+}
+
 // ExecuteTurn sends a prompt and waits for the response.
 // It detects completion markers in the response.
 func (a *SessionAdapter) ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error) {

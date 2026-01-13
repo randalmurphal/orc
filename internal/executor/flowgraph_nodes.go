@@ -105,13 +105,15 @@ func (e *Executor) executeClaudeNode() flowgraph.NodeFunc[PhaseState] {
 		}
 
 		s.Response = resp.Content
-		s.InputTokens += resp.Usage.InputTokens
+		// Use effective input tokens (includes cache) to show actual context size
+		effectiveInput := resp.Usage.EffectiveInputTokens()
+		s.InputTokens += effectiveInput
 		s.OutputTokens += resp.Usage.OutputTokens
-		s.TokensUsed += resp.Usage.TotalTokens
+		s.TokensUsed += effectiveInput + resp.Usage.OutputTokens
 
 		// Publish response transcript and token update
 		e.publishTranscript(s.TaskID, s.Phase, s.Iteration, "response", s.Response)
-		e.publishTokens(s.TaskID, s.Phase, resp.Usage.InputTokens, resp.Usage.OutputTokens, resp.Usage.CacheReadInputTokens, resp.Usage.TotalTokens)
+		e.publishTokens(s.TaskID, s.Phase, effectiveInput, resp.Usage.OutputTokens, resp.Usage.CacheReadInputTokens, effectiveInput+resp.Usage.OutputTokens)
 
 		return s, nil
 	}

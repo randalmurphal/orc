@@ -159,8 +159,8 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 			goto done
 		}
 
-		// Track tokens
-		result.InputTokens += turnResult.Usage.InputTokens
+		// Track tokens - use effective input to include cached context
+		result.InputTokens += turnResult.Usage.EffectiveInputTokens()
 		result.OutputTokens += turnResult.Usage.OutputTokens
 		result.Iterations = iteration
 		lastResponse = turnResult.Content
