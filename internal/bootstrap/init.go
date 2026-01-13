@@ -219,11 +219,33 @@ func PrintResult(r *Result) {
 		fmt.Printf("  Detected: %s\n", detect.DescribeProject(r.Detection))
 	}
 	fmt.Printf("  Config: %s\n", r.ConfigPath)
-	fmt.Printf("\nClaude Code plugin (run once in Claude Code):\n")
+	fmt.Printf("\nClaude Code plugins (run once in Claude Code):\n")
 	fmt.Printf("  /plugin marketplace add randalmurphal/orc-claude-plugin\n")
 	fmt.Printf("  /plugin install orc@orc\n")
+	if hasFrontend(r.Detection) {
+		fmt.Printf("  /plugin install playwright@claude-plugins-official  # Frontend detected\n")
+	}
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  orc new \"task description\"  # Create a new task\n")
 	fmt.Printf("  orc serve                    # Start web UI at localhost:8080\n")
 	fmt.Printf("  orc setup                    # (Optional) Configure with Claude\n")
+}
+
+// hasFrontend checks if the project has a frontend framework.
+func hasFrontend(d *detect.Detection) bool {
+	if d == nil {
+		return false
+	}
+	frontendFrameworks := map[detect.Framework]bool{
+		detect.FrameworkReact:  true,
+		detect.FrameworkNextJS: true,
+		detect.FrameworkVue:    true,
+		detect.FrameworkSvelte: true,
+	}
+	for _, f := range d.Frameworks {
+		if frontendFrameworks[f] {
+			return true
+		}
+	}
+	return false
 }
