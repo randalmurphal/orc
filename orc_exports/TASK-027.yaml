@@ -3,10 +3,13 @@ task:
     title: Dashboard buttons dont work for new task, maybe others
     description: I was trying to create a task from the dashboard page, didnt do anything. Figure out if other buttons are effected, and properly ensure that these are functional
     weight: medium
-    status: planned
+    status: completed
+    current_phase: docs
     branch: orc/TASK-027
     created_at: 2026-01-13T00:23:38.741540091-06:00
-    updated_at: 2026-01-13T00:23:38.746989964-06:00
+    updated_at: 2026-01-13T11:28:43.092886-06:00
+    started_at: 2026-01-13T11:19:15.807537-06:00
+    completed_at: 2026-01-13T11:28:43.092886-06:00
 plan:
     version: 1
     task_id: TASK-027
@@ -36,7 +39,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 035217b2a973aa3e96714abbd00f9cf190450f8d
         - id: test
           name: test
           prompt: |
@@ -60,7 +64,7 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
         - id: docs
           name: docs
           prompt: |
@@ -84,4 +88,5 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: e85b3f83a8e41d5fced9efe33bc264554a2b82c1

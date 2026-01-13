@@ -2,10 +2,13 @@ task:
     id: TASK-030
     title: There should be a new task button from all pages on the top of the page, like how its displayed on the tasks page already near the commands in the top right.
     weight: medium
-    status: planned
+    status: completed
+    current_phase: docs
     branch: orc/TASK-030
     created_at: 2026-01-13T00:27:02.152980317-06:00
-    updated_at: 2026-01-13T00:27:02.158687493-06:00
+    updated_at: 2026-01-13T12:03:39.20093-06:00
+    started_at: 2026-01-13T11:58:44.533682-06:00
+    completed_at: 2026-01-13T12:03:39.20093-06:00
 plan:
     version: 1
     task_id: TASK-030
@@ -35,7 +38,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 840b411d2ca2539d825aa22682dca5f9b8b8f030
         - id: test
           name: test
           prompt: |
@@ -59,7 +63,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: d925da666756b4c7d1f1c2d87fe990254fda8cea
         - id: docs
           name: docs
           prompt: |
@@ -83,4 +88,5 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 9b13657b25664830b8d7017057031c46fa389e71

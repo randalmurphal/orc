@@ -2,12 +2,14 @@ task:
     id: TASK-045
     title: Add 'orc reset TASK-ID' command to reset failed tasks back to planned status for retry
     weight: medium
-    status: planned
+    status: completed
     branch: orc/TASK-045
     testing_requirements:
         unit: true
     created_at: 2026-01-13T01:16:16.859227077-06:00
-    updated_at: 2026-01-13T02:10:30.24505712-06:00
+    updated_at: 2026-01-13T03:00:14.819438-06:00
+    started_at: 2026-01-13T02:49:56.157033-06:00
+    completed_at: 2026-01-13T03:00:14.819438-06:00
 plan:
     version: 1
     task_id: TASK-045
@@ -37,7 +39,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: d4ad2feca2755a3728dd9f547924d6d34d023e2f
         - id: test
           name: test
           prompt: |
@@ -61,7 +64,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: bf060992efa444ac8b3bf7a8623398c80dbc5908
         - id: docs
           name: docs
           prompt: |
@@ -85,4 +89,5 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 6e1066c3aef0049a06cc9797b847713f4a2f6a83

@@ -3,10 +3,13 @@ task:
     title: Side bar should have a button that toggles if its expanded or collapsed instead of the auto-hide functionality
     description: This should be a persistent and remembered configuration, it should go to the last state it was in when opening the next time.
     weight: medium
-    status: planned
+    status: completed
+    current_phase: docs
     branch: orc/TASK-029
     created_at: 2026-01-13T00:26:14.908982463-06:00
-    updated_at: 2026-01-13T00:26:14.915030042-06:00
+    updated_at: 2026-01-13T12:10:56.651202-06:00
+    started_at: 2026-01-13T11:58:44.533674-06:00
+    completed_at: 2026-01-13T12:10:56.651202-06:00
 plan:
     version: 1
     task_id: TASK-029
@@ -36,7 +39,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: ce6a93ac9b7ab70a0061c40df6771c5365ef85da
         - id: test
           name: test
           prompt: |
@@ -60,7 +64,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: d98b081cb59e91c5119acd3ed42339def8d8e1dd
         - id: docs
           name: docs
           prompt: |
@@ -84,4 +89,5 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 0c9836e046dca8b98cb51adcb61cbd0db8cd4c66

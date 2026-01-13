@@ -3,10 +3,13 @@ task:
     title: Add backlog and active queue organization with priority levels
     description: 'Explore task organization patterns: 1) Backlog vs Active queue separation - tasks in backlog are ''someday'' items, active queue is current work, 2) Possible folder/grouping system for backlog organization, 3) Maybe priority levels or swimlanes, 4) Consider how initiatives already group tasks and if that''s sufficient. Research Linear, Jira, GitHub Projects for patterns. Goal: prevent cognitive overload when many tasks accumulate.'
     weight: medium
-    status: planned
+    status: completed
+    current_phase: docs
     branch: orc/TASK-007
     created_at: 2026-01-12T20:53:44.14472125-06:00
-    updated_at: 2026-01-12T21:16:11.79070835-06:00
+    updated_at: 2026-01-13T15:56:03.252306-06:00
+    started_at: 2026-01-13T15:25:01.28061-06:00
+    completed_at: 2026-01-13T15:56:03.252305-06:00
 plan:
     version: 1
     task_id: TASK-007
@@ -36,7 +39,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 6575f7b1896ceafbb0ec01aa68576fbf2b6e297d
         - id: test
           name: test
           prompt: |
@@ -60,7 +64,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: f9a2b8dd76f5d7b397d41d9ae81af5bead7d1d72
         - id: docs
           name: docs
           prompt: |
@@ -84,4 +89,5 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 1316ca092d55f09655d29502fc6807472b10ca8c
