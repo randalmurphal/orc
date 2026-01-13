@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // testPublisher captures published events for testing (thread-safe).
@@ -280,6 +281,72 @@ func TestWatcher_ClassifyFile(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestWatcher_WeightTracking(t *testing.T) {
+	w := &Watcher{
+		weights: make(map[string]task.Weight),
+	}
+
+	t.Run("set and get weight", func(t *testing.T) {
+		w.setWeight("TASK-001", task.WeightMedium)
+
+		got, ok := w.getWeight("TASK-001")
+		assert.True(t, ok)
+		assert.Equal(t, task.WeightMedium, got)
+	})
+
+	t.Run("get weight for non-existent task", func(t *testing.T) {
+		got, ok := w.getWeight("TASK-999")
+		assert.False(t, ok)
+		assert.Empty(t, got)
+	})
+
+	t.Run("update weight", func(t *testing.T) {
+		w.setWeight("TASK-001", task.WeightLarge)
+
+		got, ok := w.getWeight("TASK-001")
+		assert.True(t, ok)
+		assert.Equal(t, task.WeightLarge, got)
+	})
+
+	t.Run("remove weight", func(t *testing.T) {
+		w.setWeight("TASK-002", task.WeightSmall)
+		w.removeWeight("TASK-002")
+
+		_, ok := w.getWeight("TASK-002")
+		assert.False(t, ok)
+	})
+}
+
+func TestWatcher_WeightTracking_ThreadSafe(t *testing.T) {
+	w := &Watcher{
+		weights: make(map[string]task.Weight),
+	}
+
+	// Test concurrent access doesn't panic
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(3)
+		taskID := "TASK-" + string(rune('A'+i%26))
+
+		go func() {
+			defer wg.Done()
+			w.setWeight(taskID, task.WeightMedium)
+		}()
+
+		go func() {
+			defer wg.Done()
+			w.getWeight(taskID)
+		}()
+
+		go func() {
+			defer wg.Done()
+			w.removeWeight(taskID)
+		}()
+	}
+
+	wg.Wait()
 }
 
 func TestDebouncer_Delete(t *testing.T) {

@@ -55,7 +55,7 @@ The `task` field contains the updated task with `status: "running"` set immediat
 }
 ```
 
-All fields are optional. Only provided fields are updated. Cannot update running tasks. Valid weights: `trivial`, `small`, `medium`, `large`, `greenfield`.
+All fields are optional. Only provided fields are updated. Cannot update running tasks. Valid weights: `trivial`, `small`, `medium`, `large`, `greenfield`. Weight changes trigger automatic plan regeneration (completed/skipped phases are preserved if they exist in both plans).
 
 ### Task Attachments
 

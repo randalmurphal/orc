@@ -4,6 +4,41 @@
 
 ---
 
+## Plan Regeneration on Weight Change
+
+When a task's weight changes (via `orc edit --weight` or manual file edit), the plan is automatically regenerated to match the new weight's phase sequence.
+
+### Regeneration Behavior
+
+| Scenario | Behavior |
+|----------|----------|
+| Task not running | Plan regenerated immediately |
+| Task running | Regeneration skipped (would disrupt execution) |
+| Plan already matches weight | Regeneration skipped (idempotent) |
+
+### Phase Status Preservation
+
+Completed and skipped phases are preserved when regenerating:
+
+| Old Plan Phase | New Plan Phase | Result |
+|----------------|----------------|--------|
+| `implement: completed` | Has `implement` | Status preserved |
+| `spec: skipped` | Has `spec` | Status preserved |
+| `spec: completed` | No `spec` phase | Status lost (phase not in new plan) |
+| N/A | New `validate` phase | Status = `pending` |
+
+### Triggers
+
+Plan regeneration can be triggered by:
+
+1. **CLI**: `orc edit TASK-001 --weight large`
+2. **API**: PATCH `/api/tasks/{id}` with `{"weight": "large"}`
+3. **File watcher**: Manual edit of `task.yaml` weight field
+
+All three methods produce identical results.
+
+---
+
 ## Phase Types
 
 | Phase | Purpose | Produces | Commit |

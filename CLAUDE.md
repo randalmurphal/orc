@@ -291,6 +291,7 @@ Patterns, gotchas, and decisions learned during development.
 | Branch sync before completion | Task branches rebase onto target before PR to catch conflicts early | TASK-019 |
 | Executor PID tracking | Track executor PID + heartbeat in state.yaml to detect orphaned tasks (running but executor dead) | TASK-046 |
 | Atomic status+phase updates | Set `current_phase` atomically with `status=running` to avoid UI timing issues (task shows in wrong column) | TASK-057 |
+| Plan regeneration on weight change | When task weight changes, plan.yaml auto-regenerates with new phases; completed/skipped phases preserved if they exist in both plans | TASK-003 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
