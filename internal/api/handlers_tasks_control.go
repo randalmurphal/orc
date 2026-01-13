@@ -57,6 +57,17 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		st = state.New(id)
 	}
 
+	// Update task status to running BEFORE spawning executor.
+	// This ensures:
+	// 1. The UI sees the correct status immediately when it reloads
+	// 2. The file watcher broadcasts task_updated (not task_deleted)
+	// 3. No race condition where the task appears deleted during executor startup
+	t.Status = task.StatusRunning
+	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
+		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
+		return
+	}
+
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -94,7 +105,8 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	s.jsonResponse(w, map[string]string{"status": "started", "task_id": id})
+	// Return task with updated status so frontend can update store immediately
+	s.jsonResponse(w, map[string]any{"status": "started", "task_id": id, "task": t})
 }
 
 // handlePauseTask pauses task execution.

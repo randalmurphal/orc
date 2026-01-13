@@ -34,6 +34,17 @@ CWD-based task operations.
 | POST | `/api/tasks/:id/resume` | Resume task |
 | POST | `/api/tasks/:id/rewind` | Rewind to phase (`{"phase": "implement"}`) |
 
+**Run task response:**
+```json
+{
+  "status": "started",
+  "task_id": "TASK-001",
+  "task": { /* full Task object with status="running" */ }
+}
+```
+
+The `task` field contains the updated task with `status: "running"` set immediately. This allows clients to update their local state without waiting for WebSocket events, avoiding race conditions where the task might briefly appear deleted.
+
 **Update task body (PATCH):**
 ```json
 {

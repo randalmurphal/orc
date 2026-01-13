@@ -44,6 +44,7 @@
 	import TestResults from '$lib/components/task/TestResults.svelte';
 	import { TaskCommentsPanel } from '$lib/components/comments';
 	import { currentProjectId } from '$lib/stores/project';
+	import { updateTask as updateTaskInStore } from '$lib/stores/tasks';
 	import { listAttachments, getTaskCommentStats, getTestResults } from '$lib/api';
 	import type { Attachment, TaskCommentStats, TestResultsInfo } from '$lib/types';
 
@@ -310,8 +311,16 @@
 
 	async function handleRun() {
 		try {
-			projectId ? await runProjectTask(projectId, taskId) : await runTask(taskId);
-			await loadTaskData();
+			const response = projectId ? await runProjectTask(projectId, taskId) : await runTask(taskId);
+			// Use the returned task with updated status immediately
+			if (response.task) {
+				task = response.task;
+				// Also update the global tasks store so sidebar/list reflects status
+				updateTaskInStore(taskId, response.task);
+			} else {
+				// Fallback to reloading if task not in response
+				await loadTaskData();
+			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to run task';
 		}
