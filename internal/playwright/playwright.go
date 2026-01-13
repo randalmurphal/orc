@@ -130,9 +130,10 @@ func IsServerConfigured(projectRoot string) bool {
 }
 
 // GetScreenshotDir returns the screenshot directory for a task.
-// It returns the absolute path to the task's attachments directory.
+// It returns the path to the task's test-results/screenshots directory,
+// which is where the Test Results tab expects screenshots to be.
 func GetScreenshotDir(projectDir, taskID string) string {
-	return filepath.Join(projectDir, ".orc", "tasks", taskID, "attachments")
+	return filepath.Join(projectDir, ".orc", "tasks", taskID, "test-results", "screenshots")
 }
 
 // EnsureScreenshotDir creates the screenshot directory if it doesn't exist.
