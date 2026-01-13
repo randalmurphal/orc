@@ -230,7 +230,7 @@ git:
 
 # Claude CLI settings
 claude:
-  path: claude
+  path: claude                            # Auto-detects: PATH lookup → common install locations
   dangerously_skip_permissions: true
 
 # Token pool (personal only)
