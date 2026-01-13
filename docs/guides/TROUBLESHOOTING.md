@@ -274,13 +274,26 @@ fatal: 'path/to/worktree' is already a worktree
 error: claude: command not found
 ```
 
+**How orc finds Claude**:
+1. `claude_path` config (if set explicitly)
+2. PATH lookup (`which claude`)
+3. Common install locations:
+   - `~/.local/bin/claude`
+   - `~/.claude/local/claude`
+   - `/usr/local/bin/claude`
+   - `/opt/homebrew/bin/claude`
+   - `/snap/bin/claude`
+
 **Solutions**:
 ```bash
 # Check Claude is installed
 which claude
 
-# Update path in config
-orc config claude.path /path/to/claude
+# If Claude is installed but not in PATH, add it:
+export PATH="$HOME/.local/bin:$PATH"  # Add to ~/.bashrc or ~/.zshrc
+
+# Or set explicit path in config (not recommended - prefer PATH)
+orc config claude_path /path/to/claude
 ```
 
 ### Rate Limited
