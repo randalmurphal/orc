@@ -39,7 +39,6 @@
 	}
 
 	const pageTitle = $derived(getPageTitle($page.url.pathname));
-	const isTasksPage = $derived($page.url.pathname === '/' || $page.url.pathname === '/tasks');
 </script>
 
 <header class="header">
@@ -73,8 +72,8 @@
 			<kbd>{formatShortcut('K')}</kbd>
 		</button>
 
-		<!-- New Task Button (only on Tasks page) -->
-		{#if isTasksPage && onNewTask}
+		<!-- New Task Button -->
+		{#if onNewTask}
 			<button class="primary new-task-btn" onclick={onNewTask}>
 				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 					<line x1="12" y1="5" x2="12" y2="19" />
