@@ -224,5 +224,6 @@ func PrintResult(r *Result) {
 	fmt.Printf("  /plugin install orc@orc\n")
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  orc new \"task description\"  # Create a new task\n")
+	fmt.Printf("  orc serve                    # Start web UI at localhost:8080\n")
 	fmt.Printf("  orc setup                    # (Optional) Configure with Claude\n")
 }
