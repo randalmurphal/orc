@@ -41,3 +41,4 @@ internal/api/static/
 # Task data - track specs/state, ignore large runtime artifacts
 .orc/tasks/*/transcripts/
 .orc/tasks/*/test-results/
+.mcp.json
