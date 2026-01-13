@@ -78,6 +78,7 @@ func init() {
 	rootCmd.AddCommand(newSkipCmd())
 	rootCmd.AddCommand(newCleanupCmd())
 	rootCmd.AddCommand(newDeleteCmd())
+	rootCmd.AddCommand(newEditCmd())
 	rootCmd.AddCommand(newPoolCmd())
 	rootCmd.AddCommand(newProjectsCmd())
 	rootCmd.AddCommand(newTeamCmd())
