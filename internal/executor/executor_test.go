@@ -1727,3 +1727,73 @@ func TestSaveTranscript(t *testing.T) {
 		t.Error("expected transcript file to be created")
 	}
 }
+
+// TestExecuteTask_UpdatesTaskCurrentPhase verifies that task.CurrentPhase is updated
+// when a phase starts, so that 'orc status' shows the current phase correctly.
+func TestExecuteTask_UpdatesTaskCurrentPhase(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-PHASE-001")
+
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
+
+	// Create task
+	testTask := task.New("TASK-PHASE-001", "Current Phase Test")
+	testTask.Weight = task.WeightSmall
+	testTask.Status = task.StatusPlanned
+	if err := testTask.SaveTo(taskDir); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Verify initial state has empty CurrentPhase
+	if testTask.CurrentPhase != "" {
+		t.Errorf("initial CurrentPhase = %q, want empty", testTask.CurrentPhase)
+	}
+
+	// Create plan with inline prompt (not template file)
+	testPlan := &plan.Plan{
+		Version: 1,
+		Weight:  "small",
+		Phases: []plan.Phase{
+			{
+				ID:     "implement",
+				Name:   "Implementation",
+				Prompt: "Implement: {{TASK_TITLE}}",
+			},
+		},
+	}
+	if err := testPlan.SaveTo(taskDir); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
+
+	testState := state.New("TASK-PHASE-001")
+
+	cfg := DefaultConfig()
+	cfg.WorkDir = tmpDir
+	e := New(cfg)
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	e.SetClient(mockClient)
+
+	ctx := context.Background()
+	err := e.ExecuteTask(ctx, testTask, testPlan, testState)
+	if err != nil {
+		t.Fatalf("ExecuteTask failed: %v", err)
+	}
+
+	// Reload task from disk to verify CurrentPhase was saved
+	reloadedTask, err := task.LoadFrom(tmpDir, "TASK-PHASE-001")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	// CurrentPhase should be set to "implement" (the phase that was executed)
+	if reloadedTask.CurrentPhase != "implement" {
+		t.Errorf("reloaded task CurrentPhase = %q, want %q", reloadedTask.CurrentPhase, "implement")
+	}
+
+	// Also verify task status is completed
+	if reloadedTask.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want completed", reloadedTask.Status)
+	}
+}

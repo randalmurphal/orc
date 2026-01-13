@@ -74,6 +74,12 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			return fmt.Errorf("save state: %w", err)
 		}
 
+		// Update task's current phase for status display
+		t.CurrentPhase = phase.ID
+		if err := t.SaveTo(e.currentTaskDir); err != nil {
+			return fmt.Errorf("save task: %w", err)
+		}
+
 		e.logger.Info("executing phase", "phase", phase.ID, "task", t.ID)
 
 		// Sync with target branch before phase if configured
