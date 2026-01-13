@@ -23,7 +23,7 @@ The orc plugin for Claude Code lives in a separate lightweight repo to avoid clo
 
 **Repo:** [randalmurphal/orc-claude-plugin](https://github.com/randalmurphal/orc-claude-plugin)
 
-Install in Claude Code:
+Install in Claude Code (run once):
 ```
 /plugin marketplace add randalmurphal/orc-claude-plugin
 /plugin install orc@orc
