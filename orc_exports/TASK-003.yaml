@@ -3,10 +3,15 @@ task:
     title: Auto-regenerate plan when task weight changes
     description: When task.yaml weight field changes (via edit command or manual file edit), the plan.yaml should be regenerated to match the new weight's phase sequence. File watcher should detect this and trigger regeneration. Preserve any completed/skipped phase statuses if phases exist in both old and new plans.
     weight: medium
-    status: planned
+    status: completed
+    current_phase: docs
     branch: orc/TASK-003
     created_at: 2026-01-12T20:40:33.248430233-06:00
-    updated_at: 2026-01-12T20:40:33.257626902-06:00
+    updated_at: 2026-01-13T15:41:22.487035-06:00
+    started_at: 2026-01-13T15:25:00.752936-06:00
+    completed_at: 2026-01-13T15:41:18.310263-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/12
 plan:
     version: 1
     task_id: TASK-003
@@ -36,7 +41,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: f32868babfb8af2c4e978e8914592cdd2ac37ee2
         - id: test
           name: test
           prompt: |
@@ -60,7 +66,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: fafb34afded3f71ec7881f40ebabbb80d1bbbb0b
         - id: docs
           name: docs
           prompt: |
@@ -84,4 +91,5 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: bc04cd633b8adc96e62f157bbd71cfe6a434c87c

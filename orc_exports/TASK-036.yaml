@@ -3,10 +3,13 @@ task:
     title: Need to show status of the tasks on all pages that display the task that should have it
     description: What i see is things like the tasks list page that doesnt show task status, maybe some other pages are affected as well
     weight: medium
-    status: planned
+    status: completed
+    current_phase: docs
     branch: orc/TASK-036
     created_at: 2026-01-13T00:34:31.629599615-06:00
-    updated_at: 2026-01-13T00:34:31.635362002-06:00
+    updated_at: 2026-01-13T11:27:27.653864-06:00
+    started_at: 2026-01-13T11:19:55.338154-06:00
+    completed_at: 2026-01-13T11:27:27.653863-06:00
 plan:
     version: 1
     task_id: TASK-036
@@ -36,7 +39,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: eb1c8a5fbbdabea309e229ea61fe89f008935646
         - id: test
           name: test
           prompt: |
@@ -60,7 +64,7 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
         - id: docs
           name: docs
           prompt: |
@@ -84,4 +88,4 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
