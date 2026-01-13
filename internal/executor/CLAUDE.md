@@ -157,6 +157,16 @@ worktreePath, cleanup, err := setupWorktree(gitSvc, taskID, config)
 defer cleanup()
 ```
 
+### Setup Failure Handling (task_execution.go)
+
+When setup fails (e.g., worktree creation), `failSetup()` ensures proper error handling:
+- Sets task status to `failed`
+- Stores error in `state.yaml`
+- Publishes error event (phase: "setup")
+- Displays error to user (always shown, even in quiet mode)
+
+This ensures setup errors are never silently swallowed.
+
 ## Completion Detection
 
 Phases signal completion via XML tags:
