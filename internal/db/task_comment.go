@@ -195,6 +195,56 @@ func (p *ProjectDB) CountTaskComments(taskID string) (int, error) {
 	return count, nil
 }
 
+// TaskCommentStats holds statistics about task comments.
+type TaskCommentStats struct {
+	Total       int `json:"total"`
+	HumanCount  int `json:"human_count"`
+	AgentCount  int `json:"agent_count"`
+	SystemCount int `json:"system_count"`
+}
+
+// GetTaskCommentStats returns comment statistics for a task in a single query.
+func (p *ProjectDB) GetTaskCommentStats(taskID string) (*TaskCommentStats, error) {
+	stats := &TaskCommentStats{}
+
+	rows, err := p.Query(`
+		SELECT
+			COALESCE(author_type, 'human') as author_type,
+			COUNT(*) as count
+		FROM task_comments
+		WHERE task_id = ?
+		GROUP BY author_type
+	`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get task comment stats: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var authorType string
+		var count int
+		if err := rows.Scan(&authorType, &count); err != nil {
+			return nil, fmt.Errorf("scan task comment stats: %w", err)
+		}
+
+		stats.Total += count
+		switch AuthorType(authorType) {
+		case AuthorTypeHuman:
+			stats.HumanCount = count
+		case AuthorTypeAgent:
+			stats.AgentCount = count
+		case AuthorTypeSystem:
+			stats.SystemCount = count
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate task comment stats: %w", err)
+	}
+
+	return stats, nil
+}
+
 func scanTaskComment(row *sql.Row) (*TaskComment, error) {
 	var c TaskComment
 	var phase sql.NullString
@@ -241,7 +291,10 @@ func scanTaskCommentRows(rows *sql.Rows) (*TaskComment, error) {
 // generateTaskCommentID generates a unique ID for a task comment.
 func generateTaskCommentID() string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		// crypto/rand.Read failing is essentially a system failure
+		panic("crypto/rand.Read failed: " + err.Error())
+	}
 	return "TC-" + hex.EncodeToString(b)[:8]
 }
 

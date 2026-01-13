@@ -61,7 +61,10 @@ Examples:
 			content := strings.Join(args[1:], " ")
 
 			// Validate task exists
-			wd, _ := os.Getwd()
+			wd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("get working directory: %w", err)
+			}
 			if !task.ExistsIn(wd, taskID) {
 				return fmt.Errorf("task %s not found", taskID)
 			}
@@ -129,7 +132,6 @@ Examples:
 func newCommentListCmd() *cobra.Command {
 	var authorType string
 	var phase string
-	var all bool
 
 	cmd := &cobra.Command{
 		Use:   "list [task-id]",
@@ -147,7 +149,10 @@ Examples:
 			}
 
 			taskID := args[0]
-			wd, _ := os.Getwd()
+			wd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("get working directory: %w", err)
+			}
 
 			// Validate task exists
 			if !task.ExistsIn(wd, taskID) {
@@ -224,7 +229,6 @@ Examples:
 
 	cmd.Flags().StringVarP(&authorType, "type", "t", "", "Filter by author type: human, agent, or system")
 	cmd.Flags().StringVarP(&phase, "phase", "p", "", "Filter by phase")
-	cmd.Flags().BoolVarP(&all, "all", "a", false, "Show all comments (default)")
 
 	return cmd
 }
@@ -240,7 +244,10 @@ func newCommentDeleteCmd() *cobra.Command {
 			}
 
 			commentID := args[0]
-			wd, _ := os.Getwd()
+			wd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("get working directory: %w", err)
+			}
 
 			pdb, err := db.OpenProject(wd)
 			if err != nil {
