@@ -51,7 +51,10 @@ cmd/orc
         │   ├── project/
         │   ├── prompt/
         │   ├── storage/
-        │   └── task/
+        │   ├── task/
+        │   └── watcher/        # File system monitoring
+        │       ├── events/
+        │       └── task/
         ├── executor/
         ├── git/
         ├── plan/
@@ -156,3 +159,4 @@ See package-specific CLAUDE.md files:
 - `db/CLAUDE.md` - SQLite persistence layer
 - `executor/CLAUDE.md` - Execution engine modules
 - `setup/CLAUDE.md` - Claude-powered setup
+- `watcher/CLAUDE.md` - File system watcher for live updates

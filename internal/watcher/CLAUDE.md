@@ -1,0 +1,104 @@
+# Watcher Package
+
+File system watcher for real-time task updates. Monitors `.orc/tasks/` and publishes events when tasks are created, modified, or deleted outside the API.
+
+## File Structure
+
+| File | Purpose | Lines |
+|------|---------|-------|
+| `watcher.go` | Main watcher, fsnotify integration, event publishing | ~430 |
+| `debouncer.go` | Event coalescing, delete verification | ~205 |
+| `watcher_test.go` | Test coverage | ~400 |
+
+## Architecture
+
+```
+File System Change
+    ↓
+fsnotify Event (Create/Write/Remove)
+    ↓
+handleFSEvent() → extract task ID, classify file type
+    ↓
+Debouncer (500ms quiet period)
+    ↓
+Content Hash Check (skip if unchanged)
+    ↓
+Publish Event → WebSocket Broadcast
+```
+
+## Watched Files
+
+| File | Event Type | Trigger |
+|------|------------|---------|
+| `task.yaml` | `task_created` / `task_updated` | Create (new) or Write (existing) |
+| `state.yaml` | `state` | Write |
+| `plan.yaml` | `task_updated` | Write |
+| `spec.md` | `task_updated` | Write |
+
+Task deletions are verified before publishing (100ms delay) to handle atomic saves and renames.
+
+## Key Patterns
+
+### Debouncing
+
+Rapid file changes are coalesced using per-task+filetype debounce keys:
+
+```go
+// Multiple rapid writes to TASK-001/task.yaml result in one event
+debouncer.Trigger("TASK-001", FileTypeTask, path)
+```
+
+Default: 500ms quiet period before firing.
+
+### Content Hashing
+
+SHA256 hashes prevent duplicate events when file content hasn't changed:
+
+```go
+// Returns false if content matches cached hash
+changed, err := w.hasContentChanged(path)
+```
+
+### Delete Verification
+
+Delete events are verified after 100ms to catch false positives:
+
+```go
+// Atomic save: Remove original → Create temp → Rename temp
+// Without verification, we'd see a false "deleted" event
+debouncer.TriggerDelete(taskID, path)  // Schedules verification
+debouncer.CancelDelete(taskID)          // Called if file reappears
+```
+
+## Integration
+
+Started by API server in `StartContext()`:
+
+```go
+fw, err := watcher.New(&watcher.Config{
+    WorkDir:   s.workDir,
+    Publisher: s.publisher,
+    Logger:    s.logger,
+})
+go fw.Start(ctx)
+```
+
+Events flow to WebSocket clients via the shared publisher.
+
+## Configuration
+
+| Option | Default | Purpose |
+|--------|---------|---------|
+| `DebounceMs` | 500 | Quiet period before publishing |
+
+## Testing
+
+```bash
+go test ./internal/watcher/... -v
+```
+
+Key test scenarios:
+- Create/update/delete detection
+- Content change filtering (hash-based)
+- Delete false positive handling
+- Debouncing behavior

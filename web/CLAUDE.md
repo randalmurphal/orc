@@ -130,6 +130,20 @@ Page-specific modals (like `TaskEditModal`) can live in individual routes.
 
 Global WebSocket in `+layout.svelte` subscribes with `"*"`. All task events flow to task store. Pages react to store changes - no individual WebSocket connections needed.
 
+### Live Refresh
+
+The board and task list automatically update when tasks are created, modified, or deleted via CLI or filesystem:
+
+| Event | Store Action | UI Effect |
+|-------|--------------|-----------|
+| `task_created` | `addTask(task)` | New card appears, toast notification |
+| `task_updated` | `updateTask(id, task)` | Card updates in place |
+| `task_deleted` | `removeTask(id)` | Card removed, toast notification |
+
+**Event flow:** File watcher (backend) → WebSocket → `+layout.svelte` handler → task store → reactive UI update
+
+The file watcher uses content hashing and debouncing to prevent duplicate notifications from atomic saves or git operations.
+
 See `QUICKREF.md` for subscription helpers.
 
 ## Attachments
