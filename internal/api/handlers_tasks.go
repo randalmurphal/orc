@@ -39,6 +39,8 @@ func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 		Status:       string(t.Status),
 		CurrentPhase: t.CurrentPhase,
 		Branch:       t.Branch,
+		Queue:        string(t.GetQueue()),
+		Priority:     string(t.GetPriority()),
 		CreatedAt:    t.CreatedAt,
 		StartedAt:    t.StartedAt,
 		CompletedAt:  t.CompletedAt,
@@ -121,6 +123,8 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		Title       string `json:"title"`
 		Description string `json:"description,omitempty"`
 		Weight      string `json:"weight,omitempty"`
+		Queue       string `json:"queue,omitempty"`
+		Priority    string `json:"priority,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -147,6 +151,26 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// Default to medium if not specified
 		t.Weight = task.WeightMedium
+	}
+
+	// Set queue (defaults to active)
+	if req.Queue != "" {
+		queue := task.Queue(req.Queue)
+		if !task.IsValidQueue(queue) {
+			s.jsonError(w, fmt.Sprintf("invalid queue: %s (valid: active, backlog)", req.Queue), http.StatusBadRequest)
+			return
+		}
+		t.Queue = queue
+	}
+
+	// Set priority (defaults to normal)
+	if req.Priority != "" {
+		priority := task.Priority(req.Priority)
+		if !task.IsValidPriority(priority) {
+			s.jsonError(w, fmt.Sprintf("invalid priority: %s (valid: critical, high, normal, low)", req.Priority), http.StatusBadRequest)
+			return
+		}
+		t.Priority = priority
 	}
 
 	taskDir := task.TaskDirIn(s.workDir, id)
@@ -224,7 +248,7 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleUpdateTask updates task fields (title, description, weight).
+// handleUpdateTask updates task fields (title, description, weight, queue, priority).
 func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -246,6 +270,8 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		Title       *string           `json:"title,omitempty"`
 		Description *string           `json:"description,omitempty"`
 		Weight      *string           `json:"weight,omitempty"`
+		Queue       *string           `json:"queue,omitempty"`
+		Priority    *string           `json:"priority,omitempty"`
 		Metadata    map[string]string `json:"metadata,omitempty"`
 	}
 
@@ -281,6 +307,24 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 			t.Weight = weight
 			weightChanged = true
 		}
+	}
+
+	if req.Queue != nil {
+		queue := task.Queue(*req.Queue)
+		if !task.IsValidQueue(queue) {
+			s.jsonError(w, fmt.Sprintf("invalid queue: %s (valid: active, backlog)", *req.Queue), http.StatusBadRequest)
+			return
+		}
+		t.Queue = queue
+	}
+
+	if req.Priority != nil {
+		priority := task.Priority(*req.Priority)
+		if !task.IsValidPriority(priority) {
+			s.jsonError(w, fmt.Sprintf("invalid priority: %s (valid: critical, high, normal, low)", *req.Priority), http.StatusBadRequest)
+			return
+		}
+		t.Priority = priority
 	}
 
 	if req.Metadata != nil {

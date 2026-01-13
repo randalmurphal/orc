@@ -45,17 +45,40 @@ CWD-based task operations.
 
 The `task` field contains the updated task with `status: "running"` set immediately. This allows clients to update their local state without waiting for WebSocket events, avoiding race conditions where the task might briefly appear deleted.
 
+**Create task body (POST):**
+```json
+{
+  "title": "Task title",
+  "description": "Task description",
+  "weight": "medium",
+  "queue": "active",
+  "priority": "normal"
+}
+```
+
+All fields except `title` are optional. Defaults: `queue: "active"`, `priority: "normal"`.
+
 **Update task body (PATCH):**
 ```json
 {
   "title": "New title",
   "description": "Updated description",
   "weight": "medium",
+  "queue": "backlog",
+  "priority": "high",
   "metadata": {"key": "value"}
 }
 ```
 
-All fields are optional. Only provided fields are updated. Cannot update running tasks. Valid weights: `trivial`, `small`, `medium`, `large`, `greenfield`. Weight changes trigger automatic plan regeneration (completed/skipped phases are preserved if they exist in both plans).
+All fields are optional. Only provided fields are updated. Cannot update running tasks.
+
+| Field | Valid Values |
+|-------|--------------|
+| `weight` | `trivial`, `small`, `medium`, `large`, `greenfield` |
+| `queue` | `active`, `backlog` |
+| `priority` | `critical`, `high`, `normal`, `low` |
+
+Weight changes trigger automatic plan regeneration (completed/skipped phases are preserved if they exist in both plans).
 
 ### Task Attachments
 

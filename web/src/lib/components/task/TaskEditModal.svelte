@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { Task, TaskWeight } from '$lib/types';
+	import type { Task, TaskWeight, TaskQueue, TaskPriority } from '$lib/types';
 	import Modal from '$lib/components/overlays/Modal.svelte';
 
 	interface Props {
 		task: Task;
 		open: boolean;
 		onClose: () => void;
-		onSave: (update: { title?: string; description?: string; weight?: TaskWeight }) => Promise<void>;
+		onSave: (update: { title?: string; description?: string; weight?: TaskWeight; queue?: TaskQueue; priority?: TaskPriority }) => Promise<void>;
 	}
 
 	let { task, open, onClose, onSave }: Props = $props();
@@ -18,6 +18,10 @@
 	let description = $state(task.description ?? '');
 	// svelte-ignore state_referenced_locally
 	let weight = $state<TaskWeight>(task.weight);
+	// svelte-ignore state_referenced_locally
+	let queue = $state<TaskQueue>(task.queue ?? 'active');
+	// svelte-ignore state_referenced_locally
+	let priority = $state<TaskPriority>(task.priority ?? 'normal');
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 
@@ -27,6 +31,8 @@
 			title = task.title;
 			description = task.description ?? '';
 			weight = task.weight;
+			queue = task.queue ?? 'active';
+			priority = task.priority ?? 'normal';
 			error = null;
 		}
 	});
@@ -45,8 +51,24 @@
 		{ value: 'greenfield', label: 'Greenfield', description: 'New system' }
 	];
 
+	const queueOptions: { value: TaskQueue; label: string; description: string }[] = [
+		{ value: 'active', label: 'Active', description: 'Current work queue' },
+		{ value: 'backlog', label: 'Backlog', description: 'Someday/maybe items' }
+	];
+
+	const priorityOptions: { value: TaskPriority; label: string; description: string; color: string }[] = [
+		{ value: 'critical', label: 'Critical', description: 'Needs immediate attention', color: 'var(--status-error)' },
+		{ value: 'high', label: 'High', description: 'Should be done soon', color: 'var(--status-warning)' },
+		{ value: 'normal', label: 'Normal', description: 'Regular priority', color: 'var(--text-muted)' },
+		{ value: 'low', label: 'Low', description: 'Can wait', color: 'var(--text-disabled)' }
+	];
+
 	const hasChanges = $derived(
-		title !== task.title || description !== (task.description ?? '') || weight !== task.weight
+		title !== task.title ||
+		description !== (task.description ?? '') ||
+		weight !== task.weight ||
+		queue !== (task.queue ?? 'active') ||
+		priority !== (task.priority ?? 'normal')
 	);
 
 	const canSubmit = $derived(title.trim().length > 0 && hasChanges && !isLoading);
@@ -59,7 +81,7 @@
 		error = null;
 
 		try {
-			const update: { title?: string; description?: string; weight?: TaskWeight } = {};
+			const update: { title?: string; description?: string; weight?: TaskWeight; queue?: TaskQueue; priority?: TaskPriority } = {};
 
 			if (title !== task.title) {
 				update.title = title.trim();
@@ -69,6 +91,12 @@
 			}
 			if (weight !== task.weight) {
 				update.weight = weight;
+			}
+			if (queue !== (task.queue ?? 'active')) {
+				update.queue = queue;
+			}
+			if (priority !== (task.priority ?? 'normal')) {
+				update.priority = priority;
 			}
 
 			await onSave(update);
@@ -144,6 +172,55 @@
 						<span class="weight-desc">{option.description}</span>
 					</label>
 				{/each}
+			</div>
+		</div>
+
+		<div class="form-row">
+			<div class="form-field flex-1">
+				<!-- svelte-ignore a11y_label_has_associated_control -->
+				<label id="queue-label">Queue</label>
+				<div class="toggle-options" role="radiogroup" aria-labelledby="queue-label">
+					{#each queueOptions as option}
+						<label
+							class="toggle-option"
+							class:selected={queue === option.value}
+							class:backlog={option.value === 'backlog' && queue === option.value}
+						>
+							<input
+								type="radio"
+								name="queue"
+								value={option.value}
+								bind:group={queue}
+								disabled={isLoading}
+							/>
+							<span class="toggle-label">{option.label}</span>
+						</label>
+					{/each}
+				</div>
+			</div>
+
+			<div class="form-field flex-1">
+				<!-- svelte-ignore a11y_label_has_associated_control -->
+				<label id="priority-label">Priority</label>
+				<div class="priority-options" role="radiogroup" aria-labelledby="priority-label">
+					{#each priorityOptions as option}
+						<label
+							class="priority-option"
+							class:selected={priority === option.value}
+							style:--priority-color={option.color}
+						>
+							<input
+								type="radio"
+								name="priority"
+								value={option.value}
+								bind:group={priority}
+								disabled={isLoading}
+							/>
+							<span class="priority-indicator" style:background={option.color}></span>
+							<span class="priority-label">{option.label}</span>
+						</label>
+					{/each}
+				</div>
 			</div>
 		</div>
 
@@ -329,6 +406,114 @@
 		font-size: var(--text-2xs);
 	}
 
+	/* Queue and Priority row */
+	.form-row {
+		display: flex;
+		gap: var(--space-4);
+	}
+
+	.flex-1 {
+		flex: 1;
+	}
+
+	/* Toggle options (Queue) */
+	.toggle-options {
+		display: flex;
+		gap: var(--space-2);
+	}
+
+	.toggle-option {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-2);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		transition:
+			border-color var(--duration-fast) var(--ease-out),
+			background var(--duration-fast) var(--ease-out);
+	}
+
+	.toggle-option input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.toggle-option:hover {
+		border-color: var(--border-strong);
+	}
+
+	.toggle-option.selected {
+		border-width: 2px;
+		border-color: var(--accent-primary);
+		background: var(--accent-subtle);
+	}
+
+	.toggle-option.selected.backlog {
+		border-color: var(--text-muted);
+		background: var(--bg-secondary);
+	}
+
+	.toggle-label {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--text-primary);
+	}
+
+	/* Priority options */
+	.priority-options {
+		display: flex;
+		gap: var(--space-1);
+	}
+
+	.priority-option {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-1);
+		padding: var(--space-2) var(--space-1);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		transition:
+			border-color var(--duration-fast) var(--ease-out),
+			background var(--duration-fast) var(--ease-out);
+	}
+
+	.priority-option input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.priority-option:hover {
+		border-color: var(--border-strong);
+	}
+
+	.priority-option.selected {
+		border-width: 2px;
+		border-color: var(--priority-color);
+		background: color-mix(in srgb, var(--priority-color) 10%, transparent);
+	}
+
+	.priority-indicator {
+		width: 8px;
+		height: 8px;
+		border-radius: var(--radius-full);
+	}
+
+	.priority-label {
+		font-size: var(--text-2xs);
+		font-weight: var(--font-medium);
+		color: var(--text-secondary);
+	}
+
 	@media (max-width: 640px) {
 		.weight-options {
 			grid-template-columns: repeat(2, 1fr);
@@ -336,6 +521,18 @@
 
 		.weight-option:last-child {
 			grid-column: span 2;
+		}
+
+		.form-row {
+			flex-direction: column;
+		}
+
+		.priority-options {
+			flex-wrap: wrap;
+		}
+
+		.priority-option {
+			flex: 1 1 calc(50% - var(--space-1));
 		}
 	}
 </style>

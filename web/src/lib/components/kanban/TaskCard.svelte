@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import StatusIndicator from '$lib/components/ui/StatusIndicator.svelte';
-	import type { Task } from '$lib/types';
+	import type { Task, TaskPriority, TaskQueue } from '$lib/types';
+	import { PRIORITY_CONFIG } from '$lib/types';
+	import { updateTask } from '$lib/api';
+	import { updateTask as updateTaskInStore } from '$lib/stores/tasks';
 
 	interface Props {
 		task: Task;
@@ -12,6 +15,15 @@
 
 	let actionLoading = $state(false);
 	let isDragging = $state(false);
+	let showQuickMenu = $state(false);
+	let quickMenuLoading = $state(false);
+
+	// Get priority config with fallback to normal
+	const priority = $derived((task.priority || 'normal') as TaskPriority);
+	const priorityConfig = $derived(PRIORITY_CONFIG[priority]);
+	const showPriority = $derived(priority !== 'normal'); // Only show non-normal priorities
+	const queue = $derived((task.queue || 'active') as TaskQueue);
+	const isBacklog = $derived(queue === 'backlog');
 
 	function handleDragStart(e: DragEvent) {
 		if (e.dataTransfer) {
@@ -43,9 +55,9 @@
 	}
 
 	function openTask(e: MouseEvent) {
-		// Don't navigate if clicking on action buttons
+		// Don't navigate if clicking on action buttons or quick menu
 		const target = e.target as HTMLElement;
-		if (target.closest('.actions')) {
+		if (target.closest('.actions') || target.closest('.quick-menu')) {
 			return;
 		}
 		goto(`/tasks/${task.id}`);
@@ -55,6 +67,53 @@
 		if (e.key === 'Enter' || e.key === ' ') {
 			e.preventDefault();
 			goto(`/tasks/${task.id}`);
+		}
+		if (e.key === 'Escape' && showQuickMenu) {
+			showQuickMenu = false;
+		}
+	}
+
+	function toggleQuickMenu(e: MouseEvent) {
+		e.stopPropagation();
+		e.preventDefault();
+		showQuickMenu = !showQuickMenu;
+	}
+
+	function closeQuickMenu() {
+		showQuickMenu = false;
+	}
+
+	async function setQueue(newQueue: TaskQueue) {
+		if (newQueue === queue) {
+			showQuickMenu = false;
+			return;
+		}
+		quickMenuLoading = true;
+		try {
+			const updated = await updateTask(task.id, { queue: newQueue });
+			updateTaskInStore(task.id, updated);
+		} catch (e) {
+			console.error('Failed to update queue:', e);
+		} finally {
+			quickMenuLoading = false;
+			showQuickMenu = false;
+		}
+	}
+
+	async function setPriority(newPriority: TaskPriority) {
+		if (newPriority === priority) {
+			showQuickMenu = false;
+			return;
+		}
+		quickMenuLoading = true;
+		try {
+			const updated = await updateTask(task.id, { priority: newPriority });
+			updateTaskInStore(task.id, updated);
+		} catch (e) {
+			console.error('Failed to update priority:', e);
+		} finally {
+			quickMenuLoading = false;
+			showQuickMenu = false;
 		}
 	}
 
@@ -98,7 +157,35 @@
 	tabindex="0"
 >
 	<div class="card-header">
-		<span class="task-id">{task.id}</span>
+		<div class="header-left">
+			<span class="task-id">{task.id}</span>
+			{#if showPriority}
+				<span
+					class="priority-badge"
+					class:critical={priority === 'critical'}
+					class:high={priority === 'high'}
+					class:low={priority === 'low'}
+					style:color={priorityConfig.color}
+					title="{priorityConfig.label} priority"
+				>
+					{#if priority === 'critical'}
+						<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+							<circle cx="12" cy="12" r="10" />
+							<line x1="12" y1="8" x2="12" y2="12" />
+							<line x1="12" y1="16" x2="12.01" y2="16" />
+						</svg>
+					{:else if priority === 'high'}
+						<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="18 15 12 9 6 15" />
+						</svg>
+					{:else if priority === 'low'}
+						<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="6 9 12 15 18 9" />
+						</svg>
+					{/if}
+				</span>
+			{/if}
+		</div>
 		<StatusIndicator status={task.status} size="sm" />
 	</div>
 
@@ -163,6 +250,101 @@
 					</svg>
 				</button>
 			{/if}
+
+			<!-- Quick menu for queue/priority -->
+			<div class="quick-menu">
+				<button
+					class="action-btn more"
+					onclick={toggleQuickMenu}
+					title="Quick actions"
+					aria-expanded={showQuickMenu}
+					aria-haspopup="true"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+						<circle cx="12" cy="5" r="2" />
+						<circle cx="12" cy="12" r="2" />
+						<circle cx="12" cy="19" r="2" />
+					</svg>
+				</button>
+
+				{#if showQuickMenu}
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div class="quick-menu-backdrop" onclick={closeQuickMenu} onkeydown={(e) => e.key === 'Escape' && closeQuickMenu()}></div>
+					<div class="quick-menu-dropdown" role="menu">
+						{#if quickMenuLoading}
+							<div class="menu-loading">
+								<div class="spinner"></div>
+							</div>
+						{:else}
+							<!-- Queue section -->
+							<div class="menu-section">
+								<div class="menu-label">Queue</div>
+								<button
+									class="menu-item"
+									class:selected={queue === 'active'}
+									onclick={() => setQueue('active')}
+									role="menuitem"
+								>
+									<span class="menu-icon active-icon"></span>
+									Active
+								</button>
+								<button
+									class="menu-item"
+									class:selected={queue === 'backlog'}
+									onclick={() => setQueue('backlog')}
+									role="menuitem"
+								>
+									<span class="menu-icon backlog-icon"></span>
+									Backlog
+								</button>
+							</div>
+
+							<div class="menu-divider"></div>
+
+							<!-- Priority section -->
+							<div class="menu-section">
+								<div class="menu-label">Priority</div>
+								<button
+									class="menu-item"
+									class:selected={priority === 'critical'}
+									onclick={() => setPriority('critical')}
+									role="menuitem"
+								>
+									<span class="menu-icon priority-icon" style:background="var(--status-error)"></span>
+									Critical
+								</button>
+								<button
+									class="menu-item"
+									class:selected={priority === 'high'}
+									onclick={() => setPriority('high')}
+									role="menuitem"
+								>
+									<span class="menu-icon priority-icon" style:background="var(--status-warning)"></span>
+									High
+								</button>
+								<button
+									class="menu-item"
+									class:selected={priority === 'normal'}
+									onclick={() => setPriority('normal')}
+									role="menuitem"
+								>
+									<span class="menu-icon priority-icon" style:background="var(--text-muted)"></span>
+									Normal
+								</button>
+								<button
+									class="menu-item"
+									class:selected={priority === 'low'}
+									onclick={() => setPriority('low')}
+									role="menuitem"
+								>
+									<span class="menu-icon priority-icon" style:background="var(--text-disabled)"></span>
+									Low
+								</button>
+							</div>
+						{/if}
+					</div>
+				{/if}
+			</div>
 		</div>
 	</div>
 </div>
@@ -224,12 +406,33 @@
 		margin-bottom: var(--space-2);
 	}
 
+	.card-header .header-left {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1-5);
+	}
+
 	.task-id {
 		font-family: var(--font-mono);
 		font-size: var(--text-xs);
 		font-weight: var(--font-medium);
 		color: var(--text-muted);
 		letter-spacing: var(--tracking-wide);
+	}
+
+	.priority-badge {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.priority-badge.critical {
+		animation: priority-pulse 1.5s ease-in-out infinite;
+	}
+
+	@keyframes priority-pulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.6; }
 	}
 
 	.task-title {
@@ -354,5 +557,123 @@
 	.action-btn.resume:hover:not(:disabled) {
 		background: var(--status-info);
 		color: white;
+	}
+
+	.action-btn.more {
+		background: var(--bg-tertiary);
+		color: var(--text-muted);
+	}
+
+	.action-btn.more:hover {
+		background: var(--bg-secondary);
+		color: var(--text-primary);
+		border: 1px solid var(--border-default);
+	}
+
+	/* Quick menu */
+	.quick-menu {
+		position: relative;
+	}
+
+	.quick-menu-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 100;
+	}
+
+	.quick-menu-dropdown {
+		position: absolute;
+		right: 0;
+		top: 100%;
+		margin-top: var(--space-1);
+		min-width: 140px;
+		background: var(--bg-primary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-lg);
+		z-index: 101;
+		overflow: hidden;
+	}
+
+	.menu-section {
+		padding: var(--space-1);
+	}
+
+	.menu-label {
+		padding: var(--space-1) var(--space-2);
+		font-size: var(--text-2xs);
+		font-weight: var(--font-semibold);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wider);
+		color: var(--text-muted);
+	}
+
+	.menu-item {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		width: 100%;
+		padding: var(--space-1-5) var(--space-2);
+		background: transparent;
+		border: none;
+		border-radius: var(--radius-sm);
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+		cursor: pointer;
+		text-align: left;
+		transition: background var(--duration-fast) var(--ease-out);
+	}
+
+	.menu-item:hover {
+		background: var(--bg-tertiary);
+	}
+
+	.menu-item.selected {
+		background: var(--accent-subtle);
+		color: var(--accent-primary);
+	}
+
+	.menu-icon {
+		width: 8px;
+		height: 8px;
+		border-radius: var(--radius-full);
+		flex-shrink: 0;
+	}
+
+	.menu-icon.active-icon {
+		background: var(--accent-primary);
+	}
+
+	.menu-icon.backlog-icon {
+		background: var(--text-muted);
+		border: 1px dashed var(--border-default);
+	}
+
+	/* .menu-icon.priority-icon - background color set inline via style attribute */
+
+	.menu-divider {
+		height: 1px;
+		background: var(--border-subtle);
+		margin: var(--space-1) 0;
+	}
+
+	.menu-loading {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-4);
+	}
+
+	.menu-loading .spinner {
+		width: 16px;
+		height: 16px;
+		border: 2px solid var(--border-default);
+		border-top-color: var(--accent-primary);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
 	}
 </style>

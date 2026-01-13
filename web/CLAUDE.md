@@ -20,7 +20,7 @@ web/src/
 │   │   ├── comments/     # TaskCommentsPanel, TaskCommentThread, TaskCommentForm
 │   │   ├── dashboard/    # Stats, actions, activity
 │   │   ├── diff/         # DiffViewer, DiffFile, DiffHunk, VirtualScroller
-│   │   ├── kanban/       # Board, Column, TaskCard
+│   │   ├── kanban/       # Board, Column, QueuedColumn, TaskCard
 │   │   ├── layout/       # Header, Sidebar
 │   │   ├── overlays/     # Modal, CommandPalette, NewTaskModal, KeyboardShortcutsHelp
 │   │   ├── review/       # CommentForm, CommentThread, ReviewPanel
@@ -42,7 +42,7 @@ web/src/
 | Dashboard | Stats, QuickActions, ActiveTasks, RecentActivity | Overview page |
 | Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments | Task detail |
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
-| Kanban | Board, Column, TaskCard, ConfirmModal | Board view |
+| Kanban | Board, Column, QueuedColumn, TaskCard, ConfirmModal | Board view with queue/priority |
 | Comments | TaskCommentsPanel, TaskCommentThread, TaskCommentForm | Task discussion notes |
 | Review | CommentForm, CommentThread, ReviewPanel, ReviewSummary | Code review comments |
 | UI | Icon (34 icons), StatusIndicator, Toast, Modal | Shared components |
@@ -145,6 +145,37 @@ The board and task list automatically update when tasks are created, modified, o
 The file watcher uses content hashing and debouncing to prevent duplicate notifications from atomic saves or git operations.
 
 See `QUICKREF.md` for subscription helpers.
+
+## Task Organization (Queue & Priority)
+
+Tasks support queue and priority organization to prevent cognitive overload:
+
+### Queue
+
+| Queue | Display | Purpose |
+|-------|---------|---------|
+| `active` | Prominent in column | Current work |
+| `backlog` | Collapsed section, dashed borders | "Someday" items |
+
+Each column shows active tasks first, then a collapsible "Backlog" divider with count.
+
+### Priority
+
+| Priority | Indicator | Sort Order |
+|----------|-----------|------------|
+| `critical` | Pulsing red icon | First |
+| `high` | Orange up arrow | Second |
+| `normal` | None shown | Third |
+| `low` | Gray down arrow | Fourth |
+
+Tasks are sorted by priority within each column. Priority badges only appear for non-normal priorities.
+
+### TaskCard Quick Menu
+
+Right-click or use the "..." menu on TaskCard to:
+- Move to Active/Backlog queue
+- Set priority (Critical/High/Normal/Low)
+- Run/Pause task actions
 
 ## Attachments
 

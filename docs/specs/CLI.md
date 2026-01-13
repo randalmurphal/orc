@@ -110,13 +110,14 @@ Next steps:
 List tasks.
 
 ```bash
-orc list [--status <status>] [--weight <weight>] [--all]
+orc list [--status <status>] [--weight <weight>] [--queue <queue>] [--all]
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--status`, `-s` | Filter by status | active |
 | `--weight`, `-w` | Filter by weight | all |
+| `--queue`, `-Q` | Filter by queue: `active`, `backlog` | all |
 | `--all`, `-a` | Include completed | false |
 
 **Output**:
@@ -125,6 +126,8 @@ ID        WEIGHT   STATUS      PHASE      TITLE
 TASK-001  medium   running     implement  Add user auth
 TASK-002  small    paused      research   Fix rate limiting
 ```
+
+**Note:** Queue and priority are primarily managed via the Web UI or API. See [API Reference](../API_REFERENCE.md) for PATCH `/api/tasks/:id` to set queue/priority.
 
 ---
 
