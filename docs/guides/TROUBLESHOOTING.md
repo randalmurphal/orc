@@ -175,12 +175,28 @@ git branch -D orc/TASK-XXX
 fatal: '.orc/worktrees/TASK-XXX' already exists
 ```
 
-**Solutions**:
+**Note**: As of TASK-042, orc automatically handles stale worktree registrations. If a worktree directory was deleted without proper cleanup (e.g., via `rm -rf`), orc will automatically prune stale entries and retry when creating a new worktree for a task.
+
+**Manual Solutions** (if auto-recovery fails):
 ```bash
 # Remove stale worktree
 git worktree remove .orc/worktrees/TASK-XXX --force
 git worktree prune
 ```
+
+### Stale Worktree Registration
+
+**Symptoms**:
+```
+fatal: 'path/to/worktree' is already a worktree
+```
+(Even though the directory doesn't exist)
+
+**Cause**: A worktree directory was deleted without using `git worktree remove`. Git still has a stale registration.
+
+**Solutions**:
+- **Automatic**: Orc handles this automatically - just run your task and it will prune stale entries
+- **Manual**: `git worktree prune` removes stale registrations
 
 ---
 

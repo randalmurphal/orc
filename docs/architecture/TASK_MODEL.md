@@ -18,6 +18,13 @@ weight: medium           # trivial | small | medium | large | greenfield
 status: running          # created | classifying | planned | running | paused | blocked | completed | failed
 branch: orc/TASK-001
 
+# Testing flags (auto-detected during task creation)
+requires_ui_testing: true        # Auto-set when task mentions UI keywords
+testing_requirements:
+  unit: true                     # Always true for non-trivial tasks
+  e2e: true                      # Set for frontend projects with UI tasks
+  visual: false                  # Set for design/style/theme tasks
+
 created_at: 2026-01-10T10:30:00Z
 created_by: randy
 updated_at: 2026-01-10T12:45:00Z
@@ -114,6 +121,47 @@ gates:
     timestamp: 2026-01-10T10:45:00Z
 
 errors: []
+```
+
+---
+
+## UI Testing Detection
+
+During task creation, orc automatically detects if the task involves UI work and configures testing requirements accordingly.
+
+### UI Keyword Detection
+
+The `requires_ui_testing` flag is auto-set when the task title or description contains UI-related keywords:
+
+| Category | Keywords |
+|----------|----------|
+| Components | button, form, modal, dialog, component, widget, input, dropdown, select, checkbox, radio, tooltip, popover, toast, notification, alert |
+| Layout | page, layout, navigation, menu, sidebar, header, footer, dashboard, table, grid, card |
+| Styling | style, css, design, responsive, mobile, desktop, theme, dark mode, light mode, animation, transition |
+| Interaction | click, hover, focus, scroll, drag, drop |
+| Accessibility | accessibility, a11y, screen reader, keyboard navigation |
+
+### Testing Requirements
+
+The `testing_requirements` object is auto-configured based on task weight and project type:
+
+| Requirement | Condition |
+|-------------|-----------|
+| `unit` | Always `true` for non-trivial tasks (weight > trivial) |
+| `e2e` | `true` if project has frontend AND task requires UI testing |
+| `visual` | `true` if task mentions visual/design/style/css/theme/layout/responsive |
+
+### Example Output
+
+```bash
+$ orc new "Add dark mode toggle button"
+
+Task created: TASK-042
+   Title:  Add dark mode toggle button
+   Weight: medium
+   Phases: 3
+   UI Testing: required (detected from task description)
+   Testing: unit, e2e, visual
 ```
 
 ---

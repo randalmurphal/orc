@@ -91,6 +91,23 @@ func CreateWorktree(taskID string) (string, error) {
 - Claude processes can't interfere
 - Easy cleanup: delete directory
 
+### Stale Worktree Handling
+
+Git tracks worktrees in its internal state (`.git/worktrees/`). If a worktree directory is deleted without using `git worktree remove` (e.g., `rm -rf`), git retains a "stale" registration that blocks creating a new worktree at the same path.
+
+**Orc handles this automatically**:
+1. First attempts to create worktree normally
+2. If that fails, tries to add worktree for existing branch
+3. If both fail, prunes stale entries (`git worktree prune`)
+4. Retries worktree creation after pruning
+
+This means users can safely delete worktree directories manually without breaking future task execution.
+
+```go
+// PruneWorktrees can also be called manually if needed
+func (g *Git) PruneWorktrees() error
+```
+
 ---
 
 ## Operations

@@ -79,6 +79,42 @@ func (g *Git) BranchName(taskID string) string {
 	return BranchName(taskID, g.executorPrefix)
 }
 
+// tryCreateWorktree attempts to create a worktree, handling stale registrations.
+// If the initial attempt fails, it prunes stale worktree entries and retries.
+// This handles the case where a worktree directory was deleted but git still has
+// a stale registration for it.
+func (g *Git) tryCreateWorktree(branchName, worktreePath, baseBranch string) (string, error) {
+	// First attempt: create worktree with new branch
+	output, err := g.ctx.RunGit("worktree", "add", "-b", branchName, worktreePath, baseBranch)
+	if err == nil {
+		return output, nil
+	}
+
+	// Branch might already exist, try to add worktree for existing branch
+	output, err = g.ctx.RunGit("worktree", "add", worktreePath, branchName)
+	if err == nil {
+		return output, nil
+	}
+
+	// Both attempts failed - check if this might be a stale worktree issue
+	// Prune stale worktree entries (directories that no longer exist)
+	_, _ = g.ctx.RunGit("worktree", "prune")
+
+	// Retry: create worktree with new branch
+	output, err = g.ctx.RunGit("worktree", "add", "-b", branchName, worktreePath, baseBranch)
+	if err == nil {
+		return output, nil
+	}
+
+	// Retry: add worktree for existing branch
+	output, err = g.ctx.RunGit("worktree", "add", worktreePath, branchName)
+	if err == nil {
+		return output, nil
+	}
+
+	return "", err
+}
+
 // CreateWorktree creates an isolated worktree for a task.
 // Returns the absolute path to the worktree.
 // Uses executor prefix in p2p/team mode for isolated worktrees.
@@ -87,6 +123,9 @@ func (g *Git) BranchName(taskID string) string {
 // After creation, safety hooks are injected into the worktree that:
 // - Block pushes to protected branches (main, master, develop, release)
 // - Warn if commits are made on unexpected branches
+//
+// If a stale worktree registration exists (directory deleted but git still tracks it),
+// this function will automatically prune stale entries and retry.
 func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 	branchName := g.BranchName(taskID)
 	worktreePath := WorktreePath(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix)
@@ -97,15 +136,10 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 		return "", fmt.Errorf("create worktrees dir: %w", err)
 	}
 
-	// Create worktree with new branch from base branch
-	// This does NOT checkout the base branch in the main repo
-	_, err := g.ctx.RunGit("worktree", "add", "-b", branchName, worktreePath, baseBranch)
+	// Try to create worktree, handling stale registrations
+	_, err := g.tryCreateWorktree(branchName, worktreePath, baseBranch)
 	if err != nil {
-		// Branch might already exist, try to add worktree for existing branch
-		_, err = g.ctx.RunGit("worktree", "add", worktreePath, branchName)
-		if err != nil {
-			return "", fmt.Errorf("create worktree for %s: %w", taskID, err)
-		}
+		return "", fmt.Errorf("create worktree for %s: %w", taskID, err)
 	}
 
 	// Inject safety hooks into the worktree
@@ -133,6 +167,17 @@ func (g *Git) CleanupWorktree(taskID string) error {
 		return fmt.Errorf("cleanup worktree for %s: %w", taskID, err)
 	}
 
+	return nil
+}
+
+// PruneWorktrees removes stale worktree entries from git's internal tracking.
+// Stale entries occur when a worktree directory is deleted without using
+// `git worktree remove`. This is safe to call at any time.
+func (g *Git) PruneWorktrees() error {
+	_, err := g.ctx.RunGit("worktree", "prune")
+	if err != nil {
+		return fmt.Errorf("prune worktrees: %w", err)
+	}
 	return nil
 }
 

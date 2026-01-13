@@ -67,6 +67,15 @@ weight: medium
 status: running
 branch: orc/TASK-001
 
+# UI Testing Detection (auto-detected from task content)
+requires_ui_testing: true         # Set when task mentions UI/frontend/button/form/page
+
+# Testing Requirements (auto-configured based on weight and project type)
+testing_requirements:
+  unit: true                      # Unit tests (default true for non-trivial tasks)
+  e2e: true                       # E2E tests (set for frontend projects with UI tasks)
+  visual: false                   # Visual regression tests (set for design/style tasks)
+
 created_at: 2026-01-10T10:30:00Z
 created_by: randy
 updated_at: 2026-01-10T12:45:00Z
