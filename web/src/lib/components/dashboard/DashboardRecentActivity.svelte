@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Task } from '$lib/types';
+	import StatusIndicator from '../ui/StatusIndicator.svelte';
 
 	interface Props {
 		tasks: Task[];
@@ -31,18 +32,9 @@
 		<div class="activity-list">
 			{#each tasks as task (task.id)}
 				<a href="/tasks/{task.id}" class="activity-item">
-					<span class="activity-status" class:completed={task.status === 'completed'} class:failed={task.status === 'failed'}>
-						{#if task.status === 'completed'}
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-								<polyline points="20 6 9 17 4 12" />
-							</svg>
-						{:else}
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-								<line x1="18" y1="6" x2="6" y2="18" />
-								<line x1="6" y1="6" x2="18" y2="18" />
-							</svg>
-						{/if}
-					</span>
+					<div class="activity-status">
+						<StatusIndicator status={task.status} size="md" />
+					</div>
 					<div class="activity-content">
 						<span class="activity-id">{task.id}</span>
 						<span class="activity-title">{task.title}</span>
@@ -99,17 +91,6 @@
 		justify-content: center;
 		width: 24px;
 		height: 24px;
-		border-radius: var(--radius-full);
-	}
-
-	.activity-status.completed {
-		background: var(--status-success-bg);
-		color: var(--status-success);
-	}
-
-	.activity-status.failed {
-		background: var(--status-danger-bg);
-		color: var(--status-danger);
 	}
 
 	.activity-content {
