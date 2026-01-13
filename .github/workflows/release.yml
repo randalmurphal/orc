@@ -30,6 +30,17 @@ jobs:
         with:
           go-version: '1.24'
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Build frontend
+        run: |
+          cd web && bun install && bun run build
+          cd ..
+          rm -rf internal/api/static
+          cp -r web/build internal/api/static
+
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
