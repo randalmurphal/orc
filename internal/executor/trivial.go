@@ -119,7 +119,8 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 			break
 		}
 
-		result.InputTokens += resp.Usage.InputTokens
+		// Use effective input tokens (includes cache) to show actual context size
+		result.InputTokens += resp.Usage.EffectiveInputTokens()
 		result.OutputTokens += resp.Usage.OutputTokens
 		result.Iterations = iteration
 		lastResponse = resp.Content

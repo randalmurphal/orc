@@ -202,8 +202,9 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 			goto done
 		}
 
-		// Track tokens
-		result.InputTokens += turnResult.Usage.InputTokens
+		// Track tokens - use effective input to include cached context
+		effectiveInput := turnResult.Usage.EffectiveInputTokens()
+		result.InputTokens += effectiveInput
 		result.OutputTokens += turnResult.Usage.OutputTokens
 		result.Iterations = iteration
 		lastResponse = turnResult.Content
@@ -225,7 +226,7 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		// Update state with iteration progress
 		if s != nil && e.stateUpdater != nil {
 			s.IncrementIteration()
-			s.AddTokens(turnResult.Usage.InputTokens, turnResult.Usage.OutputTokens)
+			s.AddTokens(effectiveInput, turnResult.Usage.OutputTokens)
 			e.stateUpdater(s)
 		}
 
