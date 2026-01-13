@@ -34,7 +34,7 @@ max_iterations: 30
 timeout: 10m0s
 branch_prefix: orc/
 commit_prefix: '[orc]'
-claude_path: /home/randy/.local/bin/claude
+claude_path: /Users/randy/.claude/local/claude
 dangerously_skip_permissions: true
 templates_dir: templates
 enable_checkpoints: true
