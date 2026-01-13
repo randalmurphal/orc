@@ -133,8 +133,8 @@ pool:
     - personal_max
     - personal_pro
 
-# Claude CLI settings
-claude_path: /usr/local/bin/claude
+# Claude CLI settings (claude_path auto-detects from PATH and common locations)
+# claude_path: /custom/path/to/claude   # Only needed if not in PATH
 dangerously_skip_permissions: true   # User's choice
 ```
 
