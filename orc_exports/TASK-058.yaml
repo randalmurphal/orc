@@ -1,0 +1,90 @@
+task:
+    id: TASK-058
+    title: 'Enhanced dashboard metrics: Add today''s activity summary (tasks created/completed today with links to filtered views), total token cost in dollars, total lines of code merged, and other relevant stats. Keep design minimal, clean, and intuitive - no AI slop styling. Follow frontend-design patterns for consistent UX.'
+    weight: medium
+    status: planned
+    branch: orc/TASK-058
+    requires_ui_testing: true
+    testing_requirements:
+        unit: true
+        visual: true
+    created_at: 2026-01-13T15:08:35.776477-06:00
+    updated_at: 2026-01-13T15:08:35.786579-06:00
+plan:
+    version: 1
+    task_id: TASK-058
+    weight: medium
+    description: Medium task - implement with review, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following feature/task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Plan your implementation approach
+            2. Implement the required changes
+            3. Write/update tests alongside code
+            4. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Review code for quality issues
+            3. Check for edge cases and security issues
+            4. Fix any problems found
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
