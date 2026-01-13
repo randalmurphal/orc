@@ -61,12 +61,18 @@ End with a **Next Steps** summary:
    - Documentation gaps
 4. **How to proceed**:
    ```bash
-   # Create and run a task
+   # CLI commands
    orc new "your task description"
    orc run TASK-001
-
-   # Or use the web UI
-   orc serve  # opens dashboard at localhost:8080
+   orc serve  # web UI at localhost:8080
    ```
+
+   Or use the orc plugin commands in Claude Code:
+   - `/orc:init` - Start a new task interactively
+   - `/orc:status` - Show current task status
+   - `/orc:continue` - Resume work on current task
+   - `/orc:review` - Start code review
+   - `/orc:qa` - Run QA session
+   - `/orc:propose` - Propose a sub-task
 
 Be specific. Reference actual files and patterns you found. No generic advice.
