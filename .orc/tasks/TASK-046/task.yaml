@@ -1,0 +1,11 @@
+id: TASK-046
+title: 'Robust task execution tracking: 1) Track executor PID in state.yaml, 2) Detect orphaned tasks (running but PID dead) in CLI status and Web UI, 3) Auto-mark orphaned tasks as interrupted, 4) Resume command: warn if task shows running, use Claude --resume flag with session ID, support running/failed/interrupted statuses'
+weight: medium
+status: running
+branch: orc/TASK-046
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+created_at: 2026-01-13T01:29:40.552785919-06:00
+updated_at: 2026-01-13T01:31:59.868290985-06:00
+started_at: 2026-01-13T01:31:59.868290854-06:00

@@ -1,0 +1,8 @@
+id: TASK-026
+title: Dashboard display counters not showing values for tokens tracked or tasks running and things like that
+description: Investigate all places effected, the counters should properly display on the Dashboard page.
+weight: medium
+status: planned
+branch: orc/TASK-026
+created_at: 2026-01-13T00:22:55.263567726-06:00
+updated_at: 2026-01-13T00:22:55.269417432-06:00

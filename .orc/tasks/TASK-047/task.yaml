@@ -1,0 +1,26 @@
+id: TASK-047
+title: Fix Playwright screenshot directory to use test-results
+description: |-
+    The playwright.GetScreenshotDir() function returns '.orc/tasks/{id}/attachments/' but the Test Results tab expects screenshots in '.orc/tasks/{id}/test-results/screenshots/'. This causes automated test screenshots to not appear in the Test Results tab.
+
+    Fix:
+    1. Change GetScreenshotDir() to return test-results/screenshots instead of attachments
+    2. Use task.ScreenshotsPath() helper which already returns the correct path
+    3. Ensure PLAYWRIGHT_SCREENSHOT_DIR env var and {{SCREENSHOT_DIR}} template variable both point to test-results/screenshots
+
+    Files to modify:
+    - internal/playwright/playwright.go - GetScreenshotDir() function
+    - internal/playwright/playwright_test.go - Update test expectations
+
+    Attachments tab is for manual uploads; Test Results tab is for automated test artifacts.
+weight: small
+status: completed
+branch: orc/TASK-047
+testing_requirements:
+    unit: true
+created_at: 2026-01-13T01:33:26.855908171-06:00
+updated_at: 2026-01-13T01:36:05.514664961-06:00
+started_at: 2026-01-13T01:33:33.415051827-06:00
+completed_at: 2026-01-13T01:36:01.648102193-06:00
+metadata:
+    pr_url: https://github.com/randalmurphal/orc/pull/5

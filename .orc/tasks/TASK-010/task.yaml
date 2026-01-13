@@ -1,0 +1,10 @@
+id: TASK-010
+title: Investigate incorrect token count in phase execution
+description: 'The implement phase for TASK-002 shows only 56 input tokens which seems impossibly low - the prompt alone should be more than that. Either the token counting is broken, or there''s a bug in how Claude reports tokens in headless mode (--print --output-format json). Check: 1) How tokens are extracted from Claude response, 2) Whether the JSON output includes token counts, 3) If this is a Claude CLI bug vs orc parsing bug.'
+weight: medium
+status: completed
+branch: orc/TASK-010
+created_at: 2026-01-12T20:57:17.731177623-06:00
+updated_at: 2026-01-12T22:00:53.507353213-06:00
+started_at: 2026-01-12T21:49:05.551322019-06:00
+completed_at: 2026-01-12T22:00:53.507353008-06:00
