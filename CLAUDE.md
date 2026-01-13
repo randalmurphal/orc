@@ -193,3 +193,63 @@ make test       # Backend (Go)
 make web-test   # Frontend (Vitest)
 make e2e        # E2E (Playwright)
 ```
+
+<!-- orc:begin -->
+## Orc Orchestration
+
+This project uses [orc](https://github.com/randalmurphal/orc) for task orchestration.
+
+### Slash Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/orc:init` | Initialize project or create spec |
+| `/orc:continue` | Resume current task |
+| `/orc:status` | Show progress and next steps |
+| `/orc:review` | Multi-round code review |
+| `/orc:qa` | E2E tests and documentation |
+| `/orc:propose` | Create sub-task for later |
+
+### Task Files
+
+Task specifications and state are stored in `.orc/tasks/`:
+
+```
+.orc/tasks/TASK-001/
+├── task.yaml      # Task metadata
+├── spec.md        # Task specification
+├── plan.yaml      # Phase sequence
+└── state.yaml     # Execution state
+```
+
+### CLI Commands
+
+```bash
+orc status           # View active tasks
+orc run TASK-001     # Execute task
+orc pause TASK-001   # Pause execution
+orc resume TASK-001  # Continue task
+```
+
+See `.orc/` for configuration and task details.
+
+<!-- orc:end -->
+
+<!-- orc:knowledge:begin -->
+## Project Knowledge
+
+Patterns, gotchas, and decisions learned during development.
+
+### Patterns Learned
+| Pattern | Description | Source |
+|---------|-------------|--------|
+
+### Known Gotchas
+| Issue | Resolution | Source |
+|-------|------------|--------|
+
+### Decisions
+| Decision | Rationale | Source |
+|----------|-----------|--------|
+
+<!-- orc:knowledge:end -->

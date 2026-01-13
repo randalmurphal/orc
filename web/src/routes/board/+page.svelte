@@ -33,10 +33,6 @@
 			console.error('Escalation failed:', e);
 		}
 	}
-
-	async function handleRefresh() {
-		await loadTasks();
-	}
 </script>
 
 <svelte:head>
@@ -50,14 +46,6 @@
 			<span class="task-count">{tasks.length} tasks</span>
 		</div>
 		<div class="header-actions">
-			<button class="refresh-btn" onclick={handleRefresh} disabled={loading}>
-				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<polyline points="23 4 23 10 17 10" />
-					<polyline points="1 20 1 14 7 14" />
-					<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-				</svg>
-				Refresh
-			</button>
 			<a href="/tasks/new" class="new-task-btn">
 				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 					<line x1="12" y1="5" x2="12" y2="19" />
@@ -81,10 +69,10 @@
 				<line x1="12" y1="16" x2="12.01" y2="16" />
 			</svg>
 			<span>{error}</span>
-			<button onclick={handleRefresh}>Try Again</button>
+			<button onclick={loadTasks}>Try Again</button>
 		</div>
 	{:else}
-		<Board {tasks} onAction={handleAction} onEscalate={handleEscalate} onRefresh={handleRefresh} />
+		<Board {tasks} onAction={handleAction} onEscalate={handleEscalate} />
 	{/if}
 </div>
 
@@ -129,31 +117,6 @@
 	.header-actions {
 		display: flex;
 		gap: var(--space-2);
-	}
-
-	.refresh-btn {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border-default);
-		border-radius: var(--radius-md);
-		color: var(--text-secondary);
-		font-size: var(--text-sm);
-		cursor: pointer;
-		transition: all var(--duration-fast) var(--ease-out);
-	}
-
-	.refresh-btn:hover:not(:disabled) {
-		background: var(--bg-tertiary);
-		border-color: var(--border-strong);
-		color: var(--text-primary);
-	}
-
-	.refresh-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 
 	.new-task-btn {

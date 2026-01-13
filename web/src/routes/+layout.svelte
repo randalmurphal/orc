@@ -10,12 +10,12 @@
 	import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
 	import { currentProject, loadProjects, currentProjectId } from '$lib/stores/project';
 	import { sidebarPinned } from '$lib/stores/sidebar';
-	import { loadTasks, updateTaskStatus, updateTaskState, refreshTask, addTask } from '$lib/stores/tasks';
+	import { loadTasks, updateTaskStatus, updateTaskState, refreshTask, addTask, removeTask, updateTask } from '$lib/stores/tasks';
 	import { initGlobalWebSocket, type WSEventType, type ConnectionStatus } from '$lib/websocket';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { setupGlobalShortcuts } from '$lib/shortcuts';
 	import { onMount, onDestroy } from 'svelte';
-	import type { TaskState } from '$lib/types';
+	import type { Task, TaskState } from '$lib/types';
 
 	interface Props {
 		children: Snippet;
@@ -73,6 +73,27 @@
 				if (errorData.fatal) {
 					toast.error(errorData.message || `Error in task ${taskId}`, { title: 'Task Error' });
 				}
+				break;
+			}
+			// File watcher events (triggered by external file changes)
+			case 'task_created': {
+				const taskData = data as { task: Task };
+				if (taskData.task) {
+					addTask(taskData.task);
+					toast.info(`Task ${taskId} created`, { duration: 3000 });
+				}
+				break;
+			}
+			case 'task_updated': {
+				const taskData = data as { task: Task };
+				if (taskData.task) {
+					updateTask(taskId, taskData.task);
+				}
+				break;
+			}
+			case 'task_deleted': {
+				removeTask(taskId);
+				toast.info(`Task ${taskId} deleted`, { duration: 3000 });
 				break;
 			}
 		}
