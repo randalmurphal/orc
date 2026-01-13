@@ -36,6 +36,40 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, projects)
 }
 
+// handleGetDefaultProject returns the default project ID.
+func (s *Server) handleGetDefaultProject(w http.ResponseWriter, r *http.Request) {
+	defaultID, err := project.GetDefaultProject()
+	if err != nil {
+		s.jsonError(w, "failed to get default project", http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, map[string]string{"default_project": defaultID})
+}
+
+// handleSetDefaultProject sets the default project ID.
+func (s *Server) handleSetDefaultProject(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ProjectID string `json:"project_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := project.SetDefaultProject(req.ProjectID); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			s.jsonError(w, "project not found", http.StatusNotFound)
+		} else {
+			s.jsonError(w, "failed to set default project", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	s.jsonResponse(w, map[string]string{"default_project": req.ProjectID})
+}
+
 // handleGetProject returns a specific project.
 func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")

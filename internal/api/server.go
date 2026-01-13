@@ -348,6 +348,8 @@ func (s *Server) registerRoutes() {
 
 	// Projects
 	s.mux.HandleFunc("GET /api/projects", cors(s.handleListProjects))
+	s.mux.HandleFunc("GET /api/projects/default", cors(s.handleGetDefaultProject))
+	s.mux.HandleFunc("PUT /api/projects/default", cors(s.handleSetDefaultProject))
 	s.mux.HandleFunc("GET /api/projects/{id}", cors(s.handleGetProject))
 	s.mux.HandleFunc("GET /api/projects/{id}/tasks", cors(s.handleListProjectTasks))
 	s.mux.HandleFunc("POST /api/projects/{id}/tasks", cors(s.handleCreateProjectTask))
