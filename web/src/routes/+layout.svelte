@@ -8,6 +8,7 @@
 	import ProjectSwitcher from '$lib/components/ProjectSwitcher.svelte';
 	import KeyboardShortcutsHelp from '$lib/components/overlays/KeyboardShortcutsHelp.svelte';
 	import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
+	import NewTaskModal from '$lib/components/overlays/NewTaskModal.svelte';
 	import { currentProject, loadProjects, currentProjectId } from '$lib/stores/project';
 	import { sidebarPinned } from '$lib/stores/sidebar';
 	import { loadTasks, updateTaskStatus, updateTaskState, refreshTask, addTask, removeTask, updateTask } from '$lib/stores/tasks';
@@ -268,6 +269,12 @@
 <KeyboardShortcutsHelp
 	open={showShortcutsHelp}
 	onClose={() => (showShortcutsHelp = false)}
+/>
+
+<!-- New Task Modal -->
+<NewTaskModal
+	open={showNewTaskForm}
+	onClose={() => (showNewTaskForm = false)}
 />
 
 <!-- Toast Notifications -->

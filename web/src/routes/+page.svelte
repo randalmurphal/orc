@@ -2,12 +2,10 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import {
-		createTask,
 		runTask,
 		pauseTask,
 		resumeTask,
 		deleteTask,
-		createProjectTask,
 		runProjectTask,
 		pauseProjectTask,
 		resumeProjectTask,
@@ -15,9 +13,8 @@
 	} from '$lib/api';
 	import type { Task } from '$lib/types';
 	import TaskCard from '$lib/components/TaskCard.svelte';
-	import Modal from '$lib/components/overlays/Modal.svelte';
 	import { currentProjectId, currentProject } from '$lib/stores/project';
-	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks, addTask, removeTask } from '$lib/stores/tasks';
+	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks, removeTask } from '$lib/stores/tasks';
 	import { setupTaskListShortcuts, getShortcutManager } from '$lib/shortcuts';
 	import { toast } from '$lib/stores/toast.svelte';
 
@@ -27,10 +24,6 @@
 	let storeError = $derived($tasksError);
 
 	let error = $state<string | null>(null);
-	let showNewTask = $state(false);
-	let newTaskTitle = $state('');
-	let newTaskDescription = $state('');
-	let newTaskInputRef: HTMLInputElement;
 	let selectedIndex = $state(-1);
 	let cleanupShortcuts: (() => void) | null = null;
 
@@ -47,13 +40,6 @@
 		}
 	});
 
-	// Focus input when modal opens
-	$effect(() => {
-		if (showNewTask && newTaskInputRef) {
-			newTaskInputRef.focus();
-		}
-	});
-
 	// Get selected task from filtered list
 	function getSelectedTask(): Task | null {
 		const filtered = filteredTasks;
@@ -63,12 +49,7 @@
 		return null;
 	}
 
-	// Listen for new task event from command palette
 	onMount(() => {
-		function handleNewTask() {
-			showNewTask = true;
-		}
-
 		// Setup task list keyboard shortcuts
 		cleanupShortcuts = setupTaskListShortcuts({
 			onNavDown: () => {
@@ -114,9 +95,6 @@
 				}
 			}
 		});
-
-		window.addEventListener('orc:new-task', handleNewTask);
-		return () => window.removeEventListener('orc:new-task', handleNewTask);
 	});
 
 	onDestroy(() => {
@@ -133,24 +111,8 @@
 		}
 	}
 
-	async function handleCreateTask() {
-		if (!newTaskTitle.trim()) return;
-		try {
-			const description = newTaskDescription.trim() || undefined;
-			let newTask: Task;
-			if ($currentProjectId) {
-				newTask = await createProjectTask($currentProjectId, newTaskTitle.trim(), description);
-			} else {
-				newTask = await createTask(newTaskTitle.trim(), description);
-			}
-			// Add the new task to the store immediately
-			addTask(newTask);
-			newTaskTitle = '';
-			newTaskDescription = '';
-			showNewTask = false;
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to create task';
-		}
+	function openNewTaskModal() {
+		window.dispatchEvent(new CustomEvent('orc:new-task'));
 	}
 
 	async function handleRunTask(id: string) {
@@ -347,7 +309,7 @@
 			</select>
 
 			<!-- New Task Button -->
-			<button class="primary new-task-btn" onclick={() => (showNewTask = true)}>
+			<button class="primary new-task-btn" onclick={openNewTaskModal}>
 				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 					<line x1="12" y1="5" x2="12" y2="19" />
 					<line x1="5" y1="12" x2="19" y2="12" />
@@ -387,7 +349,7 @@
 				</div>
 				<h3>No tasks yet</h3>
 				<p>Create your first task to get started with orc</p>
-				<button class="primary" onclick={() => (showNewTask = true)}>
+				<button class="primary" onclick={openNewTaskModal}>
 					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<line x1="12" y1="5" x2="12" y2="19" />
 						<line x1="5" y1="12" x2="19" y2="12" />
@@ -437,49 +399,6 @@
 		</div>
 	{/if}
 </div>
-
-<!-- New Task Modal -->
-<Modal open={showNewTask} onClose={() => (showNewTask = false)} size="md" title="Create New Task">
-	<div class="new-task-form">
-		<label class="form-label">
-			Task Title
-			<input
-				bind:this={newTaskInputRef}
-				type="text"
-				placeholder="What needs to be done?"
-				bind:value={newTaskTitle}
-				onkeydown={(e) => e.key === 'Enter' && !newTaskDescription && handleCreateTask()}
-				class="form-input"
-			/>
-		</label>
-		<label class="form-label">
-			Description <span class="optional">(optional)</span>
-			<textarea
-				placeholder="Provide additional context, acceptance criteria, or implementation details..."
-				bind:value={newTaskDescription}
-				class="form-textarea"
-				rows="4"
-			></textarea>
-		</label>
-		<p class="form-hint">
-			Orc will classify the weight and create a plan automatically based on the title and description.
-		</p>
-		<div class="form-actions">
-			<button
-				onclick={() => {
-					showNewTask = false;
-					newTaskTitle = '';
-					newTaskDescription = '';
-				}}
-			>
-				Cancel
-			</button>
-			<button class="primary" onclick={handleCreateTask} disabled={!newTaskTitle.trim()}>
-				Create Task
-			</button>
-		</div>
-	</div>
-</Modal>
 
 <style>
 	.page {
@@ -731,88 +650,6 @@
 		align-items: center;
 		gap: var(--space-2);
 		margin-top: var(--space-2);
-	}
-
-	/* New Task Form */
-	.new-task-form {
-		padding: var(--space-5);
-	}
-
-	.form-label {
-		display: block;
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--text-secondary);
-		margin-bottom: var(--space-4);
-	}
-
-	.form-label + .form-label {
-		margin-top: var(--space-3);
-	}
-
-	.form-input {
-		width: 100%;
-		padding: var(--space-3);
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border-default);
-		border-radius: var(--radius-md);
-		font-size: var(--text-base);
-		color: var(--text-primary);
-		margin-top: var(--space-2);
-		transition: all var(--duration-fast) var(--ease-out);
-	}
-
-	.form-input:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px var(--accent-glow);
-	}
-
-	.form-input::placeholder {
-		color: var(--text-muted);
-	}
-
-	.form-hint {
-		font-size: var(--text-xs);
-		color: var(--text-muted);
-		margin-top: var(--space-2);
-		margin-bottom: var(--space-5);
-	}
-
-	.form-textarea {
-		width: 100%;
-		padding: var(--space-3);
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border-default);
-		border-radius: var(--radius-md);
-		font-size: var(--text-sm);
-		color: var(--text-primary);
-		margin-top: var(--space-2);
-		resize: vertical;
-		min-height: 80px;
-		font-family: inherit;
-		transition: all var(--duration-fast) var(--ease-out);
-	}
-
-	.form-textarea:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px var(--accent-glow);
-	}
-
-	.form-textarea::placeholder {
-		color: var(--text-muted);
-	}
-
-	.optional {
-		font-weight: var(--font-normal);
-		color: var(--text-muted);
-	}
-
-	.form-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-3);
 	}
 
 	/* Keyboard Hints */
