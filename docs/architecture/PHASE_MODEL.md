@@ -247,7 +247,77 @@ phases:
 | pending → running | Previous phase complete, gate passed |
 | running → complete | Completion criteria met |
 | running → failed | Max iterations exceeded or unrecoverable error |
-| pending → skipped | User skips phase (`orc skip --phase`) |
+| pending → skipped | User skips phase (`orc skip --phase`) or artifact detected |
+
+---
+
+## Artifact Detection
+
+Before running a task, orc checks if artifacts from previous runs exist. This allows resuming work without re-executing phases that already produced valid artifacts.
+
+### Detection by Phase
+
+| Phase | Artifacts Checked | Auto-Skippable | Why |
+|-------|------------------|----------------|-----|
+| `spec` | `spec.md` with 50+ chars of valid content | Yes | Spec content is reusable |
+| `research` | `artifacts/research.md` OR research section in spec.md | Yes | Research findings persist |
+| `docs` | `artifacts/docs.md` | Yes | Documentation is reusable |
+| `implement` | Never detected | No | Code state too complex to validate |
+| `test` | `test-results/report.json` | No | Tests must re-run against current code |
+| `validate` | `artifacts/validate.md` | No | Validation must verify current state |
+
+### Behavior
+
+**Default (interactive)**: Prompts user for each detected artifact:
+```
+📄 spec.md already exists. Skip spec phase? [Y/n]:
+```
+
+**With `--auto-skip` flag**: Automatically skips phases with existing artifacts.
+
+**Configuration** (`config.yaml`):
+```yaml
+artifact_skip:
+  enabled: true            # Enable artifact detection (default: true)
+  auto_skip: false         # Skip without prompting (default: false)
+  phases:                  # Phases to check (default: [spec, research, docs])
+    - spec
+    - research
+    - docs
+```
+
+### Skip Recording
+
+When a phase is skipped due to existing artifacts:
+
+1. Phase status set to `skipped` in `state.yaml`
+2. Skip reason recorded in `error` field with `"skipped: "` prefix
+3. Gate decision recorded with `type: skip` for audit trail
+4. `completed_at` timestamp set (no `started_at` since phase didn't run)
+
+Example `state.yaml`:
+```yaml
+phases:
+  spec:
+    status: skipped
+    completed_at: 2026-01-10T10:31:30Z
+    iterations: 0
+    error: "skipped: artifact exists: spec.md exists with valid content"
+```
+
+### Weight-Specific Validation
+
+Spec artifacts are validated against weight requirements:
+
+| Weight | Minimum Spec Requirements |
+|--------|--------------------------|
+| trivial | 50+ characters |
+| small | 50+ characters |
+| medium | 100+ characters, sections present |
+| large | 200+ characters, full structure |
+| greenfield | 300+ characters, full structure |
+
+Specs that don't meet weight requirements are not considered valid artifacts and won't trigger skip prompts.
 
 ---
 

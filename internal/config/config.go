@@ -357,6 +357,20 @@ type PlanConfig struct {
 	MinimumSections []string `yaml:"minimum_sections,omitempty"`
 }
 
+// ArtifactSkipConfig defines artifact detection and auto-skip behavior.
+type ArtifactSkipConfig struct {
+	// Enabled enables artifact detection for phases (default: true)
+	Enabled bool `yaml:"enabled"`
+
+	// AutoSkip automatically skips phases with existing artifacts without prompting (default: false)
+	// When false, prompts user: "spec.md already exists. Skip spec phase? [Y/n]"
+	AutoSkip bool `yaml:"auto_skip"`
+
+	// Phases specifies which phases to check for artifacts (default: [spec, research, docs])
+	// implement, test, and validate are excluded by default as they need re-execution
+	Phases []string `yaml:"phases,omitempty"`
+}
+
 // SubtasksConfig defines sub-task queue configuration.
 type SubtasksConfig struct {
 	// AllowCreation allows agents to propose sub-tasks (default: true)
@@ -538,6 +552,9 @@ type Config struct {
 
 	// Plan/spec configuration
 	Plan PlanConfig `yaml:"plan"`
+
+	// Artifact skip configuration
+	ArtifactSkip ArtifactSkipConfig `yaml:"artifact_skip"`
 
 	// Sub-task queue configuration
 	Subtasks SubtasksConfig `yaml:"subtasks"`
@@ -748,6 +765,11 @@ func Default() *Config {
 			WarnOnMissingSpec:       true,  // Warn but don't block
 			SkipValidationWeights:   []string{"trivial"},
 			MinimumSections:         []string{"intent", "success_criteria", "testing"},
+		},
+		ArtifactSkip: ArtifactSkipConfig{
+			Enabled:  true,                              // Check for existing artifacts
+			AutoSkip: false,                             // Prompt user by default
+			Phases:   []string{"spec", "research", "docs"}, // Safe phases to skip
 		},
 		Subtasks: SubtasksConfig{
 			AllowCreation: true,
