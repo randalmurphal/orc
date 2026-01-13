@@ -297,4 +297,137 @@ describe('OrcWebSocket', () => {
 			expect(onStatus).toHaveBeenCalled();
 		});
 	});
+
+	describe('initGlobalWebSocket', () => {
+		it('subscribes to global task ID', async () => {
+			const { initGlobalWebSocket, GLOBAL_TASK_ID } = await getModule();
+			const onEvent = vi.fn();
+
+			initGlobalWebSocket(onEvent);
+
+			const mockWS = MockWebSocket.instances[0];
+			mockWS.triggerOpen();
+
+			expect(mockWS.send).toHaveBeenCalledWith(
+				JSON.stringify({ type: 'subscribe', task_id: GLOBAL_TASK_ID })
+			);
+		});
+
+		it('receives file watcher events (task_created, task_updated, task_deleted)', async () => {
+			const { initGlobalWebSocket } = await getModule();
+			const onEvent = vi.fn();
+
+			initGlobalWebSocket(onEvent);
+
+			const mockWS = MockWebSocket.instances[0];
+			mockWS.triggerOpen();
+
+			// Simulate task_created event
+			mockWS.triggerMessage({
+				type: 'event',
+				event: 'task_created',
+				task_id: 'TASK-NEW',
+				data: { task: { id: 'TASK-NEW', title: 'New Task' } },
+				time: '2025-01-01T00:00:00Z'
+			});
+
+			expect(onEvent).toHaveBeenCalledWith(
+				'TASK-NEW',
+				'task_created',
+				{ task: { id: 'TASK-NEW', title: 'New Task' } }
+			);
+
+			// Simulate task_updated event
+			mockWS.triggerMessage({
+				type: 'event',
+				event: 'task_updated',
+				task_id: 'TASK-001',
+				data: { task: { id: 'TASK-001', status: 'running' } },
+				time: '2025-01-01T00:00:00Z'
+			});
+
+			expect(onEvent).toHaveBeenCalledWith(
+				'TASK-001',
+				'task_updated',
+				{ task: { id: 'TASK-001', status: 'running' } }
+			);
+
+			// Simulate task_deleted event
+			mockWS.triggerMessage({
+				type: 'event',
+				event: 'task_deleted',
+				task_id: 'TASK-OLD',
+				data: { task_id: 'TASK-OLD' },
+				time: '2025-01-01T00:00:00Z'
+			});
+
+			expect(onEvent).toHaveBeenCalledWith(
+				'TASK-OLD',
+				'task_deleted',
+				{ task_id: 'TASK-OLD' }
+			);
+		});
+
+		it('receives events from any task when subscribed globally', async () => {
+			const { initGlobalWebSocket } = await getModule();
+			const receivedEvents: Array<{ taskId: string; eventType: string }> = [];
+			const onEvent = (taskId: string, eventType: string) => {
+				receivedEvents.push({ taskId, eventType });
+			};
+
+			initGlobalWebSocket(onEvent);
+
+			const mockWS = MockWebSocket.instances[0];
+			mockWS.triggerOpen();
+
+			// Send events for different tasks
+			mockWS.triggerMessage({
+				type: 'event',
+				event: 'state',
+				task_id: 'TASK-001',
+				data: { status: 'running' },
+				time: '2025-01-01T00:00:00Z'
+			});
+
+			mockWS.triggerMessage({
+				type: 'event',
+				event: 'state',
+				task_id: 'TASK-002',
+				data: { status: 'completed' },
+				time: '2025-01-01T00:00:00Z'
+			});
+
+			mockWS.triggerMessage({
+				type: 'event',
+				event: 'task_created',
+				task_id: 'TASK-003',
+				data: { task: { id: 'TASK-003' } },
+				time: '2025-01-01T00:00:00Z'
+			});
+
+			expect(receivedEvents).toHaveLength(3);
+			expect(receivedEvents[0]).toEqual({ taskId: 'TASK-001', eventType: 'state' });
+			expect(receivedEvents[1]).toEqual({ taskId: 'TASK-002', eventType: 'state' });
+			expect(receivedEvents[2]).toEqual({ taskId: 'TASK-003', eventType: 'task_created' });
+		});
+
+		it('returns cleanup function', async () => {
+			const { initGlobalWebSocket } = await getModule();
+			const onEvent = vi.fn();
+
+			const cleanup = initGlobalWebSocket(onEvent);
+
+			expect(typeof cleanup).toBe('function');
+		});
+
+		it('calls status callback with current status', async () => {
+			const { initGlobalWebSocket } = await getModule();
+			const onEvent = vi.fn();
+			const onStatus = vi.fn();
+
+			initGlobalWebSocket(onEvent, onStatus);
+
+			expect(onStatus).toHaveBeenCalled();
+		});
+	});
 });
