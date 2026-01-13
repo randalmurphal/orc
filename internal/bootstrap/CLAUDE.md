@@ -66,13 +66,17 @@ fmt.Printf("Initialized in %v\n", result.Duration)
 
 Added automatically:
 ```
-# Orc orchestrator
+# orc - Claude Code Task Orchestrator
+.orc/tasks/
 .orc/worktrees/
 .orc/orc.db
 .orc/orc.db-journal
 .orc/orc.db-wal
 .orc/orc.db-shm
+.mcp.json
 ```
+
+**Why .orc/tasks/ is ignored:** Task runtime state should not be in git (same pattern as Terraform state files). Use `orc export/import` for sharing tasks between machines or team members.
 
 ## Performance
 
