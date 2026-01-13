@@ -258,3 +258,94 @@ func CreateFromTemplate(t *task.Task) (*Plan, error) {
 
 	return p, nil
 }
+
+// RegenerateResult contains the result of a plan regeneration.
+type RegenerateResult struct {
+	// NewPlan is the regenerated plan
+	NewPlan *Plan
+	// PreservedPhases lists phases whose status was preserved
+	PreservedPhases []string
+	// ResetPhases lists phases that were reset to pending
+	ResetPhases []string
+}
+
+// RegeneratePlan creates a new plan for a task based on its current weight,
+// preserving completed/skipped statuses for phases that exist in both old and new plans.
+// This is used when the task weight changes.
+func RegeneratePlan(t *task.Task, oldPlan *Plan) (*RegenerateResult, error) {
+	// Create new plan from template
+	newPlan, err := CreateFromTemplate(t)
+	if err != nil {
+		// If template not found, create default plan
+		newPlan = &Plan{
+			Version:     1,
+			TaskID:      t.ID,
+			Weight:      t.Weight,
+			Description: "Default plan",
+			Phases: []Phase{
+				{ID: "implement", Name: "implement", Gate: Gate{Type: GateAuto}, Status: PhasePending},
+			},
+		}
+	}
+
+	result := &RegenerateResult{
+		NewPlan: newPlan,
+	}
+
+	// If no old plan, everything is new
+	if oldPlan == nil {
+		for _, phase := range newPlan.Phases {
+			result.ResetPhases = append(result.ResetPhases, phase.ID)
+		}
+		return result, nil
+	}
+
+	// Build a map of old phase statuses for quick lookup
+	oldPhaseStatus := make(map[string]PhaseStatus)
+	oldPhaseCommits := make(map[string]string)
+	for _, phase := range oldPlan.Phases {
+		oldPhaseStatus[phase.ID] = phase.Status
+		oldPhaseCommits[phase.ID] = phase.CommitSHA
+	}
+
+	// Preserve completed/skipped statuses for phases that exist in both plans
+	for i := range newPlan.Phases {
+		phaseID := newPlan.Phases[i].ID
+		oldStatus, exists := oldPhaseStatus[phaseID]
+
+		if exists && (oldStatus == PhaseCompleted || oldStatus == PhaseSkipped) {
+			// Preserve completed/skipped status
+			newPlan.Phases[i].Status = oldStatus
+			newPlan.Phases[i].CommitSHA = oldPhaseCommits[phaseID]
+			result.PreservedPhases = append(result.PreservedPhases, phaseID)
+		} else {
+			// Reset to pending (already set by CreateFromTemplate, but track it)
+			result.ResetPhases = append(result.ResetPhases, phaseID)
+		}
+	}
+
+	return result, nil
+}
+
+// RegeneratePlanForTask regenerates the plan for a task and saves it.
+// Also resets the task state appropriately, preserving completed phase states
+// for phases that exist in both the old and new plans.
+// Returns the regeneration result or an error.
+func RegeneratePlanForTask(projectDir string, t *task.Task) (*RegenerateResult, error) {
+	// Load the old plan to preserve phase statuses
+	oldPlan, _ := LoadFrom(projectDir, t.ID) // Ignore error, oldPlan may not exist
+
+	// Regenerate the plan
+	result, err := RegeneratePlan(t, oldPlan)
+	if err != nil {
+		return nil, fmt.Errorf("regenerate plan: %w", err)
+	}
+
+	// Save the new plan
+	taskDir := filepath.Join(projectDir, task.OrcDir, task.TasksDir, t.ID)
+	if err := result.NewPlan.SaveTo(taskDir); err != nil {
+		return nil, fmt.Errorf("save plan: %w", err)
+	}
+
+	return result, nil
+}

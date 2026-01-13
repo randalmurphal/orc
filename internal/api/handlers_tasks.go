@@ -254,6 +254,10 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Track if weight changed
+	oldWeight := t.Weight
+	weightChanged := false
+
 	// Apply updates (only update fields that are provided)
 	if req.Title != nil {
 		if *req.Title == "" {
@@ -273,7 +277,10 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 			s.jsonError(w, fmt.Sprintf("invalid weight: %s", *req.Weight), http.StatusBadRequest)
 			return
 		}
-		t.Weight = weight
+		if t.Weight != weight {
+			t.Weight = weight
+			weightChanged = true
+		}
 	}
 
 	if req.Metadata != nil {
@@ -294,6 +301,28 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	if err := t.SaveTo(taskDir); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save task: %v", err), http.StatusInternalServerError)
 		return
+	}
+
+	// Regenerate plan if weight changed
+	if weightChanged {
+		result, err := plan.RegeneratePlanForTask(s.workDir, t)
+		if err != nil {
+			// Log the error but don't fail the update
+			s.logger.Error("failed to regenerate plan for weight change",
+				"taskID", id,
+				"oldWeight", oldWeight,
+				"newWeight", t.Weight,
+				"error", err,
+			)
+		} else {
+			s.logger.Info("plan regenerated for weight change",
+				"taskID", id,
+				"oldWeight", oldWeight,
+				"newWeight", t.Weight,
+				"preservedPhases", result.PreservedPhases,
+				"resetPhases", result.ResetPhases,
+			)
+		}
 	}
 
 	s.jsonResponse(w, t)

@@ -136,42 +136,42 @@ Example:
 	return cmd
 }
 
-// regeneratePlanForWeight creates a new plan based on the task's current weight
-// and resets the state to pending.
+// regeneratePlanForWeight creates a new plan based on the task's current weight,
+// preserving completed/skipped phase statuses, and resets the state appropriately.
 func regeneratePlanForWeight(t *task.Task, oldWeight task.Weight) error {
-	// Create new plan from weight template
-	p, err := plan.CreateFromTemplate(t)
+	// Use the shared plan regeneration function
+	result, err := plan.RegeneratePlanForTask(".", t)
 	if err != nil {
-		// If template not found, create default plan
-		p = &plan.Plan{
-			Version:     1,
-			TaskID:      t.ID,
-			Weight:      t.Weight,
-			Description: "Default plan",
-			Phases: []plan.Phase{
-				{ID: "implement", Name: "implement", Gate: plan.Gate{Type: plan.GateAuto}, Status: plan.PhasePending},
-			},
-		}
+		return err
 	}
 
-	// Save new plan
-	if err := p.Save(t.ID); err != nil {
-		return fmt.Errorf("save plan: %w", err)
-	}
-
-	// Reset state - clear all phase progress
+	// Reset state - but preserve phase states for preserved phases
 	s, err := state.Load(t.ID)
 	if err != nil {
 		// State doesn't exist, create new one
 		s = state.New(t.ID)
 	} else {
-		// Reset existing state
+		// Build set of preserved phases
+		preservedSet := make(map[string]bool)
+		for _, phaseID := range result.PreservedPhases {
+			preservedSet[phaseID] = true
+		}
+
+		// Reset state but keep completed phase states for preserved phases
 		s.Status = state.StatusPending
 		s.CurrentPhase = ""
 		s.CurrentIteration = 0
-		s.Phases = make(map[string]*state.PhaseState)
 		s.Error = ""
 		s.RetryContext = nil
+
+		// Filter phase states: keep only preserved phases with completed/skipped status
+		newPhases := make(map[string]*state.PhaseState)
+		for phaseID, phaseState := range s.Phases {
+			if preservedSet[phaseID] && (phaseState.Status == state.StatusCompleted || phaseState.Status == state.StatusSkipped) {
+				newPhases[phaseID] = phaseState
+			}
+		}
+		s.Phases = newPhases
 	}
 
 	if err := s.Save(); err != nil {
