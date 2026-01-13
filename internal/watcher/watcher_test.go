@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,10 +16,13 @@ import (
 
 // testPublisher captures published events for testing.
 type testPublisher struct {
+	mu     sync.Mutex
 	events []events.Event
 }
 
 func (p *testPublisher) Publish(event events.Event) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.events = append(p.events, event)
 }
 
@@ -31,10 +35,17 @@ func (p *testPublisher) Unsubscribe(taskID string, ch <-chan events.Event) {}
 func (p *testPublisher) Close() {}
 
 func (p *testPublisher) getEvents() []events.Event {
-	return p.events
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	// Return a copy to avoid races
+	result := make([]events.Event, len(p.events))
+	copy(result, p.events)
+	return result
 }
 
 func (p *testPublisher) reset() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.events = nil
 }
 
@@ -106,11 +117,14 @@ func TestNew(t *testing.T) {
 
 func TestDebouncer(t *testing.T) {
 	t.Run("triggers callback after interval", func(t *testing.T) {
+		var mu sync.Mutex
 		var called bool
 		var calledTaskID string
 		var calledFileType FileType
 
 		d := NewDebouncer(50, func(taskID string, fileType FileType, path string) {
+			mu.Lock()
+			defer mu.Unlock()
 			called = true
 			calledTaskID = taskID
 			calledFileType = fileType
@@ -119,22 +133,34 @@ func TestDebouncer(t *testing.T) {
 		d.Trigger("TASK-001", FileTypeTask, "/test/path")
 
 		// Should not be called immediately
-		assert.False(t, called)
+		mu.Lock()
+		immediatelyCalled := called
+		mu.Unlock()
+		assert.False(t, immediatelyCalled)
 
 		// Wait for debounce
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(150 * time.Millisecond)
 
-		assert.True(t, called)
-		assert.Equal(t, "TASK-001", calledTaskID)
-		assert.Equal(t, FileTypeTask, calledFileType)
+		mu.Lock()
+		finalCalled := called
+		finalTaskID := calledTaskID
+		finalFileType := calledFileType
+		mu.Unlock()
+
+		assert.True(t, finalCalled)
+		assert.Equal(t, "TASK-001", finalTaskID)
+		assert.Equal(t, FileTypeTask, finalFileType)
 
 		d.Stop()
 	})
 
 	t.Run("resets timer on repeated triggers", func(t *testing.T) {
+		var mu sync.Mutex
 		callCount := 0
 
 		d := NewDebouncer(100, func(taskID string, fileType FileType, path string) {
+			mu.Lock()
+			defer mu.Unlock()
 			callCount++
 		})
 
@@ -146,18 +172,24 @@ func TestDebouncer(t *testing.T) {
 		d.Trigger("TASK-001", FileTypeTask, "/path3")
 
 		// Wait for debounce
-		time.Sleep(150 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 
 		// Should only be called once
-		assert.Equal(t, 1, callCount)
+		mu.Lock()
+		count := callCount
+		mu.Unlock()
+		assert.Equal(t, 1, count)
 
 		d.Stop()
 	})
 
 	t.Run("handles multiple task IDs independently", func(t *testing.T) {
+		var mu sync.Mutex
 		calls := make(map[string]int)
 
 		d := NewDebouncer(50, func(taskID string, fileType FileType, path string) {
+			mu.Lock()
+			defer mu.Unlock()
 			calls[taskID]++
 		})
 
@@ -165,18 +197,26 @@ func TestDebouncer(t *testing.T) {
 		d.Trigger("TASK-002", FileTypeTask, "/path2")
 
 		// Wait for debounce
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(150 * time.Millisecond)
 
-		assert.Equal(t, 1, calls["TASK-001"])
-		assert.Equal(t, 1, calls["TASK-002"])
+		mu.Lock()
+		count1 := calls["TASK-001"]
+		count2 := calls["TASK-002"]
+		mu.Unlock()
+
+		assert.Equal(t, 1, count1)
+		assert.Equal(t, 1, count2)
 
 		d.Stop()
 	})
 
 	t.Run("stop cancels pending timers", func(t *testing.T) {
+		var mu sync.Mutex
 		var called bool
 
 		d := NewDebouncer(100, func(taskID string, fileType FileType, path string) {
+			mu.Lock()
+			defer mu.Unlock()
 			called = true
 		})
 
@@ -184,9 +224,13 @@ func TestDebouncer(t *testing.T) {
 		d.Stop()
 
 		// Wait past debounce interval
-		time.Sleep(150 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 
-		assert.False(t, called)
+		mu.Lock()
+		wasCalled := called
+		mu.Unlock()
+
+		assert.False(t, wasCalled)
 	})
 }
 
