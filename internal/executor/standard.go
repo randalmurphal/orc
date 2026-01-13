@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
-	"github.com/randalmurphal/orc/internal/playwright"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -144,9 +144,9 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 			projectDir = e.workingDir
 		}
 
-		// Set up screenshot directory in task attachments
-		screenshotDir := playwright.GetScreenshotDir(projectDir, t.ID)
-		if err := playwright.EnsureScreenshotDir(screenshotDir); err != nil {
+		// Set up screenshot directory in task test-results
+		screenshotDir := task.ScreenshotsPath(projectDir, t.ID)
+		if err := os.MkdirAll(screenshotDir, 0755); err != nil {
 			e.logger.Warn("failed to create screenshot directory", "error", err)
 		}
 

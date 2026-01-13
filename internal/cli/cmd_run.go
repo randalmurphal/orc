@@ -15,7 +15,6 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/plan"
-	"github.com/randalmurphal/orc/internal/playwright"
 	"github.com/randalmurphal/orc/internal/progress"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
@@ -106,27 +105,6 @@ Example:
 			// Apply profile if specified
 			if profile != "" {
 				cfg.ApplyProfile(config.AutomationProfile(profile))
-			}
-
-			// Ensure Playwright MCP is configured if task requires UI testing
-			if t.RequiresUITesting {
-				screenshotDir := playwright.GetScreenshotDir(".", id)
-				mcpConfig := &playwright.Config{
-					Enabled:       true,
-					ScreenshotDir: screenshotDir,
-					Headless:      true,
-					Browser:       "chromium",
-				}
-
-				if _, err := playwright.EnsureMCPServer(".", mcpConfig); err != nil {
-					// Log warning but don't fail - MCP may already be configured
-					if !quiet {
-						fmt.Printf("⚠️  Warning: Could not configure Playwright MCP: %v\n", err)
-						fmt.Println("   You may need to configure it manually or use existing MCP tools.")
-					}
-				} else if !quiet {
-					fmt.Println("🎭 Playwright MCP configured for UI testing")
-				}
 			}
 
 			// Set up signal handling for graceful shutdown
