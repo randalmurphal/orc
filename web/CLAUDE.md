@@ -53,7 +53,7 @@ web/src/
 |-------|---------|
 | `tasks` | Global reactive task state, WebSocket updates |
 | `project` | Current project selection with persistence |
-| `sidebar` | Collapsed state |
+| `sidebar` | Expanded/collapsed state (persisted in localStorage) |
 | `toast` | Notification queue |
 
 **Task store** initialized in `+layout.svelte`, synced via global WebSocket. Pages subscribe for reactive updates.
