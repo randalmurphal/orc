@@ -1,21 +1,21 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
-const STORAGE_KEY = 'orc-sidebar-pinned';
+const STORAGE_KEY = 'orc-sidebar-expanded';
 
 function createSidebarStore() {
-	// Initialize from localStorage if available
+	// Initialize from localStorage if available, default to expanded
 	const initialValue = browser
-		? localStorage.getItem(STORAGE_KEY) === 'true'
-		: false;
+		? localStorage.getItem(STORAGE_KEY) !== 'false' // Default to true (expanded)
+		: true;
 
 	const { subscribe, set, update } = writable(initialValue);
 
 	return {
 		subscribe,
 		toggle: () => {
-			update((pinned) => {
-				const newValue = !pinned;
+			update((expanded) => {
+				const newValue = !expanded;
 				if (browser) {
 					localStorage.setItem(STORAGE_KEY, String(newValue));
 				}
@@ -31,4 +31,8 @@ function createSidebarStore() {
 	};
 }
 
-export const sidebarPinned = createSidebarStore();
+export const sidebarExpanded = createSidebarStore();
+
+// Keep the old export name for backwards compatibility during migration
+// TODO: Remove this after all imports are updated
+export const sidebarPinned = sidebarExpanded;
