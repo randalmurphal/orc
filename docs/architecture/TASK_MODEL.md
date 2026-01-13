@@ -19,6 +19,10 @@ status: running          # created | classifying | planned | running | paused | 
 current_phase: implement # Phase currently being executed (updated by executor)
 branch: orc/TASK-001
 
+# Task organization (for UI display and filtering)
+queue: active            # active | backlog
+priority: normal         # critical | high | normal | low
+
 # Testing flags (auto-detected during task creation)
 requires_ui_testing: true        # Auto-set when task mentions UI keywords
 testing_requirements:
@@ -34,6 +38,34 @@ metadata:
   source: cli            # cli | api | import
   tags: [auth, feature]
 ```
+
+---
+
+## Task Organization
+
+Tasks support queue and priority properties to help manage cognitive load when many tasks accumulate.
+
+### Queue
+
+| Queue | Purpose | UI Display |
+|-------|---------|------------|
+| `active` | Current work (default) | Shown prominently in each column |
+| `backlog` | "Someday" items | Collapsed section with dashed borders |
+
+Tasks in backlog remain in their status column but are visually de-emphasized. The backlog is collapsible in the UI.
+
+### Priority
+
+| Priority | Sort Order | Indicator |
+|----------|------------|-----------|
+| `critical` | 1 (first) | Pulsing red icon |
+| `high` | 2 | Orange up arrow |
+| `normal` | 3 (default) | None |
+| `low` | 4 (last) | Gray down arrow |
+
+Tasks are sorted by priority within each column. Higher priority tasks appear first in both active and backlog sections.
+
+**Note:** Queue and priority are orthogonal to task status. A `backlog` task can still be `running` or `blocked`, and a `critical` task can be in any status.
 
 ---
 

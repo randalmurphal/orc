@@ -68,6 +68,10 @@ status: running
 current_phase: implement          # Phase currently being executed (updated by executor)
 branch: orc/TASK-001
 
+# Task Organization
+queue: active                     # active (default) | backlog
+priority: normal                  # critical | high | normal (default) | low
+
 # UI Testing Detection (auto-detected from task content)
 requires_ui_testing: true         # Set when task mentions UI/frontend/button/form/page
 
@@ -84,13 +88,25 @@ updated_at: 2026-01-10T12:45:00Z
 metadata:
   source: cli
   tags: [auth, feature]
-  priority: high
   external_id: JIRA-123          # Link to external tracker
   # Resolution metadata (set by `orc resolve` command)
   resolved: "true"               # Task was resolved, not executed to completion
   resolved_at: 2026-01-10T14:00:00Z  # When task was resolved
   resolution_message: "Fixed manually outside of orc"  # Optional explanation
 ```
+
+### Queue and Priority
+
+| Field | Values | Default | Purpose |
+|-------|--------|---------|---------|
+| `queue` | `active`, `backlog` | `active` | Separates current work from deferred items |
+| `priority` | `critical`, `high`, `normal`, `low` | `normal` | Urgency within a queue |
+
+**Queue behavior:**
+- **active**: Tasks shown prominently on the board
+- **backlog**: Tasks collapsed by default in each column, shown with dashed borders
+
+**Priority sort order:** Tasks within each column are sorted by priority (critical first, then high, normal, low).
 
 ---
 
