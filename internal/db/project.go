@@ -146,6 +146,8 @@ type Task struct {
 	CurrentPhase string
 	Branch       string
 	WorktreePath string
+	Queue        string // "active" or "backlog"
+	Priority     string // "critical", "high", "normal", "low"
 	CreatedAt    time.Time
 	StartedAt    *time.Time
 	CompletedAt  *time.Time
@@ -164,9 +166,19 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 		completedAt = &s
 	}
 
+	// Default queue and priority if not set
+	queue := t.Queue
+	if queue == "" {
+		queue = "active"
+	}
+	priority := t.Priority
+	if priority == "" {
+		priority = "normal"
+	}
+
 	_, err := p.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, current_phase, branch, worktree_path, created_at, started_at, completed_at, total_cost_usd)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, created_at, started_at, completed_at, total_cost_usd)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
@@ -175,11 +187,13 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 			current_phase = excluded.current_phase,
 			branch = excluded.branch,
 			worktree_path = excluded.worktree_path,
+			queue = excluded.queue,
+			priority = excluded.priority,
 			started_at = excluded.started_at,
 			completed_at = excluded.completed_at,
 			total_cost_usd = excluded.total_cost_usd
 	`, t.ID, t.Title, t.Description, t.Weight, t.Status, t.CurrentPhase, t.Branch, t.WorktreePath,
-		t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD)
+		queue, priority, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
@@ -189,7 +203,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 // GetTask retrieves a task by ID.
 func (p *ProjectDB) GetTask(id string) (*Task, error) {
 	row := p.QueryRow(`
-		SELECT id, title, description, weight, status, current_phase, branch, worktree_path, created_at, started_at, completed_at, total_cost_usd
+		SELECT id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, created_at, started_at, completed_at, total_cost_usd
 		FROM tasks WHERE id = ?
 	`, id)
 
@@ -214,37 +228,50 @@ func (p *ProjectDB) DeleteTask(id string) error {
 
 // ListOpts provides filtering and pagination options.
 type ListOpts struct {
-	Status string
-	Limit  int
-	Offset int
+	Status   string
+	Queue    string // "active", "backlog", or empty for all
+	Priority string // "critical", "high", "normal", "low", or empty for all
+	Limit    int
+	Offset   int
 }
 
 // ListTasks returns tasks matching the given options.
 func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
-	// Count total
-	countQuery := "SELECT COUNT(*) FROM tasks"
-	countArgs := []any{}
+	// Build WHERE clause
+	var whereClauses []string
+	var countArgs []any
 	if opts.Status != "" {
-		countQuery += " WHERE status = ?"
+		whereClauses = append(whereClauses, "status = ?")
 		countArgs = append(countArgs, opts.Status)
 	}
+	if opts.Queue != "" {
+		whereClauses = append(whereClauses, "queue = ?")
+		countArgs = append(countArgs, opts.Queue)
+	}
+	if opts.Priority != "" {
+		whereClauses = append(whereClauses, "priority = ?")
+		countArgs = append(countArgs, opts.Priority)
+	}
 
+	whereClause := ""
+	if len(whereClauses) > 0 {
+		whereClause = " WHERE " + strings.Join(whereClauses, " AND ")
+	}
+
+	// Count total
 	var total int
-	if err := p.QueryRow(countQuery, countArgs...).Scan(&total); err != nil {
+	if err := p.QueryRow("SELECT COUNT(*) FROM tasks"+whereClause, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count tasks: %w", err)
 	}
 
 	// Query tasks
 	query := `
-		SELECT id, title, description, weight, status, current_phase, branch, worktree_path, created_at, started_at, completed_at, total_cost_usd
+		SELECT id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, created_at, started_at, completed_at, total_cost_usd
 		FROM tasks
-	`
-	args := []any{}
-	if opts.Status != "" {
-		query += " WHERE status = ?"
-		args = append(args, opts.Status)
-	}
-	query += " ORDER BY created_at DESC"
+	` + whereClause + " ORDER BY created_at DESC"
+
+	args := make([]any, len(countArgs))
+	copy(args, countArgs)
 
 	if opts.Limit > 0 {
 		query += " LIMIT ?"
@@ -281,10 +308,10 @@ func scanTask(row *sql.Row) (*Task, error) {
 	var t Task
 	var createdAt string
 	var startedAt, completedAt sql.NullString
-	var description, currentPhase, branch, worktreePath sql.NullString
+	var description, currentPhase, branch, worktreePath, queue, priority sql.NullString
 
 	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &currentPhase, &branch, &worktreePath,
-		&createdAt, &startedAt, &completedAt, &t.TotalCostUSD); err != nil {
+		&queue, &priority, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD); err != nil {
 		return nil, err
 	}
 
@@ -299,6 +326,16 @@ func scanTask(row *sql.Row) (*Task, error) {
 	}
 	if worktreePath.Valid {
 		t.WorktreePath = worktreePath.String
+	}
+	if queue.Valid {
+		t.Queue = queue.String
+	} else {
+		t.Queue = "active" // Default
+	}
+	if priority.Valid {
+		t.Priority = priority.String
+	} else {
+		t.Priority = "normal" // Default
 	}
 
 	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
@@ -323,10 +360,10 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	var t Task
 	var createdAt string
 	var startedAt, completedAt sql.NullString
-	var description, currentPhase, branch, worktreePath sql.NullString
+	var description, currentPhase, branch, worktreePath, queue, priority sql.NullString
 
 	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &currentPhase, &branch, &worktreePath,
-		&createdAt, &startedAt, &completedAt, &t.TotalCostUSD); err != nil {
+		&queue, &priority, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD); err != nil {
 		return nil, err
 	}
 
@@ -341,6 +378,16 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	}
 	if worktreePath.Valid {
 		t.WorktreePath = worktreePath.String
+	}
+	if queue.Valid {
+		t.Queue = queue.String
+	} else {
+		t.Queue = "active" // Default
+	}
+	if priority.Valid {
+		t.Priority = priority.String
+	} else {
+		t.Priority = "normal" // Default
 	}
 
 	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {

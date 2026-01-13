@@ -676,3 +676,246 @@ func TestTestingRequirements_YAMLSerialization(t *testing.T) {
 		t.Error("TestingRequirements.Visual incorrectly set")
 	}
 }
+
+// Tests for Queue functionality
+
+func TestNew_DefaultQueue(t *testing.T) {
+	task := New("TASK-001", "Test task")
+
+	if task.Queue != QueueActive {
+		t.Errorf("expected Queue %s, got %s", QueueActive, task.Queue)
+	}
+}
+
+func TestNew_DefaultPriority(t *testing.T) {
+	task := New("TASK-001", "Test task")
+
+	if task.Priority != PriorityNormal {
+		t.Errorf("expected Priority %s, got %s", PriorityNormal, task.Priority)
+	}
+}
+
+func TestIsValidQueue(t *testing.T) {
+	tests := []struct {
+		queue Queue
+		valid bool
+	}{
+		{QueueActive, true},
+		{QueueBacklog, true},
+		{Queue("invalid"), false},
+		{Queue(""), false},
+		{Queue("ACTIVE"), false}, // case-sensitive
+	}
+
+	for _, tt := range tests {
+		if got := IsValidQueue(tt.queue); got != tt.valid {
+			t.Errorf("IsValidQueue(%q) = %v, want %v", tt.queue, got, tt.valid)
+		}
+	}
+}
+
+func TestValidQueues(t *testing.T) {
+	queues := ValidQueues()
+
+	if len(queues) != 2 {
+		t.Errorf("ValidQueues() returned %d queues, want 2", len(queues))
+	}
+
+	expected := []Queue{QueueActive, QueueBacklog}
+	for i, q := range expected {
+		if queues[i] != q {
+			t.Errorf("ValidQueues()[%d] = %s, want %s", i, queues[i], q)
+		}
+	}
+}
+
+func TestIsValidPriority(t *testing.T) {
+	tests := []struct {
+		priority Priority
+		valid    bool
+	}{
+		{PriorityCritical, true},
+		{PriorityHigh, true},
+		{PriorityNormal, true},
+		{PriorityLow, true},
+		{Priority("invalid"), false},
+		{Priority(""), false},
+		{Priority("HIGH"), false}, // case-sensitive
+	}
+
+	for _, tt := range tests {
+		if got := IsValidPriority(tt.priority); got != tt.valid {
+			t.Errorf("IsValidPriority(%q) = %v, want %v", tt.priority, got, tt.valid)
+		}
+	}
+}
+
+func TestValidPriorities(t *testing.T) {
+	priorities := ValidPriorities()
+
+	if len(priorities) != 4 {
+		t.Errorf("ValidPriorities() returned %d priorities, want 4", len(priorities))
+	}
+
+	expected := []Priority{PriorityCritical, PriorityHigh, PriorityNormal, PriorityLow}
+	for i, p := range expected {
+		if priorities[i] != p {
+			t.Errorf("ValidPriorities()[%d] = %s, want %s", i, priorities[i], p)
+		}
+	}
+}
+
+func TestPriorityOrder(t *testing.T) {
+	tests := []struct {
+		priority      Priority
+		expectedOrder int
+	}{
+		{PriorityCritical, 0},
+		{PriorityHigh, 1},
+		{PriorityNormal, 2},
+		{PriorityLow, 3},
+		{Priority("unknown"), 2}, // Defaults to normal
+	}
+
+	for _, tt := range tests {
+		if got := PriorityOrder(tt.priority); got != tt.expectedOrder {
+			t.Errorf("PriorityOrder(%s) = %d, want %d", tt.priority, got, tt.expectedOrder)
+		}
+	}
+
+	// Test ordering: critical < high < normal < low
+	if PriorityOrder(PriorityCritical) >= PriorityOrder(PriorityHigh) {
+		t.Error("Critical should have lower order than High")
+	}
+	if PriorityOrder(PriorityHigh) >= PriorityOrder(PriorityNormal) {
+		t.Error("High should have lower order than Normal")
+	}
+	if PriorityOrder(PriorityNormal) >= PriorityOrder(PriorityLow) {
+		t.Error("Normal should have lower order than Low")
+	}
+}
+
+func TestGetQueue(t *testing.T) {
+	// Task with no queue set should default to active
+	task1 := &Task{ID: "TASK-001"}
+	if task1.GetQueue() != QueueActive {
+		t.Errorf("GetQueue() for empty queue = %s, want %s", task1.GetQueue(), QueueActive)
+	}
+
+	// Task with queue set should return that queue
+	task2 := &Task{ID: "TASK-002", Queue: QueueBacklog}
+	if task2.GetQueue() != QueueBacklog {
+		t.Errorf("GetQueue() = %s, want %s", task2.GetQueue(), QueueBacklog)
+	}
+}
+
+func TestGetPriority(t *testing.T) {
+	// Task with no priority set should default to normal
+	task1 := &Task{ID: "TASK-001"}
+	if task1.GetPriority() != PriorityNormal {
+		t.Errorf("GetPriority() for empty priority = %s, want %s", task1.GetPriority(), PriorityNormal)
+	}
+
+	// Task with priority set should return that priority
+	task2 := &Task{ID: "TASK-002", Priority: PriorityHigh}
+	if task2.GetPriority() != PriorityHigh {
+		t.Errorf("GetPriority() = %s, want %s", task2.GetPriority(), PriorityHigh)
+	}
+}
+
+func TestIsBacklog(t *testing.T) {
+	task1 := &Task{ID: "TASK-001", Queue: QueueActive}
+	if task1.IsBacklog() {
+		t.Error("IsBacklog() should return false for active queue")
+	}
+
+	task2 := &Task{ID: "TASK-002", Queue: QueueBacklog}
+	if !task2.IsBacklog() {
+		t.Error("IsBacklog() should return true for backlog queue")
+	}
+
+	task3 := &Task{ID: "TASK-003"} // Empty queue
+	if task3.IsBacklog() {
+		t.Error("IsBacklog() should return false when queue is empty (defaults to active)")
+	}
+}
+
+func TestMoveToBacklog(t *testing.T) {
+	task := &Task{ID: "TASK-001", Queue: QueueActive}
+	task.MoveToBacklog()
+
+	if task.Queue != QueueBacklog {
+		t.Errorf("MoveToBacklog() should set Queue to %s, got %s", QueueBacklog, task.Queue)
+	}
+}
+
+func TestMoveToActive(t *testing.T) {
+	task := &Task{ID: "TASK-001", Queue: QueueBacklog}
+	task.MoveToActive()
+
+	if task.Queue != QueueActive {
+		t.Errorf("MoveToActive() should set Queue to %s, got %s", QueueActive, task.Queue)
+	}
+}
+
+func TestQueueAndPriority_YAMLSerialization(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
+	os.MkdirAll(taskDir, 0755)
+
+	// Create task with queue and priority
+	task := New("TASK-001", "Test task")
+	task.Queue = QueueBacklog
+	task.Priority = PriorityHigh
+
+	if err := task.SaveTo(taskDir); err != nil {
+		t.Fatalf("SaveTo() failed: %v", err)
+	}
+
+	// Load and verify
+	loaded, err := LoadFrom(tmpDir, "TASK-001")
+	if err != nil {
+		t.Fatalf("LoadFrom() failed: %v", err)
+	}
+
+	if loaded.Queue != QueueBacklog {
+		t.Errorf("Queue not preserved: got %s, want %s", loaded.Queue, QueueBacklog)
+	}
+	if loaded.Priority != PriorityHigh {
+		t.Errorf("Priority not preserved: got %s, want %s", loaded.Priority, PriorityHigh)
+	}
+}
+
+func TestQueueAndPriority_DefaultsAfterLoad(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
+	os.MkdirAll(taskDir, 0755)
+
+	// Create task without explicit queue/priority (simulating old tasks)
+	task := &Task{
+		ID:        "TASK-001",
+		Title:     "Old task",
+		Status:    StatusCreated,
+		Branch:    "orc/TASK-001",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := task.SaveTo(taskDir); err != nil {
+		t.Fatalf("SaveTo() failed: %v", err)
+	}
+
+	// Load and verify defaults work correctly
+	loaded, err := LoadFrom(tmpDir, "TASK-001")
+	if err != nil {
+		t.Fatalf("LoadFrom() failed: %v", err)
+	}
+
+	// GetQueue and GetPriority should return defaults
+	if loaded.GetQueue() != QueueActive {
+		t.Errorf("GetQueue() should default to active, got %s", loaded.GetQueue())
+	}
+	if loaded.GetPriority() != PriorityNormal {
+		t.Errorf("GetPriority() should default to normal, got %s", loaded.GetPriority())
+	}
+}

@@ -1,7 +1,9 @@
 <script lang="ts">
 	import Column from './Column.svelte';
+	import QueuedColumn from './QueuedColumn.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
-	import type { Task } from '$lib/types';
+	import type { Task, TaskPriority, TaskQueue } from '$lib/types';
+	import { PRIORITY_ORDER } from '$lib/types';
 
 	interface Props {
 		tasks: Task[];
@@ -17,6 +19,35 @@
 	let escalateTask = $state<Task | null>(null);
 	let escalateReason = $state('');
 
+	// Backlog visibility state (persisted in localStorage)
+	let showBacklog = $state(false);
+
+	// Initialize showBacklog from localStorage
+	$effect(() => {
+		if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+			try {
+				const stored = localStorage.getItem('orc-show-backlog');
+				if (stored !== null) {
+					showBacklog = stored === 'true';
+				}
+			} catch {
+				// localStorage may not be available in some environments (e.g., tests)
+			}
+		}
+	});
+
+	// Persist showBacklog to localStorage
+	function toggleBacklog() {
+		showBacklog = !showBacklog;
+		if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+			try {
+				localStorage.setItem('orc-show-backlog', String(showBacklog));
+			} catch {
+				// localStorage may not be available in some environments (e.g., tests)
+			}
+		}
+	}
+
 	// Phase-based columns matching orchestration workflow
 	const columns = [
 		{ id: 'queued', title: 'Queued', phases: [] as string[] }, // No phase yet
@@ -29,6 +60,15 @@
 
 	let confirmModal = $state<{ task: Task; action: string; targetColumn: string } | null>(null);
 	let actionLoading = $state(false);
+
+	// Sort tasks by priority (critical first, then high, normal, low)
+	function sortByPriority(taskList: Task[]): Task[] {
+		return [...taskList].sort((a, b) => {
+			const priorityA = (a.priority || 'normal') as TaskPriority;
+			const priorityB = (b.priority || 'normal') as TaskPriority;
+			return PRIORITY_ORDER[priorityA] - PRIORITY_ORDER[priorityB];
+		});
+	}
 
 	// Determine which column a task belongs to based on phase and status
 	function getTaskColumn(task: Task): string {
@@ -61,7 +101,12 @@
 		return 'implement';
 	}
 
-	// Group tasks by column
+	// Get queue for a task (default to active for backward compatibility)
+	function getTaskQueue(task: Task): TaskQueue {
+		return (task.queue || 'active') as TaskQueue;
+	}
+
+	// Group tasks by column, sorted by priority
 	const tasksByColumn = $derived.by(() => {
 		const grouped: Record<string, Task[]> = {};
 		for (const col of columns) {
@@ -71,8 +116,23 @@
 			const colId = getTaskColumn(task);
 			grouped[colId].push(task);
 		}
+		// Sort each column by priority
+		for (const colId of Object.keys(grouped)) {
+			grouped[colId] = sortByPriority(grouped[colId]);
+		}
 		return grouped;
 	});
+
+	// Separate queued tasks into active and backlog
+	const queuedActiveTasks = $derived(
+		tasksByColumn['queued'].filter(t => getTaskQueue(t) === 'active')
+	);
+	const queuedBacklogTasks = $derived(
+		tasksByColumn['queued'].filter(t => getTaskQueue(t) === 'backlog')
+	);
+
+	// Count of backlog tasks for the toggle button
+	const backlogCount = $derived(queuedBacklogTasks.length);
 
 	function getSourceColumn(task: Task): string {
 		return getTaskColumn(task);
@@ -165,12 +225,24 @@
 
 <div class="board">
 	{#each columns as column (column.id)}
-		<Column
-			{column}
-			tasks={tasksByColumn[column.id] || []}
-			onDrop={(task) => handleDrop(column.id, task)}
-			{onAction}
-		/>
+		{#if column.id === 'queued'}
+			<QueuedColumn
+				{column}
+				activeTasks={queuedActiveTasks}
+				backlogTasks={queuedBacklogTasks}
+				{showBacklog}
+				onToggleBacklog={toggleBacklog}
+				onDrop={(task) => handleDrop(column.id, task)}
+				{onAction}
+			/>
+		{:else}
+			<Column
+				{column}
+				tasks={tasksByColumn[column.id] || []}
+				onDrop={(task) => handleDrop(column.id, task)}
+				{onAction}
+			/>
+		{/if}
 	{/each}
 </div>
 
