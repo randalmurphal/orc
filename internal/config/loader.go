@@ -377,6 +377,10 @@ func mergeExecutionConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]i
 		cfg.Execution.CheckpointInterval = fileCfg.Execution.CheckpointInterval
 		tc.SetSourceWithPath("execution.checkpoint_interval", source, path)
 	}
+	if _, ok := raw["max_retries"]; ok {
+		cfg.Execution.MaxRetries = fileCfg.Execution.MaxRetries
+		tc.SetSourceWithPath("execution.max_retries", source, path)
+	}
 }
 
 func mergeBudgetConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
@@ -541,7 +545,7 @@ func markDefaults(tc *TrackedConfig) {
 		"completion.action", "completion.target_branch", "completion.delete_branch",
 		"completion.pr.title", "completion.pr.body_template", "completion.pr.labels",
 		"completion.pr.auto_merge", "completion.pr.draft",
-		"execution.use_session_execution", "execution.session_persistence", "execution.checkpoint_interval",
+		"execution.use_session_execution", "execution.session_persistence", "execution.checkpoint_interval", "execution.max_retries",
 		"budget.threshold_usd", "budget.alert_on_exceed", "budget.pause_on_exceed",
 		"pool.enabled", "pool.config_path",
 		"server.host", "server.port", "server.auth.enabled", "server.auth.type",
