@@ -16,7 +16,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `template.go` | CLI output templates |
 | `errors.go` | CLI error types and formatting |
 
-### Command Files (22 total)
+### Command Files (23 total)
 
 | File | Command | Description |
 |------|---------|-------------|
@@ -26,6 +26,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_new.go` | `orc new "title"` | Create new task |
 | `cmd_list.go` | `orc list` | List all tasks |
 | `cmd_show.go` | `orc show TASK-ID` | Show task details |
+| `cmd_edit.go` | `orc edit TASK-ID` | Edit task properties (title, description, weight) |
 | `cmd_run.go` | `orc run TASK-ID` | Execute task phases |
 | `cmd_pause.go` | `orc pause TASK-ID` | Pause running task |
 | `cmd_resume.go` | `orc resume TASK-ID` | Resume paused task |
