@@ -77,6 +77,9 @@ The `{{TASK_DESCRIPTION}}` variable includes the full description provided when 
 | `{{WORKTREE_PATH}}` | Absolute path to isolated worktree (if worktree enabled) |
 | `{{TASK_BRANCH}}` | Git branch for this task (e.g., orc/TASK-001) |
 | `{{TARGET_BRANCH}}` | Branch to merge into (from config, defaults to main) |
+| `{{REQUIRES_UI_TESTING}}` | Boolean flag if task requires UI testing |
+| `{{SCREENSHOT_DIR}}` | Path to save screenshots (`.orc/tasks/{id}/test-results/screenshots/`) |
+| `{{TEST_RESULTS}}` | Previous test results (for validate phase) |
 
 ### Worktree Safety Variables
 
@@ -138,9 +141,20 @@ If blocked, output:
 | `spec.md` | Create technical specification |
 | `design.md` | Design architecture/approach |
 | `implement.md` | Write the implementation |
-| `test.md` | Write and run tests |
+| `test.md` | Write and run tests (includes Playwright E2E for UI tasks) |
 | `docs.md` | Update documentation |
 | `validate.md` | E2E validation with Playwright MCP |
+
+### UI Testing in Prompts
+
+When `{{REQUIRES_UI_TESTING}}` is true, the `test.md` and `validate.md` prompts include:
+
+1. **Playwright MCP tool reference** - Lists available browser tools
+2. **E2E test workflow** - Step-by-step guide for UI testing
+3. **Screenshot naming conventions** - Consistent naming patterns
+4. **Validation workflow** - How to verify UI components
+
+The `{{SCREENSHOT_DIR}}` variable provides the path where screenshots should be saved for automatic attachment to the task.
 
 ## Embedding
 

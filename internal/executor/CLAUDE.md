@@ -96,10 +96,25 @@ publisher.Transcript(taskID, phaseID, iteration, "response", content)
 Variable substitution in prompts:
 ```go
 vars := BuildTemplateVars(task, phase, iteration, retryContext)
+vars = vars.WithUITestingContext(uiCtx)  // Add UI testing context if needed
 rendered := RenderTemplate(template, vars)
 ```
 
-Variables: `{{TASK_ID}}`, `{{TASK_TITLE}}`, `{{TASK_DESCRIPTION}}`, `{{PHASE}}`, `{{WEIGHT}}`, `{{ITERATION}}`, `{{RETRY_CONTEXT}}`
+**Standard Variables:** `{{TASK_ID}}`, `{{TASK_TITLE}}`, `{{TASK_DESCRIPTION}}`, `{{PHASE}}`, `{{WEIGHT}}`, `{{ITERATION}}`, `{{RETRY_CONTEXT}}`
+
+**UI Testing Variables (when `requires_ui_testing: true`):**
+- `{{REQUIRES_UI_TESTING}}` - Boolean flag indicating UI testing is needed
+- `{{SCREENSHOT_DIR}}` - Path to save screenshots (`.orc/tasks/{id}/test-results/screenshots/`)
+- `{{TEST_RESULTS}}` - Previous test results (for validate phase)
+
+**UITestingContext:**
+```go
+type UITestingContext struct {
+    RequiresUITesting bool
+    ScreenshotDir     string
+    TestResults       string
+}
+```
 
 ### Retry Context (retry.go)
 

@@ -267,10 +267,18 @@ Attachments are stored in `.orc/tasks/TASK-XXX/attachments/` directory. Files ar
 ├── plan.yaml
 ├── state.yaml
 ├── transcripts/
-└── attachments/
-    ├── screenshot-001.png
-    ├── error-log.txt
-    └── api-response.json
+├── attachments/
+│   ├── screenshot-001.png
+│   ├── error-log.txt
+│   └── api-response.json
+└── test-results/           # Playwright test results
+    ├── report.json         # Structured test results
+    ├── index.html          # Playwright HTML report
+    ├── screenshots/        # Test screenshots
+    │   ├── dashboard-initial.png
+    │   └── login-success.png
+    └── traces/             # Playwright traces
+        └── trace-1.zip
 ```
 
 ### Attachment Metadata (API Response)
@@ -406,3 +414,111 @@ CREATE TABLE task_comments (
   "system_count": 1
 }
 ```
+
+---
+
+## Test Results (Playwright)
+
+Test results from Playwright E2E testing are stored in `.orc/tasks/TASK-XXX/test-results/`.
+
+### Directory Structure
+
+```
+.orc/tasks/TASK-001/test-results/
+├── report.json            # Structured test results
+├── index.html             # Playwright HTML report (optional)
+├── screenshots/           # Test screenshots
+│   ├── dashboard-initial.png
+│   ├── login-form.png
+│   └── validate-success.png
+└── traces/                # Playwright traces (optional)
+    └── trace-1.zip
+```
+
+### Test Report Format (report.json)
+
+```json
+{
+  "version": 1,
+  "framework": "playwright",
+  "started_at": "2026-01-10T10:30:00Z",
+  "completed_at": "2026-01-10T10:35:00Z",
+  "duration": 300000,
+  "summary": {
+    "total": 10,
+    "passed": 9,
+    "failed": 1,
+    "skipped": 0
+  },
+  "suites": [
+    {
+      "name": "Login Flow",
+      "tests": [
+        {
+          "name": "should login successfully",
+          "status": "passed",
+          "duration": 1500,
+          "screenshots": ["login-success.png"],
+          "trace": "trace-1.zip"
+        },
+        {
+          "name": "should show error for invalid credentials",
+          "status": "failed",
+          "duration": 2000,
+          "error": "Expected error message not found",
+          "screenshots": ["login-error.png"]
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "percentage": 85.5,
+    "lines": {
+      "total": 1000,
+      "covered": 855,
+      "percent": 85.5
+    },
+    "branches": {
+      "total": 200,
+      "covered": 170,
+      "percent": 85.0
+    }
+  }
+}
+```
+
+### Test Result Status Values
+
+| Status | Description |
+|--------|-------------|
+| `passed` | Test passed successfully |
+| `failed` | Test failed with errors |
+| `skipped` | Test was skipped |
+| `pending` | Test not yet executed |
+
+### Screenshot Naming Conventions
+
+Screenshots should use descriptive names for easy identification:
+
+| Pattern | Use Case | Example |
+|---------|----------|---------|
+| `{component}-initial.png` | Initial state | `dashboard-initial.png` |
+| `{component}-{action}.png` | After action | `login-submit.png` |
+| `{component}-error.png` | Error state | `form-validation-error.png` |
+| `validate-{component}-{state}.png` | Validation phase | `validate-dashboard-after.png` |
+
+### UI Testing Detection
+
+Tasks automatically detect if UI testing is required based on keywords in the title and description:
+
+| Keywords Detected | `requires_ui_testing` Set |
+|-------------------|--------------------------|
+| `ui`, `frontend`, `button`, `form`, `page` | `true` |
+| `modal`, `dialog`, `component`, `widget` | `true` |
+| `style`, `css`, `theme`, `responsive` | `true` |
+| `click`, `hover`, `navigation`, `menu` | `true` |
+
+When `requires_ui_testing: true`, the executor:
+1. Configures Playwright MCP server in `.mcp.json`
+2. Sets `SCREENSHOT_DIR` to `.orc/tasks/{id}/test-results/screenshots/`
+3. Provides UI testing context to prompt templates
