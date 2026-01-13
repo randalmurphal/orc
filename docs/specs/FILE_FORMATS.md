@@ -245,6 +245,55 @@ phases:
 
 ---
 
+## Task Attachments
+
+Attachments are stored in `.orc/tasks/TASK-XXX/attachments/` directory. Files are stored directly on disk with metadata derived from file system.
+
+### Directory Structure
+
+```
+.orc/tasks/TASK-001/
+├── task.yaml
+├── spec.md
+├── plan.yaml
+├── state.yaml
+├── transcripts/
+└── attachments/
+    ├── screenshot-001.png
+    ├── error-log.txt
+    └── api-response.json
+```
+
+### Attachment Metadata (API Response)
+
+```json
+{
+  "filename": "screenshot-001.png",
+  "size": 245678,
+  "content_type": "image/png",
+  "created_at": "2026-01-12T10:30:00Z",
+  "is_image": true
+}
+```
+
+### Supported File Types
+
+| Category | MIME Types |
+|----------|------------|
+| Images | `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/svg+xml` |
+| Text | `text/plain`, `text/markdown`, `text/csv` |
+| Documents | `application/pdf`, `application/json` |
+| Archives | `application/zip` |
+
+### Filename Sanitization
+
+Uploaded filenames are sanitized to prevent path traversal and filesystem issues:
+- Path separators (`/`, `\`) are rejected
+- Special directory names (`.`, `..`) are rejected
+- Filenames are stored as-is after validation
+
+---
+
 ## Artifact Formats
 
 ### spec.md

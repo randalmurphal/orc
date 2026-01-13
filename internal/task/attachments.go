@@ -52,7 +52,7 @@ func ListAttachments(projectDir, taskID string) ([]Attachment, error) {
 		return nil, fmt.Errorf("read attachments directory: %w", err)
 	}
 
-	var attachments []Attachment
+	attachments := []Attachment{}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
