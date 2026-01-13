@@ -222,6 +222,72 @@ export interface Attachment {
 	is_image: boolean;
 }
 
+// Test Results types (Playwright)
+export type TestResultStatus = 'passed' | 'failed' | 'skipped' | 'pending';
+
+export interface TestResult {
+	name: string;
+	status: TestResultStatus;
+	duration: number;
+	error?: string;
+	screenshots?: string[];
+	trace?: string;
+}
+
+export interface TestSuite {
+	name: string;
+	tests: TestResult[];
+}
+
+export interface TestSummary {
+	total: number;
+	passed: number;
+	failed: number;
+	skipped: number;
+}
+
+export interface CoverageDetail {
+	total: number;
+	covered: number;
+	percent: number;
+}
+
+export interface TestCoverage {
+	percentage: number;
+	lines?: CoverageDetail;
+	branches?: CoverageDetail;
+	functions?: CoverageDetail;
+	statements?: CoverageDetail;
+}
+
+export interface TestReport {
+	version: number;
+	framework: string;
+	started_at: string;
+	completed_at: string;
+	duration: number;
+	summary: TestSummary;
+	suites: TestSuite[];
+	coverage?: TestCoverage;
+}
+
+export interface Screenshot {
+	filename: string;
+	page_name: string;
+	test_name?: string;
+	size: number;
+	created_at: string;
+}
+
+export interface TestResultsInfo {
+	has_results: boolean;
+	report?: TestReport;
+	screenshots: Screenshot[];
+	has_traces: boolean;
+	trace_files?: string[];
+	has_html_report: boolean;
+}
+
 // Task comment types (general notes/discussion, distinct from review comments)
 export type TaskCommentAuthorType = 'human' | 'agent' | 'system';
 

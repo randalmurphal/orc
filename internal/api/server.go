@@ -163,6 +163,16 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/tasks/{id}/attachments/{filename}", cors(s.handleGetAttachment))
 	s.mux.HandleFunc("DELETE /api/tasks/{id}/attachments/{filename}", cors(s.handleDeleteAttachment))
 
+	// Task test results (Playwright)
+	s.mux.HandleFunc("GET /api/tasks/{id}/test-results", cors(s.handleGetTestResults))
+	s.mux.HandleFunc("POST /api/tasks/{id}/test-results", cors(s.handleSaveTestReport))
+	s.mux.HandleFunc("POST /api/tasks/{id}/test-results/init", cors(s.handleInitTestResults))
+	s.mux.HandleFunc("GET /api/tasks/{id}/test-results/screenshots", cors(s.handleListScreenshots))
+	s.mux.HandleFunc("POST /api/tasks/{id}/test-results/screenshots", cors(s.handleUploadScreenshot))
+	s.mux.HandleFunc("GET /api/tasks/{id}/test-results/screenshots/{filename}", cors(s.handleGetScreenshot))
+	s.mux.HandleFunc("GET /api/tasks/{id}/test-results/report", cors(s.handleGetHTMLReport))
+	s.mux.HandleFunc("GET /api/tasks/{id}/test-results/traces/{filename}", cors(s.handleGetTrace))
+
 	// Task diff (git changes visualization)
 	s.mux.HandleFunc("GET /api/tasks/{id}/diff", cors(s.handleGetDiff))
 	s.mux.HandleFunc("GET /api/tasks/{id}/diff/stats", cors(s.handleGetDiffStats))
