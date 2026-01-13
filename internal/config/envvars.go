@@ -9,15 +9,16 @@ import (
 
 // EnvVarMapping defines the mapping between environment variables and config paths.
 var EnvVarMapping = map[string]string{
-	"ORC_PROFILE":            "profile",
-	"ORC_MODEL":              "model",
-	"ORC_MAX_ITERATIONS":     "max_iterations",
-	"ORC_TIMEOUT":            "timeout",
-	"ORC_CLAUDE_PATH":        "claude_path",
-	"ORC_RETRY_ENABLED":      "retry.enabled",
-	"ORC_RETRY_MAX_RETRIES":  "retry.max_retries",
-	"ORC_GATES_DEFAULT":      "gates.default_type",
-	"ORC_GATES_MAX_RETRIES":  "gates.max_retries",
+	"ORC_PROFILE":              "profile",
+	"ORC_MODEL":                "model",
+	"ORC_MAX_ITERATIONS":       "max_iterations",
+	"ORC_TIMEOUT":              "timeout",
+	"ORC_CLAUDE_PATH":          "claude_path",
+	"ORC_RETRY_ENABLED":        "retry.enabled",
+	"ORC_RETRY_MAX_RETRIES":    "retry.max_retries",
+	"ORC_EXECUTOR_MAX_RETRIES": "executor.max_retries",
+	"ORC_GATES_DEFAULT":        "gates.default_type",
+	"ORC_GATES_MAX_RETRIES":    "gates.max_retries",
 	"ORC_WORKTREE_ENABLED":   "worktree.enabled",
 	"ORC_WORKTREE_DIR":       "worktree.dir",
 	"ORC_COMPLETION_ACTION":  "completion.action",
@@ -113,6 +114,10 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 	case "retry.max_retries":
 		if v, err := strconv.Atoi(value); err == nil {
 			cfg.Retry.MaxRetries = v
+		}
+	case "executor.max_retries":
+		if v, err := strconv.Atoi(value); err == nil {
+			cfg.Execution.MaxRetries = v
 		}
 	case "gates.default_type":
 		cfg.Gates.DefaultType = value

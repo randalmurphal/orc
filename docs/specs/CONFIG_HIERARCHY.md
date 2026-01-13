@@ -175,7 +175,7 @@ gates:
   default_type: auto                   # auto | ai | human
   auto_approve_on_success: true
   retry_on_failure: true
-  max_retries: 2
+  max_retries: 5
   phase_overrides:                     # Override per phase
     review: ai
     merge: human
@@ -187,10 +187,17 @@ gates:
 # Cross-phase retry
 retry:
   enabled: true
-  max_retries: 2
+  max_retries: 5                       # Deprecated: use executor.max_retries
   retry_map:
     test: implement
     validate: implement
+
+# Execution settings
+executor:
+  use_session_execution: false         # Use session-based vs flowgraph execution
+  session_persistence: true
+  checkpoint_interval: 0               # 0 = phase-complete only
+  max_retries: 5                       # Max retry attempts when phase fails (default: 5)
 
 # Worktree isolation
 worktree:
@@ -453,10 +460,11 @@ var envMapping = map[string]string{
     "ORC_MAX_ITERATIONS":    "max_iterations",
     "ORC_TIMEOUT":           "timeout",
     "ORC_CLAUDE_PATH":       "claude.path",
-    "ORC_RETRY_ENABLED":     "retry.enabled",
-    "ORC_RETRY_MAX_RETRIES": "retry.max_retries",
-    "ORC_GATES_DEFAULT":     "gates.default_type",
-    "ORC_GATES_MAX_RETRIES": "gates.max_retries",
+    "ORC_RETRY_ENABLED":       "retry.enabled",
+    "ORC_RETRY_MAX_RETRIES":   "retry.max_retries",
+    "ORC_EXECUTOR_MAX_RETRIES": "executor.max_retries",
+    "ORC_GATES_DEFAULT":       "gates.default_type",
+    "ORC_GATES_MAX_RETRIES":   "gates.max_retries",
     "ORC_WORKTREE_ENABLED":  "worktree.enabled",
     "ORC_WORKTREE_DIR":      "worktree.dir",
     "ORC_COMPLETION_ACTION":          "completion.action",

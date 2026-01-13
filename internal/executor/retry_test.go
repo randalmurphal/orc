@@ -280,20 +280,22 @@ func TestDefaultRetryMap(t *testing.T) {
 }
 
 func TestNewRetryTracker_DefaultMaxRetries(t *testing.T) {
-	// Zero should use default
+	// Zero should use default (5)
 	tracker := NewRetryTracker(0)
-	tracker.Increment("test")
-	tracker.Increment("test")
+	for i := 0; i < 5; i++ {
+		tracker.Increment("test")
+	}
 	if tracker.CanRetry("test") {
-		t.Error("default max retries should be 2")
+		t.Error("default max retries should be 5")
 	}
 
-	// Negative should use default
+	// Negative should use default (5)
 	tracker2 := NewRetryTracker(-1)
-	tracker2.Increment("test")
-	tracker2.Increment("test")
+	for i := 0; i < 5; i++ {
+		tracker2.Increment("test")
+	}
 	if tracker2.CanRetry("test") {
-		t.Error("negative max retries should default to 2")
+		t.Error("negative max retries should default to 5")
 	}
 }
 

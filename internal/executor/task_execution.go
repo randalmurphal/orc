@@ -232,7 +232,7 @@ func (e *Executor) cleanupWorktreeForTask(t *task.Task) {
 func (e *Executor) handlePhaseFailure(phaseID string, err error, result *Result, p *plan.Plan, s *state.State, retryCounts map[string]int, currentIdx int) (bool, int) {
 	// Check if we should retry from an earlier phase
 	retryFrom := e.orcConfig.ShouldRetryFrom(phaseID)
-	if retryFrom != "" && retryCounts[phaseID] < e.orcConfig.Retry.MaxRetries {
+	if retryFrom != "" && retryCounts[phaseID] < e.orcConfig.EffectiveMaxRetries() {
 		retryCounts[phaseID]++
 		e.logger.Info("phase failed, retrying from earlier phase",
 			"failed_phase", phaseID,
@@ -304,7 +304,7 @@ func (e *Executor) handleGateEvaluation(ctx context.Context, phase *plan.Phase, 
 	if !decision.Approved {
 		// Gate rejected - check if we should retry
 		retryFrom := e.orcConfig.ShouldRetryFrom(phase.ID)
-		if retryFrom != "" && retryCounts[phase.ID] < e.orcConfig.Retry.MaxRetries {
+		if retryFrom != "" && retryCounts[phase.ID] < e.orcConfig.EffectiveMaxRetries() {
 			retryCounts[phase.ID]++
 			e.logger.Info("gate rejected, retrying from earlier phase",
 				"failed_phase", phase.ID,
