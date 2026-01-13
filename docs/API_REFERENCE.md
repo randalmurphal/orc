@@ -279,6 +279,85 @@ Group related tasks with shared decisions.
 | PUT | `/api/mcp/:name` | Update MCP server |
 | DELETE | `/api/mcp/:name` | Delete MCP server |
 
+### Test Results (Playwright)
+
+Endpoints for Playwright test results, screenshots, and traces. Test results are stored in `.orc/tasks/{id}/test-results/`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tasks/:id/test-results` | Get test results summary |
+| POST | `/api/tasks/:id/test-results` | Save test report |
+| POST | `/api/tasks/:id/test-results/init` | Initialize test results directory |
+| GET | `/api/tasks/:id/test-results/screenshots` | List all screenshots |
+| POST | `/api/tasks/:id/test-results/screenshots` | Upload screenshot (multipart/form-data) |
+| GET | `/api/tasks/:id/test-results/screenshots/:filename` | Get screenshot file |
+| GET | `/api/tasks/:id/test-results/report` | Get Playwright HTML report |
+| GET | `/api/tasks/:id/test-results/traces/:filename` | Get trace file |
+
+**Test results response:**
+```json
+{
+  "has_results": true,
+  "report": {
+    "version": 1,
+    "framework": "playwright",
+    "started_at": "2026-01-10T10:30:00Z",
+    "completed_at": "2026-01-10T10:35:00Z",
+    "duration": 300000,
+    "summary": {
+      "total": 10,
+      "passed": 9,
+      "failed": 1,
+      "skipped": 0
+    },
+    "suites": [...]
+  },
+  "screenshots": [
+    {
+      "filename": "dashboard-initial.png",
+      "page_name": "dashboard initial",
+      "size": 45678,
+      "created_at": "2026-01-10T10:32:00Z"
+    }
+  ],
+  "has_traces": true,
+  "trace_files": ["trace-1.zip"],
+  "has_html_report": true
+}
+```
+
+**Save test report body:**
+```json
+{
+  "version": 1,
+  "framework": "playwright",
+  "started_at": "2026-01-10T10:30:00Z",
+  "completed_at": "2026-01-10T10:35:00Z",
+  "duration": 300000,
+  "summary": {
+    "total": 10,
+    "passed": 10,
+    "failed": 0,
+    "skipped": 0
+  },
+  "suites": [
+    {
+      "name": "Login Flow",
+      "tests": [
+        {
+          "name": "should login successfully",
+          "status": "passed",
+          "duration": 1500,
+          "screenshots": ["login-success.png"]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Screenshot upload:** Use `multipart/form-data` with file in the `file` field. Optional `filename` field overrides original filename.
+
 ### Cost Tracking
 
 | Method | Endpoint | Description |

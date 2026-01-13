@@ -56,6 +56,23 @@ type TemplateVars struct {
 	WorktreePath string // Absolute path to the worktree directory
 	TaskBranch   string // The git branch for this task (e.g., orc/TASK-001)
 	TargetBranch string // The target branch for merging (e.g., main)
+
+	// UI Testing context variables
+	RequiresUITesting bool   // Whether the task requires UI testing
+	ScreenshotDir     string // Directory for saving screenshots (task attachments)
+	TestResults       string // Test results from previous test phase (for validate)
+}
+
+// UITestingContext holds UI testing-specific context for template rendering.
+type UITestingContext struct {
+	// RequiresUITesting indicates if the task needs UI testing.
+	RequiresUITesting bool
+
+	// ScreenshotDir is the absolute path where screenshots should be saved.
+	ScreenshotDir string
+
+	// TestResults contains the output from the test phase.
+	TestResults string
 }
 
 // RenderTemplate performs variable substitution on a template string.
@@ -66,6 +83,12 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 	specContent := vars.SpecContent
 	if specContent == "" && vars.TaskDescription != "" {
 		specContent = vars.TaskDescription
+	}
+
+	// Format UI testing flag as string
+	requiresUITesting := ""
+	if vars.RequiresUITesting {
+		requiresUITesting = "true"
 	}
 
 	replacements := map[string]string{
@@ -86,6 +109,11 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{WORKTREE_PATH}}": vars.WorktreePath,
 		"{{TASK_BRANCH}}":   vars.TaskBranch,
 		"{{TARGET_BRANCH}}": vars.TargetBranch,
+
+		// UI Testing context variables
+		"{{REQUIRES_UI_TESTING}}": requiresUITesting,
+		"{{SCREENSHOT_DIR}}":      vars.ScreenshotDir,
+		"{{TEST_RESULTS}}":        vars.TestResults,
 	}
 
 	result := tmpl
@@ -179,6 +207,14 @@ func (v TemplateVars) WithWorktreeContext(wctx WorktreeContext) TemplateVars {
 	v.WorktreePath = wctx.WorktreePath
 	v.TaskBranch = wctx.TaskBranch
 	v.TargetBranch = wctx.TargetBranch
+	return v
+}
+
+// WithUITestingContext returns a copy of the vars with UI testing context applied.
+func (v TemplateVars) WithUITestingContext(ctx UITestingContext) TemplateVars {
+	v.RequiresUITesting = ctx.RequiresUITesting
+	v.ScreenshotDir = ctx.ScreenshotDir
+	v.TestResults = ctx.TestResults
 	return v
 }
 

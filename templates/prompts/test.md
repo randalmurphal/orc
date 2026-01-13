@@ -56,6 +56,69 @@ Test component interactions:
 - Database operations (use test DB)
 - External service calls (use mocks)
 
+### Step 3.5: UI Testing with Playwright (if applicable)
+
+{{REQUIRES_UI_TESTING}}
+
+If this task involves UI changes (`{{REQUIRES_UI_TESTING}}` is set), use Playwright MCP tools for E2E testing:
+
+#### Playwright MCP Tools Available
+
+| Tool | Purpose |
+|------|---------|
+| `browser_navigate` | Navigate to a URL |
+| `browser_snapshot` | Capture accessibility tree (preferred for state verification) |
+| `browser_click` | Click elements by ref from snapshot |
+| `browser_type` | Type text into inputs |
+| `browser_fill_form` | Fill multiple form fields |
+| `browser_take_screenshot` | Capture visual screenshot |
+| `browser_console_messages` | Check for JavaScript errors |
+| `browser_network_requests` | Verify API calls |
+
+#### E2E Test Workflow
+
+1. **Start the dev server** (if not running):
+   ```bash
+   # Example for Node/Vite projects
+   npm run dev &
+   # Wait for server to be ready
+   sleep 3
+   ```
+
+2. **Navigate to the component**:
+   ```
+   browser_navigate to http://localhost:5173/path
+   ```
+
+3. **Verify initial state**:
+   ```
+   browser_snapshot to see accessibility tree
+   ```
+
+4. **Test interactions**:
+   - Use `browser_click` with refs from snapshot
+   - Use `browser_type` for text input
+   - Use `browser_fill_form` for forms
+
+5. **Capture screenshots for verification**:
+   ```
+   browser_take_screenshot with filename: "{{SCREENSHOT_DIR}}/test-{component}-{state}.png"
+   ```
+   **IMPORTANT**: Save screenshots to `{{SCREENSHOT_DIR}}` for automatic attachment to the task.
+
+6. **Check for errors**:
+   ```
+   browser_console_messages to verify no JS errors
+   browser_network_requests to verify no failed API calls
+   ```
+
+#### Screenshot Naming Convention
+
+Save screenshots with descriptive names:
+- `{component}-initial.png` - Initial state before interaction
+- `{component}-{action}-result.png` - State after action
+- `{component}-error.png` - Error state (if testing error handling)
+
 ### Step 4: Run Tests
 
 ```bash
@@ -106,6 +169,13 @@ If coverage is low:
 ### Coverage by Package
 - [package1]: [percent]%
 - [package2]: [percent]%
+
+### E2E Test Results (if UI testing)
+- **Components Tested**: [count]
+- **Interactions Verified**: [count]
+- **Screenshots Captured**: [list of filenames]
+- **Console Errors**: None / [count if any]
+- **Failed Network Requests**: None / [count if any]
 ```
 
 ## Phase Completion
