@@ -3,12 +3,18 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
@@ -201,28 +207,182 @@ func showFileContent(filePath string, tailLines int) error {
 	return nil
 }
 
-// followFile streams new lines from a file (like tail -f)
+// followFile streams new lines from a file using fsnotify for real-time updates.
+// Falls back to polling with proper delays if fsnotify fails.
 func followFile(filePath string) error {
+	// Set up context with signal handling for clean shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		fmt.Println("\nStopping...")
+		cancel()
+	}()
+
+	// Try fsnotify first, fall back to polling
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return followFilePolling(ctx, filePath)
+	}
+	defer watcher.Close()
+
+	// Watch the directory (more reliable than watching file directly)
+	dir := filepath.Dir(filePath)
+	if err := watcher.Add(dir); err != nil {
+		watcher.Close()
+		return followFilePolling(ctx, filePath)
+	}
+
+	return followFileWithWatcher(ctx, filePath, watcher)
+}
+
+// followFileWithWatcher uses fsnotify for efficient real-time streaming.
+func followFileWithWatcher(ctx context.Context, filePath string, watcher *fsnotify.Watcher) error {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("open file: %w", err)
+	}
+	defer file.Close()
+
+	// Seek to end to only show new content
+	offset, err := file.Seek(0, io.SeekEnd)
+	if err != nil {
+		return fmt.Errorf("seek to end: %w", err)
+	}
+
+	fmt.Printf("Following %s (Ctrl+C to stop)...\n\n", filepath.Base(filePath))
+
+	baseName := filepath.Base(filePath)
+	reader := bufio.NewReader(file)
+	var partialLine strings.Builder
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Print any remaining partial line before exit
+			if partialLine.Len() > 0 {
+				fmt.Println(partialLine.String())
+			}
+			return nil
+
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return nil
+			}
+
+			// Only care about writes to our file
+			if filepath.Base(event.Name) != baseName {
+				continue
+			}
+			if !event.Has(fsnotify.Write) {
+				continue
+			}
+
+			// Check if file was truncated (offset beyond current size)
+			info, err := file.Stat()
+			if err != nil {
+				continue
+			}
+			if info.Size() < offset {
+				// File was truncated, reset to beginning
+				file.Seek(0, io.SeekStart)
+				offset = 0
+				reader.Reset(file)
+				partialLine.Reset()
+				fmt.Println("[file truncated, reading from start]")
+			}
+
+			// Read new content
+			offset = readNewContent(reader, &partialLine, offset)
+
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return nil
+			}
+			// Log error but continue - fsnotify errors are usually recoverable
+			fmt.Fprintf(os.Stderr, "[watcher error: %v]\n", err)
+		}
+	}
+}
+
+// followFilePolling is a fallback that uses polling with proper delays.
+func followFilePolling(ctx context.Context, filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
 	}
 	defer file.Close()
 
 	// Seek to end
-	file.Seek(0, 2)
+	offset, err := file.Seek(0, io.SeekEnd)
+	if err != nil {
+		return fmt.Errorf("seek to end: %w", err)
+	}
 
-	fmt.Printf("Following %s (Ctrl+C to stop)...\n\n", filepath.Base(filePath))
+	fmt.Printf("Following %s (polling mode, Ctrl+C to stop)...\n\n", filepath.Base(filePath))
 
 	reader := bufio.NewReader(file)
+	var partialLine strings.Builder
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			if partialLine.Len() > 0 {
+				fmt.Println(partialLine.String())
+			}
+			return nil
+
+		case <-ticker.C:
+			// Check for truncation
+			info, err := file.Stat()
+			if err != nil {
+				continue
+			}
+			if info.Size() < offset {
+				file.Seek(0, io.SeekStart)
+				offset = 0
+				reader.Reset(file)
+				partialLine.Reset()
+				fmt.Println("[file truncated, reading from start]")
+			}
+
+			// Read new content
+			offset = readNewContent(reader, &partialLine, offset)
+		}
+	}
+}
+
+// readNewContent reads available content from the file and prints complete lines.
+// Returns the new offset position.
+func readNewContent(reader *bufio.Reader, partialLine *strings.Builder, offset int64) int64 {
 	for {
 		line, err := reader.ReadString('\n')
-		if err != nil {
-			// No new data, wait and retry
-			continue
+		if len(line) > 0 {
+			offset += int64(len(line))
+			if strings.HasSuffix(line, "\n") {
+				// Complete line - print with any partial content
+				if partialLine.Len() > 0 {
+					fmt.Print(partialLine.String())
+					partialLine.Reset()
+				}
+				fmt.Print(line)
+			} else {
+				// Partial line - buffer it
+				partialLine.WriteString(line)
+			}
 		}
-		fmt.Print(line)
+		if err != nil {
+			// EOF or error - stop reading for now
+			break
+		}
 	}
+	return offset
 }
 
 // formatSize returns a human-readable file size
