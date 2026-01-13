@@ -258,6 +258,7 @@ func (w *Watcher) handleFSEvent(event fsnotify.Event) {
 		// This handles rename scenarios (Remove + Create) and atomic saves
 		if fileType == FileTypeTask {
 			w.debouncer.CancelDelete(taskID)
+			w.logger.Debug("cancelled pending delete (file recreated)", "taskID", taskID)
 		}
 		w.debouncer.Trigger(taskID, fileType, path)
 	}

@@ -194,3 +194,11 @@ func (d *Debouncer) PendingCount() int {
 	defer d.mu.Unlock()
 	return len(d.pending)
 }
+
+// PendingDeleteCount returns the number of pending delete verifications.
+// Useful for testing.
+func (d *Debouncer) PendingDeleteCount() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return len(d.pendingDeletes)
+}
