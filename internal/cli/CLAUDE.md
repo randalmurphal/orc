@@ -131,8 +131,16 @@ Show task transcripts with content (not just file listing).
 | `--list, -l` | List transcript files only (no content) |
 | `--phase, -p` | Show specific phase transcript |
 | `--all, -a` | Show all transcripts |
-| `--tail, -n` | Show last N lines (default: 100) |
-| `--follow, -f` | Stream new lines (like tail -f) |
+| `--tail, -n` | Show last N lines (default: 100, 0 for all) |
+| `--follow, -f` | Stream new lines in real-time using fsnotify |
+
+**Real-time streaming implementation** (`--follow`):
+- Uses `fsnotify` for filesystem-level notifications (instant updates)
+- Falls back to polling (100ms) if fsnotify fails
+- Watches directory (not file) for more reliable events
+- Handles file truncation by detecting size decrease and resetting
+- Buffers partial lines until newline received
+- Clean shutdown on SIGINT/SIGTERM (prints partial line before exit)
 
 ### `orc status`
 Priority-based status display with sections: Blocked → Running → Paused → Recent.
