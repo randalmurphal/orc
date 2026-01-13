@@ -1,0 +1,79 @@
+task:
+    id: TASK-047
+    title: Fix Playwright screenshot directory to use test-results
+    description: |-
+        The playwright.GetScreenshotDir() function returns '.orc/tasks/{id}/attachments/' but the Test Results tab expects screenshots in '.orc/tasks/{id}/test-results/screenshots/'. This causes automated test screenshots to not appear in the Test Results tab.
+
+        Fix:
+        1. Change GetScreenshotDir() to return test-results/screenshots instead of attachments
+        2. Use task.ScreenshotsPath() helper which already returns the correct path
+        3. Ensure PLAYWRIGHT_SCREENSHOT_DIR env var and {{SCREENSHOT_DIR}} template variable both point to test-results/screenshots
+
+        Files to modify:
+        - internal/playwright/playwright.go - GetScreenshotDir() function
+        - internal/playwright/playwright_test.go - Update test expectations
+
+        Attachments tab is for manual uploads; Test Results tab is for automated test artifacts.
+    weight: small
+    status: completed
+    branch: orc/TASK-047
+    testing_requirements:
+        unit: true
+    created_at: 2026-01-13T01:33:26.855908171-06:00
+    updated_at: 2026-01-13T02:10:58.168559551-06:00
+    started_at: 2026-01-13T01:33:33.415051827-06:00
+    completed_at: 2026-01-13T01:36:01.648102193-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/5
+plan:
+    version: 1
+    task_id: TASK-047
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 7b90ccba8b65ee76c6c2a400c69ad6362d1c3a00
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: a6e38a6b5320b22fdb6c0bff544a524efc8f63a0
