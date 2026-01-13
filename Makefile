@@ -187,9 +187,9 @@ web-build:
 web-check:
 	cd web && bun run check
 
-## web-test: Run frontend tests
+## web-test: Run frontend tests (vitest unit tests)
 web-test:
-	cd web && bun test
+	cd web && bun run test
 
 ## serve: Start API server (for frontend development)
 serve: build
