@@ -11,6 +11,7 @@
 		pauseTask,
 		resumeTask,
 		deleteTask,
+		updateTask,
 		getProjectTask,
 		getProjectTaskState,
 		getProjectTaskPlan,
@@ -32,6 +33,7 @@
 	} from '$lib/websocket';
 	import type { Task, TaskState, Plan, TranscriptFile } from '$lib/types';
 	import TaskHeader from '$lib/components/task/TaskHeader.svelte';
+	import TaskEditModal from '$lib/components/task/TaskEditModal.svelte';
 	import TabNav, { type TabId } from '$lib/components/task/TabNav.svelte';
 	import PRActions from '$lib/components/task/PRActions.svelte';
 	import ExportPanel from '$lib/components/task/ExportPanel.svelte';
@@ -53,6 +55,7 @@
 	let error = $state<string | null>(null);
 	let connectionStatus = $state<ConnectionStatus>('disconnected');
 	let unsubscribe: (() => void) | null = null;
+	let editModalOpen = $state(false);
 
 	// Tab state
 	let activeTab = $state<TabId>('timeline');
@@ -347,6 +350,16 @@
 		// Switch to changes tab so user can see diff and add review comments
 		handleTabChange('changes');
 	}
+
+	function handleEdit() {
+		editModalOpen = true;
+	}
+
+	async function handleSaveEdit(update: { title?: string; description?: string; weight?: string }) {
+		if (!task) return;
+		const updatedTask = await updateTask(task.id, update);
+		task = updatedTask;
+	}
 </script>
 
 <svelte:head>
@@ -418,6 +431,7 @@
 			onCancel={handleCancel}
 			onDelete={handleDelete}
 			onRetry={handleRetry}
+			onEdit={handleEdit}
 		/>
 
 		<!-- PR Actions (for completed tasks) -->
@@ -573,6 +587,14 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Edit Modal -->
+	<TaskEditModal
+		{task}
+		open={editModalOpen}
+		onClose={() => (editModalOpen = false)}
+		onSave={handleSaveEdit}
+	/>
 {/if}
 
 <style>

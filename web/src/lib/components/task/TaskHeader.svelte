@@ -12,10 +12,14 @@
 		onCancel: () => void;
 		onDelete: () => void;
 		onRetry?: () => void;
+		onEdit?: () => void;
 	}
 
-	let { task, taskState, plan, onRun, onPause, onResume, onCancel, onDelete, onRetry }: Props =
+	let { task, taskState, plan, onRun, onPause, onResume, onCancel, onDelete, onRetry, onEdit }: Props =
 		$props();
+
+	// Can edit when not running
+	const canEdit = $derived(task.status !== 'running' && onEdit !== undefined);
 
 	const weightConfig: Record<string, { color: string; bg: string }> = {
 		trivial: { color: 'var(--weight-trivial)', bg: 'rgba(107, 114, 128, 0.15)' },
@@ -150,6 +154,25 @@
 			</button>
 		{/if}
 
+		{#if canEdit}
+			<button class="icon-btn edit-btn" onclick={onEdit} title="Edit task">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+					<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+				</svg>
+			</button>
+		{/if}
+
 		{#if task.status !== 'running'}
 			<button class="icon-btn delete-btn" onclick={onDelete} title="Delete task">
 				<svg
@@ -267,10 +290,17 @@
 		gap: var(--space-2);
 	}
 
+	.edit-btn,
 	.delete-btn {
 		background: transparent;
 		border: 1px solid var(--border-default);
 		color: var(--text-muted);
+	}
+
+	.edit-btn:hover {
+		background: var(--bg-tertiary);
+		border-color: var(--border-strong);
+		color: var(--text-primary);
 	}
 
 	.delete-btn:hover {

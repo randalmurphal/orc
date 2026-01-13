@@ -223,3 +223,78 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// handleUpdateTask updates task fields (title, description, weight).
+func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	// Load existing task
+	t, err := task.LoadFrom(s.workDir, id)
+	if err != nil {
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
+		return
+	}
+
+	// Cannot update running tasks
+	if t.Status == task.StatusRunning {
+		s.jsonError(w, "cannot update running task", http.StatusConflict)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		Title       *string           `json:"title,omitempty"`
+		Description *string           `json:"description,omitempty"`
+		Weight      *string           `json:"weight,omitempty"`
+		Metadata    map[string]string `json:"metadata,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Apply updates (only update fields that are provided)
+	if req.Title != nil {
+		if *req.Title == "" {
+			s.jsonError(w, "title cannot be empty", http.StatusBadRequest)
+			return
+		}
+		t.Title = *req.Title
+	}
+
+	if req.Description != nil {
+		t.Description = *req.Description
+	}
+
+	if req.Weight != nil {
+		weight := task.Weight(*req.Weight)
+		if !task.IsValidWeight(weight) {
+			s.jsonError(w, fmt.Sprintf("invalid weight: %s", *req.Weight), http.StatusBadRequest)
+			return
+		}
+		t.Weight = weight
+	}
+
+	if req.Metadata != nil {
+		if t.Metadata == nil {
+			t.Metadata = make(map[string]string)
+		}
+		for k, v := range req.Metadata {
+			if v == "" {
+				delete(t.Metadata, k)
+			} else {
+				t.Metadata[k] = v
+			}
+		}
+	}
+
+	// Save updated task
+	taskDir := task.TaskDirIn(s.workDir, id)
+	if err := t.SaveTo(taskDir); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to save task: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, t)
+}
