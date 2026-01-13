@@ -18,6 +18,10 @@ web/node_modules/
 coverage.out
 *.test
 
+# Playwright test artifacts
+web/playwright-report/
+web/test-results/
+
 # Claude Code local state
 .claude/*.local.md
 
