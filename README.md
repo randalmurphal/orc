@@ -190,6 +190,11 @@ worktree:
   cleanup_on_complete: true
   cleanup_on_fail: false  # Keep for debugging
 
+# Branch sync (catches conflicts early)
+sync:
+  strategy: completion   # none | phase | completion | detect
+  fail_on_conflict: true # Abort vs warn on conflicts
+
 # Retry behavior
 retry:
   enabled: true
@@ -314,6 +319,26 @@ Tasks run in isolated git worktrees. Multiple tasks execute in parallel without 
 ├── TASK-002/  # Can run simultaneously
 └── TASK-003/  # No git conflicts
 ```
+
+### Branch Synchronization
+
+Parallel tasks can diverge from main, causing merge conflicts at completion. Orc syncs task branches with the target branch to catch conflicts early.
+
+```yaml
+# .orc/config.yaml
+completion:
+  sync:
+    strategy: completion     # When to sync (none, phase, completion, detect)
+    fail_on_conflict: true   # Abort on conflicts vs warn and continue
+```
+
+**Strategies:**
+- `none` — No automatic sync, manual only
+- `phase` — Sync before each phase (maximum safety)
+- `completion` — Sync before PR/merge (default, balanced)
+- `detect` — Check for conflicts without resolving (fail-fast)
+
+When conflicts are detected with `fail_on_conflict: true`, the task fails with a clear message listing conflicting files and resolution options.
 
 ### Token Pool
 
