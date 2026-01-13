@@ -10,7 +10,7 @@
 	import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
 	import NewTaskModal from '$lib/components/overlays/NewTaskModal.svelte';
 	import { currentProject, loadProjects, currentProjectId } from '$lib/stores/project';
-	import { sidebarPinned } from '$lib/stores/sidebar';
+	import { sidebarExpanded } from '$lib/stores/sidebar';
 	import { loadTasks, updateTaskStatus, updateTaskState, refreshTask, addTask, removeTask, updateTask } from '$lib/stores/tasks';
 	import { initGlobalWebSocket, type WSEventType, type ConnectionStatus } from '$lib/websocket';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -125,7 +125,7 @@
 				showNewTaskForm = true;
 			},
 			onToggleSidebar: () => {
-				sidebarPinned.toggle();
+				sidebarExpanded.toggle();
 			},
 			onHelp: () => {
 				showShortcutsHelp = true;
@@ -173,7 +173,7 @@
 		}
 
 		function handleToggleSidebar() {
-			sidebarPinned.toggle();
+			sidebarExpanded.toggle();
 		}
 
 		function handleNewTask() {
@@ -239,7 +239,7 @@
 <div class="app-layout">
 	<Sidebar />
 
-	<div class="main-area">
+	<div class="main-area" class:sidebar-expanded={$sidebarExpanded}>
 		<Header
 			currentProject={$currentProject}
 			onProjectClick={handleProjectClick}
@@ -297,6 +297,10 @@
 		transition: margin-left var(--duration-normal) var(--ease-out);
 	}
 
+	.main-area.sidebar-expanded {
+		margin-left: var(--sidebar-width-expanded);
+	}
+
 	main {
 		flex: 1;
 		padding: var(--space-6);
@@ -315,7 +319,7 @@
 
 	/* Full-width pages like the board need to break out of centering */
 	main > :global(.full-width) {
-		max-width: calc(100vw - var(--sidebar-width-collapsed) - var(--space-6) * 2);
+		max-width: none;
 		align-self: stretch;
 	}
 </style>
