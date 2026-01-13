@@ -99,6 +99,7 @@ func New(cfg *Config) (*Watcher, error) {
 
 	// Create debouncer with callback
 	w.debouncer = NewDebouncer(debounceMs, w.handleDebouncedEvent)
+	w.debouncer.SetDeleteCallback(w.publishTaskDeleted)
 
 	return w, nil
 }
@@ -238,15 +239,26 @@ func (w *Watcher) handleFSEvent(event fsnotify.Event) {
 	// Handle file removal
 	if event.Has(fsnotify.Remove) {
 		w.removeHash(path)
-		// If task.yaml was removed, the task is deleted
+		// If task.yaml was removed, the task might be deleted
+		// But we need to verify - fsnotify sends Remove events for:
+		// - Actual deletions
+		// - File renames (Remove + Create)
+		// - Atomic saves (temp write, remove original, rename temp)
+		// - Git operations (checkout, worktree setup)
 		if fileType == FileTypeTask {
-			w.publishTaskDeleted(taskID)
+			// Schedule verification after a short delay to handle rename scenarios
+			w.debouncer.TriggerDelete(taskID, path)
 			return
 		}
 	}
 
 	// For writes and creates, debounce and check for real changes
 	if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
+		// Cancel any pending delete for this task - the file is back
+		// This handles rename scenarios (Remove + Create) and atomic saves
+		if fileType == FileTypeTask {
+			w.debouncer.CancelDelete(taskID)
+		}
 		w.debouncer.Trigger(taskID, fileType, path)
 	}
 }

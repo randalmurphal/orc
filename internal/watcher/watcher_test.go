@@ -282,6 +282,143 @@ func TestWatcher_ClassifyFile(t *testing.T) {
 	}
 }
 
+func TestDebouncer_Delete(t *testing.T) {
+	t.Run("verifies file is actually deleted before callback", func(t *testing.T) {
+		var mu sync.Mutex
+		var deletedTaskID string
+
+		d := NewDebouncer(50, func(taskID string, fileType FileType, path string) {})
+		d.SetDeleteCallback(func(taskID string) {
+			mu.Lock()
+			defer mu.Unlock()
+			deletedTaskID = taskID
+		})
+
+		// Create a temp file
+		tmpDir := t.TempDir()
+		tmpFile := filepath.Join(tmpDir, "task.yaml")
+		require.NoError(t, os.WriteFile(tmpFile, []byte("test"), 0644))
+
+		// Trigger delete for this file
+		d.TriggerDelete("TASK-001", tmpFile)
+
+		// Wait for delete check
+		time.Sleep(200 * time.Millisecond)
+
+		// Callback should NOT have fired because file still exists
+		mu.Lock()
+		taskID := deletedTaskID
+		mu.Unlock()
+		assert.Empty(t, taskID, "should not fire callback for existing file")
+
+		d.Stop()
+	})
+
+	t.Run("fires callback when file is actually deleted", func(t *testing.T) {
+		var mu sync.Mutex
+		var deletedTaskID string
+
+		d := NewDebouncer(50, func(taskID string, fileType FileType, path string) {})
+		d.SetDeleteCallback(func(taskID string) {
+			mu.Lock()
+			defer mu.Unlock()
+			deletedTaskID = taskID
+		})
+
+		// Reference a non-existent file
+		tmpDir := t.TempDir()
+		nonExistentFile := filepath.Join(tmpDir, "task.yaml")
+
+		// Trigger delete for non-existent file
+		d.TriggerDelete("TASK-002", nonExistentFile)
+
+		// Wait for delete check
+		time.Sleep(200 * time.Millisecond)
+
+		// Callback should fire because file doesn't exist
+		mu.Lock()
+		taskID := deletedTaskID
+		mu.Unlock()
+		assert.Equal(t, "TASK-002", taskID)
+
+		d.Stop()
+	})
+
+	t.Run("cancels pending delete when CancelDelete is called", func(t *testing.T) {
+		var mu sync.Mutex
+		var deletedTaskID string
+
+		d := NewDebouncer(50, func(taskID string, fileType FileType, path string) {})
+		d.SetDeleteCallback(func(taskID string) {
+			mu.Lock()
+			defer mu.Unlock()
+			deletedTaskID = taskID
+		})
+
+		// Reference a non-existent file
+		tmpDir := t.TempDir()
+		nonExistentFile := filepath.Join(tmpDir, "task.yaml")
+
+		// Trigger delete, then cancel before it fires
+		d.TriggerDelete("TASK-003", nonExistentFile)
+		d.CancelDelete("TASK-003")
+
+		// Wait for would-be delete check
+		time.Sleep(200 * time.Millisecond)
+
+		// Callback should NOT fire because it was cancelled
+		mu.Lock()
+		taskID := deletedTaskID
+		mu.Unlock()
+		assert.Empty(t, taskID, "should not fire callback for cancelled delete")
+
+		d.Stop()
+	})
+
+	t.Run("handles rename scenario (Remove then Create)", func(t *testing.T) {
+		var mu sync.Mutex
+		var deletedTaskID string
+		var createdTaskID string
+
+		d := NewDebouncer(50, func(taskID string, fileType FileType, path string) {
+			mu.Lock()
+			defer mu.Unlock()
+			createdTaskID = taskID
+		})
+		d.SetDeleteCallback(func(taskID string) {
+			mu.Lock()
+			defer mu.Unlock()
+			deletedTaskID = taskID
+		})
+
+		// Create a temp file
+		tmpDir := t.TempDir()
+		tmpFile := filepath.Join(tmpDir, "task.yaml")
+		require.NoError(t, os.WriteFile(tmpFile, []byte("test"), 0644))
+
+		// Simulate rename: TriggerDelete then immediately CancelDelete and Trigger
+		d.TriggerDelete("TASK-004", tmpFile)
+		// Simulate Create event cancelling the delete
+		d.CancelDelete("TASK-004")
+		d.Trigger("TASK-004", FileTypeTask, tmpFile)
+
+		// Wait for events to process
+		time.Sleep(200 * time.Millisecond)
+
+		mu.Lock()
+		deleted := deletedTaskID
+		created := createdTaskID
+		mu.Unlock()
+
+		// Delete callback should NOT have fired
+		assert.Empty(t, deleted, "should not fire delete for rename scenario")
+		// Regular callback should have fired
+		assert.Equal(t, "TASK-004", created, "should fire create for rename scenario")
+
+		d.Stop()
+	})
+}
+
 func TestWatcher_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -436,5 +573,109 @@ weight: small
 		// Should not publish an event for unchanged content
 		evts := pub.getEvents()
 		assert.Empty(t, evts, "expected no events for unchanged content")
+	})
+
+	t.Run("no spurious delete on atomic save", func(t *testing.T) {
+		workDir := setupTestDir(t)
+		pub := &testPublisher{}
+
+		// Create initial task
+		createTask(t, workDir, "TASK-ATOMIC")
+
+		w, err := New(&Config{
+			WorkDir:    workDir,
+			Publisher:  pub,
+			DebounceMs: 50,
+		})
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		go w.Start(ctx)
+
+		// Give watcher time to initialize
+		time.Sleep(100 * time.Millisecond)
+		pub.reset()
+
+		// Simulate atomic save: write to temp, remove original, rename temp
+		taskPath := filepath.Join(workDir, ".orc", "tasks", "TASK-ATOMIC", "task.yaml")
+		tempPath := taskPath + ".tmp"
+
+		// Write new content to temp
+		newContent := []byte(`id: TASK-ATOMIC
+title: Atomically Saved Task
+status: running
+weight: medium
+`)
+		require.NoError(t, os.WriteFile(tempPath, newContent, 0644))
+
+		// Remove original (this triggers fsnotify Remove)
+		require.NoError(t, os.Remove(taskPath))
+
+		// Immediately rename temp to original (this triggers fsnotify Create/Rename)
+		require.NoError(t, os.Rename(tempPath, taskPath))
+
+		// Wait for events to process
+		time.Sleep(300 * time.Millisecond)
+
+		cancel()
+		w.Stop()
+
+		// Check events - should NOT have delete
+		evts := pub.getEvents()
+		var hasDelete bool
+		for _, e := range evts {
+			if e.TaskID == "TASK-ATOMIC" && e.Type == events.EventTaskDeleted {
+				hasDelete = true
+				break
+			}
+		}
+
+		assert.False(t, hasDelete, "should NOT publish delete event for atomic save")
+		// Note: We might or might not get an update depending on timing,
+		// the important thing is no spurious delete
+	})
+
+	t.Run("actual task deletion publishes delete event", func(t *testing.T) {
+		workDir := setupTestDir(t)
+		pub := &testPublisher{}
+
+		// Create initial task
+		createTask(t, workDir, "TASK-DELETE")
+
+		w, err := New(&Config{
+			WorkDir:    workDir,
+			Publisher:  pub,
+			DebounceMs: 50,
+		})
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		go w.Start(ctx)
+
+		// Give watcher time to initialize
+		time.Sleep(100 * time.Millisecond)
+		pub.reset()
+
+		// Actually delete the task.yaml file
+		taskPath := filepath.Join(workDir, ".orc", "tasks", "TASK-DELETE", "task.yaml")
+		require.NoError(t, os.Remove(taskPath))
+
+		// Wait for delete verification
+		time.Sleep(300 * time.Millisecond)
+
+		cancel()
+		w.Stop()
+
+		// Check that delete event was published
+		evts := pub.getEvents()
+		var hasDelete bool
+		for _, e := range evts {
+			if e.TaskID == "TASK-DELETE" && e.Type == events.EventTaskDeleted {
+				hasDelete = true
+				break
+			}
+		}
+
+		assert.True(t, hasDelete, "should publish delete event for actual deletion")
 	})
 }
