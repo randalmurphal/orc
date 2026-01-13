@@ -29,6 +29,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `setup/` | Claude-powered interactive setup | `Run`, `Spawner`, `Validator` |
 | `template/` | Go template rendering | `Engine` |
 | `tokenpool/` | OAuth token pool for rate limit failover | `Pool`, `Account` |
+| `watcher/` | File system watcher for real-time updates | `Watcher`, `Debouncer` |
 | `wizard/` | Interactive CLI wizard (deprecated) | `Wizard` |
 
 ## Dependency Graph
