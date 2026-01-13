@@ -174,7 +174,7 @@ More detailed than list view, includes inline timeline:
 
 ### Recent Activity Feed
 
-Simple list of completed/failed tasks:
+Simple list of completed/failed tasks using shared `StatusIndicator` component for consistent status display across all pages:
 
 ```svelte
 <section class="recent-activity">
@@ -186,7 +186,7 @@ Simple list of completed/failed tasks:
   <ul class="activity-list">
     {#each recentTasks.slice(0, 5) as task (task.id)}
       <li class="activity-item">
-        <StatusIcon status={task.status} />
+        <StatusIndicator status={task.status} size="md" />
         <a href="/tasks/{task.id}" class="task-link">{task.id} {task.title}</a>
         <time>{formatRelative(task.completed_at)}</time>
       </li>
@@ -194,6 +194,8 @@ Simple list of completed/failed tasks:
   </ul>
 </section>
 ```
+
+**Note:** `StatusIndicator` handles all 8 task states (created, classifying, planned, running, paused, blocked, completed, failed) with proper colors, animations, and optional labels.
 
 ### Quick Actions Bar
 
