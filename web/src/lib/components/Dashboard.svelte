@@ -17,7 +17,6 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let wsStatus = $state<ConnectionStatus>('disconnected');
-	let refreshInterval: ReturnType<typeof setInterval>;
 	let wsStatusCleanup: (() => void) | null = null;
 
 	// Derive active and recent tasks from global store
@@ -49,15 +48,10 @@
 				loadDashboardStats();
 			}
 		});
-
-		// Refresh stats every 30 seconds
-		refreshInterval = setInterval(loadDashboardStats, 30000);
+		// Task list is kept up-to-date via file watcher WebSocket events
 	});
 
 	onDestroy(() => {
-		if (refreshInterval) {
-			clearInterval(refreshInterval);
-		}
 		if (wsStatusCleanup) {
 			wsStatusCleanup();
 		}

@@ -7,7 +7,7 @@
 		tasks: Task[];
 		onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 		onEscalate?: (taskId: string, reason: string) => Promise<void>;
-		onRefresh: () => Promise<void>;
+		onRefresh?: () => Promise<void>;
 	}
 
 	let { tasks, onAction, onEscalate, onRefresh }: Props = $props();
@@ -134,7 +134,8 @@
 		actionLoading = true;
 		try {
 			await onEscalate(escalateTask.id, escalateReason);
-			await onRefresh();
+			// onRefresh is optional - WebSocket events will update the store
+			if (onRefresh) await onRefresh();
 		} finally {
 			actionLoading = false;
 			showEscalateModal = false;

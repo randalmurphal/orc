@@ -2,7 +2,17 @@
  * WebSocket client for real-time task updates
  */
 
-export type WSEventType = 'state' | 'transcript' | 'phase' | 'tokens' | 'error' | 'complete';
+export type WSEventType =
+	| 'state'
+	| 'transcript'
+	| 'phase'
+	| 'tokens'
+	| 'error'
+	| 'complete'
+	// File watcher events (triggered by external file changes)
+	| 'task_created'
+	| 'task_updated'
+	| 'task_deleted';
 
 // Special task ID for subscribing to all task events
 export const GLOBAL_TASK_ID = '*';

@@ -21,6 +21,15 @@ const (
 	EventComplete EventType = "complete"
 	// EventTokens indicates token usage update.
 	EventTokens EventType = "tokens"
+
+	// File watcher events (triggered by external file changes)
+
+	// EventTaskCreated indicates a new task was created via file system.
+	EventTaskCreated EventType = "task_created"
+	// EventTaskUpdated indicates a task was modified via file system.
+	EventTaskUpdated EventType = "task_updated"
+	// EventTaskDeleted indicates a task was deleted via file system.
+	EventTaskDeleted EventType = "task_deleted"
 )
 
 // Event represents a published event.

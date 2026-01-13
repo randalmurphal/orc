@@ -20,6 +20,7 @@ import (
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/watcher"
 )
 
 // Server is the orc API server.
@@ -35,6 +36,9 @@ type Server struct {
 	// Event publisher for real-time updates
 	publisher events.Publisher
 	wsHandler *WSHandler
+
+	// File watcher for real-time task updates
+	fileWatcher *watcher.Watcher
 
 	// SSE subscribers per task (legacy, kept for compatibility)
 	subscribers   map[string][]chan Event
@@ -113,6 +117,9 @@ func New(cfg *Config) *Server {
 
 	// Create WebSocket handler
 	s.wsHandler = NewWSHandler(pub, s, logger)
+
+	// File watcher is created lazily in StartContext() to avoid
+	// resource exhaustion in tests that create many server instances
 
 	s.registerRoutes()
 	return s
@@ -367,6 +374,25 @@ func (s *Server) StartContext(ctx context.Context) error {
 	server := &http.Server{
 		Addr:    s.addr,
 		Handler: s.mux,
+	}
+
+	// Create and start file watcher for real-time task updates (non-fatal if fails)
+	// Created here instead of New() to avoid resource exhaustion in tests
+	fw, err := watcher.New(&watcher.Config{
+		WorkDir:    s.workDir,
+		Publisher:  s.publisher,
+		Logger:     s.logger,
+		DebounceMs: 500,
+	})
+	if err != nil {
+		s.logger.Warn("file watcher unavailable", "error", err)
+	} else {
+		s.fileWatcher = fw
+		go func() {
+			if err := s.fileWatcher.Start(ctx); err != nil && err != context.Canceled {
+				s.logger.Error("file watcher error", "error", err)
+			}
+		}()
 	}
 
 	go func() {
