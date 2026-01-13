@@ -338,3 +338,57 @@ func containsTaskID(path, taskID string) bool {
 	return filepath.Base(path) != "" && (filepath.Base(path) == "orc-"+taskID ||
 		filepath.Base(filepath.Dir(path)) == "worktrees")
 }
+
+func TestSetupWorktree_StaleWorktree(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-worktree-stale-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := initTestRepo(tmpDir); err != nil {
+		t.Fatalf("failed to init test repo: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	// Create worktree first time
+	result1, err := SetupWorktree("TASK-STALE", nil, gitOps)
+	if err != nil {
+		t.Fatalf("first SetupWorktree failed: %v", err)
+	}
+
+	// Manually delete the worktree directory (simulating stale registration)
+	if err := os.RemoveAll(result1.Path); err != nil {
+		t.Fatalf("failed to remove worktree directory: %v", err)
+	}
+
+	// Verify directory is gone
+	if _, err := os.Stat(result1.Path); !os.IsNotExist(err) {
+		t.Fatal("worktree directory should not exist after manual deletion")
+	}
+
+	// WorktreeExists should return false since directory is gone
+	if WorktreeExists("TASK-STALE", gitOps) {
+		t.Error("WorktreeExists should return false when directory is deleted")
+	}
+
+	// Setup again - should succeed due to auto-prune in git layer
+	result2, err := SetupWorktree("TASK-STALE", nil, gitOps)
+	if err != nil {
+		t.Fatalf("SetupWorktree should handle stale worktree: %v", err)
+	}
+
+	// Verify it was created (not reused since directory was deleted)
+	if result2.Reused {
+		t.Error("should not be marked as reused when directory was deleted")
+	}
+
+	// Verify directory exists
+	if _, err := os.Stat(result2.Path); os.IsNotExist(err) {
+		t.Error("worktree should exist after re-creation")
+	}
+}
