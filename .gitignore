@@ -37,4 +37,7 @@ internal/api/static/
 .orc/orc.db-journal
 .orc/orc.db-wal
 .orc/orc.db-shm
-.orc/tasks/
+
+# Task data - track specs/state, ignore large runtime artifacts
+.orc/tasks/*/transcripts/
+.orc/tasks/*/test-results/

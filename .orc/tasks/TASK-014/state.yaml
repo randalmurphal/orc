@@ -1,0 +1,54 @@
+task_id: TASK-014
+current_phase: docs
+current_iteration: 2
+status: failed
+started_at: 2026-01-12T21:20:12.06020583-06:00
+updated_at: 2026-01-12T21:33:37.667726081-06:00
+phases:
+    docs:
+        status: failed
+        started_at: 2026-01-12T21:32:13.210937738-06:00
+        iterations: 0
+        error: 'node execute: execute: claude completion: claude complete: exit status 1: '
+        tokens:
+            input_tokens: 0
+            output_tokens: 0
+            total_tokens: 0
+    implement:
+        status: completed
+        started_at: 2026-01-12T21:20:13.094047127-06:00
+        completed_at: 2026-01-12T21:25:09.647469577-06:00
+        iterations: 1
+        commit_sha: b07e2d92135facda36a2e9c1438446412abb0c56
+        tokens:
+            input_tokens: 53
+            output_tokens: 9380
+            total_tokens: 9433
+    test:
+        status: completed
+        started_at: 2026-01-12T21:25:09.653404167-06:00
+        completed_at: 2026-01-12T21:32:13.205780707-06:00
+        iterations: 1
+        commit_sha: 1a84d1ace4c0fedc940d0a6b6e3d26b9239d5ca5
+        tokens:
+            input_tokens: 172
+            output_tokens: 15524
+            total_tokens: 15696
+gates:
+    - phase: implement
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-12T21:25:09.653403462-06:00
+    - phase: test
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-12T21:32:13.210936021-06:00
+tokens:
+    input_tokens: 225
+    output_tokens: 24904
+    total_tokens: 25129
+cost:
+    total_cost_usd: 0
+error: 'node execute: execute: claude completion: claude complete: exit status 1: '

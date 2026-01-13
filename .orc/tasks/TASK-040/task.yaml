@@ -1,0 +1,8 @@
+id: TASK-040
+title: Should track alongside where we track tokens the API usage costs of the claude sessions, cumulative for the screens that are cumulative aligning with the features that exist as well.
+description: Depends on the tickets that are to fix any tokens displays on things like the dashboard
+weight: medium
+status: planned
+branch: orc/TASK-040
+created_at: 2026-01-13T00:40:59.845903523-06:00
+updated_at: 2026-01-13T00:40:59.85208099-06:00

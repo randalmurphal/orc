@@ -1,0 +1,60 @@
+task_id: TASK-021
+current_phase: docs
+current_iteration: 3
+status: completed
+started_at: 2026-01-12T23:37:03.010555675-06:00
+updated_at: 2026-01-12T23:50:20.181359984-06:00
+completed_at: 2026-01-12T23:50:20.181359885-06:00
+phases:
+    docs:
+        status: completed
+        started_at: 2026-01-12T23:46:37.958781108-06:00
+        completed_at: 2026-01-12T23:50:20.175118756-06:00
+        iterations: 1
+        commit_sha: 767a710ab6085fe5ca9a3c9df320ef736d7ed0af
+        tokens:
+            input_tokens: 1963584
+            output_tokens: 9043
+            total_tokens: 1972627
+    implement:
+        status: completed
+        started_at: 2026-01-12T23:37:03.815367531-06:00
+        completed_at: 2026-01-12T23:43:38.591848012-06:00
+        iterations: 1
+        commit_sha: a92015c52f69a646a3616138586825fbfe013e0b
+        tokens:
+            input_tokens: 3377480
+            output_tokens: 17873
+            total_tokens: 3395353
+    test:
+        status: completed
+        started_at: 2026-01-12T23:43:38.597758401-06:00
+        completed_at: 2026-01-12T23:46:37.953495762-06:00
+        iterations: 1
+        commit_sha: f4dbb3198283a0f0aae2303eed6b30792d444a54
+        tokens:
+            input_tokens: 2115275
+            output_tokens: 5179
+            total_tokens: 2120454
+gates:
+    - phase: implement
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-12T23:43:38.597756783-06:00
+    - phase: test
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-12T23:46:37.958772586-06:00
+    - phase: docs
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-12T23:50:20.181358812-06:00
+tokens:
+    input_tokens: 7456339
+    output_tokens: 32095
+    total_tokens: 7488434
+cost:
+    total_cost_usd: 0

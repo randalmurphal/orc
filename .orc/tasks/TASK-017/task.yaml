@@ -1,0 +1,8 @@
+id: TASK-017
+title: Diff page not showing implementation diffs
+description: The diff page in the web UI should show the code diffs for task implementations, but it's not displaying them correctly. Need to investigate why diffs are not appearing and fix the diff display functionality.
+weight: medium
+status: planned
+branch: orc/TASK-017
+created_at: 2026-01-12T21:33:18.185769092-06:00
+updated_at: 2026-01-12T21:33:18.191907463-06:00

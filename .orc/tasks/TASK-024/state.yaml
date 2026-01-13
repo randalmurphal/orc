@@ -1,0 +1,64 @@
+task_id: TASK-024
+current_phase: test
+current_iteration: 4
+status: failed
+started_at: 2026-01-12T22:13:43.716680746-06:00
+updated_at: 2026-01-13T00:49:26.386442159-06:00
+phases:
+    implement:
+        status: completed
+        started_at: 2026-01-13T00:35:29.721565491-06:00
+        completed_at: 2026-01-13T00:39:26.991716023-06:00
+        iterations: 3
+        commit_sha: 5714fdad57ce7d06ca8e503fc79e4d893bf2fc0b
+        tokens:
+            input_tokens: 13963586
+            output_tokens: 52298
+            total_tokens: 14015884
+    spec:
+        status: completed
+        started_at: 2026-01-12T23:51:27.539357504-06:00
+        completed_at: 2026-01-12T23:54:41.630876193-06:00
+        iterations: 1
+        commit_sha: 991c76b1beeccc75089545531090387c72f9a4eb
+        tokens:
+            input_tokens: 274926
+            output_tokens: 8045
+            total_tokens: 282971
+    test:
+        status: failed
+        started_at: 2026-01-13T00:39:26.998154799-06:00
+        iterations: 0
+        error: 'node execute: execute: claude completion: claude complete: exit status 1: '
+        tokens:
+            input_tokens: 0
+            output_tokens: 0
+            total_tokens: 0
+gates:
+    - phase: spec
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-12T23:54:41.63656416-06:00
+    - phase: implement
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-13T00:06:19.887863137-06:00
+    - phase: implement
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-13T00:25:06.749587851-06:00
+    - phase: implement
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-13T00:39:26.998154163-06:00
+tokens:
+    input_tokens: 14238512
+    output_tokens: 60343
+    total_tokens: 14298855
+cost:
+    total_cost_usd: 0
+error: 'node execute: execute: claude completion: claude complete: exit status 1: '
