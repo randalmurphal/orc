@@ -19,5 +19,8 @@ tasks:
     - id: TASK-125
       title: 'E2E Test: Initiative detail page verification workflow'
       status: pending
+    - id: TASK-126
+      title: 'E2E Test: Keyboard shortcuts verification workflow'
+      status: pending
 created_at: 2026-01-14T01:40:18.861098092-06:00
-updated_at: 2026-01-14T01:45:06.391074209-06:00
+updated_at: 2026-01-14T01:45:06.427871602-06:00
