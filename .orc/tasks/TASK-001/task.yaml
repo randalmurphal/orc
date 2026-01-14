@@ -1,0 +1,15 @@
+id: TASK-001
+title: Implement bidirectional sync between files and UI - drag-drop updates files, file artifacts inform column position
+description: |
+    See spec.md for full architectural design. Key phases:
+    1. Read-side: Derive column from artifacts (spec.md exists = Spec column)
+    2. Write-side: PATCH /api/tasks/{id}/move endpoint, drag-drop updates files
+    3. Undo/Redo: Client-side stack with server validation
+    4. Executor: Detect existing artifacts, prompt to skip phases
+weight: large
+status: failed
+current_phase: spec
+branch: orc/TASK-001
+created_at: 2026-01-12T20:30:53.690246977-06:00
+updated_at: 2026-01-13T15:57:18.681494-06:00
+started_at: 2026-01-13T15:57:05.560406-06:00
