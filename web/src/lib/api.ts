@@ -1,4 +1,4 @@
-import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary, Attachment, TaskComment, CreateTaskCommentRequest, UpdateTaskCommentRequest, TaskCommentStats, TestResultsInfo, Screenshot, TestReport, Initiative, InitiativeStatus, InitiativeIdentity } from './types';
+import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary, Attachment, TaskComment, CreateTaskCommentRequest, UpdateTaskCommentRequest, TaskCommentStats, TestResultsInfo, Screenshot, TestReport, Initiative, InitiativeStatus, InitiativeIdentity, InitiativeTaskRef, InitiativeDecision } from './types';
 
 const API_BASE = '/api';
 
@@ -1618,4 +1618,52 @@ export async function deleteInitiative(id: string, shared?: boolean): Promise<vo
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Failed to delete initiative');
 	}
+}
+
+// Initiative Tasks
+export interface AddInitiativeTaskRequest {
+	task_id: string;
+	depends_on?: string[];
+}
+
+export async function listInitiativeTasks(id: string, shared?: boolean): Promise<InitiativeTaskRef[]> {
+	const query = shared ? '?shared=true' : '';
+	return fetchJSON<InitiativeTaskRef[]>(`/initiatives/${id}/tasks${query}`);
+}
+
+export async function addInitiativeTask(id: string, req: AddInitiativeTaskRequest, shared?: boolean): Promise<InitiativeTaskRef[]> {
+	const query = shared ? '?shared=true' : '';
+	return fetchJSON<InitiativeTaskRef[]>(`/initiatives/${id}/tasks${query}`, {
+		method: 'POST',
+		body: JSON.stringify(req)
+	});
+}
+
+export async function removeInitiativeTask(id: string, taskId: string, shared?: boolean): Promise<void> {
+	const query = shared ? '?shared=true' : '';
+	const res = await fetch(`${API_BASE}/initiatives/${id}/tasks/${taskId}${query}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to remove task from initiative');
+	}
+}
+
+// Initiative Decisions
+export interface AddInitiativeDecisionRequest {
+	decision: string;
+	rationale?: string;
+	by?: string;
+}
+
+export async function addInitiativeDecision(id: string, req: AddInitiativeDecisionRequest, shared?: boolean): Promise<InitiativeDecision[]> {
+	const query = shared ? '?shared=true' : '';
+	return fetchJSON<InitiativeDecision[]>(`/initiatives/${id}/decisions${query}`, {
+		method: 'POST',
+		body: JSON.stringify(req)
+	});
+}
+
+export async function getReadyTasks(id: string, shared?: boolean): Promise<InitiativeTaskRef[]> {
+	const query = shared ? '?shared=true' : '';
+	return fetchJSON<InitiativeTaskRef[]>(`/initiatives/${id}/ready${query}`);
 }

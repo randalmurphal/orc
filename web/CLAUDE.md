@@ -548,6 +548,7 @@ The automation page (`/environment/orchestrator/automation`) provides a complete
 | `/board` | Kanban board |
 | `/tasks` | Task list |
 | `/tasks/:id` | Task detail (Timeline/Changes/Transcript/Attachments tabs) |
+| `/initiatives/:id` | Initiative detail (Tasks/Decisions sections, edit capabilities) |
 | `/config` | Redirects to `/environment/orchestrator/automation` |
 | `/environment` | Environment hub (Claude Code + Orchestrator config) |
 | `/environment/docs` | CLAUDE.md editor (`?scope=global\|user\|project`) |
