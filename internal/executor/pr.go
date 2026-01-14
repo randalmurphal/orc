@@ -119,6 +119,18 @@ func (e *Executor) syncWithTargetPhase(ctx context.Context, t *task.Task, phase 
 			"commits_behind", result.CommitsBehind)
 	}
 
+	// Restore .orc/ from target branch to prevent worktree contamination
+	// This ensures any modifications to .orc/ during task execution don't get merged
+	restored, err := gitOps.RestoreOrcDir(target, t.ID)
+	if err != nil {
+		e.logger.Warn("failed to restore .orc/ directory", "error", err)
+		// Don't fail the sync - restoration is defense-in-depth
+	} else if restored {
+		e.logger.Info("restored .orc/ from target branch",
+			"target", targetBranch,
+			"reason", "prevent worktree contamination")
+	}
+
 	return nil
 }
 

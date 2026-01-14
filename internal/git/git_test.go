@@ -953,3 +953,316 @@ func TestCreateWorktree_StaleWorktree_ExistingBranch(t *testing.T) {
 	// Cleanup
 	g.CleanupWorktree("TASK-STALE2")
 }
+
+// TestRestoreOrcDir_NoOrcDir tests RestoreOrcDir when .orc/ doesn't exist
+func TestRestoreOrcDir_NoOrcDir(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-ORC-001")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// No .orc/ directory exists, should return false with no error
+	restored, err := g.RestoreOrcDir(baseBranch, "TASK-ORC-001")
+	if err != nil {
+		t.Fatalf("RestoreOrcDir() failed: %v", err)
+	}
+	if restored {
+		t.Error("RestoreOrcDir() should return false when no .orc/ exists")
+	}
+}
+
+// TestRestoreOrcDir_NoChanges tests RestoreOrcDir when .orc/ has no changes
+func TestRestoreOrcDir_NoChanges(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create .orc/ directory on base branch
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("failed to create .orc/: %v", err)
+	}
+	configFile := filepath.Join(orcDir, "config.yaml")
+	if err := os.WriteFile(configFile, []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("failed to create config.yaml: %v", err)
+	}
+
+	// Commit .orc/ on base branch
+	cmd := exec.Command("git", "add", ".orc/")
+	cmd.Dir = tmpDir
+	cmd.Run()
+	cmd = exec.Command("git", "commit", "-m", "Add .orc/")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit .orc/: %v", err)
+	}
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-ORC-002")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Don't modify .orc/ - should return false with no error
+	restored, err := g.RestoreOrcDir(baseBranch, "TASK-ORC-002")
+	if err != nil {
+		t.Fatalf("RestoreOrcDir() failed: %v", err)
+	}
+	if restored {
+		t.Error("RestoreOrcDir() should return false when no changes to .orc/")
+	}
+}
+
+// TestRestoreOrcDir_WithChanges tests RestoreOrcDir when .orc/ has modifications
+func TestRestoreOrcDir_WithChanges(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create .orc/ directory on base branch
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("failed to create .orc/: %v", err)
+	}
+	configFile := filepath.Join(orcDir, "config.yaml")
+	originalContent := "version: 1\n"
+	if err := os.WriteFile(configFile, []byte(originalContent), 0644); err != nil {
+		t.Fatalf("failed to create config.yaml: %v", err)
+	}
+
+	// Commit .orc/ on base branch
+	cmd := exec.Command("git", "add", ".orc/")
+	cmd.Dir = tmpDir
+	cmd.Run()
+	cmd = exec.Command("git", "commit", "-m", "Add .orc/")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit .orc/: %v", err)
+	}
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-ORC-003")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Modify .orc/ on task branch
+	modifiedContent := "version: 2\nmodified_by_task: true\n"
+	if err := os.WriteFile(configFile, []byte(modifiedContent), 0644); err != nil {
+		t.Fatalf("failed to modify config.yaml: %v", err)
+	}
+
+	// Commit the modification
+	_, _ = g.CreateCheckpoint("TASK-ORC-003", "implement", "modify .orc/")
+
+	// Verify file is modified
+	content, _ := os.ReadFile(configFile)
+	if string(content) != modifiedContent {
+		t.Fatalf("expected modified content, got: %s", string(content))
+	}
+
+	// Restore .orc/ from base branch
+	restored, err := g.RestoreOrcDir(baseBranch, "TASK-ORC-003")
+	if err != nil {
+		t.Fatalf("RestoreOrcDir() failed: %v", err)
+	}
+	if !restored {
+		t.Error("RestoreOrcDir() should return true when .orc/ was restored")
+	}
+
+	// Verify file is restored to original content
+	content, _ = os.ReadFile(configFile)
+	if string(content) != originalContent {
+		t.Errorf("expected original content after restore, got: %s", string(content))
+	}
+}
+
+// TestRestoreOrcDir_NewFilesInOrc tests RestoreOrcDir when new files are added to .orc/
+func TestRestoreOrcDir_NewFilesInOrc(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create .orc/ directory on base branch
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("failed to create .orc/: %v", err)
+	}
+	configFile := filepath.Join(orcDir, "config.yaml")
+	if err := os.WriteFile(configFile, []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("failed to create config.yaml: %v", err)
+	}
+
+	// Commit .orc/ on base branch
+	cmd := exec.Command("git", "add", ".orc/")
+	cmd.Dir = tmpDir
+	cmd.Run()
+	cmd = exec.Command("git", "commit", "-m", "Add .orc/")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit .orc/: %v", err)
+	}
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-ORC-004")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Add a new file to .orc/ on task branch
+	newFile := filepath.Join(orcDir, "tasks", "TASK-999", "task.yaml")
+	if err := os.MkdirAll(filepath.Dir(newFile), 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
+	if err := os.WriteFile(newFile, []byte("id: TASK-999\n"), 0644); err != nil {
+		t.Fatalf("failed to create new task file: %v", err)
+	}
+
+	// Commit the new file
+	_, _ = g.CreateCheckpoint("TASK-ORC-004", "implement", "add task file to .orc/")
+
+	// Verify new file exists
+	if _, err := os.Stat(newFile); os.IsNotExist(err) {
+		t.Fatal("new task file should exist before restore")
+	}
+
+	// Restore .orc/ from base branch
+	restored, err := g.RestoreOrcDir(baseBranch, "TASK-ORC-004")
+	if err != nil {
+		t.Fatalf("RestoreOrcDir() failed: %v", err)
+	}
+	if !restored {
+		t.Error("RestoreOrcDir() should return true when .orc/ was restored")
+	}
+
+	// Verify new file is removed (restored to base state)
+	if _, err := os.Stat(newFile); !os.IsNotExist(err) {
+		t.Error("new task file should be removed after restore")
+	}
+}
+
+// TestRestoreOrcDir_InitiativeModification tests RestoreOrcDir with initiative file changes
+func TestRestoreOrcDir_InitiativeModification(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create .orc/initiatives/ directory on base branch
+	initDir := filepath.Join(tmpDir, ".orc", "initiatives", "INIT-001")
+	if err := os.MkdirAll(initDir, 0755); err != nil {
+		t.Fatalf("failed to create initiatives dir: %v", err)
+	}
+	initFile := filepath.Join(initDir, "initiative.yaml")
+	originalContent := "id: INIT-001\ntitle: Real Initiative\nstatus: active\n"
+	if err := os.WriteFile(initFile, []byte(originalContent), 0644); err != nil {
+		t.Fatalf("failed to create initiative.yaml: %v", err)
+	}
+
+	// Commit on base branch
+	cmd := exec.Command("git", "add", ".orc/")
+	cmd.Dir = tmpDir
+	cmd.Run()
+	cmd = exec.Command("git", "commit", "-m", "Add initiative")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit initiative: %v", err)
+	}
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-ORC-005")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Modify initiative file (simulating accidental modification during task execution)
+	modifiedContent := "id: INIT-001\ntitle: Test Initiative (corrupted)\nstatus: completed\ntasks:\n  - TASK-TEST-1\n  - TASK-TEST-2\n"
+	if err := os.WriteFile(initFile, []byte(modifiedContent), 0644); err != nil {
+		t.Fatalf("failed to modify initiative.yaml: %v", err)
+	}
+
+	// Commit the modification
+	_, _ = g.CreateCheckpoint("TASK-ORC-005", "implement", "accidentally modify initiative")
+
+	// Restore .orc/ from base branch
+	restored, err := g.RestoreOrcDir(baseBranch, "TASK-ORC-005")
+	if err != nil {
+		t.Fatalf("RestoreOrcDir() failed: %v", err)
+	}
+	if !restored {
+		t.Error("RestoreOrcDir() should return true when initiative was restored")
+	}
+
+	// Verify initiative is restored to original content
+	content, _ := os.ReadFile(initFile)
+	if string(content) != originalContent {
+		t.Errorf("expected original initiative content after restore, got: %s", string(content))
+	}
+}
+
+// TestRestoreOrcDir_CommitMessage tests that RestoreOrcDir creates correct commit message
+func TestRestoreOrcDir_CommitMessage(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create .orc/ directory on base branch
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("failed to create .orc/: %v", err)
+	}
+	configFile := filepath.Join(orcDir, "config.yaml")
+	if err := os.WriteFile(configFile, []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("failed to create config.yaml: %v", err)
+	}
+
+	// Commit on base branch
+	cmd := exec.Command("git", "add", ".orc/")
+	cmd.Dir = tmpDir
+	cmd.Run()
+	cmd = exec.Command("git", "commit", "-m", "Add .orc/")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	// Create a task branch
+	g.CreateBranch("TASK-ORC-006")
+
+	// Modify .orc/
+	os.WriteFile(configFile, []byte("version: 2\n"), 0644)
+	g.CreateCheckpoint("TASK-ORC-006", "implement", "modify .orc/")
+
+	// Restore .orc/
+	restored, err := g.RestoreOrcDir(baseBranch, "TASK-ORC-006")
+	if err != nil {
+		t.Fatalf("RestoreOrcDir() failed: %v", err)
+	}
+	if !restored {
+		t.Fatal("RestoreOrcDir() should return true")
+	}
+
+	// Check commit message
+	output, err := g.ctx.RunGit("log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("failed to get commit message: %v", err)
+	}
+	commitMsg := strings.TrimSpace(output)
+	if !strings.Contains(commitMsg, "[orc]") {
+		t.Errorf("commit message should contain [orc], got: %s", commitMsg)
+	}
+	if !strings.Contains(commitMsg, "TASK-ORC-006") {
+		t.Errorf("commit message should contain task ID, got: %s", commitMsg)
+	}
+	if !strings.Contains(commitMsg, "restore .orc/") {
+		t.Errorf("commit message should mention restore, got: %s", commitMsg)
+	}
+}
