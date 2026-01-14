@@ -887,6 +887,7 @@ bunx playwright test --grep board  # Run board tests only
 | File | Coverage |
 |------|----------|
 | `e2e/board.spec.ts` | Board page: rendering, view modes, drag-drop, swimlanes (18 tests) |
+| `e2e/initiatives.spec.ts` | Initiative CRUD, detail page, task linking, decisions, dependency graph (20 tests) |
 | `e2e/task-detail.spec.ts` | Task detail tabs: navigation, timeline, changes, transcript, attachments (15 tests) |
 | `e2e/tasks.spec.ts` | Task list, task detail, CRUD operations |
 | `e2e/navigation.spec.ts` | Routing, navigation, back button |
