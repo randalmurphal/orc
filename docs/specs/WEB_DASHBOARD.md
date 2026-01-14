@@ -67,6 +67,8 @@ Replace task list as the default landing page with a comprehensive dashboard tha
 │  │                                                                        ││
 │  └────────────────────────────────────────────────────────────────────────┘│
 │                                                                             │
+│  NOTE: Clicking a running task opens LiveTranscriptModal with live output.  │
+│                                                                             │
 │  ┌─ Recent Activity ────────────────────────────────────────── [View All] ┐│
 │  │                                                                        ││
 │  │  ✅ TASK-005 Update API documentation           completed 2m ago       ││
@@ -255,6 +257,61 @@ Response:
   "last_activity": "2026-01-10T15:45:00Z"
 }
 ```
+
+---
+
+## Live Transcript Viewer
+
+Running tasks can be clicked to open a live transcript modal showing Claude's real-time output.
+
+### LiveTranscriptModal
+
+Opens when clicking a running task card:
+
+```
+┌─ Live Transcript ─────────────────────────────────────────────────────────┐
+│ TASK-007   [RUNNING ●]   implement                          [Live ●] [✕] │
+├───────────────────────────────────────────────────────────────────────────┤
+│ Implement caching layer                        1,234 in / 567 out / 890 ↻ │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ▼ implement - Iteration 1                    Jan 13, 2:30pm   1.2K/450   │
+│  ┌─────────────────────────────────────────────────────────────────────┐ │
+│  │ ▶ PROMPT                                                            │ │
+│  │   You are implementing a caching layer...                           │ │
+│  ├─────────────────────────────────────────────────────────────────────┤ │
+│  │ ◀ RESPONSE                                                          │ │
+│  │   I'll implement a Redis-based caching layer...                     │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                           │
+│  ┌─ STREAMING ────────────────────────────────────────────────────────┐  │
+│  │ ● Now implementing the cache middleware...                          │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| Real-time streaming | Shows response as it generates |
+| Connection indicator | "Live", "Connecting", or "Disconnected" |
+| Token tracking | Input/output/cached counts update live |
+| Transcript history | Paginated list of completed iterations |
+| Auto-scroll | Follows new content (toggleable) |
+| Export | Download transcript as Markdown |
+| Full view | Link to `/tasks/:id?tab=transcript` |
+
+### Implementation
+
+Located at `web/src/lib/components/overlays/LiveTranscriptModal.svelte`
+
+WebSocket events handled:
+- `transcript` - chunk (streaming) and response (complete)
+- `state` - task state changes
+- `tokens` - usage updates
+- `phase` / `complete` - triggers reload
 
 ---
 

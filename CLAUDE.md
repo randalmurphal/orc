@@ -339,6 +339,7 @@ Patterns, gotchas, and decisions learned during development.
 | Artifact detection for phase skip | Before running phases, check if artifacts exist (spec.md, research.md, docs.md) and offer to skip; use `--auto-skip` for non-interactive mode | TASK-004 |
 | Project selection persistence | URL param (`?project=xxx`) takes precedence over localStorage; enables shareable links and browser back/forward navigation | TASK-009 |
 | Running task visual indicator | Running tasks show pulsing border + gradient background; placed in column matching `current_phase` from state.yaml | TASK-006 |
+| Live transcript modal | Click running task to open LiveTranscriptModal with streaming output, token tracking, and connection status; uses WebSocket `transcript` events for real-time updates | TASK-012 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

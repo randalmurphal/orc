@@ -1,14 +1,30 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 	import Board from '$lib/components/kanban/Board.svelte';
+	import LiveTranscriptModal from '$lib/components/overlays/LiveTranscriptModal.svelte';
 	import { runProjectTask, pauseProjectTask, resumeProjectTask, escalateProjectTask } from '$lib/api';
 	import { currentProjectId } from '$lib/stores/project';
 	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks } from '$lib/stores/tasks';
+	import type { Task } from '$lib/types';
 
 	// Reactive binding to global task store
 	let tasks = $derived($tasksStore);
 	let loading = $derived($tasksLoading);
 	let error = $derived($tasksError);
+
+	// Transcript modal state
+	let transcriptModalOpen = $state(false);
+	let selectedTask = $state<Task | null>(null);
+
+	function handleTaskClick(task: Task) {
+		selectedTask = task;
+		transcriptModalOpen = true;
+	}
+
+	function closeTranscriptModal() {
+		transcriptModalOpen = false;
+		selectedTask = null;
+	}
 
 	async function handleAction(taskId: string, action: 'run' | 'pause' | 'resume') {
 		const projectId = get(currentProjectId);
@@ -72,9 +88,18 @@
 			<button onclick={loadTasks}>Try Again</button>
 		</div>
 	{:else}
-		<Board {tasks} onAction={handleAction} onEscalate={handleEscalate} />
+		<Board {tasks} onAction={handleAction} onEscalate={handleEscalate} onTaskClick={handleTaskClick} />
 	{/if}
 </div>
+
+<!-- Live Transcript Modal -->
+{#if selectedTask}
+	<LiveTranscriptModal
+		open={transcriptModalOpen}
+		task={selectedTask}
+		onClose={closeTranscriptModal}
+	/>
+{/if}
 
 <style>
 	.board-page {

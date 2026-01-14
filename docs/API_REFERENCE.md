@@ -516,13 +516,40 @@ Connect to `/api/ws` for real-time updates.
 |-------|------|---------|
 | `state` | `TaskState` | Full task state update |
 | `phase` | `{phase, status}` | Phase started/completed/failed |
-| `transcript` | `TranscriptLine` | Streaming conversation |
+| `transcript` | `TranscriptEvent` | Streaming conversation (see below) |
 | `tokens` | `TokenUpdate` | Token usage (includes cached tokens) |
 | `complete` | `{status, duration}` | Task finished |
 | `error` | `{message, fatal}` | Error occurred |
 | `task_created` | `{task: Task}` | Task created via CLI/filesystem |
 | `task_updated` | `{task: Task}` | Task modified via CLI/filesystem |
 | `task_deleted` | `{task_id: string}` | Task deleted via CLI/filesystem |
+
+### Transcript Event Types
+
+The `transcript` event supports real-time streaming of Claude's output:
+
+```json
+// Streaming chunk (sent as response generates)
+{
+  "type": "chunk",
+  "content": "partial response text",
+  "phase": "implement",
+  "iteration": 1
+}
+
+// Complete response (sent when response finishes)
+{
+  "type": "response",
+  "content": "full response text",
+  "phase": "implement",
+  "iteration": 1
+}
+```
+
+**Client handling:**
+- `chunk` events append to streaming buffer; reset buffer when phase/iteration changes
+- `response` events signal completion; reload transcript files from API
+- Use `getTranscripts(taskId)` or `getProjectTranscripts(projectId, taskId)` to fetch saved transcripts
 
 ### TokenUpdate Schema
 
@@ -543,6 +570,8 @@ Connect to `/api/ws` for real-time updates.
 | `cache_creation_input_tokens` | Tokens written to prompt cache (optional) |
 | `cache_read_input_tokens` | Tokens served from prompt cache (optional) |
 | `total_tokens` | Sum of all token types |
+
+Tokens are incremental (add to existing totals, don't replace).
 
 ### Global Subscriptions
 
