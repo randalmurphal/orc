@@ -379,15 +379,38 @@ func (e *FinalizeExecutor) syncWithTarget(
 	target := "origin/" + targetBranch
 
 	// Choose sync strategy
+	var syncResult *FinalizeResult
+	var syncErr error
 	switch cfg.Sync.Strategy {
 	case config.FinalizeSyncRebase:
-		return e.syncViaRebase(ctx, t, p, s, target, cfg, result)
+		syncResult, syncErr = e.syncViaRebase(ctx, t, p, s, target, cfg, result)
 	case config.FinalizeSyncMerge:
-		return e.syncViaMerge(ctx, t, p, s, target, cfg, result)
+		syncResult, syncErr = e.syncViaMerge(ctx, t, p, s, target, cfg, result)
 	default:
 		// Default to merge
-		return e.syncViaMerge(ctx, t, p, s, target, cfg, result)
+		syncResult, syncErr = e.syncViaMerge(ctx, t, p, s, target, cfg, result)
 	}
+
+	// If sync failed, return the error
+	if syncErr != nil {
+		return syncResult, syncErr
+	}
+
+	// Restore .orc/ from target branch to prevent worktree contamination
+	// This ensures any modifications to .orc/ during task execution don't get merged
+	if syncResult.Synced {
+		restored, restoreErr := e.gitSvc.RestoreOrcDir(target, t.ID)
+		if restoreErr != nil {
+			e.logger.Warn("failed to restore .orc/ directory", "error", restoreErr)
+			// Don't fail the sync - restoration is defense-in-depth
+		} else if restored {
+			e.logger.Info("restored .orc/ from target branch",
+				"target", targetBranch,
+				"reason", "prevent worktree contamination")
+		}
+	}
+
+	return syncResult, nil
 }
 
 // syncViaMerge syncs by merging target into the task branch.

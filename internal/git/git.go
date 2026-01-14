@@ -510,3 +510,80 @@ func (g *Git) AbortRebase() error {
 	_, err := g.ctx.RunGit("rebase", "--abort")
 	return err
 }
+
+// RestoreOrcDir restores the .orc/ directory from a target ref (e.g., "origin/main").
+// This is used during completion sync to prevent worktree modifications to .orc/ from
+// contaminating the target branch when merged.
+//
+// The function:
+// 1. Checks if .orc/ has changes compared to the target
+// 2. If changes exist, removes the current .orc/ and restores from target
+// 3. Commits the restoration if needed
+//
+// Returns true if restoration was performed, false if no changes were found.
+func (g *Git) RestoreOrcDir(target string, taskID string) (bool, error) {
+	// Check if .orc/ directory exists
+	orcDir := filepath.Join(g.ctx.RepoPath(), ".orc")
+	if _, err := os.Stat(orcDir); os.IsNotExist(err) {
+		// No .orc/ directory, nothing to restore
+		return false, nil
+	}
+
+	// Check if .orc/ has changes compared to target
+	// Use git diff to detect changes between current state and target
+	output, err := g.ctx.RunGit("diff", "--name-only", target, "--", ".orc/")
+	if err != nil {
+		// If target ref doesn't exist or diff fails, skip restoration
+		// This handles cases where target branch doesn't have .orc/ yet
+		return false, nil
+	}
+
+	// If no changes, nothing to restore
+	changedFiles := strings.TrimSpace(output)
+	if changedFiles == "" {
+		return false, nil
+	}
+
+	// Remove tracked .orc/ files that differ from target
+	// This handles both modifications AND additions (files that don't exist in target)
+	// We need to use rm for files that were added (won't exist in target)
+	// and checkout for files that were modified
+
+	// First, remove .orc/ from working tree (but keep in index for now)
+	if err := os.RemoveAll(orcDir); err != nil {
+		return false, fmt.Errorf("remove .orc/ directory: %w", err)
+	}
+
+	// Restore .orc/ from target using checkout
+	// This will recreate .orc/ with the target's content
+	_, err = g.ctx.RunGit("checkout", target, "--", ".orc/")
+	if err != nil {
+		return false, fmt.Errorf("restore .orc/ from %s: %w", target, err)
+	}
+
+	// Check if there are changes to commit (added files that were removed will show as deleted)
+	status, err := g.ctx.RunGit("status", "--porcelain", ".orc/")
+	if err != nil {
+		return false, fmt.Errorf("check status after restore: %w", err)
+	}
+
+	// If there are changes after restoration, commit them
+	if strings.TrimSpace(status) != "" {
+		// Stage all .orc/ changes (including deletions of files not in target)
+		if _, err := g.ctx.RunGit("add", ".orc/"); err != nil {
+			return false, fmt.Errorf("stage .orc/ restore: %w", err)
+		}
+
+		// Commit the restoration
+		commitMsg := fmt.Sprintf("%s %s: restore .orc/ from %s", g.commitPrefix, taskID, target)
+		if _, err := g.ctx.RunGit("commit", "-m", commitMsg); err != nil {
+			// If commit fails due to nothing to commit, that's OK
+			if !strings.Contains(err.Error(), "nothing to commit") {
+				return false, fmt.Errorf("commit .orc/ restore: %w", err)
+			}
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
