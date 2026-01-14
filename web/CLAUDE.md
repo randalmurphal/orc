@@ -20,6 +20,7 @@ web/src/
 │   │   ├── comments/     # TaskCommentsPanel, TaskCommentThread, TaskCommentForm
 │   │   ├── dashboard/    # Stats, actions, activity
 │   │   ├── diff/         # DiffViewer, DiffFile, DiffHunk, VirtualScroller
+│   │   ├── filters/      # InitiativeDropdown
 │   │   ├── kanban/       # Board, Column, QueuedColumn, TaskCard
 │   │   ├── layout/       # Header, Sidebar
 │   │   ├── overlays/     # Modal, CommandPalette, NewTaskModal, KeyboardShortcutsHelp
@@ -42,6 +43,7 @@ web/src/
 | Dashboard | Stats, QuickActions, ActiveTasks, RecentActivity | Overview page |
 | Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments, TokenUsage | Task detail |
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
+| Filters | InitiativeDropdown | Filter bar dropdowns |
 | Kanban | Board, Column, QueuedColumn, TaskCard, ConfirmModal | Board view with queue/priority |
 | Overlays | Modal, LiveTranscriptModal, CommandPalette, KeyboardShortcutsHelp | Modal dialogs and overlays |
 | Comments | TaskCommentsPanel, TaskCommentThread, TaskCommentForm | Task discussion notes |
@@ -282,6 +284,35 @@ Work
 - Uses `$initiatives` for the list
 - Uses `$currentInitiativeId` for the selection (null = all tasks)
 - Uses `$initiativeProgress` for completion counts
+
+### Initiative Filter Dropdown
+
+The `InitiativeDropdown` component (`filters/InitiativeDropdown.svelte`) provides initiative filtering in the filter bars on both Tasks and Board pages:
+
+```
+[All | Active | Completed | Failed] [Search...] [Initiative ▾] [Weight ▾] [Sort ▾]
+```
+
+| Feature | Description |
+|---------|-------------|
+| All initiatives | Default option showing all tasks |
+| Unassigned | Shows only tasks with no initiative_id |
+| Initiative list | Sorted by status (active first), then by title |
+| Task count | Shows task count in parentheses: 'Frontend Migration (7)' |
+| Title truncation | Long titles truncated to 24 chars with ellipsis |
+
+**Dropdown options:**
+1. "All initiatives" - Clears filter, shows all tasks
+2. "Unassigned" - Shows only standalone tasks (no initiative_id)
+3. Initiative items - Each shows truncated title + task count
+
+**State sync:** The dropdown uses the same initiative store as the sidebar, so selections are synchronized. Selecting from either location updates both.
+
+**Special value:** The `UNASSIGNED_INITIATIVE` constant (`'__unassigned__'`) is used to filter tasks without an initiative_id. This is exported from the initiative store for use in filtering logic.
+
+**Filter bar placement:**
+- Tasks page: Between search input and weight filter
+- Board page: In header alongside "New Task" button
 
 ## Attachments
 
