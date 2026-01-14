@@ -26,9 +26,11 @@
 
 		// Get task IDs from the initiative
 		const initiative = $currentInitiative;
-		if (!initiative?.tasks) return storeTasks;
+		if (!initiative) return storeTasks; // Initiative not found/loaded yet
 
-		const initiativeTaskIds = new Set(initiative.tasks.map(t => t.id));
+		// If initiative exists but has no tasks, return empty array (not all tasks)
+		const tasks = initiative.tasks || [];
+		const initiativeTaskIds = new Set(tasks.map(t => t.id));
 		return storeTasks.filter(task => initiativeTaskIds.has(task.id));
 	});
 	let loading = $derived($tasksLoading);
