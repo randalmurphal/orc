@@ -298,6 +298,10 @@ make web-dev    # Frontend :5173
 
 Both sync to the same state. Options include "All initiatives" (no filter), "Unassigned" (tasks without an initiative), and specific initiatives with task counts. Selection persists in URL (`?initiative=INIT-001`) and localStorage. Click "All initiatives" to clear the filter.
 
+**Board view modes:** The board supports two view modes via dropdown toggle:
+- **Flat** (default): Traditional kanban with all tasks in columns
+- **By Initiative**: Swimlane view grouping tasks by initiative with collapsible rows, progress bars, and cross-swimlane drag-drop for reassigning tasks
+
 **Keyboard shortcuts:** Uses `Shift+Alt` modifier (⇧⌥ on Mac) to avoid browser conflicts. `Shift+Alt+K` (palette), `Shift+Alt+N` (new task), `g t` (tasks), `j/k` (navigate). Press `?` for full list.
 
 **Settings management:** All settings are editable through the UI:
@@ -437,6 +441,7 @@ Patterns, gotchas, and decisions learned during development.
 | Initiative-to-initiative dependencies | Initiatives support `blocked_by` field for ordering; `blocks` computed on load; `orc initiative list/show` displays blocked status; `orc initiative run --force` overrides blocking | TASK-075 |
 | Initiative detail page | `/initiatives/:id` route manages tasks and decisions within an initiative; supports task linking/unlinking, decision recording with rationale, status management (draft/active/completed/archived), and progress tracking | TASK-066 |
 | PR status polling | Background poller (60s interval, 30s rate limit) tracks PR status via GitHub API; status derived from PR state + reviews (changes_requested > approved > pending_review); stores in task.yaml `pr` field | TASK-090 |
+| Board swimlane view | Optional "By Initiative" view groups tasks into horizontal swimlanes; toggle persists in localStorage; disabled when initiative filter active; cross-swimlane drag-drop changes task initiative with confirmation | TASK-065 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

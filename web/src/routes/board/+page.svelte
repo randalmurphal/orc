@@ -1,20 +1,51 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
-	import Board from '$lib/components/kanban/Board.svelte';
+	import Board, { type BoardViewMode } from '$lib/components/kanban/Board.svelte';
+	import ViewModeDropdown from '$lib/components/filters/ViewModeDropdown.svelte';
 	import LiveTranscriptModal from '$lib/components/overlays/LiveTranscriptModal.svelte';
 	import { runProjectTask, pauseProjectTask, resumeProjectTask, escalateProjectTask } from '$lib/api';
 	import { currentProjectId } from '$lib/stores/project';
 	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks } from '$lib/stores/tasks';
-	import { currentInitiativeId, currentInitiative, selectInitiative, UNASSIGNED_INITIATIVE } from '$lib/stores/initiative';
+	import { currentInitiativeId, currentInitiative, selectInitiative, UNASSIGNED_INITIATIVE, initiatives as initiativesStore } from '$lib/stores/initiative';
 	import { currentDependencyStatus } from '$lib/stores/dependency';
 	import InitiativeDropdown from '$lib/components/filters/InitiativeDropdown.svelte';
 	import DependencyDropdown from '$lib/components/filters/DependencyDropdown.svelte';
 	import type { Task } from '$lib/types';
 
-	// Reactive binding to global task store
+	// View mode state with localStorage persistence
+	const VIEW_MODE_KEY = 'orc-board-view-mode';
+	let viewMode = $state<BoardViewMode>('flat');
+
+	// Initialize view mode from localStorage
+	$effect(() => {
+		if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+			try {
+				const stored = localStorage.getItem(VIEW_MODE_KEY);
+				if (stored === 'flat' || stored === 'swimlane') {
+					viewMode = stored;
+				}
+			} catch {
+				// localStorage may not be available
+			}
+		}
+	});
+
+	function handleViewModeChange(mode: BoardViewMode) {
+		viewMode = mode;
+		if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+			try {
+				localStorage.setItem(VIEW_MODE_KEY, mode);
+			} catch {
+				// localStorage may not be available
+			}
+		}
+	}
+
+	// Reactive binding to global stores
 	let allTasks = $derived($tasksStore);
 	let loading = $derived($tasksLoading);
 	let error = $derived($tasksError);
+	let initiatives = $derived($initiativesStore);
 
 	// Filter tasks by initiative and dependency status if selected
 	let tasks = $derived.by(() => {
@@ -83,6 +114,9 @@
 			console.error('Escalation failed:', e);
 		}
 	}
+
+	// Determine if swimlane view should be disabled (when filtering by initiative)
+	let swimlaneDisabled = $derived($currentInitiativeId !== null);
 </script>
 
 <svelte:head>
@@ -96,6 +130,15 @@
 			<span class="task-count">{tasks.length} tasks</span>
 		</div>
 		<div class="header-filters">
+			<!-- View Mode Toggle -->
+			{#if !swimlaneDisabled}
+				<ViewModeDropdown value={viewMode} onChange={handleViewModeChange} />
+			{:else}
+				<div class="view-mode-disabled" title="Clear initiative filter to use swimlane view">
+					<ViewModeDropdown value="flat" onChange={() => {}} />
+				</div>
+			{/if}
+
 			<!-- Initiative Filter -->
 			<InitiativeDropdown />
 
@@ -145,7 +188,14 @@
 			<button onclick={loadTasks}>Try Again</button>
 		</div>
 	{:else}
-		<Board {tasks} onAction={handleAction} onEscalate={handleEscalate} onTaskClick={handleTaskClick} />
+		<Board
+			{tasks}
+			viewMode={swimlaneDisabled ? 'flat' : viewMode}
+			{initiatives}
+			onAction={handleAction}
+			onEscalate={handleEscalate}
+			onTaskClick={handleTaskClick}
+		/>
 	{/if}
 </div>
 
@@ -200,6 +250,11 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
+	}
+
+	.view-mode-disabled {
+		opacity: 0.5;
+		pointer-events: none;
 	}
 
 	.new-task-btn {
