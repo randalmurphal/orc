@@ -34,6 +34,7 @@
 	import type { Task, TaskState, Plan, TranscriptFile } from '$lib/types';
 	import TaskHeader from '$lib/components/task/TaskHeader.svelte';
 	import TaskEditModal from '$lib/components/task/TaskEditModal.svelte';
+	import DependencySidebar from '$lib/components/task/DependencySidebar.svelte';
 	import TabNav, { type TabId } from '$lib/components/task/TabNav.svelte';
 	import PRActions from '$lib/components/task/PRActions.svelte';
 	import ExportPanel from '$lib/components/task/ExportPanel.svelte';
@@ -454,6 +455,15 @@
 			onDelete={handleDelete}
 			onRetry={handleRetry}
 			onEdit={handleEdit}
+		/>
+
+		<!-- Dependencies Sidebar -->
+		<DependencySidebar
+			{task}
+			onTaskUpdated={(updatedTask) => {
+				task = updatedTask;
+				updateTaskInStore(task.id, updatedTask);
+			}}
 		/>
 
 		<!-- PR Actions (for completed tasks) -->

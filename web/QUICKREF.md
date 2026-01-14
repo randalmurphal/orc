@@ -252,6 +252,15 @@ getAttachmentUrl(taskId, filename)
 deleteAttachment(taskId, filename)
 ```
 
+### Dependencies
+```typescript
+getTaskDependencies(taskId)   // Returns DependencyGraph
+addBlocker(taskId, blockerId)
+removeBlocker(taskId, blockerId)
+addRelated(taskId, relatedId)
+removeRelated(taskId, relatedId)
+```
+
 ### Task Comments (Discussion)
 ```typescript
 getTaskComments(taskId)                 // List all comments
