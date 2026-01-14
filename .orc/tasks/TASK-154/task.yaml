@@ -44,7 +44,7 @@ description: |-
     - Tests use framework-agnostic selectors
 weight: large
 status: running
-current_phase: spec
+current_phase: implement
 branch: orc/TASK-154
 queue: active
 priority: normal
@@ -55,5 +55,5 @@ testing_requirements:
     unit: true
     visual: true
 created_at: 2026-01-14T02:17:34.940597573-06:00
-updated_at: 2026-01-14T04:06:37.373461-06:00
+updated_at: 2026-01-14T04:12:14.261032-06:00
 started_at: 2026-01-14T04:06:37.057707-06:00
