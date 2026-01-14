@@ -1,23 +1,26 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { getDashboardStats, type DashboardStats } from '$lib/api';
+	import { getDashboardStats, listInitiatives, type DashboardStats } from '$lib/api';
 	import { getWebSocket, type ConnectionStatus } from '$lib/websocket';
 	import { tasks as tasksStore, tasksLoading } from '$lib/stores/tasks';
-	import type { Task } from '$lib/types';
+	import type { Task, Initiative } from '$lib/types';
 	import {
 		DashboardStats as StatsSection,
 		DashboardQuickActions,
 		DashboardActiveTasks,
 		DashboardRecentActivity,
-		DashboardSummary
+		DashboardSummary,
+		DashboardInitiatives
 	} from './dashboard';
 
 	let stats = $state<DashboardStats | null>(null);
+	let initiatives = $state<Initiative[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let wsStatus = $state<ConnectionStatus>('disconnected');
 	let wsStatusCleanup: (() => void) | null = null;
+	let wsEventCleanup: (() => void) | null = null;
 
 	// Derive active and recent tasks from global store
 	let activeTasks = $derived(
@@ -37,15 +40,24 @@
 	let isLoading = $derived(loading || $tasksLoading);
 
 	onMount(() => {
-		loadDashboardStats();
+		loadDashboardData();
 
 		// Subscribe to WebSocket status (events handled by layout)
 		const ws = getWebSocket();
 		wsStatusCleanup = ws.onStatusChange((status) => {
 			wsStatus = status;
 			if (status === 'connected') {
-				// Refresh stats on reconnect
-				loadDashboardStats();
+				// Refresh data on reconnect
+				loadDashboardData();
+			}
+		});
+
+		// Subscribe to task events to refresh initiatives when task status changes
+		// Use 'all' to catch all task events (task_updated, task_created, task_deleted)
+		wsEventCleanup = ws.on('all', (event) => {
+			if ('event' in event && ['task_updated', 'task_created', 'task_deleted'].includes(event.event)) {
+				// Refresh initiatives to update progress counts
+				loadInitiatives();
 			}
 		});
 		// Task list is kept up-to-date via file watcher WebSocket events
@@ -55,15 +67,32 @@
 		if (wsStatusCleanup) {
 			wsStatusCleanup();
 		}
+		if (wsEventCleanup) {
+			wsEventCleanup();
+		}
 	});
 
-	async function loadDashboardStats() {
+	async function loadDashboardData() {
 		try {
-			stats = await getDashboardStats();
+			// Load stats and initiatives in parallel
+			const [statsData, initiativesData] = await Promise.all([
+				getDashboardStats(),
+				listInitiatives({ status: 'active' })
+			]);
+			stats = statsData;
+			initiatives = initiativesData;
 			loading = false;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load dashboard';
 			loading = false;
+		}
+	}
+
+	async function loadInitiatives() {
+		try {
+			initiatives = await listInitiatives({ status: 'active' });
+		} catch {
+			// Silently fail - not critical
 		}
 	}
 
@@ -89,11 +118,12 @@
 	{:else if error}
 		<div class="error">
 			<p>{error}</p>
-			<button onclick={loadDashboardStats}>Retry</button>
+			<button onclick={loadDashboardData}>Retry</button>
 		</div>
 	{:else if stats}
 		<StatsSection {stats} {wsStatus} onFilterClick={navigateToFiltered} />
 		<DashboardQuickActions onNewTask={handleNewTask} onViewTasks={handleViewTasks} />
+		<DashboardInitiatives {initiatives} />
 		<DashboardActiveTasks tasks={activeTasks} />
 		<DashboardRecentActivity tasks={recentTasks} />
 		<DashboardSummary {stats} />

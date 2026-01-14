@@ -3,3 +3,4 @@ export { default as DashboardQuickActions } from './DashboardQuickActions.svelte
 export { default as DashboardActiveTasks } from './DashboardActiveTasks.svelte';
 export { default as DashboardRecentActivity } from './DashboardRecentActivity.svelte';
 export { default as DashboardSummary } from './DashboardSummary.svelte';
+export { default as DashboardInitiatives } from './DashboardInitiatives.svelte';
