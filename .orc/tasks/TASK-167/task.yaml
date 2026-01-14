@@ -31,7 +31,7 @@ description: |-
     - TypeScript types match
     - Error handling preserved
 weight: small
-status: planned
+status: completed
 branch: orc/TASK-167
 queue: active
 priority: normal

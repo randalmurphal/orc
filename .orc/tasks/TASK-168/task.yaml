@@ -48,7 +48,7 @@ description: |-
     - No conflicts with browser shortcuts
     - Shortcuts disabled in form inputs
 weight: medium
-status: planned
+status: completed
 branch: orc/TASK-168
 queue: active
 priority: normal

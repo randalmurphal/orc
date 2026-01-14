@@ -36,7 +36,7 @@ description: |-
     - Project switcher works with keyboard (Shift+Alt+P)
     - Routes highlight correctly in sidebar
 weight: medium
-status: planned
+status: completed
 branch: orc/TASK-170
 queue: active
 priority: normal

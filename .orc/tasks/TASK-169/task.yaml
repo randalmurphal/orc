@@ -38,7 +38,7 @@ description: |-
     - Toast notifications appear and dismiss correctly
     - Icons render with correct sizes/colors
 weight: medium
-status: planned
+status: completed
 branch: orc/TASK-169
 queue: active
 priority: normal
