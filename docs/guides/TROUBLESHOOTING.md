@@ -646,6 +646,68 @@ orc init  # In a project directory
 
 ---
 
+## CLAUDE.md Merge Conflicts
+
+### Auto-Resolved Successfully
+
+**Symptoms**:
+```
+INFO CLAUDE.md auto-merge successful tables_merged=1
+```
+
+**Meaning**: Orc detected a conflict in CLAUDE.md's knowledge section and automatically resolved it by combining rows from both sides. No action needed.
+
+### Auto-Resolution Failed
+
+**Symptoms**:
+```
+WARN CLAUDE.md conflict cannot be auto-resolved: Table 'Patterns Learned': conflict is not purely additive
+```
+
+**Cause**: The conflict involves more than just adding new rows - either:
+- Same row was edited differently on both sides
+- Conflict is outside the knowledge section markers
+- Table structure is malformed
+
+**Solutions**:
+
+| Scenario | Resolution |
+|----------|------------|
+| Overlapping edits | Manually resolve in editor, keeping both changes |
+| Outside markers | Ensure `<!-- orc:knowledge:begin -->` and `<!-- orc:knowledge:end -->` markers exist |
+| Malformed table | Fix table syntax (proper `|` separators, header row) |
+
+**To resolve manually**:
+```bash
+# View the conflict
+cat CLAUDE.md | grep -A20 "<<<<<<<"
+
+# Edit the file to resolve
+$EDITOR CLAUDE.md
+
+# Mark as resolved
+git add CLAUDE.md
+git commit -m "Resolve CLAUDE.md conflict"
+```
+
+### Preventing CLAUDE.md Conflicts
+
+**Best practices for parallel task execution**:
+
+1. **Use different tables for different task types**: Patterns vs Gotchas vs Decisions
+2. **Include unique source IDs**: Every entry should have `TASK-XXX` identifier
+3. **Keep entries atomic**: One pattern/gotcha/decision per row
+4. **Run finalize soon after completion**: Reduces divergence time
+
+**If conflicts are frequent**:
+
+Orc's auto-merge handles most cases automatically. If you're seeing manual resolution required frequently, check:
+- Are the knowledge section markers present?
+- Are multiple tasks editing the same row (not just adding)?
+- Is the table structure valid markdown?
+
+---
+
 ## Log Locations
 
 | File | Purpose |
