@@ -38,6 +38,23 @@ func (s *Server) handleGetDiff(w http.ResponseWriter, r *http.Request) {
 
 	diffSvc := diff.NewService(s.getProjectRoot(), s.diffCache)
 
+	// Resolve refs (handles remote-only branches)
+	base = diffSvc.ResolveRef(r.Context(), base)
+	head = diffSvc.ResolveRef(r.Context(), head)
+
+	// Check if we should include uncommitted working tree changes.
+	// This happens when the task branch hasn't diverged from base but has uncommitted changes.
+	useWorkingTree, effectiveHead := diffSvc.ShouldIncludeWorkingTree(r.Context(), base, head)
+	if useWorkingTree {
+		head = effectiveHead // Will be "" to indicate working tree comparison
+	}
+
+	// For display purposes, show what we're comparing
+	displayHead := head
+	if displayHead == "" {
+		displayHead = "working tree"
+	}
+
 	if filesOnly {
 		files, err := diffSvc.GetFileList(r.Context(), base, head)
 		if err != nil {
@@ -54,7 +71,7 @@ func (s *Server) handleGetDiff(w http.ResponseWriter, r *http.Request) {
 
 		s.jsonResponse(w, diff.DiffResult{
 			Base:  base,
-			Head:  head,
+			Head:  displayHead,
 			Stats: *stats,
 			Files: files,
 		})
@@ -68,6 +85,8 @@ func (s *Server) handleGetDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update display head for response
+	result.Head = displayHead
 	s.jsonResponse(w, result)
 }
 
@@ -106,6 +125,17 @@ func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	diffSvc := diff.NewService(s.getProjectRoot(), s.diffCache)
+
+	// Resolve refs (handles remote-only branches)
+	base = diffSvc.ResolveRef(r.Context(), base)
+	head = diffSvc.ResolveRef(r.Context(), head)
+
+	// Check if we should include uncommitted working tree changes
+	useWorkingTree, effectiveHead := diffSvc.ShouldIncludeWorkingTree(r.Context(), base, head)
+	if useWorkingTree {
+		head = effectiveHead // Will be "" to indicate working tree comparison
+	}
+
 	fileDiff, err := diffSvc.GetFileDiff(r.Context(), base, head, filePath)
 	if err != nil {
 		s.jsonError(w, err.Error(), http.StatusInternalServerError)
@@ -137,6 +167,17 @@ func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	diffSvc := diff.NewService(s.getProjectRoot(), s.diffCache)
+
+	// Resolve refs (handles remote-only branches)
+	base = diffSvc.ResolveRef(r.Context(), base)
+	head = diffSvc.ResolveRef(r.Context(), head)
+
+	// Check if we should include uncommitted working tree changes
+	useWorkingTree, effectiveHead := diffSvc.ShouldIncludeWorkingTree(r.Context(), base, head)
+	if useWorkingTree {
+		head = effectiveHead // Will be "" to indicate working tree comparison
+	}
+
 	stats, err := diffSvc.GetStats(r.Context(), base, head)
 	if err != nil {
 		s.jsonError(w, err.Error(), http.StatusInternalServerError)
