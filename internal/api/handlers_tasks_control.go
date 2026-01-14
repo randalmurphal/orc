@@ -57,12 +57,16 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		st = state.New(id)
 	}
 
-	// Update task status to running BEFORE spawning executor.
+	// Update task status and phase to running BEFORE spawning executor.
 	// This ensures:
 	// 1. The UI sees the correct status immediately when it reloads
 	// 2. The file watcher broadcasts task_updated (not task_deleted)
 	// 3. No race condition where the task appears deleted during executor startup
+	// 4. Task shows in the correct column based on current_phase (not stuck in Queued)
 	t.Status = task.StatusRunning
+	if len(p.Phases) > 0 {
+		t.CurrentPhase = p.Phases[0].ID
+	}
 	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
 		return

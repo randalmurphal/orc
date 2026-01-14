@@ -386,16 +386,26 @@
 
 	.task-card.running {
 		border-color: var(--accent-primary);
-		animation: card-pulse 2.5s ease-in-out infinite;
+		border-width: 2px;
+		background: linear-gradient(
+			135deg,
+			var(--bg-secondary) 0%,
+			color-mix(in srgb, var(--accent-primary) 5%, var(--bg-secondary)) 100%
+		);
+		animation: card-pulse 2s ease-in-out infinite;
 	}
 
 	@keyframes card-pulse {
 		0%,
 		100% {
-			box-shadow: 0 0 0 0 var(--accent-glow);
+			box-shadow:
+				0 0 0 0 var(--accent-glow),
+				0 2px 8px rgba(139, 92, 246, 0.15);
 		}
 		50% {
-			box-shadow: 0 0 0 4px var(--accent-glow);
+			box-shadow:
+				0 0 0 4px var(--accent-glow),
+				0 4px 16px rgba(139, 92, 246, 0.25);
 		}
 	}
 
