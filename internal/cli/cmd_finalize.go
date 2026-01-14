@@ -1,0 +1,215 @@
+// Package cli implements the orc command-line interface.
+package cli
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/spf13/cobra"
+
+	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/executor"
+	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/progress"
+	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
+)
+
+// newFinalizeCmd creates the finalize command
+func newFinalizeCmd() *cobra.Command {
+	var (
+		force     bool
+		gateType  string
+		stream    bool
+		skipRisk  bool
+	)
+
+	cmd := &cobra.Command{
+		Use:   "finalize <task-id>",
+		Short: "Run finalize phase for a task",
+		Long: `Manually trigger the finalize phase for a task.
+
+The finalize phase syncs the task branch with the target branch,
+resolves any conflicts, runs tests, and performs risk assessment.
+
+This command is useful when:
+  - You want to manually prepare a task for merge
+  - You need to sync with the latest changes from the target branch
+  - The finalize phase was skipped or needs to be re-run
+
+Options:
+  --force       Skip risk assessment and proceed even if risk is high
+  --skip-risk   Skip the risk assessment step entirely
+  --gate        Override the gate configuration (human, ai, none, auto)
+
+Example:
+  orc finalize TASK-001
+  orc finalize TASK-001 --force
+  orc finalize TASK-001 --gate human
+  orc finalize TASK-001 --skip-risk`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Find the project root (handles worktrees)
+			projectRoot, err := config.FindProjectRoot()
+			if err != nil {
+				return err
+			}
+
+			id := args[0]
+
+			// Load task
+			t, err := task.LoadFrom(projectRoot, id)
+			if err != nil {
+				return fmt.Errorf("load task: %w", err)
+			}
+
+			// Check if task is in a valid state for finalize
+			if err := validateFinalizeState(t); err != nil {
+				return err
+			}
+
+			// Load plan
+			p, err := plan.LoadFrom(projectRoot, id)
+			if err != nil {
+				return fmt.Errorf("load plan: %w", err)
+			}
+
+			// Load state
+			s, err := state.LoadFrom(projectRoot, id)
+			if err != nil {
+				return fmt.Errorf("load state: %w", err)
+			}
+
+			// Load config
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("load config: %w", err)
+			}
+
+			// Apply gate override if specified
+			if gateType != "" {
+				if !isValidGateType(gateType) {
+					return fmt.Errorf("invalid gate type: %s (must be human, ai, none, or auto)", gateType)
+				}
+				cfg.Completion.Finalize.Gates.PreMerge = gateType
+			}
+
+			// Apply force/skip-risk overrides
+			if force || skipRisk {
+				cfg.Completion.Finalize.RiskAssessment.Enabled = false
+			}
+
+			// Set up signal handling for graceful shutdown
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+			go func() {
+				<-sigCh
+				fmt.Println("\n⚠️  Interrupt received, saving state...")
+				cancel()
+			}()
+
+			// Create progress display
+			disp := progress.New(id, quiet)
+			disp.Info(fmt.Sprintf("Starting finalize phase for %s", id))
+
+			// Create executor with config
+			exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
+
+			// Set up streaming publisher if verbose or --stream flag is set
+			if verbose || stream {
+				publisher := events.NewCLIPublisher(os.Stdout, events.WithStreamMode(true))
+				exec.SetPublisher(publisher)
+				defer publisher.Close()
+			}
+
+			// Get or create finalize phase
+			finalizePhase := getFinalizePhase(p)
+
+			// Execute finalize phase
+			err = exec.FinalizeTask(ctx, t, finalizePhase, s)
+			if err != nil {
+				if ctx.Err() != nil {
+					// Update task and state status for clean interrupt
+					s.InterruptPhase("finalize")
+					taskDir := task.TaskDirIn(projectRoot, id)
+					if saveErr := s.SaveTo(taskDir); saveErr != nil {
+						disp.Warning(fmt.Sprintf("failed to save state on interrupt: %v", saveErr))
+					}
+					t.Status = task.StatusBlocked
+					if saveErr := t.SaveTo(taskDir); saveErr != nil {
+						disp.Warning(fmt.Sprintf("failed to save task on interrupt: %v", saveErr))
+					}
+					disp.TaskInterrupted()
+					return nil // Clean interrupt
+				}
+				disp.TaskFailed(err)
+				return err
+			}
+
+			disp.TaskComplete(s.Tokens.TotalTokens, time.Since(s.StartedAt))
+			return nil
+		},
+	}
+
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "skip risk assessment and proceed even if risk is high")
+	cmd.Flags().BoolVar(&skipRisk, "skip-risk", false, "skip the risk assessment step entirely")
+	cmd.Flags().StringVar(&gateType, "gate", "", "override gate configuration (human, ai, none, auto)")
+	cmd.Flags().BoolVar(&stream, "stream", false, "stream Claude transcript to stdout")
+
+	return cmd
+}
+
+// validateFinalizeState checks if the task is in a valid state for finalize.
+func validateFinalizeState(t *task.Task) error {
+	switch t.Status {
+	case task.StatusCompleted, task.StatusFinished:
+		return fmt.Errorf("task %s is already completed", t.ID)
+	case task.StatusRunning:
+		return fmt.Errorf("task %s is currently running - pause it first if you want to run finalize manually", t.ID)
+	case task.StatusCreated, task.StatusPlanned:
+		// Allow finalize on created/planned tasks (e.g., after manual implementation)
+		return nil
+	case task.StatusPaused, task.StatusBlocked, task.StatusFailed:
+		// These states are allowed for finalize
+		return nil
+	default:
+		return nil
+	}
+}
+
+// isValidGateType checks if the gate type is valid.
+func isValidGateType(gt string) bool {
+	validTypes := []string{"human", "ai", "none", "auto"}
+	for _, v := range validTypes {
+		if gt == v {
+			return true
+		}
+	}
+	return false
+}
+
+// getFinalizePhase returns the finalize phase from the plan, or creates one if not present.
+func getFinalizePhase(p *plan.Plan) *plan.Phase {
+	// First try to find existing finalize phase
+	for i := range p.Phases {
+		if p.Phases[i].ID == "finalize" {
+			return &p.Phases[i]
+		}
+	}
+
+	// Create a new finalize phase if not in plan
+	return &plan.Phase{
+		ID:     "finalize",
+		Name:   "Finalize",
+		Prompt: "Sync with target branch, resolve conflicts, run tests, and assess risk",
+		Status: plan.PhasePending,
+	}
+}
