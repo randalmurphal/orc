@@ -73,7 +73,7 @@ Tasks support queue, priority, and category organization:
 - **docs**: Documentation changes
 - **test**: Test-related changes
 
-Tasks are sorted by priority within each column. Higher priority tasks appear first.
+Tasks are sorted within each column by: **running status first** (running tasks always appear at the top), then by priority. Higher priority tasks appear before lower priority tasks.
 
 ### Weight Classification
 
@@ -350,6 +350,7 @@ Patterns, gotchas, and decisions learned during development.
 | Artifact detection for phase skip | Before running phases, check if artifacts exist (spec.md, research.md, docs.md) and offer to skip; use `--auto-skip` for non-interactive mode | TASK-004 |
 | Project selection persistence | URL param (`?project=xxx`) takes precedence over localStorage; enables shareable links and browser back/forward navigation | TASK-009 |
 | Running task visual indicator | Running tasks show pulsing border + gradient background; placed in column matching `current_phase` from state.yaml | TASK-006 |
+| Running task sort priority | Running tasks sort to top of their column before priority sorting; ensures active work is always visible | TASK-028 |
 | Live transcript modal | Click running task to open LiveTranscriptModal with streaming output, token tracking, and connection status; uses WebSocket `transcript` events for real-time updates | TASK-012 |
 | Worktree-aware project root | `config.FindProjectRoot()` resolves main repo with `.orc/tasks` when running from worktree; uses git common-dir to find main repo | TASK-025 |
 

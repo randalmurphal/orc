@@ -59,18 +59,25 @@ const columns = [
 
 Tasks within each column are organized by:
 1. **Queue**: Active tasks shown first, backlog tasks in collapsible section
-2. **Priority**: Within each queue section, sorted by priority (critical → high → normal → low)
-3. **Category**: Task type badge (feature/bug/refactor/chore/docs/test) for visual filtering
+2. **Running status**: Running tasks always appear at the top of their column
+3. **Priority**: Within each queue section, sorted by priority (critical → high → normal → low)
+4. **Category**: Task type badge (feature/bug/refactor/chore/docs/test) for visual filtering
 
 ```typescript
 // Sort order implementation
 const PRIORITY_ORDER = { critical: 0, high: 1, normal: 2, low: 3 };
 
-// Filter and sort tasks for a column
-const activeTasks = tasks.filter(t => t.queue !== 'backlog')
-  .sort((a, b) => PRIORITY_ORDER[a.priority || 'normal'] - PRIORITY_ORDER[b.priority || 'normal']);
-const backlogTasks = tasks.filter(t => t.queue === 'backlog')
-  .sort((a, b) => PRIORITY_ORDER[a.priority || 'normal'] - PRIORITY_ORDER[b.priority || 'normal']);
+// Sort tasks: running first, then by priority
+function sortTasks(taskList: Task[]): Task[] {
+  return [...taskList].sort((a, b) => {
+    // Running tasks always come first
+    const aRunning = a.status === 'running' ? 0 : 1;
+    const bRunning = b.status === 'running' ? 0 : 1;
+    if (aRunning !== bRunning) return aRunning - bRunning;
+    // Within same running status, sort by priority
+    return PRIORITY_ORDER[a.priority || 'normal'] - PRIORITY_ORDER[b.priority || 'normal'];
+  });
+}
 ```
 
 ### Drag-Drop Confirmation

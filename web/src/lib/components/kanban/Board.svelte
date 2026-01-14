@@ -62,9 +62,16 @@
 	let confirmModal = $state<{ task: Task; action: string; targetColumn: string } | null>(null);
 	let actionLoading = $state(false);
 
-	// Sort tasks by priority (critical first, then high, normal, low)
-	function sortByPriority(taskList: Task[]): Task[] {
+	// Sort tasks: running tasks first, then by priority (critical first, then high, normal, low)
+	function sortTasks(taskList: Task[]): Task[] {
 		return [...taskList].sort((a, b) => {
+			// Running tasks always come first
+			const aRunning = a.status === 'running' ? 0 : 1;
+			const bRunning = b.status === 'running' ? 0 : 1;
+			if (aRunning !== bRunning) {
+				return aRunning - bRunning;
+			}
+			// Within same running status, sort by priority
 			const priorityA = (a.priority || 'normal') as TaskPriority;
 			const priorityB = (b.priority || 'normal') as TaskPriority;
 			return PRIORITY_ORDER[priorityA] - PRIORITY_ORDER[priorityB];
@@ -117,9 +124,9 @@
 			const colId = getTaskColumn(task);
 			grouped[colId].push(task);
 		}
-		// Sort each column by priority
+		// Sort each column: running tasks first, then by priority
 		for (const colId of Object.keys(grouped)) {
-			grouped[colId] = sortByPriority(grouped[colId]);
+			grouped[colId] = sortTasks(grouped[colId]);
 		}
 		return grouped;
 	});

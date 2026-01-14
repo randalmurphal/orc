@@ -432,4 +432,199 @@ describe('Board', () => {
 			});
 		});
 	});
+
+	describe('task sorting within columns', () => {
+		it('shows running tasks before non-running tasks in same column', async () => {
+			// Tasks in the same column - running should come first
+			const tasks = [
+				createMockTask({
+					id: 'T1',
+					title: 'Paused Task',
+					status: 'paused',
+					current_phase: 'implement',
+					priority: 'critical' // High priority but paused
+				}),
+				createMockTask({
+					id: 'T2',
+					title: 'Running Task',
+					status: 'running',
+					current_phase: 'implement',
+					priority: 'low' // Low priority but running
+				})
+			];
+
+			const { container } = render(Board, {
+				props: {
+					tasks,
+					onAction: mockOnAction,
+					onRefresh: mockOnRefresh
+				}
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText('Paused Task')).toBeInTheDocument();
+				expect(screen.getByText('Running Task')).toBeInTheDocument();
+			});
+
+			// Find all task cards in the Implement column
+			const columns = container.querySelectorAll('.column');
+			// Implement is the 3rd column (index 2): Queued, Spec, Implement
+			const implementColumn = columns[2];
+			const taskCards = implementColumn.querySelectorAll('.task-card');
+
+			// Running task should be first (despite lower priority)
+			expect(taskCards[0]).toHaveTextContent('Running Task');
+			expect(taskCards[1]).toHaveTextContent('Paused Task');
+		});
+
+		it('sorts running tasks by priority among themselves', async () => {
+			// Multiple running tasks - should sort by priority within running group
+			const tasks = [
+				createMockTask({
+					id: 'T1',
+					title: 'Low Priority Running',
+					status: 'running',
+					current_phase: 'implement',
+					priority: 'low'
+				}),
+				createMockTask({
+					id: 'T2',
+					title: 'Critical Running',
+					status: 'running',
+					current_phase: 'implement',
+					priority: 'critical'
+				}),
+				createMockTask({
+					id: 'T3',
+					title: 'Normal Running',
+					status: 'running',
+					current_phase: 'implement',
+					priority: 'normal'
+				})
+			];
+
+			const { container } = render(Board, {
+				props: {
+					tasks,
+					onAction: mockOnAction,
+					onRefresh: mockOnRefresh
+				}
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText('Critical Running')).toBeInTheDocument();
+			});
+
+			// Find task cards in Implement column
+			const columns = container.querySelectorAll('.column');
+			const implementColumn = columns[2];
+			const taskCards = implementColumn.querySelectorAll('.task-card');
+
+			// All running, so should be sorted by priority: critical, normal, low
+			expect(taskCards[0]).toHaveTextContent('Critical Running');
+			expect(taskCards[1]).toHaveTextContent('Normal Running');
+			expect(taskCards[2]).toHaveTextContent('Low Priority Running');
+		});
+
+		it('sorts non-running tasks by priority among themselves', async () => {
+			// Multiple paused tasks - should sort by priority
+			const tasks = [
+				createMockTask({
+					id: 'T1',
+					title: 'Low Priority Paused',
+					status: 'paused',
+					current_phase: 'test',
+					priority: 'low'
+				}),
+				createMockTask({
+					id: 'T2',
+					title: 'High Priority Paused',
+					status: 'paused',
+					current_phase: 'test',
+					priority: 'high'
+				})
+			];
+
+			const { container } = render(Board, {
+				props: {
+					tasks,
+					onAction: mockOnAction,
+					onRefresh: mockOnRefresh
+				}
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText('High Priority Paused')).toBeInTheDocument();
+			});
+
+			// Find task cards in Test column (index 3: Queued, Spec, Implement, Test)
+			const columns = container.querySelectorAll('.column');
+			const testColumn = columns[3];
+			const taskCards = testColumn.querySelectorAll('.task-card');
+
+			expect(taskCards[0]).toHaveTextContent('High Priority Paused');
+			expect(taskCards[1]).toHaveTextContent('Low Priority Paused');
+		});
+
+		it('shows running tasks at top followed by non-running sorted by priority', async () => {
+			// Mixed scenario: running and various non-running statuses
+			const tasks = [
+				createMockTask({
+					id: 'T1',
+					title: 'Critical Blocked',
+					status: 'blocked',
+					current_phase: 'implement',
+					priority: 'critical'
+				}),
+				createMockTask({
+					id: 'T2',
+					title: 'Normal Running',
+					status: 'running',
+					current_phase: 'implement',
+					priority: 'normal'
+				}),
+				createMockTask({
+					id: 'T3',
+					title: 'High Paused',
+					status: 'paused',
+					current_phase: 'implement',
+					priority: 'high'
+				}),
+				createMockTask({
+					id: 'T4',
+					title: 'Low Running',
+					status: 'running',
+					current_phase: 'implement',
+					priority: 'low'
+				})
+			];
+
+			const { container } = render(Board, {
+				props: {
+					tasks,
+					onAction: mockOnAction,
+					onRefresh: mockOnRefresh
+				}
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText('Normal Running')).toBeInTheDocument();
+			});
+
+			// Find task cards in Implement column
+			const columns = container.querySelectorAll('.column');
+			const implementColumn = columns[2];
+			const taskCards = implementColumn.querySelectorAll('.task-card');
+
+			// Expected order:
+			// 1. Normal Running (running, normal priority)
+			// 2. Low Running (running, low priority)
+			// 3. Critical Blocked (not running, critical priority)
+			// 4. High Paused (not running, high priority)
+			expect(taskCards[0]).toHaveTextContent('Normal Running');
+			expect(taskCards[1]).toHaveTextContent('Low Running');
+			expect(taskCards[2]).toHaveTextContent('Critical Blocked');
+			expect(taskCards[3]).toHaveTextContent('High Paused');
+		});
+	});
 });
