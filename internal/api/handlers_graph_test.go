@@ -158,36 +158,6 @@ func TestBuildGraphFromTasks_NoExternalDeps(t *testing.T) {
 	}
 }
 
-func TestBuildGraphFromInitiative(t *testing.T) {
-	init := &initiative.Initiative{
-		ID:    "INIT-001",
-		Title: "Test Initiative",
-		Tasks: []initiative.TaskRef{
-			{ID: "TASK-001", Title: "First task", Status: "completed"},
-			{ID: "TASK-002", Title: "Second task", Status: "planned", DependsOn: []string{"TASK-001"}},
-			{ID: "TASK-003", Title: "Third task", Status: "created", DependsOn: []string{"TASK-002"}},
-		},
-	}
-
-	taskIDs := map[string]bool{
-		"TASK-001": true,
-		"TASK-002": true,
-		"TASK-003": true,
-	}
-
-	graph := buildGraphFromInitiative(init, taskIDs)
-
-	// Check nodes
-	if len(graph.Nodes) != 3 {
-		t.Errorf("expected 3 nodes, got %d", len(graph.Nodes))
-	}
-
-	// Check edges (TASK-001 -> TASK-002 -> TASK-003)
-	if len(graph.Edges) != 2 {
-		t.Errorf("expected 2 edges, got %d", len(graph.Edges))
-	}
-}
-
 func TestHandleGetInitiativeDependencyGraph(t *testing.T) {
 	// Create temp directory for test
 	tmpDir := t.TempDir()
@@ -202,12 +172,36 @@ func TestHandleGetInitiativeDependencyGraph(t *testing.T) {
 	init := initiative.New("INIT-001", "Test Initiative")
 	init.Tasks = []initiative.TaskRef{
 		{ID: "TASK-001", Title: "First task", Status: "completed"},
-		{ID: "TASK-002", Title: "Second task", Status: "planned", DependsOn: []string{"TASK-001"}},
+		{ID: "TASK-002", Title: "Second task", Status: "planned"},
 	}
 
 	// Save initiative using SaveTo with the base dir
 	if err := init.SaveTo(initDir); err != nil {
 		t.Fatalf("failed to save initiative: %v", err)
+	}
+
+	// Create task files (handler now loads full task data for dependencies)
+	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
+
+	task1 := task.New("TASK-001", "First task")
+	task1.Status = task.StatusCompleted
+	task1Dir := filepath.Join(tasksDir, "TASK-001")
+	if err := os.MkdirAll(task1Dir, 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
+	if err := task1.SaveTo(task1Dir); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	task2 := task.New("TASK-002", "Second task")
+	task2.Status = task.StatusPlanned
+	task2.BlockedBy = []string{"TASK-001"}
+	task2Dir := filepath.Join(tasksDir, "TASK-002")
+	if err := os.MkdirAll(task2Dir, 0755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
+	if err := task2.SaveTo(task2Dir); err != nil {
+		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Update the default initiative directory for loading

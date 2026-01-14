@@ -52,8 +52,23 @@ func (s *Server) handleGetInitiativeDependencyGraph(w http.ResponseWriter, r *ht
 		taskIDs[t.ID] = true
 	}
 
-	// Build graph from initiative tasks
-	graph := buildGraphFromInitiative(init, taskIDs)
+	// Load all tasks to get full dependency data (TaskRef doesn't store blocked_by)
+	tasksDir := task.TaskDirIn(s.workDir, "")
+	tasksDir = strings.TrimSuffix(tasksDir, "/")
+	allTasks, err := task.LoadAllFrom(tasksDir)
+	if err != nil {
+		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
+		return
+	}
+
+	// Build task map
+	taskMap := make(map[string]*task.Task)
+	for _, t := range allTasks {
+		taskMap[t.ID] = t
+	}
+
+	// Build graph from full task data
+	graph := buildGraphFromTasks(taskMap, taskIDs)
 
 	s.jsonResponse(w, graph)
 }
@@ -107,57 +122,6 @@ func (s *Server) handleGetTasksDependencyGraph(w http.ResponseWriter, r *http.Re
 	graph := buildGraphFromTasks(taskMap, requestedIDs)
 
 	s.jsonResponse(w, graph)
-}
-
-// buildGraphFromInitiative creates a dependency graph from an initiative's tasks.
-func buildGraphFromInitiative(init *initiative.Initiative, taskIDs map[string]bool) *DependencyGraphResponse {
-	nodes := make([]GraphNode, 0, len(init.Tasks))
-	edges := make([]GraphEdge, 0)
-	edgeSet := make(map[string]bool) // Deduplicate edges
-
-	for _, t := range init.Tasks {
-		// Add node
-		nodes = append(nodes, GraphNode{
-			ID:     t.ID,
-			Title:  t.Title,
-			Status: mapTaskStatus(t.Status),
-		})
-
-		// Add edges for dependencies within the initiative
-		if t.DependsOn != nil {
-			for _, depID := range t.DependsOn {
-				// Only include edges where both ends are in the initiative
-				if taskIDs[depID] {
-					edgeKey := depID + "->" + t.ID
-					if !edgeSet[edgeKey] {
-						edges = append(edges, GraphEdge{
-							From: depID,
-							To:   t.ID,
-						})
-						edgeSet[edgeKey] = true
-					}
-				}
-			}
-		}
-	}
-
-	// Sort nodes by ID for consistent output
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].ID < nodes[j].ID
-	})
-
-	// Sort edges for consistent output
-	sort.Slice(edges, func(i, j int) bool {
-		if edges[i].From != edges[j].From {
-			return edges[i].From < edges[j].From
-		}
-		return edges[i].To < edges[j].To
-	})
-
-	return &DependencyGraphResponse{
-		Nodes: nodes,
-		Edges: edges,
-	}
 }
 
 // buildGraphFromTasks creates a dependency graph from a set of tasks.
