@@ -275,6 +275,8 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 - Claude Code settings (global `~/.claude/settings.json` + project `.claude/settings.json`) via `/preferences`
 - Orc config (`.orc/config.yaml`) via `/environment/orchestrator/automation`
 
+**Task dependencies:** Task detail page shows a collapsible Dependencies sidebar displaying blocked_by, blocks, related_to, and referenced_by relationships with status indicators. Add/remove blockers and related tasks inline.
+
 See `web/CLAUDE.md` for component architecture.
 
 ## Documentation Reference
