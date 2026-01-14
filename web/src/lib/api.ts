@@ -836,6 +836,8 @@ export interface MarketplaceBrowseResponse {
 	limit: number;
 	cached: boolean;
 	cache_age_seconds?: number;
+	is_mock?: boolean;
+	message?: string;
 }
 
 // Local plugin management
