@@ -262,7 +262,11 @@ make web-dev    # Frontend :5173
 
 **Project selection:** The server can run from any directory. Project selection persists in URL (`?project=xxx`) and localStorage, surviving page refresh. Use `Shift+Alt+P` to switch projects.
 
-**Initiative filtering:** The sidebar includes a collapsible Initiatives section. Select an initiative to filter Board and Tasks views to only those tasks. Selection persists in URL (`?initiative=INIT-001`) and localStorage. Click "All Tasks" to clear the filter.
+**Initiative filtering:** Tasks can be filtered by initiative using either:
+- **Sidebar**: Collapsible Initiatives section with initiative list and progress counts
+- **Filter bar**: Initiative dropdown in the Tasks and Board page headers
+
+Both sync to the same state. Options include "All initiatives" (no filter), "Unassigned" (tasks without an initiative), and specific initiatives with task counts. Selection persists in URL (`?initiative=INIT-001`) and localStorage. Click "All initiatives" to clear the filter.
 
 **Keyboard shortcuts:** Uses `Shift+Alt` modifier (⇧⌥ on Mac) to avoid browser conflicts. `Shift+Alt+K` (palette), `Shift+Alt+N` (new task), `g t` (tasks), `j/k` (navigate). Press `?` for full list.
 
@@ -389,6 +393,7 @@ Patterns, gotchas, and decisions learned during development.
 | Worktree-aware project root | `config.FindProjectRoot()` resolves main repo with `.orc/tasks` when running from worktree; uses git common-dir to find main repo | TASK-025 |
 | Initiative-task bidirectional sync | Setting `initiative_id` on a task auto-adds it to the initiative's task list; deleting a task removes it from its initiative | TASK-060 |
 | Initiative sidebar filtering | Sidebar Initiatives section filters Board/Tasks; URL param (`?initiative=xxx`) takes precedence over localStorage; selection pushes to browser history for back/forward navigation | TASK-061 |
+| Initiative filter dropdown | InitiativeDropdown component in filter bars syncs with sidebar; includes "All initiatives", "Unassigned" (tasks with no initiative_id), and initiative list with task counts; uses UNASSIGNED_INITIATIVE constant for special filtering | TASK-062 |
 | Editable settings via UI | All settings (Claude Code global/project, orc config) editable through web UI; separate API endpoints for global (`PUT /api/settings/global`) vs project (`PUT /api/settings`) scope | TASK-033 |
 | Browser-safe keyboard shortcuts | Web UI uses `Shift+Alt` modifier (⇧⌥ on Mac) for global shortcuts instead of Cmd/Ctrl to avoid browser conflicts with Cmd+K, Cmd+N, etc. | TASK-037 |
 | Task dependency validation | `blocked_by` and `related_to` fields validated on create/update: references must exist, no self-references, circular deps rejected; computed fields (`blocks`, `referenced_by`) populated on load | TASK-070 |
