@@ -368,6 +368,22 @@ After implementation, before tests:
 1. **Round 1 (Exploratory)**: Identifies gaps, security issues, architectural concerns
 2. **Round 2 (Validation)**: Verifies Round 1 issues were addressed
 
+### PR Status Detection
+
+When tasks create PRs, orc automatically polls GitHub for status updates:
+
+- Review state (pending, changes requested, approved)
+- CI check status (pending, success, failure)
+- Mergeability status
+- Review and approval counts
+
+Status is stored in `task.yaml` and visible in the web UI. Polling runs every 60 seconds for tasks with open PRs, with a 30-second rate limit per task.
+
+```bash
+# Manual refresh
+POST /api/tasks/:id/github/pr/refresh
+```
+
 ### Sub-task Proposals
 
 During implementation, Claude can propose follow-up tasks:

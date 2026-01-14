@@ -20,6 +20,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `executor/` | Phase execution engine | `Executor`, `Result` |
 | `gate/` | Quality gates and approval workflow | `Gate`, `Evaluator` |
 | `git/` | Git operations, worktrees | `Git`, `Checkpoint` |
+| `github/` | GitHub API client, PR operations, status detection | `Client`, `PR`, `PRStatusSummary` |
 | `plan/` | Plan generation, regeneration on weight change | `Plan`, `Phase`, `RegeneratePlan` |
 | `progress/` | Progress tracking and display | `Tracker` |
 | `project/` | Multi-project registry | `Registry`, `Project` |
@@ -43,12 +44,14 @@ cmd/orc
         │   ├── executor/
         │   │   ├── events/
         │   │   ├── git/
+        │   │   ├── github/     # PR creation
         │   │   ├── plan/
         │   │   ├── prompt/
         │   │   ├── state/
         │   │   ├── storage/
         │   │   ├── task/
         │   │   └── tokenpool/
+        │   ├── github/         # PR status polling
         │   ├── project/
         │   ├── prompt/
         │   ├── storage/
