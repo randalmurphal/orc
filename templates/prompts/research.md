@@ -9,6 +9,8 @@ You are investigating the codebase and gathering context for a task.
 **Weight**: {{WEIGHT}}
 **Description**: {{TASK_DESCRIPTION}}
 
+{{INITIATIVE_CONTEXT}}
+
 ## Worktree Safety
 
 You are working in an **isolated git worktree**.

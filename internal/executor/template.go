@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
@@ -61,6 +62,12 @@ type TemplateVars struct {
 	RequiresUITesting bool   // Whether the task requires UI testing
 	ScreenshotDir     string // Directory for saving screenshots (task attachments)
 	TestResults       string // Test results from previous test phase (for validate)
+
+	// Initiative context variables (inherited from parent initiative)
+	InitiativeID        string // Initiative ID (e.g., INIT-001)
+	InitiativeTitle     string // Initiative title
+	InitiativeVision    string // Initiative vision/goals
+	InitiativeDecisions string // Formatted initiative decisions
 }
 
 // UITestingContext holds UI testing-specific context for template rendering.
@@ -73,6 +80,76 @@ type UITestingContext struct {
 
 	// TestResults contains the output from the test phase.
 	TestResults string
+}
+
+// InitiativeDecision represents a decision from an initiative for context injection.
+type InitiativeDecision struct {
+	ID        string // Decision ID (e.g., DEC-001)
+	Decision  string // The decision text
+	Rationale string // Why this decision was made
+}
+
+// InitiativeContext holds initiative-specific context for template rendering.
+// This provides shared vision and decisions to tasks within an initiative.
+type InitiativeContext struct {
+	// ID is the initiative identifier (e.g., INIT-001).
+	ID string
+
+	// Title is the initiative title.
+	Title string
+
+	// Vision is the strategic vision/goals for the initiative.
+	Vision string
+
+	// Decisions is a list of decisions made within the initiative.
+	Decisions []InitiativeDecision
+}
+
+// FormatDecisions formats the decisions as a markdown string for template injection.
+func (ctx InitiativeContext) FormatDecisions() string {
+	if len(ctx.Decisions) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	for _, d := range ctx.Decisions {
+		sb.WriteString(fmt.Sprintf("- **%s**: %s", d.ID, d.Decision))
+		if d.Rationale != "" {
+			sb.WriteString(fmt.Sprintf(" (%s)", d.Rationale))
+		}
+		sb.WriteString("\n")
+	}
+	return strings.TrimSuffix(sb.String(), "\n")
+}
+
+// formatInitiativeContextSection builds a complete initiative context section for templates.
+// Returns empty string if no initiative context is set, otherwise returns a formatted
+// markdown section with vision and decisions.
+func formatInitiativeContextSection(vars TemplateVars) string {
+	if vars.InitiativeID == "" {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("## Initiative Context\n\n")
+	sb.WriteString(fmt.Sprintf("This task is part of **%s** (%s).\n", vars.InitiativeTitle, vars.InitiativeID))
+
+	if vars.InitiativeVision != "" {
+		sb.WriteString("\n### Vision\n\n")
+		sb.WriteString(vars.InitiativeVision)
+		sb.WriteString("\n")
+	}
+
+	if vars.InitiativeDecisions != "" {
+		sb.WriteString("\n### Decisions\n\n")
+		sb.WriteString("The following decisions have been made for this initiative:\n\n")
+		sb.WriteString(vars.InitiativeDecisions)
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("\n**Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.\n")
+
+	return sb.String()
 }
 
 // RenderTemplate performs variable substitution on a template string.
@@ -114,6 +191,13 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{REQUIRES_UI_TESTING}}": requiresUITesting,
 		"{{SCREENSHOT_DIR}}":      vars.ScreenshotDir,
 		"{{TEST_RESULTS}}":        vars.TestResults,
+
+		// Initiative context variables
+		"{{INITIATIVE_ID}}":        vars.InitiativeID,
+		"{{INITIATIVE_TITLE}}":     vars.InitiativeTitle,
+		"{{INITIATIVE_VISION}}":    vars.InitiativeVision,
+		"{{INITIATIVE_DECISIONS}}": vars.InitiativeDecisions,
+		"{{INITIATIVE_CONTEXT}}":   formatInitiativeContextSection(vars),
 	}
 
 	result := tmpl
@@ -216,6 +300,51 @@ func (v TemplateVars) WithUITestingContext(ctx UITestingContext) TemplateVars {
 	v.ScreenshotDir = ctx.ScreenshotDir
 	v.TestResults = ctx.TestResults
 	return v
+}
+
+// WithInitiativeContext returns a copy of the vars with initiative context applied.
+// This injects initiative vision and decisions into the task prompt.
+func (v TemplateVars) WithInitiativeContext(ctx InitiativeContext) TemplateVars {
+	v.InitiativeID = ctx.ID
+	v.InitiativeTitle = ctx.Title
+	v.InitiativeVision = ctx.Vision
+	v.InitiativeDecisions = ctx.FormatDecisions()
+	return v
+}
+
+// LoadInitiativeContext loads initiative context for a task if it belongs to an initiative.
+// Returns nil if the task doesn't belong to an initiative or if the initiative can't be loaded.
+func LoadInitiativeContext(t *task.Task) *InitiativeContext {
+	if t == nil || t.InitiativeID == "" {
+		return nil
+	}
+
+	init, err := initiative.Load(t.InitiativeID)
+	if err != nil {
+		slog.Debug("failed to load initiative for task",
+			"task_id", t.ID,
+			"initiative_id", t.InitiativeID,
+			"error", err,
+		)
+		return nil
+	}
+
+	// Convert initiative decisions to context decisions
+	decisions := make([]InitiativeDecision, len(init.Decisions))
+	for i, d := range init.Decisions {
+		decisions[i] = InitiativeDecision{
+			ID:        d.ID,
+			Decision:  d.Decision,
+			Rationale: d.Rationale,
+		}
+	}
+
+	return &InitiativeContext{
+		ID:        init.ID,
+		Title:     init.Title,
+		Vision:    init.Vision,
+		Decisions: decisions,
+	}
 }
 
 // loadPriorContent loads content from a completed prior phase.

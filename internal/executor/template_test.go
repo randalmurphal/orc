@@ -680,3 +680,301 @@ func TestUITestingContext_ZeroValue(t *testing.T) {
 		t.Errorf("zero value TestResults = %q, want empty", result.TestResults)
 	}
 }
+
+func TestRenderTemplate_InitiativeVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		vars     TemplateVars
+		want     string
+	}{
+		{
+			name:     "initiative id substitution",
+			template: "Initiative: {{INITIATIVE_ID}}",
+			vars: TemplateVars{
+				InitiativeID: "INIT-001",
+			},
+			want: "Initiative: INIT-001",
+		},
+		{
+			name:     "initiative title substitution",
+			template: "Title: {{INITIATIVE_TITLE}}",
+			vars: TemplateVars{
+				InitiativeTitle: "User Authentication Overhaul",
+			},
+			want: "Title: User Authentication Overhaul",
+		},
+		{
+			name:     "initiative vision substitution",
+			template: "Vision: {{INITIATIVE_VISION}}",
+			vars: TemplateVars{
+				InitiativeVision: "Modernize auth to support SSO and OAuth2",
+			},
+			want: "Vision: Modernize auth to support SSO and OAuth2",
+		},
+		{
+			name:     "initiative decisions substitution",
+			template: "Decisions:\n{{INITIATIVE_DECISIONS}}",
+			vars: TemplateVars{
+				InitiativeDecisions: "- **DEC-001**: Use OAuth2 (Industry standard)",
+			},
+			want: "Decisions:\n- **DEC-001**: Use OAuth2 (Industry standard)",
+		},
+		{
+			name:     "all initiative variables together",
+			template: "{{INITIATIVE_ID}}: {{INITIATIVE_TITLE}} - {{INITIATIVE_VISION}}",
+			vars: TemplateVars{
+				InitiativeID:     "INIT-002",
+				InitiativeTitle:  "Refactoring",
+				InitiativeVision: "Clean up technical debt",
+			},
+			want: "INIT-002: Refactoring - Clean up technical debt",
+		},
+		{
+			name:     "empty initiative variables replaced with empty",
+			template: "[{{INITIATIVE_ID}}][{{INITIATIVE_TITLE}}][{{INITIATIVE_VISION}}][{{INITIATIVE_DECISIONS}}]",
+			vars:     TemplateVars{},
+			want:     "[][][][]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RenderTemplate(tt.template, tt.vars)
+			if got != tt.want {
+				t.Errorf("RenderTemplate() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTemplateVars_WithInitiativeContext(t *testing.T) {
+	vars := TemplateVars{
+		TaskID:    "TASK-001",
+		TaskTitle: "Test",
+		Phase:     "implement",
+		Weight:    "medium",
+	}
+
+	initCtx := InitiativeContext{
+		ID:     "INIT-001",
+		Title:  "Auth Modernization",
+		Vision: "Implement modern auth patterns",
+		Decisions: []InitiativeDecision{
+			{ID: "DEC-001", Decision: "Use OAuth2", Rationale: "Industry standard"},
+			{ID: "DEC-002", Decision: "JWT tokens", Rationale: "Stateless auth"},
+		},
+	}
+
+	result := vars.WithInitiativeContext(initCtx)
+
+	// Initiative fields should be populated
+	if result.InitiativeID != "INIT-001" {
+		t.Errorf("InitiativeID = %q, want INIT-001", result.InitiativeID)
+	}
+	if result.InitiativeTitle != "Auth Modernization" {
+		t.Errorf("InitiativeTitle = %q, want 'Auth Modernization'", result.InitiativeTitle)
+	}
+	if result.InitiativeVision != "Implement modern auth patterns" {
+		t.Errorf("InitiativeVision = %q, want 'Implement modern auth patterns'", result.InitiativeVision)
+	}
+	if result.InitiativeDecisions == "" {
+		t.Error("InitiativeDecisions should not be empty")
+	}
+	if !contains(result.InitiativeDecisions, "DEC-001") {
+		t.Errorf("InitiativeDecisions should contain DEC-001, got %q", result.InitiativeDecisions)
+	}
+	if !contains(result.InitiativeDecisions, "DEC-002") {
+		t.Errorf("InitiativeDecisions should contain DEC-002, got %q", result.InitiativeDecisions)
+	}
+
+	// Original fields should still be there
+	if result.TaskID != "TASK-001" {
+		t.Errorf("TaskID = %q, want TASK-001", result.TaskID)
+	}
+	if result.Phase != "implement" {
+		t.Errorf("Phase = %q, want implement", result.Phase)
+	}
+
+	// Original vars should be unmodified (value receiver)
+	if vars.InitiativeID != "" {
+		t.Errorf("original InitiativeID modified to %q, should be empty", vars.InitiativeID)
+	}
+	if vars.InitiativeVision != "" {
+		t.Errorf("original InitiativeVision modified to %q, should be empty", vars.InitiativeVision)
+	}
+}
+
+func TestInitiativeContext_FormatDecisions(t *testing.T) {
+	tests := []struct {
+		name      string
+		ctx       InitiativeContext
+		want      string
+		wantEmpty bool
+	}{
+		{
+			name: "no decisions",
+			ctx: InitiativeContext{
+				ID:        "INIT-001",
+				Decisions: nil,
+			},
+			wantEmpty: true,
+		},
+		{
+			name: "single decision without rationale",
+			ctx: InitiativeContext{
+				ID: "INIT-001",
+				Decisions: []InitiativeDecision{
+					{ID: "DEC-001", Decision: "Use microservices"},
+				},
+			},
+			want: "- **DEC-001**: Use microservices",
+		},
+		{
+			name: "single decision with rationale",
+			ctx: InitiativeContext{
+				ID: "INIT-001",
+				Decisions: []InitiativeDecision{
+					{ID: "DEC-001", Decision: "Use microservices", Rationale: "Better scalability"},
+				},
+			},
+			want: "- **DEC-001**: Use microservices (Better scalability)",
+		},
+		{
+			name: "multiple decisions",
+			ctx: InitiativeContext{
+				ID: "INIT-001",
+				Decisions: []InitiativeDecision{
+					{ID: "DEC-001", Decision: "Use OAuth2", Rationale: "Industry standard"},
+					{ID: "DEC-002", Decision: "JWT tokens"},
+					{ID: "DEC-003", Decision: "Redis for sessions", Rationale: "Performance"},
+				},
+			},
+			want: "- **DEC-001**: Use OAuth2 (Industry standard)\n- **DEC-002**: JWT tokens\n- **DEC-003**: Redis for sessions (Performance)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.ctx.FormatDecisions()
+			if tt.wantEmpty {
+				if got != "" {
+					t.Errorf("FormatDecisions() = %q, want empty", got)
+				}
+				return
+			}
+			if got != tt.want {
+				t.Errorf("FormatDecisions() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestInitiativeContext_ZeroValue(t *testing.T) {
+	var ctx InitiativeContext
+
+	// Zero value should be safe to use
+	vars := TemplateVars{TaskID: "TASK-001"}
+	result := vars.WithInitiativeContext(ctx)
+
+	if result.InitiativeID != "" {
+		t.Errorf("zero value InitiativeID = %q, want empty", result.InitiativeID)
+	}
+	if result.InitiativeTitle != "" {
+		t.Errorf("zero value InitiativeTitle = %q, want empty", result.InitiativeTitle)
+	}
+	if result.InitiativeVision != "" {
+		t.Errorf("zero value InitiativeVision = %q, want empty", result.InitiativeVision)
+	}
+	if result.InitiativeDecisions != "" {
+		t.Errorf("zero value InitiativeDecisions = %q, want empty", result.InitiativeDecisions)
+	}
+}
+
+func TestRenderTemplate_InitiativeContextSection(t *testing.T) {
+	tests := []struct {
+		name         string
+		vars         TemplateVars
+		wantContains []string
+		wantEmpty    bool
+	}{
+		{
+			name:      "no initiative - empty section",
+			vars:      TemplateVars{TaskID: "TASK-001"},
+			wantEmpty: true,
+		},
+		{
+			name: "with initiative - has section header",
+			vars: TemplateVars{
+				TaskID:          "TASK-001",
+				InitiativeID:    "INIT-001",
+				InitiativeTitle: "Auth Overhaul",
+			},
+			wantContains: []string{
+				"## Initiative Context",
+				"INIT-001",
+				"Auth Overhaul",
+			},
+		},
+		{
+			name: "with vision - includes vision section",
+			vars: TemplateVars{
+				TaskID:           "TASK-001",
+				InitiativeID:     "INIT-001",
+				InitiativeTitle:  "Auth Overhaul",
+				InitiativeVision: "Modernize authentication",
+			},
+			wantContains: []string{
+				"### Vision",
+				"Modernize authentication",
+			},
+		},
+		{
+			name: "with decisions - includes decisions section",
+			vars: TemplateVars{
+				TaskID:              "TASK-001",
+				InitiativeID:        "INIT-001",
+				InitiativeTitle:     "Auth Overhaul",
+				InitiativeDecisions: "- **DEC-001**: Use OAuth2",
+			},
+			wantContains: []string{
+				"### Decisions",
+				"DEC-001",
+			},
+		},
+		{
+			name: "full context - has alignment note",
+			vars: TemplateVars{
+				TaskID:              "TASK-001",
+				InitiativeID:        "INIT-001",
+				InitiativeTitle:     "Auth Overhaul",
+				InitiativeVision:    "Modernize authentication",
+				InitiativeDecisions: "- **DEC-001**: Use OAuth2",
+			},
+			wantContains: []string{
+				"**Alignment**",
+				"aligns with the initiative vision",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			template := "{{INITIATIVE_CONTEXT}}"
+			got := RenderTemplate(template, tt.vars)
+
+			if tt.wantEmpty {
+				if got != "" {
+					t.Errorf("RenderTemplate() = %q, want empty", got)
+				}
+				return
+			}
+
+			for _, want := range tt.wantContains {
+				if !contains(got, want) {
+					t.Errorf("RenderTemplate() should contain %q, got:\n%s", want, got)
+				}
+			}
+		})
+	}
+}
