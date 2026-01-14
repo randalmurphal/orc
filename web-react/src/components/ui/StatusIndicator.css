@@ -1,0 +1,78 @@
+/* StatusIndicator Styles */
+
+.status-indicator {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.orb {
+	border-radius: 50%;
+	background: var(--status-color);
+	box-shadow: 0 0 0 var(--status-glow);
+	transition: all var(--duration-normal) var(--ease-out);
+}
+
+/* Sizes */
+.size-sm .orb {
+	width: 6px;
+	height: 6px;
+}
+
+.size-md .orb {
+	width: 8px;
+	height: 8px;
+}
+
+.size-lg .orb {
+	width: 10px;
+	height: 10px;
+}
+
+.label {
+	font-size: var(--text-xs);
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+	letter-spacing: var(--tracking-wider);
+}
+
+/* Running animation */
+.animated .orb {
+	animation: status-pulse 2s ease-in-out infinite, status-glow 2s ease-in-out infinite;
+}
+
+/* Paused animation */
+.paused .orb {
+	animation: status-blink 1.5s ease-in-out infinite;
+}
+
+/* Animation keyframes (may also be defined globally) */
+@keyframes status-pulse {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.2);
+	}
+}
+
+@keyframes status-glow {
+	0%,
+	100% {
+		box-shadow: 0 0 4px var(--status-glow);
+	}
+	50% {
+		box-shadow: 0 0 12px var(--status-glow);
+	}
+}
+
+@keyframes status-blink {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.4;
+	}
+}
