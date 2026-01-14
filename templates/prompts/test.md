@@ -8,6 +8,8 @@ You are writing and running tests to verify the implementation.
 **Task**: {{TASK_TITLE}}
 **Weight**: {{WEIGHT}}
 
+{{INITIATIVE_CONTEXT}}
+
 ## Worktree Safety
 
 You are working in an **isolated git worktree**.

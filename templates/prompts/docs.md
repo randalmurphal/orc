@@ -8,6 +8,8 @@ You are creating and updating documentation after implementation is complete.
 **Task**: {{TASK_TITLE}}
 **Weight**: {{WEIGHT}}
 
+{{INITIATIVE_CONTEXT}}
+
 ## Worktree Safety
 
 You are working in an **isolated git worktree**.

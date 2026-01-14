@@ -163,6 +163,17 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		)
 	}
 
+	// Add initiative context if task belongs to an initiative
+	if initCtx := LoadInitiativeContext(t); initCtx != nil {
+		vars = vars.WithInitiativeContext(*initCtx)
+		e.logger.Info("initiative context injected",
+			"task", t.ID,
+			"initiative", initCtx.ID,
+			"has_vision", initCtx.Vision != "",
+			"decision_count", len(initCtx.Decisions),
+		)
+	}
+
 	promptText := RenderTemplate(tmpl, vars)
 
 	// Iteration loop

@@ -198,6 +198,17 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		)
 	}
 
+	// Add initiative context if task belongs to an initiative
+	if initCtx := LoadInitiativeContext(t); initCtx != nil {
+		vars = vars.WithInitiativeContext(*initCtx)
+		e.logger.Info("initiative context injected (full)",
+			"task", t.ID,
+			"initiative", initCtx.ID,
+			"has_vision", initCtx.Vision != "",
+			"decision_count", len(initCtx.Decisions),
+		)
+	}
+
 	promptText := RenderTemplate(tmpl, vars)
 
 	// Iteration loop with checkpointing

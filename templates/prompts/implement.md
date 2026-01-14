@@ -8,6 +8,8 @@ You are implementing a task according to its specification.
 **Task**: {{TASK_TITLE}}
 **Weight**: {{WEIGHT}}
 
+{{INITIATIVE_CONTEXT}}
+
 ## Worktree Safety
 
 You are working in an **isolated git worktree**. This ensures your changes don't affect other work.

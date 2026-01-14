@@ -9,6 +9,8 @@ You are writing a detailed specification for a task.
 **Weight**: {{WEIGHT}}
 **Description**: {{TASK_DESCRIPTION}}
 
+{{INITIATIVE_CONTEXT}}
+
 ## Worktree Safety
 
 You are working in an **isolated git worktree**.

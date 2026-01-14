@@ -98,6 +98,18 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		return result, result.Error
 	}
 	vars := BuildTemplateVars(t, p, s, 0, "")
+
+	// Add initiative context if task belongs to an initiative
+	if initCtx := LoadInitiativeContext(t); initCtx != nil {
+		vars = vars.WithInitiativeContext(*initCtx)
+		e.logger.Info("initiative context injected (trivial)",
+			"task", t.ID,
+			"initiative", initCtx.ID,
+			"has_vision", initCtx.Vision != "",
+			"decision_count", len(initCtx.Decisions),
+		)
+	}
+
 	promptText := RenderTemplate(tmpl, vars)
 
 	// Simple iteration loop - no session, just repeated completions

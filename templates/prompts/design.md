@@ -8,6 +8,8 @@ You are creating an architecture/design document for a complex task.
 **Task**: {{TASK_TITLE}}
 **Weight**: {{WEIGHT}}
 
+{{INITIATIVE_CONTEXT}}
+
 ## Worktree Safety
 
 You are working in an **isolated git worktree**.
