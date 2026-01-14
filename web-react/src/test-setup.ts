@@ -46,16 +46,30 @@ Object.defineProperty(globalThis, 'location', {
 
 // Mock history for URL sync tests
 const historyMock = {
-  pushState: vi.fn((_state: unknown, _title: string, url: string) => {
-    mockHref = url;
-    const urlObj = new URL(url);
-    mockSearch = urlObj.search;
+  pushState: vi.fn((_state: unknown, _title: string, url?: string | null) => {
+    if (url) {
+      mockHref = url.startsWith('http') ? url : `http://localhost:5174${url}`;
+      const urlObj = new URL(mockHref);
+      mockSearch = urlObj.search;
+    }
   }),
-  replaceState: vi.fn((_state: unknown, _title: string, url: string) => {
-    mockHref = url;
-    const urlObj = new URL(url);
-    mockSearch = urlObj.search;
+  replaceState: vi.fn((_state: unknown, _title: string, url?: string | null) => {
+    if (url) {
+      mockHref = url.startsWith('http') ? url : `http://localhost:5174${url}`;
+      const urlObj = new URL(mockHref);
+      mockSearch = urlObj.search;
+    }
   }),
+  go: vi.fn(),
+  back: vi.fn(),
+  forward: vi.fn(),
+  get length() {
+    return 1;
+  },
+  get state() {
+    return null;
+  },
+  scrollRestoration: 'auto' as ScrollRestoration,
 };
 
 Object.defineProperty(globalThis, 'history', {
