@@ -125,6 +125,9 @@ Example:
 				return fmt.Errorf("save initiative: %w", saveErr)
 			}
 
+			// Auto-commit and sync to DB
+			initiative.CommitAndSync(init, "create", initiative.DefaultCommitConfig())
+
 			if !quiet {
 				fmt.Printf("Initiative created: %s\n", id)
 				fmt.Printf("   Title:  %s\n", title)
@@ -336,6 +339,9 @@ Example:
 				return fmt.Errorf("save initiative: %w", err)
 			}
 
+			// Auto-commit and sync to DB
+			initiative.CommitAndSync(init, "edit", initiative.DefaultCommitConfig())
+
 			fmt.Printf("Updated initiative %s\n", id)
 			return nil
 		},
@@ -539,6 +545,9 @@ Example:
 				return fmt.Errorf("save initiative: %w", err)
 			}
 
+			// Auto-commit and sync to DB
+			initiative.CommitAndSync(init, "add-task", initiative.DefaultCommitConfig())
+
 			fmt.Printf("Added %s to %s\n", taskID, initID)
 			if len(dependsOn) > 0 {
 				fmt.Printf("  Depends on: %s\n", strings.Join(dependsOn, ", "))
@@ -600,6 +609,9 @@ Example:
 				return fmt.Errorf("save initiative: %w", err)
 			}
 
+			// Auto-commit and sync to DB
+			initiative.CommitAndSync(init, "decide", initiative.DefaultCommitConfig())
+
 			decID := init.Decisions[len(init.Decisions)-1].ID
 			fmt.Printf("Decision recorded: %s\n", decID)
 			fmt.Printf("  %s\n", decision)
@@ -653,6 +665,9 @@ func newInitiativeActivateCmd() *cobra.Command {
 				return fmt.Errorf("save initiative: %w", err)
 			}
 
+			// Auto-commit and sync to DB
+			initiative.CommitAndSync(init, "activate", initiative.DefaultCommitConfig())
+
 			fmt.Printf("Initiative %s is now active\n", id)
 			return nil
 		},
@@ -696,6 +711,9 @@ func newInitiativeCompleteCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("save initiative: %w", err)
 			}
+
+			// Auto-commit and sync to DB
+			initiative.CommitAndSync(init, "complete", initiative.DefaultCommitConfig())
 
 			fmt.Printf("Initiative %s marked as completed\n", id)
 			return nil
@@ -899,6 +917,9 @@ func newInitiativeDeleteCmd() *cobra.Command {
 			if err := initiative.Delete(id, shared); err != nil {
 				return fmt.Errorf("delete initiative: %w", err)
 			}
+
+			// Auto-commit deletion and remove from DB
+			initiative.CommitDeletion(id, initiative.DefaultCommitConfig())
 
 			fmt.Printf("Deleted initiative %s\n", id)
 			return nil

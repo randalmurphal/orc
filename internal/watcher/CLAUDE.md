@@ -1,12 +1,12 @@
 # Watcher Package
 
-File system watcher for real-time task updates. Monitors `.orc/tasks/` and publishes events when tasks are created, modified, or deleted outside the API.
+File system watcher for real-time task and initiative updates. Monitors `.orc/tasks/` and `.orc/initiatives/` and publishes events when files are created, modified, or deleted outside the API.
 
 ## File Structure
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| `watcher.go` | Main watcher, fsnotify integration, event publishing | ~430 |
+| `watcher.go` | Main watcher, fsnotify integration, event publishing | ~600 |
 | `debouncer.go` | Event coalescing, delete verification | ~205 |
 | `watcher_test.go` | Test coverage | ~400 |
 
@@ -17,16 +17,20 @@ File System Change
     ↓
 fsnotify Event (Create/Write/Remove)
     ↓
-handleFSEvent() → extract task ID, classify file type
+handleFSEvent() → route to task or initiative handler
+    ↓
+handleTaskFSEvent() / handleInitiativeFSEvent()
     ↓
 Debouncer (500ms quiet period)
     ↓
 Content Hash Check (skip if unchanged)
     ↓
-Publish Event → WebSocket Broadcast
+Sync to DB (for initiatives) → Publish Event → WebSocket Broadcast
 ```
 
 ## Watched Files
+
+### Task Files
 
 | File | Event Type | Trigger |
 |------|------------|---------|
@@ -35,7 +39,17 @@ Publish Event → WebSocket Broadcast
 | `plan.yaml` | `task_updated` | Write |
 | `spec.md` | `task_updated` | Write |
 
-Task deletions are verified before publishing (100ms delay) to handle atomic saves and renames.
+### Initiative Files
+
+| File | Event Type | Trigger |
+|------|------------|---------|
+| `initiative.yaml` | `initiative_created` / `initiative_updated` | Create (new) or Write (existing) |
+
+Task and initiative deletions are verified before publishing (100ms delay) to handle atomic saves and renames.
+
+### Initiative Database Sync
+
+When external edits to `initiative.yaml` are detected (file modified outside CLI), the watcher automatically syncs the changes to the database cache via `initiative.SyncToDB()`. This keeps the DB index current for fast queries.
 
 ### Weight Change Detection
 

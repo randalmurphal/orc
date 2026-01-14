@@ -837,3 +837,75 @@ func TestProjectDB_TaskDependencies(t *testing.T) {
 		t.Errorf("len(deps) after duplicate = %d, want 1", len(deps4))
 	}
 }
+
+func TestProjectDB_InitiativeDependencies(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create initiatives
+	pdb.SaveInitiative(&Initiative{ID: "INIT-001", Title: "Build System", Status: "draft"})
+	pdb.SaveInitiative(&Initiative{ID: "INIT-002", Title: "React Migration", Status: "draft"})
+	pdb.SaveInitiative(&Initiative{ID: "INIT-003", Title: "Component Library", Status: "draft"})
+
+	// Add dependencies: INIT-002 depends on INIT-001, INIT-003 depends on INIT-001 and INIT-002
+	if err := pdb.AddInitiativeDependency("INIT-002", "INIT-001"); err != nil {
+		t.Fatalf("AddInitiativeDependency failed: %v", err)
+	}
+	pdb.AddInitiativeDependency("INIT-003", "INIT-001")
+	pdb.AddInitiativeDependency("INIT-003", "INIT-002")
+
+	// Get dependencies for INIT-003
+	deps, err := pdb.GetInitiativeDependencies("INIT-003")
+	if err != nil {
+		t.Fatalf("GetInitiativeDependencies failed: %v", err)
+	}
+	if len(deps) != 2 {
+		t.Errorf("len(deps) for INIT-003 = %d, want 2", len(deps))
+	}
+
+	// Get dependents for INIT-001
+	dependents, err := pdb.GetInitiativeDependents("INIT-001")
+	if err != nil {
+		t.Fatalf("GetInitiativeDependents failed: %v", err)
+	}
+	if len(dependents) != 2 {
+		t.Errorf("len(dependents) for INIT-001 = %d, want 2", len(dependents))
+	}
+
+	// Remove a dependency
+	if err := pdb.RemoveInitiativeDependency("INIT-003", "INIT-002"); err != nil {
+		t.Fatalf("RemoveInitiativeDependency failed: %v", err)
+	}
+	deps2, _ := pdb.GetInitiativeDependencies("INIT-003")
+	if len(deps2) != 1 {
+		t.Errorf("len(deps) after remove = %d, want 1", len(deps2))
+	}
+
+	// Clear all dependencies
+	if err := pdb.ClearInitiativeDependencies("INIT-003"); err != nil {
+		t.Fatalf("ClearInitiativeDependencies failed: %v", err)
+	}
+	deps3, _ := pdb.GetInitiativeDependencies("INIT-003")
+	if len(deps3) != 0 {
+		t.Errorf("len(deps) after clear = %d, want 0", len(deps3))
+	}
+
+	// Test duplicate dependency is ignored
+	pdb.AddInitiativeDependency("INIT-002", "INIT-001") // Already exists
+	deps4, _ := pdb.GetInitiativeDependencies("INIT-002")
+	if len(deps4) != 1 {
+		t.Errorf("len(deps) after duplicate = %d, want 1", len(deps4))
+	}
+}

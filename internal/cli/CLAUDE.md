@@ -213,6 +213,15 @@ Permanently stop task and mark as failed (unlike `pause` which allows resume).
 |------|-------------|
 | `--force, -f` | Skip confirmation prompt |
 
+### `orc initiative` (Auto-Commit)
+
+All initiative commands (`new`, `add-task`, `decide`, `activate`, `complete`, `edit`, `delete`) automatically:
+1. Save changes to YAML file (source of truth)
+2. Sync to database cache for fast queries
+3. Commit to git with message format: `[orc] initiative INIT-001: action - Title`
+
+This prevents initiative files from being lost during git operations (checkout, worktree switching).
+
 ### `orc initiative edit`
 Edit an initiative's properties including dependencies.
 

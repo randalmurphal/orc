@@ -453,6 +453,8 @@ Patterns, gotchas, and decisions learned during development.
 | Auto-trigger finalize on approval | In `auto` profile, finalize phase auto-triggers when PR is approved; controlled by `completion.finalize.auto_trigger_on_approval`; respects 30s rate limit, skips trivial tasks | TASK-091 |
 | Finalize UI components | FinalizeModal for progress/results; TaskCard shows finalize button (completed), progress bar (finalizing), merge info (finished); WebSocket `finalize` events for real-time updates | TASK-094 |
 | Auto-approve PRs in auto mode | In `auto`/`fast` profiles, PRs are auto-approved after verifying CI passes; uses `gh pr review --approve` with summary comment; `safe`/`strict` profiles require human approval | TASK-099 |
+| Initiative auto-commit | Initiative files auto-commit to git and sync to DB on create/modify via CLI; uses `initiative.CommitAndSync()` after each save; watcher monitors `.orc/initiatives/` for external edits | TASK-097 |
+| Initiative hybrid storage | Initiatives use YAML as source of truth with DB cache; `initiative_dependencies` table tracks blocked_by; recovery via `RebuildDBIndex()` from YAML or `RecoverFromDB()` from database | TASK-097 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

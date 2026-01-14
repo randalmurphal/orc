@@ -6,12 +6,35 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
 )
+
+// InitiativeIDPattern validates initiative IDs (INIT-XXX format where XXX is alphanumeric with optional dashes).
+// Examples: INIT-001, INIT-123, INIT-TEST-001, INIT-abc-def
+// This prevents path traversal attacks by rejecting IDs containing special characters like /, \, .., etc.
+var InitiativeIDPattern = regexp.MustCompile(`^INIT-[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9]$|^INIT-[A-Za-z0-9]$`)
+
+// ValidateID checks if an initiative ID is valid.
+// Valid IDs start with "INIT-" followed by alphanumeric characters (with optional dashes in between).
+// This prevents path traversal attacks by rejecting IDs containing special characters.
+func ValidateID(id string) error {
+	if id == "" {
+		return fmt.Errorf("initiative ID cannot be empty")
+	}
+	if !InitiativeIDPattern.MatchString(id) {
+		return fmt.Errorf("invalid initiative ID %q: must start with INIT- followed by alphanumeric characters", id)
+	}
+	// Additional check: ensure no path traversal characters
+	if strings.Contains(id, "..") || strings.Contains(id, "/") || strings.Contains(id, "\\") {
+		return fmt.Errorf("invalid initiative ID %q: contains path traversal characters", id)
+	}
+	return nil
+}
 
 // Status represents the status of an initiative.
 type Status string
@@ -109,6 +132,10 @@ func LoadShared(id string) (*Initiative, error) {
 
 // LoadFrom loads an initiative from a specific directory.
 func LoadFrom(baseDir, id string) (*Initiative, error) {
+	if err := ValidateID(id); err != nil {
+		return nil, err
+	}
+
 	path := filepath.Join(baseDir, id, "initiative.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -135,6 +162,10 @@ func (i *Initiative) SaveShared() error {
 
 // SaveTo persists the initiative to a specific directory.
 func (i *Initiative) SaveTo(baseDir string) error {
+	if err := ValidateID(i.ID); err != nil {
+		return err
+	}
+
 	dir := filepath.Join(baseDir, i.ID)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("create initiative directory: %w", err)
@@ -334,6 +365,10 @@ func Exists(id string, shared bool) bool {
 
 // Delete removes an initiative and all its associated files.
 func Delete(id string, shared bool) error {
+	if err := ValidateID(id); err != nil {
+		return err
+	}
+
 	dir := filepath.Join(GetInitiativesDir(shared), id)
 	return os.RemoveAll(dir)
 }
