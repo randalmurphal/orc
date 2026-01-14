@@ -384,6 +384,41 @@ func TestRemoveTask(t *testing.T) {
 	}
 }
 
+func TestHasTask(t *testing.T) {
+	init := New("INIT-001", "Has Task Test")
+
+	// Empty initiative has no tasks
+	if init.HasTask("TASK-001") {
+		t.Error("HasTask should return false for empty task list")
+	}
+
+	// Add a task
+	init.AddTask("TASK-001", "First task", nil)
+	init.AddTask("TASK-002", "Second task", nil)
+
+	// Check existing tasks
+	if !init.HasTask("TASK-001") {
+		t.Error("HasTask should return true for TASK-001")
+	}
+	if !init.HasTask("TASK-002") {
+		t.Error("HasTask should return true for TASK-002")
+	}
+
+	// Check non-existing task
+	if init.HasTask("TASK-999") {
+		t.Error("HasTask should return false for non-existing task")
+	}
+
+	// Remove a task and verify HasTask returns false
+	init.RemoveTask("TASK-001")
+	if init.HasTask("TASK-001") {
+		t.Error("HasTask should return false after task is removed")
+	}
+	if !init.HasTask("TASK-002") {
+		t.Error("HasTask should still return true for TASK-002")
+	}
+}
+
 // Tests for initiative dependencies
 
 func TestValidateBlockedBy(t *testing.T) {
