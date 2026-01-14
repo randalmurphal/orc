@@ -51,16 +51,24 @@ type FinalizeState struct {
 
 // FinalizeResult contains the outcome of the finalize operation.
 type FinalizeResult struct {
-	Synced            bool         `json:"synced"`
-	ConflictsResolved int          `json:"conflicts_resolved"`
-	ConflictFiles     []string     `json:"conflict_files,omitempty"`
-	TestsPassed       bool         `json:"tests_passed"`
-	RiskLevel         string       `json:"risk_level"`
-	FilesChanged      int          `json:"files_changed"`
-	LinesChanged      int          `json:"lines_changed"`
-	NeedsReview       bool         `json:"needs_review"`
-	CommitSHA         string       `json:"commit_sha,omitempty"`
-	TargetBranch      string       `json:"target_branch"`
+	Synced            bool     `json:"synced"`
+	ConflictsResolved int      `json:"conflicts_resolved"`
+	ConflictFiles     []string `json:"conflict_files,omitempty"`
+	TestsPassed       bool     `json:"tests_passed"`
+	RiskLevel         string   `json:"risk_level"`
+	FilesChanged      int      `json:"files_changed"`
+	LinesChanged      int      `json:"lines_changed"`
+	NeedsReview       bool     `json:"needs_review"`
+	CommitSHA         string   `json:"commit_sha,omitempty"`
+	TargetBranch      string   `json:"target_branch"`
+
+	// CI and merge results (populated after finalize sync)
+	CIPassed    bool   `json:"ci_passed,omitempty"`     // CI checks passed
+	CIDetails   string `json:"ci_details,omitempty"`    // CI status summary
+	Merged      bool   `json:"merged,omitempty"`        // PR was merged
+	MergeCommit string `json:"merge_commit,omitempty"`  // SHA of merge commit
+	CITimedOut  bool   `json:"ci_timed_out,omitempty"`  // CI polling timed out
+	MergeError  string `json:"merge_error,omitempty"`   // Error during CI/merge
 }
 
 // FinalizeRequest is the request body for triggering finalize.
@@ -408,12 +416,60 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, req FinalizeReque
 		TargetBranch: targetBranch,
 	}
 
+	// Wait for CI and merge if configured (auto/fast profiles only)
+	if result.Status == plan.PhaseCompleted && s.orcConfig.ShouldWaitForCI() {
+		// Update progress
+		finState.mu.Lock()
+		finState.Step = "Waiting for CI"
+		finState.Progress = "Pushing changes and waiting for CI checks..."
+		finState.StepPercent = 85
+		finState.mu.Unlock()
+		s.publishFinalizeEvent(taskID, finState)
+
+		// Create CI merger and wait for CI/merge
+		ciMerger := executor.NewCIMerger(
+			s.orcConfig,
+			s.logger,
+			s.workDir,
+			task.TaskDirIn(s.workDir, taskID),
+		)
+
+		ciResult, ciErr := ciMerger.WaitForCIAndMerge(ctx, t)
+		if ciResult != nil {
+			finResult.CIPassed = ciResult.CIPassed
+			finResult.CIDetails = ciResult.CIDetails
+			finResult.Merged = ciResult.Merged
+			finResult.MergeCommit = ciResult.MergeCommit
+			finResult.CITimedOut = ciResult.TimedOut
+			if ciResult.Error != "" {
+				finResult.MergeError = ciResult.Error
+			}
+		}
+
+		if ciErr != nil {
+			s.logger.Warn("CI wait/merge failed", "task", taskID, "error", ciErr)
+			// Don't fail finalize - the sync was successful, just CI/merge failed
+			finResult.MergeError = ciErr.Error()
+		}
+	}
+
 	// Update finalize state to completed
 	finState.mu.Lock()
 	finState.Status = FinalizeStatusCompleted
 	finState.UpdatedAt = time.Now()
-	finState.Step = "Complete"
-	finState.Progress = "Finalize completed successfully"
+	if finResult.Merged {
+		finState.Step = "Merged"
+		finState.Progress = "PR merged successfully"
+	} else if finResult.CIPassed {
+		finState.Step = "CI Passed"
+		finState.Progress = "CI passed, merge skipped"
+	} else if finResult.MergeError != "" {
+		finState.Step = "Complete (merge pending)"
+		finState.Progress = finResult.MergeError
+	} else {
+		finState.Step = "Complete"
+		finState.Progress = "Finalize completed successfully"
+	}
 	finState.StepPercent = 100
 	finState.Result = finResult
 	finState.mu.Unlock()

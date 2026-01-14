@@ -1,0 +1,63 @@
+task_id: TASK-096
+current_phase: docs
+current_iteration: 2
+status: running
+started_at: 2026-01-14T01:40:21.462221677-06:00
+updated_at: 2026-01-14T02:08:32.402232527-06:00
+phases:
+    docs:
+        status: running
+        started_at: 2026-01-14T02:08:32.402231733-06:00
+        iterations: 0
+        tokens:
+            input_tokens: 0
+            output_tokens: 0
+            total_tokens: 0
+    implement:
+        status: completed
+        started_at: 2026-01-14T01:40:22.076229532-06:00
+        completed_at: 2026-01-14T01:50:24.686795207-06:00
+        iterations: 1
+        commit_sha: 62debe2a16ab2decdb327ec08286eac2986a624e
+        tokens:
+            input_tokens: 5721815
+            output_tokens: 25209
+            cache_creation_input_tokens: 94227
+            cache_read_input_tokens: 5627526
+            total_tokens: 5747024
+    test:
+        status: completed
+        started_at: 2026-01-14T01:50:24.701744048-06:00
+        completed_at: 2026-01-14T02:08:15.341220222-06:00
+        iterations: 1
+        tokens:
+            input_tokens: 4823654
+            output_tokens: 9930
+            cache_creation_input_tokens: 130097
+            cache_read_input_tokens: 4693474
+            total_tokens: 4833584
+gates:
+    - phase: implement
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T01:50:24.701741511-06:00
+    - phase: test
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T02:08:15.351322373-06:00
+tokens:
+    input_tokens: 10545469
+    output_tokens: 35139
+    cache_creation_input_tokens: 224324
+    cache_read_input_tokens: 10321000
+    total_tokens: 10580608
+cost:
+    total_cost_usd: 0
+execution:
+    pid: 894015
+    hostname: Nexus
+    started_at: 2026-01-14T02:08:31.929263214-06:00
+    last_heartbeat: 2026-01-14T02:08:32.402232346-06:00
+error: 'node execute: execute: claude completion: claude complete: chdir /home/randy/repos/orc/.orc/worktrees/orc-TASK-096: no such file or directory: '

@@ -1,0 +1,13 @@
+id: TASK-152
+title: 'Bug: Worktrees disappear during parallel task execution'
+description: When running multiple tasks in parallel, worktrees get cleaned up while tasks are still using them, causing 'chdir no such file or directory' errors. Likely a race condition in worktree cleanup logic - one task's cleanup is removing another task's worktree, or worktree names are colliding.
+weight: medium
+status: planned
+branch: orc/TASK-152
+queue: active
+priority: normal
+category: bug
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T02:08:40.804951897-06:00
+updated_at: 2026-01-14T02:08:40.814250725-06:00

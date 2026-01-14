@@ -1569,3 +1569,111 @@ func TestApplyProfile_AffectsAutoApprovePR(t *testing.T) {
 		t.Error("After ApplyProfile(strict), AutoApprove should be false")
 	}
 }
+
+// Tests for CI wait and merge config
+
+func TestDefault_CIMergeConfig(t *testing.T) {
+	cfg := Default()
+
+	// WaitForCI should be true by default
+	if !cfg.Completion.WaitForCI {
+		t.Error("Completion.WaitForCI should default to true")
+	}
+
+	// CITimeout should be 10 minutes by default
+	if cfg.Completion.CITimeout != 10*time.Minute {
+		t.Errorf("Completion.CITimeout = %v, want 10m", cfg.Completion.CITimeout)
+	}
+
+	// MergeOnCIPass should be true by default
+	if !cfg.Completion.MergeOnCIPass {
+		t.Error("Completion.MergeOnCIPass should default to true")
+	}
+}
+
+func TestShouldWaitForCI(t *testing.T) {
+	tests := []struct {
+		name      string
+		profile   AutomationProfile
+		waitForCI bool
+		expected  bool
+	}{
+		{"auto profile with wait_for_ci", ProfileAuto, true, true},
+		{"auto profile without wait_for_ci", ProfileAuto, false, false},
+		{"fast profile with wait_for_ci", ProfileFast, true, true},
+		{"fast profile without wait_for_ci", ProfileFast, false, false},
+		{"safe profile with wait_for_ci", ProfileSafe, true, false},     // Safe always returns false
+		{"safe profile without wait_for_ci", ProfileSafe, false, false},
+		{"strict profile with wait_for_ci", ProfileStrict, true, false}, // Strict always returns false
+		{"strict profile without wait_for_ci", ProfileStrict, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Default()
+			cfg.Profile = tt.profile
+			cfg.Completion.WaitForCI = tt.waitForCI
+
+			got := cfg.ShouldWaitForCI()
+			if got != tt.expected {
+				t.Errorf("ShouldWaitForCI() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestShouldMergeOnCIPass(t *testing.T) {
+	tests := []struct {
+		name          string
+		profile       AutomationProfile
+		waitForCI     bool
+		mergeOnCIPass bool
+		expected      bool
+	}{
+		{"auto with both enabled", ProfileAuto, true, true, true},
+		{"auto without wait_for_ci", ProfileAuto, false, true, false},
+		{"auto without merge_on_ci_pass", ProfileAuto, true, false, false},
+		{"auto with neither enabled", ProfileAuto, false, false, false},
+		{"fast with both enabled", ProfileFast, true, true, true},
+		{"safe with both enabled", ProfileSafe, true, true, false},     // Safe always returns false
+		{"strict with both enabled", ProfileStrict, true, true, false}, // Strict always returns false
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Default()
+			cfg.Profile = tt.profile
+			cfg.Completion.WaitForCI = tt.waitForCI
+			cfg.Completion.MergeOnCIPass = tt.mergeOnCIPass
+
+			got := cfg.ShouldMergeOnCIPass()
+			if got != tt.expected {
+				t.Errorf("ShouldMergeOnCIPass() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetCITimeout(t *testing.T) {
+	cfg := Default()
+
+	// Default timeout
+	timeout := cfg.GetCITimeout()
+	if timeout != 10*time.Minute {
+		t.Errorf("default timeout = %v, want 10m", timeout)
+	}
+
+	// Custom timeout
+	cfg.Completion.CITimeout = 5 * time.Minute
+	timeout = cfg.GetCITimeout()
+	if timeout != 5*time.Minute {
+		t.Errorf("custom timeout = %v, want 5m", timeout)
+	}
+
+	// Zero timeout falls back to default
+	cfg.Completion.CITimeout = 0
+	timeout = cfg.GetCITimeout()
+	if timeout != 10*time.Minute {
+		t.Errorf("zero timeout = %v, want 10m (default)", timeout)
+	}
+}
