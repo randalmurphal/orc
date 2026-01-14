@@ -102,13 +102,47 @@ describe('Routes', () => {
 	});
 
 	describe('/dashboard route', () => {
-		it('renders Dashboard page', async () => {
+		beforeEach(() => {
+			// Mock API responses for dashboard
+			vi.mocked(fetch).mockImplementation((url) => {
+				const urlStr = typeof url === 'string' ? url : url.toString();
+				if (urlStr.includes('/api/dashboard/stats')) {
+					return Promise.resolve({
+						ok: true,
+						json: () =>
+							Promise.resolve({
+								running: 1,
+								paused: 0,
+								blocked: 2,
+								completed: 5,
+								failed: 0,
+								today: 3,
+								total: 10,
+								tokens: 50000,
+								cost: 0.5,
+							}),
+					} as Response);
+				}
+				if (urlStr.includes('/api/initiatives')) {
+					return Promise.resolve({
+						ok: true,
+						json: () => Promise.resolve([]),
+					} as Response);
+				}
+				return Promise.resolve({
+					ok: true,
+					json: () => Promise.resolve({}),
+				} as Response);
+			});
+		});
+
+		it('renders Dashboard page with Quick Stats', async () => {
 			renderWithRouter('/dashboard');
 			await waitFor(() => {
-				// "Dashboard" appears in sidebar and as h2 heading
-				expect(
-					screen.getByRole('heading', { level: 2, name: 'Dashboard' })
-				).toBeInTheDocument();
+				// "Dashboard" appears in header h1
+				expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+				// Dashboard shows "Quick Stats" section
+				expect(screen.getByText('Quick Stats')).toBeInTheDocument();
 			});
 		});
 	});
