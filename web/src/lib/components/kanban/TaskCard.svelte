@@ -5,14 +5,16 @@
 	import { PRIORITY_CONFIG } from '$lib/types';
 	import { updateTask } from '$lib/api';
 	import { updateTask as updateTaskInStore } from '$lib/stores/tasks';
+	import { getInitiativeBadgeTitle } from '$lib/stores/initiatives';
 
 	interface Props {
 		task: Task;
 		onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 		onTaskClick?: (task: Task) => void;
+		onInitiativeClick?: (initiativeId: string) => void;
 	}
 
-	let { task, onAction, onTaskClick }: Props = $props();
+	let { task, onAction, onTaskClick, onInitiativeClick }: Props = $props();
 
 	let actionLoading = $state(false);
 	let isDragging = $state(false);
@@ -133,6 +135,15 @@
 
 	const weight = $derived(weightConfig[task.weight] || weightConfig.small);
 	const isRunning = $derived(task.status === 'running');
+	const initiativeBadge = $derived(task.initiative_id ? getInitiativeBadgeTitle(task.initiative_id) : null);
+
+	function handleInitiativeClick(e: MouseEvent) {
+		e.stopPropagation();
+		e.preventDefault();
+		if (task.initiative_id && onInitiativeClick) {
+			onInitiativeClick(task.initiative_id);
+		}
+	}
 
 	function formatDate(dateStr: string): string {
 		const date = new Date(dateStr);
@@ -217,6 +228,16 @@
 			>
 				{task.weight}
 			</span>
+			{#if initiativeBadge}
+				<button
+					class="initiative-badge"
+					onclick={handleInitiativeClick}
+					title={initiativeBadge.full}
+					type="button"
+				>
+					{initiativeBadge.display}
+				</button>
+			{/if}
 			<span class="updated-time">{formatDate(task.updated_at)}</span>
 		</div>
 
@@ -515,6 +536,25 @@
 		letter-spacing: var(--tracking-wider);
 		padding: var(--space-0-5) var(--space-1-5);
 		border-radius: var(--radius-sm);
+	}
+
+	.initiative-badge {
+		font-size: var(--text-2xs);
+		font-weight: var(--font-medium);
+		letter-spacing: var(--tracking-wide);
+		padding: var(--space-0-5) var(--space-1-5);
+		border-radius: var(--radius-sm);
+		background: var(--bg-tertiary);
+		color: var(--text-secondary);
+		border: 1px solid var(--border-subtle);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.initiative-badge:hover {
+		background: var(--bg-surface);
+		border-color: var(--border-default);
+		color: var(--text-primary);
 	}
 
 	.updated-time {

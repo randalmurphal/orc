@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Task } from '$lib/types';
 	import StatusIndicator from './ui/StatusIndicator.svelte';
+	import { getInitiativeBadgeTitle } from '$lib/stores/initiatives';
 
 	interface Props {
 		task: Task;
@@ -10,9 +11,10 @@
 		onResume?: () => void;
 		onDelete?: () => void;
 		onTaskClick?: (task: Task) => void;
+		onInitiativeClick?: (initiativeId: string) => void;
 	}
 
-	let { task, compact = false, onRun, onPause, onResume, onDelete, onTaskClick }: Props = $props();
+	let { task, compact = false, onRun, onPause, onResume, onDelete, onTaskClick, onInitiativeClick }: Props = $props();
 
 	const weightConfig: Record<string, { color: string; bg: string }> = {
 		trivial: { color: 'var(--weight-trivial)', bg: 'rgba(107, 114, 128, 0.15)' },
@@ -65,6 +67,15 @@
 
 	const isRunning = $derived(task.status === 'running');
 	const weight = $derived(weightConfig[task.weight] || weightConfig.small);
+	const initiativeBadge = $derived(task.initiative_id ? getInitiativeBadgeTitle(task.initiative_id) : null);
+
+	function handleInitiativeClick(e: MouseEvent) {
+		e.stopPropagation();
+		e.preventDefault();
+		if (task.initiative_id && onInitiativeClick) {
+			onInitiativeClick(task.initiative_id);
+		}
+	}
 
 	function handleCardClick(e: MouseEvent) {
 		// For running tasks, show transcript modal if callback provided
@@ -93,6 +104,16 @@
 				>
 					{task.weight}
 				</span>
+			{/if}
+			{#if initiativeBadge}
+				<button
+					class="initiative-badge"
+					onclick={handleInitiativeClick}
+					title={initiativeBadge.full}
+					type="button"
+				>
+					{initiativeBadge.display}
+				</button>
 			{/if}
 		</div>
 		<h3 class="task-title">{task.title}</h3>
@@ -216,6 +237,25 @@
 		letter-spacing: var(--tracking-wider);
 		padding: var(--space-0-5) var(--space-1-5);
 		border-radius: var(--radius-sm);
+	}
+
+	.initiative-badge {
+		font-size: var(--text-2xs);
+		font-weight: var(--font-medium);
+		letter-spacing: var(--tracking-wide);
+		padding: var(--space-0-5) var(--space-1-5);
+		border-radius: var(--radius-sm);
+		background: var(--bg-tertiary);
+		color: var(--text-secondary);
+		border: 1px solid var(--border-subtle);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.initiative-badge:hover {
+		background: var(--bg-surface);
+		border-color: var(--border-default);
+		color: var(--text-primary);
 	}
 
 	.task-title {
