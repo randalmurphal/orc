@@ -233,7 +233,19 @@ Right-click or use the "..." menu on TaskCard to:
 
 ## Attachments
 
-Task attachments (images, files) are managed through the Attachments component:
+Task attachments (images, files) can be added during task creation or after via the Attachments tab.
+
+### Task Creation
+
+`NewTaskModal` supports attaching files during task creation:
+- Drag-and-drop zone or file picker
+- Image thumbnails for preview
+- Supports images, PDF, text, markdown, JSON, and log files
+- Files included in multipart form submission
+
+### Task Detail (Attachments Tab)
+
+`Attachments` component on task detail page:
 - Drag-and-drop upload with visual feedback
 - Image gallery with thumbnails and lightbox viewer
 - File list with metadata (size, date)

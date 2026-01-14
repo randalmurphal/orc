@@ -42,7 +42,32 @@ export async function getTask(id: string): Promise<Task> {
 	return fetchJSON<Task>(`/tasks/${id}`);
 }
 
-export async function createTask(title: string, description?: string, weight?: string, category?: string): Promise<Task> {
+export async function createTask(title: string, description?: string, weight?: string, category?: string, attachments?: File[]): Promise<Task> {
+	// If there are attachments, use multipart form
+	if (attachments && attachments.length > 0) {
+		const formData = new FormData();
+		formData.append('title', title);
+		if (description) formData.append('description', description);
+		if (weight) formData.append('weight', weight);
+		if (category) formData.append('category', category);
+		for (const file of attachments) {
+			formData.append('attachments', file);
+		}
+
+		const res = await fetch(`${API_BASE}/tasks`, {
+			method: 'POST',
+			body: formData
+		});
+
+		if (!res.ok) {
+			const error = await res.json().catch(() => ({ error: res.statusText }));
+			throw new Error(error.error || 'Request failed');
+		}
+
+		return res.json();
+	}
+
+	// Otherwise use JSON
 	return fetchJSON<Task>('/tasks', {
 		method: 'POST',
 		body: JSON.stringify({ title, description, weight, category })
@@ -404,7 +429,32 @@ export async function listProjectTasks(projectId: string): Promise<Task[]> {
 	return fetchJSON<Task[]>(`/projects/${projectId}/tasks`);
 }
 
-export async function createProjectTask(projectId: string, title: string, description?: string, weight?: string, category?: string): Promise<Task> {
+export async function createProjectTask(projectId: string, title: string, description?: string, weight?: string, category?: string, attachments?: File[]): Promise<Task> {
+	// If there are attachments, use multipart form
+	if (attachments && attachments.length > 0) {
+		const formData = new FormData();
+		formData.append('title', title);
+		if (description) formData.append('description', description);
+		if (weight) formData.append('weight', weight);
+		if (category) formData.append('category', category);
+		for (const file of attachments) {
+			formData.append('attachments', file);
+		}
+
+		const res = await fetch(`${API_BASE}/projects/${projectId}/tasks`, {
+			method: 'POST',
+			body: formData
+		});
+
+		if (!res.ok) {
+			const error = await res.json().catch(() => ({ error: res.statusText }));
+			throw new Error(error.error || 'Request failed');
+		}
+
+		return res.json();
+	}
+
+	// Otherwise use JSON
 	return fetchJSON<Task>(`/projects/${projectId}/tasks`, {
 		method: 'POST',
 		body: JSON.stringify({ title, description, weight, category })

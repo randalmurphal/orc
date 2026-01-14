@@ -190,7 +190,7 @@ orc config profile strict
 |---------|---------|
 | `orc go` | Main entry (interactive/headless/quick) |
 | `orc init` | Initialize project (<500ms) |
-| `orc new "title"` | Create task, classify weight (use `-c bug` for category) |
+| `orc new "title"` | Create task, classify weight (`-c bug` for category, `-a file` for attachments) |
 | `orc run TASK-ID` | Execute phases |
 | `orc plan TASK-ID` | Interactive spec creation |
 | `orc status` | Show running/blocked/paused |

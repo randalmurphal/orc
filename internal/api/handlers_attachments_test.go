@@ -717,3 +717,163 @@ updated_at: 2024-01-01T00:00:00Z
 		t.Error("should reject '.' as filename")
 	}
 }
+
+// === Task Creation with Attachments ===
+
+func TestCreateTaskEndpoint_WithAttachments(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Create multipart form with task data and attachments
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	writer.WriteField("title", "Test Task with Attachments")
+	writer.WriteField("description", "Task description")
+	writer.WriteField("category", "bug")
+
+	// Add two attachments
+	part1, _ := writer.CreateFormFile("attachments", "screenshot1.png")
+	part1.Write([]byte("PNG content 1"))
+	part2, _ := writer.CreateFormFile("attachments", "screenshot2.png")
+	part2.Write([]byte("PNG content 2"))
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/api/tasks", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var createdTask task.Task
+	if err := json.NewDecoder(w.Body).Decode(&createdTask); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if createdTask.Title != "Test Task with Attachments" {
+		t.Errorf("expected title 'Test Task with Attachments', got %q", createdTask.Title)
+	}
+
+	if createdTask.Category != task.CategoryBug {
+		t.Errorf("expected category 'bug', got %q", createdTask.Category)
+	}
+
+	// Verify attachments were saved
+	attachmentsDir := filepath.Join(tmpDir, ".orc", "tasks", createdTask.ID, "attachments")
+	files, err := os.ReadDir(attachmentsDir)
+	if err != nil {
+		t.Fatalf("failed to read attachments dir: %v", err)
+	}
+
+	if len(files) != 2 {
+		t.Errorf("expected 2 attachments, got %d", len(files))
+	}
+
+	// Check filenames
+	filenames := make(map[string]bool)
+	for _, f := range files {
+		filenames[f.Name()] = true
+	}
+
+	if !filenames["screenshot1.png"] {
+		t.Error("expected screenshot1.png to be saved")
+	}
+	if !filenames["screenshot2.png"] {
+		t.Error("expected screenshot2.png to be saved")
+	}
+}
+
+func TestCreateTaskEndpoint_MultipartWithoutAttachments(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Create multipart form without attachments (just task data)
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	writer.WriteField("title", "Task Without Attachments")
+	writer.WriteField("description", "Just a regular task")
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/api/tasks", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var createdTask task.Task
+	if err := json.NewDecoder(w.Body).Decode(&createdTask); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if createdTask.Title != "Task Without Attachments" {
+		t.Errorf("expected title 'Task Without Attachments', got %q", createdTask.Title)
+	}
+}
+
+func TestCreateTaskEndpoint_JSONStillWorks(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Create task with JSON (backward compatible)
+	reqBody := `{"title": "JSON Task", "description": "Created via JSON", "category": "feature"}`
+	req := httptest.NewRequest("POST", "/api/tasks", bytes.NewBufferString(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var createdTask task.Task
+	if err := json.NewDecoder(w.Body).Decode(&createdTask); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if createdTask.Title != "JSON Task" {
+		t.Errorf("expected title 'JSON Task', got %q", createdTask.Title)
+	}
+
+	if createdTask.Category != task.CategoryFeature {
+		t.Errorf("expected category 'feature', got %q", createdTask.Category)
+	}
+}
+
+func TestCreateTaskEndpoint_MultipartMissingTitle(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Create multipart form without title
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	writer.WriteField("description", "Task without title")
+	part, _ := writer.CreateFormFile("attachments", "screenshot.png")
+	part.Write([]byte("PNG content"))
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/api/tasks", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
