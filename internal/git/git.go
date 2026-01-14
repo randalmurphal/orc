@@ -260,8 +260,65 @@ func (g *Git) SwitchBranch(taskID string) error {
 	return g.ctx.Checkout(branchName)
 }
 
+// ErrMainRepoModification is returned when a destructive operation is attempted
+// on the main repository instead of within a worktree context.
+// This is a critical safety check - worktrees exist to isolate task execution.
+var ErrMainRepoModification = errors.New("destructive operation on main repository blocked")
+
+// RequireWorktreeContext returns an error if this Git instance is NOT operating
+// in a worktree context. This should be called before any destructive operations
+// (reset, rebase, merge, checkout) to ensure we don't accidentally modify the main repo.
+func (g *Git) RequireWorktreeContext(operation string) error {
+	if !g.inWorktreeContext {
+		return fmt.Errorf("%w: %s requires worktree context - refusing to modify main repository",
+			ErrMainRepoModification, operation)
+	}
+	return nil
+}
+
+// RequireNonProtectedBranch returns an error if the current branch is protected.
+// This is an additional safety check for operations that might affect protected branches.
+func (g *Git) RequireNonProtectedBranch(operation string) error {
+	currentBranch, err := g.GetCurrentBranch()
+	if err != nil {
+		// Can't determine branch - be safe and allow the operation
+		// (this might happen in detached HEAD state)
+		return nil
+	}
+	if IsProtectedBranch(currentBranch, g.protectedBranches) {
+		return fmt.Errorf("%w: %s cannot be performed on protected branch '%s'",
+			ErrMainRepoModification, operation, currentBranch)
+	}
+	return nil
+}
+
+// CheckoutSafe checks out a branch with worktree context protection.
+// This should be used for any checkout that modifies the working tree state
+// during automated operations.
+//
+// SAFETY: This operation requires worktree context to prevent accidental
+// modification of the main repository.
+func (g *Git) CheckoutSafe(branch string) error {
+	// CRITICAL: Prevent checkout operations on main repo during automated tasks
+	if err := g.RequireWorktreeContext("git checkout"); err != nil {
+		return err
+	}
+	return g.ctx.Checkout(branch)
+}
+
 // Rewind resets to a specific commit.
+// SAFETY: This operation requires worktree context to prevent accidental modification
+// of the main repository. It also blocks resets on protected branches.
 func (g *Git) Rewind(commitSHA string) error {
+	// CRITICAL: Prevent reset operations on main repo
+	if err := g.RequireWorktreeContext("git reset --hard"); err != nil {
+		return err
+	}
+	// Additional safety: don't reset on protected branches
+	if err := g.RequireNonProtectedBranch("git reset --hard"); err != nil {
+		return err
+	}
+
 	_, err := g.ctx.RunGit("reset", "--hard", commitSHA)
 	if err != nil {
 		return fmt.Errorf("rewind to %s: %w", commitSHA, err)
@@ -285,7 +342,13 @@ func (g *Git) Fetch(remote string) error {
 }
 
 // Rebase rebases onto the target ref.
+// SAFETY: This operation requires worktree context to prevent accidental modification
+// of the main repository.
 func (g *Git) Rebase(target string) error {
+	// CRITICAL: Prevent rebase operations on main repo
+	if err := g.RequireWorktreeContext("git rebase"); err != nil {
+		return err
+	}
 	_, err := g.ctx.RunGit("rebase", target)
 	return err
 }
@@ -315,7 +378,14 @@ func (g *Git) ProtectedBranches() []string {
 }
 
 // Merge merges a branch into current.
+//
+// SAFETY: This operation requires worktree context to prevent accidental modification
+// of the main repository.
 func (g *Git) Merge(branch string, noFF bool) error {
+	// CRITICAL: Prevent merge operations on main repo
+	if err := g.RequireWorktreeContext("git merge"); err != nil {
+		return err
+	}
 	args := []string{"merge"}
 	if noFF {
 		args = append(args, "--no-ff")
@@ -416,7 +486,19 @@ func (g *Git) DetectConflicts(target string) (*SyncResult, error) {
 
 // detectConflictsViaMerge performs conflict detection via an actual merge attempt.
 // Falls back for older git versions that don't support merge-tree --write-tree.
+//
+// SAFETY: This function performs merge and reset operations. While it attempts to
+// restore the original state, it MUST only be called in worktree context.
 func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
+	// CRITICAL: This function does merge and reset - MUST be in worktree context
+	if err := g.RequireWorktreeContext("conflict detection via merge"); err != nil {
+		return nil, err
+	}
+	// Additional check: don't do this on protected branches
+	if err := g.RequireNonProtectedBranch("conflict detection via merge"); err != nil {
+		return nil, err
+	}
+
 	result := &SyncResult{}
 
 	// Get current HEAD for potential abort
@@ -469,7 +551,15 @@ func (g *Git) getCommitCounts(target string) (int, int, error) {
 
 // RebaseWithConflictCheck rebases onto target and returns details about any conflicts.
 // If conflicts occur, the rebase is aborted and ErrMergeConflict is returned.
+//
+// SAFETY: This operation requires worktree context to prevent accidental modification
+// of the main repository.
 func (g *Git) RebaseWithConflictCheck(target string) (*SyncResult, error) {
+	// CRITICAL: Prevent rebase operations on main repo
+	if err := g.RequireWorktreeContext("rebase with conflict check"); err != nil {
+		return nil, err
+	}
+
 	result := &SyncResult{}
 
 	// Get initial state
@@ -524,7 +614,8 @@ func (g *Git) AbortRebase() error {
 // Returns true if restoration was performed, false if no changes were found.
 func (g *Git) RestoreOrcDir(target string, taskID string) (bool, error) {
 	// Check if .orc/ directory exists
-	orcDir := filepath.Join(g.ctx.RepoPath(), ".orc")
+	// Use WorkDir() not RepoPath() - in worktree context, WorkDir is the worktree path
+	orcDir := filepath.Join(g.ctx.WorkDir(), ".orc")
 	if _, err := os.Stat(orcDir); os.IsNotExist(err) {
 		// No .orc/ directory, nothing to restore
 		return false, nil
@@ -598,7 +689,8 @@ func (g *Git) RestoreOrcDir(target string, taskID string) (bool, error) {
 // - No overlapping edits to the same row
 // - Conflict is within orc:knowledge:begin/end markers
 func (g *Git) TryAutoResolveClaudeMD(logger *slog.Logger) (bool, []string) {
-	claudeMDPath := filepath.Join(g.ctx.RepoPath(), "CLAUDE.md")
+	// Use WorkDir() not RepoPath() - in worktree context, WorkDir is the worktree path
+	claudeMDPath := filepath.Join(g.ctx.WorkDir(), "CLAUDE.md")
 
 	// Read the conflicted file
 	content, err := os.ReadFile(claudeMDPath)

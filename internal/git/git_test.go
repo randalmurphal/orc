@@ -1,6 +1,7 @@
 package git
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1269,5 +1270,228 @@ func TestRestoreOrcDir_CommitMessage(t *testing.T) {
 	}
 	if !strings.Contains(commitMsg, "restore .orc/") {
 		t.Errorf("commit message should mention restore, got: %s", commitMsg)
+	}
+}
+
+// TestMainRepoProtection_RequireWorktreeContext tests the worktree context validation
+func TestMainRepoProtection_RequireWorktreeContext(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, err := New(tmpDir, DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create Git: %v", err)
+	}
+
+	// RequireWorktreeContext should fail for main repo
+	err = g.RequireWorktreeContext("test operation")
+	if err == nil {
+		t.Error("RequireWorktreeContext() should return error for main repo")
+	}
+	if !errors.Is(err, ErrMainRepoModification) {
+		t.Errorf("error should be ErrMainRepoModification, got: %v", err)
+	}
+}
+
+// TestMainRepoProtection_RewindBlocked tests that Rewind is blocked on main repo
+func TestMainRepoProtection_RewindBlocked(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, err := New(tmpDir, DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create Git: %v", err)
+	}
+
+	// Get HEAD for reset target
+	head, _ := g.ctx.HeadCommit()
+
+	// Rewind should fail on main repo
+	err = g.Rewind(head)
+	if err == nil {
+		t.Fatal("Rewind() should fail on main repo")
+	}
+	if !errors.Is(err, ErrMainRepoModification) {
+		t.Errorf("error should be ErrMainRepoModification, got: %v", err)
+	}
+}
+
+// TestMainRepoProtection_RebaseBlocked tests that Rebase is blocked on main repo
+func TestMainRepoProtection_RebaseBlocked(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, err := New(tmpDir, DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create Git: %v", err)
+	}
+
+	// Rebase should fail on main repo
+	err = g.Rebase("HEAD")
+	if err == nil {
+		t.Fatal("Rebase() should fail on main repo")
+	}
+	if !errors.Is(err, ErrMainRepoModification) {
+		t.Errorf("error should be ErrMainRepoModification, got: %v", err)
+	}
+}
+
+// TestMainRepoProtection_MergeBlocked tests that Merge is blocked on main repo
+func TestMainRepoProtection_MergeBlocked(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, err := New(tmpDir, DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create Git: %v", err)
+	}
+
+	// Merge should fail on main repo
+	err = g.Merge("HEAD", false)
+	if err == nil {
+		t.Fatal("Merge() should fail on main repo")
+	}
+	if !errors.Is(err, ErrMainRepoModification) {
+		t.Errorf("error should be ErrMainRepoModification, got: %v", err)
+	}
+}
+
+// TestMainRepoProtection_CheckoutSafeBlocked verifies CheckoutSafe is blocked on main repo
+func TestMainRepoProtection_CheckoutSafeBlocked(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// CheckoutSafe should fail on main repo
+	err := g.CheckoutSafe("feature")
+	if err == nil {
+		t.Fatal("CheckoutSafe() should fail on main repo")
+	}
+	if !errors.Is(err, ErrMainRepoModification) {
+		t.Errorf("error should be ErrMainRepoModification, got: %v", err)
+	}
+}
+
+// TestMainRepoProtection_RebaseWithConflictCheckBlocked tests RebaseWithConflictCheck is blocked
+func TestMainRepoProtection_RebaseWithConflictCheckBlocked(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, err := New(tmpDir, DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create Git: %v", err)
+	}
+
+	// RebaseWithConflictCheck should fail on main repo
+	_, err = g.RebaseWithConflictCheck("HEAD")
+	if err == nil {
+		t.Fatal("RebaseWithConflictCheck() should fail on main repo")
+	}
+	if !errors.Is(err, ErrMainRepoModification) {
+		t.Errorf("error should be ErrMainRepoModification, got: %v", err)
+	}
+}
+
+// TestMainRepoProtection_WorktreeContextAllowed tests that worktree context allows operations
+func TestMainRepoProtection_WorktreeContextAllowed(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, err := New(tmpDir, DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create Git: %v", err)
+	}
+
+	// Create a worktree
+	worktreePath, err := g.CreateWorktree("TASK-TEST", "main")
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-TEST")
+
+	// Get worktree Git instance
+	wg := g.InWorktree(worktreePath)
+
+	// RequireWorktreeContext should succeed for worktree
+	err = wg.RequireWorktreeContext("test operation")
+	if err != nil {
+		t.Errorf("RequireWorktreeContext() should succeed for worktree, got: %v", err)
+	}
+
+	// CheckoutSafe should work in worktree
+	err = wg.CheckoutSafe("orc/TASK-TEST")
+	if err != nil {
+		t.Errorf("CheckoutSafe() should succeed for worktree, got: %v", err)
+	}
+}
+
+// TestMainRepoProtection_MainBranchUnchangedAfterWorktreeOperations verifies main repo stays untouched
+func TestMainRepoProtection_MainBranchUnchangedAfterWorktreeOperations(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, err := New(tmpDir, DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create Git: %v", err)
+	}
+
+	// Record initial main branch state
+	initialHead, _ := g.ctx.HeadCommit()
+	initialBranch, _ := g.GetCurrentBranch()
+
+	// Create worktree
+	worktreePath, err := g.CreateWorktree("TASK-INTEGRITY", "main")
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-INTEGRITY")
+
+	// Get worktree Git instance
+	wg := g.InWorktree(worktreePath)
+
+	// Make changes in worktree
+	testFile := filepath.Join(worktreePath, "test-file.txt")
+	os.WriteFile(testFile, []byte("test content"), 0644)
+	wg.CreateCheckpoint("TASK-INTEGRITY", "implement", "test change")
+
+	// Verify main repo is unchanged
+	finalHead, _ := g.ctx.HeadCommit()
+	finalBranch, _ := g.GetCurrentBranch()
+
+	if initialHead != finalHead {
+		t.Errorf("main repo HEAD changed from %s to %s", initialHead, finalHead)
+	}
+	if initialBranch != finalBranch {
+		t.Errorf("main repo branch changed from %s to %s", initialBranch, finalBranch)
+	}
+
+	// Verify no unexpected files in main repo
+	_, err = os.Stat(filepath.Join(tmpDir, "test-file.txt"))
+	if !os.IsNotExist(err) {
+		t.Error("test-file.txt should NOT exist in main repo")
+	}
+}
+
+// TestMainRepoProtection_ProtectedBranchRewindBlocked tests that Rewind is blocked on protected branches
+func TestMainRepoProtection_ProtectedBranchRewindBlocked(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, err := New(tmpDir, DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create Git: %v", err)
+	}
+
+	// Create a worktree on main branch
+	worktreePath, err := g.CreateWorktree("TASK-MAIN", "main")
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-MAIN")
+
+	// Get worktree Git instance
+	wg := g.InWorktree(worktreePath)
+
+	// Switch to main branch (protected)
+	// This shouldn't happen normally but we test the safety anyway
+	wg.ctx.Checkout("main")
+
+	// Verify current branch is main
+	branch, _ := wg.GetCurrentBranch()
+	if branch != "main" {
+		t.Skipf("Could not switch to main in worktree, got: %s", branch)
+	}
+
+	// Rewind should fail on protected branch even in worktree context
+	head, _ := wg.ctx.HeadCommit()
+	err = wg.Rewind(head)
+	if err == nil {
+		t.Fatal("Rewind() should fail on protected branch")
+	}
+	if !errors.Is(err, ErrMainRepoModification) {
+		t.Errorf("error should be ErrMainRepoModification, got: %v", err)
 	}
 }

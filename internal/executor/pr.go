@@ -208,6 +208,9 @@ var ErrDirectMergeBlocked = errors.New("direct merge to protected branch blocked
 // directMerge merges the task branch directly into the target branch.
 // NOTE: This operation is BLOCKED for protected branches (main, master, develop, release).
 // Use the PR workflow instead for protected branches.
+//
+// SAFETY: This operation requires worktree context to prevent accidental modification
+// of the main repository. Direct merge uses checkout and merge which are destructive.
 func (e *Executor) directMerge(ctx context.Context, t *task.Task) error {
 	cfg := e.orcConfig.Completion
 	taskBranch := e.gitOps.BranchName(t.ID)
@@ -229,12 +232,21 @@ func (e *Executor) directMerge(ctx context.Context, t *task.Task) error {
 		gitOps = e.worktreeGit
 	}
 
-	// Checkout target branch
-	if err := gitOps.Context().Checkout(cfg.TargetBranch); err != nil {
+	// CRITICAL SAFETY: Require worktree context for checkout/merge operations
+	// This prevents accidental modification of the main repository branch
+	if err := gitOps.RequireWorktreeContext("direct merge"); err != nil {
+		e.logger.Error("direct merge blocked - not in worktree context",
+			"task", t.ID,
+			"error", err)
+		return fmt.Errorf("direct merge requires worktree context: %w", err)
+	}
+
+	// Checkout target branch using safe method (protected by RequireWorktreeContext above)
+	if err := gitOps.CheckoutSafe(cfg.TargetBranch); err != nil {
 		return fmt.Errorf("checkout %s: %w", cfg.TargetBranch, err)
 	}
 
-	// Merge task branch
+	// Merge task branch (also protected by RequireWorktreeContext)
 	if err := gitOps.Merge(taskBranch, true); err != nil {
 		return fmt.Errorf("merge %s: %w", taskBranch, err)
 	}
