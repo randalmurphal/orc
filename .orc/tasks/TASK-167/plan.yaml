@@ -1,5 +1,5 @@
 version: 1
-task_id: TASK-153
+task_id: TASK-167
 weight: small
 description: Small task - implement with tests, fully automated
 phases:
@@ -25,8 +25,7 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: completed
-      commit_sha: 4b8581416183fbdf3042a3d4b8f7f2ba745a33d0
+      status: pending
     - id: test
       name: test
       prompt: |

@@ -456,6 +456,7 @@ Patterns, gotchas, and decisions learned during development.
 | Initiative auto-commit | Initiative files auto-commit to git and sync to DB on create/modify via CLI; uses `initiative.CommitAndSync()` after each save; watcher monitors `.orc/initiatives/` for external edits | TASK-097 |
 | Initiative hybrid storage | Initiatives use YAML as source of truth with DB cache; `initiative_dependencies` table tracks blocked_by; recovery via `RebuildDBIndex()` from YAML or `RecoverFromDB()` from database | TASK-097 |
 | CLAUDE.md auto-merge | During git sync, conflicts in knowledge section (within `orc:knowledge:begin/end` markers) are auto-resolved if purely additive (both sides add new table rows); rows combined and sorted by TASK-XXX source ID; complex conflicts (overlapping edits) fall back to manual resolution | TASK-096 |
+| Task auto-commit | Task files auto-commit to git on create/modify via CLI; uses `task.CommitAndSync()` after each save; commit messages follow format `[orc] task TASK-001: action - Title`; disable via `tasks.disable_auto_commit` config | TASK-153 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

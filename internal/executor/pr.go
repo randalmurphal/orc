@@ -391,6 +391,28 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 		}
 	}
 
+	// Wait for CI and merge if configured (alternative to GitHub's auto-merge)
+	// This bypasses the need for branch protection rules
+	if e.orcConfig.ShouldWaitForCI() && e.orcConfig.ShouldMergeOnCIPass() && prURL != "" {
+		ciMerger := NewCIMerger(
+			e.orcConfig,
+			WithCIMergerPublisher(e.publisher),
+			WithCIMergerLogger(e.logger),
+			WithCIMergerWorkDir(e.worktreePath),
+		)
+
+		if mergeErr := ciMerger.WaitForCIAndMerge(ctx, t); mergeErr != nil {
+			e.logger.Warn("CI wait and merge failed", "task", t.ID, "error", mergeErr)
+			// Don't fail the task - PR is created, can be merged manually
+		} else {
+			// Update task status to finished after successful merge
+			t.Status = task.StatusFinished
+			if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+				e.logger.Error("failed to save task after merge", "error", saveErr)
+			}
+		}
+	}
+
 	return nil
 }
 

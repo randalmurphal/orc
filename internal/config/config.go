@@ -104,6 +104,8 @@ type PRConfig struct {
 	Draft bool `yaml:"draft"`
 
 	// AutoMerge enables auto-merge when approved (default: true)
+	// Note: This uses GitHub's auto-merge feature which requires branch protection.
+	// For repos without branch protection, use MergeOnCIPass instead.
 	AutoMerge bool `yaml:"auto_merge"`
 
 	// AutoApprove enables AI-assisted PR approval in auto mode (default: true for "auto" profile)
@@ -113,6 +115,31 @@ type PRConfig struct {
 	// 3. Approve the PR via 'gh pr review --approve'
 	// For safe/strict profiles, this is disabled and human approval is required.
 	AutoApprove bool `yaml:"auto_approve"`
+}
+
+// CIConfig defines CI/CD integration settings.
+type CIConfig struct {
+	// WaitForCI enables waiting for CI checks to pass before merge (default: true)
+	// When enabled after finalize phase:
+	// 1. Push finalize changes
+	// 2. Poll CI checks until all pass (or timeout)
+	// 3. Merge PR directly with `gh pr merge --squash`
+	WaitForCI bool `yaml:"wait_for_ci"`
+
+	// CITimeout is the maximum time to wait for CI checks to pass (default: 10m)
+	CITimeout time.Duration `yaml:"ci_timeout"`
+
+	// PollInterval is how often to check CI status (default: 30s)
+	PollInterval time.Duration `yaml:"poll_interval"`
+
+	// MergeOnCIPass enables direct merge after CI passes (default: true for auto/fast profiles)
+	// This bypasses GitHub's auto-merge feature (which requires branch protection).
+	// The merge flow becomes: finalize passes + CI passes = merge directly.
+	MergeOnCIPass bool `yaml:"merge_on_ci_pass"`
+
+	// MergeMethod is the method to use when merging (squash, merge, rebase)
+	// Default: squash
+	MergeMethod string `yaml:"merge_method"`
 }
 
 // SyncStrategy defines when to sync task branch with target.
@@ -240,6 +267,9 @@ type CompletionConfig struct {
 
 	// PR settings (used when Action is "pr")
 	PR PRConfig `yaml:"pr"`
+
+	// CI settings for CI/CD integration (wait for checks, auto-merge)
+	CI CIConfig `yaml:"ci"`
 
 	// Sync settings for branch synchronization
 	Sync SyncConfig `yaml:"sync"`
@@ -786,6 +816,13 @@ func Default() *Config {
 				Labels:       []string{"automated"},
 				AutoMerge:    true,
 				AutoApprove:  true, // AI-assisted PR approval in auto mode
+			},
+			CI: CIConfig{
+				WaitForCI:     true,              // Wait for CI checks before merge
+				CITimeout:     10 * time.Minute,  // Max 10 minutes to wait
+				PollInterval:  30 * time.Second,  // Check every 30 seconds
+				MergeOnCIPass: true,              // Auto-merge when CI passes
+				MergeMethod:   "squash",          // Use squash merge by default
 			},
 			Sync: SyncConfig{
 				Strategy:       SyncStrategyCompletion, // Sync before PR creation by default
@@ -1408,31 +1445,48 @@ func (c *Config) ShouldAutoApprovePR() bool {
 	return c.Completion.PR.AutoApprove
 }
 
-// ShouldWaitForCI returns true if we should wait for CI to pass before merging.
-// This is only enabled for automation profiles that support fully automated workflows (auto, fast).
+// ShouldWaitForCI returns true if we should wait for CI checks before merging.
+// Only enabled for auto/fast profiles.
 func (c *Config) ShouldWaitForCI() bool {
 	if c.Profile != ProfileAuto && c.Profile != ProfileFast {
 		return false
 	}
-	return c.Completion.WaitForCI
+	return c.Completion.CI.WaitForCI
 }
 
-// ShouldMergeOnCIPass returns true if we should merge automatically when CI passes.
-// Requires WaitForCI to also be enabled.
+// ShouldMergeOnCIPass returns true if we should auto-merge after CI passes.
+// Only enabled for auto/fast profiles.
 func (c *Config) ShouldMergeOnCIPass() bool {
 	if c.Profile != ProfileAuto && c.Profile != ProfileFast {
 		return false
 	}
-	return c.Completion.WaitForCI && c.Completion.MergeOnCIPass
+	return c.Completion.CI.MergeOnCIPass
 }
 
-// GetCITimeout returns the CI timeout duration.
-// Returns default of 10 minutes if not configured.
-func (c *Config) GetCITimeout() time.Duration {
-	if c.Completion.CITimeout > 0 {
-		return c.Completion.CITimeout
+// CITimeout returns the configured CI timeout, defaulting to 10 minutes.
+func (c *Config) CITimeout() time.Duration {
+	if c.Completion.CI.CITimeout <= 0 {
+		return 10 * time.Minute
 	}
-	return 10 * time.Minute
+	return c.Completion.CI.CITimeout
+}
+
+// CIPollInterval returns the CI polling interval, defaulting to 30 seconds.
+func (c *Config) CIPollInterval() time.Duration {
+	if c.Completion.CI.PollInterval <= 0 {
+		return 30 * time.Second
+	}
+	return c.Completion.CI.PollInterval
+}
+
+// MergeMethod returns the configured merge method, defaulting to "squash".
+func (c *Config) MergeMethod() string {
+	method := c.Completion.CI.MergeMethod
+	if method == "" {
+		return "squash"
+	}
+	return method
+>>>>>>> cd053b2 ([orc] TASK-151: implement - implement: Complete auto-merge flow: wait for CI then merge after finalize - completed)
 }
 
 // FinalizeUsesRebase returns true if finalize should use rebase strategy.
