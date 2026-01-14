@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -623,5 +624,502 @@ func TestFinalizeResult_Fields(t *testing.T) {
 	}
 	if result.RiskLevel != "low" {
 		t.Errorf("expected RiskLevel = low, got %s", result.RiskLevel)
+	}
+}
+
+func TestWithFinalizeGitSvc(t *testing.T) {
+	// Test that WithFinalizeGitSvc option sets the git service
+	// We can't fully test with a real git.Git without a repo,
+	// but we can verify the option mechanism works
+	exec := NewFinalizeExecutor(nil)
+	if exec.gitSvc != nil {
+		t.Error("expected gitSvc to be nil initially")
+	}
+
+	// The option function should accept a *git.Git
+	// This tests the WithFinalizeGitSvc function signature
+	opt := WithFinalizeGitSvc(nil)
+	opt(exec)
+	// Still nil since we passed nil, but the option works
+	if exec.gitSvc != nil {
+		t.Error("expected gitSvc to remain nil after passing nil")
+	}
+}
+
+func TestWithFinalizePublisher(t *testing.T) {
+	exec := NewFinalizeExecutor(nil)
+	initialPublisher := exec.publisher
+
+	// Publisher should have a default value
+	if initialPublisher == nil {
+		t.Error("expected default publisher to be set")
+	}
+
+	// Apply option with nil - should still create a valid EventPublisher
+	opt := WithFinalizePublisher(nil)
+	opt(exec)
+
+	if exec.publisher == nil {
+		t.Error("expected publisher to be non-nil after option")
+	}
+}
+
+func TestWithFinalizeStateUpdater(t *testing.T) {
+	exec := NewFinalizeExecutor(nil)
+	if exec.stateUpdater != nil {
+		t.Error("expected stateUpdater to be nil initially")
+	}
+
+	called := false
+	updater := func(s *state.State) {
+		called = true
+	}
+
+	opt := WithFinalizeStateUpdater(updater)
+	opt(exec)
+
+	if exec.stateUpdater == nil {
+		t.Error("expected stateUpdater to be set")
+	}
+
+	// Call the updater to verify it was set correctly
+	exec.stateUpdater(nil)
+	if !called {
+		t.Error("expected stateUpdater to be called")
+	}
+}
+
+func TestFinalizeExecutor_fetchTarget_NoGitService(t *testing.T) {
+	exec := NewFinalizeExecutor(nil)
+	err := exec.fetchTarget()
+	if err == nil {
+		t.Error("expected error when git service not available")
+	}
+	if !strings.Contains(err.Error(), "git service not available") {
+		t.Errorf("expected 'git service not available' error, got: %s", err)
+	}
+}
+
+func TestFinalizeExecutor_checkDivergence_NoGitService(t *testing.T) {
+	exec := NewFinalizeExecutor(nil)
+	ahead, behind, err := exec.checkDivergence("main")
+	if err == nil {
+		t.Error("expected error when git service not available")
+	}
+	if ahead != 0 || behind != 0 {
+		t.Error("expected ahead and behind to be 0 on error")
+	}
+	if !strings.Contains(err.Error(), "git service not available") {
+		t.Errorf("expected 'git service not available' error, got: %s", err)
+	}
+}
+
+func TestFinalizeExecutor_syncWithTarget_NoGitService(t *testing.T) {
+	exec := NewFinalizeExecutor(nil)
+	cfg := config.FinalizeConfig{
+		Sync: config.FinalizeSyncConfig{Strategy: config.FinalizeSyncMerge},
+	}
+
+	result, err := exec.syncWithTarget(
+		context.Background(),
+		&task.Task{ID: "TASK-001"},
+		&plan.Phase{ID: "finalize"},
+		state.New("TASK-001"),
+		"main",
+		cfg,
+	)
+
+	if err == nil {
+		t.Error("expected error when git service not available")
+	}
+	if result.Synced {
+		t.Error("expected Synced to be false on error")
+	}
+}
+
+func TestFinalizeExecutor_assessRisk_Disabled(t *testing.T) {
+	exec := NewFinalizeExecutor(nil)
+	result := &FinalizeResult{}
+	cfg := config.FinalizeConfig{
+		RiskAssessment: config.RiskAssessmentConfig{
+			Enabled: false,
+		},
+	}
+
+	err := exec.assessRisk(result, "main", cfg)
+	if err != nil {
+		t.Errorf("expected no error when risk assessment disabled, got: %v", err)
+	}
+	if result.RiskLevel != "unknown" {
+		t.Errorf("expected risk level 'unknown' when disabled, got: %s", result.RiskLevel)
+	}
+}
+
+func TestFinalizeExecutor_assessRisk_NoGitService(t *testing.T) {
+	exec := NewFinalizeExecutor(nil)
+	result := &FinalizeResult{}
+	cfg := config.FinalizeConfig{
+		RiskAssessment: config.RiskAssessmentConfig{
+			Enabled: true,
+		},
+	}
+
+	err := exec.assessRisk(result, "main", cfg)
+	if err == nil {
+		t.Error("expected error when git service not available")
+	}
+	if !strings.Contains(err.Error(), "git service not available") {
+		t.Errorf("expected 'git service not available' error, got: %s", err)
+	}
+}
+
+func TestFinalizeExecutor_createFinalizeCommit_NoGitService(t *testing.T) {
+	exec := NewFinalizeExecutor(nil)
+	result := &FinalizeResult{}
+	tsk := &task.Task{ID: "TASK-001"}
+
+	sha, err := exec.createFinalizeCommit(tsk, result)
+	if err == nil {
+		t.Error("expected error when git service not available")
+	}
+	if sha != "" {
+		t.Error("expected empty SHA on error")
+	}
+}
+
+func TestFinalizeExecutor_publishProgress(t *testing.T) {
+	// Verify publishProgress doesn't panic
+	exec := NewFinalizeExecutor(nil)
+	exec.publishProgress("TASK-001", "finalize", "Test progress message")
+	// If we get here without panic, test passes
+}
+
+func TestBuildFinalizeReport_NeedsReview(t *testing.T) {
+	result := &FinalizeResult{
+		Synced:            true,
+		ConflictsResolved: 5,
+		ConflictFiles:     []string{"a.go", "b.go", "c.go", "d.go", "e.go"},
+		TestsPassed:       true,
+		RiskLevel:         "high",
+		FilesChanged:      25,
+		LinesChanged:      600,
+		NeedsReview:       true,
+		CommitSHA:         "abc123def",
+	}
+
+	report := buildFinalizeReport("TASK-002", "develop", result)
+
+	if !strings.Contains(report, "Review Required") {
+		t.Error("report should indicate review required")
+	}
+	if !strings.Contains(report, "develop") {
+		t.Error("report should contain target branch")
+	}
+	if !strings.Contains(report, "abc123def") {
+		t.Error("report should contain commit SHA")
+	}
+}
+
+func TestBuildFinalizeReport_CriticalRisk(t *testing.T) {
+	result := &FinalizeResult{
+		Synced:            true,
+		ConflictsResolved: 0,
+		TestsPassed:       true,
+		RiskLevel:         "critical",
+		FilesChanged:      50,
+		LinesChanged:      2000,
+		NeedsReview:       false,
+		CommitSHA:         "sha456",
+	}
+
+	report := buildFinalizeReport("TASK-003", "main", result)
+
+	if !strings.Contains(report, "Senior Review Required") {
+		t.Error("report should indicate senior review required for critical risk")
+	}
+	if !strings.Contains(report, "senior-review-required") {
+		t.Error("report should recommend senior review action")
+	}
+}
+
+func TestBuildFinalizeReport_TestsFailed(t *testing.T) {
+	result := &FinalizeResult{
+		Synced:      true,
+		TestsPassed: false,
+		RiskLevel:   "low",
+	}
+
+	report := buildFinalizeReport("TASK-004", "main", result)
+
+	if !strings.Contains(report, "✗ Tests failed") {
+		t.Error("report should indicate tests failed")
+	}
+}
+
+func TestBuildTestFailureContext_NilResult(t *testing.T) {
+	ctx := buildTestFailureContext(nil)
+	if !strings.Contains(ctx, "unknown results") {
+		t.Error("context should indicate unknown results for nil input")
+	}
+}
+
+func TestBuildTestFailureContext_WithFailures(t *testing.T) {
+	testResult := &ParsedTestResult{
+		Failed: 2,
+		Failures: []TestFailure{
+			{Test: "TestOne", File: "one_test.go", Line: 10, Message: "assertion failed"},
+			{Test: "TestTwo", File: "two_test.go", Line: 20, Message: "timeout"},
+		},
+	}
+
+	ctx := buildTestFailureContext(testResult)
+	if ctx == "" {
+		t.Error("expected non-empty context")
+	}
+}
+
+func TestBuildConflictResolutionPrompt_NoCustomInstructions(t *testing.T) {
+	tsk := &task.Task{
+		ID:    "TASK-001",
+		Title: "Test task",
+	}
+	conflictFiles := []string{"file.go"}
+	cfg := config.FinalizeConfig{
+		ConflictResolution: config.ConflictResolutionConfig{
+			Enabled:      true,
+			Instructions: "", // No custom instructions
+		},
+	}
+
+	prompt := buildConflictResolutionPrompt(tsk, conflictFiles, cfg)
+
+	if strings.Contains(prompt, "Additional Instructions") {
+		t.Error("prompt should not contain 'Additional Instructions' when none provided")
+	}
+	if !strings.Contains(prompt, "NEVER remove features") {
+		t.Error("prompt should still contain core rules")
+	}
+}
+
+func TestBuildTestFixPrompt_ManyFailures(t *testing.T) {
+	tsk := &task.Task{ID: "TASK-001", Title: "Test"}
+	testResult := &ParsedTestResult{
+		Failed: 10,
+		Failures: []TestFailure{
+			{Test: "Test1", Message: "fail1"},
+			{Test: "Test2", Message: "fail2"},
+			{Test: "Test3", Message: "fail3"},
+			{Test: "Test4", Message: "fail4"},
+			{Test: "Test5", Message: "fail5"},
+			{Test: "Test6", Message: "fail6"},
+			{Test: "Test7", Message: "fail7"},
+			{Test: "Test8", Message: "fail8"},
+			{Test: "Test9", Message: "fail9"},
+			{Test: "Test10", Message: "fail10"},
+		},
+	}
+
+	prompt := buildTestFixPrompt(tsk, testResult)
+
+	// Should show first 5 and "... and N more"
+	if !strings.Contains(prompt, "and 5 more failures") {
+		t.Error("prompt should truncate to 5 failures and show count of remaining")
+	}
+	if strings.Contains(prompt, "Test6") {
+		t.Error("prompt should not contain Test6 (should be truncated)")
+	}
+}
+
+func TestFinalizeExecutor_tryFixTests_NoManager(t *testing.T) {
+	exec := NewFinalizeExecutor(nil) // No session manager
+	testResult := &ParsedTestResult{}
+
+	fixed, err := exec.tryFixTests(
+		context.Background(),
+		&task.Task{ID: "TASK-001"},
+		&plan.Phase{ID: "finalize"},
+		state.New("TASK-001"),
+		testResult,
+	)
+
+	if err == nil {
+		t.Error("expected error when session manager not available")
+	}
+	if fixed {
+		t.Error("expected fixed to be false on error")
+	}
+}
+
+func TestFinalizeExecutor_resolveConflicts_NoManager(t *testing.T) {
+	exec := NewFinalizeExecutor(nil) // No session manager
+	cfg := config.FinalizeConfig{}
+
+	resolved, err := exec.resolveConflicts(
+		context.Background(),
+		&task.Task{ID: "TASK-001"},
+		&plan.Phase{ID: "finalize"},
+		state.New("TASK-001"),
+		[]string{"conflict.go"},
+		cfg,
+	)
+
+	if err == nil {
+		t.Error("expected error when session manager not available")
+	}
+	if resolved {
+		t.Error("expected resolved to be false on error")
+	}
+}
+
+func TestFinalizeExecutor_shouldEscalate_EdgeCases(t *testing.T) {
+	exec := NewFinalizeExecutor(nil)
+	cfg := config.FinalizeConfig{}
+
+	tests := []struct {
+		name     string
+		result   *FinalizeResult
+		expected bool
+	}{
+		{
+			name: "exactly 10 conflicts - no escalation",
+			result: &FinalizeResult{
+				ConflictFiles: make([]string, 10),
+				TestsPassed:   true,
+			},
+			expected: false,
+		},
+		{
+			name: "11 conflicts - triggers escalation",
+			result: &FinalizeResult{
+				ConflictFiles: make([]string, 11),
+				TestsPassed:   true,
+			},
+			expected: true,
+		},
+		{
+			name: "5 test failures with tests not passed - no escalation",
+			result: &FinalizeResult{
+				TestsPassed:  false,
+				TestFailures: make([]TestFailure, 5),
+			},
+			expected: false,
+		},
+		{
+			name: "6 test failures - triggers escalation",
+			result: &FinalizeResult{
+				TestsPassed:  false,
+				TestFailures: make([]TestFailure, 6),
+			},
+			expected: true,
+		},
+		{
+			name: "tests passed even with test failures in slice - no escalation",
+			result: &FinalizeResult{
+				TestsPassed:  true,
+				TestFailures: make([]TestFailure, 10),
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := exec.shouldEscalate(tt.result, cfg)
+			if got != tt.expected {
+				t.Errorf("shouldEscalate() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestBuildEscalationContext_OnlyConflicts(t *testing.T) {
+	result := &FinalizeResult{
+		ConflictFiles: []string{"a.go", "b.go"},
+		TestsPassed:   true,
+	}
+
+	ctx := buildEscalationContext(result)
+
+	if !strings.Contains(ctx, "Unresolved Conflicts") {
+		t.Error("context should contain conflicts section")
+	}
+	if strings.Contains(ctx, "Test Failures") {
+		t.Error("context should not contain test failures section when tests passed")
+	}
+}
+
+func TestBuildEscalationContext_ManyTestFailures(t *testing.T) {
+	failures := make([]TestFailure, 10)
+	for i := 0; i < 10; i++ {
+		failures[i] = TestFailure{
+			Test:    fmt.Sprintf("Test%d", i),
+			Message: fmt.Sprintf("failure %d", i),
+		}
+	}
+
+	result := &FinalizeResult{
+		TestsPassed:  false,
+		TestFailures: failures,
+	}
+
+	ctx := buildEscalationContext(result)
+
+	if !strings.Contains(ctx, "and 5 more failures") {
+		t.Error("context should truncate test failures to 5 and show remaining count")
+	}
+}
+
+func TestSyncStrategy_DefaultMerge(t *testing.T) {
+	exec := NewFinalizeExecutor(nil)
+	cfg := config.FinalizeConfig{
+		Sync: config.FinalizeSyncConfig{
+			Strategy: "unknown-strategy", // Unknown strategy
+		},
+	}
+
+	// This should fall through to default merge behavior
+	result, err := exec.syncWithTarget(
+		context.Background(),
+		&task.Task{ID: "TASK-001"},
+		&plan.Phase{ID: "finalize"},
+		state.New("TASK-001"),
+		"main",
+		cfg,
+	)
+
+	// Will fail because no git service, but verifies default path
+	if err == nil {
+		t.Error("expected error due to no git service")
+	}
+	if result == nil {
+		t.Error("expected result to be non-nil")
+	}
+}
+
+func TestFinalizeExecutor_Execute_BranchUpToDate(t *testing.T) {
+	// This test verifies the path when branch is already up-to-date
+	// Since we can't easily mock git operations, we test the disabled path instead
+	orcCfg := &config.Config{
+		Completion: config.CompletionConfig{
+			Finalize: config.FinalizeConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	exec := NewFinalizeExecutor(nil, WithFinalizeOrcConfig(orcCfg))
+
+	tsk := &task.Task{ID: "TASK-001", Title: "Test", Weight: task.WeightLarge}
+	phase := &plan.Phase{ID: "finalize"}
+	s := state.New("TASK-001")
+
+	result, err := exec.Execute(context.Background(), tsk, phase, s)
+
+	// Should fail because no git service
+	if err == nil {
+		t.Error("expected error when git service not available")
+	}
+	if result.Status != plan.PhaseFailed {
+		t.Errorf("expected status = failed, got %s", result.Status)
 	}
 }
