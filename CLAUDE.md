@@ -82,6 +82,26 @@ Tasks support queue, priority, category, and initiative organization:
 
 Tasks are sorted within each column by: **running status first** (running tasks always appear at the top), then by priority. Higher priority tasks appear before lower priority tasks.
 
+### Task Dependencies
+
+Tasks support dependency relationships for ordering and tracking:
+
+| Field | Stored | Purpose |
+|-------|--------|---------|
+| `blocked_by` | Yes | Task IDs that must complete before this task |
+| `blocks` | No | Tasks waiting on this task (computed inverse) |
+| `related_to` | Yes | Related task IDs (informational) |
+| `referenced_by` | No | Tasks mentioning this task ID (auto-detected) |
+
+**CLI usage:**
+```bash
+orc new "Part 2" --blocked-by TASK-001,TASK-002
+orc edit TASK-003 --add-blocker TASK-004
+orc edit TASK-003 --remove-blocker TASK-001
+```
+
+**Validation:** Self-references rejected, circular dependencies detected, non-existent IDs rejected.
+
 ### Weight Classification
 
 | Weight | Phases | Use Case |
@@ -367,6 +387,7 @@ Patterns, gotchas, and decisions learned during development.
 | Initiative-task bidirectional sync | Setting `initiative_id` on a task auto-adds it to the initiative's task list; deleting a task removes it from its initiative | TASK-060 |
 | Editable settings via UI | All settings (Claude Code global/project, orc config) editable through web UI; separate API endpoints for global (`PUT /api/settings/global`) vs project (`PUT /api/settings`) scope | TASK-033 |
 | Browser-safe keyboard shortcuts | Web UI uses `Shift+Alt` modifier (⇧⌥ on Mac) for global shortcuts instead of Cmd/Ctrl to avoid browser conflicts with Cmd+K, Cmd+N, etc. | TASK-037 |
+| Task dependency validation | `blocked_by` and `related_to` fields validated on create/update: references must exist, no self-references, circular deps rejected; computed fields (`blocks`, `referenced_by`) populated on load | TASK-070 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

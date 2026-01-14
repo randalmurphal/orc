@@ -61,7 +61,9 @@ Supports both JSON and multipart/form-data. Use multipart when attaching files d
   "queue": "active",
   "priority": "normal",
   "category": "feature",
-  "initiative_id": "INIT-001"
+  "initiative_id": "INIT-001",
+  "blocked_by": ["TASK-001", "TASK-002"],
+  "related_to": ["TASK-003"]
 }
 ```
 
@@ -75,6 +77,8 @@ Supports both JSON and multipart/form-data. Use multipart when attaching files d
 | `priority` | string | critical/high/normal/low |
 | `category` | string | feature/bug/refactor/chore/docs/test |
 | `initiative_id` | string | Initiative ID to link task to (e.g., INIT-001) |
+| `blocked_by` | string | Comma-separated task IDs that must complete first |
+| `related_to` | string | Comma-separated related task IDs |
 | `attachments` | file[] | Files to attach (repeatable) |
 
 All fields except `title` are optional. Defaults: `queue: "active"`, `priority: "normal"`, `category: "feature"`, `initiative_id: ""` (standalone).
@@ -89,6 +93,8 @@ All fields except `title` are optional. Defaults: `queue: "active"`, `priority: 
   "priority": "high",
   "category": "bug",
   "initiative_id": "INIT-001",
+  "blocked_by": ["TASK-001"],
+  "related_to": ["TASK-002", "TASK-003"],
   "metadata": {"key": "value"}
 }
 ```
@@ -102,10 +108,17 @@ All fields are optional. Only provided fields are updated. Cannot update running
 | `priority` | `critical`, `high`, `normal`, `low` |
 | `category` | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` |
 | `initiative_id` | Initiative ID (e.g., `INIT-001`) or `""` to unlink |
+| `blocked_by` | Array of task IDs that must complete first |
+| `related_to` | Array of related task IDs (informational) |
 
 Weight changes trigger automatic plan regeneration (completed/skipped phases are preserved if they exist in both plans).
 
 **Initiative linking:** Setting `initiative_id` links the task to an initiative. The task is auto-added to the initiative's task list (bidirectional sync). Use `""` to unlink a task from its initiative.
+
+**Dependency validation:**
+- Referenced task IDs must exist
+- Self-references are rejected
+- Circular dependencies are detected and rejected
 
 ### Task Attachments
 
@@ -132,6 +145,42 @@ Weight changes trigger automatic plan regeneration (completed/skipped phases are
 **Download headers:**
 - Images: `Content-Disposition: inline` (renders in browser)
 - Other files: `Content-Disposition: attachment` (triggers download)
+
+### Task Dependencies
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tasks/:id/dependencies` | Get dependency graph for task |
+
+**Dependencies response:**
+```json
+{
+  "task_id": "TASK-001",
+  "blocked_by": [
+    {"id": "TASK-060", "title": "Setup auth", "status": "completed", "exists": true}
+  ],
+  "blocks": [
+    {"id": "TASK-062", "title": "Add OAuth", "status": "planned", "exists": true}
+  ],
+  "related_to": [
+    {"id": "TASK-063", "title": "Update docs", "status": "created", "exists": true}
+  ],
+  "referenced_by": [
+    {"id": "TASK-064", "title": "See TASK-001 for context", "status": "planned", "exists": true}
+  ],
+  "unmet_dependencies": ["TASK-060"],
+  "can_run": false
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `blocked_by` | Tasks that must complete before this task (stored) |
+| `blocks` | Tasks waiting on this task (computed inverse) |
+| `related_to` | Related tasks for reference (stored) |
+| `referenced_by` | Tasks whose descriptions mention this task (auto-detected) |
+| `unmet_dependencies` | Blockers that are not yet completed |
+| `can_run` | True if no unmet dependencies |
 
 ### Task Export
 

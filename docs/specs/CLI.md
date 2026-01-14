@@ -79,12 +79,16 @@ orc new <title> [--weight <weight>] [--category <category>] [--description <desc
 | `--var` | Template variable (KEY=VALUE), can be repeated | none |
 | `--attach`, `-a` | Attach file(s) to task, can be repeated | none |
 | `--initiative`, `-i` | Link task to initiative (e.g., INIT-001) | none (standalone) |
+| `--blocked-by` | Task IDs that must complete first, comma-separated | none |
+| `--related-to` | Related task IDs, comma-separated | none |
 
 **Testing Detection**: Task creation automatically detects UI-related keywords in the title/description and sets:
 - `requires_ui_testing: true` for UI tasks
 - `testing_requirements.e2e: true` for frontend projects with UI tasks
 
 **Attachments**: Attach screenshots, logs, or other files to provide context for the task. Files are stored in `.orc/tasks/TASK-XXX/attachments/`.
+
+**Dependencies**: Specify task dependencies at creation time. Use `--blocked-by` for tasks that must complete first (hard dependency), and `--related-to` for informational links.
 
 **Examples**:
 ```bash
@@ -96,6 +100,8 @@ orc new -t bugfix "Fix memory leak"
 orc new "UI rendering issue" --attach screenshot.png
 orc new "API error" -a error.log -a response.json  # Multiple attachments
 orc new "Add login flow" --initiative INIT-001     # Link to initiative
+orc new "Part 2 of feature" --blocked-by TASK-001
+orc new "Final step" --blocked-by TASK-001,TASK-002 --related-to TASK-003
 ```
 
 **Output**:
@@ -166,10 +172,18 @@ orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>] 
 | `--description`, `-d` | New task description | |
 | `--weight`, `-w` | New weight (trivial/small/medium/large/greenfield) | Triggers plan regeneration |
 | `--initiative`, `-i` | Link/unlink task to initiative | Use `""` to unlink |
+| `--blocked-by` | Set blocked_by list (replaces existing) | Comma-separated |
+| `--add-blocker` | Add task(s) to blocked_by list | Comma-separated |
+| `--remove-blocker` | Remove task(s) from blocked_by list | Comma-separated |
+| `--related-to` | Set related_to list (replaces existing) | Comma-separated |
+| `--add-related` | Add task(s) to related_to list | Comma-separated |
+| `--remove-related` | Remove task(s) from related_to list | Comma-separated |
 
 Weight changes regenerate the task plan with phases appropriate for the new weight. Completed/skipped phases that exist in both the old and new plans retain their status. Requires the task to not be running.
 
 **Initiative linking:** Setting `--initiative INIT-001` links the task to an initiative. The task is auto-added to the initiative's task list (bidirectional sync). Use `--initiative ""` to unlink a task from its initiative.
+
+**Dependency changes:** Validate that referenced task IDs exist and detect circular dependencies (A blocks B blocks A).
 
 **Examples**:
 ```bash
@@ -178,6 +192,10 @@ orc edit TASK-001 --weight large
 orc edit TASK-001 -d "Updated description" -t "New title"
 orc edit TASK-001 --initiative INIT-001   # Link to initiative
 orc edit TASK-001 --initiative ""         # Unlink from initiative
+orc edit TASK-001 --blocked-by TASK-002,TASK-003   # Replace blockers
+orc edit TASK-001 --add-blocker TASK-004           # Add a blocker
+orc edit TASK-001 --remove-blocker TASK-002        # Remove a blocker
+orc edit TASK-001 --related-to TASK-005            # Set related tasks
 ```
 
 ---
