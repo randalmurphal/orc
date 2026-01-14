@@ -31,7 +31,7 @@ func withResumeTestDir(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		os.Chdir(origWd)
+		_ = os.Chdir(origWd)
 	})
 }
 
@@ -101,12 +101,8 @@ func TestResumeCommand_FailedTask(t *testing.T) {
 		// a real Claude API in tests
 	}
 
-	// Verify the task status message was printed
-	output := stdout.String()
-	if !contains([]string{output}, "failed previously") {
-		// This is OK - the message might be in stderr or not printed at all
-		// due to how the test captures output
-	}
+	// Verify the task status message was printed (optional check, may not capture)
+	_ = stdout.String() // output may or may not contain "failed previously" depending on capture
 }
 
 func TestResumeCommand_TaskNotFound(t *testing.T) {
@@ -224,7 +220,7 @@ func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get working dir: %v", err)
 	}
-	defer os.Chdir(origWd)
+	defer func() { _ = os.Chdir(origWd) }()
 
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("failed to chdir to tmpDir: %v", err)

@@ -220,9 +220,14 @@ Example:
 					// Update task and state status for clean interrupt
 					s.InterruptPhase(s.CurrentPhase)
 					taskDir := task.TaskDirIn(projectRoot, id)
-					s.SaveTo(taskDir)
+					if saveErr := s.SaveTo(taskDir); saveErr != nil {
+						// Log but continue - we're in cleanup mode
+						disp.Warning(fmt.Sprintf("failed to save state on interrupt: %v", saveErr))
+					}
 					t.Status = task.StatusBlocked
-					t.SaveTo(taskDir)
+					if saveErr := t.SaveTo(taskDir); saveErr != nil {
+						disp.Warning(fmt.Sprintf("failed to save task on interrupt: %v", saveErr))
+					}
 					disp.TaskInterrupted()
 					return nil // Clean interrupt
 				}

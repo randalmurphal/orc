@@ -842,7 +842,7 @@ func TestFindProjectRoot_CurrentDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get working dir: %v", err)
 	}
-	defer os.Chdir(origWd)
+	defer func() { _ = os.Chdir(origWd) }()
 
 	// Create temp project with tasks
 	tmpDir := t.TempDir()
@@ -872,7 +872,7 @@ func TestFindProjectRoot_NotInitialized(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get working dir: %v", err)
 	}
-	defer os.Chdir(origWd)
+	defer func() { _ = os.Chdir(origWd) }()
 
 	// Create temp dir without .orc
 	tmpDir := t.TempDir()
@@ -895,7 +895,7 @@ func TestFindProjectRoot_FallbackToOrcDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get working dir: %v", err)
 	}
-	defer os.Chdir(origWd)
+	defer func() { _ = os.Chdir(origWd) }()
 
 	// Create temp project with .orc but no tasks dir (freshly initialized)
 	tmpDir := t.TempDir()
@@ -925,7 +925,7 @@ func TestFindProjectRoot_WalkUpDirectories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get working dir: %v", err)
 	}
-	defer os.Chdir(origWd)
+	defer func() { _ = os.Chdir(origWd) }()
 
 	// Create temp project structure:
 	// tmpDir/.orc/tasks (project root)
