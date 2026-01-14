@@ -99,7 +99,8 @@ Migration follows the existing Svelte component structure:
 | `+layout.svelte` | `App.tsx` + Router | Scaffolded |
 | `lib/components/` | `src/components/` | Pending |
 | `lib/stores/` | `src/stores/` (Zustand) | ✅ Complete |
-| `lib/utils/` | `src/lib/` | Pending |
+| `lib/websocket.ts` | `src/lib/websocket.ts` | ✅ Complete |
+| `lib/utils/` | `src/lib/` | In Progress |
 
 **Stores implemented (Phase 1):**
 - `taskStore.ts` - Task data and execution state with derived selectors
@@ -459,6 +460,27 @@ function ConnectionIndicator() {
 - **Ping/pong:** 30s heartbeat to keep connection alive
 - **Primary subscription:** Global subscription restored after reconnect
 - **Store integration:** Events automatically update TaskStore and UIStore
+
+#### OrcWebSocket Class (Internal)
+
+The hooks wrap `OrcWebSocket` from `@/lib/websocket`. For most cases, use the hooks. Direct class usage is only needed for advanced scenarios outside React.
+
+```typescript
+import { OrcWebSocket, GLOBAL_TASK_ID } from '@/lib/websocket';
+
+const ws = new OrcWebSocket();
+ws.connect(GLOBAL_TASK_ID);  // Connect and subscribe to all events
+ws.on('state', (event) => console.log(event));
+ws.pause('TASK-001');  // Send pause command
+ws.disconnect();  // Cleanup
+```
+
+### Lib Utilities
+
+| File | Purpose |
+|------|---------|
+| `lib/types.ts` | TypeScript interfaces matching Go backend types |
+| `lib/websocket.ts` | OrcWebSocket class for WebSocket connection management |
 
 ## Known Differences from Svelte
 
