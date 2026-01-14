@@ -38,7 +38,7 @@ web/src/
 
 | Category | Components | Purpose |
 |----------|------------|---------|
-| Layout | Header, Sidebar | Navigation, project switcher |
+| Layout | Header, Sidebar | Navigation, project/initiative switcher |
 | Dashboard | Stats, QuickActions, ActiveTasks, RecentActivity | Overview page |
 | Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments, TokenUsage | Task detail |
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
@@ -54,10 +54,26 @@ web/src/
 |-------|---------|
 | `tasks` | Global reactive task state, WebSocket updates |
 | `project` | Current project selection with persistence |
+| `initiative` | Initiative filter selection with URL + localStorage persistence |
 | `sidebar` | Expanded/collapsed state (persisted in localStorage) |
 | `toast` | Notification queue |
 
 **Task store** initialized in `+layout.svelte`, synced via global WebSocket. Pages subscribe for reactive updates.
+
+### Initiative Filter
+
+Initiative filtering persists across page refreshes using URL and localStorage:
+
+**Priority order** (highest to lowest):
+1. **URL parameter** (`?initiative=<id>`) - Shareable links, survives refresh
+2. **localStorage** (`orc_current_initiative_id`) - User's last selection
+3. **null** - No filter (show all tasks)
+
+**Browser history:** Selecting initiatives pushes to browser history, so back/forward buttons navigate between filter states.
+
+**Store:** Use `currentInitiativeId` for the active filter, `initiatives` for the list, and `initiativeProgress` for completion counts.
+
+**API:** Use `selectInitiative(id)` to filter by initiative (updates URL + localStorage). Pass `null` to clear the filter.
 
 ### Project Selection
 
@@ -232,6 +248,40 @@ Right-click or use the "..." menu on TaskCard to:
 - Set priority (Critical/High/Normal/Low)
 - Set category (Feature/Bug/Refactor/Chore/Docs/Test)
 - Run/Pause task actions
+
+### Initiatives Sidebar Navigation
+
+The sidebar includes a collapsible Initiatives section following Linear-style UX patterns:
+
+```
+Work
+├── Dashboard
+├── Tasks
+├── Board
+└── Initiatives           ← Collapsible section
+    ├── ● All Tasks       (selected = shows all tasks)
+    ├── ○ Frontend Migration (3/7)
+    ├── ○ Auth Rework (1/4)
+    └── + New Initiative  (opens create modal)
+```
+
+| Feature | Description |
+|---------|-------------|
+| Selection indicator | Filled dot (●) for selected, empty dot (○) for others |
+| Progress display | Shows (completed/total) count from initiative tasks |
+| Sorting | Active initiatives first, then by recency |
+| Create button | '+ New Initiative' triggers `onNewInitiative` callback |
+| Filtering | Selection applies to both Board and Tasks pages |
+
+**Selection behavior:**
+- Click "All Tasks" to clear filter and show all tasks
+- Click an initiative to filter Board/Tasks to only those tasks
+- Selection persists in URL (`?initiative=INIT-001`) and localStorage
+
+**Store integration:**
+- Uses `$initiatives` for the list
+- Uses `$currentInitiativeId` for the selection (null = all tasks)
+- Uses `$initiativeProgress` for completion counts
 
 ## Attachments
 
