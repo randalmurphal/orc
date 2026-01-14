@@ -109,8 +109,8 @@ orc edit TASK-003 --remove-blocker TASK-001
 | trivial | implement | One-liner fix |
 | small | implement → test | Bug fix, small feature |
 | medium | implement → test → docs | Feature with tests |
-| large | spec → implement → test → docs → validate | Complex feature |
-| greenfield | research → spec → implement → test → docs → validate | New system |
+| large | spec → implement → test → docs → validate → finalize | Complex feature |
+| greenfield | research → spec → implement → test → docs → validate → finalize | New system |
 
 ### Completion Detection
 
@@ -148,6 +148,7 @@ When running a task, orc detects existing artifacts and offers to skip phases:
 | implement | No | Never (too complex) |
 | test | No | Must re-run against current code |
 | validate | No | Must verify current state |
+| finalize | No | Must sync with latest target branch |
 
 Use `--auto-skip` to skip automatically without prompting. Skip reasons are recorded in `state.yaml`.
 

@@ -203,6 +203,9 @@ phases:
   - name: validate
     max_iterations: 2
     gate: ai
+  - name: finalize
+    max_iterations: 3
+    gate: auto
 ```
 
 ### Greenfield
@@ -234,6 +237,9 @@ phases:
   - name: validate
     max_iterations: 3
     gate: human
+  - name: finalize
+    max_iterations: 3
+    gate: auto
 ```
 
 ---
@@ -297,6 +303,7 @@ Before running a task, orc checks if artifacts from previous runs exist. This al
 | `implement` | Never detected | No | Code state too complex to validate |
 | `test` | `test-results/report.json` | No | Tests must re-run against current code |
 | `validate` | `artifacts/validate.md` | No | Validation must verify current state |
+| `finalize` | Never detected | No | Must sync with latest target branch |
 
 ### Behavior
 
