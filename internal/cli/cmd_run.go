@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -68,8 +69,7 @@ Example:
 			// Check for incomplete blockers
 			if len(t.BlockedBy) > 0 {
 				// Load all tasks to check blocker status
-				tasksDir := task.TaskDirIn(projectRoot, "")
-				tasksDir = tasksDir[:len(tasksDir)-1] // Remove trailing empty ID
+				tasksDir := filepath.Join(projectRoot, task.OrcDir, task.TasksDir)
 				allTasks, err := task.LoadAllFrom(tasksDir)
 				if err != nil {
 					return fmt.Errorf("load tasks for dependency check: %w", err)
