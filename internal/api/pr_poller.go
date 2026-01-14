@@ -89,10 +89,8 @@ func (p *PRPoller) run(ctx context.Context) {
 }
 
 func (p *PRPoller) pollAll(ctx context.Context) {
-	// Load all tasks
-	tasksDir := task.TaskDirIn(p.workDir, "")
-	// Fix path - TaskDirIn adds task ID, we need tasks directory
-	tasksDir = p.workDir + "/.orc/tasks"
+	// Load all tasks from the tasks directory
+	tasksDir := p.workDir + "/.orc/tasks"
 	tasks, err := task.LoadAllFrom(tasksDir)
 	if err != nil {
 		p.logger.Debug("failed to load tasks for PR polling", "error", err)
@@ -198,6 +196,12 @@ func (p *PRPoller) pollTask(ctx context.Context, client *github.Client, t *task.
 }
 
 func (p *PRPoller) determinePRStatus(pr *github.PR, summary *github.PRStatusSummary) task.PRStatus {
+	return DeterminePRStatus(pr, summary)
+}
+
+// DeterminePRStatus derives the task.PRStatus from a PR and its review summary.
+// This is used by both the poller and the API handler.
+func DeterminePRStatus(pr *github.PR, summary *github.PRStatusSummary) task.PRStatus {
 	// Check if PR is merged
 	if pr.State == "MERGED" {
 		return task.PRStatusMerged

@@ -879,7 +879,7 @@ func (s *Server) handleRefreshPRStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Determine PR status
-	prStatus := determinePRStatusFromSummary(pr, summary)
+	prStatus := DeterminePRStatus(pr, summary)
 
 	// Update task PR info
 	if t.PR == nil {
@@ -902,38 +902,10 @@ func (s *Server) handleRefreshPRStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.jsonResponse(w, map[string]any{
-		"pr":       pr,
-		"status":   t.PR,
-		"reviews":  summary,
-		"message":  fmt.Sprintf("PR #%d status refreshed", pr.Number),
-		"task_id":  taskID,
+		"pr":      pr,
+		"status":  t.PR,
+		"reviews": summary,
+		"message": fmt.Sprintf("PR #%d status refreshed", pr.Number),
+		"task_id": taskID,
 	})
-}
-
-// determinePRStatusFromSummary derives the task.PRStatus from a PR and its review summary.
-func determinePRStatusFromSummary(pr *github.PR, summary *github.PRStatusSummary) task.PRStatus {
-	// Check if PR is merged
-	if pr.State == "MERGED" {
-		return task.PRStatusMerged
-	}
-
-	// Check if PR is closed
-	if pr.State == "CLOSED" {
-		return task.PRStatusClosed
-	}
-
-	// Check if PR is draft
-	if pr.Draft {
-		return task.PRStatusDraft
-	}
-
-	// Use review status
-	switch summary.ReviewStatus {
-	case "approved":
-		return task.PRStatusApproved
-	case "changes_requested":
-		return task.PRStatusChangesRequested
-	default:
-		return task.PRStatusPendingReview
-	}
 }
