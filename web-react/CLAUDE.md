@@ -18,20 +18,25 @@ React 19 application for orc web UI, running in parallel with existing Svelte ap
 ```
 web-react/src/
 ├── main.tsx              # Entry point (BrowserRouter)
-├── App.tsx               # Root component (useRoutes + WebSocketProvider)
+├── App.tsx               # Root component (useRoutes + ShortcutProvider + WebSocketProvider)
 ├── index.css             # Global styles
 ├── router/               # Route configuration
 │   ├── index.ts          # Exports
 │   └── routes.tsx        # Route definitions
 ├── lib/                  # Shared utilities
 │   ├── types.ts          # TypeScript interfaces
-│   └── websocket.ts      # OrcWebSocket class
+│   ├── websocket.ts      # OrcWebSocket class
+│   ├── shortcuts.ts      # ShortcutManager class
+│   └── platform.ts       # Platform detection (isMac)
 ├── components/           # UI components
-│   └── layout/           # Layout components
-│       ├── AppLayout.tsx # Main layout (Sidebar + Header + Outlet)
-│       ├── Sidebar.tsx   # Left navigation
-│       ├── Header.tsx    # Top bar
-│       └── UrlParamSync.tsx # URL <-> Store bidirectional sync
+│   ├── layout/           # Layout components
+│   │   ├── AppLayout.tsx # Main layout (Sidebar + Header + Outlet)
+│   │   ├── Sidebar.tsx   # Left navigation
+│   │   ├── Header.tsx    # Top bar
+│   │   └── UrlParamSync.tsx # URL <-> Store bidirectional sync
+│   └── overlays/         # Modal overlays
+│       ├── Modal.tsx     # Base modal component
+│       └── KeyboardShortcutsHelp.tsx # Shortcuts help modal
 ├── pages/                # Route pages
 │   ├── TaskList.tsx      # / - Task list
 │   ├── Board.tsx         # /board - Kanban board
@@ -132,6 +137,11 @@ Migration follows the existing Svelte component structure:
 **Router implemented (Phase 2):**
 - `router/routes.tsx` - Route configuration matching Svelte app
 - `components/layout/UrlParamSync.tsx` - Bidirectional URL/store sync
+
+**Keyboard shortcuts implemented (Phase 1):**
+- `lib/shortcuts.ts` - ShortcutManager class with sequence support
+- `hooks/useShortcuts.tsx` - ShortcutProvider, useShortcuts, useGlobalShortcuts, useTaskListShortcuts
+- `components/overlays/KeyboardShortcutsHelp.tsx` - Help modal with platform-aware key display
 
 ## Routing
 
