@@ -1606,7 +1606,7 @@ export async function createInitiative(req: CreateInitiativeRequest): Promise<In
 export async function updateInitiative(id: string, req: UpdateInitiativeRequest, shared?: boolean): Promise<Initiative> {
 	const query = shared ? '?shared=true' : '';
 	return fetchJSON<Initiative>(`/initiatives/${id}${query}`, {
-		method: 'PATCH',
+		method: 'PUT',
 		body: JSON.stringify(req)
 	});
 }
