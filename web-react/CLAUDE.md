@@ -51,6 +51,8 @@ web-react/src/
 │   │   └── UrlParamSync.tsx # URL <-> Store bidirectional sync
 │   ├── filters/          # Filter dropdowns
 │   │   └── DependencyDropdown.tsx # Dependency status filter
+│   ├── initiative/       # Initiative components
+│   │   └── DependencyGraph.tsx # Interactive DAG visualization
 │   ├── overlays/         # Modal overlays
 │   │   ├── Modal.tsx     # Base modal component
 │   │   └── KeyboardShortcutsHelp.tsx # Shortcuts help modal
@@ -122,8 +124,8 @@ This React app runs alongside Svelte during migration:
 
 1. **Phase 1** ✅: Project scaffolding, Zustand stores mirroring Svelte stores
 2. **Phase 2** ✅: Core infrastructure (API client, WebSocket, Router with URL sync), Dashboard page, Board page (flat/swimlane views)
-3. **Phase 3** (current): Component migration (parallel implementation) - TaskList, TaskDetail, InitiativeDetail
-4. **Phase 4**: E2E test validation, feature parity verification
+3. **Phase 3** ✅: Component migration - TaskList, TaskDetail, InitiativeDetail (with all tabs including dependency graph)
+4. **Phase 4** (current): E2E test validation, feature parity verification
 5. **Phase 5**: Cutover and Svelte removal
 
 ### Shared Resources
@@ -161,10 +163,12 @@ Migration follows the existing Svelte component structure:
 | `lib/components/InitiativeDropdown.svelte` | `components/board/InitiativeDropdown.tsx` | ✅ Complete |
 | `lib/components/DependencyDropdown.svelte` | `components/filters/DependencyDropdown.tsx` | ✅ Complete |
 | `routes/+page.svelte` (task list) | `pages/TaskList.tsx` | ✅ Complete |
+| `routes/initiatives/[id]/+page.svelte` | `pages/InitiativeDetail.tsx` | ✅ Complete |
+| `lib/components/DependencyGraph.svelte` | `components/initiative/DependencyGraph.tsx` | ✅ Complete |
 | `lib/stores/` | `src/stores/` (Zustand) | ✅ Complete |
 | `lib/websocket.ts` | `src/lib/websocket.ts` | ✅ Complete |
-| `lib/utils/` | `src/lib/` | In Progress |
-| Route pages | `src/pages/` | In Progress |
+| `lib/utils/` | `src/lib/` | ✅ Complete |
+| Route pages | `src/pages/` | ✅ Complete |
 
 **Stores implemented (Phase 1 + Phase 3):**
 - `taskStore.ts` - Task data and execution state with derived selectors
@@ -1200,6 +1204,7 @@ ws.disconnect();  // Cleanup
 | `lib/websocket.ts` | OrcWebSocket class for WebSocket connection management |
 | `lib/shortcuts.ts` | ShortcutManager class for keyboard shortcuts |
 | `lib/platform.ts` | Platform detection (isMac) and modifier key formatting |
+| `lib/graph-layout.ts` | DAG layout algorithm using Kahn's topological sort |
 
 ### Keyboard Shortcuts
 
@@ -1548,6 +1553,146 @@ import { InitiativeDropdown } from '@/components/board';
 - Title truncation with tooltip
 - Active filter visual indication
 - Click outside to close
+
+## Initiative Components
+
+Components for the Initiative Detail page (`/initiatives/:id`).
+
+### InitiativeDetail (Page)
+
+Full-featured initiative management page with tabs.
+
+```tsx
+import { InitiativeDetail } from '@/pages/InitiativeDetail';
+
+// Used in route configuration
+<Route path="/initiatives/:id" element={<InitiativeDetail />} />
+```
+
+**Features:**
+- Header with title, status badge, and progress bar
+- Status transition buttons (Activate/Complete/Reopen/Archive)
+- Tab navigation: Tasks, Graph, Decisions
+- Task linking and unlinking
+- Decision recording with rationale
+- Edit modal for title/vision/status
+
+**URL params:**
+- `:id` - Initiative ID from route params
+
+**Tabs:**
+
+| Tab | Content |
+|-----|---------|
+| Tasks | Linked tasks list, add/link/unlink actions, dependency summary |
+| Graph | Interactive dependency visualization via DependencyGraph component |
+| Decisions | Decision history with add decision form |
+
+**Status Transitions:**
+
+| Current Status | Available Actions |
+|----------------|-------------------|
+| draft | Activate |
+| active | Complete, Archive |
+| completed | Reopen, Archive |
+| archived | (no transitions) |
+
+**Modals:**
+- **Edit Initiative**: Title, vision, status changes
+- **Link Task**: Search and link existing tasks
+- **Add Decision**: Decision text, rationale, author
+
+### DependencyGraph
+
+Interactive DAG visualization for task dependencies within an initiative.
+
+```tsx
+import { DependencyGraph } from '@/components/initiative';
+
+<DependencyGraph
+  nodes={graphData.nodes}
+  edges={graphData.edges}
+  onNodeClick={(nodeId) => navigate(`/tasks/${nodeId}`)}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `nodes` | `DependencyGraphNode[]` | Graph nodes with id, title, status |
+| `edges` | `DependencyGraphEdge[]` | Edges with from/to task IDs |
+| `onNodeClick` | `(nodeId: string) => void` | Optional click handler (defaults to navigation) |
+
+**Features:**
+- SVG-based rendering with smooth bezier edges
+- Zoom controls (+/-) and fit-to-view button
+- Pan by click-and-drag
+- Mouse wheel zoom (cursor-centered)
+- Hover tooltips showing task title and status
+- Click nodes to navigate to task detail
+- Export to PNG button
+- Status-based node coloring
+- Keyboard accessible (Enter to click nodes)
+
+**Layout Algorithm:**
+- Kahn's algorithm for topological ordering
+- Nodes with no dependencies at top, leaf nodes at bottom
+- Layers centered horizontally
+- Configurable node dimensions and spacing
+
+**Node Status Colors:**
+
+| Status | Color |
+|--------|-------|
+| done | success green |
+| running | accent purple |
+| blocked | danger red |
+| ready | info blue |
+| paused | warning yellow |
+| failed | danger red |
+| pending | muted gray |
+
+**Toolbar Buttons:**
+- Zoom In (+)
+- Zoom Out (-)
+- Fit to View
+- Export PNG
+
+### graph-layout (Library)
+
+Pure layout algorithm module for computing DAG positions.
+
+```tsx
+import { computeLayout, getEdgePath, type LayoutConfig } from '@/lib/graph-layout';
+
+const layout = computeLayout(nodes, edges, {
+  nodeWidth: 120,
+  nodeHeight: 50,
+  horizontalSpacing: 50,
+  verticalSpacing: 70,
+  padding: 30,
+});
+```
+
+**LayoutConfig options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `nodeWidth` | 120 | Node width in pixels |
+| `nodeHeight` | 60 | Node height in pixels |
+| `horizontalSpacing` | 40 | Space between nodes in same layer |
+| `verticalSpacing` | 80 | Space between layers |
+| `padding` | 40 | Graph padding |
+
+**LayoutResult:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nodes` | `Map<string, LayoutNode>` | Positioned nodes with x, y, width, height, layer |
+| `edges` | `LayoutEdge[]` | Edge paths with from/to and point coordinates |
+| `width` | `number` | Total graph width |
+| `height` | `number` | Total graph height |
+
+**Helper: `getEdgePath(edge)`** - Generates SVG cubic bezier path string for an edge.
 
 ## Known Differences from Svelte
 
