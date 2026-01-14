@@ -111,6 +111,29 @@ Conflicts also contribute to risk: >10 conflicts is High, >3 is Medium.
 
 Configure via `completion.finalize.sync.strategy` in `config.yaml`.
 
+#### Auto-Trigger on PR Approval
+
+In `auto` automation profile, finalize is automatically triggered when a PR is approved:
+
+| Trigger | Mechanism |
+|---------|-----------|
+| PR status poller | Polls every 60s, detects `approved` status |
+| Auto-trigger callback | `TriggerFinalizeOnApproval` called when PR becomes approved |
+| Rate limiting | 30s minimum between polls for same task |
+
+**Conditions:**
+- `completion.finalize.auto_trigger_on_approval` is `true` (default for auto profile)
+- Task has weight supporting finalize (not `trivial`)
+- Task status is `completed` (has PR)
+- Finalize hasn't already completed
+
+**Disable auto-trigger:**
+```yaml
+completion:
+  finalize:
+    auto_trigger_on_approval: false
+```
+
 #### Test Fix Loop
 
 After sync, if tests fail:
