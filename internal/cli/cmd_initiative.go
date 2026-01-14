@@ -25,22 +25,26 @@ Initiatives provide:
   • Shared context across related tasks
   • Decision tracking with rationale
   • Task dependency management
+  • Initiative-to-initiative dependencies
   • P2P/team collaboration via shared directories
 
 Commands:
   new        Create a new initiative
   list       List all initiatives
   show       Show initiative details
+  edit       Edit initiative properties and dependencies
   add-task   Link a task to an initiative
   decide     Record a decision
   activate   Set initiative status to active
   complete   Mark initiative as completed
-  run        Run all initiative tasks in order`,
+  run        Run all initiative tasks in order
+  delete     Delete an initiative`,
 	}
 
 	cmd.AddCommand(newInitiativeNewCmd())
 	cmd.AddCommand(newInitiativeListCmd())
 	cmd.AddCommand(newInitiativeShowCmd())
+	cmd.AddCommand(newInitiativeEditCmd())
 	cmd.AddCommand(newInitiativeAddTaskCmd())
 	cmd.AddCommand(newInitiativeDecideCmd())
 	cmd.AddCommand(newInitiativeActivateCmd())
@@ -60,7 +64,8 @@ func newInitiativeNewCmd() *cobra.Command {
 Example:
   orc initiative new "User Authentication System"
   orc initiative new "API Refactor" --vision "Modern REST API with OpenAPI spec"
-  orc initiative new "Dark Mode" --shared  # Creates in shared directory for teams`,
+  orc initiative new "Dark Mode" --shared  # Creates in shared directory for teams
+  orc initiative new "React Migration" --blocked-by INIT-001  # Depends on another initiative`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -71,11 +76,30 @@ Example:
 			vision, _ := cmd.Flags().GetString("vision")
 			shared, _ := cmd.Flags().GetBool("shared")
 			ownerInitials, _ := cmd.Flags().GetString("owner")
+			blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")
 
 			// Generate next initiative ID
 			id, err := initiative.NextID(shared)
 			if err != nil {
 				return fmt.Errorf("generate initiative ID: %w", err)
+			}
+
+			// Validate blocked-by references
+			if len(blockedBy) > 0 {
+				// Load all initiatives to validate
+				allInits, err := initiative.List(shared)
+				if err != nil {
+					return fmt.Errorf("load initiatives for validation: %w", err)
+				}
+
+				existingIDs := make(map[string]bool)
+				for _, init := range allInits {
+					existingIDs[init.ID] = true
+				}
+
+				if errs := initiative.ValidateBlockedBy(id, blockedBy, existingIDs); len(errs) > 0 {
+					return errs[0]
+				}
 			}
 
 			// Create initiative
@@ -85,6 +109,9 @@ Example:
 			}
 			if ownerInitials != "" {
 				init.Owner = initiative.Identity{Initials: ownerInitials}
+			}
+			if len(blockedBy) > 0 {
+				init.BlockedBy = blockedBy
 			}
 
 			// Save
@@ -105,6 +132,9 @@ Example:
 				if vision != "" {
 					fmt.Printf("   Vision: %s\n", vision)
 				}
+				if len(blockedBy) > 0 {
+					fmt.Printf("   Blocked by: %s\n", strings.Join(blockedBy, ", "))
+				}
 				if shared {
 					fmt.Println("   Location: shared (team visible)")
 				}
@@ -121,6 +151,7 @@ Example:
 	cmd.Flags().StringP("vision", "V", "", "initiative vision statement")
 	cmd.Flags().StringP("owner", "o", "", "owner initials")
 	cmd.Flags().Bool("shared", false, "create in shared directory for team access")
+	cmd.Flags().StringSlice("blocked-by", nil, "initiative IDs that must complete before this initiative")
 
 	return cmd
 }
@@ -155,6 +186,15 @@ func newInitiativeListCmd() *cobra.Command {
 				return nil
 			}
 
+			// Populate computed fields (Blocks)
+			initiative.PopulateComputedFields(initiatives)
+
+			// Build map for IsBlocked check
+			initMap := make(map[string]*initiative.Initiative)
+			for _, init := range initiatives {
+				initMap[init.ID] = init
+			}
+
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tTASKS\tOWNER")
 			fmt.Fprintln(w, "--\t-----\t------\t-----\t-----")
@@ -164,8 +204,12 @@ func newInitiativeListCmd() *cobra.Command {
 				if init.Owner.Initials != "" {
 					owner = init.Owner.Initials
 				}
+				statusStr := string(init.Status)
+				if init.IsBlocked(initMap) {
+					statusStr = statusStr + " [BLOCKED]"
+				}
 				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
-					init.ID, truncate(init.Title, 30), init.Status, len(init.Tasks), owner)
+					init.ID, truncate(init.Title, 30), statusStr, len(init.Tasks), owner)
 			}
 			w.Flush()
 
@@ -175,6 +219,135 @@ func newInitiativeListCmd() *cobra.Command {
 
 	cmd.Flags().StringP("status", "s", "", "filter by status (draft, active, completed, archived)")
 	cmd.Flags().Bool("shared", false, "list shared initiatives")
+
+	return cmd
+}
+
+func newInitiativeEditCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "edit <id>",
+		Short: "Edit an initiative",
+		Long: `Edit an initiative's properties including dependencies.
+
+Example:
+  orc initiative edit INIT-001 --title "New Title"
+  orc initiative edit INIT-001 --vision "Updated vision statement"
+  orc initiative edit INIT-001 --blocked-by INIT-002,INIT-003  # Replace blockers
+  orc initiative edit INIT-001 --add-blocker INIT-004          # Add blocker
+  orc initiative edit INIT-001 --remove-blocker INIT-002       # Remove blocker`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := config.RequireInit(); err != nil {
+				return err
+			}
+
+			id := args[0]
+			shared, _ := cmd.Flags().GetBool("shared")
+
+			// Load initiative
+			var init *initiative.Initiative
+			var err error
+			if shared {
+				init, err = initiative.LoadShared(id)
+			} else {
+				init, err = initiative.Load(id)
+			}
+			if err != nil {
+				return fmt.Errorf("load initiative: %w", err)
+			}
+
+			// Load all initiatives for validation
+			allInits, err := initiative.List(shared)
+			if err != nil {
+				return fmt.Errorf("load initiatives for validation: %w", err)
+			}
+
+			// Build map for validation
+			initMap := make(map[string]*initiative.Initiative)
+			for _, i := range allInits {
+				initMap[i.ID] = i
+			}
+
+			// Track if anything changed
+			changed := false
+
+			// Update title if provided
+			if cmd.Flags().Changed("title") {
+				title, _ := cmd.Flags().GetString("title")
+				init.Title = title
+				changed = true
+			}
+
+			// Update vision if provided
+			if cmd.Flags().Changed("vision") {
+				vision, _ := cmd.Flags().GetString("vision")
+				init.Vision = vision
+				changed = true
+			}
+
+			// Update owner if provided
+			if cmd.Flags().Changed("owner") {
+				owner, _ := cmd.Flags().GetString("owner")
+				init.Owner = initiative.Identity{Initials: owner}
+				changed = true
+			}
+
+			// Handle blocked-by (replace entire list)
+			if cmd.Flags().Changed("blocked-by") {
+				blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")
+				if err := init.SetBlockedBy(blockedBy, initMap); err != nil {
+					return err
+				}
+				changed = true
+			}
+
+			// Handle add-blocker (add to existing)
+			if cmd.Flags().Changed("add-blocker") {
+				blockers, _ := cmd.Flags().GetStringSlice("add-blocker")
+				for _, blockerID := range blockers {
+					if err := init.AddBlocker(blockerID, initMap); err != nil {
+						return err
+					}
+				}
+				changed = true
+			}
+
+			// Handle remove-blocker
+			if cmd.Flags().Changed("remove-blocker") {
+				blockers, _ := cmd.Flags().GetStringSlice("remove-blocker")
+				for _, blockerID := range blockers {
+					init.RemoveBlocker(blockerID)
+				}
+				changed = true
+			}
+
+			if !changed {
+				fmt.Println("No changes specified.")
+				return nil
+			}
+
+			// Save
+			if shared {
+				err = init.SaveShared()
+			} else {
+				err = init.Save()
+			}
+			if err != nil {
+				return fmt.Errorf("save initiative: %w", err)
+			}
+
+			fmt.Printf("Updated initiative %s\n", id)
+			return nil
+		},
+	}
+
+	cmd.Flags().Bool("shared", false, "use shared initiative")
+	cmd.Flags().String("title", "", "set initiative title")
+	cmd.Flags().StringP("vision", "V", "", "set initiative vision")
+	cmd.Flags().StringP("owner", "o", "", "set owner initials")
+	cmd.Flags().StringSlice("blocked-by", nil, "set blocked_by list (replaces existing)")
+	cmd.Flags().StringSlice("add-blocker", nil, "add initiative(s) to blocked_by list")
+	cmd.Flags().StringSlice("remove-blocker", nil, "remove initiative(s) from blocked_by list")
 
 	return cmd
 }
@@ -203,9 +376,27 @@ func newInitiativeShowCmd() *cobra.Command {
 				return fmt.Errorf("load initiative: %w", err)
 			}
 
+			// Load all initiatives for dependency info
+			allInits, err := initiative.List(shared)
+			if err != nil {
+				return fmt.Errorf("load initiatives: %w", err)
+			}
+			initMap := make(map[string]*initiative.Initiative)
+			for _, i := range allInits {
+				initMap[i.ID] = i
+			}
+			initiative.PopulateComputedFields(allInits)
+
 			fmt.Printf("Initiative: %s\n", init.ID)
 			fmt.Printf("Title:      %s\n", init.Title)
-			fmt.Printf("Status:     %s\n", init.Status)
+
+			// Status with blocked indicator
+			if init.IsBlocked(initMap) {
+				fmt.Printf("Status:     %s (BLOCKED)\n", init.Status)
+			} else {
+				fmt.Printf("Status:     %s\n", init.Status)
+			}
+
 			if init.Owner.Initials != "" {
 				fmt.Printf("Owner:      %s", init.Owner.Initials)
 				if init.Owner.DisplayName != "" {
@@ -218,6 +409,39 @@ func newInitiativeShowCmd() *cobra.Command {
 			}
 			fmt.Printf("\nCreated:  %s\n", init.CreatedAt.Format("2006-01-02 15:04"))
 			fmt.Printf("Updated:  %s\n", init.UpdatedAt.Format("2006-01-02 15:04"))
+
+			// Show dependencies
+			if len(init.BlockedBy) > 0 || len(init.Blocks) > 0 {
+				fmt.Println("\nDependencies:")
+				if len(init.BlockedBy) > 0 {
+					fmt.Printf("  Blocked by:\n")
+					for _, blockerID := range init.BlockedBy {
+						blocker, exists := initMap[blockerID]
+						if exists {
+							status := string(blocker.Status)
+							if blocker.Status == initiative.StatusCompleted {
+								status = "✓ " + status
+							} else {
+								status = "○ " + status
+							}
+							fmt.Printf("    %s: %s (%s)\n", blockerID, blocker.Title, status)
+						} else {
+							fmt.Printf("    %s: (not found)\n", blockerID)
+						}
+					}
+				}
+				if len(init.Blocks) > 0 {
+					fmt.Printf("  Blocks:\n")
+					for _, blockedID := range init.Blocks {
+						blocked, exists := initMap[blockedID]
+						if exists {
+							fmt.Printf("    %s: %s\n", blockedID, blocked.Title)
+						} else {
+							fmt.Printf("    %s: (not found)\n", blockedID)
+						}
+					}
+				}
+			}
 
 			// Show decisions
 			if len(init.Decisions) > 0 {
@@ -494,7 +718,8 @@ By default shows what would run - use --execute to actually run tasks.
 Examples:
   orc initiative run INIT-001              # Show ready tasks (safe preview)
   orc initiative run INIT-001 --execute    # Actually run the tasks
-  orc initiative run INIT-001 --parallel   # Run ready tasks in parallel`,
+  orc initiative run INIT-001 --parallel   # Run ready tasks in parallel
+  orc initiative run INIT-001 --force      # Run even if blocked by other initiatives`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -506,6 +731,7 @@ Examples:
 			execute, _ := cmd.Flags().GetBool("execute")
 			parallel, _ := cmd.Flags().GetBool("parallel")
 			profile, _ := cmd.Flags().GetString("profile")
+			force, _ := cmd.Flags().GetBool("force")
 
 			var init *initiative.Initiative
 			var err error
@@ -516,6 +742,27 @@ Examples:
 			}
 			if err != nil {
 				return fmt.Errorf("load initiative: %w", err)
+			}
+
+			// Load all initiatives to check blocking status
+			allInits, err := initiative.List(shared)
+			if err != nil {
+				return fmt.Errorf("load initiatives: %w", err)
+			}
+			initMap := make(map[string]*initiative.Initiative)
+			for _, i := range allInits {
+				initMap[i.ID] = i
+			}
+
+			// Check if initiative is blocked
+			if init.IsBlocked(initMap) && !force {
+				blockers := init.GetIncompleteBlockers(initMap)
+				fmt.Printf("Initiative %s is blocked by:\n", id)
+				for _, blocker := range blockers {
+					fmt.Printf("  • %s: %s (%s)\n", blocker.ID, blocker.Title, blocker.Status)
+				}
+				fmt.Println("\nComplete the blocking initiatives first, or use --force to run anyway.")
+				return nil
 			}
 
 			ready := init.GetReadyTasks()
@@ -615,6 +862,7 @@ Examples:
 	cmd.Flags().Bool("execute", false, "actually run the tasks (default: preview only)")
 	cmd.Flags().Bool("parallel", false, "run ready tasks in parallel (requires --execute)")
 	cmd.Flags().StringP("profile", "p", "", "automation profile for task execution")
+	cmd.Flags().BoolP("force", "f", false, "run even if blocked by other initiatives")
 
 	return cmd
 }

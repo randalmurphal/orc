@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -56,8 +58,12 @@ type Initiative struct {
 	Decisions    []Decision `yaml:"decisions,omitempty" json:"decisions,omitempty"`
 	ContextFiles []string   `yaml:"context_files,omitempty" json:"context_files,omitempty"`
 	Tasks        []TaskRef  `yaml:"tasks,omitempty" json:"tasks,omitempty"`
-	CreatedAt    time.Time  `yaml:"created_at" json:"created_at"`
-	UpdatedAt    time.Time  `yaml:"updated_at" json:"updated_at"`
+	// BlockedBy lists initiative IDs that must complete before this initiative can start
+	BlockedBy []string `yaml:"blocked_by,omitempty" json:"blocked_by,omitempty"`
+	// Blocks lists initiative IDs waiting on this (computed, not persisted)
+	Blocks    []string  `yaml:"-" json:"blocks,omitempty"`
+	CreatedAt time.Time `yaml:"created_at" json:"created_at"`
+	UpdatedAt time.Time `yaml:"updated_at" json:"updated_at"`
 }
 
 // Directory constants
@@ -350,4 +356,312 @@ func NextID(shared bool) (string, error) {
 	}
 
 	return fmt.Sprintf("INIT-%03d", maxNum+1), nil
+}
+
+// DependencyError represents an error related to initiative dependencies.
+type DependencyError struct {
+	InitiativeID string
+	Message      string
+}
+
+func (e *DependencyError) Error() string {
+	return fmt.Sprintf("dependency error for %s: %s", e.InitiativeID, e.Message)
+}
+
+// ValidateBlockedBy checks that all blocked_by references are valid.
+// Returns errors for self-references and non-existent initiatives.
+func ValidateBlockedBy(initID string, blockedBy []string, existingIDs map[string]bool) []error {
+	var errs []error
+	for _, depID := range blockedBy {
+		if depID == initID {
+			errs = append(errs, &DependencyError{
+				InitiativeID: initID,
+				Message:      "initiative cannot block itself",
+			})
+			continue
+		}
+		if !existingIDs[depID] {
+			errs = append(errs, &DependencyError{
+				InitiativeID: initID,
+				Message:      fmt.Sprintf("blocked_by references non-existent initiative %s", depID),
+			})
+		}
+	}
+	return errs
+}
+
+// DetectCircularDependency checks if adding a dependency would create a cycle.
+// Returns the cycle path if a cycle would be created, nil otherwise.
+func DetectCircularDependency(initID string, newBlocker string, initiatives map[string]*Initiative) []string {
+	// Build adjacency list: initiative -> initiatives it's blocked by
+	blockedByMap := make(map[string][]string)
+	for _, init := range initiatives {
+		blockedByMap[init.ID] = append([]string(nil), init.BlockedBy...)
+	}
+
+	// Temporarily add the new dependency
+	blockedByMap[initID] = append(blockedByMap[initID], newBlocker)
+
+	// DFS to detect cycle starting from initID
+	visited := make(map[string]bool)
+	path := make(map[string]bool)
+	var cyclePath []string
+
+	var dfs func(id string) bool
+	dfs = func(id string) bool {
+		if path[id] {
+			cyclePath = append(cyclePath, id)
+			return true
+		}
+		if visited[id] {
+			return false
+		}
+
+		visited[id] = true
+		path[id] = true
+
+		for _, dep := range blockedByMap[id] {
+			if dfs(dep) {
+				cyclePath = append(cyclePath, id)
+				return true
+			}
+		}
+
+		path[id] = false
+		return false
+	}
+
+	if dfs(initID) {
+		// Reverse the path to show the cycle in order
+		for i, j := 0, len(cyclePath)-1; i < j; i, j = i+1, j-1 {
+			cyclePath[i], cyclePath[j] = cyclePath[j], cyclePath[i]
+		}
+		return cyclePath
+	}
+
+	return nil
+}
+
+// DetectCircularDependencyWithAll checks if setting all blockers at once creates a cycle.
+// This is used when replacing the entire BlockedBy list.
+// Returns the cycle path if a cycle would be created, nil otherwise.
+func DetectCircularDependencyWithAll(initID string, newBlockers []string, initiatives map[string]*Initiative) []string {
+	// Build adjacency list: initiative -> initiatives it's blocked by
+	blockedByMap := make(map[string][]string)
+	for _, init := range initiatives {
+		if init.ID == initID {
+			blockedByMap[init.ID] = append([]string(nil), newBlockers...)
+		} else {
+			blockedByMap[init.ID] = append([]string(nil), init.BlockedBy...)
+		}
+	}
+
+	// If the initiative doesn't exist in the map yet, add it with new blockers
+	if _, exists := blockedByMap[initID]; !exists {
+		blockedByMap[initID] = append([]string(nil), newBlockers...)
+	}
+
+	// DFS to detect cycle starting from initID
+	visited := make(map[string]bool)
+	path := make(map[string]bool)
+	var cyclePath []string
+
+	var dfs func(id string) bool
+	dfs = func(id string) bool {
+		if path[id] {
+			cyclePath = append(cyclePath, id)
+			return true
+		}
+		if visited[id] {
+			return false
+		}
+
+		visited[id] = true
+		path[id] = true
+
+		for _, dep := range blockedByMap[id] {
+			if dfs(dep) {
+				cyclePath = append(cyclePath, id)
+				return true
+			}
+		}
+
+		path[id] = false
+		return false
+	}
+
+	if dfs(initID) {
+		// Reverse the path to show the cycle in order
+		for i, j := 0, len(cyclePath)-1; i < j; i, j = i+1, j-1 {
+			cyclePath[i], cyclePath[j] = cyclePath[j], cyclePath[i]
+		}
+		return cyclePath
+	}
+
+	return nil
+}
+
+// ComputeBlocks calculates the Blocks field for an initiative by scanning all initiatives.
+// Returns initiative IDs that have this initiative in their BlockedBy list.
+func ComputeBlocks(initID string, allInits []*Initiative) []string {
+	var blocks []string
+	for _, init := range allInits {
+		for _, blocker := range init.BlockedBy {
+			if blocker == initID {
+				blocks = append(blocks, init.ID)
+				break
+			}
+		}
+	}
+	sort.Strings(blocks)
+	return blocks
+}
+
+// PopulateComputedFields fills in Blocks for all initiatives.
+// This should be called after loading all initiatives.
+func PopulateComputedFields(initiatives []*Initiative) {
+	for _, init := range initiatives {
+		init.Blocks = ComputeBlocks(init.ID, initiatives)
+	}
+}
+
+// IsBlocked returns true if any blocking initiative is not completed.
+func (i *Initiative) IsBlocked(initiatives map[string]*Initiative) bool {
+	for _, depID := range i.BlockedBy {
+		dep, exists := initiatives[depID]
+		if !exists {
+			// Missing initiative is treated as unmet dependency
+			return true
+		}
+		if dep.Status != StatusCompleted {
+			return true
+		}
+	}
+	return false
+}
+
+// GetUnmetDependencies returns the IDs of initiatives that block this one and aren't completed.
+func (i *Initiative) GetUnmetDependencies(initiatives map[string]*Initiative) []string {
+	var unmet []string
+	for _, depID := range i.BlockedBy {
+		dep, exists := initiatives[depID]
+		if !exists || dep.Status != StatusCompleted {
+			unmet = append(unmet, depID)
+		}
+	}
+	return unmet
+}
+
+// BlockerInfo contains information about a blocking initiative for display purposes.
+type BlockerInfo struct {
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Status Status `json:"status"`
+}
+
+// GetIncompleteBlockers returns full information about blocking initiatives that aren't completed.
+func (i *Initiative) GetIncompleteBlockers(initiatives map[string]*Initiative) []BlockerInfo {
+	var blockers []BlockerInfo
+	for _, blockerID := range i.BlockedBy {
+		blocker, exists := initiatives[blockerID]
+		if !exists {
+			blockers = append(blockers, BlockerInfo{
+				ID:     blockerID,
+				Title:  "(initiative not found)",
+				Status: "",
+			})
+			continue
+		}
+		if blocker.Status != StatusCompleted {
+			blockers = append(blockers, BlockerInfo{
+				ID:     blocker.ID,
+				Title:  blocker.Title,
+				Status: blocker.Status,
+			})
+		}
+	}
+	return blockers
+}
+
+// AddBlocker adds a single blocker to the initiative's BlockedBy list.
+// Returns an error if the blocker would create a cycle or is invalid.
+func (i *Initiative) AddBlocker(blockerID string, allInits map[string]*Initiative) error {
+	// Check for self-reference
+	if blockerID == i.ID {
+		return &DependencyError{
+			InitiativeID: i.ID,
+			Message:      "initiative cannot block itself",
+		}
+	}
+
+	// Check if blocker exists
+	if _, exists := allInits[blockerID]; !exists {
+		return &DependencyError{
+			InitiativeID: i.ID,
+			Message:      fmt.Sprintf("blocked_by references non-existent initiative %s", blockerID),
+		}
+	}
+
+	// Check for duplicate
+	for _, existing := range i.BlockedBy {
+		if existing == blockerID {
+			return nil // Already blocked by this initiative
+		}
+	}
+
+	// Check for circular dependency
+	if cycle := DetectCircularDependency(i.ID, blockerID, allInits); cycle != nil {
+		return &DependencyError{
+			InitiativeID: i.ID,
+			Message:      fmt.Sprintf("would create circular dependency: %s", strings.Join(cycle, " -> ")),
+		}
+	}
+
+	i.BlockedBy = append(i.BlockedBy, blockerID)
+	sort.Strings(i.BlockedBy)
+	i.UpdatedAt = time.Now()
+	return nil
+}
+
+// RemoveBlocker removes a blocker from the initiative's BlockedBy list.
+// Returns true if the blocker was found and removed.
+func (i *Initiative) RemoveBlocker(blockerID string) bool {
+	for idx, id := range i.BlockedBy {
+		if id == blockerID {
+			i.BlockedBy = append(i.BlockedBy[:idx], i.BlockedBy[idx+1:]...)
+			i.UpdatedAt = time.Now()
+			return true
+		}
+	}
+	return false
+}
+
+// SetBlockedBy replaces the entire BlockedBy list with validation.
+// Returns an error if any blocker is invalid or would create a cycle.
+func (i *Initiative) SetBlockedBy(blockerIDs []string, allInits map[string]*Initiative) error {
+	// Build existing IDs map
+	existingIDs := make(map[string]bool)
+	for id := range allInits {
+		existingIDs[id] = true
+	}
+
+	// Validate all blockers
+	if errs := ValidateBlockedBy(i.ID, blockerIDs, existingIDs); len(errs) > 0 {
+		return errs[0]
+	}
+
+	// Check for circular dependencies
+	if cycle := DetectCircularDependencyWithAll(i.ID, blockerIDs, allInits); cycle != nil {
+		return &DependencyError{
+			InitiativeID: i.ID,
+			Message:      fmt.Sprintf("would create circular dependency: %s", strings.Join(cycle, " -> ")),
+		}
+	}
+
+	i.BlockedBy = blockerIDs
+	if len(i.BlockedBy) > 0 {
+		sort.Strings(i.BlockedBy)
+	}
+	i.UpdatedAt = time.Now()
+	return nil
 }

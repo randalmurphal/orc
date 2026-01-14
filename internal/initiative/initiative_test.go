@@ -383,3 +383,475 @@ func TestRemoveTask(t *testing.T) {
 		t.Error("RemoveTask should return false when list is empty")
 	}
 }
+
+// Tests for initiative dependencies
+
+func TestValidateBlockedBy(t *testing.T) {
+	existingIDs := map[string]bool{
+		"INIT-001": true,
+		"INIT-002": true,
+		"INIT-003": true,
+	}
+
+	tests := []struct {
+		name      string
+		initID    string
+		blockedBy []string
+		wantErrs  int
+	}{
+		{
+			name:      "valid blockers",
+			initID:    "INIT-004",
+			blockedBy: []string{"INIT-001", "INIT-002"},
+			wantErrs:  0,
+		},
+		{
+			name:      "self-reference",
+			initID:    "INIT-001",
+			blockedBy: []string{"INIT-001"},
+			wantErrs:  1,
+		},
+		{
+			name:      "non-existent initiative",
+			initID:    "INIT-004",
+			blockedBy: []string{"INIT-999"},
+			wantErrs:  1,
+		},
+		{
+			name:      "multiple errors",
+			initID:    "INIT-004",
+			blockedBy: []string{"INIT-004", "INIT-999"},
+			wantErrs:  2,
+		},
+		{
+			name:      "empty blockers",
+			initID:    "INIT-004",
+			blockedBy: []string{},
+			wantErrs:  0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := ValidateBlockedBy(tt.initID, tt.blockedBy, existingIDs)
+			if len(errs) != tt.wantErrs {
+				t.Errorf("ValidateBlockedBy() got %d errors, want %d", len(errs), tt.wantErrs)
+			}
+		})
+	}
+}
+
+func TestDetectCircularDependency(t *testing.T) {
+	// Create initiatives: INIT-001 -> INIT-002 -> INIT-003
+	initiatives := map[string]*Initiative{
+		"INIT-001": {ID: "INIT-001", BlockedBy: []string{}},
+		"INIT-002": {ID: "INIT-002", BlockedBy: []string{"INIT-001"}},
+		"INIT-003": {ID: "INIT-003", BlockedBy: []string{"INIT-002"}},
+	}
+
+	tests := []struct {
+		name       string
+		initID     string
+		newBlocker string
+		wantCycle  bool
+	}{
+		{
+			name:       "no cycle - adding new blocker",
+			initID:     "INIT-003",
+			newBlocker: "INIT-001",
+			wantCycle:  false,
+		},
+		{
+			name:       "cycle - INIT-001 blocked by INIT-003",
+			initID:     "INIT-001",
+			newBlocker: "INIT-003",
+			wantCycle:  true,
+		},
+		{
+			name:       "cycle - direct self-block via chain",
+			initID:     "INIT-001",
+			newBlocker: "INIT-002",
+			wantCycle:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cycle := DetectCircularDependency(tt.initID, tt.newBlocker, initiatives)
+			hasCycle := cycle != nil
+			if hasCycle != tt.wantCycle {
+				t.Errorf("DetectCircularDependency() = %v, want cycle = %v", cycle, tt.wantCycle)
+			}
+		})
+	}
+}
+
+func TestDetectCircularDependencyWithAll(t *testing.T) {
+	// Create initiatives: INIT-001 -> INIT-002 -> INIT-003
+	initiatives := map[string]*Initiative{
+		"INIT-001": {ID: "INIT-001", BlockedBy: []string{}},
+		"INIT-002": {ID: "INIT-002", BlockedBy: []string{"INIT-001"}},
+		"INIT-003": {ID: "INIT-003", BlockedBy: []string{"INIT-002"}},
+	}
+
+	tests := []struct {
+		name        string
+		initID      string
+		newBlockers []string
+		wantCycle   bool
+	}{
+		{
+			name:        "no cycle",
+			initID:      "INIT-003",
+			newBlockers: []string{"INIT-001"},
+			wantCycle:   false,
+		},
+		{
+			name:        "cycle",
+			initID:      "INIT-001",
+			newBlockers: []string{"INIT-003"},
+			wantCycle:   true,
+		},
+		{
+			name:        "empty blockers",
+			initID:      "INIT-002",
+			newBlockers: []string{},
+			wantCycle:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cycle := DetectCircularDependencyWithAll(tt.initID, tt.newBlockers, initiatives)
+			hasCycle := cycle != nil
+			if hasCycle != tt.wantCycle {
+				t.Errorf("DetectCircularDependencyWithAll() = %v, want cycle = %v", cycle, tt.wantCycle)
+			}
+		})
+	}
+}
+
+func TestComputeBlocks(t *testing.T) {
+	initiatives := []*Initiative{
+		{ID: "INIT-001", BlockedBy: []string{}},
+		{ID: "INIT-002", BlockedBy: []string{"INIT-001"}},
+		{ID: "INIT-003", BlockedBy: []string{"INIT-001", "INIT-002"}},
+	}
+
+	// INIT-001 blocks INIT-002 and INIT-003
+	blocks := ComputeBlocks("INIT-001", initiatives)
+	if len(blocks) != 2 {
+		t.Errorf("ComputeBlocks(INIT-001) = %v, want 2 blocks", blocks)
+	}
+
+	// INIT-002 blocks INIT-003
+	blocks = ComputeBlocks("INIT-002", initiatives)
+	if len(blocks) != 1 {
+		t.Errorf("ComputeBlocks(INIT-002) = %v, want 1 block", blocks)
+	}
+
+	// INIT-003 blocks nothing
+	blocks = ComputeBlocks("INIT-003", initiatives)
+	if len(blocks) != 0 {
+		t.Errorf("ComputeBlocks(INIT-003) = %v, want 0 blocks", blocks)
+	}
+}
+
+func TestPopulateComputedFields(t *testing.T) {
+	initiatives := []*Initiative{
+		{ID: "INIT-001", BlockedBy: []string{}},
+		{ID: "INIT-002", BlockedBy: []string{"INIT-001"}},
+		{ID: "INIT-003", BlockedBy: []string{"INIT-001", "INIT-002"}},
+	}
+
+	PopulateComputedFields(initiatives)
+
+	// Check INIT-001 blocks
+	if len(initiatives[0].Blocks) != 2 {
+		t.Errorf("INIT-001 Blocks = %v, want 2", initiatives[0].Blocks)
+	}
+
+	// Check INIT-002 blocks
+	if len(initiatives[1].Blocks) != 1 {
+		t.Errorf("INIT-002 Blocks = %v, want 1", initiatives[1].Blocks)
+	}
+
+	// Check INIT-003 blocks
+	if len(initiatives[2].Blocks) != 0 {
+		t.Errorf("INIT-003 Blocks = %v, want 0", initiatives[2].Blocks)
+	}
+}
+
+func TestIsBlocked(t *testing.T) {
+	initMap := map[string]*Initiative{
+		"INIT-001": {ID: "INIT-001", Status: StatusCompleted, BlockedBy: []string{}},
+		"INIT-002": {ID: "INIT-002", Status: StatusActive, BlockedBy: []string{}},
+		"INIT-003": {ID: "INIT-003", Status: StatusDraft, BlockedBy: []string{"INIT-001"}},
+		"INIT-004": {ID: "INIT-004", Status: StatusDraft, BlockedBy: []string{"INIT-002"}},
+		"INIT-005": {ID: "INIT-005", Status: StatusDraft, BlockedBy: []string{"INIT-001", "INIT-002"}},
+	}
+
+	tests := []struct {
+		name       string
+		initID     string
+		wantBlocked bool
+	}{
+		{
+			name:        "not blocked - no blockers",
+			initID:      "INIT-001",
+			wantBlocked: false,
+		},
+		{
+			name:        "not blocked - blocker completed",
+			initID:      "INIT-003",
+			wantBlocked: false,
+		},
+		{
+			name:        "blocked - blocker active",
+			initID:      "INIT-004",
+			wantBlocked: true,
+		},
+		{
+			name:        "blocked - one blocker not completed",
+			initID:      "INIT-005",
+			wantBlocked: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			init := initMap[tt.initID]
+			isBlocked := init.IsBlocked(initMap)
+			if isBlocked != tt.wantBlocked {
+				t.Errorf("IsBlocked() = %v, want %v", isBlocked, tt.wantBlocked)
+			}
+		})
+	}
+}
+
+func TestGetUnmetDependencies(t *testing.T) {
+	initMap := map[string]*Initiative{
+		"INIT-001": {ID: "INIT-001", Status: StatusCompleted},
+		"INIT-002": {ID: "INIT-002", Status: StatusActive},
+		"INIT-003": {ID: "INIT-003", Status: StatusDraft, BlockedBy: []string{"INIT-001", "INIT-002"}},
+	}
+
+	init := initMap["INIT-003"]
+	unmet := init.GetUnmetDependencies(initMap)
+
+	if len(unmet) != 1 {
+		t.Errorf("GetUnmetDependencies() = %v, want 1 unmet", unmet)
+	}
+	if len(unmet) > 0 && unmet[0] != "INIT-002" {
+		t.Errorf("Unmet dependency = %v, want INIT-002", unmet[0])
+	}
+}
+
+func TestGetIncompleteBlockers(t *testing.T) {
+	initMap := map[string]*Initiative{
+		"INIT-001": {ID: "INIT-001", Title: "First", Status: StatusCompleted},
+		"INIT-002": {ID: "INIT-002", Title: "Second", Status: StatusActive},
+		"INIT-003": {ID: "INIT-003", Title: "Third", Status: StatusDraft, BlockedBy: []string{"INIT-001", "INIT-002"}},
+	}
+
+	init := initMap["INIT-003"]
+	blockers := init.GetIncompleteBlockers(initMap)
+
+	if len(blockers) != 1 {
+		t.Errorf("GetIncompleteBlockers() = %v, want 1 blocker", blockers)
+	}
+	if len(blockers) > 0 {
+		if blockers[0].ID != "INIT-002" {
+			t.Errorf("Blocker ID = %v, want INIT-002", blockers[0].ID)
+		}
+		if blockers[0].Title != "Second" {
+			t.Errorf("Blocker Title = %v, want Second", blockers[0].Title)
+		}
+		if blockers[0].Status != StatusActive {
+			t.Errorf("Blocker Status = %v, want active", blockers[0].Status)
+		}
+	}
+}
+
+func TestAddBlocker(t *testing.T) {
+	initMap := map[string]*Initiative{
+		"INIT-001": {ID: "INIT-001", Status: StatusActive, BlockedBy: []string{}},
+		"INIT-002": {ID: "INIT-002", Status: StatusActive, BlockedBy: []string{}},
+		"INIT-003": {ID: "INIT-003", Status: StatusActive, BlockedBy: []string{"INIT-001"}},
+	}
+
+	tests := []struct {
+		name      string
+		initID    string
+		blockerID string
+		wantErr   bool
+	}{
+		{
+			name:      "valid add",
+			initID:    "INIT-002",
+			blockerID: "INIT-001",
+			wantErr:   false,
+		},
+		{
+			name:      "self-reference",
+			initID:    "INIT-001",
+			blockerID: "INIT-001",
+			wantErr:   true,
+		},
+		{
+			name:      "non-existent",
+			initID:    "INIT-001",
+			blockerID: "INIT-999",
+			wantErr:   true,
+		},
+		{
+			name:      "would create cycle",
+			initID:    "INIT-001",
+			blockerID: "INIT-003",
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset the init for each test
+			init := &Initiative{
+				ID:        tt.initID,
+				Status:    StatusActive,
+				BlockedBy: []string{},
+			}
+			if tt.initID == "INIT-003" {
+				init.BlockedBy = []string{"INIT-001"}
+			}
+
+			err := init.AddBlocker(tt.blockerID, initMap)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AddBlocker() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRemoveBlocker(t *testing.T) {
+	init := &Initiative{
+		ID:        "INIT-001",
+		BlockedBy: []string{"INIT-002", "INIT-003"},
+	}
+
+	// Remove existing
+	if !init.RemoveBlocker("INIT-002") {
+		t.Error("RemoveBlocker should return true for existing blocker")
+	}
+	if len(init.BlockedBy) != 1 {
+		t.Errorf("BlockedBy length = %d, want 1", len(init.BlockedBy))
+	}
+	if init.BlockedBy[0] != "INIT-003" {
+		t.Errorf("Remaining blocker = %v, want INIT-003", init.BlockedBy[0])
+	}
+
+	// Remove non-existing
+	if init.RemoveBlocker("INIT-999") {
+		t.Error("RemoveBlocker should return false for non-existing blocker")
+	}
+}
+
+func TestSetBlockedBy(t *testing.T) {
+	initMap := map[string]*Initiative{
+		"INIT-001": {ID: "INIT-001", Status: StatusActive, BlockedBy: []string{}},
+		"INIT-002": {ID: "INIT-002", Status: StatusActive, BlockedBy: []string{}},
+		"INIT-003": {ID: "INIT-003", Status: StatusActive, BlockedBy: []string{"INIT-001"}},
+	}
+
+	tests := []struct {
+		name      string
+		initID    string
+		blockers  []string
+		wantErr   bool
+	}{
+		{
+			name:     "valid set",
+			initID:   "INIT-002",
+			blockers: []string{"INIT-001"},
+			wantErr:  false,
+		},
+		{
+			name:     "empty set",
+			initID:   "INIT-003",
+			blockers: []string{},
+			wantErr:  false,
+		},
+		{
+			name:     "self-reference",
+			initID:   "INIT-001",
+			blockers: []string{"INIT-001"},
+			wantErr:  true,
+		},
+		{
+			name:     "non-existent",
+			initID:   "INIT-001",
+			blockers: []string{"INIT-999"},
+			wantErr:  true,
+		},
+		{
+			name:     "would create cycle",
+			initID:   "INIT-001",
+			blockers: []string{"INIT-003"},
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			init := &Initiative{
+				ID:        tt.initID,
+				Status:    StatusActive,
+				BlockedBy: []string{},
+			}
+			if tt.initID == "INIT-003" {
+				init.BlockedBy = []string{"INIT-001"}
+			}
+
+			err := init.SetBlockedBy(tt.blockers, initMap)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SetBlockedBy() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && len(init.BlockedBy) != len(tt.blockers) {
+				t.Errorf("BlockedBy = %v, want %v", init.BlockedBy, tt.blockers)
+			}
+		})
+	}
+}
+
+func TestBlockedByPersistence(t *testing.T) {
+	tmpDir := t.TempDir()
+	baseDir := filepath.Join(tmpDir, ".orc", "initiatives")
+
+	// Create initiative with blocked_by
+	init := New("INIT-TEST-DEPS", "Deps Test")
+	init.BlockedBy = []string{"INIT-001", "INIT-002"}
+
+	// Save
+	if err := init.SaveTo(baseDir); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	// Load
+	loaded, err := LoadFrom(baseDir, "INIT-TEST-DEPS")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	// Verify blocked_by was persisted
+	if len(loaded.BlockedBy) != 2 {
+		t.Errorf("BlockedBy length = %d, want 2", len(loaded.BlockedBy))
+	}
+	if loaded.BlockedBy[0] != "INIT-001" || loaded.BlockedBy[1] != "INIT-002" {
+		t.Errorf("BlockedBy = %v, want [INIT-001 INIT-002]", loaded.BlockedBy)
+	}
+
+	// Verify Blocks is not persisted (it's computed)
+	// After loading, Blocks should be nil until PopulateComputedFields is called
+	if loaded.Blocks != nil && len(loaded.Blocks) > 0 {
+		t.Error("Blocks should not be persisted")
+	}
+}
