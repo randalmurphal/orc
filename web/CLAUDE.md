@@ -46,7 +46,7 @@ web/src/
 | Overlays | Modal, LiveTranscriptModal, CommandPalette, KeyboardShortcutsHelp | Modal dialogs and overlays |
 | Comments | TaskCommentsPanel, TaskCommentThread, TaskCommentForm | Task discussion notes |
 | Review | CommentForm, CommentThread, ReviewPanel, ReviewSummary | Code review comments |
-| UI | Icon (34 icons), StatusIndicator, Toast, Modal | Shared components |
+| UI | Icon (40 icons), StatusIndicator, Toast, Modal | Shared components |
 
 ## State Management
 
@@ -280,6 +280,55 @@ Token usage is displayed in multiple locations with cached token support:
 
 See `QUICKREF.md` for component hierarchy.
 
+## Statusline Configuration
+
+The statusline page (`/environment/claude/statusline`) provides a user-friendly interface for configuring Claude Code's terminal statusline.
+
+### Configuration Modes
+
+| Mode | Purpose |
+|------|---------|
+| Simple | User-friendly UI with checkboxes and presets |
+| Advanced | Raw shell command or script path input |
+
+### Simple Mode Features
+
+| Feature | Description |
+|---------|-------------|
+| Presets | Quick configuration templates (Minimal, Standard, Developer, Plain) |
+| Components | Toggle username, hostname, directory, git branch, Python venv |
+| Colors | Enable/disable ANSI color codes in output |
+| Custom text | Add prefix/suffix to the statusline |
+| Live preview | Shows sample statusline output as you configure |
+
+**Presets:**
+- **Minimal**: Directory + git branch only
+- **Standard**: All components enabled with colors
+- **Developer**: Venv + git branch + directory
+- **Plain**: All components without colors
+
+### Advanced Mode
+
+Enter raw shell commands or script paths directly. The statusline receives JSON context on stdin with model info, workspace, and token usage.
+
+### Scope Toggle
+
+| Scope | Path | Purpose |
+|-------|------|---------|
+| Global | `~/.claude/settings.json` | Applies to all projects |
+| Project | `.claude/settings.json` | Project-specific override |
+
+**API:** Use `updateSettings(settings, 'global')` to save globally, or `updateSettings(settings)` for project scope.
+
+### Generated Script Format
+
+Simple mode generates shell scripts with:
+- Bash builtins for performance (`$PWD`, `$USER`, `$HOSTNAME`)
+- ANSI escape codes for colors when enabled
+- Git branch detection with proper quoting
+- Python virtual environment display
+- Shell injection prevention via escaping
+
 ## Plugins Page
 
 The plugins page (`/environment/claude/plugins`) manages Claude Code plugins with two tabs:
@@ -316,6 +365,7 @@ The plugins page (`/environment/claude/plugins`) manages Claude Code plugins wit
 | `/environment/claude/agents` | Agents (`?scope=global`) |
 | `/environment/claude/mcp` | MCP servers (`?scope=global`) |
 | `/environment/claude/plugins` | Plugin management & marketplace |
+| `/environment/claude/statusline` | Statusline configuration (`?scope=global`) |
 | `/preferences` | User preferences |
 
 ## API Client
