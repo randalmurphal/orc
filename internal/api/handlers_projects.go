@@ -122,6 +122,8 @@ func (s *Server) handleListProjectTasks(w http.ResponseWriter, r *http.Request) 
 }
 
 // handleCreateProjectTask creates a new task in a project.
+// Supports both JSON and multipart/form-data content types.
+// With multipart/form-data, files can be attached via "attachments" field.
 func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("id")
 
@@ -137,18 +139,42 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var req struct {
-		Title       string `json:"title"`
-		Description string `json:"description,omitempty"`
-		Weight      string `json:"weight,omitempty"`
+	// Parse request - supports both JSON and multipart/form-data
+	var title, description, weight, category string
+	var isMultipart bool
+
+	contentType := r.Header.Get("Content-Type")
+	if contentType != "" && len(contentType) >= 19 && contentType[:19] == "multipart/form-data" {
+		// Parse multipart form (max 32MB)
+		if err := r.ParseMultipartForm(32 << 20); err != nil {
+			s.jsonError(w, "failed to parse form", http.StatusBadRequest)
+			return
+		}
+		title = r.FormValue("title")
+		description = r.FormValue("description")
+		weight = r.FormValue("weight")
+		category = r.FormValue("category")
+		isMultipart = true
+	} else {
+		// Parse as JSON
+		var req struct {
+			Title       string `json:"title"`
+			Description string `json:"description,omitempty"`
+			Weight      string `json:"weight,omitempty"`
+			Category    string `json:"category,omitempty"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.jsonError(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		title = req.Title
+		description = req.Description
+		weight = req.Weight
+		category = req.Category
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.jsonError(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if req.Title == "" {
+	if title == "" {
 		s.jsonError(w, "title is required", http.StatusBadRequest)
 		return
 	}
@@ -160,16 +186,23 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	t := task.New(id, req.Title)
-	t.Description = req.Description
-	if req.Weight != "" {
-		t.Weight = task.Weight(req.Weight)
+	t := task.New(id, title)
+	t.Description = description
+	if weight != "" {
+		t.Weight = task.Weight(weight)
 	} else {
 		t.Weight = task.WeightMedium
 	}
+	if category != "" {
+		cat := task.Category(category)
+		if task.IsValidCategory(cat) {
+			t.Category = cat
+		}
+	}
 
 	// Save in project directory
-	if err := t.SaveTo(filepath.Join(proj.Path, ".orc", "tasks", id)); err != nil {
+	taskDir := filepath.Join(proj.Path, ".orc", "tasks", id)
+	if err := t.SaveTo(taskDir); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
@@ -189,15 +222,42 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Save plan in project directory
-	if err := p.SaveTo(filepath.Join(proj.Path, ".orc", "tasks", id)); err != nil {
+	if err := p.SaveTo(taskDir); err != nil {
 		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
 		return
 	}
 
 	t.Status = task.StatusPlanned
-	if err := t.SaveTo(filepath.Join(proj.Path, ".orc", "tasks", id)); err != nil {
+	if err := t.SaveTo(taskDir); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
+	}
+
+	// Handle file attachments if this was a multipart request
+	if isMultipart && r.MultipartForm != nil {
+		files := r.MultipartForm.File["attachments"]
+		for _, fileHeader := range files {
+			file, err := fileHeader.Open()
+			if err != nil {
+				s.logger.Warn("failed to open attachment",
+					"taskID", id,
+					"filename", fileHeader.Filename,
+					"error", err,
+				)
+				continue
+			}
+
+			filename := filepath.Base(fileHeader.Filename)
+			_, err = task.SaveAttachment(proj.Path, id, filename, file)
+			file.Close()
+			if err != nil {
+				s.logger.Warn("failed to save attachment",
+					"taskID", id,
+					"filename", filename,
+					"error", err,
+				)
+			}
+		}
 	}
 
 	w.WriteHeader(http.StatusCreated)

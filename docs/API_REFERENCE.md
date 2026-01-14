@@ -48,6 +48,10 @@ CWD-based task operations. These endpoints use the server's working directory as
 The `task` field contains the updated task with `status: "running"` set immediately. This allows clients to update their local state without waiting for WebSocket events, avoiding race conditions where the task might briefly appear deleted.
 
 **Create task body (POST):**
+
+Supports both JSON and multipart/form-data. Use multipart when attaching files during creation.
+
+*JSON format:*
 ```json
 {
   "title": "Task title",
@@ -58,6 +62,17 @@ The `task` field contains the updated task with `status: "running"` set immediat
   "category": "feature"
 }
 ```
+
+*Multipart form-data fields:*
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | string | Task title (required) |
+| `description` | string | Task description |
+| `weight` | string | trivial/small/medium/large/greenfield |
+| `queue` | string | active/backlog |
+| `priority` | string | critical/high/normal/low |
+| `category` | string | feature/bug/refactor/chore/docs/test |
+| `attachments` | file[] | Files to attach (repeatable) |
 
 All fields except `title` are optional. Defaults: `queue: "active"`, `priority: "normal"`, `category: "feature"`.
 

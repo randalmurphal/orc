@@ -122,8 +122,39 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleCreateTask creates a new task.
-func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
+// createTaskRequest holds the parsed task creation request parameters.
+type createTaskRequest struct {
+	Title       string
+	Description string
+	Weight      string
+	Queue       string
+	Priority    string
+	Category    string
+}
+
+// parseCreateTaskRequest parses the task creation request from either JSON or multipart form.
+// Returns the request parameters, form (if multipart), and any error.
+func (s *Server) parseCreateTaskRequest(r *http.Request) (*createTaskRequest, bool, error) {
+	contentType := r.Header.Get("Content-Type")
+
+	// Check if this is a multipart form request
+	if contentType != "" && len(contentType) >= 19 && contentType[:19] == "multipart/form-data" {
+		// Parse multipart form (max 32MB)
+		if err := r.ParseMultipartForm(32 << 20); err != nil {
+			return nil, false, fmt.Errorf("failed to parse form: %w", err)
+		}
+
+		return &createTaskRequest{
+			Title:       r.FormValue("title"),
+			Description: r.FormValue("description"),
+			Weight:      r.FormValue("weight"),
+			Queue:       r.FormValue("queue"),
+			Priority:    r.FormValue("priority"),
+			Category:    r.FormValue("category"),
+		}, true, nil
+	}
+
+	// Default: parse as JSON
 	var req struct {
 		Title       string `json:"title"`
 		Description string `json:"description,omitempty"`
@@ -134,7 +165,26 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return nil, false, fmt.Errorf("invalid request body: %w", err)
+	}
+
+	return &createTaskRequest{
+		Title:       req.Title,
+		Description: req.Description,
+		Weight:      req.Weight,
+		Queue:       req.Queue,
+		Priority:    req.Priority,
+		Category:    req.Category,
+	}, false, nil
+}
+
+// handleCreateTask creates a new task.
+// Supports both JSON and multipart/form-data content types.
+// With multipart/form-data, files can be attached via "attachments" field.
+func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
+	req, isMultipart, err := s.parseCreateTaskRequest(r)
+	if err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -221,6 +271,33 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	if err := t.SaveTo(taskDir); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
+	}
+
+	// Handle file attachments if this was a multipart request
+	if isMultipart && r.MultipartForm != nil {
+		files := r.MultipartForm.File["attachments"]
+		for _, fileHeader := range files {
+			file, err := fileHeader.Open()
+			if err != nil {
+				s.logger.Warn("failed to open attachment",
+					"taskID", id,
+					"filename", fileHeader.Filename,
+					"error", err,
+				)
+				continue
+			}
+
+			filename := filepath.Base(fileHeader.Filename)
+			_, err = task.SaveAttachment(s.workDir, id, filename, file)
+			file.Close()
+			if err != nil {
+				s.logger.Warn("failed to save attachment",
+					"taskID", id,
+					"filename", filename,
+					"error", err,
+				)
+			}
+		}
 	}
 
 	w.WriteHeader(http.StatusCreated)

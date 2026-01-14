@@ -25,7 +25,8 @@ vi.mock('$lib/stores/tasks', () => ({
 vi.mock('$lib/stores/toast.svelte', () => ({
 	toast: {
 		success: vi.fn(),
-		error: vi.fn()
+		error: vi.fn(),
+		warning: vi.fn()
 	}
 }));
 
@@ -94,7 +95,7 @@ describe('NewTaskModal', () => {
 			await fireEvent.click(submitButton);
 
 			await waitFor(() => {
-				expect(createTask).toHaveBeenCalledWith('Test task', undefined, undefined, 'feature');
+				expect(createTask).toHaveBeenCalledWith('Test task', undefined, undefined, 'feature', undefined);
 				expect(addTask).toHaveBeenCalledWith(mockTask);
 				expect(toast.success).toHaveBeenCalled();
 				expect(mockOnClose).toHaveBeenCalled();
@@ -123,7 +124,7 @@ describe('NewTaskModal', () => {
 			await fireEvent.click(submitButton);
 
 			await waitFor(() => {
-				expect(createTask).toHaveBeenCalledWith('Test task', 'Test description', undefined, 'feature');
+				expect(createTask).toHaveBeenCalledWith('Test task', 'Test description', undefined, 'feature', undefined);
 			});
 		});
 
@@ -214,8 +215,36 @@ describe('NewTaskModal', () => {
 			await fireEvent.keyDown(titleInput, { key: 'Enter', metaKey: true });
 
 			await waitFor(() => {
-				expect(createTask).toHaveBeenCalledWith('Keyboard task', undefined, undefined, 'feature');
+				expect(createTask).toHaveBeenCalledWith('Keyboard task', undefined, undefined, 'feature', undefined);
 			});
+		});
+	});
+
+	describe('attachments', () => {
+		it('renders attachment drop zone', () => {
+			render(NewTaskModal, {
+				props: {
+					open: true,
+					onClose: mockOnClose
+				}
+			});
+
+			expect(screen.getByText('Attachments')).toBeInTheDocument();
+			expect(screen.getByText(/drop screenshots or files/i)).toBeInTheDocument();
+		});
+
+		it('has file input for attachments', () => {
+			render(NewTaskModal, {
+				props: {
+					open: true,
+					onClose: mockOnClose
+				}
+			});
+
+			const fileInput = document.querySelector('input[type="file"]');
+			expect(fileInput).toBeInTheDocument();
+			expect(fileInput).toHaveAttribute('multiple');
+			expect(fileInput).toHaveAttribute('accept', 'image/*,.pdf,.txt,.md,.log,.json');
 		});
 	});
 });
