@@ -15,7 +15,7 @@ describe('FinalizeModal', () => {
 		id: 'TASK-001',
 		title: 'Test Task',
 		description: 'Test description',
-		weight: 'medium',
+		weight: 'medium' as const,
 		status: 'completed' as const,
 		branch: 'orc/TASK-001',
 		created_at: '2024-01-01T00:00:00Z',
