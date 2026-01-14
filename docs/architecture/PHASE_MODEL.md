@@ -52,6 +52,7 @@ All three methods produce identical results.
 | `docs` | Create/update documentation | README.md, CLAUDE.md, etc. | Yes |
 | `test` | Write and run tests | test results | Yes |
 | `validate` | Final verification | validation report | Yes |
+| `finalize` | Sync with main, conflict resolution | finalization report | Yes |
 | `merge` | Merge to target branch | merged code | Yes (final) |
 
 ### Docs Phase Details
@@ -67,6 +68,37 @@ The `docs` phase runs **after implementation and review**, with full context of 
 | greenfield | Create complete doc structure from templates |
 
 See [DOCUMENTATION.md](../specs/DOCUMENTATION.md) for full specification.
+
+### Finalize Phase Details
+
+The `finalize` phase runs **after validate** to prepare the branch for merge. Key responsibilities:
+
+| Step | Purpose |
+|------|---------|
+| Sync with target | Merge main (or target branch) into task branch |
+| Conflict resolution | Resolve any conflicts following strict rules |
+| Test verification | Re-run tests after conflict resolution |
+| Risk assessment | Classify merge risk based on diff size |
+
+#### Conflict Resolution Rules
+
+**Critical constraints** during conflict resolution:
+
+| Rule | Description |
+|------|-------------|
+| **NEVER remove features** | Both task changes AND upstream changes must be preserved |
+| **Merge intentions** | Understand what each side was trying to accomplish |
+| **Prefer additive** | When in doubt, keep both implementations |
+| **Test per file** | Run tests after resolving each conflicted file |
+
+#### Risk Classification
+
+| Files Changed | Lines Changed | Risk Level |
+|---------------|---------------|------------|
+| 1-5 | <100 | Low (auto-merge safe) |
+| 6-15 | 100-500 | Medium (review recommended) |
+| 16-30 | 500-1000 | High (careful review required) |
+| >30 | >1000 | Critical (senior review mandatory) |
 
 ### Phase Commit Requirement
 

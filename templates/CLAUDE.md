@@ -21,7 +21,8 @@ templates/
 │   ├── implement.md
 │   ├── test.md
 │   ├── docs.md
-│   └── validate.md
+│   ├── validate.md
+│   └── finalize.md
 ├── scripts/          # Script templates
 └── pr-body.md        # PR description template
 ```
@@ -144,6 +145,7 @@ If blocked, output:
 | `test.md` | Write and run tests (includes Playwright E2E for UI tasks) |
 | `docs.md` | Update documentation |
 | `validate.md` | E2E validation with Playwright MCP |
+| `finalize.md` | Sync with target branch, resolve conflicts, risk assessment |
 
 ### UI Testing in Prompts
 
