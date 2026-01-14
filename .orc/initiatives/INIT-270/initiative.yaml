@@ -2,5 +2,14 @@ version: 1
 id: INIT-270
 title: E2E-Test-AllDecisions-1768392766949
 status: draft
+decisions:
+    - id: DEC-001
+      date: 2026-01-14T06:12:49.153231-06:00
+      by: ""
+      decision: First decision
+    - id: DEC-002
+      date: 2026-01-14T06:12:50.129939-06:00
+      by: ""
+      decision: Second decision
 created_at: 2026-01-14T06:12:47.098116-06:00
-updated_at: 2026-01-14T06:12:47.098316-06:00
+updated_at: 2026-01-14T06:12:50.129953-06:00
