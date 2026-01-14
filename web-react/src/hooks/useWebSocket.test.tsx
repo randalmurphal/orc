@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, act, renderHook, waitFor } from '@testing-library/react';
+import { render, screen, act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import {
 	WebSocketProvider,
@@ -397,10 +397,6 @@ describe('WebSocket hooks', () => {
 	});
 
 	describe('WebSocket event handling', () => {
-		function wrapper({ children }: { children: ReactNode }) {
-			return <WebSocketProvider>{children}</WebSocketProvider>;
-		}
-
 		it('should update TaskStore on state event', async () => {
 			// Add a task first
 			useTaskStore.getState().addTask({

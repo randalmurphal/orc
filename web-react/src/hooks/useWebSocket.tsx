@@ -4,7 +4,7 @@
  * Provides WebSocketProvider context and hooks for real-time task updates.
  */
 
-import React, {
+import {
 	createContext,
 	useContext,
 	useEffect,

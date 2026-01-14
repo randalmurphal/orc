@@ -63,8 +63,8 @@ describe('UIStore', () => {
 			useUIStore.getState().setWsStatus('connected');
 			expect(useUIStore.getState().wsStatus).toBe('connected');
 
-			useUIStore.getState().setWsStatus('error');
-			expect(useUIStore.getState().wsStatus).toBe('error');
+			useUIStore.getState().setWsStatus('reconnecting');
+			expect(useUIStore.getState().wsStatus).toBe('reconnecting');
 
 			useUIStore.getState().setWsStatus('disconnected');
 			expect(useUIStore.getState().wsStatus).toBe('disconnected');
