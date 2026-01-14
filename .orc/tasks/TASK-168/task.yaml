@@ -62,6 +62,12 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:21:03.282155087-06:00
-updated_at: 2026-01-14T12:27:18.43937-06:00
+updated_at: 2026-01-14T12:27:23.32029-06:00
 started_at: 2026-01-14T12:14:52.048655-06:00
 completed_at: 2026-01-14T12:27:18.43937-06:00
+metadata:
+    pr_url: https://github.com/randalmurphal/orc/pull/88
+pr:
+    url: https://github.com/randalmurphal/orc/pull/88
+    number: 88
+    status: pending_review
