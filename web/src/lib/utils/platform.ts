@@ -1,5 +1,9 @@
 /**
  * Platform detection utilities for keyboard shortcuts
+ *
+ * NOTE: The app uses Shift+Alt (Shift+Option on Mac) as the primary modifier
+ * for global shortcuts to avoid conflicts with browser shortcuts like
+ * Cmd+K, Cmd+N, Cmd+P, etc.
  */
 
 /**
@@ -21,21 +25,23 @@ export function isMac(): boolean {
 }
 
 /**
- * Returns the appropriate modifier key symbol for the platform
- * Mac: ⌘ (Command)
- * Others: Ctrl
+ * Returns the appropriate modifier key display for the platform
+ * Mac: ⇧⌥ (Shift+Option)
+ * Others: Shift+Alt
+ *
+ * Uses Shift+Alt instead of Cmd/Ctrl to avoid browser shortcut conflicts
  */
 export function getModifierKey(): string {
-	return isMac() ? '⌘' : 'Ctrl';
+	return isMac() ? '⇧⌥' : 'Shift+Alt';
 }
 
 /**
  * Returns the appropriate modifier key symbol (short form)
- * Mac: ⌘
- * Others: ^
+ * Mac: ⇧⌥
+ * Others: Shift+Alt+
  */
 export function getModifierSymbol(): string {
-	return isMac() ? '⌘' : '^';
+	return isMac() ? '⇧⌥' : 'Shift+Alt+';
 }
 
 /**

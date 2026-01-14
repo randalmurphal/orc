@@ -77,12 +77,14 @@ Project selection persists across page refreshes using URL and localStorage:
 
 ## Keyboard Shortcuts
 
+**Global shortcuts use Shift+Alt** (Shift+Option on Mac) to avoid browser conflicts with Cmd+K, Cmd+N, etc.
+
 | Shortcut | Action |
 |----------|--------|
-| `Cmd+K` | Command palette |
-| `Cmd+N` | New task |
-| `Cmd+B` | Toggle sidebar |
-| `Cmd+P` | Project switcher |
+| `Shift+Alt+K` | Command palette |
+| `Shift+Alt+N` | New task |
+| `Shift+Alt+B` | Toggle sidebar |
+| `Shift+Alt+P` | Project switcher |
 | `g d/t/s` | Go to dashboard/tasks/settings |
 | `j/k` | Navigate task list |
 | `Enter` | Open selected |
@@ -122,8 +124,8 @@ Modals that can be triggered from multiple pages (via keyboard shortcuts, comman
 
 | Modal | Trigger Event | Keyboard |
 |-------|--------------|----------|
-| `NewTaskModal` | `orc:new-task` | `Cmd+N` |
-| `CommandPalette` | `orc:command-palette` | `Cmd+K` |
+| `NewTaskModal` | `orc:new-task` | `Shift+Alt+N` |
+| `CommandPalette` | `orc:command-palette` | `Shift+Alt+K` |
 | `KeyboardShortcutsHelp` | `orc:show-shortcuts` | `?` |
 
 **To trigger from any page:**

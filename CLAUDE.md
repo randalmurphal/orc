@@ -239,9 +239,9 @@ make web-dev    # Frontend :5173
 
 **Live refresh:** Task board auto-updates when tasks are created/modified/deleted via CLI or filesystem. File watcher monitors `.orc/tasks/` and broadcasts events over WebSocket.
 
-**Project selection:** The server can run from any directory. Project selection persists in URL (`?project=xxx`) and localStorage, surviving page refresh. Use `Cmd+P` to switch projects.
+**Project selection:** The server can run from any directory. Project selection persists in URL (`?project=xxx`) and localStorage, surviving page refresh. Use `Shift+Alt+P` to switch projects.
 
-**Keyboard shortcuts:** `Cmd+K` (palette), `Cmd+N` (new task), `g t` (tasks), `j/k` (navigate)
+**Keyboard shortcuts:** Uses `Shift+Alt` modifier (⇧⌥ on Mac) to avoid browser conflicts. `Shift+Alt+K` (palette), `Shift+Alt+N` (new task), `g t` (tasks), `j/k` (navigate). Press `?` for full list.
 
 **Settings management:** All settings are editable through the UI:
 - Claude Code settings (global `~/.claude/settings.json` + project `.claude/settings.json`) via `/preferences`
@@ -366,6 +366,7 @@ Patterns, gotchas, and decisions learned during development.
 | Worktree-aware project root | `config.FindProjectRoot()` resolves main repo with `.orc/tasks` when running from worktree; uses git common-dir to find main repo | TASK-025 |
 | Initiative-task bidirectional sync | Setting `initiative_id` on a task auto-adds it to the initiative's task list; deleting a task removes it from its initiative | TASK-060 |
 | Editable settings via UI | All settings (Claude Code global/project, orc config) editable through web UI; separate API endpoints for global (`PUT /api/settings/global`) vs project (`PUT /api/settings`) scope | TASK-033 |
+| Browser-safe keyboard shortcuts | Web UI uses `Shift+Alt` modifier (⇧⌥ on Mac) for global shortcuts instead of Cmd/Ctrl to avoid browser conflicts with Cmd+K, Cmd+N, etc. | TASK-037 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
@@ -378,7 +379,7 @@ Patterns, gotchas, and decisions learned during development.
 | Failed task can't be resumed | Fixed: `orc resume` now supports failed tasks, resuming from last incomplete phase | TASK-025 |
 | Spurious "Task deleted" toast notifications | Fixed: Watcher now verifies deletions with debounce to filter false positives from git ops/atomic saves | TASK-053 |
 | Setup errors (worktree creation) failed silently | Fixed: Errors now always display even in quiet mode, task status set to failed | TASK-044 |
-| Web UI shows "No project selected" | Select a project via `Cmd+P` - server can run from any directory | TASK-005 |
+| Web UI shows "No project selected" | Select a project via `Shift+Alt+P` - server can run from any directory | TASK-005 |
 
 ### Decisions
 | Decision | Rationale | Source |

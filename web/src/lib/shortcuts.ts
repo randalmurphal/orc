@@ -1,6 +1,12 @@
 /**
  * Keyboard Shortcut Manager
  * Handles global and context-specific keyboard shortcuts
+ *
+ * NOTE: Uses Shift+Alt (Shift+Option on Mac) as the primary modifier for
+ * browser-conflicting shortcuts instead of Cmd/Ctrl. This avoids conflicts
+ * with browser shortcuts like Cmd+K (address bar), Cmd+N (new window),
+ * Cmd+P (print), and Cmd+B (bookmarks) that cannot be reliably overridden
+ * in a web context.
  */
 
 export interface Shortcut {
@@ -224,7 +230,11 @@ class ShortcutManager {
 					case 'shift':
 						return '⇧';
 					case 'alt':
-						return '⌥';
+						// Use ⌥ (Option) on Mac, Alt on other platforms
+						return typeof navigator !== 'undefined' &&
+							/Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
+							? '⌥'
+							: 'Alt';
 					default:
 						return p.toUpperCase();
 				}
@@ -254,12 +264,29 @@ export function getShortcutManager(): ShortcutManager {
 
 /**
  * Pre-defined shortcut definitions
+ *
+ * Global shortcuts use Shift+Alt to avoid browser conflicts:
+ * - Cmd/Ctrl+K = browser address bar
+ * - Cmd/Ctrl+N = new browser window
+ * - Cmd/Ctrl+B = bookmarks
+ * - Cmd/Ctrl+P = print dialog
+ *
+ * Shift+Alt is browser-safe and consistent across platforms.
  */
 export const SHORTCUTS = {
-	// Global shortcuts
-	COMMAND_PALETTE: { key: 'k', modifiers: ['meta'] as const, description: 'Open command palette' },
-	NEW_TASK: { key: 'n', modifiers: ['meta'] as const, description: 'Create new task' },
-	TOGGLE_SIDEBAR: { key: 'b', modifiers: ['meta'] as const, description: 'Toggle sidebar' },
+	// Global shortcuts (Shift+Alt modifier to avoid browser conflicts)
+	COMMAND_PALETTE: {
+		key: 'k',
+		modifiers: ['shift', 'alt'] as const,
+		description: 'Open command palette'
+	},
+	NEW_TASK: { key: 'n', modifiers: ['shift', 'alt'] as const, description: 'Create new task' },
+	TOGGLE_SIDEBAR: { key: 'b', modifiers: ['shift', 'alt'] as const, description: 'Toggle sidebar' },
+	PROJECT_SWITCHER: {
+		key: 'p',
+		modifiers: ['shift', 'alt'] as const,
+		description: 'Switch project'
+	},
 	SEARCH: { key: '/', description: 'Focus search' },
 	HELP: { key: '?', description: 'Show keyboard shortcuts' },
 	ESCAPE: { key: 'escape', description: 'Close overlay / Cancel' },
@@ -289,6 +316,7 @@ export function setupGlobalShortcuts(callbacks: {
 	onCommandPalette?: ShortcutCallback;
 	onNewTask?: ShortcutCallback;
 	onToggleSidebar?: ShortcutCallback;
+	onProjectSwitcher?: ShortcutCallback;
 	onSearch?: ShortcutCallback;
 	onHelp?: ShortcutCallback;
 	onEscape?: ShortcutCallback;
@@ -327,6 +355,15 @@ export function setupGlobalShortcuts(callbacks: {
 			manager.register({
 				...SHORTCUTS.TOGGLE_SIDEBAR,
 				action: callbacks.onToggleSidebar
+			})
+		);
+	}
+
+	if (callbacks.onProjectSwitcher) {
+		unsubscribers.push(
+			manager.register({
+				...SHORTCUTS.PROJECT_SWITCHER,
+				action: callbacks.onProjectSwitcher
 			})
 		);
 	}
