@@ -384,6 +384,15 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 
 // autoApprovePR performs AI review and approves the PR if it passes.
 func (e *Executor) autoApprovePR(ctx context.Context, t *task.Task, prURL string) error {
+	// Check if this is a self-authored PR - cannot approve your own PR
+	isSelfAuthored, err := e.isSelfAuthoredPR(ctx, prURL)
+	if err != nil {
+		e.logger.Debug("could not determine PR author, proceeding with approval attempt", "error", err)
+	} else if isSelfAuthored {
+		e.logger.Debug("skipping self-approval: PR author matches authenticated user", "task", t.ID, "pr", prURL)
+		return nil
+	}
+
 	e.logger.Info("starting AI review for auto-approval", "task", t.ID, "pr", prURL)
 
 	// 1. Get the PR diff
@@ -435,10 +444,32 @@ func (e *Executor) getPRDiff(ctx context.Context, prURL string) (string, error) 
 	return output, nil
 }
 
+// isSelfAuthoredPR checks if the PR was authored by the current authenticated user.
+// Returns true if the PR author matches the authenticated user, false otherwise.
+// Used to skip self-approval attempts in solo dev workflows.
+func (e *Executor) isSelfAuthoredPR(ctx context.Context, prURL string) (bool, error) {
+	// Get PR author
+	prOutput, err := e.runGH(ctx, "pr", "view", prURL, "--json", "author", "--jq", ".author.login")
+	if err != nil {
+		return false, fmt.Errorf("get PR author: %w", err)
+	}
+	prAuthor := strings.TrimSpace(prOutput)
+
+	// Get current authenticated user
+	userOutput, err := e.runGH(ctx, "api", "user", "--jq", ".login")
+	if err != nil {
+		return false, fmt.Errorf("get authenticated user: %w", err)
+	}
+	currentUser := strings.TrimSpace(userOutput)
+
+	return prAuthor == currentUser, nil
+}
+
 // checkPRStatus checks if PR checks (CI) have passed.
 func (e *Executor) checkPRStatus(ctx context.Context, prURL string) (bool, string, error) {
 	// Use gh pr checks to get status
-	output, err := e.runGH(ctx, "pr", "checks", prURL, "--json", "name,state,conclusion")
+	// gh pr checks --json returns: name, state, bucket (pass/fail/pending/skipping/cancel)
+	output, err := e.runGH(ctx, "pr", "checks", prURL, "--json", "name,state,bucket")
 	if err != nil {
 		// If no checks configured, that's OK
 		if strings.Contains(err.Error(), "no checks") || strings.Contains(output, "[]") {
@@ -449,24 +480,24 @@ func (e *Executor) checkPRStatus(ctx context.Context, prURL string) (bool, strin
 
 	// Parse the JSON output
 	var checks []struct {
-		Name       string `json:"name"`
-		State      string `json:"state"`
-		Conclusion string `json:"conclusion"`
+		Name   string `json:"name"`
+		State  string `json:"state"`
+		Bucket string `json:"bucket"` // pass, fail, pending, skipping, cancel
 	}
 	if err := json.Unmarshal([]byte(output), &checks); err != nil {
 		return false, "", fmt.Errorf("parse checks: %w", err)
 	}
 
 	// Check if any are failing or pending
-	allPassed := true
-	pending := false
 	var failedChecks []string
+	pending := false
 	for _, c := range checks {
-		if c.State == "PENDING" || c.State == "IN_PROGRESS" || c.State == "QUEUED" {
-			pending = true
-		} else if c.Conclusion != "SUCCESS" && c.Conclusion != "SKIPPED" && c.Conclusion != "NEUTRAL" {
-			allPassed = false
+		switch c.Bucket {
+		case "fail":
 			failedChecks = append(failedChecks, c.Name)
+		case "pending":
+			pending = true
+		// pass, skipping, cancel are all acceptable
 		}
 	}
 
@@ -476,10 +507,7 @@ func (e *Executor) checkPRStatus(ctx context.Context, prURL string) (bool, strin
 	if pending {
 		return true, "Some checks still pending", nil
 	}
-	if allPassed {
-		return true, "All checks passed", nil
-	}
-	return false, "Some checks did not pass", nil
+	return true, "All checks passed", nil
 }
 
 // reviewAndApprove reviews the PR diff and determines if it should be approved.
