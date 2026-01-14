@@ -157,6 +157,20 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 		fmt.Fprintf(os.Stderr, "   Manual 'git push' to protected branches may not be blocked.\n\n")
 	}
 
+	// Inject Claude Code hooks for worktree isolation
+	// These PreToolUse hooks block file operations outside the worktree,
+	// preventing accidental modification of the main repository.
+	claudeHookCfg := ClaudeCodeHookConfig{
+		WorktreePath: worktreePath,
+		MainRepoPath: g.ctx.RepoPath(),
+		TaskID:       taskID,
+	}
+	if err := InjectClaudeCodeHooks(claudeHookCfg); err != nil {
+		// Log warning but don't fail - this is defense in depth
+		fmt.Fprintf(os.Stderr, "\n⚠️  WARNING: Failed to inject Claude Code isolation hooks: %v\n", err)
+		fmt.Fprintf(os.Stderr, "   File operations may not be restricted to the worktree.\n\n")
+	}
+
 	return worktreePath, nil
 }
 
