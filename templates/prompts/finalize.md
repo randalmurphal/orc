@@ -8,6 +8,8 @@ You are preparing the task branch for merge by syncing with the target branch an
 **Task**: {{TASK_TITLE}}
 **Weight**: {{WEIGHT}}
 
+{{INITIATIVE_CONTEXT}}
+
 ## Worktree Safety
 
 You are working in an **isolated git worktree**.
