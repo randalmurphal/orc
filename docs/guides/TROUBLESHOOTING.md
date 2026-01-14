@@ -4,6 +4,64 @@
 
 ---
 
+## Task is Blocked by Dependencies
+
+**Symptoms**:
+- `orc run` shows warning about incomplete blockers
+- API returns 409 Conflict with `task_blocked` error
+- Web UI shows blocking warning when attempting to run task
+
+**Example CLI output**:
+```
+⚠️  This task is blocked by incomplete tasks:
+    - TASK-060: Add initiative_id field... (planned)
+    - TASK-061: Add Initiatives section... (running)
+
+Run anyway? [y/N]:
+```
+
+**Diagnosis**:
+```bash
+# View task dependencies
+orc show TASK-XXX
+
+# Check which tasks are blocking
+cat .orc/tasks/TASK-XXX/task.yaml | grep -A5 "blocked_by:"
+
+# See dependency graph via API
+curl http://localhost:8080/api/tasks/TASK-XXX/dependencies
+```
+
+**Solutions**:
+
+| Approach | Command | When to Use |
+|----------|---------|-------------|
+| Complete blockers first | `orc run TASK-060` | Best practice - respects dependency order |
+| Force run anyway | `orc run TASK-XXX --force` | When you know the dependency is soft |
+| Remove blocker | `orc edit TASK-XXX --remove-blocker TASK-060` | If dependency was added by mistake |
+
+**Understanding Dependencies**:
+
+- **blocked_by**: Hard dependencies - tasks that should complete first
+- **related_to**: Soft relationships - informational only, doesn't block execution
+
+**For API users**: Add `?force=true` query parameter to bypass the blocking check:
+```bash
+curl -X POST http://localhost:8080/api/tasks/TASK-XXX/run?force=true
+```
+
+**When to use --force**:
+- The blocking task is being worked on in parallel and doesn't affect this task
+- The dependency was added for tracking purposes but isn't truly required
+- You're prototyping and want to test independently
+
+**When NOT to use --force**:
+- The blocking task produces output this task depends on
+- The tasks share resources and concurrent execution could cause conflicts
+- You're unsure why the dependency exists
+
+---
+
 ## Task Stuck on Same Error
 
 **Symptoms**:

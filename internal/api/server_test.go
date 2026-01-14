@@ -1762,6 +1762,228 @@ updated_at: 2024-01-01T00:00:00Z
 	}
 }
 
+// === Blocking Enforcement Tests ===
+
+func TestRunTaskEndpoint_BlockedByIncompleteTasks(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create blocking task (not completed)
+	blockerDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-BLOCKER")
+	os.MkdirAll(blockerDir, 0755)
+
+	blockerYAML := `id: TASK-BLOCKER
+title: Blocking Task
+status: planned
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(blockerDir, "task.yaml"), []byte(blockerYAML), 0644)
+
+	// Create task that is blocked by the incomplete task
+	blockedDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-BLOCKED")
+	os.MkdirAll(blockedDir, 0755)
+
+	blockedYAML := `id: TASK-BLOCKED
+title: Blocked Task
+status: planned
+weight: medium
+blocked_by:
+  - TASK-BLOCKER
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(blockedDir, "task.yaml"), []byte(blockedYAML), 0644)
+
+	// Create plan for blocked task
+	planYAML := `phases:
+  - id: implement
+    status: pending
+`
+	os.WriteFile(filepath.Join(blockedDir, "plan.yaml"), []byte(planYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-BLOCKED/run", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	// Should return 409 Conflict
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected status 409, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Error          string `json:"error"`
+		Message        string `json:"message"`
+		BlockedBy      []struct {
+			ID     string `json:"id"`
+			Title  string `json:"title"`
+			Status string `json:"status"`
+		} `json:"blocked_by"`
+		ForceAvailable bool `json:"force_available"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	if response.Error != "task_blocked" {
+		t.Errorf("expected error 'task_blocked', got '%s'", response.Error)
+	}
+	if len(response.BlockedBy) != 1 {
+		t.Errorf("expected 1 blocker, got %d", len(response.BlockedBy))
+	}
+	if response.BlockedBy[0].ID != "TASK-BLOCKER" {
+		t.Errorf("expected blocker ID 'TASK-BLOCKER', got '%s'", response.BlockedBy[0].ID)
+	}
+	if response.BlockedBy[0].Status != "planned" {
+		t.Errorf("expected blocker status 'planned', got '%s'", response.BlockedBy[0].Status)
+	}
+	if !response.ForceAvailable {
+		t.Error("expected force_available to be true")
+	}
+}
+
+func TestRunTaskEndpoint_BlockedByCompletedTask_CanRun(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create blocking task that is completed
+	blockerDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-DONE")
+	os.MkdirAll(blockerDir, 0755)
+
+	blockerYAML := `id: TASK-DONE
+title: Completed Blocking Task
+status: completed
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(blockerDir, "task.yaml"), []byte(blockerYAML), 0644)
+
+	// Create task that is blocked by the completed task
+	blockedDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-READY")
+	os.MkdirAll(blockedDir, 0755)
+
+	blockedYAML := `id: TASK-READY
+title: Ready Task
+status: planned
+weight: medium
+blocked_by:
+  - TASK-DONE
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(blockedDir, "task.yaml"), []byte(blockedYAML), 0644)
+
+	// Create plan for blocked task
+	planYAML := `phases:
+  - id: implement
+    status: pending
+`
+	os.WriteFile(filepath.Join(blockedDir, "plan.yaml"), []byte(planYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-READY/run", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	// Should return 200 OK (all blockers are completed)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRunTaskEndpoint_BlockedWithForce(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create blocking task (not completed)
+	blockerDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-BLOCK2")
+	os.MkdirAll(blockerDir, 0755)
+
+	blockerYAML := `id: TASK-BLOCK2
+title: Blocking Task
+status: running
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(blockerDir, "task.yaml"), []byte(blockerYAML), 0644)
+
+	// Create task that is blocked
+	blockedDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-FORCE")
+	os.MkdirAll(blockedDir, 0755)
+
+	blockedYAML := `id: TASK-FORCE
+title: Force Run Task
+status: planned
+weight: medium
+blocked_by:
+  - TASK-BLOCK2
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(blockedDir, "task.yaml"), []byte(blockedYAML), 0644)
+
+	// Create plan
+	planYAML := `phases:
+  - id: implement
+    status: pending
+`
+	os.WriteFile(filepath.Join(blockedDir, "plan.yaml"), []byte(planYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	// Use force=true query param
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-FORCE/run?force=true", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	// Should return 200 OK when force=true
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 with force=true, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRunTaskEndpoint_NoBlockers_CanRun(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task with no blockers
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-FREE")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-FREE
+title: Free Task
+status: planned
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	// Create plan
+	planYAML := `phases:
+  - id: implement
+    status: pending
+`
+	os.WriteFile(filepath.Join(taskDir, "plan.yaml"), []byte(planYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-FREE/run", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	// Should return 200 OK
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 // === Pause/Resume Tests ===
 
 func TestPauseTaskEndpoint_Success(t *testing.T) {

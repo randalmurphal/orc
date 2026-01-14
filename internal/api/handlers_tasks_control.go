@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/executor"
@@ -42,6 +43,43 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	if !t.CanRun() {
 		s.jsonError(w, fmt.Sprintf("task cannot run in status: %s", t.Status), http.StatusBadRequest)
 		return
+	}
+
+	// Check for incomplete blockers
+	if len(t.BlockedBy) > 0 {
+		// Check if force=true query param is set
+		force := r.URL.Query().Get("force") == "true"
+
+		if !force {
+			// Load all tasks to check blocker status
+			tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
+			allTasks, err := task.LoadAllFrom(tasksDir)
+			if err != nil {
+				s.logger.Warn("failed to load tasks for dependency check", "error", err)
+				// Continue anyway - don't block on dependency check failure
+			} else {
+				// Build task map
+				taskMap := make(map[string]*task.Task)
+				for _, tsk := range allTasks {
+					taskMap[tsk.ID] = tsk
+				}
+
+				// Get incomplete blockers
+				blockers := t.GetIncompleteBlockers(taskMap)
+				if len(blockers) > 0 {
+					// Return 409 Conflict with blocker details
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusConflict)
+					json.NewEncoder(w).Encode(map[string]any{
+						"error":           "task_blocked",
+						"message":         "Task is blocked by incomplete dependencies",
+						"blocked_by":      blockers,
+						"force_available": true,
+					})
+					return
+				}
+			}
+		}
 	}
 
 	// Load plan and state

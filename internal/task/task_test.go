@@ -1351,3 +1351,114 @@ func TestDependencyError(t *testing.T) {
 		t.Errorf("DependencyError.Error() = %q, want %q", err.Error(), expected)
 	}
 }
+
+func TestGetIncompleteBlockers(t *testing.T) {
+	taskMap := map[string]*Task{
+		"TASK-001": {ID: "TASK-001", Title: "Completed task", Status: StatusCompleted},
+		"TASK-002": {ID: "TASK-002", Title: "Running task", Status: StatusRunning},
+		"TASK-003": {ID: "TASK-003", Title: "Planned task", Status: StatusPlanned},
+	}
+
+	tests := []struct {
+		name         string
+		task         *Task
+		wantBlockers int
+	}{
+		{
+			name:         "no blockers",
+			task:         &Task{ID: "TASK-004", BlockedBy: nil},
+			wantBlockers: 0,
+		},
+		{
+			name:         "completed blocker (no blockers returned)",
+			task:         &Task{ID: "TASK-004", BlockedBy: []string{"TASK-001"}},
+			wantBlockers: 0,
+		},
+		{
+			name:         "running blocker",
+			task:         &Task{ID: "TASK-004", BlockedBy: []string{"TASK-002"}},
+			wantBlockers: 1,
+		},
+		{
+			name:         "planned blocker",
+			task:         &Task{ID: "TASK-004", BlockedBy: []string{"TASK-003"}},
+			wantBlockers: 1,
+		},
+		{
+			name:         "mixed blockers (only incomplete returned)",
+			task:         &Task{ID: "TASK-004", BlockedBy: []string{"TASK-001", "TASK-002", "TASK-003"}},
+			wantBlockers: 2,
+		},
+		{
+			name:         "non-existent blocker",
+			task:         &Task{ID: "TASK-004", BlockedBy: []string{"TASK-999"}},
+			wantBlockers: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			blockers := tt.task.GetIncompleteBlockers(taskMap)
+			if len(blockers) != tt.wantBlockers {
+				t.Errorf("GetIncompleteBlockers() returned %d blockers, want %d", len(blockers), tt.wantBlockers)
+			}
+		})
+	}
+}
+
+func TestGetIncompleteBlockers_ReturnsCorrectInfo(t *testing.T) {
+	taskMap := map[string]*Task{
+		"TASK-001": {ID: "TASK-001", Title: "Running task", Status: StatusRunning},
+		"TASK-002": {ID: "TASK-002", Title: "Planned task", Status: StatusPlanned},
+	}
+
+	task := &Task{ID: "TASK-003", BlockedBy: []string{"TASK-001", "TASK-002"}}
+	blockers := task.GetIncompleteBlockers(taskMap)
+
+	if len(blockers) != 2 {
+		t.Fatalf("GetIncompleteBlockers() returned %d blockers, want 2", len(blockers))
+	}
+
+	// Check first blocker
+	if blockers[0].ID != "TASK-001" {
+		t.Errorf("blockers[0].ID = %s, want TASK-001", blockers[0].ID)
+	}
+	if blockers[0].Title != "Running task" {
+		t.Errorf("blockers[0].Title = %s, want 'Running task'", blockers[0].Title)
+	}
+	if blockers[0].Status != StatusRunning {
+		t.Errorf("blockers[0].Status = %s, want %s", blockers[0].Status, StatusRunning)
+	}
+
+	// Check second blocker
+	if blockers[1].ID != "TASK-002" {
+		t.Errorf("blockers[1].ID = %s, want TASK-002", blockers[1].ID)
+	}
+	if blockers[1].Title != "Planned task" {
+		t.Errorf("blockers[1].Title = %s, want 'Planned task'", blockers[1].Title)
+	}
+	if blockers[1].Status != StatusPlanned {
+		t.Errorf("blockers[1].Status = %s, want %s", blockers[1].Status, StatusPlanned)
+	}
+}
+
+func TestGetIncompleteBlockers_NonExistentTask(t *testing.T) {
+	taskMap := map[string]*Task{}
+
+	task := &Task{ID: "TASK-001", BlockedBy: []string{"TASK-999"}}
+	blockers := task.GetIncompleteBlockers(taskMap)
+
+	if len(blockers) != 1 {
+		t.Fatalf("GetIncompleteBlockers() returned %d blockers, want 1", len(blockers))
+	}
+
+	if blockers[0].ID != "TASK-999" {
+		t.Errorf("blockers[0].ID = %s, want TASK-999", blockers[0].ID)
+	}
+	if blockers[0].Title != "(task not found)" {
+		t.Errorf("blockers[0].Title = %s, want '(task not found)'", blockers[0].Title)
+	}
+	if blockers[0].Status != "" {
+		t.Errorf("blockers[0].Status = %s, want empty", blockers[0].Status)
+	}
+}

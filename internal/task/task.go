@@ -633,6 +633,39 @@ func (t *Task) GetUnmetDependencies(tasks map[string]*Task) []string {
 	return unmet
 }
 
+// BlockerInfo contains information about a blocking task for display purposes.
+type BlockerInfo struct {
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Status Status `json:"status"`
+}
+
+// GetIncompleteBlockers returns full information about blocking tasks that aren't completed.
+// This is useful for displaying blocking information to users.
+func (t *Task) GetIncompleteBlockers(tasks map[string]*Task) []BlockerInfo {
+	var blockers []BlockerInfo
+	for _, blockerID := range t.BlockedBy {
+		blocker, exists := tasks[blockerID]
+		if !exists {
+			// Reference to non-existent task - treat as blocker
+			blockers = append(blockers, BlockerInfo{
+				ID:     blockerID,
+				Title:  "(task not found)",
+				Status: "",
+			})
+			continue
+		}
+		if blocker.Status != StatusCompleted {
+			blockers = append(blockers, BlockerInfo{
+				ID:     blocker.ID,
+				Title:  blocker.Title,
+				Status: blocker.Status,
+			})
+		}
+	}
+	return blockers
+}
+
 // Load loads a task from disk by ID.
 func Load(id string) (*Task, error) {
 	return LoadFrom(".", id)

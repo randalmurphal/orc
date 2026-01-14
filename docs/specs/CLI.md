@@ -205,7 +205,7 @@ orc edit TASK-001 --related-to TASK-005            # Set related tasks
 Execute or resume a task.
 
 ```bash
-orc run <task-id> [--phase <phase>] [--continue] [--dry-run] [--profile <profile>] [--auto-skip]
+orc run <task-id> [--phase <phase>] [--continue] [--dry-run] [--profile <profile>] [--auto-skip] [--force]
 ```
 
 | Option | Description |
@@ -215,6 +215,27 @@ orc run <task-id> [--phase <phase>] [--continue] [--dry-run] [--profile <profile
 | `--dry-run` | Show execution plan only |
 | `--profile`, `-P` | Automation profile (auto, fast, safe, strict) |
 | `--auto-skip` | Automatically skip phases with existing artifacts |
+| `--force`, `-f` | Run even if task has incomplete blockers |
+
+**Blocking Enforcement**:
+
+Before execution, orc checks if the task has incomplete dependencies (tasks in `blocked_by` that aren't completed). If blockers exist:
+
+```
+$ orc run TASK-062
+
+⚠️  This task is blocked by incomplete tasks:
+    - TASK-060: Add initiative_id field... (planned)
+    - TASK-061: Add Initiatives section... (running)
+
+Run anyway? [y/N]:
+```
+
+| Mode | Behavior |
+|------|----------|
+| Interactive | Prompts for confirmation before running |
+| Quiet (`-q`) | Refuses to run without `--force` flag |
+| Force (`-f`) | Skips the check entirely |
 
 **Artifact Detection**:
 
