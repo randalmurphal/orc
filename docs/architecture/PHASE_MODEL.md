@@ -100,6 +100,48 @@ The `finalize` phase runs **after validate** to prepare the branch for merge. Ke
 | 16-30 | 500-1000 | High (careful review required) |
 | >30 | >1000 | Critical (senior review mandatory) |
 
+Conflicts also contribute to risk: >10 conflicts is High, >3 is Medium.
+
+#### Sync Strategies
+
+| Strategy | Behavior | When to Use |
+|----------|----------|-------------|
+| `merge` (default) | Merge target into task branch | Preserves full commit history |
+| `rebase` | Rebase task branch onto target | Linear history, cleaner graph |
+
+Configure via `completion.finalize.sync.strategy` in `config.yaml`.
+
+#### Test Fix Loop
+
+After sync, if tests fail:
+1. Claude attempts to fix test failures (up to 5 turns)
+2. Tests re-run after fix attempt
+3. If still failing, escalates to implement phase
+
+#### Escalation to Implement Phase
+
+Finalize escalates back to implement when issues persist:
+
+| Condition | Action |
+|-----------|--------|
+| >10 unresolved conflicts | Escalate with conflict list |
+| >5 test failures after fix attempts | Escalate with test failure details |
+| Complex merge conflicts | Escalate for manual resolution |
+
+The implement phase receives retry context via `{{RETRY_CONTEXT}}` containing:
+- List of conflicted files that couldn't be resolved
+- Test failures with error messages
+- Guidance to fix and retry finalize
+
+#### Finalize Output Report
+
+On completion, finalize produces a markdown report:
+- Sync summary (target branch, conflicts resolved)
+- Test results (passed/failed)
+- Risk assessment table with per-factor breakdown
+- Merge recommendation (auto-merge, review-then-merge, senior-review-required)
+- Final commit SHA
+
 ### Phase Commit Requirement
 
 **Every phase that produces artifacts or code changes MUST commit before marking complete.**
