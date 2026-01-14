@@ -1,3 +1,26 @@
+/**
+ * Board Page E2E Tests
+ *
+ * Framework-agnostic tests for the Board/Kanban page.
+ * These tests define BEHAVIOR, not implementation, to work on both
+ * Svelte (current) and React (future migration) implementations.
+ *
+ * Test Coverage (18 tests):
+ * - Board Rendering (4): columns, headers, task cards, counts
+ * - View Mode Toggle (5): flat/swimlane views, persistence, filtering
+ * - Drag-Drop (5): column moves, reordering, visual feedback, cancellation
+ * - Swimlane View (4): grouping, collapse/expand, persistence, unassigned
+ *
+ * Selector Strategy (priority order):
+ * 1. role/aria-label - getByRole(), locator('[aria-label="..."]')
+ * 2. Semantic text - getByText(), :has-text()
+ * 3. Structural classes - .task-card, .column, .swimlane
+ * 4. data-testid - for elements without semantic meaning
+ *
+ * Avoid: Framework-specific classes (.svelte-xyz), deep DOM paths
+ *
+ * @see web/CLAUDE.md for selector strategy documentation
+ */
 import { test, expect, type Page } from '@playwright/test';
 
 // Helper function to wait for board to load
