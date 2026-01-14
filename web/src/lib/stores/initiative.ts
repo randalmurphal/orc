@@ -15,6 +15,9 @@ import { listInitiatives, createInitiative as apiCreateInitiative, type CreateIn
 const LOCAL_STORAGE_KEY = 'orc_current_initiative_id';
 const URL_PARAM_KEY = 'initiative';
 
+// Special value for showing only unassigned tasks (no initiative)
+export const UNASSIGNED_INITIATIVE = '__unassigned__';
+
 // Helper to safely access localStorage
 function getStoredInitiativeId(): string | null {
 	if (typeof window === 'undefined') return null;

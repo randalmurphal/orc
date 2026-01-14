@@ -272,4 +272,9 @@ describe('initiative store', () => {
 		expect(updated.title).toBe('Updated Title');
 		expect(updated.status).toBe('active');
 	});
+
+	it('exports UNASSIGNED_INITIATIVE constant', async () => {
+		const { UNASSIGNED_INITIATIVE } = await import('./initiative');
+		expect(UNASSIGNED_INITIATIVE).toBe('__unassigned__');
+	});
 });

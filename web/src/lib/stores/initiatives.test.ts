@@ -26,6 +26,7 @@ describe('initiatives store', () => {
 		id: 'INIT-001',
 		title: 'Frontend Redesign',
 		status: 'active',
+		version: 1,
 		created_at: '2024-01-01T00:00:00Z',
 		updated_at: '2024-01-01T00:00:00Z'
 	};
@@ -33,7 +34,8 @@ describe('initiatives store', () => {
 	const mockInitiative2: Initiative = {
 		id: 'INIT-002',
 		title: 'API Performance Improvements',
-		status: 'planning',
+		status: 'draft',
+		version: 1,
 		created_at: '2024-01-02T00:00:00Z',
 		updated_at: '2024-01-02T00:00:00Z'
 	};
