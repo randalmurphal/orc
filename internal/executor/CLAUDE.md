@@ -168,14 +168,23 @@ Escalates to implement phase when:
 
 ```go
 type FinalizeConfig struct {
-    Enabled            bool                      // Enable finalize
-    AutoTrigger        bool                      // Run after validate
-    Sync               FinalizeSyncConfig        // merge|rebase
-    ConflictResolution ConflictResolutionConfig  // AI resolution
-    RiskAssessment     RiskAssessmentConfig      // Risk thresholds
-    Gates              FinalizeGatesConfig       // Pre-merge gates
+    Enabled               bool                      // Enable finalize
+    AutoTrigger           bool                      // Run after validate
+    AutoTriggerOnApproval bool                      // Run when PR approved (auto profile)
+    Sync                  FinalizeSyncConfig        // merge|rebase
+    ConflictResolution    ConflictResolutionConfig  // AI resolution
+    RiskAssessment        RiskAssessmentConfig      // Risk thresholds
+    Gates                 FinalizeGatesConfig       // Pre-merge gates
 }
 ```
+
+### Auto-Trigger on PR Approval
+
+When `AutoTriggerOnApproval` is enabled (default for `auto` profile):
+1. PR status poller detects approval via `OnStatusChange` callback
+2. Server calls `TriggerFinalizeOnApproval(taskID)` in `handlers_finalize.go`
+3. Conditions checked: task weight supports finalize, finalize not already done
+4. Finalize runs asynchronously with WebSocket progress events
 
 ## Key Components
 

@@ -717,6 +717,15 @@ All fields are optional. Only provided fields are updated. Setting `profile` app
 - Status includes: review state (pending_review, changes_requested, approved), CI checks, mergeability
 - PR status is stored in `task.yaml` under the `pr` field
 - Manual refresh via `POST /api/tasks/:id/github/pr/refresh`
+- 30 second rate limit between polls for the same task
+
+**Auto-Trigger Finalize on Approval:**
+- When PR status changes to `approved` and automation profile is `auto`:
+  - Finalize phase is automatically triggered asynchronously
+  - Controlled by `completion.finalize.auto_trigger_on_approval` config
+  - Skips trivial tasks (finalize not applicable)
+  - Only triggers if finalize hasn't already completed
+  - WebSocket broadcasts progress via `finalize` events
 
 **PR Status Values:**
 | Status | Description |

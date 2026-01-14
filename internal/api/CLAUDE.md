@@ -212,7 +212,31 @@ Trigger immediate refresh via `POST /api/tasks/:id/github/pr/refresh`.
 
 ### Status Change Callback
 
-When PR status changes, the poller triggers `onStatusChange(taskID, prInfo)` which can publish WebSocket events for real-time UI updates.
+When PR status changes, the poller triggers `onStatusChange(taskID, prInfo)` which:
+1. Publishes `task_updated` WebSocket event with PR info
+2. If status is `approved` and automation profile is `auto`:
+   - Calls `TriggerFinalizeOnApproval(taskID)`
+   - Auto-runs finalize phase asynchronously
+   - WebSocket broadcasts finalize progress events
+
+### Auto-Trigger Finalize on Approval
+
+Located in `handlers_finalize.go`, `TriggerFinalizeOnApproval()` is called when PR becomes approved:
+
+```go
+func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error)
+```
+
+**Returns:**
+- `(true, nil)` - Finalize was triggered
+- `(false, nil)` - Finalize not triggered (disabled, wrong weight, already done)
+- `(false, err)` - Error occurred
+
+**Conditions checked:**
+1. `ShouldAutoTriggerFinalizeOnApproval()` returns true
+2. Task weight supports finalize (not `trivial`)
+3. Task status is `completed` (has PR)
+4. Finalize phase not already completed
 
 ## Testing
 

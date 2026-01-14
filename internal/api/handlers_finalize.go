@@ -461,3 +461,78 @@ func (s *Server) publishFinalizeEvent(taskID string, finState *FinalizeState) {
 
 // EventFinalize is the event type for finalize progress.
 const EventFinalize events.EventType = "finalize"
+
+// TriggerFinalizeOnApproval is called when a PR is approved and auto-trigger is enabled.
+// It checks if finalize should run and triggers it asynchronously.
+// Returns true if finalize was triggered, false otherwise.
+func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error) {
+	// Check if auto-trigger on approval is enabled
+	if !s.orcConfig.ShouldAutoTriggerFinalizeOnApproval() {
+		s.logger.Debug("auto-trigger on approval disabled", "task", taskID)
+		return false, nil
+	}
+
+	// Check if finalize is already running
+	if existing := finTracker.get(taskID); existing != nil {
+		existing.mu.RLock()
+		status := existing.Status
+		existing.mu.RUnlock()
+		if status == FinalizeStatusRunning || status == FinalizeStatusPending {
+			s.logger.Debug("finalize already in progress", "task", taskID, "status", status)
+			return false, nil
+		}
+	}
+
+	// Load task
+	t, err := task.LoadFrom(s.workDir, taskID)
+	if err != nil {
+		return false, fmt.Errorf("load task: %w", err)
+	}
+
+	// Check if task weight supports finalize
+	if !s.orcConfig.ShouldRunFinalize(string(t.Weight)) {
+		s.logger.Debug("finalize not applicable for task weight", "task", taskID, "weight", t.Weight)
+		return false, nil
+	}
+
+	// Check task status - must be completed (has a PR that's approved)
+	// Tasks in other states (running, failed) shouldn't be auto-finalized
+	if t.Status != task.StatusCompleted {
+		s.logger.Debug("task not in completed state", "task", taskID, "status", t.Status)
+		return false, nil
+	}
+
+	// Check if finalize was already completed
+	st, err := state.LoadFrom(s.workDir, taskID)
+	if err == nil {
+		if phaseState, ok := st.Phases["finalize"]; ok {
+			if phaseState.Status == state.StatusCompleted {
+				s.logger.Debug("finalize already completed", "task", taskID)
+				return false, nil
+			}
+		}
+	}
+
+	// Initialize finalize state
+	now := time.Now()
+	finState := &FinalizeState{
+		TaskID:    taskID,
+		Status:    FinalizeStatusPending,
+		StartedAt: now,
+		UpdatedAt: now,
+		Step:      "Initializing",
+		Progress:  "Auto-triggered on PR approval",
+	}
+	finTracker.set(taskID, finState)
+
+	// Publish initial event
+	s.publishFinalizeEvent(taskID, finState)
+
+	// Log the auto-trigger
+	s.logger.Info("auto-triggering finalize on PR approval", "task", taskID)
+
+	// Start async finalize
+	go s.runFinalizeAsync(taskID, t, FinalizeRequest{Force: true}, finState)
+
+	return true, nil
+}

@@ -1397,3 +1397,82 @@ func TestShouldAssessRisk(t *testing.T) {
 		t.Error("Should not assess risk when disabled")
 	}
 }
+
+func TestDefault_AutoTriggerOnApproval(t *testing.T) {
+	cfg := Default()
+
+	// Default should have auto-trigger on approval enabled
+	if !cfg.Completion.Finalize.AutoTriggerOnApproval {
+		t.Error("Completion.Finalize.AutoTriggerOnApproval should default to true")
+	}
+}
+
+func TestShouldAutoTriggerFinalizeOnApproval(t *testing.T) {
+	tests := []struct {
+		enabled               bool
+		autoTriggerOnApproval bool
+		expected              bool
+	}{
+		{true, true, true},
+		{true, false, false},
+		{false, true, false},
+		{false, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run("", func(t *testing.T) {
+			cfg := Default()
+			cfg.Completion.Finalize.Enabled = tt.enabled
+			cfg.Completion.Finalize.AutoTriggerOnApproval = tt.autoTriggerOnApproval
+
+			got := cfg.ShouldAutoTriggerFinalizeOnApproval()
+			if got != tt.expected {
+				t.Errorf("ShouldAutoTriggerFinalizeOnApproval() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFinalizePresets_AutoTriggerOnApproval(t *testing.T) {
+	tests := []struct {
+		profile  AutomationProfile
+		expected bool
+	}{
+		{ProfileAuto, true},   // Auto profile enables auto-trigger on approval
+		{ProfileFast, true},   // Fast profile enables auto-trigger on approval
+		{ProfileSafe, false},  // Safe profile disables auto-trigger (human review)
+		{ProfileStrict, false}, // Strict profile disables auto-trigger (human decision)
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.profile), func(t *testing.T) {
+			finalize := FinalizePresets(tt.profile)
+			if finalize.AutoTriggerOnApproval != tt.expected {
+				t.Errorf("FinalizePresets(%s).AutoTriggerOnApproval = %v, want %v",
+					tt.profile, finalize.AutoTriggerOnApproval, tt.expected)
+			}
+		})
+	}
+}
+
+func TestApplyProfile_AffectsAutoTriggerOnApproval(t *testing.T) {
+	cfg := Default()
+
+	// Apply safe profile - should disable auto-trigger on approval
+	cfg.ApplyProfile(ProfileSafe)
+	if cfg.Completion.Finalize.AutoTriggerOnApproval {
+		t.Error("After ApplyProfile(safe), AutoTriggerOnApproval should be false")
+	}
+
+	// Apply auto profile - should enable auto-trigger on approval
+	cfg.ApplyProfile(ProfileAuto)
+	if !cfg.Completion.Finalize.AutoTriggerOnApproval {
+		t.Error("After ApplyProfile(auto), AutoTriggerOnApproval should be true")
+	}
+
+	// Apply strict profile - should disable auto-trigger on approval
+	cfg.ApplyProfile(ProfileStrict)
+	if cfg.Completion.Finalize.AutoTriggerOnApproval {
+		t.Error("After ApplyProfile(strict), AutoTriggerOnApproval should be false")
+	}
+}

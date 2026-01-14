@@ -188,6 +188,11 @@ type FinalizeConfig struct {
 	// When false, finalize must be triggered manually
 	AutoTrigger bool `yaml:"auto_trigger"`
 
+	// AutoTriggerOnApproval automatically runs finalize when PR is approved (default: true for "auto" profile)
+	// Only applies when automation profile is "auto". When enabled, the PR status poller
+	// will trigger finalize automatically when a PR receives approval.
+	AutoTriggerOnApproval bool `yaml:"auto_trigger_on_approval"`
+
 	// Sync settings for branch integration during finalize
 	Sync FinalizeSyncConfig `yaml:"sync"`
 
@@ -764,8 +769,9 @@ func Default() *Config {
 				SkipForWeights:   []string{"trivial"},  // Skip sync for trivial tasks
 			},
 			Finalize: FinalizeConfig{
-				Enabled:     true,  // Finalize phase enabled by default
-				AutoTrigger: true,  // Auto-trigger after validate
+				Enabled:               true,  // Finalize phase enabled by default
+				AutoTrigger:           true,  // Auto-trigger after validate
+				AutoTriggerOnApproval: true,  // Auto-trigger when PR is approved (auto profile only)
 				Sync: FinalizeSyncConfig{
 					Strategy: FinalizeSyncMerge, // Merge target into branch (preserves history)
 				},
@@ -983,8 +989,9 @@ func FinalizePresets(profile AutomationProfile) FinalizeConfig {
 	case ProfileFast:
 		// Fast: minimal overhead, rebase for linear history, skip risk assessment
 		return FinalizeConfig{
-			Enabled:     true,
-			AutoTrigger: true,
+			Enabled:               true,
+			AutoTrigger:           true,
+			AutoTriggerOnApproval: true, // Auto-trigger on PR approval for speed
 			Sync: FinalizeSyncConfig{
 				Strategy: FinalizeSyncRebase, // Rebase for cleaner history, faster
 			},
@@ -1001,9 +1008,11 @@ func FinalizePresets(profile AutomationProfile) FinalizeConfig {
 		}
 	case ProfileSafe:
 		// Safe: AI reviews, merge strategy (preserves history), risk assessment
+		// No auto-trigger on approval - wait for human decision
 		return FinalizeConfig{
-			Enabled:     true,
-			AutoTrigger: true,
+			Enabled:               true,
+			AutoTrigger:           true,
+			AutoTriggerOnApproval: false, // Don't auto-trigger - humans should review before finalize
 			Sync: FinalizeSyncConfig{
 				Strategy: FinalizeSyncMerge, // Merge preserves history
 			},
@@ -1020,9 +1029,11 @@ func FinalizePresets(profile AutomationProfile) FinalizeConfig {
 		}
 	case ProfileStrict:
 		// Strict: human gates, merge strategy, strict risk assessment
+		// No auto-trigger on approval - humans must explicitly trigger finalize
 		return FinalizeConfig{
-			Enabled:     true,
-			AutoTrigger: true,
+			Enabled:               true,
+			AutoTrigger:           true,
+			AutoTriggerOnApproval: false, // Don't auto-trigger - humans must decide
 			Sync: FinalizeSyncConfig{
 				Strategy: FinalizeSyncMerge, // Merge preserves history
 			},
@@ -1039,9 +1050,11 @@ func FinalizePresets(profile AutomationProfile) FinalizeConfig {
 		}
 	default: // ProfileAuto
 		// Auto: fully automated, merge strategy, auto gates
+		// Auto-trigger on approval for full automation
 		return FinalizeConfig{
-			Enabled:     true,
-			AutoTrigger: true,
+			Enabled:               true,
+			AutoTrigger:           true,
+			AutoTriggerOnApproval: true, // Auto-trigger when PR is approved
 			Sync: FinalizeSyncConfig{
 				Strategy: FinalizeSyncMerge,
 			},
@@ -1336,6 +1349,12 @@ func (c *Config) ShouldRunFinalize(weight string) bool {
 // ShouldAutoTriggerFinalize returns true if finalize should auto-trigger after validate.
 func (c *Config) ShouldAutoTriggerFinalize() bool {
 	return c.Completion.Finalize.Enabled && c.Completion.Finalize.AutoTrigger
+}
+
+// ShouldAutoTriggerFinalizeOnApproval returns true if finalize should auto-trigger when PR is approved.
+// This is only enabled for automation profiles that support fully automated workflows (auto, fast).
+func (c *Config) ShouldAutoTriggerFinalizeOnApproval() bool {
+	return c.Completion.Finalize.Enabled && c.Completion.Finalize.AutoTriggerOnApproval
 }
 
 // FinalizeUsesRebase returns true if finalize should use rebase strategy.
