@@ -53,6 +53,8 @@ const columns = [
 - Running/paused/blocked with phase → Column matching current phase
 - Completed/failed → Done (regardless of phase)
 
+**Running task indicator:** Tasks with `status=running` display a pulsing border animation with accent-colored gradient background, making them visually distinct from pending tasks in the same column.
+
 ### Task Organization (Queue & Priority)
 
 Tasks within each column are organized by:

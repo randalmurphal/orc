@@ -1638,6 +1638,74 @@ updated_at: 2024-01-01T00:00:00Z
 	}
 }
 
+// TestRunTaskEndpoint_SetsCurrentPhase verifies that when a task is run,
+// its current_phase is set to the first phase in the plan. This ensures
+// the UI shows the task in the correct column (e.g., "Spec" or "Implement")
+// instead of "Queued".
+func TestRunTaskEndpoint_SetsCurrentPhase(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create task with planned status (can be run)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-PHASE")
+	os.MkdirAll(taskDir, 0755)
+
+	taskYAML := `id: TASK-PHASE
+title: Test Task
+status: planned
+weight: medium
+created_at: 2024-01-01T00:00:00Z
+updated_at: 2024-01-01T00:00:00Z
+`
+	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+
+	// Create plan with spec as first phase
+	planYAML := `phases:
+  - id: spec
+    status: pending
+  - id: implement
+    status: pending
+  - id: test
+    status: pending
+`
+	os.WriteFile(filepath.Join(taskDir, "plan.yaml"), []byte(planYAML), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	req := httptest.NewRequest("POST", "/api/tasks/TASK-PHASE/run", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Task struct {
+			ID           string `json:"id"`
+			Status       string `json:"status"`
+			CurrentPhase string `json:"current_phase"`
+		} `json:"task"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	// Verify response includes task with current_phase set to first phase
+	if response.Task.CurrentPhase != "spec" {
+		t.Errorf("expected response task current_phase 'spec', got '%s'", response.Task.CurrentPhase)
+	}
+
+	// Verify task file has current_phase set
+	updatedTask, err := task.LoadFrom(tmpDir, "TASK-PHASE")
+	if err != nil {
+		t.Fatalf("failed to load task: %v", err)
+	}
+	if updatedTask.CurrentPhase != "spec" {
+		t.Errorf("expected disk task current_phase 'spec', got '%s'", updatedTask.CurrentPhase)
+	}
+}
+
 func TestRunTaskEndpoint_TaskCannotRun(t *testing.T) {
 	tmpDir := t.TempDir()
 
