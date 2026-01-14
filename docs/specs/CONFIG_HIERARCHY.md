@@ -231,6 +231,19 @@ completion:
     fail_on_conflict: true             # Abort on conflicts vs continue with warning
     max_conflict_files: 0              # Max files with conflicts before aborting (0 = unlimited)
     skip_for_weights: [trivial]        # Skip sync for these task weights
+  finalize:
+    enabled: true                      # Enable finalize phase (default: true)
+    auto_trigger: true                 # Auto-run after validate phase (default: true)
+    sync:
+      strategy: merge                  # merge | rebase (default: merge)
+    conflict_resolution:
+      enabled: true                    # AI-assisted conflict resolution (default: true)
+      instructions: ""                 # Additional resolution instructions
+    risk_assessment:
+      enabled: true                    # Enable risk classification (default: true)
+      re_review_threshold: high        # low | medium | high | critical (default: high)
+    gates:
+      pre_merge: auto                  # auto | ai | human | none (default: auto)
 
 # Git settings
 git:

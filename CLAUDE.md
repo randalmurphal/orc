@@ -180,6 +180,8 @@ orc config profile strict
 | `team.mode` | local/shared_db | `docs/specs/TEAM_ARCHITECTURE.md` |
 | `completion.action` | pr/merge/none | - |
 | `completion.sync.strategy` | Branch sync timing | `docs/architecture/GIT_INTEGRATION.md` |
+| `completion.finalize.enabled` | Enable finalize phase | `docs/architecture/PHASE_MODEL.md` |
+| `completion.finalize.sync.strategy` | Finalize sync: merge/rebase | `docs/architecture/GIT_INTEGRATION.md` |
 | `artifact_skip.enabled` | Detect existing artifacts | `docs/architecture/PHASE_MODEL.md` |
 | `artifact_skip.auto_skip` | Skip without prompting | `docs/architecture/PHASE_MODEL.md` |
 | `timeouts.turn_max` | Max time per API turn | `docs/architecture/EXECUTOR.md` |
@@ -402,6 +404,7 @@ Patterns, gotchas, and decisions learned during development.
 | Task dependency validation | `blocked_by` and `related_to` fields validated on create/update: references must exist, no self-references, circular deps rejected; computed fields (`blocks`, `referenced_by`) populated on load | TASK-070 |
 | Blocking enforcement on run | CLI and API check `blocked_by` for incomplete blockers before running; CLI prompts in interactive mode, refuses in quiet mode without `--force`; API returns 409 Conflict with blocker details, accepts `?force=true` to override | TASK-071 |
 | Dependency visualization CLI | `orc deps` shows dependencies with multiple views: standard (single task), `--tree` (recursive), `--graph` (ASCII flow chart); `orc status` shows BLOCKED/READY sections for dependency-aware task overview | TASK-077 |
+| Finalize phase with escalation | Finalize phase syncs branch with target, resolves conflicts via AI, runs tests, and assesses risk; escalates to implement phase if >10 conflicts or >5 test failures persist | TASK-089 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
