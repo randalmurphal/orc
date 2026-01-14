@@ -157,6 +157,16 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 		fmt.Fprintf(os.Stderr, "   Manual 'git push' to protected branches may not be blocked.\n\n")
 	}
 
+	// Ensure .claude/settings.json is untracked before injecting hooks.
+	// This is critical for resumed tasks where the branch may have stale
+	// machine-specific hooks committed. By untracking and excluding the file,
+	// we prevent dirty working tree state that would block git rebase/merge.
+	if err := EnsureClaudeSettingsUntracked(worktreePath); err != nil {
+		// Log warning but don't fail - sync might still work if file isn't tracked
+		fmt.Fprintf(os.Stderr, "\n⚠️  WARNING: Failed to untrack .claude/settings.json: %v\n", err)
+		fmt.Fprintf(os.Stderr, "   Git operations like rebase may fail if the file was previously committed.\n\n")
+	}
+
 	// Inject Claude Code hooks for worktree isolation
 	// These PreToolUse hooks block file operations outside the worktree,
 	// preventing accidental modification of the main repository.
