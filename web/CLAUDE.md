@@ -838,7 +838,7 @@ The automation page (`/environment/orchestrator/automation`) provides a complete
 | `/` | Dashboard |
 | `/board` | Kanban board |
 | `/tasks` | Task list |
-| `/tasks/:id` | Task detail (Timeline/Changes/Transcript/Attachments tabs) |
+| `/tasks/:id` | Task detail (Timeline/Changes/Transcript/Test Results/Attachments/Comments tabs) |
 | `/initiatives/:id` | Initiative detail (Tasks/Decisions sections, edit capabilities) |
 | `/config` | Redirects to `/environment/orchestrator/automation` |
 | `/environment` | Environment hub (Claude Code + Orchestrator config) |
@@ -887,6 +887,7 @@ bunx playwright test --grep board  # Run board tests only
 | File | Coverage |
 |------|----------|
 | `e2e/board.spec.ts` | Board page: rendering, view modes, drag-drop, swimlanes (18 tests) |
+| `e2e/task-detail.spec.ts` | Task detail tabs: navigation, timeline, changes, transcript, attachments (15 tests) |
 | `e2e/tasks.spec.ts` | Task list, task detail, CRUD operations |
 | `e2e/navigation.spec.ts` | Routing, navigation, back button |
 | `e2e/sidebar.spec.ts` | Sidebar navigation, collapse state |
