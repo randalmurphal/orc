@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -21,6 +22,10 @@ func withListTestDir(t *testing.T) string {
 	tasksDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir)
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("create tasks directory: %v", err)
+	}
+	initDir := filepath.Join(tmpDir, task.OrcDir, initiative.InitiativesDir)
+	if err := os.MkdirAll(initDir, 0755); err != nil {
+		t.Fatalf("create initiatives directory: %v", err)
 	}
 
 	origDir, err := os.Getwd()
@@ -52,6 +57,9 @@ func TestListCommand_Flags(t *testing.T) {
 	}
 
 	// Verify flags exist
+	if cmd.Flag("initiative") == nil {
+		t.Error("missing --initiative flag")
+	}
 	if cmd.Flag("status") == nil {
 		t.Error("missing --status flag")
 	}
@@ -60,6 +68,9 @@ func TestListCommand_Flags(t *testing.T) {
 	}
 
 	// Verify shorthand flags
+	if cmd.Flag("initiative").Shorthand != "i" {
+		t.Errorf("initiative shorthand = %q, want 'i'", cmd.Flag("initiative").Shorthand)
+	}
 	if cmd.Flag("status").Shorthand != "s" {
 		t.Errorf("status shorthand = %q, want 's'", cmd.Flag("status").Shorthand)
 	}
@@ -68,221 +79,330 @@ func TestListCommand_Flags(t *testing.T) {
 	}
 }
 
-func TestListCommand_StatusFilter(t *testing.T) {
+func TestListCommand_InitiativeFilter(t *testing.T) {
 	withListTestDir(t)
 
-	// Create tasks with different statuses
-	tk1 := task.New("TASK-001", "Running task")
-	tk1.Status = task.StatusRunning
-	tk1.Weight = task.WeightSmall
-	if err := tk1.Save(); err != nil {
-		t.Fatalf("failed to save task 1: %v", err)
+	// Create an initiative
+	init := initiative.New("INIT-001", "Test Initiative")
+	if err := init.Save(); err != nil {
+		t.Fatalf("save initiative: %v", err)
 	}
 
-	tk2 := task.New("TASK-002", "Completed task")
-	tk2.Status = task.StatusCompleted
-	tk2.Weight = task.WeightMedium
-	if err := tk2.Save(); err != nil {
-		t.Fatalf("failed to save task 2: %v", err)
+	// Create tasks with different initiative assignments
+	t1 := task.New("TASK-001", "Task in initiative")
+	t1.InitiativeID = "INIT-001"
+	if err := t1.Save(); err != nil {
+		t.Fatalf("save task 1: %v", err)
 	}
 
-	tk3 := task.New("TASK-003", "Another running task")
-	tk3.Status = task.StatusRunning
-	tk3.Weight = task.WeightLarge
-	if err := tk3.Save(); err != nil {
-		t.Fatalf("failed to save task 3: %v", err)
+	t2 := task.New("TASK-002", "Task without initiative")
+	if err := t2.Save(); err != nil {
+		t.Fatalf("save task 2: %v", err)
 	}
 
-	// Test filtering by running status
+	t3 := task.New("TASK-003", "Another task in initiative")
+	t3.InitiativeID = "INIT-001"
+	if err := t3.Save(); err != nil {
+		t.Fatalf("save task 3: %v", err)
+	}
+
+	// Test: Filter by initiative ID
 	cmd := newListCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetArgs([]string{"--status", "running"})
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"--initiative", "INIT-001"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("execute error: %v", err)
+		t.Fatalf("execute command: %v", err)
 	}
 
-	output := buf.String()
+	output := out.String()
 	if !strings.Contains(output, "TASK-001") {
-		t.Error("expected TASK-001 in output")
-	}
-	if !strings.Contains(output, "TASK-003") {
-		t.Error("expected TASK-003 in output")
+		t.Error("output should contain TASK-001")
 	}
 	if strings.Contains(output, "TASK-002") {
-		t.Error("did not expect TASK-002 (completed) in output")
+		t.Error("output should NOT contain TASK-002 (not in initiative)")
+	}
+	if !strings.Contains(output, "TASK-003") {
+		t.Error("output should contain TASK-003")
 	}
 }
 
-func TestListCommand_WeightFilter(t *testing.T) {
+func TestListCommand_UnassignedFilter(t *testing.T) {
 	withListTestDir(t)
 
-	// Create tasks with different weights
-	tk1 := task.New("TASK-001", "Small task")
-	tk1.Weight = task.WeightSmall
-	tk1.Status = task.StatusPlanned
-	if err := tk1.Save(); err != nil {
-		t.Fatalf("failed to save task 1: %v", err)
+	// Create an initiative
+	init := initiative.New("INIT-001", "Test Initiative")
+	if err := init.Save(); err != nil {
+		t.Fatalf("save initiative: %v", err)
 	}
 
-	tk2 := task.New("TASK-002", "Large task")
-	tk2.Weight = task.WeightLarge
-	tk2.Status = task.StatusPlanned
-	if err := tk2.Save(); err != nil {
-		t.Fatalf("failed to save task 2: %v", err)
+	// Create tasks with different initiative assignments
+	t1 := task.New("TASK-001", "Task in initiative")
+	t1.InitiativeID = "INIT-001"
+	if err := t1.Save(); err != nil {
+		t.Fatalf("save task 1: %v", err)
 	}
 
-	tk3 := task.New("TASK-003", "Another small task")
-	tk3.Weight = task.WeightSmall
-	tk3.Status = task.StatusPlanned
-	if err := tk3.Save(); err != nil {
-		t.Fatalf("failed to save task 3: %v", err)
+	t2 := task.New("TASK-002", "Task without initiative")
+	if err := t2.Save(); err != nil {
+		t.Fatalf("save task 2: %v", err)
 	}
 
-	// Test filtering by small weight
+	// Test: Filter by "unassigned"
 	cmd := newListCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetArgs([]string{"--weight", "small"})
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"--initiative", "unassigned"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("execute error: %v", err)
+		t.Fatalf("execute command: %v", err)
 	}
 
-	output := buf.String()
-	if !strings.Contains(output, "TASK-001") {
-		t.Error("expected TASK-001 in output")
+	output := out.String()
+	if strings.Contains(output, "TASK-001") {
+		t.Error("output should NOT contain TASK-001 (has initiative)")
 	}
-	if !strings.Contains(output, "TASK-003") {
-		t.Error("expected TASK-003 in output")
+	if !strings.Contains(output, "TASK-002") {
+		t.Error("output should contain TASK-002 (no initiative)")
 	}
-	if strings.Contains(output, "TASK-002") {
-		t.Error("did not expect TASK-002 (large) in output")
+}
+
+func TestListCommand_EmptyInitiativeFilter(t *testing.T) {
+	withListTestDir(t)
+
+	// Create tasks
+	t1 := task.New("TASK-001", "Task with initiative")
+	t1.InitiativeID = "INIT-001"
+	if err := t1.Save(); err != nil {
+		t.Fatalf("save task 1: %v", err)
+	}
+
+	t2 := task.New("TASK-002", "Task without initiative")
+	if err := t2.Save(); err != nil {
+		t.Fatalf("save task 2: %v", err)
+	}
+
+	// Test: Filter by empty string (same as unassigned)
+	cmd := newListCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"--initiative", ""})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute command: %v", err)
+	}
+
+	output := out.String()
+	if strings.Contains(output, "TASK-001") {
+		t.Error("output should NOT contain TASK-001 (has initiative)")
+	}
+	if !strings.Contains(output, "TASK-002") {
+		t.Error("output should contain TASK-002 (no initiative)")
+	}
+}
+
+func TestListCommand_InvalidInitiative(t *testing.T) {
+	withListTestDir(t)
+
+	// Create a task
+	t1 := task.New("TASK-001", "Test task")
+	if err := t1.Save(); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Test: Filter by non-existent initiative
+	cmd := newListCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--initiative", "INIT-NONEXISTENT"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Error("expected error for non-existent initiative")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention 'not found', got: %v", err)
 	}
 }
 
 func TestListCommand_CombinedFilters(t *testing.T) {
 	withListTestDir(t)
 
-	// Create tasks with different statuses and weights
-	tk1 := task.New("TASK-001", "Running small")
-	tk1.Status = task.StatusRunning
-	tk1.Weight = task.WeightSmall
-	if err := tk1.Save(); err != nil {
-		t.Fatalf("failed to save task 1: %v", err)
+	// Create an initiative
+	init := initiative.New("INIT-001", "Test Initiative")
+	if err := init.Save(); err != nil {
+		t.Fatalf("save initiative: %v", err)
 	}
 
-	tk2 := task.New("TASK-002", "Running large")
-	tk2.Status = task.StatusRunning
-	tk2.Weight = task.WeightLarge
-	if err := tk2.Save(); err != nil {
-		t.Fatalf("failed to save task 2: %v", err)
+	// Create tasks with different properties
+	t1 := task.New("TASK-001", "Running task in initiative")
+	t1.InitiativeID = "INIT-001"
+	t1.Status = task.StatusRunning
+	t1.Weight = task.WeightSmall
+	if err := t1.Save(); err != nil {
+		t.Fatalf("save task 1: %v", err)
 	}
 
-	tk3 := task.New("TASK-003", "Completed small")
-	tk3.Status = task.StatusCompleted
-	tk3.Weight = task.WeightSmall
-	if err := tk3.Save(); err != nil {
-		t.Fatalf("failed to save task 3: %v", err)
+	t2 := task.New("TASK-002", "Completed task in initiative")
+	t2.InitiativeID = "INIT-001"
+	t2.Status = task.StatusCompleted
+	t2.Weight = task.WeightSmall
+	if err := t2.Save(); err != nil {
+		t.Fatalf("save task 2: %v", err)
 	}
 
-	// Test filtering by running status AND small weight
+	t3 := task.New("TASK-003", "Running task without initiative")
+	t3.Status = task.StatusRunning
+	t3.Weight = task.WeightSmall
+	if err := t3.Save(); err != nil {
+		t.Fatalf("save task 3: %v", err)
+	}
+
+	// Test: Filter by initiative AND status
 	cmd := newListCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetArgs([]string{"--status", "running", "--weight", "small"})
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"--initiative", "INIT-001", "--status", "running"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("execute error: %v", err)
+		t.Fatalf("execute command: %v", err)
 	}
 
-	output := buf.String()
+	output := out.String()
 	if !strings.Contains(output, "TASK-001") {
-		t.Error("expected TASK-001 in output")
+		t.Error("output should contain TASK-001 (in initiative and running)")
 	}
 	if strings.Contains(output, "TASK-002") {
-		t.Error("did not expect TASK-002 (running large) in output")
+		t.Error("output should NOT contain TASK-002 (in initiative but completed)")
 	}
 	if strings.Contains(output, "TASK-003") {
-		t.Error("did not expect TASK-003 (completed small) in output")
+		t.Error("output should NOT contain TASK-003 (running but not in initiative)")
 	}
 }
 
-func TestListCommand_InvalidStatus(t *testing.T) {
+func TestListCommand_NoMatchingTasks(t *testing.T) {
 	withListTestDir(t)
 
+	// Create an initiative
+	init := initiative.New("INIT-001", "Test Initiative")
+	if err := init.Save(); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create a task NOT in the initiative
+	t1 := task.New("TASK-001", "Task without initiative")
+	if err := t1.Save(); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Test: Filter by initiative with no matching tasks
 	cmd := newListCmd()
-	var buf bytes.Buffer
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--status", "invalid"})
-	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("expected error for invalid status")
-	}
-	if !strings.Contains(err.Error(), "invalid status") {
-		t.Errorf("error message should mention invalid status, got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "valid values") {
-		t.Errorf("error message should list valid values, got: %v", err)
-	}
-}
-
-func TestListCommand_InvalidWeight(t *testing.T) {
-	withListTestDir(t)
-
-	cmd := newListCmd()
-	var buf bytes.Buffer
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--weight", "invalid"})
-	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("expected error for invalid weight")
-	}
-	if !strings.Contains(err.Error(), "invalid weight") {
-		t.Errorf("error message should mention invalid weight, got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "valid values") {
-		t.Errorf("error message should list valid values, got: %v", err)
-	}
-}
-
-func TestListCommand_NoMatches(t *testing.T) {
-	withListTestDir(t)
-
-	// Create a completed task
-	tk := task.New("TASK-001", "Completed task")
-	tk.Status = task.StatusCompleted
-	tk.Weight = task.WeightSmall
-	if err := tk.Save(); err != nil {
-		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Filter for running tasks (should return empty)
-	cmd := newListCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetArgs([]string{"--status", "running"})
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"--initiative", "INIT-001"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("execute error: %v", err)
+		t.Fatalf("execute command: %v", err)
 	}
 
-	output := buf.String()
-	if !strings.Contains(output, "No tasks match the specified filters") {
-		t.Errorf("expected 'No tasks match' message, got: %s", output)
+	output := out.String()
+	if !strings.Contains(output, "No tasks found matching") {
+		t.Error("output should mention 'No tasks found matching'")
+	}
+	if !strings.Contains(output, "initiative INIT-001") {
+		t.Error("output should mention the initiative filter")
 	}
 }
 
-func TestListCommand_NoTasks(t *testing.T) {
+func TestCompleteInitiativeIDs(t *testing.T) {
 	withListTestDir(t)
 
-	// No tasks created
-	cmd := newListCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("execute error: %v", err)
+	// Create some initiatives
+	init1 := initiative.New("INIT-001", "First Initiative")
+	if err := init1.Save(); err != nil {
+		t.Fatalf("save initiative 1: %v", err)
 	}
 
-	output := buf.String()
-	if !strings.Contains(output, "No tasks found") {
-		t.Errorf("expected 'No tasks found' message, got: %s", output)
+	init2 := initiative.New("INIT-002", "Second Initiative")
+	if err := init2.Save(); err != nil {
+		t.Fatalf("save initiative 2: %v", err)
+	}
+
+	// Test completion function
+	cmd := newListCmd()
+	completions, directive := completeInitiativeIDs(cmd, []string{}, "")
+
+	// Should have at least "unassigned" and our two initiatives
+	if len(completions) < 3 {
+		t.Errorf("expected at least 3 completions, got %d", len(completions))
+	}
+
+	// Check directive
+	if directive != 0x4 { // ShellCompDirectiveNoFileComp
+		t.Errorf("directive = %v, want NoFileComp", directive)
+	}
+
+	// Should contain "unassigned"
+	found := false
+	for _, c := range completions {
+		if strings.HasPrefix(c, "unassigned") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("completions should include 'unassigned'")
+	}
+
+	// Should contain INIT-001 and INIT-002
+	foundInit1 := false
+	foundInit2 := false
+	for _, c := range completions {
+		if strings.HasPrefix(c, "INIT-001") {
+			foundInit1 = true
+		}
+		if strings.HasPrefix(c, "INIT-002") {
+			foundInit2 = true
+		}
+	}
+	if !foundInit1 {
+		t.Error("completions should include INIT-001")
+	}
+	if !foundInit2 {
+		t.Error("completions should include INIT-002")
+	}
+}
+
+func TestCompleteInitiativeIDs_Filtering(t *testing.T) {
+	withListTestDir(t)
+
+	// Create initiatives with different prefixes
+	init1 := initiative.New("INIT-001", "First Initiative")
+	if err := init1.Save(); err != nil {
+		t.Fatalf("save initiative 1: %v", err)
+	}
+
+	init2 := initiative.New("INIT-002", "Second Initiative")
+	if err := init2.Save(); err != nil {
+		t.Fatalf("save initiative 2: %v", err)
+	}
+
+	// Test completion with prefix filter
+	cmd := newListCmd()
+	completions, _ := completeInitiativeIDs(cmd, []string{}, "INIT-001")
+
+	// Should contain "unassigned" and INIT-001, but not INIT-002
+	foundInit1 := false
+	foundInit2 := false
+	for _, c := range completions {
+		if strings.HasPrefix(c, "INIT-001") {
+			foundInit1 = true
+		}
+		if strings.HasPrefix(c, "INIT-002") {
+			foundInit2 = true
+		}
+	}
+	if !foundInit1 {
+		t.Error("completions should include INIT-001")
+	}
+	if foundInit2 {
+		t.Error("completions should NOT include INIT-002 when filtering by INIT-001")
 	}
 }
