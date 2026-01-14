@@ -5,7 +5,7 @@ weight: medium
 status: planned
 branch: orc/TASK-189
 queue: active
-priority: normal
+priority: critical
 category: bug
 testing_requirements:
     unit: true
