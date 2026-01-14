@@ -175,7 +175,7 @@ Each column shows active tasks first, then a collapsible "Backlog" divider with 
 | `normal` | None shown | Third |
 | `low` | Gray down arrow | Fourth |
 
-Tasks are sorted by priority within each column. Priority badges only appear for non-normal priorities.
+Tasks are sorted within each column by: **running status first** (running tasks always appear at the top), then by priority. Priority badges only appear for non-normal priorities.
 
 ### Category
 
