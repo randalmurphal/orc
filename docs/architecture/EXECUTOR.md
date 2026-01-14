@@ -18,6 +18,7 @@ The executor package is organized into focused modules:
 | **Trivial Executor** | `trivial.go` | Stateless, fire-and-forget execution |
 | **Standard Executor** | `standard.go` | Session per phase, iteration loop |
 | **Full Executor** | `full.go` | Persistent sessions, per-iteration checkpointing |
+| **Finalize Executor** | `finalize.go` | Branch sync, conflict resolution, risk assessment |
 | **Publishing** | `publish.go` | Nil-safe EventPublisher |
 | **Templates** | `template.go` | Prompt variable substitution |
 | **Retry** | `retry.go` | Cross-phase retry context |
@@ -36,6 +37,17 @@ Three executor types scale to task weight:
 | **Trivial** | None | None | 5 | Quick single-prompt tasks |
 | **Standard** | Per-phase | On completion | 20 | Small/medium tasks |
 | **Full** | Persistent | Every iteration | 30-50 | Large/greenfield |
+
+### Specialized Executors
+
+The **Finalize Executor** handles the finalize phase specifically:
+
+| Aspect | Behavior |
+|--------|----------|
+| **Session** | Per-phase (for conflict resolution) |
+| **Checkpointing** | On completion only |
+| **Max Iterations** | 10 (lower - mostly git ops) |
+| **Best For** | Branch sync and merge preparation |
 
 ---
 
@@ -337,6 +349,93 @@ This helps Claude understand what needs fixing.
 |---------|----------|---------|-------------|
 | `executor.max_retries` | config.yaml | 5 | Primary setting for retry limit |
 | `retry.max_retries` | config.yaml | 5 | Deprecated, use `executor.max_retries` |
+
+---
+
+## Finalize Executor
+
+The Finalize Executor is a specialized executor for the `finalize` phase, handling branch synchronization, conflict resolution, test verification, and risk assessment before merge.
+
+### Execution Steps
+
+```
+1. Fetch target branch    → Get latest changes from remote
+2. Check divergence       → Count commits ahead/behind
+3. Sync with target       → Merge or rebase (per config)
+4. Resolve conflicts      → AI-assisted if conflicts detected
+5. Run tests              → Verify tests pass after sync
+6. Fix tests (if needed)  → AI attempts to fix failures
+7. Risk assessment        → Classify merge risk level
+8. Create finalize commit → Document finalization
+```
+
+### Sync Strategies
+
+| Strategy | Behavior | Use Case |
+|----------|----------|----------|
+| `merge` (default) | Merge target into task branch | Preserves commit history |
+| `rebase` | Rebase task branch onto target | Linear history, cleaner |
+
+### Conflict Resolution
+
+When conflicts are detected, Claude is invoked with specific rules:
+
+| Rule | Description |
+|------|-------------|
+| **Never remove features** | Both task and upstream changes must be preserved |
+| **Merge intentions** | Understand what each side was trying to accomplish |
+| **Prefer additive** | When in doubt, keep both implementations |
+| **Test per file** | Verify after resolving each conflicted file |
+
+**Prohibited resolutions:**
+- Taking "ours" or "theirs" without understanding
+- Removing upstream features to fix conflicts
+- Commenting out conflicting code
+
+### Risk Assessment
+
+After sync, changes are assessed for merge risk:
+
+| Metric | Low | Medium | High | Critical |
+|--------|-----|--------|------|----------|
+| Files changed | 1-5 | 6-15 | 16-30 | >30 |
+| Lines changed | <100 | 100-500 | 500-1000 | >1000 |
+| Conflicts | 0 | 1-3 | 4-10 | >10 |
+
+Risk level determines whether re-review is triggered (configurable via `re_review_threshold`).
+
+### Escalation to Implement
+
+Finalize can escalate back to the implement phase when:
+- More than 10 conflicts couldn't be resolved
+- More than 5 tests fail after multiple fix attempts
+
+The implement phase receives `{{RETRY_CONTEXT}}` with:
+- List of unresolved conflicts
+- Test failure details
+- Instructions to fix and retry finalize
+
+### Configuration
+
+```yaml
+# .orc/config.yaml
+completion:
+  finalize:
+    enabled: true           # Enable finalize phase
+    auto_trigger: true      # Run after validate phase
+    sync:
+      strategy: merge       # merge | rebase
+    conflict_resolution:
+      enabled: true         # AI-assisted conflict resolution
+      instructions: ""      # Additional resolution instructions
+    risk_assessment:
+      enabled: true         # Enable risk classification
+      re_review_threshold: high  # low | medium | high | critical
+    gates:
+      pre_merge: auto       # auto | ai | human | none
+```
+
+See `docs/specs/CONFIG_HIERARCHY.md` for full configuration options.
 
 ---
 

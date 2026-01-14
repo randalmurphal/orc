@@ -244,6 +244,66 @@ The task rebases onto the latest target, catching conflicts before PR creation.
 
 ---
 
+## Finalize Phase Sync
+
+The finalize phase provides advanced sync capabilities beyond basic completion sync, including AI-assisted conflict resolution.
+
+### Finalize Sync Strategies
+
+| Strategy | Behavior | Result |
+|----------|----------|--------|
+| `merge` (default) | Merge target into task branch | Preserves full history, creates merge commit |
+| `rebase` | Rebase task onto target | Linear history, may require more conflict resolution |
+
+### AI-Assisted Conflict Resolution
+
+When conflicts are detected during finalize, Claude is invoked to resolve them:
+
+```
+1. Detect conflicts via git merge/rebase
+2. List conflicted files
+3. For each file:
+   a. Claude reads both sides of conflict
+   b. Applies merge rules (never remove features, merge intentions)
+   c. Resolves conflict preserving both changes
+   d. Stages resolved file
+4. Complete merge/rebase
+5. Re-run tests to verify resolution
+```
+
+**Conflict Resolution Rules:**
+- Never take "ours" or "theirs" blindly
+- Both upstream AND task changes must be preserved
+- Merge intentions, not just text
+- Prefer additive resolutions
+
+### Finalize Configuration
+
+```yaml
+completion:
+  finalize:
+    enabled: true
+    sync:
+      strategy: merge      # merge | rebase
+    conflict_resolution:
+      enabled: true        # AI conflict resolution
+      instructions: ""     # Additional resolution guidance
+    risk_assessment:
+      enabled: true
+      re_review_threshold: high
+```
+
+### Escalation
+
+When finalize can't resolve issues, it escalates back to the implement phase:
+- >10 unresolved conflicts
+- >5 test failures after fix attempts
+- Complex conflicts requiring manual intervention
+
+The implement phase receives full context about what failed.
+
+---
+
 ## Merge Strategy
 
 ### Squash Merge (Default)
