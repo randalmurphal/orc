@@ -45,6 +45,23 @@ vi.mock('@/lib/api', () => ({
 	escalateProjectTask: vi.fn(),
 	updateTask: vi.fn(),
 	triggerFinalize: vi.fn(),
+	// Initiative detail page APIs
+	getInitiative: vi.fn().mockResolvedValue({
+		id: 'INIT-001',
+		title: 'Test Initiative',
+		status: 'active',
+		tasks: [],
+		decisions: [],
+		created_at: '2024-01-01T00:00:00Z',
+		updated_at: '2024-01-01T00:00:00Z',
+		version: 1,
+	}),
+	updateInitiative: vi.fn(),
+	addInitiativeTask: vi.fn(),
+	removeInitiativeTask: vi.fn(),
+	addInitiativeDecision: vi.fn(),
+	listTasks: vi.fn().mockResolvedValue([]),
+	getInitiativeDependencyGraph: vi.fn().mockResolvedValue({ nodes: [], edges: [] }),
 }));
 
 // Test wrapper component
@@ -221,12 +238,12 @@ describe('Routes', () => {
 	});
 
 	describe('/initiatives/:id route', () => {
-		it('renders InitiativeDetail page with initiative ID', async () => {
+		it('renders InitiativeDetail page with initiative title', async () => {
 			renderWithRouter('/initiatives/INIT-001');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
-					'Initiative: INIT-001'
-				);
+				// The page now loads initiative data and shows the title in h1
+				// Use getByText since there are multiple headings in the layout
+				expect(screen.getByText('Test Initiative')).toBeInTheDocument();
 			});
 		});
 	});
