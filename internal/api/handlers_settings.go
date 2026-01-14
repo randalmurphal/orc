@@ -42,7 +42,9 @@ func (s *Server) handleGetProjectSettings(w http.ResponseWriter, r *http.Request
 	s.jsonResponse(w, settings)
 }
 
-// handleUpdateSettings saves project settings.
+// handleUpdateSettings saves settings to either project or global scope.
+// Query parameter ?scope=global saves to ~/.claude/settings.json
+// Otherwise saves to {projectRoot}/.claude/settings.json
 func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var settings claudeconfig.Settings
 	if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
@@ -50,9 +52,18 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := claudeconfig.SaveProjectSettings(s.getProjectRoot(), &settings); err != nil {
-		s.jsonError(w, fmt.Sprintf("failed to save settings: %v", err), http.StatusInternalServerError)
-		return
+	scope := r.URL.Query().Get("scope")
+
+	if scope == "global" {
+		if err := claudeconfig.SaveGlobalSettings(&settings); err != nil {
+			s.jsonError(w, fmt.Sprintf("failed to save global settings: %v", err), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		if err := claudeconfig.SaveProjectSettings(s.getProjectRoot(), &settings); err != nil {
+			s.jsonError(w, fmt.Sprintf("failed to save settings: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	s.jsonResponse(w, settings)

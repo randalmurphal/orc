@@ -295,6 +295,17 @@
 								</div>
 								<Icon name="chevron-right" size={14} class="card-arrow" />
 							</a>
+
+							<a href="/environment/claude/statusline?scope=global" class="config-card">
+								<div class="card-icon">
+									<Icon name="statusline" size={18} />
+								</div>
+								<div class="card-info">
+									<h3>Statusline</h3>
+									<p>Terminal prompt customization</p>
+								</div>
+								<Icon name="chevron-right" size={14} class="card-arrow" />
+							</a>
 						</div>
 
 					</div>
@@ -411,6 +422,17 @@
 								<div class="card-info">
 									<h3>MCP Servers</h3>
 									<p>{mcpConnected} of {mcpServers.length} enabled</p>
+								</div>
+								<Icon name="chevron-right" size={14} class="card-arrow" />
+							</a>
+
+							<a href="/environment/claude/statusline" class="config-card">
+								<div class="card-icon">
+									<Icon name="statusline" size={18} />
+								</div>
+								<div class="card-info">
+									<h3>Statusline</h3>
+									<p>Terminal prompt customization</p>
 								</div>
 								<Icon name="chevron-right" size={14} class="card-arrow" />
 							</a>
