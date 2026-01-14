@@ -20,8 +20,8 @@ web/src/
 │   │   ├── comments/     # TaskCommentsPanel, TaskCommentThread, TaskCommentForm
 │   │   ├── dashboard/    # Stats, actions, activity
 │   │   ├── diff/         # DiffViewer, DiffFile, DiffHunk, VirtualScroller
-│   │   ├── filters/      # InitiativeDropdown
-│   │   ├── kanban/       # Board, Column, QueuedColumn, TaskCard
+│   │   ├── filters/      # InitiativeDropdown, ViewModeDropdown
+│   │   ├── kanban/       # Board, Column, QueuedColumn, TaskCard, Swimlane
 │   │   ├── layout/       # Header, Sidebar
 │   │   ├── overlays/     # Modal, CommandPalette, NewTaskModal, KeyboardShortcutsHelp
 │   │   ├── review/       # CommentForm, CommentThread, ReviewPanel
@@ -43,8 +43,8 @@ web/src/
 | Dashboard | Stats, QuickActions, ActiveTasks, RecentActivity | Overview page |
 | Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments, TokenUsage, DependencySidebar, AddDependencyModal | Task detail |
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
-| Filters | InitiativeDropdown | Filter bar dropdowns |
-| Kanban | Board, Column, QueuedColumn, TaskCard, ConfirmModal | Board view with queue/priority |
+| Filters | InitiativeDropdown, ViewModeDropdown | Filter bar dropdowns |
+| Kanban | Board, Column, QueuedColumn, TaskCard, Swimlane, ConfirmModal | Board view with queue/priority/swimlanes |
 | Overlays | Modal, LiveTranscriptModal, CommandPalette, KeyboardShortcutsHelp | Modal dialogs and overlays |
 | Comments | TaskCommentsPanel, TaskCommentThread, TaskCommentForm | Task discussion notes |
 | Review | CommentForm, CommentThread, ReviewPanel, ReviewSummary | Code review comments |
@@ -341,6 +341,53 @@ Work
 - Uses `$initiatives` for the list
 - Uses `$currentInitiativeId` for the selection (null = all tasks)
 - Uses `$initiativeProgress` for completion counts
+
+### Board View Mode Toggle
+
+The board supports two view modes selectable via a dropdown in the header:
+
+| Mode | Description |
+|------|-------------|
+| **Flat** (default) | Traditional kanban - all tasks in columns |
+| **By Initiative** | Swimlane view - tasks grouped by initiative |
+
+**Toggle control:** `ViewModeDropdown` in board header persists selection in localStorage (`orc-board-view-mode`).
+
+**Filter interaction:** When an initiative filter is active, swimlane view is disabled (the toggle becomes inactive) since filtering already shows a single initiative's tasks.
+
+### Swimlane View
+
+When "By Initiative" view is selected, tasks are grouped into horizontal swimlanes:
+
+```
+[By Initiative ▾]  Task Board (59 tasks)
+
+Frontend Migration (6/8)                                    67%
+┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+│ Queued  │ Spec    │ Impl    │ Test    │ Review  │ Done    │
+│ task    │         │ task    │         │         │ task    │
+└─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+
+Unassigned (12)                                             0%
+┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+│ task    │         │ task    │         │         │ task    │
+└─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+```
+
+| Feature | Description |
+|---------|-------------|
+| Swimlane header | Initiative title + progress (completed/total) + percentage bar |
+| Collapsible | Click header to collapse/expand; state persists in localStorage (`orc-collapsed-swimlanes`) |
+| Sort order | Active initiatives first (alphabetically), then other statuses, then "Unassigned" at bottom |
+| Empty swimlanes | Initiatives with no tasks are hidden |
+| Cross-swimlane drag-drop | Dragging task to different swimlane prompts initiative change confirmation |
+
+**Components:**
+- `ViewModeDropdown` (`filters/ViewModeDropdown.svelte`) - View mode selector
+- `Swimlane` (`kanban/Swimlane.svelte`) - Individual swimlane row with columns
+- `Board` (`kanban/Board.svelte`) - Renders flat or swimlane view based on `viewMode` prop
+
+**Initiative change via drag-drop:** When a task is dropped into a different initiative's swimlane, a confirmation modal appears asking to change the task's initiative. This provides a quick way to reassign tasks between initiatives.
 
 ### Initiative Filter Dropdown
 
