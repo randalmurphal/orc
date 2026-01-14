@@ -217,6 +217,12 @@ func TestHandleAutoFixComment_StoresMetadata(t *testing.T) {
 	srv, taskID, cleanup := setupGitHubTestEnv(t, withReviewComments([]db.ReviewComment{testComment}))
 	defer cleanup()
 
+	// Cancel any running tasks before test ends to avoid cleanup race
+	defer func() {
+		srv.cancelTask(taskID)
+		time.Sleep(50 * time.Millisecond)
+	}()
+
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/github/pr/comments/RC-meta123/autofix", taskID), nil)
 	w := httptest.NewRecorder()
 
@@ -259,6 +265,12 @@ func TestHandleAutoFixComment_UpdatesCompletedTaskStatus(t *testing.T) {
 
 	srv, taskID, cleanup := setupGitHubTestEnv(t, withReviewComments([]db.ReviewComment{testComment}))
 	defer cleanup()
+
+	// Cancel any running tasks before test ends to avoid cleanup race
+	defer func() {
+		srv.cancelTask(taskID)
+		time.Sleep(50 * time.Millisecond)
+	}()
 
 	// Set task to completed status first
 	tsk, _ := task.LoadFrom(srv.workDir, taskID)
