@@ -53,7 +53,7 @@ testing_requirements:
     unit: true
     visual: true
 created_at: 2026-01-14T02:18:42.396359957-06:00
-updated_at: 2026-01-14T06:41:58.738706-06:00
+updated_at: 2026-01-14T06:42:53.859076-06:00
 started_at: 2026-01-14T06:21:54.832425-06:00
 completed_at: 2026-01-14T06:41:50.617873-06:00
 metadata:
@@ -61,4 +61,4 @@ metadata:
 pr:
     url: https://github.com/randalmurphal/orc/pull/77
     number: 77
-    status: pending_review
+    status: closed
