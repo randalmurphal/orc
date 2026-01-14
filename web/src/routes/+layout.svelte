@@ -12,6 +12,7 @@
 	import { currentProject, loadProjects, currentProjectId, handlePopState } from '$lib/stores/project';
 	import { sidebarExpanded } from '$lib/stores/sidebar';
 	import { loadTasks, updateTaskStatus, updateTaskState, refreshTask, addTask, removeTask, updateTask } from '$lib/stores/tasks';
+	import { loadInitiatives } from '$lib/stores/initiatives';
 	import { initGlobalWebSocket, type WSEventType, type ConnectionStatus } from '$lib/websocket';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { setupGlobalShortcuts } from '$lib/shortcuts';
@@ -103,6 +104,7 @@
 	onMount(() => {
 		loadProjects();
 		loadTasks();
+		loadInitiatives();
 
 		// Initialize global WebSocket for real-time updates
 		cleanupWebSocket = initGlobalWebSocket(

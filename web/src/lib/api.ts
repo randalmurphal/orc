@@ -1,4 +1,4 @@
-import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary, Attachment, TaskComment, CreateTaskCommentRequest, UpdateTaskCommentRequest, TaskCommentStats, TestResultsInfo, Screenshot, TestReport } from './types';
+import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary, Attachment, TaskComment, CreateTaskCommentRequest, UpdateTaskCommentRequest, TaskCommentStats, TestResultsInfo, Screenshot, TestReport, Initiative } from './types';
 
 const API_BASE = '/api';
 
@@ -495,6 +495,15 @@ export async function createProjectTask(projectId: string, title: string, descri
 		method: 'POST',
 		body: JSON.stringify({ title, description, weight, category })
 	});
+}
+
+// Initiatives
+export async function listInitiatives(): Promise<Initiative[]> {
+	return fetchJSON<Initiative[]>('/initiatives');
+}
+
+export async function getInitiative(id: string): Promise<Initiative> {
+	return fetchJSON<Initiative>(`/initiatives/${id}`);
 }
 
 // Settings (Claude Code settings.json)
