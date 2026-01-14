@@ -33,7 +33,7 @@ description: |-
     - Keyboard nav works (j/k/Enter)
     - URL params sync with filters
 weight: medium
-status: completed
+status: running
 current_phase: implement
 branch: orc/TASK-173
 queue: active
