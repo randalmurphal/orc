@@ -185,12 +185,12 @@ Use `--auto-skip` to skip automatically without prompting. Skip reasons are reco
 
 ### Automation Profiles
 
-| Profile | Behavior |
-|---------|----------|
-| `auto` | Fully automated (default) |
-| `fast` | Minimal gates, speed over safety |
-| `safe` | AI reviews, human for merge |
-| `strict` | Human gates on spec/review/merge |
+| Profile | Behavior | PR Approval |
+|---------|----------|-------------|
+| `auto` | Fully automated (default) | AI auto-approves after verifying CI |
+| `fast` | Minimal gates, speed over safety | AI auto-approves after verifying CI |
+| `safe` | AI reviews, human for merge | Human approval required |
+| `strict` | Human gates on spec/review/merge | Human approval required |
 
 ```bash
 orc run TASK-001 --profile safe
@@ -206,6 +206,7 @@ orc config profile strict
 | `pool.enabled` | OAuth token rotation | - |
 | `team.mode` | local/shared_db | `docs/specs/TEAM_ARCHITECTURE.md` |
 | `completion.action` | pr/merge/none | - |
+| `completion.pr.auto_approve` | AI-assisted PR approval (auto/fast only) | `docs/architecture/EXECUTOR.md` |
 | `completion.sync.strategy` | Branch sync timing | `docs/architecture/GIT_INTEGRATION.md` |
 | `completion.finalize.enabled` | Enable finalize phase | `docs/architecture/PHASE_MODEL.md` |
 | `completion.finalize.auto_trigger_on_approval` | Auto-trigger finalize on PR approval | `docs/architecture/EXECUTOR.md` |
@@ -450,6 +451,7 @@ Patterns, gotchas, and decisions learned during development.
 | Board swimlane view | Optional "By Initiative" view groups tasks into horizontal swimlanes; toggle persists in localStorage; disabled when initiative filter active; cross-swimlane drag-drop changes task initiative with confirmation | TASK-065 |
 | Auto-trigger finalize on approval | In `auto` profile, finalize phase auto-triggers when PR is approved; controlled by `completion.finalize.auto_trigger_on_approval`; respects 30s rate limit, skips trivial tasks | TASK-091 |
 | Finalize UI components | FinalizeModal for progress/results; TaskCard shows finalize button (completed), progress bar (finalizing), merge info (finished); WebSocket `finalize` events for real-time updates | TASK-094 |
+| Auto-approve PRs in auto mode | In `auto`/`fast` profiles, PRs are auto-approved after verifying CI passes; uses `gh pr review --approve` with summary comment; `safe`/`strict` profiles require human approval | TASK-099 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
