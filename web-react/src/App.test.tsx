@@ -39,7 +39,7 @@ describe('App', () => {
 		// App renders routes wrapped in WebSocketProvider
 		await waitFor(() => {
 			// Should render the layout with sidebar and content
-			expect(screen.getByRole('navigation')).toBeInTheDocument();
+			expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument();
 		});
 	});
 

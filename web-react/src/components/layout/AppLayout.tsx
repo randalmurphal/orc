@@ -4,7 +4,8 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { UrlParamSync } from './UrlParamSync';
 import { useGlobalShortcuts } from '@/hooks';
-import { KeyboardShortcutsHelp } from '@/components/overlays';
+import { KeyboardShortcutsHelp, ProjectSwitcher } from '@/components/overlays';
+import { useUIStore } from '@/stores';
 import './AppLayout.css';
 
 /**
@@ -12,50 +13,73 @@ import './AppLayout.css';
  *
  * Structure:
  * - AppLayout (root container)
- *   - Sidebar (left navigation)
- *   - app-main (main content wrapper)
- *     - Header (top bar)
+ *   - Sidebar (left navigation, fixed position)
+ *   - app-main (main content wrapper with left margin)
+ *     - Header (top bar, sticky)
  *     - main/app-content (page content via Outlet)
  *
  * Also handles:
  * - Global keyboard shortcuts
- * - Keyboard shortcuts help modal
+ * - Modals: keyboard shortcuts help, project switcher, new task
  */
 export function AppLayout() {
 	// Modal states
 	const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+	const [showProjectSwitcher, setShowProjectSwitcher] = useState(false);
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const [_showNewTaskModal, setShowNewTaskModal] = useState(false);
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const [_showCommandPalette, setShowCommandPalette] = useState(false);
 
-	// Close any open modal
+	// Sidebar state for layout margin
+	const sidebarExpanded = useUIStore((state) => state.sidebarExpanded);
+
+	// Close all modals
 	const closeModals = useCallback(() => {
 		setShowShortcutsHelp(false);
+		setShowProjectSwitcher(false);
+		setShowNewTaskModal(false);
+		setShowCommandPalette(false);
 	}, []);
 
 	// Wire up global shortcuts
+	// Note: toggleSidebar is handled internally by the hook
 	useGlobalShortcuts({
 		onHelp: () => setShowShortcutsHelp(true),
 		onEscape: closeModals,
-		// TODO: Add these when components are implemented
-		// onCommandPalette: () => setShowCommandPalette(true),
-		// onNewTask: () => setShowNewTaskModal(true),
-		// onProjectSwitcher: () => setShowProjectSwitcher(true),
-		// onSearch: () => searchInputRef.current?.focus(),
+		onCommandPalette: () => setShowCommandPalette(true),
+		onNewTask: () => setShowNewTaskModal(true),
+		onProjectSwitcher: () => setShowProjectSwitcher(true),
 	});
 
 	return (
-		<div className="app-layout">
+		<div className={`app-layout ${sidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
 			{/* Sync URL params with stores */}
 			<UrlParamSync />
 
 			<Sidebar />
 			<div className="app-main">
-				<Header />
+				<Header
+					onProjectClick={() => setShowProjectSwitcher(true)}
+					onNewTask={() => setShowNewTaskModal(true)}
+					onCommandPalette={() => setShowCommandPalette(true)}
+				/>
 				<main className="app-content">
 					<Outlet />
 				</main>
 			</div>
 
 			{/* Modals */}
-			<KeyboardShortcutsHelp open={showShortcutsHelp} onClose={() => setShowShortcutsHelp(false)} />
+			<KeyboardShortcutsHelp
+				open={showShortcutsHelp}
+				onClose={() => setShowShortcutsHelp(false)}
+			/>
+			<ProjectSwitcher
+				open={showProjectSwitcher}
+				onClose={() => setShowProjectSwitcher(false)}
+			/>
+			{/* TODO: NewTaskModal will be implemented in a future task */}
+			{/* TODO: CommandPalette will be implemented in a future task */}
 		</div>
 	);
 }

@@ -130,6 +130,10 @@ Migration follows the existing Svelte component structure:
 | `lib/components/Modal.svelte` | `components/overlays/Modal.tsx` | ✅ Complete |
 | `lib/components/ToastContainer.svelte` | `components/ui/ToastContainer.tsx` | ✅ Complete |
 | `lib/components/Breadcrumbs.svelte` | `components/ui/Breadcrumbs.tsx` | ✅ Complete |
+| `lib/components/Sidebar.svelte` | `components/layout/Sidebar.tsx` | ✅ Complete |
+| `lib/components/Header.svelte` | `components/layout/Header.tsx` | ✅ Complete |
+| `+layout.svelte` (full layout) | `components/layout/AppLayout.tsx` | ✅ Complete |
+| `lib/components/ProjectSwitcher.svelte` | `components/overlays/ProjectSwitcher.tsx` | ✅ Complete |
 | `lib/stores/` | `src/stores/` (Zustand) | ✅ Complete |
 | `lib/websocket.ts` | `src/lib/websocket.ts` | ✅ Complete |
 | `lib/utils/` | `src/lib/` | In Progress |
@@ -159,6 +163,12 @@ Migration follows the existing Svelte component structure:
 - `components/ui/ToastContainer.tsx` - Toast notification queue (uses uiStore)
 - `components/ui/Breadcrumbs.tsx` - Route-based navigation breadcrumbs
 - `components/overlays/Modal.tsx` - Portal-based modal with focus trap
+
+**Layout components implemented (Phase 3):**
+- `components/layout/AppLayout.tsx` - Root layout with sidebar, header, outlet
+- `components/layout/Sidebar.tsx` - Navigation with initiative filtering
+- `components/layout/Header.tsx` - Project selector, page title, actions
+- `components/overlays/ProjectSwitcher.tsx` - Modal for project selection
 
 ## UI Primitives
 
@@ -260,6 +270,125 @@ import { Breadcrumbs } from '@/components/ui';
 ```
 
 **Behavior:** Auto-generates from current route path, Category segments (claude, orchestrator) link to parent `/environment`, Last segment is non-clickable current page
+
+## Layout Components
+
+Main layout components that wrap all pages.
+
+### AppLayout
+
+Root layout component combining Sidebar, Header, and page content area.
+
+```tsx
+// Used in router configuration (routes.tsx)
+import { AppLayout } from '@/components/layout/AppLayout';
+
+const routes = [
+  {
+    element: <AppLayout />,
+    children: [/* page routes */]
+  }
+];
+```
+
+**Structure:**
+- Handles global keyboard shortcuts
+- Manages modal states (shortcuts help, project switcher)
+- Provides responsive layout with sidebar margin
+- Uses React Router's `<Outlet>` for page content
+
+**CSS classes:**
+- `.app-layout` - Root container (flex)
+- `.app-layout.sidebar-expanded` - When sidebar is open (240px margin)
+- `.app-layout.sidebar-collapsed` - When sidebar is collapsed (60px margin)
+- `.app-main` - Main content wrapper
+- `.app-content` - Page content area (scrollable)
+
+### Sidebar
+
+Left navigation with collapsible sections and initiative filtering.
+
+```tsx
+import { Sidebar } from '@/components/layout/Sidebar';
+
+<Sidebar onNewInitiative={() => openNewInitiativeModal()} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onNewInitiative` | `() => void` | Optional callback for new initiative button |
+
+**Sections:**
+- **Work**: Dashboard, Tasks, Board navigation links
+- **Initiatives**: Collapsible list with progress counts, filters tasks
+- **Environment**: Claude Code and Orchestrator sub-groups with nested navigation
+- **Preferences**: Bottom-pinned settings link
+
+**Features:**
+- Expand/collapse toggle persisted in localStorage
+- Section/group expansion states persisted separately
+- Initiative list shows progress (completed/total) or status badge
+- Active route highlighting via NavLink
+- Keyboard shortcut hint (⇧⌥B to toggle)
+
+**CSS classes:**
+- `.sidebar` / `.sidebar.expanded` - Main container
+- `.nav-section` / `.nav-item` / `.nav-item.active` - Navigation structure
+- `.initiative-list` / `.initiative-item` - Initiative entries
+- `.nav-group` / `.group-header` - Environment sub-groups
+
+### Header
+
+Top bar with project selector, page title, and action buttons.
+
+```tsx
+import { Header } from '@/components/layout/Header';
+
+<Header
+  onProjectClick={() => openProjectSwitcher()}
+  onNewTask={() => openNewTaskModal()}
+  onCommandPalette={() => openCommandPalette()}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onProjectClick` | `() => void` | Project switcher trigger |
+| `onNewTask` | `() => void` | Optional new task button handler |
+| `onCommandPalette` | `() => void` | Command palette trigger |
+
+**Features:**
+- Project name with folder icon and chevron
+- Auto-derived page title from current route
+- Commands button with keyboard shortcut hint (⇧⌥K)
+- New Task button (primary style)
+
+### ProjectSwitcher
+
+Modal overlay for switching between projects.
+
+```tsx
+import { ProjectSwitcher } from '@/components/overlays';
+
+<ProjectSwitcher
+  open={showProjectSwitcher}
+  onClose={() => setShowProjectSwitcher(false)}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `open` | `boolean` | Whether modal is visible |
+| `onClose` | `() => void` | Close handler |
+
+**Features:**
+- Search/filter projects by name or path
+- Keyboard navigation (↑/↓ arrows, Enter to select, Esc to close)
+- Shows current project with "Active" badge
+- Loading and error states
+- Portal-rendered to document.body
+
+**Keyboard shortcuts:** ⇧⌥P opens project switcher (handled by AppLayout)
 
 ## Routing
 
