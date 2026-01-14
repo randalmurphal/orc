@@ -224,12 +224,19 @@
 		return str.replace(/'/g, "'\\''").replace(/%/g, '%%');
 	}
 
+	// Escape string for safe inclusion in single-quoted shell strings
+	function escapeForShell(str: string): string {
+		// In single-quoted strings, the only character that needs escaping is single quote
+		// We use the pattern: end quote, escaped quote, restart quote
+		return str.replace(/'/g, "'\\''");
+	}
+
 	// Generate inline command for simple configurations
 	function generateInlineCommand(): string {
 		const parts: string[] = [];
 
 		if (customPrefix.trim()) {
-			parts.push(customPrefix.trim());
+			parts.push(escapeForShell(customPrefix.trim()));
 		}
 
 		if (showVirtualEnv) {
@@ -277,7 +284,7 @@
 		}
 
 		if (customSuffix.trim()) {
-			parts.push(customSuffix.trim());
+			parts.push(escapeForShell(customSuffix.trim()));
 		}
 
 		return `echo -n '${parts.join('')}'`;
@@ -422,11 +429,17 @@
 		}
 	}
 
-	// Watch for scope changes
+	// Track previous scope to detect changes
+	let previousScope: string | null | undefined = undefined;
+
+	// Watch for scope changes and reload settings
 	$effect(() => {
-		if (!loading) {
+		const currentScope = scope;
+		// Only reload if scope actually changed (not on initial mount)
+		if (previousScope !== undefined && previousScope !== currentScope) {
 			loadSettings();
 		}
+		previousScope = currentScope;
 	});
 </script>
 
