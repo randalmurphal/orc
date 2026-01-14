@@ -83,6 +83,14 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+### CWD-Based Task Operations
+
+The `/api/tasks/*` endpoints operate on the server's working directory. If the server is started from a non-orc directory:
+- `GET /api/tasks` returns an empty list (not an error)
+- Create/modify operations will fail
+
+**Recommendation:** Use project-scoped endpoints (`/api/projects/:id/tasks/*`) for explicit project targeting.
+
 ### Project-Scoped Operations
 
 Project handlers resolve project path and delegate to task handlers:
