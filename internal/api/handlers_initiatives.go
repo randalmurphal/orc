@@ -8,6 +8,18 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// makeTaskLoader creates a TaskLoader that fetches task status from task.yaml files.
+func (s *Server) makeTaskLoader() initiative.TaskLoader {
+	return func(taskID string) (status string, title string, err error) {
+		t, err := task.LoadFrom(s.workDir, taskID)
+		if err != nil {
+			// Task not found or unreadable - return empty to use fallback
+			return "", "", nil
+		}
+		return string(t.Status), t.Title, nil
+	}
+}
+
 // handleListInitiatives returns all initiatives.
 func (s *Server) handleListInitiatives(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
@@ -33,6 +45,12 @@ func (s *Server) handleListInitiatives(w http.ResponseWriter, r *http.Request) {
 
 	// Populate computed fields (Blocks)
 	initiative.PopulateComputedFields(initiatives)
+
+	// Enrich task statuses with actual values from task.yaml files
+	loader := s.makeTaskLoader()
+	for _, init := range initiatives {
+		init.EnrichTaskStatuses(loader)
+	}
 
 	s.jsonResponse(w, initiatives)
 }
@@ -143,6 +161,9 @@ func (s *Server) handleGetInitiative(w http.ResponseWriter, r *http.Request) {
 		initiative.PopulateComputedFields(allInits)
 	}
 
+	// Enrich task statuses with actual values from task.yaml files
+	init.EnrichTaskStatuses(s.makeTaskLoader())
+
 	s.jsonResponse(w, init)
 }
 
@@ -240,6 +261,9 @@ func (s *Server) handleUpdateInitiative(w http.ResponseWriter, r *http.Request) 
 		initiative.PopulateComputedFields(allInits)
 	}
 
+	// Enrich task statuses with actual values from task.yaml files
+	init.EnrichTaskStatuses(s.makeTaskLoader())
+
 	s.jsonResponse(w, init)
 }
 
@@ -278,7 +302,9 @@ func (s *Server) handleListInitiativeTasks(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	s.jsonResponse(w, init.Tasks)
+	// Return tasks with actual status from task.yaml files
+	tasks := init.GetTasksWithStatus(s.makeTaskLoader())
+	s.jsonResponse(w, tasks)
 }
 
 // handleAddInitiativeTask links a task to an initiative.
@@ -335,7 +361,9 @@ func (s *Server) handleAddInitiativeTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	s.jsonResponse(w, init.Tasks)
+	// Return tasks with actual status from task.yaml files
+	tasks := init.GetTasksWithStatus(s.makeTaskLoader())
+	s.jsonResponse(w, tasks)
 }
 
 // handleAddInitiativeDecision adds a decision to an initiative.
@@ -445,7 +473,8 @@ func (s *Server) handleGetReadyTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ready := init.GetReadyTasks()
+	// Use actual task status from task.yaml files
+	ready := init.GetReadyTasksWithLoader(s.makeTaskLoader())
 	if ready == nil {
 		ready = []initiative.TaskRef{}
 	}
