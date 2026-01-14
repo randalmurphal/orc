@@ -105,6 +105,14 @@ type PRConfig struct {
 
 	// AutoMerge enables auto-merge when approved (default: true)
 	AutoMerge bool `yaml:"auto_merge"`
+
+	// AutoApprove enables AI-assisted PR approval in auto mode (default: true for "auto" profile)
+	// When enabled, after PR creation the AI will:
+	// 1. Review the diff for obvious issues
+	// 2. Verify tests passed
+	// 3. Approve the PR via 'gh pr review --approve'
+	// For safe/strict profiles, this is disabled and human approval is required.
+	AutoApprove bool `yaml:"auto_approve"`
 }
 
 // SyncStrategy defines when to sync task branch with target.
@@ -761,6 +769,7 @@ func Default() *Config {
 				BodyTemplate: "templates/pr-body.md",
 				Labels:       []string{"automated"},
 				AutoMerge:    true,
+				AutoApprove:  true, // AI-assisted PR approval in auto mode
 			},
 			Sync: SyncConfig{
 				Strategy:       SyncStrategyCompletion, // Sync before PR creation by default
@@ -976,11 +985,26 @@ func ProfilePresets(profile AutomationProfile) GateConfig {
 }
 
 // ApplyProfile applies a preset profile to the configuration.
-// This affects both gates and finalize phase behavior.
+// This affects gates, finalize phase, and PR behavior.
 func (c *Config) ApplyProfile(profile AutomationProfile) {
 	c.Profile = profile
 	c.Gates = ProfilePresets(profile)
 	c.Completion.Finalize = FinalizePresets(profile)
+	c.Completion.PR.AutoApprove = PRAutoApprovePreset(profile)
+}
+
+// PRAutoApprovePreset returns the auto-approve setting for a given automation profile.
+func PRAutoApprovePreset(profile AutomationProfile) bool {
+	switch profile {
+	case ProfileAuto, ProfileFast:
+		// Auto and Fast profiles enable AI-assisted PR approval
+		return true
+	case ProfileSafe, ProfileStrict:
+		// Safe and Strict profiles require human approval
+		return false
+	default:
+		return true // Default to auto
+	}
 }
 
 // FinalizePresets returns finalize configuration for a given automation profile.
@@ -1355,6 +1379,17 @@ func (c *Config) ShouldAutoTriggerFinalize() bool {
 // This is only enabled for automation profiles that support fully automated workflows (auto, fast).
 func (c *Config) ShouldAutoTriggerFinalizeOnApproval() bool {
 	return c.Completion.Finalize.Enabled && c.Completion.Finalize.AutoTriggerOnApproval
+}
+
+// ShouldAutoApprovePR returns true if AI should review and approve PRs automatically.
+// This is only enabled for automation profiles that support fully automated workflows (auto, fast).
+// For safe/strict profiles, human approval is required.
+func (c *Config) ShouldAutoApprovePR() bool {
+	// Only auto mode and fast mode support auto-approval
+	if c.Profile != ProfileAuto && c.Profile != ProfileFast {
+		return false
+	}
+	return c.Completion.PR.AutoApprove
 }
 
 // FinalizeUsesRebase returns true if finalize should use rebase strategy.

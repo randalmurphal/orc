@@ -1476,3 +1476,93 @@ func TestApplyProfile_AffectsAutoTriggerOnApproval(t *testing.T) {
 		t.Error("After ApplyProfile(strict), AutoTriggerOnApproval should be false")
 	}
 }
+
+func TestDefault_AutoApprovePR(t *testing.T) {
+	cfg := Default()
+
+	// Default should have auto-approve enabled
+	if !cfg.Completion.PR.AutoApprove {
+		t.Error("Completion.PR.AutoApprove should default to true")
+	}
+}
+
+func TestShouldAutoApprovePR(t *testing.T) {
+	tests := []struct {
+		name        string
+		profile     AutomationProfile
+		autoApprove bool
+		expected    bool
+	}{
+		{"auto profile with auto-approve", ProfileAuto, true, true},
+		{"auto profile without auto-approve", ProfileAuto, false, false},
+		{"fast profile with auto-approve", ProfileFast, true, true},
+		{"fast profile without auto-approve", ProfileFast, false, false},
+		{"safe profile with auto-approve", ProfileSafe, true, false},   // Safe always returns false
+		{"safe profile without auto-approve", ProfileSafe, false, false},
+		{"strict profile with auto-approve", ProfileStrict, true, false}, // Strict always returns false
+		{"strict profile without auto-approve", ProfileStrict, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Default()
+			cfg.Profile = tt.profile
+			cfg.Completion.PR.AutoApprove = tt.autoApprove
+
+			got := cfg.ShouldAutoApprovePR()
+			if got != tt.expected {
+				t.Errorf("ShouldAutoApprovePR() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPRAutoApprovePreset(t *testing.T) {
+	tests := []struct {
+		profile  AutomationProfile
+		expected bool
+	}{
+		{ProfileAuto, true},   // Auto profile enables auto-approve
+		{ProfileFast, true},   // Fast profile enables auto-approve
+		{ProfileSafe, false},  // Safe profile disables auto-approve (human review)
+		{ProfileStrict, false}, // Strict profile disables auto-approve (human decision)
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.profile), func(t *testing.T) {
+			result := PRAutoApprovePreset(tt.profile)
+			if result != tt.expected {
+				t.Errorf("PRAutoApprovePreset(%s) = %v, want %v",
+					tt.profile, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestApplyProfile_AffectsAutoApprovePR(t *testing.T) {
+	cfg := Default()
+
+	// Apply safe profile - should disable auto-approve
+	cfg.ApplyProfile(ProfileSafe)
+	if cfg.Completion.PR.AutoApprove {
+		t.Error("After ApplyProfile(safe), AutoApprove should be false")
+	}
+
+	// Apply auto profile - should enable auto-approve
+	cfg.ApplyProfile(ProfileAuto)
+	if !cfg.Completion.PR.AutoApprove {
+		t.Error("After ApplyProfile(auto), AutoApprove should be true")
+	}
+
+	// Apply fast profile - should enable auto-approve
+	cfg.ApplyProfile(ProfileFast)
+	if !cfg.Completion.PR.AutoApprove {
+		t.Error("After ApplyProfile(fast), AutoApprove should be true")
+	}
+
+	// Apply strict profile - should disable auto-approve
+	cfg.ApplyProfile(ProfileStrict)
+	if cfg.Completion.PR.AutoApprove {
+		t.Error("After ApplyProfile(strict), AutoApprove should be false")
+	}
+}

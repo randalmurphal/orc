@@ -361,6 +361,10 @@ func mergeCompletionConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]
 			cfg.Completion.PR.AutoMerge = fileCfg.Completion.PR.AutoMerge
 			tc.SetSourceWithPath("completion.pr.auto_merge", source, path)
 		}
+		if _, ok := rawPR["auto_approve"]; ok {
+			cfg.Completion.PR.AutoApprove = fileCfg.Completion.PR.AutoApprove
+			tc.SetSourceWithPath("completion.pr.auto_approve", source, path)
+		}
 	}
 }
 
@@ -544,7 +548,7 @@ func markDefaults(tc *TrackedConfig) {
 		"worktree.enabled", "worktree.dir", "worktree.cleanup_on_complete", "worktree.cleanup_on_fail",
 		"completion.action", "completion.target_branch", "completion.delete_branch",
 		"completion.pr.title", "completion.pr.body_template", "completion.pr.labels",
-		"completion.pr.auto_merge", "completion.pr.draft",
+		"completion.pr.auto_merge", "completion.pr.auto_approve", "completion.pr.draft",
 		"execution.use_session_execution", "execution.session_persistence", "execution.checkpoint_interval", "execution.max_retries",
 		"budget.threshold_usd", "budget.alert_on_exceed", "budget.pause_on_exceed",
 		"pool.enabled", "pool.config_path",
