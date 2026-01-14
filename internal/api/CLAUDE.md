@@ -32,6 +32,7 @@ REST API server with WebSocket support for real-time updates.
 | `handlers_templates.go` | `/api/templates/*` | Template management |
 | `handlers_config.go` | `/api/config/*` | Orc configuration |
 | `handlers_dashboard.go` | `/api/dashboard/*` | Dashboard statistics |
+| `handlers_diff.go` | `/api/tasks/:id/diff/*` | Git diff visualization for task changes |
 | `handlers_initiatives.go` | `/api/initiatives/*` | Initiative management |
 
 ## Server Architecture
@@ -39,7 +40,7 @@ REST API server with WebSocket support for real-time updates.
 ```
 Server
 ├── Routes (chi router)
-│   ├── /api/tasks/* → handlers_tasks*.go, handlers_attachments.go
+│   ├── /api/tasks/* → handlers_tasks*.go, handlers_attachments.go, handlers_diff.go
 │   ├── /api/initiatives/* → handlers_initiatives.go
 │   ├── /api/projects/* → handlers_projects.go
 │   ├── /api/prompts/* → handlers_prompts.go

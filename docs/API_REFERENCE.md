@@ -351,6 +351,73 @@ Group related tasks with shared decisions.
 | PUT | `/api/mcp/:name` | Update MCP server |
 | DELETE | `/api/mcp/:name` | Delete MCP server |
 
+### Task Diff
+
+Git diff visualization for task implementation changes. Compares the task branch against a base branch (default: `main`).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tasks/:id/diff` | Get full diff with file list and hunks |
+| GET | `/api/tasks/:id/diff/stats` | Get diff statistics only |
+| GET | `/api/tasks/:id/diff/file/{path}` | Get diff for a single file |
+
+**Query parameters:**
+- `base` - Base branch to compare against (default: `main`)
+- `files` - If `true`, return file list without hunks (for `/diff` endpoint only)
+
+**Working tree support:** When the task branch has not diverged from the base branch (same commit), but there are uncommitted changes in the working tree, the diff will include those uncommitted changes. The `head` field in the response will show `"working tree"` in this case.
+
+**Reference resolution:** Branch refs are automatically resolved. If a local branch doesn't exist but `origin/<branch>` does, the remote tracking branch is used.
+
+**Full diff response:**
+```json
+{
+  "base": "main",
+  "head": "orc/TASK-001",
+  "stats": {
+    "files_changed": 3,
+    "additions": 150,
+    "deletions": 20
+  },
+  "files": [
+    {
+      "path": "internal/api/handlers.go",
+      "status": "modified",
+      "additions": 50,
+      "deletions": 10,
+      "binary": false,
+      "syntax": "go",
+      "hunks": [
+        {
+          "old_start": 10,
+          "old_lines": 5,
+          "new_start": 10,
+          "new_lines": 8,
+          "lines": [
+            {"type": "context", "content": " func init() {", "old_line": 10, "new_line": 10},
+            {"type": "deletion", "content": "-    oldCode()", "old_line": 11},
+            {"type": "addition", "content": "+    newCode()", "new_line": 11}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**File status values:** `modified`, `added`, `deleted`, `renamed`, `copied`
+
+**Line type values:** `context`, `addition`, `deletion`
+
+**Stats-only response:**
+```json
+{
+  "files_changed": 3,
+  "additions": 150,
+  "deletions": 20
+}
+```
+
 ### Test Results (Playwright)
 
 Endpoints for Playwright test results, screenshots, and traces. Test results are stored in `.orc/tasks/{id}/test-results/`.

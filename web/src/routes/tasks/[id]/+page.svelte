@@ -516,10 +516,10 @@
 									>
 									<span class="token-label">Output</span>
 								</div>
-								{@const cacheTotal =
-									(taskState.tokens.cache_creation_input_tokens || 0) +
-									(taskState.tokens.cache_read_input_tokens || 0)}
-								{#if cacheTotal > 0}
+								{#if (taskState.tokens.cache_creation_input_tokens || 0) + (taskState.tokens.cache_read_input_tokens || 0) > 0}
+									{@const cacheTotal =
+										(taskState.tokens.cache_creation_input_tokens || 0) +
+										(taskState.tokens.cache_read_input_tokens || 0)}
 									<div class="token-divider"></div>
 									<div
 										class="token-stat cached"
