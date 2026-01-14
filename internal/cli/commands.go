@@ -26,8 +26,12 @@ func statusIcon(status task.Status) string {
 		return "⏸️"
 	case task.StatusBlocked:
 		return "🚫"
+	case task.StatusFinalizing:
+		return "🏁"
 	case task.StatusCompleted:
 		return "✅"
+	case task.StatusFinished:
+		return "📦"
 	case task.StatusFailed:
 		return "❌"
 	default:
@@ -50,8 +54,12 @@ func statusText(status task.Status) string {
 		return "[PSE]"
 	case task.StatusBlocked:
 		return "[BLK]"
+	case task.StatusFinalizing:
+		return "[FIN]"
 	case task.StatusCompleted:
 		return "[OK]"
+	case task.StatusFinished:
+		return "[END]"
 	case task.StatusFailed:
 		return "[ERR]"
 	default:

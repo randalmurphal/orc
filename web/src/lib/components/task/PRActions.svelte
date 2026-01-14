@@ -23,9 +23,9 @@
 	let showMergeConfirm = $state(false);
 	let hasCheckedPR = $state(false); // Track if we've already checked for PR
 
-	// Only show for completed tasks with a branch
+	// Only show for completed/finished tasks with a branch
 	const shouldShow = $derived(
-		taskStatus === 'completed' && taskBranch && taskBranch.length > 0
+		(taskStatus === 'completed' || taskStatus === 'finished') && taskBranch && taskBranch.length > 0
 	);
 
 	onMount(() => {
