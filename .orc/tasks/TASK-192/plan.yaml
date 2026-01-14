@@ -47,4 +47,5 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
+      commit_sha: 17c0490c26335964043d3ea163a138ccc2180839
