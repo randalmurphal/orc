@@ -312,6 +312,24 @@ export interface Config {
 		branch_prefix: string;
 		commit_prefix: string;
 	};
+	worktree: {
+		enabled: boolean;
+		dir: string;
+		cleanup_on_complete: boolean;
+		cleanup_on_fail: boolean;
+	};
+	completion: {
+		action: string;
+		target_branch: string;
+		delete_branch: boolean;
+	};
+	timeouts: {
+		phase_max: string;
+		turn_max: string;
+		idle_warning: string;
+		heartbeat_interval: string;
+		idle_timeout: string;
+	};
 }
 
 export interface ConfigSourceInfo {
@@ -338,6 +356,24 @@ export interface ConfigUpdateRequest {
 	git?: {
 		branch_prefix?: string;
 		commit_prefix?: string;
+	};
+	worktree?: {
+		enabled?: boolean;
+		dir?: string;
+		cleanup_on_complete?: boolean;
+		cleanup_on_fail?: boolean;
+	};
+	completion?: {
+		action?: string;
+		target_branch?: string;
+		delete_branch?: boolean;
+	};
+	timeouts?: {
+		phase_max?: string;
+		turn_max?: string;
+		idle_warning?: string;
+		heartbeat_interval?: string;
+		idle_timeout?: string;
 	};
 }
 
@@ -488,6 +524,13 @@ export async function getProjectSettings(): Promise<Settings> {
 export async function updateSettings(settings: Settings, scope?: 'global'): Promise<Settings> {
 	const params = scope ? `?scope=${scope}` : '';
 	return fetchJSON<Settings>(`/settings${params}`, {
+		method: 'PUT',
+		body: JSON.stringify(settings)
+	});
+}
+
+export async function updateGlobalSettings(settings: Settings): Promise<Settings> {
+	return fetchJSON<Settings>('/settings/global', {
 		method: 'PUT',
 		body: JSON.stringify(settings)
 	});

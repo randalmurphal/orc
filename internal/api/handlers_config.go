@@ -48,6 +48,24 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 			"branch_prefix": cfg.BranchPrefix,
 			"commit_prefix": cfg.CommitPrefix,
 		},
+		"worktree": map[string]any{
+			"enabled":             cfg.Worktree.Enabled,
+			"dir":                 cfg.Worktree.Dir,
+			"cleanup_on_complete": cfg.Worktree.CleanupOnComplete,
+			"cleanup_on_fail":     cfg.Worktree.CleanupOnFail,
+		},
+		"completion": map[string]any{
+			"action":        cfg.Completion.Action,
+			"target_branch": cfg.Completion.TargetBranch,
+			"delete_branch": cfg.Completion.DeleteBranch,
+		},
+		"timeouts": map[string]any{
+			"phase_max":          cfg.Timeouts.PhaseMax.String(),
+			"turn_max":           cfg.Timeouts.TurnMax.String(),
+			"idle_warning":       cfg.Timeouts.IdleWarning.String(),
+			"heartbeat_interval": cfg.Timeouts.HeartbeatInterval.String(),
+			"idle_timeout":       cfg.Timeouts.IdleTimeout.String(),
+		},
 	}
 
 	// Include source metadata if requested
@@ -98,6 +116,24 @@ type ConfigUpdateRequest struct {
 		BranchPrefix string `json:"branch_prefix,omitempty"`
 		CommitPrefix string `json:"commit_prefix,omitempty"`
 	} `json:"git,omitempty"`
+	Worktree *struct {
+		Enabled           *bool  `json:"enabled,omitempty"`
+		Dir               string `json:"dir,omitempty"`
+		CleanupOnComplete *bool  `json:"cleanup_on_complete,omitempty"`
+		CleanupOnFail     *bool  `json:"cleanup_on_fail,omitempty"`
+	} `json:"worktree,omitempty"`
+	Completion *struct {
+		Action       string `json:"action,omitempty"`
+		TargetBranch string `json:"target_branch,omitempty"`
+		DeleteBranch *bool  `json:"delete_branch,omitempty"`
+	} `json:"completion,omitempty"`
+	Timeouts *struct {
+		PhaseMax          string `json:"phase_max,omitempty"`
+		TurnMax           string `json:"turn_max,omitempty"`
+		IdleWarning       string `json:"idle_warning,omitempty"`
+		HeartbeatInterval string `json:"heartbeat_interval,omitempty"`
+		IdleTimeout       string `json:"idle_timeout,omitempty"`
+	} `json:"timeouts,omitempty"`
 }
 
 // handleUpdateConfig updates orc configuration.
@@ -162,6 +198,79 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Apply worktree settings
+	if req.Worktree != nil {
+		if req.Worktree.Enabled != nil {
+			cfg.Worktree.Enabled = *req.Worktree.Enabled
+		}
+		if req.Worktree.Dir != "" {
+			cfg.Worktree.Dir = req.Worktree.Dir
+		}
+		if req.Worktree.CleanupOnComplete != nil {
+			cfg.Worktree.CleanupOnComplete = *req.Worktree.CleanupOnComplete
+		}
+		if req.Worktree.CleanupOnFail != nil {
+			cfg.Worktree.CleanupOnFail = *req.Worktree.CleanupOnFail
+		}
+	}
+
+	// Apply completion settings
+	if req.Completion != nil {
+		if req.Completion.Action != "" {
+			cfg.Completion.Action = req.Completion.Action
+		}
+		if req.Completion.TargetBranch != "" {
+			cfg.Completion.TargetBranch = req.Completion.TargetBranch
+		}
+		if req.Completion.DeleteBranch != nil {
+			cfg.Completion.DeleteBranch = *req.Completion.DeleteBranch
+		}
+	}
+
+	// Apply timeout settings
+	if req.Timeouts != nil {
+		if req.Timeouts.PhaseMax != "" {
+			d, err := time.ParseDuration(req.Timeouts.PhaseMax)
+			if err != nil {
+				s.jsonError(w, fmt.Sprintf("invalid phase_max format: %v", err), http.StatusBadRequest)
+				return
+			}
+			cfg.Timeouts.PhaseMax = d
+		}
+		if req.Timeouts.TurnMax != "" {
+			d, err := time.ParseDuration(req.Timeouts.TurnMax)
+			if err != nil {
+				s.jsonError(w, fmt.Sprintf("invalid turn_max format: %v", err), http.StatusBadRequest)
+				return
+			}
+			cfg.Timeouts.TurnMax = d
+		}
+		if req.Timeouts.IdleWarning != "" {
+			d, err := time.ParseDuration(req.Timeouts.IdleWarning)
+			if err != nil {
+				s.jsonError(w, fmt.Sprintf("invalid idle_warning format: %v", err), http.StatusBadRequest)
+				return
+			}
+			cfg.Timeouts.IdleWarning = d
+		}
+		if req.Timeouts.HeartbeatInterval != "" {
+			d, err := time.ParseDuration(req.Timeouts.HeartbeatInterval)
+			if err != nil {
+				s.jsonError(w, fmt.Sprintf("invalid heartbeat_interval format: %v", err), http.StatusBadRequest)
+				return
+			}
+			cfg.Timeouts.HeartbeatInterval = d
+		}
+		if req.Timeouts.IdleTimeout != "" {
+			d, err := time.ParseDuration(req.Timeouts.IdleTimeout)
+			if err != nil {
+				s.jsonError(w, fmt.Sprintf("invalid idle_timeout format: %v", err), http.StatusBadRequest)
+				return
+			}
+			cfg.Timeouts.IdleTimeout = d
+		}
+	}
+
 	// Save config to workDir
 	if err := cfg.SaveTo(configPath); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save config: %v", err), http.StatusInternalServerError)
@@ -186,6 +295,24 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 		"git": map[string]any{
 			"branch_prefix": cfg.BranchPrefix,
 			"commit_prefix": cfg.CommitPrefix,
+		},
+		"worktree": map[string]any{
+			"enabled":             cfg.Worktree.Enabled,
+			"dir":                 cfg.Worktree.Dir,
+			"cleanup_on_complete": cfg.Worktree.CleanupOnComplete,
+			"cleanup_on_fail":     cfg.Worktree.CleanupOnFail,
+		},
+		"completion": map[string]any{
+			"action":        cfg.Completion.Action,
+			"target_branch": cfg.Completion.TargetBranch,
+			"delete_branch": cfg.Completion.DeleteBranch,
+		},
+		"timeouts": map[string]any{
+			"phase_max":          cfg.Timeouts.PhaseMax.String(),
+			"turn_max":           cfg.Timeouts.TurnMax.String(),
+			"idle_warning":       cfg.Timeouts.IdleWarning.String(),
+			"heartbeat_interval": cfg.Timeouts.HeartbeatInterval.String(),
+			"idle_timeout":       cfg.Timeouts.IdleTimeout.String(),
 		},
 	})
 }
