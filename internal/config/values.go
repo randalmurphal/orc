@@ -252,6 +252,7 @@ func AllConfigPaths() []string {
 		"completion.pr.reviewers",
 		"completion.pr.draft",
 		"completion.pr.auto_merge",
+		"completion.pr.auto_approve",
 		"completion.finalize.enabled",
 		"completion.finalize.auto_trigger",
 		"completion.finalize.sync.strategy",

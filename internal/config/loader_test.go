@@ -811,3 +811,61 @@ database:
 		t.Errorf("database.postgres.host source = %q, want shared", tc.GetSource("database.postgres.host"))
 	}
 }
+
+func TestLoadWithSources_PRAutoApprove(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Use empty home to avoid picking up real user config
+	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
+
+	// Create config that disables auto_approve
+	orcDir := filepath.Join(tmpDir, ".orc")
+	os.MkdirAll(orcDir, 0755)
+	configYAML := `
+profile: auto
+completion:
+  pr:
+    auto_approve: false
+`
+	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
+
+	tc, err := LoadWithSourcesFrom(tmpDir)
+	if err != nil {
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
+	}
+
+	// Check that auto_approve was loaded from config
+	if tc.Config.Completion.PR.AutoApprove {
+		t.Error("Completion.PR.AutoApprove should be false (loaded from config)")
+	}
+
+	// Check source
+	if tc.GetSource("completion.pr.auto_approve") != SourceShared {
+		t.Errorf("completion.pr.auto_approve source = %q, want shared",
+			tc.GetSource("completion.pr.auto_approve"))
+	}
+}
+
+func TestLoadWithSources_PRAutoApprove_Default(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Use empty home to avoid picking up real user config
+	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
+
+	// No config file - should use default
+	tc, err := LoadWithSourcesFrom(tmpDir)
+	if err != nil {
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
+	}
+
+	// Default should be true
+	if !tc.Config.Completion.PR.AutoApprove {
+		t.Error("Completion.PR.AutoApprove should default to true")
+	}
+
+	// Check source is default
+	if tc.GetSource("completion.pr.auto_approve") != SourceDefault {
+		t.Errorf("completion.pr.auto_approve source = %q, want default",
+			tc.GetSource("completion.pr.auto_approve"))
+	}
+}

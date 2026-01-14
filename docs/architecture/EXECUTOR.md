@@ -456,6 +456,67 @@ See `docs/specs/CONFIG_HIERARCHY.md` for full configuration options.
 
 ---
 
+## Auto-Approve PRs
+
+In `auto` and `fast` automation profiles, PRs are automatically approved after creation. This makes the automation truly end-to-end without requiring human intervention for approval.
+
+### Approval Flow
+
+After PR creation, the auto-approve process:
+
+1. **Get PR diff** - Retrieve the changes via `gh pr diff`
+2. **Check CI status** - Verify tests/checks via `gh pr checks`
+3. **Review and approve** - If CI passes, approve via `gh pr review --approve`
+
+### CI Status Evaluation
+
+| Status | Action |
+|--------|--------|
+| All checks passed | Approve PR |
+| Checks pending | Approve PR (CI still running) |
+| Checks failed | Skip approval with warning |
+| No checks configured | Approve PR |
+
+### Approval Comment
+
+The approval includes a summary comment:
+
+```
+Auto-approved by orc orchestrator.
+
+**Review Summary:**
+- Task: <task title>
+- CI Status: All checks passed
+- Implementation: Completed via AI-assisted development
+- Tests: Passed during test phase
+- Validation: Completed during validate phase
+```
+
+### Profile Behavior
+
+| Profile | Auto-Approve | Rationale |
+|---------|--------------|-----------|
+| `auto` | Yes | Fully automated pipeline |
+| `fast` | Yes | Speed prioritized |
+| `safe` | No | Human approval required |
+| `strict` | No | Human approval required |
+
+### Configuration
+
+```yaml
+# .orc/config.yaml
+completion:
+  pr:
+    auto_approve: true    # Enable AI-assisted PR approval (default: true for auto/fast)
+```
+
+When `auto_approve` is enabled and the profile is `auto` or `fast`:
+- PRs are approved immediately after creation if CI passes
+- Approval failures are logged but don't fail the task
+- The PR is still created even if approval fails
+
+---
+
 ## Activity Tracking and Progress Indication
 
 Long-running Claude API calls now include activity tracking and progress indication to keep users informed.

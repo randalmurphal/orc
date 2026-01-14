@@ -226,6 +226,7 @@ completion:
     labels: [automated]                # Labels applied to PR (gracefully skipped if missing)
     draft: false
     auto_merge: true
+    auto_approve: true                 # AI-assisted PR approval (auto/fast profiles only)
   sync:
     strategy: completion               # none | phase | completion | detect
     fail_on_conflict: true             # Abort on conflicts vs continue with warning
