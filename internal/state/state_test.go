@@ -122,20 +122,37 @@ func TestAddTokens(t *testing.T) {
 	s := New("TASK-001")
 	s.StartPhase("implement")
 
-	s.AddTokens(100, 50)
+	s.AddTokens(100, 50, 10, 20)
 	if s.Tokens.InputTokens != 100 {
 		t.Errorf("InputTokens = %d, want 100", s.Tokens.InputTokens)
 	}
 	if s.Tokens.OutputTokens != 50 {
 		t.Errorf("OutputTokens = %d, want 50", s.Tokens.OutputTokens)
 	}
+	if s.Tokens.CacheCreationInputTokens != 10 {
+		t.Errorf("CacheCreationInputTokens = %d, want 10", s.Tokens.CacheCreationInputTokens)
+	}
+	if s.Tokens.CacheReadInputTokens != 20 {
+		t.Errorf("CacheReadInputTokens = %d, want 20", s.Tokens.CacheReadInputTokens)
+	}
 	if s.Tokens.TotalTokens != 150 {
 		t.Errorf("TotalTokens = %d, want 150", s.Tokens.TotalTokens)
 	}
 
-	s.AddTokens(200, 100)
+	s.AddTokens(200, 100, 5, 15)
 	if s.Tokens.TotalTokens != 450 {
 		t.Errorf("TotalTokens = %d, want 450", s.Tokens.TotalTokens)
+	}
+	if s.Tokens.CacheCreationInputTokens != 15 {
+		t.Errorf("CacheCreationInputTokens = %d, want 15", s.Tokens.CacheCreationInputTokens)
+	}
+	if s.Tokens.CacheReadInputTokens != 35 {
+		t.Errorf("CacheReadInputTokens = %d, want 35", s.Tokens.CacheReadInputTokens)
+	}
+
+	// Check phase tokens are tracked too
+	if s.Phases["implement"].Tokens.CacheReadInputTokens != 35 {
+		t.Errorf("Phase CacheReadInputTokens = %d, want 35", s.Phases["implement"].Tokens.CacheReadInputTokens)
 	}
 }
 
@@ -232,7 +249,7 @@ func TestSaveAndLoad(t *testing.T) {
 	// Create and save state
 	s := New("TASK-001")
 	s.StartPhase("implement")
-	s.AddTokens(100, 50)
+	s.AddTokens(100, 50, 0, 0)
 
 	err = s.SaveTo(taskDir)
 	if err != nil {
@@ -404,7 +421,7 @@ func TestReset(t *testing.T) {
 	s.CompletePhase("spec", "abc123")
 	s.StartPhase("implement")
 	s.FailPhase("implement", &testError{"implementation failed"})
-	s.AddTokens(1000, 500)
+	s.AddTokens(1000, 500, 0, 0)
 	s.RecordGateDecision("spec", "ai", true, "approved")
 	s.SetRetryContext("implement", "spec", "retry", "output", 1)
 	s.StartExecution(12345, "testhost")

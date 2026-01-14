@@ -768,7 +768,7 @@ func TestPublishTokens(t *testing.T) {
 	ch := pub.Subscribe("TASK-005")
 	defer pub.Unsubscribe("TASK-005", ch)
 
-	e.publishTokens("TASK-005", "spec", 1000, 500, 0, 1500)
+	e.publishTokens("TASK-005", "spec", 1000, 500, 0, 0, 1500)
 
 	select {
 	case event := <-ch:
@@ -833,7 +833,7 @@ func TestPublishWithNoPublisher(t *testing.T) {
 	e.publishPhaseComplete("TASK-001", "test", "sha")
 	e.publishPhaseFailed("TASK-001", "test", nil)
 	e.publishTranscript("TASK-001", "test", 1, "type", "content")
-	e.publishTokens("TASK-001", "test", 0, 0, 0, 0)
+	e.publishTokens("TASK-001", "test", 0, 0, 0, 0, 0)
 	e.publishError("TASK-001", "test", "msg", false)
 }
 

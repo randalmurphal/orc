@@ -252,7 +252,8 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		// Update state with iteration progress
 		if s != nil && e.stateUpdater != nil {
 			s.IncrementIteration()
-			s.AddTokens(effectiveInput, turnResult.Usage.OutputTokens)
+			s.AddTokens(effectiveInput, turnResult.Usage.OutputTokens,
+				turnResult.Usage.CacheCreationInputTokens, turnResult.Usage.CacheReadInputTokens)
 			e.stateUpdater(s)
 		}
 

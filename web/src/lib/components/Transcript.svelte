@@ -59,6 +59,8 @@
 		metadata: {
 			inputTokens?: number;
 			outputTokens?: number;
+			cacheCreationTokens?: number;
+			cacheReadTokens?: number;
 			complete?: boolean;
 			blocked?: boolean;
 		};
@@ -107,10 +109,22 @@
 
 			// Parse metadata
 			if (inMetadata) {
-				const tokensMatch = line.match(/^Tokens: (\d+) input, (\d+) output/);
-				if (tokensMatch) {
-					metadata.inputTokens = parseInt(tokensMatch[1], 10);
-					metadata.outputTokens = parseInt(tokensMatch[2], 10);
+				// Try new format with cache tokens first
+				const tokensWithCacheMatch = line.match(
+					/^Tokens: (\d+) input, (\d+) output, (\d+) cache_creation, (\d+) cache_read/
+				);
+				if (tokensWithCacheMatch) {
+					metadata.inputTokens = parseInt(tokensWithCacheMatch[1], 10);
+					metadata.outputTokens = parseInt(tokensWithCacheMatch[2], 10);
+					metadata.cacheCreationTokens = parseInt(tokensWithCacheMatch[3], 10);
+					metadata.cacheReadTokens = parseInt(tokensWithCacheMatch[4], 10);
+				} else {
+					// Fall back to old format without cache tokens
+					const tokensMatch = line.match(/^Tokens: (\d+) input, (\d+) output/);
+					if (tokensMatch) {
+						metadata.inputTokens = parseInt(tokensMatch[1], 10);
+						metadata.outputTokens = parseInt(tokensMatch[2], 10);
+					}
 				}
 				if (line.startsWith('Complete:')) {
 					metadata.complete = line.includes('true');
@@ -320,8 +334,17 @@
 							</div>
 							<div class="file-meta">
 								{#if parsed.metadata.inputTokens || parsed.metadata.outputTokens}
-									<span class="tokens">
-										{parsed.metadata.inputTokens?.toLocaleString() ?? 0} in / {parsed.metadata.outputTokens?.toLocaleString() ?? 0} out
+									{@const cacheTotal =
+										(parsed.metadata.cacheCreationTokens || 0) +
+										(parsed.metadata.cacheReadTokens || 0)}
+									<span
+										class="tokens"
+										title={cacheTotal > 0
+											? `Cache creation: ${(parsed.metadata.cacheCreationTokens || 0).toLocaleString()}\nCache read: ${(parsed.metadata.cacheReadTokens || 0).toLocaleString()}`
+											: ''}
+									>
+										{parsed.metadata.inputTokens?.toLocaleString() ?? 0} in / {parsed.metadata.outputTokens?.toLocaleString() ??
+											0} out{cacheTotal > 0 ? ` (${cacheTotal.toLocaleString()} cached)` : ''}
 									</span>
 								{/if}
 								<span class="file-time">{formatTime(file.created_at)}</span>

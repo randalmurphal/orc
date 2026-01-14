@@ -122,9 +122,11 @@ type RetryContext struct {
 
 // TokenUsage tracks token consumption.
 type TokenUsage struct {
-	InputTokens  int `yaml:"input_tokens" json:"input_tokens"`
-	OutputTokens int `yaml:"output_tokens" json:"output_tokens"`
-	TotalTokens  int `yaml:"total_tokens" json:"total_tokens"`
+	InputTokens              int `yaml:"input_tokens" json:"input_tokens"`
+	OutputTokens             int `yaml:"output_tokens" json:"output_tokens"`
+	CacheCreationInputTokens int `yaml:"cache_creation_input_tokens,omitempty" json:"cache_creation_input_tokens,omitempty"`
+	CacheReadInputTokens     int `yaml:"cache_read_input_tokens,omitempty" json:"cache_read_input_tokens,omitempty"`
+	TotalTokens              int `yaml:"total_tokens" json:"total_tokens"`
 }
 
 // New creates a new state for a task.
@@ -265,15 +267,21 @@ func (s *State) IncrementIteration() {
 }
 
 // AddTokens adds token usage to the state.
-func (s *State) AddTokens(input, output int) {
+// The input parameter should be the effective input (including cache tokens).
+// cacheCreation and cacheRead track the individual cache token contributions.
+func (s *State) AddTokens(input, output, cacheCreation, cacheRead int) {
 	s.Tokens.InputTokens += input
 	s.Tokens.OutputTokens += output
+	s.Tokens.CacheCreationInputTokens += cacheCreation
+	s.Tokens.CacheReadInputTokens += cacheRead
 	s.Tokens.TotalTokens += input + output
 	s.UpdatedAt = time.Now()
 
 	if s.Phases[s.CurrentPhase] != nil {
 		s.Phases[s.CurrentPhase].Tokens.InputTokens += input
 		s.Phases[s.CurrentPhase].Tokens.OutputTokens += output
+		s.Phases[s.CurrentPhase].Tokens.CacheCreationInputTokens += cacheCreation
+		s.Phases[s.CurrentPhase].Tokens.CacheReadInputTokens += cacheRead
 		s.Phases[s.CurrentPhase].Tokens.TotalTokens += input + output
 	}
 }
