@@ -34,9 +34,14 @@ web-react/src/
 │   │   ├── Sidebar.tsx   # Left navigation
 │   │   ├── Header.tsx    # Top bar
 │   │   └── UrlParamSync.tsx # URL <-> Store bidirectional sync
-│   └── overlays/         # Modal overlays
-│       ├── Modal.tsx     # Base modal component
-│       └── KeyboardShortcutsHelp.tsx # Shortcuts help modal
+│   ├── overlays/         # Modal overlays
+│   │   ├── Modal.tsx     # Base modal component
+│   │   └── KeyboardShortcutsHelp.tsx # Shortcuts help modal
+│   └── ui/               # UI primitives
+│       ├── Icon.tsx      # SVG icons (60+ built-in)
+│       ├── StatusIndicator.tsx # Status orb with animations
+│       ├── ToastContainer.tsx  # Toast notification queue
+│       └── Breadcrumbs.tsx     # Route-based breadcrumbs
 ├── pages/                # Route pages
 │   ├── TaskList.tsx      # / - Task list
 │   ├── Board.tsx         # /board - Kanban board
@@ -120,6 +125,11 @@ Migration follows the existing Svelte component structure:
 |------------------|------------------|--------|
 | `+layout.svelte` | `App.tsx` + Router | ✅ Complete |
 | `lib/components/` | `src/components/` | In Progress |
+| `lib/components/Icon.svelte` | `components/ui/Icon.tsx` | ✅ Complete |
+| `lib/components/StatusIndicator.svelte` | `components/ui/StatusIndicator.tsx` | ✅ Complete |
+| `lib/components/Modal.svelte` | `components/overlays/Modal.tsx` | ✅ Complete |
+| `lib/components/ToastContainer.svelte` | `components/ui/ToastContainer.tsx` | ✅ Complete |
+| `lib/components/Breadcrumbs.svelte` | `components/ui/Breadcrumbs.tsx` | ✅ Complete |
 | `lib/stores/` | `src/stores/` (Zustand) | ✅ Complete |
 | `lib/websocket.ts` | `src/lib/websocket.ts` | ✅ Complete |
 | `lib/utils/` | `src/lib/` | In Progress |
@@ -149,6 +159,107 @@ Migration follows the existing Svelte component structure:
 - `components/ui/ToastContainer.tsx` - Toast notification queue (uses uiStore)
 - `components/ui/Breadcrumbs.tsx` - Route-based navigation breadcrumbs
 - `components/overlays/Modal.tsx` - Portal-based modal with focus trap
+
+## UI Primitives
+
+Foundational components that other components depend on.
+
+### Icon
+
+SVG icon component with 60+ built-in icons using stroke-based rendering.
+
+```tsx
+import { Icon } from '@/components/ui';
+
+<Icon name="dashboard" />
+<Icon name="check" size={16} />
+<Icon name="error" size={24} className="text-danger" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `name` | `IconName` | required | Icon identifier |
+| `size` | `number` | `20` | Width/height in pixels |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Icon categories:** Navigation (dashboard, tasks, board, etc.), Actions (plus, search, close, check, trash), Playback (play, pause), Chevrons, Status (success, error, warning, info), Git (branch, git-branch), Circle variants (circle, check-circle, play-circle, etc.)
+
+### StatusIndicator
+
+Colored status orb with animations for running/paused states.
+
+```tsx
+import { StatusIndicator } from '@/components/ui';
+
+<StatusIndicator status="running" />
+<StatusIndicator status="completed" size="lg" showLabel />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `status` | `TaskStatus` | required | Task status (running, paused, completed, etc.) |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Indicator size |
+| `showLabel` | `boolean` | `false` | Show status text label |
+
+**Status colors:** running (accent/pulse), paused (warning/pulse), blocked (danger), completed/finished (success), failed (danger), classifying (warning), created/planned (muted)
+
+### Modal
+
+Portal-based modal with focus trap, escape-to-close, and backdrop click handling.
+
+```tsx
+import { Modal } from '@/components/overlays';
+
+<Modal open={isOpen} onClose={() => setIsOpen(false)} title="Confirm">
+  <p>Are you sure?</p>
+  <button onClick={() => setIsOpen(false)}>Cancel</button>
+</Modal>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `open` | `boolean` | required | Whether modal is visible |
+| `onClose` | `() => void` | required | Close handler |
+| `title` | `string` | - | Optional header title |
+| `size` | `'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | Max width |
+| `showClose` | `boolean` | `true` | Show close button |
+| `children` | `ReactNode` | required | Modal content |
+
+**Features:** Focus trap (Tab cycles within modal), Escape key closes, Click outside closes, Body scroll lock, Focus restoration on close, Portal renders to document.body
+
+### ToastContainer
+
+Toast notification queue rendered via portal. Uses `uiStore` for state management.
+
+```tsx
+// Add ToastContainer to app root (renders via portal)
+import { ToastContainer } from '@/components/ui';
+<ToastContainer />
+
+// Trigger toasts from anywhere
+import { toast } from '@/stores';
+toast.success('Task created');
+toast.error('Failed to save', { duration: 10000 });
+toast.warning('Unsaved changes');
+toast.info('Processing...');
+toast.dismiss('toast-id');  // Dismiss specific toast
+toast.clear();              // Clear all toasts
+```
+
+**Toast types:** success (5s), error (8s), warning (5s), info (5s)
+
+### Breadcrumbs
+
+Route-based navigation breadcrumb trail. Only renders for `/environment/*` and `/preferences` routes.
+
+```tsx
+import { Breadcrumbs } from '@/components/ui';
+
+// Typically placed in Header or page layout
+<Breadcrumbs />
+```
+
+**Behavior:** Auto-generates from current route path, Category segments (claude, orchestrator) link to parent `/environment`, Last segment is non-clickable current page
 
 ## Routing
 
