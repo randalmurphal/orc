@@ -79,6 +79,7 @@ Tasks support queue, priority, category, and initiative organization:
 - Set via `orc new --initiative INIT-001` or `orc edit TASK-001 --initiative INIT-001`
 - Unlink via `orc edit TASK-001 --initiative ""`
 - Bidirectional sync: setting initiative_id auto-adds task to initiative's task list
+- Initiatives can depend on other initiatives via `blocked_by` (see below)
 
 Tasks are sorted within each column by: **running status first** (running tasks always appear at the top), then by priority. Higher priority tasks appear before lower priority tasks.
 
@@ -101,6 +102,32 @@ orc edit TASK-003 --remove-blocker TASK-001
 ```
 
 **Validation:** Self-references rejected, circular dependencies detected, non-existent IDs rejected.
+
+### Initiative Dependencies
+
+Initiatives can depend on other initiatives completing first:
+
+| Field | Stored | Purpose |
+|-------|--------|---------|
+| `blocked_by` | Yes | Initiative IDs that must complete before this initiative |
+| `blocks` | No | Initiatives waiting on this initiative (computed inverse) |
+
+**CLI usage:**
+```bash
+orc initiative new "React Migration" --blocked-by INIT-001
+orc initiative edit INIT-002 --add-blocker INIT-003
+orc initiative edit INIT-002 --remove-blocker INIT-001
+```
+
+**Example:** 'React Migration' initiative can't start until 'Build System Upgrade' completes:
+```
+INIT-001: Build System Upgrade → INIT-002: React Migration → INIT-003: Component Library
+```
+
+**Blocking rules:**
+- Initiative is blocked if ANY blocking initiative is not `completed`
+- Can activate a blocked initiative (plan for future work)
+- `orc initiative run` warns if initiative is blocked, use `--force` to override
 
 ### Weight Classification
 
@@ -405,6 +432,7 @@ Patterns, gotchas, and decisions learned during development.
 | Blocking enforcement on run | CLI and API check `blocked_by` for incomplete blockers before running; CLI prompts in interactive mode, refuses in quiet mode without `--force`; API returns 409 Conflict with blocker details, accepts `?force=true` to override | TASK-071 |
 | Dependency visualization CLI | `orc deps` shows dependencies with multiple views: standard (single task), `--tree` (recursive), `--graph` (ASCII flow chart); `orc status` shows BLOCKED/READY sections for dependency-aware task overview | TASK-077 |
 | Finalize phase with escalation | Finalize phase syncs branch with target, resolves conflicts via AI, runs tests, and assesses risk; escalates to implement phase if >10 conflicts or >5 test failures persist | TASK-089 |
+| Initiative-to-initiative dependencies | Initiatives support `blocked_by` field for ordering; `blocks` computed on load; `orc initiative list/show` displays blocked status; `orc initiative run --force` overrides blocking | TASK-075 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

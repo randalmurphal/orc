@@ -167,6 +167,99 @@ related_to:
 
 ---
 
+## initiative.yaml (Initiative Definition)
+
+```yaml
+# .orc/initiatives/INIT-001/initiative.yaml
+id: INIT-001
+title: "User Authentication System"
+status: active
+vision: |
+  Implement comprehensive user authentication with OAuth2 support
+  for Google and GitHub providers.
+
+owner:
+  initials: JD
+  display_name: John Doe
+  email: john@example.com
+
+# Initiative Dependencies
+blocked_by:
+  - INIT-000  # Infrastructure Setup must complete first
+
+# Note: blocks is computed, not stored
+# blocks:
+#   - INIT-002  # React Migration depends on this
+
+decisions:
+  - id: DEC-001
+    timestamp: 2026-01-10T10:30:00Z
+    decision: "Use JWT tokens for session management"
+    rationale: "Better for microservices, stateless authentication"
+    made_by: JD
+    task_context: TASK-001
+
+context_files:
+  - docs/auth-spec.md
+  - .env.example
+
+tasks:
+  - id: TASK-001
+    title: "Add OAuth2 providers"
+    status: completed
+  - id: TASK-002
+    title: "Implement JWT session"
+    status: running
+
+created_at: 2026-01-10T10:30:00Z
+updated_at: 2026-01-15T14:22:00Z
+```
+
+### Initiative Dependencies
+
+Initiatives can depend on other initiatives completing first:
+
+| Field | Stored | Purpose |
+|-------|--------|---------|
+| `blocked_by` | Yes | Initiative IDs that must complete before this initiative |
+| `blocks` | No (computed) | Initiative IDs waiting on this initiative |
+
+**Stored vs Computed fields:**
+- `blocked_by` is stored in initiative.yaml and user-editable
+- `blocks` is computed on load by scanning all initiatives
+
+**Validation rules:**
+- Referenced initiative IDs must exist
+- Initiatives cannot block themselves
+- Circular dependencies are rejected (A blocks B blocks A)
+
+**Blocking behavior:**
+- Initiative is blocked if ANY initiative in `blocked_by` is not `completed`
+- `orc initiative list` shows `[BLOCKED]` status indicator
+- `orc initiative show` displays dependency chain
+- `orc initiative run` warns if blocked, use `--force` to override
+
+**Example:**
+```yaml
+# INIT-002 depends on INIT-001 completing first
+id: INIT-002
+title: "React Migration"
+status: active
+blocked_by:
+  - INIT-001  # Build System Upgrade must complete first
+```
+
+### Initiative Status Values
+
+| Status | Description |
+|--------|-------------|
+| `draft` | Initiative created but not started |
+| `active` | Initiative in progress |
+| `completed` | Initiative finished successfully |
+| `archived` | Initiative archived (no longer relevant) |
+
+---
+
 ## state.yaml (Execution State)
 
 ```yaml
