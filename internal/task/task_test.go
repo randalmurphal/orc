@@ -42,7 +42,9 @@ func TestIsTerminal(t *testing.T) {
 		{StatusRunning, false},
 		{StatusPaused, false},
 		{StatusBlocked, false},
+		{StatusFinalizing, false},
 		{StatusCompleted, true},
+		{StatusFinished, true},
 		{StatusFailed, true},
 	}
 
@@ -65,7 +67,9 @@ func TestCanRun(t *testing.T) {
 		{StatusRunning, false},
 		{StatusPaused, true},
 		{StatusBlocked, true},
+		{StatusFinalizing, false},
 		{StatusCompleted, false},
+		{StatusFinished, false},
 		{StatusFailed, false},
 	}
 
@@ -507,6 +511,52 @@ func TestValidWeights(t *testing.T) {
 	for i, w := range expected {
 		if weights[i] != w {
 			t.Errorf("ValidWeights()[%d] = %s, want %s", i, weights[i], w)
+		}
+	}
+}
+
+func TestIsValidStatus(t *testing.T) {
+	tests := []struct {
+		status Status
+		valid  bool
+	}{
+		{StatusCreated, true},
+		{StatusClassifying, true},
+		{StatusPlanned, true},
+		{StatusRunning, true},
+		{StatusPaused, true},
+		{StatusBlocked, true},
+		{StatusFinalizing, true},
+		{StatusCompleted, true},
+		{StatusFinished, true},
+		{StatusFailed, true},
+		{Status("invalid"), false},
+		{Status(""), false},
+		{Status("COMPLETED"), false}, // case-sensitive
+	}
+
+	for _, tt := range tests {
+		if got := IsValidStatus(tt.status); got != tt.valid {
+			t.Errorf("IsValidStatus(%q) = %v, want %v", tt.status, got, tt.valid)
+		}
+	}
+}
+
+func TestValidStatuses(t *testing.T) {
+	statuses := ValidStatuses()
+
+	if len(statuses) != 10 {
+		t.Errorf("ValidStatuses() returned %d statuses, want 10", len(statuses))
+	}
+
+	expected := []Status{
+		StatusCreated, StatusClassifying, StatusPlanned, StatusRunning,
+		StatusPaused, StatusBlocked, StatusFinalizing, StatusCompleted,
+		StatusFinished, StatusFailed,
+	}
+	for i, s := range expected {
+		if statuses[i] != s {
+			t.Errorf("ValidStatuses()[%d] = %s, want %s", i, statuses[i], s)
 		}
 	}
 }
@@ -1262,6 +1312,7 @@ func TestHasUnmetDependencies(t *testing.T) {
 		"TASK-001": {ID: "TASK-001", Status: StatusCompleted},
 		"TASK-002": {ID: "TASK-002", Status: StatusRunning},
 		"TASK-003": {ID: "TASK-003", Status: StatusPlanned},
+		"TASK-005": {ID: "TASK-005", Status: StatusFinished},
 	}
 
 	tests := []struct {
@@ -1271,6 +1322,7 @@ func TestHasUnmetDependencies(t *testing.T) {
 	}{
 		{"no blockers", &Task{ID: "TASK-004", BlockedBy: nil}, false},
 		{"completed blocker", &Task{ID: "TASK-004", BlockedBy: []string{"TASK-001"}}, false},
+		{"finished blocker", &Task{ID: "TASK-004", BlockedBy: []string{"TASK-005"}}, false},
 		{"running blocker", &Task{ID: "TASK-004", BlockedBy: []string{"TASK-002"}}, true},
 		{"planned blocker", &Task{ID: "TASK-004", BlockedBy: []string{"TASK-003"}}, true},
 		{"mixed blockers", &Task{ID: "TASK-004", BlockedBy: []string{"TASK-001", "TASK-002"}}, true},
@@ -1292,12 +1344,14 @@ func TestGetUnmetDependencies(t *testing.T) {
 		"TASK-001": {ID: "TASK-001", Status: StatusCompleted},
 		"TASK-002": {ID: "TASK-002", Status: StatusRunning},
 		"TASK-003": {ID: "TASK-003", Status: StatusPlanned},
+		"TASK-005": {ID: "TASK-005", Status: StatusFinished},
 	}
 
-	task := &Task{ID: "TASK-004", BlockedBy: []string{"TASK-001", "TASK-002", "TASK-003", "TASK-999"}}
+	task := &Task{ID: "TASK-004", BlockedBy: []string{"TASK-001", "TASK-002", "TASK-003", "TASK-005", "TASK-999"}}
 	unmet := task.GetUnmetDependencies(taskMap)
 
-	// Should return TASK-002, TASK-003, and TASK-999 (not completed or non-existent)
+	// Should return TASK-002, TASK-003, and TASK-999 (not completed/finished or non-existent)
+	// TASK-001 (completed) and TASK-005 (finished) are met
 	if len(unmet) != 3 {
 		t.Errorf("GetUnmetDependencies() = %v, want 3 unmet dependencies", unmet)
 	}

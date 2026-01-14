@@ -71,12 +71,26 @@ export const taskStatusStyles: Record<TaskStatus, StatusStyle> = {
 		glow: 'var(--status-danger-glow)',
 		label: 'Blocked'
 	},
+	finalizing: {
+		bg: 'var(--status-info-bg)',
+		text: 'var(--status-info)',
+		icon: '',
+		glow: 'var(--status-info-glow)',
+		label: 'Finalizing'
+	},
 	completed: {
 		bg: 'var(--status-success-bg)',
 		text: 'var(--status-success)',
 		icon: '\u2713', // checkmark
 		glow: 'transparent',
 		label: 'Completed'
+	},
+	finished: {
+		bg: 'var(--status-success-bg)',
+		text: 'var(--status-success)',
+		icon: '\u2713', // checkmark
+		glow: 'transparent',
+		label: 'Finished'
 	},
 	failed: {
 		bg: 'var(--status-danger-bg)',
@@ -190,14 +204,14 @@ export function isPausedStatus(status: string): boolean {
  * Check if a status indicates completion (success or failure)
  */
 export function isTerminalStatus(status: string): boolean {
-	return status === 'completed' || status === 'failed';
+	return status === 'finalizing' || status === 'completed' || status === 'finished' || status === 'failed';
 }
 
 /**
  * Check if a status indicates success
  */
 export function isSuccessStatus(status: string): boolean {
-	return status === 'completed';
+	return status === 'completed' || status === 'finished';
 }
 
 /**

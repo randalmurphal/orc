@@ -179,15 +179,19 @@
 		}
 	}
 
+	// Terminal/done statuses for filtering
+	const terminalStatuses = ['finalizing', 'completed', 'finished', 'failed'];
+	const doneStatuses = ['completed', 'finished'];
+
 	// Derived filtered tasks (memoized - only recomputes when dependencies change)
 	const filteredTasks = $derived.by(() => {
 		let result = [...allTasks];
 
 		// Status filter
 		if (statusFilter === 'active') {
-			result = result.filter((t) => !['completed', 'failed'].includes(t.status));
+			result = result.filter((t) => !terminalStatuses.includes(t.status));
 		} else if (statusFilter === 'completed') {
-			result = result.filter((t) => t.status === 'completed');
+			result = result.filter((t) => doneStatuses.includes(t.status));
 		} else if (statusFilter === 'failed') {
 			result = result.filter((t) => t.status === 'failed');
 		}
@@ -211,7 +215,7 @@
 		} else if (sortBy === 'oldest') {
 			result.sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime());
 		} else if (sortBy === 'status') {
-			const statusOrder = ['running', 'paused', 'blocked', 'planned', 'created', 'completed', 'failed'];
+			const statusOrder = ['running', 'paused', 'blocked', 'planned', 'created', 'finalizing', 'completed', 'finished', 'failed'];
 			result.sort((a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status));
 		}
 
@@ -221,8 +225,8 @@
 	// Status counts for tabs (memoized)
 	const statusCounts = $derived.by(() => ({
 		all: allTasks.length,
-		active: allTasks.filter((t) => !['completed', 'failed'].includes(t.status)).length,
-		completed: allTasks.filter((t) => t.status === 'completed').length,
+		active: allTasks.filter((t) => !terminalStatuses.includes(t.status)).length,
+		completed: allTasks.filter((t) => doneStatuses.includes(t.status)).length,
 		failed: allTasks.filter((t) => t.status === 'failed').length
 	}));
 

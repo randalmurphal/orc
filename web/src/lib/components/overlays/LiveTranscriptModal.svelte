@@ -201,7 +201,9 @@
 			running: { label: 'Running', color: 'var(--status-success)', bg: 'var(--status-success-bg)' },
 			paused: { label: 'Paused', color: 'var(--status-warning)', bg: 'var(--status-warning-bg)' },
 			blocked: { label: 'Blocked', color: 'var(--status-danger)', bg: 'var(--status-danger-bg)' },
+			finalizing: { label: 'Finalizing', color: 'var(--status-info)', bg: 'var(--status-info-bg)' },
 			completed: { label: 'Completed', color: 'var(--accent-primary)', bg: 'var(--accent-subtle)' },
+			finished: { label: 'Finished', color: 'var(--status-success)', bg: 'var(--status-success-bg)' },
 			failed: { label: 'Failed', color: 'var(--status-danger)', bg: 'var(--status-danger-bg)' }
 		};
 		return configs[status] || { label: status, color: 'var(--text-muted)', bg: 'var(--bg-tertiary)' };

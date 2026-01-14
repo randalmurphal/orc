@@ -80,8 +80,8 @@
 
 	// Determine which column a task belongs to based on phase and status
 	function getTaskColumn(task: Task): string {
-		// Terminal statuses always go to Done
-		if (task.status === 'completed' || task.status === 'failed') {
+		// Terminal/done statuses always go to Done
+		if (task.status === 'finalizing' || task.status === 'completed' || task.status === 'finished' || task.status === 'failed') {
 			return 'done';
 		}
 

@@ -242,6 +242,46 @@ describe('Board', () => {
 			});
 		});
 
+		it('places finalizing tasks in Done column', async () => {
+			const task = createMockTask({
+				status: 'finalizing',
+				current_phase: 'validate',
+				title: 'Finalizing Task'
+			});
+
+			render(Board, {
+				props: {
+					tasks: [task],
+					onAction: mockOnAction,
+					onRefresh: mockOnRefresh
+				}
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText('Finalizing Task')).toBeInTheDocument();
+			});
+		});
+
+		it('places finished tasks in Done column', async () => {
+			const task = createMockTask({
+				status: 'finished',
+				current_phase: 'validate',
+				title: 'Finished Task'
+			});
+
+			render(Board, {
+				props: {
+					tasks: [task],
+					onAction: mockOnAction,
+					onRefresh: mockOnRefresh
+				}
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText('Finished Task')).toBeInTheDocument();
+			});
+		});
+
 		it('places paused tasks in their current phase column', async () => {
 			const task = createMockTask({
 				status: 'paused',

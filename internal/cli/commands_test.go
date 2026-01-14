@@ -18,7 +18,9 @@ func TestStatusIcon(t *testing.T) {
 		{task.StatusRunning, "⏳"},
 		{task.StatusPaused, "⏸️"},
 		{task.StatusBlocked, "🚫"},
+		{task.StatusFinalizing, "🏁"},
 		{task.StatusCompleted, "✅"},
+		{task.StatusFinished, "📦"},
 		{task.StatusFailed, "❌"},
 		{task.Status("unknown"), "❓"},
 	}
