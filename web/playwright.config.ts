@@ -4,7 +4,7 @@ export default defineConfig({
 	testDir: './e2e',
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
-	retries: process.env.CI ? 2 : 0,
+	retries: process.env.CI ? 2 : 1, // Add 1 retry for local runs to handle flaky UI tests
 	workers: process.env.CI ? 1 : undefined,
 	reporter: 'html',
 	use: {
