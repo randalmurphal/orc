@@ -120,9 +120,6 @@
 		{ id: 'done', title: 'Done', phases: [] as string[] } // Terminal statuses
 	];
 
-	// Columns without queued (for swimlanes which handle queued differently)
-	const swimlaneColumns = columns.filter(c => c.id !== 'queued');
-
 	let confirmModal = $state<{ task: Task; action: string; targetColumn: string } | null>(null);
 	let actionLoading = $state(false);
 
