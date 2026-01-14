@@ -177,6 +177,8 @@ make serve      # API :8080
 make web-dev    # Frontend :5173
 ```
 
+**Project selection:** The server can run from any directory. Task operations require selecting a project via the UI's project picker (`Cmd+P`). The UI persists the selection in localStorage and falls back to the configured default project.
+
 **Keyboard shortcuts:** `Cmd+K` (palette), `Cmd+N` (new task), `g t` (tasks), `j/k` (navigate)
 
 See `web/CLAUDE.md` for component architecture.
@@ -297,6 +299,7 @@ Patterns, gotchas, and decisions learned during development.
 | Tests fail with `go.work` | Use `GOWORK=off go test` or `make test` | TASK-016 |
 | Raw `InputTokens` appears misleadingly low | Use `EffectiveInputTokens()` which adds cached tokens to get actual context size | TASK-010 |
 | Task stuck in "running" after crash | Use `orc resume TASK-XXX` (auto-detects orphaned state) or `--force` to override | TASK-046 |
+| Web UI shows "No project selected" | Select a project via `Cmd+P` - server can run from any directory | TASK-005 |
 
 ### Decisions
 | Decision | Rationale | Source |

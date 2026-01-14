@@ -397,6 +397,37 @@ WARN PR labels not found on repository, creating PR without labels
 
 ---
 
+## Web UI Issues
+
+### No Tasks Displayed / "Select Project" Message
+
+**Symptoms**:
+- Web UI shows "No project selected" instead of tasks
+- Task operations fail with "Please select a project first"
+
+**Cause**: The server can run from any directory, but task operations require an explicit project selection. This is by design to prevent confusion when the server's working directory doesn't match the intended project.
+
+**Solutions**:
+
+| Approach | Action |
+|----------|--------|
+| Select a project | Click "Select Project" button or use `Cmd+P` |
+| Set default project | Run `orc serve` from the project directory, or set via API |
+
+**How It Works**:
+
+The Web UI uses a 3-tier fallback for project selection:
+1. **localStorage** - User's last selection persists in browser
+2. **Server default** - Global default from `~/.orc/projects.yaml`
+3. **First project** - Falls back to first registered project
+
+If no projects are registered, the UI prompts to select a project. Register projects with:
+```bash
+orc init  # In a project directory
+```
+
+---
+
 ## Log Locations
 
 | File | Purpose |
