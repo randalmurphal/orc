@@ -306,6 +306,8 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 
 **Task dependencies:** Task detail page shows a collapsible Dependencies sidebar displaying blocked_by, blocks, related_to, and referenced_by relationships with status indicators. Add/remove blockers and related tasks inline.
 
+**Initiative detail:** Click an initiative in the sidebar or navigate to `/initiatives/:id` to view/manage initiative tasks and decisions. Features include progress tracking, task linking, decision recording, and status management.
+
 See `web/CLAUDE.md` for component architecture.
 
 ## Documentation Reference
@@ -433,6 +435,7 @@ Patterns, gotchas, and decisions learned during development.
 | Dependency visualization CLI | `orc deps` shows dependencies with multiple views: standard (single task), `--tree` (recursive), `--graph` (ASCII flow chart); `orc status` shows BLOCKED/READY sections for dependency-aware task overview | TASK-077 |
 | Finalize phase with escalation | Finalize phase syncs branch with target, resolves conflicts via AI, runs tests, and assesses risk; escalates to implement phase if >10 conflicts or >5 test failures persist | TASK-089 |
 | Initiative-to-initiative dependencies | Initiatives support `blocked_by` field for ordering; `blocks` computed on load; `orc initiative list/show` displays blocked status; `orc initiative run --force` overrides blocking | TASK-075 |
+| Initiative detail page | `/initiatives/:id` route manages tasks and decisions within an initiative; supports task linking/unlinking, decision recording with rationale, status management (draft/active/completed/archived), and progress tracking | TASK-066 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

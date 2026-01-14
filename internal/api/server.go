@@ -210,6 +210,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("DELETE /api/initiatives/{id}", cors(s.handleDeleteInitiative))
 	s.mux.HandleFunc("GET /api/initiatives/{id}/tasks", cors(s.handleListInitiativeTasks))
 	s.mux.HandleFunc("POST /api/initiatives/{id}/tasks", cors(s.handleAddInitiativeTask))
+	s.mux.HandleFunc("DELETE /api/initiatives/{id}/tasks/{taskId}", cors(s.handleRemoveInitiativeTask))
 	s.mux.HandleFunc("POST /api/initiatives/{id}/decisions", cors(s.handleAddInitiativeDecision))
 	s.mux.HandleFunc("GET /api/initiatives/{id}/ready", cors(s.handleGetReadyTasks))
 
