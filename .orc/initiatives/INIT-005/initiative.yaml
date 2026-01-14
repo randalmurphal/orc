@@ -46,5 +46,8 @@ tasks:
     - id: TASK-134
       title: Setup TanStack Router with URL param persistence
       status: pending
+    - id: TASK-135
+      title: Port API client to React with React Query integration
+      status: pending
 created_at: 2026-01-14T01:40:18.861098092-06:00
-updated_at: 2026-01-14T01:45:06.731728068-06:00
+updated_at: 2026-01-14T01:45:06.76706984-06:00
