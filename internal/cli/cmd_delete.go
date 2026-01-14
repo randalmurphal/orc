@@ -55,6 +55,19 @@ Example:
 				return fmt.Errorf("remove task directory: %w", err)
 			}
 
+			// Auto-commit the task deletion
+			cfg, err := config.Load()
+			if err == nil && !cfg.Tasks.DisableAutoCommit {
+				projectDir, err := config.FindProjectRoot()
+				if err == nil {
+					commitCfg := task.CommitConfig{
+						ProjectRoot:  projectDir,
+						CommitPrefix: cfg.CommitPrefix,
+					}
+					task.CommitDeletion(taskID, commitCfg)
+				}
+			}
+
 			if !quiet {
 				fmt.Printf("Deleted task %s\n", taskID)
 			}
