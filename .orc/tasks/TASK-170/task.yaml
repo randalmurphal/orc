@@ -1,0 +1,54 @@
+id: TASK-170
+title: 'Phase 2: React - Layout components (Sidebar, Header, AppLayout)'
+description: |-
+    ## Purpose
+    Port the main layout components that wrap all pages.
+
+    ## Components to Port
+
+    ### Sidebar.svelte -> Sidebar.tsx
+    - Navigation menu (Work section)
+    - Initiatives section (collapsible)
+    - Environment section (collapsible)
+    - Expand/collapse toggle
+    - Active route highlighting
+    - Initiative list with progress counts
+
+    ### Header.svelte -> Header.tsx
+    - Project selector dropdown
+    - Breadcrumb trail
+    - Commands button (Shift+Alt+K)
+    - New Task button
+
+    ### AppLayout.tsx
+    - Combines Sidebar + Header + content area
+    - Responsive layout
+    - Uses React Router Outlet
+
+    ### ProjectSwitcher.svelte -> ProjectSwitcher.tsx
+    - Modal overlay for project selection
+    - Lists all projects
+    - Persists selection to URL + localStorage
+
+    ## Success Criteria
+    - Layout matches Svelte pixel-for-pixel
+    - Sidebar collapse persists in localStorage
+    - Project switcher works with keyboard (Shift+Alt+P)
+    - Routes highlight correctly in sidebar
+weight: medium
+status: planned
+branch: orc/TASK-170
+queue: active
+priority: normal
+category: feature
+initiative_id: INIT-005
+blocked_by:
+    - TASK-169
+    - TASK-164
+    - TASK-166
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T02:21:29.092695415-06:00
+updated_at: 2026-01-14T02:21:29.104001994-06:00

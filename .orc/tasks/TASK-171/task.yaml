@@ -1,0 +1,61 @@
+id: TASK-171
+title: 'Phase 2: React - Dashboard page'
+description: |-
+    ## Purpose
+    Port the Dashboard page with all its subcomponents.
+
+    ## Components to Port
+
+    ### DashboardStats.svelte -> DashboardStats.tsx
+    - Running count
+    - Blocked count
+    - Today's completed count
+    - Token usage (total + cached)
+    - Live indicator
+
+    ### DashboardActiveTasks.svelte -> DashboardActiveTasks.tsx
+    - List of running/paused/blocked tasks
+    - Click to navigate to task detail
+    - Shows phase and timestamp
+
+    ### DashboardQuickActions.svelte -> DashboardQuickActions.tsx
+    - New Task button
+    - View All Tasks button
+
+    ### DashboardRecentActivity.svelte -> DashboardRecentActivity.tsx
+    - Recently completed tasks timeline
+    - Timestamps
+
+    ### DashboardInitiatives.svelte -> DashboardInitiatives.tsx
+    - Active initiatives with progress bars
+    - Click to filter by initiative
+
+    ### DashboardSummary.svelte -> DashboardSummary.tsx
+    - Total tasks, completed, failed counts
+
+    ## Data Flow
+    - Fetches from TaskStore and InitiativeStore
+    - WebSocket updates stats in real-time
+
+    ## Success Criteria
+    - Dashboard matches visual design exactly
+    - Stats update in real-time via WebSocket
+    - All clicks navigate correctly
+    - E2E tests from Phase 0 pass
+weight: medium
+status: planned
+branch: orc/TASK-171
+queue: active
+priority: normal
+category: feature
+initiative_id: INIT-005
+blocked_by:
+    - TASK-170
+    - TASK-164
+    - TASK-165
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T02:21:40.168040387-06:00
+updated_at: 2026-01-14T02:21:40.176719066-06:00

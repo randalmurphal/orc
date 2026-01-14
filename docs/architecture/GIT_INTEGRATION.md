@@ -379,6 +379,65 @@ git:
 
 ---
 
+## CI Wait and Auto-Merge
+
+After the finalize phase completes, orc can automatically wait for CI checks to pass and then merge the PR. This provides a complete automation flow without requiring GitHub's auto-merge feature (which requires branch protection).
+
+### Flow After Finalize
+
+```
+finalize completes → push changes → poll CI → merge PR → cleanup
+```
+
+1. **Push finalize changes**: Any commits from conflict resolution or sync
+2. **Poll CI checks**: Wait for all required checks to pass
+3. **Merge PR**: Use `gh pr merge` with configured method
+4. **Cleanup**: Delete branch if configured
+
+### CI Polling
+
+The CI merger uses `gh pr checks` to poll status:
+
+```bash
+gh pr checks <PR_URL> --json name,state,bucket
+```
+
+| Bucket | Meaning |
+|--------|---------|
+| `pass` | Check succeeded |
+| `fail` | Check failed |
+| `pending` | Check still running |
+| `skipping` | Check was skipped (treated as pass) |
+| `cancel` | Check was cancelled (treated as fail) |
+
+### Configuration
+
+```yaml
+completion:
+  ci:
+    wait_for_ci: true       # Enable CI polling (default: true)
+    ci_timeout: 10m         # Max wait time (default: 10m)
+    poll_interval: 30s      # Polling frequency (default: 30s)
+    merge_on_ci_pass: true  # Auto-merge when CI passes (default: true)
+    merge_method: squash    # squash | merge | rebase (default: squash)
+  delete_branch: true       # Delete branch after merge (default: true)
+```
+
+### Profile Restrictions
+
+CI wait and auto-merge only run for `auto` and `fast` profiles:
+
+| Profile | CI Wait | Auto-Merge |
+|---------|---------|------------|
+| `auto` | ✓ | ✓ |
+| `fast` | ✓ | ✓ |
+| `safe` | ✗ | ✗ |
+| `strict` | ✗ | ✗ |
+
+For `safe` and `strict` profiles, the PR is created but must be merged manually after human review.
+
+---
+
 ## Cleanup
 
 After task completion:

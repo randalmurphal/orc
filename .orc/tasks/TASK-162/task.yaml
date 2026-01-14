@@ -1,0 +1,44 @@
+id: TASK-162
+title: 'Phase 0: Setup accessibility testing with axe-playwright'
+description: |-
+    ## Purpose
+    Add accessibility auditing to ensure ARIA compliance is maintained during migration.
+
+    ## Implementation
+
+    ### Install and Configure
+    - Add @axe-core/playwright dependency
+    - Create axe-audit.spec.ts test file
+    - Configure to run on all major pages
+
+    ### Pages to Audit (8 tests)
+    - Dashboard page
+    - Board page (flat view)
+    - Board page (swimlane view)
+    - Task list page
+    - Task detail page
+    - Initiative detail page
+    - New task modal
+    - Command palette
+
+    ### Audit Configuration
+    - Check for WCAG 2.1 Level AA violations
+    - Report critical and serious violations as test failures
+    - Allow minor/moderate as warnings
+
+    ## Success Criteria
+    - All 8 pages pass accessibility audit with 0 critical/serious violations
+    - axe-playwright integrated into test suite
+    - CI runs accessibility checks
+weight: small
+status: planned
+branch: orc/TASK-162
+queue: active
+priority: normal
+category: test
+initiative_id: INIT-005
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T02:19:20.663149124-06:00
+updated_at: 2026-01-14T02:19:20.670373757-06:00

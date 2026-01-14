@@ -1,0 +1,79 @@
+id: TASK-176
+title: 'Phase 2: React - All modal components'
+description: |-
+    ## Purpose
+    Port all modal/overlay components.
+
+    ## Modals to Port
+
+    ### NewTaskModal.svelte -> NewTaskModal.tsx
+    - Title input
+    - Description textarea
+    - Weight selector
+    - Category selector
+    - Priority selector
+    - Initiative selector
+    - Attachment upload
+    - Create button
+
+    ### NewInitiativeModal.svelte -> NewInitiativeModal.tsx
+    - Title input
+    - Vision textarea
+    - Create button
+
+    ### TaskEditModal.svelte -> TaskEditModal.tsx
+    - Edit all task fields inline
+    - Save/cancel buttons
+
+    ### CommandPalette.svelte -> CommandPalette.tsx
+    - Search input
+    - Command sections (Tasks, Navigation, Environment, Settings, Projects, View)
+    - Keyboard navigation
+    - Fuzzy search
+
+    ### KeyboardShortcutsHelp.svelte -> KeyboardShortcutsHelp.tsx
+    - Shortcut list organized by category
+    - Triggered by ? key
+
+    ### LiveTranscriptModal.svelte -> LiveTranscriptModal.tsx
+    - Real-time Claude output streaming
+    - Connection status indicator
+    - Token counts
+    - Auto-scroll with manual override
+
+    ### FinalizeModal.svelte -> FinalizeModal.tsx
+    - Explanation text
+    - Start button
+    - Progress bar with step labels
+    - Success/failure results
+    - Merge info display
+
+    ### ConfirmModal.svelte -> ConfirmModal.tsx
+    - Generic confirmation dialog
+    - Customizable message and buttons
+
+    ### AddDependencyModal.svelte -> AddDependencyModal.tsx
+    - Task search
+    - Add blocker/related functionality
+
+    ## Success Criteria
+    - All modals render and function correctly
+    - Focus trap works in all modals
+    - Escape closes modals
+    - Keyboard shortcuts open correct modals
+weight: large
+status: planned
+branch: orc/TASK-176
+queue: active
+priority: normal
+category: feature
+initiative_id: INIT-005
+blocked_by:
+    - TASK-169
+    - TASK-164
+    - TASK-168
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T02:22:47.913501799-06:00
+updated_at: 2026-01-14T02:22:47.926364648-06:00

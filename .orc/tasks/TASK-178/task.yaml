@@ -1,0 +1,60 @@
+id: TASK-178
+title: 'Phase 3: Integration - Connect all stores and real-time updates'
+description: |-
+    ## Purpose
+    Integrate all components with stores and verify real-time updates work across the app.
+
+    ## Integration Tasks
+
+    ### WebSocket Event Flow
+    - Verify task_created events appear on Board and Task List
+    - Verify task_updated events update cards in place
+    - Verify task_deleted events remove cards with toast
+    - Verify state/phase events update running tasks
+    - Verify finalize events update FinalizeModal
+
+    ### Store Synchronization
+    - Project change clears/reloads tasks and initiatives
+    - Initiative filter reflects in Board and Task List
+    - Dependency filter works on both pages
+    - URL params sync bidirectionally with stores
+
+    ### Cross-Component State
+    - Running task count in Dashboard matches Board
+    - Initiative progress updates when tasks complete
+    - Sidebar initiative counts stay in sync
+
+    ### Browser Integration
+    - Back/forward navigation restores correct state
+    - Page refresh preserves all filters
+    - Deep links work correctly
+
+    ## Testing Approach
+    - Run React app alongside Svelte app
+    - Perform same actions on both
+    - Compare behavior
+
+    ## Success Criteria
+    - All real-time updates work
+    - State is consistent across components
+    - Browser history works correctly
+weight: medium
+status: planned
+branch: orc/TASK-178
+queue: active
+priority: normal
+category: feature
+initiative_id: INIT-005
+blocked_by:
+    - TASK-171
+    - TASK-172
+    - TASK-173
+    - TASK-174
+    - TASK-175
+    - TASK-176
+    - TASK-177
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T02:23:16.107607669-06:00
+updated_at: 2026-01-14T02:23:16.11972777-06:00

@@ -1,0 +1,53 @@
+id: TASK-166
+title: 'Phase 1: Setup React Router with URL param persistence'
+description: |-
+    ## Purpose
+    Setup routing to match existing Svelte routes with URL parameter handling.
+
+    ## Routes to Implement
+
+    | Route | Component | Params |
+    |-------|-----------|--------|
+    | / | TaskList | ?project, ?initiative, ?dependency_status |
+    | /board | Board | ?project, ?initiative, ?dependency_status |
+    | /dashboard | Dashboard | ?project |
+    | /tasks/:id | TaskDetail | ?tab |
+    | /initiatives/:id | InitiativeDetail | |
+    | /preferences | Preferences | |
+    | /environment/* | EnvironmentPages | |
+
+    ## URL Param Handling
+    - Use React Router's useSearchParams
+    - Sync with Zustand stores on navigation
+    - Push to history when params change programmatically
+    - Handle popstate for back/forward navigation
+
+    ## Layout Structure
+    ```
+    <AppLayout>
+      <Sidebar />
+      <Header />
+      <Outlet />  {/* Route content */}
+    </AppLayout>
+    ```
+
+    ## Success Criteria
+    - All routes match Svelte app
+    - URL params sync correctly with stores
+    - Browser back/forward works
+    - Deep linking works (paste URL -> correct state)
+weight: medium
+status: planned
+branch: orc/TASK-166
+queue: active
+priority: normal
+category: feature
+initiative_id: INIT-005
+blocked_by:
+    - TASK-163
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T02:20:36.394567947-06:00
+updated_at: 2026-01-14T02:20:36.403577733-06:00
