@@ -192,6 +192,10 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/tasks/{id}/retry/preview", cors(s.handleGetRetryPreview))
 	s.mux.HandleFunc("POST /api/tasks/{id}/retry/feedback", cors(s.handleRetryWithFeedback))
 
+	// Task finalize (sync with target branch, resolve conflicts, run tests)
+	s.mux.HandleFunc("POST /api/tasks/{id}/finalize", cors(s.handleFinalizeTask))
+	s.mux.HandleFunc("GET /api/tasks/{id}/finalize", cors(s.handleGetFinalizeStatus))
+
 	// Task export (export artifacts to branch or directory)
 	s.mux.HandleFunc("POST /api/tasks/{id}/export", cors(s.handleExportTask))
 

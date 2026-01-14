@@ -36,6 +36,8 @@ CWD-based task operations. These endpoints use the server's working directory as
 | POST | `/api/tasks/:id/pause` | Pause task |
 | POST | `/api/tasks/:id/resume` | Resume task |
 | POST | `/api/tasks/:id/rewind` | Rewind to phase (`{"phase": "implement"}`) |
+| POST | `/api/tasks/:id/finalize` | Trigger finalize phase (async) |
+| GET | `/api/tasks/:id/finalize` | Get finalize status |
 
 **Run task response:**
 ```json
@@ -147,6 +149,99 @@ Weight changes trigger automatic plan regeneration (completed/skipped phases are
 - Referenced task IDs must exist
 - Self-references are rejected
 - Circular dependencies are detected and rejected
+
+### Task Finalize
+
+Trigger and monitor the finalize phase, which syncs with the target branch, resolves conflicts, and runs tests.
+
+**Trigger finalize (POST):**
+```json
+// Request body (optional)
+{
+  "force": false,         // Force finalize even if task status normally disallows it
+  "gate_override": false  // Override gate checks
+}
+
+// Response
+{
+  "task_id": "TASK-001",
+  "status": "pending",
+  "message": "Finalize started"
+}
+```
+
+The finalize runs asynchronously. Subscribe to WebSocket events for real-time progress updates.
+
+**Finalize status (GET):**
+```json
+// While running
+{
+  "task_id": "TASK-001",
+  "status": "running",
+  "started_at": "2026-01-10T10:30:00Z",
+  "updated_at": "2026-01-10T10:31:00Z",
+  "step": "Syncing with target",
+  "progress": "Merging changes from main",
+  "step_percent": 50
+}
+
+// On completion
+{
+  "task_id": "TASK-001",
+  "status": "completed",
+  "started_at": "2026-01-10T10:30:00Z",
+  "updated_at": "2026-01-10T10:35:00Z",
+  "step": "Complete",
+  "progress": "Finalize completed successfully",
+  "step_percent": 100,
+  "result": {
+    "synced": true,
+    "conflicts_resolved": 0,
+    "tests_passed": true,
+    "risk_level": "low",
+    "commit_sha": "abc123",
+    "target_branch": "main"
+  }
+}
+
+// On failure
+{
+  "task_id": "TASK-001",
+  "status": "failed",
+  "step": "Failed",
+  "error": "merge conflict in main.go"
+}
+
+// Not started
+{
+  "task_id": "TASK-001",
+  "status": "not_started",
+  "message": "No finalize operation found"
+}
+```
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Finalize queued, about to start |
+| `running` | Finalize in progress |
+| `completed` | Finalize succeeded |
+| `failed` | Finalize failed with error |
+| `not_started` | No finalize has been triggered |
+
+**WebSocket events:** Finalize broadcasts `finalize` events during execution:
+```json
+{
+  "type": "event",
+  "event_type": "finalize",
+  "data": {
+    "task_id": "TASK-001",
+    "status": "running",
+    "step": "Running tests",
+    "progress": "Executing test suite",
+    "step_percent": 75
+  }
+}
+```
 
 ### Task Attachments
 
@@ -975,9 +1070,32 @@ Connect to `/api/ws` for real-time updates.
 | `tokens` | `TokenUpdate` | Token usage (includes cached tokens) |
 | `complete` | `{status, duration}` | Task finished |
 | `error` | `{message, fatal}` | Error occurred |
+| `finalize` | `FinalizeUpdate` | Finalize phase progress (see below) |
 | `task_created` | `{task: Task}` | Task created via CLI/filesystem |
 | `task_updated` | `{task: Task}` | Task modified via CLI/filesystem |
 | `task_deleted` | `{task_id: string}` | Task deleted via CLI/filesystem |
+
+### Finalize Event Data
+
+```json
+{
+  "task_id": "TASK-001",
+  "status": "running",
+  "step": "Syncing with target",
+  "progress": "Merging changes",
+  "step_percent": 50,
+  "updated_at": "2026-01-10T10:31:00Z"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `status` | Current status: `pending`, `running`, `completed`, `failed` |
+| `step` | Current step name (e.g., "Syncing with target", "Running tests") |
+| `progress` | Human-readable progress message |
+| `step_percent` | Progress percentage (0-100) |
+| `error` | Error message (only present on failure) |
+| `result` | Finalize result (only present on completion) |
 
 ### Transcript Event Types
 
