@@ -268,6 +268,176 @@ streamLoop:
 	return turnResult, nil
 }
 
+// StreamTurnWithProgress sends a prompt and streams the response with activity tracking.
+// It provides progress heartbeats and handles turn timeouts gracefully.
+func (a *SessionAdapter) StreamTurnWithProgress(ctx context.Context, prompt string, opts StreamProgressOptions) (*TurnResult, error) {
+	start := time.Now()
+
+	// Create a cancellable context for turn timeout
+	turnCtx := ctx
+	var turnCancel context.CancelFunc
+	if opts.TurnTimeout > 0 {
+		turnCtx, turnCancel = context.WithTimeout(ctx, opts.TurnTimeout)
+		defer turnCancel()
+	}
+
+	// Notify start of API call
+	if opts.OnActivityChange != nil {
+		opts.OnActivityChange(ActivityWaitingAPI)
+	}
+
+	// Send the prompt
+	msg := session.NewUserMessage(prompt)
+	if err := a.session.Send(turnCtx, msg); err != nil {
+		if turnCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil {
+			// Turn timeout, not parent context cancellation
+			if opts.OnTurnTimeout != nil {
+				opts.OnTurnTimeout(time.Since(start))
+			}
+			return nil, fmt.Errorf("turn timeout after %s: %w", time.Since(start), turnCtx.Err())
+		}
+		return nil, fmt.Errorf("send message: %w", err)
+	}
+
+	// Set up heartbeat ticker if configured
+	var heartbeatTicker *time.Ticker
+	var heartbeatCh <-chan time.Time
+	if opts.HeartbeatInterval > 0 {
+		heartbeatTicker = time.NewTicker(opts.HeartbeatInterval)
+		heartbeatCh = heartbeatTicker.C
+		defer heartbeatTicker.Stop()
+	}
+
+	// Set up idle timeout ticker
+	var idleTicker *time.Ticker
+	var idleCh <-chan time.Time
+	if opts.IdleTimeout > 0 {
+		idleTicker = time.NewTicker(opts.IdleTimeout / 4) // Check more frequently than timeout
+		idleCh = idleTicker.C
+		defer idleTicker.Stop()
+	}
+
+	// Collect response with streaming callback
+	var content strings.Builder
+	var result *session.ResultMessage
+	lastActivity := time.Now()
+	hasWarned := false
+
+	outputCh := a.session.Output()
+streamLoop:
+	for {
+		select {
+		case <-turnCtx.Done():
+			if turnCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil {
+				// Turn timeout
+				if opts.OnTurnTimeout != nil {
+					opts.OnTurnTimeout(time.Since(start))
+				}
+				// Return partial result on timeout
+				return &TurnResult{
+					Content:   content.String(),
+					Duration:  time.Since(start),
+					Status:    PhaseStatusContinue,
+					IsError:   true,
+					ErrorText: fmt.Sprintf("turn timeout after %s", time.Since(start)),
+				}, fmt.Errorf("turn timeout after %s", time.Since(start))
+			}
+			return nil, turnCtx.Err()
+
+		case <-heartbeatCh:
+			if opts.OnHeartbeat != nil {
+				opts.OnHeartbeat()
+			}
+
+		case <-idleCh:
+			idleDuration := time.Since(lastActivity)
+			if idleDuration > opts.IdleTimeout && !hasWarned {
+				if opts.OnIdleWarning != nil {
+					opts.OnIdleWarning(idleDuration)
+				}
+				hasWarned = true
+			}
+
+		case output, ok := <-outputCh:
+			if !ok {
+				// Channel closed without result
+				break streamLoop
+			}
+
+			lastActivity = time.Now()
+			hasWarned = false // Reset warning on activity
+
+			if output.IsAssistant() {
+				text := output.GetText()
+				content.WriteString(text)
+
+				// Update activity state on first chunk
+				if opts.OnActivityChange != nil && content.Len() == len(text) {
+					opts.OnActivityChange(ActivityStreaming)
+				}
+
+				if opts.OnChunk != nil {
+					opts.OnChunk(text)
+				}
+			}
+
+			if output.IsResult() {
+				result = output.Result
+				break streamLoop
+			}
+		}
+	}
+
+	// Notify completion
+	if opts.OnActivityChange != nil {
+		opts.OnActivityChange(ActivityProcessing)
+	}
+
+	// Build turn result
+	turnResult := &TurnResult{
+		Content:  content.String(),
+		Duration: time.Since(start),
+	}
+
+	turnResult.Status, turnResult.Reason = CheckPhaseCompletion(turnResult.Content)
+
+	if result != nil {
+		turnResult.NumTurns = result.NumTurns
+		turnResult.CostUSD = result.TotalCostUSD
+		turnResult.Usage = TokenUsage{
+			InputTokens:              result.Usage.InputTokens,
+			OutputTokens:             result.Usage.OutputTokens,
+			TotalTokens:              result.Usage.InputTokens + result.Usage.OutputTokens,
+			CacheCreationInputTokens: result.Usage.CacheCreationInputTokens,
+			CacheReadInputTokens:     result.Usage.CacheReadInputTokens,
+		}
+
+		if result.IsError {
+			turnResult.IsError = true
+			turnResult.ErrorText = result.Result
+		}
+	}
+
+	return turnResult, nil
+}
+
+// StreamProgressOptions configures progress tracking for streaming.
+type StreamProgressOptions struct {
+	// TurnTimeout is the maximum duration for this turn (0 = no timeout)
+	TurnTimeout time.Duration
+	// HeartbeatInterval is how often to emit heartbeat callbacks (0 = disabled)
+	HeartbeatInterval time.Duration
+	// IdleTimeout is how long without activity before warning (0 = disabled)
+	IdleTimeout time.Duration
+
+	// Callbacks
+	OnChunk          func(chunk string)
+	OnActivityChange func(state ActivityState)
+	OnHeartbeat      func()
+	OnIdleWarning    func(idleDuration time.Duration)
+	OnTurnTimeout    func(turnDuration time.Duration)
+}
+
 // Close closes the session if this adapter owns it.
 func (a *SessionAdapter) Close() error {
 	if a.owns && a.session != nil {

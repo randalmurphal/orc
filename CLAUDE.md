@@ -145,6 +145,8 @@ orc config profile strict
 | `completion.sync.strategy` | Branch sync timing | `docs/architecture/GIT_INTEGRATION.md` |
 | `artifact_skip.enabled` | Detect existing artifacts | `docs/architecture/PHASE_MODEL.md` |
 | `artifact_skip.auto_skip` | Skip without prompting | `docs/architecture/PHASE_MODEL.md` |
+| `timeouts.turn_max` | Max time per API turn | `docs/architecture/EXECUTOR.md` |
+| `timeouts.heartbeat_interval` | Progress dots interval | `docs/architecture/EXECUTOR.md` |
 
 **All config:** `orc config docs` or `docs/specs/CONFIG_HIERARCHY.md`
 

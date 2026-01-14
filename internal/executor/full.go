@@ -206,18 +206,57 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		e.publisher.PhaseStart(t.ID, p.ID)
 		e.publisher.Transcript(t.ID, p.ID, iteration, "prompt", promptText)
 
-		// Execute turn with streaming
-		turnResult, err := adapter.StreamTurn(ctx, promptText, func(chunk string) {
-			e.publisher.TranscriptChunk(t.ID, p.ID, iteration, chunk)
-		})
+		// Execute turn with streaming and progress tracking
+		progressOpts := StreamProgressOptions{
+			TurnTimeout:       e.config.TurnTimeout,
+			HeartbeatInterval: e.config.HeartbeatInterval,
+			IdleTimeout:       e.config.IdleTimeout,
+			OnChunk: func(chunk string) {
+				e.publisher.TranscriptChunk(t.ID, p.ID, iteration, chunk)
+			},
+			OnActivityChange: func(state ActivityState) {
+				e.publisher.Activity(t.ID, p.ID, string(state))
+			},
+			OnHeartbeat: func() {
+				e.publisher.Heartbeat(t.ID, p.ID, iteration)
+			},
+			OnIdleWarning: func(idleDuration time.Duration) {
+				e.logger.Warn("API idle warning",
+					"task", t.ID,
+					"phase", p.ID,
+					"idle_duration", idleDuration,
+				)
+				e.publisher.Warning(t.ID, p.ID, fmt.Sprintf("No activity for %s - API may be slow", idleDuration.Round(time.Second)))
+			},
+			OnTurnTimeout: func(turnDuration time.Duration) {
+				e.logger.Warn("turn timeout",
+					"task", t.ID,
+					"phase", p.ID,
+					"duration", turnDuration,
+				)
+				e.publisher.Warning(t.ID, p.ID, fmt.Sprintf("Turn timeout after %s", turnDuration.Round(time.Second)))
+			},
+		}
+
+		turnResult, err := adapter.StreamTurnWithProgress(ctx, promptText, progressOpts)
 
 		if err != nil {
-			// Save checkpoint before failing
+			// Save checkpoint before failing (with partial content if available)
+			checkpointContent := lastResponse
+			if turnResult != nil && turnResult.Content != "" {
+				checkpointContent = turnResult.Content
+				e.logger.Info("partial response received before error",
+					"task", t.ID,
+					"phase", p.ID,
+					"content_len", len(turnResult.Content),
+				)
+			}
+
 			if cpErr := e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
 				Iteration:    iteration - 1,
 				InputTokens:  result.InputTokens,
 				OutputTokens: result.OutputTokens,
-				LastResponse: lastResponse,
+				LastResponse: checkpointContent,
 			}); cpErr != nil {
 				e.logger.Error("failed to save checkpoint", "error", cpErr)
 			}

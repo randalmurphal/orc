@@ -319,8 +319,17 @@ type DocumentationConfig struct {
 type TimeoutsConfig struct {
 	// PhaseMax is the maximum time per phase (0 = unlimited, default: 30m)
 	PhaseMax time.Duration `yaml:"phase_max"`
+	// TurnMax is the maximum time per API turn/iteration (0 = unlimited, default: 10m)
+	// If a single API call takes longer than this, it will be cancelled gracefully.
+	TurnMax time.Duration `yaml:"turn_max"`
 	// IdleWarning is the duration to warn if no tool calls (default: 5m)
 	IdleWarning time.Duration `yaml:"idle_warning"`
+	// HeartbeatInterval is how often to show progress dots during API calls (default: 30s)
+	// Set to 0 to disable heartbeat dots.
+	HeartbeatInterval time.Duration `yaml:"heartbeat_interval"`
+	// IdleTimeout is the duration after which to warn about no streaming activity (default: 2m)
+	// This helps detect stuck API calls before the turn timeout.
+	IdleTimeout time.Duration `yaml:"idle_timeout"`
 }
 
 // QAConfig defines QA session configuration.
@@ -746,8 +755,11 @@ func Default() *Config {
 			Sections:           []string{"api-endpoints", "commands", "config-options"},
 		},
 		Timeouts: TimeoutsConfig{
-			PhaseMax:    30 * time.Minute,
-			IdleWarning: 5 * time.Minute,
+			PhaseMax:          30 * time.Minute,
+			TurnMax:           10 * time.Minute,
+			IdleWarning:       5 * time.Minute,
+			HeartbeatInterval: 30 * time.Second,
+			IdleTimeout:       2 * time.Minute,
 		},
 		QA: QAConfig{
 			Enabled:        true,
