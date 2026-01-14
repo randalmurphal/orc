@@ -19,6 +19,59 @@ Initiatives group multiple related tasks under a shared vision, decisions, and c
 | `Decision` | Recorded decision with rationale |
 | `TaskRef` | Reference to a task within the initiative |
 | `Identity` | Owner information (initials, name, email) |
+| `Store` | Hybrid storage manager (YAML + DB cache) |
+| `CommitConfig` | Git commit configuration |
+
+## Hybrid Storage Pattern
+
+Initiatives use the same hybrid storage pattern as tasks:
+- **YAML files** are the source of truth (git-tracked, human-editable)
+- **SQLite database** is a derived cache for fast queries and recovery
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ YAML (Source of Truth)          DB (Cache)                  │
+│ .orc/initiatives/INIT-001/      initiatives table           │
+│ └── initiative.yaml             initiative_decisions table  │
+│                                 initiative_tasks table      │
+│                                 initiative_dependencies     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Auto-Commit Behavior
+
+CLI commands (`new`, `add-task`, `decide`, `activate`, `complete`) automatically:
+1. Save YAML file (source of truth)
+2. Sync to database cache
+3. Commit to git with message format: `[orc] initiative INIT-001: action - Title`
+
+### Recovery Functions
+
+| Function | Use Case |
+|----------|----------|
+| `RebuildDBIndex()` | DB missing/corrupted → rebuild from YAML files |
+| `RecoverFromDB()` | YAML missing → regenerate from DB cache |
+| `SyncFromYAML()` | External YAML edit → update DB cache |
+
+### Store Usage
+
+```go
+// Create store with auto-commit enabled
+store, err := initiative.NewStore(initiative.StoreConfig{
+    ProjectRoot:  projectRoot,
+    AutoCommit:   true,
+    CommitPrefix: "[orc]",
+})
+defer store.Close()
+
+// Save (writes YAML, syncs DB, commits git)
+err = store.Save(init)
+
+// Recovery
+store.RebuildIndex()                    // Rebuild DB from all YAML files
+init, err := store.RecoverFromDB(id)    // Recover YAML from DB
+store.SyncFromYAML(id)                  // Sync single initiative to DB
+```
 
 ## Directory Structure
 
