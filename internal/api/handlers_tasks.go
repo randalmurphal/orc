@@ -630,22 +630,11 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			// Check for circular dependencies when adding new blockers
-			for _, newBlocker := range *req.BlockedBy {
-				// Skip if already in blocked_by
-				alreadyBlocked := false
-				for _, existing := range t.BlockedBy {
-					if existing == newBlocker {
-						alreadyBlocked = true
-						break
-					}
-				}
-				if !alreadyBlocked {
-					if cycle := task.DetectCircularDependency(id, newBlocker, taskMap); cycle != nil {
-						s.jsonError(w, fmt.Sprintf("circular dependency detected: %s", strings.Join(cycle, " -> ")), http.StatusBadRequest)
-						return
-					}
-				}
+			// Check for circular dependencies with all new blockers at once
+			// This catches cases where individual blockers are fine but combined they create a cycle
+			if cycle := task.DetectCircularDependencyWithAll(id, *req.BlockedBy, taskMap); cycle != nil {
+				s.jsonError(w, fmt.Sprintf("circular dependency detected: %s", strings.Join(cycle, " -> ")), http.StatusBadRequest)
+				return
 			}
 
 			t.BlockedBy = *req.BlockedBy

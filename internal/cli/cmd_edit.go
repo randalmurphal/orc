@@ -152,11 +152,9 @@ Example:
 					if errs := task.ValidateBlockedBy(taskID, blockedBy, existingIDs); len(errs) > 0 {
 						return errs[0]
 					}
-					// Check for circular dependencies
-					for _, newBlocker := range blockedBy {
-						if cycle := task.DetectCircularDependency(taskID, newBlocker, taskMap); cycle != nil {
-							return fmt.Errorf("circular dependency detected: %s", strings.Join(cycle, " -> "))
-						}
+					// Check for circular dependencies with all new blockers at once
+					if cycle := task.DetectCircularDependencyWithAll(taskID, blockedBy, taskMap); cycle != nil {
+						return fmt.Errorf("circular dependency detected: %s", strings.Join(cycle, " -> "))
 					}
 					t.BlockedBy = blockedBy
 					changes = append(changes, "blocked_by")

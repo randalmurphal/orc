@@ -1142,6 +1142,44 @@ func TestDetectCircularDependency(t *testing.T) {
 	}
 }
 
+func TestDetectCircularDependencyWithAll(t *testing.T) {
+	// Create a set of tasks with dependencies
+	// TASK-001 <- TASK-002 <- TASK-003
+	tasks := map[string]*Task{
+		"TASK-001": {ID: "TASK-001", BlockedBy: nil},
+		"TASK-002": {ID: "TASK-002", BlockedBy: []string{"TASK-001"}},
+		"TASK-003": {ID: "TASK-003", BlockedBy: []string{"TASK-002"}},
+	}
+
+	tests := []struct {
+		name        string
+		taskID      string
+		newBlockers []string
+		wantCycle   bool
+	}{
+		{"no cycle - valid single dependency", "TASK-003", []string{"TASK-001"}, false},
+		{"no cycle - empty list", "TASK-001", []string{}, false},
+		{"cycle - direct self via chain", "TASK-001", []string{"TASK-003"}, true},
+		{"no cycle - new task with valid blockers", "TASK-004", []string{"TASK-001", "TASK-002"}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Add the task being tested if it doesn't exist
+			if _, exists := tasks[tt.taskID]; !exists {
+				tasks[tt.taskID] = &Task{ID: tt.taskID, BlockedBy: nil}
+			}
+
+			cycle := DetectCircularDependencyWithAll(tt.taskID, tt.newBlockers, tasks)
+			hasCycle := cycle != nil
+
+			if hasCycle != tt.wantCycle {
+				t.Errorf("DetectCircularDependencyWithAll() hasCycle = %v, want %v (cycle: %v)", hasCycle, tt.wantCycle, cycle)
+			}
+		})
+	}
+}
+
 func TestComputeBlocks(t *testing.T) {
 	tasks := []*Task{
 		{ID: "TASK-001", BlockedBy: nil},

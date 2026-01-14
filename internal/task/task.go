@@ -451,13 +451,76 @@ func ValidateRelatedTo(taskID string, relatedTo []string, existingIDs map[string
 // Returns the cycle path if a cycle would be created, nil otherwise.
 func DetectCircularDependency(taskID string, newBlocker string, tasks map[string]*Task) []string {
 	// Build adjacency list: task -> tasks it's blocked by
+	// Copy slices to avoid mutating original task data
 	blockedByMap := make(map[string][]string)
 	for _, t := range tasks {
-		blockedByMap[t.ID] = t.BlockedBy
+		blockedByMap[t.ID] = append([]string(nil), t.BlockedBy...)
 	}
 
 	// Temporarily add the new dependency
 	blockedByMap[taskID] = append(blockedByMap[taskID], newBlocker)
+
+	// DFS to detect cycle starting from taskID
+	visited := make(map[string]bool)
+	path := make(map[string]bool)
+	var cyclePath []string
+
+	var dfs func(id string) bool
+	dfs = func(id string) bool {
+		if path[id] {
+			// Found a cycle, reconstruct path
+			cyclePath = append(cyclePath, id)
+			return true
+		}
+		if visited[id] {
+			return false
+		}
+
+		visited[id] = true
+		path[id] = true
+
+		for _, dep := range blockedByMap[id] {
+			if dfs(dep) {
+				cyclePath = append(cyclePath, id)
+				return true
+			}
+		}
+
+		path[id] = false
+		return false
+	}
+
+	if dfs(taskID) {
+		// Reverse the path to show the cycle in order
+		for i, j := 0, len(cyclePath)-1; i < j; i, j = i+1, j-1 {
+			cyclePath[i], cyclePath[j] = cyclePath[j], cyclePath[i]
+		}
+		return cyclePath
+	}
+
+	return nil
+}
+
+// DetectCircularDependencyWithAll checks if setting all blockers at once creates a cycle.
+// This is used when replacing the entire BlockedBy list.
+// Returns the cycle path if a cycle would be created, nil otherwise.
+func DetectCircularDependencyWithAll(taskID string, newBlockers []string, tasks map[string]*Task) []string {
+	// Build adjacency list: task -> tasks it's blocked by
+	// Copy slices to avoid mutating original task data
+	blockedByMap := make(map[string][]string)
+	for _, t := range tasks {
+		if t.ID == taskID {
+			// Use the new blockers for this task
+			blockedByMap[t.ID] = append([]string(nil), newBlockers...)
+		} else {
+			blockedByMap[t.ID] = append([]string(nil), t.BlockedBy...)
+		}
+	}
+
+	// If the task doesn't exist in the map yet, add it with new blockers
+	if _, exists := blockedByMap[taskID]; !exists {
+		blockedByMap[taskID] = append([]string(nil), newBlockers...)
+	}
 
 	// DFS to detect cycle starting from taskID
 	visited := make(map[string]bool)
