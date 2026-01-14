@@ -464,6 +464,9 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, req FinalizeReque
 	finState.mu.Unlock()
 	s.publishFinalizeEvent(taskID, finState)
 
+	// Auto-commit: finalize completed
+	s.autoCommitTaskState(taskID, "finalize completed")
+
 	s.logger.Info("finalize completed", "task", taskID, "commit", result.CommitSHA)
 }
 
@@ -478,6 +481,10 @@ func (s *Server) finalizeFailed(taskID string, finState *FinalizeState, err erro
 	finState.mu.Unlock()
 
 	s.publishFinalizeEvent(taskID, finState)
+
+	// Auto-commit: finalize failed
+	s.autoCommitTaskState(taskID, "finalize failed")
+
 	s.logger.Error("finalize failed", "task", taskID, "error", err)
 }
 

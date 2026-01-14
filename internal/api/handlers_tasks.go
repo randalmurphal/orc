@@ -12,6 +12,7 @@ import (
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -881,4 +882,19 @@ func (s *Server) autoCommitTaskDeletion(taskID string) {
 		Logger:       s.logger,
 	}
 	task.CommitDeletion(taskID, commitCfg)
+}
+
+// autoCommitTaskState commits task state files (task.yaml, state.yaml) to git.
+// This is for committing state changes like phase transitions without loading the task.
+func (s *Server) autoCommitTaskState(taskID, action string) {
+	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
+		return
+	}
+
+	commitCfg := state.CommitConfig{
+		ProjectRoot:  s.workDir,
+		CommitPrefix: s.orcConfig.CommitPrefix,
+		Logger:       s.logger,
+	}
+	state.CommitTaskState(taskID, action, commitCfg)
 }

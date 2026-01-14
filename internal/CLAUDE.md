@@ -25,7 +25,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `progress/` | Progress tracking and display | `Tracker` |
 | `project/` | Multi-project registry | `Registry`, `Project` |
 | `prompt/` | Prompt template management | `Service` |
-| `state/` | Execution state persistence | `State` |
+| `state/` | Execution state persistence, auto-commit helpers | `State`, `CommitTaskState`, `CommitPhaseTransition` |
 | `storage/` | Storage backend abstraction layer | `Backend`, `HybridBackend`, `ExportService` |
 | `task/` | Task model, YAML persistence, attachments, testing requirements | `Task`, `TestingRequirements`, `Store`, `Attachment` |
 | `setup/` | Claude-powered interactive setup | `Run`, `Spawner`, `Validator` |

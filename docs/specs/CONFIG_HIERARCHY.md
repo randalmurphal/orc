@@ -282,6 +282,10 @@ timeouts:
   heartbeat_interval: 30s              # Progress dots during API calls (0 = disable)
   idle_timeout: 2m                     # Warn if no streaming activity
 
+# Task settings
+tasks:
+  disable_auto_commit: false           # Disable auto-commit for .orc/ file mutations (default: false)
+
 # Task ID configuration (team mode)
 task_id:
   mode: solo                           # solo | p2p | team
@@ -315,6 +319,7 @@ team:
 | `artifact_skip` | Always | Can set defaults |
 | `worktree` | Always | Can set defaults |
 | `timeouts` | Always | Can set defaults |
+| `tasks` | Always | Can set defaults |
 | `completion` | Project | Project level |
 | `git` | Project | Project level |
 | `claude` | Always | No |

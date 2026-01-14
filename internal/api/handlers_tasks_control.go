@@ -110,6 +110,10 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-commit: task starting to run
+	// Note: executor will also commit when it starts, but this ensures no gap
+	s.autoCommitTask(t, "started")
+
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -166,6 +170,9 @@ func (s *Server) handlePauseTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-commit: task paused
+	s.autoCommitTask(t, "paused")
+
 	s.jsonResponse(w, map[string]string{"status": "paused", "task_id": id})
 }
 
@@ -183,6 +190,9 @@ func (s *Server) handleResumeTask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}
+
+	// Auto-commit: task resumed
+	s.autoCommitTask(t, "resumed")
 
 	s.jsonResponse(w, map[string]string{"status": "resumed", "task_id": id})
 }
