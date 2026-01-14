@@ -65,8 +65,9 @@ type ActivityTracker struct {
 	turnTimeout       time.Duration
 
 	// Control
-	stopCh chan struct{}
-	wg     sync.WaitGroup
+	stopCh   chan struct{}
+	stopOnce sync.Once
+	wg       sync.WaitGroup
 }
 
 // ActivityTrackerOption configures an ActivityTracker.
@@ -138,7 +139,9 @@ func (t *ActivityTracker) Start(ctx context.Context) {
 
 // Stop stops the activity monitoring.
 func (t *ActivityTracker) Stop() {
-	close(t.stopCh)
+	t.stopOnce.Do(func() {
+		close(t.stopCh)
+	})
 	t.wg.Wait()
 }
 

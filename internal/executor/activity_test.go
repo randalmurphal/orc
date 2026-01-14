@@ -241,3 +241,17 @@ func TestActivityTracker_NoHeartbeatWhenIdle(t *testing.T) {
 	}
 	mu.Unlock()
 }
+
+func TestActivityTracker_DoubleStopSafety(t *testing.T) {
+	tracker := NewActivityTracker()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	tracker.Start(ctx)
+	tracker.SetState(ActivityWaitingAPI)
+
+	// Stop twice - should not panic
+	tracker.Stop()
+	tracker.Stop()
+}
