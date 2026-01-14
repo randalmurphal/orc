@@ -517,6 +517,118 @@ When `auto_approve` is enabled and the profile is `auto` or `fast`:
 
 ---
 
+## CI Wait and Auto-Merge
+
+After the finalize phase completes, orc can automatically wait for CI checks to pass and then merge the PR directly. This bypasses GitHub's auto-merge feature (which requires branch protection) and provides full control over the merge process.
+
+### Why Direct Merge?
+
+GitHub's built-in auto-merge has limitations:
+- Requires branch protection rules to be configured
+- Self-approval is blocked by GitHub (can't approve your own PR)
+- Less control over merge timing and method
+
+Orc's direct merge flow:
+- Works without branch protection
+- Polls CI status and merges when all checks pass
+- Configurable timeout and merge method
+- Graceful degradation if merge fails
+
+### Auto-Merge Flow
+
+After finalize phase completes successfully:
+
+```
+1. Push finalize changes     → Sync commits, conflict resolutions
+2. Poll CI checks            → Wait for all checks to pass (or timeout)
+3. Merge PR directly         → Use gh pr merge --squash (configurable)
+4. Update task state         → Record merge commit SHA, set status to finished
+```
+
+### CI Status Evaluation
+
+| Status | Action |
+|--------|--------|
+| All checks passed | Proceed to merge |
+| Checks pending | Continue polling |
+| Checks failed | Abort with error, PR remains open |
+| No checks configured | Treat as passed, proceed to merge |
+| Timeout reached | Abort, PR remains open for manual merge |
+
+### Polling Behavior
+
+The CI merger polls `gh pr checks` at regular intervals:
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `poll_interval` | 30s | Time between CI status checks |
+| `ci_timeout` | 10m | Max time to wait for CI |
+
+During polling, WebSocket events broadcast progress:
+- "Waiting for CI checks to pass..."
+- "CI: 3/5 passed, 2 pending"
+- "CI checks passed. Merging PR..."
+- "PR merged successfully!"
+
+### Merge Methods
+
+| Method | Flag | Behavior |
+|--------|------|----------|
+| `squash` (default) | `--squash` | Combines all commits into one |
+| `merge` | `--merge` | Creates merge commit |
+| `rebase` | `--rebase` | Rebases commits onto target |
+
+### Profile Behavior
+
+| Profile | Wait for CI | Auto-Merge | Rationale |
+|---------|-------------|------------|-----------|
+| `auto` | Yes | Yes | Fully automated pipeline |
+| `fast` | Yes | Yes | Speed prioritized, but CI gate maintained |
+| `safe` | No | No | Human must review and merge |
+| `strict` | No | No | Human gates on all merge decisions |
+
+### Configuration
+
+```yaml
+# .orc/config.yaml
+completion:
+  ci:
+    wait_for_ci: true         # Wait for CI checks before merge (default: true)
+    ci_timeout: 10m           # Max time to wait for CI (default: 10m)
+    poll_interval: 30s        # CI status polling interval (default: 30s)
+    merge_on_ci_pass: true    # Auto-merge when CI passes (default: true)
+    merge_method: squash      # squash | merge | rebase (default: squash)
+  delete_branch: true         # Delete branch after merge (default: true)
+```
+
+### Error Handling
+
+| Error | Behavior |
+|-------|----------|
+| CI timeout | Log warning, PR remains open for manual merge |
+| CI failed | Log error with failed check names, PR remains open |
+| Merge conflict | Log error, PR remains open (should be rare after finalize) |
+| gh CLI error | Log error, PR remains open |
+
+Errors during CI wait/merge don't fail the task - the finalize phase completed successfully and the PR exists. Users can manually merge if auto-merge fails.
+
+### WebSocket Events
+
+During the CI wait and merge flow, progress is broadcast via WebSocket `transcript` events:
+
+```json
+{
+  "type": "transcript",
+  "task_id": "TASK-001",
+  "phase": "ci_merge",
+  "iteration": 0,
+  "status": "progress",
+  "content": "Waiting for CI... 3/5 passed, 2 pending"
+}
+```
+
+---
+
 ## Activity Tracking and Progress Indication
 
 Long-running Claude API calls now include activity tracking and progress indication to keep users informed.
