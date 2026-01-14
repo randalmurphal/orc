@@ -1,3 +1,14 @@
+/**
+ * Project store with URL + localStorage persistence.
+ *
+ * Priority order for project selection:
+ * 1. URL param (?project=xxx) - enables shareable links
+ * 2. localStorage - remembers user's last selection
+ * 3. Server default - from ~/.orc/projects.yaml
+ * 4. First project - fallback
+ *
+ * Browser history is managed so back/forward navigates between projects.
+ */
 import { writable, derived, get, type Readable } from 'svelte/store';
 import type { Project } from '$lib/types';
 import { listProjects, getDefaultProject, setDefaultProject as apiSetDefaultProject } from '$lib/api';
