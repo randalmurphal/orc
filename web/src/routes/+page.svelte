@@ -12,7 +12,8 @@
 	import LiveTranscriptModal from '$lib/components/overlays/LiveTranscriptModal.svelte';
 	import { currentProjectId, currentProject } from '$lib/stores/project';
 	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks, removeTask } from '$lib/stores/tasks';
-	import { currentInitiativeId, currentInitiative, selectInitiative } from '$lib/stores/initiative';
+	import { currentInitiativeId, currentInitiative, selectInitiative, UNASSIGNED_INITIATIVE } from '$lib/stores/initiative';
+	import InitiativeDropdown from '$lib/components/filters/InitiativeDropdown.svelte';
 	import { setupTaskListShortcuts, getShortcutManager } from '$lib/shortcuts';
 	import { toast } from '$lib/stores/toast.svelte';
 
@@ -23,6 +24,11 @@
 	let allTasks = $derived.by(() => {
 		const initiativeId = $currentInitiativeId;
 		if (!initiativeId) return storeTasks;
+
+		// Handle unassigned filter - show only tasks with no initiative
+		if (initiativeId === UNASSIGNED_INITIATIVE) {
+			return storeTasks.filter(task => !task.initiative_id);
+		}
 
 		// Get task IDs from the initiative
 		const initiative = $currentInitiative;
@@ -275,8 +281,8 @@
 		</div>
 	{/if}
 
-	<!-- Initiative Filter Banner -->
-	{#if $currentInitiative}
+	<!-- Initiative Filter Banner (only show when filtered via sidebar, not dropdown) -->
+	{#if $currentInitiative || $currentInitiativeId === UNASSIGNED_INITIATIVE}
 		<div class="initiative-banner">
 			<span class="banner-icon">
 				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -285,7 +291,11 @@
 				</svg>
 			</span>
 			<span class="banner-text">
-				Filtered by initiative: <strong>{$currentInitiative.title}</strong>
+				{#if $currentInitiativeId === UNASSIGNED_INITIATIVE}
+					Showing: <strong>Unassigned tasks</strong>
+				{:else}
+					Filtered by initiative: <strong>{$currentInitiative?.title}</strong>
+				{/if}
 			</span>
 			<button class="banner-clear" onclick={() => selectInitiative(null)}>
 				Clear filter
@@ -341,6 +351,9 @@
 				</svg>
 				<input type="text" placeholder="Search tasks..." bind:value={searchQuery} />
 			</div>
+
+			<!-- Initiative Filter -->
+			<InitiativeDropdown />
 
 			<!-- Weight Filter -->
 			<select class="filter-select" bind:value={weightFilter}>

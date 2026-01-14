@@ -497,14 +497,7 @@ export async function createProjectTask(projectId: string, title: string, descri
 	});
 }
 
-// Initiatives
-export async function listInitiatives(): Promise<Initiative[]> {
-	return fetchJSON<Initiative[]>('/initiatives');
-}
-
-export async function getInitiative(id: string): Promise<Initiative> {
-	return fetchJSON<Initiative>(`/initiatives/${id}`);
-}
+// Initiatives - see full definitions with options below
 
 // Settings (Claude Code settings.json)
 export interface Settings {
