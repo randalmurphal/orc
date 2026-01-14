@@ -49,6 +49,8 @@ web-react/src/
 │   │   ├── Sidebar.tsx   # Left navigation
 │   │   ├── Header.tsx    # Top bar
 │   │   └── UrlParamSync.tsx # URL <-> Store bidirectional sync
+│   ├── filters/          # Filter dropdowns
+│   │   └── DependencyDropdown.tsx # Dependency status filter
 │   ├── overlays/         # Modal overlays
 │   │   ├── Modal.tsx     # Base modal component
 │   │   └── KeyboardShortcutsHelp.tsx # Shortcuts help modal
@@ -156,15 +158,19 @@ Migration follows the existing Svelte component structure:
 | `lib/components/QueuedColumn.svelte` | `components/board/QueuedColumn.tsx` | ✅ Complete |
 | `lib/components/Swimlane.svelte` | `components/board/Swimlane.tsx` | ✅ Complete |
 | `lib/components/TaskCard.svelte` (kanban) | `components/board/TaskCard.tsx` | ✅ Complete |
+| `lib/components/InitiativeDropdown.svelte` | `components/board/InitiativeDropdown.tsx` | ✅ Complete |
+| `lib/components/DependencyDropdown.svelte` | `components/filters/DependencyDropdown.tsx` | ✅ Complete |
+| `routes/+page.svelte` (task list) | `pages/TaskList.tsx` | ✅ Complete |
 | `lib/stores/` | `src/stores/` (Zustand) | ✅ Complete |
 | `lib/websocket.ts` | `src/lib/websocket.ts` | ✅ Complete |
 | `lib/utils/` | `src/lib/` | In Progress |
-| Route pages | `src/pages/` | ✅ Scaffolded |
+| Route pages | `src/pages/` | In Progress |
 
-**Stores implemented (Phase 1):**
+**Stores implemented (Phase 1 + Phase 3):**
 - `taskStore.ts` - Task data and execution state with derived selectors
 - `projectStore.ts` - Project selection with URL/localStorage sync
 - `initiativeStore.ts` - Initiative filter with progress tracking
+- `dependencyStore.ts` - Dependency status filter with URL/localStorage sync
 - `uiStore.ts` - Sidebar, WebSocket status, toast notifications
 
 **WebSocket hooks implemented (Phase 2):**
@@ -191,6 +197,10 @@ Migration follows the existing Svelte component structure:
 - `components/layout/Sidebar.tsx` - Navigation with initiative filtering
 - `components/layout/Header.tsx` - Project selector, page title, actions
 - `components/overlays/ProjectSwitcher.tsx` - Modal for project selection
+
+**Pages implemented (Phase 3):**
+- `pages/TaskList.tsx` - Task list with filtering, search, keyboard navigation
+- `components/filters/DependencyDropdown.tsx` - Dependency status filter dropdown
 
 ## UI Primitives
 
@@ -591,6 +601,95 @@ interface DashboardStats {
 }
 ```
 
+## TaskList Page
+
+The task list page (`/`) provides a filterable, searchable list view of all tasks with keyboard navigation.
+
+### TaskList (Page)
+
+Main task list page component with comprehensive filtering and search.
+
+```tsx
+import { TaskList } from '@/pages/TaskList';
+
+// Used in route configuration
+<Route path="/" element={<TaskList />} />
+```
+
+**Features:**
+- Status tabs (All/Active/Completed/Failed) with counts
+- Search with 300ms debounce
+- Filter by initiative, dependency status, weight
+- Sort by recent/oldest/status
+- Keyboard navigation (j/k/Enter/r/p/d)
+- Initiative filter banner when filtered
+- New task button
+
+**URL params:**
+- `project`: Project filter (handled by UrlParamSync)
+- `initiative`: Initiative filter (synced via store)
+- `dependency_status`: Dependency status filter
+
+**Keyboard shortcuts (context: 'tasks'):**
+
+| Key | Action |
+|-----|--------|
+| `j` | Select next task |
+| `k` | Select previous task |
+| `Enter` | Open selected task |
+| `r` | Run selected task |
+| `p` | Pause selected task |
+| `d` | Delete selected task (with confirmation) |
+| `/` | Focus search input |
+| `?` | Show keyboard help |
+
+**Status Filters:**
+- **All**: All tasks
+- **Active**: Tasks not in terminal status (running, paused, blocked, planned, created)
+- **Completed**: Tasks with status completed or finished
+- **Failed**: Tasks with status failed
+
+**Sorting:**
+- **Recent**: By updated_at descending (default)
+- **Oldest**: By updated_at ascending
+- **Status**: By status order (running → paused → blocked → planned → created → finalizing → completed → finished → failed)
+
+## Filter Components
+
+Reusable filter dropdowns for task filtering.
+
+### DependencyDropdown
+
+Dropdown to filter tasks by dependency status.
+
+```tsx
+import { DependencyDropdown } from '@/components/filters';
+
+<DependencyDropdown tasks={tasks} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `tasks` | `Task[]` | Tasks to count (for badge numbers) |
+
+**Filter Options:**
+- **All tasks**: No filter (shows all)
+- **Ready**: Tasks with `dependency_status: 'ready'`
+- **Blocked**: Tasks with `dependency_status: 'blocked'`
+- **No dependencies**: Tasks with `dependency_status: 'none'`
+
+**Features:**
+- Task count badges for each option
+- Active filter visual indication
+- Click outside to close
+- Escape key closes dropdown
+- Syncs with `dependencyStore`
+
+**CSS classes:**
+- `.dependency-dropdown` - Container
+- `.dropdown-trigger` / `.dropdown-trigger.active` - Button
+- `.dropdown-menu` / `.dropdown-item` - Menu
+
 ## Routing
 
 ### Route Configuration
@@ -741,7 +840,7 @@ function TaskCard({ task }: { task: Task }) {
 
 ### State Management (Zustand)
 
-Four Zustand stores mirror the Svelte store behavior. All use `subscribeWithSelector` middleware for efficient derived state.
+Five Zustand stores mirror the Svelte store behavior. All use `subscribeWithSelector` middleware for efficient derived state.
 
 #### Store Overview
 
@@ -750,6 +849,7 @@ Four Zustand stores mirror the Svelte store behavior. All use `subscribeWithSele
 | `useTaskStore` | tasks, taskStates | None (API-driven) | Task data and execution state |
 | `useProjectStore` | projects, currentProjectId | URL + localStorage | Project selection |
 | `useInitiativeStore` | initiatives, currentInitiativeId | URL + localStorage | Initiative filter |
+| `useDependencyStore` | currentDependencyStatus | URL + localStorage | Dependency status filter |
 | `useUIStore` | sidebarExpanded, wsStatus, toasts | localStorage (sidebar) | UI state |
 
 **URL/localStorage priority:** URL param > localStorage > default
@@ -867,10 +967,46 @@ UI state including sidebar, WebSocket status, and toast notifications.
 
 **Toast default durations:** success/warning/info: 5s, error: 8s
 
+#### DependencyStore
+
+Dependency status filter with URL and localStorage sync.
+
+| State | Type | Description |
+|-------|------|-------------|
+| `currentDependencyStatus` | `DependencyStatusFilter` | Current filter ('all', 'blocked', 'ready', 'none') |
+| `_isHandlingPopState` | `boolean` | Internal flag for history handling |
+
+| Hook | Description |
+|------|-------------|
+| `useCurrentDependencyStatus()` | Current filter selection |
+
+| Action | Purpose |
+|--------|---------|
+| `selectDependencyStatus(status)` | Set filter (null or 'all' clears filter) |
+| `handlePopState(event)` | Handle browser back/forward |
+| `initializeFromUrl()` | Initialize from URL on mount |
+
+**Type exports:**
+- `DependencyStatusFilter` - 'all' | 'blocked' | 'ready' | 'none'
+- `DEPENDENCY_OPTIONS` - Array of { value, label } for dropdown options
+
+**URL param:** `?dependency_status=blocked|ready|none`
+
+**localStorage key:** `orc_dependency_status_filter`
+
 #### Usage Examples
 
 ```tsx
-import { useTaskStore, useProjectStore, useInitiativeStore, useUIStore, toast } from '@/stores';
+import {
+  useTaskStore,
+  useProjectStore,
+  useInitiativeStore,
+  useDependencyStore,
+  useUIStore,
+  useCurrentDependencyStatus,
+  DEPENDENCY_OPTIONS,
+  toast,
+} from '@/stores';
 
 // Direct state access
 const tasks = useTaskStore((state) => state.tasks);
@@ -879,6 +1015,10 @@ const tasks = useTaskStore((state) => state.tasks);
 import { useActiveTasks, useStatusCounts } from '@/stores';
 const activeTasks = useActiveTasks();
 const counts = useStatusCounts();
+
+// Dependency filter
+const dependencyStatus = useCurrentDependencyStatus();
+useDependencyStore.getState().selectDependencyStatus('blocked');
 
 // Actions (can be called outside components)
 useTaskStore.getState().updateTask('TASK-001', { status: 'running' });
@@ -893,6 +1033,7 @@ toast.clear();
 
 **Special values:**
 - `UNASSIGNED_INITIATIVE = '__unassigned__'` - Filter for tasks without an initiative
+- `DEPENDENCY_OPTIONS` - Array of { value, label } for dependency filter dropdown
 
 #### Key Implementation Patterns
 
