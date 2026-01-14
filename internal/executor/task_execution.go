@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude"
@@ -520,4 +521,211 @@ func (e *Executor) checkSpecRequirements(t *task.Task) error {
 	}
 
 	return nil
+}
+
+// FinalizeTask executes only the finalize phase for a task.
+// This is used when manually triggering finalize via CLI.
+func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) error {
+	// Set current task directory for saving files
+	projectRoot, err := findProjectRootFromDir(e.config.WorkDir)
+	if err != nil {
+		return fmt.Errorf("find project root: %w", err)
+	}
+	e.currentTaskDir = e.taskDir(t.ID)
+
+	// Record execution info for orphan detection
+	hostname, _ := os.Hostname()
+	s.StartExecution(os.Getpid(), hostname)
+
+	// Update task status
+	originalStatus := t.Status
+	t.Status = task.StatusRunning
+	now := time.Now()
+	if t.StartedAt == nil {
+		t.StartedAt = &now
+	}
+	t.CurrentPhase = "finalize"
+	if err := t.SaveTo(e.currentTaskDir); err != nil {
+		return fmt.Errorf("save task: %w", err)
+	}
+
+	// Save initial state with execution info
+	if err := s.SaveTo(e.currentTaskDir); err != nil {
+		return fmt.Errorf("save state: %w", err)
+	}
+
+	// Setup worktree if enabled
+	if e.orcConfig.Worktree.Enabled && e.gitOps != nil {
+		if err := e.setupWorktreeForTask(t); err != nil {
+			e.failSetup(t, s, err)
+			return err
+		}
+		// Cleanup worktree on exit based on config and success
+		defer e.cleanupWorktreeForTask(t)
+	}
+
+	// Start phase and update heartbeat
+	s.StartPhase("finalize")
+	s.UpdateHeartbeat()
+	if err := s.SaveTo(e.currentTaskDir); err != nil {
+		return fmt.Errorf("save state: %w", err)
+	}
+
+	e.logger.Info("executing finalize phase", "task", t.ID)
+
+	// Publish phase start event
+	e.publishPhaseStart(t.ID, "finalize")
+	e.publishState(t.ID, s)
+
+	// Create finalize executor
+	workingDir := e.config.WorkDir
+	if e.worktreePath != "" {
+		workingDir = e.worktreePath
+	}
+
+	gitSvc := e.gitOps
+	if e.worktreeGit != nil {
+		gitSvc = e.worktreeGit
+	}
+
+	finalizeExec := NewFinalizeExecutor(
+		e.sessionMgr,
+		WithFinalizeGitSvc(gitSvc),
+		WithFinalizePublisher(e.publisher),
+		WithFinalizeLogger(e.logger),
+		WithFinalizeConfig(DefaultConfigForWeight(t.Weight)),
+		WithFinalizeOrcConfig(e.orcConfig),
+		WithFinalizeWorkingDir(workingDir),
+		WithFinalizeTaskDir(e.currentTaskDir),
+		WithFinalizeStateUpdater(func(st *state.State) {
+			if saveErr := st.SaveTo(e.currentTaskDir); saveErr != nil {
+				e.logger.Error("failed to save state during finalize", "error", saveErr)
+			}
+		}),
+	)
+
+	// Execute finalize phase
+	result, err := finalizeExec.Execute(ctx, t, p, s)
+	if err != nil {
+		// Check for context cancellation (interrupt)
+		if ctx.Err() != nil {
+			s.InterruptPhase("finalize")
+			if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+				e.logger.Error("failed to save state on interrupt", "error", saveErr)
+			}
+			return ctx.Err()
+		}
+
+		// Fail the phase
+		s.FailPhase("finalize", err)
+		s.ClearExecution()
+		if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+			e.logger.Error("failed to save state on failure", "error", saveErr)
+		}
+
+		// Restore original status on failure
+		t.Status = originalStatus
+		if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+			e.logger.Error("failed to save task on failure", "error", saveErr)
+		}
+
+		// Publish failure events
+		e.publishPhaseFailed(t.ID, "finalize", err)
+		e.publishError(t.ID, "finalize", err.Error(), true)
+		e.publishState(t.ID, s)
+
+		return fmt.Errorf("finalize phase failed: %w", err)
+	}
+
+	// Complete phase
+	s.CompletePhase("finalize", result.CommitSHA)
+	p.Status = plan.PhaseCompleted
+	p.CommitSHA = result.CommitSHA
+
+	// Save state
+	if err := s.SaveTo(e.currentTaskDir); err != nil {
+		return fmt.Errorf("save state: %w", err)
+	}
+
+	// Save plan if we have project root (to persist the phase status)
+	planPath := task.TaskDirIn(projectRoot, t.ID)
+	existingPlan, loadErr := plan.LoadFrom(projectRoot, t.ID)
+	if loadErr == nil {
+		// Update finalize phase status in existing plan
+		for i := range existingPlan.Phases {
+			if existingPlan.Phases[i].ID == "finalize" {
+				existingPlan.Phases[i].Status = plan.PhaseCompleted
+				existingPlan.Phases[i].CommitSHA = result.CommitSHA
+				break
+			}
+		}
+		if saveErr := existingPlan.SaveTo(planPath); saveErr != nil {
+			e.logger.Warn("failed to save plan", "error", saveErr)
+		}
+	}
+
+	// If task was previously paused/blocked/failed, restore to that state
+	// Only mark complete if ALL phases are done
+	allPhasesComplete := true
+	if existingPlan != nil {
+		for _, phase := range existingPlan.Phases {
+			if phase.Status != plan.PhaseCompleted && phase.Status != plan.PhaseSkipped {
+				allPhasesComplete = false
+				break
+			}
+		}
+	}
+
+	if allPhasesComplete {
+		s.Complete()
+		t.Status = task.StatusCompleted
+		completedAt := time.Now()
+		t.CompletedAt = &completedAt
+	} else {
+		t.Status = originalStatus
+		if t.Status == task.StatusRunning {
+			t.Status = task.StatusPaused // Don't leave in running state
+		}
+	}
+	s.ClearExecution()
+
+	if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+		e.logger.Error("failed to save state on completion", "error", saveErr)
+	}
+	if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+		e.logger.Error("failed to save task on completion", "error", saveErr)
+	}
+
+	// Publish completion events
+	e.publishPhaseComplete(t.ID, "finalize", result.CommitSHA)
+	e.publishTokens(t.ID, "finalize", result.InputTokens, result.OutputTokens, 0, 0, result.InputTokens+result.OutputTokens)
+	e.publishState(t.ID, s)
+
+	return nil
+}
+
+// findProjectRootFromDir finds the project root from a given directory.
+func findProjectRootFromDir(dir string) (string, error) {
+	// First try to find from config
+	if root, err := findOrcRoot(dir); err == nil {
+		return root, nil
+	}
+	// Fall back to current directory
+	return dir, nil
+}
+
+// findOrcRoot searches for .orc directory to find project root.
+func findOrcRoot(startDir string) (string, error) {
+	dir := startDir
+	for {
+		orcDir := filepath.Join(dir, ".orc")
+		if info, err := os.Stat(orcDir); err == nil && info.IsDir() {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("no .orc directory found")
+		}
+		dir = parent
+	}
 }
