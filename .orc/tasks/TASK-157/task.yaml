@@ -1,0 +1,46 @@
+id: TASK-157
+title: 'Phase 0: Expand E2E tests for WebSocket real-time updates (12 tests)'
+description: |-
+    ## Purpose
+    E2E tests for WebSocket integration and real-time UI updates - CRITICAL for migration success.
+
+    ## Test Coverage (12 tests)
+
+    ### Task Lifecycle Updates (5 tests)
+    - should update task card when task status changes via WebSocket
+    - should move card to new column when phase changes
+    - should show toast notification on task creation event
+    - should remove card when task deleted event received
+    - should update progress indicators during task running
+
+    ### Live Transcript (4 tests)
+    - should open live transcript modal when clicking running task
+    - should show streaming content in real-time
+    - should display connection status (Live/Connecting/Disconnected)
+    - should update token counts during execution
+
+    ### Connection Handling (3 tests)
+    - should reconnect automatically after disconnect
+    - should show reconnecting banner/status
+    - should resume updates after reconnection
+
+    ## Implementation Notes
+    - Use Playwright network interception or real WebSocket connections
+    - May need test fixtures that trigger real task execution
+    - Verify event types: state, transcript, phase, tokens, complete, task_created, task_updated, task_deleted
+
+    ## Success Criteria
+    - All 12 tests pass reliably (no flaky tests)
+    - Tests verify actual WebSocket behavior, not mocked
+weight: large
+status: planned
+branch: orc/TASK-157
+queue: active
+priority: normal
+category: test
+initiative_id: INIT-005
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T02:18:14.524416011-06:00
+updated_at: 2026-01-14T02:18:14.531353973-06:00
