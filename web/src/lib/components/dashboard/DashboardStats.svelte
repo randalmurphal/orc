@@ -71,7 +71,13 @@
 			</div>
 		</button>
 
-		<div class="stat-card tokens">
+		{@const cacheTotal = (stats.cache_creation_input_tokens || 0) + (stats.cache_read_input_tokens || 0)}
+		<div
+			class="stat-card tokens"
+			title={cacheTotal > 0
+				? `Total: ${stats.tokens.toLocaleString()}\nCached: ${cacheTotal.toLocaleString()} (${formatTokens(stats.cache_creation_input_tokens || 0)} creation, ${formatTokens(stats.cache_read_input_tokens || 0)} read)`
+				: `Total: ${stats.tokens.toLocaleString()}`}
+		>
 			<div class="stat-icon">
 				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 					<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
@@ -79,7 +85,7 @@
 			</div>
 			<div class="stat-content">
 				<span class="stat-value">{formatTokens(stats.tokens)}</span>
-				<span class="stat-label">Tokens</span>
+				<span class="stat-label">Tokens{cacheTotal > 0 ? ` (${formatTokens(cacheTotal)} cached)` : ''}</span>
 			</div>
 		</div>
 	</div>
