@@ -533,9 +533,12 @@ func TestDefault_PlanConfig(t *testing.T) {
 		t.Error("Plan.WarnOnMissingSpec should default to true")
 	}
 
-	// SkipValidationWeights should default to [trivial]
-	if len(cfg.Plan.SkipValidationWeights) != 1 || cfg.Plan.SkipValidationWeights[0] != "trivial" {
-		t.Errorf("Plan.SkipValidationWeights = %v, want [trivial]", cfg.Plan.SkipValidationWeights)
+	// SkipValidationWeights should default to [trivial, small]
+	expectedWeights := []string{"trivial", "small"}
+	if len(cfg.Plan.SkipValidationWeights) != 2 ||
+		cfg.Plan.SkipValidationWeights[0] != "trivial" ||
+		cfg.Plan.SkipValidationWeights[1] != "small" {
+		t.Errorf("Plan.SkipValidationWeights = %v, want %v", cfg.Plan.SkipValidationWeights, expectedWeights)
 	}
 
 	// MinimumSections should default to intent, success_criteria, testing

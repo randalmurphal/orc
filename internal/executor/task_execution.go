@@ -510,8 +510,17 @@ func (e *Executor) checkSpecRequirements(t *task.Task) error {
 			return fmt.Errorf("task %s has an incomplete spec - run 'orc plan %s' to update it", t.ID, t.ID)
 		}
 	} else if e.orcConfig.Plan.WarnOnMissingSpec {
+		// Check if this weight should skip the warning (trivial/small don't need specs)
+		shouldWarn := true
+		for _, skipWeight := range e.orcConfig.Plan.SkipValidationWeights {
+			if string(t.Weight) == skipWeight {
+				shouldWarn = false
+				break
+			}
+		}
+
 		// Just warn, don't block
-		if !task.SpecExists(t.ID) {
+		if shouldWarn && !task.SpecExists(t.ID) {
 			e.logger.Warn("task has no spec (execution will continue)",
 				"task", t.ID,
 				"weight", t.Weight,
