@@ -105,6 +105,18 @@
 					{task.weight}
 				</span>
 			{/if}
+			{#if task.is_blocked}
+				<span
+					class="blocked-badge"
+					title="Blocked by {task.unmet_blockers?.join(', ')}"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="10" />
+						<line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+					</svg>
+					Blocked
+				</span>
+			{/if}
 			{#if initiativeBadge}
 				<button
 					class="initiative-badge"
@@ -237,6 +249,20 @@
 		letter-spacing: var(--tracking-wider);
 		padding: var(--space-0-5) var(--space-1-5);
 		border-radius: var(--radius-sm);
+	}
+
+	.blocked-badge {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		font-size: var(--text-2xs);
+		font-weight: var(--font-semibold);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wider);
+		padding: var(--space-0-5) var(--space-1-5);
+		border-radius: var(--radius-sm);
+		background: var(--status-danger-bg);
+		color: var(--status-danger);
 	}
 
 	.initiative-badge {

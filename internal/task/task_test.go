@@ -1436,9 +1436,9 @@ func TestComputeReferencedBy_ExcludesBlockedByAndRelatedTo(t *testing.T) {
 
 func TestPopulateComputedFields(t *testing.T) {
 	tasks := []*Task{
-		{ID: "TASK-001", Title: "Base task"},
-		{ID: "TASK-002", Title: "Depends on TASK-001", BlockedBy: []string{"TASK-001"}},
-		{ID: "TASK-003", Title: "References TASK-001", Description: "See TASK-001"},
+		{ID: "TASK-001", Title: "Base task", Status: StatusPlanned},
+		{ID: "TASK-002", Title: "Depends on TASK-001", BlockedBy: []string{"TASK-001"}, Status: StatusPlanned},
+		{ID: "TASK-003", Title: "References TASK-001", Description: "See TASK-001", Status: StatusPlanned},
 	}
 
 	PopulateComputedFields(tasks)
@@ -1455,6 +1455,59 @@ func TestPopulateComputedFields(t *testing.T) {
 	// TASK-002 should have Blocks = [] (computed, wasn't populated manually)
 	if len(tasks[1].Blocks) != 0 {
 		t.Errorf("TASK-002 Blocks = %v, want []", tasks[1].Blocks)
+	}
+
+	// TASK-001 should not be blocked (no BlockedBy)
+	if tasks[0].IsBlocked {
+		t.Errorf("TASK-001 IsBlocked = true, want false")
+	}
+	if len(tasks[0].UnmetBlockers) != 0 {
+		t.Errorf("TASK-001 UnmetBlockers = %v, want []", tasks[0].UnmetBlockers)
+	}
+
+	// TASK-002 should be blocked (TASK-001 is not completed)
+	if !tasks[1].IsBlocked {
+		t.Errorf("TASK-002 IsBlocked = false, want true")
+	}
+	if len(tasks[1].UnmetBlockers) != 1 || tasks[1].UnmetBlockers[0] != "TASK-001" {
+		t.Errorf("TASK-002 UnmetBlockers = %v, want [TASK-001]", tasks[1].UnmetBlockers)
+	}
+}
+
+func TestPopulateComputedFields_BlockedByCompleted(t *testing.T) {
+	// Test that IsBlocked is false when all blockers are completed
+	tasks := []*Task{
+		{ID: "TASK-001", Title: "Completed task", Status: StatusCompleted},
+		{ID: "TASK-002", Title: "Depends on completed task", BlockedBy: []string{"TASK-001"}, Status: StatusPlanned},
+	}
+
+	PopulateComputedFields(tasks)
+
+	// TASK-002 should NOT be blocked (TASK-001 is completed)
+	if tasks[1].IsBlocked {
+		t.Errorf("TASK-002 IsBlocked = true, want false (blocker is completed)")
+	}
+	if len(tasks[1].UnmetBlockers) != 0 {
+		t.Errorf("TASK-002 UnmetBlockers = %v, want []", tasks[1].UnmetBlockers)
+	}
+}
+
+func TestPopulateComputedFields_MixedBlockers(t *testing.T) {
+	// Test with mix of completed and incomplete blockers
+	tasks := []*Task{
+		{ID: "TASK-001", Title: "Completed task", Status: StatusCompleted},
+		{ID: "TASK-002", Title: "Running task", Status: StatusRunning},
+		{ID: "TASK-003", Title: "Depends on both", BlockedBy: []string{"TASK-001", "TASK-002"}, Status: StatusPlanned},
+	}
+
+	PopulateComputedFields(tasks)
+
+	// TASK-003 should be blocked (TASK-002 is not completed)
+	if !tasks[2].IsBlocked {
+		t.Errorf("TASK-003 IsBlocked = false, want true (has one incomplete blocker)")
+	}
+	if len(tasks[2].UnmetBlockers) != 1 || tasks[2].UnmetBlockers[0] != "TASK-002" {
+		t.Errorf("TASK-003 UnmetBlockers = %v, want [TASK-002]", tasks[2].UnmetBlockers)
 	}
 }
 

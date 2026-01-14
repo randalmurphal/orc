@@ -252,6 +252,14 @@ type Task struct {
 	// This is auto-detected and computed (not stored).
 	ReferencedBy []string `yaml:"-" json:"referenced_by,omitempty"`
 
+	// IsBlocked indicates if this task has incomplete blockers.
+	// This is computed (not stored) from BlockedBy and blocker statuses.
+	IsBlocked bool `yaml:"-" json:"is_blocked,omitempty"`
+
+	// UnmetBlockers lists task IDs from BlockedBy that are not yet complete.
+	// This is computed (not stored) during PopulateComputedFields.
+	UnmetBlockers []string `yaml:"-" json:"unmet_blockers,omitempty"`
+
 	// RequiresUITesting indicates if this task involves UI changes
 	// that should be validated with Playwright or similar tools
 	RequiresUITesting bool `yaml:"requires_ui_testing,omitempty" json:"requires_ui_testing,omitempty"`
@@ -686,12 +694,24 @@ func ComputeReferencedBy(taskID string, allTasks []*Task) []string {
 	return referencedBy
 }
 
-// PopulateComputedFields fills in Blocks and ReferencedBy for all tasks.
+// PopulateComputedFields fills in computed fields for all tasks:
+// - Blocks: tasks that are waiting on this task
+// - ReferencedBy: tasks whose descriptions mention this task
+// - IsBlocked: whether this task has unmet dependencies
+// - UnmetBlockers: list of task IDs that block this task and are incomplete
 // This should be called after loading all tasks.
 func PopulateComputedFields(tasks []*Task) {
+	// Build task map for dependency checking
+	taskMap := make(map[string]*Task)
+	for _, t := range tasks {
+		taskMap[t.ID] = t
+	}
+
 	for _, t := range tasks {
 		t.Blocks = ComputeBlocks(t.ID, tasks)
 		t.ReferencedBy = ComputeReferencedBy(t.ID, tasks)
+		t.UnmetBlockers = t.GetUnmetDependencies(taskMap)
+		t.IsBlocked = len(t.UnmetBlockers) > 0
 	}
 }
 

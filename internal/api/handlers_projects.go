@@ -118,6 +118,9 @@ func (s *Server) handleListProjectTasks(w http.ResponseWriter, r *http.Request) 
 		tasks = []*task.Task{}
 	}
 
+	// Populate computed dependency fields (Blocks, ReferencedBy, IsBlocked, UnmetBlockers)
+	task.PopulateComputedFields(tasks)
+
 	s.jsonResponse(w, tasks)
 }
 
