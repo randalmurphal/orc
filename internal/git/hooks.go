@@ -4,6 +4,7 @@ package git
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -486,3 +487,105 @@ func RemoveClaudeCodeHooks(worktreePath string) error {
 
 	return nil
 }
+
+// EnsureClaudeSettingsUntracked marks .claude/settings.json as "assume-unchanged"
+// in git, so local modifications don't appear as dirty working tree state.
+// This ensures machine-specific worktree hooks don't interfere with git rebase/merge.
+//
+// This is necessary because:
+// 1. Worktree isolation hooks contain machine-specific absolute paths
+// 2. These paths differ between machines (Mac vs Linux, different users)
+// 3. If git sees the file as modified, rebase fails with "unstaged changes" error
+// 4. Using --assume-unchanged tells git to ignore local modifications
+//
+// The function also adds the file to local git exclude to prevent accidental commits.
+// The function is idempotent - safe to call multiple times.
+func EnsureClaudeSettingsUntracked(worktreePath string) error {
+	settingsRelPath := ".claude/settings.json"
+
+	// Check if file is tracked by git
+	cmd := execCommand("git", "ls-files", settingsRelPath)
+	cmd.Dir = worktreePath
+	output, err := cmd.Output()
+	if err != nil {
+		// git ls-files failed, might not be a git repo - skip
+		return nil
+	}
+
+	if strings.TrimSpace(string(output)) != "" {
+		// File is tracked - mark as assume-unchanged so git ignores local modifications.
+		// This allows rebase/merge to proceed without seeing the file as dirty.
+		cmd = execCommand("git", "update-index", "--assume-unchanged", settingsRelPath)
+		cmd.Dir = worktreePath
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("mark %s as assume-unchanged: %w", settingsRelPath, err)
+		}
+	}
+
+	// Add to local git exclude to prevent accidental staging/commits
+	return addToGitExclude(worktreePath, settingsRelPath)
+}
+
+// addToGitExclude adds a path to the worktree's local git exclude file.
+// For worktrees, this is in .git/worktrees/<name>/info/exclude.
+func addToGitExclude(worktreePath, pattern string) error {
+	// Find the git directory for this worktree
+	gitFile := filepath.Join(worktreePath, ".git")
+	content, err := os.ReadFile(gitFile)
+	if err != nil {
+		// Might be a regular repo or .git doesn't exist - try standard path
+		return addToExcludeFile(filepath.Join(worktreePath, ".git", "info", "exclude"), pattern)
+	}
+
+	// Parse "gitdir: /path/to/.git/worktrees/name"
+	line := strings.TrimSpace(string(content))
+	if !strings.HasPrefix(line, "gitdir: ") {
+		// Not a worktree format, use standard path
+		return addToExcludeFile(filepath.Join(worktreePath, ".git", "info", "exclude"), pattern)
+	}
+
+	gitDir := strings.TrimPrefix(line, "gitdir: ")
+	excludePath := filepath.Join(gitDir, "info", "exclude")
+	return addToExcludeFile(excludePath, pattern)
+}
+
+// addToExcludeFile adds a pattern to a git exclude file if not already present.
+func addToExcludeFile(excludePath, pattern string) error {
+	// Ensure the info directory exists
+	infoDir := filepath.Dir(excludePath)
+	if err := os.MkdirAll(infoDir, 0755); err != nil {
+		return fmt.Errorf("create info dir: %w", err)
+	}
+
+	// Read existing content
+	existingContent, err := os.ReadFile(excludePath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read exclude file: %w", err)
+	}
+
+	// Check if pattern already exists
+	lines := strings.Split(string(existingContent), "\n")
+	for _, line := range lines {
+		if strings.TrimSpace(line) == pattern {
+			// Already excluded
+			return nil
+		}
+	}
+
+	// Append pattern
+	var newContent string
+	if len(existingContent) > 0 && !strings.HasSuffix(string(existingContent), "\n") {
+		newContent = string(existingContent) + "\n" + pattern + "\n"
+	} else {
+		newContent = string(existingContent) + pattern + "\n"
+	}
+
+	if err := os.WriteFile(excludePath, []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("write exclude file: %w", err)
+	}
+
+	return nil
+}
+
+// execCommand is a variable to allow test mocking of exec.Command.
+var execCommand = exec.Command
