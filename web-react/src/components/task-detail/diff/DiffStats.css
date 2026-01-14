@@ -1,0 +1,28 @@
+/* Diff Stats */
+.diff-stats {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	font-size: var(--text-sm);
+	font-family: var(--font-mono);
+}
+
+.diff-stats .stat {
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--radius-sm);
+}
+
+.diff-stats .files {
+	color: var(--text-secondary);
+	background: var(--bg-tertiary);
+}
+
+.diff-stats .additions {
+	color: var(--status-success);
+	background: color-mix(in srgb, var(--status-success) 15%, transparent);
+}
+
+.diff-stats .deletions {
+	color: var(--status-danger);
+	background: color-mix(in srgb, var(--status-danger) 15%, transparent);
+}

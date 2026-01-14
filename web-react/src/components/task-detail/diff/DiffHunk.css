@@ -1,0 +1,99 @@
+/* Diff Hunk */
+.diff-hunk {
+	border-bottom: 1px solid var(--border-subtle);
+}
+
+.diff-hunk:last-child {
+	border-bottom: none;
+}
+
+/* Hunk Header */
+.hunk-header {
+	padding: var(--space-2) var(--space-4);
+	background: var(--bg-tertiary);
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+}
+
+/* Tables */
+.split-table,
+.unified-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+/* Line Numbers */
+.line-number {
+	width: 50px;
+	padding: 0 var(--space-2);
+	text-align: right;
+	color: var(--text-muted);
+	user-select: none;
+	vertical-align: top;
+	background: var(--bg-secondary);
+	border-right: 1px solid var(--border-subtle);
+}
+
+.split-table .line-number.new {
+	border-left: 1px solid var(--border-subtle);
+}
+
+/* Line Content */
+.line-content {
+	padding: 0 var(--space-3);
+	white-space: pre;
+	cursor: pointer;
+}
+
+.line-content:hover {
+	background: var(--bg-tertiary);
+}
+
+.line-content .prefix {
+	display: inline-block;
+	width: 1.5em;
+	margin-right: var(--space-1);
+	color: var(--text-muted);
+}
+
+/* Line Types */
+.line-content.context {
+	background: var(--bg-primary);
+}
+
+.line-content.addition {
+	background: color-mix(in srgb, var(--status-success) 10%, transparent);
+}
+
+.line-content.addition .prefix {
+	color: var(--status-success);
+}
+
+.line-content.deletion {
+	background: color-mix(in srgb, var(--status-danger) 10%, transparent);
+}
+
+.line-content.deletion .prefix {
+	color: var(--status-danger);
+}
+
+.line-content.empty {
+	background: var(--bg-tertiary);
+}
+
+/* Split View Specific */
+.split-table .line-content.old {
+	width: 50%;
+	border-right: 1px solid var(--border-subtle);
+}
+
+.split-table .line-content.new {
+	width: 50%;
+}
+
+/* Comment Row */
+.comment-row td {
+	padding: 0;
+	background: var(--bg-primary);
+}

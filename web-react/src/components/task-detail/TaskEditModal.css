@@ -1,0 +1,99 @@
+/* Task Edit Modal Form */
+.task-edit-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+	min-width: 400px;
+}
+
+.form-group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1-5);
+}
+
+.form-group label {
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	color: var(--text-secondary);
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+	width: 100%;
+	padding: var(--space-2) var(--space-3);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	color: var(--text-primary);
+	font-size: var(--text-sm);
+	font-family: var(--font-body);
+	transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+	outline: none;
+	border-color: var(--accent-primary);
+}
+
+.form-group textarea {
+	resize: vertical;
+	min-height: 80px;
+}
+
+.form-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--space-4);
+}
+
+.form-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-2);
+	margin-top: var(--space-2);
+	padding-top: var(--space-4);
+	border-top: 1px solid var(--border-subtle);
+}
+
+.form-actions .cancel-btn {
+	padding: var(--space-2) var(--space-4);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	cursor: pointer;
+	transition: all var(--duration-fast) var(--ease-out);
+}
+
+.form-actions .cancel-btn:hover:not(:disabled) {
+	background: var(--bg-surface);
+	color: var(--text-primary);
+}
+
+.form-actions .save-btn {
+	padding: var(--space-2) var(--space-4);
+	background: var(--accent-primary);
+	border: none;
+	border-radius: var(--radius-md);
+	color: white;
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	cursor: pointer;
+	transition: all var(--duration-fast) var(--ease-out);
+}
+
+.form-actions .save-btn:hover:not(:disabled) {
+	background: var(--accent-hover);
+}
+
+.form-actions .save-btn:disabled,
+.form-actions .cancel-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}

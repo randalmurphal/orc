@@ -1,0 +1,276 @@
+import { useState, useEffect, useCallback, useMemo, DragEvent, ChangeEvent } from 'react';
+import type { Attachment } from '@/lib/types';
+import { listAttachments, uploadAttachment, deleteAttachment, getAttachmentUrl } from '@/lib/api';
+import { Icon } from '@/components/ui/Icon';
+import { toast } from '@/stores/uiStore';
+import './AttachmentsTab.css';
+
+interface AttachmentsTabProps {
+	taskId: string;
+}
+
+function formatSize(bytes: number): string {
+	if (bytes < 1024) return `${bytes} B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(dateStr: string): string {
+	const date = new Date(dateStr);
+	return date.toLocaleDateString(undefined, {
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+	});
+}
+
+export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
+	const [attachments, setAttachments] = useState<Attachment[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [uploading, setUploading] = useState(false);
+	const [dragOver, setDragOver] = useState(false);
+	const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+	const [lightboxFilename, setLightboxFilename] = useState<string | null>(null);
+
+	const loadAttachments = useCallback(async () => {
+		setLoading(true);
+		setError(null);
+
+		try {
+			const data = await listAttachments(taskId);
+			setAttachments(data);
+		} catch (e) {
+			setError(e instanceof Error ? e.message : 'Failed to load attachments');
+		} finally {
+			setLoading(false);
+		}
+	}, [taskId]);
+
+	useEffect(() => {
+		loadAttachments();
+	}, [loadAttachments]);
+
+	const handleUpload = useCallback(
+		async (files: FileList | null) => {
+			if (!files || files.length === 0) return;
+
+			setUploading(true);
+			setError(null);
+
+			try {
+				for (const file of files) {
+					await uploadAttachment(taskId, file);
+				}
+				await loadAttachments();
+				toast.success(`${files.length} file${files.length > 1 ? 's' : ''} uploaded`);
+			} catch (e) {
+				setError(e instanceof Error ? e.message : 'Upload failed');
+				toast.error('Upload failed');
+			} finally {
+				setUploading(false);
+			}
+		},
+		[taskId, loadAttachments]
+	);
+
+	const handleDelete = useCallback(
+		async (filename: string) => {
+			if (!confirm(`Delete "${filename}"?`)) return;
+
+			try {
+				await deleteAttachment(taskId, filename);
+				setAttachments((prev) => prev.filter((a) => a.filename !== filename));
+				toast.success('Attachment deleted');
+			} catch (e) {
+				setError(e instanceof Error ? e.message : 'Delete failed');
+				toast.error('Delete failed');
+			}
+		},
+		[taskId]
+	);
+
+	const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+		e.preventDefault();
+		setDragOver(true);
+	}, []);
+
+	const handleDragLeave = useCallback(() => {
+		setDragOver(false);
+	}, []);
+
+	const handleDrop = useCallback(
+		(e: DragEvent<HTMLDivElement>) => {
+			e.preventDefault();
+			setDragOver(false);
+			handleUpload(e.dataTransfer?.files ?? null);
+		},
+		[handleUpload]
+	);
+
+	const handleFileInputChange = useCallback(
+		(e: ChangeEvent<HTMLInputElement>) => {
+			handleUpload(e.currentTarget.files);
+			// Reset the input so the same file can be uploaded again
+			e.currentTarget.value = '';
+		},
+		[handleUpload]
+	);
+
+	const openLightbox = useCallback(
+		(filename: string) => {
+			setLightboxImage(getAttachmentUrl(taskId, filename));
+			setLightboxFilename(filename);
+		},
+		[taskId]
+	);
+
+	const closeLightbox = useCallback(() => {
+		setLightboxImage(null);
+		setLightboxFilename(null);
+	}, []);
+
+	// Handle escape key for lightbox
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === 'Escape' && lightboxImage) {
+				closeLightbox();
+			}
+		};
+		document.addEventListener('keydown', handleKeyDown);
+		return () => document.removeEventListener('keydown', handleKeyDown);
+	}, [lightboxImage, closeLightbox]);
+
+	// Split attachments into images and files
+	const images = useMemo(() => attachments.filter((a) => a.is_image), [attachments]);
+	const files = useMemo(() => attachments.filter((a) => !a.is_image), [attachments]);
+
+	return (
+		<div className="attachments-container">
+			{/* Upload area */}
+			<div
+				className={`upload-area ${dragOver ? 'drag-over' : ''}`}
+				onDragOver={handleDragOver}
+				onDragLeave={handleDragLeave}
+				onDrop={handleDrop}
+				role="region"
+				aria-label="File upload area"
+			>
+				<input
+					type="file"
+					id="file-upload"
+					multiple
+					onChange={handleFileInputChange}
+					className="file-input"
+				/>
+				<label htmlFor="file-upload" className="upload-label">
+					<Icon name="upload" size={24} />
+					{uploading ? <span>Uploading...</span> : <span>Drop files here or click to upload</span>}
+				</label>
+			</div>
+
+			{error && <div className="error-message">{error}</div>}
+
+			{loading ? (
+				<div className="loading-state">
+					<div className="spinner" />
+					<span>Loading attachments...</span>
+				</div>
+			) : attachments.length === 0 ? (
+				<div className="empty-state">
+					<p>No attachments yet</p>
+				</div>
+			) : (
+				<>
+					{/* Images gallery */}
+					{images.length > 0 && (
+						<div className="section">
+							<h3 className="section-title">Images ({images.length})</h3>
+							<div className="images-grid">
+								{images.map((attachment) => (
+									<div key={attachment.filename} className="image-card">
+										<button
+											className="image-preview"
+											onClick={() => openLightbox(attachment.filename)}
+											title="Click to enlarge"
+										>
+											<img
+												src={getAttachmentUrl(taskId, attachment.filename)}
+												alt={attachment.filename}
+												loading="lazy"
+											/>
+										</button>
+										<div className="image-info">
+											<span className="image-name" title={attachment.filename}>
+												{attachment.filename}
+											</span>
+											<span className="image-meta">{formatSize(attachment.size)}</span>
+										</div>
+										<button
+											className="delete-btn"
+											onClick={() => handleDelete(attachment.filename)}
+											title="Delete"
+										>
+											<Icon name="trash" size={14} />
+										</button>
+									</div>
+								))}
+							</div>
+						</div>
+					)}
+
+					{/* Files list */}
+					{files.length > 0 && (
+						<div className="section">
+							<h3 className="section-title">Files ({files.length})</h3>
+							<div className="files-list">
+								{files.map((attachment) => (
+									<div key={attachment.filename} className="file-item">
+										<Icon name="file" size={16} className="file-icon" />
+										<a
+											href={getAttachmentUrl(taskId, attachment.filename)}
+											className="file-name"
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											{attachment.filename}
+										</a>
+										<span className="file-meta">{formatSize(attachment.size)}</span>
+										<span className="file-date">{formatDate(attachment.created_at)}</span>
+										<button
+											className="delete-btn"
+											onClick={() => handleDelete(attachment.filename)}
+											title="Delete"
+										>
+											<Icon name="trash" size={14} />
+										</button>
+									</div>
+								))}
+							</div>
+						</div>
+					)}
+				</>
+			)}
+
+			{/* Lightbox modal */}
+			{lightboxImage && (
+				<div
+					className="lightbox"
+					onClick={closeLightbox}
+					role="dialog"
+					aria-modal="true"
+					tabIndex={-1}
+				>
+					<div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+						<button className="lightbox-close" onClick={closeLightbox} aria-label="Close">
+							<Icon name="x" size={24} />
+						</button>
+						<img src={lightboxImage} alt={lightboxFilename ?? 'Image'} />
+						{lightboxFilename && <div className="lightbox-filename">{lightboxFilename}</div>}
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}

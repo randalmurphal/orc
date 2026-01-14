@@ -63,7 +63,8 @@ description: |-
     - Dependencies sidebar collapses/expands
     - E2E tests from Phase 0 pass
 weight: large
-status: planned
+status: running
+current_phase: spec
 branch: orc/TASK-174
 queue: active
 priority: normal
@@ -79,4 +80,5 @@ testing_requirements:
     unit: true
     visual: true
 created_at: 2026-01-14T02:22:21.020881014-06:00
-updated_at: 2026-01-14T02:22:21.030354234-06:00
+updated_at: 2026-01-14T14:58:58.876542-06:00
+started_at: 2026-01-14T14:58:58.876541-06:00
