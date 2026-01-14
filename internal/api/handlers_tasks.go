@@ -9,6 +9,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -54,7 +55,12 @@ func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 	return nil
 }
 
-// handleListTasks returns all tasks with optional pagination.
+// handleListTasks returns all tasks with optional pagination and filtering.
+// Query params:
+//   - initiative: filter by initiative ID (e.g., ?initiative=INIT-001)
+//   - page: page number for pagination
+//   - limit: items per page (max 100)
+//
 // Note: This endpoint uses the server's workDir which may not be a valid orc project.
 // Prefer using /api/projects/{id}/tasks for explicit project-scoped operations.
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
@@ -70,6 +76,22 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	// Ensure we return an empty array, not null
 	if tasks == nil {
 		tasks = []*task.Task{}
+	}
+
+	// Filter by initiative if requested
+	initiativeFilter := r.URL.Query().Get("initiative")
+	if initiativeFilter != "" {
+		var filtered []*task.Task
+		for _, t := range tasks {
+			if t.InitiativeID == initiativeFilter {
+				filtered = append(filtered, t)
+			}
+		}
+		tasks = filtered
+		// Ensure we return an empty array after filtering, not null
+		if tasks == nil {
+			tasks = []*task.Task{}
+		}
 	}
 
 	// Check for pagination params
@@ -124,12 +146,13 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 
 // createTaskRequest holds the parsed task creation request parameters.
 type createTaskRequest struct {
-	Title       string
-	Description string
-	Weight      string
-	Queue       string
-	Priority    string
-	Category    string
+	Title        string
+	Description  string
+	Weight       string
+	Queue        string
+	Priority     string
+	Category     string
+	InitiativeID string
 }
 
 // parseCreateTaskRequest parses the task creation request from either JSON or multipart form.
@@ -145,23 +168,25 @@ func (s *Server) parseCreateTaskRequest(r *http.Request) (*createTaskRequest, bo
 		}
 
 		return &createTaskRequest{
-			Title:       r.FormValue("title"),
-			Description: r.FormValue("description"),
-			Weight:      r.FormValue("weight"),
-			Queue:       r.FormValue("queue"),
-			Priority:    r.FormValue("priority"),
-			Category:    r.FormValue("category"),
+			Title:        r.FormValue("title"),
+			Description:  r.FormValue("description"),
+			Weight:       r.FormValue("weight"),
+			Queue:        r.FormValue("queue"),
+			Priority:     r.FormValue("priority"),
+			Category:     r.FormValue("category"),
+			InitiativeID: r.FormValue("initiative_id"),
 		}, true, nil
 	}
 
 	// Default: parse as JSON
 	var req struct {
-		Title       string `json:"title"`
-		Description string `json:"description,omitempty"`
-		Weight      string `json:"weight,omitempty"`
-		Queue       string `json:"queue,omitempty"`
-		Priority    string `json:"priority,omitempty"`
-		Category    string `json:"category,omitempty"`
+		Title        string `json:"title"`
+		Description  string `json:"description,omitempty"`
+		Weight       string `json:"weight,omitempty"`
+		Queue        string `json:"queue,omitempty"`
+		Priority     string `json:"priority,omitempty"`
+		Category     string `json:"category,omitempty"`
+		InitiativeID string `json:"initiative_id,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -169,12 +194,13 @@ func (s *Server) parseCreateTaskRequest(r *http.Request) (*createTaskRequest, bo
 	}
 
 	return &createTaskRequest{
-		Title:       req.Title,
-		Description: req.Description,
-		Weight:      req.Weight,
-		Queue:       req.Queue,
-		Priority:    req.Priority,
-		Category:    req.Category,
+		Title:        req.Title,
+		Description:  req.Description,
+		Weight:       req.Weight,
+		Queue:        req.Queue,
+		Priority:     req.Priority,
+		Category:     req.Category,
+		InitiativeID: req.InitiativeID,
 	}, false, nil
 }
 
@@ -239,6 +265,16 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		t.Category = category
 	}
 
+	// Link to initiative if specified
+	if req.InitiativeID != "" {
+		// Verify initiative exists
+		if !initiative.Exists(req.InitiativeID, false) {
+			s.jsonError(w, fmt.Sprintf("initiative %s not found", req.InitiativeID), http.StatusBadRequest)
+			return
+		}
+		t.SetInitiative(req.InitiativeID)
+	}
+
 	taskDir := task.TaskDirIn(s.workDir, id)
 	if err := t.SaveTo(taskDir); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
@@ -271,6 +307,21 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	if err := t.SaveTo(taskDir); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
+	}
+
+	// Sync task to initiative if linked
+	if t.HasInitiative() {
+		init, err := initiative.Load(t.InitiativeID)
+		if err == nil {
+			init.AddTask(t.ID, t.Title, nil)
+			if err := init.Save(); err != nil {
+				s.logger.Warn("failed to sync task to initiative",
+					"taskID", id,
+					"initiativeID", t.InitiativeID,
+					"error", err,
+				)
+			}
+		}
 	}
 
 	// Handle file attachments if this was a multipart request
@@ -332,6 +383,20 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Remove from initiative if linked
+	if t.HasInitiative() {
+		if init, err := initiative.Load(t.InitiativeID); err == nil {
+			init.RemoveTask(t.ID)
+			if err := init.Save(); err != nil {
+				s.logger.Warn("failed to remove task from initiative on delete",
+					"taskID", id,
+					"initiativeID", t.InitiativeID,
+					"error", err,
+				)
+			}
+		}
+	}
+
 	// Delete task
 	if err := task.DeleteIn(s.workDir, id); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to delete task: %v", err), http.StatusInternalServerError)
@@ -360,13 +425,14 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 
 	// Parse request body
 	var req struct {
-		Title       *string           `json:"title,omitempty"`
-		Description *string           `json:"description,omitempty"`
-		Weight      *string           `json:"weight,omitempty"`
-		Queue       *string           `json:"queue,omitempty"`
-		Priority    *string           `json:"priority,omitempty"`
-		Category    *string           `json:"category,omitempty"`
-		Metadata    map[string]string `json:"metadata,omitempty"`
+		Title        *string           `json:"title,omitempty"`
+		Description  *string           `json:"description,omitempty"`
+		Weight       *string           `json:"weight,omitempty"`
+		Queue        *string           `json:"queue,omitempty"`
+		Priority     *string           `json:"priority,omitempty"`
+		Category     *string           `json:"category,omitempty"`
+		InitiativeID *string           `json:"initiative_id,omitempty"`
+		Metadata     map[string]string `json:"metadata,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -430,6 +496,25 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		t.Category = category
 	}
 
+	// Track initiative change for bidirectional sync
+	oldInitiative := t.InitiativeID
+	initiativeChanged := false
+
+	if req.InitiativeID != nil {
+		// Empty string means unlink
+		if *req.InitiativeID != "" {
+			// Verify initiative exists
+			if !initiative.Exists(*req.InitiativeID, false) {
+				s.jsonError(w, fmt.Sprintf("initiative %s not found", *req.InitiativeID), http.StatusBadRequest)
+				return
+			}
+		}
+		if t.InitiativeID != *req.InitiativeID {
+			t.SetInitiative(*req.InitiativeID)
+			initiativeChanged = true
+		}
+	}
+
 	if req.Metadata != nil {
 		if t.Metadata == nil {
 			t.Metadata = make(map[string]string)
@@ -472,6 +557,36 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 			"preservedPhases", result.PreservedPhases,
 			"resetPhases", result.ResetPhases,
 		)
+	}
+
+	// Handle initiative change - sync bidirectionally
+	if initiativeChanged {
+		// Remove from old initiative if it was linked
+		if oldInitiative != "" {
+			if oldInit, err := initiative.Load(oldInitiative); err == nil {
+				oldInit.RemoveTask(t.ID)
+				if err := oldInit.Save(); err != nil {
+					s.logger.Warn("failed to remove task from old initiative",
+						"taskID", id,
+						"initiativeID", oldInitiative,
+						"error", err,
+					)
+				}
+			}
+		}
+		// Add to new initiative if linking
+		if t.HasInitiative() {
+			if newInit, err := initiative.Load(t.InitiativeID); err == nil {
+				newInit.AddTask(t.ID, t.Title, nil)
+				if err := newInit.Save(); err != nil {
+					s.logger.Warn("failed to add task to new initiative",
+						"taskID", id,
+						"initiativeID", t.InitiativeID,
+						"error", err,
+					)
+				}
+			}
+		}
 	}
 
 	s.jsonResponse(w, t)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/detect"
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/template"
@@ -40,13 +41,17 @@ Use --attach to add screenshots or files during task creation:
   orc new "UI bug" --attach screenshot.png
   orc new "Fix layout" --attach before.png --attach after.png
 
+Use --initiative to link the task to an initiative:
+  orc new "Add auth flow" --initiative INIT-001
+
 Example:
   orc new "Fix authentication timeout bug"
   orc new "Implement user dashboard" --weight large
   orc new "Create new microservice" --weight greenfield
   orc new "Fix login bug" --category bug
   orc new -t bugfix "Fix memory leak"
-  orc new "Button misaligned" --attach screenshot.png`,
+  orc new "Button misaligned" --attach screenshot.png
+  orc new "Implement login" --initiative INIT-001`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -60,6 +65,7 @@ Example:
 			templateName, _ := cmd.Flags().GetString("template")
 			varsFlag, _ := cmd.Flags().GetStringSlice("var")
 			attachments, _ := cmd.Flags().GetStringSlice("attach")
+			initiativeID, _ := cmd.Flags().GetString("initiative")
 
 			// Parse variable flags
 			vars := make(map[string]string)
@@ -125,6 +131,15 @@ Example:
 				t.Category = cat
 			}
 
+			// Link to initiative if specified
+			if initiativeID != "" {
+				// Verify initiative exists
+				if !initiative.Exists(initiativeID, false) {
+					return fmt.Errorf("initiative %s not found", initiativeID)
+				}
+				t.SetInitiative(initiativeID)
+			}
+
 			// Detect project characteristics for testing requirements
 			// This is a fast operation (<10ms) so we run it on every task creation
 			detection, _ := detect.Detect(".")
@@ -186,6 +201,20 @@ Example:
 				return fmt.Errorf("update task: %w", err)
 			}
 
+			// Sync task to initiative if linked
+			if t.HasInitiative() {
+				init, err := initiative.Load(t.InitiativeID)
+				if err != nil {
+					// Log warning but don't fail task creation
+					fmt.Printf("Warning: failed to load initiative %s for sync: %v\n", t.InitiativeID, err)
+				} else {
+					init.AddTask(t.ID, t.Title, nil)
+					if err := init.Save(); err != nil {
+						fmt.Printf("Warning: failed to sync task to initiative: %v\n", err)
+					}
+				}
+			}
+
 			fmt.Printf("Task created: %s\n", id)
 			fmt.Printf("   Title:    %s\n", title)
 			fmt.Printf("   Weight:   %s\n", t.Weight)
@@ -193,6 +222,9 @@ Example:
 			fmt.Printf("   Phases:   %d\n", len(p.Phases))
 			if tpl != nil {
 				fmt.Printf("   Template: %s\n", tpl.Name)
+			}
+			if t.HasInitiative() {
+				fmt.Printf("   Initiative: %s\n", t.InitiativeID)
 			}
 			if t.RequiresUITesting {
 				fmt.Printf("   UI Testing: required (detected from task description)\n")
@@ -272,5 +304,6 @@ Example:
 	cmd.Flags().StringP("template", "t", "", "use template (bugfix, feature, refactor, migration, spike)")
 	cmd.Flags().StringSlice("var", nil, "template variable (KEY=VALUE)")
 	cmd.Flags().StringSliceP("attach", "a", nil, "file(s) to attach (screenshots, logs, etc.)")
+	cmd.Flags().StringP("initiative", "i", "", "link task to initiative (e.g., INIT-001)")
 	return cmd
 }

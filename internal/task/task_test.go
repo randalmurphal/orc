@@ -919,3 +919,127 @@ func TestQueueAndPriority_DefaultsAfterLoad(t *testing.T) {
 		t.Errorf("GetPriority() should default to normal, got %s", loaded.GetPriority())
 	}
 }
+
+// Tests for InitiativeID functionality
+
+func TestNew_NoInitiative(t *testing.T) {
+	task := New("TASK-001", "Test task")
+
+	if task.InitiativeID != "" {
+		t.Errorf("expected InitiativeID to be empty, got %s", task.InitiativeID)
+	}
+	if task.HasInitiative() {
+		t.Error("HasInitiative() should return false for new task")
+	}
+}
+
+func TestSetInitiative(t *testing.T) {
+	task := New("TASK-001", "Test task")
+
+	// Set initiative
+	task.SetInitiative("INIT-001")
+	if task.InitiativeID != "INIT-001" {
+		t.Errorf("expected InitiativeID 'INIT-001', got %s", task.InitiativeID)
+	}
+	if !task.HasInitiative() {
+		t.Error("HasInitiative() should return true after setting initiative")
+	}
+	if task.GetInitiativeID() != "INIT-001" {
+		t.Errorf("GetInitiativeID() should return 'INIT-001', got %s", task.GetInitiativeID())
+	}
+
+	// Unlink initiative
+	task.SetInitiative("")
+	if task.InitiativeID != "" {
+		t.Errorf("expected InitiativeID to be empty after unlinking, got %s", task.InitiativeID)
+	}
+	if task.HasInitiative() {
+		t.Error("HasInitiative() should return false after unlinking")
+	}
+}
+
+func TestGetInitiativeID(t *testing.T) {
+	task := New("TASK-001", "Test task")
+
+	// Empty by default
+	if task.GetInitiativeID() != "" {
+		t.Errorf("GetInitiativeID() should return empty string for new task, got %s", task.GetInitiativeID())
+	}
+
+	// Returns value when set
+	task.InitiativeID = "INIT-002"
+	if task.GetInitiativeID() != "INIT-002" {
+		t.Errorf("GetInitiativeID() should return 'INIT-002', got %s", task.GetInitiativeID())
+	}
+}
+
+func TestHasInitiative(t *testing.T) {
+	tests := []struct {
+		initiativeID string
+		expected     bool
+	}{
+		{"", false},
+		{"INIT-001", true},
+		{"INIT-123", true},
+	}
+
+	for _, tt := range tests {
+		task := &Task{ID: "TASK-001", InitiativeID: tt.initiativeID}
+		if task.HasInitiative() != tt.expected {
+			t.Errorf("HasInitiative() for %q = %v, want %v", tt.initiativeID, task.HasInitiative(), tt.expected)
+		}
+	}
+}
+
+func TestInitiativeID_YAMLSerialization(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
+	os.MkdirAll(taskDir, 0755)
+
+	// Create task with initiative
+	task := New("TASK-001", "Test task")
+	task.SetInitiative("INIT-001")
+
+	if err := task.SaveTo(taskDir); err != nil {
+		t.Fatalf("SaveTo() failed: %v", err)
+	}
+
+	// Load and verify
+	loaded, err := LoadFrom(tmpDir, "TASK-001")
+	if err != nil {
+		t.Fatalf("LoadFrom() failed: %v", err)
+	}
+
+	if loaded.InitiativeID != "INIT-001" {
+		t.Errorf("InitiativeID not preserved: got %s, want INIT-001", loaded.InitiativeID)
+	}
+	if !loaded.HasInitiative() {
+		t.Error("HasInitiative() should return true after load")
+	}
+}
+
+func TestInitiativeID_EmptySerialization(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
+	os.MkdirAll(taskDir, 0755)
+
+	// Create task without initiative
+	task := New("TASK-001", "Test task")
+
+	if err := task.SaveTo(taskDir); err != nil {
+		t.Fatalf("SaveTo() failed: %v", err)
+	}
+
+	// Load and verify
+	loaded, err := LoadFrom(tmpDir, "TASK-001")
+	if err != nil {
+		t.Fatalf("LoadFrom() failed: %v", err)
+	}
+
+	if loaded.InitiativeID != "" {
+		t.Errorf("InitiativeID should be empty, got %s", loaded.InitiativeID)
+	}
+	if loaded.HasInitiative() {
+		t.Error("HasInitiative() should return false for task without initiative")
+	}
+}
