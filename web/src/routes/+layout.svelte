@@ -138,6 +138,10 @@
 				showProjectSwitcher = true;
 				showCommandPalette = false;
 			},
+			onSearch: () => {
+				// Dispatch event for pages to handle focusing their search input
+				window.dispatchEvent(new CustomEvent('orc:focus-search'));
+			},
 			onHelp: () => {
 				showShortcutsHelp = true;
 			},

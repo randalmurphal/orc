@@ -99,16 +99,44 @@ Project selection persists across page refreshes using URL and localStorage:
 
 **Global shortcuts use Shift+Alt** (Shift+Option on Mac) to avoid browser conflicts with Cmd+K, Cmd+N, etc.
 
+### Global Shortcuts
+
 | Shortcut | Action |
 |----------|--------|
 | `Shift+Alt+K` | Command palette |
-| `Shift+Alt+N` | New task |
+| `Shift+Alt+N` | New task modal |
 | `Shift+Alt+B` | Toggle sidebar |
 | `Shift+Alt+P` | Project switcher |
-| `g d/t/s` | Go to dashboard/tasks/settings |
-| `j/k` | Navigate task list |
-| `Enter` | Open selected |
-| `r/p/d` | Run/Pause/Delete task |
+| `?` | Show keyboard shortcuts help |
+| `Escape` | Close any open modal |
+
+### Navigation Sequences
+
+Multi-key sequences for navigation (type keys in quick succession):
+
+| Sequence | Action |
+|----------|--------|
+| `g d` | Go to dashboard |
+| `g t` | Go to tasks (board/list) |
+| `g e` | Go to environment |
+
+### Task List Context
+
+These shortcuts work when on the tasks/board page:
+
+| Shortcut | Action |
+|----------|--------|
+| `j` | Move selection down |
+| `k` | Move selection up |
+| `Enter` | Open selected task |
+| `/` | Focus search input |
+| `r` | Run selected task |
+| `p` | Pause selected task |
+| `d` | Delete selected task |
+
+**Input field behavior:** Shortcuts are disabled when typing in input fields, text areas, or contenteditable elements to prevent interference.
+
+**E2E test coverage:** See `e2e/keyboard-shortcuts.spec.ts` (13 tests) for comprehensive shortcut testing.
 
 ## Development
 
@@ -928,7 +956,7 @@ bunx playwright test --project=visual --update-snapshots # Capture new baselines
 | `e2e/navigation.spec.ts` | Routing, navigation, back button |
 | `e2e/sidebar.spec.ts` | Sidebar navigation, collapse state |
 | `e2e/dashboard.spec.ts` | Dashboard stats, quick actions |
-| `e2e/keyboard-shortcuts.spec.ts` | Keyboard shortcut handling |
+| `e2e/keyboard-shortcuts.spec.ts` | Global shortcuts (Shift+Alt+K/N/B/P, ?), navigation sequences (g+d/t/e), task list context (j/k, Enter, /) (13 tests) |
 | `e2e/hooks.spec.ts` | Hook configuration UI |
 | `e2e/prompts.spec.ts` | Prompt editor UI |
 | `e2e/websocket.spec.ts` | WebSocket real-time updates, connection handling (17 tests) |

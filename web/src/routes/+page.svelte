@@ -47,6 +47,7 @@
 	let error = $state<string | null>(null);
 	let selectedIndex = $state(-1);
 	let cleanupShortcuts: (() => void) | null = null;
+	let searchInputRef: HTMLInputElement | null = null;
 
 	// Transcript modal state
 	let transcriptModalOpen = $state(false);
@@ -82,6 +83,13 @@
 			return filtered[selectedIndex];
 		}
 		return null;
+	}
+
+	// Handle focus search event from global shortcut (/ key)
+	function handleFocusSearch() {
+		if (searchInputRef) {
+			searchInputRef.focus();
+		}
 	}
 
 	onMount(() => {
@@ -130,11 +138,17 @@
 				}
 			}
 		});
+
+		// Listen for focus search event from global shortcut (/ key)
+		window.addEventListener('orc:focus-search', handleFocusSearch);
 	});
 
 	onDestroy(() => {
 		if (cleanupShortcuts) {
 			cleanupShortcuts();
+		}
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('orc:focus-search', handleFocusSearch);
 		}
 	});
 
@@ -357,7 +371,7 @@
 					<circle cx="11" cy="11" r="8" />
 					<path d="m21 21-4.35-4.35" />
 				</svg>
-				<input type="text" placeholder="Search tasks..." bind:value={searchQuery} />
+				<input type="text" placeholder="Search tasks..." bind:value={searchQuery} bind:this={searchInputRef} />
 			</div>
 
 			<!-- Initiative Filter -->
