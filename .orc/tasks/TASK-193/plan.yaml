@@ -26,7 +26,8 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
+      commit_sha: d7bddfe7012cc663c7bfdd2eb6ba8f4bf320bcd8
     - id: test
       name: test
       prompt: |
@@ -50,7 +51,8 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
+      commit_sha: b640c85aa7d3ae000ce4eab210d3552077718944
     - id: docs
       name: docs
       prompt: |
@@ -74,4 +76,5 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
+      commit_sha: f259071f2059a19a6c5e5a9e105279932ee99343
