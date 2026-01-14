@@ -379,6 +379,9 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-commit: auto-fix triggered
+	s.autoCommitTask(t, "auto-fix triggered")
+
 	// Create cancellable context for execution
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -492,6 +495,9 @@ func (s *Server) handleMergePR(w http.ResponseWriter, r *http.Request) {
 	if err := t.Save(); err != nil {
 		s.logger.Error("failed to update task status after merge", "task", taskID, "error", err)
 		warning = "task status not updated: " + err.Error()
+	} else {
+		// Auto-commit: PR merged
+		s.autoCommitTask(t, "merged")
 	}
 
 	response := map[string]any{
@@ -900,6 +906,9 @@ func (s *Server) handleRefreshPRStatus(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, fmt.Sprintf("failed to save task: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Auto-commit: PR status updated
+	s.autoCommitTask(t, "PR status updated")
 
 	s.jsonResponse(w, map[string]any{
 		"pr":      pr,

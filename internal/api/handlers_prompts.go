@@ -2,7 +2,9 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/randalmurphal/orc/internal/prompt"
@@ -84,6 +86,9 @@ func (s *Server) handleSavePrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-commit prompt change
+	s.autoCommitPrompt(phase, "updated")
+
 	// Return updated prompt
 	p, err := svc.Get(phase)
 	if err != nil {
@@ -110,5 +115,45 @@ func (s *Server) handleDeletePrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-commit prompt deletion
+	s.autoCommitPrompt(phase, "deleted")
+
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// autoCommitPrompt commits prompt changes to git if auto-commit is enabled.
+func (s *Server) autoCommitPrompt(phase, action string) {
+	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
+		return
+	}
+
+	promptDir := filepath.Join(s.workDir, ".orc", "prompts")
+
+	// Git add the prompts directory
+	addCmd := exec.Command("git", "add", promptDir)
+	addCmd.Dir = s.workDir
+	if err := addCmd.Run(); err != nil {
+		s.logger.Debug("skip prompt auto-commit: git add failed", "error", err)
+		return
+	}
+
+	// Check if there are staged changes
+	diffCmd := exec.Command("git", "diff", "--cached", "--quiet")
+	diffCmd.Dir = s.workDir
+	if err := diffCmd.Run(); err == nil {
+		// No changes to commit
+		return
+	}
+
+	// Commit the changes
+	prefix := s.orcConfig.CommitPrefix
+	if prefix == "" {
+		prefix = "[orc]"
+	}
+	commitMsg := fmt.Sprintf("%s prompt: %s phase %s", prefix, phase, action)
+	commitCmd := exec.Command("git", "commit", "-m", commitMsg)
+	commitCmd.Dir = s.workDir
+	if err := commitCmd.Run(); err != nil {
+		s.logger.Warn("failed to auto-commit prompt change", "error", err)
+	}
 }

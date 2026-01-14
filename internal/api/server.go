@@ -441,9 +441,10 @@ func (s *Server) StartContext(ctx context.Context) error {
 
 	// Create and start PR status poller
 	s.prPoller = NewPRPoller(PRPollerConfig{
-		WorkDir:  s.workDir,
-		Interval: 60 * time.Second,
-		Logger:   s.logger,
+		WorkDir:   s.workDir,
+		Interval:  60 * time.Second,
+		Logger:    s.logger,
+		OrcConfig: s.orcConfig,
 		OnStatusChange: func(taskID string, pr *task.PRInfo) {
 			// Publish task update event when PR status changes
 			s.logger.Info("PR status changed", "task", taskID, "status", pr.Status)
@@ -532,6 +533,9 @@ func (s *Server) pauseTask(id string) (map[string]any, error) {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
+	// Auto-commit: task paused (WebSocket)
+	s.autoCommitTask(t, "paused")
+
 	return map[string]any{
 		"status":  "paused",
 		"task_id": id,
@@ -551,6 +555,9 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 		if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
 			return nil, fmt.Errorf("failed to update task: %w", err)
 		}
+
+		// Auto-commit: task resumed (WebSocket)
+		s.autoCommitTask(t, "resumed")
 
 		// Resume execution
 		p, err := plan.LoadFrom(s.workDir, id)
@@ -619,6 +626,9 @@ func (s *Server) cancelTask(id string) (map[string]any, error) {
 	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
+
+	// Auto-commit: task cancelled (WebSocket)
+	s.autoCommitTask(t, "cancelled")
 
 	return map[string]any{
 		"status":  "cancelled",

@@ -50,6 +50,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		return fmt.Errorf("save state: %w", err)
 	}
 
+	// Auto-commit: task execution started
+	e.commitTaskStatus(t, "running")
+
 	// Setup worktree if enabled
 	if e.orcConfig.Worktree.Enabled && e.gitOps != nil {
 		if err := e.setupWorktreeForTask(t); err != nil {
@@ -150,6 +153,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		if err := p.SaveTo(e.currentTaskDir); err != nil {
 			return fmt.Errorf("save plan: %w", err)
 		}
+
+		// Auto-commit: phase completed
+		e.commitTaskState(t, fmt.Sprintf("%s phase completed", phase.ID))
 
 		// Publish phase completion events
 		e.publishPhaseComplete(t.ID, phase.ID, result.CommitSHA)
@@ -316,6 +322,9 @@ func (e *Executor) failSetup(t *task.Task, s *state.State, err error) {
 		e.logger.Error("failed to save task on setup failure", "error", saveErr)
 	}
 
+	// Auto-commit: setup failed
+	e.commitTaskStatus(t, "failed")
+
 	// Publish failure events - use "setup" as the phase identifier
 	e.publishError(t.ID, "setup", err.Error(), true)
 	e.publishState(t.ID, s)
@@ -332,6 +341,9 @@ func (e *Executor) failTask(t *task.Task, phase *plan.Phase, s *state.State, err
 	if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
 		e.logger.Error("failed to save task on failure", "error", saveErr)
 	}
+
+	// Auto-commit: task failed
+	e.commitTaskStatus(t, "failed")
 
 	// Publish failure events
 	e.publishPhaseFailed(t.ID, phase.ID, err)
@@ -413,6 +425,9 @@ func (e *Executor) completeTask(ctx context.Context, t *task.Task, s *state.Stat
 	if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
 		e.logger.Error("failed to save task on completion", "error", saveErr)
 	}
+
+	// Auto-commit: task completed
+	e.commitTaskStatus(t, "completed")
 
 	// Run completion action (merge/PR)
 	if err := e.runCompletion(ctx, t); err != nil {
@@ -563,6 +578,9 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 		return fmt.Errorf("save state: %w", err)
 	}
 
+	// Auto-commit: finalize phase starting
+	e.commitTaskState(t, "finalize phase starting")
+
 	// Setup worktree if enabled
 	if e.orcConfig.Worktree.Enabled && e.gitOps != nil {
 		if err := e.setupWorktreeForTask(t); err != nil {
@@ -705,6 +723,9 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 		e.logger.Error("failed to save task on completion", "error", saveErr)
 	}
 
+	// Auto-commit: finalize phase completed
+	e.commitTaskState(t, "finalize phase completed")
+
 	// Publish completion events
 	e.publishPhaseComplete(t.ID, "finalize", result.CommitSHA)
 	e.publishTokens(t.ID, "finalize", result.InputTokens, result.OutputTokens, 0, 0, result.InputTokens+result.OutputTokens)
@@ -738,6 +759,10 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 			if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
 				e.logger.Error("failed to save task after merge", "error", saveErr)
 			}
+
+			// Auto-commit: task finished (merged)
+			e.commitTaskStatus(t, "finished")
+
 			e.publishState(t.ID, s)
 		}
 	}

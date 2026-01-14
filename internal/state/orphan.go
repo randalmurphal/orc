@@ -2,10 +2,12 @@
 package state
 
 import (
+	"log/slog"
 	"os"
 	"syscall"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -155,5 +157,43 @@ func MarkOrphanedAsInterrupted(projectDir, taskID string) error {
 
 	// Update task status to blocked (resumable)
 	t.Status = task.StatusBlocked
-	return t.SaveTo(taskDir)
+	if err := t.SaveTo(taskDir); err != nil {
+		return err
+	}
+
+	// Auto-commit: orphan recovery
+	commitOrphanRecovery(projectDir, t)
+
+	return nil
+}
+
+// commitOrphanRecovery commits the orphan recovery state change if auto-commit is enabled.
+func commitOrphanRecovery(projectDir string, t *task.Task) {
+	// Load config to check if auto-commit is disabled
+	cfg, err := config.Load()
+	if err != nil {
+		return // Skip commit on config error
+	}
+	if cfg.Tasks.DisableAutoCommit {
+		return
+	}
+
+	// Find project root for git operations
+	root := projectDir
+	if root == "" {
+		root, err = config.FindProjectRoot()
+		if err != nil {
+			return
+		}
+	}
+
+	commitCfg := task.CommitConfig{
+		ProjectRoot:  root,
+		CommitPrefix: cfg.CommitPrefix,
+		Logger:       slog.Default(),
+	}
+
+	if err := task.CommitStatusChange(t, "orphan-recovered", commitCfg); err != nil {
+		slog.Default().Warn("failed to auto-commit orphan recovery", "task", t.ID, "error", err)
+	}
 }
