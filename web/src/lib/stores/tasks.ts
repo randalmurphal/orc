@@ -1,6 +1,6 @@
 import { writable, derived, get, type Readable } from 'svelte/store';
 import type { Task, TaskState } from '$lib/types';
-import { listTasks, listProjectTasks, getTask, getProjectTask, getTaskState, getProjectTaskState } from '$lib/api';
+import { listProjectTasks, getProjectTask, getProjectTaskState } from '$lib/api';
 import { currentProjectId } from './project';
 
 // Store for all tasks
@@ -59,15 +59,15 @@ export async function loadTasks(): Promise<void> {
 
 	try {
 		const projectId = get(currentProjectId);
-		let loaded: Task[];
 
-		if (projectId) {
-			loaded = await listProjectTasks(projectId);
-		} else {
-			const result = await listTasks();
-			loaded = Array.isArray(result) ? result : result.tasks;
+		// No project selected - return empty list
+		// Tasks are always project-scoped, so we need a project context
+		if (!projectId) {
+			tasks.set([]);
+			return;
 		}
 
+		const loaded = await listProjectTasks(projectId);
 		tasks.set(loaded);
 	} catch (e) {
 		const errorMsg = e instanceof Error ? e.message : 'Failed to load tasks';
@@ -168,14 +168,13 @@ export function addTask(task: Task): void {
 export async function refreshTask(taskId: string): Promise<Task | null> {
 	try {
 		const projectId = get(currentProjectId);
-		let task: Task;
 
-		if (projectId) {
-			task = await getProjectTask(projectId, taskId);
-		} else {
-			task = await getTask(taskId);
+		// No project selected - can't refresh task
+		if (!projectId) {
+			return null;
 		}
 
+		const task = await getProjectTask(projectId, taskId);
 		updateTask(taskId, task);
 		return task;
 	} catch (e) {
@@ -188,14 +187,13 @@ export async function refreshTask(taskId: string): Promise<Task | null> {
 export async function refreshTaskState(taskId: string): Promise<TaskState | null> {
 	try {
 		const projectId = get(currentProjectId);
-		let state: TaskState;
 
-		if (projectId) {
-			state = await getProjectTaskState(projectId, taskId);
-		} else {
-			state = await getTaskState(taskId);
+		// No project selected - can't refresh task state
+		if (!projectId) {
+			return null;
 		}
 
+		const state = await getProjectTaskState(projectId, taskId);
 		updateTaskState(taskId, state);
 		return state;
 	} catch (e) {

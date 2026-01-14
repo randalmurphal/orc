@@ -17,11 +17,13 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 
 ## Tasks (Global)
 
-CWD-based task operations.
+CWD-based task operations. These endpoints use the server's working directory as the project root.
+
+**Note:** When the server is started from a non-orc directory, `/api/tasks` returns an empty list rather than an error. For explicit project-scoped operations, use `/api/projects/:id/tasks` instead.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/tasks` | List tasks (`?page=N&limit=N`) |
+| GET | `/api/tasks` | List tasks (`?page=N&limit=N`) - returns empty list if not in orc project |
 | POST | `/api/tasks` | Create task |
 | GET | `/api/tasks/:id` | Get task |
 | PATCH | `/api/tasks/:id` | Update task (title, description, weight, metadata) |

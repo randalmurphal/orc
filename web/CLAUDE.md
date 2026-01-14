@@ -72,6 +72,8 @@ Project selection persists across page refreshes using URL and localStorage:
 
 **API:** Use `selectProject(id)` to switch projects (updates URL + localStorage). Use `setDefaultProject(id)` to persist a server-side default.
 
+**Note:** Task operations (create, run, pause, resume, delete) require a project to be selected. When no project is selected, the UI shows a "Select Project" prompt instead of an empty task list. All task operations use the project-scoped API endpoints (`/api/projects/:id/tasks/*`) rather than the CWD-based endpoints.
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |

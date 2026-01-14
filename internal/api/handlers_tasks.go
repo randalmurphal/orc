@@ -54,11 +54,15 @@ func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 }
 
 // handleListTasks returns all tasks with optional pagination.
+// Note: This endpoint uses the server's workDir which may not be a valid orc project.
+// Prefer using /api/projects/{id}/tasks for explicit project-scoped operations.
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
 	tasks, err := task.LoadAllFrom(tasksDir)
 	if err != nil {
-		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
+		// If the tasks directory doesn't exist, return empty list
+		// This handles the case where server is started from a non-project directory
+		s.jsonResponse(w, []*task.Task{})
 		return
 	}
 
