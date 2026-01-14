@@ -213,6 +213,108 @@ func (e *Executor) syncBeforePhase(ctx context.Context, t *task.Task, phaseID st
 	return e.syncWithTargetPhase(ctx, t, SyncPhaseStart)
 }
 
+// syncOnTaskStart syncs the task branch with target before execution starts.
+// This catches conflicts from parallel tasks early - if task A merges to main while
+// task B's worktree is stale, this sync brings in task A's changes so task B can
+// incorporate them during the implement phase.
+//
+// Unlike syncWithTarget which fails on conflicts, this is more lenient:
+// - Conflicts are logged but don't block execution
+// - The implement phase gets a chance to resolve conflicts intelligently
+// - If conflicts can't be auto-resolved, FailOnConflict config applies
+func (e *Executor) syncOnTaskStart(ctx context.Context, t *task.Task) error {
+	cfg := e.orcConfig.Completion
+	syncCfg := cfg.Sync
+	targetBranch := cfg.TargetBranch
+	if targetBranch == "" {
+		targetBranch = "main"
+	}
+
+	// Use worktree git if available
+	gitOps := e.gitOps
+	if e.worktreeGit != nil {
+		gitOps = e.worktreeGit
+	}
+
+	if gitOps == nil {
+		e.logger.Debug("skipping sync-on-start: git ops not available")
+		return nil
+	}
+
+	e.logger.Info("syncing with target before execution",
+		"target", targetBranch,
+		"task", t.ID,
+		"reason", "catch stale worktree from parallel tasks")
+
+	// Fetch latest from remote
+	if err := gitOps.Fetch("origin"); err != nil {
+		e.logger.Warn("fetch failed, continuing anyway", "error", err)
+	}
+
+	target := "origin/" + targetBranch
+
+	// Check if we're behind target
+	ahead, behind, err := gitOps.GetCommitCounts(target)
+	if err != nil {
+		e.logger.Warn("could not determine commit counts, skipping sync", "error", err)
+		return nil // Don't fail - this is best effort
+	}
+
+	if behind == 0 {
+		e.logger.Info("branch already up-to-date with target",
+			"target", targetBranch,
+			"commits_ahead", ahead)
+		return nil
+	}
+
+	e.logger.Info("task branch is behind target",
+		"target", targetBranch,
+		"commits_behind", behind,
+		"commits_ahead", ahead)
+
+	// Attempt rebase with conflict detection
+	result, err := gitOps.RebaseWithConflictCheck(target)
+	if err != nil {
+		if errors.Is(err, git.ErrMergeConflict) {
+			// Log conflict details
+			e.logger.Warn("sync-on-start encountered conflicts",
+				"task", t.ID,
+				"conflict_files", result.ConflictFiles,
+				"commits_behind", result.CommitsBehind)
+
+			// Check if we should fail on conflicts
+			conflictCount := len(result.ConflictFiles)
+			if syncCfg.MaxConflictFiles > 0 && conflictCount > syncCfg.MaxConflictFiles {
+				return fmt.Errorf("%w: %d conflict files exceeds max allowed (%d): %v",
+					ErrSyncConflict, conflictCount, syncCfg.MaxConflictFiles, result.ConflictFiles)
+			}
+
+			if syncCfg.FailOnConflict {
+				return fmt.Errorf("%w: task branch has %d files in conflict with target\n"+
+					"  Conflicting files: %v\n"+
+					"  Resolution options:\n"+
+					"    1. Run with sync_on_start: false and resolve conflicts during finalize\n"+
+					"    2. Manually rebase the task branch and retry\n"+
+					"    3. Set completion.sync.fail_on_conflict: false to proceed anyway",
+					ErrSyncConflict, conflictCount, result.ConflictFiles)
+			}
+
+			// Continue execution - implement phase may resolve conflicts
+			e.logger.Warn("continuing despite conflicts (fail_on_conflict: false)",
+				"task", t.ID,
+				"conflict_count", conflictCount)
+			return nil
+		}
+		return fmt.Errorf("rebase onto %s: %w", target, err)
+	}
+
+	e.logger.Info("synced task branch with target",
+		"target", targetBranch,
+		"commits_ahead", result.CommitsAhead)
+
+	return nil
+}
+
 // ErrDirectMergeBlocked is returned when direct merge to a protected branch is blocked.
 var ErrDirectMergeBlocked = errors.New("direct merge to protected branch blocked")
 

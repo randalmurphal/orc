@@ -46,6 +46,18 @@ Examples:
 				return fmt.Errorf("save task: %w", err)
 			}
 
+			// Auto-commit the status change
+			cfg, _ := config.Load()
+			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
+				if projectDir, err := config.FindProjectRoot(); err == nil {
+					commitCfg := task.CommitConfig{
+						ProjectRoot:  projectDir,
+						CommitPrefix: cfg.CommitPrefix,
+					}
+					task.CommitAndSync(t, "paused", commitCfg)
+				}
+			}
+
 			fmt.Printf("⏸️  Task %s paused\n", id)
 			fmt.Printf("   Resume with: orc resume %s\n", id)
 			return nil
@@ -109,6 +121,18 @@ Examples:
 			t.Status = task.StatusFailed
 			if err := t.Save(); err != nil {
 				return fmt.Errorf("save task: %w", err)
+			}
+
+			// Auto-commit the status change
+			cfg, _ := config.Load()
+			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
+				if projectDir, err := config.FindProjectRoot(); err == nil {
+					commitCfg := task.CommitConfig{
+						ProjectRoot:  projectDir,
+						CommitPrefix: cfg.CommitPrefix,
+					}
+					task.CommitAndSync(t, "stopped", commitCfg)
+				}
 			}
 
 			fmt.Printf("🛑 Task %s stopped (marked as failed)\n", id)

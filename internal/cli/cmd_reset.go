@@ -109,6 +109,18 @@ Examples:
 				return fmt.Errorf("save task: %w", err)
 			}
 
+			// Auto-commit the reset
+			cfg, _ := config.Load()
+			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
+				if projectDir, err := config.FindProjectRoot(); err == nil {
+					commitCfg := task.CommitConfig{
+						ProjectRoot:  projectDir,
+						CommitPrefix: cfg.CommitPrefix,
+					}
+					task.CommitAndSync(t, "reset", commitCfg)
+				}
+			}
+
 			fmt.Printf("🔄 Task %s reset to initial state\n", id)
 			fmt.Printf("   Run: orc run %s to start fresh\n", id)
 			return nil

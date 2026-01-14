@@ -447,7 +447,7 @@ func (g *Git) DetectConflicts(target string) (*SyncResult, error) {
 	result := &SyncResult{}
 
 	// Get commit counts
-	ahead, behind, err := g.getCommitCounts(target)
+	ahead, behind, err := g.GetCommitCounts(target)
 	if err != nil {
 		return nil, fmt.Errorf("get commit counts: %w", err)
 	}
@@ -542,8 +542,10 @@ func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
 	return result, nil
 }
 
-// getCommitCounts returns (ahead, behind) commit counts relative to target.
-func (g *Git) getCommitCounts(target string) (int, int, error) {
+// GetCommitCounts returns (ahead, behind) commit counts relative to target.
+// Ahead is how many commits HEAD has that target doesn't.
+// Behind is how many commits target has that HEAD doesn't.
+func (g *Git) GetCommitCounts(target string) (int, int, error) {
 	// git rev-list --count --left-right HEAD...target
 	output, err := g.ctx.RunGit("rev-list", "--count", "--left-right", "HEAD..."+target)
 	if err != nil {
@@ -577,7 +579,7 @@ func (g *Git) RebaseWithConflictCheck(target string) (*SyncResult, error) {
 	result := &SyncResult{}
 
 	// Get initial state
-	ahead, behind, err := g.getCommitCounts(target)
+	ahead, behind, err := g.GetCommitCounts(target)
 	if err != nil {
 		return nil, fmt.Errorf("get commit counts: %w", err)
 	}

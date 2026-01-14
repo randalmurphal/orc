@@ -92,6 +92,16 @@ Use --force to resume a task even if it appears to still be running.`,
 					if err := t.SaveTo(taskDir); err != nil {
 						return fmt.Errorf("save task: %w", err)
 					}
+
+					// Auto-commit the force resume state change
+					cfg, _ := config.Load()
+					if cfg != nil && !cfg.Tasks.DisableAutoCommit {
+						commitCfg := task.CommitConfig{
+							ProjectRoot:  projectRoot,
+							CommitPrefix: cfg.CommitPrefix,
+						}
+						task.CommitAndSync(t, "force-resumed", commitCfg)
+					}
 				} else {
 					return fmt.Errorf("task is currently running (PID %d). Use --force to resume anyway", s.GetExecutorPID())
 				}
