@@ -212,9 +212,13 @@ The finalize runs asynchronously. Subscribe to WebSocket events for real-time pr
   "result": {
     "synced": true,
     "conflicts_resolved": 0,
+    "conflict_files": [],
     "tests_passed": true,
     "risk_level": "low",
-    "commit_sha": "abc123",
+    "files_changed": 12,
+    "lines_changed": 350,
+    "needs_review": false,
+    "commit_sha": "abc123def",
     "target_branch": "main"
   }
 }
@@ -243,8 +247,24 @@ The finalize runs asynchronously. Subscribe to WebSocket events for real-time pr
 | `failed` | Finalize failed with error |
 | `not_started` | No finalize has been triggered |
 
+**FinalizeResult fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `synced` | boolean | Whether branch was synced with target |
+| `conflicts_resolved` | number | Number of merge conflicts resolved |
+| `conflict_files` | string[] | List of files that had conflicts |
+| `tests_passed` | boolean | Whether tests passed after sync |
+| `risk_level` | string | Risk assessment: `low`, `medium`, `high` |
+| `files_changed` | number | Total files modified in diff |
+| `lines_changed` | number | Total lines added/removed |
+| `needs_review` | boolean | Whether human review is recommended |
+| `commit_sha` | string | Final merged commit SHA |
+| `target_branch` | string | Branch merged into |
+
 **WebSocket events:** Finalize broadcasts `finalize` events during execution:
 ```json
+// Progress update
 {
   "type": "event",
   "event_type": "finalize",
@@ -253,7 +273,30 @@ The finalize runs asynchronously. Subscribe to WebSocket events for real-time pr
     "status": "running",
     "step": "Running tests",
     "progress": "Executing test suite",
-    "step_percent": 75
+    "step_percent": 75,
+    "updated_at": "2026-01-10T10:32:00Z"
+  }
+}
+
+// Completion event (includes result)
+{
+  "type": "event",
+  "event_type": "finalize",
+  "data": {
+    "task_id": "TASK-001",
+    "status": "completed",
+    "step": "Complete",
+    "step_percent": 100,
+    "updated_at": "2026-01-10T10:35:00Z",
+    "result": {
+      "synced": true,
+      "conflicts_resolved": 0,
+      "tests_passed": true,
+      "risk_level": "low",
+      "files_changed": 12,
+      "commit_sha": "abc123def",
+      "target_branch": "main"
+    }
   }
 }
 ```

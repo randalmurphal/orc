@@ -311,6 +311,11 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 
 **Task dependencies:** Task detail page shows a collapsible Dependencies sidebar displaying blocked_by, blocks, related_to, and referenced_by relationships with status indicators. Add/remove blockers and related tasks inline.
 
+**Task finalize workflow:** Done column shows different visual states for completed/finalizing/finished tasks:
+- **Completed**: Shows finalize button - click to open FinalizeModal and start branch sync
+- **Finalizing**: Shows progress bar with step label, pulsing border animation
+- **Finished**: Shows merged commit SHA and target branch in green section
+
 **Initiative detail:** Click an initiative in the sidebar or navigate to `/initiatives/:id` to view/manage initiative tasks and decisions. Features include progress tracking, task linking, decision recording, and status management.
 
 See `web/CLAUDE.md` for component architecture.
@@ -444,6 +449,7 @@ Patterns, gotchas, and decisions learned during development.
 | PR status polling | Background poller (60s interval, 30s rate limit) tracks PR status via GitHub API; status derived from PR state + reviews (changes_requested > approved > pending_review); stores in task.yaml `pr` field | TASK-090 |
 | Board swimlane view | Optional "By Initiative" view groups tasks into horizontal swimlanes; toggle persists in localStorage; disabled when initiative filter active; cross-swimlane drag-drop changes task initiative with confirmation | TASK-065 |
 | Auto-trigger finalize on approval | In `auto` profile, finalize phase auto-triggers when PR is approved; controlled by `completion.finalize.auto_trigger_on_approval`; respects 30s rate limit, skips trivial tasks | TASK-091 |
+| Finalize UI components | FinalizeModal for progress/results; TaskCard shows finalize button (completed), progress bar (finalizing), merge info (finished); WebSocket `finalize` events for real-time updates | TASK-094 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

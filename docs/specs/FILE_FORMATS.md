@@ -64,7 +64,7 @@ description: |
   Should integrate with existing user model.
 
 weight: medium
-status: running
+status: running                   # Task execution status (see Task Status Values below)
 current_phase: implement          # Phase currently being executed (updated by executor)
 branch: orc/TASK-001
 
@@ -207,6 +207,26 @@ Tasks can have an associated pull request. PR status is tracked in the `pr` fiel
 - Polling skips tasks with merged/closed PRs
 - Polling skips tasks polled within the last 30 seconds (rate limiting)
 - Manual refresh available via `POST /api/tasks/:id/github/pr/refresh`
+
+### Task Status Values
+
+| Status | Description | UI Column |
+|--------|-------------|-----------|
+| `created` | Task created, not yet classified | Planning |
+| `classifying` | AI classifying task weight | Planning |
+| `planned` | Task has plan, ready to run | Planning |
+| `running` | Task currently executing | Active phase column |
+| `paused` | Task paused by user | Paused in current column |
+| `blocked` | Task blocked by dependencies | Blocked |
+| `completed` | All phases done, ready for finalize | Done |
+| `finalizing` | Branch sync and merge in progress | Done (with progress) |
+| `finished` | Task merged to target branch | Done (with merge info) |
+| `failed` | Task failed with error | Failed |
+
+**Finalize workflow statuses:**
+- `completed` → `finalizing` → `finished`: Normal flow when finalize succeeds
+- `completed` → `finalizing` → `failed`: If finalize encounters unresolvable issues
+- UI shows different visual states in Done column for each status
 
 ---
 
@@ -408,6 +428,60 @@ tokens:
 | `total_tokens` | Sum of all token types |
 
 **Note:** Raw `input_tokens` alone can appear misleadingly low when prompt caching is active. The "effective" input context is `input_tokens + cache_creation_input_tokens + cache_read_input_tokens`. UI displays show the combined cached total for clarity.
+
+### Finalize State
+
+When the finalize phase runs, additional state is tracked:
+
+```yaml
+# Added to state.yaml during finalize
+finalize:
+  status: running                    # not_started | pending | running | completed | failed
+  started_at: 2026-01-10T14:30:00Z
+  updated_at: 2026-01-10T14:32:00Z
+  completed_at: null                 # Set on completion
+  step: "Syncing with target"        # Current operation
+  progress: "Merging main"           # Detailed progress message
+  step_percent: 50                   # Completion percentage (0-100)
+  result:                            # Only present on completion
+    synced: true
+    conflicts_resolved: 2
+    conflict_files:
+      - src/api/handler.go
+      - internal/config/config.go
+    tests_passed: true
+    risk_level: medium               # low | medium | high
+    files_changed: 12
+    lines_changed: 350
+    needs_review: false
+    commit_sha: abc123def456
+    target_branch: main
+  error: null                        # Error message on failure
+```
+
+| Field | Description |
+|-------|-------------|
+| `status` | Finalize status: `not_started`, `pending`, `running`, `completed`, `failed` |
+| `step` | Current operation name (e.g., "Syncing with target", "Running tests") |
+| `progress` | Human-readable progress message |
+| `step_percent` | Completion percentage (0-100) |
+| `result` | Finalize result object (only present on completion) |
+| `error` | Error message (only present on failure) |
+
+**Result fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `synced` | boolean | Whether branch was synced with target |
+| `conflicts_resolved` | number | Number of merge conflicts resolved |
+| `conflict_files` | string[] | List of files that had conflicts |
+| `tests_passed` | boolean | Whether tests passed after sync |
+| `risk_level` | string | Risk assessment: `low`, `medium`, `high` |
+| `files_changed` | number | Total files modified in diff |
+| `lines_changed` | number | Total lines added/removed |
+| `needs_review` | boolean | Whether human review is recommended |
+| `commit_sha` | string | Final merged commit SHA |
+| `target_branch` | string | Branch merged into |
 
 ---
 
