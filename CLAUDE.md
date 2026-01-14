@@ -464,6 +464,7 @@ Patterns, gotchas, and decisions learned during development.
 | Task auto-commit | Task files auto-commit to git on create/modify via CLI; uses `task.CommitAndSync()` after each save; commit messages follow format `[orc] task TASK-001: action - Title`; disable via `tasks.disable_auto_commit` config | TASK-153 |
 | CI wait and auto-merge | After finalize, poll `gh pr checks` until CI passes (30s interval, 10m timeout), then merge via `gh pr merge --squash`; bypasses GitHub auto-merge feature (no branch protection needed); `auto`/`fast` profiles only | TASK-151 |
 | Comprehensive auto-commit | ALL .orc/ file mutations auto-commit to git: task lifecycle (status, state, phase transitions), initiative operations (status, linking, decisions), API/UI changes (config, prompts, projects), PR status updates; `state.CommitTaskState()` and `state.CommitPhaseTransition()` for executor; `autoCommit*()` helpers in API handlers; disable via `tasks.disable_auto_commit` config | TASK-193 |
+| WebSocket E2E event injection | Use Playwright's `routeWebSocket` to intercept connections and inject events via `ws.send()`; captures real WebSocket, forwards messages bidirectionally, allows test-initiated events; framework-agnostic approach for testing real-time UI updates | TASK-157 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
