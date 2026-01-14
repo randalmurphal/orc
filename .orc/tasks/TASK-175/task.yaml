@@ -41,7 +41,7 @@ description: |-
     - Dependency graph renders and is interactive
     - E2E tests from Phase 0 pass
 weight: large
-status: planned
+status: completed
 branch: orc/TASK-175
 queue: active
 priority: normal
