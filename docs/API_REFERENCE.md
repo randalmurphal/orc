@@ -332,6 +332,7 @@ The finalize runs asynchronously. Subscribe to WebSocket events for real-time pr
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/tasks/:id/dependencies` | Get dependency graph for task |
+| GET | `/api/tasks/dependency-graph` | Get visualization graph for multiple tasks |
 
 **Dependencies response:**
 ```json
@@ -362,6 +363,56 @@ The finalize runs asynchronously. Subscribe to WebSocket events for real-time pr
 | `referenced_by` | Tasks whose descriptions mention this task (auto-detected) |
 | `unmet_dependencies` | Blockers that are not yet completed |
 | `can_run` | True if no unmet dependencies |
+
+### Task Dependency Graph Visualization
+
+Returns nodes and edges for visualizing dependencies across an arbitrary set of tasks.
+
+**GET `/api/tasks/dependency-graph`**
+
+Query parameters:
+- `ids` (required) - Comma-separated list of task IDs to include
+
+**Example:**
+```
+GET /api/tasks/dependency-graph?ids=TASK-060,TASK-061,TASK-062,TASK-063
+```
+
+**Response:**
+```json
+{
+  "nodes": [
+    {"id": "TASK-060", "title": "Add initiative_id field", "status": "done"},
+    {"id": "TASK-061", "title": "Add sidebar navigation", "status": "ready"},
+    {"id": "TASK-062", "title": "Add filter dropdown", "status": "blocked"},
+    {"id": "TASK-063", "title": "Add initiative badges", "status": "ready"}
+  ],
+  "edges": [
+    {"from": "TASK-060", "to": "TASK-061"},
+    {"from": "TASK-061", "to": "TASK-062"}
+  ]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `nodes` | Array of requested tasks with display status |
+| `nodes[].status` | Simplified status: `done`, `running`, `blocked`, `ready`, `pending`, `paused`, `failed` |
+| `edges` | Dependency relationships within the requested set only |
+
+**Status mapping:**
+| Internal Status | Display Status |
+|-----------------|----------------|
+| `completed`, `finished` | `done` |
+| `running`, `finalizing` | `running` |
+| `blocked` | `blocked` |
+| `paused` | `paused` |
+| `failed` | `failed` |
+| `created`, `planned` | `ready` |
+| (other) | `pending` |
+
+**Error responses:**
+- 400: Missing `ids` parameter or no valid task IDs provided
 
 ### Task Export
 
@@ -485,6 +536,51 @@ Group related tasks with shared decisions. Initiatives can depend on other initi
 | DELETE | `/api/initiatives/:id/tasks/:taskId` | Remove task from initiative |
 | POST | `/api/initiatives/:id/decisions` | Add decision |
 | GET | `/api/initiatives/:id/ready` | Get tasks ready to run |
+| GET | `/api/initiatives/:id/dependency-graph` | Get dependency graph visualization |
+
+### Initiative Dependency Graph
+
+Returns nodes and edges for visualizing task dependencies within an initiative.
+
+**GET `/api/initiatives/:id/dependency-graph`**
+
+Query parameters:
+- `shared` - If `true`, load from shared initiatives directory
+
+**Response:**
+```json
+{
+  "nodes": [
+    {
+      "id": "TASK-060",
+      "title": "Add initiative_id field to task schema",
+      "status": "done"
+    },
+    {
+      "id": "TASK-061",
+      "title": "Add initiative sidebar section",
+      "status": "ready"
+    },
+    {
+      "id": "TASK-062",
+      "title": "Add initiative filter dropdown",
+      "status": "blocked"
+    }
+  ],
+  "edges": [
+    {"from": "TASK-060", "to": "TASK-061"},
+    {"from": "TASK-061", "to": "TASK-062"}
+  ]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `nodes` | Array of tasks in the initiative with display status |
+| `nodes[].status` | Simplified status: `done`, `running`, `blocked`, `ready`, `pending`, `paused`, `failed` |
+| `edges` | Dependency relationships (from = blocker, to = blocked task) |
+
+Only edges where both tasks are in the initiative are included.
 
 **Create initiative body (POST):**
 ```json
