@@ -1,9 +1,10 @@
 task_id: TASK-165
 current_phase: docs
 current_iteration: 3
-status: running
+status: completed
 started_at: 2026-01-14T11:24:53.94305-06:00
-updated_at: 2026-01-14T11:38:59.403715-06:00
+updated_at: 2026-01-14T11:38:59.45171-06:00
+completed_at: 2026-01-14T11:38:59.451709-06:00
 phases:
     docs:
         status: completed
@@ -52,6 +53,11 @@ gates:
       approved: true
       reason: auto-approved on success
       timestamp: 2026-01-14T11:37:04.943077-06:00
+    - phase: docs
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T11:38:59.451701-06:00
 tokens:
     input_tokens: 7022099
     output_tokens: 40308
@@ -60,8 +66,3 @@ tokens:
     total_tokens: 7062407
 cost:
     total_cost_usd: 0
-execution:
-    pid: 31275
-    hostname: MacBook-Air.local
-    started_at: 2026-01-14T11:24:53.975345-06:00
-    last_heartbeat: 2026-01-14T11:37:04.943081-06:00
