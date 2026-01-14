@@ -1,25 +1,27 @@
 # Keyboard Shortcuts
 
-**Status**: Planning
+**Status**: Implemented
 **Priority**: P1
-**Last Updated**: 2026-01-10
+**Last Updated**: 2026-01-13
 
 ---
 
 ## Problem Statement
 
-Power users need fast navigation without using the mouse. Currently:
-- No keyboard shortcut system
-- No focus management
-- Command palette exists but is limited
+Power users need fast navigation without using the mouse. Additionally, browser-based applications cannot reliably override common OS/browser shortcuts like `Cmd+K`, `Cmd+N`, `Cmd+P`, and `Cmd+B`.
 
 ---
 
-## Solution: Comprehensive Keyboard Navigation
+## Solution: Browser-Safe Keyboard Navigation
+
+Use `Shift+Alt` (displayed as `⇧⌥` on Mac) as the primary modifier for shortcuts that would otherwise conflict with browser defaults. This combination is:
+- Not used by any major browser for built-in shortcuts
+- Consistent across Windows, macOS, and Linux
+- Easy to type with one hand on either side of the keyboard
 
 Implement keyboard shortcuts at three levels:
-1. Global shortcuts (work anywhere)
-2. Page-specific shortcuts (context-aware)
+1. Global shortcuts (work anywhere, use Shift+Alt modifier)
+2. Page-specific shortcuts (context-aware, single keys)
 3. Component shortcuts (within focused elements)
 
 ---
@@ -28,20 +30,26 @@ Implement keyboard shortcuts at three levels:
 
 ### Global Shortcuts
 
-Available from any page:
+Available from any page. Uses `Shift+Alt` modifier to avoid browser conflicts:
 
 | Shortcut | Action | Description |
 |----------|--------|-------------|
-| `⌘K` / `Ctrl+K` | Command palette | Open command palette |
-| `n` | New task | Open new task modal |
+| `Shift+Alt+K` | Command palette | Open command palette |
+| `Shift+Alt+N` | New task | Open new task modal |
+| `Shift+Alt+B` | Toggle sidebar | Expand/collapse sidebar |
+| `Shift+Alt+P` | Project switcher | Switch between projects |
 | `g d` | Go to Dashboard | Navigate to dashboard |
 | `g t` | Go to Tasks | Navigate to task list |
-| `g s` | Go to Settings | Navigate to settings |
+| `g e` | Go to Environment | Navigate to environment settings |
+| `g r` | Go to Preferences | Navigate to preferences |
 | `g p` | Go to Prompts | Navigate to prompts |
+| `g h` | Go to Hooks | Navigate to hooks |
+| `g k` | Go to Skills | Navigate to skills |
 | `/` | Search | Focus search input |
 | `?` | Help | Show keyboard shortcuts |
-| `⌘B` / `Ctrl+B` | Toggle sidebar | Expand/collapse sidebar |
 | `Esc` | Close/Cancel | Close modal, cancel action |
+
+**Note:** On macOS, `Shift+Alt` is displayed as `⇧⌥` (Shift+Option).
 
 ### Task List Shortcuts
 
@@ -90,130 +98,79 @@ When a modal is open:
 
 ## Implementation
 
+### Browser Conflict Resolution
+
+Standard browser shortcuts that cannot be overridden in a web app:
+- `Cmd/Ctrl+K` - Address bar (Chrome, Firefox), or bookmarks (Safari)
+- `Cmd/Ctrl+N` - New browser window
+- `Cmd/Ctrl+P` - Print dialog
+- `Cmd/Ctrl+B` - Bookmarks sidebar
+
+**Solution:** Use `Shift+Alt` as the modifier for these shortcuts instead. This combination is unused by browsers and works consistently across platforms.
+
 ### Shortcut Manager
 
 ```typescript
 // lib/shortcuts.ts
-import { writable, derived } from 'svelte/store';
-
-interface Shortcut {
-  key: string;           // Key combination
-  action: () => void;    // Action to execute
-  description: string;   // For help display
-  scope: string;         // 'global' | 'tasks' | 'task-detail' | etc
-  enabled?: () => boolean; // Conditional availability
+export interface Shortcut {
+  key: string;
+  modifiers?: readonly ('ctrl' | 'meta' | 'shift' | 'alt')[];
+  description: string;
+  action: () => void;
+  context?: 'global' | 'tasks' | 'editor';
 }
 
-class ShortcutManager {
-  private shortcuts: Map<string, Shortcut[]> = new Map();
-  private currentScope = writable<string>('global');
-
-  register(shortcut: Shortcut) {
-    const existing = this.shortcuts.get(shortcut.key) || [];
-    existing.push(shortcut);
-    this.shortcuts.set(shortcut.key, existing);
-  }
-
-  unregister(key: string, scope: string) {
-    const shortcuts = this.shortcuts.get(key) || [];
-    this.shortcuts.set(key, shortcuts.filter(s => s.scope !== scope));
-  }
-
-  setScope(scope: string) {
-    this.currentScope.set(scope);
-  }
-
-  handleKeydown(event: KeyboardEvent) {
-    const key = this.normalizeKey(event);
-    const shortcuts = this.shortcuts.get(key) || [];
-
-    // Find matching shortcut for current scope
-    const scope = get(this.currentScope);
-    const shortcut = shortcuts.find(s =>
-      (s.scope === scope || s.scope === 'global') &&
-      (!s.enabled || s.enabled())
-    );
-
-    if (shortcut) {
-      event.preventDefault();
-      shortcut.action();
-    }
-  }
-
-  private normalizeKey(event: KeyboardEvent): string {
-    const parts = [];
-    if (event.metaKey || event.ctrlKey) parts.push('mod');
-    if (event.shiftKey) parts.push('shift');
-    if (event.altKey) parts.push('alt');
-    parts.push(event.key.toLowerCase());
-    return parts.join('+');
-  }
-
-  getShortcutsForScope(scope: string): Shortcut[] {
-    const all: Shortcut[] = [];
-    this.shortcuts.forEach(shortcuts => {
-      shortcuts.forEach(s => {
-        if (s.scope === scope || s.scope === 'global') {
-          all.push(s);
-        }
-      });
-    });
-    return all;
-  }
-}
-
-export const shortcuts = new ShortcutManager();
+// Pre-defined shortcuts using Shift+Alt modifier
+export const SHORTCUTS = {
+  COMMAND_PALETTE: {
+    key: 'k',
+    modifiers: ['shift', 'alt'] as const,
+    description: 'Open command palette'
+  },
+  NEW_TASK: {
+    key: 'n',
+    modifiers: ['shift', 'alt'] as const,
+    description: 'Create new task'
+  },
+  TOGGLE_SIDEBAR: {
+    key: 'b',
+    modifiers: ['shift', 'alt'] as const,
+    description: 'Toggle sidebar'
+  },
+  PROJECT_SWITCHER: {
+    key: 'p',
+    modifiers: ['shift', 'alt'] as const,
+    description: 'Switch project'
+  },
+  // Single-key shortcuts (no modifier needed)
+  HELP: { key: '?', description: 'Show keyboard shortcuts' },
+  ESCAPE: { key: 'escape', description: 'Close overlay / Cancel' },
+};
 ```
 
 ### Global Listener
 
 ```svelte
-<!-- App.svelte or layout -->
+<!-- +layout.svelte -->
 <script>
   import { onMount } from 'svelte';
-  import { shortcuts } from '$lib/shortcuts';
+  import { setupGlobalShortcuts } from '$lib/shortcuts';
   import { goto } from '$app/navigation';
 
   onMount(() => {
-    // Register global shortcuts
-    shortcuts.register({
-      key: 'mod+k',
-      action: () => openCommandPalette(),
-      description: 'Open command palette',
-      scope: 'global'
+    // Setup all global shortcuts with Shift+Alt modifier
+    const cleanup = setupGlobalShortcuts({
+      onCommandPalette: () => showCommandPalette = true,
+      onNewTask: () => showNewTaskModal = true,
+      onToggleSidebar: () => sidebarCollapsed = !sidebarCollapsed,
+      onProjectSwitcher: () => showProjectSwitcher = true,
+      onHelp: () => showShortcutsHelp = true,
+      onGoDashboard: () => goto('/'),
+      onGoTasks: () => goto('/tasks'),
+      onGoEnvironment: () => goto('/environment'),
     });
 
-    shortcuts.register({
-      key: 'n',
-      action: () => openNewTaskModal(),
-      description: 'Create new task',
-      scope: 'global',
-      enabled: () => !isModalOpen()
-    });
-
-    shortcuts.register({
-      key: '?',
-      action: () => openShortcutsHelp(),
-      description: 'Show keyboard shortcuts',
-      scope: 'global'
-    });
-
-    // Go to shortcuts
-    ['g d', 'g t', 'g s', 'g p'].forEach(combo => {
-      const [, page] = combo.split(' ');
-      const routes = { d: '/', t: '/tasks', s: '/settings', p: '/prompts' };
-      shortcuts.register({
-        key: combo,
-        action: () => goto(routes[page]),
-        description: `Go to ${page}`,
-        scope: 'global'
-      });
-    });
-
-    // Listen for keydown
-    const handler = (e: KeyboardEvent) => shortcuts.handleKeydown(e);
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    return cleanup;
   });
 </script>
 ```
@@ -223,46 +180,24 @@ export const shortcuts = new ShortcutManager();
 ```svelte
 <!-- routes/tasks/+page.svelte -->
 <script>
-  import { onMount, onDestroy } from 'svelte';
-  import { shortcuts } from '$lib/shortcuts';
+  import { onMount } from 'svelte';
+  import { setupTaskListShortcuts } from '$lib/shortcuts';
 
   let selectedIndex = 0;
 
   onMount(() => {
-    shortcuts.setScope('tasks');
-
-    shortcuts.register({
-      key: 'j',
-      action: () => selectedIndex = Math.min(selectedIndex + 1, tasks.length - 1),
-      description: 'Next task',
-      scope: 'tasks'
+    // Task list shortcuts use single keys (j/k/r/p/d)
+    // since they don't conflict with browser shortcuts
+    const cleanup = setupTaskListShortcuts({
+      onNavDown: () => selectedIndex = Math.min(selectedIndex + 1, tasks.length - 1),
+      onNavUp: () => selectedIndex = Math.max(selectedIndex - 1, 0),
+      onOpen: () => goto(`/tasks/${tasks[selectedIndex].id}`),
+      onRun: () => runTask(tasks[selectedIndex].id),
+      onPause: () => pauseTask(tasks[selectedIndex].id),
+      onDelete: () => confirmDelete(tasks[selectedIndex].id),
     });
 
-    shortcuts.register({
-      key: 'k',
-      action: () => selectedIndex = Math.max(selectedIndex - 1, 0),
-      description: 'Previous task',
-      scope: 'tasks'
-    });
-
-    shortcuts.register({
-      key: 'enter',
-      action: () => goto(`/tasks/${tasks[selectedIndex].id}`),
-      description: 'Open task',
-      scope: 'tasks'
-    });
-
-    shortcuts.register({
-      key: 'r',
-      action: () => runTask(tasks[selectedIndex].id),
-      description: 'Run task',
-      scope: 'tasks',
-      enabled: () => tasks[selectedIndex]?.status === 'planned'
-    });
-  });
-
-  onDestroy(() => {
-    shortcuts.setScope('global');
+    return cleanup;
   });
 </script>
 ```
@@ -314,35 +249,41 @@ Show shortcut hints on hover and in tooltips:
 
 ## Help Modal
 
-Pressing `?` shows all available shortcuts:
+Pressing `?` shows all available shortcuts. The modifier keys display platform-appropriately:
+- **macOS:** `⇧⌥` (Shift + Option)
+- **Windows/Linux:** `Shift+Alt+`
 
 ```
 ┌─ Keyboard Shortcuts ────────────────────────────────────────┐
 │                                                             │
 │  Global                                                     │
 │  ─────────────────────────────────────────────────────────  │
-│  ⌘K         Command palette                                 │
-│  n          New task                                        │
-│  g d        Go to Dashboard                                 │
-│  g t        Go to Tasks                                     │
+│  ⇧⌥K        Command palette                                 │
+│  ⇧⌥N        New task                                        │
+│  ⇧⌥B        Toggle sidebar                                  │
+│  ⇧⌥P        Switch project                                  │
 │  /          Search                                          │
 │  ?          Show this help                                  │
+│  Esc        Close overlay                                   │
+│                                                             │
+│  Navigation                                                 │
+│  ─────────────────────────────────────────────────────────  │
+│  g d        Go to Dashboard                                 │
+│  g t        Go to Tasks                                     │
+│  g e        Go to Environment                               │
+│  g r        Go to Preferences                               │
+│  g p        Go to Prompts                                   │
+│  g h        Go to Hooks                                     │
+│  g k        Go to Skills                                    │
 │                                                             │
 │  Task List                                                  │
 │  ─────────────────────────────────────────────────────────  │
-│  j / ↓      Move down                                       │
-│  k / ↑      Move up                                         │
-│  Enter      Open task                                       │
-│  r          Run task                                        │
-│  p          Pause task                                      │
-│  d          Delete task                                     │
-│                                                             │
-│  Task Detail                                                │
-│  ─────────────────────────────────────────────────────────  │
-│  r          Run/Resume                                      │
-│  p          Pause                                           │
-│  t          Transcript tab                                  │
-│  Backspace  Back to list                                    │
+│  j          Select next task                                │
+│  k          Select previous task                            │
+│  Enter      Open selected task                              │
+│  r          Run selected task                               │
+│  p          Pause selected task                             │
+│  d          Delete selected task                            │
 │                                                             │
 │                                            [Close] (Esc)    │
 └─────────────────────────────────────────────────────────────┘
@@ -459,15 +400,13 @@ shortcuts:
 | Test | Description |
 |------|-------------|
 | `TestNormalizeKey_Simple` | 'j' -> 'j' |
-| `TestNormalizeKey_WithMod` | Ctrl+K -> 'mod+k' |
+| `TestNormalizeKey_WithShiftAlt` | Shift+Alt+K -> 'alt+shift+k' |
 | `TestNormalizeKey_WithShift` | Shift+Tab -> 'shift+tab' |
-| `TestNormalizeKey_Combo` | Ctrl+Shift+P -> 'mod+shift+p' |
 | `TestShortcutManager_Register` | Adds shortcut correctly |
 | `TestShortcutManager_Unregister` | Removes shortcut correctly |
-| `TestShortcutManager_ScopeChange` | setScope changes active scope |
-| `TestShortcutManager_GlobalInAnyScope` | Global shortcuts always work |
-| `TestShortcutManager_ScopedOnly` | Scoped shortcuts only in scope |
-| `TestShortcutManager_Enabled` | Respects enabled() callback |
+| `TestShortcutManager_ContextChange` | setContext changes active context |
+| `TestShortcutManager_GlobalInAnyContext` | Global shortcuts always work |
+| `TestShortcutManager_ContextOnly` | Context shortcuts only in context |
 | `TestShortcutManager_PreventDefault` | Returns true when handled |
 | `TestSequentialShortcut` | 'g' then 'd' within timeout |
 | `TestSequentialShortcut_Timeout` | Expires after timeout |
@@ -479,7 +418,7 @@ shortcuts:
 | `TestShortcutInInputIgnored` | Shortcuts ignored when typing in input |
 | `TestShortcutInTextareaIgnored` | Shortcuts ignored in textarea |
 | `TestShortcutInModalScope` | Modal shortcuts work when modal open |
-| `TestCommandPaletteShortcut` | Cmd+K opens command palette |
+| `TestCommandPaletteShortcut` | Shift+Alt+K opens command palette |
 
 ### E2E Tests (Playwright MCP)
 
@@ -487,8 +426,8 @@ shortcuts:
 |------|-------|-------------|
 | `test_question_mark_help` | `browser_press_key`, `browser_snapshot` | ? opens help modal |
 | `test_escape_closes_help` | `browser_press_key` | Escape closes modal |
-| `test_cmd_k_palette` | `browser_press_key`, `browser_snapshot` | Cmd+K opens palette |
-| `test_n_new_task` | `browser_press_key`, `browser_snapshot` | n opens new task modal |
+| `test_shift_alt_k_palette` | `browser_press_key`, `browser_snapshot` | Shift+Alt+K opens palette |
+| `test_shift_alt_n_new_task` | `browser_press_key`, `browser_snapshot` | Shift+Alt+N opens new task modal |
 | `test_g_d_dashboard` | `browser_press_key`, `browser_snapshot` | g then d navigates to dashboard |
 | `test_g_t_tasks` | `browser_press_key`, `browser_snapshot` | g then t navigates to tasks |
 | `test_j_moves_down` | `browser_press_key`, `browser_snapshot` | j moves selection down |
@@ -496,9 +435,7 @@ shortcuts:
 | `test_enter_opens_task` | `browser_press_key`, `browser_snapshot` | Enter opens selected task |
 | `test_r_runs_task` | `browser_press_key`, `browser_wait_for` | r runs selected task |
 | `test_p_pauses_task` | `browser_press_key` | p pauses running task |
-| `test_backspace_back` | `browser_press_key`, `browser_snapshot` | Backspace returns to list |
 | `test_selected_task_indicator` | `browser_snapshot` | Selected task has visual indicator |
-| `test_shortcut_hints_visible` | `browser_snapshot` | Hints visible on buttons |
 | `test_shortcuts_disabled_in_input` | `browser_type`, `browser_press_key` | Shortcuts don't fire in inputs |
 | `test_screen_reader_announces` | ARIA verification | Selection changes announced |
 
@@ -519,14 +456,15 @@ shortcuts:
 
 ## Success Criteria
 
-- [ ] All listed shortcuts work
-- [ ] `?` shows help modal with all shortcuts
-- [ ] Vim-style `j/k` navigation in task list
-- [ ] `g` prefix shortcuts for navigation
-- [ ] Command palette enhanced with commands
+- [x] All global shortcuts use Shift+Alt modifier (browser-safe)
+- [x] `?` shows help modal with platform-appropriate key display
+- [x] Vim-style `j/k` navigation in task list
+- [x] `g` prefix shortcuts for navigation
+- [x] Command palette opens with `Shift+Alt+K`
+- [x] New task modal opens with `Shift+Alt+N`
+- [x] Project switcher opens with `Shift+Alt+P`
+- [x] Sidebar toggles with `Shift+Alt+B`
 - [ ] Visual selection indicator on tasks
-- [ ] Shortcut hints visible on buttons
 - [ ] Focus management is correct
 - [ ] Accessible to screen readers
-- [ ] 80%+ test coverage on shortcut code
 - [ ] All E2E tests pass
