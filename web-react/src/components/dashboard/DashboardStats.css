@@ -1,0 +1,141 @@
+/* DashboardStats Styles */
+
+.stats-section .section-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+	margin-bottom: var(--space-4);
+}
+
+.section-title {
+	font-size: var(--text-lg);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0;
+}
+
+/* Connection Status */
+.connection-status {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1-5);
+	padding: var(--space-1) var(--space-2);
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-full);
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+}
+
+.connection-status .status-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--text-muted);
+}
+
+.connection-status.connected .status-dot {
+	background: var(--status-success);
+	box-shadow: 0 0 4px var(--status-success);
+}
+
+.connection-status.connected .status-text {
+	color: var(--status-success);
+}
+
+.connection-status.connecting .status-dot {
+	background: var(--status-warning);
+	animation: pulse 1s ease-in-out infinite;
+}
+
+.connection-status.connecting .status-text {
+	color: var(--status-warning);
+}
+
+@keyframes pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.4;
+	}
+}
+
+/* Stats Grid */
+.stats-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: var(--space-4);
+}
+
+@media (max-width: 768px) {
+	.stats-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+.stat-card {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-lg);
+	cursor: pointer;
+	transition: all var(--duration-fast) var(--ease-out);
+	text-align: left;
+}
+
+.stat-card:hover {
+	border-color: var(--accent-primary);
+	transform: translateY(-2px);
+}
+
+.stat-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: var(--radius-md);
+	color: var(--text-muted);
+}
+
+.stat-card.running .stat-icon {
+	background: var(--status-info-bg);
+	color: var(--status-info);
+}
+
+.stat-card.blocked .stat-icon {
+	background: var(--status-warning-bg);
+	color: var(--status-warning);
+}
+
+.stat-card.today .stat-icon {
+	background: rgba(168, 85, 247, 0.1);
+	color: rgb(168, 85, 247);
+}
+
+.stat-card.tokens .stat-icon {
+	background: var(--status-success-bg);
+	color: var(--status-success);
+}
+
+.stat-content {
+	display: flex;
+	flex-direction: column;
+}
+
+.stat-value {
+	font-size: var(--text-xl);
+	font-weight: var(--font-bold);
+	font-family: var(--font-mono);
+	color: var(--text-primary);
+}
+
+.stat-label {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+}
