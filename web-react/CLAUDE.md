@@ -29,6 +29,13 @@ web-react/src/
 │   ├── shortcuts.ts      # ShortcutManager class
 │   └── platform.ts       # Platform detection (isMac)
 ├── components/           # UI components
+│   ├── dashboard/        # Dashboard components
+│   │   ├── DashboardStats.tsx      # Quick stats cards
+│   │   ├── DashboardActiveTasks.tsx # Running/paused/blocked tasks
+│   │   ├── DashboardQuickActions.tsx # New Task / View All buttons
+│   │   ├── DashboardRecentActivity.tsx # Recently completed tasks
+│   │   ├── DashboardInitiatives.tsx # Active initiatives with progress
+│   │   └── DashboardSummary.tsx    # Total/completed/failed counts
 │   ├── layout/           # Layout components
 │   │   ├── AppLayout.tsx # Main layout (Sidebar + Header + Outlet)
 │   │   ├── Sidebar.tsx   # Left navigation
@@ -134,6 +141,8 @@ Migration follows the existing Svelte component structure:
 | `lib/components/Header.svelte` | `components/layout/Header.tsx` | ✅ Complete |
 | `+layout.svelte` (full layout) | `components/layout/AppLayout.tsx` | ✅ Complete |
 | `lib/components/ProjectSwitcher.svelte` | `components/overlays/ProjectSwitcher.tsx` | ✅ Complete |
+| `lib/components/Dashboard.svelte` | `pages/Dashboard.tsx` | ✅ Complete |
+| `lib/components/dashboard/*` | `components/dashboard/*` | ✅ Complete |
 | `lib/stores/` | `src/stores/` (Zustand) | ✅ Complete |
 | `lib/websocket.ts` | `src/lib/websocket.ts` | ✅ Complete |
 | `lib/utils/` | `src/lib/` | In Progress |
