@@ -141,11 +141,15 @@ If tests fail:
 ### Step 6: Verify Build
 
 ```bash
-# Ensure clean build
+# For Go projects
 go build ./...
-
-# Check for linting issues
 go vet ./...
+
+# For Node projects
+npm run build
+
+# For Python projects
+python -m py_compile $(find . -name "*.py" -not -path "./.venv/*")
 ```
 
 ### Step 7: Risk Assessment
