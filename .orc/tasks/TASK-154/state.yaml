@@ -1,9 +1,10 @@
 task_id: TASK-154
 current_phase: validate
 current_iteration: 5
-status: running
+status: completed
 started_at: 2026-01-14T04:06:37.042906-06:00
-updated_at: 2026-01-14T04:36:24.249887-06:00
+updated_at: 2026-01-14T04:36:24.293327-06:00
+completed_at: 2026-01-14T04:36:24.293327-06:00
 phases:
     docs:
         status: completed
@@ -84,6 +85,11 @@ gates:
       approved: true
       reason: auto-approved on success
       timestamp: 2026-01-14T04:30:12.842925-06:00
+    - phase: validate
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T04:36:24.293321-06:00
 tokens:
     input_tokens: 12769718
     output_tokens: 44635
@@ -92,8 +98,3 @@ tokens:
     total_tokens: 12814353
 cost:
     total_cost_usd: 0
-execution:
-    pid: 95198
-    hostname: Mac.localdomain
-    started_at: 2026-01-14T04:06:37.057695-06:00
-    last_heartbeat: 2026-01-14T04:30:12.842937-06:00
