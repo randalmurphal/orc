@@ -3,8 +3,8 @@ current_phase: docs
 current_iteration: 3
 status: completed
 started_at: 2026-01-14T10:51:35.160432-06:00
-updated_at: 2026-01-14T11:22:27.458702-06:00
-completed_at: 2026-01-14T11:00:44.833136-06:00
+updated_at: 2026-01-14T11:22:27.84804-06:00
+completed_at: 2026-01-14T11:22:27.848039-06:00
 phases:
     docs:
         status: completed
@@ -64,8 +64,3 @@ tokens:
     total_tokens: 5167752
 cost:
     total_cost_usd: 0
-execution:
-    pid: 29126
-    hostname: MacBook-Air.local
-    started_at: 2026-01-14T11:22:27.455031-06:00
-    last_heartbeat: 2026-01-14T11:22:27.455031-06:00
