@@ -34,7 +34,7 @@ description: |-
     - Tests verify actual navigation/modal behavior
 weight: medium
 status: running
-current_phase: implement
+current_phase: test
 branch: orc/TASK-160
 queue: active
 priority: normal
@@ -44,5 +44,5 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:18:53.180206985-06:00
-updated_at: 2026-01-14T06:42:27.078566-06:00
+updated_at: 2026-01-14T06:51:00.384704-06:00
 started_at: 2026-01-14T06:42:26.668975-06:00
