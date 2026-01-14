@@ -29,7 +29,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_edit.go` | `orc edit TASK-ID` | Edit task properties (title, description, weight) |
 | `cmd_run.go` | `orc run TASK-ID` | Execute task phases |
 | `cmd_pause.go` | `orc pause TASK-ID` | Pause running task |
-| `cmd_resume.go` | `orc resume TASK-ID` | Resume paused task |
+| `cmd_resume.go` | `orc resume TASK-ID` | Resume paused/blocked/failed task |
 | `cmd_rewind.go` | `orc rewind TASK-ID --to PHASE` | Reset to before phase |
 | `cmd_reset.go` | `orc reset TASK-ID` | Reset task to initial state for retry |
 | `cmd_resolve.go` | `orc resolve TASK-ID` | Mark failed task as resolved without re-running |
@@ -98,10 +98,12 @@ Executes task phases:
 4. Creates PR or merges (based on config)
 
 ### `orc resume`
-Resumes from checkpoint:
+Resumes paused, blocked, interrupted, orphaned, or failed tasks:
 1. Loads task state
-2. Identifies last completed phase
-3. Continues from next phase
+2. For failed tasks: allows retry after fixing external issues
+3. For orphaned tasks: detects dead executor and marks as interrupted
+4. Identifies last incomplete phase
+5. Continues execution from that phase
 
 ## Global Flags
 

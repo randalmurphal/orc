@@ -224,7 +224,7 @@ orc run TASK-001 --auto-skip         # Skip phases with existing artifacts
 
 ### orc resume
 
-Resume a paused, blocked, interrupted, or orphaned task.
+Resume a paused, blocked, interrupted, orphaned, or failed task.
 
 ```bash
 orc resume <task-id> [--force] [--stream]
@@ -234,6 +234,15 @@ orc resume <task-id> [--force] [--stream]
 |--------|-------------|
 | `--force`, `-f` | Force resume even if task appears to be running |
 | `--stream` | Stream Claude transcript to stdout |
+
+**Resumable Statuses**:
+- `paused` - Task was explicitly paused
+- `blocked` - Task is waiting for input or intervention
+- `interrupted` - Task was interrupted (e.g., Ctrl+C)
+- `orphaned` - Task shows "running" but executor process died
+- `failed` - Task failed; resume retries from the last incomplete phase
+
+**Failed Task Resume**: When resuming a failed task, execution continues from the last incomplete phase. This allows you to fix issues externally (e.g., install missing dependencies, fix config) and retry without resetting the entire task.
 
 **Orphan Detection**: Tasks that show as "running" but whose executor process has died are automatically detected and handled:
 1. Detects orphaned state (executor PID no longer running or heartbeat stale >5 min)
@@ -250,6 +259,7 @@ Session ID: sess_abc123 (use 'claude --resume sess_abc123' for direct Claude acc
 orc resume TASK-001              # Resume paused/blocked task
 orc resume TASK-001 --force      # Force resume even if task appears running
 orc resume TASK-001 --stream     # Resume with live transcript output
+orc resume TASK-001              # Resume failed task (retries from last phase)
 ```
 
 ---

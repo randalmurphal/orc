@@ -95,7 +95,8 @@ Use --force to resume a task even if it appears to still be running.`,
 					return fmt.Errorf("task is currently running (PID %d). Use --force to resume anyway", s.GetExecutorPID())
 				}
 			case task.StatusFailed:
-				// Allow resuming failed tasks
+				// Allow resuming failed tasks - continues from last incomplete phase.
+				// This enables retry after fixing external issues (missing deps, config, etc.)
 				fmt.Printf("Task %s failed previously, resuming from last phase...\n", id)
 			default:
 				return fmt.Errorf("task cannot be resumed (status: %s)", t.Status)
