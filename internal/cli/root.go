@@ -94,6 +94,7 @@ func init() {
 	rootCmd.AddCommand(newKnowledgeCmd())
 	rootCmd.AddCommand(newCommentCmd())
 	rootCmd.AddCommand(newDepsCmd())
+	rootCmd.AddCommand(newFinalizeCmd())
 }
 
 // initConfig reads in config file and ENV variables if set.
