@@ -474,3 +474,60 @@ orc cleanup --older-than 7d    # Remove branches older than 7 days
 ```
 
 **Tracked**: `.orc/tasks/`, `.orc/config.yaml`, `.orc/prompts/`
+
+---
+
+## Auto-Commit for .orc/ Files
+
+All mutations to `.orc/` files are automatically committed to git, ensuring `git status` is always clean after any orc operation.
+
+### Covered Operations
+
+| Category | Operations | Commit Messages |
+|----------|-----------|-----------------|
+| **Task Lifecycle** | status changes (running, completed, failed), phase transitions, retry context, token tracking | `[orc] task TASK-001: running`, `[orc] task TASK-001: implement phase completed` |
+| **Task CRUD** | create, update, delete | `[orc] task TASK-001: created - Title`, `[orc] task TASK-001: updated`, `[orc] task TASK-001: deleted` |
+| **Initiative Operations** | create, update, delete, status changes, task linking/unlinking, decisions | `[orc] initiative INIT-001: created`, `[orc] initiative INIT-001: task TASK-002 added` |
+| **Config Changes** | config updates via API/UI | `[orc] config: automation settings updated` |
+| **Prompt Overrides** | prompt create, update, delete | `[orc] prompt: implement updated` |
+| **PR Status** | PR polling updates | `[orc] task TASK-001: PR status updated` |
+| **Finalize** | finalize phase completion | `[orc] task TASK-001: finalize completed` |
+
+### Implementation
+
+**Executor (internal/executor):**
+- `commitTaskState(t, action)` - commits task state changes during execution
+- `commitTaskStatus(t, status)` - convenience wrapper for status changes
+
+**API Handlers (internal/api):**
+- `autoCommitTask(t, action)` - commits task changes
+- `autoCommitTaskDeletion(taskID)` - commits task deletions
+- `autoCommitInitiative(init, action)` - commits initiative changes
+- `autoCommitConfig(description)` - commits config changes
+- `autoCommitPrompt(phase, action)` - commits prompt changes
+
+**State Package (internal/state):**
+- `CommitTaskState(taskID, action, cfg)` - stages and commits task directory
+- `CommitPhaseTransition(taskID, phase, transition, cfg)` - convenience for phase events
+- `CommitExecutionState(taskID, description, cfg)` - convenience for execution events
+
+### Configuration
+
+```yaml
+# .orc/config.yaml
+tasks:
+  disable_auto_commit: false  # Set to true to disable all auto-commits
+```
+
+When disabled:
+- File saves still occur normally
+- No git commits are created
+- Manual commits required to track changes
+- Useful for development/debugging scenarios
+
+### Behavior
+
+- **Non-blocking**: Failed commits log a warning but don't fail the operation
+- **Idempotent**: "Nothing to commit" states are handled gracefully
+- **Project-root aware**: Always commits to main repo, even from worktrees
+- **Prefix configurable**: Uses `commit_prefix` config (default: `[orc]`)

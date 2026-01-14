@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -127,6 +128,9 @@ func (s *Server) handleCreateInitiative(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Auto-commit initiative creation
+	s.autoCommitInitiative(init, "created")
+
 	w.WriteHeader(http.StatusCreated)
 	s.jsonResponse(w, init)
 }
@@ -249,6 +253,9 @@ func (s *Server) handleUpdateInitiative(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Auto-commit initiative update
+	s.autoCommitInitiative(init, "updated")
+
 	// Reload all initiatives to populate computed fields for response
 	allInits, err := initiative.List(shared)
 	if err == nil && len(allInits) > 0 {
@@ -281,6 +288,9 @@ func (s *Server) handleDeleteInitiative(w http.ResponseWriter, r *http.Request) 
 		s.jsonError(w, "failed to delete initiative", http.StatusInternalServerError)
 		return
 	}
+
+	// Auto-commit initiative deletion
+	s.autoCommitInitiativeDeletion(id)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -361,6 +371,9 @@ func (s *Server) handleAddInitiativeTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Auto-commit: task added to initiative
+	s.autoCommitInitiative(init, "task "+req.TaskID+" added")
+
 	// Return tasks with actual status from task.yaml files
 	tasks := init.GetTasksWithStatus(s.makeTaskLoader())
 	s.jsonResponse(w, tasks)
@@ -414,6 +427,9 @@ func (s *Server) handleAddInitiativeDecision(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Auto-commit: decision added
+	s.autoCommitInitiative(init, "decision added")
+
 	s.jsonResponse(w, init.Decisions)
 }
 
@@ -453,6 +469,9 @@ func (s *Server) handleRemoveInitiativeTask(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Auto-commit: task removed from initiative
+	s.autoCommitInitiative(init, "task "+taskID+" removed")
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -480,4 +499,50 @@ func (s *Server) handleGetReadyTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.jsonResponse(w, ready)
+}
+
+// autoCommitInitiative commits an initiative change to git if auto-commit is enabled.
+// This is a non-blocking operation that logs warnings on failure.
+func (s *Server) autoCommitInitiative(init *initiative.Initiative, action string) {
+	// Use tasks.disable_auto_commit since there's no separate initiative setting
+	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
+		return
+	}
+
+	projectRoot, err := config.FindProjectRoot()
+	if err != nil {
+		s.logger.Debug("skip initiative auto-commit: could not find project root", "error", err)
+		return
+	}
+
+	commitCfg := initiative.CommitConfig{
+		ProjectRoot:  projectRoot,
+		CommitPrefix: s.orcConfig.CommitPrefix,
+		Logger:       s.logger,
+	}
+	if err := initiative.CommitAndSync(init, action, commitCfg); err != nil {
+		s.logger.Warn("failed to auto-commit initiative", "id", init.ID, "action", action, "error", err)
+	}
+}
+
+// autoCommitInitiativeDeletion commits an initiative deletion to git if auto-commit is enabled.
+func (s *Server) autoCommitInitiativeDeletion(initID string) {
+	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
+		return
+	}
+
+	projectRoot, err := config.FindProjectRoot()
+	if err != nil {
+		s.logger.Debug("skip initiative auto-commit: could not find project root", "error", err)
+		return
+	}
+
+	commitCfg := initiative.CommitConfig{
+		ProjectRoot:  projectRoot,
+		CommitPrefix: s.orcConfig.CommitPrefix,
+		Logger:       s.logger,
+	}
+	if err := initiative.CommitDeletion(initID, commitCfg); err != nil {
+		s.logger.Warn("failed to auto-commit initiative deletion", "id", initID, "error", err)
+	}
 }

@@ -8,15 +8,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/github"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
 // PRPoller periodically polls PR status for tasks with open PRs.
 type PRPoller struct {
-	workDir  string
-	interval time.Duration
-	logger   *slog.Logger
+	workDir   string
+	interval  time.Duration
+	logger    *slog.Logger
+	orcConfig *config.Config
 
 	// stopCh signals the poller to stop
 	stopCh chan struct{}
@@ -31,6 +33,7 @@ type PRPollerConfig struct {
 	WorkDir        string
 	Interval       time.Duration
 	Logger         *slog.Logger
+	OrcConfig      *config.Config
 	OnStatusChange func(taskID string, pr *task.PRInfo)
 }
 
@@ -50,6 +53,7 @@ func NewPRPoller(cfg PRPollerConfig) *PRPoller {
 		workDir:        cfg.WorkDir,
 		interval:       interval,
 		logger:         logger,
+		orcConfig:      cfg.OrcConfig,
 		stopCh:         make(chan struct{}),
 		onStatusChange: cfg.OnStatusChange,
 	}
@@ -230,7 +234,27 @@ func DeterminePRStatus(pr *github.PR, summary *github.PRStatusSummary) task.PRSt
 
 func (p *PRPoller) saveTask(t *task.Task) error {
 	taskDir := task.TaskDirIn(p.workDir, t.ID)
-	return t.SaveTo(taskDir)
+	if err := t.SaveTo(taskDir); err != nil {
+		return err
+	}
+
+	// Auto-commit PR status update
+	p.autoCommitTask(t, "PR status updated")
+	return nil
+}
+
+// autoCommitTask commits a task change to git if auto-commit is enabled.
+func (p *PRPoller) autoCommitTask(t *task.Task, action string) {
+	if p.orcConfig == nil || p.orcConfig.Tasks.DisableAutoCommit {
+		return
+	}
+
+	commitCfg := task.CommitConfig{
+		ProjectRoot:  p.workDir,
+		CommitPrefix: p.orcConfig.CommitPrefix,
+		Logger:       p.logger,
+	}
+	task.CommitAndSync(t, action, commitCfg)
 }
 
 // PollTask manually triggers a poll for a specific task.

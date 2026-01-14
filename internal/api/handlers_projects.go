@@ -281,6 +281,9 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	// Auto-commit task creation in project context
+	s.autoCommitProjectTask(proj.Path, t, "created")
+
 	w.WriteHeader(http.StatusCreated)
 	s.jsonResponse(w, t)
 }
@@ -332,6 +335,9 @@ func (s *Server) handleDeleteProjectTask(w http.ResponseWriter, r *http.Request)
 		s.jsonError(w, "failed to delete task", http.StatusInternalServerError)
 		return
 	}
+
+	// Auto-commit task deletion in project context
+	s.autoCommitProjectTaskDeletion(proj.Path, taskID)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -403,6 +409,9 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
 		return
 	}
+
+	// Auto-commit: task started running
+	s.autoCommitProjectTask(proj.Path, t, "running")
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -494,6 +503,9 @@ func (s *Server) handlePauseProjectTask(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	// Auto-commit: task paused
+	s.autoCommitProjectTask(proj.Path, t, "paused")
+
 	s.jsonResponse(w, map[string]any{
 		"status":  "paused",
 		"task_id": taskID,
@@ -567,6 +579,9 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 		s.jsonError(w, "failed to update state", http.StatusInternalServerError)
 		return
 	}
+
+	// Auto-commit: task resumed
+	s.autoCommitProjectTask(proj.Path, t, "resumed")
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -709,6 +724,9 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
+
+	// Auto-commit: task rewound
+	s.autoCommitProjectTask(proj.Path, t, "rewound to "+req.Phase)
 
 	s.logger.Info("rewound task", "task", taskID, "toPhase", req.Phase)
 
@@ -861,6 +879,9 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Auto-commit: task escalated
+	s.autoCommitProjectTask(proj.Path, t, "escalated to implement")
+
 	s.logger.Info("escalated task", "task", taskID, "reason", req.Reason)
 
 	s.jsonResponse(w, map[string]any{
@@ -1005,4 +1026,34 @@ func (s *Server) loadProjectTask(projectPath, taskID string) (*task.Task, error)
 	}
 
 	return &t, nil
+}
+
+// autoCommitProjectTask commits a task change to git in a specific project directory.
+// This is used for project-scoped operations where the task is in a different project
+// than the server's workDir.
+func (s *Server) autoCommitProjectTask(projectPath string, t *task.Task, action string) {
+	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
+		return
+	}
+
+	commitCfg := task.CommitConfig{
+		ProjectRoot:  projectPath,
+		CommitPrefix: s.orcConfig.CommitPrefix,
+		Logger:       s.logger,
+	}
+	task.CommitAndSync(t, action, commitCfg)
+}
+
+// autoCommitProjectTaskDeletion commits a task deletion to git in a specific project directory.
+func (s *Server) autoCommitProjectTaskDeletion(projectPath, taskID string) {
+	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
+		return
+	}
+
+	commitCfg := task.CommitConfig{
+		ProjectRoot:  projectPath,
+		CommitPrefix: s.orcConfig.CommitPrefix,
+		Logger:       s.logger,
+	}
+	task.CommitDeletion(taskID, commitCfg)
 }

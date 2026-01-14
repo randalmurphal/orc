@@ -376,6 +376,9 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 		if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
 			e.logger.Error("failed to save task with PR URL", "error", saveErr)
 		}
+
+		// Auto-commit: PR created
+		e.commitTaskState(t, "PR created")
 	}
 
 	e.logger.Info("created pull request", "task", t.ID, "url", prURL)
@@ -422,6 +425,9 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 			if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
 				e.logger.Error("failed to save task after merge", "error", saveErr)
 			}
+
+			// Auto-commit: task finished (merged)
+			e.commitTaskStatus(t, "finished")
 		}
 	}
 

@@ -355,6 +355,9 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-commit: review retry triggered
+	s.autoCommitTask(t, "review retry triggered")
+
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
 

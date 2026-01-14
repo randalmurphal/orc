@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -277,6 +278,9 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-commit config change
+	s.autoCommitConfig("automation settings updated")
+
 	// Return updated config
 	s.jsonResponse(w, map[string]any{
 		"version": "1.0.0",
@@ -315,4 +319,41 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 			"idle_timeout":       cfg.Timeouts.IdleTimeout.String(),
 		},
 	})
+}
+
+// autoCommitConfig commits config changes to git if auto-commit is enabled.
+func (s *Server) autoCommitConfig(description string) {
+	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
+		return
+	}
+
+	configPath := filepath.Join(s.workDir, ".orc", "config.yaml")
+
+	// Git add the config file
+	addCmd := exec.Command("git", "add", configPath)
+	addCmd.Dir = s.workDir
+	if err := addCmd.Run(); err != nil {
+		s.logger.Debug("skip config auto-commit: git add failed", "error", err)
+		return
+	}
+
+	// Check if there are staged changes
+	diffCmd := exec.Command("git", "diff", "--cached", "--quiet")
+	diffCmd.Dir = s.workDir
+	if err := diffCmd.Run(); err == nil {
+		// No changes to commit
+		return
+	}
+
+	// Commit the changes
+	prefix := s.orcConfig.CommitPrefix
+	if prefix == "" {
+		prefix = "[orc]"
+	}
+	commitMsg := fmt.Sprintf("%s config: %s", prefix, description)
+	commitCmd := exec.Command("git", "commit", "-m", commitMsg)
+	commitCmd.Dir = s.workDir
+	if err := commitCmd.Run(); err != nil {
+		s.logger.Warn("failed to auto-commit config change", "error", err)
+	}
 }
