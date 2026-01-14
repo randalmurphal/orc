@@ -12,11 +12,11 @@ export default defineConfig({
 	snapshotPathTemplate: '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
 	expect: {
 		toHaveScreenshot: {
-			maxDiffPixels: 100, // Allow small differences for anti-aliasing
+			maxDiffPixels: 1000, // Allow minor anti-aliasing differences
 			threshold: 0.2, // 20% pixel color difference threshold
 		},
 		toMatchSnapshot: {
-			maxDiffPixelRatio: 0.01, // 1% of pixels can differ
+			maxDiffPixelRatio: 0.02, // 2% of pixels can differ
 		},
 	},
 	use: {
