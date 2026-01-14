@@ -147,11 +147,14 @@ export async function loadInitiatives(): Promise<void> {
 		// Validate current selection
 		const currentId = get(currentInitiativeId);
 		if (currentId) {
-			const currentIsValid = loaded.find(i => i.id === currentId);
-			if (!currentIsValid) {
-				// Clear invalid selection
-				currentInitiativeId.set(null);
-				setUrlInitiativeId(null, true);
+			// Skip validation for special UNASSIGNED_INITIATIVE value
+			if (currentId !== UNASSIGNED_INITIATIVE) {
+				const currentIsValid = loaded.find(i => i.id === currentId);
+				if (!currentIsValid) {
+					// Clear invalid selection
+					currentInitiativeId.set(null);
+					setUrlInitiativeId(null, true);
+				}
 			}
 		}
 	} catch (e) {
