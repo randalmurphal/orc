@@ -277,4 +277,78 @@ describe('initiative store', () => {
 		const { UNASSIGNED_INITIATIVE } = await import('./initiative');
 		expect(UNASSIGNED_INITIATIVE).toBe('__unassigned__');
 	});
+
+	describe('loadInitiatives', () => {
+		it('clears invalid initiative selection after loading', async () => {
+			const { listInitiatives } = await import('$lib/api');
+			const mockListInitiatives = vi.mocked(listInitiatives);
+			mockListInitiatives.mockResolvedValueOnce([
+				{
+					id: 'INIT-002',
+					title: 'Test',
+					status: 'active',
+					version: 1,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				}
+			]);
+
+			// Start with a selection that won't be in the loaded list
+			localStorageMock._setStore({ 'orc_current_initiative_id': 'INIT-001' });
+			const { loadInitiatives, currentInitiativeId } = await import('./initiative');
+
+			await loadInitiatives();
+
+			// Selection should be cleared because INIT-001 doesn't exist
+			expect(get(currentInitiativeId)).toBe(null);
+		});
+
+		it('preserves UNASSIGNED_INITIATIVE selection after loading', async () => {
+			const { listInitiatives } = await import('$lib/api');
+			const mockListInitiatives = vi.mocked(listInitiatives);
+			mockListInitiatives.mockResolvedValueOnce([
+				{
+					id: 'INIT-001',
+					title: 'Test',
+					status: 'active',
+					version: 1,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				}
+			]);
+
+			// Start with UNASSIGNED selected
+			localStorageMock._setStore({ 'orc_current_initiative_id': '__unassigned__' });
+			const { loadInitiatives, currentInitiativeId, UNASSIGNED_INITIATIVE } = await import('./initiative');
+
+			await loadInitiatives();
+
+			// UNASSIGNED should be preserved even though it's not a real initiative
+			expect(get(currentInitiativeId)).toBe(UNASSIGNED_INITIATIVE);
+		});
+
+		it('preserves valid initiative selection after loading', async () => {
+			const { listInitiatives } = await import('$lib/api');
+			const mockListInitiatives = vi.mocked(listInitiatives);
+			mockListInitiatives.mockResolvedValueOnce([
+				{
+					id: 'INIT-001',
+					title: 'Test',
+					status: 'active',
+					version: 1,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				}
+			]);
+
+			// Start with a valid selection
+			localStorageMock._setStore({ 'orc_current_initiative_id': 'INIT-001' });
+			const { loadInitiatives, currentInitiativeId } = await import('./initiative');
+
+			await loadInitiatives();
+
+			// Selection should be preserved because INIT-001 exists
+			expect(get(currentInitiativeId)).toBe('INIT-001');
+		});
+	});
 });

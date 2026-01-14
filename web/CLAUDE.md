@@ -887,6 +887,7 @@ bunx playwright test --grep board  # Run board tests only
 | File | Coverage |
 |------|----------|
 | `e2e/board.spec.ts` | Board page: rendering, view modes, drag-drop, swimlanes (18 tests) |
+| `e2e/filters.spec.ts` | Filter dropdowns, search, URL/localStorage persistence (16 tests) |
 | `e2e/initiatives.spec.ts` | Initiative CRUD, detail page, task linking, decisions, dependency graph (20 tests) |
 | `e2e/task-detail.spec.ts` | Task detail tabs: navigation, timeline, changes, transcript, attachments (15 tests) |
 | `e2e/tasks.spec.ts` | Task list, task detail, CRUD operations |
@@ -914,10 +915,14 @@ E2E tests use framework-agnostic selectors to support future React migration:
 - Implementation-specific attributes
 - Deep DOM path selectors
 
-**Helper functions** (see `board.spec.ts`):
+**Helper functions** (see `board.spec.ts`, `filters.spec.ts`):
 - `waitForBoardLoad(page)` - Wait for board to render
-- `clearBoardStorage(page)` - Reset localStorage for test isolation
+- `waitForTasksPageLoad(page)` - Wait for tasks page to load
+- `clearBoardStorage(page)` - Reset localStorage for board tests
+- `clearFilterStorage(page)` - Reset localStorage for filter tests
 - `switchToSwimlaneView(page)` - Toggle view mode
+- `openInitiativeDropdown(page)` - Open initiative dropdown with retry
+- `openDependencyDropdown(page)` - Open dependency dropdown with retry
 
 **Flakiness prevention:**
 - Use `waitForSelector()` with reasonable timeouts
@@ -976,6 +981,74 @@ if (wsSendToPage) {
 - Tests actual UI updates in response to events
 - Framework-agnostic - works with any frontend (Svelte, React, etc.)
 - Playwright's `routeWebSocket` allows event injection without modifying production code
+
+### Filter and URL Persistence E2E Testing
+
+The `filters.spec.ts` file tests filter functionality and state persistence (16 tests):
+
+**Test Categories:**
+
+| Category | Tests | Coverage |
+|----------|-------|----------|
+| Initiative Filter (7) | Dropdown visibility, task filtering, Unassigned option, URL/localStorage persistence, sidebar sync | Initiative dropdown on tasks/board pages |
+| Dependency Filter (4) | Dropdown visibility, blocked/ready filtering, combination with initiative filter | Dependency status dropdown |
+| Search (3) | Text filtering, clear functionality, debounce behavior | Search input |
+| URL State Persistence (2) | Restore on refresh, browser back/forward | Filter state in URL params |
+
+**State Persistence Testing:**
+
+```typescript
+// URL persistence - filter appears in URL params
+await expect(page).toHaveURL(/initiative=__unassigned__/);
+await expect(page).toHaveURL(/dependency_status=ready/);
+
+// localStorage persistence - check stored value
+const storedId = await page.evaluate(() =>
+  localStorage.getItem('orc_current_initiative_id')
+);
+expect(storedId).toBe('__unassigned__');
+
+// Browser history - back/forward navigates filter state
+await page.goBack();
+expect(page.url()).not.toContain('initiative=');
+await page.goForward();
+expect(page.url()).toContain('initiative=');
+```
+
+**Flaky Dropdown Handling:**
+
+Dropdowns can be flaky in E2E tests (clicks not registering). Use retry pattern:
+
+```typescript
+async function openInitiativeDropdown(page: Page) {
+  const dropdown = page.locator('.initiative-dropdown');
+  const trigger = dropdown.locator('.dropdown-trigger');
+  const menu = dropdown.locator('.dropdown-menu[role="listbox"]');
+
+  // Retry loop for flaky dropdown clicks
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await trigger.click();
+    await page.waitForTimeout(200);
+    if (await menu.isVisible().catch(() => false)) break;
+    await page.waitForTimeout(100);
+  }
+
+  await expect(menu).toBeVisible({ timeout: 5000 });
+  return { dropdown, trigger, menu };
+}
+```
+
+**Test Isolation:**
+
+```typescript
+// Clear filter-related localStorage before tests
+async function clearFilterStorage(page: Page) {
+  await page.evaluate(() => {
+    localStorage.removeItem('orc_current_initiative_id');
+    localStorage.removeItem('orc_dependency_status_filter');
+  });
+}
+```
 
 ## Deep-Dive Reference
 
