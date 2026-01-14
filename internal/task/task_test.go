@@ -567,24 +567,37 @@ func TestDetectUITesting(t *testing.T) {
 		description string
 		expected    bool
 	}{
+		// Should detect UI testing
 		{"Add login button", "", true},
 		{"Fix form validation", "", true},
 		{"Create user dashboard page", "", true},
 		{"Add modal dialog", "", true},
-		{"Update navigation menu", "", true},
+		{"Update sidebar navigation", "", true},
 		{"Implement dark mode", "", true},
 		{"Fix CSS styling issue", "", true},
 		{"Add responsive layout", "", true},
 		{"Fix dropdown select", "", true},
 		{"Update tooltip behavior", "", true},
+		{"Add click handler for submit", "", true},
+		{"Fix the form input field", "", true},
+		{"Backend task", "update the component registry", true},
+		{"", "add aria labels for accessibility", true},
+
+		// Should NOT detect UI testing (false positives we're avoiding)
 		{"Fix database connection", "", false},
 		{"Update API endpoint", "", false},
 		{"Refactor auth service", "", false},
 		{"Add logging", "", false},
 		{"Fix memory leak in worker", "", false},
-		{"", "clicking the save button should save", true},
-		{"", "scroll to bottom on load", true},
-		{"Backend task", "update the component registry", true},
+		{"Give users quick visibility into changes", "", false},    // "quick" should not match "click"
+		{"Transform data before saving", "", false},                // "transform" should not match "form"
+		{"Perform data transformation", "", false},                 // "perform" should not match "form"
+		{"Display output information", "", false},                  // generic words
+		{"Built-in feature for users", "", false},                  // "built" should not match "ui"
+		{"Required functionality", "", false},                      // "required" should not match "ui"
+		{"Add scrolling behavior to list", "", false},              // "scrolling" is not a keyword
+		{"Page load optimization", "", false},                      // "page" removed (too generic)
+		{"", "clicking saves the configuration", false},            // "clicking" != "click"
 	}
 
 	for _, tt := range tests {
