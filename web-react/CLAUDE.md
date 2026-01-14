@@ -18,20 +18,25 @@ React 19 application for orc web UI, running in parallel with existing Svelte ap
 ```
 web-react/src/
 ├── main.tsx              # Entry point (BrowserRouter)
-├── App.tsx               # Root component (useRoutes + WebSocketProvider)
+├── App.tsx               # Root component (useRoutes + ShortcutProvider + WebSocketProvider)
 ├── index.css             # Global styles
 ├── router/               # Route configuration
 │   ├── index.ts          # Exports
 │   └── routes.tsx        # Route definitions
 ├── lib/                  # Shared utilities
 │   ├── types.ts          # TypeScript interfaces
-│   └── websocket.ts      # OrcWebSocket class
+│   ├── websocket.ts      # OrcWebSocket class
+│   ├── shortcuts.ts      # ShortcutManager class
+│   └── platform.ts       # Platform detection (isMac)
 ├── components/           # UI components
-│   └── layout/           # Layout components
-│       ├── AppLayout.tsx # Main layout (Sidebar + Header + Outlet)
-│       ├── Sidebar.tsx   # Left navigation
-│       ├── Header.tsx    # Top bar
-│       └── UrlParamSync.tsx # URL <-> Store bidirectional sync
+│   ├── layout/           # Layout components
+│   │   ├── AppLayout.tsx # Main layout (Sidebar + Header + Outlet)
+│   │   ├── Sidebar.tsx   # Left navigation
+│   │   ├── Header.tsx    # Top bar
+│   │   └── UrlParamSync.tsx # URL <-> Store bidirectional sync
+│   └── overlays/         # Modal overlays
+│       ├── Modal.tsx     # Base modal component
+│       └── KeyboardShortcutsHelp.tsx # Shortcuts help modal
 ├── pages/                # Route pages
 │   ├── TaskList.tsx      # / - Task list
 │   ├── Board.tsx         # /board - Kanban board
@@ -132,6 +137,11 @@ Migration follows the existing Svelte component structure:
 **Router implemented (Phase 2):**
 - `router/routes.tsx` - Route configuration matching Svelte app
 - `components/layout/UrlParamSync.tsx` - Bidirectional URL/store sync
+
+**Keyboard shortcuts implemented (Phase 1):**
+- `lib/shortcuts.ts` - ShortcutManager class with sequence support
+- `hooks/useShortcuts.tsx` - ShortcutProvider, useShortcuts, useGlobalShortcuts, useTaskListShortcuts
+- `components/overlays/KeyboardShortcutsHelp.tsx` - Help modal with platform-aware key display
 
 ## Routing
 
@@ -599,6 +609,91 @@ ws.disconnect();  // Cleanup
 |------|---------|
 | `lib/types.ts` | TypeScript interfaces matching Go backend types |
 | `lib/websocket.ts` | OrcWebSocket class for WebSocket connection management |
+| `lib/shortcuts.ts` | ShortcutManager class for keyboard shortcuts |
+| `lib/platform.ts` | Platform detection (isMac) and modifier key formatting |
+
+### Keyboard Shortcuts
+
+The keyboard shortcut system uses context and hooks pattern.
+
+#### ShortcutProvider
+
+Wraps the app at root level in `App.tsx`:
+
+```tsx
+<ShortcutProvider>
+  <WebSocketProvider>{children}</WebSocketProvider>
+</ShortcutProvider>
+```
+
+#### Hooks
+
+| Hook | Purpose |
+|------|---------|
+| `useShortcuts()` | Access shortcut manager methods |
+| `useShortcutContext(context)` | Set active context for a component |
+| `useGlobalShortcuts(options)` | Register global shortcuts with navigation |
+| `useTaskListShortcuts(options)` | Register task list shortcuts (j/k navigation) |
+
+#### Global Shortcuts (Shift+Alt modifier)
+
+| Shortcut | Action |
+|----------|--------|
+| `Shift+Alt+K` | Open command palette |
+| `Shift+Alt+N` | Create new task |
+| `Shift+Alt+B` | Toggle sidebar |
+| `Shift+Alt+P` | Switch project |
+| `/` | Focus search |
+| `?` | Show keyboard help |
+| `Escape` | Close modal |
+
+#### Navigation Sequences
+
+| Sequence | Destination |
+|----------|-------------|
+| `g d` | Dashboard |
+| `g t` | Tasks |
+| `g e` | Environment |
+| `g r` | Preferences |
+| `g p` | Prompts |
+| `g h` | Hooks |
+| `g k` | Skills |
+
+#### Task List Shortcuts (context: 'tasks')
+
+| Key | Action |
+|-----|--------|
+| `j` | Select next task |
+| `k` | Select previous task |
+| `Enter` | Open selected task |
+| `r` | Run selected task |
+| `p` | Pause selected task |
+| `d` | Delete selected task |
+
+#### Implementation Notes
+
+- Uses `Shift+Alt` modifier instead of `Cmd/Ctrl` to avoid browser conflicts
+- Multi-key sequences have 1000ms timeout window
+- Shortcuts disabled in input/textarea fields (except Escape)
+- Context system filters shortcuts by active context
+
+#### Usage Example
+
+```tsx
+// In a component
+import { useGlobalShortcuts, useTaskListShortcuts } from '@/hooks';
+
+function TaskList() {
+  useTaskListShortcuts({
+    onNavDown: () => setSelectedIndex(i => i + 1),
+    onNavUp: () => setSelectedIndex(i => Math.max(0, i - 1)),
+    onOpen: () => navigate(`/tasks/${selectedTask.id}`),
+    onRun: () => runTask(selectedTask.id),
+  });
+
+  // ...
+}
+```
 
 ## Known Differences from Svelte
 
