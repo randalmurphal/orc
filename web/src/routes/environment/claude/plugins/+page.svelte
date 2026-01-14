@@ -40,6 +40,8 @@
 	let marketplacePlugins = $state<MarketplacePlugin[]>([]);
 	let marketplaceLoading = $state(false);
 	let marketplaceError = $state<string | null>(null);
+	let marketplaceMessage = $state<string | null>(null);
+	let marketplaceIsMock = $state(false);
 	let searchQuery = $state('');
 	let marketplacePage = $state(1);
 	let marketplaceTotal = $state(0);
@@ -136,10 +138,13 @@
 	async function loadMarketplace() {
 		marketplaceLoading = true;
 		marketplaceError = null;
+		marketplaceMessage = null;
 		try {
 			const response = await browseMarketplace(marketplacePage, 20);
 			marketplacePlugins = response.plugins;
 			marketplaceTotal = response.total;
+			marketplaceIsMock = response.is_mock ?? false;
+			marketplaceMessage = response.message ?? null;
 		} catch (e) {
 			marketplaceError = e instanceof Error ? e.message : 'Marketplace unavailable';
 		} finally {
@@ -170,6 +175,12 @@
 	}
 
 	async function handleInstall(mp: MarketplacePlugin, installScope: PluginScope = 'project') {
+		// When using mock data, show helpful message about manual installation
+		if (marketplaceIsMock && mp.repository) {
+			error = `This is a sample plugin. To install, run: claude plugin add ${mp.repository}`;
+			return;
+		}
+
 		saving = true;
 		error = null;
 		try {
@@ -470,6 +481,13 @@
 			</form>
 		</div>
 
+		{#if marketplaceMessage}
+			<div class="alert alert-info">
+				<Icon name="info" size={16} />
+				<span>{marketplaceMessage}</span>
+			</div>
+		{/if}
+
 		{#if marketplaceLoading}
 			<div class="loading">Loading marketplace...</div>
 		{:else if marketplaceError}
@@ -728,6 +746,12 @@
 		background: var(--warning-bg, #fef3c7);
 		color: var(--warning-text, #d97706);
 		border: 1px solid var(--warning-border, #fde68a);
+	}
+
+	.alert-info {
+		background: var(--info-bg, #dbeafe);
+		color: var(--info-text, #1d4ed8);
+		border: 1px solid var(--info-border, #bfdbfe);
 	}
 
 	.loading {

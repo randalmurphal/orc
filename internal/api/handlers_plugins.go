@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/randalmurphal/llmkit/claudeconfig"
 )
@@ -345,9 +346,73 @@ type MarketplaceBrowseResponse struct {
 	Limit        int                              `json:"limit"`
 	Cached       bool                             `json:"cached"`
 	CacheAgeSecs int                              `json:"cache_age_seconds,omitempty"`
+	IsMock       bool                             `json:"is_mock,omitempty"`
+	Message      string                           `json:"message,omitempty"`
+}
+
+// sampleMarketplacePlugins returns sample plugins for when the marketplace is unavailable.
+// This allows the UI to demonstrate functionality and provides useful plugin examples.
+func sampleMarketplacePlugins() []claudeconfig.MarketplacePlugin {
+	return []claudeconfig.MarketplacePlugin{
+		{
+			Name:        "orc",
+			Description: "Task orchestration plugin for Claude Code with phased execution and git worktree isolation",
+			Author:      claudeconfig.PluginAuthor{Name: "Randal Murphy", URL: "https://github.com/randalmurphal"},
+			Version:     "1.0.0",
+			Repository:  "https://github.com/randalmurphal/orc-claude-plugin",
+			Downloads:   1250,
+			Keywords:    []string{"orchestration", "tasks", "git", "worktree", "automation"},
+		},
+		{
+			Name:        "memory",
+			Description: "Persistent memory and context management for Claude Code sessions",
+			Author:      claudeconfig.PluginAuthor{Name: "Claude Community"},
+			Version:     "0.2.1",
+			Repository:  "https://github.com/anthropics/claude-code-memory",
+			Downloads:   3420,
+			Keywords:    []string{"memory", "context", "persistence", "session"},
+		},
+		{
+			Name:        "git-workflow",
+			Description: "Enhanced git workflow commands including interactive rebase, cherry-pick, and conflict resolution",
+			Author:      claudeconfig.PluginAuthor{Name: "DevTools Team"},
+			Version:     "1.2.0",
+			Repository:  "https://github.com/devtools/git-workflow-plugin",
+			Downloads:   2180,
+			Keywords:    []string{"git", "workflow", "rebase", "merge", "conflicts"},
+		},
+		{
+			Name:        "test-runner",
+			Description: "Intelligent test runner with coverage tracking, watch mode, and failure analysis",
+			Author:      claudeconfig.PluginAuthor{Name: "Testing Guild"},
+			Version:     "0.5.0",
+			Repository:  "https://github.com/testing-guild/test-runner-plugin",
+			Downloads:   1890,
+			Keywords:    []string{"testing", "coverage", "tdd", "jest", "pytest"},
+		},
+		{
+			Name:        "code-review",
+			Description: "Automated code review with style checking, security scanning, and best practice suggestions",
+			Author:      claudeconfig.PluginAuthor{Name: "Quality Assurance"},
+			Version:     "0.8.2",
+			Repository:  "https://github.com/qa-tools/code-review-plugin",
+			Downloads:   2540,
+			Keywords:    []string{"review", "lint", "security", "quality", "static-analysis"},
+		},
+		{
+			Name:        "docs-generator",
+			Description: "Generate and maintain documentation from code comments and structure",
+			Author:      claudeconfig.PluginAuthor{Name: "DocuMentor"},
+			Version:     "0.3.0",
+			Repository:  "https://github.com/documenter/docs-generator",
+			Downloads:   980,
+			Keywords:    []string{"documentation", "readme", "api-docs", "markdown"},
+		},
+	}
 }
 
 // handleBrowseMarketplace returns available plugins from the marketplace.
+// Falls back to sample plugins when the marketplace is unavailable.
 func (s *Server) handleBrowseMarketplace(w http.ResponseWriter, r *http.Request) {
 	// Parse pagination params with defaults
 	page := 1
@@ -374,7 +439,36 @@ func (s *Server) handleBrowseMarketplace(w http.ResponseWriter, r *http.Request)
 
 	plugins, total, err := marketplaceSvc.Browse(page, limit)
 	if err != nil {
-		s.jsonError(w, fmt.Sprintf("marketplace unavailable: %v", err), http.StatusServiceUnavailable)
+		// Fallback to sample plugins when marketplace is unavailable
+		s.logger.Debug("marketplace unavailable, using sample plugins", "error", err)
+		samplePlugins := sampleMarketplacePlugins()
+
+		// Apply pagination to sample plugins
+		start := (page - 1) * limit
+		end := start + limit
+		if start >= len(samplePlugins) {
+			start = 0
+			end = 0
+		}
+		if end > len(samplePlugins) {
+			end = len(samplePlugins)
+		}
+
+		var paginatedSample []claudeconfig.MarketplacePlugin
+		if start < len(samplePlugins) {
+			paginatedSample = samplePlugins[start:end]
+		} else {
+			paginatedSample = []claudeconfig.MarketplacePlugin{}
+		}
+
+		s.jsonResponse(w, MarketplaceBrowseResponse{
+			Plugins: paginatedSample,
+			Total:   len(samplePlugins),
+			Page:    page,
+			Limit:   limit,
+			IsMock:  true,
+			Message: "Showing sample plugins. The official Claude Code plugin marketplace is not yet available. Install plugins manually via 'claude plugin add <github-repo>'.",
+		})
 		return
 	}
 
@@ -391,6 +485,7 @@ func (s *Server) handleBrowseMarketplace(w http.ResponseWriter, r *http.Request)
 }
 
 // handleSearchMarketplace searches for plugins in the marketplace.
+// Falls back to searching sample plugins when the marketplace is unavailable.
 func (s *Server) handleSearchMarketplace(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	if query == "" {
@@ -409,7 +504,30 @@ func (s *Server) handleSearchMarketplace(w http.ResponseWriter, r *http.Request)
 
 	plugins, err := marketplaceSvc.Search(query)
 	if err != nil {
-		s.jsonError(w, fmt.Sprintf("search failed: %v", err), http.StatusServiceUnavailable)
+		// Fallback to searching sample plugins
+		s.logger.Debug("marketplace search unavailable, searching sample plugins", "error", err)
+		samplePlugins := sampleMarketplacePlugins()
+		queryLower := strings.ToLower(query)
+
+		var results []claudeconfig.MarketplacePlugin
+		for _, p := range samplePlugins {
+			if strings.Contains(strings.ToLower(p.Name), queryLower) ||
+				strings.Contains(strings.ToLower(p.Description), queryLower) {
+				results = append(results, p)
+				continue
+			}
+			for _, kw := range p.Keywords {
+				if strings.Contains(strings.ToLower(kw), queryLower) {
+					results = append(results, p)
+					break
+				}
+			}
+		}
+
+		if results == nil {
+			results = []claudeconfig.MarketplacePlugin{}
+		}
+		s.jsonResponse(w, results)
 		return
 	}
 
@@ -421,6 +539,7 @@ func (s *Server) handleSearchMarketplace(w http.ResponseWriter, r *http.Request)
 }
 
 // handleGetMarketplacePlugin returns details for a specific marketplace plugin.
+// Falls back to sample plugins when the marketplace is unavailable.
 func (s *Server) handleGetMarketplacePlugin(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 
@@ -435,7 +554,15 @@ func (s *Server) handleGetMarketplacePlugin(w http.ResponseWriter, r *http.Reque
 
 	plugin, err := marketplaceSvc.GetPlugin(name)
 	if err != nil {
-		s.jsonError(w, fmt.Sprintf("plugin not found: %v", err), http.StatusNotFound)
+		// Fallback to searching sample plugins
+		s.logger.Debug("marketplace get plugin unavailable, searching sample plugins", "error", err)
+		for _, p := range sampleMarketplacePlugins() {
+			if p.Name == name {
+				s.jsonResponse(w, p)
+				return
+			}
+		}
+		s.jsonError(w, "plugin not found", http.StatusNotFound)
 		return
 	}
 
