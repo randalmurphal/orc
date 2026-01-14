@@ -147,7 +147,7 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
     - id: validate
       name: validate
       prompt: |
