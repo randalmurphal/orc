@@ -173,13 +173,52 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		// Publish prompt transcript
 		e.publisher.Transcript(t.ID, p.ID, iteration, "prompt", promptText)
 
-		// Execute turn with streaming
-		turnResult, err := adapter.StreamTurn(ctx, promptText, func(chunk string) {
-			// Publish chunk for real-time display
-			e.publisher.TranscriptChunk(t.ID, p.ID, iteration, chunk)
-		})
+		// Execute turn with streaming and progress tracking
+		progressOpts := StreamProgressOptions{
+			TurnTimeout:       e.config.TurnTimeout,
+			HeartbeatInterval: e.config.HeartbeatInterval,
+			IdleTimeout:       e.config.IdleTimeout,
+			OnChunk: func(chunk string) {
+				// Publish chunk for real-time display
+				e.publisher.TranscriptChunk(t.ID, p.ID, iteration, chunk)
+			},
+			OnActivityChange: func(state ActivityState) {
+				e.publisher.Activity(t.ID, p.ID, string(state))
+			},
+			OnHeartbeat: func() {
+				e.publisher.Heartbeat(t.ID, p.ID, iteration)
+			},
+			OnIdleWarning: func(idleDuration time.Duration) {
+				e.logger.Warn("API idle warning",
+					"task", t.ID,
+					"phase", p.ID,
+					"idle_duration", idleDuration,
+				)
+				e.publisher.Warning(t.ID, p.ID, fmt.Sprintf("No activity for %s - API may be slow", idleDuration.Round(time.Second)))
+			},
+			OnTurnTimeout: func(turnDuration time.Duration) {
+				e.logger.Warn("turn timeout",
+					"task", t.ID,
+					"phase", p.ID,
+					"duration", turnDuration,
+				)
+				e.publisher.Warning(t.ID, p.ID, fmt.Sprintf("Turn timeout after %s", turnDuration.Round(time.Second)))
+			},
+		}
+
+		turnResult, err := adapter.StreamTurnWithProgress(ctx, promptText, progressOpts)
 
 		if err != nil {
+			// Check if this is a recoverable timeout
+			if turnResult != nil && turnResult.Content != "" {
+				e.logger.Info("partial response received before timeout",
+					"task", t.ID,
+					"phase", p.ID,
+					"content_len", len(turnResult.Content),
+				)
+				// For timeout errors, we can try to continue if we got partial content
+				lastResponse = turnResult.Content
+			}
 			result.Status = plan.PhaseFailed
 			result.Error = fmt.Errorf("execute turn %d: %w", iteration, err)
 			result.Output = lastResponse // Preserve any previous response for debugging

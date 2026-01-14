@@ -52,11 +52,24 @@ func (p *CLIPublisher) Publish(event Event) {
 		p.inner.Publish(event)
 	}
 
-	// Only stream transcript events
-	if event.Type != EventTranscript || !p.streamMode {
-		return
+	// Handle different event types
+	switch event.Type {
+	case EventTranscript:
+		if !p.streamMode {
+			return
+		}
+		p.handleTranscript(event)
+	case EventActivity:
+		p.handleActivity(event)
+	case EventHeartbeat:
+		p.handleHeartbeat(event)
+	case EventWarning:
+		p.handleWarning(event)
 	}
+}
 
+// handleTranscript processes transcript events.
+func (p *CLIPublisher) handleTranscript(event Event) {
 	line, ok := event.Data.(TranscriptLine)
 	if !ok {
 		return
@@ -86,6 +99,47 @@ func (p *CLIPublisher) Publish(event Event) {
 	case "error":
 		fmt.Fprintf(p.out, "\n❌ Error: %s\n", line.Content)
 	}
+}
+
+// handleActivity processes activity state change events.
+func (p *CLIPublisher) handleActivity(event Event) {
+	activity, ok := event.Data.(ActivityUpdate)
+	if !ok {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Only show significant activity changes
+	switch activity.Activity {
+	case "waiting_api":
+		fmt.Fprintf(p.out, "\n⏳ Waiting for Claude API...")
+	case "running_tool":
+		fmt.Fprintf(p.out, "\n🔧 Running tool...")
+	}
+}
+
+// handleHeartbeat processes heartbeat events.
+func (p *CLIPublisher) handleHeartbeat(event Event) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Print a dot to show progress
+	fmt.Fprint(p.out, ".")
+}
+
+// handleWarning processes warning events.
+func (p *CLIPublisher) handleWarning(event Event) {
+	warning, ok := event.Data.(WarningData)
+	if !ok {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	fmt.Fprintf(p.out, "\n⚠️  %s\n", warning.Message)
 }
 
 // Subscribe delegates to inner publisher or returns closed channel.
