@@ -465,8 +465,18 @@ func newInitiativeShowCmd() *cobra.Command {
 				}
 			}
 
-			// Show tasks
+			// Show tasks with actual status from task.yaml
 			if len(init.Tasks) > 0 {
+				// Create task loader to get actual status
+				taskLoader := func(taskID string) (string, string, error) {
+					t, err := task.Load(taskID)
+					if err != nil {
+						return "", "", nil // Task not found, keep stored status
+					}
+					return string(t.Status), t.Title, nil
+				}
+				init.EnrichTaskStatuses(taskLoader)
+
 				fmt.Printf("\nTasks (%d):\n", len(init.Tasks))
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 				for _, t := range init.Tasks {
@@ -478,8 +488,8 @@ func newInitiativeShowCmd() *cobra.Command {
 				}
 				w.Flush()
 
-				// Show ready tasks
-				ready := init.GetReadyTasks()
+				// Show ready tasks (using loader for accurate status)
+				ready := init.GetReadyTasksWithLoader(taskLoader)
 				if len(ready) > 0 {
 					fmt.Printf("\nReady to run:")
 					for _, t := range ready {
