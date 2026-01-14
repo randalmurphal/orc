@@ -24,6 +24,7 @@ Phase execution engine implementing Ralph-style iteration loops with multiple ex
 
 | File | Responsibility |
 |------|----------------|
+| `executor.go` | Auto-commit helpers (`commitTaskState`, `commitTaskStatus`) |
 | `publish.go` | EventPublisher with nil-safety |
 | `template.go` | Prompt template rendering |
 | `retry.go` | Cross-phase retry context management |
@@ -257,6 +258,19 @@ Context injection includes:
 - **Review comments**: Grouped by file with line numbers and severity
 - **PR comments**: GitHub PR review feedback
 - **User instructions**: Additional guidance from retry UI
+
+### Auto-Commit Helpers (executor.go)
+
+Task state changes are automatically committed to git:
+```go
+// Commit after status changes (running, completed, failed)
+e.commitTaskStatus(t, "running")
+
+// Commit after state changes (phase transitions, etc.)
+e.commitTaskState(t, "implement phase completed")
+```
+
+These helpers call `task.CommitAndSync()` and `task.CommitStatusChange()` respectively. Commits are skipped if `tasks.disable_auto_commit` is set in config. Failed commits log a warning but don't fail the operation.
 
 ### Worktree Isolation (worktree.go)
 

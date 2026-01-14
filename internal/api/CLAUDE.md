@@ -112,6 +112,22 @@ func (s *Server) handleProjectListTasks(w http.ResponseWriter, r *http.Request) 
 }
 ```
 
+### Auto-Commit Helpers
+
+API handlers automatically commit .orc/ file mutations to git:
+
+| Helper | Used By | Commits |
+|--------|---------|---------|
+| `autoCommitTask(t, action)` | task create/update/delete/control | Task directory |
+| `autoCommitTaskDeletion(taskID)` | task delete | `.orc/tasks/` deletion |
+| `autoCommitTaskState(taskID, action)` | finalize handlers | Task directory |
+| `autoCommitInitiative(init, action)` | initiative handlers | Initiative files |
+| `autoCommitConfig(description)` | config handlers | `.orc/config.yaml` |
+| `autoCommitPrompt(phase, action)` | prompt handlers | `.orc/prompts/` |
+| `autoCommitProjectTask(path, t, action)` | project handlers | Project-scoped tasks |
+
+All helpers respect `tasks.disable_auto_commit` config. Failed commits log warnings but don't fail the operation.
+
 ### Safe Type Assertions
 
 ResponseWriter flushing uses safe assertions:
