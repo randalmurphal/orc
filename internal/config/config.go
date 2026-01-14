@@ -225,6 +225,19 @@ type CompletionConfig struct {
 	// DeleteBranch deletes task branch after merge (default: true)
 	DeleteBranch bool `yaml:"delete_branch"`
 
+	// WaitForCI waits for CI checks to pass before merging after finalize (default: true)
+	// When enabled, after finalize completes, orc will poll PR checks until they pass
+	// (or timeout), then merge the PR directly instead of relying on GitHub's auto-merge.
+	WaitForCI bool `yaml:"wait_for_ci"`
+
+	// CITimeout is the maximum time to wait for CI checks to pass (default: 10m)
+	// After this timeout, the merge attempt is abandoned but the PR remains open.
+	CITimeout time.Duration `yaml:"ci_timeout"`
+
+	// MergeOnCIPass automatically merges when CI passes after finalize (default: true)
+	// Requires WaitForCI to be enabled. Uses gh pr merge --squash.
+	MergeOnCIPass bool `yaml:"merge_on_ci_pass"`
+
 	// PR settings (used when Action is "pr")
 	PR PRConfig `yaml:"pr"`
 
@@ -761,9 +774,12 @@ func Default() *Config {
 			CleanupOnFail:     false, // Keep for debugging
 		},
 		Completion: CompletionConfig{
-			Action:       "pr",
-			TargetBranch: "main",
-			DeleteBranch: true,
+			Action:        "pr",
+			TargetBranch:  "main",
+			DeleteBranch:  true,
+			WaitForCI:     true,             // Wait for CI before merge (replaces auto-merge)
+			CITimeout:     10 * time.Minute, // 10 minute default timeout
+			MergeOnCIPass: true,             // Merge when CI passes
 			PR: PRConfig{
 				Title:        "[orc] {{TASK_TITLE}}",
 				BodyTemplate: "templates/pr-body.md",
@@ -1390,6 +1406,33 @@ func (c *Config) ShouldAutoApprovePR() bool {
 		return false
 	}
 	return c.Completion.PR.AutoApprove
+}
+
+// ShouldWaitForCI returns true if we should wait for CI to pass before merging.
+// This is only enabled for automation profiles that support fully automated workflows (auto, fast).
+func (c *Config) ShouldWaitForCI() bool {
+	if c.Profile != ProfileAuto && c.Profile != ProfileFast {
+		return false
+	}
+	return c.Completion.WaitForCI
+}
+
+// ShouldMergeOnCIPass returns true if we should merge automatically when CI passes.
+// Requires WaitForCI to also be enabled.
+func (c *Config) ShouldMergeOnCIPass() bool {
+	if c.Profile != ProfileAuto && c.Profile != ProfileFast {
+		return false
+	}
+	return c.Completion.WaitForCI && c.Completion.MergeOnCIPass
+}
+
+// GetCITimeout returns the CI timeout duration.
+// Returns default of 10 minutes if not configured.
+func (c *Config) GetCITimeout() time.Duration {
+	if c.Completion.CITimeout > 0 {
+		return c.Completion.CITimeout
+	}
+	return 10 * time.Minute
 }
 
 // FinalizeUsesRebase returns true if finalize should use rebase strategy.
