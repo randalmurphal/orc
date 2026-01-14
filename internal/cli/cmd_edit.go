@@ -25,6 +25,7 @@ Modifiable properties:
   --title       Update the task title
   --description Update the task description (or -d)
   --weight      Change task weight (triggers plan regeneration)
+  --priority    Change task priority (critical, high, normal, low)
   --initiative  Link/unlink task to initiative (use "" to unlink)
 
 Dependency management:
@@ -41,6 +42,7 @@ for the new weight. This requires the task to not be running.
 Example:
   orc edit TASK-001 --title "New title"
   orc edit TASK-001 --weight large
+  orc edit TASK-001 --priority critical
   orc edit TASK-001 -d "Updated description" --title "Better title"
   orc edit TASK-001 --initiative INIT-001   # link to initiative
   orc edit TASK-001 --initiative ""         # unlink from initiative
@@ -57,6 +59,7 @@ Example:
 			newTitle, _ := cmd.Flags().GetString("title")
 			newDescription, _ := cmd.Flags().GetString("description")
 			newWeight, _ := cmd.Flags().GetString("weight")
+			newPriority, _ := cmd.Flags().GetString("priority")
 			newInitiative, _ := cmd.Flags().GetString("initiative")
 			initiativeChanged := cmd.Flags().Changed("initiative")
 
@@ -110,6 +113,19 @@ Example:
 					t.Weight = w
 					changes = append(changes, "weight")
 					weightChanged = true
+				}
+			}
+
+			// Update priority if provided
+			oldPriority := t.GetPriority()
+			if newPriority != "" {
+				p := task.Priority(newPriority)
+				if !task.IsValidPriority(p) {
+					return fmt.Errorf("invalid priority %q - valid options: critical, high, normal, low", newPriority)
+				}
+				if t.Priority != p {
+					t.Priority = p
+					changes = append(changes, "priority")
 				}
 			}
 
@@ -321,6 +337,8 @@ Example:
 						fmt.Printf("   Description: %s\n", desc)
 					case "weight":
 						fmt.Printf("   Weight: %s -> %s (plan regenerated)\n", oldWeight, t.Weight)
+					case "priority":
+						fmt.Printf("   Priority: %s -> %s\n", oldPriority, t.Priority)
 					case "initiative":
 						if t.HasInitiative() {
 							if oldInitiative == "" {
@@ -354,6 +372,7 @@ Example:
 	cmd.Flags().StringP("title", "t", "", "new task title")
 	cmd.Flags().StringP("description", "d", "", "new task description")
 	cmd.Flags().StringP("weight", "w", "", "new task weight (trivial, small, medium, large, greenfield)")
+	cmd.Flags().StringP("priority", "p", "", "new task priority (critical, high, normal, low)")
 	cmd.Flags().StringP("initiative", "i", "", "link/unlink task to initiative (use \"\" to unlink)")
 
 	// Dependency flags

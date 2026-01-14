@@ -51,6 +51,10 @@ Use --blocked-by to specify task dependencies:
 Use --related-to to link related tasks:
   orc new "Related feature" --related-to TASK-003
 
+Use --priority to set task priority:
+  orc new "Urgent fix" --priority critical
+  orc new "Important feature" -p high
+
 Example:
   orc new "Fix authentication timeout bug"
   orc new "Implement user dashboard" --weight large
@@ -59,7 +63,8 @@ Example:
   orc new -t bugfix "Fix memory leak"
   orc new "Button misaligned" --attach screenshot.png
   orc new "Implement login" --initiative INIT-001
-  orc new "Add tests" --blocked-by TASK-005`,
+  orc new "Add tests" --blocked-by TASK-005
+  orc new "Critical bug" --priority critical`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -69,6 +74,7 @@ Example:
 			title := args[0]
 			weight, _ := cmd.Flags().GetString("weight")
 			category, _ := cmd.Flags().GetString("category")
+			priority, _ := cmd.Flags().GetString("priority")
 			description, _ := cmd.Flags().GetString("description")
 			templateName, _ := cmd.Flags().GetString("template")
 			varsFlag, _ := cmd.Flags().GetStringSlice("var")
@@ -139,6 +145,15 @@ Example:
 					return fmt.Errorf("invalid category: %s (valid: feature, bug, refactor, chore, docs, test)", category)
 				}
 				t.Category = cat
+			}
+
+			// Set priority (defaults to normal if not specified)
+			if priority != "" {
+				pri := task.Priority(priority)
+				if !task.IsValidPriority(pri) {
+					return fmt.Errorf("invalid priority: %s (valid: critical, high, normal, low)", priority)
+				}
+				t.Priority = pri
 			}
 
 			// Link to initiative if specified
@@ -255,6 +270,7 @@ Example:
 			fmt.Printf("   Title:    %s\n", title)
 			fmt.Printf("   Weight:   %s\n", t.Weight)
 			fmt.Printf("   Category: %s\n", t.GetCategory())
+			fmt.Printf("   Priority: %s\n", t.GetPriority())
 			fmt.Printf("   Phases:   %d\n", len(p.Phases))
 			if tpl != nil {
 				fmt.Printf("   Template: %s\n", tpl.Name)
@@ -356,6 +372,7 @@ Example:
 	}
 	cmd.Flags().StringP("weight", "w", "", "task weight (trivial, small, medium, large, greenfield)")
 	cmd.Flags().StringP("category", "c", "", "task category (feature, bug, refactor, chore, docs, test)")
+	cmd.Flags().StringP("priority", "p", "", "task priority (critical, high, normal, low)")
 	cmd.Flags().StringP("description", "d", "", "task description")
 	cmd.Flags().StringP("template", "t", "", "use template (bugfix, feature, refactor, migration, spike)")
 	cmd.Flags().StringSlice("var", nil, "template variable (KEY=VALUE)")
