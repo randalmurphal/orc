@@ -43,8 +43,7 @@ description: |-
     - All clicks navigate correctly
     - E2E tests from Phase 0 pass
 weight: medium
-status: running
-current_phase: implement
+status: planned
 branch: orc/TASK-171
 queue: active
 priority: normal
@@ -59,5 +58,4 @@ testing_requirements:
     unit: true
     visual: true
 created_at: 2026-01-14T02:21:40.168040387-06:00
-updated_at: 2026-01-14T13:08:17.435549-06:00
-started_at: 2026-01-14T13:08:17.435549-06:00
+updated_at: 2026-01-14T02:21:40.176719066-06:00

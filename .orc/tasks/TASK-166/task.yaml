@@ -37,7 +37,7 @@ description: |-
     - Browser back/forward works
     - Deep linking works (paste URL -> correct state)
 weight: medium
-status: completed
+status: planned
 branch: orc/TASK-166
 queue: active
 priority: normal

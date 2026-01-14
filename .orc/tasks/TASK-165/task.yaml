@@ -43,7 +43,7 @@ description: |-
     - Connection status visible in UI
     - No memory leaks on unmount
 weight: medium
-status: completed
+status: running
 current_phase: implement
 branch: orc/TASK-165
 queue: active
