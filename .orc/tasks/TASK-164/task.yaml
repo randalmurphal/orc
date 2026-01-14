@@ -2,7 +2,7 @@ id: TASK-164
 title: 'Phase 1: Setup Zustand stores mirroring Svelte stores'
 description: "## Purpose\nCreate Zustand stores that replicate the exact behavior of Svelte stores.\n\n## Stores to Create\n\n### TaskStore\n- tasks: Task[] - main array\n- taskStates: Map<string, TaskState> - state by ID\n- Derived: activeTasks, recentTasks, runningTasks, statusCounts\n- Actions: loadTasks, addTask, updateTask, removeTask, updateTaskState\n\n### ProjectStore  \n- projects: Project[]\n- currentProjectId: string | null\n- Priority: URL param > localStorage > server default\n- Sync with browser history (pushState/popState)\n\n### InitiativeStore\n- initiatives: Initiative[]\n- currentInitiativeId: string | null (filter)\n- initiativeProgress: Map<id, {completed, total}>\n- Special value: UNASSIGNED_INITIATIVE = '__unassigned__'\n\n### UIStore\n- sidebarExpanded: boolean (localStorage)\n- wsStatus: ConnectionStatus\n- toast queue\n\n## Key Patterns\n- Use Zustand subscribeWithSelector for derived state\n- Use persist middleware for localStorage\n- Custom URL sync middleware for URL params\n- isHandlingPopState flag to prevent recursive history updates\n\n## Success Criteria\n- All stores pass unit tests\n- URL/localStorage sync works correctly\n- Derived state calculations match Svelte exactly"
 weight: medium
-status: planned
+status: completed
 branch: orc/TASK-164
 queue: active
 priority: normal
