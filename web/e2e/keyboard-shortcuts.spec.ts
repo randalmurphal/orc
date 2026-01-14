@@ -20,11 +20,11 @@ test.describe('Keyboard Shortcuts', () => {
 		await expect(modal).not.toBeVisible();
 	});
 
-	test('should open command palette with Cmd+K', async ({ page }) => {
+	test('should open command palette with Shift+Alt+K', async ({ page }) => {
 		await page.goto('/');
 
-		// Press Cmd+K (or Ctrl+K on non-Mac)
-		await page.keyboard.press('Meta+k');
+		// Press Shift+Alt+K (browser-safe alternative to Cmd+K)
+		await page.keyboard.press('Shift+Alt+k');
 
 		// Command palette should open
 		const palette = page.locator('.command-palette, [role="combobox"], .modal-content');
@@ -83,8 +83,8 @@ test.describe('Keyboard Shortcuts', () => {
 	test('should close modal with Escape', async ({ page }) => {
 		await page.goto('/');
 
-		// Open new task modal with Cmd+N
-		await page.keyboard.press('Meta+n');
+		// Open new task modal with Shift+Alt+N (browser-safe alternative to Cmd+N)
+		await page.keyboard.press('Shift+Alt+n');
 
 		// Modal should be visible
 		const modal = page.locator('.modal-content, [role="dialog"]');

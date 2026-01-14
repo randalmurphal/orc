@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Modal from './Modal.svelte';
+	import { isMac } from '$lib/utils/platform';
 
 	interface Props {
 		open: boolean;
@@ -8,44 +9,57 @@
 
 	let { open, onClose }: Props = $props();
 
-	// Organize shortcuts by category
-	const categories = [
-		{
-			name: 'Global',
-			shortcuts: [
-				{ keys: '⌘ K', description: 'Open command palette' },
-				{ keys: '⌘ N', description: 'Create new task' },
-				{ keys: '⌘ B', description: 'Toggle sidebar' },
-				{ keys: '⌘ P', description: 'Switch project' },
-				{ keys: '/', description: 'Focus search' },
-				{ keys: '?', description: 'Show this help' },
-				{ keys: 'Esc', description: 'Close overlay' }
-			]
-		},
-		{
-			name: 'Navigation',
-			shortcuts: [
-				{ keys: 'g d', description: 'Go to dashboard' },
-				{ keys: 'g t', description: 'Go to tasks' },
-				{ keys: 'g e', description: 'Go to environment' },
-				{ keys: 'g r', description: 'Go to preferences' },
-				{ keys: 'g p', description: 'Go to prompts' },
-				{ keys: 'g h', description: 'Go to hooks' },
-				{ keys: 'g k', description: 'Go to skills' }
-			]
-		},
-		{
-			name: 'Task List',
-			shortcuts: [
-				{ keys: 'j', description: 'Select next task' },
-				{ keys: 'k', description: 'Select previous task' },
-				{ keys: 'Enter', description: 'Open selected task' },
-				{ keys: 'r', description: 'Run selected task' },
-				{ keys: 'p', description: 'Pause selected task' },
-				{ keys: 'd', description: 'Delete selected task' }
-			]
-		}
-	];
+	// Get platform-appropriate modifier display
+	// Mac: ⇧⌥ (Shift+Option)
+	// Windows/Linux: Shift+Alt
+	function getModifier(): string {
+		return isMac() ? '⇧⌥' : 'Shift+Alt+';
+	}
+
+	// Build categories with platform-appropriate keys
+	function getCategories() {
+		const mod = getModifier();
+		return [
+			{
+				name: 'Global',
+				shortcuts: [
+					{ keys: `${mod}K`, description: 'Open command palette' },
+					{ keys: `${mod}N`, description: 'Create new task' },
+					{ keys: `${mod}B`, description: 'Toggle sidebar' },
+					{ keys: `${mod}P`, description: 'Switch project' },
+					{ keys: '/', description: 'Focus search' },
+					{ keys: '?', description: 'Show this help' },
+					{ keys: 'Esc', description: 'Close overlay' }
+				]
+			},
+			{
+				name: 'Navigation',
+				shortcuts: [
+					{ keys: 'g d', description: 'Go to dashboard' },
+					{ keys: 'g t', description: 'Go to tasks' },
+					{ keys: 'g e', description: 'Go to environment' },
+					{ keys: 'g r', description: 'Go to preferences' },
+					{ keys: 'g p', description: 'Go to prompts' },
+					{ keys: 'g h', description: 'Go to hooks' },
+					{ keys: 'g k', description: 'Go to skills' }
+				]
+			},
+			{
+				name: 'Task List',
+				shortcuts: [
+					{ keys: 'j', description: 'Select next task' },
+					{ keys: 'k', description: 'Select previous task' },
+					{ keys: 'Enter', description: 'Open selected task' },
+					{ keys: 'r', description: 'Run selected task' },
+					{ keys: 'p', description: 'Pause selected task' },
+					{ keys: 'd', description: 'Delete selected task' }
+				]
+			}
+		];
+	}
+
+	// Use $derived for reactive categories based on platform
+	const categories = $derived(getCategories());
 </script>
 
 <Modal {open} {onClose} title="Keyboard Shortcuts" size="md">

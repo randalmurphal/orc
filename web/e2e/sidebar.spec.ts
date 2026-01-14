@@ -67,7 +67,7 @@ test.describe('Sidebar', () => {
 
 	// Note: Keyboard shortcut tests are flaky in headless Chromium due to Meta key handling.
 	// The toggle functionality is verified through button-click tests.
-	test.skip('should toggle with keyboard shortcut Cmd+B', async ({ page }) => {
+	test.skip('should toggle with keyboard shortcut Shift+Alt+B', async ({ page }) => {
 		// Clear localStorage for this test
 		await page.goto('/');
 		await page.evaluate(() => localStorage.clear());
@@ -76,8 +76,8 @@ test.describe('Sidebar', () => {
 		const sidebar = page.locator('.sidebar');
 		await expect(sidebar).toHaveClass(/expanded/);
 
-		// Press Cmd+B (or Ctrl+B on Windows/Linux)
-		await page.keyboard.press('Meta+b');
+		// Press Shift+Alt+B (browser-safe alternative to Cmd+B)
+		await page.keyboard.press('Shift+Alt+b');
 
 		// Wait for transition
 		await page.waitForTimeout(300);
@@ -86,7 +86,7 @@ test.describe('Sidebar', () => {
 		await expect(sidebar).not.toHaveClass(/expanded/);
 
 		// Press again to expand
-		await page.keyboard.press('Meta+b');
+		await page.keyboard.press('Shift+Alt+b');
 		await page.waitForTimeout(300);
 
 		// Sidebar should be expanded again
