@@ -371,3 +371,118 @@ func TestIntegration_RealRepo(t *testing.T) {
 		t.Logf("Found PR #%d: %s", pr.Number, pr.Title)
 	}
 }
+
+func TestPRStatusSummary_Analyze(t *testing.T) {
+	tests := []struct {
+		name          string
+		reviews       map[string]string // author -> state
+		expectedCount int
+		expectedAppr  int
+		expectedStat  string
+	}{
+		{
+			name:          "no reviews",
+			reviews:       map[string]string{},
+			expectedCount: 0,
+			expectedAppr:  0,
+			expectedStat:  "pending_review",
+		},
+		{
+			name: "one approval",
+			reviews: map[string]string{
+				"alice": "APPROVED",
+			},
+			expectedCount: 1,
+			expectedAppr:  1,
+			expectedStat:  "approved",
+		},
+		{
+			name: "changes requested",
+			reviews: map[string]string{
+				"alice": "CHANGES_REQUESTED",
+			},
+			expectedCount: 1,
+			expectedAppr:  0,
+			expectedStat:  "changes_requested",
+		},
+		{
+			name: "mixed - changes requested takes precedence",
+			reviews: map[string]string{
+				"alice": "APPROVED",
+				"bob":   "CHANGES_REQUESTED",
+			},
+			expectedCount: 2,
+			expectedAppr:  1,
+			expectedStat:  "changes_requested",
+		},
+		{
+			name: "multiple approvals",
+			reviews: map[string]string{
+				"alice": "APPROVED",
+				"bob":   "APPROVED",
+				"carol": "APPROVED",
+			},
+			expectedCount: 3,
+			expectedAppr:  3,
+			expectedStat:  "approved",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate the logic from GetPRStatusSummary
+			latestByAuthor := tt.reviews
+			reviewCount := len(latestByAuthor)
+
+			var approvals, changesRequested int
+			for _, state := range latestByAuthor {
+				switch state {
+				case "APPROVED":
+					approvals++
+				case "CHANGES_REQUESTED":
+					changesRequested++
+				}
+			}
+
+			var status string
+			if changesRequested > 0 {
+				status = "changes_requested"
+			} else if approvals > 0 {
+				status = "approved"
+			} else {
+				status = "pending_review"
+			}
+
+			if reviewCount != tt.expectedCount {
+				t.Errorf("reviewCount = %d, want %d", reviewCount, tt.expectedCount)
+			}
+			if approvals != tt.expectedAppr {
+				t.Errorf("approvals = %d, want %d", approvals, tt.expectedAppr)
+			}
+			if status != tt.expectedStat {
+				t.Errorf("status = %s, want %s", status, tt.expectedStat)
+			}
+		})
+	}
+}
+
+func TestPRReview_Struct(t *testing.T) {
+	// Test that PRReview struct can be created and used
+	review := PRReview{
+		ID:        12345,
+		Author:    "alice",
+		State:     "APPROVED",
+		Body:      "LGTM!",
+		CreatedAt: "2024-01-01T10:00:00Z",
+	}
+
+	if review.ID != 12345 {
+		t.Errorf("ID = %d, want 12345", review.ID)
+	}
+	if review.Author != "alice" {
+		t.Errorf("Author = %s, want alice", review.Author)
+	}
+	if review.State != "APPROVED" {
+		t.Errorf("State = %s, want APPROVED", review.State)
+	}
+}

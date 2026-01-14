@@ -188,6 +188,65 @@ func IsValidCategory(c Category) bool {
 	}
 }
 
+// PRStatus represents the review/approval status of a pull request.
+type PRStatus string
+
+const (
+	// PRStatusNone indicates no PR exists for this task.
+	PRStatusNone PRStatus = ""
+	// PRStatusDraft indicates the PR is in draft state.
+	PRStatusDraft PRStatus = "draft"
+	// PRStatusPendingReview indicates the PR is awaiting review.
+	PRStatusPendingReview PRStatus = "pending_review"
+	// PRStatusChangesRequested indicates reviewers have requested changes.
+	PRStatusChangesRequested PRStatus = "changes_requested"
+	// PRStatusApproved indicates the PR has been approved.
+	PRStatusApproved PRStatus = "approved"
+	// PRStatusMerged indicates the PR has been merged.
+	PRStatusMerged PRStatus = "merged"
+	// PRStatusClosed indicates the PR was closed without merging.
+	PRStatusClosed PRStatus = "closed"
+)
+
+// ValidPRStatuses returns all valid PR status values.
+func ValidPRStatuses() []PRStatus {
+	return []PRStatus{
+		PRStatusNone, PRStatusDraft, PRStatusPendingReview,
+		PRStatusChangesRequested, PRStatusApproved, PRStatusMerged, PRStatusClosed,
+	}
+}
+
+// IsValidPRStatus returns true if the PR status is a valid value.
+func IsValidPRStatus(s PRStatus) bool {
+	switch s {
+	case PRStatusNone, PRStatusDraft, PRStatusPendingReview,
+		PRStatusChangesRequested, PRStatusApproved, PRStatusMerged, PRStatusClosed:
+		return true
+	default:
+		return false
+	}
+}
+
+// PRInfo contains pull request information for a task.
+type PRInfo struct {
+	// URL is the full URL to the pull request.
+	URL string `yaml:"url,omitempty" json:"url,omitempty"`
+	// Number is the PR number (e.g., 123 for PR #123).
+	Number int `yaml:"number,omitempty" json:"number,omitempty"`
+	// Status is the review/approval status.
+	Status PRStatus `yaml:"status,omitempty" json:"status,omitempty"`
+	// ChecksStatus summarizes CI check results (pending, success, failure).
+	ChecksStatus string `yaml:"checks_status,omitempty" json:"checks_status,omitempty"`
+	// Mergeable indicates if the PR can be merged (no conflicts).
+	Mergeable bool `yaml:"mergeable,omitempty" json:"mergeable,omitempty"`
+	// ReviewCount is the number of reviews received.
+	ReviewCount int `yaml:"review_count,omitempty" json:"review_count,omitempty"`
+	// ApprovalCount is the number of approvals received.
+	ApprovalCount int `yaml:"approval_count,omitempty" json:"approval_count,omitempty"`
+	// LastCheckedAt is when the PR status was last polled.
+	LastCheckedAt *time.Time `yaml:"last_checked_at,omitempty" json:"last_checked_at,omitempty"`
+}
+
 // TestingRequirements specifies what types of testing are needed for a task.
 type TestingRequirements struct {
 	// Unit indicates if unit tests are required
@@ -281,6 +340,10 @@ type Task struct {
 
 	// Metadata holds arbitrary key-value data
 	Metadata map[string]string `yaml:"metadata,omitempty" json:"metadata,omitempty"`
+
+	// PR contains pull request information for this task.
+	// This is populated when a PR is created and updated via polling.
+	PR *PRInfo `yaml:"pr,omitempty" json:"pr,omitempty"`
 }
 
 // New creates a new task with the given title.
@@ -353,6 +416,46 @@ func (t *Task) GetInitiativeID() string {
 // HasInitiative returns true if the task is linked to an initiative.
 func (t *Task) HasInitiative() bool {
 	return t.InitiativeID != ""
+}
+
+// HasPR returns true if the task has an associated pull request.
+func (t *Task) HasPR() bool {
+	return t.PR != nil && t.PR.URL != ""
+}
+
+// GetPRStatus returns the PR status, or PRStatusNone if no PR exists.
+func (t *Task) GetPRStatus() PRStatus {
+	if t.PR == nil {
+		return PRStatusNone
+	}
+	return t.PR.Status
+}
+
+// SetPRInfo sets or updates the PR information for the task.
+func (t *Task) SetPRInfo(url string, number int) {
+	if t.PR == nil {
+		t.PR = &PRInfo{}
+	}
+	t.PR.URL = url
+	t.PR.Number = number
+	// Default to pending review for new PRs
+	if t.PR.Status == PRStatusNone {
+		t.PR.Status = PRStatusPendingReview
+	}
+}
+
+// UpdatePRStatus updates the PR status fields from fetched data.
+func (t *Task) UpdatePRStatus(status PRStatus, checksStatus string, mergeable bool, reviewCount, approvalCount int) {
+	if t.PR == nil {
+		t.PR = &PRInfo{}
+	}
+	t.PR.Status = status
+	t.PR.ChecksStatus = checksStatus
+	t.PR.Mergeable = mergeable
+	t.PR.ReviewCount = reviewCount
+	t.PR.ApprovalCount = approvalCount
+	now := time.Now()
+	t.PR.LastCheckedAt = &now
 }
 
 // IsTerminal returns true if the task is in a terminal state.

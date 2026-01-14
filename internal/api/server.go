@@ -50,6 +50,9 @@ type Server struct {
 
 	// Diff cache for computed diffs
 	diffCache *diff.Cache
+
+	// PR status poller for periodic updates
+	prPoller *PRPoller
 }
 
 // Event represents an SSE event.
@@ -265,6 +268,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/tasks/{id}/github/pr/comments/{commentId}/autofix", cors(s.handleAutoFixComment))
 	s.mux.HandleFunc("POST /api/tasks/{id}/github/pr/comments/{commentId}/reply", cors(s.handleReplyToPRComment))
 	s.mux.HandleFunc("GET /api/tasks/{id}/github/pr/checks", cors(s.handleListPRChecks))
+	s.mux.HandleFunc("POST /api/tasks/{id}/github/pr/refresh", cors(s.handleRefreshPRStatus))
 
 	// WebSocket for real-time updates
 	s.mux.Handle("GET /api/ws", s.wsHandler)
@@ -431,8 +435,29 @@ func (s *Server) StartContext(ctx context.Context) error {
 		}()
 	}
 
+	// Create and start PR status poller
+	s.prPoller = NewPRPoller(PRPollerConfig{
+		WorkDir:  s.workDir,
+		Interval: 60 * time.Second,
+		Logger:   s.logger,
+		OnStatusChange: func(taskID string, pr *task.PRInfo) {
+			// Publish task update event when PR status changes
+			s.logger.Info("PR status changed", "task", taskID, "status", pr.Status)
+			s.publisher.Publish(events.Event{
+				Type:   events.EventTaskUpdated,
+				TaskID: taskID,
+				Data:   map[string]any{"pr": pr},
+			})
+		},
+	})
+	s.prPoller.Start(ctx)
+
 	go func() {
 		<-ctx.Done()
+		// Stop PR poller
+		if s.prPoller != nil {
+			s.prPoller.Stop()
+		}
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		server.Shutdown(shutdownCtx)

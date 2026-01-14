@@ -517,6 +517,42 @@ func (c *Client) GetCheckRuns(ctx context.Context, ref string) ([]CheckRun, erro
 	return checks, nil
 }
 
+// GetPRReviews gets reviews for a PR.
+func (c *Client) GetPRReviews(ctx context.Context, number int) ([]PRReview, error) {
+	output, err := c.runGH(ctx, "api",
+		fmt.Sprintf("/repos/%s/%s/pulls/%d/reviews", c.owner, c.repo, number))
+	if err != nil {
+		return nil, err
+	}
+
+	var rawReviews []struct {
+		ID    int64  `json:"id"`
+		State string `json:"state"`
+		Body  string `json:"body"`
+		User  struct {
+			Login string `json:"login"`
+		} `json:"user"`
+		SubmittedAt string `json:"submitted_at"`
+	}
+
+	if err := json.Unmarshal(output, &rawReviews); err != nil {
+		return nil, fmt.Errorf("parse PR reviews: %w", err)
+	}
+
+	reviews := make([]PRReview, 0, len(rawReviews))
+	for _, r := range rawReviews {
+		reviews = append(reviews, PRReview{
+			ID:        r.ID,
+			Author:    r.User.Login,
+			State:     r.State,
+			Body:      r.Body,
+			CreatedAt: r.SubmittedAt,
+		})
+	}
+
+	return reviews, nil
+}
+
 // CheckGHAuth checks if gh CLI is authenticated.
 func CheckGHAuth(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, "gh", "auth", "status")
@@ -527,4 +563,96 @@ func CheckGHAuth(ctx context.Context) error {
 		return fmt.Errorf("gh not authenticated: %s", stderr.String())
 	}
 	return nil
+}
+
+// PRStatusSummary contains summarized PR status information.
+type PRStatusSummary struct {
+	ReviewStatus  string // pending_review, changes_requested, approved
+	ReviewCount   int
+	ApprovalCount int
+	ChecksStatus  string // pending, success, failure
+	Mergeable     bool
+}
+
+// GetPRStatusSummary fetches and summarizes PR status including reviews and checks.
+func (c *Client) GetPRStatusSummary(ctx context.Context, pr *PR) (*PRStatusSummary, error) {
+	summary := &PRStatusSummary{
+		ReviewStatus: "pending_review",
+		Mergeable:    pr.Mergeable,
+	}
+
+	// Get reviews
+	reviews, err := c.GetPRReviews(ctx, pr.Number)
+	if err != nil {
+		return nil, fmt.Errorf("get reviews: %w", err)
+	}
+
+	// Analyze reviews to determine status
+	// Track the most recent review state per author (to handle re-reviews)
+	latestReviewByAuthor := make(map[string]string)
+	for _, r := range reviews {
+		// Skip COMMENTED and PENDING states - they don't affect approval status
+		if r.State == "COMMENTED" || r.State == "PENDING" {
+			continue
+		}
+		latestReviewByAuthor[r.Author] = r.State
+	}
+
+	summary.ReviewCount = len(latestReviewByAuthor)
+
+	// Count approvals and changes requested
+	var approvals, changesRequested int
+	for _, state := range latestReviewByAuthor {
+		switch state {
+		case "APPROVED":
+			approvals++
+		case "CHANGES_REQUESTED":
+			changesRequested++
+		}
+	}
+	summary.ApprovalCount = approvals
+
+	// Determine review status (changes_requested takes precedence)
+	if changesRequested > 0 {
+		summary.ReviewStatus = "changes_requested"
+	} else if approvals > 0 {
+		summary.ReviewStatus = "approved"
+	}
+
+	// Get check runs for checks status
+	checks, err := c.GetCheckRuns(ctx, pr.HeadBranch)
+	if err != nil {
+		// Don't fail on check run errors - just mark as unknown
+		summary.ChecksStatus = "unknown"
+		return summary, nil
+	}
+
+	// Analyze checks
+	var passed, failed, pending int
+	for _, check := range checks {
+		switch check.Status {
+		case "completed":
+			switch check.Conclusion {
+			case "success", "neutral", "skipped":
+				passed++
+			case "failure", "timed_out", "cancelled", "action_required":
+				failed++
+			}
+		default:
+			pending++
+		}
+	}
+
+	// Determine overall checks status
+	if len(checks) == 0 {
+		summary.ChecksStatus = "none"
+	} else if failed > 0 {
+		summary.ChecksStatus = "failure"
+	} else if pending > 0 {
+		summary.ChecksStatus = "pending"
+	} else {
+		summary.ChecksStatus = "success"
+	}
+
+	return summary, nil
 }
