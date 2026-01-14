@@ -2,7 +2,7 @@ id: TASK-189
 title: 'CRITICAL: Worktree cleanup must NEVER touch main repo/branch'
 description: "## Problem\nWhen a task completes in a worktree, something in the cleanup/sync process is resetting or modifying the main repository branch. This caused loss of uncommitted work on main.\n\nEvidence from reflog:\n```\nreset: moving to HEAD~1\nreset: moving to HEAD~1  \nreset: moving to origin/main\n```\n\nThis is UNACCEPTABLE. The worktree system exists specifically to isolate task execution from the main repo.\n\n## Root Cause Investigation Needed\n1. Check worktree cleanup in internal/git/worktree.go\n2. Check completion sync in internal/git/sync.go\n3. Check if any code does `git checkout main` or `git reset` in main repo context\n4. Check the .orc/ restoration logic from TASK-115\n\n## Requirements\n1. Worktree operations must NEVER affect main repo\n2. No git reset, checkout, or destructive ops on main\n3. Add safeguards to detect if accidentally in main repo\n4. Add tests to verify main repo is untouched after task completion\n\n## Success Criteria\n1. Run a task to completion - main branch unchanged\n2. Parallel tasks - main branch unchanged\n3. Failed tasks - main branch unchanged\n4. Add integration test that verifies main repo integrity"
 weight: medium
-status: running
+status: failed
 current_phase: implement
 branch: orc/TASK-189
 queue: active
@@ -11,5 +11,5 @@ category: bug
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:33:13.118483682-06:00
-updated_at: 2026-01-14T02:35:43.926792205-06:00
+updated_at: 2026-01-14T02:56:59.936689994-06:00
 started_at: 2026-01-14T02:35:43.443276342-06:00
