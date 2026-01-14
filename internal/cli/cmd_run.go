@@ -57,11 +57,60 @@ Example:
 
 			id := args[0]
 			profile, _ := cmd.Flags().GetString("profile")
+			force, _ := cmd.Flags().GetBool("force")
 
 			// Load task
 			t, err := task.LoadFrom(projectRoot, id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
+			}
+
+			// Check for incomplete blockers
+			if len(t.BlockedBy) > 0 {
+				// Load all tasks to check blocker status
+				tasksDir := task.TaskDirIn(projectRoot, "")
+				tasksDir = tasksDir[:len(tasksDir)-1] // Remove trailing empty ID
+				allTasks, err := task.LoadAllFrom(tasksDir)
+				if err != nil {
+					return fmt.Errorf("load tasks for dependency check: %w", err)
+				}
+
+				// Build task map
+				taskMap := make(map[string]*task.Task)
+				for _, tsk := range allTasks {
+					taskMap[tsk.ID] = tsk
+				}
+
+				// Get incomplete blockers
+				blockers := t.GetIncompleteBlockers(taskMap)
+				if len(blockers) > 0 {
+					if !force {
+						fmt.Printf("\n⚠️  This task is blocked by incomplete tasks:\n")
+						for _, b := range blockers {
+							fmt.Printf("    - %s: %s (%s)\n", b.ID, b.Title, b.Status)
+						}
+						fmt.Println()
+
+						if quiet {
+							// In quiet mode, refuse to run blocked tasks without --force
+							return fmt.Errorf("task is blocked by incomplete dependencies (use --force to override)")
+						}
+
+						// Prompt for confirmation
+						fmt.Print("Run anyway? [y/N]: ")
+						reader := bufio.NewReader(os.Stdin)
+						input, err := reader.ReadString('\n')
+						if err != nil {
+							return fmt.Errorf("read input: %w", err)
+						}
+						input = strings.TrimSpace(strings.ToLower(input))
+						if input != "y" && input != "yes" {
+							fmt.Println("Aborted.")
+							return nil
+						}
+						fmt.Println()
+					}
+				}
 			}
 
 			// Check if task can run
@@ -244,6 +293,7 @@ Example:
 	cmd.Flags().Bool("continue", false, "continue from last checkpoint")
 	cmd.Flags().Bool("stream", false, "stream Claude transcript to stdout")
 	cmd.Flags().Bool("auto-skip", false, "automatically skip phases with existing artifacts")
+	cmd.Flags().BoolP("force", "f", false, "run even if task has incomplete blockers")
 	return cmd
 }
 
