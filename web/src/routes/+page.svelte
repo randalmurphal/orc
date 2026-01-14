@@ -381,7 +381,7 @@
 			<DependencyDropdown />
 
 			<!-- Weight Filter -->
-			<select class="filter-select" bind:value={weightFilter}>
+			<select class="filter-select" bind:value={weightFilter} aria-label="Filter by weight">
 				<option value="all">All weights</option>
 				{#each weights as w}
 					<option value={w}>{w}</option>
@@ -389,7 +389,7 @@
 			</select>
 
 			<!-- Sort -->
-			<select class="filter-select" bind:value={sortBy}>
+			<select class="filter-select" bind:value={sortBy} aria-label="Sort tasks by">
 				<option value="recent">Most recent</option>
 				<option value="oldest">Oldest first</option>
 				<option value="status">By status</option>
@@ -479,15 +479,14 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="task-list">
+		<div class="task-list" role="list" aria-label="Task list">
 			{#each filteredTasks as task, index (task.id)}
 				<div
 					class="task-card-wrapper"
 					class:selected={index === selectedIndex}
 					onclick={() => (selectedIndex = index)}
-					onkeydown={(e) => e.key === 'Enter' && goto(`/tasks/${task.id}`)}
-					role="button"
-					tabindex="0"
+					role="listitem"
+					aria-current={index === selectedIndex ? 'true' : undefined}
 				>
 					<TaskCard
 						{task}
@@ -729,6 +728,7 @@
 		border-radius: var(--radius-lg);
 		outline: none;
 		transition: box-shadow var(--duration-fast) var(--ease-out);
+		cursor: pointer;
 	}
 
 	.task-card-wrapper:focus-visible,
