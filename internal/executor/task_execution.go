@@ -710,6 +710,38 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 	e.publishTokens(t.ID, "finalize", result.InputTokens, result.OutputTokens, 0, 0, result.InputTokens+result.OutputTokens)
 	e.publishState(t.ID, s)
 
+	// Push finalize changes and wait for CI, then merge
+	if t.HasPR() && e.orcConfig.ShouldWaitForCI() {
+		// Push any finalize changes first
+		if gitSvc != nil {
+			if pushErr := gitSvc.Push("origin", t.Branch, true); pushErr != nil {
+				e.logger.Warn("failed to push finalize changes", "error", pushErr)
+				// Continue anyway - changes might already be pushed
+			}
+		}
+
+		// Wait for CI and merge
+		ciMerger := NewCIMerger(
+			e.orcConfig,
+			WithCIMergerPublisher(e.publisher),
+			WithCIMergerLogger(e.logger),
+			WithCIMergerWorkDir(workingDir),
+		)
+
+		if mergeErr := ciMerger.WaitForCIAndMerge(ctx, t); mergeErr != nil {
+			e.logger.Warn("CI wait and merge failed", "error", mergeErr)
+			// Publish CI/merge error but don't fail the finalize phase itself
+			e.publishError(t.ID, "ci_merge", mergeErr.Error(), false)
+		} else {
+			// Update task status to finished if merge succeeded
+			t.Status = task.StatusFinished
+			if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+				e.logger.Error("failed to save task after merge", "error", saveErr)
+			}
+			e.publishState(t.ID, s)
+		}
+	}
+
 	return nil
 }
 

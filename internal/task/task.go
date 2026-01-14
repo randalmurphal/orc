@@ -272,6 +272,15 @@ type PRInfo struct {
 	ApprovalCount int `yaml:"approval_count,omitempty" json:"approval_count,omitempty"`
 	// LastCheckedAt is when the PR status was last polled.
 	LastCheckedAt *time.Time `yaml:"last_checked_at,omitempty" json:"last_checked_at,omitempty"`
+
+	// Merged indicates if the PR has been merged.
+	Merged bool `yaml:"merged,omitempty" json:"merged,omitempty"`
+	// MergedAt is when the PR was merged.
+	MergedAt *time.Time `yaml:"merged_at,omitempty" json:"merged_at,omitempty"`
+	// MergeCommitSHA is the SHA of the merge commit.
+	MergeCommitSHA string `yaml:"merge_commit_sha,omitempty" json:"merge_commit_sha,omitempty"`
+	// TargetBranch is the branch the PR was merged into.
+	TargetBranch string `yaml:"target_branch,omitempty" json:"target_branch,omitempty"`
 }
 
 // TestingRequirements specifies what types of testing are needed for a task.
@@ -474,6 +483,27 @@ func (t *Task) SetPRInfo(url string, number int) {
 	if t.PR.Status == PRStatusNone {
 		t.PR.Status = PRStatusPendingReview
 	}
+}
+
+// GetPRURL returns the PR URL, or empty string if no PR exists.
+func (t *Task) GetPRURL() string {
+	if t.PR == nil {
+		return ""
+	}
+	return t.PR.URL
+}
+
+// SetMergedInfo marks the PR as merged with the given target branch.
+func (t *Task) SetMergedInfo(prURL, targetBranch string) {
+	if t.PR == nil {
+		t.PR = &PRInfo{}
+	}
+	t.PR.URL = prURL
+	t.PR.Merged = true
+	now := time.Now()
+	t.PR.MergedAt = &now
+	t.PR.TargetBranch = targetBranch
+	t.PR.Status = PRStatusMerged
 }
 
 // UpdatePRStatus updates the PR status fields from fetched data.

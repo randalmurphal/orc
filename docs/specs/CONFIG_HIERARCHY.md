@@ -227,6 +227,12 @@ completion:
     draft: false
     auto_merge: true
     auto_approve: true                 # AI-assisted PR approval (auto/fast profiles only)
+  ci:
+    wait_for_ci: true                  # Wait for CI checks before merge (default: true, auto/fast only)
+    ci_timeout: 10m                    # Max time to wait for CI checks (default: 10m)
+    poll_interval: 30s                 # CI status polling interval (default: 30s)
+    merge_on_ci_pass: true             # Auto-merge when CI passes (default: true, auto/fast only)
+    merge_method: squash               # Merge method: squash | merge | rebase (default: squash)
   sync:
     strategy: completion               # none | phase | completion | detect
     fail_on_conflict: true             # Abort on conflicts vs continue with warning
@@ -504,6 +510,12 @@ var envMapping = map[string]string{
     "ORC_COMPLETION_ACTION":          "completion.action",
     "ORC_SYNC_STRATEGY":              "completion.sync.strategy",
     "ORC_SYNC_FAIL_ON_CONFLICT":      "completion.sync.fail_on_conflict",
+    // CI and merge settings
+    "ORC_CI_WAIT":                    "completion.ci.wait_for_ci",
+    "ORC_CI_TIMEOUT":                 "completion.ci.ci_timeout",
+    "ORC_CI_POLL_INTERVAL":           "completion.ci.poll_interval",
+    "ORC_CI_MERGE_ON_PASS":           "completion.ci.merge_on_ci_pass",
+    "ORC_CI_MERGE_METHOD":            "completion.ci.merge_method",
     "ORC_BRANCH_PREFIX":              "git.branch_prefix",
     "ORC_COMMIT_PREFIX":     "git.commit_prefix",
     "ORC_POOL_ENABLED":      "pool.enabled",

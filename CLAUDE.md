@@ -211,6 +211,10 @@ orc config profile strict
 | `completion.finalize.enabled` | Enable finalize phase | `docs/architecture/PHASE_MODEL.md` |
 | `completion.finalize.auto_trigger_on_approval` | Auto-trigger finalize on PR approval | `docs/architecture/EXECUTOR.md` |
 | `completion.finalize.sync.strategy` | Finalize sync: merge/rebase | `docs/architecture/GIT_INTEGRATION.md` |
+| `completion.ci.wait_for_ci` | Wait for CI before merge (auto/fast only) | `docs/architecture/EXECUTOR.md` |
+| `completion.ci.ci_timeout` | Max time to wait for CI (default: 10m) | `docs/architecture/EXECUTOR.md` |
+| `completion.ci.merge_on_ci_pass` | Auto-merge when CI passes (auto/fast only) | `docs/architecture/EXECUTOR.md` |
+| `completion.ci.merge_method` | Merge method: squash/merge/rebase | `docs/architecture/GIT_INTEGRATION.md` |
 | `artifact_skip.enabled` | Detect existing artifacts | `docs/architecture/PHASE_MODEL.md` |
 | `artifact_skip.auto_skip` | Skip without prompting | `docs/architecture/PHASE_MODEL.md` |
 | `timeouts.turn_max` | Max time per API turn | `docs/architecture/EXECUTOR.md` |
@@ -456,6 +460,8 @@ Patterns, gotchas, and decisions learned during development.
 | Initiative auto-commit | Initiative files auto-commit to git and sync to DB on create/modify via CLI; uses `initiative.CommitAndSync()` after each save; watcher monitors `.orc/initiatives/` for external edits | TASK-097 |
 | Initiative hybrid storage | Initiatives use YAML as source of truth with DB cache; `initiative_dependencies` table tracks blocked_by; recovery via `RebuildDBIndex()` from YAML or `RecoverFromDB()` from database | TASK-097 |
 | CLAUDE.md auto-merge | During git sync, conflicts in knowledge section (within `orc:knowledge:begin/end` markers) are auto-resolved if purely additive (both sides add new table rows); rows combined and sorted by TASK-XXX source ID; complex conflicts (overlapping edits) fall back to manual resolution | TASK-096 |
+| Task auto-commit | Task files auto-commit to git on create/modify via CLI; uses `task.CommitAndSync()` after each save; commit messages follow format `[orc] task TASK-001: action - Title`; disable via `tasks.disable_auto_commit` config | TASK-153 |
+| CI wait and auto-merge | After finalize, poll `gh pr checks` until CI passes (30s interval, 10m timeout), then merge via `gh pr merge --squash`; bypasses GitHub auto-merge feature (no branch protection needed); `auto`/`fast` profiles only | TASK-151 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
