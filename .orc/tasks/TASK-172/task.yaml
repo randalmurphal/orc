@@ -44,7 +44,7 @@ description: |-
     - Running tasks show animation
     - E2E tests from Phase 0 pass
 weight: large
-status: running
+status: completed
 current_phase: implement
 branch: orc/TASK-172
 queue: active
