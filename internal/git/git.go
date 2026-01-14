@@ -694,6 +694,69 @@ func (g *Git) RestoreOrcDir(target string, taskID string) (bool, error) {
 	return true, nil
 }
 
+// RestoreClaudeSettings restores .claude/settings.json from a target ref.
+// This prevents worktree isolation hooks from being merged into the target branch.
+// Worktrees inject Claude Code hooks that reference machine-specific paths - these
+// should never be merged to shared branches.
+//
+// Returns true if restoration was performed, false if no changes were needed.
+func (g *Git) RestoreClaudeSettings(target string, taskID string) (bool, error) {
+	settingsPath := filepath.Join(g.ctx.WorkDir(), ".claude", "settings.json")
+
+	// Check if settings.json exists
+	if _, err := os.Stat(settingsPath); os.IsNotExist(err) {
+		return false, nil
+	}
+
+	// Check if settings.json differs from target
+	output, err := g.ctx.RunGit("diff", "--name-only", target, "--", ".claude/settings.json")
+	if err != nil {
+		// Target might not have .claude/settings.json - that's fine
+		return false, nil
+	}
+
+	if strings.TrimSpace(output) == "" {
+		return false, nil
+	}
+
+	// Check if target has .claude/settings.json
+	_, err = g.ctx.RunGit("cat-file", "-e", target+":.claude/settings.json")
+	if err != nil {
+		// Target doesn't have settings.json - remove ours entirely
+		if err := os.Remove(settingsPath); err != nil && !os.IsNotExist(err) {
+			return false, fmt.Errorf("remove .claude/settings.json: %w", err)
+		}
+		// Stage the deletion
+		if _, err := g.ctx.RunGit("add", ".claude/settings.json"); err != nil {
+			return false, fmt.Errorf("stage settings.json deletion: %w", err)
+		}
+	} else {
+		// Restore from target
+		if _, err := g.ctx.RunGit("checkout", target, "--", ".claude/settings.json"); err != nil {
+			return false, fmt.Errorf("restore .claude/settings.json from %s: %w", target, err)
+		}
+		// Stage the restoration
+		if _, err := g.ctx.RunGit("add", ".claude/settings.json"); err != nil {
+			return false, fmt.Errorf("stage settings.json restore: %w", err)
+		}
+	}
+
+	// Commit if there are staged changes
+	status, _ := g.ctx.RunGit("diff", "--cached", "--name-only", "--", ".claude/settings.json")
+	if strings.TrimSpace(status) != "" {
+		commitMsg := fmt.Sprintf("%s %s: restore .claude/settings.json from %s", g.commitPrefix, taskID, target)
+		if _, err := g.ctx.RunGit("commit", "-m", commitMsg); err != nil {
+			if !strings.Contains(err.Error(), "nothing to commit") {
+				return false, fmt.Errorf("commit settings.json restore: %w", err)
+			}
+			return false, nil
+		}
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // TryAutoResolveClaudeMD attempts to auto-resolve CLAUDE.md conflicts.
 // This is called when CLAUDE.md is detected as a conflicted file.
 // Returns true if resolution succeeded, false if manual resolution is needed.
