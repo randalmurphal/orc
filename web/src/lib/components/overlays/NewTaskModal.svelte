@@ -4,7 +4,7 @@
 	Lives in +layout.svelte so it can be triggered from any page via:
 	  window.dispatchEvent(new CustomEvent('orc:new-task'))
 
-	Also triggered by Cmd+N keyboard shortcut.
+	Also triggered by Shift+Alt+N keyboard shortcut.
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';

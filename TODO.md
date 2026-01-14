@@ -49,8 +49,11 @@ All planned P0 and P1 features are implemented. Focus is now on refinement and b
   - Real-time updates via WebSocket
 - [x] Project Detection (100%) - Implemented as part of Init Wizard
 - [x] Keyboard Shortcuts (100%)
-  - CommandPalette (Cmd+K)
-  - Navigation shortcuts (g+d, g+t, g+s, etc.)
+  - CommandPalette (Shift+Alt+K) - uses browser-safe modifier
+  - New task modal (Shift+Alt+N)
+  - Project switcher (Shift+Alt+P)
+  - Toggle sidebar (Shift+Alt+B)
+  - Navigation shortcuts (g+d, g+t, g+e, etc.)
   - Task list navigation (j/k/Enter/r/p/d)
   - Help modal (?)
 

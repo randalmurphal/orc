@@ -116,6 +116,7 @@
 		});
 
 		// Setup global shortcuts using ShortcutManager
+		// Note: Uses Shift+Alt modifier for browser-conflicting shortcuts
 		cleanupShortcuts = setupGlobalShortcuts({
 			onCommandPalette: () => {
 				showCommandPalette = true;
@@ -126,6 +127,10 @@
 			},
 			onToggleSidebar: () => {
 				sidebarExpanded.toggle();
+			},
+			onProjectSwitcher: () => {
+				showProjectSwitcher = true;
+				showCommandPalette = false;
 			},
 			onHelp: () => {
 				showShortcutsHelp = true;
@@ -146,7 +151,7 @@
 			onGoSkills: () => goto('/environment/claude/skills')
 		});
 
-		// Additional shortcuts not in the manager (Cmd+P for project switcher)
+		// Handle Escape in input fields (not handled by ShortcutManager)
 		function handleKeydown(e: KeyboardEvent) {
 			const target = e.target as HTMLElement;
 			if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
@@ -156,14 +161,6 @@
 					showNewTaskForm = false;
 					showShortcutsHelp = false;
 				}
-				return;
-			}
-
-			// Cmd/Ctrl + P = Project switcher (not handled by ShortcutManager to avoid conflict)
-			if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
-				e.preventDefault();
-				showProjectSwitcher = true;
-				showCommandPalette = false;
 			}
 		}
 

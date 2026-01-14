@@ -571,7 +571,7 @@ orc resume TASK-XXX    # Continues from where it left off
 
 | Approach | Action |
 |----------|--------|
-| Select a project | Click "Select Project" button or use `Cmd+P` |
+| Select a project | Click "Select Project" button or use `Shift+Alt+P` |
 | Set default project | Run `orc serve` from the project directory, or set via API |
 
 **How It Works**:

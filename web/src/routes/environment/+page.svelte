@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import { getModifierSymbol } from '$lib/utils/platform';
 	import {
 		listSkills,
 		listHooks,
@@ -557,7 +558,7 @@
 		<!-- Keyboard hint -->
 		<div class="keyboard-hint">
 			<Icon name="terminal" size={14} />
-			<span>Press <kbd>Cmd+K</kbd> to quickly jump to any configuration page</span>
+			<span>Press <kbd>{getModifierSymbol()}K</kbd> to quickly jump to any configuration page</span>
 		</div>
 	{/if}
 </div>

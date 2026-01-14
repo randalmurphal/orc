@@ -420,11 +420,14 @@ cd ~/repos/orc/web && bun dev
 
 ### 4.6 Keyboard Shortcuts
 
+Uses `Shift+Alt` modifier (⇧⌥ on Mac) for global shortcuts to avoid browser conflicts.
+
 | Test | Shortcut | Expected | Status |
 |------|----------|----------|--------|
-| Command palette | Cmd+K | Palette opens | |
-| New task | Cmd+N | New task modal | |
-| Toggle sidebar | Cmd+B | Sidebar toggles | |
+| Command palette | Shift+Alt+K | Palette opens | |
+| New task | Shift+Alt+N | New task modal | |
+| Toggle sidebar | Shift+Alt+B | Sidebar toggles | |
+| Project switcher | Shift+Alt+P | Project switcher opens | |
 | Search focus | / | Search focused | |
 | Help | ? | Help modal | |
 | Close | Esc | Modal/overlay closes | |
@@ -432,7 +435,7 @@ cd ~/repos/orc/web && bun dev
 | Open task | Enter | Opens selected task | |
 | Go dashboard | g d | Navigates to dashboard | |
 | Go tasks | g t | Navigates to tasks | |
-| Go settings | g s | Navigates to settings | |
+| Go environment | g e | Navigates to environment | |
 
 ### 4.7 Real-time Updates
 

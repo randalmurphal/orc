@@ -4,12 +4,16 @@ test.describe('Keyboard Shortcuts', () => {
 	test('should open keyboard shortcuts help with ?', async ({ page }) => {
 		await page.goto('/');
 
-		// Press ? to open shortcuts help
-		await page.keyboard.press('Shift+/');
+		// Wait for app to initialize fully
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(500);
 
-		// Wait for modal to appear
-		const modal = page.locator('.modal-content, [role="dialog"]');
-		await expect(modal).toBeVisible({ timeout: 1000 });
+		// Press ? to open shortcuts help
+		await page.keyboard.press('?');
+
+		// Wait for modal to appear - looking for the modal backdrop with role="dialog"
+		const modal = page.locator('[role="dialog"]');
+		await expect(modal).toBeVisible({ timeout: 3000 });
 
 		// Should show keyboard shortcuts content
 		const shortcutsContent = page.locator('text=Keyboard Shortcuts');
@@ -20,14 +24,16 @@ test.describe('Keyboard Shortcuts', () => {
 		await expect(modal).not.toBeVisible();
 	});
 
-	test('should open command palette with Cmd+K', async ({ page }) => {
+	test('should open command palette with Shift+Alt+K', async ({ page }) => {
 		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(200);
 
-		// Press Cmd+K (or Ctrl+K on non-Mac)
-		await page.keyboard.press('Meta+k');
+		// Press Shift+Alt+K (browser-safe alternative to Cmd+K)
+		await page.keyboard.press('Shift+Alt+k');
 
 		// Command palette should open
-		const palette = page.locator('.command-palette, [role="combobox"], .modal-content');
+		const palette = page.locator('.command-palette, [role="combobox"], [role="dialog"]');
 		const paletteVisible = await palette.isVisible().catch(() => false);
 
 		// Close with Escape if visible
@@ -38,57 +44,67 @@ test.describe('Keyboard Shortcuts', () => {
 
 	test('should navigate with g d to dashboard', async ({ page }) => {
 		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(200);
 
 		// Press g then d for go-to-dashboard sequence
 		await page.keyboard.press('g');
 		await page.keyboard.press('d');
 
-		// Should navigate to dashboard
-		await expect(page).toHaveURL('/dashboard');
+		// Should navigate to dashboard (allow for project query param)
+		await expect(page).toHaveURL(/\/dashboard/);
 	});
 
 	test('should navigate with g t to tasks', async ({ page }) => {
 		await page.goto('/dashboard');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(200);
 
 		// Press g then t for go-to-tasks sequence
 		await page.keyboard.press('g');
 		await page.keyboard.press('t');
 
-		// Should navigate to tasks (home)
-		await expect(page).toHaveURL('/');
+		// Should navigate to tasks (home) - check pathname is / or empty
+		await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/(\?|$)/);
 	});
 
-	test('should navigate with g s to settings', async ({ page }) => {
+	test('should navigate with g r to preferences', async ({ page }) => {
 		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(200);
 
-		// Press g then s for go-to-settings sequence
+		// Press g then r for go-to-preferences sequence
 		await page.keyboard.press('g');
-		await page.keyboard.press('s');
+		await page.keyboard.press('r');
 
-		// Should navigate to settings
-		await expect(page).toHaveURL('/settings');
+		// Should navigate to preferences
+		await expect(page).toHaveURL(/\/preferences/);
 	});
 
 	test('should navigate with g p to prompts', async ({ page }) => {
 		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(200);
 
 		// Press g then p for go-to-prompts sequence
 		await page.keyboard.press('g');
 		await page.keyboard.press('p');
 
-		// Should navigate to prompts
-		await expect(page).toHaveURL('/prompts');
+		// Should navigate to prompts (under environment/orchestrator)
+		await expect(page).toHaveURL(/\/environment\/orchestrator\/prompts/);
 	});
 
 	test('should close modal with Escape', async ({ page }) => {
 		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(200);
 
-		// Open new task modal with Cmd+N
-		await page.keyboard.press('Meta+n');
+		// Open new task modal with Shift+Alt+N (browser-safe alternative to Cmd+N)
+		await page.keyboard.press('Shift+Alt+n');
 
 		// Modal should be visible
-		const modal = page.locator('.modal-content, [role="dialog"]');
-		await expect(modal).toBeVisible({ timeout: 1000 });
+		const modal = page.locator('[role="dialog"]');
+		await expect(modal).toBeVisible({ timeout: 2000 });
 
 		// Close with Escape
 		await page.keyboard.press('Escape');
@@ -100,6 +116,7 @@ test.describe('Keyboard Shortcuts', () => {
 			await page.goto('/');
 
 			// Wait for tasks to load
+			await page.waitForLoadState('networkidle');
 			await page.waitForTimeout(500);
 
 			// Check if there are tasks
@@ -121,6 +138,8 @@ test.describe('Keyboard Shortcuts', () => {
 test.describe('Keyboard Shortcuts - Input Fields', () => {
 	test('should not trigger shortcuts when typing in input', async ({ page }) => {
 		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(200);
 
 		// Click on search input
 		const searchInput = page.locator('input[placeholder*="Search"]');
@@ -130,8 +149,8 @@ test.describe('Keyboard Shortcuts - Input Fields', () => {
 			// Type g d - should not navigate
 			await page.keyboard.type('gd');
 
-			// Should still be on home page
-			await expect(page).toHaveURL('/');
+			// Should still be on home page (allow for project query param)
+			await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/(\?|$)/);
 
 			// But input should have the text
 			await expect(searchInput).toHaveValue('gd');
