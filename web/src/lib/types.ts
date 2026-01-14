@@ -17,6 +17,11 @@ export interface Task {
 	queue?: TaskQueue;
 	priority?: TaskPriority;
 	category?: TaskCategory;
+	initiative_id?: string;
+	blocked_by?: string[];
+	blocks?: string[];
+	related_to?: string[];
+	referenced_by?: string[];
 	created_at: string;
 	updated_at: string;
 	started_at?: string;
@@ -362,4 +367,39 @@ export interface TaskCommentStats {
 	human_count: number;
 	agent_count: number;
 	system_count: number;
+}
+
+// Initiative types
+export type InitiativeStatus = 'planning' | 'active' | 'paused' | 'completed' | 'cancelled';
+
+export interface InitiativeIdentity {
+	initials?: string;
+	display_name?: string;
+	email?: string;
+}
+
+export interface InitiativeDecision {
+	id: string;
+	decision: string;
+	rationale?: string;
+	decided_by?: string;
+	decided_at: string;
+}
+
+export interface InitiativeTaskRef {
+	task_id: string;
+	status?: string;
+}
+
+export interface Initiative {
+	id: string;
+	title: string;
+	status: InitiativeStatus;
+	owner?: InitiativeIdentity;
+	vision?: string;
+	decisions?: InitiativeDecision[];
+	context_files?: string[];
+	tasks?: InitiativeTaskRef[];
+	created_at: string;
+	updated_at: string;
 }
