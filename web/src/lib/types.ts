@@ -22,6 +22,8 @@ export interface Task {
 	blocks?: string[];
 	related_to?: string[];
 	referenced_by?: string[];
+	is_blocked?: boolean;
+	unmet_blockers?: string[];
 	created_at: string;
 	updated_at: string;
 	started_at?: string;
