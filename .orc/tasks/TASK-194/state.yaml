@@ -1,9 +1,10 @@
 task_id: TASK-194
 current_phase: docs
 current_iteration: 3
-status: running
+status: completed
 started_at: 2026-01-14T11:04:26.784854-06:00
-updated_at: 2026-01-14T11:20:00.07025-06:00
+updated_at: 2026-01-14T11:20:00.130949-06:00
+completed_at: 2026-01-14T11:20:00.130949-06:00
 phases:
     docs:
         status: completed
@@ -50,6 +51,11 @@ gates:
       approved: true
       reason: auto-approved on success
       timestamp: 2026-01-14T11:17:19.615782-06:00
+    - phase: docs
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T11:20:00.130942-06:00
 tokens:
     input_tokens: 10181670
     output_tokens: 26545
@@ -58,8 +64,3 @@ tokens:
     total_tokens: 10208215
 cost:
     total_cost_usd: 0
-execution:
-    pid: 14536
-    hostname: MacBook-Air.local
-    started_at: 2026-01-14T11:04:26.834593-06:00
-    last_heartbeat: 2026-01-14T11:17:19.615787-06:00
