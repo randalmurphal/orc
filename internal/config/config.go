@@ -1468,12 +1468,13 @@ func (c *Config) ShouldWaitForCI() bool {
 }
 
 // ShouldMergeOnCIPass returns true if we should auto-merge after CI passes.
-// Only enabled for auto/fast profiles.
+// Only enabled for auto/fast profiles and requires WaitForCI to be enabled.
 func (c *Config) ShouldMergeOnCIPass() bool {
 	if c.Profile != ProfileAuto && c.Profile != ProfileFast {
 		return false
 	}
-	return c.Completion.CI.MergeOnCIPass
+	// Can't merge on CI pass if we're not waiting for CI
+	return c.Completion.CI.WaitForCI && c.Completion.CI.MergeOnCIPass
 }
 
 // CITimeout returns the configured CI timeout, defaulting to 10 minutes.

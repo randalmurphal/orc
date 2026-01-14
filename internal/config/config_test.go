@@ -1612,7 +1612,7 @@ func TestShouldWaitForCI(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := Default()
 			cfg.Profile = tt.profile
-			cfg.Completion.WaitForCI = tt.waitForCI
+			cfg.Completion.CI.WaitForCI = tt.waitForCI
 
 			got := cfg.ShouldWaitForCI()
 			if got != tt.expected {
@@ -1643,8 +1643,8 @@ func TestShouldMergeOnCIPass(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := Default()
 			cfg.Profile = tt.profile
-			cfg.Completion.WaitForCI = tt.waitForCI
-			cfg.Completion.MergeOnCIPass = tt.mergeOnCIPass
+			cfg.Completion.CI.WaitForCI = tt.waitForCI
+			cfg.Completion.CI.MergeOnCIPass = tt.mergeOnCIPass
 
 			got := cfg.ShouldMergeOnCIPass()
 			if got != tt.expected {
@@ -1654,25 +1654,25 @@ func TestShouldMergeOnCIPass(t *testing.T) {
 	}
 }
 
-func TestGetCITimeout(t *testing.T) {
+func TestCITimeout(t *testing.T) {
 	cfg := Default()
 
 	// Default timeout
-	timeout := cfg.GetCITimeout()
+	timeout := cfg.CITimeout()
 	if timeout != 10*time.Minute {
 		t.Errorf("default timeout = %v, want 10m", timeout)
 	}
 
 	// Custom timeout
-	cfg.Completion.CITimeout = 5 * time.Minute
-	timeout = cfg.GetCITimeout()
+	cfg.Completion.CI.CITimeout = 5 * time.Minute
+	timeout = cfg.CITimeout()
 	if timeout != 5*time.Minute {
 		t.Errorf("custom timeout = %v, want 5m", timeout)
 	}
 
 	// Zero timeout falls back to default
-	cfg.Completion.CITimeout = 0
-	timeout = cfg.GetCITimeout()
+	cfg.Completion.CI.CITimeout = 0
+	timeout = cfg.CITimeout()
 	if timeout != 10*time.Minute {
 		t.Errorf("zero timeout = %v, want 10m (default)", timeout)
 	}
