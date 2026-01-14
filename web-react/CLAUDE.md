@@ -399,6 +399,185 @@ import { ProjectSwitcher } from '@/components/overlays';
 
 **Keyboard shortcuts:** ⇧⌥P opens project switcher (handled by AppLayout)
 
+## Dashboard Components
+
+Components for the Dashboard page (`/dashboard`).
+
+### Dashboard (Page)
+
+Main dashboard page component that orchestrates all dashboard sections.
+
+```tsx
+import { Dashboard } from '@/pages/Dashboard';
+
+// Used in route configuration
+<Route path="/dashboard" element={<Dashboard />} />
+```
+
+**Data flow:**
+- Fetches `DashboardStats` from `/api/dashboard/stats`
+- Fetches active initiatives from `/api/initiatives?status=active`
+- Derives active/recent tasks from `TaskStore`
+- Subscribes to WebSocket events for real-time updates
+
+**URL params:**
+- `project`: Project filter (handled by UrlParamSync)
+
+### DashboardStats
+
+Quick stats cards with live connection indicator.
+
+```tsx
+import { DashboardStats } from '@/components/dashboard';
+
+<DashboardStats
+  stats={stats}
+  wsStatus={wsStatus}
+  onFilterClick={(status) => navigate(`/?status=${status}`)}
+  onDependencyFilterClick={(status) => navigate(`/?dependency_status=${status}`)}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `stats` | `DashboardStats` | Stats object from API |
+| `wsStatus` | `ConnectionStatus` | WebSocket connection status |
+| `onFilterClick` | `(status: string) => void` | Handler for status card clicks |
+| `onDependencyFilterClick` | `(status: string) => void` | Optional handler for blocked card |
+
+**Stats displayed:**
+- **Running**: Tasks currently executing (clickable)
+- **Blocked**: Tasks waiting on dependencies (clickable)
+- **Today**: Tasks completed today (clickable)
+- **Tokens**: Total token usage with cached tokens breakdown (tooltip)
+
+**Connection indicator states:**
+- Connected: Green dot, "Live"
+- Connecting/Reconnecting: Yellow dot, pulsing
+- Disconnected: Gray dot, "Offline"
+
+### DashboardActiveTasks
+
+List of running/paused/blocked tasks with navigation.
+
+```tsx
+import { DashboardActiveTasks } from '@/components/dashboard';
+
+<DashboardActiveTasks tasks={activeTasks} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `tasks` | `Task[]` | Tasks with status: running, paused, or blocked |
+
+**Features:**
+- Click to navigate to task detail
+- Shows StatusIndicator, task ID, title, and current phase
+- Limited to 5 tasks
+- Hidden when no active tasks
+
+### DashboardQuickActions
+
+Action buttons for common operations.
+
+```tsx
+import { DashboardQuickActions } from '@/components/dashboard';
+
+<DashboardQuickActions
+  onNewTask={() => window.dispatchEvent(new CustomEvent('orc:new-task'))}
+  onViewTasks={() => navigate('/')}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onNewTask` | `() => void` | Handler for "New Task" button |
+| `onViewTasks` | `() => void` | Handler for "View All Tasks" button |
+
+### DashboardRecentActivity
+
+Timeline of recently completed/failed tasks.
+
+```tsx
+import { DashboardRecentActivity } from '@/components/dashboard';
+
+<DashboardRecentActivity tasks={recentTasks} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `tasks` | `Task[]` | Tasks with status: completed or failed, sorted by updated_at |
+
+**Features:**
+- Click to navigate to task detail
+- Shows StatusIndicator, task ID, title, and relative timestamp
+- Relative time format: "just now", "5m ago", "2h ago", "3d ago"
+- Limited to 5 most recent
+- Hidden when no recent tasks
+
+### DashboardInitiatives
+
+Active initiatives with progress bars.
+
+```tsx
+import { DashboardInitiatives } from '@/components/dashboard';
+
+<DashboardInitiatives initiatives={initiatives} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `initiatives` | `Initiative[]` | Active initiatives with embedded tasks |
+
+**Features:**
+- Click to filter board by initiative (`/board?initiative=XXX`)
+- Progress bar shows completed/total tasks
+- Progress color: green (75%+), yellow (25-74%), red (<25%)
+- Non-active initiatives show status badge instead of progress
+- Sorted by updated_at, limited to 5
+- "View All" link when >5 initiatives
+- Vision text shown in tooltip
+- Hidden when no initiatives
+
+### DashboardSummary
+
+Overall task counts at bottom of dashboard.
+
+```tsx
+import { DashboardSummary } from '@/components/dashboard';
+
+<DashboardSummary stats={stats} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `stats` | `DashboardStats` | Stats object from API |
+
+**Displays:**
+- Total Tasks (all tasks)
+- Completed (green)
+- Failed (red)
+
+### DashboardStats Type
+
+Stats returned by `/api/dashboard/stats`:
+
+```typescript
+interface DashboardStats {
+  running: number;
+  paused: number;
+  blocked: number;
+  completed: number;
+  failed: number;
+  today: number;           // Completed today
+  total: number;
+  tokens: number;          // Total tokens used
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+  cost: number;            // Estimated cost
+}
+```
+
 ## Routing
 
 ### Route Configuration
