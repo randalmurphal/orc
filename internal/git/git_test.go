@@ -520,14 +520,19 @@ func TestInjectWorktreeHooks_Integration(t *testing.T) {
 		t.Error("pre-push hook should contain task branch")
 	}
 
-	// Verify core.hooksPath is set in worktree config
-	wtGit := g.InWorktree(worktreePath)
-	output, err := wtGit.Context().RunGit("config", "--local", "--get", "core.hooksPath")
+	// Verify core.hooksPath is set in worktree config file
+	// (we write directly to .git/worktrees/<name>/config instead of using git config
+	// to avoid polluting the main repo's config)
+	worktreeConfigPath := filepath.Join(gitDir, "config")
+	configContent, err := os.ReadFile(worktreeConfigPath)
 	if err != nil {
-		t.Fatalf("failed to get core.hooksPath: %v", err)
+		t.Fatalf("failed to read worktree config: %v", err)
 	}
-	if !strings.Contains(strings.TrimSpace(output), "hooks") {
-		t.Errorf("core.hooksPath should be set, got: %s", output)
+	if !strings.Contains(string(configContent), "hooksPath") {
+		t.Error("worktree config should contain hooksPath")
+	}
+	if !strings.Contains(string(configContent), hooksDir) {
+		t.Errorf("worktree config should point to hooks dir, got: %s", string(configContent))
 	}
 }
 
