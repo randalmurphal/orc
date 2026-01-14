@@ -24,6 +24,19 @@ import { test, expect, type Page } from '@playwright/test';
 // Unique prefix for test initiatives to avoid conflicts
 const TEST_PREFIX = 'E2E-Test-';
 
+// Track created initiative IDs for cleanup
+let createdInitiativeIds: string[] = [];
+
+
+// Helper: Delete initiative via API
+async function deleteInitiativeViaAPI(page: Page, initiativeId: string): Promise<boolean> {
+	try {
+		const response = await page.request.delete(`/api/initiatives/${initiativeId}`);
+		return response.ok();
+	} catch {
+		return false;
+	}
+}
 // Helper: Generate unique initiative title
 function uniqueTitle(base: string): string {
 	return `${TEST_PREFIX}${base}-${Date.now()}`;
@@ -107,9 +120,10 @@ async function createInitiative(
 
 	if (isVisible) {
 		const href = await initiativeLink.getAttribute('href');
-		// Extract initiative ID from href like "/?initiative=INIT-001"
 		const match = href?.match(/initiative=(INIT-\d+)/);
-		return match?.[1] || null;
+		const initiativeId = match?.[1] || null;
+		if (initiativeId) createdInitiativeIds.push(initiativeId);
+		return initiativeId;
 	}
 
 	return null;
@@ -123,18 +137,26 @@ async function navigateToInitiativeDetail(page: Page, initiativeId: string) {
 	await page.waitForSelector('.initiative-detail', { timeout: 10000 });
 }
 
-// Helper: Clean up test initiatives
+
+// Helper: Clean up test initiatives created during tests
 async function cleanupTestInitiatives(page: Page) {
-	// This is a best-effort cleanup - tests should be independent
-	// Navigate to page to ensure we can interact
-	await page.goto('/');
-	await page.waitForLoadState('networkidle');
+	// Delete all tracked initiatives via API
+	for (const id of createdInitiativeIds) {
+		await deleteInitiativeViaAPI(page, id);
+	}
+	// Clear the tracking array
+	createdInitiativeIds = [];
 }
+
 
 test.describe('Initiative Management', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
+	});
+
+	test.afterEach(async ({ page }) => {
+		await cleanupTestInitiatives(page);
 	});
 
 	test.describe('Initiative CRUD', () => {
