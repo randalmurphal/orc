@@ -49,10 +49,26 @@ web-react/src/
 │   │   ├── Sidebar.tsx   # Left navigation
 │   │   ├── Header.tsx    # Top bar
 │   │   └── UrlParamSync.tsx # URL <-> Store bidirectional sync
+│   ├── task-detail/      # Task detail components
+│   │   ├── TaskHeader.tsx        # Header with actions
+│   │   ├── TabNav.tsx            # 6-tab navigation
+│   │   ├── DependencySidebar.tsx # Collapsible deps panel
+│   │   ├── TimelineTab.tsx       # Phase timeline + tokens
+│   │   ├── ChangesTab.tsx        # Git diff viewer
+│   │   ├── TranscriptTab.tsx     # Transcript history
+│   │   ├── TestResultsTab.tsx    # Test results + screenshots
+│   │   ├── AttachmentsTab.tsx    # File uploads
+│   │   ├── CommentsTab.tsx       # Task comments
+│   │   ├── TaskEditModal.tsx     # Edit form modal
+│   │   ├── ExportDropdown.tsx    # Export options
+│   │   └── diff/                 # Diff viewer sub-components
+│   │       ├── DiffStats.tsx
+│   │       ├── DiffFile.tsx
+│   │       ├── DiffHunk.tsx
+│   │       ├── DiffLine.tsx
+│   │       └── InlineCommentThread.tsx
 │   ├── filters/          # Filter dropdowns
 │   │   └── DependencyDropdown.tsx # Dependency status filter
-│   ├── initiative/       # Initiative components
-│   │   └── DependencyGraph.tsx # Interactive DAG visualization
 │   ├── overlays/         # Modal overlays
 │   │   ├── Modal.tsx     # Base modal component
 │   │   └── KeyboardShortcutsHelp.tsx # Shortcuts help modal
@@ -123,9 +139,9 @@ npm run build
 This React app runs alongside Svelte during migration:
 
 1. **Phase 1** ✅: Project scaffolding, Zustand stores mirroring Svelte stores
-2. **Phase 2** ✅: Core infrastructure (API client, WebSocket, Router with URL sync), Dashboard page, Board page (flat/swimlane views)
-3. **Phase 3** ✅: Component migration - TaskList, TaskDetail, InitiativeDetail (with all tabs including dependency graph)
-4. **Phase 4** (current): E2E test validation, feature parity verification
+2. **Phase 2** ✅: Core infrastructure (API client, WebSocket, Router with URL sync), Dashboard page, Board page (flat/swimlane views), TaskList page, TaskDetail page with all 6 tabs
+3. **Phase 3** (current): Component migration (parallel implementation) - InitiativeDetail, remaining environment pages
+4. **Phase 4**: E2E test validation, feature parity verification
 5. **Phase 5**: Cutover and Svelte removal
 
 ### Shared Resources
@@ -163,8 +179,17 @@ Migration follows the existing Svelte component structure:
 | `lib/components/InitiativeDropdown.svelte` | `components/board/InitiativeDropdown.tsx` | ✅ Complete |
 | `lib/components/DependencyDropdown.svelte` | `components/filters/DependencyDropdown.tsx` | ✅ Complete |
 | `routes/+page.svelte` (task list) | `pages/TaskList.tsx` | ✅ Complete |
-| `routes/initiatives/[id]/+page.svelte` | `pages/InitiativeDetail.tsx` | ✅ Complete |
-| `lib/components/DependencyGraph.svelte` | `components/initiative/DependencyGraph.tsx` | ✅ Complete |
+| `routes/tasks/[id]/+page.svelte` | `pages/TaskDetail.tsx` | ✅ Complete |
+| `lib/components/TaskHeader.svelte` | `components/task-detail/TaskHeader.tsx` | ✅ Complete |
+| `lib/components/DependencySidebar.svelte` | `components/task-detail/DependencySidebar.tsx` | ✅ Complete |
+| `lib/components/TabNav.svelte` | `components/task-detail/TabNav.tsx` | ✅ Complete |
+| `lib/components/TimelineTab.svelte` | `components/task-detail/TimelineTab.tsx` | ✅ Complete |
+| `lib/components/ChangesTab.svelte` | `components/task-detail/ChangesTab.tsx` | ✅ Complete |
+| `lib/components/TranscriptTab.svelte` | `components/task-detail/TranscriptTab.tsx` | ✅ Complete |
+| `lib/components/TestResultsTab.svelte` | `components/task-detail/TestResultsTab.tsx` | ✅ Complete |
+| `lib/components/AttachmentsTab.svelte` | `components/task-detail/AttachmentsTab.tsx` | ✅ Complete |
+| `lib/components/CommentsTab.svelte` | `components/task-detail/CommentsTab.tsx` | ✅ Complete |
+| `lib/components/diff/*` | `components/task-detail/diff/*` | ✅ Complete |
 | `lib/stores/` | `src/stores/` (Zustand) | ✅ Complete |
 | `lib/websocket.ts` | `src/lib/websocket.ts` | ✅ Complete |
 | `lib/utils/` | `src/lib/` | ✅ Complete |
@@ -1204,7 +1229,6 @@ ws.disconnect();  // Cleanup
 | `lib/websocket.ts` | OrcWebSocket class for WebSocket connection management |
 | `lib/shortcuts.ts` | ShortcutManager class for keyboard shortcuts |
 | `lib/platform.ts` | Platform detection (isMac) and modifier key formatting |
-| `lib/graph-layout.ts` | DAG layout algorithm using Kahn's topological sort |
 
 ### Keyboard Shortcuts
 
@@ -1554,145 +1578,396 @@ import { InitiativeDropdown } from '@/components/board';
 - Active filter visual indication
 - Click outside to close
 
-## Initiative Components
+## Task Detail Components
 
-Components for the Initiative Detail page (`/initiatives/:id`).
+Components for the Task Detail page (`/tasks/:id`).
 
-### InitiativeDetail (Page)
+### TaskDetail (Page)
 
-Full-featured initiative management page with tabs.
+Main page component that orchestrates task display with all tabs and real-time updates.
 
 ```tsx
-import { InitiativeDetail } from '@/pages/InitiativeDetail';
+import { TaskDetail } from '@/pages/TaskDetail';
 
 // Used in route configuration
-<Route path="/initiatives/:id" element={<InitiativeDetail />} />
+<Route path="/tasks/:id" element={<TaskDetail />} />
 ```
 
 **Features:**
-- Header with title, status badge, and progress bar
-- Status transition buttons (Activate/Complete/Reopen/Archive)
-- Tab navigation: Tasks, Graph, Decisions
-- Task linking and unlinking
-- Decision recording with rationale
-- Edit modal for title/vision/status
+- Loads task, plan, and state data on mount
+- Tab navigation with URL persistence (`?tab=xxx`)
+- Real-time WebSocket subscription for running tasks
+- Collapsible dependencies sidebar
+- Task actions (run/pause/resume/delete)
 
 **URL params:**
-- `:id` - Initiative ID from route params
+- `id`: Task ID (route param)
+- `tab`: Active tab (timeline, changes, transcript, test-results, attachments, comments)
 
-**Tabs:**
+**Data flow:**
+- Fetches task data via `/api/tasks/:id`
+- Fetches plan via `/api/tasks/:id/plan`
+- Subscribes to task via `useTaskSubscription(id)`
+- Updates store from WebSocket events
 
-| Tab | Content |
-|-----|---------|
-| Tasks | Linked tasks list, add/link/unlink actions, dependency summary |
-| Graph | Interactive dependency visualization via DependencyGraph component |
-| Decisions | Decision history with add decision form |
+### TaskHeader
 
-**Status Transitions:**
-
-| Current Status | Available Actions |
-|----------------|-------------------|
-| draft | Activate |
-| active | Complete, Archive |
-| completed | Reopen, Archive |
-| archived | (no transitions) |
-
-**Modals:**
-- **Edit Initiative**: Title, vision, status changes
-- **Link Task**: Search and link existing tasks
-- **Add Decision**: Decision text, rationale, author
-
-### DependencyGraph
-
-Interactive DAG visualization for task dependencies within an initiative.
+Header component with task metadata, status, and action buttons.
 
 ```tsx
-import { DependencyGraph } from '@/components/initiative';
+import { TaskHeader } from '@/components/task-detail';
 
-<DependencyGraph
-  nodes={graphData.nodes}
-  edges={graphData.edges}
-  onNodeClick={(nodeId) => navigate(`/tasks/${nodeId}`)}
+<TaskHeader
+  task={task}
+  taskState={taskState}
+  plan={plan}
+  onRun={handleRun}
+  onPause={handlePause}
+  onResume={handleResume}
+  onDelete={handleDelete}
+  onEdit={() => setShowEditModal(true)}
 />
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `nodes` | `DependencyGraphNode[]` | Graph nodes with id, title, status |
-| `edges` | `DependencyGraphEdge[]` | Edges with from/to task IDs |
-| `onNodeClick` | `(nodeId: string) => void` | Optional click handler (defaults to navigation) |
+| `task` | `Task` | Task data |
+| `taskState` | `TaskState \| undefined` | Execution state |
+| `plan` | `Plan \| undefined` | Phase plan |
+| `onRun` | `() => void` | Run task handler |
+| `onPause` | `() => void` | Pause handler |
+| `onResume` | `() => void` | Resume handler |
+| `onDelete` | `() => void` | Delete handler |
+| `onEdit` | `() => void` | Open edit modal |
 
-**Features:**
-- SVG-based rendering with smooth bezier edges
-- Zoom controls (+/-) and fit-to-view button
-- Pan by click-and-drag
-- Mouse wheel zoom (cursor-centered)
-- Hover tooltips showing task title and status
-- Click nodes to navigate to task detail
-- Export to PNG button
-- Status-based node coloring
-- Keyboard accessible (Enter to click nodes)
+**Display elements:**
+- Back navigation link
+- Task ID and status indicator
+- Weight badge with color coding
+- Category and priority badges
+- Initiative badge (if assigned)
+- Branch name display
+- Phase progress (e.g., "3/6")
 
-**Layout Algorithm:**
-- Kahn's algorithm for topological ordering
-- Nodes with no dependencies at top, leaf nodes at bottom
-- Layers centered horizontally
-- Configurable node dimensions and spacing
+**Action buttons (contextual):**
+- **Run**: For created/planned tasks
+- **Pause**: For running tasks
+- **Resume**: For paused tasks
+- **Edit**: Opens TaskEditModal
+- **Delete**: With confirmation dialog
 
-**Node Status Colors:**
+### TabNav
 
-| Status | Color |
-|--------|-------|
-| done | success green |
-| running | accent purple |
-| blocked | danger red |
-| ready | info blue |
-| paused | warning yellow |
-| failed | danger red |
-| pending | muted gray |
-
-**Toolbar Buttons:**
-- Zoom In (+)
-- Zoom Out (-)
-- Fit to View
-- Export PNG
-
-### graph-layout (Library)
-
-Pure layout algorithm module for computing DAG positions.
+Tab navigation component with 6 tabs.
 
 ```tsx
-import { computeLayout, getEdgePath, type LayoutConfig } from '@/lib/graph-layout';
+import { TabNav, type TabId } from '@/components/task-detail';
 
-const layout = computeLayout(nodes, edges, {
-  nodeWidth: 120,
-  nodeHeight: 50,
-  horizontalSpacing: 50,
-  verticalSpacing: 70,
-  padding: 30,
-});
+<TabNav
+  activeTab={activeTab}
+  onTabChange={handleTabChange}
+/>
 ```
 
-**LayoutConfig options:**
+| Prop | Type | Description |
+|------|------|-------------|
+| `activeTab` | `TabId` | Current active tab |
+| `onTabChange` | `(tab: TabId) => void` | Tab change handler |
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `nodeWidth` | 120 | Node width in pixels |
-| `nodeHeight` | 60 | Node height in pixels |
-| `horizontalSpacing` | 40 | Space between nodes in same layer |
-| `verticalSpacing` | 80 | Space between layers |
-| `padding` | 40 | Graph padding |
+**Tab configuration:**
 
-**LayoutResult:**
+| Tab ID | Label | Icon |
+|--------|-------|------|
+| `timeline` | Timeline | clock |
+| `changes` | Changes | branch |
+| `transcript` | Transcript | file-text |
+| `test-results` | Test Results | check-circle |
+| `attachments` | Attachments | folder |
+| `comments` | Comments | message-circle |
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `nodes` | `Map<string, LayoutNode>` | Positioned nodes with x, y, width, height, layer |
-| `edges` | `LayoutEdge[]` | Edge paths with from/to and point coordinates |
-| `width` | `number` | Total graph width |
-| `height` | `number` | Total graph height |
+### DependencySidebar
 
-**Helper: `getEdgePath(edge)`** - Generates SVG cubic bezier path string for an edge.
+Collapsible sidebar showing task dependencies.
+
+```tsx
+import { DependencySidebar } from '@/components/task-detail';
+
+<DependencySidebar
+  task={task}
+  collapsed={sidebarCollapsed}
+  onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+  onUpdate={handleTaskUpdate}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `task` | `Task` | Task with dependency fields |
+| `collapsed` | `boolean` | Collapsed state |
+| `onToggle` | `() => void` | Toggle handler |
+| `onUpdate` | `(task: Task) => void` | Update callback |
+
+**Sections:**
+- **Blocked By**: Tasks blocking this one (removable via API)
+- **Blocks**: Tasks this one blocks (computed, read-only)
+- **Related To**: Related tasks (removable)
+- **Referenced By**: Tasks mentioning this one (computed, read-only)
+
+**Features:**
+- Expand/collapse toggle with chevron icon
+- Add blocker/related task via modal
+- Remove with single click
+- Status indicators for each dependency
+- Click to navigate to dependency
+
+### TimelineTab
+
+Phase execution timeline with token usage stats.
+
+```tsx
+import { TimelineTab } from '@/components/task-detail';
+
+<TimelineTab
+  task={task}
+  taskState={taskState}
+  plan={plan}
+/>
+```
+
+**Features:**
+- Horizontal phase flow visualization
+- Phase status icons (pending/running/completed/failed/skipped)
+- Phase connector lines
+- Duration display per phase
+- Iteration/retry counts
+- Error messages for failed phases
+- Commit SHA links for completed phases
+
+**Token Stats Panel:**
+- Total input/output tokens
+- Cache creation/read tokens
+- Cache hit rate percentage
+- Per-phase token breakdown
+
+**Task Info Section:**
+- Weight classification
+- Status with timestamp
+- Created/started/completed dates
+
+### ChangesTab
+
+Git diff viewer with inline review comments.
+
+```tsx
+import { ChangesTab } from '@/components/task-detail';
+
+<ChangesTab taskId={taskId} />
+```
+
+**Features:**
+- Split/unified view mode toggle
+- File list with expand/collapse all
+- Lazy-loaded file hunks (fetch on expand)
+- Diff statistics (additions, deletions)
+- Line numbers with syntax context
+- Review comments at specific lines
+- Comment severity levels (blocker, issue, suggestion)
+- "Send to Agent" for retry with feedback
+- General comments section
+
+**Sub-components:**
+- `DiffFile` - File container with expand/collapse
+- `DiffHunk` - Code hunk with context lines
+- `DiffLine` - Individual line with optional comments
+- `DiffStats` - Addition/deletion counts
+- `InlineCommentThread` - Comments on specific lines
+
+### TranscriptTab
+
+Transcript viewer with pagination and streaming support.
+
+```tsx
+import { TranscriptTab } from '@/components/task-detail';
+
+<TranscriptTab taskId={taskId} isRunning={isRunning} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `taskId` | `string` | Task ID |
+| `isRunning` | `boolean` | Show streaming content |
+
+**Features:**
+- Paginated transcript list (10 per page)
+- Expand/collapse individual transcripts
+- Auto-expand on initial load
+- Section types: prompt, retry-context, response, metadata
+- Token counts per turn (input, output, cached)
+- Status badges (complete, blocked)
+- Live streaming content for running tasks
+- Export to markdown
+- Copy to clipboard
+- Auto-scroll toggle
+- Relative time formatting
+
+**Parsed transcript structure:**
+```typescript
+interface ParsedTranscript {
+  phase: string;
+  iteration: number;
+  sections: ParsedSection[];
+  metadata: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheCreationTokens: number;
+    cacheReadTokens: number;
+    complete: boolean;
+    blocked: boolean;
+  };
+}
+```
+
+### TestResultsTab
+
+Test results display with screenshots and report links.
+
+```tsx
+import { TestResultsTab } from '@/components/task-detail';
+
+<TestResultsTab taskId={taskId} />
+```
+
+**Features:**
+- Summary metrics: passed, failed, skipped, total
+- Pass rate bar with color coding (green/yellow/red)
+- Code coverage breakdown (lines, branches, functions)
+- Screenshot gallery with lightbox modal
+- Test suites with individual test results
+- Quick links to HTML report and trace files
+- Lazy-loaded images
+
+**Tab navigation within component:**
+- **Summary**: Overview metrics and coverage
+- **Screenshots**: Gallery view with lightbox
+- **Test Suites**: Detailed test breakdown
+
+### AttachmentsTab
+
+File attachments with upload and gallery view.
+
+```tsx
+import { AttachmentsTab } from '@/components/task-detail';
+
+<AttachmentsTab taskId={taskId} />
+```
+
+**Features:**
+- Drag-and-drop file upload
+- Multi-file upload support
+- Image gallery with lightbox
+- File list with metadata (size, date)
+- File type detection (image vs document)
+- Delete with confirmation
+- Lazy-loaded images
+- Upload progress feedback
+- Error handling with toast notifications
+
+**State management:**
+- `dragOver` - Visual feedback during drag
+- `uploading` - Upload progress state
+- `lightboxImage` - Current lightbox image
+
+### CommentsTab
+
+Task discussion with author classification.
+
+```tsx
+import { CommentsTab } from '@/components/task-detail';
+
+<CommentsTab taskId={taskId} />
+```
+
+**Features:**
+- Author type classification: human, agent, system
+- Phase-scoped comments (optional)
+- Custom author names
+- Edit/delete functionality
+- Filter by author type
+- Comment counts per type
+- Relative time formatting
+- Edit mode with cancel/save
+- Keyboard shortcuts: Cmd/Ctrl+Enter to submit, Escape to cancel
+
+**Comment form:**
+- Author type selector dropdown
+- Optional phase association
+- Custom author name field
+- Textarea with auto-focus
+
+### TaskEditModal
+
+Modal form for editing task metadata.
+
+```tsx
+import { TaskEditModal } from '@/components/task-detail';
+
+<TaskEditModal
+  task={task}
+  open={showEditModal}
+  onClose={() => setShowEditModal(false)}
+  onSave={handleSave}
+/>
+```
+
+**Editable fields:**
+- Title
+- Description
+- Weight (trivial, small, medium, large, greenfield)
+- Priority (critical, high, normal, low)
+- Category (feature, bug, refactor, chore, docs, test)
+- Queue (active, backlog)
+- Initiative (dropdown with search)
+
+### ExportDropdown
+
+Export options for task data.
+
+```tsx
+import { ExportDropdown } from '@/components/task-detail';
+
+<ExportDropdown
+  taskId={taskId}
+  onExport={handleExport}
+/>
+```
+
+**Export formats:**
+- JSON (task data)
+- Markdown (formatted report)
+- Transcript (raw transcript files)
+
+### Diff Sub-components
+
+Located in `components/task-detail/diff/`:
+
+| Component | Purpose |
+|-----------|---------|
+| `DiffStats.tsx` | File statistics (additions, deletions, file count) |
+| `DiffFile.tsx` | File container with header and hunks |
+| `DiffHunk.tsx` | Code hunk with context lines |
+| `DiffLine.tsx` | Single line with type styling and optional comments |
+| `InlineCommentThread.tsx` | Review comments at specific line |
+
+**DiffLine types:**
+- `added` - Green background, "+" prefix
+- `removed` - Red background, "-" prefix
+- `context` - Normal background, " " prefix
+- `hunk-header` - Blue background, "@@ ... @@" format
+
+**Review comment severity:**
+- `blocker` - Red, must fix before merge
+- `issue` - Orange, should fix
+- `suggestion` - Blue, optional improvement
 
 ## Known Differences from Svelte
 
