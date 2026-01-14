@@ -430,6 +430,36 @@ Endpoints for Playwright test results, screenshots, and traces. Test results are
 
 **Screenshot upload:** Use `multipart/form-data` with file in the `file` field. Optional `filename` field overrides original filename.
 
+### Dashboard
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/dashboard/stats` | Get dashboard statistics |
+
+**Dashboard stats response:**
+```json
+{
+  "running": 1,
+  "paused": 0,
+  "blocked": 2,
+  "completed": 15,
+  "failed": 1,
+  "today": 3,
+  "total": 19,
+  "tokens": 245000,
+  "cache_creation_input_tokens": 5000,
+  "cache_read_input_tokens": 120000,
+  "cost": 12.50
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `tokens` | Total input + output tokens |
+| `cache_creation_input_tokens` | Tokens written to prompt cache (aggregated) |
+| `cache_read_input_tokens` | Tokens served from prompt cache (aggregated) |
+| `cost` | Estimated cost in USD |
+
 ### Cost Tracking
 
 | Method | Endpoint | Description |
@@ -487,12 +517,32 @@ Connect to `/api/ws` for real-time updates.
 | `state` | `TaskState` | Full task state update |
 | `phase` | `{phase, status}` | Phase started/completed/failed |
 | `transcript` | `TranscriptLine` | Streaming conversation |
-| `tokens` | `TokenUpdate` | Token usage |
+| `tokens` | `TokenUpdate` | Token usage (includes cached tokens) |
 | `complete` | `{status, duration}` | Task finished |
 | `error` | `{message, fatal}` | Error occurred |
 | `task_created` | `{task: Task}` | Task created via CLI/filesystem |
 | `task_updated` | `{task: Task}` | Task modified via CLI/filesystem |
 | `task_deleted` | `{task_id: string}` | Task deleted via CLI/filesystem |
+
+### TokenUpdate Schema
+
+```json
+{
+  "input_tokens": 1500,
+  "output_tokens": 500,
+  "cache_creation_input_tokens": 200,
+  "cache_read_input_tokens": 12000,
+  "total_tokens": 14200
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `input_tokens` | Uncached input tokens |
+| `output_tokens` | Generated output tokens |
+| `cache_creation_input_tokens` | Tokens written to prompt cache (optional) |
+| `cache_read_input_tokens` | Tokens served from prompt cache (optional) |
+| `total_tokens` | Sum of all token types |
 
 ### Global Subscriptions
 

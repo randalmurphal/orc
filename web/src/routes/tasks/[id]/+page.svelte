@@ -275,14 +275,25 @@
 					}
 				} else if (eventType === 'tokens') {
 					// Update token display in real-time
-					const tokenData = data as { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number; total_tokens: number };
+					const tokenData = data as {
+						input_tokens: number;
+						output_tokens: number;
+						cache_creation_input_tokens?: number;
+						cache_read_input_tokens?: number;
+						total_tokens: number;
+					};
 					if (taskState) {
 						taskState = {
 							...taskState,
 							tokens: {
 								input_tokens: (taskState.tokens?.input_tokens || 0) + tokenData.input_tokens,
 								output_tokens: (taskState.tokens?.output_tokens || 0) + tokenData.output_tokens,
-								cache_read_input_tokens: (taskState.tokens?.cache_read_input_tokens || 0) + (tokenData.cache_read_input_tokens || 0),
+								cache_creation_input_tokens:
+									(taskState.tokens?.cache_creation_input_tokens || 0) +
+									(tokenData.cache_creation_input_tokens || 0),
+								cache_read_input_tokens:
+									(taskState.tokens?.cache_read_input_tokens || 0) +
+									(tokenData.cache_read_input_tokens || 0),
 								total_tokens: (taskState.tokens?.total_tokens || 0) + tokenData.total_tokens
 							}
 						};
@@ -505,12 +516,16 @@
 									>
 									<span class="token-label">Output</span>
 								</div>
-								{#if taskState.tokens.cache_read_input_tokens}
+								{@const cacheTotal =
+									(taskState.tokens.cache_creation_input_tokens || 0) +
+									(taskState.tokens.cache_read_input_tokens || 0)}
+								{#if cacheTotal > 0}
 									<div class="token-divider"></div>
-									<div class="token-stat cached">
-										<span class="token-value"
-											>{(taskState.tokens.cache_read_input_tokens || 0).toLocaleString()}</span
-										>
+									<div
+										class="token-stat cached"
+										title={`Cache creation: ${(taskState.tokens.cache_creation_input_tokens || 0).toLocaleString()}\nCache read: ${(taskState.tokens.cache_read_input_tokens || 0).toLocaleString()}`}
+									>
+										<span class="token-value">{cacheTotal.toLocaleString()}</span>
 										<span class="token-label">Cached</span>
 									</div>
 								{/if}

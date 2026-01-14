@@ -110,11 +110,13 @@ func (e *Executor) executeClaudeNode() flowgraph.NodeFunc[PhaseState] {
 		effectiveInput := resp.Usage.InputTokens + resp.Usage.CacheCreationInputTokens + resp.Usage.CacheReadInputTokens
 		s.InputTokens += effectiveInput
 		s.OutputTokens += resp.Usage.OutputTokens
+		s.CacheCreationInputTokens += resp.Usage.CacheCreationInputTokens
+		s.CacheReadInputTokens += resp.Usage.CacheReadInputTokens
 		s.TokensUsed += effectiveInput + resp.Usage.OutputTokens
 
 		// Publish response transcript and token update
 		e.publishTranscript(s.TaskID, s.Phase, s.Iteration, "response", s.Response)
-		e.publishTokens(s.TaskID, s.Phase, effectiveInput, resp.Usage.OutputTokens, resp.Usage.CacheReadInputTokens, effectiveInput+resp.Usage.OutputTokens)
+		e.publishTokens(s.TaskID, s.Phase, effectiveInput, resp.Usage.OutputTokens, resp.Usage.CacheCreationInputTokens, resp.Usage.CacheReadInputTokens, effectiveInput+resp.Usage.OutputTokens)
 
 		return s, nil
 	}
@@ -140,7 +142,7 @@ func (e *Executor) checkCompletionNode(p *plan.Phase, st *state.State) flowgraph
 		// Update state tracking
 		if st != nil {
 			st.IncrementIteration()
-			st.AddTokens(s.InputTokens, s.OutputTokens)
+			st.AddTokens(s.InputTokens, s.OutputTokens, s.CacheCreationInputTokens, s.CacheReadInputTokens)
 		}
 
 		// Save transcript for this iteration
@@ -201,12 +203,12 @@ func (e *Executor) saveTranscript(s PhaseState) error {
 %s
 
 ---
-Tokens: %d input, %d output
+Tokens: %d input, %d output, %d cache_creation, %d cache_read
 Complete: %v
 Blocked: %v
 `,
 		s.Phase, s.Iteration, s.Prompt, s.Response,
-		s.InputTokens, s.OutputTokens, s.Complete, s.Blocked)
+		s.InputTokens, s.OutputTokens, s.CacheCreationInputTokens, s.CacheReadInputTokens, s.Complete, s.Blocked)
 
 	return os.WriteFile(path, []byte(content), 0644)
 }

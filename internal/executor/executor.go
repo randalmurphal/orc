@@ -43,8 +43,10 @@ type PhaseState struct {
 	TokensUsed int      // Total tokens used in this phase
 
 	// Token tracking
-	InputTokens  int
-	OutputTokens int
+	InputTokens              int
+	OutputTokens             int
+	CacheCreationInputTokens int
+	CacheReadInputTokens     int
 
 	// Prior phase content (for template rendering)
 	ResearchContent  string
@@ -416,8 +418,8 @@ func (e *Executor) publishTranscript(taskID, phase string, iteration int, msgTyp
 	e.eventPublisher().Transcript(taskID, phase, iteration, msgType, content)
 }
 
-func (e *Executor) publishTokens(taskID, phase string, input, output, cacheRead, total int) {
-	e.eventPublisher().Tokens(taskID, phase, input, output, cacheRead, total)
+func (e *Executor) publishTokens(taskID, phase string, input, output, cacheCreation, cacheRead, total int) {
+	e.eventPublisher().Tokens(taskID, phase, input, output, cacheCreation, cacheRead, total)
 }
 
 func (e *Executor) publishError(taskID, phase, message string, fatal bool) {

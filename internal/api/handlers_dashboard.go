@@ -12,16 +12,18 @@ import (
 
 // DashboardStats represents dashboard statistics.
 type DashboardStats struct {
-	Running   int     `json:"running"`
-	Orphaned  int     `json:"orphaned"`
-	Paused    int     `json:"paused"`
-	Blocked   int     `json:"blocked"`
-	Completed int     `json:"completed"`
-	Failed    int     `json:"failed"`
-	Today     int     `json:"today"`
-	Total     int     `json:"total"`
-	Tokens    int64   `json:"tokens"`
-	Cost      float64 `json:"cost"`
+	Running                  int     `json:"running"`
+	Orphaned                 int     `json:"orphaned"`
+	Paused                   int     `json:"paused"`
+	Blocked                  int     `json:"blocked"`
+	Completed                int     `json:"completed"`
+	Failed                   int     `json:"failed"`
+	Today                    int     `json:"today"`
+	Total                    int     `json:"total"`
+	Tokens                   int64   `json:"tokens"`
+	CacheCreationInputTokens int64   `json:"cache_creation_input_tokens,omitempty"`
+	CacheReadInputTokens     int64   `json:"cache_read_input_tokens,omitempty"`
+	Cost                     float64 `json:"cost"`
 }
 
 // handleGetDashboardStats returns dashboard statistics.
@@ -74,6 +76,8 @@ func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request)
 		// Add token counts from state
 		if st != nil {
 			stats.Tokens += int64(st.Tokens.TotalTokens)
+			stats.CacheCreationInputTokens += int64(st.Tokens.CacheCreationInputTokens)
+			stats.CacheReadInputTokens += int64(st.Tokens.CacheReadInputTokens)
 		}
 	}
 

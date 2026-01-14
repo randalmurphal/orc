@@ -297,7 +297,7 @@ func TestEventPublisher_Tokens_AllFieldsSet(t *testing.T) {
 	mock := newMockPublisher()
 	ep := NewEventPublisher(mock)
 
-	ep.Tokens("TASK-001", "implement", 1000, 500, 0, 1500)
+	ep.Tokens("TASK-001", "implement", 1000, 500, 0, 0, 1500)
 
 	ev := mock.lastEvent()
 	if ev == nil {
@@ -444,7 +444,7 @@ func TestEventPublisher_ConcurrentPublish_Safe(t *testing.T) {
 				case 2:
 					ep.TranscriptChunk("TASK-001", "implement", j, "chunk")
 				case 3:
-					ep.Tokens("TASK-001", "implement", 100, 50, 0, 150)
+					ep.Tokens("TASK-001", "implement", 100, 50, 0, 0, 150)
 				case 4:
 					ep.Error("TASK-001", "implement", "error", false)
 				}

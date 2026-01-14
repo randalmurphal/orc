@@ -193,12 +193,28 @@ gates:
 errors: []
 
 tokens:
-  total: 45000
+  input_tokens: 45000
+  output_tokens: 12000
+  cache_creation_input_tokens: 2000      # Tokens written to cache
+  cache_read_input_tokens: 8000          # Tokens served from cache
+  total_tokens: 67000
   by_phase:
     classify: 2000
     spec: 15000
     implement: 28000
 ```
+
+### Token Fields
+
+| Field | Description |
+|-------|-------------|
+| `input_tokens` | Uncached input tokens (billed at full rate) |
+| `output_tokens` | Generated output tokens |
+| `cache_creation_input_tokens` | Tokens written to cache this session (optional) |
+| `cache_read_input_tokens` | Tokens served from cache (90% cheaper than input) |
+| `total_tokens` | Sum of all token types |
+
+**Note:** Raw `input_tokens` alone can appear misleadingly low when prompt caching is active. The "effective" input context is `input_tokens + cache_creation_input_tokens + cache_read_input_tokens`. UI displays show the combined cached total for clarity.
 
 ---
 
