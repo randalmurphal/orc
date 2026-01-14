@@ -2,5 +2,10 @@ version: 1
 id: INIT-175
 title: E2E-Test-DecisionMeta-1768389664835
 status: draft
+decisions:
+    - id: DEC-001
+      date: 2026-01-14T05:21:07.435911-06:00
+      by: TestAuthor
+      decision: Test decision with metadata
 created_at: 2026-01-14T05:21:05.229548-06:00
-updated_at: 2026-01-14T05:21:05.229679-06:00
+updated_at: 2026-01-14T05:21:07.435919-06:00
