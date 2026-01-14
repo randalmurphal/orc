@@ -1,82 +1,66 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from './App';
 
+// Mock WebSocket to prevent actual connections
+vi.mock('@/lib/websocket', () => ({
+	OrcWebSocket: vi.fn().mockImplementation(() => ({
+		connect: vi.fn(),
+		disconnect: vi.fn(),
+		subscribe: vi.fn(),
+		unsubscribe: vi.fn(),
+		subscribeGlobal: vi.fn(),
+		setPrimarySubscription: vi.fn(),
+		on: vi.fn().mockReturnValue(() => {}),
+		onStatusChange: vi.fn().mockReturnValue(() => {}),
+		isConnected: vi.fn().mockReturnValue(false),
+		getTaskId: vi.fn().mockReturnValue(null),
+		command: vi.fn(),
+	})),
+	GLOBAL_TASK_ID: '*',
+}));
+
+function renderApp(initialPath: string = '/') {
+	return render(
+		<MemoryRouter initialEntries={[initialPath]}>
+			<App />
+		</MemoryRouter>
+	);
+}
+
 describe('App', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
 
-  it('renders header with title', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ status: 'ok' }),
-    } as Response);
+	it('renders App with router and WebSocketProvider', async () => {
+		renderApp('/');
+		// App renders routes wrapped in WebSocketProvider
+		await waitFor(() => {
+			// Should render the layout with sidebar and content
+			expect(screen.getByRole('navigation')).toBeInTheDocument();
+		});
+	});
 
-    render(<App />);
-    expect(screen.getByText('Orc - Task Orchestrator')).toBeInTheDocument();
-    expect(screen.getByText('React 19 Migration')).toBeInTheDocument();
-    // Wait for fetch to complete to avoid act warnings
-    await waitFor(() => {
-      expect(screen.getByText(/API Status/)).toBeInTheDocument();
-    });
-  });
+	it('renders TaskList page at root route', async () => {
+		renderApp('/');
+		await waitFor(() => {
+			expect(screen.getByText('Task List')).toBeInTheDocument();
+		});
+	});
 
-  it('shows loading state initially', () => {
-    vi.mocked(fetch).mockImplementation(
-      () => new Promise(() => {}) // Never resolves
-    );
+	it('renders Board page at /board route', async () => {
+		renderApp('/board');
+		await waitFor(() => {
+			expect(screen.getByRole('heading', { level: 2, name: 'Board' })).toBeInTheDocument();
+		});
+	});
 
-    render(<App />);
-    expect(screen.getByText('Checking API...')).toBeInTheDocument();
-  });
-
-  it('displays health status on successful API call', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ status: 'ok', version: '1.0.0' }),
-    } as Response);
-
-    render(<App />);
-    await waitFor(() => {
-      expect(screen.getByText(/API Status: ok/)).toBeInTheDocument();
-      expect(screen.getByText(/v1.0.0/)).toBeInTheDocument();
-    });
-  });
-
-  it('displays error on API failure', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-    } as Response);
-
-    render(<App />);
-    await waitFor(() => {
-      expect(screen.getByText(/API Error: HTTP 500/)).toBeInTheDocument();
-    });
-  });
-
-  it('displays error on network failure', async () => {
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
-
-    render(<App />);
-    await waitFor(() => {
-      expect(screen.getByText(/API Error: Network error/)).toBeInTheDocument();
-    });
-  });
-
-  it('renders project structure section', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ status: 'ok' }),
-    } as Response);
-
-    render(<App />);
-    expect(screen.getByText('Project Structure')).toBeInTheDocument();
-    expect(screen.getByText('src/components/')).toBeInTheDocument();
-    // Wait for fetch to complete to avoid act warnings
-    await waitFor(() => {
-      expect(screen.getByText(/API Status/)).toBeInTheDocument();
-    });
-  });
+	it('renders Dashboard page at /dashboard route', async () => {
+		renderApp('/dashboard');
+		await waitFor(() => {
+			expect(screen.getByRole('heading', { level: 2, name: 'Dashboard' })).toBeInTheDocument();
+		});
+	});
 });

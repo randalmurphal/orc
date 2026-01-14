@@ -9,7 +9,7 @@ React 19 application for orc web UI, running in parallel with existing Svelte ap
 | Framework | React 19, Vite |
 | Language | TypeScript 5.6+ |
 | State Management | Zustand |
-| Routing | React Router (planned) |
+| Routing | React Router 7 |
 | Styling | CSS (component-scoped, matching Svelte) |
 | Testing | Vitest (unit), Playwright (E2E - shared) |
 
@@ -17,12 +17,29 @@ React 19 application for orc web UI, running in parallel with existing Svelte ap
 
 ```
 web-react/src/
-├── main.tsx              # Entry point
-├── App.tsx               # Root component
+├── main.tsx              # Entry point (BrowserRouter)
+├── App.tsx               # Root component (useRoutes + WebSocketProvider)
 ├── index.css             # Global styles
+├── router/               # Route configuration
+│   ├── index.ts          # Exports
+│   └── routes.tsx        # Route definitions
 ├── lib/                  # Shared utilities
+│   ├── types.ts          # TypeScript interfaces
+│   └── websocket.ts      # OrcWebSocket class
 ├── components/           # UI components
+│   └── layout/           # Layout components
+│       ├── AppLayout.tsx # Main layout (Sidebar + Header + Outlet)
+│       ├── Sidebar.tsx   # Left navigation
+│       ├── Header.tsx    # Top bar
+│       └── UrlParamSync.tsx # URL <-> Store bidirectional sync
 ├── pages/                # Route pages
+│   ├── TaskList.tsx      # / - Task list
+│   ├── Board.tsx         # /board - Kanban board
+│   ├── Dashboard.tsx     # /dashboard - Dashboard
+│   ├── TaskDetail.tsx    # /tasks/:id - Task detail
+│   ├── InitiativeDetail.tsx # /initiatives/:id
+│   ├── Preferences.tsx   # /preferences
+│   └── environment/      # /environment/* pages
 ├── stores/               # Zustand stores
 └── hooks/                # Custom hooks
 ```
@@ -77,8 +94,8 @@ npm run build
 This React app runs alongside Svelte during migration:
 
 1. **Phase 1** ✅: Project scaffolding, Zustand stores mirroring Svelte stores
-2. **Phase 2** (current): Core infrastructure (API client, WebSocket ✅, router)
-3. **Phase 3**: Component migration (parallel implementation)
+2. **Phase 2** ✅: Core infrastructure (API client, WebSocket, Router with URL sync)
+3. **Phase 3** (current): Component migration (parallel implementation)
 4. **Phase 4**: E2E test validation, feature parity verification
 5. **Phase 5**: Cutover and Svelte removal
 
@@ -96,11 +113,12 @@ Migration follows the existing Svelte component structure:
 
 | Svelte Component | React Equivalent | Status |
 |------------------|------------------|--------|
-| `+layout.svelte` | `App.tsx` + Router | Scaffolded |
-| `lib/components/` | `src/components/` | Pending |
+| `+layout.svelte` | `App.tsx` + Router | ✅ Complete |
+| `lib/components/` | `src/components/` | In Progress |
 | `lib/stores/` | `src/stores/` (Zustand) | ✅ Complete |
 | `lib/websocket.ts` | `src/lib/websocket.ts` | ✅ Complete |
 | `lib/utils/` | `src/lib/` | In Progress |
+| Route pages | `src/pages/` | ✅ Scaffolded |
 
 **Stores implemented (Phase 1):**
 - `taskStore.ts` - Task data and execution state with derived selectors
@@ -110,6 +128,106 @@ Migration follows the existing Svelte component structure:
 
 **WebSocket hooks implemented (Phase 2):**
 - `useWebSocket.tsx` - WebSocketProvider, useWebSocket, useTaskSubscription, useConnectionStatus
+
+**Router implemented (Phase 2):**
+- `router/routes.tsx` - Route configuration matching Svelte app
+- `components/layout/UrlParamSync.tsx` - Bidirectional URL/store sync
+
+## Routing
+
+### Route Configuration
+
+All routes are defined in `src/router/routes.tsx` using React Router's `RouteObject` array pattern.
+
+| Route | Component | URL Params |
+|-------|-----------|------------|
+| `/` | `TaskList` | `?project`, `?initiative`, `?dependency_status` |
+| `/board` | `Board` | `?project`, `?initiative`, `?dependency_status` |
+| `/dashboard` | `Dashboard` | `?project` |
+| `/tasks/:id` | `TaskDetail` | `?tab` |
+| `/initiatives/:id` | `InitiativeDetail` | - |
+| `/preferences` | `Preferences` | - |
+| `/environment/*` | `EnvironmentLayout` | - |
+
+**Environment sub-routes:**
+- `/environment/settings`
+- `/environment/prompts`
+- `/environment/scripts`
+- `/environment/hooks`
+- `/environment/skills`
+- `/environment/mcp`
+- `/environment/config`
+- `/environment/claudemd`
+- `/environment/tools`
+- `/environment/agents`
+
+### Layout Structure
+
+```
+main.tsx
+└── BrowserRouter
+    └── App.tsx (useRoutes + WebSocketProvider)
+        └── AppLayout
+            ├── UrlParamSync (invisible, handles URL <-> store sync)
+            ├── Sidebar
+            ├── Header
+            └── Outlet (page content)
+```
+
+### URL Parameter Handling
+
+The `UrlParamSync` component provides bidirectional sync between URL params and Zustand stores:
+
+**URL -> Store (on navigation/back/forward):**
+- Reads `?project` and `?initiative` from URL
+- Updates `projectStore.selectProject()` and `initiativeStore.selectInitiative()`
+
+**Store -> URL (on programmatic changes):**
+- Listens to store state changes
+- Updates URL via `setSearchParams()` with `replace: true`
+- Uses ref flags (`isSyncingFromUrl`, `isSyncingFromStore`) to prevent infinite loops
+
+**Route-specific params:**
+- `project`: Available on all routes
+- `initiative`: Only synced on `/` and `/board`
+- `dependency_status`: Read directly in components (not store-synced)
+
+### Usage in Components
+
+```tsx
+import { useSearchParams, useParams } from 'react-router-dom';
+import { useCurrentProjectId, useCurrentInitiativeId } from '@/stores';
+
+function TaskList() {
+  // Store state (synced from URL automatically)
+  const projectId = useCurrentProjectId();
+  const initiativeId = useCurrentInitiativeId();
+
+  // Direct URL param access (for non-store params)
+  const [searchParams] = useSearchParams();
+  const dependencyStatus = searchParams.get('dependency_status');
+
+  // Route params
+  const { id } = useParams();  // For /tasks/:id
+}
+```
+
+### Navigation
+
+```tsx
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+
+// Declarative links
+<Link to="/board">Board</Link>
+<NavLink to="/board" className={({ isActive }) => isActive ? 'active' : ''}>
+  Board
+</NavLink>
+
+// Programmatic navigation
+const navigate = useNavigate();
+navigate('/tasks/TASK-001');
+navigate('/board?project=abc&initiative=xyz');
+```
 
 ## Testing
 
@@ -491,12 +609,17 @@ ws.disconnect();  // Cleanup
 | Events | `onclick` | `onClick` |
 | Two-way binding | `bind:value` | `value` + `onChange` |
 | Stores | Svelte stores | Zustand stores |
-| Routing | SvelteKit | React Router |
+| Routing | SvelteKit (`+page.svelte`) | React Router (`useRoutes`) |
+| URL params | `$page.url.searchParams` | `useSearchParams()` |
+| Route params | `$page.params` | `useParams()` |
+| Navigation | `goto()` | `useNavigate()` |
+| Active links | `$page.url.pathname` | `NavLink` with `isActive` |
 
 ## Dependencies
 
 ### Production
 - `react@19`, `react-dom@19` - Core framework
+- `react-router-dom@7` - Client-side routing
 - `zustand@5` - State management with subscribeWithSelector middleware
 - `@fontsource/inter`, `@fontsource/jetbrains-mono` - Typography (matching Svelte)
 
