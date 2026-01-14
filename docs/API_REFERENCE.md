@@ -10,7 +10,8 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Projects](#projects) | `/api/projects/*` | Multi-project task operations |
 | [Initiatives](#initiatives) | `/api/initiatives/*` | Task grouping and decisions |
 | [Configuration](#configuration) | `/api/prompts/*`, `/api/hooks/*`, etc. | Project configuration |
-| [Integration](#integration) | `/api/github/*`, `/api/mcp/*` | External integrations |
+| [Integration](#integration) | `/api/github/*`, `/api/mcp/*`, `/api/plugins/*` | External integrations |
+| [Plugins](#plugins) | `/api/plugins/*`, `/api/marketplace/*` | Plugin management & marketplace |
 | [Real-time](#websocket-protocol) | `/api/ws` | WebSocket events |
 
 ---
@@ -368,6 +369,129 @@ Group related tasks with shared decisions.
 | GET | `/api/mcp/:name` | Get MCP server details |
 | PUT | `/api/mcp/:name` | Update MCP server |
 | DELETE | `/api/mcp/:name` | Delete MCP server |
+
+### Plugins
+
+Manage Claude Code plugins from `.claude/plugins/`. Supports both local plugin management and marketplace browsing.
+
+#### Local Plugins
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/plugins` | List installed plugins (`?scope=global\|project`) |
+| GET | `/api/plugins/resources` | Get aggregated resources (MCP servers, hooks, commands) |
+| GET | `/api/plugins/updates` | Check for available updates |
+| GET | `/api/plugins/:name` | Get plugin details (`?scope=global\|project`) |
+| GET | `/api/plugins/:name/commands` | List plugin commands |
+| POST | `/api/plugins/:name/enable` | Enable plugin (`?scope=global\|project`) |
+| POST | `/api/plugins/:name/disable` | Disable plugin (`?scope=global\|project`) |
+| POST | `/api/plugins/:name/update` | Update plugin to latest version |
+| DELETE | `/api/plugins/:name` | Uninstall plugin (`?scope=global\|project`) |
+
+**Plugin info response:**
+```json
+{
+  "name": "orc",
+  "description": "Task orchestration for Claude Code",
+  "scope": "project",
+  "enabled": true,
+  "has_commands": true,
+  "command_count": 5
+}
+```
+
+**Plugin detail response:**
+```json
+{
+  "name": "orc",
+  "description": "Task orchestration for Claude Code",
+  "author": {"name": "Author Name", "url": "https://example.com"},
+  "homepage": "https://github.com/example/plugin",
+  "keywords": ["orchestration", "tasks"],
+  "path": "/home/user/.claude/plugins/orc",
+  "scope": "project",
+  "enabled": true,
+  "version": "1.0.0",
+  "has_commands": true,
+  "has_hooks": false,
+  "has_scripts": true,
+  "commands": [{"name": "init", "description": "Initialize project"}],
+  "mcp_servers": [],
+  "hooks": []
+}
+```
+
+**Plugin resources response:**
+```json
+{
+  "mcp_servers": [{"name": "server", "command": "...", "plugin_name": "orc", "plugin_scope": "project"}],
+  "hooks": [{"event": "pre_prompt", "command": "...", "plugin_name": "orc", "plugin_scope": "global"}],
+  "commands": [{"name": "init", "description": "...", "plugin_name": "orc", "plugin_scope": "project"}]
+}
+```
+
+#### Marketplace
+
+Browse and install plugins from the marketplace. Uses a separate `/api/marketplace/plugins` prefix to avoid route conflicts with local plugin management.
+
+**Note:** When the official Claude Code plugin marketplace is unavailable, the API returns sample plugins with `is_mock: true` and a helpful message.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/marketplace/plugins` | Browse plugins (`?page=N&limit=N`) |
+| GET | `/api/marketplace/plugins/search` | Search plugins (`?q=query`) |
+| GET | `/api/marketplace/plugins/:name` | Get marketplace plugin details |
+| POST | `/api/marketplace/plugins/:name/install` | Install plugin (`?scope=global\|project`) |
+
+**Browse response:**
+```json
+{
+  "plugins": [
+    {
+      "name": "orc",
+      "description": "Task orchestration plugin",
+      "author": {"name": "Author", "url": "https://example.com"},
+      "version": "1.0.0",
+      "repository": "https://github.com/example/orc-plugin",
+      "downloads": 1250,
+      "keywords": ["orchestration", "tasks"]
+    }
+  ],
+  "total": 50,
+  "page": 1,
+  "limit": 20,
+  "cached": true,
+  "cache_age_seconds": 300,
+  "is_mock": false,
+  "message": null
+}
+```
+
+**When marketplace is unavailable:**
+```json
+{
+  "plugins": [...],
+  "total": 6,
+  "page": 1,
+  "limit": 20,
+  "is_mock": true,
+  "message": "Showing sample plugins. The official Claude Code plugin marketplace is not yet available. Install plugins manually via 'claude plugin add <github-repo>'."
+}
+```
+
+**Install body (optional):**
+```json
+{"version": "1.0.0"}
+```
+
+**Install response:**
+```json
+{
+  "plugin": {...},
+  "requires_restart": true,
+  "message": "Plugin installed. Restart Claude Code to load."
+}
+```
 
 ### Task Diff
 
