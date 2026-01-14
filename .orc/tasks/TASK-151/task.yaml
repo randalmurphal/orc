@@ -14,7 +14,7 @@ description: |-
     - completion.merge_on_ci_pass: true - auto-merge when CI passes
 weight: medium
 status: running
-current_phase: implement
+current_phase: test
 branch: orc/TASK-151
 queue: active
 priority: normal
@@ -23,5 +23,5 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T01:51:11.548414947-06:00
-updated_at: 2026-01-14T02:06:33.109899685-06:00
+updated_at: 2026-01-14T02:13:57.32158201-06:00
 started_at: 2026-01-14T02:06:32.647646941-06:00

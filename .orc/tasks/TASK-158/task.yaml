@@ -1,0 +1,48 @@
+id: TASK-158
+title: 'Phase 0: Expand E2E tests for Filters and URL persistence (14 tests)'
+description: |-
+    ## Purpose
+    E2E tests for filter functionality and URL/localStorage state persistence.
+
+    ## Test Coverage (14 tests)
+
+    ### Initiative Filter (7 tests)
+    - should show initiative dropdown in task list header
+    - should show initiative dropdown in board header
+    - should filter tasks when initiative selected
+    - should show Unassigned filter option
+    - should persist initiative filter in URL (?initiative=xxx)
+    - should persist initiative filter in localStorage
+    - should sync filter between sidebar and dropdown
+
+    ### Dependency Filter (4 tests)
+    - should show dependency status dropdown
+    - should filter to blocked tasks only
+    - should filter to ready tasks only
+    - should combine with initiative filter correctly
+
+    ### Search (3 tests)
+    - should filter tasks by title/ID as user types
+    - should clear search when X button clicked
+    - should debounce search input (not fire on every keystroke)
+
+    ## State Persistence Pattern
+    - URL param takes precedence over localStorage
+    - Browser back/forward should navigate filter history
+    - Page refresh should restore filter state
+
+    ## Success Criteria
+    - All 14 tests pass
+    - URL state persists correctly across page refresh
+weight: medium
+status: planned
+branch: orc/TASK-158
+queue: active
+priority: normal
+category: test
+initiative_id: INIT-005
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T02:18:29.241985588-06:00
+updated_at: 2026-01-14T02:18:29.248894992-06:00

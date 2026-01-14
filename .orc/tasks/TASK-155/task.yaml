@@ -1,0 +1,53 @@
+id: TASK-155
+title: 'Phase 0: Expand E2E tests for Task Detail tabs (15 tests)'
+description: |-
+    ## Purpose
+    Comprehensive E2E tests for Task Detail page tabs that define BEHAVIOR (framework-agnostic).
+
+    ## Test Coverage (15 tests)
+
+    ### Tab Navigation (4 tests)
+    - should show all tabs (Timeline, Changes, Transcript, Test Results, Attachments, Comments)
+    - should switch tabs when clicked
+    - should update URL with tab parameter
+    - should load correct tab from URL query param
+
+    ### Timeline Tab (3 tests)
+    - should show phase timeline with status indicators
+    - should show token usage stats (input, output, cached, total)
+    - should show iteration and retry counts
+
+    ### Changes Tab - Diff Viewer (5 tests)
+    - should load and display diff stats
+    - should show file list with additions/deletions counts
+    - should expand/collapse files
+    - should toggle between split and unified view
+    - should show line numbers
+
+    ### Transcript Tab (2 tests)
+    - should show transcript history
+    - should expand transcript content sections
+
+    ### Attachments Tab (1 test)
+    - should display attachment list with thumbnails
+
+    ## Implementation Notes
+    - Tests must work on both Svelte and React
+    - Use data-testid for tab content areas
+    - Verify API calls are made correctly
+
+    ## Success Criteria
+    - All 15 tests pass on current Svelte implementation
+    - Tests cover all tab functionality
+weight: large
+status: planned
+branch: orc/TASK-155
+queue: active
+priority: normal
+category: test
+initiative_id: INIT-005
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T02:17:50.7361129-06:00
+updated_at: 2026-01-14T02:17:50.743475516-06:00

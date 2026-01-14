@@ -18,6 +18,25 @@ Config options:
 - completion.ci_timeout: 10m - max time to wait for CI
 - completion.merge_on_ci_pass: true - auto-merge when CI passes
 
+## Retry Context
+
+This phase is being re-executed due to a failure in a later phase.
+
+**What happened:**
+- Phase "test" failed/was rejected
+- Reason: Phase test failed: node execute: execute: claude completion: claude complete: chdir /home/randy/repos/orc/.orc/worktrees/orc-TASK-151: no such file or directory: 
+- This is retry attempt #1
+
+**What to fix:**
+Please address the issues that caused the later phase to fail. The failure output is below:
+
+---
+node execute: execute: claude completion: claude complete: chdir /home/randy/repos/orc/.orc/worktrees/orc-TASK-151: no such file or directory: 
+---
+
+Focus on fixing the root cause of these issues in this phase.
+
+Detailed context saved to: .orc/tasks/retry-context-test-1.md
 
 
 1. Plan your implementation approach
@@ -35,77 +54,67 @@ When done, output:
 
 ## Summary
 
-I've implemented the complete auto-merge flow that waits for CI and merges after finalize. Here's what was added:
+I've successfully implemented the complete auto-merge flow that waits for CI then merges after finalize. Here's what was added:
 
-### 1. Config Changes (`internal/config/config.go`)
+### New Configuration Options (`internal/config/config.go`)
 
-**New fields in `CompletionConfig`:**
-- `WaitForCI bool` - Wait for CI checks to pass before merging (default: true)
-- `CITimeout time.Duration` - Max time to wait for CI (default: 10 minutes)
-- `MergeOnCIPass bool` - Auto-merge when CI passes (default: true)
+Added a new `CIConfig` struct with the following options:
+- `completion.ci.wait_for_ci: true` (default) - Wait for CI checks to pass before merge
+- `completion.ci.ci_timeout: 10m` (default) - Maximum time to wait for CI
+- `completion.ci.poll_interval: 30s` (default) - How often to check CI status
+- `completion.ci.merge_on_ci_pass: true` (default) - Auto-merge when CI passes
+- `completion.ci.merge_method: "squash"` (default) - Merge method (squash/merge/rebase)
 
-**New helper methods:**
-- `ShouldWaitForCI()` - Returns true for auto/fast profiles when WaitForCI is enabled
-- `ShouldMergeOnCIPass()` - Returns true when both WaitForCI and MergeOnCIPass are enabled
-- `GetCITimeout()` - Returns configured timeout or 10m default
+Added helper methods:
+- `ShouldWaitForCI()` - Returns true for auto/fast profiles with CI wait enabled
+- `ShouldMergeOnCIPass()` - Returns true for auto/fast profiles with merge enabled
+- `CITimeout()`, `CIPollInterval()`, `MergeMethod()` - Getter methods with defaults
 
-### 2. CI Merger (`internal/executor/ci_merge.go`)
+### New CI Merger Module (`internal/executor/ci_merge.go`)
 
-New `CIMerger` type that handles:
-- Pushing finalize changes with `--force-with-lease`
-- Polling CI checks via `gh pr checks --json`
-- Parsing check status (pass/fail/pending)
-- Merging PR with `gh pr merge --squash --delete-branch`
-- Handling edge cases (already merged, not mergeable, timeout)
+Created `CIMerger` that handles:
+1. **CI Status Polling**: `CheckCIStatus()` queries `gh pr checks --json` and parses the results
+2. **CI Wait Loop**: `WaitForCI()` polls until all checks pass, fail, or timeout
+3. **PR Merge**: `MergePR()` executes `gh pr merge` with the configured merge method
+4. **Main Entry Point**: `WaitForCIAndMerge()` orchestrates the full flow
 
-### 3. Finalize Integration (`internal/api/handlers_finalize.go`)
+The flow is:
+1. Push any finalize changes
+2. Poll CI checks until all pass (or timeout after 10m)
+3. Merge PR directly with `gh pr merge --squash`
 
-**Extended `FinalizeResult` with:**
-- `CIPassed bool` - CI checks passed
-- `CIDetails string` - CI status summary
-- `Merged bool` - PR was merged
-- `MergeCommit string` - SHA of merge commit
-- `CITimedOut bool` - CI polling timed out
-- `MergeError string` - Error during CI/merge
+### Integration Points
 
-**Modified `runFinalizeAsync()` to:**
-- Call `CIMerger.WaitForCIAndMerge()` after successful finalize
-- Update progress events ("Waiting for CI", "Merged", etc.)
-- Populate result fields without failing finalize on merge errors
+1. **After PR Creation** (`internal/executor/pr.go:394-414`): When CI wait and merge is enabled, the `createPR` method now calls `WaitForCIAndMerge` after creating the PR.
 
-### 4. Tests
+2. **After Finalize Phase** (`internal/executor/task_execution.go:713-743`): When finalize completes and the task has a PR, it pushes any finalize changes and calls `WaitForCIAndMerge`.
 
-**`internal/executor/ci_merge_test.go`:**
-- Tests for `NewCIMerger`
-- Tests for disabled CI wait
-- Tests for missing PR URL
-- Tests for CI check status parsing
-- Tests for result fields
+### Task Package Updates (`internal/task/task.go`)
 
-**`internal/config/config_test.go`:**
-- `TestDefault_CIMergeConfig` - Verifies defaults
-- `TestShouldWaitForCI` - Tests profile-based behavior
-- `TestShouldMergeOnCIPass` - Tests combination logic
-- `TestGetCITimeout` - Tests timeout with defaults/custom values
+Added to `PRInfo`:
+- `Merged`, `MergedAt`, `MergeCommitSHA`, `TargetBranch` fields
 
-### Behavior
+Added helper methods:
+- `GetPRURL()` - Returns PR URL or empty string
+- `SetMergedInfo()` - Marks PR as merged with timestamp and target branch
 
-The flow now works as:
-1. Finalize completes successfully (branch synced, tests passed)
-2. If `wait_for_ci: true` (auto/fast profiles):
-   - Push finalize changes
-   - Poll CI checks every 30 seconds
-   - Wait up to `ci_timeout` (default 10m)
-3. If CI passes and `merge_on_ci_pass: true`:
-   - Merge PR with squash
-   - Delete branch
-4. Report results in `FinalizeResult`
+### Tests (`internal/executor/ci_merge_test.go`)
 
-This removes dependency on GitHub's auto-merge feature (requires branch protection) and self-approval (blocked by GitHub).
+Added comprehensive tests for:
+- CI config defaults
+- `ShouldWaitForCI()` and `ShouldMergeOnCIPass()` behavior per profile
+- Timeout and interval getter methods
+- Merge method configuration
+- CI check JSON parsing
+- Task PR helper methods
+
+All tests pass, including:
+- 35 tests in the executor package
+- Full test suite across all packages
 
 <phase_complete>true</phase_complete>
 
 ---
-Tokens: 10549592 input, 28110 output, 132850 cache_creation, 10416629 cache_read
+Tokens: 4688292 input, 22315 output, 199813 cache_creation, 4487493 cache_read
 Complete: true
 Blocked: false

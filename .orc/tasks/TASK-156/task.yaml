@@ -1,0 +1,53 @@
+id: TASK-156
+title: 'Phase 0: Expand E2E tests for Initiative management (20 tests)'
+description: |-
+    ## Purpose
+    Comprehensive E2E tests for Initiative CRUD and detail page functionality.
+
+    ## Test Coverage (20 tests)
+
+    ### Initiative CRUD (6 tests)
+    - should display initiative list in sidebar
+    - should create new initiative via modal
+    - should navigate to initiative detail page
+    - should edit initiative title and vision
+    - should change initiative status (draft -> active -> completed)
+    - should archive initiative with confirmation
+
+    ### Initiative Detail Page (4 tests)
+    - should show progress bar with task completion percentage
+    - should display tasks tab with linked tasks
+    - should display decisions tab
+    - should display graph tab with dependency visualization
+
+    ### Task Linking (5 tests)
+    - should add new task to initiative
+    - should link existing task via search modal
+    - should unlink task from initiative
+    - should filter available tasks (not already linked)
+    - should update task count after linking/unlinking
+
+    ### Decisions (3 tests)
+    - should add new decision with rationale
+    - should show decision date and author
+    - should display all recorded decisions
+
+    ### Dependency Graph (2 tests)
+    - should load graph when Graph tab selected
+    - should display task nodes with status colors and edges
+
+    ## Success Criteria
+    - All 20 tests pass on current Svelte implementation
+    - Initiative lifecycle fully covered
+weight: large
+status: planned
+branch: orc/TASK-156
+queue: active
+priority: normal
+category: test
+initiative_id: INIT-005
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T02:18:01.807469253-06:00
+updated_at: 2026-01-14T02:18:01.81533419-06:00
