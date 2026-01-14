@@ -183,3 +183,35 @@ func TestPreCommitHook_WarningMessage(t *testing.T) {
 		t.Error("pre-commit hook should exit 0 (allow commit with warning)")
 	}
 }
+
+func TestPreCommitHook_WorktreeDetection(t *testing.T) {
+	hook := generatePreCommitHook("orc/TASK-001", "TASK-001")
+
+	// Verify worktree detection is included
+	if !strings.Contains(hook, "git rev-parse --git-dir") {
+		t.Error("pre-commit hook should detect git directory")
+	}
+	if !strings.Contains(hook, "worktrees/") {
+		t.Error("pre-commit hook should check for worktrees path")
+	}
+	// Verify early exit for non-worktree context
+	if !strings.Contains(hook, `if [[ ! "$GIT_DIR_ENTRY" =~ worktrees/ ]]; then`) {
+		t.Error("pre-commit hook should skip validation in non-worktree context")
+	}
+}
+
+func TestPrePushHook_WorktreeDetection(t *testing.T) {
+	hook := generatePrePushHook("orc/TASK-001", "TASK-001", nil)
+
+	// Verify worktree detection is included
+	if !strings.Contains(hook, "git rev-parse --git-dir") {
+		t.Error("pre-push hook should detect git directory")
+	}
+	if !strings.Contains(hook, "worktrees/") {
+		t.Error("pre-push hook should check for worktrees path")
+	}
+	// Verify early exit for non-worktree context
+	if !strings.Contains(hook, `if [[ ! "$GIT_DIR_ENTRY" =~ worktrees/ ]]; then`) {
+		t.Error("pre-push hook should skip validation in non-worktree context")
+	}
+}
