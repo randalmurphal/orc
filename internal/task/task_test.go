@@ -1207,6 +1207,80 @@ func TestComputeBlocks(t *testing.T) {
 	}
 }
 
+func TestDetectTaskReferences(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		expected []string
+	}{
+		{
+			name:     "no references",
+			text:     "This is a plain description",
+			expected: nil,
+		},
+		{
+			name:     "single reference",
+			text:     "This depends on TASK-001",
+			expected: []string{"TASK-001"},
+		},
+		{
+			name:     "multiple references",
+			text:     "This depends on TASK-001 and TASK-002",
+			expected: []string{"TASK-001", "TASK-002"},
+		},
+		{
+			name:     "duplicate references",
+			text:     "See TASK-001 for context. Also TASK-001 is related.",
+			expected: []string{"TASK-001"},
+		},
+		{
+			name:     "mixed with text",
+			text:     "Before TASK-001, then TASK-002, finally TASK-003 after text",
+			expected: []string{"TASK-001", "TASK-002", "TASK-003"},
+		},
+		{
+			name:     "4+ digit task IDs",
+			text:     "Large project: TASK-1234 and TASK-99999",
+			expected: []string{"TASK-1234", "TASK-99999"},
+		},
+		{
+			name:     "too few digits ignored",
+			text:     "Invalid: TASK-01 and TASK-1 should not match",
+			expected: nil,
+		},
+		{
+			name:     "word boundaries",
+			text:     "MYTASK-001 and TASK-001X should not fully match but TASK-001 should",
+			expected: []string{"TASK-001"},
+		},
+		{
+			name:     "sorted output",
+			text:     "TASK-003, TASK-001, TASK-002 should be sorted",
+			expected: []string{"TASK-001", "TASK-002", "TASK-003"},
+		},
+		{
+			name:     "empty string",
+			text:     "",
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DetectTaskReferences(tt.text)
+			if len(got) != len(tt.expected) {
+				t.Errorf("DetectTaskReferences() = %v, want %v", got, tt.expected)
+				return
+			}
+			for i := range got {
+				if got[i] != tt.expected[i] {
+					t.Errorf("DetectTaskReferences()[%d] = %s, want %s", i, got[i], tt.expected[i])
+				}
+			}
+		})
+	}
+}
+
 func TestComputeReferencedBy(t *testing.T) {
 	tasks := []*Task{
 		{ID: "TASK-001", Title: "Base task"},
@@ -1234,6 +1308,82 @@ func TestComputeReferencedBy(t *testing.T) {
 	}
 }
 
+func TestComputeReferencedBy_ExcludesBlockedBy(t *testing.T) {
+	// TASK-002 mentions TASK-001 in its description but also has it in BlockedBy
+	// So TASK-001's referenced_by should NOT include TASK-002
+	tasks := []*Task{
+		{ID: "TASK-001", Title: "Base task"},
+		{ID: "TASK-002", Title: "Blocked by TASK-001", Description: "Depends on TASK-001", BlockedBy: []string{"TASK-001"}},
+		{ID: "TASK-003", Title: "Also mentions TASK-001", Description: "See TASK-001"},
+	}
+
+	refs := ComputeReferencedBy("TASK-001", tasks)
+
+	// Should only have TASK-003, not TASK-002 (which is in blocked_by)
+	if len(refs) != 1 {
+		t.Errorf("ComputeReferencedBy(TASK-001) = %v, want [TASK-003]", refs)
+	}
+	if len(refs) > 0 && refs[0] != "TASK-003" {
+		t.Errorf("ComputeReferencedBy(TASK-001)[0] = %s, want TASK-003", refs[0])
+	}
+}
+
+func TestComputeReferencedBy_ExcludesRelatedTo(t *testing.T) {
+	// TASK-002 mentions TASK-001 in its description but also has it in RelatedTo
+	// So TASK-001's referenced_by should NOT include TASK-002
+	tasks := []*Task{
+		{ID: "TASK-001", Title: "Base task"},
+		{ID: "TASK-002", Title: "Related to TASK-001", Description: "Relates to TASK-001", RelatedTo: []string{"TASK-001"}},
+		{ID: "TASK-003", Title: "Also mentions TASK-001", Description: "See TASK-001"},
+	}
+
+	refs := ComputeReferencedBy("TASK-001", tasks)
+
+	// Should only have TASK-003, not TASK-002 (which is in related_to)
+	if len(refs) != 1 {
+		t.Errorf("ComputeReferencedBy(TASK-001) = %v, want [TASK-003]", refs)
+	}
+	if len(refs) > 0 && refs[0] != "TASK-003" {
+		t.Errorf("ComputeReferencedBy(TASK-001)[0] = %s, want TASK-003", refs[0])
+	}
+}
+
+func TestComputeReferencedBy_ExcludesSelfReference(t *testing.T) {
+	// A task mentioning itself should not appear in its own referenced_by
+	tasks := []*Task{
+		{ID: "TASK-001", Title: "Self-referencing task", Description: "This task TASK-001 refers to itself"},
+		{ID: "TASK-002", Title: "Normal task"},
+	}
+
+	refs := ComputeReferencedBy("TASK-001", tasks)
+
+	// Should be empty since the only reference is self-reference
+	if len(refs) != 0 {
+		t.Errorf("ComputeReferencedBy(TASK-001) = %v, want empty (self-reference excluded)", refs)
+	}
+}
+
+func TestComputeReferencedBy_ExcludesBlockedByAndRelatedTo(t *testing.T) {
+	// Test combining both exclusions
+	tasks := []*Task{
+		{ID: "TASK-001", Title: "Base task"},
+		{ID: "TASK-002", Title: "Blocked", Description: "TASK-001 context", BlockedBy: []string{"TASK-001"}},
+		{ID: "TASK-003", Title: "Related", Description: "TASK-001 context", RelatedTo: []string{"TASK-001"}},
+		{ID: "TASK-004", Title: "Just mentions", Description: "See TASK-001"},
+		{ID: "TASK-005", Title: "Both types", Description: "TASK-001 here", BlockedBy: []string{"TASK-001"}, RelatedTo: []string{"TASK-001"}},
+	}
+
+	refs := ComputeReferencedBy("TASK-001", tasks)
+
+	// Should only have TASK-004
+	if len(refs) != 1 {
+		t.Errorf("ComputeReferencedBy(TASK-001) = %v, want [TASK-004]", refs)
+	}
+	if len(refs) > 0 && refs[0] != "TASK-004" {
+		t.Errorf("ComputeReferencedBy(TASK-001)[0] = %s, want TASK-004", refs[0])
+	}
+}
+
 func TestPopulateComputedFields(t *testing.T) {
 	tasks := []*Task{
 		{ID: "TASK-001", Title: "Base task"},
@@ -1243,12 +1393,13 @@ func TestPopulateComputedFields(t *testing.T) {
 
 	PopulateComputedFields(tasks)
 
-	// TASK-001 should have Blocks = [TASK-002] and ReferencedBy = [TASK-002, TASK-003]
+	// TASK-001 should have Blocks = [TASK-002]
+	// ReferencedBy excludes TASK-002 (it's in blocked_by), so only TASK-003
 	if len(tasks[0].Blocks) != 1 || tasks[0].Blocks[0] != "TASK-002" {
 		t.Errorf("TASK-001 Blocks = %v, want [TASK-002]", tasks[0].Blocks)
 	}
-	if len(tasks[0].ReferencedBy) != 2 {
-		t.Errorf("TASK-001 ReferencedBy = %v, want 2 tasks", tasks[0].ReferencedBy)
+	if len(tasks[0].ReferencedBy) != 1 || tasks[0].ReferencedBy[0] != "TASK-003" {
+		t.Errorf("TASK-001 ReferencedBy = %v, want [TASK-003] (TASK-002 excluded because it's in blocked_by)", tasks[0].ReferencedBy)
 	}
 
 	// TASK-002 should have Blocks = [] (computed, wasn't populated manually)
