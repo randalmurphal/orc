@@ -3,7 +3,7 @@ package cli
 
 import (
 	"fmt"
-	"os"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -14,7 +14,10 @@ import (
 
 // newListCmd creates the list command
 func newListCmd() *cobra.Command {
-	return &cobra.Command{
+	var statusFilter string
+	var weightFilter string
+
+	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List tasks",
@@ -29,22 +32,62 @@ Example:
 				return err
 			}
 
+			// Validate status filter if provided
+			if statusFilter != "" {
+				if !task.IsValidStatus(task.Status(statusFilter)) {
+					validStatuses := make([]string, len(task.ValidStatuses()))
+					for i, s := range task.ValidStatuses() {
+						validStatuses[i] = string(s)
+					}
+					return fmt.Errorf("invalid status %q, valid values: %s", statusFilter, strings.Join(validStatuses, ", "))
+				}
+			}
+
+			// Validate weight filter if provided
+			if weightFilter != "" {
+				if !task.IsValidWeight(task.Weight(weightFilter)) {
+					validWeights := make([]string, len(task.ValidWeights()))
+					for i, w := range task.ValidWeights() {
+						validWeights[i] = string(w)
+					}
+					return fmt.Errorf("invalid weight %q, valid values: %s", weightFilter, strings.Join(validWeights, ", "))
+				}
+			}
+
 			tasks, err := task.LoadAll()
 			if err != nil {
 				return fmt.Errorf("load tasks: %w", err)
 			}
 
-			if len(tasks) == 0 {
-				fmt.Println("No tasks found. Create one with: orc new \"Your task\"")
+			// Apply filters
+			var filtered []*task.Task
+			for _, t := range tasks {
+				if statusFilter != "" && string(t.Status) != statusFilter {
+					continue
+				}
+				if weightFilter != "" && string(t.Weight) != weightFilter {
+					continue
+				}
+				filtered = append(filtered, t)
+			}
+
+			out := cmd.OutOrStdout()
+
+			if len(filtered) == 0 {
+				if statusFilter != "" || weightFilter != "" {
+					fmt.Fprintln(out, "No tasks match the specified filters.")
+				} else {
+					fmt.Fprintln(out, "No tasks found. Create one with: orc new \"Your task\"")
+				}
 				return nil
 			}
 
 			// Print tasks in table format
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, "ID\tSTATUS\tWEIGHT\tPHASE\tTITLE")
 			fmt.Fprintln(w, "──\t──────\t──────\t─────\t─────")
 
-			for _, t := range tasks {
+			for _, t := range filtered {
 				status := statusIcon(t.Status)
 				phase := t.CurrentPhase
 				if phase == "" {
@@ -58,4 +101,9 @@ Example:
 			return nil
 		},
 	}
+
+	cmd.Flags().StringVarP(&statusFilter, "status", "s", "", "filter by status (created, planned, running, paused, blocked, completed, finished, failed)")
+	cmd.Flags().StringVarP(&weightFilter, "weight", "w", "", "filter by weight (trivial, small, medium, large, greenfield)")
+
+	return cmd
 }
