@@ -17,6 +17,7 @@ Svelte 5 SvelteKit application for the orc web UI.
 web/src/
 ├── lib/
 │   ├── components/
+│   │   ├── DependencyGraph.svelte  # Task dependency DAG visualization
 │   │   ├── comments/     # TaskCommentsPanel, TaskCommentThread, TaskCommentForm
 │   │   ├── dashboard/    # Stats, actions, activity
 │   │   ├── diff/         # DiffViewer, DiffFile, DiffHunk, VirtualScroller
@@ -28,7 +29,7 @@ web/src/
 │   │   ├── task/         # TaskHeader, TaskEditModal, Timeline, Transcript, RetryPanel, Attachments
 │   │   └── ui/           # Icon, StatusIndicator, Toast
 │   ├── stores/           # tasks.ts, project.ts, sidebar.ts, toast.svelte.ts
-│   ├── utils/            # format.ts, status.ts, platform.ts
+│   ├── utils/            # format.ts, status.ts, platform.ts, graph-layout.ts
 │   ├── api.ts            # API client
 │   ├── websocket.ts      # WebSocket client
 │   └── shortcuts.ts      # Keyboard shortcuts
@@ -42,6 +43,7 @@ web/src/
 | Layout | Header, Sidebar | Navigation, project/initiative switcher |
 | Dashboard | Stats, QuickActions, ActiveTasks, RecentActivity | Overview page |
 | Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments, TokenUsage, DependencySidebar, AddDependencyModal | Task detail |
+| Graph | DependencyGraph | Task dependency visualization |
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
 | Filters | InitiativeDropdown, ViewModeDropdown | Filter bar dropdowns |
 | Kanban | Board, Column, QueuedColumn, TaskCard, Swimlane, ConfirmModal | Board view with queue/priority/swimlanes |
@@ -379,6 +381,75 @@ The task detail page includes a `DependencySidebar` component showing task relat
 - Uses `addBlocker()`, `removeBlocker()`, `addRelated()`, `removeRelated()` for mutations
 - Notifies parent via `onTaskUpdated` callback after changes
 
+### Dependency Graph Visualization
+
+The `DependencyGraph` component (`lib/components/DependencyGraph.svelte`) provides an interactive DAG (directed acyclic graph) visualization of task dependencies.
+
+```
+┌─ Dependency Graph ─────────────────────────────────────────────┐
+│ [Zoom +] [Zoom -] [Fit] [Export PNG]                           │
+│                                                                │
+│           ┌──────────┐                                         │
+│           │ TASK-060 │                                         │
+│           │ (done)   │                                         │
+│           └────┬─────┘                                         │
+│      ┌─────────┼─────────┬─────────┐                           │
+│      ▼         ▼         ▼         ▼                           │
+│ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐                    │
+│ │TASK-061│ │TASK-063│ │TASK-064│ │TASK-066│                    │
+│ │(ready) │ │(ready) │ │(ready) │ │(ready) │                    │
+│ └────┬───┘ └────────┘ └────────┘ └────────┘                    │
+│      ▼                                                         │
+│ ┌────────┐                                                     │
+│ │TASK-062│                                                     │
+│ │(blocked)│                                                    │
+│ └────────┘                                                     │
+│                                                                │
+│ Legend: ■ done  ○ ready  ⊘ blocked  ● running                  │
+└────────────────────────────────────────────────────────────────┘
+```
+
+| Feature | Description |
+|---------|-------------|
+| Automatic layout | Topological sort positions tasks by dependency order (root tasks at top) |
+| Interactive pan/zoom | Mouse wheel zoom, drag to pan, "Fit" button auto-sizes |
+| Node colors | Status-based colors (green=done, blue=ready, red=blocked, etc.) |
+| Click navigation | Click node to navigate to task detail page |
+| Hover tooltips | Shows full task title and status on hover |
+| Export PNG | Download graph as PNG image |
+| Legend | Color key at bottom of graph |
+
+**Props:**
+```typescript
+interface Props {
+  nodes: DependencyGraphNode[];  // Tasks with id, title, status
+  edges: DependencyGraphEdge[];  // { from, to } pairs
+  onNodeClick?: (nodeId: string) => void;  // Custom click handler (default: navigate)
+}
+```
+
+**Status colors:**
+| Status | Border/Text | Background |
+|--------|-------------|------------|
+| `done` | `--status-success` | `--status-success-bg` |
+| `running` | `--accent-primary` | `--accent-subtle` |
+| `blocked` | `--status-danger` | `--status-danger-bg` |
+| `ready` | `--status-info` | `--status-info-bg` |
+| `pending` | `--text-muted` | `--bg-tertiary` |
+| `paused` | `--status-warning` | `--status-warning-bg` |
+| `failed` | `--status-danger` | `--status-danger-bg` |
+
+**Layout algorithm** (`lib/utils/graph-layout.ts`):
+- Uses Kahn's algorithm for topological sort
+- Groups tasks into horizontal layers by dependency depth
+- Centers layers horizontally within the viewport
+- Curved bezier edges for visual clarity
+- Handles cycles gracefully (places remaining nodes in current layer)
+
+**Integration:**
+- Used in Initiative detail page ("Graph" tab) via `getInitiativeDependencyGraph(id)`
+- Can be used for arbitrary task sets via `getTasksDependencyGraph(taskIds)`
+
 ### TaskCard Quick Menu
 
 Right-click or use the "..." menu on TaskCard to:
@@ -499,7 +570,7 @@ The `InitiativeDropdown` component (`filters/InitiativeDropdown.svelte`) provide
 
 ### Initiative Detail Page
 
-The initiative detail page (`/initiatives/:id`) provides a dedicated view for managing individual initiatives including their tasks and decisions.
+The initiative detail page (`/initiatives/:id`) provides a dedicated view for managing individual initiatives including their tasks, dependency graph, and decisions.
 
 ```
 ← Back to Tasks
@@ -529,11 +600,19 @@ Created: Jan 10, 2026
 └─────────────────────────────────────────────────────────────┘
 ```
 
+**Tabs:**
+| Tab | Content |
+|-----|---------|
+| **Tasks** | Task list with status icons, add/link/remove tasks |
+| **Graph** | Interactive dependency graph visualization (see Dependency Graph Visualization section) |
+| **Decisions** | Decision list with date/author/rationale |
+
 | Section | Features |
 |---------|----------|
 | **Header** | Title, status badge, edit/archive buttons, vision statement, progress bar, owner, dates |
-| **Tasks** | Task list with status icons, add new task, link existing tasks, remove tasks, task dependencies |
-| **Decisions** | Decision list with date/author/rationale, add new decisions |
+| **Tasks tab** | Task list with status icons, add new task, link existing tasks, remove tasks |
+| **Graph tab** | Visual DAG showing task dependencies within the initiative (loads via `getInitiativeDependencyGraph`) |
+| **Decisions tab** | Decision list with date/author/rationale, add new decisions |
 
 **Header section:**
 - Initiative title with status badge (draft/active/completed/archived)
@@ -542,15 +621,21 @@ Created: Jan 10, 2026
 - Progress bar shows completed/total task count with percentage
 - Owner display (if set) and creation date
 
-**Tasks section:**
+**Tasks tab:**
 - List shows task ID, title, and status with colored icon indicators
 - Click task to navigate to task detail page
 - "Add Task" button opens new task modal with initiative pre-selected
 - "Link Existing" button opens search modal to add existing tasks
 - Remove button (X) unlinks task from initiative (doesn't delete task)
-- Dependencies subsection shows task dependency relationships within the initiative
 
-**Decisions section:**
+**Graph tab:**
+- Interactive dependency graph using `DependencyGraph` component
+- Shows tasks with `blocked_by` relationships as a visual DAG
+- Click nodes to navigate to task detail
+- Zoom/pan controls, export to PNG
+- Loads data via `getInitiativeDependencyGraph(id)` API
+
+**Decisions tab:**
 - Each decision shows ID, date, optional author, decision text, and rationale
 - "Add Decision" opens modal with decision text, rationale, and author fields
 - Decisions provide context for AI when working on initiative tasks

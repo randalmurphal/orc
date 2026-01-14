@@ -9,17 +9,29 @@
 		removeInitiativeTask,
 		addInitiativeDecision,
 		listTasks,
+		getInitiativeDependencyGraph,
 		type AddInitiativeTaskRequest,
-		type AddInitiativeDecisionRequest
+		type AddInitiativeDecisionRequest,
+		type DependencyGraphData
 	} from '$lib/api';
 	import type { Initiative, InitiativeStatus, InitiativeTaskRef, InitiativeDecision, Task } from '$lib/types';
 	import { updateInitiativeInStore } from '$lib/stores/initiative';
 	import Modal from '$lib/components/overlays/Modal.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import DependencyGraph from '$lib/components/DependencyGraph.svelte';
 
 	let initiative = $state<Initiative | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+
+	// Active tab state
+	type Tab = 'tasks' | 'graph' | 'decisions';
+	let activeTab = $state<Tab>('tasks');
+
+	// Graph data
+	let graphData = $state<DependencyGraphData | null>(null);
+	let graphLoading = $state(false);
+	let graphError = $state<string | null>(null);
 
 	// Modal states
 	let editModalOpen = $state(false);
@@ -93,6 +105,26 @@
 			error = e instanceof Error ? e.message : 'Failed to load initiative';
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function loadGraphData() {
+		if (!initiative || graphData) return; // Don't reload if already loaded
+		graphLoading = true;
+		graphError = null;
+		try {
+			graphData = await getInitiativeDependencyGraph(initiativeId);
+		} catch (e) {
+			graphError = e instanceof Error ? e.message : 'Failed to load dependency graph';
+		} finally {
+			graphLoading = false;
+		}
+	}
+
+	function handleTabChange(tab: Tab) {
+		activeTab = tab;
+		if (tab === 'graph') {
+			loadGraphData();
 		}
 	}
 
@@ -312,111 +344,189 @@
 			</div>
 		</header>
 
-		<!-- Tasks Section -->
-		<section class="section tasks-section">
-			<div class="section-header">
-				<h2>Tasks</h2>
-				<div class="section-actions">
-					<button class="btn btn-primary btn-sm" onclick={() => { goto(`/?initiative=${initiative?.id}`); window.dispatchEvent(new CustomEvent('orc:new-task')); }}>
-						<Icon name="plus" size={14} />
-						Add Task
-					</button>
-					<button class="btn btn-secondary btn-sm" onclick={openLinkTaskModal}>
-						<Icon name="link" size={14} />
-						Link Existing
-					</button>
-				</div>
-			</div>
+		<!-- Tab Navigation -->
+		<nav class="tabs-nav" role="tablist">
+			<button
+				class="tab-btn"
+				class:active={activeTab === 'tasks'}
+				onclick={() => handleTabChange('tasks')}
+				role="tab"
+				aria-selected={activeTab === 'tasks'}
+			>
+				<Icon name="list" size={16} />
+				Tasks
+				{#if initiative.tasks && initiative.tasks.length > 0}
+					<span class="tab-count">{initiative.tasks.length}</span>
+				{/if}
+			</button>
+			<button
+				class="tab-btn"
+				class:active={activeTab === 'graph'}
+				onclick={() => handleTabChange('graph')}
+				role="tab"
+				aria-selected={activeTab === 'graph'}
+			>
+				<Icon name="git-branch" size={16} />
+				Graph
+			</button>
+			<button
+				class="tab-btn"
+				class:active={activeTab === 'decisions'}
+				onclick={() => handleTabChange('decisions')}
+				role="tab"
+				aria-selected={activeTab === 'decisions'}
+			>
+				<Icon name="message-circle" size={16} />
+				Decisions
+				{#if initiative.decisions && initiative.decisions.length > 0}
+					<span class="tab-count">{initiative.decisions.length}</span>
+				{/if}
+			</button>
+		</nav>
 
-			{#if initiative.tasks && initiative.tasks.length > 0}
-				<div class="task-list">
-					{#each initiative.tasks as task (task.id)}
-						<div class="task-item">
-							<a href="/tasks/{task.id}" class="task-link">
-								<span class="task-status {getStatusClass(task.status)}">
-									<Icon name={getStatusIcon(task.status)} size={16} />
-								</span>
-								<span class="task-id">{task.id}</span>
-								<span class="task-title">{task.title}</span>
-								<span class="task-status-text">{task.status}</span>
-							</a>
-							<button
-								class="btn-icon btn-remove"
-								onclick={() => unlinkTask(task.id)}
-								title="Remove from initiative"
-							>
-								<Icon name="x" size={14} />
+		<!-- Tab Content -->
+		<div class="tab-content">
+			<!-- Tasks Tab -->
+			{#if activeTab === 'tasks'}
+				<section class="section tasks-section">
+					<div class="section-header">
+						<h2>Tasks</h2>
+						<div class="section-actions">
+							<button class="btn btn-primary btn-sm" onclick={() => { goto(`/?initiative=${initiative?.id}`); window.dispatchEvent(new CustomEvent('orc:new-task')); }}>
+								<Icon name="plus" size={14} />
+								Add Task
+							</button>
+							<button class="btn btn-secondary btn-sm" onclick={openLinkTaskModal}>
+								<Icon name="link" size={14} />
+								Link Existing
 							</button>
 						</div>
-					{/each}
-				</div>
-
-				<!-- Dependencies Section -->
-				{#if taskDependencies.length > 0}
-					<div class="dependencies-section">
-						<h3>Dependencies</h3>
-						<ul class="dependency-list">
-							{#each taskDependencies as dep}
-								<li>
-									<span class="dep-task">{dep.taskId}</span>
-									<span class="dep-arrow">depends on</span>
-									<span class="dep-targets">{dep.dependsOn.join(', ')}</span>
-								</li>
-							{/each}
-						</ul>
 					</div>
-				{/if}
-			{:else}
-				<div class="empty-state">
-					<Icon name="clipboard" size={32} />
-					<p>No tasks in this initiative yet</p>
-					<button class="btn btn-primary" onclick={openLinkTaskModal}>
-						Link a Task
-					</button>
-				</div>
-			{/if}
-		</section>
 
-		<!-- Decisions Section -->
-		<section class="section decisions-section">
-			<div class="section-header">
-				<h2>Decisions</h2>
-				<button class="btn btn-secondary btn-sm" onclick={openAddDecisionModal}>
-					<Icon name="plus" size={14} />
-					Add Decision
-				</button>
-			</div>
-
-			{#if initiative.decisions && initiative.decisions.length > 0}
-				<div class="decision-list">
-					{#each initiative.decisions as decision (decision.id)}
-						<div class="decision-item">
-							<div class="decision-header">
-								<span class="decision-id">{decision.id}</span>
-								<span class="decision-date">({formatDate(decision.date)})</span>
-								{#if decision.by}
-									<span class="decision-by">by {decision.by}</span>
-								{/if}
-							</div>
-							<p class="decision-text">{decision.decision}</p>
-							{#if decision.rationale}
-								<p class="decision-rationale">
-									<strong>Rationale:</strong> {decision.rationale}
-								</p>
-							{/if}
+					{#if initiative.tasks && initiative.tasks.length > 0}
+						<div class="task-list">
+							{#each initiative.tasks as task (task.id)}
+								<div class="task-item">
+									<a href="/tasks/{task.id}" class="task-link">
+										<span class="task-status {getStatusClass(task.status)}">
+											<Icon name={getStatusIcon(task.status)} size={16} />
+										</span>
+										<span class="task-id">{task.id}</span>
+										<span class="task-title">{task.title}</span>
+										<span class="task-status-text">{task.status}</span>
+									</a>
+									<button
+										class="btn-icon btn-remove"
+										onclick={() => unlinkTask(task.id)}
+										title="Remove from initiative"
+									>
+										<Icon name="x" size={14} />
+									</button>
+								</div>
+							{/each}
 						</div>
-					{/each}
-				</div>
-			{:else}
-				<div class="empty-state">
-					<Icon name="message-circle" size={32} />
-					<p>No decisions recorded yet</p>
-					<button class="btn btn-secondary" onclick={openAddDecisionModal}>
-						Record a Decision
-					</button>
-				</div>
+
+						<!-- Dependencies Section -->
+						{#if taskDependencies.length > 0}
+							<div class="dependencies-section">
+								<h3>Dependencies</h3>
+								<ul class="dependency-list">
+									{#each taskDependencies as dep}
+										<li>
+											<span class="dep-task">{dep.taskId}</span>
+											<span class="dep-arrow">depends on</span>
+											<span class="dep-targets">{dep.dependsOn.join(', ')}</span>
+										</li>
+									{/each}
+								</ul>
+							</div>
+						{/if}
+					{:else}
+						<div class="empty-state">
+							<Icon name="clipboard" size={32} />
+							<p>No tasks in this initiative yet</p>
+							<button class="btn btn-primary" onclick={openLinkTaskModal}>
+								Link a Task
+							</button>
+						</div>
+					{/if}
+				</section>
+
+			<!-- Graph Tab -->
+			{:else if activeTab === 'graph'}
+				<section class="section graph-section">
+					<div class="section-header">
+						<h2>Dependency Graph</h2>
+					</div>
+
+					{#if graphLoading}
+						<div class="graph-loading">
+							<div class="spinner"></div>
+							<span>Loading graph...</span>
+						</div>
+					{:else if graphError}
+						<div class="graph-error">
+							<p>{graphError}</p>
+							<button class="btn btn-secondary" onclick={() => { graphData = null; loadGraphData(); }}>
+								Retry
+							</button>
+						</div>
+					{:else if graphData && graphData.nodes.length > 0}
+						<div class="graph-container-wrapper">
+							<DependencyGraph nodes={graphData.nodes} edges={graphData.edges} />
+						</div>
+					{:else}
+						<div class="empty-state">
+							<Icon name="git-branch" size={32} />
+							<p>No tasks with dependencies to visualize</p>
+							<p class="empty-hint">Add tasks with dependencies to see the dependency graph</p>
+						</div>
+					{/if}
+				</section>
+
+			<!-- Decisions Tab -->
+			{:else if activeTab === 'decisions'}
+				<section class="section decisions-section">
+					<div class="section-header">
+						<h2>Decisions</h2>
+						<button class="btn btn-secondary btn-sm" onclick={openAddDecisionModal}>
+							<Icon name="plus" size={14} />
+							Add Decision
+						</button>
+					</div>
+
+					{#if initiative.decisions && initiative.decisions.length > 0}
+						<div class="decision-list">
+							{#each initiative.decisions as decision (decision.id)}
+								<div class="decision-item">
+									<div class="decision-header">
+										<span class="decision-id">{decision.id}</span>
+										<span class="decision-date">({formatDate(decision.date)})</span>
+										{#if decision.by}
+											<span class="decision-by">by {decision.by}</span>
+										{/if}
+									</div>
+									<p class="decision-text">{decision.decision}</p>
+									{#if decision.rationale}
+										<p class="decision-rationale">
+											<strong>Rationale:</strong> {decision.rationale}
+										</p>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="empty-state">
+							<Icon name="message-circle" size={32} />
+							<p>No decisions recorded yet</p>
+							<button class="btn btn-secondary" onclick={openAddDecisionModal}>
+								Record a Decision
+							</button>
+						</div>
+					{/if}
+				</section>
 			{/if}
-		</section>
+		</div>
 	</div>
 
 	<!-- Edit Initiative Modal -->
@@ -549,6 +659,107 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-6);
+	}
+
+	/* Tabs Navigation */
+	.tabs-nav {
+		display: flex;
+		gap: var(--space-1);
+		border-bottom: 1px solid var(--border-subtle);
+		padding-bottom: var(--space-1);
+	}
+
+	.tab-btn {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-4);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--text-muted);
+		background: transparent;
+		border: none;
+		border-bottom: 2px solid transparent;
+		cursor: pointer;
+		transition: all var(--duration-fast);
+		margin-bottom: -1px;
+	}
+
+	.tab-btn:hover {
+		color: var(--text-primary);
+		background: var(--bg-secondary);
+	}
+
+	.tab-btn.active {
+		color: var(--accent-primary);
+		border-bottom-color: var(--accent-primary);
+	}
+
+	.tab-count {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 20px;
+		height: 20px;
+		padding: 0 var(--space-1-5);
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		background: var(--bg-tertiary);
+		border-radius: var(--radius-full);
+		color: var(--text-secondary);
+	}
+
+	.tab-btn.active .tab-count {
+		background: var(--accent-subtle);
+		color: var(--accent-primary);
+	}
+
+	/* Tab Content */
+	.tab-content {
+		min-height: 300px;
+	}
+
+	/* Graph Section */
+	.graph-section {
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-lg);
+		padding: var(--space-6);
+	}
+
+	.graph-container-wrapper {
+		height: 500px;
+		margin-top: var(--space-4);
+	}
+
+	.graph-loading {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-4);
+		padding: var(--space-16);
+		color: var(--text-muted);
+	}
+
+	.graph-error {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-4);
+		padding: var(--space-8);
+		text-align: center;
+	}
+
+	.graph-error p {
+		color: var(--status-danger);
+		margin: 0;
+	}
+
+	.empty-hint {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin-top: var(--space-1);
 	}
 
 	/* Back Link */
