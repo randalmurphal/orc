@@ -18,6 +18,7 @@
 		onEscalate?: (taskId: string, reason: string) => Promise<void>;
 		onRefresh?: () => Promise<void>;
 		onTaskClick?: (task: Task) => void;
+		onFinalizeClick?: (task: Task) => void;
 	}
 
 	let {
@@ -27,7 +28,8 @@
 		onAction,
 		onEscalate,
 		onRefresh,
-		onTaskClick
+		onTaskClick,
+		onFinalizeClick
 	}: Props = $props();
 
 	// Escalation modal state
@@ -448,6 +450,7 @@
 					onDrop={(task) => handleDrop(column.id, task)}
 					{onAction}
 					{onTaskClick}
+					{onFinalizeClick}
 				/>
 			{:else}
 				<Column
@@ -456,6 +459,7 @@
 					onDrop={(task) => handleDrop(column.id, task)}
 					{onAction}
 					{onTaskClick}
+					{onFinalizeClick}
 				/>
 			{/if}
 		{/each}
@@ -486,6 +490,7 @@
 					onDrop={handleSwimlaneDrop}
 					{onAction}
 					{onTaskClick}
+					{onFinalizeClick}
 				/>
 			{/each}
 

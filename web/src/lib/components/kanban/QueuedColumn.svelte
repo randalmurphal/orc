@@ -11,9 +11,10 @@
 		onDrop: (task: Task) => void;
 		onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 		onTaskClick?: (task: Task) => void;
+		onFinalizeClick?: (task: Task) => void;
 	}
 
-	let { column, activeTasks, backlogTasks, showBacklog, onToggleBacklog, onDrop, onAction, onTaskClick }: Props = $props();
+	let { column, activeTasks, backlogTasks, showBacklog, onToggleBacklog, onDrop, onAction, onTaskClick, onFinalizeClick }: Props = $props();
 
 	let dragOver = $state(false);
 	let dragCounter = $state(0);
@@ -83,7 +84,7 @@
 		<div class="section active-section">
 			{#if activeCount > 0}
 				{#each activeTasks as task (task.id)}
-					<TaskCard {task} {onAction} {onTaskClick} />
+					<TaskCard {task} {onAction} {onTaskClick} {onFinalizeClick} />
 				{/each}
 			{:else}
 				<div class="empty-section">
@@ -124,7 +125,7 @@
 			{#if showBacklog}
 				<div class="section backlog-section" id="backlog-section">
 					{#each backlogTasks as task (task.id)}
-						<TaskCard {task} {onAction} {onTaskClick} />
+						<TaskCard {task} {onAction} {onTaskClick} {onFinalizeClick} />
 					{/each}
 				</div>
 			{/if}

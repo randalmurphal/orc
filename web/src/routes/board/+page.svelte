@@ -3,6 +3,7 @@
 	import Board, { type BoardViewMode } from '$lib/components/kanban/Board.svelte';
 	import ViewModeDropdown from '$lib/components/filters/ViewModeDropdown.svelte';
 	import LiveTranscriptModal from '$lib/components/overlays/LiveTranscriptModal.svelte';
+	import FinalizeModal from '$lib/components/overlays/FinalizeModal.svelte';
 	import { runProjectTask, pauseProjectTask, resumeProjectTask, escalateProjectTask } from '$lib/api';
 	import { currentProjectId } from '$lib/stores/project';
 	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks } from '$lib/stores/tasks';
@@ -81,6 +82,10 @@
 	let transcriptModalOpen = $state(false);
 	let selectedTask = $state<Task | null>(null);
 
+	// Finalize modal state
+	let finalizeModalOpen = $state(false);
+	let finalizeTask = $state<Task | null>(null);
+
 	function handleTaskClick(task: Task) {
 		selectedTask = task;
 		transcriptModalOpen = true;
@@ -89,6 +94,16 @@
 	function closeTranscriptModal() {
 		transcriptModalOpen = false;
 		selectedTask = null;
+	}
+
+	function handleFinalizeClick(task: Task) {
+		finalizeTask = task;
+		finalizeModalOpen = true;
+	}
+
+	function closeFinalizeModal() {
+		finalizeModalOpen = false;
+		finalizeTask = null;
 	}
 
 	async function handleAction(taskId: string, action: 'run' | 'pause' | 'resume') {
@@ -195,6 +210,7 @@
 			onAction={handleAction}
 			onEscalate={handleEscalate}
 			onTaskClick={handleTaskClick}
+			onFinalizeClick={handleFinalizeClick}
 		/>
 	{/if}
 </div>
@@ -205,6 +221,15 @@
 		open={transcriptModalOpen}
 		task={selectedTask}
 		onClose={closeTranscriptModal}
+	/>
+{/if}
+
+<!-- Finalize Modal -->
+{#if finalizeTask}
+	<FinalizeModal
+		open={finalizeModalOpen}
+		task={finalizeTask}
+		onClose={closeFinalizeModal}
 	/>
 {/if}
 

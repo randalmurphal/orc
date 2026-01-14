@@ -3,7 +3,7 @@
 	import StatusIndicator from '$lib/components/ui/StatusIndicator.svelte';
 	import type { Task, TaskPriority, TaskQueue } from '$lib/types';
 	import { PRIORITY_CONFIG } from '$lib/types';
-	import { updateTask } from '$lib/api';
+	import { updateTask, triggerFinalize, type FinalizeState } from '$lib/api';
 	import { updateTask as updateTaskInStore } from '$lib/stores/tasks';
 	import { getInitiativeBadgeTitle } from '$lib/stores/initiatives';
 
@@ -12,14 +12,17 @@
 		onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 		onTaskClick?: (task: Task) => void;
 		onInitiativeClick?: (initiativeId: string) => void;
+		onFinalizeClick?: (task: Task) => void;
+		finalizeState?: FinalizeState | null;
 	}
 
-	let { task, onAction, onTaskClick, onInitiativeClick }: Props = $props();
+	let { task, onAction, onTaskClick, onInitiativeClick, onFinalizeClick, finalizeState }: Props = $props();
 
 	let actionLoading = $state(false);
 	let isDragging = $state(false);
 	let showQuickMenu = $state(false);
 	let quickMenuLoading = $state(false);
+	let finalizeLoading = $state(false);
 
 	// Get priority config with fallback to normal
 	const priority = $derived((task.priority || 'normal') as TaskPriority);
@@ -135,7 +138,41 @@
 
 	const weight = $derived(weightConfig[task.weight] || weightConfig.small);
 	const isRunning = $derived(task.status === 'running');
+	const isFinalizing = $derived(task.status === 'finalizing');
+	const isFinished = $derived(task.status === 'finished');
+	const isCompleted = $derived(task.status === 'completed');
 	const initiativeBadge = $derived(task.initiative_id ? getInitiativeBadgeTitle(task.initiative_id) : null);
+
+	// Finalize progress display
+	const finalizeProgress = $derived.by(() => {
+		if (!finalizeState || finalizeState.status === 'not_started') return null;
+		return {
+			step: finalizeState.step || 'Processing',
+			progress: finalizeState.progress || '',
+			percent: finalizeState.step_percent || 0
+		};
+	});
+
+	async function handleFinalize(e: MouseEvent) {
+		e.stopPropagation();
+		e.preventDefault();
+
+		// If there's a callback, use it to open the modal
+		if (onFinalizeClick) {
+			onFinalizeClick(task);
+			return;
+		}
+
+		// Otherwise trigger directly
+		finalizeLoading = true;
+		try {
+			await triggerFinalize(task.id);
+		} catch (err) {
+			console.error('Failed to trigger finalize:', err);
+		} finally {
+			finalizeLoading = false;
+		}
+	}
 
 	function handleInitiativeClick(e: MouseEvent) {
 		e.stopPropagation();
@@ -165,6 +202,9 @@
 	class="task-card"
 	class:dragging={isDragging}
 	class:running={isRunning}
+	class:finalizing={isFinalizing}
+	class:finished={isFinished}
+	class:completed={isCompleted}
 	draggable="true"
 	ondragstart={handleDragStart}
 	ondragend={handleDragEnd}
@@ -216,6 +256,29 @@
 		<div class="task-phase">
 			<span class="phase-label">Phase:</span>
 			<span class="phase-value">{task.current_phase}</span>
+		</div>
+	{/if}
+
+	<!-- Finalize progress indicator -->
+	{#if isFinalizing && finalizeProgress}
+		<div class="finalize-progress">
+			<div class="finalize-step">{finalizeProgress.step}</div>
+			<div class="progress-bar">
+				<div class="progress-fill" style:width="{finalizeProgress.percent}%"></div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Finished commit info -->
+	{#if isFinished && finalizeState?.result?.commit_sha}
+		<div class="finished-info">
+			<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<circle cx="12" cy="12" r="4"/>
+				<line x1="1.05" y1="12" x2="7" y2="12"/>
+				<line x1="17.01" y1="12" x2="22.96" y2="12"/>
+			</svg>
+			<span class="commit-sha">{finalizeState.result.commit_sha.slice(0, 7)}</span>
+			<span class="merge-target">merged to {finalizeState.result.target_branch}</span>
 		</div>
 	{/if}
 
@@ -287,6 +350,23 @@
 					<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
 						<polygon points="5 3 19 12 5 21 5 3" />
 					</svg>
+				</button>
+			{:else if task.status === 'completed'}
+				<button
+					class="action-btn finalize"
+					onclick={handleFinalize}
+					disabled={finalizeLoading}
+					title="Finalize and merge"
+				>
+					{#if finalizeLoading}
+						<div class="btn-spinner"></div>
+					{:else}
+						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<circle cx="18" cy="18" r="3"/>
+							<circle cx="6" cy="6" r="3"/>
+							<path d="M6 21V9a9 9 0 0 0 9 9"/>
+						</svg>
+					{/if}
 				</button>
 			{/if}
 
@@ -757,5 +837,122 @@
 
 	@keyframes spin {
 		to { transform: rotate(360deg); }
+	}
+
+	/* Finalize button */
+	.action-btn.finalize {
+		background: var(--status-info-bg);
+		color: var(--status-info);
+	}
+
+	.action-btn.finalize:hover:not(:disabled) {
+		background: var(--status-info);
+		color: white;
+	}
+
+	.btn-spinner {
+		width: 12px;
+		height: 12px;
+		border: 2px solid currentColor;
+		border-top-color: transparent;
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+
+	/* Completed state - ready to finalize */
+	.task-card.completed {
+		border-color: var(--status-success);
+		background: linear-gradient(
+			135deg,
+			var(--bg-secondary) 0%,
+			color-mix(in srgb, var(--status-success) 3%, var(--bg-secondary)) 100%
+		);
+	}
+
+	/* Finalizing state - animated border with info color */
+	.task-card.finalizing {
+		border-color: var(--status-info);
+		border-width: 2px;
+		background: linear-gradient(
+			135deg,
+			var(--bg-secondary) 0%,
+			color-mix(in srgb, var(--status-info) 5%, var(--bg-secondary)) 100%
+		);
+		animation: finalize-pulse 2s ease-in-out infinite;
+	}
+
+	@keyframes finalize-pulse {
+		0%, 100% {
+			box-shadow:
+				0 0 0 0 rgba(6, 182, 212, 0.2),
+				0 2px 8px rgba(6, 182, 212, 0.15);
+		}
+		50% {
+			box-shadow:
+				0 0 0 4px rgba(6, 182, 212, 0.15),
+				0 4px 16px rgba(6, 182, 212, 0.25);
+		}
+	}
+
+	/* Finished state - subtle success indication */
+	.task-card.finished {
+		border-color: var(--status-success);
+		background: linear-gradient(
+			135deg,
+			var(--bg-secondary) 0%,
+			color-mix(in srgb, var(--status-success) 5%, var(--bg-secondary)) 100%
+		);
+	}
+
+	/* Finalize progress section */
+	.finalize-progress {
+		margin-bottom: var(--space-3);
+	}
+
+	.finalize-step {
+		font-size: var(--text-xs);
+		color: var(--status-info);
+		font-weight: var(--font-medium);
+		margin-bottom: var(--space-1);
+	}
+
+	.progress-bar {
+		height: 4px;
+		background: var(--bg-tertiary);
+		border-radius: var(--radius-full);
+		overflow: hidden;
+	}
+
+	.progress-fill {
+		height: 100%;
+		background: var(--status-info);
+		border-radius: var(--radius-full);
+		transition: width 0.3s ease-out;
+	}
+
+	/* Finished info section */
+	.finished-info {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1-5);
+		margin-bottom: var(--space-3);
+		padding: var(--space-1-5) var(--space-2);
+		background: var(--status-success-bg);
+		border-radius: var(--radius-sm);
+		font-size: var(--text-xs);
+		color: var(--status-success);
+	}
+
+	.finished-info svg {
+		flex-shrink: 0;
+	}
+
+	.commit-sha {
+		font-family: var(--font-mono);
+		font-weight: var(--font-medium);
+	}
+
+	.merge-target {
+		color: var(--text-muted);
 	}
 </style>
