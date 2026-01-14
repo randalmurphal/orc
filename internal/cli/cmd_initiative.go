@@ -625,8 +625,8 @@ Examples:
 					// Match against ID or title
 					if strings.Contains(strings.ToLower(t.ID), pattern) ||
 						strings.Contains(strings.ToLower(t.Title), pattern) {
-						// Skip if already linked to this initiative
-						if t.InitiativeID == initID {
+						// Skip only if fully linked (both initiative_id set AND in task list)
+						if t.InitiativeID == initID && init.HasTask(t.ID) {
 							continue
 						}
 						tasksToLink = append(tasksToLink, t)
@@ -645,8 +645,8 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("load task %s: %w", taskID, err)
 				}
-				// Skip if already linked to this initiative
-				if t.InitiativeID == initID {
+				// Skip only if fully linked (both initiative_id set AND in task list)
+				if t.InitiativeID == initID && init.HasTask(t.ID) {
 					fmt.Printf("Skipping %s: already linked to %s\n", taskID, initID)
 					continue
 				}
