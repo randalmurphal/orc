@@ -1,19 +1,34 @@
 <script lang="ts">
 	import Column from './Column.svelte';
 	import QueuedColumn from './QueuedColumn.svelte';
+	import Swimlane from './Swimlane.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
-	import type { Task, TaskPriority, TaskQueue } from '$lib/types';
+	import type { Task, TaskPriority, TaskQueue, Initiative } from '$lib/types';
 	import { PRIORITY_ORDER } from '$lib/types';
+	import { updateTask } from '$lib/api';
+	import { updateTask as updateTaskInStore } from '$lib/stores/tasks';
+
+	export type BoardViewMode = 'flat' | 'swimlane';
 
 	interface Props {
 		tasks: Task[];
+		viewMode?: BoardViewMode;
+		initiatives?: Initiative[];
 		onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 		onEscalate?: (taskId: string, reason: string) => Promise<void>;
 		onRefresh?: () => Promise<void>;
 		onTaskClick?: (task: Task) => void;
 	}
 
-	let { tasks, onAction, onEscalate, onRefresh, onTaskClick }: Props = $props();
+	let {
+		tasks,
+		viewMode = 'flat',
+		initiatives = [],
+		onAction,
+		onEscalate,
+		onRefresh,
+		onTaskClick
+	}: Props = $props();
 
 	// Escalation modal state
 	let showEscalateModal = $state(false);
@@ -23,6 +38,16 @@
 	// Backlog visibility state (persisted in localStorage)
 	let showBacklog = $state(false);
 
+	// Collapsed swimlanes state (persisted in localStorage)
+	let collapsedSwimlanes = $state<Set<string>>(new Set());
+
+	// Initiative change confirmation modal
+	let initiativeChangeModal = $state<{
+		task: Task;
+		targetInitiativeId: string | null;
+		columnId: string;
+	} | null>(null);
+
 	// Initialize showBacklog from localStorage
 	$effect(() => {
 		if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
@@ -30,6 +55,20 @@
 				const stored = localStorage.getItem('orc-show-backlog');
 				if (stored !== null) {
 					showBacklog = stored === 'true';
+				}
+			} catch {
+				// localStorage may not be available in some environments (e.g., tests)
+			}
+		}
+	});
+
+	// Initialize collapsed swimlanes from localStorage
+	$effect(() => {
+		if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+			try {
+				const stored = localStorage.getItem('orc-collapsed-swimlanes');
+				if (stored !== null) {
+					collapsedSwimlanes = new Set(JSON.parse(stored));
 				}
 			} catch {
 				// localStorage may not be available in some environments (e.g., tests)
@@ -49,6 +88,28 @@
 		}
 	}
 
+	// Toggle swimlane collapse
+	function toggleSwimlane(id: string) {
+		const newCollapsed = new Set(collapsedSwimlanes);
+		if (newCollapsed.has(id)) {
+			newCollapsed.delete(id);
+		} else {
+			newCollapsed.add(id);
+		}
+		collapsedSwimlanes = newCollapsed;
+
+		if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+			try {
+				localStorage.setItem(
+					'orc-collapsed-swimlanes',
+					JSON.stringify([...newCollapsed])
+				);
+			} catch {
+				// localStorage may not be available
+			}
+		}
+	}
+
 	// Phase-based columns matching orchestration workflow
 	const columns = [
 		{ id: 'queued', title: 'Queued', phases: [] as string[] }, // No phase yet
@@ -58,6 +119,9 @@
 		{ id: 'review', title: 'Review', phases: ['docs', 'validate', 'review'] },
 		{ id: 'done', title: 'Done', phases: [] as string[] } // Terminal statuses
 	];
+
+	// Columns without queued (for swimlanes which handle queued differently)
+	const swimlaneColumns = columns.filter(c => c.id !== 'queued');
 
 	let confirmModal = $state<{ task: Task; action: string; targetColumn: string } | null>(null);
 	let actionLoading = $state(false);
@@ -142,6 +206,102 @@
 	// Count of backlog tasks for the toggle button
 	const backlogCount = $derived(queuedBacklogTasks.length);
 
+	// Group tasks by initiative for swimlane view
+	const tasksByInitiative = $derived.by(() => {
+		const grouped: Map<string | null, Task[]> = new Map();
+
+		// Initialize with all initiatives (even empty ones)
+		for (const init of initiatives) {
+			grouped.set(init.id, []);
+		}
+		// Add null for unassigned
+		grouped.set(null, []);
+
+		// Group tasks
+		for (const task of tasks) {
+			const initId = task.initiative_id ?? null;
+			const existing = grouped.get(initId) || [];
+			existing.push(task);
+			grouped.set(initId, existing);
+		}
+
+		return grouped;
+	});
+
+	// Get tasks by column for a specific initiative
+	function getTasksByColumnForInitiative(initiativeTasks: Task[]): Record<string, Task[]> {
+		const grouped: Record<string, Task[]> = {};
+		for (const col of columns) {
+			grouped[col.id] = [];
+		}
+		for (const task of initiativeTasks) {
+			const colId = getTaskColumn(task);
+			grouped[colId].push(task);
+		}
+		// Sort each column
+		for (const colId of Object.keys(grouped)) {
+			grouped[colId] = sortTasks(grouped[colId]);
+		}
+		return grouped;
+	}
+
+	// Swimlane data: ordered list of initiatives with their tasks
+	const swimlaneData = $derived.by(() => {
+		const result: Array<{
+			initiative: Initiative | null;
+			tasks: Task[];
+			tasksByColumn: Record<string, Task[]>;
+			collapsed: boolean;
+		}> = [];
+
+		// Active initiatives first (sorted by title)
+		const activeInits = initiatives
+			.filter(i => i.status === 'active')
+			.sort((a, b) => a.title.localeCompare(b.title));
+
+		for (const init of activeInits) {
+			const initTasks = tasksByInitiative.get(init.id) || [];
+			if (initTasks.length > 0) {
+				result.push({
+					initiative: init,
+					tasks: initTasks,
+					tasksByColumn: getTasksByColumnForInitiative(initTasks),
+					collapsed: collapsedSwimlanes.has(init.id)
+				});
+			}
+		}
+
+		// Other initiatives (draft, completed) that have tasks
+		const otherInits = initiatives
+			.filter(i => i.status !== 'active')
+			.sort((a, b) => a.title.localeCompare(b.title));
+
+		for (const init of otherInits) {
+			const initTasks = tasksByInitiative.get(init.id) || [];
+			if (initTasks.length > 0) {
+				result.push({
+					initiative: init,
+					tasks: initTasks,
+					tasksByColumn: getTasksByColumnForInitiative(initTasks),
+					collapsed: collapsedSwimlanes.has(init.id)
+				});
+			}
+		}
+
+		// Unassigned tasks at the bottom
+		const unassignedTasks = tasksByInitiative.get(null) || [];
+		if (unassignedTasks.length > 0) {
+			result.push({
+				initiative: null,
+				tasks: unassignedTasks,
+				tasksByColumn: getTasksByColumnForInitiative(unassignedTasks),
+				collapsed: collapsedSwimlanes.has('__unassigned__')
+			});
+		}
+
+		return result;
+	});
+
 	function getSourceColumn(task: Task): string {
 		return getTaskColumn(task);
 	}
@@ -185,6 +345,53 @@
 		} else if (action) {
 			confirmModal = { task, action, targetColumn: column.title };
 		}
+	}
+
+	// Handle drop in swimlane view (includes initiative change detection)
+	function handleSwimlaneDrop(
+		columnId: string,
+		task: Task,
+		targetInitiativeId: string | null
+	) {
+		const sourceInitiativeId = task.initiative_id ?? null;
+
+		// Check if initiative is changing
+		if (sourceInitiativeId !== targetInitiativeId) {
+			// Show confirmation for initiative change
+			initiativeChangeModal = { task, targetInitiativeId, columnId };
+			return;
+		}
+
+		// Otherwise handle as normal column drop
+		handleDrop(columnId, task);
+	}
+
+	async function confirmInitiativeChange() {
+		if (!initiativeChangeModal) return;
+
+		const { task, targetInitiativeId, columnId } = initiativeChangeModal;
+
+		actionLoading = true;
+		try {
+			// Update task's initiative
+			const updated = await updateTask(task.id, {
+				initiative_id: targetInitiativeId ?? ''
+			});
+			updateTaskInStore(task.id, updated);
+
+			// Now handle the column change if any
+			initiativeChangeModal = null;
+			handleDrop(columnId, { ...task, initiative_id: targetInitiativeId ?? undefined });
+		} catch (e) {
+			console.error('Failed to change initiative:', e);
+		} finally {
+			actionLoading = false;
+			initiativeChangeModal = null;
+		}
+	}
+
+	function cancelInitiativeChange() {
+		initiativeChangeModal = null;
 	}
 
 	function getColumnIndex(columnId: string): number {
@@ -231,30 +438,68 @@
 	}
 </script>
 
-<div class="board">
-	{#each columns as column (column.id)}
-		{#if column.id === 'queued'}
-			<QueuedColumn
-				{column}
-				activeTasks={queuedActiveTasks}
-				backlogTasks={queuedBacklogTasks}
-				{showBacklog}
-				onToggleBacklog={toggleBacklog}
-				onDrop={(task) => handleDrop(column.id, task)}
-				{onAction}
-				{onTaskClick}
-			/>
-		{:else}
-			<Column
-				{column}
-				tasks={tasksByColumn[column.id] || []}
-				onDrop={(task) => handleDrop(column.id, task)}
-				{onAction}
-				{onTaskClick}
-			/>
-		{/if}
-	{/each}
-</div>
+{#if viewMode === 'flat'}
+	<div class="board">
+		{#each columns as column (column.id)}
+			{#if column.id === 'queued'}
+				<QueuedColumn
+					{column}
+					activeTasks={queuedActiveTasks}
+					backlogTasks={queuedBacklogTasks}
+					{showBacklog}
+					onToggleBacklog={toggleBacklog}
+					onDrop={(task) => handleDrop(column.id, task)}
+					{onAction}
+					{onTaskClick}
+				/>
+			{:else}
+				<Column
+					{column}
+					tasks={tasksByColumn[column.id] || []}
+					onDrop={(task) => handleDrop(column.id, task)}
+					{onAction}
+					{onTaskClick}
+				/>
+			{/if}
+		{/each}
+	</div>
+{:else}
+	<!-- Swimlane View -->
+	<div class="swimlane-view">
+		<!-- Column headers -->
+		<div class="swimlane-headers">
+			<div class="header-spacer"></div>
+			{#each columns as column (column.id)}
+				<div class="column-header">
+					<span class="header-title">{column.title}</span>
+				</div>
+			{/each}
+		</div>
+
+		<!-- Swimlanes -->
+		<div class="swimlanes">
+			{#each swimlaneData as lane (lane.initiative?.id ?? '__unassigned__')}
+				<Swimlane
+					initiative={lane.initiative}
+					tasks={lane.tasks}
+					{columns}
+					tasksByColumn={lane.tasksByColumn}
+					collapsed={lane.collapsed}
+					onToggleCollapse={() => toggleSwimlane(lane.initiative?.id ?? '__unassigned__')}
+					onDrop={handleSwimlaneDrop}
+					{onAction}
+					{onTaskClick}
+				/>
+			{/each}
+
+			{#if swimlaneData.length === 0}
+				<div class="empty-swimlanes">
+					<p>No tasks to display</p>
+				</div>
+			{/if}
+		</div>
+	</div>
+{/if}
 
 {#if confirmModal}
 	<ConfirmModal
@@ -315,6 +560,49 @@
 	</div>
 {/if}
 
+{#if initiativeChangeModal}
+	<div class="modal-backdrop" onclick={cancelInitiativeChange} onkeydown={(e) => e.key === 'Escape' && cancelInitiativeChange()} role="presentation">
+		<div class="initiative-change-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="dialog" aria-labelledby="init-change-title" tabindex="-1">
+			<div class="modal-header">
+				<h3 id="init-change-title">Change Initiative?</h3>
+				<button class="close-btn" onclick={cancelInitiativeChange} aria-label="Close">
+					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<line x1="18" y1="6" x2="6" y2="18" />
+						<line x1="6" y1="6" x2="18" y2="18" />
+					</svg>
+				</button>
+			</div>
+			<div class="modal-body">
+				<p class="task-info">
+					<strong>{initiativeChangeModal.task.id}</strong>: {initiativeChangeModal.task.title}
+				</p>
+				<p class="change-description">
+					{#if initiativeChangeModal.targetInitiativeId}
+						{@const targetInit = initiatives.find(i => i.id === initiativeChangeModal?.targetInitiativeId)}
+						Move to initiative: <strong>{targetInit?.title ?? 'Unknown'}</strong>
+					{:else}
+						Remove from current initiative (unassigned)
+					{/if}
+				</p>
+			</div>
+			<div class="modal-footer">
+				<button class="btn-secondary" onclick={cancelInitiativeChange}>Cancel</button>
+				<button
+					class="btn-primary"
+					onclick={confirmInitiativeChange}
+					disabled={actionLoading}
+				>
+					{#if actionLoading}
+						Moving...
+					{:else}
+						Confirm Move
+					{/if}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
 <style>
 	.board {
 		display: flex;
@@ -334,6 +622,64 @@
 		}
 	}
 
+	/* Swimlane View */
+	.swimlane-view {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 0;
+		overflow: auto;
+	}
+
+	.swimlane-headers {
+		display: flex;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-4);
+		background: var(--bg-secondary);
+		border-bottom: 1px solid var(--border-subtle);
+		position: sticky;
+		top: 0;
+		z-index: 10;
+	}
+
+	.header-spacer {
+		width: 200px;
+		flex-shrink: 0;
+	}
+
+	.column-header {
+		flex: 1;
+		min-width: 150px;
+		max-width: 280px;
+		padding: var(--space-2);
+		text-align: center;
+	}
+
+	.header-title {
+		font-size: var(--text-sm);
+		font-weight: var(--font-semibold);
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	.swimlanes {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		padding: var(--space-3);
+		flex: 1;
+	}
+
+	.empty-swimlanes {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-12);
+		color: var(--text-muted);
+		font-size: var(--text-sm);
+	}
+
 	/* Escalation Modal */
 	.modal-backdrop {
 		position: fixed;
@@ -346,7 +692,8 @@
 		backdrop-filter: blur(4px);
 	}
 
-	.escalate-modal {
+	.escalate-modal,
+	.initiative-change-modal {
 		background: var(--bg-primary);
 		border: 1px solid var(--border-default);
 		border-radius: var(--radius-xl);
@@ -405,6 +752,16 @@
 	.task-info strong {
 		color: var(--text-primary);
 		font-family: var(--font-mono);
+	}
+
+	.change-description {
+		margin: 0;
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+	}
+
+	.change-description strong {
+		color: var(--accent-primary);
 	}
 
 	.reason-label {
@@ -489,6 +846,27 @@
 	}
 
 	.btn-warning:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.btn-primary {
+		padding: var(--space-2) var(--space-4);
+		background: var(--accent-primary);
+		border: none;
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--text-inverse);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.btn-primary:hover:not(:disabled) {
+		background: var(--accent-hover);
+	}
+
+	.btn-primary:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
 	}

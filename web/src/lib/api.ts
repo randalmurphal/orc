@@ -81,6 +81,7 @@ export interface UpdateTaskRequest {
 	queue?: string;
 	priority?: string;
 	category?: string;
+	initiative_id?: string;
 	blocked_by?: string[];
 	related_to?: string[];
 	metadata?: Record<string, string>;
