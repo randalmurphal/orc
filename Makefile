@@ -18,7 +18,7 @@
 #
 # =============================================================================
 
-.PHONY: all setup build test lint clean dev docker-build docker-test docker-shell help
+.PHONY: all setup build test lint clean dev docker-build docker-test docker-shell help react-install react-dev react-build react-test dev-react
 
 # Configuration
 BINARY := orc
@@ -168,7 +168,7 @@ release-darwin:
 	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY)-darwin-arm64 ./cmd/orc
 
 # =============================================================================
-# Frontend
+# Frontend (Svelte - current)
 # =============================================================================
 
 ## web-install: Install frontend dependencies
@@ -201,6 +201,33 @@ dev-full:
 	@echo "API: http://localhost:8080"
 	@echo "UI:  http://localhost:5173"
 	@$(MAKE) serve & cd web && bun run dev
+
+# =============================================================================
+# Frontend (React - migration)
+# =============================================================================
+
+## react-install: Install React frontend dependencies
+react-install:
+	cd web-react && npm install
+
+## react-dev: Start React dev server on :5174 (proxies to :8080)
+react-dev:
+	cd web-react && npm run dev
+
+## react-build: Build React frontend for production
+react-build:
+	cd web-react && npm run build
+
+## react-test: Run React frontend tests (vitest unit tests)
+react-test:
+	cd web-react && npm run test
+
+## dev-react: Start API server and React dev server
+dev-react:
+	@echo "Starting API server on :8080 and React frontend on :5174..."
+	@echo "API:   http://localhost:8080"
+	@echo "React: http://localhost:5174"
+	@$(MAKE) serve & cd web-react && npm run dev
 
 # =============================================================================
 # Coverage
