@@ -39,6 +39,15 @@ const (
 	EventTaskUpdated EventType = "task_updated"
 	// EventTaskDeleted indicates a task was deleted via file system.
 	EventTaskDeleted EventType = "task_deleted"
+
+	// Initiative events (triggered by initiative file changes)
+
+	// EventInitiativeCreated indicates a new initiative was created.
+	EventInitiativeCreated EventType = "initiative_created"
+	// EventInitiativeUpdated indicates an initiative was modified.
+	EventInitiativeUpdated EventType = "initiative_updated"
+	// EventInitiativeDeleted indicates an initiative was deleted.
+	EventInitiativeDeleted EventType = "initiative_deleted"
 )
 
 // Event represents a published event.

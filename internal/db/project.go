@@ -990,3 +990,82 @@ func (p *ProjectDB) ClearTaskDependencies(taskID string) error {
 	}
 	return nil
 }
+
+// AddInitiativeDependency records that initiativeID depends on dependsOn.
+func (p *ProjectDB) AddInitiativeDependency(initiativeID, dependsOn string) error {
+	var query string
+	if p.Dialect() == driver.DialectSQLite {
+		query = `INSERT OR IGNORE INTO initiative_dependencies (initiative_id, depends_on) VALUES (?, ?)`
+	} else {
+		query = `INSERT INTO initiative_dependencies (initiative_id, depends_on) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	}
+	_, err := p.Exec(query, initiativeID, dependsOn)
+	if err != nil {
+		return fmt.Errorf("add initiative dependency: %w", err)
+	}
+	return nil
+}
+
+// RemoveInitiativeDependency removes a dependency relationship.
+func (p *ProjectDB) RemoveInitiativeDependency(initiativeID, dependsOn string) error {
+	_, err := p.Exec(`DELETE FROM initiative_dependencies WHERE initiative_id = ? AND depends_on = ?`, initiativeID, dependsOn)
+	if err != nil {
+		return fmt.Errorf("remove initiative dependency: %w", err)
+	}
+	return nil
+}
+
+// GetInitiativeDependencies retrieves IDs of initiatives that initiativeID depends on (blocked_by).
+func (p *ProjectDB) GetInitiativeDependencies(initiativeID string) ([]string, error) {
+	rows, err := p.Query(`SELECT depends_on FROM initiative_dependencies WHERE initiative_id = ?`, initiativeID)
+	if err != nil {
+		return nil, fmt.Errorf("get initiative dependencies: %w", err)
+	}
+	defer rows.Close()
+
+	var deps []string
+	for rows.Next() {
+		var dep string
+		if err := rows.Scan(&dep); err != nil {
+			return nil, fmt.Errorf("scan dependency: %w", err)
+		}
+		deps = append(deps, dep)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate dependencies: %w", err)
+	}
+
+	return deps, nil
+}
+
+// GetInitiativeDependents retrieves IDs of initiatives that depend on initiativeID.
+func (p *ProjectDB) GetInitiativeDependents(initiativeID string) ([]string, error) {
+	rows, err := p.Query(`SELECT initiative_id FROM initiative_dependencies WHERE depends_on = ?`, initiativeID)
+	if err != nil {
+		return nil, fmt.Errorf("get initiative dependents: %w", err)
+	}
+	defer rows.Close()
+
+	var deps []string
+	for rows.Next() {
+		var dep string
+		if err := rows.Scan(&dep); err != nil {
+			return nil, fmt.Errorf("scan dependent: %w", err)
+		}
+		deps = append(deps, dep)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate dependents: %w", err)
+	}
+
+	return deps, nil
+}
+
+// ClearInitiativeDependencies removes all dependencies for an initiative.
+func (p *ProjectDB) ClearInitiativeDependencies(initiativeID string) error {
+	_, err := p.Exec(`DELETE FROM initiative_dependencies WHERE initiative_id = ?`, initiativeID)
+	if err != nil {
+		return fmt.Errorf("clear initiative dependencies: %w", err)
+	}
+	return nil
+}

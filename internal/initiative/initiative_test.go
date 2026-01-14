@@ -851,7 +851,77 @@ func TestBlockedByPersistence(t *testing.T) {
 
 	// Verify Blocks is not persisted (it's computed)
 	// After loading, Blocks should be nil until PopulateComputedFields is called
-	if loaded.Blocks != nil && len(loaded.Blocks) > 0 {
+	if len(loaded.Blocks) > 0 {
 		t.Error("Blocks should not be persisted")
+	}
+}
+
+func TestValidateID(t *testing.T) {
+	tests := []struct {
+		id      string
+		wantErr bool
+	}{
+		// Valid IDs
+		{"INIT-1", false},
+		{"INIT-001", false},
+		{"INIT-123456", false},
+		{"INIT-TEST-001", false},
+		{"INIT-abc", false},
+		{"INIT-abc-def", false},
+		{"INIT-ABC-123-XYZ", false},
+
+		// Invalid IDs
+		{"", true},                         // empty
+		{"INIT-", true},                    // no suffix
+		{"INIT--", true},                   // trailing dash
+		{"INIT-001-", true},                // trailing dash
+		{"TASK-001", true},                 // wrong prefix
+		{"init-001", true},                 // lowercase prefix
+		{"INIT-../etc", true},              // path traversal
+		{"INIT-foo/../bar", true},          // path traversal
+		{"INIT-foo/bar", true},             // path separator
+		{"INIT-foo\\bar", true},            // Windows path separator
+		{"../../../etc/passwd", true},      // pure path traversal
+		{"INIT-001\x00malicious", true},    // null byte
+		{"INIT-%2e%2e", true},              // URL-encoded dots
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.id, func(t *testing.T) {
+			err := ValidateID(tt.id)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateID(%q) error = %v, wantErr %v", tt.id, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestLoadFromRejectsInvalidID(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Try to load with a path traversal ID
+	_, err := LoadFrom(tmpDir, "../../../etc/passwd")
+	if err == nil {
+		t.Error("LoadFrom should reject path traversal IDs")
+	}
+}
+
+func TestDeleteRejectsInvalidID(t *testing.T) {
+	// Try to delete with a path traversal ID
+	err := Delete("../../../etc", false)
+	if err == nil {
+		t.Error("Delete should reject path traversal IDs")
+	}
+}
+
+func TestSaveToRejectsInvalidID(t *testing.T) {
+	init := &Initiative{
+		ID:    "../../../etc/passwd",
+		Title: "Malicious",
+	}
+
+	err := init.SaveTo(t.TempDir())
+	if err == nil {
+		t.Error("SaveTo should reject path traversal IDs")
 	}
 }

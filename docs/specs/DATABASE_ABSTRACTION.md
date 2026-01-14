@@ -16,7 +16,7 @@
 
 ### Key Principle
 
-**YAML files are the source of truth for task data. Database is derived/cached data for performance.**
+**YAML files are the source of truth for task and initiative data. Database is derived/cached data for performance.**
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -24,24 +24,30 @@
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  YAML Files (git-tracked, human-editable, SOURCE OF TRUTH)      │
-│  ├── .orc/tasks/TASK-001/task.yaml    Task definition           │
-│  ├── .orc/tasks/TASK-001/plan.yaml    Phase sequence            │
-│  ├── .orc/tasks/TASK-001/state.yaml   Execution state           │
-│  ├── .orc/shared/config.yaml          Team configuration        │
-│  └── .orc/shared/prompts/*.md         Shared prompts            │
+│  ├── .orc/tasks/TASK-001/task.yaml       Task definition        │
+│  ├── .orc/tasks/TASK-001/plan.yaml       Phase sequence         │
+│  ├── .orc/tasks/TASK-001/state.yaml      Execution state        │
+│  ├── .orc/initiatives/INIT-001/          Initiative definition  │
+│  │   └── initiative.yaml                                        │
+│  ├── .orc/shared/config.yaml             Team configuration     │
+│  └── .orc/shared/prompts/*.md            Shared prompts         │
 │                                                                  │
 │  SQLite Database (local index, NOT source of truth)             │
-│  ├── tasks table                      Index for search/list     │
-│  ├── cost_log table                   Token usage tracking      │
-│  ├── transcripts_fts                  Full-text search          │
-│  └── projects table                   Project registry          │
+│  ├── tasks table                         Index for search/list  │
+│  ├── initiatives table                   Initiative cache       │
+│  ├── initiative_decisions table          Decision cache         │
+│  ├── initiative_tasks table              Task links cache       │
+│  ├── initiative_dependencies table       Blocked-by cache       │
+│  ├── cost_log table                      Token usage tracking   │
+│  ├── transcripts_fts                     Full-text search       │
+│  └── projects table                      Project registry       │
 │                                                                  │
 │  Postgres (team server only, aggregation + visibility)          │
-│  ├── organizations                    Org management            │
-│  ├── members                          User membership           │
-│  ├── task_visibility                  Read-only task mirror     │
-│  ├── cost_aggregation                 Team cost rollups         │
-│  └── audit_log                        Security audit trail      │
+│  ├── organizations                       Org management         │
+│  ├── members                             User membership        │
+│  ├── task_visibility                     Read-only task mirror  │
+│  ├── cost_aggregation                    Team cost rollups      │
+│  └── audit_log                           Security audit trail   │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -86,6 +92,56 @@ func (r *Repo) RebuildIndex() error {
     return r.db.ReplaceIndex(tasks)
 }
 ```
+
+### Initiative Sync Pattern
+
+Initiatives follow the same hybrid storage pattern with auto-commit to git:
+
+```go
+// internal/initiative/store.go
+
+// Save writes YAML, syncs DB, and commits to git
+func (s *Store) Save(init *Initiative) error {
+    // 1. Save to YAML (source of truth)
+    if err := init.Save(); err != nil {
+        return fmt.Errorf("save initiative to YAML: %w", err)
+    }
+
+    // 2. Sync to database cache
+    if err := s.syncToDB(init); err != nil {
+        s.logger.Warn("failed to sync to database", "id", init.ID, "error", err)
+        // Don't fail - YAML is saved
+    }
+
+    // 3. Auto-commit if enabled
+    if s.autoCommit {
+        if err := s.commitInitiative(init, "save"); err != nil {
+            s.logger.Warn("failed to commit", "id", init.ID, "error", err)
+        }
+    }
+
+    return nil
+}
+
+// RebuildIndex regenerates DB from YAML files
+func (s *Store) RebuildIndex() error {
+    initiatives, _ := List(s.shared)
+    for _, init := range initiatives {
+        s.syncToDB(init)
+    }
+    return nil
+}
+
+// RecoverFromDB regenerates YAML from database
+func (s *Store) RecoverFromDB(id string) (*Initiative, error) {
+    // Load from DB, reconstruct Initiative, save to YAML
+    dbInit, _ := s.db.GetInitiative(id)
+    init := reconstructFromDB(dbInit)
+    return init, init.Save()
+}
+```
+
+**File watcher integration:** The watcher monitors `.orc/initiatives/` and calls `SyncToDB()` when external edits are detected, keeping the database cache current.
 
 ### Why This Pattern?
 

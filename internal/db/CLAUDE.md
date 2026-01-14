@@ -79,6 +79,7 @@ Embedded via `//go:embed schema/*.sql`:
 | `schema/project_008.sql` | Task comments (human/agent/system notes) |
 | `schema/project_009.sql` | Task queue (backlog/active) and priority fields |
 | `schema/project_010.sql` | Task category field (feature/bug/refactor/chore/docs/test) |
+| `schema/project_011.sql` | Initiative dependencies (blocked_by relationships between initiatives) |
 
 ## Usage
 
@@ -160,6 +161,7 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 - `initiatives` - Initiative groupings (id, title, status, vision, owner)
 - `initiative_decisions` - Decisions within initiatives
 - `initiative_tasks` - Task-to-initiative mappings with sequence
+- `initiative_dependencies` - Initiative blocked_by relationships
 - `task_dependencies` - Task dependency relationships
 - `subtasks` - Subtask queue (parent_task, title, status, proposed_by)
 - `review_comments` - Inline review comments (file_path, line_number, severity, status)
