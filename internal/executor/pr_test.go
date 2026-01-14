@@ -287,3 +287,96 @@ func TestErrGHNotAuthenticated(t *testing.T) {
 			ErrGHNotAuthenticated.Error())
 	}
 }
+
+func TestPRReviewResult(t *testing.T) {
+	// Test that PRReviewResult struct works correctly
+	result := PRReviewResult{
+		Approved: true,
+		Comment:  "Test comment",
+	}
+
+	if !result.Approved {
+		t.Error("expected Approved to be true")
+	}
+	if result.Comment != "Test comment" {
+		t.Errorf("expected Comment to be 'Test comment', got %s", result.Comment)
+	}
+}
+
+func TestReviewAndApprove_FailsOnCheckFailure(t *testing.T) {
+	e := &Executor{}
+	tsk := &task.Task{
+		ID:    "TEST-001",
+		Title: "Test task",
+	}
+
+	result, err := e.reviewAndApprove(nil, tsk, "", false, "Tests failed: 5 failures")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result.Approved {
+		t.Error("expected not approved when checks fail")
+	}
+	if !strings.Contains(result.Comment, "CI checks have not passed") {
+		t.Errorf("expected comment to mention CI checks, got: %s", result.Comment)
+	}
+}
+
+func TestReviewAndApprove_ApprovesOnCheckSuccess(t *testing.T) {
+	e := &Executor{}
+	tsk := &task.Task{
+		ID:    "TEST-002",
+		Title: "Test task that should pass",
+	}
+
+	result, err := e.reviewAndApprove(nil, tsk, "diff content here", true, "All checks passed")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !result.Approved {
+		t.Error("expected approved when checks pass")
+	}
+	if !strings.Contains(result.Comment, "Auto-approved by orc") {
+		t.Errorf("expected comment to mention auto-approval, got: %s", result.Comment)
+	}
+	if !strings.Contains(result.Comment, "All checks passed") {
+		t.Errorf("expected comment to include check status, got: %s", result.Comment)
+	}
+}
+
+func TestReviewAndApprove_IncludesTaskTitle(t *testing.T) {
+	e := &Executor{}
+	tsk := &task.Task{
+		ID:    "TEST-003",
+		Title: "My awesome feature",
+	}
+
+	result, err := e.reviewAndApprove(nil, tsk, "diff", true, "Success")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(result.Comment, "My awesome feature") {
+		t.Errorf("expected comment to include task title, got: %s", result.Comment)
+	}
+}
+
+func TestReviewAndApprove_ApprovesWithPendingChecks(t *testing.T) {
+	e := &Executor{}
+	tsk := &task.Task{
+		ID:    "TEST-004",
+		Title: "Task with pending checks",
+	}
+
+	// When checksOK is true but some are pending, should still approve
+	result, err := e.reviewAndApprove(nil, tsk, "diff", true, "Some checks still pending")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !result.Approved {
+		t.Error("expected approved when checksOK is true (even with pending)")
+	}
+}
