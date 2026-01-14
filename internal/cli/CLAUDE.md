@@ -16,7 +16,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `template.go` | CLI output templates |
 | `errors.go` | CLI error types and formatting |
 
-### Command Files (26 total)
+### Command Files (27 total)
 
 | File | Command | Description |
 |------|---------|-------------|
@@ -26,14 +26,15 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_new.go` | `orc new "title"` | Create new task |
 | `cmd_list.go` | `orc list` | List all tasks |
 | `cmd_show.go` | `orc show TASK-ID` | Show task details |
-| `cmd_edit.go` | `orc edit TASK-ID` | Edit task properties (title, description, weight) |
+| `cmd_edit.go` | `orc edit TASK-ID` | Edit task properties (title, description, weight, dependencies) |
 | `cmd_run.go` | `orc run TASK-ID` | Execute task phases |
 | `cmd_pause.go` | `orc pause TASK-ID` | Pause running task |
 | `cmd_resume.go` | `orc resume TASK-ID` | Resume paused/blocked/failed task |
 | `cmd_rewind.go` | `orc rewind TASK-ID --to PHASE` | Reset to before phase |
 | `cmd_reset.go` | `orc reset TASK-ID` | Reset task to initial state for retry |
 | `cmd_resolve.go` | `orc resolve TASK-ID` | Mark failed task as resolved without re-running |
-| `cmd_status.go` | `orc status` | Show running tasks |
+| `cmd_status.go` | `orc status` | Show task status (with BLOCKED/READY sections) |
+| `cmd_deps.go` | `orc deps [TASK-ID]` | Show task dependencies (tree/graph views) |
 | `cmd_log.go` | `orc log TASK-ID` | Show task transcripts |
 | `cmd_diff.go` | `orc diff TASK-ID` | Show task changes |
 | `cmd_delete.go` | `orc delete TASK-ID` | Delete task and files |
@@ -152,12 +153,31 @@ Show task transcripts with content (not just file listing).
 - Clean shutdown on SIGINT/SIGTERM (prints partial line before exit)
 
 ### `orc status`
-Priority-based status display with sections: Blocked → Running → Paused → Recent.
+Priority-based status display with sections: Orphaned → Attention Needed → Running → Blocked → Ready → Paused → Recent.
 
 | Flag | Description |
 |------|-------------|
 | `--all, -a` | Show all tasks including completed |
 | `--watch, -w` | Refresh status every 5 seconds |
+
+**Dependency-aware sections:**
+- **BLOCKED** - Tasks waiting on incomplete dependencies (shows which tasks they're blocked by)
+- **READY** - Tasks with no dependencies or all dependencies completed (sorted by priority)
+
+### `orc deps`
+Show task dependencies with multiple view options.
+
+| Flag | Description |
+|------|-------------|
+| `--tree` | Show full dependency tree recursively |
+| `--graph` | Show ASCII dependency graph |
+| `--initiative, -i` | Filter graph by initiative ID |
+
+**Views:**
+- Default (single task): Shows blocked_by, blocks, related_to, referenced_by
+- `--tree`: Recursive tree showing full dependency chain
+- `--graph`: ASCII graph showing task flow, single chains collapsed inline
+- No args: Overview showing blocking/blocked/independent task counts
 
 ### `orc rewind`
 Reset task to before a specific phase.

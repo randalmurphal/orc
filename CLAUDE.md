@@ -221,11 +221,12 @@ orc config profile strict
 | `orc new "title"` | Create task, classify weight (`-c bug` for category, `-a file` for attachments) |
 | `orc run TASK-ID` | Execute phases |
 | `orc plan TASK-ID` | Interactive spec creation |
-| `orc status` | Show running/blocked/paused |
+| `orc status` | Show running/blocked/ready/paused |
+| `orc deps [TASK-ID]` | Show dependencies (`--tree`, `--graph`) |
 | `orc log TASK-ID --follow` | Stream transcript |
 | `orc knowledge status` | Knowledge queue stats |
 
-**Full CLI:** `internal/cli/CLAUDE.md` | **Pool:** `orc pool --help` | **Initiatives:** `orc initiative --help`
+**Full CLI:** `internal/cli/CLAUDE.md` | **Pool:** `orc pool --help` | **Initiatives:** `orc initiative --help` | **Deps:** `orc deps --help`
 
 ## Key Patterns
 
@@ -393,6 +394,7 @@ Patterns, gotchas, and decisions learned during development.
 | Browser-safe keyboard shortcuts | Web UI uses `Shift+Alt` modifier (⇧⌥ on Mac) for global shortcuts instead of Cmd/Ctrl to avoid browser conflicts with Cmd+K, Cmd+N, etc. | TASK-037 |
 | Task dependency validation | `blocked_by` and `related_to` fields validated on create/update: references must exist, no self-references, circular deps rejected; computed fields (`blocks`, `referenced_by`) populated on load | TASK-070 |
 | Blocking enforcement on run | CLI and API check `blocked_by` for incomplete blockers before running; CLI prompts in interactive mode, refuses in quiet mode without `--force`; API returns 409 Conflict with blocker details, accepts `?force=true` to override | TASK-071 |
+| Dependency visualization CLI | `orc deps` shows dependencies with multiple views: standard (single task), `--tree` (recursive), `--graph` (ASCII flow chart); `orc status` shows BLOCKED/READY sections for dependency-aware task overview | TASK-077 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
