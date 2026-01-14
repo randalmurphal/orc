@@ -1,0 +1,22 @@
+id: TASK-190
+title: Add --priority flag to orc new command
+description: |-
+    ## Problem
+    `orc new --priority critical` fails with 'unknown flag: --priority'
+
+    Priority can be set via `orc edit` but not during task creation.
+
+    ## Solution
+    Add `--priority` / `-p` flag to `orc new` command accepting: critical, high, normal, low
+
+    ## Files to Modify
+    - internal/cli/cmd_new.go
+weight: trivial
+status: planned
+branch: orc/TASK-190
+queue: active
+priority: normal
+category: feature
+testing_requirements: {}
+created_at: 2026-01-14T02:33:14.187516122-06:00
+updated_at: 2026-01-14T02:33:14.19793559-06:00
