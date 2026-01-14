@@ -6,10 +6,11 @@ import { test, expect } from '@playwright/test';
  * The app uses Shift+Alt modifier (Shift+Option on Mac) to avoid browser
  * conflicts with Cmd+K, Cmd+N, Cmd+B, Cmd+P etc.
  *
- * Test Coverage (12 tests):
- * - Global Shortcuts (6 tests)
- * - Navigation Sequences (3 tests)
- * - Task List Context (3 tests)
+ * Test Coverage (13 tests):
+ * - Global Shortcuts (6 tests): Shift+Alt+K/N/B/P, ?, Escape
+ * - Navigation Sequences (3 tests): g+d, g+t, g+e
+ * - Task List Context (3 tests): j/k navigation, Enter, /
+ * - Input Fields (1 test): shortcuts disabled when typing
  */
 
 test.describe('Keyboard Shortcuts - Global', () => {
