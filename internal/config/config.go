@@ -443,7 +443,7 @@ type PlanConfig struct {
 	RequireSpecForExecution bool `yaml:"require_spec_for_execution"`
 	// WarnOnMissingSpec warns but doesn't block when spec is missing (default: true)
 	WarnOnMissingSpec bool `yaml:"warn_on_missing_spec"`
-	// SkipValidationWeights skips spec validation for these weights (default: [trivial])
+	// SkipValidationWeights skips spec validation and warnings for these weights (default: [trivial, small])
 	SkipValidationWeights []string `yaml:"skip_validation_weights,omitempty"`
 	// MinimumSections are the required sections in a spec (default: [intent, success_criteria, testing])
 	MinimumSections []string `yaml:"minimum_sections,omitempty"`
@@ -878,7 +878,7 @@ func Default() *Config {
 		Plan: PlanConfig{
 			RequireSpecForExecution: false, // Don't block by default
 			WarnOnMissingSpec:       true,  // Warn but don't block
-			SkipValidationWeights:   []string{"trivial"},
+			SkipValidationWeights:   []string{"trivial", "small"},
 			MinimumSections:         []string{"intent", "success_criteria", "testing"},
 		},
 		ArtifactSkip: ArtifactSkipConfig{
