@@ -345,7 +345,13 @@ See `web/CLAUDE.md` for component architecture.
 make test       # Backend (Go)
 make web-test   # Frontend (Vitest)
 make e2e        # E2E (Playwright)
+
+# Visual regression tests
+cd web && bunx playwright test --project=visual                    # Compare against baselines
+cd web && bunx playwright test --project=visual --update-snapshots # Capture new baselines
 ```
+
+**Visual regression baselines** are stored in `web/e2e/__snapshots__/` covering Dashboard, Board, Task Detail, and Modal states. See `web/CLAUDE.md` for details.
 
 ## UI Testing with Playwright MCP
 
@@ -465,6 +471,7 @@ Patterns, gotchas, and decisions learned during development.
 | CI wait and auto-merge | After finalize, poll `gh pr checks` until CI passes (30s interval, 10m timeout), then merge via `gh pr merge --squash`; bypasses GitHub auto-merge feature (no branch protection needed); `auto`/`fast` profiles only | TASK-151 |
 | Comprehensive auto-commit | ALL .orc/ file mutations auto-commit to git: task lifecycle (status, state, phase transitions), initiative operations (status, linking, decisions), API/UI changes (config, prompts, projects), PR status updates; `state.CommitTaskState()` and `state.CommitPhaseTransition()` for executor; `autoCommit*()` helpers in API handlers; disable via `tasks.disable_auto_commit` config | TASK-193 |
 | WebSocket E2E event injection | Use Playwright's `routeWebSocket` to intercept connections and inject events via `ws.send()`; captures real WebSocket, forwards messages bidirectionally, allows test-initiated events; framework-agnostic approach for testing real-time UI updates | TASK-157 |
+| Visual regression baselines | Separate Playwright project (`visual`) with 1440x900 @2x viewport, disabled animations, masked dynamic content (timestamps, tokens); use `--update-snapshots` to regenerate after intentional UI changes; baselines in `web/e2e/__snapshots__/` | TASK-159 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
