@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { useRoutes } from 'react-router-dom';
 import { routes } from './routes';
 import { WebSocketProvider } from '@/hooks';
-import { useProjectStore, useInitiativeStore, useUIStore } from '@/stores';
+import { useProjectStore, useInitiativeStore, useUIStore, useTaskStore } from '@/stores';
 
 // Mock WebSocket to prevent actual connections
 vi.mock('@/lib/websocket', () => ({
@@ -22,6 +22,18 @@ vi.mock('@/lib/websocket', () => ({
 		command: vi.fn(),
 	})),
 	GLOBAL_TASK_ID: '*',
+}));
+
+// Mock API to prevent actual fetch calls
+vi.mock('@/lib/api', () => ({
+	listProjectTasks: vi.fn().mockResolvedValue([]),
+	listInitiatives: vi.fn().mockResolvedValue([]),
+	runProjectTask: vi.fn(),
+	pauseProjectTask: vi.fn(),
+	resumeProjectTask: vi.fn(),
+	escalateProjectTask: vi.fn(),
+	updateTask: vi.fn(),
+	triggerFinalize: vi.fn(),
 }));
 
 // Test wrapper component
@@ -61,6 +73,12 @@ describe('Routes', () => {
 			wsStatus: 'disconnected',
 			toasts: [],
 		});
+		useTaskStore.setState({
+			tasks: [],
+			taskStates: new Map(),
+			loading: false,
+			error: null,
+		});
 	});
 
 	describe('Root route (/)', () => {
@@ -92,11 +110,38 @@ describe('Routes', () => {
 	});
 
 	describe('/board route', () => {
-		it('renders Board page', async () => {
+		it('renders Board page with project selected', async () => {
+			// Board page requires a project to be selected
+			useProjectStore.setState({
+				projects: [
+					{
+						id: 'test-project',
+						path: '/test/project',
+						name: 'Test Project',
+						task_count: 0,
+						running_count: 0,
+					},
+				],
+				currentProjectId: 'test-project',
+				loading: false,
+				error: null,
+				_isHandlingPopState: false,
+			});
+			// Debug: verify state was set
+			const state = useProjectStore.getState();
+			console.log('Project state before render:', state.currentProjectId);
+
 			renderWithRouter('/board');
 			await waitFor(() => {
-				// "Board" appears in sidebar and as h2 heading
+				// "Board" appears as h2 heading
 				expect(screen.getByRole('heading', { level: 2, name: 'Board' })).toBeInTheDocument();
+			});
+		});
+
+		it('renders empty state when no project selected', async () => {
+			renderWithRouter('/board');
+			await waitFor(() => {
+				expect(screen.getByText('No Project Selected')).toBeInTheDocument();
 			});
 		});
 	});
