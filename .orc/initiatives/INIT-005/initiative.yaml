@@ -79,5 +79,8 @@ tasks:
     - id: TASK-147
       title: 'Performance comparison: React vs Svelte benchmarks'
       status: pending
+    - id: TASK-148
+      title: 'Cutover: Replace Svelte with React in production build'
+      status: pending
 created_at: 2026-01-14T01:40:18.861098092-06:00
-updated_at: 2026-01-14T01:45:07.138759625-06:00
+updated_at: 2026-01-14T01:45:07.175653455-06:00
