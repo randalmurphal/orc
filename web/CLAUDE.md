@@ -268,6 +268,27 @@ Token usage is displayed in multiple locations with cached token support:
 
 See `QUICKREF.md` for component hierarchy.
 
+## Plugins Page
+
+The plugins page (`/environment/claude/plugins`) manages Claude Code plugins with two tabs:
+
+| Tab | Purpose |
+|-----|---------|
+| Installed | Manage local plugins in `.claude/plugins/` |
+| Marketplace | Browse and install plugins from the marketplace |
+
+**Features:**
+- Scope filter (All/Global/Project) for installed plugins
+- Enable/disable toggle per plugin
+- Update indicator when newer versions available
+- Plugin detail panel showing commands, hooks, MCP servers
+- Marketplace search and browsing with pagination
+- Install to project or global scope
+
+**Marketplace fallback:** When the official Claude Code plugin marketplace is unavailable, the UI displays sample plugins with a message explaining how to manually install plugins via CLI (`claude plugin add <github-repo>`).
+
+**API functions:** `listPlugins()`, `enablePlugin()`, `disablePlugin()`, `browseMarketplace()`, `searchMarketplace()`, `installPlugin()`, `checkPluginUpdates()`, `updatePlugin()`
+
 ## Routes
 
 | Route | Page |
@@ -282,6 +303,7 @@ See `QUICKREF.md` for component hierarchy.
 | `/environment/claude/hooks` | Hooks (`?scope=global`) |
 | `/environment/claude/agents` | Agents (`?scope=global`) |
 | `/environment/claude/mcp` | MCP servers (`?scope=global`) |
+| `/environment/claude/plugins` | Plugin management & marketplace |
 | `/preferences` | User preferences |
 
 ## API Client

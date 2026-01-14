@@ -261,6 +261,26 @@ createPR(taskId), getPRDetails(taskId)
 syncPRComments(taskId), autofixPRComment(taskId, commentId)
 ```
 
+### Plugins
+```typescript
+// Local plugin management
+listPlugins(scope?)                    // scope: 'global' | 'project'
+getPlugin(name, scope?)
+enablePlugin(name, scope?)
+disablePlugin(name, scope?)
+uninstallPlugin(name, scope?)
+listPluginCommands(name, scope?)
+getPluginResources()                   // Aggregated MCP servers, hooks, commands
+checkPluginUpdates()
+updatePlugin(name, scope?)
+
+// Marketplace (falls back to sample plugins when unavailable)
+browseMarketplace(page?, limit?)
+searchMarketplace(query)
+getMarketplacePlugin(name)
+installPlugin(name, scope?, version?)
+```
+
 ---
 
 ## Settings Hub Tabs
