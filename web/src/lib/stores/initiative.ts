@@ -123,7 +123,8 @@ export const initiativeProgress: Readable<Map<string, InitiativeProgress>> = der
 		const progressMap = new Map<string, InitiativeProgress>();
 		for (const init of $initiatives) {
 			const tasks = init.tasks || [];
-			const completed = tasks.filter(t => t.status === 'completed').length;
+			// Count both "completed" and "finished" as done
+			const completed = tasks.filter(t => t.status === 'completed' || t.status === 'finished').length;
 			progressMap.set(init.id, {
 				id: init.id,
 				completed,
