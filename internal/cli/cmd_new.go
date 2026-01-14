@@ -44,6 +44,13 @@ Use --attach to add screenshots or files during task creation:
 Use --initiative to link the task to an initiative:
   orc new "Add auth flow" --initiative INIT-001
 
+Use --blocked-by to specify task dependencies:
+  orc new "Part 2 of feature" --blocked-by TASK-001
+  orc new "Final step" --blocked-by TASK-001,TASK-002
+
+Use --related-to to link related tasks:
+  orc new "Related feature" --related-to TASK-003
+
 Example:
   orc new "Fix authentication timeout bug"
   orc new "Implement user dashboard" --weight large
@@ -51,7 +58,8 @@ Example:
   orc new "Fix login bug" --category bug
   orc new -t bugfix "Fix memory leak"
   orc new "Button misaligned" --attach screenshot.png
-  orc new "Implement login" --initiative INIT-001`,
+  orc new "Implement login" --initiative INIT-001
+  orc new "Add tests" --blocked-by TASK-005`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -66,6 +74,8 @@ Example:
 			varsFlag, _ := cmd.Flags().GetStringSlice("var")
 			attachments, _ := cmd.Flags().GetStringSlice("attach")
 			initiativeID, _ := cmd.Flags().GetString("initiative")
+			blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")
+			relatedTo, _ := cmd.Flags().GetStringSlice("related-to")
 
 			// Parse variable flags
 			vars := make(map[string]string)
@@ -147,6 +157,32 @@ Example:
 
 			// Set testing requirements based on project and task content
 			t.SetTestingRequirements(hasFrontend)
+
+			// Set dependencies if provided
+			if len(blockedBy) > 0 || len(relatedTo) > 0 {
+				// Load existing tasks for validation
+				existingTasks, err := task.LoadAll()
+				if err != nil && !os.IsNotExist(err) {
+					return fmt.Errorf("load existing tasks: %w", err)
+				}
+				existingIDs := make(map[string]bool)
+				for _, existing := range existingTasks {
+					existingIDs[existing.ID] = true
+				}
+
+				// Validate blocked_by references
+				if errs := task.ValidateBlockedBy(id, blockedBy, existingIDs); len(errs) > 0 {
+					return errs[0]
+				}
+
+				// Validate related_to references
+				if errs := task.ValidateRelatedTo(id, relatedTo, existingIDs); len(errs) > 0 {
+					return errs[0]
+				}
+
+				t.BlockedBy = blockedBy
+				t.RelatedTo = relatedTo
+			}
 
 			// Save task
 			if err := t.Save(); err != nil {
@@ -244,6 +280,12 @@ Example:
 					fmt.Printf("   Testing: %s\n", strings.Join(reqs, ", "))
 				}
 			}
+			if len(t.BlockedBy) > 0 {
+				fmt.Printf("   Blocked by: %s\n", strings.Join(t.BlockedBy, ", "))
+			}
+			if len(t.RelatedTo) > 0 {
+				fmt.Printf("   Related to: %s\n", strings.Join(t.RelatedTo, ", "))
+			}
 
 			// Upload attachments if provided
 			if len(attachments) > 0 {
@@ -305,5 +347,7 @@ Example:
 	cmd.Flags().StringSlice("var", nil, "template variable (KEY=VALUE)")
 	cmd.Flags().StringSliceP("attach", "a", nil, "file(s) to attach (screenshots, logs, etc.)")
 	cmd.Flags().StringP("initiative", "i", "", "link task to initiative (e.g., INIT-001)")
+	cmd.Flags().StringSlice("blocked-by", nil, "task IDs that must complete before this task")
+	cmd.Flags().StringSlice("related-to", nil, "task IDs related to this task")
 	return cmd
 }

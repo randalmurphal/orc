@@ -3,6 +3,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -26,6 +27,14 @@ Modifiable properties:
   --weight      Change task weight (triggers plan regeneration)
   --initiative  Link/unlink task to initiative (use "" to unlink)
 
+Dependency management:
+  --blocked-by      Set tasks that must complete first (replaces existing)
+  --add-blocker     Add task(s) to blocked_by list
+  --remove-blocker  Remove task(s) from blocked_by list
+  --related-to      Set related tasks (replaces existing)
+  --add-related     Add task(s) to related_to list
+  --remove-related  Remove task(s) from related_to list
+
 Weight changes will regenerate the task plan with phases appropriate
 for the new weight. This requires the task to not be running.
 
@@ -34,7 +43,10 @@ Example:
   orc edit TASK-001 --weight large
   orc edit TASK-001 -d "Updated description" --title "Better title"
   orc edit TASK-001 --initiative INIT-001   # link to initiative
-  orc edit TASK-001 --initiative ""         # unlink from initiative`,
+  orc edit TASK-001 --initiative ""         # unlink from initiative
+  orc edit TASK-001 --blocked-by TASK-002,TASK-003
+  orc edit TASK-001 --add-blocker TASK-004
+  orc edit TASK-001 --remove-blocker TASK-002`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -47,6 +59,14 @@ Example:
 			newWeight, _ := cmd.Flags().GetString("weight")
 			newInitiative, _ := cmd.Flags().GetString("initiative")
 			initiativeChanged := cmd.Flags().Changed("initiative")
+
+			// Dependency flags
+			blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")
+			addBlockers, _ := cmd.Flags().GetStringSlice("add-blocker")
+			removeBlockers, _ := cmd.Flags().GetStringSlice("remove-blocker")
+			relatedTo, _ := cmd.Flags().GetStringSlice("related-to")
+			addRelated, _ := cmd.Flags().GetStringSlice("add-related")
+			removeRelated, _ := cmd.Flags().GetStringSlice("remove-related")
 
 			// Load task to verify it exists
 			t, err := task.Load(taskID)
@@ -105,6 +125,130 @@ Example:
 				if t.InitiativeID != newInitiative {
 					t.SetInitiative(newInitiative)
 					changes = append(changes, "initiative")
+				}
+			}
+
+			// Handle dependency updates
+			hasDepChanges := len(blockedBy) > 0 || len(addBlockers) > 0 || len(removeBlockers) > 0 ||
+				len(relatedTo) > 0 || len(addRelated) > 0 || len(removeRelated) > 0
+
+			if hasDepChanges {
+				// Load all tasks for validation
+				allTasks, err := task.LoadAll()
+				if err != nil {
+					return fmt.Errorf("load tasks for validation: %w", err)
+				}
+
+				existingIDs := make(map[string]bool)
+				taskMap := make(map[string]*task.Task)
+				for _, existing := range allTasks {
+					existingIDs[existing.ID] = true
+					taskMap[existing.ID] = existing
+				}
+
+				// Handle blocked_by changes
+				if len(blockedBy) > 0 {
+					// Replace entire list
+					if errs := task.ValidateBlockedBy(taskID, blockedBy, existingIDs); len(errs) > 0 {
+						return errs[0]
+					}
+					// Check for circular dependencies
+					for _, newBlocker := range blockedBy {
+						if cycle := task.DetectCircularDependency(taskID, newBlocker, taskMap); cycle != nil {
+							return fmt.Errorf("circular dependency detected: %s", strings.Join(cycle, " -> "))
+						}
+					}
+					t.BlockedBy = blockedBy
+					changes = append(changes, "blocked_by")
+				} else {
+					// Handle add/remove
+					if len(addBlockers) > 0 {
+						if errs := task.ValidateBlockedBy(taskID, addBlockers, existingIDs); len(errs) > 0 {
+							return errs[0]
+						}
+						for _, newBlocker := range addBlockers {
+							if cycle := task.DetectCircularDependency(taskID, newBlocker, taskMap); cycle != nil {
+								return fmt.Errorf("circular dependency detected: %s", strings.Join(cycle, " -> "))
+							}
+							// Add if not already present
+							found := false
+							for _, existing := range t.BlockedBy {
+								if existing == newBlocker {
+									found = true
+									break
+								}
+							}
+							if !found {
+								t.BlockedBy = append(t.BlockedBy, newBlocker)
+							}
+						}
+						changes = append(changes, "blocked_by")
+					}
+					if len(removeBlockers) > 0 {
+						newList := make([]string, 0, len(t.BlockedBy))
+						for _, existing := range t.BlockedBy {
+							keep := true
+							for _, toRemove := range removeBlockers {
+								if existing == toRemove {
+									keep = false
+									break
+								}
+							}
+							if keep {
+								newList = append(newList, existing)
+							}
+						}
+						t.BlockedBy = newList
+						changes = append(changes, "blocked_by")
+					}
+				}
+
+				// Handle related_to changes
+				if len(relatedTo) > 0 {
+					// Replace entire list
+					if errs := task.ValidateRelatedTo(taskID, relatedTo, existingIDs); len(errs) > 0 {
+						return errs[0]
+					}
+					t.RelatedTo = relatedTo
+					changes = append(changes, "related_to")
+				} else {
+					// Handle add/remove
+					if len(addRelated) > 0 {
+						if errs := task.ValidateRelatedTo(taskID, addRelated, existingIDs); len(errs) > 0 {
+							return errs[0]
+						}
+						for _, newRelated := range addRelated {
+							// Add if not already present
+							found := false
+							for _, existing := range t.RelatedTo {
+								if existing == newRelated {
+									found = true
+									break
+								}
+							}
+							if !found {
+								t.RelatedTo = append(t.RelatedTo, newRelated)
+							}
+						}
+						changes = append(changes, "related_to")
+					}
+					if len(removeRelated) > 0 {
+						newList := make([]string, 0, len(t.RelatedTo))
+						for _, existing := range t.RelatedTo {
+							keep := true
+							for _, toRemove := range removeRelated {
+								if existing == toRemove {
+									keep = false
+									break
+								}
+							}
+							if keep {
+								newList = append(newList, existing)
+							}
+						}
+						t.RelatedTo = newList
+						changes = append(changes, "related_to")
+					}
 				}
 			}
 
@@ -174,6 +318,18 @@ Example:
 						} else {
 							fmt.Printf("   Initiative: unlinked from %s\n", oldInitiative)
 						}
+					case "blocked_by":
+						if len(t.BlockedBy) > 0 {
+							fmt.Printf("   Blocked by: %s\n", strings.Join(t.BlockedBy, ", "))
+						} else {
+							fmt.Printf("   Blocked by: (none)\n")
+						}
+					case "related_to":
+						if len(t.RelatedTo) > 0 {
+							fmt.Printf("   Related to: %s\n", strings.Join(t.RelatedTo, ", "))
+						} else {
+							fmt.Printf("   Related to: (none)\n")
+						}
 					}
 				}
 			}
@@ -186,6 +342,14 @@ Example:
 	cmd.Flags().StringP("description", "d", "", "new task description")
 	cmd.Flags().StringP("weight", "w", "", "new task weight (trivial, small, medium, large, greenfield)")
 	cmd.Flags().StringP("initiative", "i", "", "link/unlink task to initiative (use \"\" to unlink)")
+
+	// Dependency flags
+	cmd.Flags().StringSlice("blocked-by", nil, "set blocked_by list (replaces existing)")
+	cmd.Flags().StringSlice("add-blocker", nil, "add task(s) to blocked_by list")
+	cmd.Flags().StringSlice("remove-blocker", nil, "remove task(s) from blocked_by list")
+	cmd.Flags().StringSlice("related-to", nil, "set related_to list (replaces existing)")
+	cmd.Flags().StringSlice("add-related", nil, "add task(s) to related_to list")
+	cmd.Flags().StringSlice("remove-related", nil, "remove task(s) from related_to list")
 
 	return cmd
 }

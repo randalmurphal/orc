@@ -1043,3 +1043,273 @@ func TestInitiativeID_EmptySerialization(t *testing.T) {
 		t.Error("HasInitiative() should return false for task without initiative")
 	}
 }
+
+// Tests for dependency functionality
+
+func TestValidateBlockedBy(t *testing.T) {
+	existingIDs := map[string]bool{
+		"TASK-001": true,
+		"TASK-002": true,
+		"TASK-003": true,
+	}
+
+	tests := []struct {
+		name      string
+		taskID    string
+		blockedBy []string
+		wantErrs  int
+	}{
+		{"valid references", "TASK-004", []string{"TASK-001", "TASK-002"}, 0},
+		{"non-existent task", "TASK-004", []string{"TASK-999"}, 1},
+		{"self-reference", "TASK-001", []string{"TASK-001"}, 1},
+		{"mixed valid and invalid", "TASK-004", []string{"TASK-001", "TASK-999"}, 1},
+		{"empty list", "TASK-004", []string{}, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := ValidateBlockedBy(tt.taskID, tt.blockedBy, existingIDs)
+			if len(errs) != tt.wantErrs {
+				t.Errorf("ValidateBlockedBy() returned %d errors, want %d", len(errs), tt.wantErrs)
+			}
+		})
+	}
+}
+
+func TestValidateRelatedTo(t *testing.T) {
+	existingIDs := map[string]bool{
+		"TASK-001": true,
+		"TASK-002": true,
+	}
+
+	tests := []struct {
+		name      string
+		taskID    string
+		relatedTo []string
+		wantErrs  int
+	}{
+		{"valid references", "TASK-003", []string{"TASK-001", "TASK-002"}, 0},
+		{"non-existent task", "TASK-003", []string{"TASK-999"}, 1},
+		{"self-reference", "TASK-001", []string{"TASK-001"}, 1},
+		{"empty list", "TASK-003", []string{}, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := ValidateRelatedTo(tt.taskID, tt.relatedTo, existingIDs)
+			if len(errs) != tt.wantErrs {
+				t.Errorf("ValidateRelatedTo() returned %d errors, want %d", len(errs), tt.wantErrs)
+			}
+		})
+	}
+}
+
+func TestDetectCircularDependency(t *testing.T) {
+	// Create a set of tasks with dependencies
+	// TASK-001 <- TASK-002 <- TASK-003
+	tasks := map[string]*Task{
+		"TASK-001": {ID: "TASK-001", BlockedBy: nil},
+		"TASK-002": {ID: "TASK-002", BlockedBy: []string{"TASK-001"}},
+		"TASK-003": {ID: "TASK-003", BlockedBy: []string{"TASK-002"}},
+	}
+
+	tests := []struct {
+		name       string
+		taskID     string
+		newBlocker string
+		wantCycle  bool
+	}{
+		{"no cycle - valid dependency", "TASK-003", "TASK-001", false},
+		{"cycle - TASK-001 blocked by TASK-003", "TASK-001", "TASK-003", true},
+		{"cycle - TASK-001 blocked by TASK-002", "TASK-001", "TASK-002", true},
+		{"no cycle - new task blocking existing", "TASK-004", "TASK-003", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Add the task being tested if it doesn't exist
+			if _, exists := tasks[tt.taskID]; !exists {
+				tasks[tt.taskID] = &Task{ID: tt.taskID, BlockedBy: nil}
+			}
+
+			cycle := DetectCircularDependency(tt.taskID, tt.newBlocker, tasks)
+			hasCycle := cycle != nil
+
+			if hasCycle != tt.wantCycle {
+				t.Errorf("DetectCircularDependency() hasCycle = %v, want %v (cycle: %v)", hasCycle, tt.wantCycle, cycle)
+			}
+		})
+	}
+}
+
+func TestComputeBlocks(t *testing.T) {
+	tasks := []*Task{
+		{ID: "TASK-001", BlockedBy: nil},
+		{ID: "TASK-002", BlockedBy: []string{"TASK-001"}},
+		{ID: "TASK-003", BlockedBy: []string{"TASK-001", "TASK-002"}},
+		{ID: "TASK-004", BlockedBy: []string{"TASK-002"}},
+	}
+
+	// TASK-001 blocks TASK-002 and TASK-003
+	blocks := ComputeBlocks("TASK-001", tasks)
+	if len(blocks) != 2 {
+		t.Errorf("ComputeBlocks(TASK-001) = %d tasks, want 2", len(blocks))
+	}
+
+	// TASK-002 blocks TASK-003 and TASK-004
+	blocks = ComputeBlocks("TASK-002", tasks)
+	if len(blocks) != 2 {
+		t.Errorf("ComputeBlocks(TASK-002) = %d tasks, want 2", len(blocks))
+	}
+
+	// TASK-004 doesn't block anything
+	blocks = ComputeBlocks("TASK-004", tasks)
+	if len(blocks) != 0 {
+		t.Errorf("ComputeBlocks(TASK-004) = %d tasks, want 0", len(blocks))
+	}
+}
+
+func TestComputeReferencedBy(t *testing.T) {
+	tasks := []*Task{
+		{ID: "TASK-001", Title: "Base task"},
+		{ID: "TASK-002", Title: "Depends on TASK-001", Description: "This relates to TASK-001"},
+		{ID: "TASK-003", Title: "Mentions TASK-001", Description: "See TASK-001 and TASK-002"},
+		{ID: "TASK-004", Title: "No references"},
+	}
+
+	// TASK-001 is referenced by TASK-002 and TASK-003
+	refs := ComputeReferencedBy("TASK-001", tasks)
+	if len(refs) != 2 {
+		t.Errorf("ComputeReferencedBy(TASK-001) = %d tasks, want 2, got %v", len(refs), refs)
+	}
+
+	// TASK-002 is referenced by TASK-003
+	refs = ComputeReferencedBy("TASK-002", tasks)
+	if len(refs) != 1 {
+		t.Errorf("ComputeReferencedBy(TASK-002) = %d tasks, want 1, got %v", len(refs), refs)
+	}
+
+	// TASK-004 is not referenced by anyone
+	refs = ComputeReferencedBy("TASK-004", tasks)
+	if len(refs) != 0 {
+		t.Errorf("ComputeReferencedBy(TASK-004) = %d tasks, want 0", len(refs))
+	}
+}
+
+func TestPopulateComputedFields(t *testing.T) {
+	tasks := []*Task{
+		{ID: "TASK-001", Title: "Base task"},
+		{ID: "TASK-002", Title: "Depends on TASK-001", BlockedBy: []string{"TASK-001"}},
+		{ID: "TASK-003", Title: "References TASK-001", Description: "See TASK-001"},
+	}
+
+	PopulateComputedFields(tasks)
+
+	// TASK-001 should have Blocks = [TASK-002] and ReferencedBy = [TASK-002, TASK-003]
+	if len(tasks[0].Blocks) != 1 || tasks[0].Blocks[0] != "TASK-002" {
+		t.Errorf("TASK-001 Blocks = %v, want [TASK-002]", tasks[0].Blocks)
+	}
+	if len(tasks[0].ReferencedBy) != 2 {
+		t.Errorf("TASK-001 ReferencedBy = %v, want 2 tasks", tasks[0].ReferencedBy)
+	}
+
+	// TASK-002 should have Blocks = [] (computed, wasn't populated manually)
+	if len(tasks[1].Blocks) != 0 {
+		t.Errorf("TASK-002 Blocks = %v, want []", tasks[1].Blocks)
+	}
+}
+
+func TestHasUnmetDependencies(t *testing.T) {
+	taskMap := map[string]*Task{
+		"TASK-001": {ID: "TASK-001", Status: StatusCompleted},
+		"TASK-002": {ID: "TASK-002", Status: StatusRunning},
+		"TASK-003": {ID: "TASK-003", Status: StatusPlanned},
+	}
+
+	tests := []struct {
+		name      string
+		task      *Task
+		wantUnmet bool
+	}{
+		{"no blockers", &Task{ID: "TASK-004", BlockedBy: nil}, false},
+		{"completed blocker", &Task{ID: "TASK-004", BlockedBy: []string{"TASK-001"}}, false},
+		{"running blocker", &Task{ID: "TASK-004", BlockedBy: []string{"TASK-002"}}, true},
+		{"planned blocker", &Task{ID: "TASK-004", BlockedBy: []string{"TASK-003"}}, true},
+		{"mixed blockers", &Task{ID: "TASK-004", BlockedBy: []string{"TASK-001", "TASK-002"}}, true},
+		{"non-existent blocker", &Task{ID: "TASK-004", BlockedBy: []string{"TASK-999"}}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hasUnmet := tt.task.HasUnmetDependencies(taskMap)
+			if hasUnmet != tt.wantUnmet {
+				t.Errorf("HasUnmetDependencies() = %v, want %v", hasUnmet, tt.wantUnmet)
+			}
+		})
+	}
+}
+
+func TestGetUnmetDependencies(t *testing.T) {
+	taskMap := map[string]*Task{
+		"TASK-001": {ID: "TASK-001", Status: StatusCompleted},
+		"TASK-002": {ID: "TASK-002", Status: StatusRunning},
+		"TASK-003": {ID: "TASK-003", Status: StatusPlanned},
+	}
+
+	task := &Task{ID: "TASK-004", BlockedBy: []string{"TASK-001", "TASK-002", "TASK-003", "TASK-999"}}
+	unmet := task.GetUnmetDependencies(taskMap)
+
+	// Should return TASK-002, TASK-003, and TASK-999 (not completed or non-existent)
+	if len(unmet) != 3 {
+		t.Errorf("GetUnmetDependencies() = %v, want 3 unmet dependencies", unmet)
+	}
+}
+
+func TestDependency_YAMLSerialization(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
+	os.MkdirAll(taskDir, 0755)
+
+	// Create task with dependencies
+	task := New("TASK-001", "Test task")
+	task.BlockedBy = []string{"TASK-002", "TASK-003"}
+	task.RelatedTo = []string{"TASK-004"}
+	// Blocks and ReferencedBy are computed, not stored
+
+	if err := task.SaveTo(taskDir); err != nil {
+		t.Fatalf("SaveTo() failed: %v", err)
+	}
+
+	// Load and verify stored fields
+	loaded, err := LoadFrom(tmpDir, "TASK-001")
+	if err != nil {
+		t.Fatalf("LoadFrom() failed: %v", err)
+	}
+
+	if len(loaded.BlockedBy) != 2 {
+		t.Errorf("BlockedBy not preserved: got %v, want [TASK-002 TASK-003]", loaded.BlockedBy)
+	}
+	if len(loaded.RelatedTo) != 1 || loaded.RelatedTo[0] != "TASK-004" {
+		t.Errorf("RelatedTo not preserved: got %v, want [TASK-004]", loaded.RelatedTo)
+	}
+
+	// Computed fields should be empty after load (not persisted)
+	if len(loaded.Blocks) != 0 {
+		t.Errorf("Blocks should be empty after load (computed), got %v", loaded.Blocks)
+	}
+	if len(loaded.ReferencedBy) != 0 {
+		t.Errorf("ReferencedBy should be empty after load (computed), got %v", loaded.ReferencedBy)
+	}
+}
+
+func TestDependencyError(t *testing.T) {
+	err := &DependencyError{
+		TaskID:  "TASK-001",
+		Message: "test error",
+	}
+
+	expected := "dependency error for TASK-001: test error"
+	if err.Error() != expected {
+		t.Errorf("DependencyError.Error() = %q, want %q", err.Error(), expected)
+	}
+}

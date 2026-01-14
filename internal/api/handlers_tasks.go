@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/randalmurphal/orc/internal/db"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
@@ -13,6 +14,25 @@ import (
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 )
+
+// splitAndTrim splits a comma-separated string and trims whitespace from each element.
+// Returns nil for empty input.
+func splitAndTrim(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
 
 // syncTaskToDB ensures a task exists in the database by loading from YAML if needed.
 // This is used for foreign key constraints (e.g., review_comments references tasks).
@@ -94,6 +114,9 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Populate computed dependency fields (Blocks, ReferencedBy)
+	task.PopulateComputedFields(tasks)
+
 	// Check for pagination params
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
@@ -153,6 +176,8 @@ type createTaskRequest struct {
 	Priority     string
 	Category     string
 	InitiativeID string
+	BlockedBy    []string
+	RelatedTo    []string
 }
 
 // parseCreateTaskRequest parses the task creation request from either JSON or multipart form.
@@ -167,6 +192,15 @@ func (s *Server) parseCreateTaskRequest(r *http.Request) (*createTaskRequest, bo
 			return nil, false, fmt.Errorf("failed to parse form: %w", err)
 		}
 
+		// Parse comma-separated blocked_by and related_to from form values
+		var blockedBy, relatedTo []string
+		if val := r.FormValue("blocked_by"); val != "" {
+			blockedBy = splitAndTrim(val)
+		}
+		if val := r.FormValue("related_to"); val != "" {
+			relatedTo = splitAndTrim(val)
+		}
+
 		return &createTaskRequest{
 			Title:        r.FormValue("title"),
 			Description:  r.FormValue("description"),
@@ -175,18 +209,22 @@ func (s *Server) parseCreateTaskRequest(r *http.Request) (*createTaskRequest, bo
 			Priority:     r.FormValue("priority"),
 			Category:     r.FormValue("category"),
 			InitiativeID: r.FormValue("initiative_id"),
+			BlockedBy:    blockedBy,
+			RelatedTo:    relatedTo,
 		}, true, nil
 	}
 
 	// Default: parse as JSON
 	var req struct {
-		Title        string `json:"title"`
-		Description  string `json:"description,omitempty"`
-		Weight       string `json:"weight,omitempty"`
-		Queue        string `json:"queue,omitempty"`
-		Priority     string `json:"priority,omitempty"`
-		Category     string `json:"category,omitempty"`
-		InitiativeID string `json:"initiative_id,omitempty"`
+		Title        string   `json:"title"`
+		Description  string   `json:"description,omitempty"`
+		Weight       string   `json:"weight,omitempty"`
+		Queue        string   `json:"queue,omitempty"`
+		Priority     string   `json:"priority,omitempty"`
+		Category     string   `json:"category,omitempty"`
+		InitiativeID string   `json:"initiative_id,omitempty"`
+		BlockedBy    []string `json:"blocked_by,omitempty"`
+		RelatedTo    []string `json:"related_to,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -201,6 +239,8 @@ func (s *Server) parseCreateTaskRequest(r *http.Request) (*createTaskRequest, bo
 		Priority:     req.Priority,
 		Category:     req.Category,
 		InitiativeID: req.InitiativeID,
+		BlockedBy:    req.BlockedBy,
+		RelatedTo:    req.RelatedTo,
 	}, false, nil
 }
 
@@ -273,6 +313,35 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		t.SetInitiative(req.InitiativeID)
+	}
+
+	// Set dependencies
+	if len(req.BlockedBy) > 0 || len(req.RelatedTo) > 0 {
+		// Build map of existing task IDs for validation
+		existingTasks, err := task.LoadAllFrom(tasksDir)
+		if err != nil {
+			s.jsonError(w, "failed to load existing tasks for validation", http.StatusInternalServerError)
+			return
+		}
+		existingIDs := make(map[string]bool)
+		for _, existing := range existingTasks {
+			existingIDs[existing.ID] = true
+		}
+
+		// Validate blocked_by references
+		if errs := task.ValidateBlockedBy(id, req.BlockedBy, existingIDs); len(errs) > 0 {
+			s.jsonError(w, errs[0].Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Validate related_to references
+		if errs := task.ValidateRelatedTo(id, req.RelatedTo, existingIDs); len(errs) > 0 {
+			s.jsonError(w, errs[0].Error(), http.StatusBadRequest)
+			return
+		}
+
+		t.BlockedBy = req.BlockedBy
+		t.RelatedTo = req.RelatedTo
 	}
 
 	taskDir := task.TaskDirIn(s.workDir, id)
@@ -364,6 +433,14 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load all tasks to compute Blocks and ReferencedBy
+	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
+	allTasks, err := task.LoadAllFrom(tasksDir)
+	if err == nil && len(allTasks) > 0 {
+		t.Blocks = task.ComputeBlocks(t.ID, allTasks)
+		t.ReferencedBy = task.ComputeReferencedBy(t.ID, allTasks)
+	}
+
 	s.jsonResponse(w, t)
 }
 
@@ -432,6 +509,8 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		Priority     *string           `json:"priority,omitempty"`
 		Category     *string           `json:"category,omitempty"`
 		InitiativeID *string           `json:"initiative_id,omitempty"`
+		BlockedBy    *[]string         `json:"blocked_by,omitempty"`
+		RelatedTo    *[]string         `json:"related_to,omitempty"`
 		Metadata     map[string]string `json:"metadata,omitempty"`
 	}
 
@@ -528,6 +607,60 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Handle dependency updates
+	if req.BlockedBy != nil || req.RelatedTo != nil {
+		// Build map of existing task IDs for validation
+		tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
+		existingTasks, err := task.LoadAllFrom(tasksDir)
+		if err != nil {
+			s.jsonError(w, "failed to load existing tasks for validation", http.StatusInternalServerError)
+			return
+		}
+		existingIDs := make(map[string]bool)
+		taskMap := make(map[string]*task.Task)
+		for _, existing := range existingTasks {
+			existingIDs[existing.ID] = true
+			taskMap[existing.ID] = existing
+		}
+
+		if req.BlockedBy != nil {
+			// Validate blocked_by references
+			if errs := task.ValidateBlockedBy(id, *req.BlockedBy, existingIDs); len(errs) > 0 {
+				s.jsonError(w, errs[0].Error(), http.StatusBadRequest)
+				return
+			}
+
+			// Check for circular dependencies when adding new blockers
+			for _, newBlocker := range *req.BlockedBy {
+				// Skip if already in blocked_by
+				alreadyBlocked := false
+				for _, existing := range t.BlockedBy {
+					if existing == newBlocker {
+						alreadyBlocked = true
+						break
+					}
+				}
+				if !alreadyBlocked {
+					if cycle := task.DetectCircularDependency(id, newBlocker, taskMap); cycle != nil {
+						s.jsonError(w, fmt.Sprintf("circular dependency detected: %s", strings.Join(cycle, " -> ")), http.StatusBadRequest)
+						return
+					}
+				}
+			}
+
+			t.BlockedBy = *req.BlockedBy
+		}
+
+		if req.RelatedTo != nil {
+			// Validate related_to references
+			if errs := task.ValidateRelatedTo(id, *req.RelatedTo, existingIDs); len(errs) > 0 {
+				s.jsonError(w, errs[0].Error(), http.StatusBadRequest)
+				return
+			}
+			t.RelatedTo = *req.RelatedTo
+		}
+	}
+
 	// Save updated task
 	taskDir := task.TaskDirIn(s.workDir, id)
 	if err := t.SaveTo(taskDir); err != nil {
@@ -590,4 +723,108 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.jsonResponse(w, t)
+}
+
+// DependencyGraph represents the dependency relationships for a task.
+type DependencyGraph struct {
+	TaskID       string           `json:"task_id"`
+	BlockedBy    []DependencyInfo `json:"blocked_by"`
+	Blocks       []DependencyInfo `json:"blocks"`
+	RelatedTo    []DependencyInfo `json:"related_to"`
+	ReferencedBy []DependencyInfo `json:"referenced_by"`
+	UnmetDeps    []string         `json:"unmet_dependencies,omitempty"`
+	CanRun       bool             `json:"can_run"`
+}
+
+// DependencyInfo provides details about a dependency.
+type DependencyInfo struct {
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Status string `json:"status"`
+	IsMet  bool   `json:"is_met,omitempty"`
+}
+
+// handleGetDependencies returns the full dependency graph for a task.
+func (s *Server) handleGetDependencies(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	t, err := task.LoadFrom(s.workDir, id)
+	if err != nil {
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
+		return
+	}
+
+	// Load all tasks to build the graph
+	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
+	allTasks, err := task.LoadAllFrom(tasksDir)
+	if err != nil {
+		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
+		return
+	}
+
+	// Build task map for lookups
+	taskMap := make(map[string]*task.Task)
+	for _, t := range allTasks {
+		taskMap[t.ID] = t
+	}
+
+	// Helper to create DependencyInfo
+	toInfo := func(taskID string, checkMet bool) DependencyInfo {
+		info := DependencyInfo{ID: taskID}
+		if dep, exists := taskMap[taskID]; exists {
+			info.Title = dep.Title
+			info.Status = string(dep.Status)
+			if checkMet {
+				info.IsMet = dep.Status == task.StatusCompleted
+			}
+		} else {
+			info.Title = "(not found)"
+			info.Status = "unknown"
+			if checkMet {
+				info.IsMet = false
+			}
+		}
+		return info
+	}
+
+	// Build dependency info lists
+	blockedBy := make([]DependencyInfo, 0, len(t.BlockedBy))
+	for _, depID := range t.BlockedBy {
+		blockedBy = append(blockedBy, toInfo(depID, true))
+	}
+
+	blocks := make([]DependencyInfo, 0)
+	for _, other := range allTasks {
+		for _, blocker := range other.BlockedBy {
+			if blocker == id {
+				blocks = append(blocks, toInfo(other.ID, false))
+				break
+			}
+		}
+	}
+
+	relatedTo := make([]DependencyInfo, 0, len(t.RelatedTo))
+	for _, relID := range t.RelatedTo {
+		relatedTo = append(relatedTo, toInfo(relID, false))
+	}
+
+	referencedBy := make([]DependencyInfo, 0)
+	refs := task.ComputeReferencedBy(id, allTasks)
+	for _, refID := range refs {
+		referencedBy = append(referencedBy, toInfo(refID, false))
+	}
+
+	// Check for unmet dependencies
+	unmet := t.GetUnmetDependencies(taskMap)
+
+	graph := DependencyGraph{
+		TaskID:       id,
+		BlockedBy:    blockedBy,
+		Blocks:       blocks,
+		RelatedTo:    relatedTo,
+		ReferencedBy: referencedBy,
+		UnmetDeps:    unmet,
+		CanRun:       len(unmet) == 0,
+	}
+
+	s.jsonResponse(w, graph)
 }
