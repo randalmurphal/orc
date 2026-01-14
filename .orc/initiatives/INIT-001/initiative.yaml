@@ -1,7 +1,13 @@
 version: 1
 id: INIT-001
 title: Test Initiative
-status: draft
+status: active
 vision: Testing the initiatives feature
+decisions:
+    - id: DEC-001
+      date: 2026-01-13T23:29:20.390179797-06:00
+      by: ""
+      decision: Use Svelte 5 runes for state management
+      rationale: Runes provide better reactivity and type safety
 created_at: 2026-01-13T22:39:01.083542332-06:00
-updated_at: 2026-01-13T22:39:01.084460814-06:00
+updated_at: 2026-01-13T23:30:23.342374858-06:00

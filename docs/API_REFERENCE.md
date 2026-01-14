@@ -329,6 +329,7 @@ Group related tasks with shared decisions. Initiatives can depend on other initi
 | DELETE | `/api/initiatives/:id` | Delete initiative |
 | GET | `/api/initiatives/:id/tasks` | List initiative tasks |
 | POST | `/api/initiatives/:id/tasks` | Add task to initiative |
+| DELETE | `/api/initiatives/:id/tasks/:taskId` | Remove task from initiative |
 | POST | `/api/initiatives/:id/decisions` | Add decision |
 | GET | `/api/initiatives/:id/ready` | Get tasks ready to run |
 

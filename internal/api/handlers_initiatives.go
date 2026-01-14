@@ -389,6 +389,45 @@ func (s *Server) handleAddInitiativeDecision(w http.ResponseWriter, r *http.Requ
 	s.jsonResponse(w, init.Decisions)
 }
 
+// handleRemoveInitiativeTask removes a task from an initiative.
+func (s *Server) handleRemoveInitiativeTask(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	taskID := r.PathValue("taskId")
+	shared := r.URL.Query().Get("shared") == "true"
+
+	// Load initiative
+	var init *initiative.Initiative
+	var err error
+	if shared {
+		init, err = initiative.LoadShared(id)
+	} else {
+		init, err = initiative.Load(id)
+	}
+	if err != nil {
+		s.jsonError(w, "initiative not found", http.StatusNotFound)
+		return
+	}
+
+	// Remove task
+	if !init.RemoveTask(taskID) {
+		s.jsonError(w, "task not found in initiative", http.StatusNotFound)
+		return
+	}
+
+	// Save
+	if shared {
+		err = init.SaveShared()
+	} else {
+		err = init.Save()
+	}
+	if err != nil {
+		s.jsonError(w, "failed to save initiative", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // handleGetReadyTasks returns tasks that are ready to run (all deps satisfied).
 func (s *Server) handleGetReadyTasks(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")

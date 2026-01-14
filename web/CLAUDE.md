@@ -371,6 +371,84 @@ The `InitiativeDropdown` component (`filters/InitiativeDropdown.svelte`) provide
 - Tasks page: Between search input and weight filter
 - Board page: In header alongside "New Task" button
 
+### Initiative Detail Page
+
+The initiative detail page (`/initiatives/:id`) provides a dedicated view for managing individual initiatives including their tasks and decisions.
+
+```
+← Back to Tasks
+
+Frontend Framework Migration                    [Edit] [Archive]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Vision: Migrate from Svelte 5 to React 19 for better ecosystem
+
+Progress  ████████████░░░░░░  12/18 tasks (67%)
+Owner: RM
+Status: Active
+Created: Jan 10, 2026
+
+┌─ Tasks ─────────────────────────────────────────────────────┐
+│ [+ Add Task]  [+ Link Existing Task]                        │
+│                                                             │
+│ ✓ TASK-060 Add initiative_id field...          completed   │
+│ ● TASK-061 Add sidebar navigation...           running     │
+│ ○ TASK-062 Add initiative filter...            planned     │
+└─────────────────────────────────────────────────────────────┘
+
+┌─ Decisions ─────────────────────────────────────────────────┐
+│ [+ Add Decision]                                            │
+│                                                             │
+│ DEC-001 (Jan 10): Use filter-based nav, not more columns   │
+│   Rationale: Columns are workflow stages, not groupings     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+| Section | Features |
+|---------|----------|
+| **Header** | Title, status badge, edit/archive buttons, vision statement, progress bar, owner, dates |
+| **Tasks** | Task list with status icons, add new task, link existing tasks, remove tasks, task dependencies |
+| **Decisions** | Decision list with date/author/rationale, add new decisions |
+
+**Header section:**
+- Initiative title with status badge (draft/active/completed/archived)
+- Edit button opens modal for title, vision, status changes
+- Archive button changes status to archived (with confirmation)
+- Progress bar shows completed/total task count with percentage
+- Owner display (if set) and creation date
+
+**Tasks section:**
+- List shows task ID, title, and status with colored icon indicators
+- Click task to navigate to task detail page
+- "Add Task" button opens new task modal with initiative pre-selected
+- "Link Existing" button opens search modal to add existing tasks
+- Remove button (X) unlinks task from initiative (doesn't delete task)
+- Dependencies subsection shows task dependency relationships within the initiative
+
+**Decisions section:**
+- Each decision shows ID, date, optional author, decision text, and rationale
+- "Add Decision" opens modal with decision text, rationale, and author fields
+- Decisions provide context for AI when working on initiative tasks
+
+**Status indicators:**
+| Icon | Status | Color |
+|------|--------|-------|
+| ✓ (check-circle) | completed/finished | Green (success) |
+| ● (play-circle) | running | Blue (info) |
+| ○ (circle) | planned/created | Gray (muted) |
+| ⚠ (alert-circle) | blocked | Yellow (warning) |
+| ✗ (x-circle) | failed | Red (danger) |
+| ⏸ (pause-circle) | paused | Yellow (warning) |
+
+**API integration:**
+- `getInitiative(id)` - Load initiative with tasks and decisions
+- `updateInitiative(id, data)` - Update title, vision, status
+- `addInitiativeTask(id, { task_id })` - Link existing task
+- `removeInitiativeTask(id, taskId)` - Unlink task from initiative
+- `addInitiativeDecision(id, { decision, rationale?, by? })` - Add decision
+
+**Store integration:**
+- `updateInitiativeInStore()` - Sync changes to initiative store after edits
+
 ## Attachments
 
 Task attachments (images, files) can be added during task creation or after via the Attachments tab.
@@ -548,6 +626,7 @@ The automation page (`/environment/orchestrator/automation`) provides a complete
 | `/board` | Kanban board |
 | `/tasks` | Task list |
 | `/tasks/:id` | Task detail (Timeline/Changes/Transcript/Attachments tabs) |
+| `/initiatives/:id` | Initiative detail (Tasks/Decisions sections, edit capabilities) |
 | `/config` | Redirects to `/environment/orchestrator/automation` |
 | `/environment` | Environment hub (Claude Code + Orchestrator config) |
 | `/environment/docs` | CLAUDE.md editor (`?scope=global\|user\|project`) |
