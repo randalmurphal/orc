@@ -6,6 +6,7 @@
 		getGlobalSettings,
 		getSettings,
 		updateSettings,
+		updateGlobalSettings,
 		getClaudeMDHierarchy,
 		type Settings,
 		type ClaudeMDHierarchy
@@ -14,6 +15,7 @@
 	// State
 	let loading = $state(true);
 	let saving = $state(false);
+	let savingGlobal = $state(false);
 	let error = $state<string | null>(null);
 	let success = $state<string | null>(null);
 
@@ -28,6 +30,13 @@
 	let statusLineCommand = $state('');
 	let newEnvKey = $state('');
 	let newEnvValue = $state('');
+
+	// Form state for global settings (editable)
+	let globalEnvEntries = $state<{ key: string; value: string }[]>([]);
+	let globalStatusLineType = $state('');
+	let globalStatusLineCommand = $state('');
+	let newGlobalEnvKey = $state('');
+	let newGlobalEnvValue = $state('');
 
 	// Active section
 	let activeSection = $state<'global' | 'project'>('global');
@@ -45,6 +54,7 @@
 			claudeMD = claudeMDRes;
 
 			resetProjectForm();
+			resetGlobalForm();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load preferences';
 		} finally {
@@ -62,6 +72,21 @@
 		}
 	}
 
+	function resetGlobalForm() {
+		if (globalSettings?.env) {
+			globalEnvEntries = Object.entries(globalSettings.env).map(([key, value]) => ({ key, value }));
+		} else {
+			globalEnvEntries = [];
+		}
+		if (globalSettings?.statusLine) {
+			globalStatusLineType = globalSettings.statusLine.type || '';
+			globalStatusLineCommand = globalSettings.statusLine.command || '';
+		} else {
+			globalStatusLineType = '';
+			globalStatusLineCommand = '';
+		}
+	}
+
 	function addEnvVar() {
 		if (!newEnvKey.trim()) return;
 		envEntries = [...envEntries, { key: newEnvKey.trim(), value: newEnvValue }];
@@ -71,6 +96,17 @@
 
 	function removeEnvVar(index: number) {
 		envEntries = envEntries.filter((_, i) => i !== index);
+	}
+
+	function addGlobalEnvVar() {
+		if (!newGlobalEnvKey.trim()) return;
+		globalEnvEntries = [...globalEnvEntries, { key: newGlobalEnvKey.trim(), value: newGlobalEnvValue }];
+		newGlobalEnvKey = '';
+		newGlobalEnvValue = '';
+	}
+
+	function removeGlobalEnvVar(index: number) {
+		globalEnvEntries = globalEnvEntries.filter((_, i) => i !== index);
 	}
 
 	async function saveProjectSettings() {
@@ -103,6 +139,40 @@
 			error = e instanceof Error ? e.message : 'Failed to save settings';
 		} finally {
 			saving = false;
+		}
+	}
+
+	async function saveGlobalSettings() {
+		savingGlobal = true;
+		error = null;
+		success = null;
+
+		const settings: Settings = {
+			env: globalEnvEntries.reduce(
+				(acc, { key, value }) => {
+					if (key.trim()) acc[key.trim()] = value;
+					return acc;
+				},
+				{} as Record<string, string>
+			)
+		};
+
+		if (globalStatusLineType || globalStatusLineCommand) {
+			settings.statusLine = {};
+			if (globalStatusLineType) settings.statusLine.type = globalStatusLineType;
+			if (globalStatusLineCommand) settings.statusLine.command = globalStatusLineCommand;
+		}
+
+		try {
+			await updateGlobalSettings(settings);
+			globalSettings = await getGlobalSettings();
+			mergedSettings = await getSettings();
+			success = 'Global settings saved';
+			setTimeout(() => (success = null), 3000);
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to save global settings';
+		} finally {
+			savingGlobal = false;
 		}
 	}
 </script>
@@ -158,15 +228,116 @@
 			</button>
 		</div>
 
-		<!-- Global Settings (Read-only) -->
+		<!-- Global Settings (Editable) -->
 		{#if activeSection === 'global'}
 			<div class="content-section">
-				<div class="section-notice">
-					<Icon name="info" size={14} />
-					<span>Global settings are read-only in the UI. Edit <code>~/.claude/settings.json</code> directly.</span>
+				<div class="section-header-actions">
+					<h2>Global Claude Settings</h2>
+					<button class="btn-primary" onclick={saveGlobalSettings} disabled={savingGlobal}>
+						{savingGlobal ? 'Saving...' : 'Save Changes'}
+					</button>
 				</div>
 
-				<!-- Global CLAUDE.md -->
+				<!-- Global Environment Variables -->
+				<div class="config-card editable">
+					<div class="card-header">
+						<div class="card-icon">
+							<Icon name="config" size={18} />
+						</div>
+						<div class="card-title">
+							<h3>Environment Variables</h3>
+							<p>~/.claude/settings.json → env</p>
+						</div>
+					</div>
+					<div class="card-content">
+						<div class="env-list">
+							{#each globalEnvEntries as entry, index}
+								<div class="env-row">
+									<input
+										type="text"
+										bind:value={entry.key}
+										placeholder="KEY"
+										class="env-key"
+									/>
+									<span class="env-equals">=</span>
+									<input
+										type="text"
+										bind:value={entry.value}
+										placeholder="value"
+										class="env-value"
+									/>
+									<button
+										class="btn-icon btn-remove"
+										onclick={() => removeGlobalEnvVar(index)}
+										title="Remove"
+									>
+										<Icon name="close" size={14} />
+									</button>
+								</div>
+							{/each}
+
+							<div class="env-row env-new">
+								<input
+									type="text"
+									bind:value={newGlobalEnvKey}
+									placeholder="NEW_KEY"
+									class="env-key"
+									onkeydown={(e) => e.key === 'Enter' && addGlobalEnvVar()}
+								/>
+								<span class="env-equals">=</span>
+								<input
+									type="text"
+									bind:value={newGlobalEnvValue}
+									placeholder="value"
+									class="env-value"
+									onkeydown={(e) => e.key === 'Enter' && addGlobalEnvVar()}
+								/>
+								<button class="btn-icon btn-add" onclick={addGlobalEnvVar} title="Add">
+									<Icon name="plus" size={14} />
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Global Status Line -->
+				<div class="config-card editable">
+					<div class="card-header">
+						<div class="card-icon">
+							<Icon name="info" size={18} />
+						</div>
+						<div class="card-title">
+							<h3>Status Line</h3>
+							<p>Global status line display</p>
+						</div>
+					</div>
+					<div class="card-content">
+						<div class="form-grid">
+							<div class="form-group">
+								<label for="global-status-type">Type</label>
+								<select id="global-status-type" bind:value={globalStatusLineType}>
+									<option value="">Default</option>
+									<option value="text">Text</option>
+									<option value="command">Command</option>
+								</select>
+							</div>
+
+							{#if globalStatusLineType === 'command'}
+								<div class="form-group">
+									<label for="global-status-command">Command</label>
+									<input
+										id="global-status-command"
+										type="text"
+										bind:value={globalStatusLineCommand}
+										placeholder="echo 'Status: ready'"
+									/>
+								</div>
+							{/if}
+						</div>
+					</div>
+				</div>
+
+				<!-- Global CLAUDE.md (Read-only preview with link) -->
 				{#if claudeMD?.global?.content}
 					<div class="config-card">
 						<div class="card-header">
@@ -177,6 +348,10 @@
 								<h3>Global CLAUDE.md</h3>
 								<p>~/.claude/CLAUDE.md</p>
 							</div>
+							<a href="/environment/docs?scope=global" class="card-link">
+								<span>Edit</span>
+								<Icon name="chevron-right" size={14} />
+							</a>
 						</div>
 						<div class="card-content">
 							<div class="preview-box">
@@ -190,32 +365,6 @@
 						<Icon name="file-text" size={24} />
 						<p>No global CLAUDE.md configured</p>
 						<span class="empty-hint">Create ~/.claude/CLAUDE.md to add global instructions</span>
-					</div>
-				{/if}
-
-				<!-- Global Settings Preview -->
-				{#if globalSettings}
-					<div class="config-card">
-						<div class="card-header">
-							<div class="card-icon">
-								<Icon name="settings" size={18} />
-							</div>
-							<div class="card-title">
-								<h3>Global Settings</h3>
-								<p>~/.claude/settings.json</p>
-							</div>
-						</div>
-						<div class="card-content">
-							<div class="preview-box">
-								<pre>{JSON.stringify(globalSettings, null, 2)}</pre>
-							</div>
-						</div>
-					</div>
-				{:else}
-					<div class="empty-card">
-						<Icon name="settings" size={24} />
-						<p>No global settings configured</p>
-						<span class="empty-hint">Global settings will inherit from Claude Code defaults</span>
 					</div>
 				{/if}
 
@@ -489,25 +638,6 @@
 		gap: var(--space-5);
 	}
 
-	.section-notice {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		padding: var(--space-3) var(--space-4);
-		background: rgba(59, 130, 246, 0.1);
-		border: 1px solid rgba(59, 130, 246, 0.3);
-		border-radius: var(--radius-md);
-		font-size: var(--text-sm);
-		color: #3b82f6;
-	}
-
-	.section-notice code {
-		font-family: var(--font-mono);
-		background: rgba(0, 0, 0, 0.1);
-		padding: 2px 6px;
-		border-radius: var(--radius-sm);
-	}
-
 	.section-header-actions {
 		display: flex;
 		justify-content: space-between;
@@ -588,6 +718,30 @@
 		color: var(--text-muted);
 		margin: var(--space-0-5) 0 0;
 		font-family: var(--font-mono);
+	}
+
+	.card-title {
+		flex: 1;
+	}
+
+	.card-link {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding: var(--space-1-5) var(--space-3);
+		background: var(--bg-primary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		color: var(--text-secondary);
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		text-decoration: none;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.card-link:hover {
+		border-color: var(--accent-primary);
+		color: var(--accent-primary);
 	}
 
 	.card-content {

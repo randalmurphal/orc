@@ -69,6 +69,22 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, settings)
 }
 
+// handleUpdateGlobalSettings saves global settings.
+func (s *Server) handleUpdateGlobalSettings(w http.ResponseWriter, r *http.Request) {
+	var settings claudeconfig.Settings
+	if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := claudeconfig.SaveGlobalSettings(&settings); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to save global settings: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, settings)
+}
+
 // SettingsHierarchyResponse contains settings from each level with source tracking.
 type SettingsHierarchyResponse struct {
 	Merged  *claudeconfig.Settings        `json:"merged"`

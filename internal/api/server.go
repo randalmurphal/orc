@@ -290,6 +290,7 @@ func (s *Server) registerRoutes() {
 	// Settings (Claude Code settings.json with inheritance)
 	s.mux.HandleFunc("GET /api/settings", cors(s.handleGetSettings))
 	s.mux.HandleFunc("GET /api/settings/global", cors(s.handleGetGlobalSettings))
+	s.mux.HandleFunc("PUT /api/settings/global", cors(s.handleUpdateGlobalSettings))
 	s.mux.HandleFunc("GET /api/settings/project", cors(s.handleGetProjectSettings))
 	s.mux.HandleFunc("GET /api/settings/hierarchy", cors(s.handleGetSettingsHierarchy))
 	s.mux.HandleFunc("PUT /api/settings", cors(s.handleUpdateSettings))

@@ -243,6 +243,10 @@ make web-dev    # Frontend :5173
 
 **Keyboard shortcuts:** `Cmd+K` (palette), `Cmd+N` (new task), `g t` (tasks), `j/k` (navigate)
 
+**Settings management:** All settings are editable through the UI:
+- Claude Code settings (global `~/.claude/settings.json` + project `.claude/settings.json`) via `/preferences`
+- Orc config (`.orc/config.yaml`) via `/environment/orchestrator/automation`
+
 See `web/CLAUDE.md` for component architecture.
 
 ## Documentation Reference
@@ -361,6 +365,7 @@ Patterns, gotchas, and decisions learned during development.
 | Live transcript modal | Click running task to open LiveTranscriptModal with streaming output, token tracking, and connection status; uses WebSocket `transcript` events for real-time updates | TASK-012 |
 | Worktree-aware project root | `config.FindProjectRoot()` resolves main repo with `.orc/tasks` when running from worktree; uses git common-dir to find main repo | TASK-025 |
 | Initiative-task bidirectional sync | Setting `initiative_id` on a task auto-adds it to the initiative's task list; deleting a task removes it from its initiative | TASK-060 |
+| Editable settings via UI | All settings (Claude Code global/project, orc config) editable through web UI; separate API endpoints for global (`PUT /api/settings/global`) vs project (`PUT /api/settings`) scope | TASK-033 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

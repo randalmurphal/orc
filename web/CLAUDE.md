@@ -350,6 +350,56 @@ The plugins page (`/environment/claude/plugins`) manages Claude Code plugins wit
 
 **API functions:** `listPlugins()`, `enablePlugin()`, `disablePlugin()`, `browseMarketplace()`, `searchMarketplace()`, `installPlugin()`, `checkPluginUpdates()`, `updatePlugin()`
 
+## Preferences Page
+
+The preferences page (`/preferences`) provides a unified interface for editing both global and project Claude Code settings.
+
+### Settings Tabs
+
+| Tab | Scope | Path |
+|-----|-------|------|
+| Global | All projects | `~/.claude/settings.json` |
+| Project | Current project | `.claude/settings.json` |
+
+### Editable Settings
+
+| Setting | Description |
+|---------|-------------|
+| Environment Variables | Key-value pairs passed to Claude Code |
+| StatusLine Type | Type of statusline command |
+| StatusLine Command | Shell command for terminal statusline |
+
+**Note:** Both global and project settings are fully editable through the UI. Changes are saved directly to the respective `settings.json` files.
+
+### CLAUDE.md Display
+
+The preferences page also displays CLAUDE.md file hierarchy (read-only display):
+- Global: `~/.claude/CLAUDE.md`
+- User: `~/CLAUDE.md`
+- Project: `./CLAUDE.md`
+
+Edit CLAUDE.md files via `/environment/docs` route.
+
+## Orchestrator Settings Page
+
+The automation page (`/environment/orchestrator/automation`) provides a complete interface for configuring orc behavior.
+
+### Editable Settings
+
+| Section | Settings |
+|---------|----------|
+| **Profile** | auto, fast, safe, strict |
+| **Automation** | Gates default (auto/human/ai), retry enabled, max retries |
+| **Execution** | Model, max iterations, timeout |
+| **Git** | Branch prefix, commit prefix |
+| **Worktree** | Enabled, directory, cleanup on complete/fail |
+| **Completion** | Action (pr/merge/none), target branch, delete branch |
+| **Timeouts** | Phase max, turn max, idle warning, heartbeat interval, idle timeout |
+
+**Note:** All orc configuration is editable through the UI. Changes are saved to `.orc/config.yaml`.
+
+**API functions:** `getConfig()`, `updateConfig()`
+
 ## Routes
 
 | Route | Page |
@@ -358,6 +408,7 @@ The plugins page (`/environment/claude/plugins`) manages Claude Code plugins wit
 | `/board` | Kanban board |
 | `/tasks` | Task list |
 | `/tasks/:id` | Task detail (Timeline/Changes/Transcript/Attachments tabs) |
+| `/config` | Redirects to `/environment/orchestrator/automation` |
 | `/environment` | Environment hub (Claude Code + Orchestrator config) |
 | `/environment/docs` | CLAUDE.md editor (`?scope=global\|user\|project`) |
 | `/environment/claude/skills` | Skills (`?scope=global`) |
@@ -366,7 +417,11 @@ The plugins page (`/environment/claude/plugins`) manages Claude Code plugins wit
 | `/environment/claude/mcp` | MCP servers (`?scope=global`) |
 | `/environment/claude/plugins` | Plugin management & marketplace |
 | `/environment/claude/statusline` | Statusline configuration (`?scope=global`) |
-| `/preferences` | User preferences |
+| `/environment/orchestrator/automation` | Orc automation settings |
+| `/environment/orchestrator/prompts` | Phase prompt overrides |
+| `/environment/orchestrator/scripts` | Script registry |
+| `/environment/orchestrator/export` | Export configuration |
+| `/preferences` | User preferences (global + project settings)
 
 ## API Client
 
