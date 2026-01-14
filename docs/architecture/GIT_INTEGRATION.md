@@ -244,6 +244,59 @@ The task rebases onto the latest target, catching conflicts before PR creation.
 
 ---
 
+## CLAUDE.md Auto-Merge
+
+When running multiple tasks in parallel, conflicts in `CLAUDE.md`'s knowledge section are common since each task may add entries to the same tables. Orc provides automatic conflict resolution for these predictable, append-only conflicts.
+
+### How It Works
+
+During git sync operations (finalize phase or completion sync), orc detects conflicts in `CLAUDE.md` and attempts automatic resolution:
+
+1. **Detection**: Conflict must be within the `<!-- orc:knowledge:begin -->` / `<!-- orc:knowledge:end -->` markers
+2. **Analysis**: Each conflict block is analyzed to determine if it's purely additive (both sides add new rows)
+3. **Resolution**: If purely additive, rows from both sides are combined and sorted by source ID (TASK-XXX)
+4. **Fallback**: Complex conflicts (overlapping edits, malformed tables) fall back to manual resolution
+
+### Supported Tables
+
+Auto-merge works for append-only tables in the knowledge section:
+
+| Table | Marker Detected By |
+|-------|-------------------|
+| Patterns Learned | `### Patterns Learned` heading |
+| Known Gotchas | `### Known Gotchas` heading |
+| Decisions | `### Decisions` heading |
+
+### Resolution Rules
+
+| Scenario | Action |
+|----------|--------|
+| Both sides add new rows | ✓ Auto-merge, combine rows |
+| Same row edited differently | ✗ Manual resolution required |
+| Conflict outside knowledge section | ✗ Manual resolution required |
+| Malformed table syntax | ✗ Manual resolution required |
+| Same TASK-XXX on both sides | ✓ Auto-merge (different patterns allowed) |
+
+### Logging
+
+Auto-resolution is logged for auditability:
+
+```
+INFO CLAUDE.md auto-merge successful tables_merged=1
+```
+
+If auto-resolution fails, detailed logs explain why:
+
+```
+WARN CLAUDE.md conflict cannot be auto-resolved: Table 'Patterns Learned': conflict is not purely additive
+```
+
+### Configuration
+
+CLAUDE.md auto-merge is always enabled during git sync operations. There is no configuration to disable it - if auto-resolution fails, manual resolution is required as normal.
+
+---
+
 ## Finalize Phase Sync
 
 The finalize phase provides advanced sync capabilities beyond basic completion sync, including AI-assisted conflict resolution.

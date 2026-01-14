@@ -447,17 +447,49 @@ func (e *FinalizeExecutor) syncViaMerge(
 			"files", result.ConflictFiles,
 		)
 
-		resolved, resolveErr := e.resolveConflicts(ctx, t, p, s, result.ConflictFiles, cfg)
-		if resolveErr != nil {
-			// Abort merge on failure
-			_, _ = e.gitSvc.Context().RunGit("merge", "--abort")
-			return result, fmt.Errorf("conflict resolution failed: %w", resolveErr)
+		// First, try auto-resolution for known patterns (CLAUDE.md knowledge tables)
+		autoResolved, remaining, autoLogs := e.gitSvc.AutoResolveConflicts(result.ConflictFiles, e.logger)
+		for _, log := range autoLogs {
+			e.logger.Debug("auto-resolve", "msg", log)
 		}
 
-		if resolved {
-			result.ConflictsResolved = len(result.ConflictFiles)
-			result.Synced = true
-			return result, nil
+		if len(autoResolved) > 0 {
+			e.logger.Info("auto-resolved conflicts",
+				"files", autoResolved,
+				"remaining", remaining,
+			)
+		}
+
+		// If all conflicts were auto-resolved, we're done
+		if len(remaining) == 0 {
+			// Verify no unmerged files remain
+			unmerged, _ := e.gitSvc.Context().RunGit("diff", "--name-only", "--diff-filter=U")
+			if strings.TrimSpace(unmerged) == "" {
+				// Commit the merge
+				_, commitErr := e.gitSvc.Context().RunGit("commit", "--no-edit")
+				if commitErr == nil {
+					result.ConflictsResolved = len(result.ConflictFiles)
+					result.Synced = true
+					e.logger.Info("all conflicts auto-resolved successfully")
+					return result, nil
+				}
+			}
+		}
+
+		// Fall back to Claude for remaining conflicts
+		if len(remaining) > 0 {
+			resolved, resolveErr := e.resolveConflicts(ctx, t, p, s, remaining, cfg)
+			if resolveErr != nil {
+				// Abort merge on failure
+				_, _ = e.gitSvc.Context().RunGit("merge", "--abort")
+				return result, fmt.Errorf("conflict resolution failed: %w", resolveErr)
+			}
+
+			if resolved {
+				result.ConflictsResolved = len(result.ConflictFiles)
+				result.Synced = true
+				return result, nil
+			}
 		}
 	}
 
@@ -588,21 +620,36 @@ func (e *FinalizeExecutor) resolveRebaseConflicts(
 			continue
 		}
 
-		// Resolve current conflicts
-		resolved, err := e.resolveConflicts(ctx, t, p, s, unmergedFiles, cfg)
-		if err != nil || !resolved {
-			// Abort rebase
-			e.gitSvc.AbortRebase()
-			return false, fmt.Errorf("failed to resolve rebase conflict at attempt %d: %w", attempt, err)
+		// First, try auto-resolution for known patterns (CLAUDE.md knowledge tables)
+		autoResolved, remaining, autoLogs := e.gitSvc.AutoResolveConflicts(unmergedFiles, e.logger)
+		for _, log := range autoLogs {
+			e.logger.Debug("auto-resolve during rebase", "msg", log)
 		}
 
-		// Stage resolved files and continue
+		if len(autoResolved) > 0 {
+			e.logger.Info("auto-resolved rebase conflicts",
+				"files", autoResolved,
+				"remaining", remaining,
+			)
+		}
+
+		// Resolve remaining conflicts with Claude
+		if len(remaining) > 0 {
+			resolved, err := e.resolveConflicts(ctx, t, p, s, remaining, cfg)
+			if err != nil || !resolved {
+				// Abort rebase
+				e.gitSvc.AbortRebase()
+				return false, fmt.Errorf("failed to resolve rebase conflict at attempt %d: %w", attempt, err)
+			}
+		}
+
+		// Stage all resolved files and continue
 		for _, f := range unmergedFiles {
 			_, _ = e.gitSvc.Context().RunGit("add", f)
 		}
 
-		_, err = e.gitSvc.Context().RunGit("rebase", "--continue")
-		if err == nil || strings.Contains(err.Error(), "No rebase in progress") {
+		_, continueErr := e.gitSvc.Context().RunGit("rebase", "--continue")
+		if continueErr == nil || strings.Contains(continueErr.Error(), "No rebase in progress") {
 			return true, nil
 		}
 	}
