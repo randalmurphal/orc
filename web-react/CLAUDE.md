@@ -143,6 +143,13 @@ Migration follows the existing Svelte component structure:
 - `hooks/useShortcuts.tsx` - ShortcutProvider, useShortcuts, useGlobalShortcuts, useTaskListShortcuts
 - `components/overlays/KeyboardShortcutsHelp.tsx` - Help modal with platform-aware key display
 
+**UI primitives implemented (Phase 2):**
+- `components/ui/Icon.tsx` - SVG icon component with 60+ built-in icons
+- `components/ui/StatusIndicator.tsx` - Colored status orb with animations
+- `components/ui/ToastContainer.tsx` - Toast notification queue (uses uiStore)
+- `components/ui/Breadcrumbs.tsx` - Route-based navigation breadcrumbs
+- `components/overlays/Modal.tsx` - Portal-based modal with focus trap
+
 ## Routing
 
 ### Route Configuration
