@@ -1,9 +1,10 @@
 task_id: TASK-157
 current_phase: validate
 current_iteration: 5
-status: running
+status: completed
 started_at: 2026-01-14T05:25:04.034473-06:00
-updated_at: 2026-01-14T06:02:11.04977-06:00
+updated_at: 2026-01-14T06:02:11.094694-06:00
+completed_at: 2026-01-14T06:02:11.094694-06:00
 phases:
     docs:
         status: completed
@@ -84,6 +85,11 @@ gates:
       approved: true
       reason: auto-approved on success
       timestamp: 2026-01-14T05:55:28.246423-06:00
+    - phase: validate
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T06:02:11.094687-06:00
 tokens:
     input_tokens: 12079300
     output_tokens: 43929
@@ -92,8 +98,3 @@ tokens:
     total_tokens: 12123229
 cost:
     total_cost_usd: 0
-execution:
-    pid: 26236
-    hostname: MacBook-Air.local
-    started_at: 2026-01-14T05:25:04.057023-06:00
-    last_heartbeat: 2026-01-14T05:55:28.246432-06:00
