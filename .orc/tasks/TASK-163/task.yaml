@@ -44,7 +44,7 @@ description: |-
     - API proxy works (can fetch /api/health)
     - TypeScript compiles without errors
 weight: medium
-status: planned
+status: completed
 branch: orc/TASK-163
 queue: active
 priority: normal
