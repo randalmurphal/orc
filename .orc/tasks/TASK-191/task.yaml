@@ -1,12 +1,13 @@
 id: TASK-191
-title: Test auto-commit
-description: Testing if auto-commit works
-weight: trivial
+title: 'Auto-commit for all task operations: delete, edit, status changes, and API/UI updates'
+description: "## Problem\nTASK-153 added auto-commit for task creation, but other operations don't auto-commit:\n- `orc delete` - task removal not committed\n- `orc edit` - changes not committed  \n- Status changes during execution - not committed\n- API/UI operations - not committed\n\n## Solution\nEnsure all task mutations trigger git commit:\n\n1. **CLI operations:**\n   - `orc delete` - commit the removal\n   - `orc edit` - commit changes\n   - Any status change\n\n2. **API operations:**\n   - POST/PUT/DELETE /api/tasks/* endpoints\n   - Should call same CommitAndSync as CLI\n\n3. **Commit message format:**\n   - Delete: `[orc] task TASK-001: deleted - Title`\n   - Edit: `[orc] task TASK-001: updated - Title`\n   - Status: `[orc] task TASK-001: status -> running`\n\n## Files to Modify\n- internal/cli/cmd_delete.go\n- internal/cli/cmd_edit.go\n- internal/api/handlers.go (task endpoints)\n- internal/task/commit.go (if needed)\n\n## Success Criteria\n1. `orc delete TASK-XXX` auto-commits\n2. `orc edit TASK-XXX --weight medium` auto-commits\n3. API task updates auto-commit\n4. No manual git add/commit needed for any task operation"
+weight: small
 status: planned
 branch: orc/TASK-191
 queue: active
 priority: normal
-category: chore
-testing_requirements: {}
-created_at: 2026-01-14T02:34:53.183721396-06:00
-updated_at: 2026-01-14T02:34:53.191545455-06:00
+category: bug
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T02:38:39.947650254-06:00
+updated_at: 2026-01-14T02:38:39.957493582-06:00
