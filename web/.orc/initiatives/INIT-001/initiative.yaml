@@ -1,0 +1,20 @@
+version: 1
+id: INIT-001
+title: UI Testing Initiative
+status: draft
+vision: Test the dependency graph feature
+tasks:
+    - id: TASK-001
+      title: Setup project structure
+      status: pending
+    - id: TASK-002
+      title: Implement core API
+      status: pending
+    - id: TASK-003
+      title: Create database layer
+      status: pending
+    - id: TASK-004
+      title: Build frontend UI
+      status: pending
+created_at: 2026-01-14T00:50:07.878627589-06:00
+updated_at: 2026-01-14T00:50:16.953092022-06:00

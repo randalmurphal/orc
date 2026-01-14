@@ -1,0 +1,13 @@
+id: TASK-002
+title: Implement core API
+weight: medium
+status: planned
+branch: orc/TASK-002
+queue: active
+priority: normal
+category: feature
+initiative_id: INIT-001
+blocked_by:
+    - TASK-001
+created_at: 2026-01-14T00:50:16.905924672-06:00
+updated_at: 2026-01-14T00:50:16.912698408-06:00
