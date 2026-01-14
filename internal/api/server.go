@@ -448,6 +448,16 @@ func (s *Server) StartContext(ctx context.Context) error {
 				TaskID: taskID,
 				Data:   map[string]any{"pr": pr},
 			})
+
+			// Auto-trigger finalize when PR is approved (if enabled in config)
+			if pr.Status == task.PRStatusApproved {
+				triggered, err := s.TriggerFinalizeOnApproval(taskID)
+				if err != nil {
+					s.logger.Error("failed to auto-trigger finalize", "task", taskID, "error", err)
+				} else if triggered {
+					s.logger.Info("finalize auto-triggered on PR approval", "task", taskID)
+				}
+			}
 		},
 	})
 	s.prPoller.Start(ctx)

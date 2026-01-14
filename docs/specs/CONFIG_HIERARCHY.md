@@ -234,6 +234,7 @@ completion:
   finalize:
     enabled: true                      # Enable finalize phase (default: true)
     auto_trigger: true                 # Auto-run after validate phase (default: true)
+    auto_trigger_on_approval: true     # Auto-run when PR is approved (default: true for "auto" profile)
     sync:
       strategy: merge                  # merge | rebase (default: merge)
     conflict_resolution:

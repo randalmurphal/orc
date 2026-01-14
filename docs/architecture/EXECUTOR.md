@@ -415,24 +415,41 @@ The implement phase receives `{{RETRY_CONTEXT}}` with:
 - Test failure details
 - Instructions to fix and retry finalize
 
+### Auto-Trigger on PR Approval
+
+When automation profile is `auto` and a PR is approved:
+1. PR status poller detects approval (polls every 60s)
+2. `TriggerFinalizeOnApproval` is called automatically
+3. Finalize runs in background (async)
+4. WebSocket events broadcast progress
+
+**Conditions for auto-trigger:**
+- `completion.finalize.enabled` is `true`
+- `completion.finalize.auto_trigger_on_approval` is `true`
+- Automation profile is `auto` (fully automated)
+- Task has weight that supports finalize (not `trivial`)
+- Task status is `completed` (has an approved PR)
+- Finalize hasn't already completed
+
 ### Configuration
 
 ```yaml
 # .orc/config.yaml
 completion:
   finalize:
-    enabled: true           # Enable finalize phase
-    auto_trigger: true      # Run after validate phase
+    enabled: true                  # Enable finalize phase
+    auto_trigger: true             # Run after validate phase
+    auto_trigger_on_approval: true # Run when PR is approved (auto profile only)
     sync:
-      strategy: merge       # merge | rebase
+      strategy: merge              # merge | rebase
     conflict_resolution:
-      enabled: true         # AI-assisted conflict resolution
-      instructions: ""      # Additional resolution instructions
+      enabled: true                # AI-assisted conflict resolution
+      instructions: ""             # Additional resolution instructions
     risk_assessment:
-      enabled: true         # Enable risk classification
-      re_review_threshold: high  # low | medium | high | critical
+      enabled: true                # Enable risk classification
+      re_review_threshold: high    # low | medium | high | critical
     gates:
-      pre_merge: auto       # auto | ai | human | none
+      pre_merge: auto              # auto | ai | human | none
 ```
 
 See `docs/specs/CONFIG_HIERARCHY.md` for full configuration options.

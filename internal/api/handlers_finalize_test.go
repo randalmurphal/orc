@@ -494,3 +494,320 @@ func TestFinalizeTracker(t *testing.T) {
 		}
 	})
 }
+
+func TestTriggerFinalizeOnApproval(t *testing.T) {
+	t.Run("does not trigger when config disabled", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
+		if err != nil {
+			t.Fatalf("create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		// Create task directory structure
+		taskID := "TASK-001"
+		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
+		if err := os.MkdirAll(taskDir, 0755); err != nil {
+			t.Fatalf("create task dir: %v", err)
+		}
+
+		// Create a completed task
+		tsk := &task.Task{
+			ID:     taskID,
+			Title:  "Test task",
+			Status: task.StatusCompleted,
+			Weight: task.WeightMedium,
+		}
+		if err := tsk.SaveTo(taskDir); err != nil {
+			t.Fatalf("save task: %v", err)
+		}
+
+		// Create config with auto-trigger disabled
+		orcCfg := config.Default()
+		orcCfg.Completion.Finalize.AutoTriggerOnApproval = false
+
+		srv := &Server{
+			workDir:   tmpDir,
+			orcConfig: orcCfg,
+			logger:    testLogger(),
+			publisher: events.NewNopPublisher(),
+		}
+
+		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if triggered {
+			t.Error("should not trigger when config disabled")
+		}
+	})
+
+	t.Run("does not trigger when finalize already running", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
+		if err != nil {
+			t.Fatalf("create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		taskID := "TASK-002"
+		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
+		if err := os.MkdirAll(taskDir, 0755); err != nil {
+			t.Fatalf("create task dir: %v", err)
+		}
+
+		tsk := &task.Task{
+			ID:     taskID,
+			Title:  "Test task",
+			Status: task.StatusCompleted,
+			Weight: task.WeightMedium,
+		}
+		if err := tsk.SaveTo(taskDir); err != nil {
+			t.Fatalf("save task: %v", err)
+		}
+
+		// Set up running finalize
+		finTracker.set(taskID, &FinalizeState{
+			TaskID: taskID,
+			Status: FinalizeStatusRunning,
+		})
+		defer finTracker.delete(taskID)
+
+		orcCfg := config.Default()
+		srv := &Server{
+			workDir:   tmpDir,
+			orcConfig: orcCfg,
+			logger:    testLogger(),
+			publisher: events.NewNopPublisher(),
+		}
+
+		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if triggered {
+			t.Error("should not trigger when finalize already running")
+		}
+	})
+
+	t.Run("does not trigger for trivial weight tasks", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
+		if err != nil {
+			t.Fatalf("create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		taskID := "TASK-003"
+		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
+		if err := os.MkdirAll(taskDir, 0755); err != nil {
+			t.Fatalf("create task dir: %v", err)
+		}
+
+		tsk := &task.Task{
+			ID:     taskID,
+			Title:  "Trivial task",
+			Status: task.StatusCompleted,
+			Weight: task.WeightTrivial, // Trivial weight
+		}
+		if err := tsk.SaveTo(taskDir); err != nil {
+			t.Fatalf("save task: %v", err)
+		}
+
+		orcCfg := config.Default()
+		srv := &Server{
+			workDir:   tmpDir,
+			orcConfig: orcCfg,
+			logger:    testLogger(),
+			publisher: events.NewNopPublisher(),
+		}
+
+		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if triggered {
+			t.Error("should not trigger for trivial weight tasks")
+		}
+	})
+
+	t.Run("does not trigger for non-completed tasks", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
+		if err != nil {
+			t.Fatalf("create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		taskID := "TASK-004"
+		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
+		if err := os.MkdirAll(taskDir, 0755); err != nil {
+			t.Fatalf("create task dir: %v", err)
+		}
+
+		tsk := &task.Task{
+			ID:     taskID,
+			Title:  "Running task",
+			Status: task.StatusRunning, // Not completed
+			Weight: task.WeightMedium,
+		}
+		if err := tsk.SaveTo(taskDir); err != nil {
+			t.Fatalf("save task: %v", err)
+		}
+
+		orcCfg := config.Default()
+		srv := &Server{
+			workDir:   tmpDir,
+			orcConfig: orcCfg,
+			logger:    testLogger(),
+			publisher: events.NewNopPublisher(),
+		}
+
+		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if triggered {
+			t.Error("should not trigger for non-completed tasks")
+		}
+	})
+
+	t.Run("does not trigger when finalize already completed", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
+		if err != nil {
+			t.Fatalf("create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		taskID := "TASK-005"
+		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
+		if err := os.MkdirAll(taskDir, 0755); err != nil {
+			t.Fatalf("create task dir: %v", err)
+		}
+
+		tsk := &task.Task{
+			ID:     taskID,
+			Title:  "Completed task",
+			Status: task.StatusCompleted,
+			Weight: task.WeightMedium,
+		}
+		if err := tsk.SaveTo(taskDir); err != nil {
+			t.Fatalf("save task: %v", err)
+		}
+
+		// Create state with completed finalize
+		st := state.New(taskID)
+		st.Phases["finalize"] = &state.PhaseState{
+			Status: state.StatusCompleted,
+		}
+		if err := st.SaveTo(taskDir); err != nil {
+			t.Fatalf("save state: %v", err)
+		}
+
+		orcCfg := config.Default()
+		srv := &Server{
+			workDir:   tmpDir,
+			orcConfig: orcCfg,
+			logger:    testLogger(),
+			publisher: events.NewNopPublisher(),
+		}
+
+		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if triggered {
+			t.Error("should not trigger when finalize already completed")
+		}
+	})
+
+	t.Run("triggers finalize for valid task", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
+		if err != nil {
+			t.Fatalf("create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		taskID := "TASK-006"
+		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
+		if err := os.MkdirAll(taskDir, 0755); err != nil {
+			t.Fatalf("create task dir: %v", err)
+		}
+
+		// Create a completed task with medium weight
+		tsk := &task.Task{
+			ID:     taskID,
+			Title:  "Valid task",
+			Status: task.StatusCompleted,
+			Weight: task.WeightMedium,
+		}
+		if err := tsk.SaveTo(taskDir); err != nil {
+			t.Fatalf("save task: %v", err)
+		}
+
+		// Create plan
+		p := &plan.Plan{
+			TaskID: taskID,
+			Phases: []plan.Phase{
+				{ID: "implement", Status: plan.PhaseCompleted},
+				{ID: "finalize", Status: plan.PhasePending},
+			},
+		}
+		if err := p.SaveTo(taskDir); err != nil {
+			t.Fatalf("save plan: %v", err)
+		}
+
+		// Ensure no prior finalize tracker state
+		finTracker.delete(taskID)
+
+		orcCfg := config.Default()
+		// Ensure auto-trigger is enabled
+		orcCfg.Completion.Finalize.AutoTriggerOnApproval = true
+
+		srv := &Server{
+			workDir:   tmpDir,
+			orcConfig: orcCfg,
+			logger:    testLogger(),
+			publisher: events.NewNopPublisher(),
+		}
+
+		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !triggered {
+			t.Error("should trigger finalize for valid task")
+		}
+
+		// Clean up: check that finalize state was created
+		finState := finTracker.get(taskID)
+		if finState == nil {
+			t.Error("finalize state should be created")
+		} else {
+			finTracker.delete(taskID)
+		}
+	})
+
+	t.Run("returns error for non-existent task", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
+		if err != nil {
+			t.Fatalf("create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		// Create .orc/tasks directory but no task
+		tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
+		if err := os.MkdirAll(tasksDir, 0755); err != nil {
+			t.Fatalf("create tasks dir: %v", err)
+		}
+
+		orcCfg := config.Default()
+		srv := &Server{
+			workDir:   tmpDir,
+			orcConfig: orcCfg,
+			logger:    testLogger(),
+			publisher: events.NewNopPublisher(),
+		}
+
+		_, err = srv.TriggerFinalizeOnApproval("TASK-NONEXISTENT")
+		if err == nil {
+			t.Error("should return error for non-existent task")
+		}
+	})
+}
