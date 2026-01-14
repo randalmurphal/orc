@@ -81,6 +81,8 @@ export interface UpdateTaskRequest {
 	queue?: string;
 	priority?: string;
 	category?: string;
+	blocked_by?: string[];
+	related_to?: string[];
 	metadata?: Record<string, string>;
 }
 
@@ -1511,6 +1513,59 @@ export function getHTMLReportUrl(taskId: string): string {
 
 export function getTraceUrl(taskId: string, filename: string): string {
 	return `${API_BASE}/tasks/${taskId}/test-results/traces/${encodeURIComponent(filename)}`;
+}
+
+// Task Dependencies
+export interface DependencyInfo {
+	id: string;
+	title: string;
+	status: string;
+	is_met?: boolean;
+}
+
+export interface DependencyGraph {
+	task_id: string;
+	blocked_by: DependencyInfo[];
+	blocks: DependencyInfo[];
+	related_to: DependencyInfo[];
+	referenced_by: DependencyInfo[];
+	unmet_dependencies?: string[];
+	can_run: boolean;
+}
+
+export async function getTaskDependencies(taskId: string): Promise<DependencyGraph> {
+	return fetchJSON<DependencyGraph>(`/tasks/${taskId}/dependencies`);
+}
+
+export async function addBlocker(taskId: string, blockerId: string): Promise<Task> {
+	// Get current task to get existing blockers
+	const task = await getTask(taskId);
+	const blockedBy = [...(task.blocked_by || [])];
+	if (!blockedBy.includes(blockerId)) {
+		blockedBy.push(blockerId);
+	}
+	return updateTask(taskId, { blocked_by: blockedBy });
+}
+
+export async function removeBlocker(taskId: string, blockerId: string): Promise<Task> {
+	const task = await getTask(taskId);
+	const blockedBy = (task.blocked_by || []).filter(id => id !== blockerId);
+	return updateTask(taskId, { blocked_by: blockedBy });
+}
+
+export async function addRelated(taskId: string, relatedId: string): Promise<Task> {
+	const task = await getTask(taskId);
+	const relatedTo = [...(task.related_to || [])];
+	if (!relatedTo.includes(relatedId)) {
+		relatedTo.push(relatedId);
+	}
+	return updateTask(taskId, { related_to: relatedTo });
+}
+
+export async function removeRelated(taskId: string, relatedId: string): Promise<Task> {
+	const task = await getTask(taskId);
+	const relatedTo = (task.related_to || []).filter(id => id !== relatedId);
+	return updateTask(taskId, { related_to: relatedTo });
 }
 
 // Initiatives
