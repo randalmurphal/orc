@@ -388,6 +388,7 @@ Patterns, gotchas, and decisions learned during development.
 | Editable settings via UI | All settings (Claude Code global/project, orc config) editable through web UI; separate API endpoints for global (`PUT /api/settings/global`) vs project (`PUT /api/settings`) scope | TASK-033 |
 | Browser-safe keyboard shortcuts | Web UI uses `Shift+Alt` modifier (⇧⌥ on Mac) for global shortcuts instead of Cmd/Ctrl to avoid browser conflicts with Cmd+K, Cmd+N, etc. | TASK-037 |
 | Task dependency validation | `blocked_by` and `related_to` fields validated on create/update: references must exist, no self-references, circular deps rejected; computed fields (`blocks`, `referenced_by`) populated on load | TASK-070 |
+| Blocking enforcement on run | CLI and API check `blocked_by` for incomplete blockers before running; CLI prompts in interactive mode, refuses in quiet mode without `--force`; API returns 409 Conflict with blocker details, accepts `?force=true` to override | TASK-071 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
