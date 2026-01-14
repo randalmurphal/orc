@@ -40,7 +40,8 @@ description: |-
     - All 20 tests pass on current Svelte implementation
     - Initiative lifecycle fully covered
 weight: large
-status: planned
+status: running
+current_phase: spec
 branch: orc/TASK-156
 queue: active
 priority: normal
@@ -50,4 +51,5 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:18:01.807469253-06:00
-updated_at: 2026-01-14T02:18:01.81533419-06:00
+updated_at: 2026-01-14T05:00:59.990696-06:00
+started_at: 2026-01-14T05:00:59.990695-06:00
