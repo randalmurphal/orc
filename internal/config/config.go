@@ -136,6 +136,71 @@ type SyncConfig struct {
 	SkipForWeights []string `yaml:"skip_for_weights,omitempty"`
 }
 
+// FinalizeSyncStrategy defines how to integrate target branch changes.
+type FinalizeSyncStrategy string
+
+const (
+	// FinalizeSyncRebase rebases task branch onto target (linear history)
+	FinalizeSyncRebase FinalizeSyncStrategy = "rebase"
+	// FinalizeSyncMerge merges target into task branch (preserves history)
+	FinalizeSyncMerge FinalizeSyncStrategy = "merge"
+)
+
+// FinalizeSyncConfig defines sync behavior for the finalize phase.
+type FinalizeSyncConfig struct {
+	// Strategy defines how to integrate target branch: rebase or merge (default: merge)
+	Strategy FinalizeSyncStrategy `yaml:"strategy"`
+}
+
+// ConflictResolutionConfig defines automatic conflict resolution behavior.
+type ConflictResolutionConfig struct {
+	// Enabled enables AI-assisted conflict resolution (default: true)
+	Enabled bool `yaml:"enabled"`
+
+	// Instructions are additional instructions for conflict resolution
+	// These are appended to the default conflict resolution rules
+	Instructions string `yaml:"instructions,omitempty"`
+}
+
+// RiskAssessmentConfig defines risk assessment behavior.
+type RiskAssessmentConfig struct {
+	// Enabled enables risk assessment during finalize (default: true)
+	Enabled bool `yaml:"enabled"`
+
+	// ReReviewThreshold is the risk level at which to require re-review
+	// Values: low, medium, high, critical (default: high)
+	// When risk level meets or exceeds this threshold, recommend re-review
+	ReReviewThreshold string `yaml:"re_review_threshold"`
+}
+
+// FinalizeGatesConfig defines gate behavior specific to finalize phase.
+type FinalizeGatesConfig struct {
+	// PreMerge gate type before creating PR/merging: auto, ai, human, none (default: auto)
+	PreMerge string `yaml:"pre_merge"`
+}
+
+// FinalizeConfig defines finalize phase configuration.
+type FinalizeConfig struct {
+	// Enabled enables the finalize phase (default: true)
+	Enabled bool `yaml:"enabled"`
+
+	// AutoTrigger automatically runs finalize after validate phase (default: true)
+	// When false, finalize must be triggered manually
+	AutoTrigger bool `yaml:"auto_trigger"`
+
+	// Sync settings for branch integration during finalize
+	Sync FinalizeSyncConfig `yaml:"sync"`
+
+	// ConflictResolution settings for automatic conflict resolution
+	ConflictResolution ConflictResolutionConfig `yaml:"conflict_resolution"`
+
+	// RiskAssessment settings for merge risk evaluation
+	RiskAssessment RiskAssessmentConfig `yaml:"risk_assessment"`
+
+	// Gates settings for finalize phase gates
+	Gates FinalizeGatesConfig `yaml:"gates"`
+}
+
 // CompletionConfig defines task completion behavior.
 type CompletionConfig struct {
 	// Action defines what happens on completion: "pr", "merge", "none" (default: "pr")
@@ -152,6 +217,9 @@ type CompletionConfig struct {
 
 	// Sync settings for branch synchronization
 	Sync SyncConfig `yaml:"sync"`
+
+	// Finalize settings for the finalize phase
+	Finalize FinalizeConfig `yaml:"finalize"`
 
 	// WeightActions allows per-weight action overrides
 	// e.g., {"trivial": "none", "small": "merge"}
@@ -695,6 +763,24 @@ func Default() *Config {
 				MaxConflictFiles: 0,                    // No limit by default
 				SkipForWeights:   []string{"trivial"},  // Skip sync for trivial tasks
 			},
+			Finalize: FinalizeConfig{
+				Enabled:     true,  // Finalize phase enabled by default
+				AutoTrigger: true,  // Auto-trigger after validate
+				Sync: FinalizeSyncConfig{
+					Strategy: FinalizeSyncMerge, // Merge target into branch (preserves history)
+				},
+				ConflictResolution: ConflictResolutionConfig{
+					Enabled:      true, // AI-assisted conflict resolution enabled
+					Instructions: "",   // No additional instructions by default
+				},
+				RiskAssessment: RiskAssessmentConfig{
+					Enabled:           true,   // Risk assessment enabled
+					ReReviewThreshold: "high", // Recommend re-review at high+ risk
+				},
+				Gates: FinalizeGatesConfig{
+					PreMerge: "auto", // Auto gate before merge/PR by default
+				},
+			},
 			// Safety defaults: use PR workflow for protected branches
 			// Direct merge is blocked for protected branches (main, master, develop, release)
 			WeightActions: map[string]string{
@@ -884,9 +970,93 @@ func ProfilePresets(profile AutomationProfile) GateConfig {
 }
 
 // ApplyProfile applies a preset profile to the configuration.
+// This affects both gates and finalize phase behavior.
 func (c *Config) ApplyProfile(profile AutomationProfile) {
 	c.Profile = profile
 	c.Gates = ProfilePresets(profile)
+	c.Completion.Finalize = FinalizePresets(profile)
+}
+
+// FinalizePresets returns finalize configuration for a given automation profile.
+func FinalizePresets(profile AutomationProfile) FinalizeConfig {
+	switch profile {
+	case ProfileFast:
+		// Fast: minimal overhead, rebase for linear history, skip risk assessment
+		return FinalizeConfig{
+			Enabled:     true,
+			AutoTrigger: true,
+			Sync: FinalizeSyncConfig{
+				Strategy: FinalizeSyncRebase, // Rebase for cleaner history, faster
+			},
+			ConflictResolution: ConflictResolutionConfig{
+				Enabled: true, // Still resolve conflicts automatically
+			},
+			RiskAssessment: RiskAssessmentConfig{
+				Enabled:           false, // Skip risk assessment for speed
+				ReReviewThreshold: "high",
+			},
+			Gates: FinalizeGatesConfig{
+				PreMerge: "none", // No pre-merge gate for speed
+			},
+		}
+	case ProfileSafe:
+		// Safe: AI reviews, merge strategy (preserves history), risk assessment
+		return FinalizeConfig{
+			Enabled:     true,
+			AutoTrigger: true,
+			Sync: FinalizeSyncConfig{
+				Strategy: FinalizeSyncMerge, // Merge preserves history
+			},
+			ConflictResolution: ConflictResolutionConfig{
+				Enabled: true,
+			},
+			RiskAssessment: RiskAssessmentConfig{
+				Enabled:           true,
+				ReReviewThreshold: "medium", // Lower threshold for safety
+			},
+			Gates: FinalizeGatesConfig{
+				PreMerge: "ai", // AI gate before merge
+			},
+		}
+	case ProfileStrict:
+		// Strict: human gates, merge strategy, strict risk assessment
+		return FinalizeConfig{
+			Enabled:     true,
+			AutoTrigger: true,
+			Sync: FinalizeSyncConfig{
+				Strategy: FinalizeSyncMerge, // Merge preserves history
+			},
+			ConflictResolution: ConflictResolutionConfig{
+				Enabled: true,
+			},
+			RiskAssessment: RiskAssessmentConfig{
+				Enabled:           true,
+				ReReviewThreshold: "low", // Even low risk triggers re-review
+			},
+			Gates: FinalizeGatesConfig{
+				PreMerge: "human", // Human gate before merge
+			},
+		}
+	default: // ProfileAuto
+		// Auto: fully automated, merge strategy, auto gates
+		return FinalizeConfig{
+			Enabled:     true,
+			AutoTrigger: true,
+			Sync: FinalizeSyncConfig{
+				Strategy: FinalizeSyncMerge,
+			},
+			ConflictResolution: ConflictResolutionConfig{
+				Enabled: true,
+			},
+			RiskAssessment: RiskAssessmentConfig{
+				Enabled:           true,
+				ReReviewThreshold: "high",
+			},
+			Gates: FinalizeGatesConfig{
+				PreMerge: "auto",
+			},
+		}
+	}
 }
 
 // Load loads the config from the default location.
@@ -1151,6 +1321,103 @@ func (c *Config) ShouldDetectConflictsOnly() bool {
 	return c.Completion.Sync.Strategy == SyncStrategyDetect
 }
 
+// ShouldRunFinalize returns true if the finalize phase should run for this task weight.
+func (c *Config) ShouldRunFinalize(weight string) bool {
+	if !c.Completion.Finalize.Enabled {
+		return false
+	}
+	// Trivial tasks don't need finalize
+	if weight == "trivial" {
+		return false
+	}
+	return true
+}
+
+// ShouldAutoTriggerFinalize returns true if finalize should auto-trigger after validate.
+func (c *Config) ShouldAutoTriggerFinalize() bool {
+	return c.Completion.Finalize.Enabled && c.Completion.Finalize.AutoTrigger
+}
+
+// FinalizeUsesRebase returns true if finalize should use rebase strategy.
+func (c *Config) FinalizeUsesRebase() bool {
+	return c.Completion.Finalize.Sync.Strategy == FinalizeSyncRebase
+}
+
+// ShouldResolveConflicts returns true if AI should attempt to resolve conflicts.
+func (c *Config) ShouldResolveConflicts() bool {
+	return c.Completion.Finalize.ConflictResolution.Enabled
+}
+
+// GetConflictInstructions returns any additional conflict resolution instructions.
+func (c *Config) GetConflictInstructions() string {
+	return c.Completion.Finalize.ConflictResolution.Instructions
+}
+
+// ShouldAssessRisk returns true if risk assessment should be performed.
+func (c *Config) ShouldAssessRisk() bool {
+	return c.Completion.Finalize.RiskAssessment.Enabled
+}
+
+// RiskLevel represents a risk classification level.
+type RiskLevel int
+
+const (
+	RiskLow RiskLevel = iota
+	RiskMedium
+	RiskHigh
+	RiskCritical
+)
+
+// String returns the string representation of a risk level.
+func (r RiskLevel) String() string {
+	switch r {
+	case RiskLow:
+		return "low"
+	case RiskMedium:
+		return "medium"
+	case RiskHigh:
+		return "high"
+	case RiskCritical:
+		return "critical"
+	default:
+		return "unknown"
+	}
+}
+
+// ParseRiskLevel parses a risk level string.
+func ParseRiskLevel(s string) RiskLevel {
+	switch strings.ToLower(s) {
+	case "low":
+		return RiskLow
+	case "medium":
+		return RiskMedium
+	case "high":
+		return RiskHigh
+	case "critical":
+		return RiskCritical
+	default:
+		return RiskHigh // Default to high for unknown
+	}
+}
+
+// ShouldReReview returns true if the given risk level meets or exceeds the re-review threshold.
+func (c *Config) ShouldReReview(riskLevel RiskLevel) bool {
+	if !c.Completion.Finalize.RiskAssessment.Enabled {
+		return false
+	}
+	threshold := ParseRiskLevel(c.Completion.Finalize.RiskAssessment.ReReviewThreshold)
+	return riskLevel >= threshold
+}
+
+// GetPreMergeGateType returns the gate type for the pre-merge check.
+func (c *Config) GetPreMergeGateType() string {
+	gateType := c.Completion.Finalize.Gates.PreMerge
+	if gateType == "" {
+		return "auto"
+	}
+	return gateType
+}
+
 // DSN returns the database connection string based on current config.
 func (c *Config) DSN() string {
 	if c.Database.Driver == "postgres" {
@@ -1193,6 +1460,19 @@ var (
 		string(SyncStrategyDetect),
 		"", // empty defaults to completion
 	}
+
+	// ValidFinalizeSyncStrategies are the allowed values for completion.finalize.sync.strategy
+	ValidFinalizeSyncStrategies = []string{
+		string(FinalizeSyncRebase),
+		string(FinalizeSyncMerge),
+		"", // empty defaults to merge
+	}
+
+	// ValidRiskLevels are the allowed values for risk assessment thresholds
+	ValidRiskLevels = []string{"low", "medium", "high", "critical", ""}
+
+	// ValidGateTypes are the allowed values for gate types
+	ValidGateTypes = []string{"auto", "ai", "human", "none", ""}
 
 	// DefaultProtectedBranches are branches that cannot be directly merged to
 	DefaultProtectedBranches = []string{"main", "master", "develop", "release"}
@@ -1260,6 +1540,37 @@ func (c *Config) Validate() error {
 	// Validate storage configuration
 	if err := c.validateStorage(); err != nil {
 		return err
+	}
+
+	// Validate finalize configuration
+	if err := c.validateFinalize(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateFinalize validates the finalize configuration.
+func (c *Config) validateFinalize() error {
+	finalize := c.Completion.Finalize
+
+	// Validate finalize sync strategy
+	if !contains(ValidFinalizeSyncStrategies, string(finalize.Sync.Strategy)) {
+		return fmt.Errorf("invalid completion.finalize.sync.strategy: %s (must be one of: rebase, merge)",
+			finalize.Sync.Strategy)
+	}
+
+	// Validate risk assessment threshold
+	if finalize.RiskAssessment.ReReviewThreshold != "" &&
+		!contains(ValidRiskLevels, strings.ToLower(finalize.RiskAssessment.ReReviewThreshold)) {
+		return fmt.Errorf("invalid completion.finalize.risk_assessment.re_review_threshold: %s (must be one of: low, medium, high, critical)",
+			finalize.RiskAssessment.ReReviewThreshold)
+	}
+
+	// Validate pre-merge gate type
+	if finalize.Gates.PreMerge != "" && !contains(ValidGateTypes, finalize.Gates.PreMerge) {
+		return fmt.Errorf("invalid completion.finalize.gates.pre_merge: %s (must be one of: auto, ai, human, none)",
+			finalize.Gates.PreMerge)
 	}
 
 	return nil

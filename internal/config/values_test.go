@@ -447,3 +447,132 @@ func TestConfig_SetValue_Labels(t *testing.T) {
 		}
 	}
 }
+
+func TestAllConfigPaths_FinalizePaths(t *testing.T) {
+	paths := AllConfigPaths()
+
+	pathSet := make(map[string]bool)
+	for _, p := range paths {
+		pathSet[p] = true
+	}
+
+	// Finalize paths must be included for finalize configuration
+	finalizePaths := []string{
+		"completion.finalize.enabled",
+		"completion.finalize.auto_trigger",
+		"completion.finalize.sync.strategy",
+		"completion.finalize.conflict_resolution.enabled",
+		"completion.finalize.conflict_resolution.instructions",
+		"completion.finalize.risk_assessment.enabled",
+		"completion.finalize.risk_assessment.re_review_threshold",
+		"completion.finalize.gates.pre_merge",
+	}
+
+	for _, expected := range finalizePaths {
+		if !pathSet[expected] {
+			t.Errorf("AllConfigPaths() missing finalize path %q", expected)
+		}
+	}
+}
+
+func TestConfig_GetValue_Finalize(t *testing.T) {
+	cfg := Default()
+
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"completion.finalize.enabled", "true"},
+		{"completion.finalize.auto_trigger", "true"},
+		{"completion.finalize.sync.strategy", "merge"},
+		{"completion.finalize.conflict_resolution.enabled", "true"},
+		{"completion.finalize.risk_assessment.enabled", "true"},
+		{"completion.finalize.risk_assessment.re_review_threshold", "high"},
+		{"completion.finalize.gates.pre_merge", "auto"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			got, err := cfg.GetValue(tt.path)
+			if err != nil {
+				t.Errorf("GetValue(%q) error = %v", tt.path, err)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetValue(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfig_SetValue_Finalize(t *testing.T) {
+	tests := []struct {
+		name  string
+		path  string
+		value string
+		check func(*Config) bool
+	}{
+		{
+			name:  "set finalize enabled",
+			path:  "completion.finalize.enabled",
+			value: "false",
+			check: func(c *Config) bool { return !c.Completion.Finalize.Enabled },
+		},
+		{
+			name:  "set finalize auto_trigger",
+			path:  "completion.finalize.auto_trigger",
+			value: "false",
+			check: func(c *Config) bool { return !c.Completion.Finalize.AutoTrigger },
+		},
+		{
+			name:  "set finalize sync strategy",
+			path:  "completion.finalize.sync.strategy",
+			value: "rebase",
+			check: func(c *Config) bool { return c.Completion.Finalize.Sync.Strategy == FinalizeSyncRebase },
+		},
+		{
+			name:  "set conflict resolution enabled",
+			path:  "completion.finalize.conflict_resolution.enabled",
+			value: "false",
+			check: func(c *Config) bool { return !c.Completion.Finalize.ConflictResolution.Enabled },
+		},
+		{
+			name:  "set conflict resolution instructions",
+			path:  "completion.finalize.conflict_resolution.instructions",
+			value: "Custom instructions here",
+			check: func(c *Config) bool { return c.Completion.Finalize.ConflictResolution.Instructions == "Custom instructions here" },
+		},
+		{
+			name:  "set risk assessment enabled",
+			path:  "completion.finalize.risk_assessment.enabled",
+			value: "false",
+			check: func(c *Config) bool { return !c.Completion.Finalize.RiskAssessment.Enabled },
+		},
+		{
+			name:  "set risk assessment threshold",
+			path:  "completion.finalize.risk_assessment.re_review_threshold",
+			value: "low",
+			check: func(c *Config) bool { return c.Completion.Finalize.RiskAssessment.ReReviewThreshold == "low" },
+		},
+		{
+			name:  "set pre_merge gate",
+			path:  "completion.finalize.gates.pre_merge",
+			value: "human",
+			check: func(c *Config) bool { return c.Completion.Finalize.Gates.PreMerge == "human" },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Default()
+			err := cfg.SetValue(tt.path, tt.value)
+			if err != nil {
+				t.Errorf("SetValue(%q, %q) error = %v", tt.path, tt.value, err)
+				return
+			}
+			if !tt.check(cfg) {
+				t.Errorf("SetValue(%q, %q) did not set correctly", tt.path, tt.value)
+			}
+		})
+	}
+}

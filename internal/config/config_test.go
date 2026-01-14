@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -952,5 +953,447 @@ func TestFindProjectRoot_WalkUpDirectories(t *testing.T) {
 	}
 	if root != tmpDir {
 		t.Errorf("FindProjectRoot() = %s, want %s", root, tmpDir)
+	}
+}
+
+// Tests for FinalizeConfig
+
+func TestDefault_FinalizeConfig(t *testing.T) {
+	cfg := Default()
+
+	// Enabled should be true by default
+	if !cfg.Completion.Finalize.Enabled {
+		t.Error("Completion.Finalize.Enabled should default to true")
+	}
+
+	// AutoTrigger should be true by default
+	if !cfg.Completion.Finalize.AutoTrigger {
+		t.Error("Completion.Finalize.AutoTrigger should default to true")
+	}
+
+	// Sync strategy should be merge by default
+	if cfg.Completion.Finalize.Sync.Strategy != FinalizeSyncMerge {
+		t.Errorf("Completion.Finalize.Sync.Strategy = %s, want merge",
+			cfg.Completion.Finalize.Sync.Strategy)
+	}
+
+	// Conflict resolution should be enabled
+	if !cfg.Completion.Finalize.ConflictResolution.Enabled {
+		t.Error("Completion.Finalize.ConflictResolution.Enabled should default to true")
+	}
+
+	// Risk assessment should be enabled
+	if !cfg.Completion.Finalize.RiskAssessment.Enabled {
+		t.Error("Completion.Finalize.RiskAssessment.Enabled should default to true")
+	}
+
+	// Re-review threshold should be high
+	if cfg.Completion.Finalize.RiskAssessment.ReReviewThreshold != "high" {
+		t.Errorf("Completion.Finalize.RiskAssessment.ReReviewThreshold = %s, want high",
+			cfg.Completion.Finalize.RiskAssessment.ReReviewThreshold)
+	}
+
+	// Pre-merge gate should be auto
+	if cfg.Completion.Finalize.Gates.PreMerge != "auto" {
+		t.Errorf("Completion.Finalize.Gates.PreMerge = %s, want auto",
+			cfg.Completion.Finalize.Gates.PreMerge)
+	}
+}
+
+func TestFinalizePresets_ProfileFast(t *testing.T) {
+	finalize := FinalizePresets(ProfileFast)
+
+	// Fast should use rebase strategy
+	if finalize.Sync.Strategy != FinalizeSyncRebase {
+		t.Errorf("FinalizePresets(fast).Sync.Strategy = %s, want rebase", finalize.Sync.Strategy)
+	}
+
+	// Fast should disable risk assessment
+	if finalize.RiskAssessment.Enabled {
+		t.Error("FinalizePresets(fast).RiskAssessment.Enabled should be false")
+	}
+
+	// Fast should have no pre-merge gate
+	if finalize.Gates.PreMerge != "none" {
+		t.Errorf("FinalizePresets(fast).Gates.PreMerge = %s, want none", finalize.Gates.PreMerge)
+	}
+}
+
+func TestFinalizePresets_ProfileSafe(t *testing.T) {
+	finalize := FinalizePresets(ProfileSafe)
+
+	// Safe should use merge strategy
+	if finalize.Sync.Strategy != FinalizeSyncMerge {
+		t.Errorf("FinalizePresets(safe).Sync.Strategy = %s, want merge", finalize.Sync.Strategy)
+	}
+
+	// Safe should enable risk assessment
+	if !finalize.RiskAssessment.Enabled {
+		t.Error("FinalizePresets(safe).RiskAssessment.Enabled should be true")
+	}
+
+	// Safe should have lower re-review threshold
+	if finalize.RiskAssessment.ReReviewThreshold != "medium" {
+		t.Errorf("FinalizePresets(safe).RiskAssessment.ReReviewThreshold = %s, want medium",
+			finalize.RiskAssessment.ReReviewThreshold)
+	}
+
+	// Safe should have AI pre-merge gate
+	if finalize.Gates.PreMerge != "ai" {
+		t.Errorf("FinalizePresets(safe).Gates.PreMerge = %s, want ai", finalize.Gates.PreMerge)
+	}
+}
+
+func TestFinalizePresets_ProfileStrict(t *testing.T) {
+	finalize := FinalizePresets(ProfileStrict)
+
+	// Strict should use merge strategy
+	if finalize.Sync.Strategy != FinalizeSyncMerge {
+		t.Errorf("FinalizePresets(strict).Sync.Strategy = %s, want merge", finalize.Sync.Strategy)
+	}
+
+	// Strict should have lowest re-review threshold
+	if finalize.RiskAssessment.ReReviewThreshold != "low" {
+		t.Errorf("FinalizePresets(strict).RiskAssessment.ReReviewThreshold = %s, want low",
+			finalize.RiskAssessment.ReReviewThreshold)
+	}
+
+	// Strict should have human pre-merge gate
+	if finalize.Gates.PreMerge != "human" {
+		t.Errorf("FinalizePresets(strict).Gates.PreMerge = %s, want human", finalize.Gates.PreMerge)
+	}
+}
+
+func TestApplyProfile_AffectsFinalize(t *testing.T) {
+	cfg := Default()
+
+	// Apply strict profile
+	cfg.ApplyProfile(ProfileStrict)
+
+	// Verify finalize changed
+	if cfg.Completion.Finalize.Gates.PreMerge != "human" {
+		t.Errorf("After ApplyProfile(strict), Finalize.Gates.PreMerge = %s, want human",
+			cfg.Completion.Finalize.Gates.PreMerge)
+	}
+
+	// Apply fast profile
+	cfg.ApplyProfile(ProfileFast)
+
+	// Verify finalize changed to fast settings
+	if cfg.Completion.Finalize.Sync.Strategy != FinalizeSyncRebase {
+		t.Errorf("After ApplyProfile(fast), Finalize.Sync.Strategy = %s, want rebase",
+			cfg.Completion.Finalize.Sync.Strategy)
+	}
+}
+
+func TestShouldRunFinalize(t *testing.T) {
+	tests := []struct {
+		name     string
+		enabled  bool
+		weight   string
+		expected bool
+	}{
+		{"enabled for large", true, "large", true},
+		{"enabled for medium", true, "medium", true},
+		{"enabled for small", true, "small", true},
+		{"disabled for trivial", true, "trivial", false},
+		{"disabled globally", false, "large", false},
+		{"disabled globally for small", false, "small", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Default()
+			cfg.Completion.Finalize.Enabled = tt.enabled
+
+			got := cfg.ShouldRunFinalize(tt.weight)
+			if got != tt.expected {
+				t.Errorf("ShouldRunFinalize(%s) = %v, want %v", tt.weight, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestShouldAutoTriggerFinalize(t *testing.T) {
+	tests := []struct {
+		enabled     bool
+		autoTrigger bool
+		expected    bool
+	}{
+		{true, true, true},
+		{true, false, false},
+		{false, true, false},
+		{false, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run("", func(t *testing.T) {
+			cfg := Default()
+			cfg.Completion.Finalize.Enabled = tt.enabled
+			cfg.Completion.Finalize.AutoTrigger = tt.autoTrigger
+
+			got := cfg.ShouldAutoTriggerFinalize()
+			if got != tt.expected {
+				t.Errorf("ShouldAutoTriggerFinalize() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFinalizeUsesRebase(t *testing.T) {
+	cfg := Default()
+
+	// Default should be merge (not rebase)
+	if cfg.FinalizeUsesRebase() {
+		t.Error("Default should not use rebase")
+	}
+
+	// Switch to rebase
+	cfg.Completion.Finalize.Sync.Strategy = FinalizeSyncRebase
+	if !cfg.FinalizeUsesRebase() {
+		t.Error("Should use rebase after setting strategy to rebase")
+	}
+}
+
+func TestShouldReReview(t *testing.T) {
+	tests := []struct {
+		name      string
+		enabled   bool
+		threshold string
+		riskLevel RiskLevel
+		expected  bool
+	}{
+		{"low risk, high threshold", true, "high", RiskLow, false},
+		{"medium risk, high threshold", true, "high", RiskMedium, false},
+		{"high risk, high threshold", true, "high", RiskHigh, true},
+		{"critical risk, high threshold", true, "high", RiskCritical, true},
+		{"low risk, low threshold", true, "low", RiskLow, true},
+		{"disabled assessment", false, "low", RiskCritical, false},
+		{"medium risk, medium threshold", true, "medium", RiskMedium, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Default()
+			cfg.Completion.Finalize.RiskAssessment.Enabled = tt.enabled
+			cfg.Completion.Finalize.RiskAssessment.ReReviewThreshold = tt.threshold
+
+			got := cfg.ShouldReReview(tt.riskLevel)
+			if got != tt.expected {
+				t.Errorf("ShouldReReview(%s) = %v, want %v", tt.riskLevel, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseRiskLevel(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected RiskLevel
+	}{
+		{"low", RiskLow},
+		{"LOW", RiskLow},
+		{"Low", RiskLow},
+		{"medium", RiskMedium},
+		{"MEDIUM", RiskMedium},
+		{"high", RiskHigh},
+		{"HIGH", RiskHigh},
+		{"critical", RiskCritical},
+		{"CRITICAL", RiskCritical},
+		{"unknown", RiskHigh}, // Defaults to high
+		{"", RiskHigh},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := ParseRiskLevel(tt.input)
+			if got != tt.expected {
+				t.Errorf("ParseRiskLevel(%s) = %v, want %v", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestRiskLevel_String(t *testing.T) {
+	tests := []struct {
+		level    RiskLevel
+		expected string
+	}{
+		{RiskLow, "low"},
+		{RiskMedium, "medium"},
+		{RiskHigh, "high"},
+		{RiskCritical, "critical"},
+		{RiskLevel(99), "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			got := tt.level.String()
+			if got != tt.expected {
+				t.Errorf("RiskLevel(%d).String() = %s, want %s", tt.level, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetPreMergeGateType(t *testing.T) {
+	cfg := Default()
+
+	// Default should be auto
+	if cfg.GetPreMergeGateType() != "auto" {
+		t.Errorf("GetPreMergeGateType() = %s, want auto", cfg.GetPreMergeGateType())
+	}
+
+	// Set to human
+	cfg.Completion.Finalize.Gates.PreMerge = "human"
+	if cfg.GetPreMergeGateType() != "human" {
+		t.Errorf("GetPreMergeGateType() = %s, want human", cfg.GetPreMergeGateType())
+	}
+
+	// Empty should default to auto
+	cfg.Completion.Finalize.Gates.PreMerge = ""
+	if cfg.GetPreMergeGateType() != "auto" {
+		t.Errorf("GetPreMergeGateType() = %s, want auto (from empty)", cfg.GetPreMergeGateType())
+	}
+}
+
+func TestValidate_FinalizeConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func(*Config)
+		expectError bool
+		errContains string
+	}{
+		{
+			name:        "valid default config",
+			setup:       func(c *Config) {},
+			expectError: false,
+		},
+		{
+			name: "invalid finalize sync strategy",
+			setup: func(c *Config) {
+				c.Completion.Finalize.Sync.Strategy = "invalid"
+			},
+			expectError: true,
+			errContains: "completion.finalize.sync.strategy",
+		},
+		{
+			name: "invalid risk threshold",
+			setup: func(c *Config) {
+				c.Completion.Finalize.RiskAssessment.ReReviewThreshold = "extreme"
+			},
+			expectError: true,
+			errContains: "re_review_threshold",
+		},
+		{
+			name: "invalid pre-merge gate",
+			setup: func(c *Config) {
+				c.Completion.Finalize.Gates.PreMerge = "robot"
+			},
+			expectError: true,
+			errContains: "pre_merge",
+		},
+		{
+			name: "valid rebase strategy",
+			setup: func(c *Config) {
+				c.Completion.Finalize.Sync.Strategy = FinalizeSyncRebase
+			},
+			expectError: false,
+		},
+		{
+			name: "valid merge strategy",
+			setup: func(c *Config) {
+				c.Completion.Finalize.Sync.Strategy = FinalizeSyncMerge
+			},
+			expectError: false,
+		},
+		{
+			name: "valid human gate",
+			setup: func(c *Config) {
+				c.Completion.Finalize.Gates.PreMerge = "human"
+			},
+			expectError: false,
+		},
+		{
+			name: "valid ai gate",
+			setup: func(c *Config) {
+				c.Completion.Finalize.Gates.PreMerge = "ai"
+			},
+			expectError: false,
+		},
+		{
+			name: "valid none gate",
+			setup: func(c *Config) {
+				c.Completion.Finalize.Gates.PreMerge = "none"
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Default()
+			tt.setup(cfg)
+
+			err := cfg.Validate()
+			if tt.expectError {
+				if err == nil {
+					t.Fatal("expected error but got none")
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("error %q should contain %q", err.Error(), tt.errContains)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestShouldResolveConflicts(t *testing.T) {
+	cfg := Default()
+
+	// Default should resolve conflicts
+	if !cfg.ShouldResolveConflicts() {
+		t.Error("Default should resolve conflicts")
+	}
+
+	// Disable
+	cfg.Completion.Finalize.ConflictResolution.Enabled = false
+	if cfg.ShouldResolveConflicts() {
+		t.Error("Should not resolve conflicts when disabled")
+	}
+}
+
+func TestGetConflictInstructions(t *testing.T) {
+	cfg := Default()
+
+	// Default should be empty
+	if cfg.GetConflictInstructions() != "" {
+		t.Errorf("GetConflictInstructions() = %q, want empty", cfg.GetConflictInstructions())
+	}
+
+	// Set instructions
+	cfg.Completion.Finalize.ConflictResolution.Instructions = "Prefer newer code"
+	if cfg.GetConflictInstructions() != "Prefer newer code" {
+		t.Errorf("GetConflictInstructions() = %q, want %q",
+			cfg.GetConflictInstructions(), "Prefer newer code")
+	}
+}
+
+func TestShouldAssessRisk(t *testing.T) {
+	cfg := Default()
+
+	// Default should assess risk
+	if !cfg.ShouldAssessRisk() {
+		t.Error("Default should assess risk")
+	}
+
+	// Disable
+	cfg.Completion.Finalize.RiskAssessment.Enabled = false
+	if cfg.ShouldAssessRisk() {
+		t.Error("Should not assess risk when disabled")
 	}
 }
