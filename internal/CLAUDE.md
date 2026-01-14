@@ -13,6 +13,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `config/` | Configuration loading, hierarchy, env vars | `Config`, `TrackedConfig`, `ConfigSource` |
 | `db/` | SQLite persistence (global + project) | `GlobalDB`, `ProjectDB`, `Transcript` |
 | `detect/` | Project type, framework, and frontend detection | `Detection`, `Detect()` |
+| `diff/` | Git diff computation and caching for web UI | `Service`, `DiffResult`, `FileDiff`, `Cache` |
 | `enhance/` | Task enhancement via AI | `Enhancer` |
 | `errors/` | Custom error types | `OrcError` |
 | `events/` | Event publishing for real-time updates | `Publisher`, `Event` |
