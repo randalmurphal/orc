@@ -28,6 +28,17 @@ vi.mock('@/lib/websocket', () => ({
 vi.mock('@/lib/api', () => ({
 	listProjectTasks: vi.fn().mockResolvedValue([]),
 	listInitiatives: vi.fn().mockResolvedValue([]),
+	getDashboardStats: vi.fn().mockResolvedValue({
+		running: 1,
+		paused: 0,
+		blocked: 2,
+		completed: 5,
+		failed: 0,
+		today: 3,
+		total: 10,
+		tokens: 50000,
+		cost: 0.5,
+	}),
 	runProjectTask: vi.fn(),
 	pauseProjectTask: vi.fn(),
 	resumeProjectTask: vi.fn(),
@@ -112,14 +123,14 @@ describe('Routes', () => {
 	describe('/board route', () => {
 		it('renders Board page with project selected', async () => {
 			// Board page requires a project to be selected
+			// Set state before render - Zustand stores are synchronous
 			useProjectStore.setState({
 				projects: [
 					{
 						id: 'test-project',
 						path: '/test/project',
 						name: 'Test Project',
-						task_count: 0,
-						running_count: 0,
+						created_at: '2024-01-01T00:00:00Z',
 					},
 				],
 				currentProjectId: 'test-project',
@@ -127,11 +138,11 @@ describe('Routes', () => {
 				error: null,
 				_isHandlingPopState: false,
 			});
-			// Debug: verify state was set
-			const state = useProjectStore.getState();
-			console.log('Project state before render:', state.currentProjectId);
 
-			renderWithRouter('/board');
+			// Render with project param in URL (UrlParamSync syncs URL -> store)
+			renderWithRouter('/board?project=test-project');
+
+			// Wait for the component to render and show the board
 			await waitFor(() => {
 				// "Board" appears as h2 heading
 				expect(screen.getByRole('heading', { level: 2, name: 'Board' })).toBeInTheDocument();

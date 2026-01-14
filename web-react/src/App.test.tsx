@@ -50,10 +50,11 @@ describe('App', () => {
 		});
 	});
 
-	it('renders Board page at /board route', async () => {
+	it('renders Board page at /board route (shows empty state without project)', async () => {
 		renderApp('/board');
 		await waitFor(() => {
-			expect(screen.getByRole('heading', { level: 2, name: 'Board' })).toBeInTheDocument();
+			// Without project param in URL, Board shows "No Project Selected" empty state
+			expect(screen.getByText('No Project Selected')).toBeInTheDocument();
 		});
 	});
 
