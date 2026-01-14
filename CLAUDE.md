@@ -209,6 +209,7 @@ orc config profile strict
 | `completion.action` | pr/merge/none | - |
 | `completion.pr.auto_approve` | AI-assisted PR approval (auto/fast only) | `docs/architecture/EXECUTOR.md` |
 | `completion.sync.strategy` | Branch sync timing | `docs/architecture/GIT_INTEGRATION.md` |
+| `completion.sync.sync_on_start` | Sync branch before execution (default: true) | `docs/architecture/GIT_INTEGRATION.md` |
 | `completion.finalize.enabled` | Enable finalize phase | `docs/architecture/PHASE_MODEL.md` |
 | `completion.finalize.auto_trigger_on_approval` | Auto-trigger finalize on PR approval | `docs/architecture/EXECUTOR.md` |
 | `completion.finalize.sync.strategy` | Finalize sync: merge/rebase | `docs/architecture/GIT_INTEGRATION.md` |

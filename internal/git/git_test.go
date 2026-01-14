@@ -647,9 +647,9 @@ func TestGetCommitCounts(t *testing.T) {
 	_, _ = g.CreateCheckpoint("TASK-005", "implement", "add feature")
 
 	// Get commit counts relative to base
-	ahead, behind, err := g.getCommitCounts(baseBranch)
+	ahead, behind, err := g.GetCommitCounts(baseBranch)
 	if err != nil {
-		t.Fatalf("getCommitCounts() failed: %v", err)
+		t.Fatalf("GetCommitCounts() failed: %v", err)
 	}
 
 	// Task branch should be ahead by 1 commit

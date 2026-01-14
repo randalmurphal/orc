@@ -63,6 +63,21 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		defer e.cleanupWorktreeForTask(t)
 	}
 
+	// Sync with target branch before execution starts (catches stale worktrees)
+	// This fixes race conditions when parallel tasks modify the same files:
+	// - Task A and Task B start from same main commit
+	// - Task A completes and merges first
+	// - Task B's worktree is now stale - sync brings in Task A's changes
+	// - Implement phase can now incorporate those changes
+	if e.orcConfig.ShouldSyncOnStart() && e.orcConfig.ShouldSyncForWeight(string(t.Weight)) {
+		if err := e.syncOnTaskStart(ctx, t); err != nil {
+			// Sync failures are treated as setup failures
+			e.logger.Error("sync-on-start failed", "task", t.ID, "error", err)
+			e.failSetup(t, s, err)
+			return err
+		}
+	}
+
 	// Track retry counts per phase
 	retryCounts := make(map[string]int)
 

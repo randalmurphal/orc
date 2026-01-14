@@ -514,6 +514,7 @@ var envMapping = map[string]string{
     "ORC_WORKTREE_DIR":      "worktree.dir",
     "ORC_COMPLETION_ACTION":          "completion.action",
     "ORC_SYNC_STRATEGY":              "completion.sync.strategy",
+    "ORC_SYNC_ON_START":              "completion.sync.sync_on_start",
     "ORC_SYNC_FAIL_ON_CONFLICT":      "completion.sync.fail_on_conflict",
     // CI and merge settings
     "ORC_CI_WAIT":                    "completion.ci.wait_for_ci",
