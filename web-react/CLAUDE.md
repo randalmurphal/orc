@@ -599,6 +599,91 @@ ws.disconnect();  // Cleanup
 |------|---------|
 | `lib/types.ts` | TypeScript interfaces matching Go backend types |
 | `lib/websocket.ts` | OrcWebSocket class for WebSocket connection management |
+| `lib/shortcuts.ts` | ShortcutManager class for keyboard shortcuts |
+| `lib/platform.ts` | Platform detection (isMac) and modifier key formatting |
+
+### Keyboard Shortcuts
+
+The keyboard shortcut system uses context and hooks pattern.
+
+#### ShortcutProvider
+
+Wraps the app at root level in `App.tsx`:
+
+```tsx
+<ShortcutProvider>
+  <WebSocketProvider>{children}</WebSocketProvider>
+</ShortcutProvider>
+```
+
+#### Hooks
+
+| Hook | Purpose |
+|------|---------|
+| `useShortcuts()` | Access shortcut manager methods |
+| `useShortcutContext(context)` | Set active context for a component |
+| `useGlobalShortcuts(options)` | Register global shortcuts with navigation |
+| `useTaskListShortcuts(options)` | Register task list shortcuts (j/k navigation) |
+
+#### Global Shortcuts (Shift+Alt modifier)
+
+| Shortcut | Action |
+|----------|--------|
+| `Shift+Alt+K` | Open command palette |
+| `Shift+Alt+N` | Create new task |
+| `Shift+Alt+B` | Toggle sidebar |
+| `Shift+Alt+P` | Switch project |
+| `/` | Focus search |
+| `?` | Show keyboard help |
+| `Escape` | Close modal |
+
+#### Navigation Sequences
+
+| Sequence | Destination |
+|----------|-------------|
+| `g d` | Dashboard |
+| `g t` | Tasks |
+| `g e` | Environment |
+| `g r` | Preferences |
+| `g p` | Prompts |
+| `g h` | Hooks |
+| `g k` | Skills |
+
+#### Task List Shortcuts (context: 'tasks')
+
+| Key | Action |
+|-----|--------|
+| `j` | Select next task |
+| `k` | Select previous task |
+| `Enter` | Open selected task |
+| `r` | Run selected task |
+| `p` | Pause selected task |
+| `d` | Delete selected task |
+
+#### Implementation Notes
+
+- Uses `Shift+Alt` modifier instead of `Cmd/Ctrl` to avoid browser conflicts
+- Multi-key sequences have 1000ms timeout window
+- Shortcuts disabled in input/textarea fields (except Escape)
+- Context system filters shortcuts by active context
+
+#### Usage Example
+
+```tsx
+// In a component
+import { useGlobalShortcuts, useTaskListShortcuts } from '@/hooks';
+
+function TaskList() {
+  useTaskListShortcuts({
+    onNavDown: () => setSelectedIndex(i => i + 1),
+    onNavUp: () => setSelectedIndex(i => Math.max(0, i - 1)),
+    onOpen: () => navigate(`/tasks/${selectedTask.id}`),
+    onRun: () => runTask(selectedTask.id),
+  });
+
+  // ...
+}
+```
 
 ## Known Differences from Svelte
 

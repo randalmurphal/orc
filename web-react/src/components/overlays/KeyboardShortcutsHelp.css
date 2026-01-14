@@ -1,0 +1,67 @@
+/* Keyboard Shortcuts Help Styles */
+
+.shortcuts-help {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+}
+
+.category {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+.category-title {
+	font-size: var(--text-sm);
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin: 0;
+}
+
+.shortcuts-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.shortcut-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--space-2) 0;
+	border-bottom: 1px solid var(--border-subtle);
+}
+
+.shortcut-row:last-child {
+	border-bottom: none;
+}
+
+.shortcut-keys {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+}
+
+.key {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	height: 24px;
+	padding: 0 var(--space-2);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-sm);
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	color: var(--text-primary);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.shortcut-description {
+	font-size: var(--text-sm);
+	color: var(--text-secondary);
+}
