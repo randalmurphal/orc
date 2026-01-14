@@ -612,6 +612,113 @@ orc diff <task-id> [--phase <phase>] [--stat]
 
 ---
 
+### orc deps
+
+Show task dependencies.
+
+```bash
+orc deps [task-id] [--tree] [--graph] [--initiative <id>] [--json]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--tree` | Show full dependency tree | false |
+| `--graph` | Show ASCII dependency graph | false |
+| `--initiative`, `-i` | Filter graph by initiative ID | none |
+
+Without arguments, shows dependency overview for all tasks (blocking, blocked, independent counts).
+
+**Dependency Types**:
+
+| Type | Description |
+|------|-------------|
+| `blocked_by` | Tasks that must complete before this task (stored) |
+| `blocks` | Tasks waiting on this task (computed inverse) |
+| `related_to` | Related tasks for reference (stored) |
+| `referenced_by` | Tasks whose descriptions mention this task (auto-detected) |
+
+**Views**:
+
+**Standard view** (`orc deps TASK-062`):
+```
+TASK-062: Add initiative filter to task list and board filter bars
+──────────────────────────────────────────────────
+
+Blocked by (2):
+  ○ TASK-060  Add initiative_id field...         planned
+  ○ TASK-061  Add Initiatives section...         planned
+
+Blocks (1):
+  ○ TASK-065  Add optional swimlane view...      planned
+
+Related (1):
+  TASK-063  Show initiative badge...
+
+Status: 🚫 BLOCKED (waiting on 2 task(s): TASK-060, TASK-061)
+```
+
+**Tree view** (`orc deps --tree TASK-065`):
+```
+TASK-065: Add optional swimlane view toggle
+└── TASK-062: Add initiative filter...
+    ├── TASK-060: Add initiative_id field...        ← start here
+    └── TASK-061: Add Initiatives section...
+        └── TASK-060: Add initiative_id field...    ← already shown
+```
+
+Shows the full dependency tree recursively, marking completed tasks with ✓, root tasks with "← start here", and previously shown nodes with "← already shown".
+
+**Graph view** (`orc deps --graph INIT-001`):
+```
+Dependency graph for INIT-001:
+
+TASK-060
+├─> TASK-061 ─> TASK-062 ─> TASK-065
+├─> TASK-063
+├─> TASK-064
+└─> TASK-066
+
+TASK-067 (no deps)
+```
+
+ASCII dependency graph showing task flow. Single-chain dependencies are collapsed inline. Filter by initiative with `-i`.
+
+**JSON output** (`orc deps TASK-062 --json`):
+```json
+{
+  "task_id": "TASK-062",
+  "title": "Add initiative filter...",
+  "status": "planned",
+  "blocked_by": [{"id": "TASK-060", "title": "...", "status": "planned"}],
+  "blocks": [{"id": "TASK-065", "title": "...", "status": "planned"}],
+  "related_to": [{"id": "TASK-063", "title": "...", "status": "planned"}],
+  "referenced_by": [],
+  "summary": {
+    "is_blocked": true,
+    "unmet_blockers": 2,
+    "total_blockers": 2,
+    "tasks_blocking": 1,
+    "related_count": 1,
+    "referenced_count": 0
+  }
+}
+```
+
+**Overview mode** (`orc deps` without task ID):
+```
+⚡ BLOCKING OTHER TASKS
+
+  TASK-060  Add initiative_id field...  → blocks: TASK-061, TASK-062, TASK-063
+
+🚫 BLOCKED
+
+  TASK-062  Add initiative filter...    ← waiting on: TASK-060, TASK-061
+
+─── 10 tasks: 3 blocking, 2 blocked, 5 independent ───
+```
+
+---
+
 ### orc status
 
 Show overall orc status.
@@ -627,10 +734,12 @@ orc status [--all] [--watch]
 
 **Status Categories** (in priority order):
 1. **Orphaned** - Tasks marked running but executor process died
-2. **Attention Needed** - Blocked tasks requiring input
+2. **Attention Needed** - Blocked tasks requiring human input
 3. **Running** - Active tasks in progress
-4. **Paused** - Tasks that can be resumed
-5. **Recent** - Completed/failed in last 24h
+4. **Blocked** - Tasks waiting on other tasks (dependency blocked)
+5. **Ready** - Tasks that can run (no dependencies or all satisfied)
+6. **Paused** - Tasks that can be resumed
+7. **Recent** - Completed/failed in last 24h
 
 **Output**:
 ```
@@ -645,13 +754,27 @@ orc status [--all] [--watch]
 
 ⏳ RUNNING
 
-  TASK-001  Add user auth  [implement]
+  TASK-025  Fix resume command...  [implement]
+
+🚫 BLOCKED
+
+  TASK-062  Add initiative filter...  (by TASK-060, TASK-061)
+  TASK-065  Add swimlane view...      (by TASK-060, TASK-061, TASK-062)
+
+📋 READY
+
+  TASK-060  Add initiative_id field...
+  TASK-067  Improve card truncation...
+
+⏸️  PAUSED
+
+  TASK-004  Refactor API handlers  → orc resume TASK-004
 
 RECENT (24h)
 
-  ✓  TASK-004  Fix typo  5 hours ago
+  ✓  TASK-005  Fix typo  5 hours ago
 
-─── 4 tasks (1 running, 1 orphaned, 1 blocked, 1 completed) ───
+─── 8 tasks (1 running, 1 orphaned, 2 blocked, 2 ready, 1 paused, 1 completed) ───
 ```
 
 **Examples**:

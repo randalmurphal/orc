@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -68,6 +69,15 @@ func showStatus(showAll bool) error {
 		return nil
 	}
 
+	// Populate computed fields for dependency tracking
+	task.PopulateComputedFields(tasks)
+
+	// Build task map for dependency checks
+	taskMap := make(map[string]*task.Task)
+	for _, t := range tasks {
+		taskMap[t.ID] = t
+	}
+
 	// Check for orphaned tasks
 	orphans, err := state.FindOrphanedTasks()
 	if err != nil {
@@ -80,14 +90,15 @@ func showStatus(showAll bool) error {
 	}
 
 	// Categorize tasks
-	var blocked, running, orphaned, paused, recent, other []*task.Task
+	var systemBlocked, depBlocked, running, orphaned, paused, ready, recent, other []*task.Task
 	now := time.Now()
 	dayAgo := now.Add(-24 * time.Hour)
 
 	for _, t := range tasks {
 		switch t.Status {
 		case task.StatusBlocked:
-			blocked = append(blocked, t)
+			// System-level blocked (needs human input)
+			systemBlocked = append(systemBlocked, t)
 		case task.StatusRunning:
 			// Check if this running task is actually orphaned
 			if _, isOrphaned := orphanedIDs[t.ID]; isOrphaned {
@@ -103,6 +114,18 @@ func showStatus(showAll bool) error {
 			} else if showAll {
 				other = append(other, t)
 			}
+		case task.StatusCreated, task.StatusPlanned:
+			// Check dependency status for created/planned tasks
+			if len(t.BlockedBy) > 0 {
+				unmet := t.GetUnmetDependencies(taskMap)
+				if len(unmet) > 0 {
+					depBlocked = append(depBlocked, t)
+				} else {
+					ready = append(ready, t)
+				}
+			} else {
+				ready = append(ready, t)
+			}
 		default:
 			other = append(other, t)
 		}
@@ -111,6 +134,11 @@ func showStatus(showAll bool) error {
 	// Sort recent by update time (newest first)
 	sort.Slice(recent, func(i, j int) bool {
 		return recent[i].UpdatedAt.After(recent[j].UpdatedAt)
+	})
+
+	// Sort ready by priority
+	sort.Slice(ready, func(i, j int) bool {
+		return task.PriorityOrder(ready[i].GetPriority()) < task.PriorityOrder(ready[j].GetPriority())
 	})
 
 	// Print sections with priority ordering
@@ -137,15 +165,15 @@ func showStatus(showAll bool) error {
 		fmt.Println()
 	}
 
-	// Attention needed (blocked)
-	if len(blocked) > 0 {
+	// Attention needed (system blocked - needs human input)
+	if len(systemBlocked) > 0 {
 		if plain {
 			fmt.Println("ATTENTION NEEDED")
 		} else {
 			fmt.Println("\u26a0\ufe0f  ATTENTION NEEDED")
 		}
 		fmt.Println()
-		for _, t := range blocked {
+		for _, t := range systemBlocked {
 			fmt.Fprintf(w, "  %s\t%s\t%s\n", t.ID, truncate(t.Title, 40), "(blocked - needs input)")
 		}
 		w.Flush()
@@ -166,6 +194,38 @@ func showStatus(showAll bool) error {
 				phase = "starting"
 			}
 			fmt.Fprintf(w, "  %s\t%s\t[%s]\n", t.ID, truncate(t.Title, 40), phase)
+		}
+		w.Flush()
+		fmt.Println()
+	}
+
+	// Dependency blocked (waiting on other tasks)
+	if len(depBlocked) > 0 {
+		if plain {
+			fmt.Println("BLOCKED")
+		} else {
+			fmt.Println("🚫 BLOCKED")
+		}
+		fmt.Println()
+		for _, t := range depBlocked {
+			unmet := t.GetUnmetDependencies(taskMap)
+			blockerStr := formatBlockerList(unmet)
+			fmt.Fprintf(w, "  %s\t%s\t(by %s)\n", t.ID, truncate(t.Title, 35), blockerStr)
+		}
+		w.Flush()
+		fmt.Println()
+	}
+
+	// Ready (can run now - dependencies satisfied)
+	if len(ready) > 0 {
+		if plain {
+			fmt.Println("READY")
+		} else {
+			fmt.Println("📋 READY")
+		}
+		fmt.Println()
+		for _, t := range ready {
+			fmt.Fprintf(w, "  %s\t%s\n", t.ID, truncate(t.Title, 45))
 		}
 		w.Flush()
 		fmt.Println()
@@ -220,15 +280,33 @@ func showStatus(showAll bool) error {
 		}
 	}
 
+	// Build summary line
+	summaryParts := []string{fmt.Sprintf("%d running", len(running))}
 	if len(orphaned) > 0 {
-		fmt.Printf("─── %d tasks (%d running, %d orphaned, %d blocked, %d completed) ───\n",
-			total, len(running), len(orphaned), len(blocked), completed)
-	} else {
-		fmt.Printf("─── %d tasks (%d running, %d blocked, %d completed) ───\n",
-			total, len(running), len(blocked), completed)
+		summaryParts = append(summaryParts, fmt.Sprintf("%d orphaned", len(orphaned)))
 	}
+	if len(depBlocked) > 0 {
+		summaryParts = append(summaryParts, fmt.Sprintf("%d blocked", len(depBlocked)))
+	}
+	if len(ready) > 0 {
+		summaryParts = append(summaryParts, fmt.Sprintf("%d ready", len(ready)))
+	}
+	summaryParts = append(summaryParts, fmt.Sprintf("%d completed", completed))
+
+	fmt.Printf("─── %d tasks (%s) ───\n", total, strings.Join(summaryParts, ", "))
 
 	return nil
+}
+
+// formatBlockerList formats a list of blocker IDs for display
+func formatBlockerList(blockerIDs []string) string {
+	if len(blockerIDs) == 0 {
+		return ""
+	}
+	if len(blockerIDs) <= 3 {
+		return strings.Join(blockerIDs, ", ")
+	}
+	return strings.Join(blockerIDs[:3], ", ") + fmt.Sprintf(" +%d more", len(blockerIDs)-3)
 }
 
 func watchStatus(showAll bool) error {
