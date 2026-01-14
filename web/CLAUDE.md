@@ -960,6 +960,7 @@ bunx playwright test --project=visual --update-snapshots # Capture new baselines
 | `e2e/hooks.spec.ts` | Hook configuration UI |
 | `e2e/prompts.spec.ts` | Prompt editor UI |
 | `e2e/websocket.spec.ts` | WebSocket real-time updates, connection handling (17 tests) |
+| `e2e/finalize.spec.ts` | Finalize workflow: UI states, modal interaction, progress updates, success/failure handling (10 tests) |
 
 ### Framework-Agnostic E2E Testing
 
@@ -1110,6 +1111,74 @@ async function clearFilterStorage(page: Page) {
     localStorage.removeItem('orc_dependency_status_filter');
   });
 }
+```
+
+### Finalize Workflow E2E Testing
+
+The `finalize.spec.ts` file provides E2E tests for the finalize phase workflow (10 tests):
+
+**Test Categories:**
+
+| Category | Tests | Coverage |
+|----------|-------|----------|
+| Finalize UI (5) | Button visibility, modal opening, modal content, progress bar, card state | Button on completed tasks, FinalizeModal states |
+| Finalize Results (5) | Success state, commit SHA, target branch, failure/retry, finished card state | Result display, error handling |
+
+**WebSocket Event Injection:**
+
+Tests use the same WebSocket interception pattern as `websocket.spec.ts`:
+
+```typescript
+// Set up interception and get send function
+const ws = await setupWSInterception(page);
+
+// Simulate task completion
+const taskUpdatedEvent = createWSEvent('task_updated', taskId, {
+  task: { id: taskId, status: 'completed' }
+});
+ws.send(JSON.stringify(taskUpdatedEvent));
+
+// Simulate finalize progress
+const finalizeEvent = createWSEvent('finalize', taskId, {
+  task_id: taskId,
+  status: 'running',
+  step: 'Syncing branch...',
+  step_percent: 25
+});
+ws.send(JSON.stringify(finalizeEvent));
+```
+
+**Finalize Event Types:**
+
+| Status | Description | UI Update |
+|--------|-------------|-----------|
+| `running` | Finalize in progress | Progress bar, step label |
+| `completed` | Finalize successful | Success section, result details |
+| `failed` | Finalize failed | Error message, retry button |
+
+**Result Object Structure:**
+
+```typescript
+interface FinalizeResult {
+  synced: boolean;
+  conflicts_resolved: number;
+  conflict_files?: string[];
+  tests_passed: boolean;
+  risk_level: string;  // 'low' | 'medium' | 'high'
+  files_changed: number;
+  lines_changed: number;
+  needs_review: boolean;
+  commit_sha?: string;
+  target_branch: string;
+}
+```
+
+**Timing Constants:**
+
+```typescript
+const WS_EVENT_PROPAGATION_MS = 500;   // WebSocket → store → DOM
+const WS_PROGRESS_PROPAGATION_MS = 300; // Progress update delays
+const UI_SETTLE_MS = 200;               // Animation/transition delays
 ```
 
 ## Deep-Dive Reference
