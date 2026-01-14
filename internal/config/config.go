@@ -161,6 +161,11 @@ type SyncConfig struct {
 	// Strategy defines when to sync: none, phase, completion, detect (default: completion)
 	Strategy SyncStrategy `yaml:"strategy"`
 
+	// SyncOnStart syncs branch with target before execution starts (default: true)
+	// This catches conflicts from parallel tasks early, while the implement phase
+	// can still incorporate changes and resolve them.
+	SyncOnStart bool `yaml:"sync_on_start"`
+
 	// FailOnConflict aborts execution on merge conflicts instead of attempting resolution (default: true)
 	FailOnConflict bool `yaml:"fail_on_conflict"`
 
@@ -835,10 +840,11 @@ func Default() *Config {
 				MergeMethod:   "squash",          // Use squash merge by default
 			},
 			Sync: SyncConfig{
-				Strategy:       SyncStrategyCompletion, // Sync before PR creation by default
-				FailOnConflict: true,                   // Fail on conflicts by default - let user decide resolution
-				MaxConflictFiles: 0,                    // No limit by default
-				SkipForWeights:   []string{"trivial"},  // Skip sync for trivial tasks
+				Strategy:         SyncStrategyCompletion, // Sync before PR creation by default
+				SyncOnStart:      true,                   // Sync at task start to catch stale worktrees
+				FailOnConflict:   true,                   // Fail on conflicts by default - let user decide resolution
+				MaxConflictFiles: 0,                      // No limit by default
+				SkipForWeights:   []string{"trivial"},    // Skip sync for trivial tasks
 			},
 			Finalize: FinalizeConfig{
 				Enabled:               true,  // Finalize phase enabled by default
@@ -1411,6 +1417,17 @@ func (c *Config) ShouldSyncForWeight(weight string) bool {
 // ShouldSyncBeforePhase returns true if sync should happen before each phase.
 func (c *Config) ShouldSyncBeforePhase() bool {
 	return c.Completion.Sync.Strategy == SyncStrategyPhase
+}
+
+// ShouldSyncOnStart returns true if sync should happen before task execution starts.
+// This catches conflicts from parallel tasks early, while the implement phase can
+// still incorporate changes and resolve them.
+func (c *Config) ShouldSyncOnStart() bool {
+	// If sync is completely disabled, don't sync on start either
+	if c.Completion.Sync.Strategy == SyncStrategyNone {
+		return false
+	}
+	return c.Completion.Sync.SyncOnStart
 }
 
 // ShouldSyncAtCompletion returns true if sync should happen at task completion.

@@ -209,6 +209,7 @@ orc config profile strict
 | `completion.action` | pr/merge/none | - |
 | `completion.pr.auto_approve` | AI-assisted PR approval (auto/fast only) | `docs/architecture/EXECUTOR.md` |
 | `completion.sync.strategy` | Branch sync timing | `docs/architecture/GIT_INTEGRATION.md` |
+| `completion.sync.sync_on_start` | Sync branch before execution (default: true) | `docs/architecture/GIT_INTEGRATION.md` |
 | `completion.finalize.enabled` | Enable finalize phase | `docs/architecture/PHASE_MODEL.md` |
 | `completion.finalize.auto_trigger_on_approval` | Auto-trigger finalize on PR approval | `docs/architecture/EXECUTOR.md` |
 | `completion.finalize.sync.strategy` | Finalize sync: merge/rebase | `docs/architecture/GIT_INTEGRATION.md` |
@@ -475,6 +476,7 @@ Patterns, gotchas, and decisions learned during development.
 | Visual regression baselines | Separate Playwright project (`visual`) with 1440x900 @2x viewport, disabled animations, masked dynamic content (timestamps, tokens); use `--update-snapshots` to regenerate after intentional UI changes; baselines in `web/e2e/__snapshots__/` | TASK-159 |
 | Keyboard shortcut E2E testing | Test multi-key sequences (g+d, g+t) with sequential `page.keyboard.press()` calls; test Shift+Alt modifiers; verify input field awareness (shortcuts disabled when typing); use `.selected` class for task navigation; 13 tests in `web/e2e/keyboard-shortcuts.spec.ts` | TASK-160 |
 | Finalize workflow E2E testing | Test finalize modal states (not started, running, completed, failed) via WebSocket event injection; covers button visibility on completed tasks, modal content, progress bar with step labels, success/failure results, retry option; 10 tests in `web/e2e/finalize.spec.ts` | TASK-161 |
+| Sync on start for stale worktrees | Before execution starts, sync task branch with target to catch conflicts from parallel tasks; `sync_on_start: true` (default) rebases onto latest target so implement phase sees current code; disable if you need isolation from concurrent changes | TASK-194 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

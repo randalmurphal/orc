@@ -684,6 +684,50 @@ func TestShouldDetectConflictsOnly(t *testing.T) {
 	}
 }
 
+func TestShouldSyncOnStart(t *testing.T) {
+	tests := []struct {
+		name        string
+		strategy    SyncStrategy
+		syncOnStart bool
+		expected    bool
+	}{
+		// Default behavior: sync on start enabled
+		{"completion+enabled", SyncStrategyCompletion, true, true},
+		{"phase+enabled", SyncStrategyPhase, true, true},
+		{"detect+enabled", SyncStrategyDetect, true, true},
+		// Explicitly disabled
+		{"completion+disabled", SyncStrategyCompletion, false, false},
+		{"phase+disabled", SyncStrategyPhase, false, false},
+		// Strategy none disables all sync including sync-on-start
+		{"none+enabled", SyncStrategyNone, true, false},
+		{"none+disabled", SyncStrategyNone, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Default()
+			cfg.Completion.Sync.Strategy = tt.strategy
+			cfg.Completion.Sync.SyncOnStart = tt.syncOnStart
+
+			got := cfg.ShouldSyncOnStart()
+			if got != tt.expected {
+				t.Errorf("ShouldSyncOnStart() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSyncOnStart_DefaultEnabled(t *testing.T) {
+	// Verify that the default configuration has sync_on_start enabled
+	cfg := Default()
+	if !cfg.Completion.Sync.SyncOnStart {
+		t.Error("Default config should have Completion.Sync.SyncOnStart = true")
+	}
+	if !cfg.ShouldSyncOnStart() {
+		t.Error("Default config should return ShouldSyncOnStart() = true")
+	}
+}
+
 func TestValidate_InvalidSyncStrategy(t *testing.T) {
 	cfg := Default()
 	cfg.Completion.Sync.Strategy = "invalid"

@@ -235,6 +235,7 @@ completion:
     merge_method: squash               # Merge method: squash | merge | rebase (default: squash)
   sync:
     strategy: completion               # none | phase | completion | detect
+    sync_on_start: true                # Sync before execution starts (default: true, catches stale worktrees)
     fail_on_conflict: true             # Abort on conflicts vs continue with warning
     max_conflict_files: 0              # Max files with conflicts before aborting (0 = unlimited)
     skip_for_weights: [trivial]        # Skip sync for these task weights
@@ -514,6 +515,7 @@ var envMapping = map[string]string{
     "ORC_WORKTREE_DIR":      "worktree.dir",
     "ORC_COMPLETION_ACTION":          "completion.action",
     "ORC_SYNC_STRATEGY":              "completion.sync.strategy",
+    "ORC_SYNC_ON_START":              "completion.sync.sync_on_start",
     "ORC_SYNC_FAIL_ON_CONFLICT":      "completion.sync.fail_on_conflict",
     // CI and merge settings
     "ORC_CI_WAIT":                    "completion.ci.wait_for_ci",
