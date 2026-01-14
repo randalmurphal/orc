@@ -10,6 +10,8 @@
 
 	let { stats, wsStatus, onFilterClick }: Props = $props();
 
+	const cacheTotal = $derived((stats.cache_creation_input_tokens || 0) + (stats.cache_read_input_tokens || 0));
+
 	function formatTokens(tokens: number): string {
 		if (tokens >= 1_000_000) {
 			return `${(tokens / 1_000_000).toFixed(1)}M`;
@@ -71,7 +73,6 @@
 			</div>
 		</button>
 
-		{@const cacheTotal = (stats.cache_creation_input_tokens || 0) + (stats.cache_read_input_tokens || 0)}
 		<div
 			class="stat-card tokens"
 			title={cacheTotal > 0

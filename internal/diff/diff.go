@@ -63,13 +63,94 @@ func NewService(repoPath string, cache *Cache) *Service {
 	return &Service{repoPath: repoPath, cache: cache}
 }
 
+// ResolveRef resolves a git reference, trying multiple fallbacks:
+// 1. The ref as given (works for local branches and remote refs)
+// 2. origin/<ref> for remote tracking branches
+// Returns the resolved ref or the original if no better option found.
+func (s *Service) ResolveRef(ctx context.Context, ref string) string {
+	// Check if ref exists directly
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--verify", "--quiet", ref)
+	cmd.Dir = s.repoPath
+	if err := cmd.Run(); err == nil {
+		return ref
+	}
+
+	// Try origin/<ref> for remote tracking branches
+	remoteRef := "origin/" + ref
+	cmd = exec.CommandContext(ctx, "git", "rev-parse", "--verify", "--quiet", remoteRef)
+	cmd.Dir = s.repoPath
+	if err := cmd.Run(); err == nil {
+		return remoteRef
+	}
+
+	// Return original ref - git commands will fail with appropriate error
+	return ref
+}
+
+// ShouldIncludeWorkingTree checks if the diff should include uncommitted changes.
+// This is true when:
+// 1. head branch has not diverged from base (same commit)
+// 2. There are uncommitted changes in the working tree
+// Returns true if working tree should be included, along with the effective head ref.
+func (s *Service) ShouldIncludeWorkingTree(ctx context.Context, base, head string) (bool, string) {
+	// Get commit SHAs for base and head
+	baseCmd := exec.CommandContext(ctx, "git", "rev-parse", base)
+	baseCmd.Dir = s.repoPath
+	baseOut, err := baseCmd.Output()
+	if err != nil {
+		return false, head
+	}
+	baseSHA := strings.TrimSpace(string(baseOut))
+
+	headCmd := exec.CommandContext(ctx, "git", "rev-parse", head)
+	headCmd.Dir = s.repoPath
+	headOut, err := headCmd.Output()
+	if err != nil {
+		return false, head
+	}
+	headSHA := strings.TrimSpace(string(headOut))
+
+	// If head has diverged from base, use normal branch comparison
+	if baseSHA != headSHA {
+		return false, head
+	}
+
+	// Check if there are uncommitted changes relative to base
+	// Using git diff with no args against base shows working tree changes
+	diffCmd := exec.CommandContext(ctx, "git", "diff", "--quiet", base, "--")
+	diffCmd.Dir = s.repoPath
+	if err := diffCmd.Run(); err != nil {
+		// Non-zero exit means there are differences - working tree has changes
+		return true, ""
+	}
+
+	// Also check for staged changes
+	stagedCmd := exec.CommandContext(ctx, "git", "diff", "--quiet", "--cached", base, "--")
+	stagedCmd.Dir = s.repoPath
+	if err := stagedCmd.Run(); err != nil {
+		// Non-zero exit means there are staged changes
+		return true, ""
+	}
+
+	// No uncommitted changes
+	return false, head
+}
+
 // GetStats returns diff statistics without file contents.
+// If head is empty, compares base against the working tree (uncommitted changes).
 func (s *Service) GetStats(ctx context.Context, base, head string) (*DiffStats, error) {
-	// Use git diff --stat with shortstat for summary
-	cmd := exec.CommandContext(ctx, "git", "diff", "--shortstat", base+"..."+head)
+	var cmd *exec.Cmd
+
+	if head == "" {
+		// Compare base to working tree (uncommitted changes)
+		cmd = exec.CommandContext(ctx, "git", "diff", "--shortstat", base, "--")
+	} else {
+		// Use git diff --stat with shortstat for summary
+		cmd = exec.CommandContext(ctx, "git", "diff", "--shortstat", base+"..."+head)
+	}
 	cmd.Dir = s.repoPath
 	output, err := cmd.Output()
-	if err != nil {
+	if err != nil && head != "" {
 		// Try without three-dot notation for unrelated branches
 		cmd = exec.CommandContext(ctx, "git", "diff", "--shortstat", base, head)
 		cmd.Dir = s.repoPath
@@ -77,17 +158,30 @@ func (s *Service) GetStats(ctx context.Context, base, head string) (*DiffStats, 
 		if err != nil {
 			return nil, fmt.Errorf("git diff stat: %w", err)
 		}
+	} else if err != nil {
+		return nil, fmt.Errorf("git diff stat: %w", err)
 	}
 	return parseStats(string(output))
 }
 
 // GetFileList returns the list of changed files without content.
+// If head is empty, compares base against the working tree (uncommitted changes).
 func (s *Service) GetFileList(ctx context.Context, base, head string) ([]FileDiff, error) {
-	// Use git diff --numstat for file list with additions/deletions count
-	cmd := exec.CommandContext(ctx, "git", "diff", "--numstat", base+"..."+head)
+	var cmd *exec.Cmd
+	var statusCmd *exec.Cmd
+
+	if head == "" {
+		// Compare base to working tree (uncommitted changes)
+		cmd = exec.CommandContext(ctx, "git", "diff", "--numstat", base, "--")
+		statusCmd = exec.CommandContext(ctx, "git", "diff", "--name-status", "-M", base, "--")
+	} else {
+		// Use git diff --numstat for file list with additions/deletions count
+		cmd = exec.CommandContext(ctx, "git", "diff", "--numstat", base+"..."+head)
+		statusCmd = exec.CommandContext(ctx, "git", "diff", "--name-status", "-M", base+"..."+head)
+	}
 	cmd.Dir = s.repoPath
 	output, err := cmd.Output()
-	if err != nil {
+	if err != nil && head != "" {
 		// Try without three-dot notation
 		cmd = exec.CommandContext(ctx, "git", "diff", "--numstat", base, head)
 		cmd.Dir = s.repoPath
@@ -95,6 +189,8 @@ func (s *Service) GetFileList(ctx context.Context, base, head string) ([]FileDif
 		if err != nil {
 			return nil, fmt.Errorf("git diff numstat: %w", err)
 		}
+	} else if err != nil {
+		return nil, fmt.Errorf("git diff numstat: %w", err)
 	}
 
 	files, err := parseNumstat(string(output))
@@ -103,10 +199,9 @@ func (s *Service) GetFileList(ctx context.Context, base, head string) ([]FileDif
 	}
 
 	// Get status (added, modified, deleted, renamed) using --name-status
-	statusCmd := exec.CommandContext(ctx, "git", "diff", "--name-status", "-M", base+"..."+head)
 	statusCmd.Dir = s.repoPath
 	statusOutput, err := statusCmd.Output()
-	if err != nil {
+	if err != nil && head != "" {
 		statusCmd = exec.CommandContext(ctx, "git", "diff", "--name-status", "-M", base, head)
 		statusCmd.Dir = s.repoPath
 		statusOutput, _ = statusCmd.Output()
@@ -129,20 +224,27 @@ func (s *Service) GetFileList(ctx context.Context, base, head string) ([]FileDif
 }
 
 // GetFileDiff returns the diff for a single file with hunks.
+// If head is empty, compares base against the working tree (uncommitted changes).
 func (s *Service) GetFileDiff(ctx context.Context, base, head, filePath string) (*FileDiff, error) {
-	// Check cache first
-	if s.cache != nil {
+	// Check cache first (don't cache working tree diffs as they can change)
+	if s.cache != nil && head != "" {
 		cacheKey := fmt.Sprintf("%s..%s:%s", base, head, filePath)
 		if cached := s.cache.Get(cacheKey); cached != nil {
 			return cached, nil
 		}
 	}
 
-	// Use git diff with histogram algorithm for better diffs
-	cmd := exec.CommandContext(ctx, "git", "diff", "--histogram", "-U3", base+"..."+head, "--", filePath)
+	var cmd *exec.Cmd
+	if head == "" {
+		// Compare base to working tree (uncommitted changes)
+		cmd = exec.CommandContext(ctx, "git", "diff", "--histogram", "-U3", base, "--", filePath)
+	} else {
+		// Use git diff with histogram algorithm for better diffs
+		cmd = exec.CommandContext(ctx, "git", "diff", "--histogram", "-U3", base+"..."+head, "--", filePath)
+	}
 	cmd.Dir = s.repoPath
 	output, err := cmd.Output()
-	if err != nil {
+	if err != nil && head != "" {
 		// Try without three-dot notation
 		cmd = exec.CommandContext(ctx, "git", "diff", "--histogram", "-U3", base, head, "--", filePath)
 		cmd.Dir = s.repoPath
@@ -150,13 +252,15 @@ func (s *Service) GetFileDiff(ctx context.Context, base, head, filePath string) 
 		if err != nil {
 			return nil, fmt.Errorf("git diff file: %w", err)
 		}
+	} else if err != nil {
+		return nil, fmt.Errorf("git diff file: %w", err)
 	}
 
 	diff := parseFileDiff(string(output), filePath)
 	diff.Syntax = detectSyntax(filePath)
 
-	// Cache result if cache available
-	if s.cache != nil {
+	// Cache result if cache available (don't cache working tree diffs)
+	if s.cache != nil && head != "" {
 		cacheKey := fmt.Sprintf("%s..%s:%s", base, head, filePath)
 		s.cache.Set(cacheKey, diff)
 	}
