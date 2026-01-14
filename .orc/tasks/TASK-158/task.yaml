@@ -36,7 +36,7 @@ description: |-
     - URL state persists correctly across page refresh
 weight: medium
 status: running
-current_phase: implement
+current_phase: test
 branch: orc/TASK-158
 queue: active
 priority: normal
@@ -46,5 +46,5 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:18:29.241985588-06:00
-updated_at: 2026-01-14T06:02:48.360624-06:00
+updated_at: 2026-01-14T06:14:12.483172-06:00
 started_at: 2026-01-14T06:02:47.99381-06:00
