@@ -45,7 +45,7 @@ web/src/
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
 | Filters | InitiativeDropdown, ViewModeDropdown | Filter bar dropdowns |
 | Kanban | Board, Column, QueuedColumn, TaskCard, Swimlane, ConfirmModal | Board view with queue/priority/swimlanes |
-| Overlays | Modal, LiveTranscriptModal, CommandPalette, KeyboardShortcutsHelp | Modal dialogs and overlays |
+| Overlays | Modal, LiveTranscriptModal, FinalizeModal, CommandPalette, KeyboardShortcutsHelp | Modal dialogs and overlays |
 | Comments | TaskCommentsPanel, TaskCommentThread, TaskCommentForm | Task discussion notes |
 | Review | CommentForm, CommentThread, ReviewPanel, ReviewSummary | Code review comments |
 | UI | Icon (40 icons), StatusIndicator, Toast, Modal | Shared components |
@@ -242,6 +242,85 @@ Clicking a running task opens `LiveTranscriptModal` - a modal overlay showing re
 **Triggering the modal:**
 - Click running task card on board or task list
 - Cards pass `onViewTranscript` callback to open modal
+
+### Finalize Modal
+
+The `FinalizeModal` (`overlays/FinalizeModal.svelte`) manages the finalize phase UI for completed tasks with approved PRs. It provides real-time progress tracking, result display, and retry capabilities.
+
+**Opening the modal:**
+- Click the finalize button on a completed task card in the Done column
+- Button only appears when task status is `completed`
+
+**Modal states:**
+
+| State | Display | Actions |
+|-------|---------|---------|
+| Not Started | Explanation + "Start Finalize" button | Start finalize |
+| Pending | Status badge, waiting message | - |
+| Running | Progress bar, step label, live updates | - |
+| Completed | Success message, result details | Close |
+| Failed | Error message, explanation | Retry |
+
+**Result display (on completion):**
+
+| Field | Description |
+|-------|-------------|
+| Merged Commit | 7-char abbreviated SHA |
+| Target Branch | Branch merged into (e.g., `main`) |
+| Files Changed | Number of modified files |
+| Conflicts Resolved | Count of merge conflicts handled |
+| Tests | Pass/fail status with color indicator |
+| Risk Level | Low (green) / Medium (yellow) / High (red) |
+
+**WebSocket integration:**
+- Subscribes to `finalize` events for real-time progress
+- Updates step label, progress message, and percentage
+- Shows connection status indicator (Live/Connecting/Disconnected)
+
+**API functions:**
+- `triggerFinalize(taskId)` - Start finalize operation
+- `getFinalizeStatus(taskId)` - Load current finalize state
+
+### TaskCard Finalize States
+
+TaskCard displays different visual states for finalize workflow:
+
+| Task Status | Visual Indicator | Actions |
+|-------------|------------------|---------|
+| `completed` | Success border, finalize button in actions | Click to open FinalizeModal |
+| `finalizing` | Info border (2px), pulsing animation, progress bar | View progress |
+| `finished` | Success border, merged commit info | View merge details |
+
+**Finalize button:**
+- Appears in card action area for `completed` tasks
+- Icon: two connected circles (merge symbol)
+- Shows spinner when loading
+- Disabled during finalizing
+
+**Progress indicator (finalizing state):**
+- Shows current step label
+- Progress bar with percentage
+- Animated border pulse (2s cycle)
+
+**Finished info:**
+- Green background section
+- Displays abbreviated commit SHA (7 chars)
+- Shows target branch name
+- Merge icon indicator
+
+**CSS classes:**
+```css
+.task-card.finalizing {
+  border-color: var(--status-info);
+  border-width: 2px;
+  animation: finalize-pulse 2s ease-in-out infinite;
+}
+
+.task-card.finished {
+  border-color: var(--status-success);
+  background: gradient with success tint;
+}
+```
 
 ### Task Dependency Sidebar
 
@@ -479,8 +558,10 @@ Created: Jan 10, 2026
 **Status indicators:**
 | Icon | Status | Color |
 |------|--------|-------|
-| ✓ (check-circle) | completed/finished | Green (success) |
+| ✓ (check-circle) | completed | Green (success) |
+| ✓✓ (check-circle-2) | finished | Green (success), bold |
 | ● (play-circle) | running | Blue (info) |
+| ⟳ (refresh-cw) | finalizing | Blue (info), animated |
 | ○ (circle) | planned/created | Gray (muted) |
 | ⚠ (alert-circle) | blocked | Yellow (warning) |
 | ✗ (x-circle) | failed | Red (danger) |

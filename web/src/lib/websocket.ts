@@ -9,6 +9,7 @@ export type WSEventType =
 	| 'tokens'
 	| 'error'
 	| 'complete'
+	| 'finalize'
 	// File watcher events (triggered by external file changes)
 	| 'task_created'
 	| 'task_updated'

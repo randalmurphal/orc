@@ -1668,3 +1668,56 @@ export async function getReadyTasks(id: string, shared?: boolean): Promise<Initi
 	const query = shared ? '?shared=true' : '';
 	return fetchJSON<InitiativeTaskRef[]>(`/initiatives/${id}/ready${query}`);
 }
+
+// Finalize Operations
+export type FinalizeStatus = 'not_started' | 'pending' | 'running' | 'completed' | 'failed';
+
+export interface FinalizeResult {
+	synced: boolean;
+	conflicts_resolved: number;
+	conflict_files?: string[];
+	tests_passed: boolean;
+	risk_level: string;
+	files_changed: number;
+	lines_changed: number;
+	needs_review: boolean;
+	commit_sha?: string;
+	target_branch: string;
+}
+
+export interface FinalizeState {
+	task_id: string;
+	status: FinalizeStatus;
+	started_at?: string;
+	updated_at?: string;
+	completed_at?: string;
+	step?: string;
+	progress?: string;
+	step_percent?: number;
+	result?: FinalizeResult;
+	error?: string;
+	commit_sha?: string;
+	message?: string;
+}
+
+export interface FinalizeRequest {
+	force?: boolean;
+	gate_override?: boolean;
+}
+
+export interface FinalizeResponse {
+	task_id: string;
+	status: FinalizeStatus;
+	message?: string;
+}
+
+export async function triggerFinalize(taskId: string, options?: FinalizeRequest): Promise<FinalizeResponse> {
+	return fetchJSON<FinalizeResponse>(`/tasks/${taskId}/finalize`, {
+		method: 'POST',
+		body: JSON.stringify(options || {})
+	});
+}
+
+export async function getFinalizeStatus(taskId: string): Promise<FinalizeState> {
+	return fetchJSON<FinalizeState>(`/tasks/${taskId}/finalize`);
+}
