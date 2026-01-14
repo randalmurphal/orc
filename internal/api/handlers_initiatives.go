@@ -31,15 +31,19 @@ func (s *Server) handleListInitiatives(w http.ResponseWriter, r *http.Request) {
 		initiatives = []*initiative.Initiative{}
 	}
 
+	// Populate computed fields (Blocks)
+	initiative.PopulateComputedFields(initiatives)
+
 	s.jsonResponse(w, initiatives)
 }
 
 // handleCreateInitiative creates a new initiative.
 func (s *Server) handleCreateInitiative(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title  string `json:"title"`
-		Vision string `json:"vision,omitempty"`
-		Owner  struct {
+		Title     string   `json:"title"`
+		Vision    string   `json:"vision,omitempty"`
+		BlockedBy []string `json:"blocked_by,omitempty"`
+		Owner     struct {
 			Initials    string `json:"initials,omitempty"`
 			DisplayName string `json:"display_name,omitempty"`
 			Email       string `json:"email,omitempty"`
@@ -64,9 +68,27 @@ func (s *Server) handleCreateInitiative(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Validate blocked_by references
+	if len(req.BlockedBy) > 0 {
+		allInits, err := initiative.List(req.Shared)
+		if err != nil {
+			s.jsonError(w, "failed to load initiatives for validation", http.StatusInternalServerError)
+			return
+		}
+		existingIDs := make(map[string]bool)
+		for _, init := range allInits {
+			existingIDs[init.ID] = true
+		}
+		if errs := initiative.ValidateBlockedBy(id, req.BlockedBy, existingIDs); len(errs) > 0 {
+			s.jsonError(w, errs[0].Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
 	// Create initiative
 	init := initiative.New(id, req.Title)
 	init.Vision = req.Vision
+	init.BlockedBy = req.BlockedBy
 	if req.Owner.Initials != "" || req.Owner.DisplayName != "" || req.Owner.Email != "" {
 		init.Owner = initiative.Identity{
 			Initials:    req.Owner.Initials,
@@ -108,6 +130,19 @@ func (s *Server) handleGetInitiative(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load all initiatives to populate computed fields
+	allInits, err := initiative.List(shared)
+	if err == nil && len(allInits) > 0 {
+		// Build map to find our initiative in the list
+		for i, all := range allInits {
+			if all.ID == id {
+				allInits[i] = init // Use the already loaded one
+				break
+			}
+		}
+		initiative.PopulateComputedFields(allInits)
+	}
+
 	s.jsonResponse(w, init)
 }
 
@@ -131,10 +166,11 @@ func (s *Server) handleUpdateInitiative(w http.ResponseWriter, r *http.Request) 
 
 	// Parse update request
 	var req struct {
-		Title  string `json:"title,omitempty"`
-		Vision string `json:"vision,omitempty"`
-		Status string `json:"status,omitempty"`
-		Owner  *struct {
+		Title     string    `json:"title,omitempty"`
+		Vision    string    `json:"vision,omitempty"`
+		Status    string    `json:"status,omitempty"`
+		BlockedBy *[]string `json:"blocked_by,omitempty"`
+		Owner     *struct {
 			Initials    string `json:"initials,omitempty"`
 			DisplayName string `json:"display_name,omitempty"`
 			Email       string `json:"email,omitempty"`
@@ -164,6 +200,23 @@ func (s *Server) handleUpdateInitiative(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	// Handle blocked_by update
+	if req.BlockedBy != nil {
+		allInits, err := initiative.List(shared)
+		if err != nil {
+			s.jsonError(w, "failed to load initiatives for validation", http.StatusInternalServerError)
+			return
+		}
+		initMap := make(map[string]*initiative.Initiative)
+		for _, i := range allInits {
+			initMap[i.ID] = i
+		}
+		if err := init.SetBlockedBy(*req.BlockedBy, initMap); err != nil {
+			s.jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
 	// Save
 	if shared {
 		err = init.SaveShared()
@@ -173,6 +226,18 @@ func (s *Server) handleUpdateInitiative(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		s.jsonError(w, "failed to save initiative", http.StatusInternalServerError)
 		return
+	}
+
+	// Reload all initiatives to populate computed fields for response
+	allInits, err := initiative.List(shared)
+	if err == nil && len(allInits) > 0 {
+		for i, all := range allInits {
+			if all.ID == id {
+				allInits[i] = init
+				break
+			}
+		}
+		initiative.PopulateComputedFields(allInits)
 	}
 
 	s.jsonResponse(w, init)

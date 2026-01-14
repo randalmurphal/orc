@@ -213,6 +213,19 @@ Permanently stop task and mark as failed (unlike `pause` which allows resume).
 |------|-------------|
 | `--force, -f` | Skip confirmation prompt |
 
+### `orc initiative edit`
+Edit an initiative's properties including dependencies.
+
+| Flag | Description |
+|------|-------------|
+| `--title` | Set initiative title |
+| `--vision`, `-V` | Set initiative vision |
+| `--owner`, `-o` | Set owner initials |
+| `--blocked-by` | Set blocked_by list (replaces existing) |
+| `--add-blocker` | Add initiative(s) to blocked_by list |
+| `--remove-blocker` | Remove initiative(s) from blocked_by list |
+| `--shared` | Use shared initiative |
+
 ### `orc initiative run`
 Run tasks from an initiative.
 
@@ -221,6 +234,9 @@ Run tasks from an initiative.
 | `--execute` | Actually run tasks (default: preview only) |
 | `--parallel` | Run ready tasks in parallel |
 | `--profile` | Override automation profile |
+| `--force`, `-f` | Run even if blocked by other initiatives |
+
+**Blocking enforcement**: If the initiative has incomplete dependencies, shows warning and suggests completing blockers first or using `--force`.
 
 ### `orc config docs`
 Show searchable configuration documentation.

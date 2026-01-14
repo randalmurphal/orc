@@ -809,6 +809,154 @@ orc config --edit
 
 ---
 
+### orc initiative
+
+Manage initiatives (groups of related tasks).
+
+```bash
+orc initiative <subcommand> [options]
+```
+
+#### orc initiative new
+
+Create a new initiative.
+
+```bash
+orc initiative new <title> [--vision <vision>] [--owner <initials>] [--shared] [--blocked-by <ids>]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--vision`, `-V` | Initiative vision statement | none |
+| `--owner`, `-o` | Owner initials | none |
+| `--shared` | Create in shared directory for team access | false |
+| `--blocked-by` | Comma-separated initiative IDs that must complete first | none |
+
+**Examples**:
+```bash
+orc initiative new "User Authentication System"
+orc initiative new "API Refactor" --vision "Modern REST API with OpenAPI spec"
+orc initiative new "Dark Mode" --shared
+orc initiative new "React Migration" --blocked-by INIT-001
+```
+
+#### orc initiative list
+
+List all initiatives.
+
+```bash
+orc initiative list [--status <status>] [--shared]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--status`, `-s` | Filter by status (draft/active/completed/archived) | all |
+| `--shared` | List shared initiatives | false |
+
+Shows blocked status indicator for initiatives with incomplete blockers.
+
+#### orc initiative show
+
+Show initiative details including dependencies.
+
+```bash
+orc initiative show <id> [--shared]
+```
+
+Displays:
+- Initiative metadata (title, status, vision, owner)
+- Blocked status indicator if blocked by other initiatives
+- Dependency relationships (blocked_by, blocks)
+- Linked tasks with completion status
+- Recorded decisions
+
+#### orc initiative edit
+
+Edit an initiative's properties including dependencies.
+
+```bash
+orc initiative edit <id> [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--title` | Set initiative title |
+| `--vision`, `-V` | Set initiative vision |
+| `--owner`, `-o` | Set owner initials |
+| `--blocked-by` | Set blocked_by list (replaces existing) |
+| `--add-blocker` | Add initiative(s) to blocked_by list |
+| `--remove-blocker` | Remove initiative(s) from blocked_by list |
+| `--shared` | Use shared initiative |
+
+**Examples**:
+```bash
+orc initiative edit INIT-001 --title "New Title"
+orc initiative edit INIT-001 --vision "Updated vision statement"
+orc initiative edit INIT-001 --blocked-by INIT-002,INIT-003
+orc initiative edit INIT-001 --add-blocker INIT-004
+orc initiative edit INIT-001 --remove-blocker INIT-002
+```
+
+#### orc initiative add-task
+
+Link a task to an initiative.
+
+```bash
+orc initiative add-task <initiative-id> <task-id>
+```
+
+#### orc initiative decide
+
+Record a decision for an initiative.
+
+```bash
+orc initiative decide <id> <decision-text> [--rationale <text>]
+```
+
+#### orc initiative activate / complete
+
+Change initiative status.
+
+```bash
+orc initiative activate <id>
+orc initiative complete <id>
+```
+
+#### orc initiative run
+
+Run tasks from an initiative.
+
+```bash
+orc initiative run <id> [--execute] [--parallel] [--profile <profile>] [--force]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--execute` | Actually run tasks (default: preview only) | false |
+| `--parallel` | Run ready tasks in parallel | false |
+| `--profile`, `-p` | Automation profile | auto |
+| `--force`, `-f` | Run even if blocked by other initiatives | false |
+
+**Blocking enforcement**: If the initiative has incomplete dependencies (initiatives in `blocked_by` that aren't completed), shows warning and suggests completing blockers first or using `--force`.
+
+**Examples**:
+```bash
+orc initiative run INIT-001              # Show ready tasks (safe preview)
+orc initiative run INIT-001 --execute    # Actually run the tasks
+orc initiative run INIT-001 --parallel   # Run ready tasks in parallel
+orc initiative run INIT-001 --force      # Run even if blocked by other initiatives
+```
+
+#### orc initiative delete
+
+Delete an initiative.
+
+```bash
+orc initiative delete <id> [--force]
+```
+
+---
+
 ### orc serve
 
 Start the API server for the web UI.

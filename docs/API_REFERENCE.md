@@ -318,19 +318,79 @@ Returns 404 if the specified project doesn't exist.
 
 ## Initiatives
 
-Group related tasks with shared decisions.
+Group related tasks with shared decisions. Initiatives can depend on other initiatives.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/initiatives` | List (`?status=active`, `?shared=true`) |
 | POST | `/api/initiatives` | Create initiative |
-| GET | `/api/initiatives/:id` | Get initiative |
+| GET | `/api/initiatives/:id` | Get initiative (includes computed `blocks` field) |
 | PUT | `/api/initiatives/:id` | Update initiative |
 | DELETE | `/api/initiatives/:id` | Delete initiative |
 | GET | `/api/initiatives/:id/tasks` | List initiative tasks |
 | POST | `/api/initiatives/:id/tasks` | Add task to initiative |
 | POST | `/api/initiatives/:id/decisions` | Add decision |
 | GET | `/api/initiatives/:id/ready` | Get tasks ready to run |
+
+**Create initiative body (POST):**
+```json
+{
+  "title": "React Migration",
+  "vision": "Migrate all components to React 18",
+  "blocked_by": ["INIT-001"],
+  "owner": {
+    "initials": "JD",
+    "display_name": "John Doe"
+  },
+  "shared": false
+}
+```
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `title` | Initiative title (required) | - |
+| `vision` | Vision statement | `""` |
+| `blocked_by` | Initiative IDs that must complete first | `[]` |
+| `owner` | Owner identity | `{}` |
+| `shared` | Create in shared directory | `false` |
+
+**Update initiative body (PUT):**
+```json
+{
+  "title": "Updated Title",
+  "vision": "Updated vision",
+  "status": "active",
+  "blocked_by": ["INIT-001", "INIT-002"]
+}
+```
+
+All fields are optional. Setting `blocked_by` replaces the entire list.
+
+**Initiative response:**
+```json
+{
+  "id": "INIT-002",
+  "title": "React Migration",
+  "status": "active",
+  "vision": "Migrate all components to React 18",
+  "blocked_by": ["INIT-001"],
+  "blocks": ["INIT-003"],
+  "tasks": [...],
+  "decisions": [...],
+  "created_at": "2026-01-10T10:30:00Z",
+  "updated_at": "2026-01-10T12:45:00Z"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `blocked_by` | Initiative IDs that must complete before this initiative (stored) |
+| `blocks` | Initiative IDs waiting on this initiative (computed) |
+
+**Validation:**
+- Referenced initiative IDs must exist
+- Self-references are rejected
+- Circular dependencies are detected and rejected
 
 ---
 
