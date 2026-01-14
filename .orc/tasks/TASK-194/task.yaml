@@ -17,7 +17,7 @@ description: |-
     4. Create worktree just-in-time when task runs (not when task is created)
 weight: medium
 status: running
-current_phase: implement
+current_phase: test
 branch: orc/TASK-194
 queue: active
 priority: critical
@@ -25,5 +25,5 @@ category: bug
 testing_requirements:
     unit: true
 created_at: 2026-01-14T11:04:12.82619-06:00
-updated_at: 2026-01-14T11:04:27.286119-06:00
+updated_at: 2026-01-14T11:12:45.937958-06:00
 started_at: 2026-01-14T11:04:26.8346-06:00
