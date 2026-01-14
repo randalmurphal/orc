@@ -1,0 +1,12 @@
+version: 1
+id: INIT-083
+title: E2E-Test-AddDecision-1768389276368
+status: draft
+decisions:
+    - id: DEC-001
+      date: 2026-01-14T05:14:38.858797-06:00
+      by: Team
+      decision: Use TypeScript for all frontend code
+      rationale: Better type safety and developer experience
+created_at: 2026-01-14T05:14:36.80199-06:00
+updated_at: 2026-01-14T05:14:38.858804-06:00
