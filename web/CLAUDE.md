@@ -882,10 +882,44 @@ bunx playwright test --ui
 bunx playwright test --grep board  # Run board tests only
 ```
 
+### Visual Regression Tests
+
+Visual regression tests capture baseline screenshots for all major pages and UI states, enabling detection of unintended visual changes during development or migration.
+
+**Run visual tests:**
+```bash
+bunx playwright test --project=visual                    # Compare against baselines
+bunx playwright test --project=visual --update-snapshots # Capture new baselines
+```
+
+**Configuration (see `playwright.config.ts`):**
+- Viewport: 1440x900 @2x (retina quality)
+- Single browser: Chromium only for consistency
+- Snapshot tolerance: 1000 pixels max diff, 20% color threshold
+
+**Test file:** `e2e/visual.spec.ts`
+
+| Category | Screenshots | States Captured |
+|----------|-------------|-----------------|
+| Dashboard (3) | `dashboard/populated.png`, `dashboard/empty.png`, `dashboard/loading.png` | Full data, empty state, skeleton loading |
+| Board Flat (2) | `board/flat/populated.png`, `board/flat/with-running.png` | Tasks in columns, running task pulse |
+| Board Swimlane (2) | `board/swimlane/populated.png`, `board/swimlane/collapsed.png` | Multiple swimlanes, collapsed state |
+| Task Detail (5) | `task-detail/timeline/*.png`, `task-detail/changes/*.png`, `task-detail/transcript/*.png` | Running/completed timeline, split/unified diff, transcript content |
+| Modals (4) | `modals/new-task/*.png`, `modals/command-palette/open.png`, `modals/keyboard-shortcuts.png` | Empty/filled forms, palette, shortcuts help |
+
+**Techniques for deterministic screenshots:**
+- CSS animations disabled via injected stylesheet
+- Dynamic content masked (timestamps, token counts, PIDs)
+- Mock API responses for consistent data
+- Retry logic for flaky dropdown interactions
+
+**Baselines stored in:** `e2e/__snapshots__/visual.spec.ts-snapshots/`
+
 **Test files:**
 
 | File | Coverage |
 |------|----------|
+| `e2e/visual.spec.ts` | Visual regression baselines for all pages (16 screenshots) |
 | `e2e/board.spec.ts` | Board page: rendering, view modes, drag-drop, swimlanes (18 tests) |
 | `e2e/filters.spec.ts` | Filter dropdowns, search, URL/localStorage persistence (16 tests) |
 | `e2e/initiatives.spec.ts` | Initiative CRUD, detail page, task linking, decisions, dependency graph (20 tests) |
