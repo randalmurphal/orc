@@ -24,7 +24,7 @@ CWD-based task operations. These endpoints use the server's working directory as
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/tasks` | List tasks (`?page=N&limit=N`) - returns empty list if not in orc project |
+| GET | `/api/tasks` | List tasks (`?page=N&limit=N&initiative=INIT-001`) - returns empty list if not in orc project |
 | POST | `/api/tasks` | Create task |
 | GET | `/api/tasks/:id` | Get task |
 | PATCH | `/api/tasks/:id` | Update task (title, description, weight, metadata) |
@@ -60,7 +60,8 @@ Supports both JSON and multipart/form-data. Use multipart when attaching files d
   "weight": "medium",
   "queue": "active",
   "priority": "normal",
-  "category": "feature"
+  "category": "feature",
+  "initiative_id": "INIT-001"
 }
 ```
 
@@ -73,9 +74,10 @@ Supports both JSON and multipart/form-data. Use multipart when attaching files d
 | `queue` | string | active/backlog |
 | `priority` | string | critical/high/normal/low |
 | `category` | string | feature/bug/refactor/chore/docs/test |
+| `initiative_id` | string | Initiative ID to link task to (e.g., INIT-001) |
 | `attachments` | file[] | Files to attach (repeatable) |
 
-All fields except `title` are optional. Defaults: `queue: "active"`, `priority: "normal"`, `category: "feature"`.
+All fields except `title` are optional. Defaults: `queue: "active"`, `priority: "normal"`, `category: "feature"`, `initiative_id: ""` (standalone).
 
 **Update task body (PATCH):**
 ```json
@@ -86,6 +88,7 @@ All fields except `title` are optional. Defaults: `queue: "active"`, `priority: 
   "queue": "backlog",
   "priority": "high",
   "category": "bug",
+  "initiative_id": "INIT-001",
   "metadata": {"key": "value"}
 }
 ```
@@ -98,8 +101,11 @@ All fields are optional. Only provided fields are updated. Cannot update running
 | `queue` | `active`, `backlog` |
 | `priority` | `critical`, `high`, `normal`, `low` |
 | `category` | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` |
+| `initiative_id` | Initiative ID (e.g., `INIT-001`) or `""` to unlink |
 
 Weight changes trigger automatic plan regeneration (completed/skipped phases are preserved if they exist in both plans).
+
+**Initiative linking:** Setting `initiative_id` links the task to an initiative. The task is auto-added to the initiative's task list (bidirectional sync). Use `""` to unlink a task from its initiative.
 
 ### Task Attachments
 

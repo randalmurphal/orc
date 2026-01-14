@@ -209,6 +209,10 @@ type Task struct {
 	// Category indicates the type of task (feature, bug, refactor, etc).
 	Category Category `yaml:"category,omitempty" json:"category,omitempty"`
 
+	// InitiativeID links this task to an initiative (e.g., INIT-001).
+	// Empty/null means the task is standalone and not part of any initiative.
+	InitiativeID string `yaml:"initiative_id,omitempty" json:"initiative_id,omitempty"`
+
 	// RequiresUITesting indicates if this task involves UI changes
 	// that should be validated with Playwright or similar tools
 	RequiresUITesting bool `yaml:"requires_ui_testing,omitempty" json:"requires_ui_testing,omitempty"`
@@ -286,6 +290,22 @@ func (t *Task) MoveToBacklog() {
 // MoveToActive moves the task to the active queue.
 func (t *Task) MoveToActive() {
 	t.Queue = QueueActive
+}
+
+// SetInitiative links the task to an initiative.
+// Pass an empty string to unlink the task from any initiative.
+func (t *Task) SetInitiative(initiativeID string) {
+	t.InitiativeID = initiativeID
+}
+
+// GetInitiativeID returns the task's initiative ID, or empty string if not linked.
+func (t *Task) GetInitiativeID() string {
+	return t.InitiativeID
+}
+
+// HasInitiative returns true if the task is linked to an initiative.
+func (t *Task) HasInitiative() bool {
+	return t.InitiativeID != ""
 }
 
 // IsTerminal returns true if the task is in a terminal state.

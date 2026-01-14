@@ -184,6 +184,19 @@ func (i *Initiative) UpdateTaskStatus(taskID, status string) bool {
 	return false
 }
 
+// RemoveTask removes a task reference from the initiative.
+// Returns true if the task was found and removed.
+func (i *Initiative) RemoveTask(taskID string) bool {
+	for idx, t := range i.Tasks {
+		if t.ID == taskID {
+			i.Tasks = append(i.Tasks[:idx], i.Tasks[idx+1:]...)
+			i.UpdatedAt = time.Now()
+			return true
+		}
+	}
+	return false
+}
+
 // AddDecision records a decision in the initiative.
 func (i *Initiative) AddDecision(decision, rationale, by string) {
 	id := fmt.Sprintf("DEC-%03d", len(i.Decisions)+1)

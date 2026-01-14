@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
@@ -23,6 +24,7 @@ Modifiable properties:
   --title       Update the task title
   --description Update the task description (or -d)
   --weight      Change task weight (triggers plan regeneration)
+  --initiative  Link/unlink task to initiative (use "" to unlink)
 
 Weight changes will regenerate the task plan with phases appropriate
 for the new weight. This requires the task to not be running.
@@ -30,7 +32,9 @@ for the new weight. This requires the task to not be running.
 Example:
   orc edit TASK-001 --title "New title"
   orc edit TASK-001 --weight large
-  orc edit TASK-001 -d "Updated description" --title "Better title"`,
+  orc edit TASK-001 -d "Updated description" --title "Better title"
+  orc edit TASK-001 --initiative INIT-001   # link to initiative
+  orc edit TASK-001 --initiative ""         # unlink from initiative`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -41,6 +45,8 @@ Example:
 			newTitle, _ := cmd.Flags().GetString("title")
 			newDescription, _ := cmd.Flags().GetString("description")
 			newWeight, _ := cmd.Flags().GetString("weight")
+			newInitiative, _ := cmd.Flags().GetString("initiative")
+			initiativeChanged := cmd.Flags().Changed("initiative")
 
 			// Load task to verify it exists
 			t, err := task.Load(taskID)
@@ -87,6 +93,21 @@ Example:
 				}
 			}
 
+			// Update initiative if flag was provided (even if empty, to allow unlinking)
+			oldInitiative := t.InitiativeID
+			if initiativeChanged {
+				if newInitiative != "" {
+					// Verify initiative exists
+					if !initiative.Exists(newInitiative, false) {
+						return fmt.Errorf("initiative %s not found", newInitiative)
+					}
+				}
+				if t.InitiativeID != newInitiative {
+					t.SetInitiative(newInitiative)
+					changes = append(changes, "initiative")
+				}
+			}
+
 			// No changes requested
 			if len(changes) == 0 {
 				if !quiet {
@@ -107,6 +128,28 @@ Example:
 				}
 			}
 
+			// Handle initiative change - sync bidirectionally
+			if initiativeChanged && oldInitiative != t.InitiativeID {
+				// Remove from old initiative if it was linked
+				if oldInitiative != "" {
+					if oldInit, err := initiative.Load(oldInitiative); err == nil {
+						oldInit.RemoveTask(t.ID)
+						if err := oldInit.Save(); err != nil {
+							fmt.Printf("Warning: failed to remove task from old initiative: %v\n", err)
+						}
+					}
+				}
+				// Add to new initiative if linking
+				if t.HasInitiative() {
+					if newInit, err := initiative.Load(t.InitiativeID); err == nil {
+						newInit.AddTask(t.ID, t.Title, nil)
+						if err := newInit.Save(); err != nil {
+							fmt.Printf("Warning: failed to add task to new initiative: %v\n", err)
+						}
+					}
+				}
+			}
+
 			if !quiet {
 				fmt.Printf("Updated task %s\n", taskID)
 				for _, change := range changes {
@@ -121,6 +164,16 @@ Example:
 						fmt.Printf("   Description: %s\n", desc)
 					case "weight":
 						fmt.Printf("   Weight: %s -> %s (plan regenerated)\n", oldWeight, t.Weight)
+					case "initiative":
+						if t.HasInitiative() {
+							if oldInitiative == "" {
+								fmt.Printf("   Initiative: linked to %s\n", t.InitiativeID)
+							} else {
+								fmt.Printf("   Initiative: %s -> %s\n", oldInitiative, t.InitiativeID)
+							}
+						} else {
+							fmt.Printf("   Initiative: unlinked from %s\n", oldInitiative)
+						}
 					}
 				}
 			}
@@ -132,6 +185,7 @@ Example:
 	cmd.Flags().StringP("title", "t", "", "new task title")
 	cmd.Flags().StringP("description", "d", "", "new task description")
 	cmd.Flags().StringP("weight", "w", "", "new task weight (trivial, small, medium, large, greenfield)")
+	cmd.Flags().StringP("initiative", "i", "", "link/unlink task to initiative (use \"\" to unlink)")
 
 	return cmd
 }

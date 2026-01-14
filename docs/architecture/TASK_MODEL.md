@@ -24,6 +24,9 @@ queue: active            # active | backlog
 priority: normal         # critical | high | normal | low
 category: feature        # feature | bug | refactor | chore | docs | test
 
+# Initiative linking (optional)
+initiative_id: INIT-001  # Links to initiative, empty = standalone
+
 # Testing flags (auto-detected during task creation)
 requires_ui_testing: true        # Auto-set when task mentions UI keywords
 testing_requirements:
@@ -80,6 +83,25 @@ Tasks are sorted by priority within each column. Higher priority tasks appear fi
 Categories help classify the type of work for organization and filtering. Set via `--category` flag on `orc new` or through the web UI.
 
 **Note:** Queue, priority, and category are orthogonal to task status. A `backlog` task can still be `running` or `blocked`, and a `critical` task can be in any status.
+
+### Initiative Linking
+
+Tasks can optionally belong to an initiative—a grouping of related tasks that share decisions and context.
+
+| Field | Values | Default | Purpose |
+|-------|--------|---------|---------|
+| `initiative_id` | Initiative ID (e.g., `INIT-001`) | empty | Groups task under an initiative |
+
+**Behavior:**
+- Empty/omitted `initiative_id` means the task is standalone
+- Set via `orc new --initiative INIT-001` or `orc edit TASK-001 --initiative INIT-001`
+- Unlink via `orc edit TASK-001 --initiative ""`
+- Bidirectional sync: setting initiative_id auto-adds the task to the initiative's task list
+- When a task is deleted, it's automatically removed from its linked initiative
+
+**API support:**
+- Include `initiative_id` in POST/PATCH task requests
+- Filter tasks by initiative: `GET /api/tasks?initiative=INIT-001`
 
 ---
 

@@ -66,7 +66,7 @@ Next steps:
 Create a new task.
 
 ```bash
-orc new <title> [--weight <weight>] [--category <category>] [--description <desc>] [--attach <file>]
+orc new <title> [--weight <weight>] [--category <category>] [--description <desc>] [--attach <file>] [--initiative <id>]
 ```
 
 | Option | Description | Default |
@@ -78,6 +78,7 @@ orc new <title> [--weight <weight>] [--category <category>] [--description <desc
 | `--template`, `-t` | Use template (bugfix, feature, refactor, migration, spike) | none |
 | `--var` | Template variable (KEY=VALUE), can be repeated | none |
 | `--attach`, `-a` | Attach file(s) to task, can be repeated | none |
+| `--initiative`, `-i` | Link task to initiative (e.g., INIT-001) | none (standalone) |
 
 **Testing Detection**: Task creation automatically detects UI-related keywords in the title/description and sets:
 - `requires_ui_testing: true` for UI tasks
@@ -94,6 +95,7 @@ orc new "Fix login bug" --category bug
 orc new -t bugfix "Fix memory leak"
 orc new "UI rendering issue" --attach screenshot.png
 orc new "API error" -a error.log -a response.json  # Multiple attachments
+orc new "Add login flow" --initiative INIT-001     # Link to initiative
 ```
 
 **Output**:
@@ -155,7 +157,7 @@ orc show <task-id> [--checkpoints]
 Edit task properties after creation.
 
 ```bash
-orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>]
+orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>] [--initiative <id>]
 ```
 
 | Option | Description | Notes |
@@ -163,14 +165,19 @@ orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>]
 | `--title`, `-t` | New task title | |
 | `--description`, `-d` | New task description | |
 | `--weight`, `-w` | New weight (trivial/small/medium/large/greenfield) | Triggers plan regeneration |
+| `--initiative`, `-i` | Link/unlink task to initiative | Use `""` to unlink |
 
 Weight changes regenerate the task plan with phases appropriate for the new weight. Completed/skipped phases that exist in both the old and new plans retain their status. Requires the task to not be running.
+
+**Initiative linking:** Setting `--initiative INIT-001` links the task to an initiative. The task is auto-added to the initiative's task list (bidirectional sync). Use `--initiative ""` to unlink a task from its initiative.
 
 **Examples**:
 ```bash
 orc edit TASK-001 --title "Better title"
 orc edit TASK-001 --weight large
 orc edit TASK-001 -d "Updated description" -t "New title"
+orc edit TASK-001 --initiative INIT-001   # Link to initiative
+orc edit TASK-001 --initiative ""         # Unlink from initiative
 ```
 
 ---

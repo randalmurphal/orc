@@ -47,13 +47,14 @@ Commands: `/orc:init`, `/orc:status`, `/orc:continue`, `/orc:review`, `/orc:qa`,
 
 ### Task Organization
 
-Tasks support queue, priority, and category organization:
+Tasks support queue, priority, category, and initiative organization:
 
 | Property | Values | Purpose |
 |----------|--------|---------|
 | Queue | `active`, `backlog` | Separates current work from "someday" items |
 | Priority | `critical`, `high`, `normal`, `low` | Urgency within a queue |
 | Category | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | Type of work for organization and filtering |
+| Initiative | Initiative ID (e.g., `INIT-001`) | Groups related tasks under an initiative |
 
 **Queues:**
 - **Active** (default): Current work shown on the board
@@ -72,6 +73,12 @@ Tasks support queue, priority, and category organization:
 - **chore**: Maintenance tasks (dependencies, cleanup, config)
 - **docs**: Documentation changes
 - **test**: Test-related changes
+
+**Initiatives:**
+- Tasks can optionally belong to an initiative (a group of related tasks)
+- Set via `orc new --initiative INIT-001` or `orc edit TASK-001 --initiative INIT-001`
+- Unlink via `orc edit TASK-001 --initiative ""`
+- Bidirectional sync: setting initiative_id auto-adds task to initiative's task list
 
 Tasks are sorted within each column by: **running status first** (running tasks always appear at the top), then by priority. Higher priority tasks appear before lower priority tasks.
 
@@ -353,6 +360,7 @@ Patterns, gotchas, and decisions learned during development.
 | Running task sort priority | Running tasks sort to top of their column before priority sorting; ensures active work is always visible | TASK-028 |
 | Live transcript modal | Click running task to open LiveTranscriptModal with streaming output, token tracking, and connection status; uses WebSocket `transcript` events for real-time updates | TASK-012 |
 | Worktree-aware project root | `config.FindProjectRoot()` resolves main repo with `.orc/tasks` when running from worktree; uses git common-dir to find main repo | TASK-025 |
+| Initiative-task bidirectional sync | Setting `initiative_id` on a task auto-adds it to the initiative's task list; deleting a task removes it from its initiative | TASK-060 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

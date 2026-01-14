@@ -315,3 +315,71 @@ func TestDelete(t *testing.T) {
 func sprintf(format string, args ...interface{}) string {
 	return fmt.Sprintf(format, args...)
 }
+
+func TestRemoveTask(t *testing.T) {
+	init := New("INIT-001", "Remove Task Test")
+
+	// Add some tasks
+	init.AddTask("TASK-001", "First task", nil)
+	init.AddTask("TASK-002", "Second task", []string{"TASK-001"})
+	init.AddTask("TASK-003", "Third task", []string{"TASK-001"})
+
+	if len(init.Tasks) != 3 {
+		t.Fatalf("Tasks count = %d, want 3", len(init.Tasks))
+	}
+
+	// Remove existing task
+	if !init.RemoveTask("TASK-002") {
+		t.Error("RemoveTask should return true for existing task")
+	}
+	if len(init.Tasks) != 2 {
+		t.Errorf("Tasks count = %d, want 2 after removal", len(init.Tasks))
+	}
+
+	// Verify correct task was removed
+	for _, task := range init.Tasks {
+		if task.ID == "TASK-002" {
+			t.Error("TASK-002 should have been removed")
+		}
+	}
+
+	// Verify remaining tasks are correct
+	if init.Tasks[0].ID != "TASK-001" {
+		t.Errorf("First task ID = %q, want %q", init.Tasks[0].ID, "TASK-001")
+	}
+	if init.Tasks[1].ID != "TASK-003" {
+		t.Errorf("Second task ID = %q, want %q", init.Tasks[1].ID, "TASK-003")
+	}
+
+	// Remove non-existing task
+	if init.RemoveTask("TASK-999") {
+		t.Error("RemoveTask should return false for non-existing task")
+	}
+	if len(init.Tasks) != 2 {
+		t.Errorf("Tasks count = %d, want 2 (no change for non-existing)", len(init.Tasks))
+	}
+
+	// Remove first task
+	if !init.RemoveTask("TASK-001") {
+		t.Error("RemoveTask should return true for existing task")
+	}
+	if len(init.Tasks) != 1 {
+		t.Errorf("Tasks count = %d, want 1 after removal", len(init.Tasks))
+	}
+	if init.Tasks[0].ID != "TASK-003" {
+		t.Errorf("Remaining task ID = %q, want %q", init.Tasks[0].ID, "TASK-003")
+	}
+
+	// Remove last task
+	if !init.RemoveTask("TASK-003") {
+		t.Error("RemoveTask should return true for existing task")
+	}
+	if len(init.Tasks) != 0 {
+		t.Errorf("Tasks count = %d, want 0 after removing all", len(init.Tasks))
+	}
+
+	// Remove from empty list
+	if init.RemoveTask("TASK-001") {
+		t.Error("RemoveTask should return false when list is empty")
+	}
+}
