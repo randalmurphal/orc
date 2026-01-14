@@ -106,14 +106,16 @@ export function QueuedColumn({
 	return (
 		<div
 			className={columnClasses}
+			role="region"
+			aria-label={`${column.title} column`}
 			onDragEnter={handleDragEnter}
 			onDragLeave={handleDragLeave}
 			onDragOver={handleDragOver}
 			onDrop={handleDrop}
 		>
 			<div className="column-header">
-				<h3 className="column-title">{column.title}</h3>
-				<span className="column-count">{totalCount}</span>
+				<h2>{column.title}</h2>
+				<span className="count">{totalCount}</span>
 			</div>
 
 			<div className="column-content">

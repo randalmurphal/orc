@@ -84,7 +84,7 @@ export function ViewModeDropdown({ value, onChange, disabled }: ViewModeDropdown
 				disabled={disabled}
 			>
 				<Icon name="layout" size={16} />
-				<span className="trigger-label">{currentOption.label}</span>
+				<span className="trigger-text">{currentOption.label}</span>
 				<Icon name="chevron-down" size={14} className={`chevron ${isOpen ? 'open' : ''}`} />
 			</button>
 
@@ -94,15 +94,15 @@ export function ViewModeDropdown({ value, onChange, disabled }: ViewModeDropdown
 						<button
 							key={option.id}
 							type="button"
-							className={`dropdown-option ${option.id === value ? 'selected' : ''}`}
+							className={`dropdown-item ${option.id === value ? 'selected' : ''}`}
 							onClick={() => handleSelect(option.id)}
 							role="option"
 							aria-selected={option.id === value}
 						>
-							<span className="option-indicator" />
-							<div className="option-content">
-								<span className="option-label">{option.label}</span>
-								<span className="option-description">{option.description}</span>
+							<span className="indicator-dot" />
+							<div className="item-content">
+								<span className="item-label">{option.label}</span>
+								<span className="item-description">{option.description}</span>
 							</div>
 						</button>
 					))}

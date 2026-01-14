@@ -27,16 +27,16 @@
 	border-bottom: 1px solid var(--border-subtle);
 }
 
-.column-title {
+.column-header h2 {
 	margin: 0;
 	font-size: var(--text-sm);
 	font-weight: var(--font-semibold);
-	color: var(--column-accent, var(--text-primary));
-	text-transform: uppercase;
-	letter-spacing: var(--tracking-wide);
+	color: var(--text-primary);
+	text-transform: none;
+	letter-spacing: normal;
 }
 
-.column-count {
+.column-header .count {
 	display: flex;
 	align-items: center;
 	justify-content: center;

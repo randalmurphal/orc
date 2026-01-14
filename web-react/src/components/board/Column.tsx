@@ -124,6 +124,8 @@ export function Column({
 	return (
 		<div
 			className={columnClasses}
+			role="region"
+			aria-label={`${column.title} column`}
 			style={
 				{
 					'--column-accent': style.accentColor,
@@ -136,8 +138,8 @@ export function Column({
 			onDrop={handleDrop}
 		>
 			<div className="column-header">
-				<h3 className="column-title">{column.title}</h3>
-				<span className="column-count">{tasks.length}</span>
+				<h2>{column.title}</h2>
+				<span className="count">{tasks.length}</span>
 			</div>
 
 			<div className="column-content">

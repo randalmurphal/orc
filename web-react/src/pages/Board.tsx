@@ -278,13 +278,18 @@ export function Board() {
 	return (
 		<div className="page board-page">
 			<div className="page-header">
-				<h2>Board</h2>
+				<div className="header-left">
+					<h2>Board</h2>
+					<span className="task-count">{filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}</span>
+				</div>
 				<div className="header-filters">
-					<ViewModeDropdown
-						value={viewMode}
-						onChange={handleViewModeChange}
-						disabled={swimlaneDisabled}
-					/>
+					<div className={swimlaneDisabled ? 'view-mode-disabled' : ''}>
+						<ViewModeDropdown
+							value={viewMode}
+							onChange={handleViewModeChange}
+							disabled={swimlaneDisabled}
+						/>
+					</div>
 					<InitiativeDropdown
 						currentInitiativeId={currentInitiativeId}
 						onSelect={handleInitiativeChange}
