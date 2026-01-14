@@ -291,28 +291,35 @@ Group related tasks with shared decisions.
 | PUT | `/api/skills/:name` | Update skill |
 | DELETE | `/api/skills/:name` | Delete skill |
 
-### Settings
+### Settings (Claude Code)
+
+Claude Code settings from `settings.json` files. Both global (`~/.claude/settings.json`) and project (`.claude/settings.json`) settings are editable via the UI.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/settings` | Get merged settings (global + project) |
 | GET | `/api/settings/global` | Get global settings only |
 | GET | `/api/settings/project` | Get project settings only |
-| PUT | `/api/settings` | Update settings (`?scope=global` for global) |
+| PUT | `/api/settings` | Update project settings |
+| PUT | `/api/settings/global` | Update global settings |
 
-**Scope parameter:**
-- `PUT /api/settings` - Updates project settings (`.claude/settings.json`)
-- `PUT /api/settings?scope=global` - Updates global settings (`~/.claude/settings.json`)
-
-**StatusLine configuration example:**
+**Settings body (PUT):**
 ```json
 {
+  "env": {
+    "KEY": "value"
+  },
   "statusLine": {
     "type": "command",
     "command": "echo -n '[$USER:${HOSTNAME%%.*}]:${PWD##*/}'"
   }
 }
 ```
+
+**Editable fields:**
+- `env` - Environment variables (key-value pairs)
+- `statusLine.type` - Type of statusline (`command`)
+- `statusLine.command` - Shell command for statusline output
 
 ### Tools
 
@@ -354,12 +361,92 @@ Group related tasks with shared decisions.
 
 ### Orc Config
 
+Orc orchestrator configuration from `.orc/config.yaml`. All settings are editable via the UI.
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/config` | Get orc configuration |
+| GET | `/api/config` | Get orc configuration (`?with_sources=true` for source tracking) |
 | PUT | `/api/config` | Update orc configuration |
 | GET | `/api/config/export` | Get export configuration |
 | PUT | `/api/config/export` | Update export configuration |
+
+**Config response:**
+```json
+{
+  "version": "1.0.0",
+  "profile": "auto",
+  "automation": {
+    "profile": "auto",
+    "gates_default": "ai",
+    "retry_enabled": true,
+    "retry_max": 3
+  },
+  "execution": {
+    "model": "claude-sonnet-4-20250514",
+    "max_iterations": 10,
+    "timeout": "30m"
+  },
+  "git": {
+    "branch_prefix": "orc/",
+    "commit_prefix": "[orc]"
+  },
+  "worktree": {
+    "enabled": true,
+    "dir": ".orc/worktrees",
+    "cleanup_on_complete": true,
+    "cleanup_on_fail": false
+  },
+  "completion": {
+    "action": "pr",
+    "target_branch": "main",
+    "delete_branch": true
+  },
+  "timeouts": {
+    "phase_max": "1h",
+    "turn_max": "5m",
+    "idle_warning": "2m",
+    "heartbeat_interval": "10s",
+    "idle_timeout": "10m"
+  }
+}
+```
+
+**Config update body (PUT):**
+```json
+{
+  "profile": "safe",
+  "automation": {
+    "gates_default": "human",
+    "retry_enabled": true,
+    "retry_max": 5
+  },
+  "execution": {
+    "model": "claude-opus-4-20250514",
+    "max_iterations": 20,
+    "timeout": "1h"
+  },
+  "git": {
+    "branch_prefix": "feature/",
+    "commit_prefix": "[feature]"
+  },
+  "worktree": {
+    "enabled": true,
+    "cleanup_on_complete": true,
+    "cleanup_on_fail": false
+  },
+  "completion": {
+    "action": "merge",
+    "target_branch": "develop",
+    "delete_branch": true
+  },
+  "timeouts": {
+    "phase_max": "2h",
+    "turn_max": "10m"
+  }
+}
+```
+
+All fields are optional. Only provided fields are updated. Setting `profile` applies a preset and then other fields override.
 
 ---
 
