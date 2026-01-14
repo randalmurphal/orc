@@ -94,7 +94,7 @@ describe('NewTaskModal', () => {
 			await fireEvent.click(submitButton);
 
 			await waitFor(() => {
-				expect(createTask).toHaveBeenCalledWith('Test task', undefined);
+				expect(createTask).toHaveBeenCalledWith('Test task', undefined, undefined, 'feature');
 				expect(addTask).toHaveBeenCalledWith(mockTask);
 				expect(toast.success).toHaveBeenCalled();
 				expect(mockOnClose).toHaveBeenCalled();
@@ -123,7 +123,7 @@ describe('NewTaskModal', () => {
 			await fireEvent.click(submitButton);
 
 			await waitFor(() => {
-				expect(createTask).toHaveBeenCalledWith('Test task', 'Test description');
+				expect(createTask).toHaveBeenCalledWith('Test task', 'Test description', undefined, 'feature');
 			});
 		});
 
@@ -214,7 +214,7 @@ describe('NewTaskModal', () => {
 			await fireEvent.keyDown(titleInput, { key: 'Enter', metaKey: true });
 
 			await waitFor(() => {
-				expect(createTask).toHaveBeenCalledWith('Keyboard task', undefined);
+				expect(createTask).toHaveBeenCalledWith('Keyboard task', undefined, undefined, 'feature');
 			});
 		});
 	});

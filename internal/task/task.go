@@ -132,6 +132,39 @@ func PriorityOrder(p Priority) int {
 	}
 }
 
+// Category represents the type/category of a task.
+type Category string
+
+const (
+	// CategoryFeature indicates a new feature or functionality.
+	CategoryFeature Category = "feature"
+	// CategoryBug indicates a bug fix.
+	CategoryBug Category = "bug"
+	// CategoryRefactor indicates code refactoring without behavior change.
+	CategoryRefactor Category = "refactor"
+	// CategoryChore indicates maintenance tasks (deps, cleanup, etc).
+	CategoryChore Category = "chore"
+	// CategoryDocs indicates documentation changes.
+	CategoryDocs Category = "docs"
+	// CategoryTest indicates test-related changes.
+	CategoryTest Category = "test"
+)
+
+// ValidCategories returns all valid category values.
+func ValidCategories() []Category {
+	return []Category{CategoryFeature, CategoryBug, CategoryRefactor, CategoryChore, CategoryDocs, CategoryTest}
+}
+
+// IsValidCategory returns true if the category is a valid category value.
+func IsValidCategory(c Category) bool {
+	switch c {
+	case CategoryFeature, CategoryBug, CategoryRefactor, CategoryChore, CategoryDocs, CategoryTest:
+		return true
+	default:
+		return false
+	}
+}
+
 // TestingRequirements specifies what types of testing are needed for a task.
 type TestingRequirements struct {
 	// Unit indicates if unit tests are required
@@ -173,6 +206,9 @@ type Task struct {
 	// Higher priority tasks are shown first within their column.
 	Priority Priority `yaml:"priority,omitempty" json:"priority,omitempty"`
 
+	// Category indicates the type of task (feature, bug, refactor, etc).
+	Category Category `yaml:"category,omitempty" json:"category,omitempty"`
+
 	// RequiresUITesting indicates if this task involves UI changes
 	// that should be validated with Playwright or similar tools
 	RequiresUITesting bool `yaml:"requires_ui_testing,omitempty" json:"requires_ui_testing,omitempty"`
@@ -206,6 +242,7 @@ func New(id, title string) *Task {
 		Branch:    "orc/" + id,
 		Queue:     QueueActive,
 		Priority:  PriorityNormal,
+		Category:  CategoryFeature,
 		CreatedAt: now,
 		UpdatedAt: now,
 		Metadata:  make(map[string]string),
@@ -226,6 +263,14 @@ func (t *Task) GetPriority() Priority {
 		return PriorityNormal
 	}
 	return t.Priority
+}
+
+// GetCategory returns the task's category, defaulting to feature if not set.
+func (t *Task) GetCategory() Category {
+	if t.Category == "" {
+		return CategoryFeature
+	}
+	return t.Category
 }
 
 // IsBacklog returns true if the task is in the backlog queue.

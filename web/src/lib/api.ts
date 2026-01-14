@@ -42,10 +42,10 @@ export async function getTask(id: string): Promise<Task> {
 	return fetchJSON<Task>(`/tasks/${id}`);
 }
 
-export async function createTask(title: string, description?: string, weight?: string): Promise<Task> {
+export async function createTask(title: string, description?: string, weight?: string, category?: string): Promise<Task> {
 	return fetchJSON<Task>('/tasks', {
 		method: 'POST',
-		body: JSON.stringify({ title, description, weight })
+		body: JSON.stringify({ title, description, weight, category })
 	});
 }
 
@@ -55,6 +55,7 @@ export interface UpdateTaskRequest {
 	weight?: string;
 	queue?: string;
 	priority?: string;
+	category?: string;
 	metadata?: Record<string, string>;
 }
 
@@ -403,10 +404,10 @@ export async function listProjectTasks(projectId: string): Promise<Task[]> {
 	return fetchJSON<Task[]>(`/projects/${projectId}/tasks`);
 }
 
-export async function createProjectTask(projectId: string, title: string, description?: string, weight?: string): Promise<Task> {
+export async function createProjectTask(projectId: string, title: string, description?: string, weight?: string, category?: string): Promise<Task> {
 	return fetchJSON<Task>(`/projects/${projectId}/tasks`, {
 		method: 'POST',
-		body: JSON.stringify({ title, description, weight })
+		body: JSON.stringify({ title, description, weight, category })
 	});
 }
 

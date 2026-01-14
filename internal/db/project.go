@@ -148,6 +148,7 @@ type Task struct {
 	WorktreePath string
 	Queue        string // "active" or "backlog"
 	Priority     string // "critical", "high", "normal", "low"
+	Category     string // "feature", "bug", "refactor", "chore", "docs", "test"
 	CreatedAt    time.Time
 	StartedAt    *time.Time
 	CompletedAt  *time.Time
@@ -166,7 +167,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 		completedAt = &s
 	}
 
-	// Default queue and priority if not set
+	// Default queue, priority, and category if not set
 	queue := t.Queue
 	if queue == "" {
 		queue = "active"
@@ -175,10 +176,14 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 	if priority == "" {
 		priority = "normal"
 	}
+	category := t.Category
+	if category == "" {
+		category = "feature"
+	}
 
 	_, err := p.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, created_at, started_at, completed_at, total_cost_usd)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, category, created_at, started_at, completed_at, total_cost_usd)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
@@ -189,11 +194,12 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 			worktree_path = excluded.worktree_path,
 			queue = excluded.queue,
 			priority = excluded.priority,
+			category = excluded.category,
 			started_at = excluded.started_at,
 			completed_at = excluded.completed_at,
 			total_cost_usd = excluded.total_cost_usd
 	`, t.ID, t.Title, t.Description, t.Weight, t.Status, t.CurrentPhase, t.Branch, t.WorktreePath,
-		queue, priority, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD)
+		queue, priority, category, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
@@ -203,7 +209,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 // GetTask retrieves a task by ID.
 func (p *ProjectDB) GetTask(id string) (*Task, error) {
 	row := p.QueryRow(`
-		SELECT id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, created_at, started_at, completed_at, total_cost_usd
+		SELECT id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, category, created_at, started_at, completed_at, total_cost_usd
 		FROM tasks WHERE id = ?
 	`, id)
 
@@ -266,7 +272,7 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 
 	// Query tasks
 	query := `
-		SELECT id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, created_at, started_at, completed_at, total_cost_usd
+		SELECT id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, category, created_at, started_at, completed_at, total_cost_usd
 		FROM tasks
 	` + whereClause + " ORDER BY created_at DESC"
 
@@ -308,10 +314,10 @@ func scanTask(row *sql.Row) (*Task, error) {
 	var t Task
 	var createdAt string
 	var startedAt, completedAt sql.NullString
-	var description, currentPhase, branch, worktreePath, queue, priority sql.NullString
+	var description, currentPhase, branch, worktreePath, queue, priority, category sql.NullString
 
 	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &currentPhase, &branch, &worktreePath,
-		&queue, &priority, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD); err != nil {
+		&queue, &priority, &category, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD); err != nil {
 		return nil, err
 	}
 
@@ -336,6 +342,11 @@ func scanTask(row *sql.Row) (*Task, error) {
 		t.Priority = priority.String
 	} else {
 		t.Priority = "normal" // Default
+	}
+	if category.Valid {
+		t.Category = category.String
+	} else {
+		t.Category = "feature" // Default
 	}
 
 	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
@@ -360,10 +371,10 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	var t Task
 	var createdAt string
 	var startedAt, completedAt sql.NullString
-	var description, currentPhase, branch, worktreePath, queue, priority sql.NullString
+	var description, currentPhase, branch, worktreePath, queue, priority, category sql.NullString
 
 	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &currentPhase, &branch, &worktreePath,
-		&queue, &priority, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD); err != nil {
+		&queue, &priority, &category, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD); err != nil {
 		return nil, err
 	}
 
@@ -388,6 +399,11 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 		t.Priority = priority.String
 	} else {
 		t.Priority = "normal" // Default
+	}
+	if category.Valid {
+		t.Category = category.String
+	} else {
+		t.Category = "feature" // Default
 	}
 
 	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
