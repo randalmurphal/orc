@@ -338,6 +338,7 @@ Patterns, gotchas, and decisions learned during development.
 | Plan regeneration on weight change | When task weight changes, plan.yaml auto-regenerates with new phases; completed/skipped phases preserved if they exist in both plans | TASK-003 |
 | Artifact detection for phase skip | Before running phases, check if artifacts exist (spec.md, research.md, docs.md) and offer to skip; use `--auto-skip` for non-interactive mode | TASK-004 |
 | Project selection persistence | URL param (`?project=xxx`) takes precedence over localStorage; enables shareable links and browser back/forward navigation | TASK-009 |
+| Running task visual indicator | Running tasks show pulsing border + gradient background; placed in column matching `current_phase` from state.yaml | TASK-006 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

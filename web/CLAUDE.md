@@ -176,6 +176,15 @@ Each column shows active tasks first, then a collapsible "Backlog" divider with 
 
 Tasks are sorted by priority within each column. Priority badges only appear for non-normal priorities.
 
+### Running Task Indicator
+
+Running tasks display a distinct visual indicator:
+- Thicker accent-colored border (2px)
+- Subtle gradient background
+- Pulsing glow animation (2s cycle)
+
+This makes running tasks immediately visible in any column, distinguishing them from pending tasks.
+
 ### TaskCard Quick Menu
 
 Right-click or use the "..." menu on TaskCard to:
