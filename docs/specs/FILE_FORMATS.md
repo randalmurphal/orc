@@ -76,6 +76,13 @@ category: feature                 # feature (default) | bug | refactor | chore |
 # Initiative linking (optional)
 initiative_id: INIT-001           # Links task to initiative, empty/omitted = standalone
 
+# Task Dependencies
+blocked_by:                       # Tasks that must complete before this task
+  - TASK-060
+  - TASK-061
+related_to:                       # Related tasks (informational, soft connection)
+  - TASK-063
+
 # UI Testing Detection (auto-detected from task content)
 requires_ui_testing: true         # Set when task mentions UI/frontend/button/form/page
 
@@ -128,6 +135,35 @@ metadata:
 - **chore**: Maintenance tasks (dependencies, cleanup, config)
 - **docs**: Documentation changes
 - **test**: Test-related changes
+
+### Task Dependencies
+
+Tasks support dependency relationships for ordering and organization:
+
+| Field | Stored | Purpose |
+|-------|--------|---------|
+| `blocked_by` | Yes | Task IDs that must complete before this task can run |
+| `blocks` | No (computed) | Task IDs waiting on this task (inverse of blocked_by) |
+| `related_to` | Yes | Related task IDs (soft connection, informational) |
+| `referenced_by` | No (computed) | Task IDs whose descriptions mention this task |
+
+**Stored vs Computed fields:**
+- `blocked_by` and `related_to` are stored in task.yaml and user-editable
+- `blocks` and `referenced_by` are computed on load by scanning all tasks
+
+**Validation rules:**
+- Referenced task IDs must exist (warning logged for missing references)
+- Tasks cannot block themselves
+- Circular dependencies are rejected (A blocks B blocks A)
+
+**Example:**
+```yaml
+blocked_by:
+  - TASK-060       # Must complete before this task runs
+  - TASK-061
+related_to:
+  - TASK-063       # Informational link only
+```
 
 ---
 
