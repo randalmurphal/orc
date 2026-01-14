@@ -258,19 +258,35 @@ func (i *Initiative) GetTaskDependencies(taskID string) []string {
 }
 
 // GetReadyTasks returns tasks that are pending and have all dependencies completed.
+// Deprecated: Use GetReadyTasksWithLoader for accurate status from task.yaml files.
 func (i *Initiative) GetReadyTasks() []TaskRef {
-	// Build a map of completed tasks
+	return i.GetReadyTasksWithLoader(nil)
+}
+
+// GetReadyTasksWithLoader returns tasks that are pending/created/planned and have all
+// dependencies completed. If loader is provided, uses actual task status from task.yaml.
+// A task is considered "ready" if it's in a runnable state (created, planned, or pending)
+// and all its dependencies are completed/finished.
+func (i *Initiative) GetReadyTasksWithLoader(loader TaskLoader) []TaskRef {
+	// Get tasks with actual status if loader provided
+	tasks := i.Tasks
+	if loader != nil {
+		tasks = i.GetTasksWithStatus(loader)
+	}
+
+	// Build a map of completed tasks (both "completed" and "finished" count)
 	completed := make(map[string]bool)
-	for _, t := range i.Tasks {
-		if t.Status == "completed" {
+	for _, t := range tasks {
+		if t.Status == "completed" || t.Status == "finished" {
 			completed[t.ID] = true
 		}
 	}
 
-	// Find tasks that are pending and have all deps satisfied
+	// Find tasks that are in a runnable state and have all deps satisfied
 	var ready []TaskRef
-	for _, t := range i.Tasks {
-		if t.Status != "pending" {
+	for _, t := range tasks {
+		// Tasks that haven't started yet are candidates
+		if !isRunnableStatus(t.Status) {
 			continue
 		}
 
@@ -288,6 +304,16 @@ func (i *Initiative) GetReadyTasks() []TaskRef {
 	}
 
 	return ready
+}
+
+// isRunnableStatus returns true if the status indicates a task that can be run.
+func isRunnableStatus(status string) bool {
+	switch status {
+	case "pending", "created", "planned":
+		return true
+	default:
+		return false
+	}
 }
 
 // Activate sets the initiative status to active.
@@ -656,6 +682,52 @@ func (i *Initiative) AddBlocker(blockerID string, allInits map[string]*Initiativ
 	sort.Strings(i.BlockedBy)
 	i.UpdatedAt = time.Now()
 	return nil
+}
+
+// TaskLoader is a function type that loads task status given a task ID.
+// Returns the status as a string and any error. If the task is not found,
+// returns empty string and nil (not an error - task may have been deleted).
+type TaskLoader func(taskID string) (status string, title string, err error)
+
+// EnrichTaskStatuses updates the Status and Title fields of all tasks in the initiative
+// by fetching actual status from task.yaml files via the provided loader function.
+// Tasks that cannot be loaded retain their existing status (fallback to stored value).
+func (i *Initiative) EnrichTaskStatuses(loader TaskLoader) {
+	for idx, t := range i.Tasks {
+		status, title, err := loader(t.ID)
+		if err != nil {
+			// Keep existing status if task cannot be loaded
+			continue
+		}
+		if status != "" {
+			i.Tasks[idx].Status = status
+		}
+		if title != "" {
+			i.Tasks[idx].Title = title
+		}
+	}
+}
+
+// GetTasksWithStatus returns a copy of the tasks with status enriched from the loader.
+// This does not modify the original initiative.
+func (i *Initiative) GetTasksWithStatus(loader TaskLoader) []TaskRef {
+	result := make([]TaskRef, len(i.Tasks))
+	copy(result, i.Tasks)
+
+	for idx, t := range result {
+		status, title, err := loader(t.ID)
+		if err != nil {
+			continue
+		}
+		if status != "" {
+			result[idx].Status = status
+		}
+		if title != "" {
+			result[idx].Title = title
+		}
+	}
+
+	return result
 }
 
 // RemoveBlocker removes a blocker from the initiative's BlockedBy list.

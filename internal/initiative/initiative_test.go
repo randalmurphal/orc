@@ -925,3 +925,243 @@ func TestSaveToRejectsInvalidID(t *testing.T) {
 		t.Error("SaveTo should reject path traversal IDs")
 	}
 }
+
+// Tests for task status enrichment
+
+func TestEnrichTaskStatuses(t *testing.T) {
+	init := New("INIT-001", "Enrich Test")
+
+	// Add tasks with initial "pending" status
+	init.AddTask("TASK-001", "First task", nil)
+	init.AddTask("TASK-002", "Second task", nil)
+	init.AddTask("TASK-003", "Third task", nil)
+
+	// Mock loader that returns different statuses
+	loader := func(taskID string) (status string, title string, err error) {
+		switch taskID {
+		case "TASK-001":
+			return "completed", "Updated First Task", nil
+		case "TASK-002":
+			return "running", "Updated Second Task", nil
+		case "TASK-003":
+			return "", "", fmt.Errorf("task not found")
+		}
+		return "", "", nil
+	}
+
+	// Enrich the tasks
+	init.EnrichTaskStatuses(loader)
+
+	// Verify statuses were updated
+	if init.Tasks[0].Status != "completed" {
+		t.Errorf("TASK-001 status = %q, want %q", init.Tasks[0].Status, "completed")
+	}
+	if init.Tasks[0].Title != "Updated First Task" {
+		t.Errorf("TASK-001 title = %q, want %q", init.Tasks[0].Title, "Updated First Task")
+	}
+
+	if init.Tasks[1].Status != "running" {
+		t.Errorf("TASK-002 status = %q, want %q", init.Tasks[1].Status, "running")
+	}
+
+	// Task with error should keep original status
+	if init.Tasks[2].Status != "pending" {
+		t.Errorf("TASK-003 status = %q, want %q (unchanged due to loader error)", init.Tasks[2].Status, "pending")
+	}
+}
+
+func TestEnrichTaskStatusesPreservesEmptyStatus(t *testing.T) {
+	init := New("INIT-001", "Empty Status Test")
+	init.AddTask("TASK-001", "Task", nil)
+	init.Tasks[0].Status = "running"
+
+	// Loader returns empty status (task found but status empty)
+	loader := func(taskID string) (status string, title string, err error) {
+		return "", "New Title", nil
+	}
+
+	init.EnrichTaskStatuses(loader)
+
+	// Status should remain unchanged when loader returns empty
+	if init.Tasks[0].Status != "running" {
+		t.Errorf("Status = %q, want %q (should not change on empty status)", init.Tasks[0].Status, "running")
+	}
+	// But title should be updated
+	if init.Tasks[0].Title != "New Title" {
+		t.Errorf("Title = %q, want %q", init.Tasks[0].Title, "New Title")
+	}
+}
+
+func TestGetTasksWithStatus(t *testing.T) {
+	init := New("INIT-001", "Get Tasks Test")
+
+	// Add tasks with initial "pending" status
+	init.AddTask("TASK-001", "First task", nil)
+	init.AddTask("TASK-002", "Second task", []string{"TASK-001"})
+
+	// Mock loader
+	loader := func(taskID string) (status string, title string, err error) {
+		switch taskID {
+		case "TASK-001":
+			return "completed", "Updated First", nil
+		case "TASK-002":
+			return "running", "Updated Second", nil
+		}
+		return "", "", nil
+	}
+
+	// Get enriched tasks
+	tasks := init.GetTasksWithStatus(loader)
+
+	// Verify the returned tasks have updated status
+	if tasks[0].Status != "completed" {
+		t.Errorf("Returned TASK-001 status = %q, want %q", tasks[0].Status, "completed")
+	}
+	if tasks[1].Status != "running" {
+		t.Errorf("Returned TASK-002 status = %q, want %q", tasks[1].Status, "running")
+	}
+
+	// Verify original initiative tasks are NOT modified
+	if init.Tasks[0].Status != "pending" {
+		t.Errorf("Original TASK-001 status = %q, want %q (should not be modified)", init.Tasks[0].Status, "pending")
+	}
+	if init.Tasks[1].Status != "pending" {
+		t.Errorf("Original TASK-002 status = %q, want %q (should not be modified)", init.Tasks[1].Status, "pending")
+	}
+}
+
+func TestGetReadyTasksWithLoader(t *testing.T) {
+	init := New("INIT-001", "Ready Tasks Loader Test")
+
+	// Add tasks: TASK-001 (no deps), TASK-002 (depends on TASK-001), TASK-003 (depends on TASK-002)
+	init.AddTask("TASK-001", "First", nil)
+	init.AddTask("TASK-002", "Second", []string{"TASK-001"})
+	init.AddTask("TASK-003", "Third", []string{"TASK-002"})
+	init.AddTask("TASK-004", "Fourth", nil) // No deps
+
+	// Test case 1: TASK-001 is completed, so TASK-002 should be ready
+	loader1 := func(taskID string) (status string, title string, err error) {
+		switch taskID {
+		case "TASK-001":
+			return "completed", "", nil
+		case "TASK-002":
+			return "planned", "", nil // Runnable state
+		case "TASK-003":
+			return "created", "", nil // Runnable state but blocked
+		case "TASK-004":
+			return "created", "", nil // Ready (no deps)
+		}
+		return "", "", nil
+	}
+
+	ready := init.GetReadyTasksWithLoader(loader1)
+	if len(ready) != 2 {
+		t.Errorf("Ready tasks count = %d, want 2 (TASK-002 and TASK-004)", len(ready))
+	}
+
+	// Verify the right tasks are ready
+	readyIDs := make(map[string]bool)
+	for _, r := range ready {
+		readyIDs[r.ID] = true
+	}
+	if !readyIDs["TASK-002"] {
+		t.Error("TASK-002 should be ready (dependency completed)")
+	}
+	if !readyIDs["TASK-004"] {
+		t.Error("TASK-004 should be ready (no deps)")
+	}
+	if readyIDs["TASK-003"] {
+		t.Error("TASK-003 should NOT be ready (TASK-002 not completed)")
+	}
+
+	// Test case 2: All tasks completed or running - none should be "ready"
+	loader2 := func(taskID string) (status string, title string, err error) {
+		switch taskID {
+		case "TASK-001", "TASK-002":
+			return "completed", "", nil
+		case "TASK-003":
+			return "running", "", nil
+		case "TASK-004":
+			return "finished", "", nil
+		}
+		return "", "", nil
+	}
+
+	ready = init.GetReadyTasksWithLoader(loader2)
+	if len(ready) != 0 {
+		t.Errorf("Ready tasks count = %d, want 0 (none in runnable state)", len(ready))
+	}
+}
+
+func TestGetReadyTasksWithLoaderNilLoader(t *testing.T) {
+	init := New("INIT-001", "Nil Loader Test")
+
+	// Add tasks
+	init.AddTask("TASK-001", "First", nil)
+	init.AddTask("TASK-002", "Second", []string{"TASK-001"})
+
+	// Mark TASK-001 as completed in the stored status
+	init.UpdateTaskStatus("TASK-001", "completed")
+
+	// With nil loader, should use stored status
+	ready := init.GetReadyTasksWithLoader(nil)
+	if len(ready) != 1 {
+		t.Errorf("Ready tasks count = %d, want 1 (TASK-002)", len(ready))
+	}
+	if len(ready) > 0 && ready[0].ID != "TASK-002" {
+		t.Errorf("Ready task = %q, want TASK-002", ready[0].ID)
+	}
+}
+
+func TestGetReadyTasksWithLoaderFinishedCounts(t *testing.T) {
+	init := New("INIT-001", "Finished Counts Test")
+
+	// Add tasks where dep is "finished" (not just completed)
+	init.AddTask("TASK-001", "First", nil)
+	init.AddTask("TASK-002", "Second", []string{"TASK-001"})
+
+	loader := func(taskID string) (status string, title string, err error) {
+		switch taskID {
+		case "TASK-001":
+			return "finished", "", nil // Terminal state should count as completed
+		case "TASK-002":
+			return "created", "", nil
+		}
+		return "", "", nil
+	}
+
+	ready := init.GetReadyTasksWithLoader(loader)
+	if len(ready) != 1 {
+		t.Errorf("Ready tasks count = %d, want 1", len(ready))
+	}
+	if len(ready) > 0 && ready[0].ID != "TASK-002" {
+		t.Errorf("Ready task = %q, want TASK-002", ready[0].ID)
+	}
+}
+
+func TestIsRunnableStatus(t *testing.T) {
+	tests := []struct {
+		status   string
+		runnable bool
+	}{
+		{"pending", true},
+		{"created", true},
+		{"planned", true},
+		{"running", false},
+		{"completed", false},
+		{"finished", false},
+		{"failed", false},
+		{"blocked", false},
+		{"paused", false},
+		{"finalizing", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.status, func(t *testing.T) {
+			result := isRunnableStatus(tt.status)
+			if result != tt.runnable {
+				t.Errorf("isRunnableStatus(%q) = %v, want %v", tt.status, result, tt.runnable)
+			}
+		})
+	}
+}
