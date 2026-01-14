@@ -66,7 +66,7 @@ Next steps:
 Create a new task.
 
 ```bash
-orc new <title> [--weight <weight>] [--category <category>] [--description <desc>]
+orc new <title> [--weight <weight>] [--category <category>] [--description <desc>] [--attach <file>]
 ```
 
 | Option | Description | Default |
@@ -77,10 +77,13 @@ orc new <title> [--weight <weight>] [--category <category>] [--description <desc
 | `--branch`, `-b` | Custom branch name | `orc/TASK-XXX` |
 | `--template`, `-t` | Use template (bugfix, feature, refactor, migration, spike) | none |
 | `--var` | Template variable (KEY=VALUE), can be repeated | none |
+| `--attach`, `-a` | Attach file(s) to task, can be repeated | none |
 
 **Testing Detection**: Task creation automatically detects UI-related keywords in the title/description and sets:
 - `requires_ui_testing: true` for UI tasks
 - `testing_requirements.e2e: true` for frontend projects with UI tasks
+
+**Attachments**: Attach screenshots, logs, or other files to provide context for the task. Files are stored in `.orc/tasks/TASK-XXX/attachments/`.
 
 **Examples**:
 ```bash
@@ -89,6 +92,8 @@ orc new "Add OAuth2 authentication" -w large -d "Support Google and GitHub"
 orc new "Add dark mode toggle button"   # Auto-detects UI testing required
 orc new "Fix login bug" --category bug
 orc new -t bugfix "Fix memory leak"
+orc new "UI rendering issue" --attach screenshot.png
+orc new "API error" -a error.log -a response.json  # Multiple attachments
 ```
 
 **Output**:
