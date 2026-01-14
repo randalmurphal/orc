@@ -7,9 +7,10 @@
 		tasks: Task[];
 		onDrop: (task: Task) => void;
 		onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
+		onTaskClick?: (task: Task) => void;
 	}
 
-	let { column, tasks, onDrop, onAction }: Props = $props();
+	let { column, tasks, onDrop, onAction, onTaskClick }: Props = $props();
 
 	let dragOver = $state(false);
 	let dragCounter = $state(0);
@@ -86,7 +87,7 @@
 
 	<div class="column-content">
 		{#each tasks as task (task.id)}
-			<TaskCard {task} {onAction} />
+			<TaskCard {task} {onAction} {onTaskClick} />
 		{/each}
 
 		{#if tasks.length === 0}

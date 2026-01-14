@@ -9,9 +9,10 @@
 		onPause?: () => void;
 		onResume?: () => void;
 		onDelete?: () => void;
+		onTaskClick?: (task: Task) => void;
 	}
 
-	let { task, compact = false, onRun, onPause, onResume, onDelete }: Props = $props();
+	let { task, compact = false, onRun, onPause, onResume, onDelete, onTaskClick }: Props = $props();
 
 	const weightConfig: Record<string, { color: string; bg: string }> = {
 		trivial: { color: 'var(--weight-trivial)', bg: 'rgba(107, 114, 128, 0.15)' },
@@ -64,9 +65,17 @@
 
 	const isRunning = $derived(task.status === 'running');
 	const weight = $derived(weightConfig[task.weight] || weightConfig.small);
+
+	function handleCardClick(e: MouseEvent) {
+		// For running tasks, show transcript modal if callback provided
+		if (task.status === 'running' && onTaskClick) {
+			e.preventDefault();
+			onTaskClick(task);
+		}
+	}
 </script>
 
-<a href="/tasks/{task.id}" class="task-card" class:running={isRunning}>
+<a href="/tasks/{task.id}" class="task-card" class:running={isRunning} onclick={handleCardClick}>
 	<!-- Left: Status Orb -->
 	<div class="status-col">
 		<StatusIndicator status={task.status} size="lg" />
