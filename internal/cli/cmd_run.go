@@ -49,7 +49,9 @@ Example:
   orc run TASK-001 --phase implement   # run specific phase`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := config.RequireInit(); err != nil {
+			// Find the project root (handles worktrees)
+			projectRoot, err := config.FindProjectRoot()
+			if err != nil {
 				return err
 			}
 
@@ -57,7 +59,7 @@ Example:
 			profile, _ := cmd.Flags().GetString("profile")
 
 			// Load task
-			t, err := task.Load(id)
+			t, err := task.LoadFrom(projectRoot, id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -83,7 +85,8 @@ Example:
 					return nil
 				case task.StatusFailed:
 					fmt.Printf("Task %s has failed.\n\n", id)
-					fmt.Printf("To retry:   orc rewind %s --to <phase>\n", id)
+					fmt.Printf("To resume:  orc resume %s\n", id)
+					fmt.Printf("To restart: orc rewind %s --to <phase>\n", id)
 					fmt.Printf("To view:    orc log %s\n", id)
 					return nil
 				default:
@@ -92,13 +95,13 @@ Example:
 			}
 
 			// Load plan
-			p, err := plan.Load(id)
+			p, err := plan.LoadFrom(projectRoot, id)
 			if err != nil {
 				return fmt.Errorf("load plan: %w", err)
 			}
 
 			// Load or create state
-			s, err := state.Load(id)
+			s, err := state.LoadFrom(projectRoot, id)
 			if err != nil {
 				return fmt.Errorf("load state: %w", err)
 			}
@@ -123,7 +126,7 @@ Example:
 				}
 
 				// Detect artifacts and prompt/skip as appropriate
-				taskDir := task.TaskDir(id)
+				taskDir := task.TaskDirIn(projectRoot, id)
 				detector := executor.NewArtifactDetectorWithDir(taskDir, id, t.Weight)
 
 				// Get phase IDs from plan
@@ -175,10 +178,10 @@ Example:
 				}
 
 				// Save state and plan if any phases were skipped
-				if err := s.Save(); err != nil {
+				if err := s.SaveTo(taskDir); err != nil {
 					return fmt.Errorf("save state after artifact skip: %w", err)
 				}
-				if err := p.Save(id); err != nil {
+				if err := p.SaveTo(taskDir); err != nil {
 					return fmt.Errorf("save plan after artifact skip: %w", err)
 				}
 			}
@@ -216,9 +219,15 @@ Example:
 				if ctx.Err() != nil {
 					// Update task and state status for clean interrupt
 					s.InterruptPhase(s.CurrentPhase)
-					s.Save()
+					taskDir := task.TaskDirIn(projectRoot, id)
+					if saveErr := s.SaveTo(taskDir); saveErr != nil {
+						// Log but continue - we're in cleanup mode
+						disp.Warning(fmt.Sprintf("failed to save state on interrupt: %v", saveErr))
+					}
 					t.Status = task.StatusBlocked
-					t.Save()
+					if saveErr := t.SaveTo(taskDir); saveErr != nil {
+						disp.Warning(fmt.Sprintf("failed to save task on interrupt: %v", saveErr))
+					}
 					disp.TaskInterrupted()
 					return nil // Clean interrupt
 				}

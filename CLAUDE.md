@@ -342,6 +342,7 @@ Patterns, gotchas, and decisions learned during development.
 | Project selection persistence | URL param (`?project=xxx`) takes precedence over localStorage; enables shareable links and browser back/forward navigation | TASK-009 |
 | Running task visual indicator | Running tasks show pulsing border + gradient background; placed in column matching `current_phase` from state.yaml | TASK-006 |
 | Live transcript modal | Click running task to open LiveTranscriptModal with streaming output, token tracking, and connection status; uses WebSocket `transcript` events for real-time updates | TASK-012 |
+| Worktree-aware project root | `config.FindProjectRoot()` resolves main repo with `.orc/tasks` when running from worktree; uses git common-dir to find main repo | TASK-025 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
@@ -351,6 +352,7 @@ Patterns, gotchas, and decisions learned during development.
 | Tests fail with `go.work` | Use `GOWORK=off go test` or `make test` | TASK-016 |
 | Raw `InputTokens` appears misleadingly low | Use `EffectiveInputTokens()` which adds cached tokens to get actual context size | TASK-010 |
 | Task stuck in "running" after crash | Use `orc resume TASK-XXX` (auto-detects orphaned state) or `--force` to override | TASK-046 |
+| Failed task can't be resumed | Fixed: `orc resume` now supports failed tasks, resuming from last incomplete phase | TASK-025 |
 | Spurious "Task deleted" toast notifications | Fixed: Watcher now verifies deletions with debounce to filter false positives from git ops/atomic saves | TASK-053 |
 | Setup errors (worktree creation) failed silently | Fixed: Errors now always display even in quiet mode, task status set to failed | TASK-044 |
 | Web UI shows "No project selected" | Select a project via `Cmd+P` - server can run from any directory | TASK-005 |
