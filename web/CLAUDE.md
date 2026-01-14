@@ -896,7 +896,7 @@ bunx playwright test --grep board  # Run board tests only
 | `e2e/keyboard-shortcuts.spec.ts` | Keyboard shortcut handling |
 | `e2e/hooks.spec.ts` | Hook configuration UI |
 | `e2e/prompts.spec.ts` | Prompt editor UI |
-| `e2e/websocket.spec.ts` | WebSocket reconnection, live updates |
+| `e2e/websocket.spec.ts` | WebSocket real-time updates, connection handling (17 tests) |
 
 ### Framework-Agnostic E2E Testing
 
@@ -924,6 +924,58 @@ E2E tests use framework-agnostic selectors to support future React migration:
 - Clear localStorage before persistence tests
 - Use `.catch(() => false)` for optional element checks
 - Add small waits after animations (`waitForTimeout(100)`)
+
+### WebSocket E2E Testing
+
+The `websocket.spec.ts` file provides comprehensive E2E tests for WebSocket real-time updates, using Playwright's WebSocket route interception to inject events without mocking.
+
+**Test Categories (17 tests total):**
+
+| Category | Tests | Coverage |
+|----------|-------|----------|
+| Task Lifecycle (5) | Status changes, phase moves, create/delete events, progress indicators | `state`, `task_created`, `task_deleted`, `phase` events |
+| Live Transcript (4) | Modal open, streaming content, connection status, token updates | `transcript`, `tokens` events |
+| Connection Handling (3) | Auto-reconnect, reconnecting status, resume after reconnect | WebSocket disconnect/reconnect cycle |
+| Legacy (5) | Connection status display, page reload, transcript/timeline tabs | Regression coverage |
+
+**WebSocket Event Injection Pattern:**
+
+```typescript
+// Set up WebSocket interception with event injection
+let wsSendToPage: ((data: string) => void) | null = null;
+
+await page.routeWebSocket(/\/api\/ws/, async (ws) => {
+  const server = await ws.connectToServer();
+  wsSendToPage = (data: string) => ws.send(data);  // Capture send function
+
+  ws.onMessage((message) => server.send(message));
+  server.onMessage((message) => ws.send(message));
+});
+
+// Inject events to test UI response
+if (wsSendToPage) {
+  const event = createWSEvent('state', taskId, { status: 'running' });
+  wsSendToPage(JSON.stringify(event));
+}
+```
+
+**Event Types Tested:**
+- `state` - Task status and phase changes
+- `transcript` - Streaming content chunks
+- `tokens` - Token usage updates (input/output/cached)
+- `phase` - Phase transitions (started/completed/failed)
+- `task_created` / `task_updated` / `task_deleted` - File watcher events
+
+**Key Testing Helpers:**
+- `createWSEvent(event, taskId, data)` - Create properly structured WebSocket event message
+- `waitForBoardLoad(page)` - Wait for board to render with tasks
+- `findTask(page, preferRunning)` - Find a task card, optionally preferring running tasks
+
+**Why This Approach:**
+- Uses real WebSocket connections (not mocked) for true E2E testing
+- Tests actual UI updates in response to events
+- Framework-agnostic - works with any frontend (Svelte, React, etc.)
+- Playwright's `routeWebSocket` allows event injection without modifying production code
 
 ## Deep-Dive Reference
 
