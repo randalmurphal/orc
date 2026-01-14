@@ -76,8 +76,8 @@ npm run build
 
 This React app runs alongside Svelte during migration:
 
-1. **Phase 1** (current): Project scaffolding, API connectivity verified
-2. **Phase 2**: Core infrastructure (API client, WebSocket, stores, router)
+1. **Phase 1** ✅: Project scaffolding, Zustand stores mirroring Svelte stores
+2. **Phase 2** (current): Core infrastructure (API client, WebSocket, router)
 3. **Phase 3**: Component migration (parallel implementation)
 4. **Phase 4**: E2E test validation, feature parity verification
 5. **Phase 5**: Cutover and Svelte removal
@@ -98,8 +98,14 @@ Migration follows the existing Svelte component structure:
 |------------------|------------------|--------|
 | `+layout.svelte` | `App.tsx` + Router | Scaffolded |
 | `lib/components/` | `src/components/` | Pending |
-| `lib/stores/` | `src/stores/` (Zustand) | Implemented |
+| `lib/stores/` | `src/stores/` (Zustand) | ✅ Complete |
 | `lib/utils/` | `src/lib/` | Pending |
+
+**Stores implemented (Phase 1):**
+- `taskStore.ts` - Task data and execution state with derived selectors
+- `projectStore.ts` - Project selection with URL/localStorage sync
+- `initiativeStore.ts` - Initiative filter with progress tracking
+- `uiStore.ts` - Sidebar, WebSocket status, toast notifications
 
 ## Testing
 
@@ -155,7 +161,9 @@ function TaskCard({ task }: { task: Task }) {
 
 ### State Management (Zustand)
 
-Four Zustand stores mirror the Svelte store behavior:
+Four Zustand stores mirror the Svelte store behavior. All use `subscribeWithSelector` middleware for efficient derived state.
+
+#### Store Overview
 
 | Store | State | Persistence | Purpose |
 |-------|-------|-------------|---------|
@@ -166,7 +174,121 @@ Four Zustand stores mirror the Svelte store behavior:
 
 **URL/localStorage priority:** URL param > localStorage > default
 
-**Usage:**
+#### TaskStore
+
+Primary state for task data and execution states.
+
+| State | Type | Description |
+|-------|------|-------------|
+| `tasks` | `Task[]` | Main task array |
+| `taskStates` | `Map<string, TaskState>` | Execution state by task ID |
+| `loading` | `boolean` | Loading indicator |
+| `error` | `string \| null` | Error message |
+
+| Derived | Hook | Description |
+|---------|------|-------------|
+| Active tasks | `useActiveTasks()` | Tasks with status: running, blocked, paused |
+| Recent tasks | `useRecentTasks()` | Last 10 completed/failed/finished, sorted by updated_at |
+| Running tasks | `useRunningTasks()` | Tasks with status: running |
+| Status counts | `useStatusCounts()` | Counts: all, active, completed, failed, running, blocked |
+| Single task | `useTask(id)` | Get task by ID |
+| Task state | `useTaskState(id)` | Get execution state by ID |
+
+| Action | Purpose |
+|--------|---------|
+| `setTasks(tasks)` | Replace all tasks |
+| `addTask(task)` | Add task (prevents duplicates) |
+| `updateTask(id, updates)` | Partial update |
+| `updateTaskStatus(id, status, phase?)` | Update status and optionally current_phase |
+| `removeTask(id)` | Remove task and its state |
+| `updateTaskState(id, state)` | Set execution state (syncs status to task) |
+| `removeTaskState(id)` | Remove execution state |
+| `getTask(id)` | Get task directly |
+| `getTaskState(id)` | Get state directly |
+
+#### ProjectStore
+
+Project selection with URL and localStorage sync.
+
+| State | Type | Description |
+|-------|------|-------------|
+| `projects` | `Project[]` | Available projects |
+| `currentProjectId` | `string \| null` | Selected project |
+| `_isHandlingPopState` | `boolean` | Internal flag for history handling |
+
+| Hook | Description |
+|------|-------------|
+| `useProjects()` | All projects |
+| `useCurrentProject()` | Current project object |
+| `useCurrentProjectId()` | Current project ID |
+
+| Action | Purpose |
+|--------|---------|
+| `setProjects(projects)` | Set projects (auto-selects first if current invalid) |
+| `selectProject(id)` | Select project (updates URL and localStorage) |
+| `handlePopState(event)` | Handle browser back/forward |
+| `initializeFromUrl()` | Initialize from URL on mount |
+
+#### InitiativeStore
+
+Initiative filter with URL sync. Stores initiatives in a Map for O(1) lookup.
+
+| State | Type | Description |
+|-------|------|-------------|
+| `initiatives` | `Map<string, Initiative>` | Initiatives by ID |
+| `currentInitiativeId` | `string \| null` | Filter selection (null = all) |
+| `hasLoaded` | `boolean` | Tracks initial load |
+
+| Hook | Description |
+|------|-------------|
+| `useInitiatives()` | All initiatives as array |
+| `useCurrentInitiative()` | Current initiative object |
+| `useCurrentInitiativeId()` | Current filter ID |
+
+| Action | Purpose |
+|--------|---------|
+| `setInitiatives(list)` | Set initiatives (clears filter if selected no longer exists) |
+| `addInitiative(initiative)` | Add single initiative |
+| `updateInitiative(id, updates)` | Partial update |
+| `removeInitiative(id)` | Remove (clears filter if selected) |
+| `selectInitiative(id)` | Set filter |
+| `getInitiative(id)` | Get by ID |
+| `getInitiativeTitle(id)` | Get title (falls back to ID) |
+| `getInitiativeProgress(tasks)` | Calculate completed/total per initiative |
+
+**Helper functions:**
+- `truncateInitiativeTitle(title, maxLength)` - Truncate for badges
+- `getInitiativeBadgeTitle(id, maxLength)` - Get display and full title for tooltip
+
+#### UIStore
+
+UI state including sidebar, WebSocket status, and toast notifications.
+
+| State | Type | Description |
+|-------|------|-------------|
+| `sidebarExpanded` | `boolean` | Sidebar state (persisted) |
+| `wsStatus` | `ConnectionStatus` | WebSocket connection status |
+| `toasts` | `Toast[]` | Active toast queue |
+
+| Hook | Description |
+|------|-------------|
+| `useSidebarExpanded()` | Sidebar expanded state |
+| `useWsStatus()` | WebSocket status |
+| `useToasts()` | Toast array |
+
+| Action | Purpose |
+|--------|---------|
+| `toggleSidebar()` | Toggle and persist |
+| `setSidebarExpanded(bool)` | Set and persist |
+| `setWsStatus(status)` | Update WebSocket status |
+| `addToast(toast)` | Add toast (returns ID) |
+| `dismissToast(id)` | Remove toast |
+| `clearToasts()` | Remove all |
+
+**Toast default durations:** success/warning/info: 5s, error: 8s
+
+#### Usage Examples
+
 ```tsx
 import { useTaskStore, useProjectStore, useInitiativeStore, useUIStore, toast } from '@/stores';
 
@@ -178,17 +300,29 @@ import { useActiveTasks, useStatusCounts } from '@/stores';
 const activeTasks = useActiveTasks();
 const counts = useStatusCounts();
 
-// Actions
+// Actions (can be called outside components)
 useTaskStore.getState().updateTask('TASK-001', { status: 'running' });
 useProjectStore.getState().selectProject('proj-001');
 
 // Toast notifications (works outside React components)
 toast.success('Task created');
 toast.error('Failed to load', { duration: 10000 });
+toast.dismiss('toast-id');
+toast.clear();
 ```
 
 **Special values:**
 - `UNASSIGNED_INITIATIVE = '__unassigned__'` - Filter for tasks without an initiative
+
+#### Key Implementation Patterns
+
+1. **URL sync middleware:** Project and Initiative stores use custom URL sync with `isHandlingPopState` flag to prevent recursive updates during browser navigation
+
+2. **localStorage sync:** All persisted stores subscribe to state changes and sync to localStorage automatically
+
+3. **Derived state as getters:** Computed values (activeTasks, statusCounts) are methods on the store rather than stored state, ensuring fresh calculations
+
+4. **Map vs Array:** InitiativeStore uses `Map<string, Initiative>` for O(1) lookups; `getInitiativesList()` converts to array when needed
 
 ## Known Differences from Svelte
 
