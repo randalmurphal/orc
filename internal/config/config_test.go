@@ -815,3 +815,142 @@ func TestDefault_ArtifactSkipConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestHasTasksDir(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// No .orc/tasks directory
+	if hasTasksDir(tmpDir) {
+		t.Error("hasTasksDir should return false when no tasks dir exists")
+	}
+
+	// Create .orc/tasks
+	tasksDir := filepath.Join(tmpDir, OrcDir, "tasks")
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Now should return true
+	if !hasTasksDir(tmpDir) {
+		t.Error("hasTasksDir should return true when tasks dir exists")
+	}
+}
+
+func TestFindProjectRoot_CurrentDir(t *testing.T) {
+	// Save current dir
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working dir: %v", err)
+	}
+	defer os.Chdir(origWd)
+
+	// Create temp project with tasks
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, OrcDir, "tasks")
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Change to temp dir
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	// FindProjectRoot should return current dir
+	root, err := FindProjectRoot()
+	if err != nil {
+		t.Fatalf("FindProjectRoot() failed: %v", err)
+	}
+	if root != tmpDir {
+		t.Errorf("FindProjectRoot() = %s, want %s", root, tmpDir)
+	}
+}
+
+func TestFindProjectRoot_NotInitialized(t *testing.T) {
+	// Save current dir
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working dir: %v", err)
+	}
+	defer os.Chdir(origWd)
+
+	// Create temp dir without .orc
+	tmpDir := t.TempDir()
+
+	// Change to temp dir
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	// FindProjectRoot should fail
+	_, err = FindProjectRoot()
+	if err == nil {
+		t.Error("FindProjectRoot() should fail when not in an orc project")
+	}
+}
+
+func TestFindProjectRoot_FallbackToOrcDir(t *testing.T) {
+	// Save current dir
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working dir: %v", err)
+	}
+	defer os.Chdir(origWd)
+
+	// Create temp project with .orc but no tasks dir (freshly initialized)
+	tmpDir := t.TempDir()
+	orcDir := filepath.Join(tmpDir, OrcDir)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Change to temp dir
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	// FindProjectRoot should fallback to current dir (has .orc)
+	root, err := FindProjectRoot()
+	if err != nil {
+		t.Fatalf("FindProjectRoot() failed: %v", err)
+	}
+	if root != tmpDir {
+		t.Errorf("FindProjectRoot() = %s, want %s", root, tmpDir)
+	}
+}
+
+func TestFindProjectRoot_WalkUpDirectories(t *testing.T) {
+	// Save current dir
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working dir: %v", err)
+	}
+	defer os.Chdir(origWd)
+
+	// Create temp project structure:
+	// tmpDir/.orc/tasks (project root)
+	// tmpDir/subdir/subsubdir (current dir)
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, OrcDir, "tasks")
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+	subsubdir := filepath.Join(tmpDir, "subdir", "subsubdir")
+	if err := os.MkdirAll(subsubdir, 0755); err != nil {
+		t.Fatalf("failed to create subsubdir: %v", err)
+	}
+
+	// Change to nested dir
+	if err := os.Chdir(subsubdir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	// FindProjectRoot should walk up and find tmpDir
+	root, err := FindProjectRoot()
+	if err != nil {
+		t.Fatalf("FindProjectRoot() failed: %v", err)
+	}
+	if root != tmpDir {
+		t.Errorf("FindProjectRoot() = %s, want %s", root, tmpDir)
+	}
+}
