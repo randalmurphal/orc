@@ -9,6 +9,7 @@
 	} from '$lib/api';
 	import type { Task } from '$lib/types';
 	import TaskCard from '$lib/components/TaskCard.svelte';
+	import LiveTranscriptModal from '$lib/components/overlays/LiveTranscriptModal.svelte';
 	import { currentProjectId, currentProject } from '$lib/stores/project';
 	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks, removeTask } from '$lib/stores/tasks';
 	import { setupTaskListShortcuts, getShortcutManager } from '$lib/shortcuts';
@@ -22,6 +23,20 @@
 	let error = $state<string | null>(null);
 	let selectedIndex = $state(-1);
 	let cleanupShortcuts: (() => void) | null = null;
+
+	// Transcript modal state
+	let transcriptModalOpen = $state(false);
+	let selectedTask = $state<Task | null>(null);
+
+	function handleTaskClick(task: Task) {
+		selectedTask = task;
+		transcriptModalOpen = true;
+	}
+
+	function closeTranscriptModal() {
+		transcriptModalOpen = false;
+		selectedTask = null;
+	}
 
 	// Filters
 	let searchQuery = $state('');
@@ -404,12 +419,22 @@
 						onPause={() => handlePauseTask(task.id)}
 						onResume={() => handleResumeTask(task.id)}
 						onDelete={() => handleDeleteTask(task.id)}
+						onTaskClick={handleTaskClick}
 					/>
 				</div>
 			{/each}
 		</div>
 	{/if}
 </div>
+
+<!-- Live Transcript Modal -->
+{#if selectedTask}
+	<LiveTranscriptModal
+		open={transcriptModalOpen}
+		task={selectedTask}
+		onClose={closeTranscriptModal}
+	/>
+{/if}
 
 <style>
 	.page {

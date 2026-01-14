@@ -10,9 +10,10 @@
 		onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 		onEscalate?: (taskId: string, reason: string) => Promise<void>;
 		onRefresh?: () => Promise<void>;
+		onTaskClick?: (task: Task) => void;
 	}
 
-	let { tasks, onAction, onEscalate, onRefresh }: Props = $props();
+	let { tasks, onAction, onEscalate, onRefresh, onTaskClick }: Props = $props();
 
 	// Escalation modal state
 	let showEscalateModal = $state(false);
@@ -234,6 +235,7 @@
 				onToggleBacklog={toggleBacklog}
 				onDrop={(task) => handleDrop(column.id, task)}
 				{onAction}
+				{onTaskClick}
 			/>
 		{:else}
 			<Column
@@ -241,6 +243,7 @@
 				tasks={tasksByColumn[column.id] || []}
 				onDrop={(task) => handleDrop(column.id, task)}
 				{onAction}
+				{onTaskClick}
 			/>
 		{/if}
 	{/each}

@@ -43,6 +43,7 @@ web/src/
 | Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments, TokenUsage | Task detail |
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
 | Kanban | Board, Column, QueuedColumn, TaskCard, ConfirmModal | Board view with queue/priority |
+| Overlays | Modal, LiveTranscriptModal, CommandPalette, KeyboardShortcutsHelp | Modal dialogs and overlays |
 | Comments | TaskCommentsPanel, TaskCommentThread, TaskCommentForm | Task discussion notes |
 | Review | CommentForm, CommentThread, ReviewPanel, ReviewSummary | Code review comments |
 | UI | Icon (34 icons), StatusIndicator, Toast, Modal | Shared components |
@@ -184,6 +185,30 @@ Running tasks display a distinct visual indicator:
 - Pulsing glow animation (2s cycle)
 
 This makes running tasks immediately visible in any column, distinguishing them from pending tasks.
+
+### Live Transcript Modal
+
+Clicking a running task opens `LiveTranscriptModal` - a modal overlay showing real-time Claude output:
+
+| Feature | Description |
+|---------|-------------|
+| Live streaming | Shows current response as it generates via WebSocket |
+| Connection status | Displays "Live", "Connecting", or "Disconnected" indicator |
+| Token tracking | Updates input/output/cached token counts in real-time |
+| Phase display | Shows current phase badge and task status |
+| Transcript history | Paginated list of completed transcript files |
+| Full view link | Button to open `/tasks/:id?tab=transcript` |
+| Auto-scroll | Scrolls to bottom as new content arrives |
+
+**WebSocket events handled:**
+- `transcript` - Streaming chunks and complete responses
+- `state` - Task state updates (phase, status)
+- `tokens` - Token usage updates
+- `phase` / `complete` - Triggers transcript reload
+
+**Triggering the modal:**
+- Click running task card on board or task list
+- Cards pass `onViewTranscript` callback to open modal
 
 ### TaskCard Quick Menu
 

@@ -9,9 +9,10 @@
 	interface Props {
 		task: Task;
 		onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
+		onTaskClick?: (task: Task) => void;
 	}
 
-	let { task, onAction }: Props = $props();
+	let { task, onAction, onTaskClick }: Props = $props();
 
 	let actionLoading = $state(false);
 	let isDragging = $state(false);
@@ -58,6 +59,11 @@
 		// Don't navigate if clicking on action buttons or quick menu
 		const target = e.target as HTMLElement;
 		if (target.closest('.actions') || target.closest('.quick-menu')) {
+			return;
+		}
+		// For running tasks, show transcript modal if callback provided
+		if (task.status === 'running' && onTaskClick) {
+			onTaskClick(task);
 			return;
 		}
 		goto(`/tasks/${task.id}`);

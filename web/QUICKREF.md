@@ -116,6 +116,54 @@ ws.unsubscribe()
 
 ---
 
+## Live Transcript Modal
+
+Modal for viewing running task output in real-time:
+
+```typescript
+// Open modal from task card
+<LiveTranscriptModal
+  open={showTranscript}
+  task={selectedTask}
+  onClose={() => showTranscript = false}
+/>
+```
+
+### WebSocket Event Handling
+
+```typescript
+// In LiveTranscriptModal.svelte
+ws.on('all', (event) => {
+  if (event.task_id !== task.id) return;
+
+  switch (event.event) {
+    case 'transcript':
+      if (data.type === 'chunk') {
+        // Append to streaming buffer
+        streamingContent += data.content;
+      } else if (data.type === 'response') {
+        // Reload transcript files
+        loadData();
+      }
+      break;
+    case 'tokens':
+      // Update token display (incremental)
+      taskState.tokens.input_tokens += data.input_tokens;
+      break;
+    case 'state':
+      taskState = data;
+      break;
+  }
+});
+```
+
+**Key points:**
+- Reset streaming buffer when phase/iteration changes
+- Tokens are incremental, add to totals
+- Reload transcript files on `response` or `complete` events
+
+---
+
 ## Review Workflow
 
 The "Changes" tab combines diff + inline review:
