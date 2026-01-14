@@ -102,7 +102,7 @@ func TestGateRejected(t *testing.T) {
 func TestTaskComplete(t *testing.T) {
 	d := New("TASK-001", true) // quiet mode
 
-	d.TaskComplete(5000, 10*time.Minute)
+	d.TaskComplete(5000, 10*time.Minute, nil)
 }
 
 func TestTaskFailed(t *testing.T) {
@@ -156,6 +156,28 @@ func TestFormatDuration(t *testing.T) {
 type testError string
 
 func (e testError) Error() string { return string(e) }
+
+func TestPluralize(t *testing.T) {
+	tests := []struct {
+		n        int
+		singular string
+		plural   string
+		expected string
+	}{
+		{0, "file", "files", "files"},
+		{1, "file", "files", "file"},
+		{2, "file", "files", "files"},
+		{10, "change", "changes", "changes"},
+		{1, "change", "changes", "change"},
+	}
+
+	for _, tt := range tests {
+		result := pluralize(tt.n, tt.singular, tt.plural)
+		if result != tt.expected {
+			t.Errorf("pluralize(%d, %q, %q) = %s, want %s", tt.n, tt.singular, tt.plural, result, tt.expected)
+		}
+	}
+}
 
 // === Non-Quiet Mode Tests (for coverage of print statements) ===
 
@@ -233,7 +255,43 @@ func TestTaskComplete_NonQuiet(t *testing.T) {
 	d := New("TASK-001", false) // non-quiet mode
 
 	// Should not panic
-	d.TaskComplete(5000, 10*time.Minute)
+	d.TaskComplete(5000, 10*time.Minute, nil)
+}
+
+func TestTaskComplete_WithFileStats(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	stats := &FileChangeStats{
+		FilesChanged: 5,
+		Additions:    150,
+		Deletions:    20,
+	}
+	// Should not panic and should display file stats
+	d.TaskComplete(5000, 10*time.Minute, stats)
+}
+
+func TestTaskComplete_WithSingleFile(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	stats := &FileChangeStats{
+		FilesChanged: 1,
+		Additions:    10,
+		Deletions:    5,
+	}
+	// Should not panic and should display "file" (singular)
+	d.TaskComplete(5000, 10*time.Minute, stats)
+}
+
+func TestTaskComplete_WithZeroChanges(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	stats := &FileChangeStats{
+		FilesChanged: 0,
+		Additions:    0,
+		Deletions:    0,
+	}
+	// Should not panic and should NOT display file stats (no changes)
+	d.TaskComplete(5000, 10*time.Minute, stats)
 }
 
 func TestTaskFailed_NonQuiet(t *testing.T) {

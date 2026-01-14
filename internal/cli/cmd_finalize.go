@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/plan"
@@ -154,7 +155,13 @@ Example:
 				return err
 			}
 
-			disp.TaskComplete(s.Tokens.TotalTokens, time.Since(s.StartedAt))
+			// Compute file change stats for completion summary
+			var fileStats *progress.FileChangeStats
+			if t.Branch != "" {
+				fileStats = getFinalizeFileChangeStats(ctx, projectRoot, t.Branch, cfg)
+			}
+
+			disp.TaskComplete(s.Tokens.TotalTokens, time.Since(s.StartedAt), fileStats)
 			return nil
 		},
 	}
@@ -211,5 +218,34 @@ func getFinalizePhase(p *plan.Plan) *plan.Phase {
 		Name:   "Finalize",
 		Prompt: "Sync with target branch, resolve conflicts, run tests, and assess risk",
 		Status: plan.PhasePending,
+	}
+}
+
+// getFinalizeFileChangeStats computes diff statistics for the task branch vs target branch.
+// Returns nil if stats cannot be computed (not an error - just no stats to display).
+func getFinalizeFileChangeStats(ctx context.Context, projectRoot, taskBranch string, cfg *config.Config) *progress.FileChangeStats {
+	// Determine target branch from config
+	targetBranch := "main"
+	if cfg != nil && cfg.Completion.TargetBranch != "" {
+		targetBranch = cfg.Completion.TargetBranch
+	}
+
+	// Create diff service to compute stats
+	diffSvc := diff.NewService(projectRoot, nil)
+
+	// Resolve target branch (handles origin/main fallback)
+	resolvedBase := diffSvc.ResolveRef(ctx, targetBranch)
+
+	// Get diff stats between target branch and task branch
+	stats, err := diffSvc.GetStats(ctx, resolvedBase, taskBranch)
+	if err != nil {
+		// Diff stat computation is best-effort - don't fail task completion
+		return nil
+	}
+
+	return &progress.FileChangeStats{
+		FilesChanged: stats.FilesChanged,
+		Additions:    stats.Additions,
+		Deletions:    stats.Deletions,
 	}
 }
