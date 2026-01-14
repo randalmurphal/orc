@@ -73,6 +73,9 @@ queue: active                     # active (default) | backlog
 priority: normal                  # critical | high | normal (default) | low
 category: feature                 # feature (default) | bug | refactor | chore | docs | test
 
+# Initiative linking (optional)
+initiative_id: INIT-001           # Links task to initiative, empty/omitted = standalone
+
 # UI Testing Detection (auto-detected from task content)
 requires_ui_testing: true         # Set when task mentions UI/frontend/button/form/page
 
@@ -96,13 +99,21 @@ metadata:
   resolution_message: "Fixed manually outside of orc"  # Optional explanation
 ```
 
-### Queue, Priority, and Category
+### Queue, Priority, Category, and Initiative
 
 | Field | Values | Default | Purpose |
 |-------|--------|---------|---------|
 | `queue` | `active`, `backlog` | `active` | Separates current work from deferred items |
 | `priority` | `critical`, `high`, `normal`, `low` | `normal` | Urgency within a queue |
 | `category` | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | `feature` | Type of work for organization and filtering |
+| `initiative_id` | Initiative ID (e.g., `INIT-001`) | empty | Links task to an initiative for grouping |
+
+**Initiative linking:**
+- Tasks can optionally belong to an initiative (a group of related tasks)
+- Empty/omitted `initiative_id` means the task is standalone
+- Set via `orc new --initiative INIT-001` or `orc edit TASK-001 --initiative INIT-001`
+- Unlink via `orc edit TASK-001 --initiative ""`
+- Bidirectional sync: when initiative_id is set, the task is auto-added to the initiative's task list
 
 **Queue behavior:**
 - **active**: Tasks shown prominently on the board
