@@ -31,8 +31,7 @@ description: |-
     - TypeScript types match
     - Error handling preserved
 weight: small
-status: running
-current_phase: implement
+status: planned
 branch: orc/TASK-167
 queue: active
 priority: normal
@@ -43,5 +42,4 @@ blocked_by:
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:20:50.655615834-06:00
-updated_at: 2026-01-14T12:07:35.933849-06:00
-started_at: 2026-01-14T12:07:35.933848-06:00
+updated_at: 2026-01-14T02:20:50.664017436-06:00
