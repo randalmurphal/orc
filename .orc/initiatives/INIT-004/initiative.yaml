@@ -1,0 +1,66 @@
+version: 1
+id: INIT-004
+title: Automated Finalize & Merge
+status: active
+vision: 'Post-PR automation: sync main, resolve conflicts via Claude, run tests, and merge - with configurable gates for different automation profiles'
+decisions:
+    - id: DEC-001
+      date: 2026-01-13T22:11:33.314608866-06:00
+      by: ""
+      decision: All finalize states stay in Done column
+      rationale: Columns are for phases of work, not deployment bureaucracy. Visual differentiation via card styles instead.
+    - id: DEC-002
+      date: 2026-01-13T22:11:34.072234441-06:00
+      by: ""
+      decision: Start with manual trigger, add auto-detect in v2
+      rationale: Ship simple first. Polling/webhooks add complexity and can be added after core flow works.
+    - id: DEC-003
+      date: 2026-01-13T22:11:34.8923206-06:00
+      by: ""
+      decision: Claude resolves conflicts with preserve-both-sides rule
+      rationale: Never remove features. If in doubt, keep both and let tests catch issues. User can always manually intervene.
+tasks:
+    - id: TASK-086
+      title: Add finalizing and finished task statuses
+      status: pending
+    - id: TASK-087
+      title: Create finalize phase prompt template
+      status: pending
+    - id: TASK-088
+      title: Add finalize configuration options
+      status: pending
+    - id: TASK-089
+      title: Implement finalize executor logic
+      depends_on:
+        - TASK-086
+        - TASK-087
+        - TASK-088
+      status: pending
+    - id: TASK-090
+      title: Add PR status detection
+      depends_on:
+        - TASK-089
+      status: pending
+    - id: TASK-091
+      title: Auto-trigger finalize in auto mode
+      depends_on:
+        - TASK-089
+        - TASK-090
+      status: pending
+    - id: TASK-092
+      title: Add orc finalize CLI command
+      depends_on:
+        - TASK-089
+      status: pending
+    - id: TASK-093
+      title: Add finalize API endpoint
+      depends_on:
+        - TASK-089
+      status: pending
+    - id: TASK-094
+      title: Add finalize UI components
+      depends_on:
+        - TASK-093
+      status: pending
+created_at: 2026-01-13T22:08:45.525663855-06:00
+updated_at: 2026-01-13T22:11:39.214475938-06:00
