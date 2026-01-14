@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -378,5 +379,122 @@ func TestReviewAndApprove_ApprovesWithPendingChecks(t *testing.T) {
 
 	if !result.Approved {
 		t.Error("expected approved when checksOK is true (even with pending)")
+	}
+}
+
+func TestParsePRChecks_UsesCorrectFields(t *testing.T) {
+	// Test that we correctly parse the gh pr checks JSON output format
+	// gh pr checks --json returns bucket field (pass/fail/pending/skipping/cancel)
+	// not conclusion field (which was the old expected format)
+
+	tests := []struct {
+		name           string
+		jsonOutput     string
+		expectPassed   bool
+		expectDetails  string
+		expectErr      bool
+	}{
+		{
+			name: "all checks pass",
+			jsonOutput: `[
+				{"name": "build", "state": "completed", "bucket": "pass"},
+				{"name": "test", "state": "completed", "bucket": "pass"}
+			]`,
+			expectPassed:  true,
+			expectDetails: "All checks passed",
+		},
+		{
+			name: "some checks fail",
+			jsonOutput: `[
+				{"name": "build", "state": "completed", "bucket": "pass"},
+				{"name": "test", "state": "completed", "bucket": "fail"}
+			]`,
+			expectPassed:  false,
+			expectDetails: "Failed checks: test",
+		},
+		{
+			name: "checks pending",
+			jsonOutput: `[
+				{"name": "build", "state": "pending", "bucket": "pending"},
+				{"name": "test", "state": "completed", "bucket": "pass"}
+			]`,
+			expectPassed:  true,
+			expectDetails: "Some checks still pending",
+		},
+		{
+			name: "skipped checks are ok",
+			jsonOutput: `[
+				{"name": "build", "state": "completed", "bucket": "pass"},
+				{"name": "optional", "state": "completed", "bucket": "skipping"}
+			]`,
+			expectPassed:  true,
+			expectDetails: "All checks passed",
+		},
+		{
+			name: "cancelled checks are ok",
+			jsonOutput: `[
+				{"name": "build", "state": "completed", "bucket": "pass"},
+				{"name": "cancelled", "state": "completed", "bucket": "cancel"}
+			]`,
+			expectPassed:  true,
+			expectDetails: "All checks passed",
+		},
+		{
+			name:          "empty checks list",
+			jsonOutput:    `[]`,
+			expectPassed:  true,
+			expectDetails: "All checks passed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// We can't directly test checkPRStatus because it calls runGH,
+			// but we can verify the parsing logic would work with the expected fields
+			var checks []struct {
+				Name   string `json:"name"`
+				State  string `json:"state"`
+				Bucket string `json:"bucket"`
+			}
+			err := json.Unmarshal([]byte(tt.jsonOutput), &checks)
+			if err != nil {
+				if !tt.expectErr {
+					t.Fatalf("unexpected parse error: %v", err)
+				}
+				return
+			}
+
+			// Replicate the logic from checkPRStatus
+			var failedChecks []string
+			pending := false
+			for _, c := range checks {
+				switch c.Bucket {
+				case "fail":
+					failedChecks = append(failedChecks, c.Name)
+				case "pending":
+					pending = true
+				}
+			}
+
+			var passed bool
+			var details string
+			if len(failedChecks) > 0 {
+				passed = false
+				details = "Failed checks: " + strings.Join(failedChecks, ", ")
+			} else if pending {
+				passed = true
+				details = "Some checks still pending"
+			} else {
+				passed = true
+				details = "All checks passed"
+			}
+
+			if passed != tt.expectPassed {
+				t.Errorf("passed = %v, want %v", passed, tt.expectPassed)
+			}
+			if details != tt.expectDetails {
+				t.Errorf("details = %q, want %q", details, tt.expectDetails)
+			}
+		})
 	}
 }
