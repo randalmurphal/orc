@@ -234,6 +234,16 @@ func (i *Initiative) RemoveTask(taskID string) bool {
 	return false
 }
 
+// HasTask returns true if the task is in the initiative's task list.
+func (i *Initiative) HasTask(taskID string) bool {
+	for _, t := range i.Tasks {
+		if t.ID == taskID {
+			return true
+		}
+	}
+	return false
+}
+
 // AddDecision records a decision in the initiative.
 func (i *Initiative) AddDecision(decision, rationale, by string) {
 	id := fmt.Sprintf("DEC-%03d", len(i.Decisions)+1)

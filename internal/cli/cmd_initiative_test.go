@@ -381,3 +381,134 @@ func TestInitiativeLinkSkipsAlreadyLinkedToOther(t *testing.T) {
 		t.Errorf("task2 should be linked to INIT-001, got %q", reloadedTask2.InitiativeID)
 	}
 }
+
+func TestInitiativeLinkFixesPartialLink(t *testing.T) {
+	// This tests the case where task has initiative_id set but is NOT in
+	// the initiative's task list. The link command should add it to the list.
+	withInitiativeTestDir(t)
+
+	// Create initiative WITHOUT any tasks
+	init := initiative.New("INIT-001", "Test Initiative")
+	if err := init.Save(); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create task that claims to be linked to INIT-001 but isn't in the list
+	task1 := task.New("TASK-001", "Task One")
+	task1.SetInitiative("INIT-001") // Set initiative_id
+	if err := task1.Save(); err != nil {
+		t.Fatalf("save task1: %v", err)
+	}
+
+	// Verify the initial broken state: task has initiative_id but init has no tasks
+	if len(init.Tasks) != 0 {
+		t.Fatalf("expected 0 tasks in initiative, got %d", len(init.Tasks))
+	}
+	if task1.InitiativeID != "INIT-001" {
+		t.Fatalf("task should have initiative_id INIT-001, got %q", task1.InitiativeID)
+	}
+
+	// Run link command - should add task to initiative despite having initiative_id
+	cmd := newInitiativeLinkCmd()
+	cmd.SetArgs([]string{"INIT-001", "TASK-001"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("link command failed: %v", err)
+	}
+
+	// Verify task is now in the initiative's task list
+	reloadedInit, err := initiative.Load("INIT-001")
+	if err != nil {
+		t.Fatalf("reload initiative: %v", err)
+	}
+	if len(reloadedInit.Tasks) != 1 {
+		t.Errorf("initiative should have 1 task, got %d", len(reloadedInit.Tasks))
+	}
+	if len(reloadedInit.Tasks) > 0 && reloadedInit.Tasks[0].ID != "TASK-001" {
+		t.Errorf("initiative task ID = %q, want TASK-001", reloadedInit.Tasks[0].ID)
+	}
+}
+
+func TestInitiativeLinkSkipsFullyLinkedTask(t *testing.T) {
+	// This tests that a task that is FULLY linked (both initiative_id set
+	// AND in the initiative's task list) is correctly skipped.
+	withInitiativeTestDir(t)
+
+	// Create initiative with TASK-001 already in the list
+	init := initiative.New("INIT-001", "Test Initiative")
+	init.AddTask("TASK-001", "Task One", nil)
+	if err := init.Save(); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create task with initiative_id set
+	task1 := task.New("TASK-001", "Task One")
+	task1.SetInitiative("INIT-001")
+	if err := task1.Save(); err != nil {
+		t.Fatalf("save task1: %v", err)
+	}
+
+	// Also create a second task that should be linked
+	task2 := task.New("TASK-002", "Task Two")
+	if err := task2.Save(); err != nil {
+		t.Fatalf("save task2: %v", err)
+	}
+
+	// Run link command - should skip TASK-001 and link TASK-002
+	cmd := newInitiativeLinkCmd()
+	cmd.SetArgs([]string{"INIT-001", "TASK-001", "TASK-002"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("link command failed: %v", err)
+	}
+
+	// Verify initiative has 2 tasks now
+	reloadedInit, err := initiative.Load("INIT-001")
+	if err != nil {
+		t.Fatalf("reload initiative: %v", err)
+	}
+	if len(reloadedInit.Tasks) != 2 {
+		t.Errorf("initiative should have 2 tasks, got %d", len(reloadedInit.Tasks))
+	}
+
+	// Verify TASK-002 is now linked
+	reloadedTask2, _ := task.Load("TASK-002")
+	if reloadedTask2.InitiativeID != "INIT-001" {
+		t.Errorf("task2 should be linked to INIT-001, got %q", reloadedTask2.InitiativeID)
+	}
+}
+
+func TestInitiativeLinkPatternFixesPartialLink(t *testing.T) {
+	// Tests that --all-matching also fixes partial links
+	withInitiativeTestDir(t)
+
+	// Create initiative WITHOUT any tasks
+	init := initiative.New("INIT-001", "Test Initiative")
+	if err := init.Save(); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create task that claims to be linked to INIT-001 but isn't in the list
+	task1 := task.New("TASK-001", "Auth Login")
+	task1.SetInitiative("INIT-001") // Set initiative_id, but not in initiative's list
+	if err := task1.Save(); err != nil {
+		t.Fatalf("save task1: %v", err)
+	}
+
+	// Run link command with pattern matching
+	cmd := newInitiativeLinkCmd()
+	cmd.SetArgs([]string{"INIT-001", "--all-matching", "auth"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("link command failed: %v", err)
+	}
+
+	// Verify task is now in the initiative's task list
+	reloadedInit, err := initiative.Load("INIT-001")
+	if err != nil {
+		t.Fatalf("reload initiative: %v", err)
+	}
+	if len(reloadedInit.Tasks) != 1 {
+		t.Errorf("initiative should have 1 task, got %d", len(reloadedInit.Tasks))
+	}
+	if !reloadedInit.HasTask("TASK-001") {
+		t.Error("initiative should have TASK-001 in task list")
+	}
+}
