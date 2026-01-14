@@ -20,6 +20,12 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 
+// Delay for WebSocket events to propagate through Svelte reactivity
+// WebSocket -> store update -> component re-render -> DOM update
+const WS_EVENT_PROPAGATION_MS = 500;
+const WS_PROGRESS_PROPAGATION_MS = 300;
+const UI_SETTLE_MS = 200;
+
 // WebSocket event message structure
 interface WSEvent {
 	type: 'event';
@@ -60,33 +66,11 @@ async function waitForBoardLoad(page: Page) {
 	await page.waitForSelector('.loading-state', { state: 'hidden', timeout: 10000 }).catch(() => {});
 	await page.waitForLoadState('networkidle');
 	await page.waitForSelector('.task-card, [role="region"][aria-label*="column"]', { timeout: 5000 }).catch(() => {});
-	await page.waitForTimeout(200);
-}
-
-// Helper: Find a completed task suitable for finalize testing
-async function findCompletedTask(page: Page): Promise<string | null> {
-	// Look for completed tasks in Done column
-	const doneColumn = page.locator('[role="region"][aria-label="Done column"]');
-	const completedCards = doneColumn.locator('.task-card.completed, .task-card:has(.status-indicator.completed)');
-	const count = await completedCards.count();
-
-	if (count > 0) {
-		const taskId = await completedCards.first().locator('.task-id').textContent();
-		return taskId?.trim() || null;
-	}
-
-	// If no completed task, fall back to any task
-	const taskCards = page.locator('.task-card');
-	const anyCount = await taskCards.count();
-	if (anyCount > 0) {
-		const taskId = await taskCards.first().locator('.task-id').textContent();
-		return taskId?.trim() || null;
-	}
-
-	return null;
+	await page.waitForTimeout(UI_SETTLE_MS);
 }
 
 // Helper: Setup WebSocket interception for finalize events
+// Note: Must be called before navigation, triggers page reload to activate interception
 async function setupWSInterception(page: Page): Promise<{ send: (data: string) => void } | null> {
 	let wsSend: ((data: string) => void) | null = null;
 
@@ -100,7 +84,7 @@ async function setupWSInterception(page: Page): Promise<{ send: (data: string) =
 
 	await page.reload();
 	await waitForBoardLoad(page);
-	await page.waitForTimeout(500);
+	await page.waitForTimeout(WS_EVENT_PROPAGATION_MS);
 
 	return wsSend ? { send: wsSend } : null;
 }
@@ -139,7 +123,7 @@ test.describe('Finalize Workflow', () => {
 					});
 					ws.send(JSON.stringify(taskUpdatedEvent));
 
-					await page.waitForTimeout(500);
+					await page.waitForTimeout(WS_EVENT_PROPAGATION_MS);
 				}
 			}
 
@@ -177,7 +161,7 @@ test.describe('Finalize Workflow', () => {
 					task: { id: taskId, status: 'completed' }
 				});
 				ws.send(JSON.stringify(taskUpdatedEvent));
-				await page.waitForTimeout(500);
+				await page.waitForTimeout(WS_EVENT_PROPAGATION_MS);
 			}
 
 			// Find the finalize button on completed task
@@ -216,7 +200,7 @@ test.describe('Finalize Workflow', () => {
 					task: { id: taskId, status: 'completed' }
 				});
 				ws.send(JSON.stringify(taskUpdatedEvent));
-				await page.waitForTimeout(500);
+				await page.waitForTimeout(WS_EVENT_PROPAGATION_MS);
 			}
 
 			// Click finalize button
@@ -266,7 +250,7 @@ test.describe('Finalize Workflow', () => {
 					task: { id: taskId, status: 'completed' }
 				});
 				ws.send(JSON.stringify(taskUpdatedEvent));
-				await page.waitForTimeout(500);
+				await page.waitForTimeout(WS_EVENT_PROPAGATION_MS);
 
 				// Click finalize button
 				const completedCard = page.locator(`.task-card:has(.task-id:has-text("${taskId}"))`);
@@ -288,7 +272,7 @@ test.describe('Finalize Workflow', () => {
 						updated_at: new Date().toISOString()
 					});
 					ws.send(JSON.stringify(finalizeEvent));
-					await page.waitForTimeout(300);
+					await page.waitForTimeout(WS_PROGRESS_PROPAGATION_MS);
 
 					// Modal should show progress section
 					const progressSection = modal.locator('.progress-section');
@@ -338,7 +322,7 @@ test.describe('Finalize Workflow', () => {
 				});
 				ws.send(JSON.stringify(finalizeEvent));
 
-				await page.waitForTimeout(500);
+				await page.waitForTimeout(WS_EVENT_PROPAGATION_MS);
 
 				// Card should have finalizing class
 				const card = page.locator(`.task-card:has(.task-id:has-text("${taskId}"))`);
@@ -381,7 +365,7 @@ test.describe('Finalize Workflow', () => {
 					task: { id: taskId, status: 'completed' }
 				});
 				ws.send(JSON.stringify(taskUpdatedEvent));
-				await page.waitForTimeout(500);
+				await page.waitForTimeout(WS_EVENT_PROPAGATION_MS);
 
 				// Open finalize modal
 				const completedCard = page.locator(`.task-card:has(.task-id:has-text("${taskId}"))`);
@@ -394,7 +378,7 @@ test.describe('Finalize Workflow', () => {
 					await expect(modal).toBeVisible({ timeout: 5000 });
 
 					// Wait a bit for modal to initialize
-					await page.waitForTimeout(200);
+					await page.waitForTimeout(UI_SETTLE_MS);
 
 					// Send finalize completed event with result
 					const finalizeResult: FinalizeResult = {
@@ -449,7 +433,7 @@ test.describe('Finalize Workflow', () => {
 					task: { id: taskId, status: 'completed' }
 				});
 				ws.send(JSON.stringify(taskUpdatedEvent));
-				await page.waitForTimeout(500);
+				await page.waitForTimeout(WS_EVENT_PROPAGATION_MS);
 
 				const finalizeBtn = page.locator(`.task-card:has(.task-id:has-text("${taskId}")) .action-btn.finalize`);
 
@@ -460,7 +444,7 @@ test.describe('Finalize Workflow', () => {
 					await expect(modal).toBeVisible({ timeout: 5000 });
 
 					// Wait a bit for modal to initialize
-					await page.waitForTimeout(200);
+					await page.waitForTimeout(UI_SETTLE_MS);
 
 					// Send completed finalize with commit SHA
 					const finalizeEvent = createWSEvent('finalize', taskId, {
@@ -514,7 +498,7 @@ test.describe('Finalize Workflow', () => {
 					task: { id: taskId, status: 'completed' }
 				});
 				ws.send(JSON.stringify(taskUpdatedEvent));
-				await page.waitForTimeout(500);
+				await page.waitForTimeout(WS_EVENT_PROPAGATION_MS);
 
 				const finalizeBtn = page.locator(`.task-card:has(.task-id:has-text("${taskId}")) .action-btn.finalize`);
 
@@ -525,7 +509,7 @@ test.describe('Finalize Workflow', () => {
 					await expect(modal).toBeVisible({ timeout: 5000 });
 
 					// Wait a bit for modal to initialize
-					await page.waitForTimeout(200);
+					await page.waitForTimeout(UI_SETTLE_MS);
 
 					// Send completed finalize
 					const finalizeEvent = createWSEvent('finalize', taskId, {
@@ -579,7 +563,7 @@ test.describe('Finalize Workflow', () => {
 					task: { id: taskId, status: 'completed' }
 				});
 				ws.send(JSON.stringify(taskUpdatedEvent));
-				await page.waitForTimeout(500);
+				await page.waitForTimeout(WS_EVENT_PROPAGATION_MS);
 
 				const finalizeBtn = page.locator(`.task-card:has(.task-id:has-text("${taskId}")) .action-btn.finalize`);
 
@@ -599,7 +583,7 @@ test.describe('Finalize Workflow', () => {
 						updated_at: new Date().toISOString()
 					});
 					ws.send(JSON.stringify(finalizeEvent));
-					await page.waitForTimeout(300);
+					await page.waitForTimeout(WS_PROGRESS_PROPAGATION_MS);
 
 					// Modal should show failed state
 					const failedSection = modal.locator('.result-section.failed');
@@ -656,7 +640,7 @@ test.describe('Finalize Workflow', () => {
 					}
 				});
 				ws.send(JSON.stringify(finalizeEvent));
-				await page.waitForTimeout(500);
+				await page.waitForTimeout(WS_EVENT_PROPAGATION_MS);
 
 				// Card should have finished class and show merge info
 				const card = page.locator(`.task-card:has(.task-id:has-text("${taskId}"))`);
