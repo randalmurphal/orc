@@ -4,7 +4,9 @@ package config
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -993,6 +995,87 @@ func RequireInitAt(basePath string) error {
 		return fmt.Errorf("not an orc project (no %s directory). Run 'orc init' first", OrcDir)
 	}
 	return nil
+}
+
+// FindProjectRoot finds the main project root directory that contains the .orc/tasks directory.
+// This handles git worktrees where tasks are stored in the main repo, not the worktree.
+//
+// Resolution order:
+// 1. If current directory has .orc/tasks, use current directory
+// 2. If in a git worktree, find the main repo and check for .orc/tasks there
+// 3. Walk up directories looking for .orc/tasks
+// 4. If still not found, return current directory as fallback
+func FindProjectRoot() (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("get working directory: %w", err)
+	}
+
+	// Check if current directory has tasks
+	if hasTasksDir(cwd) {
+		return cwd, nil
+	}
+
+	// Check if we're in a git worktree
+	mainRepo, err := findMainGitRepo()
+	if err == nil && mainRepo != "" && mainRepo != cwd {
+		if hasTasksDir(mainRepo) {
+			return mainRepo, nil
+		}
+	}
+
+	// Walk up directories looking for .orc/tasks
+	dir := cwd
+	for {
+		if hasTasksDir(dir) {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+
+	// Fallback: return current directory (may have .orc but no tasks yet)
+	if IsInitializedAt(cwd) {
+		return cwd, nil
+	}
+
+	return "", fmt.Errorf("not in an orc project (no %s directory found)", OrcDir)
+}
+
+// hasTasksDir checks if a directory has .orc/tasks
+func hasTasksDir(dir string) bool {
+	tasksPath := filepath.Join(dir, OrcDir, "tasks")
+	info, err := os.Stat(tasksPath)
+	return err == nil && info.IsDir()
+}
+
+// findMainGitRepo uses git to find the main repository when in a worktree.
+// Returns empty string if not in a git repo or not in a worktree.
+func findMainGitRepo() (string, error) {
+	// Get the common git directory (points to main repo's .git)
+	cmd := exec.Command("git", "rev-parse", "--git-common-dir")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+
+	gitCommonDir := strings.TrimSpace(string(output))
+	if gitCommonDir == "" || gitCommonDir == ".git" {
+		// Not in a worktree, return empty
+		return "", nil
+	}
+
+	// gitCommonDir is like /path/to/main-repo/.git
+	// We want /path/to/main-repo
+	if filepath.Base(gitCommonDir) == ".git" {
+		return filepath.Dir(gitCommonDir), nil
+	}
+
+	// Handle bare repos or unusual setups
+	return filepath.Dir(gitCommonDir), nil
 }
 
 // ExecutorPrefix returns the prefix for branch/worktree naming based on mode.

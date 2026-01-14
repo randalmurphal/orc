@@ -25,27 +25,32 @@ func newResumeCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "resume <task-id>",
-		Short: "Resume a paused, blocked, interrupted, or orphaned task",
-		Long: `Resume a task that was paused, blocked, interrupted, or became orphaned.
+		Short: "Resume a paused, blocked, interrupted, orphaned, or failed task",
+		Long: `Resume a task that was paused, blocked, interrupted, failed, or became orphaned.
 
 For tasks marked as "running" but whose executor process has died (orphaned),
 this command will automatically mark them as interrupted and resume execution.
 
+For failed tasks, this command will resume from the last incomplete phase,
+allowing you to retry after fixing any issues.
+
 Use --force to resume a task even if it appears to still be running.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := config.RequireInit(); err != nil {
+			// Find the project root (handles worktrees)
+			projectRoot, err := config.FindProjectRoot()
+			if err != nil {
 				return err
 			}
 
 			id := args[0]
 
-			t, err := task.Load(id)
+			t, err := task.LoadFrom(projectRoot, id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			s, err := state.Load(id)
+			s, err := state.LoadFrom(projectRoot, id)
 			if err != nil {
 				return fmt.Errorf("load state: %w", err)
 			}
@@ -60,15 +65,15 @@ Use --force to resume a task even if it appears to still be running.`,
 				if isOrphaned {
 					fmt.Printf("Task %s appears orphaned (%s)\n", id, reason)
 					fmt.Println("Marking as interrupted and resuming...")
-					if err := state.MarkOrphanedAsInterrupted("", id); err != nil {
+					if err := state.MarkOrphanedAsInterrupted(projectRoot, id); err != nil {
 						return fmt.Errorf("mark orphaned task as interrupted: %w", err)
 					}
 					// Reload task after marking
-					t, err = task.Load(id)
+					t, err = task.LoadFrom(projectRoot, id)
 					if err != nil {
 						return fmt.Errorf("reload task: %w", err)
 					}
-					s, err = state.Load(id)
+					s, err = state.LoadFrom(projectRoot, id)
 					if err != nil {
 						return fmt.Errorf("reload state: %w", err)
 					}
@@ -78,24 +83,26 @@ Use --force to resume a task even if it appears to still be running.`,
 					// Clear execution info to allow resume
 					s.ClearExecution()
 					s.InterruptPhase(s.CurrentPhase)
-					if err := s.Save(); err != nil {
+					taskDir := task.TaskDirIn(projectRoot, id)
+					if err := s.SaveTo(taskDir); err != nil {
 						return fmt.Errorf("save state: %w", err)
 					}
 					t.Status = task.StatusBlocked
-					if err := t.Save(); err != nil {
+					if err := t.SaveTo(taskDir); err != nil {
 						return fmt.Errorf("save task: %w", err)
 					}
 				} else {
 					return fmt.Errorf("task is currently running (PID %d). Use --force to resume anyway", s.GetExecutorPID())
 				}
 			case task.StatusFailed:
-				// Allow resuming failed tasks
+				// Allow resuming failed tasks - continues from last incomplete phase.
+				// This enables retry after fixing external issues (missing deps, config, etc.)
 				fmt.Printf("Task %s failed previously, resuming from last phase...\n", id)
 			default:
 				return fmt.Errorf("task cannot be resumed (status: %s)", t.Status)
 			}
 
-			p, err := plan.Load(id)
+			p, err := plan.LoadFrom(projectRoot, id)
 			if err != nil {
 				return fmt.Errorf("load plan: %w", err)
 			}

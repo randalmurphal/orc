@@ -32,10 +32,12 @@ orc show TASK-XXX --errors
 | API/external failure | Check network, retry later |
 | Misunderstood requirement | Add clarification to task description, rewind |
 
-**To resume after fixing**:
+**To resume a failed task** (recommended):
 ```bash
-orc run TASK-XXX --continue
+orc resume TASK-XXX   # Resume from last incomplete phase
 ```
+
+The `resume` command works with failed tasks, allowing you to retry from where the task left off without losing progress. Fix the underlying issue first (missing dependency, config error, etc.), then resume.
 
 **To start completely fresh**:
 ```bash
@@ -137,6 +139,50 @@ A task is considered orphaned when:
 # Edit .orc/tasks/TASK-XXX/state.yaml: change status to "interrupted", remove execution block
 orc resume TASK-XXX
 ```
+
+---
+
+## Failed Tasks
+
+**Symptoms**:
+- Task status shows `failed`
+- Phase execution stopped due to an error
+- Task cannot proceed without intervention
+
+**Diagnosis**:
+```bash
+# Check task status
+orc show TASK-XXX
+
+# View what went wrong
+orc log TASK-XXX --phase <failing-phase>
+```
+
+**Solutions**:
+
+| Method | Command | When to Use |
+|--------|---------|-------------|
+| Resume | `orc resume TASK-XXX` | After fixing the underlying issue |
+| Reset | `orc reset TASK-XXX` | To start fresh from the beginning |
+| Resolve | `orc resolve TASK-XXX -m "reason"` | If fixed manually outside orc |
+
+**Resuming Failed Tasks**:
+
+The `resume` command supports failed tasks directly—no need to reset or manually edit files:
+
+```bash
+# Fix the underlying issue (install dependency, fix config, etc.)
+# Then resume from where it left off
+orc resume TASK-XXX
+```
+
+This preserves completed phases and continues from the last incomplete phase. Useful when:
+- A dependency was missing and is now installed
+- An external service was down and is now available
+- A configuration issue was fixed
+- A transient error occurred
+
+**Note**: If the same error recurs, consider using `orc reset` to start fresh or `orc resolve` to mark it as handled.
 
 ---
 
