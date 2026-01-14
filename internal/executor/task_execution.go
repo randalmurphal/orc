@@ -105,6 +105,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			return fmt.Errorf("save task: %w", err)
 		}
 
+		// Auto-commit: phase started
+		e.commitTaskState(t, fmt.Sprintf("%s phase started", phase.ID))
+
 		e.logger.Info("executing phase", "phase", phase.ID, "task", t.ID)
 
 		// Sync with target branch before phase if configured
@@ -131,6 +134,8 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 				if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
 					e.logger.Error("failed to save state on interrupt", "error", saveErr)
 				}
+				// Auto-commit: phase interrupted
+				e.commitTaskState(t, fmt.Sprintf("%s phase interrupted", phase.ID))
 				return ctx.Err()
 			}
 
