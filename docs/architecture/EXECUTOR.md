@@ -340,6 +340,70 @@ This helps Claude understand what needs fixing.
 
 ---
 
+## Activity Tracking and Progress Indication
+
+Long-running Claude API calls now include activity tracking and progress indication to keep users informed.
+
+### Activity States
+
+| State | Description | Display |
+|-------|-------------|---------|
+| `idle` | No activity | - |
+| `waiting_api` | Waiting for Claude API response | "Waiting for Claude API..." |
+| `streaming` | Receiving streaming response | Progress dots |
+| `running_tool` | Claude is executing a tool | "Running tool..." |
+| `processing` | Processing response | - |
+
+### Progress Indicators
+
+During long API calls, orc provides visual feedback:
+
+1. **Activity announcements**: State changes shown on new lines
+2. **Heartbeat dots**: Periodic dots (default: every 30s) during API waits
+3. **Elapsed time**: After 2 minutes, dots include elapsed time
+4. **Idle warnings**: Alert if no activity for configured duration
+
+Example output:
+```
+⏳ Waiting for Claude API...
+.... (2m30s)
+⚠️  No activity for 2m - API may be slow or stuck
+```
+
+### Timeouts
+
+| Timeout | Default | Purpose |
+|---------|---------|---------|
+| `turn_max` | 10m | Max time for single API turn; cancels gracefully if exceeded |
+| `idle_timeout` | 2m | Warn if no streaming activity |
+| `phase_max` | 30m | Max time for entire phase |
+
+When turn timeout is reached:
+1. Request is cancelled gracefully
+2. User sees "Turn timeout after X - cancelling request"
+3. Task can be resumed with `orc resume`
+
+### Configuration
+
+```yaml
+# config.yaml
+timeouts:
+  phase_max: 30m           # Max time per phase (0 = unlimited)
+  turn_max: 10m            # Max time per API turn (0 = unlimited)
+  idle_warning: 5m         # Warn if no tool calls
+  heartbeat_interval: 30s  # Progress dots (0 = disable)
+  idle_timeout: 2m         # Warn if no streaming activity
+```
+
+Environment variables:
+- `ORC_PHASE_MAX_TIMEOUT`
+- `ORC_TURN_MAX_TIMEOUT`
+- `ORC_IDLE_WARNING`
+- `ORC_HEARTBEAT_INTERVAL`
+- `ORC_IDLE_TIMEOUT`
+
+---
+
 ## Transcript Storage
 
 ```
