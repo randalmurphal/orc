@@ -58,9 +58,42 @@ describe('App', () => {
 	});
 
 	it('renders Dashboard page at /dashboard route', async () => {
+		// Mock API responses for dashboard
+		vi.mocked(fetch).mockImplementation((url) => {
+			const urlStr = typeof url === 'string' ? url : url.toString();
+			if (urlStr.includes('/api/dashboard/stats')) {
+				return Promise.resolve({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							running: 1,
+							paused: 0,
+							blocked: 2,
+							completed: 5,
+							failed: 0,
+							today: 3,
+							total: 10,
+							tokens: 50000,
+							cost: 0.5,
+						}),
+				} as Response);
+			}
+			if (urlStr.includes('/api/initiatives')) {
+				return Promise.resolve({
+					ok: true,
+					json: () => Promise.resolve([]),
+				} as Response);
+			}
+			return Promise.resolve({
+				ok: true,
+				json: () => Promise.resolve({}),
+			} as Response);
+		});
+
 		renderApp('/dashboard');
 		await waitFor(() => {
-			expect(screen.getByRole('heading', { level: 2, name: 'Dashboard' })).toBeInTheDocument();
+			// Dashboard renders Quick Stats section
+			expect(screen.getByText('Quick Stats')).toBeInTheDocument();
 		});
 	});
 });
