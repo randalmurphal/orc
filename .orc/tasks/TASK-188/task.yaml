@@ -1,0 +1,12 @@
+id: TASK-188
+title: Worktree built binary
+weight: medium
+status: planned
+branch: orc/TASK-188
+queue: active
+priority: normal
+category: feature
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T02:29:01.944169614-06:00
+updated_at: 2026-01-14T02:29:01.951222488-06:00

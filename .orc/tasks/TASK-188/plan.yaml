@@ -1,5 +1,5 @@
 version: 1
-task_id: ""
+task_id: TASK-188
 weight: medium
 description: Medium task - implement with review, fully automated
 phases:
@@ -26,8 +26,7 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: completed
-      commit_sha: cd053b2801c4bd8866148aedf18175476b1888da
+      status: pending
     - id: test
       name: test
       prompt: |
@@ -51,8 +50,7 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: completed
-      commit_sha: 53df352f56122c6d26b49a746c059f4793c643f0
+      status: pending
     - id: docs
       name: docs
       prompt: |
@@ -76,5 +74,4 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: completed
-      commit_sha: 15c5d393656a153b497dec25d5deabc4bbef5f48
+      status: pending

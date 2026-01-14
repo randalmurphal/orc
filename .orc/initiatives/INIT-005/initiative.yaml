@@ -4,83 +4,86 @@ title: Svelte 5 to React 19 Migration
 status: active
 vision: Migrate the orc web UI from Svelte 5 to React 19 while maintaining 100% feature parity. This initiative uses AI-orchestrated development with comprehensive E2E tests, page-specific verification workflows, and dual-run validation to ensure no functionality is lost during migration.
 tasks:
-    - id: TASK-120
-      title: 'E2E Test: Dashboard page verification workflow'
+    - id: TASK-154
+      title: 'Phase 0: Expand E2E tests for Board interactions (18 tests)'
       status: pending
-    - id: TASK-122
-      title: 'E2E Test: Board page verification workflow (flat view)'
+    - id: TASK-155
+      title: 'Phase 0: Expand E2E tests for Task Detail tabs (15 tests)'
       status: pending
-    - id: TASK-123
-      title: 'E2E Test: Board page verification workflow (swimlane view)'
+    - id: TASK-156
+      title: 'Phase 0: Expand E2E tests for Initiative management (20 tests)'
       status: pending
-    - id: TASK-124
-      title: 'E2E Test: Task detail page verification workflow'
+    - id: TASK-157
+      title: 'Phase 0: Expand E2E tests for WebSocket real-time updates (12 tests)'
       status: pending
-    - id: TASK-125
-      title: 'E2E Test: Initiative detail page verification workflow'
+    - id: TASK-158
+      title: 'Phase 0: Expand E2E tests for Filters and URL persistence (14 tests)'
       status: pending
-    - id: TASK-126
-      title: 'E2E Test: Keyboard shortcuts verification workflow'
+    - id: TASK-159
+      title: 'Phase 0: Capture visual regression baselines for all pages'
       status: pending
-    - id: TASK-127
-      title: 'E2E Test: WebSocket and real-time updates verification workflow'
+    - id: TASK-160
+      title: 'Phase 0: Expand E2E tests for Keyboard shortcuts (12 tests)'
       status: pending
-    - id: TASK-128
-      title: 'E2E Test: Modal interactions verification workflow'
+    - id: TASK-161
+      title: 'Phase 0: Expand E2E tests for Finalize workflow (10 tests)'
       status: pending
-    - id: TASK-129
-      title: Capture visual regression baselines for all pages
+    - id: TASK-162
+      title: 'Phase 0: Setup accessibility testing with axe-playwright'
       status: pending
-    - id: TASK-130
-      title: Setup accessibility audit with axe-playwright
+    - id: TASK-163
+      title: 'Phase 1: React 19 project scaffolding with Vite'
       status: pending
-    - id: TASK-131
-      title: React 19 project scaffolding with Vite
+    - id: TASK-164
+      title: 'Phase 1: Setup Zustand stores mirroring Svelte stores'
       status: pending
-    - id: TASK-132
-      title: Setup Zustand stores mirroring Svelte stores
+    - id: TASK-165
+      title: 'Phase 1: Create useWebSocket hook and WebSocketProvider'
       status: pending
-    - id: TASK-133
-      title: Create useWebSocket hook and WebSocketProvider
+    - id: TASK-166
+      title: 'Phase 1: Setup React Router with URL param persistence'
       status: pending
-    - id: TASK-134
-      title: Setup TanStack Router with URL param persistence
+    - id: TASK-167
+      title: 'Phase 1: Port API client to React'
       status: pending
-    - id: TASK-135
-      title: Port API client to React with React Query integration
+    - id: TASK-168
+      title: 'Phase 1: Port keyboard shortcuts system to React'
       status: pending
-    - id: TASK-136
-      title: Port keyboard shortcuts system to React
+    - id: TASK-169
+      title: 'Phase 2: React - UI primitives (Icon, StatusIndicator, Modal, Toast)'
       status: pending
-    - id: TASK-139
-      title: 'React: Implement Layout components (Sidebar, Header, AppLayout)'
+    - id: TASK-170
+      title: 'Phase 2: React - Layout components (Sidebar, Header, AppLayout)'
       status: pending
-    - id: TASK-140
-      title: 'React: Implement Dashboard page'
+    - id: TASK-171
+      title: 'Phase 2: React - Dashboard page'
       status: pending
-    - id: TASK-141
-      title: 'React: Implement Board page (flat view)'
+    - id: TASK-172
+      title: 'Phase 2: React - Board page (flat and swimlane views)'
       status: pending
-    - id: TASK-142
-      title: 'React: Implement Board page (swimlane view)'
+    - id: TASK-173
+      title: 'Phase 2: React - Task List page'
       status: pending
-    - id: TASK-143
-      title: 'React: Implement Task detail page with all tabs'
+    - id: TASK-174
+      title: 'Phase 2: React - Task Detail page with all tabs'
       status: pending
-    - id: TASK-144
-      title: 'React: Implement Initiative detail page'
+    - id: TASK-175
+      title: 'Phase 2: React - Initiative Detail page'
       status: pending
-    - id: TASK-145
-      title: 'React: Implement all modal components'
+    - id: TASK-176
+      title: 'Phase 2: React - All modal components'
       status: pending
-    - id: TASK-146
-      title: 'Dual-run validation: Run all E2E tests against both implementations'
+    - id: TASK-177
+      title: 'Phase 2: React - Environment and Config pages'
       status: pending
-    - id: TASK-147
-      title: 'Performance comparison: React vs Svelte benchmarks'
+    - id: TASK-178
+      title: 'Phase 3: Integration - Connect all stores and real-time updates'
       status: pending
-    - id: TASK-148
-      title: 'Cutover: Replace Svelte with React in production build'
+    - id: TASK-179
+      title: 'Phase 4: Dual-run validation - Run all E2E tests against React'
+      status: pending
+    - id: TASK-180
+      title: 'Phase 4: Cutover - Replace Svelte with React in production'
       status: pending
 created_at: 2026-01-14T01:40:18.861098092-06:00
-updated_at: 2026-01-14T01:45:18.584484543-06:00
+updated_at: 2026-01-14T02:23:41.941365672-06:00
