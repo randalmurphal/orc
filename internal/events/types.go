@@ -22,6 +22,15 @@ const (
 	// EventTokens indicates token usage update.
 	EventTokens EventType = "tokens"
 
+	// Progress events (for long-running operations)
+
+	// EventActivity indicates activity state changed (waiting_api, streaming, etc.).
+	EventActivity EventType = "activity"
+	// EventHeartbeat indicates the task is still running (progress heartbeat).
+	EventHeartbeat EventType = "heartbeat"
+	// EventWarning indicates a non-fatal warning.
+	EventWarning EventType = "warning"
+
 	// File watcher events (triggered by external file changes)
 
 	// EventTaskCreated indicates a new task was created via file system.
@@ -89,4 +98,23 @@ type CompleteData struct {
 	Status    string `json:"status"` // completed, failed
 	Duration  string `json:"duration,omitempty"`
 	CommitSHA string `json:"commit_sha,omitempty"`
+}
+
+// ActivityUpdate represents activity state change information.
+type ActivityUpdate struct {
+	Phase    string `json:"phase"`
+	Activity string `json:"activity"` // idle, waiting_api, streaming, running_tool, processing
+}
+
+// HeartbeatData represents a progress heartbeat.
+type HeartbeatData struct {
+	Phase     string    `json:"phase"`
+	Iteration int       `json:"iteration"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// WarningData represents a non-fatal warning.
+type WarningData struct {
+	Phase   string `json:"phase,omitempty"`
+	Message string `json:"message"`
 }

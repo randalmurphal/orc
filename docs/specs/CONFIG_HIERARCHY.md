@@ -253,6 +253,14 @@ cost:
   warn_daily: 20.00
   show_running_cost: true
 
+# Timeouts and progress indication
+timeouts:
+  phase_max: 30m                       # Max time per phase (0 = unlimited)
+  turn_max: 10m                        # Max time per API turn (0 = unlimited)
+  idle_warning: 5m                     # Warn if no tool calls for this duration
+  heartbeat_interval: 30s              # Progress dots during API calls (0 = disable)
+  idle_timeout: 2m                     # Warn if no streaming activity
+
 # Task ID configuration (team mode)
 task_id:
   mode: solo                           # solo | p2p | team
@@ -285,6 +293,7 @@ team:
 | `retry` | Always | Can set defaults |
 | `artifact_skip` | Always | Can set defaults |
 | `worktree` | Always | Can set defaults |
+| `timeouts` | Always | Can set defaults |
 | `completion` | Project | Project level |
 | `git` | Project | Project level |
 | `claude` | Always | No |
@@ -490,6 +499,12 @@ var envMapping = map[string]string{
     "ORC_AUTH_TOKEN":        "server.auth.token",  // Never logged!
     "ORC_TEAM_ENABLED":      "team.enabled",
     "ORC_TEAM_SERVER":       "team.server_url",
+    // Timeouts
+    "ORC_PHASE_MAX_TIMEOUT":  "timeouts.phase_max",
+    "ORC_TURN_MAX_TIMEOUT":   "timeouts.turn_max",
+    "ORC_IDLE_WARNING":       "timeouts.idle_warning",
+    "ORC_HEARTBEAT_INTERVAL": "timeouts.heartbeat_interval",
+    "ORC_IDLE_TIMEOUT":       "timeouts.idle_timeout",
 }
 
 func (l *Loader) loadFromEnv() *Config {

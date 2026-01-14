@@ -263,3 +263,114 @@ func TestWarning_NonQuiet(t *testing.T) {
 	// Should not panic
 	d.Warning("warning message")
 }
+
+// === Activity State Tests ===
+
+func TestActivityState_String(t *testing.T) {
+	tests := []struct {
+		state    ActivityState
+		expected string
+	}{
+		{ActivityIdle, "Idle"},
+		{ActivityWaitingAPI, "Waiting for API"},
+		{ActivityStreaming, "Receiving response"},
+		{ActivityRunningTool, "Running tool"},
+		{ActivityProcessing, "Processing"},
+		{ActivityState("unknown"), "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.state), func(t *testing.T) {
+			if got := tt.state.String(); got != tt.expected {
+				t.Errorf("ActivityState.String() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSetActivity_Quiet(t *testing.T) {
+	d := New("TASK-001", true) // quiet mode
+
+	// Should not panic
+	d.SetActivity(ActivityWaitingAPI)
+	d.SetActivity(ActivityStreaming)
+	d.SetActivity(ActivityRunningTool)
+}
+
+func TestSetActivity_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Should not panic and should print
+	d.SetActivity(ActivityWaitingAPI)
+	d.SetActivity(ActivityRunningTool)
+}
+
+func TestHeartbeat_Quiet(t *testing.T) {
+	d := New("TASK-001", true) // quiet mode
+
+	// Should not print in quiet mode
+	d.Heartbeat()
+}
+
+func TestHeartbeat_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	d.SetActivity(ActivityWaitingAPI)
+	// Should print a dot
+	d.Heartbeat()
+}
+
+func TestHeartbeat_WithElapsedTime(t *testing.T) {
+	d := New("TASK-001", false)
+
+	d.SetActivity(ActivityWaitingAPI)
+	// Manually set activity start to make elapsed > 2 minutes
+	d.mu.Lock()
+	d.activityStart = time.Now().Add(-3 * time.Minute)
+	d.mu.Unlock()
+
+	// Should print a dot with elapsed time
+	d.Heartbeat()
+}
+
+func TestIdleWarning(t *testing.T) {
+	d := New("TASK-001", false)
+
+	// Should always print (even in quiet mode)
+	d.IdleWarning(5 * time.Minute)
+}
+
+func TestTurnTimeout(t *testing.T) {
+	d := New("TASK-001", false)
+
+	// Should always print
+	d.TurnTimeout(10 * time.Minute)
+}
+
+func TestActivityUpdate_Quiet(t *testing.T) {
+	d := New("TASK-001", true) // quiet mode
+
+	d.PhaseStart("implement", 10)
+	d.SetActivity(ActivityStreaming)
+
+	// Should not print
+	d.ActivityUpdate()
+}
+
+func TestActivityUpdate_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	d.PhaseStart("implement", 10)
+	d.Update(3, 1000)
+	d.SetActivity(ActivityStreaming)
+
+	// Should print activity status
+	d.ActivityUpdate()
+}
+
+func TestCancelled(t *testing.T) {
+	d := New("TASK-001", false)
+
+	// Should always print
+	d.Cancelled()
+}

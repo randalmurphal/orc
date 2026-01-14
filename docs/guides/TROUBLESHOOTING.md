@@ -313,15 +313,62 @@ orc config claude_path /path/to/claude
 ```
 error: phase timed out after 600s
 ```
+or
+```
+⏰ Turn timeout after 10m0s - cancelling request
+```
 
 **Solutions**:
 ```bash
-# Increase timeout in config
-orc config claude.timeout 1200
+# Increase turn timeout (per API call)
+ORC_TURN_MAX_TIMEOUT=20m orc run TASK-XXX
 
-# Or per-task
-orc run TASK-XXX --timeout 1200
+# Increase phase timeout (total phase time)
+ORC_PHASE_MAX_TIMEOUT=1h orc run TASK-XXX
+
+# Or configure in config.yaml
+timeouts:
+  turn_max: 20m      # Per API turn
+  phase_max: 1h      # Per phase total
 ```
+
+### Slow API with No Progress
+
+**Symptoms**:
+- No output for extended periods
+- Warning: "No activity for 2m - API may be slow or stuck"
+- Progress dots appearing but no response completing
+
+**Diagnosis**:
+The activity tracker monitors Claude API calls and provides visual feedback:
+- Progress dots appear every 30s during API waits
+- Idle warnings appear after 2m of no streaming activity
+- Turn timeouts cancel requests after 10m (configurable)
+
+**Solutions**:
+
+| Issue | Fix |
+|-------|-----|
+| API consistently slow | Increase `timeouts.turn_max` |
+| Want faster feedback | Decrease `timeouts.heartbeat_interval` |
+| Too many warnings | Increase `timeouts.idle_timeout` |
+| Disable heartbeats | Set `timeouts.heartbeat_interval: 0` |
+
+**Configuration**:
+```yaml
+# config.yaml
+timeouts:
+  phase_max: 30m           # Max time per phase
+  turn_max: 10m            # Max time per API turn
+  idle_warning: 5m         # Warn if no tool calls
+  heartbeat_interval: 30s  # Progress dots (0 = disable)
+  idle_timeout: 2m         # Warn if no streaming activity
+```
+
+**Environment variables**:
+- `ORC_TURN_MAX_TIMEOUT` - Override turn timeout
+- `ORC_HEARTBEAT_INTERVAL` - Override heartbeat interval
+- `ORC_IDLE_TIMEOUT` - Override idle timeout
 
 ---
 

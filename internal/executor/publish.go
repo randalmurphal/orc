@@ -111,3 +111,28 @@ func (ep *EventPublisher) State(taskID string, s *state.State) {
 	}
 	ep.Publish(events.NewEvent(events.EventState, taskID, s))
 }
+
+// Activity publishes an activity state change event.
+func (ep *EventPublisher) Activity(taskID, phase, activity string) {
+	ep.Publish(events.NewEvent(events.EventActivity, taskID, events.ActivityUpdate{
+		Phase:    phase,
+		Activity: activity,
+	}))
+}
+
+// Heartbeat publishes a heartbeat event indicating the task is still running.
+func (ep *EventPublisher) Heartbeat(taskID, phase string, iteration int) {
+	ep.Publish(events.NewEvent(events.EventHeartbeat, taskID, events.HeartbeatData{
+		Phase:     phase,
+		Iteration: iteration,
+		Timestamp: time.Now(),
+	}))
+}
+
+// Warning publishes a warning event (non-fatal).
+func (ep *EventPublisher) Warning(taskID, phase, message string) {
+	ep.Publish(events.NewEvent(events.EventWarning, taskID, events.WarningData{
+		Phase:   phase,
+		Message: message,
+	}))
+}

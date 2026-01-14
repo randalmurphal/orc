@@ -41,6 +41,7 @@ Phase execution engine implementing Ralph-style iteration loops with multiple ex
 | `review.go` | Multi-round review session parsing |
 | `qa.go` | QA session result parsing |
 | `knowledge.go` | Post-phase knowledge extraction (fallback) |
+| `activity.go` | Activity tracking for long-running API calls |
 
 ## Architecture
 
@@ -321,6 +322,47 @@ effectiveInput := result.Usage.EffectiveInputTokens()
 totalTokens := result.Usage.EffectiveTotalTokens()
 ```
 
+## Activity Tracking (activity.go)
+
+Tracks execution state and provides progress indication for long-running API calls.
+
+**Activity States:**
+- `ActivityIdle` - No activity
+- `ActivityWaitingAPI` - Waiting for Claude API response
+- `ActivityStreaming` - Receiving streaming response
+- `ActivityRunningTool` - Claude is running a tool
+- `ActivityProcessing` - Processing response
+
+**ActivityTracker:**
+```go
+tracker := NewActivityTracker(
+    WithHeartbeatInterval(30 * time.Second),
+    WithIdleTimeout(2 * time.Minute),
+    WithTurnTimeout(10 * time.Minute),
+    WithStateChangeCallback(func(state ActivityState) { ... }),
+    WithHeartbeatCallback(func() { fmt.Print(".") }),
+    WithIdleWarningCallback(func(d time.Duration) { ... }),
+    WithTurnTimeoutCallback(func() { ... }),
+)
+
+tracker.Start(ctx)
+defer tracker.Stop()
+
+// During execution
+tracker.SetState(ActivityWaitingAPI)
+tracker.RecordChunk()  // On streaming chunk
+tracker.SetIteration(5)
+
+// Query state
+duration := tracker.TurnDuration()
+idle := tracker.IdleDuration()
+chunks := tracker.ChunksReceived()
+```
+
+**Used by:** StandardExecutor, FullExecutor for progress indication during API calls.
+
+---
+
 ## Testing
 
 ```bash
@@ -345,3 +387,4 @@ Test coverage for each module:
 - `review_test.go` - Review findings/decision parsing, edge cases
 - `qa_test.go` - QA result parsing, status validation
 - `session_adapter_test.go` - Token usage calculations, effective token methods
+- `activity_test.go` - Activity state transitions, heartbeat timing, timeout callbacks

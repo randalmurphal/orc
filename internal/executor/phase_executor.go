@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"time"
 
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
@@ -38,6 +39,18 @@ type ExecutorConfig struct {
 	// TargetBranch is the target branch for merging (used in prompt templates).
 	// Defaults to "main" if empty.
 	TargetBranch string
+
+	// TurnTimeout is the maximum duration for a single API turn.
+	// 0 means no timeout (uses parent context only).
+	TurnTimeout time.Duration
+
+	// HeartbeatInterval is how often to emit progress heartbeats.
+	// 0 means no heartbeats.
+	HeartbeatInterval time.Duration
+
+	// IdleTimeout is how long without activity before warning.
+	// 0 means no idle warnings.
+	IdleTimeout time.Duration
 }
 
 // GetTargetBranch returns the target branch, defaulting to "main" if not set.
@@ -50,36 +63,56 @@ func (c ExecutorConfig) GetTargetBranch() string {
 
 // DefaultConfigForWeight returns the recommended configuration for a task weight.
 func DefaultConfigForWeight(weight task.Weight) ExecutorConfig {
+	// Base timeout settings (can be overridden by config)
+	baseTurnTimeout := 10 * time.Minute
+	baseHeartbeat := 30 * time.Second
+	baseIdleTimeout := 2 * time.Minute
+
 	switch weight {
 	case task.WeightTrivial:
 		return ExecutorConfig{
 			MaxIterations:      5,
 			CheckpointInterval: 0,
 			SessionPersistence: false,
+			TurnTimeout:        5 * time.Minute, // Shorter timeout for trivial tasks
+			HeartbeatInterval:  baseHeartbeat,
+			IdleTimeout:        baseIdleTimeout,
 		}
 	case task.WeightSmall:
 		return ExecutorConfig{
 			MaxIterations:      10,
 			CheckpointInterval: 0,
 			SessionPersistence: false,
+			TurnTimeout:        baseTurnTimeout,
+			HeartbeatInterval:  baseHeartbeat,
+			IdleTimeout:        baseIdleTimeout,
 		}
 	case task.WeightMedium:
 		return ExecutorConfig{
 			MaxIterations:      20,
 			CheckpointInterval: 0,
 			SessionPersistence: false,
+			TurnTimeout:        baseTurnTimeout,
+			HeartbeatInterval:  baseHeartbeat,
+			IdleTimeout:        baseIdleTimeout,
 		}
 	case task.WeightLarge:
 		return ExecutorConfig{
 			MaxIterations:      30,
 			CheckpointInterval: 1,
 			SessionPersistence: true,
+			TurnTimeout:        15 * time.Minute, // Longer for large tasks
+			HeartbeatInterval:  baseHeartbeat,
+			IdleTimeout:        3 * time.Minute,
 		}
 	case task.WeightGreenfield:
 		return ExecutorConfig{
 			MaxIterations:      50,
 			CheckpointInterval: 1,
 			SessionPersistence: true,
+			TurnTimeout:        20 * time.Minute, // Longest for greenfield
+			HeartbeatInterval:  baseHeartbeat,
+			IdleTimeout:        3 * time.Minute,
 		}
 	default:
 		// Default to medium config
@@ -87,6 +120,9 @@ func DefaultConfigForWeight(weight task.Weight) ExecutorConfig {
 			MaxIterations:      20,
 			CheckpointInterval: 0,
 			SessionPersistence: false,
+			TurnTimeout:        baseTurnTimeout,
+			HeartbeatInterval:  baseHeartbeat,
+			IdleTimeout:        baseIdleTimeout,
 		}
 	}
 }

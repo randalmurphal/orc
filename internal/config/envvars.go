@@ -36,8 +36,11 @@ var EnvVarMapping = map[string]string{
 	"ORC_TEAM_MODE":          "team.mode",
 	"ORC_TEAM_SERVER":        "team.server_url",
 	// Timeouts
-	"ORC_PHASE_MAX_TIMEOUT": "timeouts.phase_max",
-	"ORC_IDLE_WARNING":      "timeouts.idle_warning",
+	"ORC_PHASE_MAX_TIMEOUT":    "timeouts.phase_max",
+	"ORC_TURN_MAX_TIMEOUT":     "timeouts.turn_max",
+	"ORC_IDLE_WARNING":         "timeouts.idle_warning",
+	"ORC_HEARTBEAT_INTERVAL":   "timeouts.heartbeat_interval",
+	"ORC_IDLE_TIMEOUT":         "timeouts.idle_timeout",
 	// QA settings
 	"ORC_QA_ENABLED":       "qa.enabled",
 	"ORC_QA_REQUIRE_E2E":   "qa.require_e2e",
@@ -167,6 +170,18 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 	case "timeouts.idle_warning":
 		if d, err := time.ParseDuration(value); err == nil {
 			cfg.Timeouts.IdleWarning = d
+		}
+	case "timeouts.turn_max":
+		if d, err := time.ParseDuration(value); err == nil {
+			cfg.Timeouts.TurnMax = d
+		}
+	case "timeouts.heartbeat_interval":
+		if d, err := time.ParseDuration(value); err == nil {
+			cfg.Timeouts.HeartbeatInterval = d
+		}
+	case "timeouts.idle_timeout":
+		if d, err := time.ParseDuration(value); err == nil {
+			cfg.Timeouts.IdleTimeout = d
 		}
 	// QA settings
 	case "qa.enabled":
