@@ -9,6 +9,7 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newRewindCmd creates the rewind command
@@ -106,6 +107,21 @@ Examples:
 			}
 			if err := s.Save(); err != nil {
 				return fmt.Errorf("save state: %w", err)
+			}
+
+			// Auto-commit the rewind
+			cfg, _ := config.Load()
+			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
+				if projectDir, err := config.FindProjectRoot(); err == nil {
+					t, _ := task.Load(id)
+					if t != nil {
+						commitCfg := task.CommitConfig{
+							ProjectRoot:  projectDir,
+							CommitPrefix: cfg.CommitPrefix,
+						}
+						task.CommitAndSync(t, fmt.Sprintf("rewound to %s", toPhase), commitCfg)
+					}
+				}
 			}
 
 			fmt.Printf("✅ Rewound to phase: %s\n", toPhase)

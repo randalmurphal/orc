@@ -408,6 +408,17 @@ func (e *FinalizeExecutor) syncWithTarget(
 				"target", targetBranch,
 				"reason", "prevent worktree contamination")
 		}
+
+		// Restore .claude/settings.json to prevent worktree isolation hooks from being merged
+		// Worktrees inject hooks with machine-specific paths that shouldn't be shared
+		restoredSettings, restoreErr := e.gitSvc.RestoreClaudeSettings(target, t.ID)
+		if restoreErr != nil {
+			e.logger.Warn("failed to restore .claude/settings.json", "error", restoreErr)
+		} else if restoredSettings {
+			e.logger.Info("restored .claude/settings.json from target branch",
+				"target", targetBranch,
+				"reason", "prevent worktree hooks from being merged")
+		}
 	}
 
 	return syncResult, nil

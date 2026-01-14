@@ -9,6 +9,7 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newSkipCmd creates the skip command
@@ -66,6 +67,21 @@ Example:
 			if err == nil && s != nil {
 				s.SkipPhase(phaseID, reason)
 				s.Save()
+			}
+
+			// Auto-commit the phase skip
+			cfg, _ := config.Load()
+			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
+				if projectDir, err := config.FindProjectRoot(); err == nil {
+					t, _ := task.Load(id)
+					if t != nil {
+						commitCfg := task.CommitConfig{
+							ProjectRoot:  projectDir,
+							CommitPrefix: cfg.CommitPrefix,
+						}
+						task.CommitAndSync(t, fmt.Sprintf("phase %s skipped", phaseID), commitCfg)
+					}
+				}
 			}
 
 			fmt.Printf("⊘ Phase %s skipped", phaseID)

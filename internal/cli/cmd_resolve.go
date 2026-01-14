@@ -90,6 +90,18 @@ Examples:
 				return fmt.Errorf("save task: %w", err)
 			}
 
+			// Auto-commit the resolution
+			cfg, _ := config.Load()
+			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
+				if projectDir, err := config.FindProjectRoot(); err == nil {
+					commitCfg := task.CommitConfig{
+						ProjectRoot:  projectDir,
+						CommitPrefix: cfg.CommitPrefix,
+					}
+					task.CommitAndSync(t, "resolved", commitCfg)
+				}
+			}
+
 			if plain {
 				fmt.Printf("Task %s resolved\n", id)
 			} else {
