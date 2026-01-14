@@ -44,7 +44,7 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:18:53.180206985-06:00
-updated_at: 2026-01-14T06:57:08.619581-06:00
+updated_at: 2026-01-14T06:57:53.829517-06:00
 started_at: 2026-01-14T06:42:26.668975-06:00
 completed_at: 2026-01-14T06:57:01.599454-06:00
 metadata:
@@ -52,4 +52,4 @@ metadata:
 pr:
     url: https://github.com/randalmurphal/orc/pull/78
     number: 78
-    status: pending_review
+    status: closed
