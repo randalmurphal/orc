@@ -122,7 +122,7 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
     - id: docs
       name: docs
       prompt: |
