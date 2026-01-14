@@ -1,0 +1,52 @@
+task_id: TASK-149
+current_phase: test
+current_iteration: 2
+status: running
+started_at: 2026-01-14T01:46:39.017135577-06:00
+updated_at: 2026-01-14T02:01:03.646771317-06:00
+phases:
+    implement:
+        status: completed
+        started_at: 2026-01-14T01:55:26.702485199-06:00
+        completed_at: 2026-01-14T02:01:03.636976463-06:00
+        iterations: 2
+        commit_sha: 6e3695f399b612bff3eb0d4835d3c193047d52bb
+        tokens:
+            input_tokens: 11184500
+            output_tokens: 24022
+            cache_creation_input_tokens: 194145
+            cache_read_input_tokens: 10964684
+            total_tokens: 11208522
+    test:
+        status: running
+        started_at: 2026-01-14T02:01:03.646770475-06:00
+        iterations: 0
+        tokens:
+            input_tokens: 0
+            output_tokens: 0
+            total_tokens: 0
+gates:
+    - phase: implement
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T01:55:06.281718089-06:00
+    - phase: implement
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T02:01:03.64676847-06:00
+tokens:
+    input_tokens: 11184500
+    output_tokens: 24022
+    cache_creation_input_tokens: 194145
+    cache_read_input_tokens: 10964684
+    total_tokens: 11208522
+cost:
+    total_cost_usd: 0
+execution:
+    pid: 870871
+    hostname: Nexus
+    started_at: 2026-01-14T01:55:26.247911564-06:00
+    last_heartbeat: 2026-01-14T02:01:03.646771099-06:00
+error: 'node execute: execute: claude completion: claude complete: chdir /home/randy/repos/orc/.orc/worktrees/orc-TASK-149: no such file or directory: '

@@ -1,0 +1,17 @@
+id: TASK-119
+title: Show file change summary after task completion
+description: 'After a task completes, show a brief summary of what changed: ''Modified: 3 files (+150/-20)'' or similar. Currently only shows tokens and time. This gives users quick visibility into the scope of changes without checking git diff.'
+weight: small
+status: completed
+current_phase: test
+branch: orc/TASK-119
+queue: active
+priority: normal
+category: feature
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T01:38:36.722264937-06:00
+updated_at: 2026-01-14T01:57:10.392711038-06:00
+started_at: 2026-01-14T01:40:18.124834223-06:00
+completed_at: 2026-01-14T01:57:10.392710775-06:00

@@ -1,0 +1,53 @@
+task_id: TASK-151
+current_phase: implement
+current_iteration: 1
+status: running
+started_at: 2026-01-14T01:52:03.19882192-06:00
+updated_at: 2026-01-14T02:06:33.104934801-06:00
+phases:
+    implement:
+        status: running
+        started_at: 2026-01-14T02:06:33.104933225-06:00
+        iterations: 1
+        tokens:
+            input_tokens: 10549592
+            output_tokens: 28110
+            cache_creation_input_tokens: 132850
+            cache_read_input_tokens: 10416629
+            total_tokens: 10577702
+    test:
+        status: pending
+        started_at: 2026-01-14T02:06:06.961533015-06:00
+        iterations: 0
+        tokens:
+            input_tokens: 0
+            output_tokens: 0
+            total_tokens: 0
+gates:
+    - phase: implement
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T02:06:06.961531202-06:00
+tokens:
+    input_tokens: 10549592
+    output_tokens: 28110
+    cache_creation_input_tokens: 132850
+    cache_read_input_tokens: 10416629
+    total_tokens: 10577702
+cost:
+    total_cost_usd: 0
+execution:
+    pid: 891486
+    hostname: Nexus
+    started_at: 2026-01-14T02:06:32.647646608-06:00
+    last_heartbeat: 2026-01-14T02:06:33.104934231-06:00
+error: 'node execute: execute: claude completion: claude complete: chdir /home/randy/repos/orc/.orc/worktrees/orc-TASK-151: no such file or directory: '
+retry_context:
+    from_phase: test
+    to_phase: implement
+    reason: 'Phase test failed: node execute: execute: claude completion: claude complete: chdir /home/randy/repos/orc/.orc/worktrees/orc-TASK-151: no such file or directory: '
+    failure_output: 'node execute: execute: claude completion: claude complete: chdir /home/randy/repos/orc/.orc/worktrees/orc-TASK-151: no such file or directory: '
+    context_file: .orc/tasks/retry-context-test-1.md
+    attempt: 1
+    timestamp: 2026-01-14T02:06:06.967751802-06:00
