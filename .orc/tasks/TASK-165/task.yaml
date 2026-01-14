@@ -43,7 +43,8 @@ description: |-
     - Connection status visible in UI
     - No memory leaks on unmount
 weight: medium
-status: planned
+status: running
+current_phase: implement
 branch: orc/TASK-165
 queue: active
 priority: normal
@@ -55,4 +56,5 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:20:25.354239924-06:00
-updated_at: 2026-01-14T02:20:25.363194175-06:00
+updated_at: 2026-01-14T10:51:35.173846-06:00
+started_at: 2026-01-14T10:51:35.173845-06:00
