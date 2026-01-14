@@ -437,6 +437,9 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Auto-commit task creation
+	s.autoCommitTask(t, "created")
+
 	w.WriteHeader(http.StatusCreated)
 	s.jsonResponse(w, t)
 }
@@ -505,6 +508,9 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, fmt.Sprintf("failed to delete task: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Auto-commit task deletion
+	s.autoCommitTaskDeletion(id)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -737,6 +743,9 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Auto-commit task update
+	s.autoCommitTask(t, "updated")
+
 	s.jsonResponse(w, t)
 }
 
@@ -842,4 +851,34 @@ func (s *Server) handleGetDependencies(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.jsonResponse(w, graph)
+}
+
+// autoCommitTask commits a task change to git if auto-commit is enabled.
+// This is a non-blocking operation that logs warnings on failure.
+func (s *Server) autoCommitTask(t *task.Task, action string) {
+	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
+		return
+	}
+
+	commitCfg := task.CommitConfig{
+		ProjectRoot:  s.workDir,
+		CommitPrefix: s.orcConfig.CommitPrefix,
+		Logger:       s.logger,
+	}
+	task.CommitAndSync(t, action, commitCfg)
+}
+
+// autoCommitTaskDeletion commits a task deletion to git if auto-commit is enabled.
+// This is a non-blocking operation that logs warnings on failure.
+func (s *Server) autoCommitTaskDeletion(taskID string) {
+	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
+		return
+	}
+
+	commitCfg := task.CommitConfig{
+		ProjectRoot:  s.workDir,
+		CommitPrefix: s.orcConfig.CommitPrefix,
+		Logger:       s.logger,
+	}
+	task.CommitDeletion(taskID, commitCfg)
 }
