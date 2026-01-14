@@ -221,6 +221,8 @@ make web-dev    # Frontend :5173
 
 **Live refresh:** Task board auto-updates when tasks are created/modified/deleted via CLI or filesystem. File watcher monitors `.orc/tasks/` and broadcasts events over WebSocket.
 
+**Project selection:** The server can run from any directory. Project selection persists in URL (`?project=xxx`) and localStorage, surviving page refresh. Use `Cmd+P` to switch projects.
+
 **Keyboard shortcuts:** `Cmd+K` (palette), `Cmd+N` (new task), `g t` (tasks), `j/k` (navigate)
 
 See `web/CLAUDE.md` for component architecture.
@@ -335,6 +337,7 @@ Patterns, gotchas, and decisions learned during development.
 | Atomic status+phase updates | Set `current_phase` atomically with `status=running` to avoid UI timing issues (task shows in wrong column) | TASK-057 |
 | Plan regeneration on weight change | When task weight changes, plan.yaml auto-regenerates with new phases; completed/skipped phases preserved if they exist in both plans | TASK-003 |
 | Artifact detection for phase skip | Before running phases, check if artifacts exist (spec.md, research.md, docs.md) and offer to skip; use `--auto-skip` for non-interactive mode | TASK-004 |
+| Project selection persistence | URL param (`?project=xxx`) takes precedence over localStorage; enables shareable links and browser back/forward navigation | TASK-009 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
