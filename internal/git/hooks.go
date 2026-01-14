@@ -62,10 +62,15 @@ func (g *Git) InjectWorktreeHooks(worktreePath string, cfg HookConfig) error {
 		return fmt.Errorf("write pre-commit hook: %w", err)
 	}
 
-	// Configure worktree to use these hooks
-	_, err = g.ctx.RunGit("-C", worktreePath, "config", "--local", "core.hooksPath", hooksDir)
-	if err != nil {
-		return fmt.Errorf("set core.hooksPath: %w", err)
+	// Configure worktree to use these hooks by writing directly to worktree config.
+	// IMPORTANT: Using `git config --local` writes to the main repo's .git/config,
+	// which would incorrectly apply hooks to ALL repositories including main.
+	// Instead, we write directly to .git/worktrees/<name>/config to ensure hooks
+	// only apply to this specific worktree.
+	worktreeConfigPath := filepath.Join(worktreeGitDir, "config")
+	configContent := fmt.Sprintf("[core]\n\thooksPath = %s\n", hooksDir)
+	if err := os.WriteFile(worktreeConfigPath, []byte(configContent), 0644); err != nil {
+		return fmt.Errorf("write worktree config: %w", err)
 	}
 
 	return nil
@@ -93,6 +98,8 @@ func (g *Git) getWorktreeGitDir(worktreePath string) (string, error) {
 }
 
 // generatePrePushHook generates a pre-push hook that blocks pushes to protected branches.
+// The hook includes worktree detection to prevent false positives when the hook
+// is accidentally triggered from the main repository.
 func generatePrePushHook(taskBranch, taskID string, protectedBranches []string) string {
 	if len(protectedBranches) == 0 {
 		protectedBranches = DefaultProtectedBranches
@@ -110,6 +117,17 @@ set -e
 PROTECTED_BRANCHES="%s"
 TASK_BRANCH="%s"
 TASK_ID="%s"
+
+# Detect if we're actually in a worktree by checking the .git entry.
+# In a worktree, .git is a file containing "gitdir: /path/to/.git/worktrees/<name>"
+# In the main repo, .git is a directory.
+GIT_DIR_ENTRY=$(git rev-parse --git-dir 2>/dev/null)
+
+# If we're not in a worktree (git-dir doesn't contain "worktrees"), skip validation.
+# This prevents false positives when hooks are accidentally applied to the main repo.
+if [[ ! "$GIT_DIR_ENTRY" =~ worktrees/ ]]; then
+    exit 0
+fi
 
 while read local_ref local_sha remote_ref remote_sha; do
     # Extract the remote branch name
@@ -140,6 +158,8 @@ exit 0
 }
 
 // generatePreCommitHook generates a pre-commit hook that validates the current branch.
+// The hook includes worktree detection to prevent false positives when the hook
+// is accidentally triggered from the main repository.
 func generatePreCommitHook(taskBranch, taskID string) string {
 	return fmt.Sprintf(`#!/bin/bash
 # Orc worktree safety hook - validates commits are on expected branch
@@ -151,6 +171,17 @@ set -e
 
 EXPECTED_BRANCH="%s"
 TASK_ID="%s"
+
+# Detect if we're actually in a worktree by checking the .git entry.
+# In a worktree, .git is a file containing "gitdir: /path/to/.git/worktrees/<name>"
+# In the main repo, .git is a directory.
+GIT_DIR_ENTRY=$(git rev-parse --git-dir 2>/dev/null)
+
+# If we're not in a worktree (git-dir doesn't contain "worktrees"), skip validation.
+# This prevents false positives when hooks are accidentally applied to the main repo.
+if [[ ! "$GIT_DIR_ENTRY" =~ worktrees/ ]]; then
+    exit 0
+fi
 
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 
