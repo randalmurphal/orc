@@ -43,8 +43,7 @@ description: |-
     - Tests are deterministic (no flaky tests)
     - Tests use framework-agnostic selectors
 weight: large
-status: completed
-current_phase: validate
+status: planned
 branch: orc/TASK-154
 queue: active
 priority: normal
@@ -55,12 +54,4 @@ testing_requirements:
     unit: true
     visual: true
 created_at: 2026-01-14T02:17:34.940597573-06:00
-updated_at: 2026-01-14T04:36:53.932192-06:00
-started_at: 2026-01-14T04:06:37.057707-06:00
-completed_at: 2026-01-14T04:36:24.298035-06:00
-metadata:
-    pr_url: https://github.com/randalmurphal/orc/pull/72
-pr:
-    url: https://github.com/randalmurphal/orc/pull/72
-    number: 72
-    status: closed
+updated_at: 2026-01-14T02:17:34.947984995-06:00
