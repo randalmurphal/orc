@@ -40,8 +40,7 @@ description: |-
     - All 20 tests pass on current Svelte implementation
     - Initiative lifecycle fully covered
 weight: large
-status: completed
-current_phase: validate
+status: planned
 branch: orc/TASK-156
 queue: active
 priority: normal
@@ -51,12 +50,4 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:18:01.807469253-06:00
-updated_at: 2026-01-14T05:24:53.959342-06:00
-started_at: 2026-01-14T05:00:59.990695-06:00
-completed_at: 2026-01-14T05:24:31.9915-06:00
-metadata:
-    pr_url: https://github.com/randalmurphal/orc/pull/74
-pr:
-    url: https://github.com/randalmurphal/orc/pull/74
-    number: 74
-    status: closed
+updated_at: 2026-01-14T02:18:01.81533419-06:00
