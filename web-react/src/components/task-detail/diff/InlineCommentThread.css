@@ -1,0 +1,194 @@
+/* Inline Comment Thread */
+.inline-comment-thread {
+	padding: var(--space-3);
+	background: var(--bg-secondary);
+	border-top: 1px solid var(--border-subtle);
+}
+
+/* Comment */
+.inline-comment-thread .comment {
+	padding: var(--space-3);
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-md);
+	margin-bottom: var(--space-2);
+}
+
+.inline-comment-thread .comment:last-child {
+	margin-bottom: 0;
+}
+
+.inline-comment-thread .comment.blocker {
+	border-left: 3px solid var(--status-danger);
+}
+
+.inline-comment-thread .comment.issue {
+	border-left: 3px solid var(--status-warning);
+}
+
+.inline-comment-thread .comment.suggestion {
+	border-left: 3px solid var(--status-info);
+}
+
+.inline-comment-thread .comment-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin-bottom: var(--space-2);
+}
+
+.inline-comment-thread .severity-badge {
+	padding: var(--space-0-5) var(--space-1-5);
+	font-size: var(--text-2xs);
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+	border-radius: var(--radius-sm);
+}
+
+.inline-comment-thread .severity-badge.suggestion {
+	background: var(--status-info-bg);
+	color: var(--status-info);
+}
+
+.inline-comment-thread .severity-badge.issue {
+	background: var(--status-warning-bg);
+	color: var(--status-warning);
+}
+
+.inline-comment-thread .severity-badge.blocker {
+	background: var(--status-danger-bg);
+	color: var(--status-danger);
+}
+
+.inline-comment-thread .timestamp {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+}
+
+.inline-comment-thread .comment-content {
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	line-height: var(--leading-relaxed);
+	margin-bottom: var(--space-2);
+}
+
+.inline-comment-thread .comment-actions {
+	display: flex;
+	gap: var(--space-2);
+}
+
+.inline-comment-thread .comment-actions button {
+	padding: var(--space-0-5) var(--space-1-5);
+	font-size: var(--text-2xs);
+	background: transparent;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: all var(--duration-fast) var(--ease-out);
+}
+
+.inline-comment-thread .comment-actions button:hover {
+	background: var(--bg-surface);
+	border-color: var(--border-default);
+}
+
+.inline-comment-thread .comment-actions button.delete:hover {
+	color: var(--status-danger);
+	border-color: var(--status-danger);
+}
+
+/* Resolved Comments */
+.resolved-comments {
+	padding: var(--space-2);
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+/* Comment Form */
+.comment-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	padding: var(--space-3);
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-md);
+}
+
+.comment-form .severity-pills {
+	display: flex;
+	gap: var(--space-1);
+}
+
+.comment-form .severity-pill {
+	padding: var(--space-0-5) var(--space-2);
+	font-size: var(--text-2xs);
+	font-weight: var(--font-medium);
+	background: var(--bg-primary);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-full);
+	color: var(--text-muted);
+	cursor: pointer;
+	text-transform: capitalize;
+	transition: all var(--duration-fast) var(--ease-out);
+}
+
+.comment-form .severity-pill:hover {
+	border-color: var(--border-default);
+}
+
+.comment-form .severity-pill.selected {
+	background: var(--accent-primary);
+	border-color: var(--accent-primary);
+	color: var(--text-inverse);
+}
+
+.comment-form textarea {
+	width: 100%;
+	padding: var(--space-2);
+	font-size: var(--text-sm);
+	font-family: var(--font-body);
+	background: var(--bg-primary);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	color: var(--text-primary);
+	resize: vertical;
+	min-height: 60px;
+}
+
+.comment-form textarea:focus {
+	outline: none;
+	border-color: var(--accent-primary);
+}
+
+.comment-form .form-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-2);
+}
+
+.comment-form .cancel-btn {
+	padding: var(--space-1) var(--space-2);
+	font-size: var(--text-xs);
+	background: transparent;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	color: var(--text-secondary);
+	cursor: pointer;
+}
+
+.comment-form .submit-btn {
+	padding: var(--space-1) var(--space-3);
+	font-size: var(--text-xs);
+	font-weight: var(--font-medium);
+	background: var(--accent-primary);
+	border: none;
+	border-radius: var(--radius-md);
+	color: var(--text-inverse);
+	cursor: pointer;
+}
+
+.comment-form .submit-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
