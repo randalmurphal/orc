@@ -192,11 +192,34 @@ Parallel tasks can diverge from the target branch, causing merge conflicts at co
 completion:
   sync:
     strategy: completion     # none | phase | completion | detect
+    sync_on_start: true      # Sync before execution starts (default: true)
     fail_on_conflict: true   # Abort on conflicts (default: true)
     max_conflict_files: 0    # Max conflict files before abort (0 = unlimited)
     skip_for_weights:        # Skip sync for trivial tasks
       - trivial
 ```
+
+### Sync on Start (Parallel Task Fix)
+
+When `sync_on_start: true` (default), orc syncs the task branch with the target branch **before execution begins**. This catches conflicts from parallel tasks early:
+
+```
+Timeline:
+1. TASK-A and TASK-B both start from main@SHA1
+2. TASK-A completes and merges → main@SHA2
+3. TASK-B starts execution:
+   - sync_on_start=true: rebases onto main@SHA2, incorporates TASK-A changes
+   - sync_on_start=false: stays on stale SHA1, conflicts at completion
+```
+
+**Benefits:**
+- Implement phase sees latest code including parallel task changes
+- AI can incorporate those changes during implementation
+- Fewer/no conflicts at completion sync
+
+**Disable if:**
+- You want to isolate your task from concurrent changes
+- You're intentionally working on an older branch state
 
 ### Conflict Handling
 

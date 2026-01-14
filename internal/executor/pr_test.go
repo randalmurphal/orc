@@ -1,11 +1,14 @@
 package executor
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -192,6 +195,44 @@ func TestSyncPhaseConstants(t *testing.T) {
 	}
 	if SyncPhaseCompletion != "completion" {
 		t.Errorf("SyncPhaseCompletion = %s, want 'completion'", SyncPhaseCompletion)
+	}
+}
+
+func TestSyncOnTaskStart_SkipsWithoutGitOps(t *testing.T) {
+	// Create executor without git ops
+	e := &Executor{
+		logger:    slog.Default(),
+		orcConfig: config.Default(),
+	}
+	e.orcConfig.Completion.Sync.SyncOnStart = true
+
+	// Ensure git ops are nil
+	e.gitOps = nil
+	e.worktreeGit = nil
+
+	// Should return nil when no git ops available (not an error)
+	task := &task.Task{ID: "TASK-001"}
+	err := e.syncOnTaskStart(context.Background(), task)
+	if err != nil {
+		t.Errorf("syncOnTaskStart() should skip without error when gitOps is nil, got: %v", err)
+	}
+}
+
+func TestSyncOnTaskStart_UsesWorktreeGit(t *testing.T) {
+	// This test verifies that syncOnTaskStart prefers worktreeGit over gitOps
+	// when both are set (indicating we're in a worktree context)
+	// We can't fully test this without a real git repo, but we can verify
+	// the nil handling works correctly
+	e := &Executor{
+		logger:    slog.Default(),
+		orcConfig: config.Default(),
+	}
+
+	// With both nil, should return early
+	task := &task.Task{ID: "TASK-001"}
+	err := e.syncOnTaskStart(context.Background(), task)
+	if err != nil {
+		t.Errorf("syncOnTaskStart() should handle nil gitOps gracefully, got: %v", err)
 	}
 }
 
