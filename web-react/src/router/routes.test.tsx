@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { useRoutes } from 'react-router-dom';
 import { routes } from './routes';
 import { WebSocketProvider } from '@/hooks';
-import { useProjectStore, useInitiativeStore, useUIStore } from '@/stores';
+import { useProjectStore, useInitiativeStore, useUIStore, useTaskStore } from '@/stores';
 
 // Mock WebSocket to prevent actual connections
 vi.mock('@/lib/websocket', () => ({
@@ -22,6 +22,29 @@ vi.mock('@/lib/websocket', () => ({
 		command: vi.fn(),
 	})),
 	GLOBAL_TASK_ID: '*',
+}));
+
+// Mock API to prevent actual fetch calls
+vi.mock('@/lib/api', () => ({
+	listProjectTasks: vi.fn().mockResolvedValue([]),
+	listInitiatives: vi.fn().mockResolvedValue([]),
+	getDashboardStats: vi.fn().mockResolvedValue({
+		running: 1,
+		paused: 0,
+		blocked: 2,
+		completed: 5,
+		failed: 0,
+		today: 3,
+		total: 10,
+		tokens: 50000,
+		cost: 0.5,
+	}),
+	runProjectTask: vi.fn(),
+	pauseProjectTask: vi.fn(),
+	resumeProjectTask: vi.fn(),
+	escalateProjectTask: vi.fn(),
+	updateTask: vi.fn(),
+	triggerFinalize: vi.fn(),
 }));
 
 // Test wrapper component
@@ -61,6 +84,12 @@ describe('Routes', () => {
 			wsStatus: 'disconnected',
 			toasts: [],
 		});
+		useTaskStore.setState({
+			tasks: [],
+			taskStates: new Map(),
+			loading: false,
+			error: null,
+		});
 	});
 
 	describe('Root route (/)', () => {
@@ -92,11 +121,38 @@ describe('Routes', () => {
 	});
 
 	describe('/board route', () => {
-		it('renders Board page', async () => {
+		it('renders Board page with project selected', async () => {
+			// Board page requires a project to be selected
+			// Set state before render - Zustand stores are synchronous
+			useProjectStore.setState({
+				projects: [
+					{
+						id: 'test-project',
+						path: '/test/project',
+						name: 'Test Project',
+						created_at: '2024-01-01T00:00:00Z',
+					},
+				],
+				currentProjectId: 'test-project',
+				loading: false,
+				error: null,
+				_isHandlingPopState: false,
+			});
+
+			// Render with project param in URL (UrlParamSync syncs URL -> store)
+			renderWithRouter('/board?project=test-project');
+
+			// Wait for the component to render and show the board
+			await waitFor(() => {
+				// "Board" appears as h2 heading
+				expect(screen.getByRole('heading', { level: 2, name: 'Board' })).toBeInTheDocument();
+			});
+		});
+
+		it('renders empty state when no project selected', async () => {
 			renderWithRouter('/board');
 			await waitFor(() => {
-				// "Board" appears in sidebar and as h2 heading
-				expect(screen.getByRole('heading', { level: 2, name: 'Board' })).toBeInTheDocument();
+				expect(screen.getByText('No Project Selected')).toBeInTheDocument();
 			});
 		});
 	});

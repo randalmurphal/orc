@@ -29,6 +29,14 @@ web-react/src/
 │   ├── shortcuts.ts      # ShortcutManager class
 │   └── platform.ts       # Platform detection (isMac)
 ├── components/           # UI components
+│   ├── board/            # Kanban board components
+│   │   ├── Board.tsx     # Main board (flat/swimlane views)
+│   │   ├── Column.tsx    # Board column with drop zone
+│   │   ├── QueuedColumn.tsx # Queued column (active/backlog)
+│   │   ├── Swimlane.tsx  # Initiative swimlane row
+│   │   ├── TaskCard.tsx  # Task card for board
+│   │   ├── ViewModeDropdown.tsx # Flat/swimlane toggle
+│   │   └── InitiativeDropdown.tsx # Initiative filter
 │   ├── dashboard/        # Dashboard components
 │   │   ├── DashboardStats.tsx      # Quick stats cards
 │   │   ├── DashboardActiveTasks.tsx # Running/paused/blocked tasks
@@ -111,8 +119,8 @@ npm run build
 This React app runs alongside Svelte during migration:
 
 1. **Phase 1** ✅: Project scaffolding, Zustand stores mirroring Svelte stores
-2. **Phase 2** ✅: Core infrastructure (API client, WebSocket, Router with URL sync)
-3. **Phase 3** (current): Component migration (parallel implementation)
+2. **Phase 2** ✅: Core infrastructure (API client, WebSocket, Router with URL sync), Dashboard page, Board page (flat/swimlane views)
+3. **Phase 3** (current): Component migration (parallel implementation) - TaskList, TaskDetail, InitiativeDetail
 4. **Phase 4**: E2E test validation, feature parity verification
 5. **Phase 5**: Cutover and Svelte removal
 
@@ -143,6 +151,11 @@ Migration follows the existing Svelte component structure:
 | `lib/components/ProjectSwitcher.svelte` | `components/overlays/ProjectSwitcher.tsx` | ✅ Complete |
 | `lib/components/Dashboard.svelte` | `pages/Dashboard.tsx` | ✅ Complete |
 | `lib/components/dashboard/*` | `components/dashboard/*` | ✅ Complete |
+| `lib/components/Board.svelte` | `components/board/Board.tsx` | ✅ Complete |
+| `lib/components/Column.svelte` | `components/board/Column.tsx` | ✅ Complete |
+| `lib/components/QueuedColumn.svelte` | `components/board/QueuedColumn.tsx` | ✅ Complete |
+| `lib/components/Swimlane.svelte` | `components/board/Swimlane.tsx` | ✅ Complete |
+| `lib/components/TaskCard.svelte` (kanban) | `components/board/TaskCard.tsx` | ✅ Complete |
 | `lib/stores/` | `src/stores/` (Zustand) | ✅ Complete |
 | `lib/websocket.ts` | `src/lib/websocket.ts` | ✅ Complete |
 | `lib/utils/` | `src/lib/` | In Progress |
@@ -1129,6 +1142,271 @@ function TaskList() {
   // ...
 }
 ```
+
+## Board Components
+
+Components for the Kanban board page (`/board`).
+
+### Board (Page)
+
+Page component that orchestrates the board display with data loading, filtering, and action handling.
+
+```tsx
+import { Board } from '@/pages/Board';
+
+// Used in route configuration
+<Route path="/board" element={<Board />} />
+```
+
+**Features:**
+- View mode persistence (localStorage)
+- Initiative filtering (URL + store sync)
+- Task actions (run/pause/resume/escalate)
+- Drag-drop handling for status/initiative changes
+- Loading/error/empty states
+
+**URL params:**
+- `project`: Project filter (handled by UrlParamSync)
+- `initiative`: Initiative filter
+- `dependency_status`: Filter by blocked/ready
+
+### Board (Component)
+
+Main board component with flat and swimlane view modes.
+
+```tsx
+import { Board, BOARD_COLUMNS, type BoardViewMode } from '@/components/board';
+
+<Board
+  tasks={tasks}
+  viewMode="flat"               // or "swimlane"
+  initiatives={initiatives}
+  onAction={handleAction}       // run/pause/resume
+  onEscalate={handleEscalate}   // escalation with reason
+  onTaskClick={handleTaskClick} // for running tasks modal
+  onFinalizeClick={handleFinalize}
+  onInitiativeClick={handleInitiativeClick}
+  onInitiativeChange={handleInitiativeChange} // drag-drop initiative change
+  getFinalizeState={getFinalizeState}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `tasks` | `Task[]` | Tasks to display |
+| `viewMode` | `'flat' \| 'swimlane'` | View mode (default: flat) |
+| `initiatives` | `Initiative[]` | For swimlane grouping |
+| `onAction` | `(id, action) => Promise` | Run/pause/resume handler |
+| `onEscalate` | `(id, reason) => Promise` | Escalation handler (optional) |
+| `onTaskClick` | `(task) => void` | Task click handler |
+| `onFinalizeClick` | `(task) => void` | Finalize button handler |
+| `onInitiativeClick` | `(id) => void` | Initiative badge click |
+| `onInitiativeChange` | `(taskId, initId) => Promise` | Initiative change via drag |
+| `getFinalizeState` | `(id) => FinalizeState` | Get finalize state for task |
+
+**Column Configuration (`BOARD_COLUMNS`):**
+
+| Column ID | Title | Phases |
+|-----------|-------|--------|
+| `queued` | Queued | (none - uses status) |
+| `spec` | Spec | research, spec, design |
+| `implement` | Implement | implement |
+| `test` | Test | test |
+| `review` | Review | docs, validate, review |
+| `done` | Done | (terminal statuses) |
+
+**View Modes:**
+- **Flat**: Traditional kanban columns side by side
+- **Swimlane**: Horizontal rows grouped by initiative with collapsible headers
+
+**Task Sorting:** Running tasks first, then by priority (critical > high > normal > low)
+
+### Column
+
+Standard board column with header and task cards.
+
+```tsx
+import { Column, type ColumnConfig } from '@/components/board';
+
+<Column
+  column={{ id: 'implement', title: 'Implement', phases: ['implement'] }}
+  tasks={tasks}
+  onDrop={handleDrop}
+  onAction={handleAction}
+  onTaskClick={handleTaskClick}
+/>
+```
+
+**Features:**
+- Column-specific accent colors
+- Drag-over visual feedback (counter-based for nested elements)
+- Empty state when no tasks
+
+**Column Styles:**
+
+| Column | Accent Color |
+|--------|--------------|
+| queued | muted gray |
+| spec | blue |
+| implement | purple (accent) |
+| test | cyan |
+| review | warning yellow |
+| done | success green |
+
+### QueuedColumn
+
+Special column for queued tasks with active/backlog sections.
+
+```tsx
+import { QueuedColumn } from '@/components/board';
+
+<QueuedColumn
+  column={column}
+  activeTasks={activeTasks}    // queue !== 'backlog'
+  backlogTasks={backlogTasks}  // queue === 'backlog'
+  showBacklog={showBacklog}
+  onToggleBacklog={toggleBacklog}
+  onDrop={handleDrop}
+  onAction={handleAction}
+/>
+```
+
+**Features:**
+- Active section always visible
+- Backlog section collapsible with toggle button
+- Backlog count badge
+- State persisted to localStorage (`orc-show-backlog`)
+
+### Swimlane
+
+Initiative row for swimlane view with all columns.
+
+```tsx
+import { Swimlane } from '@/components/board';
+
+<Swimlane
+  initiative={initiative}       // null for unassigned
+  tasks={tasks}
+  columns={BOARD_COLUMNS}
+  tasksByColumn={tasksByColumn}
+  collapsed={isCollapsed}
+  onToggleCollapse={toggle}
+  onDrop={handleSwimlaneDrop}   // receives targetInitiativeId
+  onAction={handleAction}
+/>
+```
+
+**Features:**
+- Collapsible header with chevron icon
+- Progress bar (completed/total tasks)
+- Progress percentage display
+- Keyboard accessible toggle (Enter/Space)
+- Unassigned swimlane for tasks without initiative
+
+### TaskCard
+
+Task card for kanban board with full feature set.
+
+```tsx
+import { TaskCard } from '@/components/board';
+
+<TaskCard
+  task={task}
+  onAction={handleAction}
+  onTaskClick={handleTaskClick}     // Opens transcript modal for running
+  onFinalizeClick={handleFinalize}  // Opens finalize modal
+  onInitiativeClick={handleInitiativeClick}
+  finalizeState={finalizeState}
+/>
+```
+
+**Display Elements:**
+- Task ID and priority badge (critical/high/low icons)
+- Status indicator (colored orb with animation)
+- Title and description preview
+- Current phase (when running)
+- Weight badge with color coding
+- Blocked badge (when is_blocked)
+- Initiative badge (clickable, truncated with tooltip)
+- Relative timestamp
+
+**Action Buttons (contextual):**
+- **Run** (play icon): created/planned status
+- **Pause** (pause icon): running status
+- **Resume** (play icon): paused status
+- **Finalize** (merge icon): completed status
+- **Quick menu** (three dots): queue/priority changes
+
+**Visual States:**
+- **Running**: Pulsing border animation
+- **Finalizing**: Progress bar with step label
+- **Finished**: Merge info (commit SHA + target branch)
+- **Dragging**: Reduced opacity
+
+**Quick Menu:**
+- Queue selection (Active/Backlog)
+- Priority selection (Critical/High/Normal/Low)
+- Updates via API and store
+
+**Drag-Drop:**
+- Native HTML5 drag-drop
+- Sets `application/json` data with task object
+- Visual feedback on drag start/end
+
+### ViewModeDropdown
+
+Dropdown to toggle between flat and swimlane views.
+
+```tsx
+import { ViewModeDropdown } from '@/components/board';
+
+<ViewModeDropdown
+  value={viewMode}
+  onChange={setViewMode}
+  disabled={initiativeFilterActive}  // Swimlane disabled when filtered
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `value` | `'flat' \| 'swimlane'` | Current view mode |
+| `onChange` | `(mode) => void` | Change handler |
+| `disabled` | `boolean` | Disable dropdown |
+
+**Options:**
+- **Flat**: All tasks in columns
+- **By Initiative**: Grouped by initiative (swimlane)
+
+### InitiativeDropdown
+
+Dropdown to filter tasks by initiative.
+
+```tsx
+import { InitiativeDropdown } from '@/components/board';
+
+<InitiativeDropdown
+  currentInitiativeId={currentInitiativeId}
+  onSelect={setInitiativeFilter}
+  tasks={tasks}  // For task counts
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `currentInitiativeId` | `string \| null` | Current filter |
+| `onSelect` | `(id) => void` | Selection handler |
+| `tasks` | `Task[]` | For calculating task counts |
+
+**Options:**
+- **All initiatives**: No filter (null)
+- **Unassigned**: Tasks without initiative (UNASSIGNED_INITIATIVE constant)
+- **Initiative list**: Sorted (active first, then alphabetical) with task counts
+
+**Features:**
+- Task counts per initiative
+- Title truncation with tooltip
+- Active filter visual indication
+- Click outside to close
 
 ## Known Differences from Svelte
 
