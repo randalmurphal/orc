@@ -38,7 +38,8 @@ Commands: `/orc:init`, `/orc:status`, `/orc:continue`, `/orc:review`, `/orc:qa`,
 | `cmd/orc/` | CLI entry point | - |
 | `internal/` | Core packages | See `internal/CLAUDE.md` |
 | `templates/` | Phase prompts | See `templates/CLAUDE.md` |
-| `web/` | Svelte 5 frontend | See `web/CLAUDE.md` |
+| `web/` | Svelte 5 frontend (current) | See `web/CLAUDE.md` |
+| `web-react/` | React 19 frontend (migration) | See `web-react/CLAUDE.md` |
 | `docs/` | Architecture, specs, ADRs | See `docs/CLAUDE.md` |
 
 **Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `task/` (YAML persistence), `git/` (worktrees), `db/` (SQLite), `watcher/` (live refresh)
