@@ -62,7 +62,8 @@ description: |-
     - Escape closes modals
     - Keyboard shortcuts open correct modals
 weight: large
-status: planned
+status: running
+current_phase: spec
 branch: orc/TASK-176
 queue: active
 priority: normal
@@ -76,4 +77,5 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:22:47.913501799-06:00
-updated_at: 2026-01-14T02:22:47.926364648-06:00
+updated_at: 2026-01-14T15:51:19.976237-06:00
+started_at: 2026-01-14T15:51:19.976237-06:00
