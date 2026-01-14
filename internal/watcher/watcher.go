@@ -532,6 +532,11 @@ func (w *Watcher) publishInitiativeEvent(initID string) {
 	initPath := filepath.Join(w.initiativesDir, initID, "initiative.yaml")
 	isNew := !w.hasHash(initPath)
 
+	// Sync to database for external edits (file modified outside of CLI)
+	if err := initiative.SyncToDB(w.workDir, init, w.logger); err != nil {
+		w.logger.Warn("failed to sync initiative to database", "initiativeID", initID, "error", err)
+	}
+
 	var eventType events.EventType
 	if isNew {
 		eventType = events.EventInitiativeCreated
@@ -546,13 +551,18 @@ func (w *Watcher) publishInitiativeEvent(initID string) {
 
 // publishInitiativeDeleted publishes an initiative deleted event.
 func (w *Watcher) publishInitiativeDeleted(initID string) {
+	// Sync deletion to database for external deletions (file deleted outside of CLI)
+	if err := initiative.DeleteFromDB(w.workDir, initID, w.logger); err != nil {
+		w.logger.Warn("failed to delete initiative from database", "initiativeID", initID, "error", err)
+	}
+
 	w.publisher.Publish(events.NewEvent(events.EventInitiativeDeleted, initID, map[string]any{
 		"initiative_id": initID,
 	}))
 }
 
 // extractInitiativeID extracts the initiative ID from a file path.
-// Returns empty string if the path is not an initiative file.
+// Returns empty string if the path is not an initiative file or has an invalid ID.
 func (w *Watcher) extractInitiativeID(path string) string {
 	// Path should be like: .orc/initiatives/INIT-001/initiative.yaml
 	rel, err := filepath.Rel(w.initiativesDir, path)
@@ -567,8 +577,8 @@ func (w *Watcher) extractInitiativeID(path string) string {
 	}
 
 	initID := parts[0]
-	// Validate it looks like an initiative ID
-	if !strings.HasPrefix(initID, "INIT-") {
+	// Validate the initiative ID format strictly to prevent path traversal
+	if err := initiative.ValidateID(initID); err != nil {
 		return ""
 	}
 

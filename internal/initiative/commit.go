@@ -62,7 +62,7 @@ func CommitAndSync(init *Initiative, action string, cfg CommitConfig) error {
 	}
 
 	// 2. Sync to database
-	if err := syncToDB(projectRoot, init, logger); err != nil {
+	if err := SyncToDB(projectRoot, init, logger); err != nil {
 		logger.Warn("failed to sync initiative to database", "id", init.ID, "error", err)
 	} else {
 		logger.Debug("synced initiative to database", "id", init.ID)
@@ -123,8 +123,31 @@ func CommitDeletion(id string, cfg CommitConfig) error {
 	return nil
 }
 
-// syncToDB syncs an initiative to the database cache.
-func syncToDB(projectRoot string, init *Initiative, logger *slog.Logger) error {
+// DeleteFromDB removes an initiative from the database cache.
+// This is used by the file watcher when external deletions are detected.
+func DeleteFromDB(projectRoot, id string, logger *slog.Logger) error {
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	pdb, err := db.OpenProject(projectRoot)
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer pdb.Close()
+
+	if err := pdb.DeleteInitiative(id); err != nil {
+		return fmt.Errorf("delete initiative from database: %w", err)
+	}
+
+	logger.Debug("deleted initiative from database", "id", id)
+	return nil
+}
+
+// SyncToDB syncs an initiative to the database cache.
+// This is used by CLI commands via CommitAndSync and by the file watcher
+// when external edits are detected.
+func SyncToDB(projectRoot string, init *Initiative, logger *slog.Logger) error {
 	pdb, err := db.OpenProject(projectRoot)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
@@ -233,7 +256,7 @@ func RebuildDBIndex(projectRoot string, shared bool, logger *slog.Logger) error 
 	logger.Info("rebuilding initiative index", "count", len(initiatives))
 
 	for _, init := range initiatives {
-		if err := syncToDB(projectRoot, init, logger); err != nil {
+		if err := SyncToDB(projectRoot, init, logger); err != nil {
 			logger.Warn("failed to sync initiative to database", "id", init.ID, "error", err)
 		}
 	}
