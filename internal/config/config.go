@@ -1486,7 +1486,6 @@ func (c *Config) MergeMethod() string {
 		return "squash"
 	}
 	return method
->>>>>>> cd053b2 ([orc] TASK-151: implement - implement: Complete auto-merge flow: wait for CI then merge after finalize - completed)
 }
 
 // FinalizeUsesRebase returns true if finalize should use rebase strategy.

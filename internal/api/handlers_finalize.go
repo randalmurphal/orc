@@ -429,22 +429,11 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, req FinalizeReque
 		// Create CI merger and wait for CI/merge
 		ciMerger := executor.NewCIMerger(
 			s.orcConfig,
-			s.logger,
-			s.workDir,
-			task.TaskDirIn(s.workDir, taskID),
+			executor.WithCIMergerLogger(s.logger),
+			executor.WithCIMergerWorkDir(s.workDir),
 		)
 
-		ciResult, ciErr := ciMerger.WaitForCIAndMerge(ctx, t)
-		if ciResult != nil {
-			finResult.CIPassed = ciResult.CIPassed
-			finResult.CIDetails = ciResult.CIDetails
-			finResult.Merged = ciResult.Merged
-			finResult.MergeCommit = ciResult.MergeCommit
-			finResult.CITimedOut = ciResult.TimedOut
-			if ciResult.Error != "" {
-				finResult.MergeError = ciResult.Error
-			}
-		}
+		ciErr := ciMerger.WaitForCIAndMerge(ctx, t)
 
 		if ciErr != nil {
 			s.logger.Warn("CI wait/merge failed", "task", taskID, "error", ciErr)
