@@ -48,19 +48,32 @@ async function clearBoardStorage(page: Page) {
 	});
 }
 
-// Helper to switch to swimlane view
+// Helper to switch to swimlane view with retry for flaky dropdown
 async function switchToSwimlaneView(page: Page) {
 	const viewModeDropdown = page.locator('.view-mode-dropdown');
 	const trigger = viewModeDropdown.locator('.dropdown-trigger');
 	await expect(trigger).toBeVisible({ timeout: 5000 });
 
-	// Click and wait for dropdown to open (with retry for stability)
-	await trigger.click();
 	const dropdownMenu = viewModeDropdown.locator('.dropdown-menu[role="listbox"]');
-	await expect(dropdownMenu).toBeVisible({ timeout: 5000 });
+	const swimlaneOption = viewModeDropdown.locator('.dropdown-item:has-text("By Initiative")');
+
+	// Retry loop for flaky dropdown - sometimes first click doesn't register
+	for (let attempt = 0; attempt < 3; attempt++) {
+		await trigger.click();
+
+		// Wait a bit for dropdown animation
+		await page.waitForTimeout(150);
+
+		// Check if dropdown opened
+		const isOpen = await dropdownMenu.isVisible().catch(() => false);
+		if (isOpen) {
+			break;
+		}
+	}
+
+	await expect(dropdownMenu).toBeVisible({ timeout: 3000 });
 
 	// Click on "By Initiative" option
-	const swimlaneOption = viewModeDropdown.locator('.dropdown-item:has-text("By Initiative")');
 	await expect(swimlaneOption).toBeVisible({ timeout: 3000 });
 	await swimlaneOption.click();
 
