@@ -46,17 +46,11 @@
 		return () => unsubscribeProject?.();
 	});
 
-	onMount(async () => {
-		if (!open || !task) return;
-		await loadData();
-		setupWebSocket();
-	});
-
 	onDestroy(() => {
 		cleanup();
 	});
 
-	// React to open state changes
+	// React to open state changes - handles both initial mount and subsequent toggles
 	$effect(() => {
 		if (open && task) {
 			loadData();
