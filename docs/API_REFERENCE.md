@@ -48,6 +48,34 @@ CWD-based task operations. These endpoints use the server's working directory as
 
 The `task` field contains the updated task with `status: "running"` set immediately. This allows clients to update their local state without waiting for WebSocket events, avoiding race conditions where the task might briefly appear deleted.
 
+**Blocked task response (409 Conflict):**
+
+If a task has incomplete dependencies (tasks in `blocked_by` that aren't completed), the endpoint returns 409 Conflict:
+
+```json
+{
+  "error": "task_blocked",
+  "message": "Task is blocked by incomplete dependencies",
+  "blocked_by": [
+    {"id": "TASK-060", "title": "Add initiative_id field", "status": "planned"},
+    {"id": "TASK-061", "title": "Add Initiatives section", "status": "running"}
+  ],
+  "force_available": true
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `error` | Error code: `task_blocked` |
+| `message` | Human-readable error message |
+| `blocked_by` | Array of incomplete blocking tasks with id, title, status |
+| `force_available` | Always `true` - indicates override is possible |
+
+**Force override:** Add `?force=true` query parameter to run the task despite blockers:
+```
+POST /api/tasks/TASK-062/run?force=true
+```
+
 **Create task body (POST):**
 
 Supports both JSON and multipart/form-data. Use multipart when attaching files during creation.
