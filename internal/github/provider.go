@@ -22,6 +22,9 @@ type Provider interface {
 	// Checks/Status
 	GetCheckRuns(ctx context.Context, ref string) ([]CheckRun, error)
 
+	// Reviews
+	GetPRReviews(ctx context.Context, number int) ([]PRReview, error)
+
 	// PR discovery
 	FindPRByBranch(ctx context.Context, branch string) (*PR, error)
 }
@@ -92,4 +95,13 @@ type CheckRun struct {
 	Name       string `json:"name"`
 	Status     string `json:"status"`               // queued, in_progress, completed
 	Conclusion string `json:"conclusion,omitempty"` // success, failure, neutral, etc.
+}
+
+// PRReview represents a pull request review.
+type PRReview struct {
+	ID        int64  `json:"id"`
+	Author    string `json:"author"`
+	State     string `json:"state"` // APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED, PENDING
+	Body      string `json:"body,omitempty"`
+	CreatedAt string `json:"created_at"`
 }

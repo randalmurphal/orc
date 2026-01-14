@@ -104,6 +104,17 @@ metadata:
   resolved: "true"               # Task was resolved, not executed to completion
   resolved_at: 2026-01-10T14:00:00Z  # When task was resolved
   resolution_message: "Fixed manually outside of orc"  # Optional explanation
+
+# PR Status (auto-populated when PR is created, updated via polling)
+pr:
+  url: https://github.com/owner/repo/pull/123
+  number: 123
+  status: approved               # draft | pending_review | changes_requested | approved | merged | closed
+  checks_status: success         # pending | success | failure | none
+  mergeable: true
+  review_count: 2
+  approval_count: 2
+  last_checked_at: 2026-01-10T14:00:00Z
 ```
 
 ### Queue, Priority, Category, and Initiative
@@ -164,6 +175,38 @@ blocked_by:
 related_to:
   - TASK-063       # Informational link only
 ```
+
+### PR Status
+
+Tasks can have an associated pull request. PR status is tracked in the `pr` field:
+
+| Field | Description |
+|-------|-------------|
+| `url` | Full URL to the pull request |
+| `number` | PR number (e.g., 123 for PR #123) |
+| `status` | Review status (see values below) |
+| `checks_status` | CI check results: `pending`, `success`, `failure`, `none` |
+| `mergeable` | Whether the PR can be merged (no conflicts) |
+| `review_count` | Number of reviews received |
+| `approval_count` | Number of approvals |
+| `last_checked_at` | When PR status was last polled |
+
+**PR Status Values:**
+
+| Status | Description |
+|--------|-------------|
+| `draft` | PR is in draft state |
+| `pending_review` | PR awaiting review |
+| `changes_requested` | Reviewers requested changes |
+| `approved` | PR has been approved |
+| `merged` | PR has been merged |
+| `closed` | PR was closed without merging |
+
+**Automatic polling:**
+- PR status is polled every 60 seconds for tasks with open PRs
+- Polling skips tasks with merged/closed PRs
+- Polling skips tasks polled within the last 30 seconds (rate limiting)
+- Manual refresh available via `POST /api/tasks/:id/github/pr/refresh`
 
 ---
 
