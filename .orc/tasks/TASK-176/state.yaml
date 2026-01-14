@@ -1,9 +1,9 @@
 task_id: TASK-176
 current_phase: test
 current_iteration: 3
-status: running
+status: interrupted
 started_at: 2026-01-14T15:51:19.9528-06:00
-updated_at: 2026-01-14T16:45:35.490604-06:00
+updated_at: 2026-01-14T17:41:41.74403756-06:00
 phases:
     implement:
         status: completed
@@ -30,8 +30,9 @@ phases:
             cache_read_input_tokens: 991334
             total_tokens: 1227154
     test:
-        status: running
+        status: interrupted
         started_at: 2026-01-14T16:45:35.490255-06:00
+        interrupted_at: 2026-01-14T17:41:41.744036688-06:00
         iterations: 0
         tokens:
             input_tokens: 0
@@ -56,8 +57,3 @@ tokens:
     total_tokens: 32869295
 cost:
     total_cost_usd: 0
-execution:
-    pid: 44493
-    hostname: Mac.localdomain
-    started_at: 2026-01-14T15:51:19.976229-06:00
-    last_heartbeat: 2026-01-14T16:45:35.490599-06:00
