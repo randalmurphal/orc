@@ -8,6 +8,13 @@ import (
 	"time"
 )
 
+// FileChangeStats contains summary statistics for file changes.
+type FileChangeStats struct {
+	FilesChanged int
+	Additions    int
+	Deletions    int
+}
+
 // ActivityState represents what the executor is currently doing.
 type ActivityState string
 
@@ -177,7 +184,7 @@ func (d *Display) GateRejected(gate string, reason string) {
 }
 
 // TaskComplete announces task completion.
-func (d *Display) TaskComplete(totalTokens int, totalDuration time.Duration) {
+func (d *Display) TaskComplete(totalTokens int, totalDuration time.Duration, fileStats *FileChangeStats) {
 	if d.quiet {
 		return
 	}
@@ -185,6 +192,24 @@ func (d *Display) TaskComplete(totalTokens int, totalDuration time.Duration) {
 	fmt.Printf("\n🎉 Task %s completed!\n", d.taskID)
 	fmt.Printf("   Total tokens: %d\n", totalTokens)
 	fmt.Printf("   Total time: %s\n", formatDuration(totalDuration))
+
+	// Show file change summary if available
+	if fileStats != nil && fileStats.FilesChanged > 0 {
+		fmt.Printf("   Modified: %d %s (+%d/-%d)\n",
+			fileStats.FilesChanged,
+			pluralize(fileStats.FilesChanged, "file", "files"),
+			fileStats.Additions,
+			fileStats.Deletions,
+		)
+	}
+}
+
+// pluralize returns singular or plural form based on count.
+func pluralize(n int, singular, plural string) string {
+	if n == 1 {
+		return singular
+	}
+	return plural
 }
 
 // TaskFailed announces task failure.

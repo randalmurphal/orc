@@ -13,6 +13,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/bootstrap"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/plan"
@@ -329,6 +330,47 @@ func executeTask(ctx context.Context, cfg *config.Config, t *task.Task, p *plan.
 		return err
 	}
 
-	disp.TaskComplete(s.Tokens.TotalTokens, time.Since(s.StartedAt))
+	// Compute file change stats for completion summary
+	var fileStats *progress.FileChangeStats
+	if t.Branch != "" {
+		fileStats = getGoFileChangeStats(ctx, t.Branch, cfg)
+	}
+
+	disp.TaskComplete(s.Tokens.TotalTokens, time.Since(s.StartedAt), fileStats)
 	return nil
+}
+
+// getGoFileChangeStats computes diff statistics for the task branch vs target branch.
+// Returns nil if stats cannot be computed (not an error - just no stats to display).
+func getGoFileChangeStats(ctx context.Context, taskBranch string, cfg *config.Config) *progress.FileChangeStats {
+	// Get project root for diff computation
+	projectRoot, err := config.FindProjectRoot()
+	if err != nil {
+		return nil
+	}
+
+	// Determine target branch from config
+	targetBranch := "main"
+	if cfg != nil && cfg.Completion.TargetBranch != "" {
+		targetBranch = cfg.Completion.TargetBranch
+	}
+
+	// Create diff service to compute stats
+	diffSvc := diff.NewService(projectRoot, nil)
+
+	// Resolve target branch (handles origin/main fallback)
+	resolvedBase := diffSvc.ResolveRef(ctx, targetBranch)
+
+	// Get diff stats between target branch and task branch
+	stats, err := diffSvc.GetStats(ctx, resolvedBase, taskBranch)
+	if err != nil {
+		// Diff stat computation is best-effort - don't fail task completion
+		return nil
+	}
+
+	return &progress.FileChangeStats{
+		FilesChanged: stats.FilesChanged,
+		Additions:    stats.Additions,
+		Deletions:    stats.Deletions,
+	}
 }

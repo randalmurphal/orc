@@ -35,7 +35,11 @@ display.GateApproved("review")
 display.GateRejected("review", "needs tests")
 
 // Task lifecycle
-display.TaskComplete(50000, 15*time.Minute)
+display.TaskComplete(50000, 15*time.Minute, &progress.FileChangeStats{
+    FilesChanged: 5,
+    Additions:    150,
+    Deletions:    20,
+})
 display.TaskFailed(err)
 display.TaskInterrupted()
 
@@ -73,6 +77,7 @@ display.Error("Failed to connect")  // Always shown, even in quiet mode
 🎉 Task TASK-001 completed!
    Total tokens: 50000
    Total time: 15m30s
+   Modified: 5 files (+150/-20)
 ```
 
 ## Testing
