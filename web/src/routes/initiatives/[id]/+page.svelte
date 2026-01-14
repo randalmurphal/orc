@@ -54,6 +54,10 @@
 	let decisionBy = $state('');
 	let addingDecision = $state(false);
 
+	// Status action states
+	let statusActionLoading = $state(false);
+	let confirmArchiveOpen = $state(false);
+
 	const initiativeId = $derived($page.params.id ?? '');
 
 	// Compute progress
@@ -153,15 +157,35 @@
 		}
 	}
 
-	async function handleArchive() {
-		if (!initiative || !confirm(`Archive initiative "${initiative.title}"?`)) return;
+	async function handleStatusChange(newStatus: InitiativeStatus) {
+		if (!initiative) return;
+		statusActionLoading = true;
 		try {
-			const updated = await updateInitiative(initiative.id, { status: 'archived' });
+			const updated = await updateInitiative(initiative.id, { status: newStatus });
 			initiative = updated;
 			updateInitiativeInStore(updated.id, updated);
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to archive initiative';
+			error = e instanceof Error ? e.message : `Failed to ${newStatus} initiative`;
+		} finally {
+			statusActionLoading = false;
 		}
+	}
+
+	async function handleActivate() {
+		await handleStatusChange('active');
+	}
+
+	async function handleComplete() {
+		await handleStatusChange('completed');
+	}
+
+	async function handleArchive() {
+		confirmArchiveOpen = false;
+		await handleStatusChange('archived');
+	}
+
+	function openArchiveConfirm() {
+		confirmArchiveOpen = true;
 	}
 
 	async function openLinkTaskModal() {
@@ -296,12 +320,43 @@
 			<div class="header-top">
 				<h1 class="initiative-title">{initiative.title}</h1>
 				<div class="header-actions">
+					<!-- Status transition buttons based on current status -->
+					{#if initiative.status === 'draft'}
+						<button
+							class="btn btn-primary"
+							onclick={handleActivate}
+							disabled={statusActionLoading}
+						>
+							<Icon name="play" size={16} />
+							{statusActionLoading ? 'Activating...' : 'Activate'}
+						</button>
+					{:else if initiative.status === 'active'}
+						<button
+							class="btn btn-success"
+							onclick={handleComplete}
+							disabled={statusActionLoading}
+						>
+							<Icon name="check" size={16} />
+							{statusActionLoading ? 'Completing...' : 'Complete'}
+						</button>
+					{:else if initiative.status === 'completed'}
+						<button
+							class="btn btn-secondary"
+							onclick={handleActivate}
+							disabled={statusActionLoading}
+						>
+							<Icon name="rotate-ccw" size={16} />
+							{statusActionLoading ? 'Reopening...' : 'Reopen'}
+						</button>
+					{/if}
+
 					<button class="btn btn-secondary" onclick={openEditModal}>
 						<Icon name="edit" size={16} />
 						Edit
 					</button>
+
 					{#if initiative.status !== 'archived'}
-						<button class="btn btn-ghost" onclick={handleArchive}>
+						<button class="btn btn-ghost btn-danger-hover" onclick={openArchiveConfirm}>
 							<Icon name="archive" size={16} />
 							Archive
 						</button>
@@ -650,6 +705,31 @@
 				</button>
 			</div>
 		</form>
+	</Modal>
+
+	<!-- Archive Confirmation Modal -->
+	<Modal open={confirmArchiveOpen} onClose={() => (confirmArchiveOpen = false)} title="Archive Initiative">
+		<div class="confirm-dialog">
+			<p class="confirm-message">
+				Are you sure you want to archive <strong>"{initiative.title}"</strong>?
+			</p>
+			<p class="confirm-hint">
+				Archived initiatives are hidden from most views but can be restored later.
+			</p>
+			<div class="modal-actions">
+				<button type="button" class="btn btn-secondary" onclick={() => (confirmArchiveOpen = false)}>
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="btn btn-danger"
+					onclick={handleArchive}
+					disabled={statusActionLoading}
+				>
+					{statusActionLoading ? 'Archiving...' : 'Archive Initiative'}
+				</button>
+			</div>
+		</div>
 	</Modal>
 {/if}
 
@@ -1255,6 +1335,47 @@
 	.btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+
+	.btn-success {
+		background: var(--status-success);
+		color: white;
+	}
+
+	.btn-success:hover {
+		background: var(--status-success-hover, #16a34a);
+	}
+
+	.btn-danger {
+		background: var(--status-danger);
+		color: white;
+	}
+
+	.btn-danger:hover {
+		background: var(--status-danger-hover, #dc2626);
+	}
+
+	.btn-danger-hover:hover {
+		color: var(--status-danger);
+	}
+
+	/* Confirm Dialog */
+	.confirm-dialog {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	.confirm-message {
+		font-size: var(--text-base);
+		color: var(--text-primary);
+		margin: 0;
+	}
+
+	.confirm-hint {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin: 0;
 	}
 
 	/* Forms */
