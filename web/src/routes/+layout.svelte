@@ -9,7 +9,7 @@
 	import KeyboardShortcutsHelp from '$lib/components/overlays/KeyboardShortcutsHelp.svelte';
 	import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
 	import NewTaskModal from '$lib/components/overlays/NewTaskModal.svelte';
-	import { currentProject, loadProjects, currentProjectId } from '$lib/stores/project';
+	import { currentProject, loadProjects, currentProjectId, handlePopState } from '$lib/stores/project';
 	import { sidebarExpanded } from '$lib/stores/sidebar';
 	import { loadTasks, updateTaskStatus, updateTaskState, refreshTask, addTask, removeTask, updateTask } from '$lib/stores/tasks';
 	import { initGlobalWebSocket, type WSEventType, type ConnectionStatus } from '$lib/websocket';
@@ -189,6 +189,7 @@
 		window.addEventListener('orc:toggle-sidebar', handleToggleSidebar);
 		window.addEventListener('orc:new-task', handleNewTask);
 		window.addEventListener('orc:show-shortcuts', handleShowShortcuts);
+		window.addEventListener('popstate', handlePopState);
 
 		return () => {
 			window.removeEventListener('keydown', handleKeydown);
@@ -196,6 +197,7 @@
 			window.removeEventListener('orc:toggle-sidebar', handleToggleSidebar);
 			window.removeEventListener('orc:new-task', handleNewTask);
 			window.removeEventListener('orc:show-shortcuts', handleShowShortcuts);
+			window.removeEventListener('popstate', handlePopState);
 			unsubProject();
 		};
 	});

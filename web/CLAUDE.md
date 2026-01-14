@@ -60,13 +60,17 @@ web/src/
 
 ### Project Selection
 
-Project selection uses a 3-tier fallback system:
+Project selection persists across page refreshes using URL and localStorage:
 
-1. **localStorage** (`orc_current_project_id`) - User's last selection in this browser
-2. **Server default** (`GET /api/projects/default`) - Global default from `~/.orc/projects.yaml`
-3. **First project** - Falls back to first available project
+**Priority order** (highest to lowest):
+1. **URL parameter** (`?project=<id>`) - Shareable links, survives refresh
+2. **localStorage** (`orc_current_project_id`) - User's last selection
+3. **Server default** (`GET /api/projects/default`) - From `~/.orc/projects.yaml`
+4. **First project** - Falls back to first available project
 
-This allows the server to run from any directory while the UI remembers the user's project choice. Use `setDefaultProject(id)` to persist a default server-side.
+**Browser history:** Switching projects pushes to browser history, so back/forward buttons navigate between previously viewed projects.
+
+**API:** Use `selectProject(id)` to switch projects (updates URL + localStorage). Use `setDefaultProject(id)` to persist a server-side default.
 
 ## Keyboard Shortcuts
 

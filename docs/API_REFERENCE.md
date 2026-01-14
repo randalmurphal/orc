@@ -177,7 +177,7 @@ Multi-project support via global registry.
 
 ### Default Project
 
-The default project is used by the web UI when no project is selected in localStorage. Stored in `~/.orc/projects.yaml`.
+Fallback project when no selection exists in URL or localStorage. Stored in `~/.orc/projects.yaml`.
 
 **Get default project:**
 ```json
