@@ -13,7 +13,9 @@
 	import { currentProjectId, currentProject } from '$lib/stores/project';
 	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks, removeTask } from '$lib/stores/tasks';
 	import { currentInitiativeId, currentInitiative, selectInitiative, UNASSIGNED_INITIATIVE } from '$lib/stores/initiative';
+	import { currentDependencyStatus } from '$lib/stores/dependency';
 	import InitiativeDropdown from '$lib/components/filters/InitiativeDropdown.svelte';
+	import DependencyDropdown from '$lib/components/filters/DependencyDropdown.svelte';
 	import { setupTaskListShortcuts, getShortcutManager } from '$lib/shortcuts';
 	import { toast } from '$lib/stores/toast.svelte';
 
@@ -218,6 +220,12 @@
 			result = result.filter((t) => t.status === 'failed');
 		}
 
+		// Dependency status filter
+		const depStatus = $currentDependencyStatus;
+		if (depStatus !== 'all') {
+			result = result.filter((t) => t.dependency_status === depStatus);
+		}
+
 		// Weight filter
 		if (weightFilter !== 'all') {
 			result = result.filter((t) => t.weight === weightFilter);
@@ -354,6 +362,9 @@
 
 			<!-- Initiative Filter -->
 			<InitiativeDropdown />
+
+			<!-- Dependency Filter -->
+			<DependencyDropdown />
 
 			<!-- Weight Filter -->
 			<select class="filter-select" bind:value={weightFilter}>

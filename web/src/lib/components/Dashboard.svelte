@@ -100,6 +100,10 @@
 		goto(`/?status=${status}`);
 	}
 
+	function navigateToDependencyFiltered(status: string) {
+		goto(`/?dependency_status=${status}`);
+	}
+
 	function handleNewTask() {
 		window.dispatchEvent(new CustomEvent('orc:new-task'));
 	}
@@ -121,7 +125,7 @@
 			<button onclick={loadDashboardData}>Retry</button>
 		</div>
 	{:else if stats}
-		<StatsSection {stats} {wsStatus} onFilterClick={navigateToFiltered} />
+		<StatsSection {stats} {wsStatus} onFilterClick={navigateToFiltered} onDependencyFilterClick={navigateToDependencyFiltered} />
 		<DashboardQuickActions onNewTask={handleNewTask} onViewTasks={handleViewTasks} />
 		<DashboardInitiatives {initiatives} />
 		<DashboardActiveTasks tasks={activeTasks} />

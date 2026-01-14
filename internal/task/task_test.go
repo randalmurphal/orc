@@ -1886,7 +1886,7 @@ func TestPRInfo_YAMLSerialization(t *testing.T) {
 	}
 
 	if loaded.PR == nil {
-		t.Fatal("PR info not preserved")
+		t.Fatal("PR should not be nil after loading")
 	}
 	if loaded.PR.URL != "https://github.com/owner/repo/pull/123" {
 		t.Errorf("PR.URL = %s, want https://github.com/owner/repo/pull/123", loaded.PR.URL)
@@ -1934,5 +1934,130 @@ func TestPRInfo_EmptyPreserved(t *testing.T) {
 
 	if loaded.PR != nil {
 		t.Error("PR should be nil for task without PR info")
+	}
+}
+
+// Tests for DependencyStatus functionality
+
+func TestValidDependencyStatuses(t *testing.T) {
+	statuses := ValidDependencyStatuses()
+
+	if len(statuses) != 3 {
+		t.Errorf("ValidDependencyStatuses() returned %d statuses, want 3", len(statuses))
+	}
+
+	expected := []DependencyStatus{DependencyStatusBlocked, DependencyStatusReady, DependencyStatusNone}
+	for i, s := range expected {
+		if statuses[i] != s {
+			t.Errorf("ValidDependencyStatuses()[%d] = %s, want %s", i, statuses[i], s)
+		}
+	}
+}
+
+func TestIsValidDependencyStatus(t *testing.T) {
+	tests := []struct {
+		status DependencyStatus
+		valid  bool
+	}{
+		{DependencyStatusBlocked, true},
+		{DependencyStatusReady, true},
+		{DependencyStatusNone, true},
+		{DependencyStatus("invalid"), false},
+		{DependencyStatus(""), false},
+		{DependencyStatus("BLOCKED"), false}, // case-sensitive
+	}
+
+	for _, tt := range tests {
+		if got := IsValidDependencyStatus(tt.status); got != tt.valid {
+			t.Errorf("IsValidDependencyStatus(%q) = %v, want %v", tt.status, got, tt.valid)
+		}
+	}
+}
+
+func TestComputeDependencyStatus(t *testing.T) {
+	tests := []struct {
+		name          string
+		blockedBy     []string
+		unmetBlockers []string
+		expected      DependencyStatus
+	}{
+		{
+			name:          "no dependencies",
+			blockedBy:     nil,
+			unmetBlockers: nil,
+			expected:      DependencyStatusNone,
+		},
+		{
+			name:          "empty blocked_by",
+			blockedBy:     []string{},
+			unmetBlockers: nil,
+			expected:      DependencyStatusNone,
+		},
+		{
+			name:          "blocked - has unmet dependencies",
+			blockedBy:     []string{"TASK-001"},
+			unmetBlockers: []string{"TASK-001"},
+			expected:      DependencyStatusBlocked,
+		},
+		{
+			name:          "ready - all dependencies met",
+			blockedBy:     []string{"TASK-001"},
+			unmetBlockers: nil,
+			expected:      DependencyStatusReady,
+		},
+		{
+			name:          "ready - multiple deps all satisfied",
+			blockedBy:     []string{"TASK-001", "TASK-002"},
+			unmetBlockers: []string{},
+			expected:      DependencyStatusReady,
+		},
+		{
+			name:          "blocked - some deps unmet",
+			blockedBy:     []string{"TASK-001", "TASK-002"},
+			unmetBlockers: []string{"TASK-002"},
+			expected:      DependencyStatusBlocked,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			task := &Task{
+				ID:            "TASK-TEST",
+				BlockedBy:     tt.blockedBy,
+				UnmetBlockers: tt.unmetBlockers,
+			}
+			got := task.ComputeDependencyStatus()
+			if got != tt.expected {
+				t.Errorf("ComputeDependencyStatus() = %s, want %s", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPopulateComputedFields_DependencyStatus(t *testing.T) {
+	// Test that PopulateComputedFields correctly sets DependencyStatus
+	tasks := []*Task{
+		{ID: "TASK-001", Title: "Completed blocker", Status: StatusCompleted},
+		{ID: "TASK-002", Title: "Running blocker", Status: StatusRunning},
+		{ID: "TASK-003", Title: "No deps", Status: StatusPlanned},
+		{ID: "TASK-004", Title: "All deps satisfied", BlockedBy: []string{"TASK-001"}, Status: StatusPlanned},
+		{ID: "TASK-005", Title: "Has unmet deps", BlockedBy: []string{"TASK-001", "TASK-002"}, Status: StatusPlanned},
+	}
+
+	PopulateComputedFields(tasks)
+
+	// TASK-003: no dependencies -> "none"
+	if tasks[2].DependencyStatus != DependencyStatusNone {
+		t.Errorf("TASK-003 DependencyStatus = %s, want %s", tasks[2].DependencyStatus, DependencyStatusNone)
+	}
+
+	// TASK-004: all deps satisfied (TASK-001 is completed) -> "ready"
+	if tasks[3].DependencyStatus != DependencyStatusReady {
+		t.Errorf("TASK-004 DependencyStatus = %s, want %s", tasks[3].DependencyStatus, DependencyStatusReady)
+	}
+
+	// TASK-005: has unmet deps (TASK-002 is running) -> "blocked"
+	if tasks[4].DependencyStatus != DependencyStatusBlocked {
+		t.Errorf("TASK-005 DependencyStatus = %s, want %s", tasks[4].DependencyStatus, DependencyStatusBlocked)
 	}
 }

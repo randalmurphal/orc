@@ -14,6 +14,7 @@
 	import { sidebarExpanded } from '$lib/stores/sidebar';
 	import { loadTasks, updateTaskStatus, updateTaskState, refreshTask, addTask, removeTask, updateTask } from '$lib/stores/tasks';
 	import { loadInitiatives, handleInitiativePopState, updateInitiativeInStore, addInitiativeToStore, removeInitiativeFromStore } from '$lib/stores/initiative';
+	import { handleDependencyPopState, initDependencyStatusFromUrl } from '$lib/stores/dependency';
 	import { initGlobalWebSocket, type WSEventType, type ConnectionStatus } from '$lib/websocket';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { setupGlobalShortcuts } from '$lib/shortcuts';
@@ -171,11 +172,15 @@
 			}
 		}
 
-		// Handle popstate for both project and initiative
+		// Handle popstate for project, initiative, and dependency filters
 		function handleCombinedPopState(e: PopStateEvent) {
 			handlePopState(e);
 			handleInitiativePopState(e);
+			handleDependencyPopState(e);
 		}
+
+		// Initialize dependency status from URL on mount
+		initDependencyStatusFromUrl();
 
 		// Listen for custom events from command palette
 		function handleSwitchProject() {

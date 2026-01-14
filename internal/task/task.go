@@ -227,6 +227,33 @@ func IsValidPRStatus(s PRStatus) bool {
 	}
 }
 
+// DependencyStatus represents the dependency state of a task for filtering.
+type DependencyStatus string
+
+const (
+	// DependencyStatusBlocked indicates the task has incomplete blockers.
+	DependencyStatusBlocked DependencyStatus = "blocked"
+	// DependencyStatusReady indicates all dependencies are satisfied (or no deps).
+	DependencyStatusReady DependencyStatus = "ready"
+	// DependencyStatusNone indicates the task has no dependencies defined.
+	DependencyStatusNone DependencyStatus = "none"
+)
+
+// ValidDependencyStatuses returns all valid dependency status values.
+func ValidDependencyStatuses() []DependencyStatus {
+	return []DependencyStatus{DependencyStatusBlocked, DependencyStatusReady, DependencyStatusNone}
+}
+
+// IsValidDependencyStatus returns true if the dependency status is valid.
+func IsValidDependencyStatus(ds DependencyStatus) bool {
+	switch ds {
+	case DependencyStatusBlocked, DependencyStatusReady, DependencyStatusNone:
+		return true
+	default:
+		return false
+	}
+}
+
 // PRInfo contains pull request information for a task.
 type PRInfo struct {
 	// URL is the full URL to the pull request.
@@ -318,6 +345,11 @@ type Task struct {
 	// UnmetBlockers lists task IDs from BlockedBy that are not yet complete.
 	// This is computed (not stored) during PopulateComputedFields.
 	UnmetBlockers []string `yaml:"-" json:"unmet_blockers,omitempty"`
+
+	// DependencyStatus indicates the task's dependency state for filtering.
+	// Values: "blocked" (has incomplete blockers), "ready" (all deps satisfied or no deps), "none" (no deps)
+	// This is computed (not stored) during PopulateComputedFields.
+	DependencyStatus DependencyStatus `yaml:"-" json:"dependency_status,omitempty"`
 
 	// RequiresUITesting indicates if this task involves UI changes
 	// that should be validated with Playwright or similar tools
@@ -802,6 +834,7 @@ func ComputeReferencedBy(taskID string, allTasks []*Task) []string {
 // - ReferencedBy: tasks whose descriptions mention this task
 // - IsBlocked: whether this task has unmet dependencies
 // - UnmetBlockers: list of task IDs that block this task and are incomplete
+// - DependencyStatus: "blocked", "ready", or "none" for filtering
 // This should be called after loading all tasks.
 func PopulateComputedFields(tasks []*Task) {
 	// Build task map for dependency checking
@@ -815,7 +848,22 @@ func PopulateComputedFields(tasks []*Task) {
 		t.ReferencedBy = ComputeReferencedBy(t.ID, tasks)
 		t.UnmetBlockers = t.GetUnmetDependencies(taskMap)
 		t.IsBlocked = len(t.UnmetBlockers) > 0
+		t.DependencyStatus = t.ComputeDependencyStatus()
 	}
+}
+
+// ComputeDependencyStatus returns the dependency status for filtering.
+// - "none": task has no dependencies defined
+// - "blocked": task has incomplete blockers
+// - "ready": all dependencies are satisfied
+func (t *Task) ComputeDependencyStatus() DependencyStatus {
+	if len(t.BlockedBy) == 0 {
+		return DependencyStatusNone
+	}
+	if len(t.UnmetBlockers) > 0 {
+		return DependencyStatusBlocked
+	}
+	return DependencyStatusReady
 }
 
 // isDone returns true if the status indicates the task has completed its work.

@@ -90,6 +90,8 @@ func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleListProjectTasks returns all tasks for a project.
+// Query params:
+//   - dependency_status: filter by dependency status (blocked, ready, none)
 func (s *Server) handleListProjectTasks(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -118,8 +120,24 @@ func (s *Server) handleListProjectTasks(w http.ResponseWriter, r *http.Request) 
 		tasks = []*task.Task{}
 	}
 
-	// Populate computed dependency fields (Blocks, ReferencedBy, IsBlocked, UnmetBlockers)
+	// Populate computed dependency fields (Blocks, ReferencedBy, IsBlocked, UnmetBlockers, DependencyStatus)
 	task.PopulateComputedFields(tasks)
+
+	// Filter by dependency status if requested
+	depStatusFilter := r.URL.Query().Get("dependency_status")
+	if depStatusFilter != "" {
+		var filtered []*task.Task
+		for _, t := range tasks {
+			if string(t.DependencyStatus) == depStatusFilter {
+				filtered = append(filtered, t)
+			}
+		}
+		tasks = filtered
+		// Ensure we return an empty array after filtering, not null
+		if tasks == nil {
+			tasks = []*task.Task{}
+		}
+	}
 
 	s.jsonResponse(w, tasks)
 }

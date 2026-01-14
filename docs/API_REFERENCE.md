@@ -24,7 +24,7 @@ CWD-based task operations. These endpoints use the server's working directory as
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/tasks` | List tasks (`?page=N&limit=N&initiative=INIT-001`) - returns empty list if not in orc project |
+| GET | `/api/tasks` | List tasks (`?page=N&limit=N&initiative=INIT-001&dependency_status=blocked`) - returns empty list if not in orc project |
 | POST | `/api/tasks` | Create task |
 | GET | `/api/tasks/:id` | Get task |
 | PATCH | `/api/tasks/:id` | Update task (title, description, weight, metadata) |
@@ -112,6 +112,21 @@ Supports both JSON and multipart/form-data. Use multipart when attaching files d
 | `attachments` | file[] | Files to attach (repeatable) |
 
 All fields except `title` are optional. Defaults: `queue: "active"`, `priority: "normal"`, `category: "feature"`, `initiative_id: ""` (standalone).
+
+**Query parameters for GET `/api/tasks`:**
+| Parameter | Description | Values |
+|-----------|-------------|--------|
+| `page` | Page number for pagination | Integer |
+| `limit` | Items per page (max 100) | Integer |
+| `initiative` | Filter by initiative ID | Initiative ID (e.g., `INIT-001`) |
+| `dependency_status` | Filter by dependency status | `blocked`, `ready`, `none` |
+
+**Dependency status values:**
+| Value | Description |
+|-------|-------------|
+| `blocked` | Tasks with incomplete blockers (waiting on other tasks) |
+| `ready` | Tasks where all dependencies are satisfied |
+| `none` | Tasks with no dependencies defined |
 
 **Update task body (PATCH):**
 ```json
