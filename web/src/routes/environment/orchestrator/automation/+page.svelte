@@ -19,9 +19,25 @@
 	let editTimeout = $state('');
 	let editBranchPrefix = $state('');
 	let editCommitPrefix = $state('');
+	// Worktree
+	let editWorktreeEnabled = $state(true);
+	let editWorktreeDir = $state('');
+	let editWorktreeCleanupComplete = $state(true);
+	let editWorktreeCleanupFail = $state(false);
+	// Completion
+	let editCompletionAction = $state('pr');
+	let editCompletionTargetBranch = $state('main');
+	let editCompletionDeleteBranch = $state(true);
+	// Timeouts
+	let editTimeoutsPhaseMax = $state('');
+	let editTimeoutsTurnMax = $state('');
+	let editTimeoutsIdleWarning = $state('');
+	let editTimeoutsHeartbeat = $state('');
+	let editTimeoutsIdleTimeout = $state('');
 
 	const profiles = ['auto', 'fast', 'safe', 'strict'];
 	const gateTypes = ['auto', 'human', 'ai'];
+	const completionActions = ['pr', 'merge', 'none'];
 
 	const profileDescriptions: Record<string, string> = {
 		auto: 'Fully automated, no human intervention',
@@ -58,6 +74,21 @@
 		editTimeout = config.execution.timeout;
 		editBranchPrefix = config.git.branch_prefix;
 		editCommitPrefix = config.git.commit_prefix;
+		// Worktree
+		editWorktreeEnabled = config.worktree?.enabled ?? true;
+		editWorktreeDir = config.worktree?.dir ?? '.orc/worktrees';
+		editWorktreeCleanupComplete = config.worktree?.cleanup_on_complete ?? true;
+		editWorktreeCleanupFail = config.worktree?.cleanup_on_fail ?? false;
+		// Completion
+		editCompletionAction = config.completion?.action ?? 'pr';
+		editCompletionTargetBranch = config.completion?.target_branch ?? 'main';
+		editCompletionDeleteBranch = config.completion?.delete_branch ?? true;
+		// Timeouts
+		editTimeoutsPhaseMax = config.timeouts?.phase_max ?? '30m';
+		editTimeoutsTurnMax = config.timeouts?.turn_max ?? '10m';
+		editTimeoutsIdleWarning = config.timeouts?.idle_warning ?? '5m';
+		editTimeoutsHeartbeat = config.timeouts?.heartbeat_interval ?? '30s';
+		editTimeoutsIdleTimeout = config.timeouts?.idle_timeout ?? '2m';
 	}
 
 	function startEdit() {
@@ -92,6 +123,24 @@
 				git: {
 					branch_prefix: editBranchPrefix,
 					commit_prefix: editCommitPrefix
+				},
+				worktree: {
+					enabled: editWorktreeEnabled,
+					dir: editWorktreeDir,
+					cleanup_on_complete: editWorktreeCleanupComplete,
+					cleanup_on_fail: editWorktreeCleanupFail
+				},
+				completion: {
+					action: editCompletionAction,
+					target_branch: editCompletionTargetBranch,
+					delete_branch: editCompletionDeleteBranch
+				},
+				timeouts: {
+					phase_max: editTimeoutsPhaseMax,
+					turn_max: editTimeoutsTurnMax,
+					idle_warning: editTimeoutsIdleWarning,
+					heartbeat_interval: editTimeoutsHeartbeat,
+					idle_timeout: editTimeoutsIdleTimeout
 				}
 			};
 
@@ -349,6 +398,146 @@
 					</div>
 				</div>
 
+				<!-- Worktree Card -->
+				<div class="config-card">
+					<div class="card-header">
+						<div class="card-icon worktree">
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+							</svg>
+						</div>
+						<h2>Worktree</h2>
+					</div>
+
+					<div class="form-grid">
+						<div class="form-group toggle-group">
+							<div class="toggle-label">
+								<label for="worktree_enabled">Enable Worktrees</label>
+								<span class="hint">Isolate tasks in git worktrees</span>
+							</div>
+							<label class="toggle">
+								<input type="checkbox" id="worktree_enabled" bind:checked={editWorktreeEnabled} />
+								<span class="toggle-slider"></span>
+							</label>
+						</div>
+
+						<div class="form-group full-width">
+							<label for="worktree_dir">Worktree Directory</label>
+							<input type="text" id="worktree_dir" bind:value={editWorktreeDir} placeholder=".orc/worktrees" />
+							<span class="hint">Directory for worktree creation</span>
+						</div>
+
+						<div class="form-group toggle-group">
+							<div class="toggle-label">
+								<label for="cleanup_complete">Cleanup on Complete</label>
+								<span class="hint">Remove worktree after success</span>
+							</div>
+							<label class="toggle">
+								<input type="checkbox" id="cleanup_complete" bind:checked={editWorktreeCleanupComplete} />
+								<span class="toggle-slider"></span>
+							</label>
+						</div>
+
+						<div class="form-group toggle-group">
+							<div class="toggle-label">
+								<label for="cleanup_fail">Cleanup on Fail</label>
+								<span class="hint">Remove worktree after failure</span>
+							</div>
+							<label class="toggle">
+								<input type="checkbox" id="cleanup_fail" bind:checked={editWorktreeCleanupFail} />
+								<span class="toggle-slider"></span>
+							</label>
+						</div>
+					</div>
+				</div>
+
+				<!-- Completion Card -->
+				<div class="config-card">
+					<div class="card-header">
+						<div class="card-icon completion">
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+								<polyline points="22 4 12 14.01 9 11.01"/>
+							</svg>
+						</div>
+						<h2>Completion</h2>
+					</div>
+
+					<div class="form-grid">
+						<div class="form-group">
+							<label for="completion_action">Action</label>
+							<select id="completion_action" bind:value={editCompletionAction}>
+								{#each completionActions as a}
+									<option value={a}>{a}</option>
+								{/each}
+							</select>
+							<span class="hint">What to do on completion</span>
+						</div>
+
+						<div class="form-group">
+							<label for="target_branch">Target Branch</label>
+							<input type="text" id="target_branch" bind:value={editCompletionTargetBranch} placeholder="main" />
+							<span class="hint">Branch to merge into</span>
+						</div>
+
+						<div class="form-group toggle-group">
+							<div class="toggle-label">
+								<label for="delete_branch">Delete Branch</label>
+								<span class="hint">Delete task branch after merge</span>
+							</div>
+							<label class="toggle">
+								<input type="checkbox" id="delete_branch" bind:checked={editCompletionDeleteBranch} />
+								<span class="toggle-slider"></span>
+							</label>
+						</div>
+					</div>
+				</div>
+
+				<!-- Timeouts Card -->
+				<div class="config-card">
+					<div class="card-header">
+						<div class="card-icon timeouts">
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<circle cx="12" cy="12" r="10"/>
+								<polyline points="12 6 12 12 16 14"/>
+							</svg>
+						</div>
+						<h2>Timeouts</h2>
+					</div>
+
+					<div class="form-grid">
+						<div class="form-group">
+							<label for="phase_max">Phase Max</label>
+							<input type="text" id="phase_max" bind:value={editTimeoutsPhaseMax} placeholder="30m" />
+							<span class="hint">Max time per phase</span>
+						</div>
+
+						<div class="form-group">
+							<label for="turn_max">Turn Max</label>
+							<input type="text" id="turn_max" bind:value={editTimeoutsTurnMax} placeholder="10m" />
+							<span class="hint">Max time per API turn</span>
+						</div>
+
+						<div class="form-group">
+							<label for="idle_warning">Idle Warning</label>
+							<input type="text" id="idle_warning" bind:value={editTimeoutsIdleWarning} placeholder="5m" />
+							<span class="hint">Warn after idle duration</span>
+						</div>
+
+						<div class="form-group">
+							<label for="heartbeat">Heartbeat Interval</label>
+							<input type="text" id="heartbeat" bind:value={editTimeoutsHeartbeat} placeholder="30s" />
+							<span class="hint">Progress dots interval</span>
+						</div>
+
+						<div class="form-group">
+							<label for="idle_timeout">Idle Timeout</label>
+							<input type="text" id="idle_timeout" bind:value={editTimeoutsIdleTimeout} placeholder="2m" />
+							<span class="hint">Stuck detection threshold</span>
+						</div>
+					</div>
+				</div>
+
 				<div class="form-actions">
 					<button type="button" class="btn-secondary" onclick={cancelEdit} disabled={saving}>
 						Cancel
@@ -499,6 +688,121 @@
 						<div class="config-item">
 							<span class="item-label">Commit Prefix</span>
 							<span class="item-value mono">{config.git.commit_prefix}</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Worktree Card -->
+				<div class="config-card">
+					<div class="card-header">
+						<div class="card-icon worktree">
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+							</svg>
+						</div>
+						<h2>Worktree</h2>
+					</div>
+
+					<div class="config-items">
+						<div class="config-item">
+							<span class="item-label">Enabled</span>
+							<span class="item-value">
+								{#if config.worktree?.enabled}
+									<span class="status-pill enabled">Enabled</span>
+								{:else}
+									<span class="status-pill disabled">Disabled</span>
+								{/if}
+							</span>
+						</div>
+						<div class="config-item">
+							<span class="item-label">Directory</span>
+							<span class="item-value mono">{config.worktree?.dir || '.orc/worktrees'}</span>
+						</div>
+						<div class="config-item">
+							<span class="item-label">Cleanup on Complete</span>
+							<span class="item-value">
+								{#if config.worktree?.cleanup_on_complete}
+									<span class="status-pill enabled">Yes</span>
+								{:else}
+									<span class="status-pill disabled">No</span>
+								{/if}
+							</span>
+						</div>
+						<div class="config-item">
+							<span class="item-label">Cleanup on Fail</span>
+							<span class="item-value">
+								{#if config.worktree?.cleanup_on_fail}
+									<span class="status-pill enabled">Yes</span>
+								{:else}
+									<span class="status-pill disabled">No</span>
+								{/if}
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Completion Card -->
+				<div class="config-card">
+					<div class="card-header">
+						<div class="card-icon completion">
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+								<polyline points="22 4 12 14.01 9 11.01"/>
+							</svg>
+						</div>
+						<h2>Completion</h2>
+					</div>
+
+					<div class="config-items">
+						<div class="config-item">
+							<span class="item-label">Action</span>
+							<span class="item-value badge">{config.completion?.action || 'pr'}</span>
+						</div>
+						<div class="config-item">
+							<span class="item-label">Target Branch</span>
+							<span class="item-value mono">{config.completion?.target_branch || 'main'}</span>
+						</div>
+						<div class="config-item">
+							<span class="item-label">Delete Branch</span>
+							<span class="item-value">
+								{#if config.completion?.delete_branch}
+									<span class="status-pill enabled">Yes</span>
+								{:else}
+									<span class="status-pill disabled">No</span>
+								{/if}
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Timeouts Card -->
+				<div class="config-card">
+					<div class="card-header">
+						<div class="card-icon timeouts">
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<circle cx="12" cy="12" r="10"/>
+								<polyline points="12 6 12 12 16 14"/>
+							</svg>
+						</div>
+						<h2>Timeouts</h2>
+					</div>
+
+					<div class="config-items">
+						<div class="config-item">
+							<span class="item-label">Phase Max</span>
+							<span class="item-value mono">{config.timeouts?.phase_max || '30m'}</span>
+						</div>
+						<div class="config-item">
+							<span class="item-label">Turn Max</span>
+							<span class="item-value mono">{config.timeouts?.turn_max || '10m'}</span>
+						</div>
+						<div class="config-item">
+							<span class="item-label">Idle Warning</span>
+							<span class="item-value mono">{config.timeouts?.idle_warning || '5m'}</span>
+						</div>
+						<div class="config-item">
+							<span class="item-label">Heartbeat</span>
+							<span class="item-value mono">{config.timeouts?.heartbeat_interval || '30s'}</span>
 						</div>
 					</div>
 				</div>
@@ -706,6 +1010,21 @@
 	.card-icon.version {
 		background: rgba(16, 185, 129, 0.15);
 		color: var(--status-success);
+	}
+
+	.card-icon.worktree {
+		background: rgba(34, 211, 238, 0.15);
+		color: #22d3ee;
+	}
+
+	.card-icon.completion {
+		background: rgba(16, 185, 129, 0.15);
+		color: var(--status-success);
+	}
+
+	.card-icon.timeouts {
+		background: rgba(168, 85, 247, 0.15);
+		color: #a855f7;
 	}
 
 	.edit-btn {
