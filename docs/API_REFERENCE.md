@@ -290,8 +290,23 @@ Group related tasks with shared decisions.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/settings` | Get merged settings (global + project) |
+| GET | `/api/settings/global` | Get global settings only |
 | GET | `/api/settings/project` | Get project settings only |
-| PUT | `/api/settings` | Update project settings |
+| PUT | `/api/settings` | Update settings (`?scope=global` for global) |
+
+**Scope parameter:**
+- `PUT /api/settings` - Updates project settings (`.claude/settings.json`)
+- `PUT /api/settings?scope=global` - Updates global settings (`~/.claude/settings.json`)
+
+**StatusLine configuration example:**
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "echo -n '[$USER:${HOSTNAME%%.*}]:${PWD##*/}'"
+  }
+}
+```
 
 ### Tools
 

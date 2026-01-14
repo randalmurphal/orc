@@ -485,8 +485,9 @@ export async function getProjectSettings(): Promise<Settings> {
 	return fetchJSON<Settings>('/settings/project');
 }
 
-export async function updateSettings(settings: Settings): Promise<Settings> {
-	return fetchJSON<Settings>('/settings', {
+export async function updateSettings(settings: Settings, scope?: 'global'): Promise<Settings> {
+	const params = scope ? `?scope=${scope}` : '';
+	return fetchJSON<Settings>(`/settings${params}`, {
 		method: 'PUT',
 		body: JSON.stringify(settings)
 	});
