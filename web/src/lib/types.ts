@@ -5,6 +5,7 @@ export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skip
 export type TaskQueue = 'active' | 'backlog';
 export type TaskPriority = 'critical' | 'high' | 'normal' | 'low';
 export type TaskCategory = 'feature' | 'bug' | 'refactor' | 'chore' | 'docs' | 'test';
+export type DependencyStatus = 'blocked' | 'ready' | 'none';
 
 export interface Task {
 	id: string;
@@ -24,6 +25,7 @@ export interface Task {
 	referenced_by?: string[];
 	is_blocked?: boolean;
 	unmet_blockers?: string[];
+	dependency_status?: DependencyStatus;
 	created_at: string;
 	updated_at: string;
 	started_at?: string;

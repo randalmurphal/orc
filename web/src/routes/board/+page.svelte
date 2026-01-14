@@ -6,7 +6,9 @@
 	import { currentProjectId } from '$lib/stores/project';
 	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks } from '$lib/stores/tasks';
 	import { currentInitiativeId, currentInitiative, selectInitiative, UNASSIGNED_INITIATIVE } from '$lib/stores/initiative';
+	import { currentDependencyStatus } from '$lib/stores/dependency';
 	import InitiativeDropdown from '$lib/components/filters/InitiativeDropdown.svelte';
+	import DependencyDropdown from '$lib/components/filters/DependencyDropdown.svelte';
 	import type { Task } from '$lib/types';
 
 	// Reactive binding to global task store
@@ -14,24 +16,34 @@
 	let loading = $derived($tasksLoading);
 	let error = $derived($tasksError);
 
-	// Filter tasks by initiative if one is selected
+	// Filter tasks by initiative and dependency status if selected
 	let tasks = $derived.by(() => {
-		const initiativeId = $currentInitiativeId;
-		if (!initiativeId) return allTasks;
+		let result = allTasks;
 
-		// Handle unassigned filter - show only tasks with no initiative
-		if (initiativeId === UNASSIGNED_INITIATIVE) {
-			return allTasks.filter(task => !task.initiative_id);
+		// Filter by initiative
+		const initiativeId = $currentInitiativeId;
+		if (initiativeId) {
+			// Handle unassigned filter - show only tasks with no initiative
+			if (initiativeId === UNASSIGNED_INITIATIVE) {
+				result = result.filter(task => !task.initiative_id);
+			} else {
+				// Get task IDs from the initiative
+				const initiative = $currentInitiative;
+				if (initiative) {
+					const initTasks = initiative.tasks || [];
+					const initiativeTaskIds = new Set(initTasks.map(t => t.id));
+					result = result.filter(task => initiativeTaskIds.has(task.id));
+				}
+			}
 		}
 
-		// Get task IDs from the initiative
-		const initiative = $currentInitiative;
-		if (!initiative) return allTasks; // Initiative not found/loaded yet
+		// Filter by dependency status
+		const depStatus = $currentDependencyStatus;
+		if (depStatus !== 'all') {
+			result = result.filter(task => task.dependency_status === depStatus);
+		}
 
-		// If initiative exists but has no tasks, return empty array (not all tasks)
-		const initTasks = initiative.tasks || [];
-		const initiativeTaskIds = new Set(initTasks.map(t => t.id));
-		return allTasks.filter(task => initiativeTaskIds.has(task.id));
+		return result;
 	});
 
 	// Transcript modal state
@@ -86,6 +98,9 @@
 		<div class="header-filters">
 			<!-- Initiative Filter -->
 			<InitiativeDropdown />
+
+			<!-- Dependency Filter -->
+			<DependencyDropdown />
 
 			<!-- New Task Button -->
 			<button class="new-task-btn" onclick={() => window.dispatchEvent(new CustomEvent('orc:new-task'))}>

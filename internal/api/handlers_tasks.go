@@ -78,6 +78,7 @@ func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 // handleListTasks returns all tasks with optional pagination and filtering.
 // Query params:
 //   - initiative: filter by initiative ID (e.g., ?initiative=INIT-001)
+//   - dependency_status: filter by dependency status (blocked, ready, none)
 //   - page: page number for pagination
 //   - limit: items per page (max 100)
 //
@@ -114,8 +115,24 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Populate computed dependency fields (Blocks, ReferencedBy)
+	// Populate computed dependency fields (Blocks, ReferencedBy, DependencyStatus)
 	task.PopulateComputedFields(tasks)
+
+	// Filter by dependency status if requested
+	depStatusFilter := r.URL.Query().Get("dependency_status")
+	if depStatusFilter != "" {
+		var filtered []*task.Task
+		for _, t := range tasks {
+			if string(t.DependencyStatus) == depStatusFilter {
+				filtered = append(filtered, t)
+			}
+		}
+		tasks = filtered
+		// Ensure we return an empty array after filtering, not null
+		if tasks == nil {
+			tasks = []*task.Task{}
+		}
+	}
 
 	// Check for pagination params
 	pageStr := r.URL.Query().Get("page")
@@ -433,12 +450,21 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load all tasks to compute Blocks and ReferencedBy
+	// Load all tasks to compute Blocks, ReferencedBy, and DependencyStatus
 	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
 	allTasks, err := task.LoadAllFrom(tasksDir)
 	if err == nil && len(allTasks) > 0 {
+		// Build task map for dependency checking
+		taskMap := make(map[string]*task.Task)
+		for _, other := range allTasks {
+			taskMap[other.ID] = other
+		}
+
 		t.Blocks = task.ComputeBlocks(t.ID, allTasks)
 		t.ReferencedBy = task.ComputeReferencedBy(t.ID, allTasks)
+		t.UnmetBlockers = t.GetUnmetDependencies(taskMap)
+		t.IsBlocked = len(t.UnmetBlockers) > 0
+		t.DependencyStatus = t.ComputeDependencyStatus()
 	}
 
 	s.jsonResponse(w, t)
