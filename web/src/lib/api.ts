@@ -1721,3 +1721,30 @@ export async function triggerFinalize(taskId: string, options?: FinalizeRequest)
 export async function getFinalizeStatus(taskId: string): Promise<FinalizeState> {
 	return fetchJSON<FinalizeState>(`/tasks/${taskId}/finalize`);
 }
+
+// Dependency Graph
+export interface DependencyGraphNode {
+	id: string;
+	title: string;
+	status: 'done' | 'running' | 'blocked' | 'ready' | 'pending' | 'paused' | 'failed';
+}
+
+export interface DependencyGraphEdge {
+	from: string;
+	to: string;
+}
+
+export interface DependencyGraphData {
+	nodes: DependencyGraphNode[];
+	edges: DependencyGraphEdge[];
+}
+
+export async function getInitiativeDependencyGraph(id: string, shared?: boolean): Promise<DependencyGraphData> {
+	const query = shared ? '?shared=true' : '';
+	return fetchJSON<DependencyGraphData>(`/initiatives/${id}/dependency-graph${query}`);
+}
+
+export async function getTasksDependencyGraph(taskIds: string[]): Promise<DependencyGraphData> {
+	const ids = taskIds.join(',');
+	return fetchJSON<DependencyGraphData>(`/tasks/dependency-graph?ids=${encodeURIComponent(ids)}`);
+}
