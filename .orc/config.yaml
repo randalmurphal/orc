@@ -29,12 +29,136 @@ completion:
             - automated
         draft: false
         auto_merge: true
+    sync:
+        strategy: completion
+        fail_on_conflict: true
+        max_conflict_files: 0
+        skip_for_weights:
+            - trivial
+    weight_actions:
+        trivial: none
+execution:
+    use_session_execution: false
+    session_persistence: true
+    checkpoint_interval: 0
+    max_retries: 5
+budget:
+    threshold_usd: 0
+    alert_on_exceed: false
+    pause_on_exceed: false
+pool:
+    enabled: false
+    config_path: ~/.orc/token-pool/pool.yaml
+server:
+    host: 127.0.0.1
+    port: 8080
+    auth:
+        enabled: false
+        type: token
+team:
+    activity_logging: true
+    task_claiming: false
+    visibility: all
+    mode: local
+identity:
+    initials: ""
+    display_name: ""
+task_id:
+    mode: solo
+    prefix_source: initials
+testing:
+    required: true
+    coverage_threshold: 0
+    types:
+        - unit
+    skip_for_weights:
+        - trivial
+    commands:
+        unit: go test ./...
+        integration: go test -tags=integration ./...
+        e2e: make e2e
+        coverage: go test -coverprofile=coverage.out ./...
+    parse_output: true
+documentation:
+    enabled: true
+    auto_update_claudemd: true
+    update_on:
+        - feature
+        - api_change
+    skip_for_weights:
+        - trivial
+    sections:
+        - api-endpoints
+        - commands
+        - config-options
+timeouts:
+    phase_max: 30m0s
+    turn_max: 10m0s
+    idle_warning: 5m0s
+    heartbeat_interval: 30s
+    idle_timeout: 2m0s
+qa:
+    enabled: true
+    skip_for_weights:
+        - trivial
+    require_e2e: false
+    generate_docs: true
+review:
+    enabled: true
+    rounds: 2
+    require_pass: true
+plan:
+    require_spec_for_execution: false
+    warn_on_missing_spec: true
+    skip_validation_weights:
+        - trivial
+    minimum_sections:
+        - intent
+        - success_criteria
+        - testing
+artifact_skip:
+    enabled: true
+    auto_skip: false
+    phases:
+        - spec
+        - research
+        - docs
+subtasks:
+    allow_creation: true
+    auto_approve: false
+    max_pending: 10
+database:
+    driver: sqlite
+    sqlite:
+        path: .orc/orc.db
+        global_path: ~/.orc/orc.db
+    postgres:
+        host: localhost
+        port: 5432
+        database: orc
+        user: orc
+        password: ""
+        ssl_mode: disable
+        pool_max: 10
+storage:
+    mode: hybrid
+    files:
+        cleanup_on_complete: true
+    database:
+        cache_transcripts: true
+        retention_days: 90
+    export:
+        enabled: false
+        task_definition: true
+        final_state: true
+        transcripts: false
+        context_summary: true
 model: claude-opus-4-5-20251101
 max_iterations: 30
 timeout: 10m0s
 branch_prefix: orc/
 commit_prefix: '[orc]'
-# claude_path: Uses PATH lookup and common install locations by default
+claude_path: claude
 dangerously_skip_permissions: true
 templates_dir: templates
 enable_checkpoints: true
