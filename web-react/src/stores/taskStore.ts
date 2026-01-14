@@ -2,9 +2,11 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { Task, TaskState, TaskStatus, StatusCounts } from '@/lib/types';
 
-// Active statuses for filtering
+// Active statuses for filtering (running/blocked/paused for getActiveTasks)
 const ACTIVE_STATUSES: TaskStatus[] = ['running', 'blocked', 'paused'];
 const RECENT_STATUSES: TaskStatus[] = ['completed', 'failed', 'finished'];
+// Terminal statuses (not active anymore)
+const TERMINAL_STATUSES: TaskStatus[] = ['completed', 'failed', 'finished'];
 
 interface TaskStore {
 	// State
@@ -69,7 +71,9 @@ export const useTaskStore = create<TaskStore>()(
 			return tasks.reduce(
 				(counts, task) => {
 					counts.all++;
-					if (ACTIVE_STATUSES.includes(task.status)) counts.active++;
+					// Active = not terminal (matches Svelte: !['completed', 'failed'].includes)
+					// Note: Svelte missed 'finished', we include it in terminal
+					if (!TERMINAL_STATUSES.includes(task.status)) counts.active++;
 					if (task.status === 'completed' || task.status === 'finished') counts.completed++;
 					if (task.status === 'failed') counts.failed++;
 					if (task.status === 'running') counts.running++;

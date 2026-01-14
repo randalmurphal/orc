@@ -321,7 +321,24 @@ describe('TaskStore', () => {
 			expect(counts.blocked).toBe(1);
 			expect(counts.completed).toBe(2); // completed + finished
 			expect(counts.failed).toBe(1);
-			expect(counts.active).toBe(4); // running + blocked + paused
+			// Active = not terminal (running + blocked + paused = not completed/failed/finished)
+			expect(counts.active).toBe(4); // running(2) + blocked(1) + paused(1) = 4
+		});
+
+		it('should count planned and created tasks as active', () => {
+			const tasks = [
+				createTask({ status: 'planned' }),
+				createTask({ status: 'created' }),
+				createTask({ status: 'classifying' }),
+				createTask({ status: 'completed' }),
+			];
+			useTaskStore.getState().setTasks(tasks);
+
+			const counts = useTaskStore.getState().getStatusCounts();
+
+			// planned, created, classifying are active (not terminal)
+			expect(counts.active).toBe(3);
+			expect(counts.completed).toBe(1);
 		});
 
 		it('should return zeros when no tasks', () => {
