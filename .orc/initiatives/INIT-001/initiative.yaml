@@ -1,0 +1,7 @@
+version: 1
+id: INIT-001
+title: Test Initiative
+status: draft
+vision: Testing the initiatives feature
+created_at: 2026-01-13T22:39:01.083542332-06:00
+updated_at: 2026-01-13T22:39:01.084460814-06:00

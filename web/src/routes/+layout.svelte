@@ -9,15 +9,16 @@
 	import KeyboardShortcutsHelp from '$lib/components/overlays/KeyboardShortcutsHelp.svelte';
 	import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
 	import NewTaskModal from '$lib/components/overlays/NewTaskModal.svelte';
+	import NewInitiativeModal from '$lib/components/overlays/NewInitiativeModal.svelte';
 	import { currentProject, loadProjects, currentProjectId, handlePopState } from '$lib/stores/project';
 	import { sidebarExpanded } from '$lib/stores/sidebar';
 	import { loadTasks, updateTaskStatus, updateTaskState, refreshTask, addTask, removeTask, updateTask } from '$lib/stores/tasks';
-	import { loadInitiatives } from '$lib/stores/initiatives';
+	import { loadInitiatives, handleInitiativePopState, updateInitiativeInStore, addInitiativeToStore, removeInitiativeFromStore } from '$lib/stores/initiative';
 	import { initGlobalWebSocket, type WSEventType, type ConnectionStatus } from '$lib/websocket';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { setupGlobalShortcuts } from '$lib/shortcuts';
 	import { onMount, onDestroy } from 'svelte';
-	import type { Task, TaskState } from '$lib/types';
+	import type { Task, TaskState, Initiative } from '$lib/types';
 
 	interface Props {
 		children: Snippet;
@@ -28,6 +29,7 @@
 	let showProjectSwitcher = $state(false);
 	let showCommandPalette = $state(false);
 	let showNewTaskForm = $state(false);
+	let showNewInitiativeForm = $state(false);
 	let showShortcutsHelp = $state(false);
 	let cleanupShortcuts: (() => void) | null = null;
 	let cleanupWebSocket: (() => void) | null = null;
@@ -112,9 +114,10 @@
 			(status) => { wsStatus = status; }
 		);
 
-		// Reload tasks when project changes
+		// Reload tasks and initiatives when project changes
 		const unsubProject = currentProjectId.subscribe(() => {
 			loadTasks();
+			loadInitiatives();
 		});
 
 		// Setup global shortcuts using ShortcutManager
@@ -141,6 +144,7 @@
 				showProjectSwitcher = false;
 				showCommandPalette = false;
 				showNewTaskForm = false;
+				showNewInitiativeForm = false;
 				showShortcutsHelp = false;
 			},
 			// Navigation sequences
@@ -161,9 +165,16 @@
 					showProjectSwitcher = false;
 					showCommandPalette = false;
 					showNewTaskForm = false;
+					showNewInitiativeForm = false;
 					showShortcutsHelp = false;
 				}
 			}
+		}
+
+		// Handle popstate for both project and initiative
+		function handleCombinedPopState(e: PopStateEvent) {
+			handlePopState(e);
+			handleInitiativePopState(e);
 		}
 
 		// Listen for custom events from command palette
@@ -188,7 +199,7 @@
 		window.addEventListener('orc:toggle-sidebar', handleToggleSidebar);
 		window.addEventListener('orc:new-task', handleNewTask);
 		window.addEventListener('orc:show-shortcuts', handleShowShortcuts);
-		window.addEventListener('popstate', handlePopState);
+		window.addEventListener('popstate', handleCombinedPopState);
 
 		return () => {
 			window.removeEventListener('keydown', handleKeydown);
@@ -196,7 +207,7 @@
 			window.removeEventListener('orc:toggle-sidebar', handleToggleSidebar);
 			window.removeEventListener('orc:new-task', handleNewTask);
 			window.removeEventListener('orc:show-shortcuts', handleShowShortcuts);
-			window.removeEventListener('popstate', handlePopState);
+			window.removeEventListener('popstate', handleCombinedPopState);
 			unsubProject();
 		};
 	});
@@ -238,7 +249,7 @@
 </svelte:head>
 
 <div class="app-layout">
-	<Sidebar />
+	<Sidebar onNewInitiative={() => { showNewInitiativeForm = true; }} />
 
 	<div class="main-area" class:sidebar-expanded={$sidebarExpanded}>
 		<Header
@@ -276,6 +287,12 @@
 <NewTaskModal
 	open={showNewTaskForm}
 	onClose={() => (showNewTaskForm = false)}
+/>
+
+<!-- New Initiative Modal -->
+<NewInitiativeModal
+	open={showNewInitiativeForm}
+	onClose={() => (showNewInitiativeForm = false)}
 />
 
 <!-- Toast Notifications -->

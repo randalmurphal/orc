@@ -1,4 +1,4 @@
-import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary, Attachment, TaskComment, CreateTaskCommentRequest, UpdateTaskCommentRequest, TaskCommentStats, TestResultsInfo, Screenshot, TestReport, Initiative } from './types';
+import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary, Attachment, TaskComment, CreateTaskCommentRequest, UpdateTaskCommentRequest, TaskCommentStats, TestResultsInfo, Screenshot, TestReport, Initiative, InitiativeStatus, InitiativeIdentity } from './types';
 
 const API_BASE = '/api';
 
@@ -1518,4 +1518,56 @@ export function getHTMLReportUrl(taskId: string): string {
 
 export function getTraceUrl(taskId: string, filename: string): string {
 	return `${API_BASE}/tasks/${taskId}/test-results/traces/${encodeURIComponent(filename)}`;
+}
+
+// Initiatives
+export interface CreateInitiativeRequest {
+	title: string;
+	vision?: string;
+	owner?: InitiativeIdentity;
+	shared?: boolean;
+}
+
+export interface UpdateInitiativeRequest {
+	title?: string;
+	vision?: string;
+	status?: InitiativeStatus;
+	owner?: InitiativeIdentity;
+}
+
+export async function listInitiatives(options?: { status?: InitiativeStatus; shared?: boolean }): Promise<Initiative[]> {
+	const params = new URLSearchParams();
+	if (options?.status) params.set('status', options.status);
+	if (options?.shared) params.set('shared', 'true');
+	const query = params.toString();
+	return fetchJSON<Initiative[]>(`/initiatives${query ? '?' + query : ''}`);
+}
+
+export async function getInitiative(id: string, shared?: boolean): Promise<Initiative> {
+	const query = shared ? '?shared=true' : '';
+	return fetchJSON<Initiative>(`/initiatives/${id}${query}`);
+}
+
+export async function createInitiative(req: CreateInitiativeRequest): Promise<Initiative> {
+	return fetchJSON<Initiative>('/initiatives', {
+		method: 'POST',
+		body: JSON.stringify(req)
+	});
+}
+
+export async function updateInitiative(id: string, req: UpdateInitiativeRequest, shared?: boolean): Promise<Initiative> {
+	const query = shared ? '?shared=true' : '';
+	return fetchJSON<Initiative>(`/initiatives/${id}${query}`, {
+		method: 'PATCH',
+		body: JSON.stringify(req)
+	});
+}
+
+export async function deleteInitiative(id: string, shared?: boolean): Promise<void> {
+	const query = shared ? '?shared=true' : '';
+	const res = await fetch(`${API_BASE}/initiatives/${id}${query}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to delete initiative');
+	}
 }

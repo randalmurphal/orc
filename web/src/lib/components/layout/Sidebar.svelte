@@ -4,6 +4,13 @@
 	import { formatShortcut } from '$lib/utils/platform';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { sidebarExpanded } from '$lib/stores/sidebar';
+	import {
+		initiatives,
+		currentInitiativeId,
+		initiativeProgress,
+		selectInitiative
+	} from '$lib/stores/initiative';
+	import type { Initiative } from '$lib/types';
 
 	interface NavItem {
 		label: string;
@@ -95,16 +102,18 @@
 	const STORAGE_KEY_GROUPS = 'orc-sidebar-groups';
 
 	function loadExpandedState(): { sections: Set<string>; groups: Set<string> } {
-		if (!browser) return { sections: new Set(), groups: new Set() };
+		// Default expanded sections for new users
+		const defaultSections = new Set(['initiatives']);
+		if (!browser) return { sections: defaultSections, groups: new Set() };
 		try {
 			const sectionsJson = localStorage.getItem(STORAGE_KEY_SECTIONS);
 			const groupsJson = localStorage.getItem(STORAGE_KEY_GROUPS);
 			return {
-				sections: sectionsJson ? new Set(JSON.parse(sectionsJson)) : new Set(),
+				sections: sectionsJson ? new Set(JSON.parse(sectionsJson)) : defaultSections,
 				groups: groupsJson ? new Set(JSON.parse(groupsJson)) : new Set()
 			};
 		} catch {
-			return { sections: new Set(), groups: new Set() };
+			return { sections: defaultSections, groups: new Set() };
 		}
 	}
 
@@ -163,6 +172,33 @@
 	// Get work and environment sections
 	const workSection = sections.find((s) => s.id === 'work')!;
 	const envSection = sections.find((s) => s.id === 'environment')!;
+
+	// Initiative handling
+	interface Props {
+		onNewInitiative?: () => void;
+	}
+
+	let { onNewInitiative }: Props = $props();
+
+	// Sort initiatives: active first, then by recency
+	let sortedInitiatives = $derived(
+		[...$initiatives].sort((a, b) => {
+			// Active status first
+			if (a.status === 'active' && b.status !== 'active') return -1;
+			if (b.status === 'active' && a.status !== 'active') return 1;
+			// Then by updated_at
+			return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+		})
+	);
+
+	function handleInitiativeClick(id: string | null, e: MouseEvent) {
+		e.preventDefault();
+		selectInitiative(id);
+	}
+
+	function getInitiativeProgress(id: string): { completed: number; total: number } {
+		return $initiativeProgress.get(id) || { completed: 0, total: 0 };
+	}
 </script>
 
 <aside
@@ -216,6 +252,88 @@
 				{/each}
 			</ul>
 		</nav>
+
+		<!-- Initiatives Section -->
+		{#if expanded}
+			<nav class="nav-section initiatives-section">
+				<button
+					class="section-header clickable"
+					onclick={() => toggleSection('initiatives')}
+					aria-expanded={expandedSectionsState.has('initiatives')}
+				>
+					<span>Initiatives</span>
+					<Icon
+						name={expandedSectionsState.has('initiatives') ? 'chevron-down' : 'chevron-right'}
+						size={14}
+					/>
+				</button>
+
+				{#if expandedSectionsState.has('initiatives')}
+					<ul class="nav-list initiative-list">
+						<!-- All Tasks option -->
+						<li>
+							<a
+								href="/"
+								class="nav-item initiative-item"
+								class:active={$currentInitiativeId === null}
+								onclick={(e) => handleInitiativeClick(null, e)}
+							>
+								<span class="initiative-indicator" class:selected={$currentInitiativeId === null}>
+									{#if $currentInitiativeId === null}
+										<span class="indicator-dot filled"></span>
+									{:else}
+										<span class="indicator-dot"></span>
+									{/if}
+								</span>
+								<span class="nav-label">All Tasks</span>
+							</a>
+						</li>
+
+						<!-- Initiative list -->
+						{#each sortedInitiatives as initiative}
+							{@const progress = getInitiativeProgress(initiative.id)}
+							<li>
+								<a
+									href="/?initiative={initiative.id}"
+									class="nav-item initiative-item"
+									class:active={$currentInitiativeId === initiative.id}
+									onclick={(e) => handleInitiativeClick(initiative.id, e)}
+									title={initiative.title}
+								>
+									<span class="initiative-indicator" class:selected={$currentInitiativeId === initiative.id}>
+										{#if $currentInitiativeId === initiative.id}
+											<span class="indicator-dot filled"></span>
+										{:else}
+											<span class="indicator-dot"></span>
+										{/if}
+									</span>
+									<span class="nav-label initiative-title">{initiative.title}</span>
+									{#if progress.total > 0}
+										<span class="initiative-progress">({progress.completed}/{progress.total})</span>
+									{/if}
+								</a>
+							</li>
+						{/each}
+
+						<!-- New Initiative link -->
+						{#if onNewInitiative}
+							<li>
+								<button
+									class="nav-item new-initiative-btn"
+									onclick={onNewInitiative}
+									title="Create new initiative"
+								>
+									<span class="nav-icon">
+										<Icon name="plus" size={14} />
+									</span>
+									<span class="nav-label">New Initiative</span>
+								</button>
+							</li>
+						{/if}
+					</ul>
+				{/if}
+			</nav>
+		{/if}
 
 		<!-- Divider -->
 		<div class="nav-divider"></div>
@@ -613,6 +731,86 @@
 	.bottom-section {
 		flex-shrink: 0;
 		margin-top: auto;
+	}
+
+	/* Initiatives Section */
+	.initiatives-section {
+		padding-bottom: var(--space-1);
+	}
+
+	.initiative-list {
+		max-height: 200px;
+		overflow-y: auto;
+	}
+
+	.initiative-item {
+		gap: var(--space-2);
+		padding: var(--space-1-5) var(--space-3);
+		margin-left: var(--space-3);
+		font-size: var(--text-sm);
+	}
+
+	.initiative-indicator {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 16px;
+		height: 16px;
+		flex-shrink: 0;
+	}
+
+	.indicator-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		border: 1.5px solid var(--text-muted);
+		background: transparent;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.indicator-dot.filled {
+		background: var(--accent-primary);
+		border-color: var(--accent-primary);
+	}
+
+	.initiative-item:hover .indicator-dot {
+		border-color: var(--text-secondary);
+	}
+
+	.initiative-item.active .indicator-dot {
+		border-color: var(--accent-primary);
+	}
+
+	.initiative-title {
+		flex: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.initiative-progress {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		flex-shrink: 0;
+	}
+
+	.new-initiative-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		width: 100%;
+		text-align: left;
+		color: var(--text-muted);
+	}
+
+	.new-initiative-btn:hover {
+		color: var(--accent-primary);
+		background: var(--bg-tertiary);
+	}
+
+	.new-initiative-btn .nav-icon {
+		width: 16px;
+		height: 16px;
 	}
 
 	/* Keyboard hint */
