@@ -1,75 +1,164 @@
-/* Header styles */
-.app-header {
+/* Header styles - matches Svelte implementation */
+.header {
+	height: var(--header-height, 56px);
+	background: var(--bg-primary);
+	border-bottom: 1px solid var(--border-subtle);
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 1rem 1.5rem;
-	background: var(--color-bg-secondary, #161b22);
-	border-bottom: 1px solid var(--color-border, #30363d);
+	padding: 0 var(--space-6, 24px);
+	position: sticky;
+	top: 0;
+	z-index: var(--z-header, 90);
 }
 
 .header-left {
 	display: flex;
 	align-items: center;
-	gap: 1rem;
-}
-
-.header-title {
-	font-size: 1.25rem;
-	font-weight: 600;
-	color: var(--color-text-primary, #e6edf3);
-	margin: 0;
-}
-
-.header-project {
-	font-size: 0.875rem;
-	color: var(--color-text-muted, #8b949e);
-	padding: 0.25rem 0.5rem;
-	background: var(--color-bg-tertiary, #21262d);
-	border-radius: 4px;
+	gap: var(--space-2, 8px);
 }
 
 .header-right {
 	display: flex;
 	align-items: center;
-	gap: 1rem;
+	gap: var(--space-4, 16px);
 }
 
-/* Connection indicator */
-.connection-indicator {
+/* Project Button */
+.project-btn {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
-	font-size: 0.75rem;
-	color: var(--color-text-muted, #8b949e);
+	gap: var(--space-2, 8px);
+	padding: var(--space-1-5, 6px) var(--space-3, 12px);
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md, 6px);
+	color: var(--text-primary);
+	font-size: var(--text-sm, 0.875rem);
+	font-weight: var(--font-medium, 500);
+	cursor: pointer;
+	transition: all var(--duration-fast, 150ms) var(--ease-out, ease-out);
 }
 
-.connection-dot {
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	background: var(--color-text-muted, #8b949e);
+.project-btn:hover {
+	background: var(--bg-tertiary);
+	border-color: var(--border-strong);
 }
 
-.connection-indicator.connected .connection-dot {
-	background: var(--color-success, #3fb950);
+.project-btn:focus-visible {
+	border-color: var(--accent-primary);
+	box-shadow: 0 0 0 3px var(--accent-glow, rgba(56, 139, 253, 0.3));
+	outline: none;
 }
 
-.connection-indicator.connecting .connection-dot,
-.connection-indicator.reconnecting .connection-dot {
-	background: var(--color-warning, #d29922);
-	animation: pulse 1s ease-in-out infinite;
+.project-icon {
+	color: var(--accent-primary);
+	display: flex;
+	align-items: center;
 }
 
-.connection-indicator.disconnected .connection-dot {
-	background: var(--color-danger, #f85149);
+.project-name {
+	max-width: 150px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-.connection-label {
-	text-transform: capitalize;
+.project-chevron {
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
 }
 
-@keyframes pulse {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.4; }
+/* Page Info */
+.page-info {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2, 8px);
+}
+
+.separator {
+	color: var(--text-muted);
+	font-size: var(--text-lg, 1.125rem);
+	font-weight: var(--font-regular, 400);
+}
+
+.page-title {
+	font-size: var(--text-base, 1rem);
+	font-weight: var(--font-semibold, 600);
+	color: var(--text-primary);
+	margin: 0;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+/* Command Hint */
+.cmd-hint {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2, 8px);
+	color: var(--text-muted);
+	font-size: var(--text-xs, 0.75rem);
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md, 6px);
+	padding: var(--space-1-5, 6px) var(--space-3, 12px);
+	cursor: pointer;
+	transition: all var(--duration-fast, 150ms) var(--ease-out, ease-out);
+}
+
+.cmd-hint:hover {
+	background: var(--bg-tertiary);
+	border-color: var(--border-strong);
+	color: var(--text-secondary);
+}
+
+.cmd-hint:focus-visible {
+	border-color: var(--accent-primary);
+	box-shadow: 0 0 0 3px var(--accent-glow, rgba(56, 139, 253, 0.3));
+	outline: none;
+}
+
+.cmd-hint-label {
+	font-size: var(--text-sm, 0.875rem);
+}
+
+.cmd-hint kbd {
+	font-family: var(--font-mono);
+	font-size: var(--text-2xs, 0.625rem);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-sm, 4px);
+	padding: var(--space-0-5, 2px) var(--space-1-5, 6px);
+	box-shadow: 0 1px 0 var(--border-default);
+}
+
+/* New Task Button */
+.new-task-btn {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2, 8px);
+}
+
+/* Primary button style */
+.primary {
+	background: var(--accent-primary);
+	border: 1px solid var(--accent-primary);
+	border-radius: var(--radius-md, 6px);
+	color: var(--text-inverse, #fff);
+	font-size: var(--text-sm, 0.875rem);
+	font-weight: var(--font-medium, 500);
+	padding: var(--space-2, 8px) var(--space-4, 16px);
+	cursor: pointer;
+	transition: all var(--duration-fast, 150ms) var(--ease-out, ease-out);
+}
+
+.primary:hover {
+	background: var(--accent-hover);
+	border-color: var(--accent-hover);
+}
+
+.primary:focus-visible {
+	box-shadow: 0 0 0 3px var(--accent-glow, rgba(56, 139, 253, 0.3));
+	outline: none;
 }

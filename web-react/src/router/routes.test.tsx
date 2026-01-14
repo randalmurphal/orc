@@ -75,7 +75,7 @@ describe('Routes', () => {
 			renderWithRouter('/');
 			await waitFor(() => {
 				// Check sidebar nav links exist by href attribute
-				const nav = screen.getByRole('navigation');
+				const nav = screen.getByRole('navigation', { name: 'Main navigation' });
 				expect(nav.querySelector('a[href="/"]')).toBeInTheDocument();
 				expect(nav.querySelector('a[href="/board"]')).toBeInTheDocument();
 				expect(nav.querySelector('a[href="/dashboard"]')).toBeInTheDocument();
@@ -281,7 +281,7 @@ describe('Routes', () => {
 	describe('Layout structure', () => {
 		it('renders sidebar on all routes', async () => {
 			renderWithRouter('/');
-			expect(screen.getByRole('navigation')).toBeInTheDocument();
+			expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument();
 		});
 
 		it('renders header on all routes', async () => {

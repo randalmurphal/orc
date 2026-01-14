@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import { useShallow } from 'zustand/react/shallow';
 import type { Initiative, InitiativeProgress, Task } from '@/lib/types';
 
 // Special value for filtering tasks without an initiative
@@ -258,9 +259,17 @@ useInitiativeStore.subscribe(
 );
 
 // Selector hooks
-export const useInitiatives = () => useInitiativeStore((state) => state.getInitiativesList());
+// Using useShallow to prevent infinite loops with derived array values
+export const useInitiatives = () =>
+	useInitiativeStore(useShallow((state) => Array.from(state.initiatives.values())));
 export const useCurrentInitiative = () =>
-	useInitiativeStore((state) => state.getCurrentInitiative());
+	useInitiativeStore((state) => {
+		const { initiatives, currentInitiativeId } = state;
+		if (!currentInitiativeId || currentInitiativeId === UNASSIGNED_INITIATIVE) {
+			return undefined;
+		}
+		return initiatives.get(currentInitiativeId);
+	});
 export const useCurrentInitiativeId = () =>
 	useInitiativeStore((state) => state.currentInitiativeId);
 
