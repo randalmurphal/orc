@@ -44,7 +44,7 @@ description: |-
     - No memory leaks on unmount
 weight: medium
 status: running
-current_phase: test
+current_phase: docs
 branch: orc/TASK-165
 queue: active
 priority: normal
@@ -56,5 +56,5 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:20:25.354239924-06:00
-updated_at: 2026-01-14T11:34:49.744308-06:00
+updated_at: 2026-01-14T11:37:04.947573-06:00
 started_at: 2026-01-14T11:24:53.975362-06:00
