@@ -34,6 +34,8 @@ Commands:
   show       Show initiative details
   edit       Edit initiative properties and dependencies
   add-task   Link a task to an initiative
+  link       Batch link multiple tasks to an initiative
+  unlink     Remove tasks from an initiative
   decide     Record a decision
   activate   Set initiative status to active
   complete   Mark initiative as completed
@@ -46,6 +48,8 @@ Commands:
 	cmd.AddCommand(newInitiativeShowCmd())
 	cmd.AddCommand(newInitiativeEditCmd())
 	cmd.AddCommand(newInitiativeAddTaskCmd())
+	cmd.AddCommand(newInitiativeLinkCmd())
+	cmd.AddCommand(newInitiativeUnlinkCmd())
 	cmd.AddCommand(newInitiativeDecideCmd())
 	cmd.AddCommand(newInitiativeActivateCmd())
 	cmd.AddCommand(newInitiativeCompleteCmd())
@@ -558,6 +562,260 @@ Example:
 	}
 
 	cmd.Flags().StringSlice("depends-on", nil, "task dependencies (can specify multiple)")
+	cmd.Flags().Bool("shared", false, "use shared initiative")
+
+	return cmd
+}
+
+func newInitiativeLinkCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "link <initiative-id> <task-id>...",
+		Short: "Batch link multiple tasks to an initiative",
+		Long: `Link multiple tasks to an initiative at once.
+
+Examples:
+  orc initiative link INIT-001 TASK-060 TASK-061 TASK-062
+  orc initiative link INIT-001 --all-matching "auth"        # Link tasks matching pattern
+  orc initiative link INIT-001 --all-matching "TASK-06"     # Link tasks by ID pattern`,
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := config.RequireInit(); err != nil {
+				return err
+			}
+
+			initID := args[0]
+			taskIDs := args[1:]
+			allMatching, _ := cmd.Flags().GetString("all-matching")
+			shared, _ := cmd.Flags().GetBool("shared")
+
+			// Load initiative
+			var init *initiative.Initiative
+			var err error
+			if shared {
+				init, err = initiative.LoadShared(initID)
+			} else {
+				init, err = initiative.Load(initID)
+			}
+			if err != nil {
+				return fmt.Errorf("load initiative: %w", err)
+			}
+
+			// Collect tasks to link
+			var tasksToLink []*task.Task
+
+			// If --all-matching is provided, find matching tasks
+			if allMatching != "" {
+				allTasks, err := task.LoadAll()
+				if err != nil {
+					return fmt.Errorf("load tasks: %w", err)
+				}
+
+				pattern := strings.ToLower(allMatching)
+				for _, t := range allTasks {
+					// Match against ID or title
+					if strings.Contains(strings.ToLower(t.ID), pattern) ||
+						strings.Contains(strings.ToLower(t.Title), pattern) {
+						// Skip if already linked to this initiative
+						if t.InitiativeID == initID {
+							continue
+						}
+						tasksToLink = append(tasksToLink, t)
+					}
+				}
+
+				if len(tasksToLink) == 0 {
+					fmt.Printf("No unlinked tasks matching %q found.\n", allMatching)
+					return nil
+				}
+			}
+
+			// Add explicitly specified task IDs
+			for _, taskID := range taskIDs {
+				t, err := task.Load(taskID)
+				if err != nil {
+					return fmt.Errorf("load task %s: %w", taskID, err)
+				}
+				// Skip if already linked to this initiative
+				if t.InitiativeID == initID {
+					fmt.Printf("Skipping %s: already linked to %s\n", taskID, initID)
+					continue
+				}
+				tasksToLink = append(tasksToLink, t)
+			}
+
+			if len(tasksToLink) == 0 {
+				fmt.Println("No tasks to link.")
+				return nil
+			}
+
+			// Link all tasks
+			var linked []string
+			var skippedOther []string // Tasks linked to a different initiative
+			for _, t := range tasksToLink {
+				// Check if already linked to another initiative
+				if t.InitiativeID != "" && t.InitiativeID != initID {
+					skippedOther = append(skippedOther, fmt.Sprintf("%s (linked to %s)", t.ID, t.InitiativeID))
+					continue
+				}
+
+				// Update task
+				t.SetInitiative(initID)
+				if err := t.Save(); err != nil {
+					return fmt.Errorf("save task %s: %w", t.ID, err)
+				}
+
+				// Update initiative
+				init.AddTask(t.ID, t.Title, nil)
+				linked = append(linked, t.ID)
+			}
+
+			// Save initiative
+			if shared {
+				err = init.SaveShared()
+			} else {
+				err = init.Save()
+			}
+			if err != nil {
+				return fmt.Errorf("save initiative: %w", err)
+			}
+
+			// Auto-commit and sync to DB
+			initiative.CommitAndSync(init, "link-tasks", initiative.DefaultCommitConfig())
+
+			// Print summary
+			if len(linked) > 0 {
+				fmt.Printf("Linked %d task(s) to %s:\n", len(linked), initID)
+				for _, id := range linked {
+					fmt.Printf("  • %s\n", id)
+				}
+			}
+			if len(skippedOther) > 0 {
+				fmt.Printf("\nSkipped %d task(s) already linked to other initiatives:\n", len(skippedOther))
+				for _, info := range skippedOther {
+					fmt.Printf("  • %s\n", info)
+				}
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().String("all-matching", "", "link all tasks matching pattern (matches ID or title)")
+	cmd.Flags().Bool("shared", false, "use shared initiative")
+
+	return cmd
+}
+
+func newInitiativeUnlinkCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "unlink <initiative-id> <task-id>...",
+		Short: "Remove tasks from an initiative",
+		Long: `Remove one or more tasks from an initiative.
+
+Examples:
+  orc initiative unlink INIT-001 TASK-060
+  orc initiative unlink INIT-001 TASK-060 TASK-061 TASK-062
+  orc initiative unlink INIT-001 --all   # Unlink all tasks from initiative`,
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := config.RequireInit(); err != nil {
+				return err
+			}
+
+			initID := args[0]
+			taskIDs := args[1:]
+			unlinkAll, _ := cmd.Flags().GetBool("all")
+			shared, _ := cmd.Flags().GetBool("shared")
+
+			// Load initiative
+			var init *initiative.Initiative
+			var err error
+			if shared {
+				init, err = initiative.LoadShared(initID)
+			} else {
+				init, err = initiative.Load(initID)
+			}
+			if err != nil {
+				return fmt.Errorf("load initiative: %w", err)
+			}
+
+			// If --all, get all task IDs from the initiative
+			if unlinkAll {
+				taskIDs = make([]string, len(init.Tasks))
+				for i, t := range init.Tasks {
+					taskIDs[i] = t.ID
+				}
+			}
+
+			if len(taskIDs) == 0 {
+				fmt.Println("No tasks to unlink.")
+				return nil
+			}
+
+			// Unlink all tasks
+			var unlinked []string
+			var notFound []string
+			for _, taskID := range taskIDs {
+				// Load task
+				t, err := task.Load(taskID)
+				if err != nil {
+					notFound = append(notFound, taskID)
+					continue
+				}
+
+				// Check if task belongs to this initiative
+				if t.InitiativeID != initID {
+					if t.InitiativeID == "" {
+						fmt.Printf("Skipping %s: not linked to any initiative\n", taskID)
+					} else {
+						fmt.Printf("Skipping %s: linked to %s, not %s\n", taskID, t.InitiativeID, initID)
+					}
+					continue
+				}
+
+				// Update task
+				t.SetInitiative("")
+				if err := t.Save(); err != nil {
+					return fmt.Errorf("save task %s: %w", taskID, err)
+				}
+
+				// Update initiative
+				init.RemoveTask(taskID)
+				unlinked = append(unlinked, taskID)
+			}
+
+			// Save initiative
+			if shared {
+				err = init.SaveShared()
+			} else {
+				err = init.Save()
+			}
+			if err != nil {
+				return fmt.Errorf("save initiative: %w", err)
+			}
+
+			// Auto-commit and sync to DB
+			initiative.CommitAndSync(init, "unlink-tasks", initiative.DefaultCommitConfig())
+
+			// Print summary
+			if len(unlinked) > 0 {
+				fmt.Printf("Unlinked %d task(s) from %s:\n", len(unlinked), initID)
+				for _, id := range unlinked {
+					fmt.Printf("  • %s\n", id)
+				}
+			}
+			if len(notFound) > 0 {
+				fmt.Printf("\nCould not find %d task(s):\n", len(notFound))
+				for _, id := range notFound {
+					fmt.Printf("  • %s\n", id)
+				}
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().Bool("all", false, "unlink all tasks from the initiative")
 	cmd.Flags().Bool("shared", false, "use shared initiative")
 
 	return cmd
