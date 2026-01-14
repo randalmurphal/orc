@@ -6,11 +6,16 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/randalmurphal/llmkit/claudeconfig"
 )
+
+// validPluginNameRe validates plugin names: alphanumeric, hyphens, underscores only.
+// Must start with a letter or number.
+var validPluginNameRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
 
 // PluginDetail is a JSON-friendly version of Plugin with all fields exposed.
 // The underlying claudeconfig.Plugin has json:"-" on metadata fields,
@@ -276,9 +281,15 @@ func (s *Server) handleListPluginResources(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Get plugins from both scopes
-	globalInfos, _ := svc.ListByScope(claudeconfig.PluginScopeGlobal)
-	projectInfos, _ := svc.ListByScope(claudeconfig.PluginScopeProject)
+	// Get plugins from both scopes (errors typically mean "directory not found" = no plugins)
+	globalInfos, globalErr := svc.ListByScope(claudeconfig.PluginScopeGlobal)
+	if globalErr != nil {
+		s.logger.Debug("list global plugins for resources", "error", globalErr)
+	}
+	projectInfos, projectErr := svc.ListByScope(claudeconfig.PluginScopeProject)
+	if projectErr != nil {
+		s.logger.Debug("list project plugins for resources", "error", projectErr)
+	}
 
 	var response PluginResourcesResponse
 
@@ -414,11 +425,12 @@ func sampleMarketplacePlugins() []claudeconfig.MarketplacePlugin {
 // handleBrowseMarketplace returns available plugins from the marketplace.
 // Falls back to sample plugins when the marketplace is unavailable.
 func (s *Server) handleBrowseMarketplace(w http.ResponseWriter, r *http.Request) {
-	// Parse pagination params with defaults
+	// Parse pagination params with defaults and bounds
 	page := 1
 	limit := 20
+	const maxPage = 10000 // Prevent integer overflow
 	if p := r.URL.Query().Get("page"); p != "" {
-		if v, err := strconv.Atoi(p); err == nil && v > 0 {
+		if v, err := strconv.Atoi(p); err == nil && v > 0 && v <= maxPage {
 			page = v
 		}
 	}
@@ -542,6 +554,10 @@ func (s *Server) handleSearchMarketplace(w http.ResponseWriter, r *http.Request)
 // Falls back to sample plugins when the marketplace is unavailable.
 func (s *Server) handleGetMarketplacePlugin(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
+	if !validPluginNameRe.MatchString(name) {
+		s.jsonError(w, "invalid plugin name", http.StatusBadRequest)
+		return
+	}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -572,15 +588,21 @@ func (s *Server) handleGetMarketplacePlugin(w http.ResponseWriter, r *http.Reque
 // handleInstallPlugin installs a plugin from the marketplace.
 func (s *Server) handleInstallPlugin(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
+	if !validPluginNameRe.MatchString(name) {
+		s.jsonError(w, "invalid plugin name", http.StatusBadRequest)
+		return
+	}
 	pluginScope := parsePluginScope(r)
 
-	// Parse optional version from body (ignore decode errors - version is optional)
+	// Parse optional version from body
 	var req struct {
 		Version string `json:"version"`
 	}
-	if r.Body != nil {
+	if r.Body != nil && r.ContentLength > 0 {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			s.logger.Debug("install plugin body decode", "error", err)
+			// Malformed JSON is a client error
+			s.jsonError(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
+			return
 		}
 	}
 
