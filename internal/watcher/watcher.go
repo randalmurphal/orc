@@ -1,5 +1,5 @@
-// Package watcher provides file system watching for task directory changes.
-// It monitors .orc/tasks/ and publishes events when files are created, modified, or deleted.
+// Package watcher provides file system watching for task and initiative directory changes.
+// It monitors .orc/tasks/ and .orc/initiatives/ and publishes events when files are created, modified, or deleted.
 package watcher
 
 import (
@@ -16,6 +16,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -28,6 +29,7 @@ const (
 	FileTypeState
 	FileTypePlan
 	FileTypeSpec
+	FileTypeInitiative
 	FileTypeUnknown
 )
 
@@ -39,15 +41,17 @@ type Config struct {
 	DebounceMs int // Debounce interval in milliseconds (default: 500)
 }
 
-// Watcher monitors the .orc/tasks directory for file changes.
+// Watcher monitors the .orc/tasks and .orc/initiatives directories for file changes.
 type Watcher struct {
-	workDir   string
-	tasksDir  string
-	publisher events.Publisher
-	logger    *slog.Logger
+	workDir        string
+	tasksDir       string
+	initiativesDir string
+	publisher      events.Publisher
+	logger         *slog.Logger
 
-	fsWatcher *fsnotify.Watcher
-	debouncer *Debouncer
+	fsWatcher           *fsnotify.Watcher
+	debouncer           *Debouncer
+	initiativeDebouncer *Debouncer
 
 	// Content hashing to detect meaningful changes
 	hashes   map[string]string
@@ -86,6 +90,7 @@ func New(cfg *Config) (*Watcher, error) {
 	}
 
 	tasksDir := filepath.Join(workDir, ".orc", "tasks")
+	initiativesDir := filepath.Join(workDir, ".orc", "initiatives")
 
 	fsWatcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -93,42 +98,57 @@ func New(cfg *Config) (*Watcher, error) {
 	}
 
 	w := &Watcher{
-		workDir:   workDir,
-		tasksDir:  tasksDir,
-		publisher: cfg.Publisher,
-		logger:    logger,
-		fsWatcher: fsWatcher,
-		hashes:    make(map[string]string),
-		weights:   make(map[string]task.Weight),
-		done:      make(chan struct{}),
+		workDir:        workDir,
+		tasksDir:       tasksDir,
+		initiativesDir: initiativesDir,
+		publisher:      cfg.Publisher,
+		logger:         logger,
+		fsWatcher:      fsWatcher,
+		hashes:         make(map[string]string),
+		weights:        make(map[string]task.Weight),
+		done:           make(chan struct{}),
 	}
 
-	// Create debouncer with callback
+	// Create debouncer with callback for tasks
 	w.debouncer = NewDebouncer(debounceMs, w.handleDebouncedEvent)
 	w.debouncer.SetDeleteCallback(w.publishTaskDeleted)
+
+	// Create debouncer with callback for initiatives
+	w.initiativeDebouncer = NewDebouncer(debounceMs, w.handleDebouncedInitiativeEvent)
+	w.initiativeDebouncer.SetDeleteCallback(w.publishInitiativeDeleted)
 
 	return w, nil
 }
 
-// Start begins watching the tasks directory.
+// Start begins watching the tasks and initiatives directories.
 // Blocks until context is cancelled or an error occurs.
 func (w *Watcher) Start(ctx context.Context) error {
+	// Watch the .orc directory so we can detect when tasks/ or initiatives/ is created
+	orcDir := filepath.Dir(w.tasksDir)
+	if err := w.fsWatcher.Add(orcDir); err != nil {
+		w.logger.Warn("failed to watch .orc directory", "error", err)
+	}
+
 	// Ensure tasks directory exists
 	if _, err := os.Stat(w.tasksDir); os.IsNotExist(err) {
-		w.logger.Debug("tasks directory does not exist, watching parent", "path", w.tasksDir)
-		// Watch the .orc directory so we can detect when tasks/ is created
-		orcDir := filepath.Dir(w.tasksDir)
-		if err := w.fsWatcher.Add(orcDir); err != nil {
-			w.logger.Warn("failed to watch .orc directory", "error", err)
-		}
+		w.logger.Debug("tasks directory does not exist, will watch when created", "path", w.tasksDir)
 	} else {
 		// Add existing task directories to watch
 		if err := w.addWatchRecursive(w.tasksDir); err != nil {
-			w.logger.Warn("failed to add initial watches", "error", err)
+			w.logger.Warn("failed to add initial task watches", "error", err)
 		}
 	}
 
-	w.logger.Info("file watcher started", "tasksDir", w.tasksDir)
+	// Watch initiatives directory if it exists
+	if _, err := os.Stat(w.initiativesDir); os.IsNotExist(err) {
+		w.logger.Debug("initiatives directory does not exist, will watch when created", "path", w.initiativesDir)
+	} else {
+		if err := w.addWatchRecursive(w.initiativesDir); err != nil {
+			w.logger.Warn("failed to add initial initiative watches", "error", err)
+		}
+	}
+
+	w.logger.Info("file watcher started", "tasksDir", w.tasksDir, "initiativesDir", w.initiativesDir)
 
 	// Event processing loop
 	for {
@@ -164,6 +184,7 @@ func (w *Watcher) Stop() error {
 	}
 
 	w.debouncer.Stop()
+	w.initiativeDebouncer.Stop()
 
 	if err := w.fsWatcher.Close(); err != nil {
 		return fmt.Errorf("close fsnotify watcher: %w", err)
@@ -199,23 +220,39 @@ func (w *Watcher) addWatchRecursive(dir string) error {
 func (w *Watcher) handleFSEvent(event fsnotify.Event) {
 	path := event.Name
 
-	// Skip if not under tasks directory
-	if !strings.HasPrefix(path, w.tasksDir) {
-		// Check if tasks directory was just created
-		if event.Has(fsnotify.Create) && path == w.tasksDir {
+	// Check if tasks or initiatives directory was just created
+	if event.Has(fsnotify.Create) {
+		if path == w.tasksDir {
 			w.logger.Info("tasks directory created, adding watches")
 			if err := w.addWatchRecursive(w.tasksDir); err != nil {
 				w.logger.Warn("failed to watch tasks directory", "error", err)
 			}
+			return
 		}
-		return
+		if path == w.initiativesDir {
+			w.logger.Info("initiatives directory created, adding watches")
+			if err := w.addWatchRecursive(w.initiativesDir); err != nil {
+				w.logger.Warn("failed to watch initiatives directory", "error", err)
+			}
+			return
+		}
 	}
 
+	// Route to appropriate handler based on path
+	if strings.HasPrefix(path, w.tasksDir) {
+		w.handleTaskFSEvent(event, path)
+	} else if strings.HasPrefix(path, w.initiativesDir) {
+		w.handleInitiativeFSEvent(event, path)
+	}
+}
+
+// handleTaskFSEvent processes a task-related fsnotify event.
+func (w *Watcher) handleTaskFSEvent(event fsnotify.Event, path string) {
 	// Handle directory creation first (before checking file type)
 	// This ensures we add watches for new task directories
 	if event.Has(fsnotify.Create) {
 		if info, err := os.Stat(path); err == nil && info.IsDir() {
-			w.logger.Debug("new directory detected, adding watch", "path", path)
+			w.logger.Debug("new task directory detected, adding watch", "path", path)
 			if err := w.fsWatcher.Add(path); err != nil {
 				w.logger.Debug("failed to watch new directory", "path", path, "error", err)
 			}
@@ -235,7 +272,7 @@ func (w *Watcher) handleFSEvent(event fsnotify.Event) {
 		return
 	}
 
-	w.logger.Debug("fs event",
+	w.logger.Debug("task fs event",
 		"op", event.Op.String(),
 		"path", path,
 		"taskID", taskID,
@@ -267,6 +304,52 @@ func (w *Watcher) handleFSEvent(event fsnotify.Event) {
 			w.logger.Debug("cancelled pending delete (file recreated)", "taskID", taskID)
 		}
 		w.debouncer.Trigger(taskID, fileType, path)
+	}
+}
+
+// handleInitiativeFSEvent processes an initiative-related fsnotify event.
+func (w *Watcher) handleInitiativeFSEvent(event fsnotify.Event, path string) {
+	// Handle directory creation first
+	if event.Has(fsnotify.Create) {
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			w.logger.Debug("new initiative directory detected, adding watch", "path", path)
+			if err := w.fsWatcher.Add(path); err != nil {
+				w.logger.Debug("failed to watch new directory", "path", path, "error", err)
+			}
+			return // Directories themselves don't trigger initiative events
+		}
+	}
+
+	// Extract initiative ID from path
+	initID := w.extractInitiativeID(path)
+	if initID == "" {
+		return
+	}
+
+	// Only care about initiative.yaml files
+	if filepath.Base(path) != "initiative.yaml" {
+		return
+	}
+
+	w.logger.Debug("initiative fs event",
+		"op", event.Op.String(),
+		"path", path,
+		"initiativeID", initID,
+	)
+
+	// Handle file removal
+	if event.Has(fsnotify.Remove) {
+		w.removeHash(path)
+		// Schedule verification after a short delay to handle rename scenarios
+		w.initiativeDebouncer.TriggerDelete(initID, path)
+		return
+	}
+
+	// For writes and creates, debounce and check for real changes
+	if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
+		w.initiativeDebouncer.CancelDelete(initID)
+		w.logger.Debug("cancelled pending initiative delete (file recreated)", "initiativeID", initID)
+		w.initiativeDebouncer.Trigger(initID, FileTypeInitiative, path)
 	}
 }
 
@@ -417,6 +500,79 @@ func (w *Watcher) publishTaskDeleted(taskID string) {
 	w.publisher.Publish(events.NewEvent(events.EventTaskDeleted, taskID, map[string]any{
 		"task_id": taskID,
 	}))
+}
+
+// handleDebouncedInitiativeEvent processes a debounced initiative event.
+func (w *Watcher) handleDebouncedInitiativeEvent(initID string, fileType FileType, path string) {
+	// Check if content actually changed
+	changed, err := w.hasContentChanged(path)
+	if err != nil {
+		w.logger.Debug("failed to check initiative content change", "path", path, "error", err)
+		return
+	}
+	if !changed {
+		w.logger.Debug("initiative content unchanged, skipping event", "path", path)
+		return
+	}
+
+	w.logger.Debug("publishing initiative event", "initiativeID", initID)
+	w.publishInitiativeEvent(initID)
+}
+
+// publishInitiativeEvent publishes an initiative created or updated event.
+func (w *Watcher) publishInitiativeEvent(initID string) {
+	// Load the initiative to get current data
+	init, err := initiative.LoadFrom(filepath.Join(w.workDir, ".orc", "initiatives"), initID)
+	if err != nil {
+		w.logger.Debug("failed to load initiative for event", "initiativeID", initID, "error", err)
+		return
+	}
+
+	// Check if this is a new initiative (wasn't in our hash map before)
+	initPath := filepath.Join(w.initiativesDir, initID, "initiative.yaml")
+	isNew := !w.hasHash(initPath)
+
+	var eventType events.EventType
+	if isNew {
+		eventType = events.EventInitiativeCreated
+	} else {
+		eventType = events.EventInitiativeUpdated
+	}
+
+	w.publisher.Publish(events.NewEvent(eventType, initID, map[string]any{
+		"initiative": init,
+	}))
+}
+
+// publishInitiativeDeleted publishes an initiative deleted event.
+func (w *Watcher) publishInitiativeDeleted(initID string) {
+	w.publisher.Publish(events.NewEvent(events.EventInitiativeDeleted, initID, map[string]any{
+		"initiative_id": initID,
+	}))
+}
+
+// extractInitiativeID extracts the initiative ID from a file path.
+// Returns empty string if the path is not an initiative file.
+func (w *Watcher) extractInitiativeID(path string) string {
+	// Path should be like: .orc/initiatives/INIT-001/initiative.yaml
+	rel, err := filepath.Rel(w.initiativesDir, path)
+	if err != nil {
+		return ""
+	}
+
+	// First component is the initiative ID
+	parts := strings.Split(rel, string(filepath.Separator))
+	if len(parts) == 0 {
+		return ""
+	}
+
+	initID := parts[0]
+	// Validate it looks like an initiative ID
+	if !strings.HasPrefix(initID, "INIT-") {
+		return ""
+	}
+
+	return initID
 }
 
 // extractTaskID extracts the task ID from a file path.
