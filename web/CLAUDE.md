@@ -879,9 +879,49 @@ bun run test:coverage
 ```bash
 bunx playwright test
 bunx playwright test --ui
+bunx playwright test --grep board  # Run board tests only
 ```
 
-Test files: `tests/e2e/tasks.spec.ts`, `navigation.spec.ts`
+**Test files:**
+
+| File | Coverage |
+|------|----------|
+| `e2e/board.spec.ts` | Board page: rendering, view modes, drag-drop, swimlanes (18 tests) |
+| `e2e/tasks.spec.ts` | Task list, task detail, CRUD operations |
+| `e2e/navigation.spec.ts` | Routing, navigation, back button |
+| `e2e/sidebar.spec.ts` | Sidebar navigation, collapse state |
+| `e2e/dashboard.spec.ts` | Dashboard stats, quick actions |
+| `e2e/keyboard-shortcuts.spec.ts` | Keyboard shortcut handling |
+| `e2e/hooks.spec.ts` | Hook configuration UI |
+| `e2e/prompts.spec.ts` | Prompt editor UI |
+| `e2e/websocket.spec.ts` | WebSocket reconnection, live updates |
+
+### Framework-Agnostic E2E Testing
+
+E2E tests use framework-agnostic selectors to support future React migration:
+
+| Priority | Method | Example | Use Case |
+|----------|--------|---------|----------|
+| 1 | `getByRole()` | `getByRole('region', { name: 'Queued column' })` | Semantic elements |
+| 2 | `getByText()` | `getByText('Task Board')` | Headings, labels |
+| 3 | `.locator()` with class | `locator('.task-card')` | Structural elements |
+| 4 | ARIA attributes | `locator('[aria-label="..."]')` | Accessible elements |
+
+**Avoid:**
+- CSS class fragments (`.svelte-abc123`, `.react-xyz`)
+- Implementation-specific attributes
+- Deep DOM path selectors
+
+**Helper functions** (see `board.spec.ts`):
+- `waitForBoardLoad(page)` - Wait for board to render
+- `clearBoardStorage(page)` - Reset localStorage for test isolation
+- `switchToSwimlaneView(page)` - Toggle view mode
+
+**Flakiness prevention:**
+- Use `waitForSelector()` with reasonable timeouts
+- Clear localStorage before persistence tests
+- Use `.catch(() => false)` for optional element checks
+- Add small waits after animations (`waitForTimeout(100)`)
 
 ## Deep-Dive Reference
 
