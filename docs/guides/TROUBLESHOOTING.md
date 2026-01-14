@@ -646,6 +646,74 @@ orc init  # In a project directory
 
 ---
 
+## Parallel Task Conflicts
+
+### Merge Conflicts from Stale Worktree
+
+**Symptoms**:
+- Task fails during completion sync with merge conflicts
+- Error mentions files that another task recently modified
+- Multiple tasks ran in parallel and modified similar files
+
+**Cause**: When tasks run in parallel:
+1. TASK-A and TASK-B both start worktrees from same `main` commit
+2. TASK-A completes and merges first → `main` moves forward
+3. TASK-B's worktree is now stale, unaware of TASK-A's changes
+4. When TASK-B tries to sync at completion, conflicts occur
+
+**Prevention**:
+
+The `sync_on_start` setting (enabled by default) prevents this by syncing the task branch before execution begins:
+
+```yaml
+# .orc/config.yaml (default: true)
+completion:
+  sync:
+    sync_on_start: true
+```
+
+With this enabled, TASK-B would rebase onto latest `main` (including TASK-A's changes) before its implement phase runs. The AI then sees the updated code and can incorporate it.
+
+**If You See This Error**:
+
+```
+sync conflict: task branch has 3 files in conflict with target
+  Conflicting files: [CLAUDE.md src/api/handler.go ...]
+  Resolution options:
+    1. Run with sync_on_start: false and resolve conflicts during finalize
+    2. Manually rebase the task branch and retry
+    3. Set completion.sync.fail_on_conflict: false to proceed anyway
+```
+
+**Solutions**:
+
+| Approach | Command | When to Use |
+|----------|---------|-------------|
+| Manual rebase | `cd worktree && git rebase origin/main` | Resolve conflicts yourself |
+| Let finalize handle it | Resume with `fail_on_conflict: false` | AI-assisted resolution |
+| Force without sync | `ORC_SYNC_ON_START=false orc resume TASK-XXX` | Intentional isolation |
+
+**After resolving**:
+```bash
+orc resume TASK-XXX
+```
+
+### Disabling Sync on Start
+
+If you want task isolation (to work on an older branch state without other changes):
+
+```bash
+# One-time via environment
+ORC_SYNC_ON_START=false orc run TASK-XXX
+
+# Permanent via config
+orc config completion.sync.sync_on_start false
+```
+
+**Warning**: Disabling sync increases the chance of conflicts at completion time.
+
+---
+
 ## CLAUDE.md Merge Conflicts
 
 ### Auto-Resolved Successfully

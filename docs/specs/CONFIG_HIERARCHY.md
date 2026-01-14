@@ -235,6 +235,7 @@ completion:
     merge_method: squash               # Merge method: squash | merge | rebase (default: squash)
   sync:
     strategy: completion               # none | phase | completion | detect
+    sync_on_start: true                # Sync before execution starts (default: true, catches stale worktrees)
     fail_on_conflict: true             # Abort on conflicts vs continue with warning
     max_conflict_files: 0              # Max files with conflicts before aborting (0 = unlimited)
     skip_for_weights: [trivial]        # Skip sync for these task weights
