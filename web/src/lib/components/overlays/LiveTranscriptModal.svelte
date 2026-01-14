@@ -1,3 +1,15 @@
+<!--
+  LiveTranscriptModal - Real-time task transcript viewer
+
+  Shows Claude's output as it generates via WebSocket streaming.
+  Displays connection status, token counts, and transcript history.
+
+  WebSocket events handled:
+  - transcript: chunk (streaming) and response (complete)
+  - state: task state updates
+  - tokens: usage tracking (incremental)
+  - phase/complete: triggers reload
+-->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
