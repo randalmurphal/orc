@@ -11,5 +11,9 @@ decisions:
       date: 2026-01-14T05:13:20.242753-06:00
       by: ""
       decision: Second decision
+    - id: DEC-003
+      date: 2026-01-14T05:13:20.935324-06:00
+      by: ""
+      decision: Third decision
 created_at: 2026-01-14T05:13:17.598048-06:00
-updated_at: 2026-01-14T05:13:20.242762-06:00
+updated_at: 2026-01-14T05:13:20.935332-06:00
