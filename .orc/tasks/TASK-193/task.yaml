@@ -1,0 +1,13 @@
+id: TASK-193
+title: 'Comprehensive auto-commit: ALL .orc/ file mutations must commit'
+description: "## Problem\nTASK-153 and TASK-191 added auto-commit for some task operations, but many mutations still don't auto-commit:\n\n### Task operations missing auto-commit:\n- Status changes during execution (running, completed, failed)\n- State file updates (state.yaml)\n- Transcript additions\n- Phase transitions\n- Retry context updates\n- Token/cost tracking updates\n\n### Initiative operations missing auto-commit:\n- Status changes (draft → active → completed)\n- Task linking/unlinking\n- Decision additions\n- Progress updates\n\n### Other .orc/ changes:\n- Config changes via API\n- Project registration\n- Any file watcher-triggered changes\n\n## Solution\nAudit ALL code paths that write to .orc/ and ensure they call CommitAndSync:\n\n1. **Task lifecycle:**\n   - internal/executor/*.go - all state updates\n   - internal/task/store.go - all Save() calls\n   \n2. **Initiative lifecycle:**\n   - internal/initiative/*.go - all mutations\n   \n3. **API handlers:**\n   - internal/api/handlers*.go - all POST/PUT/DELETE\n\n4. **Consider:** Centralized hook that commits after any .orc/ file write\n\n## Success Criteria\n1. `git status` shows clean after ANY orc operation\n2. No manual commits needed for .orc/ files ever\n3. Commit messages are descriptive of what changed"
+weight: medium
+status: planned
+branch: orc/TASK-193
+queue: active
+priority: high
+category: bug
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T03:17:27.757473821-06:00
+updated_at: 2026-01-14T03:17:27.764604926-06:00
