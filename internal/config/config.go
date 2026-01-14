@@ -516,6 +516,13 @@ type SubtasksConfig struct {
 	MaxPending int `yaml:"max_pending"`
 }
 
+// TasksConfig defines task-level configuration.
+type TasksConfig struct {
+	// DisableAutoCommit disables automatic git commits on task creation/modification (default: false)
+	// When enabled, task files are not auto-committed and must be committed manually.
+	DisableAutoCommit bool `yaml:"disable_auto_commit"`
+}
+
 // DatabaseConfig defines database connection settings.
 type DatabaseConfig struct {
 	// Driver is the database type: "sqlite" or "postgres"
@@ -693,6 +700,9 @@ type Config struct {
 
 	// Sub-task queue configuration
 	Subtasks SubtasksConfig `yaml:"subtasks"`
+
+	// Tasks configuration
+	Tasks TasksConfig `yaml:"tasks"`
 
 	// Database configuration
 	Database DatabaseConfig `yaml:"database"`
@@ -943,6 +953,9 @@ func Default() *Config {
 			AllowCreation: true,
 			AutoApprove:   false,
 			MaxPending:    10,
+		},
+		Tasks: TasksConfig{
+			DisableAutoCommit: false, // Auto-commit enabled by default
 		},
 		Database: DatabaseConfig{
 			Driver: "sqlite",

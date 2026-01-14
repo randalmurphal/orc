@@ -292,6 +292,21 @@ Example:
 				}
 			}
 
+			// Auto-commit the task changes
+			cfg, err := config.Load()
+			if err == nil && !cfg.Tasks.DisableAutoCommit {
+				projectDir, err := config.FindProjectRoot()
+				if err == nil {
+					commitCfg := task.CommitConfig{
+						ProjectRoot:  projectDir,
+						CommitPrefix: cfg.CommitPrefix,
+					}
+					// Build change description for commit message
+					changeDesc := strings.Join(changes, ", ")
+					task.CommitAndSync(t, "updated "+changeDesc, commitCfg)
+				}
+			}
+
 			if !quiet {
 				fmt.Printf("Updated task %s\n", taskID)
 				for _, change := range changes {

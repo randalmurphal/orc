@@ -217,6 +217,7 @@ orc config profile strict
 | `completion.ci.merge_method` | Merge method: squash/merge/rebase | `docs/architecture/GIT_INTEGRATION.md` |
 | `artifact_skip.enabled` | Detect existing artifacts | `docs/architecture/PHASE_MODEL.md` |
 | `artifact_skip.auto_skip` | Skip without prompting | `docs/architecture/PHASE_MODEL.md` |
+| `tasks.disable_auto_commit` | Disable auto-commit on task create/edit | - |
 | `timeouts.turn_max` | Max time per API turn | `docs/architecture/EXECUTOR.md` |
 | `timeouts.heartbeat_interval` | Progress dots interval | `docs/architecture/EXECUTOR.md` |
 
