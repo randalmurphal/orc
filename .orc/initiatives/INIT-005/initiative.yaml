@@ -1,7 +1,7 @@
 version: 1
 id: INIT-005
 title: Svelte 5 to React 19 Migration
-status: draft
+status: active
 vision: Migrate the orc web UI from Svelte 5 to React 19 while maintaining 100% feature parity. This initiative uses AI-orchestrated development with comprehensive E2E tests, page-specific verification workflows, and dual-run validation to ensure no functionality is lost during migration.
 tasks:
     - id: TASK-120
@@ -83,4 +83,4 @@ tasks:
       title: 'Cutover: Replace Svelte with React in production build'
       status: pending
 created_at: 2026-01-14T01:40:18.861098092-06:00
-updated_at: 2026-01-14T01:45:07.175653455-06:00
+updated_at: 2026-01-14T01:45:18.584484543-06:00
