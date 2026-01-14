@@ -174,6 +174,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/tasks/{id}/test-results/report", cors(s.handleGetHTMLReport))
 	s.mux.HandleFunc("GET /api/tasks/{id}/test-results/traces/{filename}", cors(s.handleGetTrace))
 
+	// Task dependencies
+	s.mux.HandleFunc("GET /api/tasks/{id}/dependencies", cors(s.handleGetDependencies))
+
 	// Task diff (git changes visualization)
 	s.mux.HandleFunc("GET /api/tasks/{id}/diff", cors(s.handleGetDiff))
 	s.mux.HandleFunc("GET /api/tasks/{id}/diff/stats", cors(s.handleGetDiffStats))

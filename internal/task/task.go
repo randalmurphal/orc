@@ -213,6 +213,22 @@ type Task struct {
 	// Empty/null means the task is standalone and not part of any initiative.
 	InitiativeID string `yaml:"initiative_id,omitempty" json:"initiative_id,omitempty"`
 
+	// BlockedBy lists task IDs that must complete before this task can run.
+	// These are user-editable and stored in task.yaml.
+	BlockedBy []string `yaml:"blocked_by,omitempty" json:"blocked_by,omitempty"`
+
+	// Blocks lists task IDs that are waiting on this task.
+	// This is computed (not stored) by scanning other tasks' BlockedBy fields.
+	Blocks []string `yaml:"-" json:"blocks,omitempty"`
+
+	// RelatedTo lists task IDs that are related (soft connection, informational).
+	// Stored in task.yaml, user-editable.
+	RelatedTo []string `yaml:"related_to,omitempty" json:"related_to,omitempty"`
+
+	// ReferencedBy lists task IDs whose descriptions mention this task.
+	// This is auto-detected and computed (not stored).
+	ReferencedBy []string `yaml:"-" json:"referenced_by,omitempty"`
+
 	// RequiresUITesting indicates if this task involves UI changes
 	// that should be validated with Playwright or similar tools
 	RequiresUITesting bool `yaml:"requires_ui_testing,omitempty" json:"requires_ui_testing,omitempty"`
@@ -376,6 +392,245 @@ func (t *Task) SetTestingRequirements(hasFrontend bool) {
 			break
 		}
 	}
+}
+
+// DependencyError represents an error related to task dependencies.
+type DependencyError struct {
+	TaskID  string
+	Message string
+}
+
+func (e *DependencyError) Error() string {
+	return fmt.Sprintf("dependency error for %s: %s", e.TaskID, e.Message)
+}
+
+// ValidateBlockedBy checks that all blocked_by references are valid.
+// Returns errors for non-existent tasks but doesn't modify the task.
+func ValidateBlockedBy(taskID string, blockedBy []string, existingIDs map[string]bool) []error {
+	var errs []error
+	for _, depID := range blockedBy {
+		if depID == taskID {
+			errs = append(errs, &DependencyError{
+				TaskID:  taskID,
+				Message: "task cannot block itself",
+			})
+			continue
+		}
+		if !existingIDs[depID] {
+			errs = append(errs, &DependencyError{
+				TaskID:  taskID,
+				Message: fmt.Sprintf("blocked_by references non-existent task %s", depID),
+			})
+		}
+	}
+	return errs
+}
+
+// ValidateRelatedTo checks that all related_to references are valid.
+func ValidateRelatedTo(taskID string, relatedTo []string, existingIDs map[string]bool) []error {
+	var errs []error
+	for _, relID := range relatedTo {
+		if relID == taskID {
+			errs = append(errs, &DependencyError{
+				TaskID:  taskID,
+				Message: "task cannot be related to itself",
+			})
+			continue
+		}
+		if !existingIDs[relID] {
+			errs = append(errs, &DependencyError{
+				TaskID:  taskID,
+				Message: fmt.Sprintf("related_to references non-existent task %s", relID),
+			})
+		}
+	}
+	return errs
+}
+
+// DetectCircularDependency checks if adding a dependency would create a cycle.
+// Returns the cycle path if a cycle would be created, nil otherwise.
+func DetectCircularDependency(taskID string, newBlocker string, tasks map[string]*Task) []string {
+	// Build adjacency list: task -> tasks it's blocked by
+	// Copy slices to avoid mutating original task data
+	blockedByMap := make(map[string][]string)
+	for _, t := range tasks {
+		blockedByMap[t.ID] = append([]string(nil), t.BlockedBy...)
+	}
+
+	// Temporarily add the new dependency
+	blockedByMap[taskID] = append(blockedByMap[taskID], newBlocker)
+
+	// DFS to detect cycle starting from taskID
+	visited := make(map[string]bool)
+	path := make(map[string]bool)
+	var cyclePath []string
+
+	var dfs func(id string) bool
+	dfs = func(id string) bool {
+		if path[id] {
+			// Found a cycle, reconstruct path
+			cyclePath = append(cyclePath, id)
+			return true
+		}
+		if visited[id] {
+			return false
+		}
+
+		visited[id] = true
+		path[id] = true
+
+		for _, dep := range blockedByMap[id] {
+			if dfs(dep) {
+				cyclePath = append(cyclePath, id)
+				return true
+			}
+		}
+
+		path[id] = false
+		return false
+	}
+
+	if dfs(taskID) {
+		// Reverse the path to show the cycle in order
+		for i, j := 0, len(cyclePath)-1; i < j; i, j = i+1, j-1 {
+			cyclePath[i], cyclePath[j] = cyclePath[j], cyclePath[i]
+		}
+		return cyclePath
+	}
+
+	return nil
+}
+
+// DetectCircularDependencyWithAll checks if setting all blockers at once creates a cycle.
+// This is used when replacing the entire BlockedBy list.
+// Returns the cycle path if a cycle would be created, nil otherwise.
+func DetectCircularDependencyWithAll(taskID string, newBlockers []string, tasks map[string]*Task) []string {
+	// Build adjacency list: task -> tasks it's blocked by
+	// Copy slices to avoid mutating original task data
+	blockedByMap := make(map[string][]string)
+	for _, t := range tasks {
+		if t.ID == taskID {
+			// Use the new blockers for this task
+			blockedByMap[t.ID] = append([]string(nil), newBlockers...)
+		} else {
+			blockedByMap[t.ID] = append([]string(nil), t.BlockedBy...)
+		}
+	}
+
+	// If the task doesn't exist in the map yet, add it with new blockers
+	if _, exists := blockedByMap[taskID]; !exists {
+		blockedByMap[taskID] = append([]string(nil), newBlockers...)
+	}
+
+	// DFS to detect cycle starting from taskID
+	visited := make(map[string]bool)
+	path := make(map[string]bool)
+	var cyclePath []string
+
+	var dfs func(id string) bool
+	dfs = func(id string) bool {
+		if path[id] {
+			// Found a cycle, reconstruct path
+			cyclePath = append(cyclePath, id)
+			return true
+		}
+		if visited[id] {
+			return false
+		}
+
+		visited[id] = true
+		path[id] = true
+
+		for _, dep := range blockedByMap[id] {
+			if dfs(dep) {
+				cyclePath = append(cyclePath, id)
+				return true
+			}
+		}
+
+		path[id] = false
+		return false
+	}
+
+	if dfs(taskID) {
+		// Reverse the path to show the cycle in order
+		for i, j := 0, len(cyclePath)-1; i < j; i, j = i+1, j-1 {
+			cyclePath[i], cyclePath[j] = cyclePath[j], cyclePath[i]
+		}
+		return cyclePath
+	}
+
+	return nil
+}
+
+// ComputeBlocks calculates the Blocks field for a task by scanning all tasks.
+// Returns task IDs that have this task in their BlockedBy list.
+func ComputeBlocks(taskID string, allTasks []*Task) []string {
+	var blocks []string
+	for _, t := range allTasks {
+		for _, blocker := range t.BlockedBy {
+			if blocker == taskID {
+				blocks = append(blocks, t.ID)
+				break
+			}
+		}
+	}
+	sort.Strings(blocks)
+	return blocks
+}
+
+// ComputeReferencedBy finds tasks whose descriptions mention this task ID.
+func ComputeReferencedBy(taskID string, allTasks []*Task) []string {
+	var referencedBy []string
+	// Match task ID in descriptions (with word boundaries)
+	pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(taskID) + `\b`)
+
+	for _, t := range allTasks {
+		if t.ID == taskID {
+			continue
+		}
+		if pattern.MatchString(t.Description) || pattern.MatchString(t.Title) {
+			referencedBy = append(referencedBy, t.ID)
+		}
+	}
+	sort.Strings(referencedBy)
+	return referencedBy
+}
+
+// PopulateComputedFields fills in Blocks and ReferencedBy for all tasks.
+// This should be called after loading all tasks.
+func PopulateComputedFields(tasks []*Task) {
+	for _, t := range tasks {
+		t.Blocks = ComputeBlocks(t.ID, tasks)
+		t.ReferencedBy = ComputeReferencedBy(t.ID, tasks)
+	}
+}
+
+// HasUnmetDependencies returns true if any task in BlockedBy is not completed.
+func (t *Task) HasUnmetDependencies(tasks map[string]*Task) bool {
+	for _, blockerID := range t.BlockedBy {
+		blocker, exists := tasks[blockerID]
+		if !exists {
+			// Missing task is treated as unmet dependency
+			return true
+		}
+		if blocker.Status != StatusCompleted {
+			return true
+		}
+	}
+	return false
+}
+
+// GetUnmetDependencies returns the IDs of tasks that block this one and aren't completed.
+func (t *Task) GetUnmetDependencies(tasks map[string]*Task) []string {
+	var unmet []string
+	for _, blockerID := range t.BlockedBy {
+		blocker, exists := tasks[blockerID]
+		if !exists || blocker.Status != StatusCompleted {
+			unmet = append(unmet, blockerID)
+		}
+	}
+	return unmet
 }
 
 // Load loads a task from disk by ID.

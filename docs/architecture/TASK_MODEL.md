@@ -27,6 +27,13 @@ category: feature        # feature | bug | refactor | chore | docs | test
 # Initiative linking (optional)
 initiative_id: INIT-001  # Links to initiative, empty = standalone
 
+# Task dependencies
+blocked_by:              # Tasks that must complete first (stored)
+  - TASK-060
+  - TASK-061
+related_to:              # Related tasks for reference (stored)
+  - TASK-063
+
 # Testing flags (auto-detected during task creation)
 requires_ui_testing: true        # Auto-set when task mentions UI keywords
 testing_requirements:
@@ -102,6 +109,67 @@ Tasks can optionally belong to an initiative—a grouping of related tasks that 
 **API support:**
 - Include `initiative_id` in POST/PATCH task requests
 - Filter tasks by initiative: `GET /api/tasks?initiative=INIT-001`
+
+---
+
+## Task Dependencies
+
+Tasks support dependency relationships for ordering work and tracking relationships.
+
+### Dependency Fields
+
+| Field | Type | Stored | Description |
+|-------|------|--------|-------------|
+| `blocked_by` | `[]string` | Yes | Task IDs that must complete before this task can run |
+| `blocks` | `[]string` | No | Task IDs waiting on this task (computed inverse) |
+| `related_to` | `[]string` | Yes | Related task IDs (informational, no execution impact) |
+| `referenced_by` | `[]string` | No | Task IDs whose descriptions mention this task (auto-detected) |
+
+### Stored vs Computed
+
+**Stored fields** (`blocked_by`, `related_to`):
+- Saved to task.yaml
+- User-editable via CLI or API
+- Persist across sessions
+
+**Computed fields** (`blocks`, `referenced_by`):
+- Calculated when tasks are loaded
+- Not stored in task.yaml
+- Derived from scanning all tasks
+
+### Validation
+
+Dependencies are validated on create/update:
+
+| Check | Behavior |
+|-------|----------|
+| Task ID exists | Error returned if referencing non-existent task |
+| Self-reference | Error: "task cannot block itself" |
+| Circular dependency | Error: "circular dependency detected: A -> B -> A" |
+
+### CLI Usage
+
+```bash
+# Create with dependencies
+orc new "Part 2" --blocked-by TASK-001
+orc new "Feature" --blocked-by TASK-001,TASK-002 --related-to TASK-003
+
+# Edit dependencies
+orc edit TASK-005 --blocked-by TASK-003,TASK-004    # Replace list
+orc edit TASK-005 --add-blocker TASK-006            # Add to list
+orc edit TASK-005 --remove-blocker TASK-003         # Remove from list
+orc edit TASK-005 --related-to TASK-007             # Set related tasks
+```
+
+### Execution Behavior
+
+| Scenario | Behavior |
+|----------|----------|
+| Unmet dependencies | Task can be started but will show warning |
+| `HasUnmetDependencies()` | Returns true if any blocker is not completed |
+| `GetUnmetDependencies()` | Returns list of incomplete blocker IDs |
+
+Dependencies are informational by default - they don't prevent task execution but help track work ordering.
 
 ---
 
