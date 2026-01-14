@@ -25,8 +25,8 @@
 	let transcripts = $state(false);
 	let toBranch = $state(false);
 
-	// Only show for completed tasks
-	const shouldShow = $derived(taskStatus === 'completed');
+	// Only show for completed/finished tasks
+	const shouldShow = $derived(taskStatus === 'completed' || taskStatus === 'finished');
 
 	// Load config when shouldShow becomes true (reactive, handles mount and status changes)
 	$effect(() => {

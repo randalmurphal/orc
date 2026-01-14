@@ -1,6 +1,6 @@
 <script lang="ts">
 	interface Props {
-		status: 'created' | 'classifying' | 'planned' | 'running' | 'paused' | 'blocked' | 'completed' | 'failed';
+		status: 'created' | 'classifying' | 'planned' | 'running' | 'paused' | 'blocked' | 'finalizing' | 'completed' | 'finished' | 'failed';
 		size?: 'sm' | 'md' | 'lg';
 		showLabel?: boolean;
 	}
@@ -38,10 +38,20 @@
 			glow: 'var(--status-danger-glow)',
 			label: 'Blocked'
 		},
+		finalizing: {
+			color: 'var(--status-info)',
+			glow: 'var(--status-info-glow)',
+			label: 'Finalizing'
+		},
 		completed: {
 			color: 'var(--status-success)',
 			glow: 'transparent',
 			label: 'Completed'
+		},
+		finished: {
+			color: 'var(--status-success)',
+			glow: 'transparent',
+			label: 'Finished'
 		},
 		failed: {
 			color: 'var(--status-danger)',

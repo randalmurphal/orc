@@ -58,9 +58,32 @@ const (
 	StatusRunning     Status = "running"
 	StatusPaused      Status = "paused"
 	StatusBlocked     Status = "blocked"
+	StatusFinalizing  Status = "finalizing" // Post-completion: cleanup, PR creation, branch sync
 	StatusCompleted   Status = "completed"
+	StatusFinished    Status = "finished" // Terminal: work is done and archived
 	StatusFailed      Status = "failed"
 )
+
+// ValidStatuses returns all valid status values.
+func ValidStatuses() []Status {
+	return []Status{
+		StatusCreated, StatusClassifying, StatusPlanned, StatusRunning,
+		StatusPaused, StatusBlocked, StatusFinalizing, StatusCompleted,
+		StatusFinished, StatusFailed,
+	}
+}
+
+// IsValidStatus returns true if the status is a valid status value.
+func IsValidStatus(s Status) bool {
+	switch s {
+	case StatusCreated, StatusClassifying, StatusPlanned, StatusRunning,
+		StatusPaused, StatusBlocked, StatusFinalizing, StatusCompleted,
+		StatusFinished, StatusFailed:
+		return true
+	default:
+		return false
+	}
+}
 
 // Queue represents whether a task is in the active work queue or backlog.
 type Queue string
@@ -326,7 +349,7 @@ func (t *Task) HasInitiative() bool {
 
 // IsTerminal returns true if the task is in a terminal state.
 func (t *Task) IsTerminal() bool {
-	return t.Status == StatusCompleted || t.Status == StatusFailed
+	return t.Status == StatusCompleted || t.Status == StatusFinished || t.Status == StatusFailed
 }
 
 // CanRun returns true if the task can be executed.
@@ -606,6 +629,12 @@ func PopulateComputedFields(tasks []*Task) {
 	}
 }
 
+// isDone returns true if the status indicates the task has completed its work.
+// This includes both completed and finished (archived) statuses.
+func isDone(s Status) bool {
+	return s == StatusCompleted || s == StatusFinished
+}
+
 // HasUnmetDependencies returns true if any task in BlockedBy is not completed.
 func (t *Task) HasUnmetDependencies(tasks map[string]*Task) bool {
 	for _, blockerID := range t.BlockedBy {
@@ -614,7 +643,7 @@ func (t *Task) HasUnmetDependencies(tasks map[string]*Task) bool {
 			// Missing task is treated as unmet dependency
 			return true
 		}
-		if blocker.Status != StatusCompleted {
+		if !isDone(blocker.Status) {
 			return true
 		}
 	}
@@ -626,7 +655,7 @@ func (t *Task) GetUnmetDependencies(tasks map[string]*Task) []string {
 	var unmet []string
 	for _, blockerID := range t.BlockedBy {
 		blocker, exists := tasks[blockerID]
-		if !exists || blocker.Status != StatusCompleted {
+		if !exists || !isDone(blocker.Status) {
 			unmet = append(unmet, blockerID)
 		}
 	}
