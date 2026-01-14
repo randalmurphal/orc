@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ORC_WORKTREE_PATH=\"/Users/randy/repos/orc/.orc/worktrees/orc-TASK-159\" ORC_MAIN_REPO_PATH=\"/Users/randy/repos/orc\" python3 \"/Users/randy/repos/orc/.orc/worktrees/orc-TASK-159/.claude/hooks/worktree-isolation.py\""
+            "command": "ORC_WORKTREE_PATH=\"/Users/randy/repos/orc/.orc/worktrees/orc-TASK-160\" ORC_MAIN_REPO_PATH=\"/Users/randy/repos/orc\" python3 \"/Users/randy/repos/orc/.orc/worktrees/orc-TASK-160/.claude/hooks/worktree-isolation.py\""
           }
         ]
       }

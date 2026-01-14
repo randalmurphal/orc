@@ -472,6 +472,7 @@ Patterns, gotchas, and decisions learned during development.
 | Comprehensive auto-commit | ALL .orc/ file mutations auto-commit to git: task lifecycle (status, state, phase transitions), initiative operations (status, linking, decisions), API/UI changes (config, prompts, projects), PR status updates; `state.CommitTaskState()` and `state.CommitPhaseTransition()` for executor; `autoCommit*()` helpers in API handlers; disable via `tasks.disable_auto_commit` config | TASK-193 |
 | WebSocket E2E event injection | Use Playwright's `routeWebSocket` to intercept connections and inject events via `ws.send()`; captures real WebSocket, forwards messages bidirectionally, allows test-initiated events; framework-agnostic approach for testing real-time UI updates | TASK-157 |
 | Visual regression baselines | Separate Playwright project (`visual`) with 1440x900 @2x viewport, disabled animations, masked dynamic content (timestamps, tokens); use `--update-snapshots` to regenerate after intentional UI changes; baselines in `web/e2e/__snapshots__/` | TASK-159 |
+| Keyboard shortcut E2E testing | Test multi-key sequences (g+d, g+t) with sequential `page.keyboard.press()` calls; test Shift+Alt modifiers; verify input field awareness (shortcuts disabled when typing); use `.selected` class for task navigation; 13 tests in `web/e2e/keyboard-shortcuts.spec.ts` | TASK-160 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
