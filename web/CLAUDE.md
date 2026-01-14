@@ -153,9 +153,9 @@ The file watcher uses content hashing and debouncing to prevent duplicate notifi
 
 See `QUICKREF.md` for subscription helpers.
 
-## Task Organization (Queue & Priority)
+## Task Organization (Queue, Priority & Category)
 
-Tasks support queue and priority organization to prevent cognitive overload:
+Tasks support queue, priority, and category organization to manage and filter work:
 
 ### Queue
 
@@ -176,6 +176,19 @@ Each column shows active tasks first, then a collapsible "Backlog" divider with 
 | `low` | Gray down arrow | Fourth |
 
 Tasks are sorted by priority within each column. Priority badges only appear for non-normal priorities.
+
+### Category
+
+| Category | Badge Style | Description |
+|----------|-------------|-------------|
+| `feature` | Purple | New functionality (default) |
+| `bug` | Red | Bug fix |
+| `refactor` | Blue | Code restructuring |
+| `chore` | Gray | Maintenance tasks |
+| `docs` | Green | Documentation |
+| `test` | Orange | Test-related |
+
+Categories are displayed as badges on task cards and can be used for filtering. Set via CLI (`--category`) or web UI.
 
 ### Running Task Indicator
 
@@ -215,6 +228,7 @@ Clicking a running task opens `LiveTranscriptModal` - a modal overlay showing re
 Right-click or use the "..." menu on TaskCard to:
 - Move to Active/Backlog queue
 - Set priority (Critical/High/Normal/Low)
+- Set category (Feature/Bug/Refactor/Chore/Docs/Test)
 - Run/Pause task actions
 
 ## Attachments

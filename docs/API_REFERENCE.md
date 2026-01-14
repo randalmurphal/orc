@@ -54,11 +54,12 @@ The `task` field contains the updated task with `status: "running"` set immediat
   "description": "Task description",
   "weight": "medium",
   "queue": "active",
-  "priority": "normal"
+  "priority": "normal",
+  "category": "feature"
 }
 ```
 
-All fields except `title` are optional. Defaults: `queue: "active"`, `priority: "normal"`.
+All fields except `title` are optional. Defaults: `queue: "active"`, `priority: "normal"`, `category: "feature"`.
 
 **Update task body (PATCH):**
 ```json
@@ -68,6 +69,7 @@ All fields except `title` are optional. Defaults: `queue: "active"`, `priority: 
   "weight": "medium",
   "queue": "backlog",
   "priority": "high",
+  "category": "bug",
   "metadata": {"key": "value"}
 }
 ```
@@ -79,6 +81,7 @@ All fields are optional. Only provided fields are updated. Cannot update running
 | `weight` | `trivial`, `small`, `medium`, `large`, `greenfield` |
 | `queue` | `active`, `backlog` |
 | `priority` | `critical`, `high`, `normal`, `low` |
+| `category` | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` |
 
 Weight changes trigger automatic plan regeneration (completed/skipped phases are preserved if they exist in both plans).
 

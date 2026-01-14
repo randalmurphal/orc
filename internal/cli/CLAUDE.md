@@ -87,6 +87,13 @@ Creates task with AI-powered weight classification:
 3. Generates plan based on weight template
 4. Creates task files in `.orc/tasks/TASK-XXX/`
 
+| Flag | Description |
+|------|-------------|
+| `--weight, -w` | Override AI classification (trivial/small/medium/large/greenfield) |
+| `--category, -c` | Set task category (feature/bug/refactor/chore/docs/test, default: feature) |
+| `--description, -d` | Task description |
+| `--template, -t` | Use template (bugfix, feature, refactor, migration, spike) |
+
 ### `orc run`
 Executes task phases:
 1. Sets up git worktree (if enabled)
