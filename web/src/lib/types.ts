@@ -370,28 +370,31 @@ export interface TaskCommentStats {
 }
 
 // Initiative types
-export type InitiativeStatus = 'planning' | 'active' | 'paused' | 'completed' | 'cancelled';
+export type InitiativeStatus = 'draft' | 'active' | 'completed' | 'archived';
 
 export interface InitiativeIdentity {
-	initials?: string;
+	initials: string;
 	display_name?: string;
 	email?: string;
 }
 
 export interface InitiativeDecision {
 	id: string;
+	date: string;
+	by: string;
 	decision: string;
 	rationale?: string;
-	decided_by?: string;
-	decided_at: string;
 }
 
 export interface InitiativeTaskRef {
-	task_id: string;
-	status?: string;
+	id: string;
+	title: string;
+	depends_on?: string[];
+	status: string;
 }
 
 export interface Initiative {
+	version: number;
 	id: string;
 	title: string;
 	status: InitiativeStatus;

@@ -5,12 +5,26 @@
 	import { runProjectTask, pauseProjectTask, resumeProjectTask, escalateProjectTask } from '$lib/api';
 	import { currentProjectId } from '$lib/stores/project';
 	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks } from '$lib/stores/tasks';
+	import { currentInitiativeId, currentInitiative } from '$lib/stores/initiative';
 	import type { Task } from '$lib/types';
 
 	// Reactive binding to global task store
-	let tasks = $derived($tasksStore);
+	let allTasks = $derived($tasksStore);
 	let loading = $derived($tasksLoading);
 	let error = $derived($tasksError);
+
+	// Filter tasks by initiative if one is selected
+	let tasks = $derived.by(() => {
+		const initiativeId = $currentInitiativeId;
+		if (!initiativeId) return allTasks;
+
+		// Get task IDs from the initiative
+		const initiative = $currentInitiative;
+		if (!initiative?.tasks) return allTasks;
+
+		const initiativeTaskIds = new Set(initiative.tasks.map(t => t.id));
+		return allTasks.filter(task => initiativeTaskIds.has(task.id));
+	});
 
 	// Transcript modal state
 	let transcriptModalOpen = $state(false);
@@ -59,6 +73,12 @@
 	<header class="page-header">
 		<div class="header-left">
 			<h1>Task Board</h1>
+			{#if $currentInitiative}
+				<span class="initiative-filter">
+					<span class="filter-label">Filtered by</span>
+					<span class="filter-value">{$currentInitiative.title}</span>
+				</span>
+			{/if}
 			<span class="task-count">{tasks.length} tasks</span>
 		</div>
 		<div class="header-actions">
@@ -137,6 +157,26 @@
 		background: var(--bg-tertiary);
 		padding: var(--space-1) var(--space-2);
 		border-radius: var(--radius-md);
+	}
+
+	.initiative-filter {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		font-size: var(--text-sm);
+		background: var(--accent-subtle);
+		padding: var(--space-1) var(--space-2);
+		border-radius: var(--radius-md);
+		border: 1px solid var(--accent-primary);
+	}
+
+	.filter-label {
+		color: var(--text-muted);
+	}
+
+	.filter-value {
+		color: var(--accent-primary);
+		font-weight: var(--font-medium);
 	}
 
 	.header-actions {

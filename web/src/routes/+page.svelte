@@ -12,11 +12,25 @@
 	import LiveTranscriptModal from '$lib/components/overlays/LiveTranscriptModal.svelte';
 	import { currentProjectId, currentProject } from '$lib/stores/project';
 	import { tasks as tasksStore, tasksLoading, tasksError, loadTasks, removeTask } from '$lib/stores/tasks';
+	import { currentInitiativeId, currentInitiative, selectInitiative } from '$lib/stores/initiative';
 	import { setupTaskListShortcuts, getShortcutManager } from '$lib/shortcuts';
 	import { toast } from '$lib/stores/toast.svelte';
 
 	// Get reactive values from stores
-	let allTasks = $derived($tasksStore);
+	let storeTasks = $derived($tasksStore);
+
+	// Filter tasks by initiative if one is selected
+	let allTasks = $derived.by(() => {
+		const initiativeId = $currentInitiativeId;
+		if (!initiativeId) return storeTasks;
+
+		// Get task IDs from the initiative
+		const initiative = $currentInitiative;
+		if (!initiative?.tasks) return storeTasks;
+
+		const initiativeTaskIds = new Set(initiative.tasks.map(t => t.id));
+		return storeTasks.filter(task => initiativeTaskIds.has(task.id));
+	});
 	let loading = $derived($tasksLoading);
 	let storeError = $derived($tasksError);
 
@@ -259,6 +273,24 @@
 		</div>
 	{/if}
 
+	<!-- Initiative Filter Banner -->
+	{#if $currentInitiative}
+		<div class="initiative-banner">
+			<span class="banner-icon">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+					<polyline points="22,6 12,13 2,6" />
+				</svg>
+			</span>
+			<span class="banner-text">
+				Filtered by initiative: <strong>{$currentInitiative.title}</strong>
+			</span>
+			<button class="banner-clear" onclick={() => selectInitiative(null)}>
+				Clear filter
+			</button>
+		</div>
+	{/if}
+
 	<!-- Filter Bar -->
 	<div class="filter-bar">
 		<!-- Status Tabs -->
@@ -482,6 +514,49 @@
 
 	.error-dismiss:hover {
 		background: rgba(239, 68, 68, 0.2);
+	}
+
+	/* Initiative Banner */
+	.initiative-banner {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		background: var(--accent-subtle);
+		border: 1px solid var(--accent-primary);
+		border-radius: var(--radius-lg);
+		margin-bottom: var(--space-4);
+	}
+
+	.banner-icon {
+		color: var(--accent-primary);
+		display: flex;
+	}
+
+	.banner-text {
+		flex: 1;
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+	}
+
+	.banner-text strong {
+		color: var(--accent-primary);
+	}
+
+	.banner-clear {
+		padding: var(--space-1) var(--space-3);
+		background: transparent;
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.banner-clear:hover {
+		background: var(--bg-tertiary);
+		border-color: var(--border-strong);
 	}
 
 	/* Filter Bar */
