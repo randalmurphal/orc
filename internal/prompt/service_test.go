@@ -3,6 +3,7 @@ package prompt
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -313,6 +314,53 @@ func TestGetVariableReference(t *testing.T) {
 	for _, v := range required {
 		if _, ok := vars[v]; !ok {
 			t.Errorf("expected variable %s to exist", v)
+		}
+	}
+}
+
+func TestFinalizePromptExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	svc := NewService(filepath.Join(tmpDir, ".orc"))
+
+	// Verify finalize prompt exists
+	p, err := svc.Get("finalize")
+	if err != nil {
+		t.Fatalf("finalize prompt should exist: %v", err)
+	}
+
+	if p.Source != SourceEmbedded {
+		t.Errorf("expected source 'embedded', got %q", p.Source)
+	}
+
+	// Verify required sections exist in the prompt
+	requiredSections := []string{
+		"Finalize Phase",        // Title
+		"Sync",                  // Sync instructions
+		"Conflict Resolution",   // Conflict resolution rules
+		"NEVER remove features", // Key rule
+		"intentions",            // Merge intentions, not text
+		"Run Full Test Suite",   // Run tests after resolution
+		"Risk Assessment",       // Risk assessment section
+		"Merge Decision",        // Merge decision output format
+	}
+
+	for _, section := range requiredSections {
+		if !strings.Contains(p.Content, section) {
+			t.Errorf("finalize prompt missing required section: %q", section)
+		}
+	}
+
+	// Verify required variables are present
+	requiredVars := []string{
+		"{{TASK_ID}}",
+		"{{TASK_TITLE}}",
+		"{{TASK_BRANCH}}",
+		"{{TARGET_BRANCH}}",
+	}
+
+	for _, v := range requiredVars {
+		if !strings.Contains(p.Content, v) {
+			t.Errorf("finalize prompt missing required variable: %s", v)
 		}
 	}
 }

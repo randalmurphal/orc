@@ -21,7 +21,8 @@ templates/
 │   ├── implement.md
 │   ├── test.md
 │   ├── docs.md
-│   └── validate.md
+│   ├── validate.md
+│   └── finalize.md
 ├── scripts/          # Script templates
 └── pr-body.md        # PR description template
 ```
@@ -144,6 +145,7 @@ If blocked, output:
 | `test.md` | Write and run tests (includes Playwright E2E for UI tasks) |
 | `docs.md` | Update documentation |
 | `validate.md` | E2E validation with Playwright MCP |
+| `finalize.md` | Sync with target branch, resolve conflicts, risk assessment (large/greenfield only) |
 
 ### UI Testing in Prompts
 
@@ -155,6 +157,29 @@ When `{{REQUIRES_UI_TESTING}}` is true, the `test.md` and `validate.md` prompts 
 4. **Validation workflow** - How to verify UI components
 
 The `{{SCREENSHOT_DIR}}` variable provides the path where screenshots should be saved for automatic attachment to the task.
+
+### Finalize Phase
+
+The `finalize.md` prompt is used for large and greenfield tasks to prepare the branch for merge:
+
+1. **Sync with target branch** - Merge main (or target) into task branch
+2. **Conflict resolution** - Resolve conflicts following strict rules:
+   - **NEVER remove features** from either side
+   - **Merge intentions**, not just text
+   - **Prefer additive** resolution when in doubt
+   - **Test per file** after resolving each conflict
+3. **Test verification** - Re-run full test suite after conflict resolution
+4. **Risk assessment** - Classify merge risk based on diff size and conflicts
+5. **Merge decision output** - Produce finalization report with recommendation
+
+The finalize phase uses these template variables:
+
+| Variable | Description |
+|----------|-------------|
+| `{{TASK_BRANCH}}` | Current task branch (e.g., `orc/TASK-001`) |
+| `{{TARGET_BRANCH}}` | Branch to merge into (from config, defaults to `main`) |
+| `{{IMPLEMENTATION_SUMMARY}}` | Summary of changes made during implementation |
+| `{{SPEC_CONTENT}}` | Full specification content for context |
 
 ## Embedding
 
