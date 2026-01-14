@@ -8,7 +8,7 @@ React 19 application for orc web UI, running in parallel with existing Svelte ap
 |-------|------------|
 | Framework | React 19, Vite |
 | Language | TypeScript 5.6+ |
-| State Management | Zustand (planned) |
+| State Management | Zustand |
 | Routing | React Router (planned) |
 | Styling | CSS (component-scoped, matching Svelte) |
 | Testing | Vitest (unit), Playwright (E2E - shared) |
@@ -98,7 +98,7 @@ Migration follows the existing Svelte component structure:
 |------------------|------------------|--------|
 | `+layout.svelte` | `App.tsx` + Router | Scaffolded |
 | `lib/components/` | `src/components/` | Pending |
-| `lib/stores/` | `src/stores/` (Zustand) | Pending |
+| `lib/stores/` | `src/stores/` (Zustand) | Implemented |
 | `lib/utils/` | `src/lib/` | Pending |
 
 ## Testing
@@ -153,24 +153,42 @@ function TaskCard({ task }: { task: Task }) {
 }
 ```
 
-### State Management (Zustand - planned)
+### State Management (Zustand)
 
+Four Zustand stores mirror the Svelte store behavior:
+
+| Store | State | Persistence | Purpose |
+|-------|-------|-------------|---------|
+| `useTaskStore` | tasks, taskStates | None (API-driven) | Task data and execution state |
+| `useProjectStore` | projects, currentProjectId | URL + localStorage | Project selection |
+| `useInitiativeStore` | initiatives, currentInitiativeId | URL + localStorage | Initiative filter |
+| `useUIStore` | sidebarExpanded, wsStatus, toasts | localStorage (sidebar) | UI state |
+
+**URL/localStorage priority:** URL param > localStorage > default
+
+**Usage:**
 ```tsx
-// Store definition
-import { create } from 'zustand';
+import { useTaskStore, useProjectStore, useInitiativeStore, useUIStore, toast } from '@/stores';
 
-interface TaskStore {
-  tasks: Task[];
-  addTask: (task: Task) => void;
-}
+// Direct state access
+const tasks = useTaskStore((state) => state.tasks);
 
-export const useTaskStore = create<TaskStore>((set) => ({
-  tasks: [],
-  addTask: (task) => set((state) => ({
-    tasks: [...state.tasks, task]
-  })),
-}));
+// Derived state via selector hooks
+import { useActiveTasks, useStatusCounts } from '@/stores';
+const activeTasks = useActiveTasks();
+const counts = useStatusCounts();
+
+// Actions
+useTaskStore.getState().updateTask('TASK-001', { status: 'running' });
+useProjectStore.getState().selectProject('proj-001');
+
+// Toast notifications (works outside React components)
+toast.success('Task created');
+toast.error('Failed to load', { duration: 10000 });
 ```
+
+**Special values:**
+- `UNASSIGNED_INITIATIVE = '__unassigned__'` - Filter for tasks without an initiative
 
 ## Known Differences from Svelte
 
@@ -187,6 +205,7 @@ export const useTaskStore = create<TaskStore>((set) => ({
 
 ### Production
 - `react@19`, `react-dom@19` - Core framework
+- `zustand@5` - State management with subscribeWithSelector middleware
 - `@fontsource/inter`, `@fontsource/jetbrains-mono` - Typography (matching Svelte)
 
 ### Development
