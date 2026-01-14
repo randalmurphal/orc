@@ -36,3 +36,11 @@ export {
 	useToasts,
 	toast,
 } from './uiStore';
+
+// Dependency store
+export {
+	useDependencyStore,
+	useCurrentDependencyStatus,
+	DEPENDENCY_OPTIONS,
+	type DependencyStatusFilter,
+} from './dependencyStore';
