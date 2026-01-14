@@ -35,8 +35,8 @@ test.describe('Navigation', () => {
 			await expect(page).toHaveURL('/config');
 		}
 
-		// Navigate back to tasks
-		const tasksLink = page.locator('nav a:has-text("Tasks")');
+		// Navigate back to tasks (use exact match to avoid 'All Tasks')
+		const tasksLink = page.locator('a[href="/"], nav a:has-text("Tasks")').first();
 		if (await tasksLink.isVisible()) {
 			await tasksLink.click();
 			await expect(page).toHaveURL('/');
@@ -46,12 +46,12 @@ test.describe('Navigation', () => {
 	test('should have navigation menu', async ({ page }) => {
 		await page.goto('/');
 
-		// Look for navigation element
-		const nav = page.locator('nav, .navigation, .sidebar');
-		const hasNav = await nav.isVisible().catch(() => false);
+		// Look for sidebar with navigation
+		const sidebar = page.locator('.sidebar, [class*="sidebar"]');
+		const hasSidebar = await sidebar.first().isVisible().catch(() => false);
 
-		// Navigation should exist
-		expect(hasNav).toBeTruthy();
+		// Sidebar should exist
+		expect(hasSidebar).toBeTruthy();
 	});
 
 	test('should highlight current page in navigation', async ({ page }) => {
