@@ -7,5 +7,9 @@ decisions:
       date: 2026-01-14T06:53:31.517243-06:00
       by: ""
       decision: First decision
+    - id: DEC-002
+      date: 2026-01-14T06:53:32.21541-06:00
+      by: ""
+      decision: Second decision
 created_at: 2026-01-14T06:53:29.305027-06:00
-updated_at: 2026-01-14T06:53:31.517273-06:00
+updated_at: 2026-01-14T06:53:32.215421-06:00
