@@ -77,7 +77,7 @@ npm run build
 This React app runs alongside Svelte during migration:
 
 1. **Phase 1** ✅: Project scaffolding, Zustand stores mirroring Svelte stores
-2. **Phase 2** (current): Core infrastructure (API client, WebSocket, router)
+2. **Phase 2** (current): Core infrastructure (API client, WebSocket ✅, router)
 3. **Phase 3**: Component migration (parallel implementation)
 4. **Phase 4**: E2E test validation, feature parity verification
 5. **Phase 5**: Cutover and Svelte removal
@@ -106,6 +106,9 @@ Migration follows the existing Svelte component structure:
 - `projectStore.ts` - Project selection with URL/localStorage sync
 - `initiativeStore.ts` - Initiative filter with progress tracking
 - `uiStore.ts` - Sidebar, WebSocket status, toast notifications
+
+**WebSocket hooks implemented (Phase 2):**
+- `useWebSocket.tsx` - WebSocketProvider, useWebSocket, useTaskSubscription, useConnectionStatus
 
 ## Testing
 
@@ -323,6 +326,139 @@ toast.clear();
 3. **Derived state as getters:** Computed values (activeTasks, statusCounts) are methods on the store rather than stored state, ensuring fresh calculations
 
 4. **Map vs Array:** InitiativeStore uses `Map<string, Initiative>` for O(1) lookups; `getInitiativesList()` converts to array when needed
+
+### WebSocket Hooks
+
+Real-time task updates via WebSocket connection to the orc API.
+
+#### WebSocketProvider
+
+Wraps the app to provide WebSocket functionality. Must be a parent of any component using WebSocket hooks.
+
+```tsx
+import { WebSocketProvider } from '@/hooks';
+
+function App() {
+  return (
+    <WebSocketProvider autoConnect={true} autoSubscribeGlobal={true}>
+      <YourApp />
+    </WebSocketProvider>
+  );
+}
+```
+
+| Prop | Default | Description |
+|------|---------|-------------|
+| `autoConnect` | `true` | Connect on mount |
+| `autoSubscribeGlobal` | `true` | Subscribe to all task events |
+| `baseUrl` | `window.location.host` | Custom WebSocket host |
+
+#### useWebSocket
+
+Access WebSocket functionality from any component.
+
+```tsx
+import { useWebSocket } from '@/hooks';
+
+function TaskControls({ taskId }: { taskId: string }) {
+  const { status, command, subscribe, on } = useWebSocket();
+
+  // Send commands
+  const handlePause = () => command(taskId, 'pause');
+  const handleResume = () => command(taskId, 'resume');
+
+  // Subscribe to events
+  useEffect(() => {
+    const unsub = on('state', (event) => {
+      if ('event' in event && event.task_id === taskId) {
+        console.log('State update:', event.data);
+      }
+    });
+    return unsub;
+  }, [taskId, on]);
+
+  return <div>Status: {status}</div>;
+}
+```
+
+| Return | Type | Description |
+|--------|------|-------------|
+| `status` | `ConnectionStatus` | 'connecting' \| 'connected' \| 'disconnected' \| 'reconnecting' |
+| `subscribe(taskId)` | `void` | Subscribe to task events |
+| `unsubscribe()` | `void` | Unsubscribe from current task |
+| `subscribeGlobal()` | `void` | Subscribe to all task events |
+| `on(eventType, callback)` | `() => void` | Add event listener, returns cleanup |
+| `command(taskId, action)` | `void` | Send pause/resume/cancel command |
+| `isConnected()` | `boolean` | Check connection state |
+| `getTaskId()` | `string \| null` | Current subscribed task |
+
+#### useTaskSubscription
+
+Subscribe to a specific task for streaming updates.
+
+```tsx
+import { useTaskSubscription } from '@/hooks';
+
+function TaskTranscript({ taskId }: { taskId: string }) {
+  const { state, transcript, isSubscribed, connectionStatus, clearTranscript } =
+    useTaskSubscription(taskId);
+
+  return (
+    <div>
+      <div>Phase: {state?.current_phase}</div>
+      <div>
+        {transcript.map((line, i) => (
+          <div key={i}>{line.content}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+| Return | Type | Description |
+|--------|------|-------------|
+| `state` | `TaskState \| undefined` | Current execution state |
+| `transcript` | `TranscriptLine[]` | Streaming transcript lines |
+| `isSubscribed` | `boolean` | Whether actively subscribed |
+| `connectionStatus` | `ConnectionStatus` | WebSocket connection status |
+| `clearTranscript()` | `void` | Clear transcript array |
+
+#### useConnectionStatus
+
+Simple hook for connection status only.
+
+```tsx
+import { useConnectionStatus } from '@/hooks';
+
+function ConnectionIndicator() {
+  const status = useConnectionStatus();
+  return <span className={`indicator ${status}`} />;
+}
+```
+
+#### Event Types
+
+| Event | Data | Description |
+|-------|------|-------------|
+| `state` | `TaskState` | Task execution state update |
+| `transcript` | `TranscriptLine` | New transcript line |
+| `phase` | `{ phase, status }` | Phase transition |
+| `tokens` | `TokenUsage` | Token usage update |
+| `complete` | `{ status, phase? }` | Task completed |
+| `finalize` | `{ step, status, progress? }` | Finalize phase update |
+| `task_created` | `Task` | New task created (file watcher) |
+| `task_updated` | `Task` | Task modified (file watcher) |
+| `task_deleted` | `null` | Task deleted (file watcher) |
+| `error` | `{ message }` | Error from server |
+
+#### Connection Behavior
+
+- **Auto-connect:** Connects on mount, subscribes to global events
+- **Auto-reconnect:** Exponential backoff (1s, 2s, 4s...), max 5 attempts
+- **Ping/pong:** 30s heartbeat to keep connection alive
+- **Primary subscription:** Global subscription restored after reconnect
+- **Store integration:** Events automatically update TaskStore and UIStore
 
 ## Known Differences from Svelte
 
