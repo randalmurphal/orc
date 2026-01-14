@@ -90,6 +90,41 @@ function sortTasks(taskList: Task[]): Task[] {
 
 Button actions on TaskCard bypass drag-drop confirmation.
 
+### Swimlane View
+
+Alternative board layout grouping tasks by initiative:
+
+```typescript
+export type BoardViewMode = 'flat' | 'swimlane';
+
+// Board.svelte receives viewMode prop
+<Board {tasks} viewMode={viewMode} {initiatives} {onAction} />
+
+// Swimlane component for each initiative
+<Swimlane
+  initiative={init}           // null = unassigned
+  tasks={initTasks}
+  {columns}
+  tasksByColumn={grouped}
+  collapsed={isCollapsed}
+  onToggleCollapse={toggle}
+  onDrop={handleSwimlaneDrop}  // Includes initiative change detection
+  {onAction}
+/>
+```
+
+**Key behaviors:**
+- Persists view mode in localStorage (`orc-board-view-mode`)
+- Disabled when initiative filter is active (shows single initiative anyway)
+- Cross-swimlane drag-drop prompts initiative change confirmation
+- Collapsed state per swimlane persisted in localStorage (`orc-collapsed-swimlanes`)
+- Sort order: active initiatives first (alphabetically), then other statuses, "Unassigned" last
+
+**Components:**
+- `ViewModeDropdown` - Toggle control in board header
+- `Swimlane` - Horizontal row with columns for one initiative
+- `Board` - Renders flat or swimlane view based on `viewMode`
+
 ---
 
 ## WebSocket Architecture
