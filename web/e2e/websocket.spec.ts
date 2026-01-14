@@ -50,11 +50,16 @@ function createWSEvent(event: string, taskId: string, data: unknown): WSEvent {
 	};
 }
 
-// Helper: Wait for board to load
+// Helper: Wait for board to load with tasks
 async function waitForBoardLoad(page: Page) {
 	await page.waitForSelector('.board-page', { timeout: 10000 });
 	await page.waitForSelector('.loading-state', { state: 'hidden', timeout: 10000 }).catch(() => {});
-	await page.waitForTimeout(100);
+	// Wait for network to settle and tasks to render
+	await page.waitForLoadState('networkidle');
+	// Wait for at least one task card or verify columns are ready
+	await page.waitForSelector('.task-card, [role="region"][aria-label*="column"]', { timeout: 5000 }).catch(() => {});
+	// Small buffer for final renders
+	await page.waitForTimeout(200);
 }
 
 // Helper: Navigate to a task and get its ID
@@ -829,18 +834,19 @@ test.describe('WebSocket Connection - Legacy Tests', () => {
 		await page.goto(`/tasks/${taskId}`);
 		await page.waitForLoadState('networkidle');
 
-		// Store URL and title
+		// Store URL and task ID for comparison
 		const url = page.url();
-		const title = await page.locator('h1').textContent();
+		const taskIdOnPage = await page.locator('.task-id').first().textContent();
 
 		// Reload page
 		await page.reload();
+		await page.waitForLoadState('networkidle');
 
 		// Should still be on the same page
 		await expect(page).toHaveURL(url);
 
-		// Task info should reload
-		await expect(page.locator('h1')).toHaveText(title || '');
+		// Task ID should still be visible after reload
+		await expect(page.locator('.task-id').first()).toHaveText(taskIdOnPage || '');
 	});
 });
 
