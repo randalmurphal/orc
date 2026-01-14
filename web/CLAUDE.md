@@ -40,7 +40,7 @@ web/src/
 |----------|------------|---------|
 | Layout | Header, Sidebar | Navigation, project switcher |
 | Dashboard | Stats, QuickActions, ActiveTasks, RecentActivity | Overview page |
-| Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments | Task detail |
+| Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments, TokenUsage | Task detail |
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
 | Kanban | Board, Column, QueuedColumn, TaskCard, ConfirmModal | Board view with queue/priority |
 | Comments | TaskCommentsPanel, TaskCommentThread, TaskCommentForm | Task discussion notes |
@@ -201,6 +201,23 @@ Task attachments (images, files) are managed through the Attachments component:
 - Supports delete with confirmation
 
 API functions: `listAttachments()`, `uploadAttachment()`, `getAttachmentUrl()`, `deleteAttachment()`
+
+## Token Usage Display
+
+Token usage is displayed in multiple locations with cached token support:
+
+| Location | Component | Display |
+|----------|-----------|---------|
+| Dashboard stats | `DashboardStats` | Total tokens with cached count in label and tooltip |
+| Task detail (Timeline tab) | Stats grid | Input/Output/Cached/Total breakdown |
+| Transcript | `Transcript` | Per-iteration tokens with cache info in tooltip |
+
+**Cached tokens:** When `cache_creation_input_tokens` or `cache_read_input_tokens` are present, UI shows:
+- Combined cached total in parentheses (e.g., "245K tokens (120K cached)")
+- Tooltip with breakdown: cache creation vs cache read
+- Cached stat card styled in success color (green)
+
+**Data flow:** WebSocket `tokens` events update `taskState.tokens` in real-time. Components derive display values from the `TokenUsage` interface.
 
 ## Review Workflow
 

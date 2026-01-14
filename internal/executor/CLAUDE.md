@@ -304,6 +304,13 @@ func (u TokenUsage) EffectiveTotalTokens() int {
 
 **Important:** Raw `InputTokens` can appear misleadingly low (e.g., 56 tokens) when most of the prompt is served from cache. Always use `EffectiveInputTokens()` when displaying or tracking context size.
 
+**UI Display:** The web UI shows cached tokens in multiple locations:
+- Dashboard stats: Total with cached count in parentheses
+- Task detail: Input/Output/Cached/Total breakdown
+- Transcript: Per-iteration with tooltip breakdown
+
+See `web/CLAUDE.md` for component details.
+
 **Turn Execution:**
 ```go
 adapter := NewSessionAdapter(client, opts)
