@@ -333,10 +333,21 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 	// Extract PR URL from output
 	prURL := strings.TrimSpace(output)
 	if prURL != "" {
+		// Keep metadata for backwards compatibility
 		if t.Metadata == nil {
 			t.Metadata = make(map[string]string)
 		}
 		t.Metadata["pr_url"] = prURL
+
+		// Extract PR number from URL (e.g., https://github.com/owner/repo/pull/123)
+		prNumber := 0
+		if parts := strings.Split(prURL, "/pull/"); len(parts) == 2 {
+			fmt.Sscanf(parts[1], "%d", &prNumber)
+		}
+
+		// Set PR info on task
+		t.SetPRInfo(prURL, prNumber)
+
 		if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
 			e.logger.Error("failed to save task with PR URL", "error", saveErr)
 		}

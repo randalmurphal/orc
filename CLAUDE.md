@@ -436,6 +436,7 @@ Patterns, gotchas, and decisions learned during development.
 | Finalize phase with escalation | Finalize phase syncs branch with target, resolves conflicts via AI, runs tests, and assesses risk; escalates to implement phase if >10 conflicts or >5 test failures persist | TASK-089 |
 | Initiative-to-initiative dependencies | Initiatives support `blocked_by` field for ordering; `blocks` computed on load; `orc initiative list/show` displays blocked status; `orc initiative run --force` overrides blocking | TASK-075 |
 | Initiative detail page | `/initiatives/:id` route manages tasks and decisions within an initiative; supports task linking/unlinking, decision recording with rationale, status management (draft/active/completed/archived), and progress tracking | TASK-066 |
+| PR status polling | Background poller (60s interval, 30s rate limit) tracks PR status via GitHub API; status derived from PR state + reviews (changes_requested > approved > pending_review); stores in task.yaml `pr` field | TASK-090 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

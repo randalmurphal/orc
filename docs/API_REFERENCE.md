@@ -692,9 +692,44 @@ All fields are optional. Only provided fields are updated. Setting `profile` app
 | POST | `/api/tasks/:id/github/pr` | Create PR for task branch |
 | GET | `/api/tasks/:id/github/pr` | Get PR details, comments, checks |
 | POST | `/api/tasks/:id/github/pr/merge` | Merge PR |
+| POST | `/api/tasks/:id/github/pr/refresh` | Refresh PR status (reviews, checks, approval state) |
 | POST | `/api/tasks/:id/github/pr/comments/sync` | Sync local comments to PR |
 | POST | `/api/tasks/:id/github/pr/comments/:commentId/autofix` | Queue auto-fix |
 | GET | `/api/tasks/:id/github/pr/checks` | Get CI check status |
+
+**PR Status Polling:**
+- PRs are automatically polled every 60 seconds for tasks with open PRs
+- Status includes: review state (pending_review, changes_requested, approved), CI checks, mergeability
+- PR status is stored in `task.yaml` under the `pr` field
+- Manual refresh via `POST /api/tasks/:id/github/pr/refresh`
+
+**PR Status Values:**
+| Status | Description |
+|--------|-------------|
+| `draft` | PR is in draft state |
+| `pending_review` | PR awaiting review |
+| `changes_requested` | Reviewers requested changes |
+| `approved` | PR has been approved |
+| `merged` | PR has been merged |
+| `closed` | PR was closed without merging |
+
+**Refresh response:**
+```json
+{
+  "pr": { "number": 123, "state": "OPEN", ... },
+  "status": {
+    "url": "https://github.com/owner/repo/pull/123",
+    "number": 123,
+    "status": "approved",
+    "checks_status": "success",
+    "mergeable": true,
+    "review_count": 2,
+    "approval_count": 2,
+    "last_checked_at": "2024-01-01T10:00:00Z"
+  },
+  "task_id": "TASK-001"
+}
+```
 
 **Merge body:**
 ```json

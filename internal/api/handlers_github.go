@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
@@ -831,4 +832,80 @@ func (s *Server) handleImportPRComments(w http.ResponseWriter, r *http.Request) 
 	}
 
 	s.jsonResponse(w, resp)
+}
+
+// handleRefreshPRStatus triggers an on-demand refresh of PR status for a task.
+func (s *Server) handleRefreshPRStatus(w http.ResponseWriter, r *http.Request) {
+	taskID := r.PathValue("id")
+
+	t, err := task.LoadFrom(s.workDir, taskID)
+	if err != nil {
+		s.jsonError(w, "task not found", http.StatusNotFound)
+		return
+	}
+
+	if t.Branch == "" {
+		s.jsonError(w, "task has no branch", http.StatusBadRequest)
+		return
+	}
+
+	if err := github.CheckGHAuth(r.Context()); err != nil {
+		s.jsonError(w, "GitHub CLI not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	client, err := github.NewClient(s.getProjectRoot())
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to create GitHub client: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Find PR by branch
+	pr, err := client.FindPRByBranch(r.Context(), t.Branch)
+	if err != nil {
+		if errors.Is(err, github.ErrNoPRFound) {
+			s.jsonError(w, "no PR found for task branch", http.StatusNotFound)
+		} else {
+			s.jsonError(w, fmt.Sprintf("failed to find PR: %v", err), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Get PR status summary
+	summary, err := client.GetPRStatusSummary(r.Context(), pr)
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to get PR status: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Determine PR status
+	prStatus := DeterminePRStatus(pr, summary)
+
+	// Update task PR info
+	if t.PR == nil {
+		t.PR = &task.PRInfo{}
+	}
+	t.PR.URL = pr.HTMLURL
+	t.PR.Number = pr.Number
+	t.PR.Status = prStatus
+	t.PR.ChecksStatus = summary.ChecksStatus
+	t.PR.Mergeable = summary.Mergeable
+	t.PR.ReviewCount = summary.ReviewCount
+	t.PR.ApprovalCount = summary.ApprovalCount
+	now := time.Now()
+	t.PR.LastCheckedAt = &now
+
+	// Save task
+	if err := t.SaveTo(task.TaskDirIn(s.workDir, taskID)); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to save task: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, map[string]any{
+		"pr":      pr,
+		"status":  t.PR,
+		"reviews": summary,
+		"message": fmt.Sprintf("PR #%d status refreshed", pr.Number),
+		"task_id": taskID,
+	})
 }

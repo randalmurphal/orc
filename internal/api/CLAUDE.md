@@ -11,7 +11,7 @@ REST API server with WebSocket support for real-time updates.
 | `middleware.go` | CORS middleware | ~50 |
 | `response.go` | JSON response helpers, error handling | ~80 |
 
-### Handler Files (17 total)
+### Handler Files (18 total)
 
 | File | Endpoints | Description |
 |------|-----------|-------------|
@@ -33,14 +33,21 @@ REST API server with WebSocket support for real-time updates.
 | `handlers_config.go` | `/api/config/*` | Orc configuration |
 | `handlers_dashboard.go` | `/api/dashboard/*` | Dashboard statistics |
 | `handlers_diff.go` | `/api/tasks/:id/diff/*` | Git diff visualization for task changes |
+| `handlers_github.go` | `/api/tasks/:id/github/*` | GitHub PR operations and status |
 | `handlers_initiatives.go` | `/api/initiatives/*` | Initiative management |
+
+### Background Services
+
+| File | Purpose |
+|------|---------|
+| `pr_poller.go` | Background PR status polling (see [PR Status Polling](#pr-status-polling)) |
 
 ## Server Architecture
 
 ```
 Server
 ├── Routes (chi router)
-│   ├── /api/tasks/* → handlers_tasks*.go, handlers_attachments.go, handlers_diff.go
+│   ├── /api/tasks/* → handlers_tasks*.go, handlers_attachments.go, handlers_diff.go, handlers_github.go
 │   ├── /api/initiatives/* → handlers_initiatives.go
 │   ├── /api/projects/* → handlers_projects.go
 │   ├── /api/prompts/* → handlers_prompts.go
@@ -58,6 +65,8 @@ Server
 │   └── /api/ws → websocket.go
 ├── WebSocket Hub
 │   └── Client connections, subscriptions
+├── PR Poller
+│   └── Background PR status updates
 └── Event Publisher
     └── Real-time task updates
 ```
@@ -157,6 +166,53 @@ The API server runs a file watcher that monitors `.orc/tasks/` for changes made 
 | `state` | `state.yaml` modified | `{raw: string}` |
 
 **Flow:** CLI/filesystem change → file watcher → debounce (500ms) → content hash check → publish event → WebSocket broadcast
+
+## PR Status Polling
+
+The server runs a background poller that monitors PR status for tasks with open PRs.
+
+### How It Works
+
+```
+PRPoller (60s interval)
+├── Load all tasks
+├── Filter tasks with open PRs (not merged/closed)
+├── For each task:
+│   ├── Find PR by branch name
+│   ├── Get reviews (track latest per author)
+│   ├── Get CI check runs
+│   └── Update task.yaml with status
+└── Trigger callback on status change
+```
+
+### Configuration
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Poll interval | 60s | Time between polling cycles |
+| Rate limit | 30s | Minimum time between polls for same task |
+
+### Status Derivation
+
+PR status is derived from GitHub PR state and reviews:
+
+```go
+DeterminePRStatus(pr, summary):
+  if pr.State == "MERGED"     → PRStatusMerged
+  if pr.State == "CLOSED"     → PRStatusClosed
+  if pr.Draft                 → PRStatusDraft
+  if summary has changes_requested → PRStatusChangesRequested
+  if summary has approvals    → PRStatusApproved
+  else                        → PRStatusPendingReview
+```
+
+### Manual Refresh
+
+Trigger immediate refresh via `POST /api/tasks/:id/github/pr/refresh`.
+
+### Status Change Callback
+
+When PR status changes, the poller triggers `onStatusChange(taskID, prInfo)` which can publish WebSocket events for real-time UI updates.
 
 ## Testing
 

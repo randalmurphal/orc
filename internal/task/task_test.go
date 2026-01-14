@@ -1720,3 +1720,219 @@ func TestGetIncompleteBlockers_NonExistentTask(t *testing.T) {
 		t.Errorf("blockers[0].Status = %s, want empty", blockers[0].Status)
 	}
 }
+
+// Tests for PR Status functionality
+
+func TestIsValidPRStatus(t *testing.T) {
+	tests := []struct {
+		status PRStatus
+		valid  bool
+	}{
+		{PRStatusNone, true},
+		{PRStatusDraft, true},
+		{PRStatusPendingReview, true},
+		{PRStatusChangesRequested, true},
+		{PRStatusApproved, true},
+		{PRStatusMerged, true},
+		{PRStatusClosed, true},
+		{"invalid", false},
+		{"random", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.status), func(t *testing.T) {
+			if got := IsValidPRStatus(tt.status); got != tt.valid {
+				t.Errorf("IsValidPRStatus(%s) = %v, want %v", tt.status, got, tt.valid)
+			}
+		})
+	}
+}
+
+func TestValidPRStatuses(t *testing.T) {
+	statuses := ValidPRStatuses()
+	if len(statuses) != 7 {
+		t.Errorf("ValidPRStatuses() returned %d statuses, want 7", len(statuses))
+	}
+
+	// Verify all statuses are valid
+	for _, s := range statuses {
+		if !IsValidPRStatus(s) {
+			t.Errorf("ValidPRStatuses() includes invalid status: %s", s)
+		}
+	}
+}
+
+func TestHasPR(t *testing.T) {
+	// Task without PR
+	task1 := New("TASK-001", "Test task")
+	if task1.HasPR() {
+		t.Error("HasPR() should return false for task without PR")
+	}
+
+	// Task with empty PR
+	task2 := New("TASK-002", "Test task")
+	task2.PR = &PRInfo{}
+	if task2.HasPR() {
+		t.Error("HasPR() should return false for task with empty PR")
+	}
+
+	// Task with valid PR
+	task3 := New("TASK-003", "Test task")
+	task3.PR = &PRInfo{URL: "https://github.com/owner/repo/pull/123"}
+	if !task3.HasPR() {
+		t.Error("HasPR() should return true for task with PR URL")
+	}
+}
+
+func TestGetPRStatus(t *testing.T) {
+	// Task without PR
+	task1 := New("TASK-001", "Test task")
+	if task1.GetPRStatus() != PRStatusNone {
+		t.Errorf("GetPRStatus() should return PRStatusNone for task without PR, got %s", task1.GetPRStatus())
+	}
+
+	// Task with PR status
+	task2 := New("TASK-002", "Test task")
+	task2.PR = &PRInfo{Status: PRStatusApproved}
+	if task2.GetPRStatus() != PRStatusApproved {
+		t.Errorf("GetPRStatus() = %s, want %s", task2.GetPRStatus(), PRStatusApproved)
+	}
+}
+
+func TestSetPRInfo(t *testing.T) {
+	task := New("TASK-001", "Test task")
+
+	// Set PR info
+	task.SetPRInfo("https://github.com/owner/repo/pull/123", 123)
+
+	if task.PR == nil {
+		t.Fatal("SetPRInfo() should create PR struct")
+	}
+	if task.PR.URL != "https://github.com/owner/repo/pull/123" {
+		t.Errorf("PR.URL = %s, want https://github.com/owner/repo/pull/123", task.PR.URL)
+	}
+	if task.PR.Number != 123 {
+		t.Errorf("PR.Number = %d, want 123", task.PR.Number)
+	}
+	// Should default to pending_review
+	if task.PR.Status != PRStatusPendingReview {
+		t.Errorf("PR.Status = %s, want %s", task.PR.Status, PRStatusPendingReview)
+	}
+
+	// Update existing PR info should preserve status
+	task.PR.Status = PRStatusApproved
+	task.SetPRInfo("https://github.com/owner/repo/pull/124", 124)
+	if task.PR.Status != PRStatusApproved {
+		t.Errorf("SetPRInfo() should preserve existing status, got %s", task.PR.Status)
+	}
+}
+
+func TestUpdatePRStatus(t *testing.T) {
+	task := New("TASK-001", "Test task")
+
+	// Update PR status creates PR struct if needed
+	task.UpdatePRStatus(PRStatusApproved, "success", true, 2, 2)
+
+	if task.PR == nil {
+		t.Fatal("UpdatePRStatus() should create PR struct")
+	}
+	if task.PR.Status != PRStatusApproved {
+		t.Errorf("PR.Status = %s, want %s", task.PR.Status, PRStatusApproved)
+	}
+	if task.PR.ChecksStatus != "success" {
+		t.Errorf("PR.ChecksStatus = %s, want success", task.PR.ChecksStatus)
+	}
+	if !task.PR.Mergeable {
+		t.Error("PR.Mergeable should be true")
+	}
+	if task.PR.ReviewCount != 2 {
+		t.Errorf("PR.ReviewCount = %d, want 2", task.PR.ReviewCount)
+	}
+	if task.PR.ApprovalCount != 2 {
+		t.Errorf("PR.ApprovalCount = %d, want 2", task.PR.ApprovalCount)
+	}
+	if task.PR.LastCheckedAt == nil {
+		t.Error("PR.LastCheckedAt should be set")
+	}
+}
+
+func TestPRInfo_YAMLSerialization(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
+	os.MkdirAll(taskDir, 0755)
+
+	// Create task with PR info
+	task := New("TASK-001", "Test task")
+	task.PR = &PRInfo{
+		URL:           "https://github.com/owner/repo/pull/123",
+		Number:        123,
+		Status:        PRStatusApproved,
+		ChecksStatus:  "success",
+		Mergeable:     true,
+		ReviewCount:   3,
+		ApprovalCount: 2,
+	}
+	now := time.Now()
+	task.PR.LastCheckedAt = &now
+
+	if err := task.SaveTo(taskDir); err != nil {
+		t.Fatalf("SaveTo() failed: %v", err)
+	}
+
+	// Load and verify
+	loaded, err := LoadFrom(tmpDir, "TASK-001")
+	if err != nil {
+		t.Fatalf("LoadFrom() failed: %v", err)
+	}
+
+	if loaded.PR == nil {
+		t.Fatal("PR info not preserved")
+	}
+	if loaded.PR.URL != "https://github.com/owner/repo/pull/123" {
+		t.Errorf("PR.URL = %s, want https://github.com/owner/repo/pull/123", loaded.PR.URL)
+	}
+	if loaded.PR.Number != 123 {
+		t.Errorf("PR.Number = %d, want 123", loaded.PR.Number)
+	}
+	if loaded.PR.Status != PRStatusApproved {
+		t.Errorf("PR.Status = %s, want %s", loaded.PR.Status, PRStatusApproved)
+	}
+	if loaded.PR.ChecksStatus != "success" {
+		t.Errorf("PR.ChecksStatus = %s, want success", loaded.PR.ChecksStatus)
+	}
+	if !loaded.PR.Mergeable {
+		t.Error("PR.Mergeable should be true")
+	}
+	if loaded.PR.ReviewCount != 3 {
+		t.Errorf("PR.ReviewCount = %d, want 3", loaded.PR.ReviewCount)
+	}
+	if loaded.PR.ApprovalCount != 2 {
+		t.Errorf("PR.ApprovalCount = %d, want 2", loaded.PR.ApprovalCount)
+	}
+	if loaded.PR.LastCheckedAt == nil {
+		t.Error("PR.LastCheckedAt should be preserved")
+	}
+}
+
+func TestPRInfo_EmptyPreserved(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
+	os.MkdirAll(taskDir, 0755)
+
+	// Create task without PR info
+	task := New("TASK-001", "Test task")
+
+	if err := task.SaveTo(taskDir); err != nil {
+		t.Fatalf("SaveTo() failed: %v", err)
+	}
+
+	// Load and verify PR is nil
+	loaded, err := LoadFrom(tmpDir, "TASK-001")
+	if err != nil {
+		t.Fatalf("LoadFrom() failed: %v", err)
+	}
+
+	if loaded.PR != nil {
+		t.Error("PR should be nil for task without PR info")
+	}
+}
