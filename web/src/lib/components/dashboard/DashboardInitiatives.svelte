@@ -69,15 +69,19 @@
 					title={initiative.vision ? `${initiative.title}\n\n${initiative.vision}` : initiative.title}
 				>
 					<span class="initiative-title">{truncateTitle(initiative.title)}</span>
-					<div class="progress-container">
-						<div class="progress-bar">
-							<div
-								class="progress-fill {getProgressColor(progress.percent)}"
-								style="width: {progress.percent}%"
-							></div>
+					{#if initiative.status !== 'active'}
+						<span class="initiative-status status-{initiative.status}">{initiative.status}</span>
+					{:else}
+						<div class="progress-container">
+							<div class="progress-bar">
+								<div
+									class="progress-fill {getProgressColor(progress.percent)}"
+									style="width: {progress.percent}%"
+								></div>
+							</div>
+							<span class="progress-count">{progress.completed}/{progress.total}</span>
 						</div>
-						<span class="progress-count">{progress.completed}/{progress.total}</span>
-					</div>
+					{/if}
 				</button>
 			{/each}
 		</div>
@@ -216,5 +220,29 @@
 	.view-all-link:hover {
 		color: var(--accent-hover);
 		text-decoration: underline;
+	}
+
+	.initiative-status {
+		font-size: var(--text-xs);
+		padding: var(--space-0-5) var(--space-2);
+		border-radius: var(--radius-sm);
+		text-transform: capitalize;
+		flex-shrink: 0;
+	}
+
+	.initiative-status.status-draft {
+		background: var(--bg-tertiary);
+		color: var(--text-muted);
+	}
+
+	.initiative-status.status-completed {
+		background: var(--status-success-bg);
+		color: var(--status-success);
+	}
+
+	.initiative-status.status-archived {
+		background: var(--bg-tertiary);
+		color: var(--text-muted);
+		opacity: 0.7;
 	}
 </style>

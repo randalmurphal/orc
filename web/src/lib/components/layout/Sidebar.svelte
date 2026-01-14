@@ -308,7 +308,9 @@
 										{/if}
 									</span>
 									<span class="nav-label initiative-title">{initiative.title}</span>
-									{#if progress.total > 0}
+									{#if initiative.status !== 'active'}
+										<span class="initiative-status-badge status-{initiative.status}">{initiative.status}</span>
+									{:else if progress.total > 0}
 										<span class="initiative-progress">({progress.completed}/{progress.total})</span>
 									{/if}
 								</a>
@@ -792,6 +794,30 @@
 		font-size: var(--text-xs);
 		color: var(--text-muted);
 		flex-shrink: 0;
+	}
+
+	.initiative-status-badge {
+		font-size: var(--text-2xs);
+		padding: var(--space-0-5) var(--space-1-5);
+		border-radius: var(--radius-sm);
+		text-transform: capitalize;
+		flex-shrink: 0;
+	}
+
+	.initiative-status-badge.status-draft {
+		background: var(--bg-tertiary);
+		color: var(--text-muted);
+	}
+
+	.initiative-status-badge.status-completed {
+		background: var(--status-success-bg);
+		color: var(--status-success);
+	}
+
+	.initiative-status-badge.status-archived {
+		background: var(--bg-tertiary);
+		color: var(--text-muted);
+		opacity: 0.7;
 	}
 
 	.new-initiative-btn {
