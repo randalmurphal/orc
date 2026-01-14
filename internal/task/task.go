@@ -602,19 +602,85 @@ func ComputeBlocks(taskID string, allTasks []*Task) []string {
 	return blocks
 }
 
+// taskRefPattern matches TASK-XXX patterns (at least 3 digits).
+var taskRefPattern = regexp.MustCompile(`\bTASK-\d{3,}\b`)
+
+// DetectTaskReferences scans text for TASK-XXX patterns and returns unique matches.
+// Returns a sorted, deduplicated list of task IDs found in the text.
+func DetectTaskReferences(text string) []string {
+	matches := taskRefPattern.FindAllString(text, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	// Deduplicate and sort
+	seen := make(map[string]bool)
+	var unique []string
+	for _, m := range matches {
+		if !seen[m] {
+			seen[m] = true
+			unique = append(unique, m)
+		}
+	}
+	sort.Strings(unique)
+	return unique
+}
+
 // ComputeReferencedBy finds tasks whose descriptions mention this task ID.
+// Excludes:
+//   - Self-references (task referencing itself)
+//   - Tasks already in BlockedBy (those are explicit blocking dependencies)
+//   - Tasks already in RelatedTo (those are explicit related links)
+//
+// This provides "mentioned in" style soft links, similar to GitHub's backlinks.
 func ComputeReferencedBy(taskID string, allTasks []*Task) []string {
 	var referencedBy []string
-	// Match task ID in descriptions (with word boundaries)
-	pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(taskID) + `\b`)
 
 	for _, t := range allTasks {
+		// Skip self
 		if t.ID == taskID {
 			continue
 		}
-		if pattern.MatchString(t.Description) || pattern.MatchString(t.Title) {
-			referencedBy = append(referencedBy, t.ID)
+
+		// Check if this task mentions taskID
+		refs := DetectTaskReferences(t.Title + " " + t.Description)
+		mentions := false
+		for _, ref := range refs {
+			if ref == taskID {
+				mentions = true
+				break
+			}
 		}
+
+		if !mentions {
+			continue
+		}
+
+		// Exclude if taskID is already in this task's BlockedBy
+		inBlockedBy := false
+		for _, b := range t.BlockedBy {
+			if b == taskID {
+				inBlockedBy = true
+				break
+			}
+		}
+		if inBlockedBy {
+			continue
+		}
+
+		// Exclude if taskID is already in this task's RelatedTo
+		inRelatedTo := false
+		for _, r := range t.RelatedTo {
+			if r == taskID {
+				inRelatedTo = true
+				break
+			}
+		}
+		if inRelatedTo {
+			continue
+		}
+
+		referencedBy = append(referencedBy, t.ID)
 	}
 	sort.Strings(referencedBy)
 	return referencedBy
