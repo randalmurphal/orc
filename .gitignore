@@ -39,8 +39,7 @@ internal/api/static/
 .orc/orc.db
 
 # orc - Claude Code Task Orchestrator
-# Task runtime state should not be in git - use export/import for sharing
-.orc/tasks/
+# SQLite WAL files (regenerated on open)
 .orc/orc.db-journal
 .orc/orc.db-wal
 .orc/orc.db-shm

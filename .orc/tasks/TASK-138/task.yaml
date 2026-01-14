@@ -1,0 +1,50 @@
+id: TASK-138
+title: Fix pre-commit hook false positive on main branch
+description: |-
+    ## Problem
+    The pre-commit hook incorrectly detects the main branch as a task worktree, blocking commits with:
+
+    ```
+    ===============================================
+      WARNING: Unexpected branch for task
+    ===============================================
+
+      Task: TASK-096
+      Expected branch: orc/TASK-096
+      Current branch: main
+    ```
+
+    This happens when committing directly to main, even though we're not in a worktree.
+
+    ## Root Cause
+    The hook extracts a task ID from somewhere (possibly file changes or commit message) and assumes we should be on that task's branch. It doesn't distinguish between:
+    1. Working in a task worktree (should enforce branch match)
+    2. Working on main (no task branch enforcement needed)
+
+    ## Solution
+    Update the pre-commit hook to:
+    1. Only enforce branch matching when actually in a worktree
+    2. Detect if we're in the main repo vs a worktree using git common-dir
+    3. Allow commits on main branch without task branch validation
+
+    ## Success Criteria
+    1. Commits to main branch succeed without false warnings
+    2. Commits in task worktrees still enforce correct branch
+    3. Hook correctly detects worktree vs main repo context
+
+    ## Files to Modify
+    - .claude/hooks/pre-commit or wherever the hook is defined
+weight: small
+status: completed
+current_phase: test
+branch: orc/TASK-138
+queue: active
+priority: normal
+category: bug
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T01:43:16.073136119-06:00
+updated_at: 2026-01-14T01:54:12.776428394-06:00
+started_at: 2026-01-14T01:46:38.811042902-06:00
+completed_at: 2026-01-14T01:54:12.776427805-06:00

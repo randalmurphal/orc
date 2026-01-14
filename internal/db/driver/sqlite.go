@@ -27,11 +27,12 @@ func (d *SQLiteDriver) Open(dsn string) error {
 		return fmt.Errorf("open sqlite: %w", err)
 	}
 
-	// Enable foreign keys and WAL mode for better performance
+	// Enable foreign keys, WAL mode, and busy timeout for concurrent access
 	if _, err := db.Exec(`
 		PRAGMA foreign_keys = ON;
 		PRAGMA journal_mode = WAL;
 		PRAGMA synchronous = NORMAL;
+		PRAGMA busy_timeout = 5000;
 	`); err != nil {
 		db.Close()
 		return fmt.Errorf("set pragmas: %w", err)
