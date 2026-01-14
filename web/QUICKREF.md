@@ -55,11 +55,12 @@ const columns = [
 
 **Running task indicator:** Tasks with `status=running` display a pulsing border animation with accent-colored gradient background, making them visually distinct from pending tasks in the same column.
 
-### Task Organization (Queue & Priority)
+### Task Organization (Queue, Priority & Category)
 
 Tasks within each column are organized by:
 1. **Queue**: Active tasks shown first, backlog tasks in collapsible section
 2. **Priority**: Within each queue section, sorted by priority (critical → high → normal → low)
+3. **Category**: Task type badge (feature/bug/refactor/chore/docs/test) for visual filtering
 
 ```typescript
 // Sort order implementation

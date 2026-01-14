@@ -4,6 +4,7 @@ export type TaskStatus = 'created' | 'classifying' | 'planned' | 'running' | 'pa
 export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
 export type TaskQueue = 'active' | 'backlog';
 export type TaskPriority = 'critical' | 'high' | 'normal' | 'low';
+export type TaskCategory = 'feature' | 'bug' | 'refactor' | 'chore' | 'docs' | 'test';
 
 export interface Task {
 	id: string;
@@ -15,6 +16,7 @@ export interface Task {
 	branch: string;
 	queue?: TaskQueue;
 	priority?: TaskPriority;
+	category?: TaskCategory;
 	created_at: string;
 	updated_at: string;
 	started_at?: string;
@@ -36,6 +38,16 @@ export const PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: strin
 	high: { label: 'High', color: 'var(--status-warning)' },
 	normal: { label: 'Normal', color: 'var(--text-muted)' },
 	low: { label: 'Low', color: 'var(--text-muted)' }
+};
+
+// Category display labels and colors
+export const CATEGORY_CONFIG: Record<TaskCategory, { label: string; color: string; icon: string }> = {
+	feature: { label: 'Feature', color: 'var(--status-success)', icon: '✨' },
+	bug: { label: 'Bug', color: 'var(--status-error)', icon: '🐛' },
+	refactor: { label: 'Refactor', color: 'var(--status-info)', icon: '♻️' },
+	chore: { label: 'Chore', color: 'var(--text-muted)', icon: '🔧' },
+	docs: { label: 'Docs', color: 'var(--status-warning)', icon: '📝' },
+	test: { label: 'Test', color: 'var(--accent-secondary)', icon: '🧪' }
 };
 
 export interface Phase {

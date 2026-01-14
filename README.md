@@ -242,6 +242,7 @@ ORC_RETRY_ENABLED=false
 ```bash
 orc new "title"              # Create task (AI classifies weight)
 orc new "title" --weight X   # Override weight classification
+orc new "title" --category X # Set category (feature/bug/refactor/chore/docs/test)
 orc run TASK-ID              # Execute task
 orc run TASK-ID --profile X  # Execute with specific profile
 orc pause TASK-ID            # Pause with checkpoint

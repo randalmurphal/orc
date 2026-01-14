@@ -22,6 +22,7 @@ branch: orc/TASK-001
 # Task organization (for UI display and filtering)
 queue: active            # active | backlog
 priority: normal         # critical | high | normal | low
+category: feature        # feature | bug | refactor | chore | docs | test
 
 # Testing flags (auto-detected during task creation)
 requires_ui_testing: true        # Auto-set when task mentions UI keywords
@@ -43,7 +44,7 @@ metadata:
 
 ## Task Organization
 
-Tasks support queue and priority properties to help manage cognitive load when many tasks accumulate.
+Tasks support queue, priority, and category properties to help manage and organize work.
 
 ### Queue
 
@@ -65,7 +66,20 @@ Tasks in backlog remain in their status column but are visually de-emphasized. T
 
 Tasks are sorted by priority within each column. Higher priority tasks appear first in both active and backlog sections.
 
-**Note:** Queue and priority are orthogonal to task status. A `backlog` task can still be `running` or `blocked`, and a `critical` task can be in any status.
+### Category
+
+| Category | Description | Use Case |
+|----------|-------------|----------|
+| `feature` | New functionality (default) | Adding capabilities |
+| `bug` | Bug fix | Error correction |
+| `refactor` | Code restructuring | No behavior change |
+| `chore` | Maintenance | Dependencies, cleanup |
+| `docs` | Documentation | README, API docs |
+| `test` | Test-related | Test coverage |
+
+Categories help classify the type of work for organization and filtering. Set via `--category` flag on `orc new` or through the web UI.
+
+**Note:** Queue, priority, and category are orthogonal to task status. A `backlog` task can still be `running` or `blocked`, and a `critical` task can be in any status.
 
 ---
 
