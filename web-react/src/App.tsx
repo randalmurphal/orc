@@ -11,7 +11,9 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/health')
+    const controller = new AbortController();
+
+    fetch('/api/health', { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -21,9 +23,13 @@ function App() {
         setLoading(false);
       })
       .catch((err: Error) => {
+        // Ignore abort errors
+        if (err.name === 'AbortError') return;
         setError(err.message);
         setLoading(false);
       });
+
+    return () => controller.abort();
   }, []);
 
   return (
