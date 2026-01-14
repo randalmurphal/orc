@@ -414,7 +414,46 @@ export interface Initiative {
 }
 
 // WebSocket connection status
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
+
+// WebSocket event types
+export type WSEventType =
+	| 'state'
+	| 'transcript'
+	| 'phase'
+	| 'tokens'
+	| 'error'
+	| 'complete'
+	| 'finalize'
+	// File watcher events (triggered by external file changes)
+	| 'task_created'
+	| 'task_updated'
+	| 'task_deleted';
+
+// Special task ID for subscribing to all task events
+export const GLOBAL_TASK_ID = '*';
+
+export interface WSEvent {
+	type: 'event';
+	event: WSEventType;
+	task_id: string;
+	data: unknown;
+	time: string;
+}
+
+export interface WSMessage {
+	type: string;
+	task_id?: string;
+	action?: string;
+	data?: unknown;
+}
+
+export interface WSError {
+	type: 'error';
+	error: string;
+}
+
+export type WSCallback = (event: WSEvent | WSError) => void;
 
 // Toast notification types
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
