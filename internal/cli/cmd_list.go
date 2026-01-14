@@ -9,48 +9,44 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newListCmd creates the list command
 func newListCmd() *cobra.Command {
-	var statusFilter string
-	var weightFilter string
-
 	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List tasks",
 		Long: `List all tasks in the current project.
 
+Filter by initiative:
+  --initiative INIT-001    Show tasks in that initiative
+  --initiative unassigned  Show tasks not in any initiative
+  --initiative ""          Same as unassigned
+
 Example:
   orc list
   orc list --status running
-  orc list --weight large`,
+  orc list --weight large
+  orc list --initiative INIT-001
+  orc list --initiative unassigned`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
 				return err
 			}
 
-			// Validate status filter if provided
-			if statusFilter != "" {
-				if !task.IsValidStatus(task.Status(statusFilter)) {
-					validStatuses := make([]string, len(task.ValidStatuses()))
-					for i, s := range task.ValidStatuses() {
-						validStatuses[i] = string(s)
-					}
-					return fmt.Errorf("invalid status %q, valid values: %s", statusFilter, strings.Join(validStatuses, ", "))
-				}
-			}
+			// Get filter flags
+			initiativeFilter, _ := cmd.Flags().GetString("initiative")
+			statusFilter, _ := cmd.Flags().GetString("status")
+			weightFilter, _ := cmd.Flags().GetString("weight")
 
-			// Validate weight filter if provided
-			if weightFilter != "" {
-				if !task.IsValidWeight(task.Weight(weightFilter)) {
-					validWeights := make([]string, len(task.ValidWeights()))
-					for i, w := range task.ValidWeights() {
-						validWeights[i] = string(w)
-					}
-					return fmt.Errorf("invalid weight %q, valid values: %s", weightFilter, strings.Join(validWeights, ", "))
+			// Validate initiative filter if provided (unless it's "unassigned" or empty)
+			initiativeFilterActive := cmd.Flags().Changed("initiative")
+			if initiativeFilterActive && initiativeFilter != "" && initiativeFilter != "unassigned" {
+				if !initiative.Exists(initiativeFilter, false) && !initiative.Exists(initiativeFilter, true) {
+					return fmt.Errorf("initiative %s not found", initiativeFilter)
 				}
 			}
 
@@ -59,26 +55,63 @@ Example:
 				return fmt.Errorf("load tasks: %w", err)
 			}
 
+			out := cmd.OutOrStdout()
+
+			if len(tasks) == 0 {
+				fmt.Fprintln(out, "No tasks found. Create one with: orc new \"Your task\"")
+				return nil
+			}
+
 			// Apply filters
 			var filtered []*task.Task
 			for _, t := range tasks {
-				if statusFilter != "" && string(t.Status) != statusFilter {
-					continue
+				// Initiative filter
+				if initiativeFilterActive {
+					// Empty string or "unassigned" means show tasks without initiative
+					if initiativeFilter == "" || strings.ToLower(initiativeFilter) == "unassigned" {
+						if t.InitiativeID != "" {
+							continue
+						}
+					} else {
+						if t.InitiativeID != initiativeFilter {
+							continue
+						}
+					}
 				}
-				if weightFilter != "" && string(t.Weight) != weightFilter {
-					continue
+
+				// Status filter
+				if statusFilter != "" {
+					if string(t.Status) != statusFilter {
+						continue
+					}
 				}
+
+				// Weight filter
+				if weightFilter != "" {
+					if string(t.Weight) != weightFilter {
+						continue
+					}
+				}
+
 				filtered = append(filtered, t)
 			}
 
-			out := cmd.OutOrStdout()
-
 			if len(filtered) == 0 {
-				if statusFilter != "" || weightFilter != "" {
-					fmt.Fprintln(out, "No tasks match the specified filters.")
-				} else {
-					fmt.Fprintln(out, "No tasks found. Create one with: orc new \"Your task\"")
+				var filterDesc []string
+				if initiativeFilterActive {
+					if initiativeFilter == "" || strings.ToLower(initiativeFilter) == "unassigned" {
+						filterDesc = append(filterDesc, "unassigned initiative")
+					} else {
+						filterDesc = append(filterDesc, fmt.Sprintf("initiative %s", initiativeFilter))
+					}
 				}
+				if statusFilter != "" {
+					filterDesc = append(filterDesc, fmt.Sprintf("status %s", statusFilter))
+				}
+				if weightFilter != "" {
+					filterDesc = append(filterDesc, fmt.Sprintf("weight %s", weightFilter))
+				}
+				fmt.Fprintf(out, "No tasks found matching: %s\n", strings.Join(filterDesc, ", "))
 				return nil
 			}
 
@@ -102,8 +135,38 @@ Example:
 		},
 	}
 
-	cmd.Flags().StringVarP(&statusFilter, "status", "s", "", "filter by status (created, planned, running, paused, blocked, completed, finished, failed)")
-	cmd.Flags().StringVarP(&weightFilter, "weight", "w", "", "filter by weight (trivial, small, medium, large, greenfield)")
+	// Add filter flags
+	cmd.Flags().StringP("initiative", "i", "", "filter by initiative ID (use 'unassigned' or '' for tasks without initiative)")
+	cmd.Flags().StringP("status", "s", "", "filter by status (pending, running, completed, etc.)")
+	cmd.Flags().StringP("weight", "w", "", "filter by weight (trivial, small, medium, large, greenfield)")
+
+	// Register completion function for initiative flag
+	_ = cmd.RegisterFlagCompletionFunc("initiative", completeInitiativeIDs)
 
 	return cmd
+}
+
+// completeInitiativeIDs provides tab completion for initiative IDs
+func completeInitiativeIDs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// Load initiatives (ignore errors for completion)
+	inits, err := initiative.List(false)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// Shared initiatives
+	sharedInits, _ := initiative.List(true)
+	inits = append(inits, sharedInits...)
+
+	// Build completion list
+	var completions []string
+	completions = append(completions, "unassigned\ttasks without an initiative")
+	for _, init := range inits {
+		// Filter by prefix if user started typing
+		if toComplete == "" || strings.HasPrefix(init.ID, toComplete) {
+			completions = append(completions, fmt.Sprintf("%s\t%s", init.ID, truncate(init.Title, 30)))
+		}
+	}
+
+	return completions, cobra.ShellCompDirectiveNoFileComp
 }
