@@ -1,0 +1,39 @@
+/* Environment section layout */
+.environment-layout {
+	display: flex;
+	gap: 1.5rem;
+}
+
+.environment-nav {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	min-width: 150px;
+	padding: 0.5rem;
+	background: var(--color-bg-secondary, #161b22);
+	border-radius: 8px;
+}
+
+.env-nav-link {
+	padding: 0.5rem 0.75rem;
+	border-radius: 4px;
+	color: var(--color-text-secondary, #8b949e);
+	text-decoration: none;
+	font-size: 0.875rem;
+	transition: background-color 0.15s, color 0.15s;
+}
+
+.env-nav-link:hover {
+	background: var(--color-bg-tertiary, #21262d);
+	color: var(--color-text-primary, #e6edf3);
+}
+
+.env-nav-link.active {
+	background: var(--color-accent-subtle, rgba(56, 139, 253, 0.15));
+	color: var(--color-accent, #58a6ff);
+}
+
+.environment-content {
+	flex: 1;
+	min-width: 0;
+}

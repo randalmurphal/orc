@@ -1,0 +1,75 @@
+/* Header styles */
+.app-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 1rem 1.5rem;
+	background: var(--color-bg-secondary, #161b22);
+	border-bottom: 1px solid var(--color-border, #30363d);
+}
+
+.header-left {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+}
+
+.header-title {
+	font-size: 1.25rem;
+	font-weight: 600;
+	color: var(--color-text-primary, #e6edf3);
+	margin: 0;
+}
+
+.header-project {
+	font-size: 0.875rem;
+	color: var(--color-text-muted, #8b949e);
+	padding: 0.25rem 0.5rem;
+	background: var(--color-bg-tertiary, #21262d);
+	border-radius: 4px;
+}
+
+.header-right {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+}
+
+/* Connection indicator */
+.connection-indicator {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.75rem;
+	color: var(--color-text-muted, #8b949e);
+}
+
+.connection-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--color-text-muted, #8b949e);
+}
+
+.connection-indicator.connected .connection-dot {
+	background: var(--color-success, #3fb950);
+}
+
+.connection-indicator.connecting .connection-dot,
+.connection-indicator.reconnecting .connection-dot {
+	background: var(--color-warning, #d29922);
+	animation: pulse 1s ease-in-out infinite;
+}
+
+.connection-indicator.disconnected .connection-dot {
+	background: var(--color-danger, #f85149);
+}
+
+.connection-label {
+	text-transform: capitalize;
+}
+
+@keyframes pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.4; }
+}
