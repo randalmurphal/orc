@@ -333,6 +333,20 @@ Example:
 				}
 			}
 
+			// Auto-commit the new task files
+			cfg, err := config.Load()
+			if err == nil && !cfg.Tasks.DisableAutoCommit {
+				projectDir, err := config.FindProjectRoot()
+				if err == nil {
+					commitCfg := task.CommitConfig{
+						ProjectRoot:  projectDir,
+						CommitPrefix: cfg.CommitPrefix,
+					}
+					// Non-blocking - warn on error but don't fail
+					task.CommitAndSync(t, "created", commitCfg)
+				}
+			}
+
 			fmt.Println("\nNext steps:")
 			fmt.Printf("  orc run %s    - Execute the task\n", id)
 			fmt.Printf("  orc show %s   - View task details\n", id)
