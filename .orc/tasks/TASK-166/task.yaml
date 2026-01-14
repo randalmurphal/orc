@@ -51,6 +51,12 @@ testing_requirements:
     unit: true
     visual: true
 created_at: 2026-01-14T02:20:36.394567947-06:00
-updated_at: 2026-01-14T12:06:23.259618-06:00
+updated_at: 2026-01-14T12:06:35.467434-06:00
 started_at: 2026-01-14T11:39:52.59166-06:00
 completed_at: 2026-01-14T12:06:23.256741-06:00
+metadata:
+    pr_url: https://github.com/randalmurphal/orc/pull/86
+pr:
+    url: https://github.com/randalmurphal/orc/pull/86
+    number: 86
+    status: pending_review
