@@ -198,7 +198,7 @@
 	}
 </script>
 
-<div
+<article
 	class="task-card"
 	class:dragging={isDragging}
 	class:running={isRunning}
@@ -210,8 +210,7 @@
 	ondragend={handleDragEnd}
 	onclick={openTask}
 	onkeydown={handleKeydown}
-	role="button"
-	tabindex="0"
+	aria-label="Task {task.id}: {task.title}"
 >
 	<div class="card-header">
 		<div class="header-left">
@@ -466,7 +465,7 @@
 			</div>
 		</div>
 	</div>
-</div>
+</article>
 
 <style>
 	.task-card {

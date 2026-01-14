@@ -480,7 +480,7 @@
 		</div>
 
 		<!-- Tab Content -->
-		<div class="tab-content" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
+		<div class="tab-content" role="tabpanel" id={`tabpanel-${activeTab}`} aria-labelledby={`tab-${activeTab}`}>
 			{#if activeTab === 'timeline'}
 				{#if plan}
 					<Timeline phases={plan.phases} currentPhase={task.current_phase} state={taskState} />

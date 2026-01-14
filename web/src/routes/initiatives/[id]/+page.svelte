@@ -400,7 +400,7 @@
 		</header>
 
 		<!-- Tab Navigation -->
-		<nav class="tabs-nav" role="tablist">
+		<div class="tabs-nav" role="tablist" aria-label="Initiative sections">
 			<button
 				class="tab-btn"
 				class:active={activeTab === 'tasks'}
@@ -437,7 +437,7 @@
 					<span class="tab-count">{initiative.decisions.length}</span>
 				{/if}
 			</button>
-		</nav>
+		</div>
 
 		<!-- Tab Content -->
 		<div class="tab-content">
