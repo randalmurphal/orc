@@ -4,6 +4,7 @@ package git
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -586,4 +587,79 @@ func (g *Git) RestoreOrcDir(target string, taskID string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// TryAutoResolveClaudeMD attempts to auto-resolve CLAUDE.md conflicts.
+// This is called when CLAUDE.md is detected as a conflicted file.
+// Returns true if resolution succeeded, false if manual resolution is needed.
+//
+// Auto-resolution only works for append-only conflicts in the knowledge section:
+// - Both sides add new rows to the same table
+// - No overlapping edits to the same row
+// - Conflict is within orc:knowledge:begin/end markers
+func (g *Git) TryAutoResolveClaudeMD(logger *slog.Logger) (bool, []string) {
+	claudeMDPath := filepath.Join(g.ctx.RepoPath(), "CLAUDE.md")
+
+	// Read the conflicted file
+	content, err := os.ReadFile(claudeMDPath)
+	if err != nil {
+		return false, []string{fmt.Sprintf("failed to read CLAUDE.md: %v", err)}
+	}
+
+	// Check for conflict markers
+	if !strings.Contains(string(content), "<<<<<<<") {
+		return false, []string{"no conflict markers found in CLAUDE.md"}
+	}
+
+	// Attempt auto-resolution
+	resolved, success, logs := ResolveClaudeMDConflict(string(content), logger)
+	if !success {
+		return false, logs
+	}
+
+	// Write the resolved content
+	if err := os.WriteFile(claudeMDPath, []byte(resolved), 0644); err != nil {
+		return false, append(logs, fmt.Sprintf("failed to write resolved CLAUDE.md: %v", err))
+	}
+
+	// Stage the resolved file
+	if _, err := g.ctx.RunGit("add", "CLAUDE.md"); err != nil {
+		return false, append(logs, fmt.Sprintf("failed to stage resolved CLAUDE.md: %v", err))
+	}
+
+	logs = append(logs, "CLAUDE.md auto-resolved and staged")
+	return true, logs
+}
+
+// AutoResolveConflicts attempts to auto-resolve known conflict patterns.
+// Currently handles:
+// - CLAUDE.md knowledge section (append-only table rows)
+//
+// Returns the list of files that were auto-resolved and the remaining conflicts.
+func (g *Git) AutoResolveConflicts(conflictFiles []string, logger *slog.Logger) (resolved []string, remaining []string, logs []string) {
+	for _, file := range conflictFiles {
+		if IsClaudeMDFile(file) {
+			success, resolveLogs := g.TryAutoResolveClaudeMD(logger)
+			logs = append(logs, resolveLogs...)
+			if success {
+				resolved = append(resolved, file)
+				if logger != nil {
+					logger.Info("auto-resolved CLAUDE.md conflict",
+						"file", file,
+					)
+				}
+			} else {
+				remaining = append(remaining, file)
+				if logger != nil {
+					logger.Debug("CLAUDE.md auto-resolve failed, requires manual resolution",
+						"file", file,
+						"reason", strings.Join(resolveLogs, "; "),
+					)
+				}
+			}
+		} else {
+			remaining = append(remaining, file)
+		}
+	}
+	return resolved, remaining, logs
 }
