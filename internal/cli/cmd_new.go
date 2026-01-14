@@ -24,6 +24,9 @@ func newNewCmd() *cobra.Command {
 Specify the weight (trivial, small, medium, large, greenfield) via --weight flag.
 If not specified, defaults to medium.
 
+Specify the category (feature, bug, refactor, chore, docs, test) via --category flag.
+If not specified, defaults to feature.
+
 Use --template to create a task from a predefined template:
   orc new -t bugfix "Fix authentication timeout bug"
   orc new -t feature "Add dark mode" -v FEATURE_SCOPE="UI only"
@@ -35,6 +38,7 @@ Example:
   orc new "Fix authentication timeout bug"
   orc new "Implement user dashboard" --weight large
   orc new "Create new microservice" --weight greenfield
+  orc new "Fix login bug" --category bug
   orc new -t bugfix "Fix memory leak"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -44,6 +48,7 @@ Example:
 
 			title := args[0]
 			weight, _ := cmd.Flags().GetString("weight")
+			category, _ := cmd.Flags().GetString("category")
 			description, _ := cmd.Flags().GetString("description")
 			templateName, _ := cmd.Flags().GetString("template")
 			varsFlag, _ := cmd.Flags().GetStringSlice("var")
@@ -101,6 +106,15 @@ Example:
 				t.Weight = task.Weight(weight)
 			} else {
 				t.Weight = task.WeightMedium
+			}
+
+			// Set category (defaults to feature if not specified)
+			if category != "" {
+				cat := task.Category(category)
+				if !task.IsValidCategory(cat) {
+					return fmt.Errorf("invalid category: %s (valid: feature, bug, refactor, chore, docs, test)", category)
+				}
+				t.Category = cat
 			}
 
 			// Detect project characteristics for testing requirements
@@ -165,9 +179,10 @@ Example:
 			}
 
 			fmt.Printf("Task created: %s\n", id)
-			fmt.Printf("   Title:  %s\n", title)
-			fmt.Printf("   Weight: %s\n", t.Weight)
-			fmt.Printf("   Phases: %d\n", len(p.Phases))
+			fmt.Printf("   Title:    %s\n", title)
+			fmt.Printf("   Weight:   %s\n", t.Weight)
+			fmt.Printf("   Category: %s\n", t.GetCategory())
+			fmt.Printf("   Phases:   %d\n", len(p.Phases))
 			if tpl != nil {
 				fmt.Printf("   Template: %s\n", tpl.Name)
 			}
@@ -197,6 +212,7 @@ Example:
 		},
 	}
 	cmd.Flags().StringP("weight", "w", "", "task weight (trivial, small, medium, large, greenfield)")
+	cmd.Flags().StringP("category", "c", "", "task category (feature, bug, refactor, chore, docs, test)")
 	cmd.Flags().StringP("description", "d", "", "task description")
 	cmd.Flags().StringP("template", "t", "", "use template (bugfix, feature, refactor, migration, spike)")
 	cmd.Flags().StringSlice("var", nil, "template variable (KEY=VALUE)")

@@ -66,12 +66,13 @@ Next steps:
 Create a new task.
 
 ```bash
-orc new <title> [--weight <weight>] [--description <desc>]
+orc new <title> [--weight <weight>] [--category <category>] [--description <desc>]
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--weight`, `-w` | Task weight: trivial/small/medium/large/greenfield | auto-classify |
+| `--category`, `-c` | Task category: feature/bug/refactor/chore/docs/test | feature |
 | `--description`, `-d` | Task description | opens editor |
 | `--branch`, `-b` | Custom branch name | `orc/TASK-XXX` |
 | `--template`, `-t` | Use template (bugfix, feature, refactor, migration, spike) | none |
@@ -86,15 +87,17 @@ orc new <title> [--weight <weight>] [--description <desc>]
 orc new "Fix typo in README" --weight trivial
 orc new "Add OAuth2 authentication" -w large -d "Support Google and GitHub"
 orc new "Add dark mode toggle button"   # Auto-detects UI testing required
+orc new "Fix login bug" --category bug
 orc new -t bugfix "Fix memory leak"
 ```
 
 **Output**:
 ```
 Task created: TASK-001
-   Title:  Add dark mode toggle button
-   Weight: medium
-   Phases: 3
+   Title:    Add dark mode toggle button
+   Weight:   medium
+   Category: feature
+   Phases:   3
    UI Testing: required (detected from task description)
    Testing: unit, e2e, visual
 
@@ -110,13 +113,14 @@ Next steps:
 List tasks.
 
 ```bash
-orc list [--status <status>] [--weight <weight>] [--queue <queue>] [--all]
+orc list [--status <status>] [--weight <weight>] [--category <category>] [--queue <queue>] [--all]
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--status`, `-s` | Filter by status | active |
 | `--weight`, `-w` | Filter by weight | all |
+| `--category`, `-c` | Filter by category: `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | all |
 | `--queue`, `-Q` | Filter by queue: `active`, `backlog` | all |
 | `--all`, `-a` | Include completed | false |
 
@@ -127,7 +131,7 @@ TASK-001  medium   running     implement  Add user auth
 TASK-002  small    paused      research   Fix rate limiting
 ```
 
-**Note:** Queue and priority are primarily managed via the Web UI or API. See [API Reference](../API_REFERENCE.md) for PATCH `/api/tasks/:id` to set queue/priority.
+**Note:** Queue, priority, and category are primarily managed via the Web UI or API. See [API Reference](../API_REFERENCE.md) for PATCH `/api/tasks/:id` to set these fields.
 
 ---
 

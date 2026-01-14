@@ -1,12 +1,13 @@
 <script lang="ts">
-	import type { Task, TaskWeight, TaskQueue, TaskPriority } from '$lib/types';
+	import type { Task, TaskWeight, TaskQueue, TaskPriority, TaskCategory } from '$lib/types';
+	import { CATEGORY_CONFIG } from '$lib/types';
 	import Modal from '$lib/components/overlays/Modal.svelte';
 
 	interface Props {
 		task: Task;
 		open: boolean;
 		onClose: () => void;
-		onSave: (update: { title?: string; description?: string; weight?: TaskWeight; queue?: TaskQueue; priority?: TaskPriority }) => Promise<void>;
+		onSave: (update: { title?: string; description?: string; weight?: TaskWeight; queue?: TaskQueue; priority?: TaskPriority; category?: TaskCategory }) => Promise<void>;
 	}
 
 	let { task, open, onClose, onSave }: Props = $props();
@@ -22,6 +23,8 @@
 	let queue = $state<TaskQueue>(task.queue ?? 'active');
 	// svelte-ignore state_referenced_locally
 	let priority = $state<TaskPriority>(task.priority ?? 'normal');
+	// svelte-ignore state_referenced_locally
+	let category = $state<TaskCategory>(task.category ?? 'feature');
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 
@@ -33,6 +36,7 @@
 			weight = task.weight;
 			queue = task.queue ?? 'active';
 			priority = task.priority ?? 'normal';
+			category = task.category ?? 'feature';
 			error = null;
 		}
 	});
@@ -63,12 +67,22 @@
 		{ value: 'low', label: 'Low', description: 'Can wait', color: 'var(--text-disabled)' }
 	];
 
+	const categoryOptions: { value: TaskCategory; label: string; icon: string; color: string }[] = [
+		{ value: 'feature', label: CATEGORY_CONFIG.feature.label, icon: CATEGORY_CONFIG.feature.icon, color: CATEGORY_CONFIG.feature.color },
+		{ value: 'bug', label: CATEGORY_CONFIG.bug.label, icon: CATEGORY_CONFIG.bug.icon, color: CATEGORY_CONFIG.bug.color },
+		{ value: 'refactor', label: CATEGORY_CONFIG.refactor.label, icon: CATEGORY_CONFIG.refactor.icon, color: CATEGORY_CONFIG.refactor.color },
+		{ value: 'chore', label: CATEGORY_CONFIG.chore.label, icon: CATEGORY_CONFIG.chore.icon, color: CATEGORY_CONFIG.chore.color },
+		{ value: 'docs', label: CATEGORY_CONFIG.docs.label, icon: CATEGORY_CONFIG.docs.icon, color: CATEGORY_CONFIG.docs.color },
+		{ value: 'test', label: CATEGORY_CONFIG.test.label, icon: CATEGORY_CONFIG.test.icon, color: CATEGORY_CONFIG.test.color }
+	];
+
 	const hasChanges = $derived(
 		title !== task.title ||
 		description !== (task.description ?? '') ||
 		weight !== task.weight ||
 		queue !== (task.queue ?? 'active') ||
-		priority !== (task.priority ?? 'normal')
+		priority !== (task.priority ?? 'normal') ||
+		category !== (task.category ?? 'feature')
 	);
 
 	const canSubmit = $derived(title.trim().length > 0 && hasChanges && !isLoading);
@@ -81,7 +95,7 @@
 		error = null;
 
 		try {
-			const update: { title?: string; description?: string; weight?: TaskWeight; queue?: TaskQueue; priority?: TaskPriority } = {};
+			const update: { title?: string; description?: string; weight?: TaskWeight; queue?: TaskQueue; priority?: TaskPriority; category?: TaskCategory } = {};
 
 			if (title !== task.title) {
 				update.title = title.trim();
@@ -97,6 +111,9 @@
 			}
 			if (priority !== (task.priority ?? 'normal')) {
 				update.priority = priority;
+			}
+			if (category !== (task.category ?? 'feature')) {
+				update.category = category;
 			}
 
 			await onSave(update);
@@ -170,6 +187,30 @@
 						/>
 						<span class="weight-label">{option.label}</span>
 						<span class="weight-desc">{option.description}</span>
+					</label>
+				{/each}
+			</div>
+		</div>
+
+		<div class="form-field">
+			<!-- svelte-ignore a11y_label_has_associated_control -->
+			<label id="category-label">Category</label>
+			<div class="category-options" role="radiogroup" aria-labelledby="category-label">
+				{#each categoryOptions as option}
+					<label
+						class="category-option"
+						class:selected={category === option.value}
+						style:--category-color={option.color}
+					>
+						<input
+							type="radio"
+							name="category"
+							value={option.value}
+							bind:group={category}
+							disabled={isLoading}
+						/>
+						<span class="category-icon">{option.icon}</span>
+						<span class="category-label">{option.label}</span>
 					</label>
 				{/each}
 			</div>
@@ -514,6 +555,55 @@
 		color: var(--text-secondary);
 	}
 
+	/* Category options */
+	.category-options {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	.category-option {
+		flex: 1 1 calc(33.333% - var(--space-2));
+		min-width: 80px;
+		display: flex;
+		align-items: center;
+		gap: var(--space-1-5);
+		padding: var(--space-2);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		transition:
+			border-color var(--duration-fast) var(--ease-out),
+			background var(--duration-fast) var(--ease-out);
+	}
+
+	.category-option input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.category-option:hover {
+		border-color: var(--border-strong);
+	}
+
+	.category-option.selected {
+		border-width: 2px;
+		border-color: var(--category-color);
+		background: color-mix(in srgb, var(--category-color) 10%, transparent);
+	}
+
+	.category-icon {
+		font-size: var(--text-base);
+	}
+
+	.category-label {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--text-primary);
+	}
+
 	@media (max-width: 640px) {
 		.weight-options {
 			grid-template-columns: repeat(2, 1fr);
@@ -533,6 +623,10 @@
 
 		.priority-option {
 			flex: 1 1 calc(50% - var(--space-1));
+		}
+
+		.category-option {
+			flex: 1 1 calc(50% - var(--space-2));
 		}
 	}
 </style>

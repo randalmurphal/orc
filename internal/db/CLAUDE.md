@@ -78,6 +78,7 @@ Embedded via `//go:embed schema/*.sql`:
 | `schema/project_007.sql` | Knowledge validation tracking (staleness) |
 | `schema/project_008.sql` | Task comments (human/agent/system notes) |
 | `schema/project_009.sql` | Task queue (backlog/active) and priority fields |
+| `schema/project_010.sql` | Task category field (feature/bug/refactor/chore/docs/test) |
 
 ## Usage
 
@@ -152,7 +153,7 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 
 ### Project Tables
 - `detection` - Project detection results (language, frameworks, build tools)
-- `tasks` - Task records (id, title, weight, status, cost)
+- `tasks` - Task records (id, title, weight, status, queue, priority, category, cost)
 - `phases` - Phase execution state (iterations, tokens)
 - `transcripts` - Claude conversation logs
 - `transcripts_fts` - FTS5 virtual table with triggers (SQLite only)

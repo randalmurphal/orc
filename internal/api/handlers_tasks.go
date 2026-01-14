@@ -41,6 +41,7 @@ func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 		Branch:       t.Branch,
 		Queue:        string(t.GetQueue()),
 		Priority:     string(t.GetPriority()),
+		Category:     string(t.GetCategory()),
 		CreatedAt:    t.CreatedAt,
 		StartedAt:    t.StartedAt,
 		CompletedAt:  t.CompletedAt,
@@ -129,6 +130,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		Weight      string `json:"weight,omitempty"`
 		Queue       string `json:"queue,omitempty"`
 		Priority    string `json:"priority,omitempty"`
+		Category    string `json:"category,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -175,6 +177,16 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		t.Priority = priority
+	}
+
+	// Set category (defaults to feature)
+	if req.Category != "" {
+		category := task.Category(req.Category)
+		if !task.IsValidCategory(category) {
+			s.jsonError(w, fmt.Sprintf("invalid category: %s (valid: feature, bug, refactor, chore, docs, test)", req.Category), http.StatusBadRequest)
+			return
+		}
+		t.Category = category
 	}
 
 	taskDir := task.TaskDirIn(s.workDir, id)
@@ -276,6 +288,7 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		Weight      *string           `json:"weight,omitempty"`
 		Queue       *string           `json:"queue,omitempty"`
 		Priority    *string           `json:"priority,omitempty"`
+		Category    *string           `json:"category,omitempty"`
 		Metadata    map[string]string `json:"metadata,omitempty"`
 	}
 
@@ -329,6 +342,15 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		t.Priority = priority
+	}
+
+	if req.Category != nil {
+		category := task.Category(*req.Category)
+		if !task.IsValidCategory(category) {
+			s.jsonError(w, fmt.Sprintf("invalid category: %s (valid: feature, bug, refactor, chore, docs, test)", *req.Category), http.StatusBadRequest)
+			return
+		}
+		t.Category = category
 	}
 
 	if req.Metadata != nil {

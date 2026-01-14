@@ -12,6 +12,8 @@
 	import { currentProjectId } from '$lib/stores/project';
 	import { addTask } from '$lib/stores/tasks';
 	import { toast } from '$lib/stores/toast.svelte';
+	import type { TaskCategory } from '$lib/types';
+	import { CATEGORY_CONFIG } from '$lib/types';
 	import Modal from './Modal.svelte';
 
 	interface Props {
@@ -23,9 +25,19 @@
 
 	let title = $state('');
 	let description = $state('');
+	let category = $state<TaskCategory>('feature');
 	let creating = $state(false);
 	let error = $state<string | null>(null);
 	let titleInputRef: HTMLInputElement;
+
+	const categoryOptions: { value: TaskCategory; label: string; icon: string; color: string }[] = [
+		{ value: 'feature', label: CATEGORY_CONFIG.feature.label, icon: CATEGORY_CONFIG.feature.icon, color: CATEGORY_CONFIG.feature.color },
+		{ value: 'bug', label: CATEGORY_CONFIG.bug.label, icon: CATEGORY_CONFIG.bug.icon, color: CATEGORY_CONFIG.bug.color },
+		{ value: 'refactor', label: CATEGORY_CONFIG.refactor.label, icon: CATEGORY_CONFIG.refactor.icon, color: CATEGORY_CONFIG.refactor.color },
+		{ value: 'chore', label: CATEGORY_CONFIG.chore.label, icon: CATEGORY_CONFIG.chore.icon, color: CATEGORY_CONFIG.chore.color },
+		{ value: 'docs', label: CATEGORY_CONFIG.docs.label, icon: CATEGORY_CONFIG.docs.icon, color: CATEGORY_CONFIG.docs.color },
+		{ value: 'test', label: CATEGORY_CONFIG.test.label, icon: CATEGORY_CONFIG.test.icon, color: CATEGORY_CONFIG.test.color }
+	];
 
 	// Focus input when modal opens
 	$effect(() => {
@@ -40,6 +52,7 @@
 		if (!open) {
 			title = '';
 			description = '';
+			category = 'feature';
 			error = null;
 			creating = false;
 		}
@@ -56,9 +69,9 @@
 			let newTask;
 
 			if (projectId) {
-				newTask = await createProjectTask(projectId, title.trim(), description.trim() || undefined);
+				newTask = await createProjectTask(projectId, title.trim(), description.trim() || undefined, undefined, category);
 			} else {
-				newTask = await createTask(title.trim(), description.trim() || undefined);
+				newTask = await createTask(title.trim(), description.trim() || undefined, undefined, category);
 			}
 
 			// Add to store
@@ -122,6 +135,30 @@
 				disabled={creating}
 			></textarea>
 		</label>
+
+		<div class="form-field">
+			<!-- svelte-ignore a11y_label_has_associated_control -->
+			<label class="form-label" id="category-label">Category</label>
+			<div class="category-options" role="radiogroup" aria-labelledby="category-label">
+				{#each categoryOptions as option}
+					<label
+						class="category-option"
+						class:selected={category === option.value}
+						style:--category-color={option.color}
+					>
+						<input
+							type="radio"
+							name="category"
+							value={option.value}
+							bind:group={category}
+							disabled={creating}
+						/>
+						<span class="category-icon">{option.icon}</span>
+						<span class="category-label">{option.label}</span>
+					</label>
+				{/each}
+			</div>
+		</div>
 
 		<p class="form-hint">
 			Orc will classify the weight and create a plan automatically based on the title and description.
@@ -235,6 +272,67 @@
 		font-size: var(--text-xs);
 		color: var(--text-muted);
 		margin: 0;
+	}
+
+	.form-field {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	/* Category options */
+	.category-options {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	.category-option {
+		flex: 1 1 calc(33.333% - var(--space-2));
+		min-width: 80px;
+		display: flex;
+		align-items: center;
+		gap: var(--space-1-5);
+		padding: var(--space-2);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		transition:
+			border-color var(--duration-fast) var(--ease-out),
+			background var(--duration-fast) var(--ease-out);
+	}
+
+	.category-option input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.category-option:hover {
+		border-color: var(--border-strong);
+	}
+
+	.category-option.selected {
+		border-width: 2px;
+		border-color: var(--category-color);
+		background: color-mix(in srgb, var(--category-color) 10%, transparent);
+	}
+
+	.category-icon {
+		font-size: var(--text-base);
+	}
+
+	.category-label {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--text-primary);
+	}
+
+	@media (max-width: 640px) {
+		.category-option {
+			flex: 1 1 calc(50% - var(--space-2));
+		}
 	}
 
 	.form-actions {

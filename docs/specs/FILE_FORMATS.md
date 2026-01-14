@@ -71,6 +71,7 @@ branch: orc/TASK-001
 # Task Organization
 queue: active                     # active (default) | backlog
 priority: normal                  # critical | high | normal (default) | low
+category: feature                 # feature (default) | bug | refactor | chore | docs | test
 
 # UI Testing Detection (auto-detected from task content)
 requires_ui_testing: true         # Set when task mentions UI/frontend/button/form/page
@@ -95,18 +96,27 @@ metadata:
   resolution_message: "Fixed manually outside of orc"  # Optional explanation
 ```
 
-### Queue and Priority
+### Queue, Priority, and Category
 
 | Field | Values | Default | Purpose |
 |-------|--------|---------|---------|
 | `queue` | `active`, `backlog` | `active` | Separates current work from deferred items |
 | `priority` | `critical`, `high`, `normal`, `low` | `normal` | Urgency within a queue |
+| `category` | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | `feature` | Type of work for organization and filtering |
 
 **Queue behavior:**
 - **active**: Tasks shown prominently on the board
 - **backlog**: Tasks collapsed by default in each column, shown with dashed borders
 
 **Priority sort order:** Tasks within each column are sorted by priority (critical first, then high, normal, low).
+
+**Category types:**
+- **feature**: New functionality or capability
+- **bug**: Bug fix or error correction
+- **refactor**: Code restructuring without behavior change
+- **chore**: Maintenance tasks (dependencies, cleanup, config)
+- **docs**: Documentation changes
+- **test**: Test-related changes
 
 ---
 

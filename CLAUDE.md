@@ -47,12 +47,13 @@ Commands: `/orc:init`, `/orc:status`, `/orc:continue`, `/orc:review`, `/orc:qa`,
 
 ### Task Organization
 
-Tasks support queue and priority organization to prevent cognitive overload:
+Tasks support queue, priority, and category organization:
 
 | Property | Values | Purpose |
 |----------|--------|---------|
 | Queue | `active`, `backlog` | Separates current work from "someday" items |
 | Priority | `critical`, `high`, `normal`, `low` | Urgency within a queue |
+| Category | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | Type of work for organization and filtering |
 
 **Queues:**
 - **Active** (default): Current work shown on the board
@@ -63,6 +64,14 @@ Tasks support queue and priority organization to prevent cognitive overload:
 - **High**: Important, should be done soon
 - **Normal**: Default priority
 - **Low**: Can wait
+
+**Categories:**
+- **feature**: New functionality or capability (default)
+- **bug**: Bug fix or error correction
+- **refactor**: Code restructuring without behavior change
+- **chore**: Maintenance tasks (dependencies, cleanup, config)
+- **docs**: Documentation changes
+- **test**: Test-related changes
 
 Tasks are sorted by priority within each column. Higher priority tasks appear first.
 
@@ -181,7 +190,7 @@ orc config profile strict
 |---------|---------|
 | `orc go` | Main entry (interactive/headless/quick) |
 | `orc init` | Initialize project (<500ms) |
-| `orc new "title"` | Create task, classify weight |
+| `orc new "title"` | Create task, classify weight (use `-c bug` for category) |
 | `orc run TASK-ID` | Execute phases |
 | `orc plan TASK-ID` | Interactive spec creation |
 | `orc status` | Show running/blocked/paused |
