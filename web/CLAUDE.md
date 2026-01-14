@@ -41,7 +41,7 @@ web/src/
 |----------|------------|---------|
 | Layout | Header, Sidebar | Navigation, project/initiative switcher |
 | Dashboard | Stats, QuickActions, ActiveTasks, RecentActivity | Overview page |
-| Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments, TokenUsage | Task detail |
+| Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments, TokenUsage, DependencySidebar, AddDependencyModal | Task detail |
 | Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
 | Filters | InitiativeDropdown | Filter bar dropdowns |
 | Kanban | Board, Column, QueuedColumn, TaskCard, ConfirmModal | Board view with queue/priority |
@@ -242,6 +242,63 @@ Clicking a running task opens `LiveTranscriptModal` - a modal overlay showing re
 **Triggering the modal:**
 - Click running task card on board or task list
 - Cards pass `onViewTranscript` callback to open modal
+
+### Task Dependency Sidebar
+
+The task detail page includes a `DependencySidebar` component showing task relationships and dependencies.
+
+```
+┌─ Dependencies ────────────────────────────┐
+│                                           │
+│ Blocked by (2)              [+ Add]       │
+│ ┌─────────────────────────────────────┐   │
+│ │ ✓ TASK-060 Add initiative_id...     │   │  ← completed, green check
+│ │ ○ TASK-061 Add sidebar navigation   │   │  ← pending, gray circle
+│ └─────────────────────────────────────┘   │
+│                                           │
+│ Blocks (1)                                │
+│ ┌─────────────────────────────────────┐   │
+│ │ ○ TASK-065 Swimlane view toggle     │   │
+│ └─────────────────────────────────────┘   │
+│                                           │
+│ Related (1)                   [+ Add]     │
+│ ┌─────────────────────────────────────┐   │
+│ │ TASK-063 Initiative badge on cards  │   │
+│ └─────────────────────────────────────┘   │
+│                                           │
+│ Referenced in (2)                         │
+│ ┌─────────────────────────────────────┐   │
+│ │ TASK-072 Dependency documentation   │   │
+│ └─────────────────────────────────────┘   │
+│                                           │
+└───────────────────────────────────────────┘
+```
+
+| Section | Description | Editable |
+|---------|-------------|----------|
+| **Blocked by** | Tasks that must complete first | Yes (+ Add / Remove) |
+| **Blocks** | Tasks waiting on this task | No (computed inverse) |
+| **Related** | Informational task relationships | Yes (+ Add / Remove) |
+| **Referenced in** | Tasks mentioning this one in description | No (auto-detected) |
+
+**Status indicators:**
+- ✓ (green) - Completed task
+- ● (blue, pulsing) - Running task
+- ○ (gray) - Pending/planned task
+
+**Features:**
+- Collapsible header with task count badge
+- Blocked banner when task has unmet dependencies
+- Blocking info when task is blocking other tasks
+- Click dependency to navigate to that task
+- `+ Add` button opens `AddDependencyModal` for search/select
+- Remove buttons appear on hover for editable sections
+- Empty states for sections with no items
+
+**API integration:**
+- Uses `getTaskDependencies(taskId)` to fetch dependency graph
+- Uses `addBlocker()`, `removeBlocker()`, `addRelated()`, `removeRelated()` for mutations
+- Notifies parent via `onTaskUpdated` callback after changes
 
 ### TaskCard Quick Menu
 
