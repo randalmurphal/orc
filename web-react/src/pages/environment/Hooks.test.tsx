@@ -461,11 +461,12 @@ describe('Hooks', () => {
 		});
 
 		it('shows Saving... text while saving', async () => {
+			let resolvePromise: (value: object) => void;
 			vi.mocked(api.updateHook).mockImplementation(
 				() =>
-					new Promise((resolve) =>
-						setTimeout(() => resolve({}), 100)
-					)
+					new Promise((resolve) => {
+						resolvePromise = resolve;
+					})
 			);
 
 			renderHooks();
@@ -483,6 +484,12 @@ describe('Hooks', () => {
 			fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
 			expect(screen.getByText('Saving...')).toBeInTheDocument();
+
+			// Resolve the promise to allow proper cleanup
+			resolvePromise!({});
+			await waitFor(() => {
+				expect(screen.queryByText('Saving...')).not.toBeInTheDocument();
+			});
 		});
 	});
 
