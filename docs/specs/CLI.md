@@ -400,13 +400,14 @@ orc reset TASK-001 --force   # Skip confirmation (for scripts/automation)
 Mark a failed task as resolved without re-running.
 
 ```bash
-orc resolve <task-id> [--message <msg>] [--force]
+orc resolve <task-id> [--message <msg>] [--cleanup] [--force]
 ```
 
 | Option | Description |
 |--------|-------------|
 | `--message`, `-m` | Resolution message explaining why task was resolved |
-| `--force`, `-f` | Skip confirmation prompt |
+| `--cleanup` | Abort in-progress git operations and discard uncommitted changes in worktree |
+| `--force`, `-f` | Skip confirmation prompt and worktree state checks |
 
 Marks a failed task as completed (resolved) without clearing its execution state. Unlike `reset` which clears progress for retry, `resolve` closes out a failed task while preserving the failure context.
 
@@ -415,10 +416,29 @@ Marks a failed task as completed (resolved) without clearing its execution state
 - Failure is no longer relevant (requirements changed)
 - Acknowledge and close out a failed task without retry
 
+**Worktree handling**:
+
+If the task has an associated worktree with uncommitted changes, in-progress git operations (rebase/merge), or unresolved conflicts, a warning is displayed:
+
+```
+📁 Worktree: .orc/worktrees/orc-TASK-001
+   ⚠️  Rebase in progress - worktree is in an incomplete state
+   ⚠️  3 uncommitted file(s)
+```
+
+| Flag | Behavior |
+|------|----------|
+| `--cleanup` | Abort in-progress git ops, discard uncommitted changes, then resolve |
+| `--force` | Skip all worktree checks, resolve without cleanup |
+| (default) | Show warnings and prompt for confirmation |
+
 **Metadata stored**:
 - `resolved: true` - Indicates task was resolved, not executed to completion
 - `resolved_at` - Timestamp of resolution
 - `resolution_message` - Optional explanation (if provided via `-m`)
+- `worktree_was_dirty` - Set if worktree had uncommitted changes
+- `worktree_had_conflicts` - Set if worktree had unresolved merge conflicts
+- `worktree_had_incomplete_operation` - Set if worktree had rebase/merge in progress
 
 **Restrictions**:
 - Only failed tasks can be resolved
@@ -428,7 +448,8 @@ Marks a failed task as completed (resolved) without clearing its execution state
 ```bash
 orc resolve TASK-001                          # Resolve with confirmation
 orc resolve TASK-001 -m "Fixed manually"      # With resolution message
-orc resolve TASK-001 --force                  # Skip confirmation
+orc resolve TASK-001 --cleanup                # Clean up worktree state first
+orc resolve TASK-001 --force                  # Skip all checks
 ```
 
 ---

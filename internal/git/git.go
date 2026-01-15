@@ -662,6 +662,118 @@ func (g *Git) AbortRebase() error {
 	return err
 }
 
+// AbortMerge aborts any in-progress merge.
+func (g *Git) AbortMerge() error {
+	_, err := g.ctx.RunGit("merge", "--abort")
+	return err
+}
+
+// IsRebaseInProgress checks if a rebase is in progress.
+// Checks for .git/rebase-merge/ or .git/rebase-apply/ directories.
+// Works in both regular repos and worktrees.
+func (g *Git) IsRebaseInProgress() (bool, error) {
+	workDir := g.ctx.WorkDir()
+
+	// For worktrees, .git is a file pointing to the actual git dir
+	gitPath := filepath.Join(workDir, ".git")
+	info, err := os.Stat(gitPath)
+	if err != nil {
+		return false, fmt.Errorf("stat .git: %w", err)
+	}
+
+	var gitDir string
+	if info.IsDir() {
+		// Regular repo - .git is a directory
+		gitDir = gitPath
+	} else {
+		// Worktree - .git is a file containing "gitdir: <path>"
+		content, err := os.ReadFile(gitPath)
+		if err != nil {
+			return false, fmt.Errorf("read .git file: %w", err)
+		}
+		line := strings.TrimSpace(string(content))
+		if !strings.HasPrefix(line, "gitdir: ") {
+			return false, fmt.Errorf("unexpected .git file format: %s", line)
+		}
+		gitDir = strings.TrimPrefix(line, "gitdir: ")
+	}
+
+	// Check for rebase-merge directory (interactive rebase)
+	rebaseMergeDir := filepath.Join(gitDir, "rebase-merge")
+	if _, err := os.Stat(rebaseMergeDir); err == nil {
+		return true, nil
+	}
+
+	// Check for rebase-apply directory (non-interactive rebase, am)
+	rebaseApplyDir := filepath.Join(gitDir, "rebase-apply")
+	if _, err := os.Stat(rebaseApplyDir); err == nil {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// IsMergeInProgress checks if a merge is in progress.
+// Checks for .git/MERGE_HEAD file.
+// Works in both regular repos and worktrees.
+func (g *Git) IsMergeInProgress() (bool, error) {
+	workDir := g.ctx.WorkDir()
+
+	// For worktrees, .git is a file pointing to the actual git dir
+	gitPath := filepath.Join(workDir, ".git")
+	info, err := os.Stat(gitPath)
+	if err != nil {
+		return false, fmt.Errorf("stat .git: %w", err)
+	}
+
+	var gitDir string
+	if info.IsDir() {
+		// Regular repo - .git is a directory
+		gitDir = gitPath
+	} else {
+		// Worktree - .git is a file containing "gitdir: <path>"
+		content, err := os.ReadFile(gitPath)
+		if err != nil {
+			return false, fmt.Errorf("read .git file: %w", err)
+		}
+		line := strings.TrimSpace(string(content))
+		if !strings.HasPrefix(line, "gitdir: ") {
+			return false, fmt.Errorf("unexpected .git file format: %s", line)
+		}
+		gitDir = strings.TrimPrefix(line, "gitdir: ")
+	}
+
+	// Check for MERGE_HEAD file
+	mergeHeadFile := filepath.Join(gitDir, "MERGE_HEAD")
+	if _, err := os.Stat(mergeHeadFile); err == nil {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// DiscardChanges discards all uncommitted changes in the working directory.
+// This includes both staged and unstaged changes.
+// SAFETY: This operation is destructive and should only be used when explicitly requested.
+func (g *Git) DiscardChanges() error {
+	// Reset staged changes
+	if _, err := g.ctx.RunGit("reset", "HEAD"); err != nil {
+		// Ignore errors - might fail if no HEAD exists yet
+	}
+
+	// Discard unstaged changes to tracked files
+	if _, err := g.ctx.RunGit("checkout", "--", "."); err != nil {
+		return fmt.Errorf("discard tracked changes: %w", err)
+	}
+
+	// Remove untracked files and directories
+	if _, err := g.ctx.RunGit("clean", "-fd"); err != nil {
+		return fmt.Errorf("remove untracked files: %w", err)
+	}
+
+	return nil
+}
+
 // RestoreOrcDir restores the .orc/ directory from a target ref (e.g., "origin/main").
 // This is used during completion sync to prevent worktree modifications to .orc/ from
 // contaminating the target branch when merged.
