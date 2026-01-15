@@ -163,7 +163,7 @@ orc show <task-id> [--checkpoints]
 Edit task properties after creation.
 
 ```bash
-orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>] [--initiative <id>]
+orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>] [--priority <priority>] [--status <status>] [--initiative <id>]
 ```
 
 | Option | Description | Notes |
@@ -171,6 +171,8 @@ orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>] 
 | `--title`, `-t` | New task title | |
 | `--description`, `-d` | New task description | |
 | `--weight`, `-w` | New weight (trivial/small/medium/large/greenfield) | Triggers plan regeneration |
+| `--priority`, `-p` | New priority (critical/high/normal/low) | |
+| `--status`, `-s` | New task status | For administrative corrections |
 | `--initiative`, `-i` | Link/unlink task to initiative | Use `""` to unlink |
 | `--blocked-by` | Set blocked_by list (replaces existing) | Comma-separated |
 | `--add-blocker` | Add task(s) to blocked_by list | Comma-separated |
@@ -181,6 +183,8 @@ orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>] 
 
 Weight changes regenerate the task plan with phases appropriate for the new weight. Completed/skipped phases that exist in both the old and new plans retain their status. Requires the task to not be running.
 
+**Status changes:** Valid status values are `created`, `classifying`, `planned`, `paused`, `blocked`, `completed`, `finished`, `failed`. Note: running tasks cannot have their status changed (pause first). This is intended for administrative corrections like marking already-fixed tasks as completed without re-running.
+
 **Initiative linking:** Setting `--initiative INIT-001` links the task to an initiative. The task is auto-added to the initiative's task list (bidirectional sync). Use `--initiative ""` to unlink a task from its initiative.
 
 **Dependency changes:** Validate that referenced task IDs exist and detect circular dependencies (A blocks B blocks A).
@@ -189,13 +193,16 @@ Weight changes regenerate the task plan with phases appropriate for the new weig
 ```bash
 orc edit TASK-001 --title "Better title"
 orc edit TASK-001 --weight large
+orc edit TASK-001 --priority critical
+orc edit TASK-001 --status completed             # Mark task as done
+orc edit TASK-001 -s planned                     # Reset to planned status
 orc edit TASK-001 -d "Updated description" -t "New title"
-orc edit TASK-001 --initiative INIT-001   # Link to initiative
-orc edit TASK-001 --initiative ""         # Unlink from initiative
-orc edit TASK-001 --blocked-by TASK-002,TASK-003   # Replace blockers
-orc edit TASK-001 --add-blocker TASK-004           # Add a blocker
-orc edit TASK-001 --remove-blocker TASK-002        # Remove a blocker
-orc edit TASK-001 --related-to TASK-005            # Set related tasks
+orc edit TASK-001 --initiative INIT-001          # Link to initiative
+orc edit TASK-001 --initiative ""                # Unlink from initiative
+orc edit TASK-001 --blocked-by TASK-002,TASK-003 # Replace blockers
+orc edit TASK-001 --add-blocker TASK-004         # Add a blocker
+orc edit TASK-001 --remove-blocker TASK-002      # Remove a blocker
+orc edit TASK-001 --related-to TASK-005          # Set related tasks
 ```
 
 ---

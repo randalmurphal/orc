@@ -26,6 +26,7 @@ Modifiable properties:
   --description Update the task description (or -d)
   --weight      Change task weight (triggers plan regeneration)
   --priority    Change task priority (critical, high, normal, low)
+  --status      Change task status (for administrative corrections)
   --initiative  Link/unlink task to initiative (use "" to unlink)
 
 Dependency management:
@@ -39,10 +40,14 @@ Dependency management:
 Weight changes will regenerate the task plan with phases appropriate
 for the new weight. This requires the task to not be running.
 
+Valid status values: created, classifying, planned, paused, blocked,
+  completed, finished, failed. Note: running tasks must be paused first.
+
 Example:
   orc edit TASK-001 --title "New title"
   orc edit TASK-001 --weight large
   orc edit TASK-001 --priority critical
+  orc edit TASK-001 --status completed      # mark task as done
   orc edit TASK-001 -d "Updated description" --title "Better title"
   orc edit TASK-001 --initiative INIT-001   # link to initiative
   orc edit TASK-001 --initiative ""         # unlink from initiative
@@ -60,6 +65,7 @@ Example:
 			newDescription, _ := cmd.Flags().GetString("description")
 			newWeight, _ := cmd.Flags().GetString("weight")
 			newPriority, _ := cmd.Flags().GetString("priority")
+			newStatus, _ := cmd.Flags().GetString("status")
 			newInitiative, _ := cmd.Flags().GetString("initiative")
 			initiativeChanged := cmd.Flags().Changed("initiative")
 
@@ -126,6 +132,23 @@ Example:
 				if t.Priority != p {
 					t.Priority = p
 					changes = append(changes, "priority")
+				}
+			}
+
+			// Update status if provided
+			oldStatus := t.Status
+			if newStatus != "" {
+				s := task.Status(newStatus)
+				if !task.IsValidStatus(s) {
+					validOpts := make([]string, 0, len(task.ValidStatuses()))
+					for _, vs := range task.ValidStatuses() {
+						validOpts = append(validOpts, string(vs))
+					}
+					return fmt.Errorf("invalid status %q - valid options: %s", newStatus, strings.Join(validOpts, ", "))
+				}
+				if t.Status != s {
+					t.Status = s
+					changes = append(changes, "status")
 				}
 			}
 
@@ -339,6 +362,8 @@ Example:
 						fmt.Printf("   Weight: %s -> %s (plan regenerated)\n", oldWeight, t.Weight)
 					case "priority":
 						fmt.Printf("   Priority: %s -> %s\n", oldPriority, t.Priority)
+					case "status":
+						fmt.Printf("   Status: %s -> %s\n", oldStatus, t.Status)
 					case "initiative":
 						if t.HasInitiative() {
 							if oldInitiative == "" {
@@ -373,6 +398,7 @@ Example:
 	cmd.Flags().StringP("description", "d", "", "new task description")
 	cmd.Flags().StringP("weight", "w", "", "new task weight (trivial, small, medium, large, greenfield)")
 	cmd.Flags().StringP("priority", "p", "", "new task priority (critical, high, normal, low)")
+	cmd.Flags().StringP("status", "s", "", "new task status (created, classifying, planned, paused, blocked, completed, finished, failed)")
 	cmd.Flags().StringP("initiative", "i", "", "link/unlink task to initiative (use \"\" to unlink)")
 
 	// Dependency flags
