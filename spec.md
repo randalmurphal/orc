@@ -1,84 +1,106 @@
-# Specification: Fix: SaveTask overwrites executor fields (false orphan detection)
+# Specification: Convert Worker.run() from recursion to iteration
 
 ## Problem Statement
-
-When `SaveTask` is called to update a task (e.g., changing status, title, or other task fields), it overwrites the executor tracking fields (`executor_pid`, `executor_hostname`, `executor_started_at`, `last_heartbeat`) with zero values. This causes running tasks to be falsely flagged as orphaned because the orphan detection logic sees no executor info.
+The `Worker.run()` method in `internal/orchestrator/worker.go` uses tail recursion (line 230) to process multiple phases sequentially. This should be converted to an iterative loop to eliminate stack growth risk and improve debuggability.
 
 ## Success Criteria
-
-- [ ] `SaveTask` preserves executor fields (`ExecutorPID`, `ExecutorHostname`, `ExecutorStartedAt`, `LastHeartbeat`) from the existing database row when updating a task
-- [ ] A running task's executor fields survive calls to `SaveTask` for unrelated updates (title, status, etc.)
-- [ ] Orphan detection correctly identifies running tasks as NOT orphaned after `SaveTask` is called
-- [ ] `SaveState` remains the authoritative way to set/clear executor fields (no change to SaveState behavior)
-- [ ] Unit test verifies that `SaveTask` preserves executor fields set by prior `SaveState`
-- [ ] Unit test verifies orphan detection works correctly after a task update via `SaveTask`
+- [ ] `Worker.run()` uses a `for` loop instead of recursive self-call
+- [ ] All existing behavior preserved: phase execution, completion detection, error handling, pausing, status transitions
+- [ ] Defer block still executes exactly once at function exit (cleanup and pool removal)
+- [ ] Event publishing for phase start/complete still occurs correctly
+- [ ] State and plan saving after each phase completion still works
+- [ ] Context cancellation (pause) still interrupts execution between phases
+- [ ] All existing tests pass without modification
+- [ ] No stack growth regardless of number of phases
 
 ## Testing Requirements
-
-- [ ] Unit test: `TestSaveTask_PreservesExecutorFields` - Save a task, set executor fields via SaveState, update task via SaveTask, verify executor fields are preserved
-- [ ] Unit test: `TestSaveTask_PreservesExecutorFields_OrphanDetection` - After the SaveTask update, verify LoadState returns correct ExecutionInfo and CheckOrphaned returns false (not orphaned)
+- [ ] Unit test: All existing `worker_test.go` tests pass (8 tests)
+- [ ] Unit test: New test `TestWorkerRunsMultiplePhasesIteratively` verifies multi-phase execution completes without recursion
+- [ ] Unit test: New test `TestWorkerExitsLoopOnContextCancel` verifies loop exits cleanly when context is cancelled
+- [ ] Integration: `make test` passes (full backend test suite)
 
 ## Scope
-
 ### In Scope
-- Fix `SaveTaskCtx` in `internal/storage/database_backend.go` to preserve executor fields
-- Add unit tests validating the fix
-- Update documentation in CLAUDE.md knowledge section
+- Converting recursive call at line 230 to iterative loop
+- Preserving all existing behavior exactly
+- Adding tests for multi-phase iteration
 
 ### Out of Scope
-- Changing how `SaveState` handles executor fields (it already works correctly)
-- Modifying the `task.Task` struct to include executor fields (they belong in state, not task)
-- Refactoring the task/state separation (just fixing the preservation bug)
+- Changing phase execution logic
+- Modifying event publishing
+- Changing how prompts are loaded
+- Modifying WorkerPool behavior
+- Refactoring other parts of worker.go
 
 ## Technical Approach
+Replace the recursive call with a `for` loop that continues until either:
+1. No more phases remain (`currentPhase == nil`)
+2. Context is cancelled (pause requested)
+3. An error occurs
 
-The fix is minimal: extend the preservation logic in `SaveTaskCtx` (which already preserves `StateStatus` and `RetryContext`) to also preserve the executor fields.
+The loop will:
+1. Move `currentPhase := pln.CurrentPhase()` check to loop condition
+2. Move phase execution logic into loop body
+3. Replace recursive call with `continue` to next iteration
+4. Use `break` or early returns for exit conditions
 
 ### Files to Modify
+- `internal/orchestrator/worker.go`: Convert `run()` from recursion to iteration
+- `internal/orchestrator/worker_test.go`: Add tests for iterative multi-phase execution
 
-1. `internal/storage/database_backend.go`:
-   - In `SaveTaskCtx`, after reading the existing task and preserving `StateStatus`/`RetryContext`, also preserve:
-     - `dbTask.ExecutorPID = existingTask.ExecutorPID`
-     - `dbTask.ExecutorHostname = existingTask.ExecutorHostname`
-     - `dbTask.ExecutorStartedAt = existingTask.ExecutorStartedAt`
-     - `dbTask.LastHeartbeat = existingTask.LastHeartbeat`
+## Refactor Analysis
 
-2. `internal/storage/database_backend_test.go`:
-   - Add `TestSaveTask_PreservesExecutorFields` test
-   - Add `TestSaveTask_PreservesExecutorFields_OrphanDetection` test
-
-3. `CLAUDE.md`:
-   - Add entry to Known Gotchas table documenting this fix
-
-## Bug Analysis
-
-### Reproduction Steps
-1. Create a task and start execution (SaveState with ExecutionInfo)
-2. Call SaveTask to update an unrelated field (e.g., title)
-3. Load the state and check ExecutionInfo
-4. Observe ExecutionInfo is nil/zeroed
-
-### Current Behavior (Bug)
-`SaveTaskCtx` (line 77-110) calls `taskToDBTask` which creates a fresh `db.Task` with zero values for executor fields. While it preserves `StateStatus` and `RetryContext` from the existing row, it doesn't preserve executor fields. The SQL upsert then overwrites the database with these zero values.
-
-### Expected Behavior
-`SaveTask` should only update task-related fields and preserve state-related fields (including executor tracking) that are managed by `SaveState`.
-
-### Root Cause
-Lines 84-90 of `database_backend.go`:
+### Before Pattern (Current)
 ```go
-existingTask, err := d.db.GetTask(t.ID)
-if err == nil && existingTask != nil {
-    dbTask.StateStatus = existingTask.StateStatus
-    dbTask.RetryContext = existingTask.RetryContext
-    // MISSING: executor field preservation
+func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.State) {
+    defer func() { /* cleanup */ }()
+
+    currentPhase := pln.CurrentPhase()
+    if currentPhase == nil { return }
+
+    // ... execute phase ...
+
+    if !mgr.Exists() {
+        // Phase completed
+        nextPhase := pln.CurrentPhase()
+        if nextPhase == nil {
+            // Task complete
+        } else {
+            w.run(pool, t, pln, st)  // RECURSIVE CALL
+        }
+    }
 }
 ```
 
-The preservation logic was incomplete - it handled `StateStatus` and `RetryContext` but not the executor fields added later for orphan detection (TASK-242).
+### After Pattern (Target)
+```go
+func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.State) {
+    defer func() { /* cleanup */ }()
 
-### Verification
-After the fix:
-1. SaveState sets executor fields → fields persist in DB
-2. SaveTask updates task → executor fields remain unchanged
-3. LoadState returns correct ExecutionInfo → orphan detection works
+    for {
+        currentPhase := pln.CurrentPhase()
+        if currentPhase == nil {
+            w.setStatus(WorkerStatusComplete)
+            return
+        }
+
+        // ... execute phase ...
+
+        if !mgr.Exists() {
+            // Phase completed, loop continues to next phase
+            continue
+        }
+        // Phase did not complete (ralph state still exists)
+        return
+    }
+}
+```
+
+### Risk Assessment
+**Low risk** - This is a straightforward tail recursion to iteration conversion:
+- The recursive call is in tail position (nothing happens after it)
+- All state is already mutated before the recursive call (plan/state saved)
+- Defer block behavior unchanged (still runs once at function exit)
+- No callers depend on stack behavior
+
+**Testing mitigation**: Existing tests cover cleanup, status transitions, and pool management. New tests will verify multi-phase iteration.
