@@ -42,7 +42,7 @@ description: |-
     - Settings persist after save
     - Validation errors display properly
 weight: large
-status: paused
+status: running
 current_phase: implement
 branch: orc/TASK-177
 queue: active
@@ -55,5 +55,5 @@ blocked_by:
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:22:59.808482354-06:00
-updated_at: 2026-01-14T16:23:27.010807-06:00
-started_at: 2026-01-14T15:51:20.16685-06:00
+updated_at: 2026-01-14T19:44:10.385510824-06:00
+started_at: 2026-01-14T19:44:10.385510754-06:00
