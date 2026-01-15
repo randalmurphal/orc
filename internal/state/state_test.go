@@ -2,6 +2,7 @@ package state
 
 import (
 	"testing"
+	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -499,5 +500,40 @@ func TestGetSkipReason(t *testing.T) {
 	// Unknown phase
 	if s.GetSkipReason("unknown") != "" {
 		t.Error("GetSkipReason(unknown) should be empty for unknown phase")
+	}
+}
+
+func TestElapsed(t *testing.T) {
+	// Test 1: Zero StartedAt should return 0 duration
+	// This was the original bug - time.Since(zero time) returned ~292 years
+	s := &State{}
+	if s.StartedAt.IsZero() == false {
+		t.Error("StartedAt should be zero for empty State")
+	}
+	elapsed := s.Elapsed()
+	if elapsed != 0 {
+		t.Errorf("Elapsed() with zero StartedAt = %v, want 0", elapsed)
+	}
+
+	// Test 2: Valid StartedAt should return positive duration
+	s2 := New("TASK-001")
+	// New() sets StartedAt to now, so Elapsed should be small but positive
+	elapsed2 := s2.Elapsed()
+	if elapsed2 < 0 {
+		t.Errorf("Elapsed() = %v, want non-negative", elapsed2)
+	}
+	// Should be less than 1 second for freshly created state
+	if elapsed2 > time.Second {
+		t.Errorf("Elapsed() = %v, unexpectedly large for fresh state", elapsed2)
+	}
+
+	// Test 3: Manually set StartedAt in the past
+	s3 := &State{
+		StartedAt: time.Now().Add(-5 * time.Minute),
+	}
+	elapsed3 := s3.Elapsed()
+	// Should be approximately 5 minutes (allow some tolerance)
+	if elapsed3 < 4*time.Minute || elapsed3 > 6*time.Minute {
+		t.Errorf("Elapsed() = %v, want ~5m", elapsed3)
 	}
 }
