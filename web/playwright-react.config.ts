@@ -1,8 +1,8 @@
 /**
- * Playwright configuration for running E2E tests against React app
+ * Playwright configuration for testing React app (port 5174)
  *
- * This config reuses the same test files but runs against the React app on port 5174
- * for dual-run validation during the migration.
+ * This config is identical to the main config but targets the React frontend
+ * for dual-run validation during the Svelte->React migration.
  */
 import { defineConfig, devices } from '@playwright/test';
 
@@ -18,20 +18,18 @@ export default defineConfig({
 		['json', { outputFile: 'test-results-react/results.json' }],
 	],
 	outputDir: 'test-results-react',
-	/* Snapshot/visual comparison settings */
 	snapshotDir: './e2e/__snapshots__',
 	snapshotPathTemplate: '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
 	expect: {
 		toHaveScreenshot: {
-			maxDiffPixels: 1000, // Allow minor anti-aliasing differences
-			threshold: 0.2, // 20% pixel color difference threshold
+			maxDiffPixels: 1000,
+			threshold: 0.2,
 		},
 		toMatchSnapshot: {
-			maxDiffPixelRatio: 0.02, // 2% of pixels can differ
+			maxDiffPixelRatio: 0.02,
 		},
 	},
 	use: {
-		// React app runs on port 5174
 		baseURL: 'http://localhost:5174',
 		trace: 'on-first-retry',
 		screenshot: 'only-on-failure',
@@ -40,16 +38,15 @@ export default defineConfig({
 		{
 			name: 'chromium',
 			use: { ...devices['Desktop Chrome'] },
-			testIgnore: /visual\.spec\.ts$/, // Visual tests use the 'visual' project
+			testIgnore: /visual\.spec\.ts$/,
 		},
-		/* Visual regression tests - single browser, consistent viewport */
 		{
 			name: 'visual',
 			testMatch: /visual\.spec\.ts$/,
 			use: {
 				...devices['Desktop Chrome'],
 				viewport: { width: 1440, height: 900 },
-				deviceScaleFactor: 2, // @2x for retina-quality screenshots
+				deviceScaleFactor: 2,
 			},
 		},
 	],

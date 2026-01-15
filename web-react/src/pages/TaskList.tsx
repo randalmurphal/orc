@@ -28,7 +28,7 @@ import {
 	toast,
 	UNASSIGNED_INITIATIVE,
 } from '@/stores';
-import { useTaskListShortcuts } from '@/hooks';
+import { useTaskListShortcuts, useDocumentTitle } from '@/hooks';
 import { TaskCard } from '@/components/board/TaskCard';
 import { InitiativeDropdown } from '@/components/board/InitiativeDropdown';
 import { DependencyDropdown } from '@/components/filters';
@@ -86,6 +86,9 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export function TaskList() {
+	// Set page title
+	useDocumentTitle('Tasks');
+
 	const navigate = useNavigate();
 	const currentProjectId = useCurrentProjectId();
 	const currentInitiativeId = useCurrentInitiativeId();
@@ -392,14 +395,6 @@ export function TaskList() {
 
 	return (
 		<div className="page task-list-page">
-			{/* Page Header */}
-			<div className="page-header">
-				<h1>Task List</h1>
-				<span className="task-count">
-					{filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
-				</span>
-			</div>
-
 			{/* Initiative Filter Banner */}
 			{(currentInitiative || currentInitiativeId === UNASSIGNED_INITIATIVE) && (
 				<div className="initiative-banner">

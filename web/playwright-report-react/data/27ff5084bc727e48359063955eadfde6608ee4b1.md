@@ -1,0 +1,907 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation "Main navigation" [ref=e4]:
+    - generic [ref=e5]:
+      - link ">_ ORC" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: ">_"
+        - generic [ref=e8]: ORC
+      - button "Collapse sidebar" [ref=e9] [cursor=pointer]:
+        - img [ref=e10]
+    - generic [ref=e13]:
+      - navigation [ref=e14]:
+        - generic [ref=e15]: Work
+        - list [ref=e16]:
+          - listitem [ref=e17]:
+            - link "Dashboard" [ref=e18] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e20]
+              - generic [ref=e25]: Dashboard
+          - listitem [ref=e26]:
+            - link "Tasks" [ref=e27] [cursor=pointer]:
+              - /url: /
+              - img [ref=e29]
+              - generic [ref=e31]: Tasks
+          - listitem [ref=e32]:
+            - link "Board" [ref=e33] [cursor=pointer]:
+              - /url: /board
+              - img [ref=e35]
+              - generic [ref=e39]: Board
+      - navigation [ref=e40]:
+        - button "Initiatives" [expanded] [ref=e41] [cursor=pointer]:
+          - generic [ref=e42]: Initiatives
+          - img [ref=e43]
+        - list [ref=e45]:
+          - listitem [ref=e46]:
+            - link "All Tasks" [ref=e47] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e50]: All Tasks
+          - listitem [ref=e51]:
+            - link "Svelte 5 to React 19 Migration (25/27)" [ref=e52] [cursor=pointer]:
+              - /url: /?initiative=INIT-005
+              - generic [ref=e55]: Svelte 5 to React 19 Migration
+              - generic [ref=e56]: (25/27)
+          - listitem [ref=e57]:
+            - link "Test Initiative" [ref=e58] [cursor=pointer]:
+              - /url: /?initiative=INIT-001
+              - generic [ref=e61]: Test Initiative
+          - listitem [ref=e62]:
+            - link "Automated Finalize & Merge" [ref=e63] [cursor=pointer]:
+              - /url: /?initiative=INIT-004
+              - generic [ref=e66]: Automated Finalize & Merge
+          - listitem [ref=e67]:
+            - link "Initiative-Task Integration - Context inheritance and UX improvements" [ref=e68] [cursor=pointer]:
+              - /url: /?initiative=INIT-003
+              - generic [ref=e71]: Initiative-Task Integration - Context inheritance and UX improvements
+          - listitem [ref=e72]:
+            - link "Task & Initiative Dependencies - Relationship and blocking system" [ref=e73] [cursor=pointer]:
+              - /url: /?initiative=INIT-002
+              - generic [ref=e76]: Task & Initiative Dependencies - Relationship and blocking system
+          - listitem [ref=e77]:
+            - link "E2E-Test-Create-1768448427958 draft" [ref=e78] [cursor=pointer]:
+              - /url: /?initiative=INIT-008
+              - generic [ref=e81]: E2E-Test-Create-1768448427958
+              - generic [ref=e82]: draft
+          - listitem [ref=e83]:
+            - link "Test Initiative Status draft" [ref=e84] [cursor=pointer]:
+              - /url: /?initiative=INIT-006
+              - generic [ref=e87]: Test Initiative Status
+              - generic [ref=e88]: draft
+      - navigation [ref=e90]:
+        - button "Environment" [ref=e91] [cursor=pointer]:
+          - generic [ref=e92]: Environment
+          - img [ref=e93]
+    - navigation [ref=e97]:
+      - list [ref=e98]:
+        - listitem [ref=e99]:
+          - link "Preferences" [ref=e100] [cursor=pointer]:
+            - /url: /preferences
+            - img [ref=e102]
+            - generic [ref=e105]: Preferences
+    - generic [ref=e106]:
+      - generic [ref=e107]: Shift+Alt+B
+      - text: to toggle
+  - generic [ref=e108]:
+    - banner [ref=e109]:
+      - generic [ref=e110]:
+        - button "orc" [ref=e111] [cursor=pointer]:
+          - img [ref=e113]
+          - generic [ref=e115]: orc
+          - img [ref=e117]
+        - generic [ref=e119]:
+          - generic [ref=e120]: /
+          - heading "Tasks" [level=1] [ref=e121]
+      - generic [ref=e122]:
+        - button "Commands Shift+Alt+K" [ref=e123] [cursor=pointer]:
+          - generic [ref=e124]: Commands
+          - generic [ref=e125]: Shift+Alt+K
+        - button "New Task" [ref=e126] [cursor=pointer]:
+          - img [ref=e127]
+          - text: New Task
+    - main [ref=e128]:
+      - generic [ref=e129]:
+        - generic [ref=e130]:
+          - generic [ref=e131]:
+            - button "All 45" [ref=e132] [cursor=pointer]:
+              - text: All
+              - generic [ref=e133]: "45"
+            - button "Active 4" [ref=e134] [cursor=pointer]:
+              - text: Active
+              - generic [ref=e135]: "4"
+            - button "Completed 41" [ref=e136] [cursor=pointer]:
+              - text: Completed
+              - generic [ref=e137]: "41"
+            - button "Failed 0" [ref=e138] [cursor=pointer]:
+              - text: Failed
+              - generic [ref=e139]: "0"
+          - generic [ref=e140]:
+            - generic [ref=e141]:
+              - img [ref=e142]
+              - textbox "Search tasks..." [ref=e145]
+            - button "All initiatives" [ref=e147] [cursor=pointer]:
+              - img [ref=e148]
+              - generic [ref=e152]: All initiatives
+              - img [ref=e153]
+            - button "All tasks" [ref=e156] [cursor=pointer]:
+              - generic [ref=e157]: All tasks
+              - img [ref=e158]
+            - combobox "Filter by weight" [ref=e160] [cursor=pointer]:
+              - option "All weights" [selected]
+              - option "trivial"
+              - option "small"
+              - option "medium"
+              - option "large"
+              - option "greenfield"
+            - combobox "Sort tasks by" [ref=e161] [cursor=pointer]:
+              - option "Most recent" [selected]
+              - option "Oldest first"
+              - option "By status"
+            - button "New Task" [ref=e162] [cursor=pointer]:
+              - img [ref=e163]
+              - text: New Task
+        - list "Task list" [ref=e164]:
+          - listitem [ref=e165] [cursor=pointer]:
+            - 'article "Task TASK-201: Bug: Sync fails with ''0 files in conflict'' error" [ref=e166]':
+              - generic [ref=e169]: TASK-201
+              - 'heading "Bug: Sync fails with ''0 files in conflict'' error" [level=3] [ref=e172]'
+              - paragraph [ref=e173]: "TASK-180 failed during sync_on_start with error: 'sync conflict detected: task branch has 0 files in conflict with target'. If there are 0 conflicts, sync should succeed, not fail. The error message shows 'Conflicting files: []' - an empty list. Bug is in the sync logic that triggers conflict detection even when no actual conflicts exist."
+              - generic [ref=e174]:
+                - generic [ref=e175]: "Phase:"
+                - generic [ref=e176]: test
+              - generic [ref=e177]:
+                - generic [ref=e178]:
+                  - generic [ref=e179]: medium
+                  - generic [ref=e180]: 1m ago
+                - generic [ref=e181]:
+                  - button "Pause task" [ref=e182]:
+                    - img [ref=e183]
+                  - button "Quick actions" [ref=e187]:
+                    - img [ref=e188]
+          - listitem [ref=e192] [cursor=pointer]:
+            - 'article "Task TASK-200: Investigate: Tasks auto-started without user action" [ref=e193]':
+              - generic [ref=e196]: TASK-200
+              - 'heading "Investigate: Tasks auto-started without user action" [level=3] [ref=e199]'
+              - paragraph [ref=e200]: "During a session, TASK-198, TASK-199, and TASK-180 were started without user action. User had no other Claude sessions open and didn't click anything in the web UI. Somehow an agent running TASK-179 or another mechanism triggered orc run on these tasks. Need to investigate: 1) Check if TASK-179 agent called orc run via bash, 2) Check for any auto-trigger mechanisms in orc serve, 3) Check hooks or automation. Evidence: All three tasks have Claude project directories and were running simultaneously."
+              - generic [ref=e201]:
+                - generic [ref=e202]: "Phase:"
+                - generic [ref=e203]: spec
+              - generic [ref=e204]:
+                - generic [ref=e205]:
+                  - generic [ref=e206]: medium
+                  - generic [ref=e207]: 7m ago
+                - generic [ref=e208]:
+                  - button "Resume task" [ref=e209]:
+                    - img [ref=e210]
+                  - button "Quick actions" [ref=e213]:
+                    - img [ref=e214]
+          - listitem [ref=e218] [cursor=pointer]:
+            - 'article "Task TASK-179: Phase 4: Dual-run validation - Run all E2E tests against React" [ref=e219]':
+              - generic [ref=e222]: TASK-179
+              - 'heading "Phase 4: Dual-run validation - Run all E2E tests against React" [level=3] [ref=e225]'
+              - paragraph [ref=e226]: "## Purpose Run the comprehensive E2E test suite against the React implementation to verify feature parity. ## Validation Process ### Test Configuration - Configure Playwright to run against React app (:5174) - Use same test files as Svelte validation - Compare results side-by-side ### Test Categories to Validate - Board interactions (18 tests) - Task Detail tabs (15 tests) - Initiative management (20 tests) - WebSocket real-time updates (12 tests) - Filters and URL persistence (14 tests) - Keyboard shortcuts (12 tests) - Finalize workflow (10 tests) - Accessibility (8 tests) ### Visual Regression - Run visual comparison against Svelte baselines - Document any intentional differences - Update baselines if changes are acceptable ### Performance Comparison - Measure initial load time - Measure navigation transitions - Measure WebSocket event processing - Compare bundle sizes ## Success Criteria - ALL E2E tests pass (100%) - Visual regression < 0.5% diff per page - Performance within 10% of Svelte - Accessibility audit passes"
+              - generic [ref=e227]:
+                - generic [ref=e228]: "Phase:"
+                - generic [ref=e229]: test
+              - generic [ref=e230]:
+                - generic [ref=e231]:
+                  - generic [ref=e232]: large
+                  - button "Svelte 5 to React 1…" [ref=e233]
+                  - generic [ref=e234]: 9m ago
+                - generic [ref=e235]:
+                  - button "Pause task" [ref=e236]:
+                    - img [ref=e237]
+                  - button "Quick actions" [ref=e241]:
+                    - img [ref=e242]
+          - listitem [ref=e246] [cursor=pointer]:
+            - 'article "Task TASK-180: Phase 4: Cutover - Replace Svelte with React in production" [ref=e247]':
+              - generic [ref=e250]: TASK-180
+              - 'heading "Phase 4: Cutover - Replace Svelte with React in production" [level=3] [ref=e253]'
+              - paragraph [ref=e254]: "## Purpose Final cutover from Svelte to React after all validation passes. ## Cutover Steps ### Pre-Cutover - [ ] All E2E tests pass on React - [ ] Visual regression approved - [ ] Performance benchmarks acceptable - [ ] Accessibility audit passes - [ ] Stakeholder sign-off ### Cutover Process 1. Update Makefile to build React instead of Svelte 2. Update web-dev target to run React dev server 3. Update API static file embedding to use React build 4. Archive Svelte codebase (web/ -> web-svelte-archive/) 5. Rename React codebase (web-react/ -> web/) 6. Update all documentation ### Post-Cutover - Monitor for issues - Keep Svelte archive for 30 days - Update CLAUDE.md to reflect React stack ### Rollback Plan - Restore web-svelte-archive/ to web/ - Revert Makefile changes - Rebuild and deploy ## Success Criteria - Production build uses React - All functionality works in production - No user-facing regressions - Documentation updated"
+              - generic [ref=e255]:
+                - generic [ref=e256]: "Phase:"
+                - generic [ref=e257]: implement
+              - generic [ref=e258]:
+                - generic [ref=e259]:
+                  - generic [ref=e260]: medium
+                  - generic "Blocked by TASK-179" [ref=e261]:
+                    - img [ref=e262]
+                    - text: Blocked
+                  - button "Svelte 5 to React 1…" [ref=e265]
+                  - generic [ref=e266]: 15m ago
+                - generic [ref=e267]:
+                  - button "Run task" [ref=e268]:
+                    - img [ref=e269]
+                  - button "Quick actions" [ref=e272]:
+                    - img [ref=e273]
+          - listitem [ref=e277] [cursor=pointer]:
+            - 'article "Task TASK-198: Fix: Re-running completed tasks fails to push due to diverged remote branch" [ref=e278]':
+              - generic [ref=e280]:
+                - generic [ref=e281]: TASK-198
+                - generic "High priority" [ref=e282]:
+                  - img [ref=e283]
+              - 'heading "Fix: Re-running completed tasks fails to push due to diverged remote branch" [level=3] [ref=e287]'
+              - paragraph [ref=e288]: "When a task is re-run after being previously completed and pushed, the completion action fails with 'non-fast-forward' error because the remote branch has different history from the new run. Current workaround requires manual force push. Options: 1) Detect diverged remote and force push automatically, 2) Delete remote branch before re-run, 3) Rebase onto remote before push. Should also consider if this is the right behavior - maybe re-runs should continue from remote state instead of starting fresh."
+              - generic [ref=e289]:
+                - generic [ref=e290]:
+                  - generic [ref=e291]: medium
+                  - generic [ref=e292]: 34m ago
+                - generic [ref=e293]:
+                  - button "Finalize and merge" [ref=e294]:
+                    - img [ref=e295]
+                  - button "Quick actions" [ref=e300]:
+                    - img [ref=e301]
+          - listitem [ref=e305] [cursor=pointer]:
+            - 'article "Task TASK-199: Bug: Blocker check doesn''t recognize ''finished'' status as complete" [ref=e306]':
+              - generic [ref=e308]:
+                - generic [ref=e309]: TASK-199
+                - generic "High priority" [ref=e310]:
+                  - img [ref=e311]
+              - 'heading "Bug: Blocker check doesn''t recognize ''finished'' status as complete" [level=3] [ref=e315]'
+              - paragraph [ref=e316]: When checking if a task's blockers are resolved, only 'completed' status is recognized. Tasks with 'finished' status (merged to main) still block dependent tasks. The IsComplete() or equivalent check should include both 'completed' and 'finished' statuses.
+              - generic [ref=e317]:
+                - generic [ref=e318]:
+                  - generic [ref=e319]: medium
+                  - generic [ref=e320]: 34m ago
+                - generic [ref=e321]:
+                  - button "Finalize and merge" [ref=e322]:
+                    - img [ref=e323]
+                  - button "Quick actions" [ref=e328]:
+                    - img [ref=e329]
+          - listitem [ref=e333] [cursor=pointer]:
+            - 'article "Task TASK-159: Phase 0: Capture visual regression baselines for all pages" [ref=e334]':
+              - generic [ref=e337]: TASK-159
+              - 'heading "Phase 0: Capture visual regression baselines for all pages" [level=3] [ref=e340]'
+              - paragraph [ref=e341]: "## Purpose Capture Playwright screenshot baselines for visual regression testing during migration. ## Pages to Capture ### Dashboard - dashboard/populated.png - Full data state - dashboard/empty.png - No tasks, no initiatives - dashboard/loading.png - Skeleton loading state ### Board - board/flat/populated.png - Tasks in all columns - board/flat/with-running.png - Running task with pulse animation - board/swimlane/populated.png - Multiple initiative swimlanes - board/swimlane/collapsed.png - Collapsed swimlanes ### Task Detail - task-detail/timeline/running.png - Active phase - task-detail/timeline/completed.png - All phases done - task-detail/changes/split-view.png - Split diff mode - task-detail/changes/unified-view.png - Unified diff mode - task-detail/transcript/with-content.png - Multiple iterations ### Modals - modals/new-task/empty.png - Fresh form - modals/new-task/filled.png - Completed form - modals/command-palette/open.png - Initial state - modals/keyboard-shortcuts.png - Help modal ## Configuration - Disable CSS animations during capture - Mask dynamic content (timestamps, token counts) - Use consistent viewport: 1440x900 @2x - Single browser (Chromium) for consistency ## Success Criteria - Baselines captured for all states listed above - Playwright config updated with visual comparison settings - Dynamic content masking implemented"
+              - generic [ref=e342]:
+                - generic [ref=e343]: "Phase:"
+                - generic [ref=e344]: validate
+              - generic [ref=e345]:
+                - generic [ref=e346]:
+                  - generic [ref=e347]: large
+                  - button "Svelte 5 to React 1…" [ref=e348]
+                  - generic [ref=e349]: 42m ago
+                - generic [ref=e350]:
+                  - button "Finalize and merge" [ref=e351]:
+                    - img [ref=e352]
+                  - button "Quick actions" [ref=e357]:
+                    - img [ref=e358]
+          - listitem [ref=e362] [cursor=pointer]:
+            - 'article "Task TASK-161: Phase 0: Expand E2E tests for Finalize workflow (10 tests)" [ref=e363]':
+              - generic [ref=e366]: TASK-161
+              - 'heading "Phase 0: Expand E2E tests for Finalize workflow (10 tests)" [level=3] [ref=e369]'
+              - paragraph [ref=e370]: "## Purpose E2E tests for the finalize phase workflow - branch sync, CI verification, and merge. ## Test Coverage (10 tests) ### Finalize UI (5 tests) - should show finalize button on completed tasks in Done column - should open FinalizeModal when finalize button clicked - should display explanation and start button in modal - should show progress bar with step labels during finalization - should update task card to show finalizing state (pulsing border) ### Finalize Results (5 tests) - should show success state with merge info - should display merged commit SHA - should show target branch name - should handle finalize failure with retry option - should update task card to finished state with green merge badge ## Implementation Notes - Finalize involves real git operations - may need test branch setup - WebSocket events: finalize progress updates in real-time - Task states: completed -> finalizing -> finished ## Success Criteria - All 10 tests pass - Tests cover both success and failure paths"
+              - generic [ref=e371]:
+                - generic [ref=e372]: "Phase:"
+                - generic [ref=e373]: docs
+              - generic [ref=e374]:
+                - generic [ref=e375]:
+                  - generic [ref=e376]: medium
+                  - button "Svelte 5 to React 1…" [ref=e377]
+                  - generic [ref=e378]: 45m ago
+                - generic [ref=e379]:
+                  - button "Finalize and merge" [ref=e380]:
+                    - img [ref=e381]
+                  - button "Quick actions" [ref=e386]:
+                    - img [ref=e387]
+          - listitem [ref=e391] [cursor=pointer]:
+            - 'article "Task TASK-162: Phase 0: Setup accessibility testing with axe-playwright" [ref=e392]':
+              - generic [ref=e395]: TASK-162
+              - 'heading "Phase 0: Setup accessibility testing with axe-playwright" [level=3] [ref=e398]'
+              - paragraph [ref=e399]: "## Purpose Add accessibility auditing to ensure ARIA compliance is maintained during migration. ## Implementation ### Install and Configure - Add @axe-core/playwright dependency - Create axe-audit.spec.ts test file - Configure to run on all major pages ### Pages to Audit (8 tests) - Dashboard page - Board page (flat view) - Board page (swimlane view) - Task list page - Task detail page - Initiative detail page - New task modal - Command palette ### Audit Configuration - Check for WCAG 2.1 Level AA violations - Report critical and serious violations as test failures - Allow minor/moderate as warnings ## Success Criteria - All 8 pages pass accessibility audit with 0 critical/serious violations - axe-playwright integrated into test suite - CI runs accessibility checks"
+              - generic [ref=e400]:
+                - generic [ref=e401]:
+                  - generic [ref=e402]: small
+                  - button "Svelte 5 to React 1…" [ref=e403]
+                  - generic [ref=e404]: 46m ago
+                - generic [ref=e405]:
+                  - button "Finalize and merge" [ref=e406]:
+                    - img [ref=e407]
+                  - button "Quick actions" [ref=e412]:
+                    - img [ref=e413]
+          - listitem [ref=e417] [cursor=pointer]:
+            - 'article "Task TASK-158: Phase 0: Expand E2E tests for Filters and URL persistence (14 tests)" [ref=e418]':
+              - generic [ref=e421]: TASK-158
+              - 'heading "Phase 0: Expand E2E tests for Filters and URL persistence (14 tests)" [level=3] [ref=e424]'
+              - paragraph [ref=e425]: "## Purpose E2E tests for filter functionality and URL/localStorage state persistence. ## Test Coverage (14 tests) ### Initiative Filter (7 tests) - should show initiative dropdown in task list header - should show initiative dropdown in board header - should filter tasks when initiative selected - should show Unassigned filter option - should persist initiative filter in URL (?initiative=xxx) - should persist initiative filter in localStorage - should sync filter between sidebar and dropdown ### Dependency Filter (4 tests) - should show dependency status dropdown - should filter to blocked tasks only - should filter to ready tasks only - should combine with initiative filter correctly ### Search (3 tests) - should filter tasks by title/ID as user types - should clear search when X button clicked - should debounce search input (not fire on every keystroke) ## State Persistence Pattern - URL param takes precedence over localStorage - Browser back/forward should navigate filter history - Page refresh should restore filter state ## Success Criteria - All 14 tests pass - URL state persists correctly across page refresh"
+              - generic [ref=e426]:
+                - generic [ref=e427]:
+                  - generic [ref=e428]: medium
+                  - button "Svelte 5 to React 1…" [ref=e429]
+                  - generic [ref=e430]: 46m ago
+                - generic [ref=e431]:
+                  - button "Finalize and merge" [ref=e432]:
+                    - img [ref=e433]
+                  - button "Quick actions" [ref=e438]:
+                    - img [ref=e439]
+          - listitem [ref=e443] [cursor=pointer]:
+            - 'article "Task TASK-156: Phase 0: Expand E2E tests for Initiative management (20 tests)" [ref=e444]':
+              - generic [ref=e447]: TASK-156
+              - 'heading "Phase 0: Expand E2E tests for Initiative management (20 tests)" [level=3] [ref=e450]'
+              - paragraph [ref=e451]: "## Purpose Comprehensive E2E tests for Initiative CRUD and detail page functionality. ## Test Coverage (20 tests) ### Initiative CRUD (6 tests) - should display initiative list in sidebar - should create new initiative via modal - should navigate to initiative detail page - should edit initiative title and vision - should change initiative status (draft -> active -> completed) - should archive initiative with confirmation ### Initiative Detail Page (4 tests) - should show progress bar with task completion percentage - should display tasks tab with linked tasks - should display decisions tab - should display graph tab with dependency visualization ### Task Linking (5 tests) - should add new task to initiative - should link existing task via search modal - should unlink task from initiative - should filter available tasks (not already linked) - should update task count after linking/unlinking ### Decisions (3 tests) - should add new decision with rationale - should show decision date and author - should display all recorded decisions ### Dependency Graph (2 tests) - should load graph when Graph tab selected - should display task nodes with status colors and edges ## Success Criteria - All 20 tests pass on current Svelte implementation - Initiative lifecycle fully covered"
+              - generic [ref=e452]:
+                - generic [ref=e453]:
+                  - generic [ref=e454]: large
+                  - button "Svelte 5 to React 1…" [ref=e455]
+                  - generic [ref=e456]: 46m ago
+                - generic [ref=e457]:
+                  - button "Finalize and merge" [ref=e458]:
+                    - img [ref=e459]
+                  - button "Quick actions" [ref=e464]:
+                    - img [ref=e465]
+          - listitem [ref=e469] [cursor=pointer]:
+            - 'article "Task TASK-155: Phase 0: Expand E2E tests for Task Detail tabs (15 tests)" [ref=e470]':
+              - generic [ref=e473]: TASK-155
+              - 'heading "Phase 0: Expand E2E tests for Task Detail tabs (15 tests)" [level=3] [ref=e476]'
+              - paragraph [ref=e477]: "## Purpose Comprehensive E2E tests for Task Detail page tabs that define BEHAVIOR (framework-agnostic). ## Test Coverage (15 tests) ### Tab Navigation (4 tests) - should show all tabs (Timeline, Changes, Transcript, Test Results, Attachments, Comments) - should switch tabs when clicked - should update URL with tab parameter - should load correct tab from URL query param ### Timeline Tab (3 tests) - should show phase timeline with status indicators - should show token usage stats (input, output, cached, total) - should show iteration and retry counts ### Changes Tab - Diff Viewer (5 tests) - should load and display diff stats - should show file list with additions/deletions counts - should expand/collapse files - should toggle between split and unified view - should show line numbers ### Transcript Tab (2 tests) - should show transcript history - should expand transcript content sections ### Attachments Tab (1 test) - should display attachment list with thumbnails ## Implementation Notes - Tests must work on both Svelte and React - Use data-testid for tab content areas - Verify API calls are made correctly ## Success Criteria - All 15 tests pass on current Svelte implementation - Tests cover all tab functionality"
+              - generic [ref=e478]:
+                - generic [ref=e479]:
+                  - generic [ref=e480]: large
+                  - button "Svelte 5 to React 1…" [ref=e481]
+                  - generic [ref=e482]: 46m ago
+                - generic [ref=e483]:
+                  - button "Finalize and merge" [ref=e484]:
+                    - img [ref=e485]
+                  - button "Quick actions" [ref=e490]:
+                    - img [ref=e491]
+          - listitem [ref=e495] [cursor=pointer]:
+            - 'article "Task TASK-154: Phase 0: Expand E2E tests for Board interactions (18 tests)" [ref=e496]':
+              - generic [ref=e499]: TASK-154
+              - 'heading "Phase 0: Expand E2E tests for Board interactions (18 tests)" [level=3] [ref=e502]'
+              - paragraph [ref=e503]: "## Purpose Comprehensive E2E tests for Board page that define BEHAVIOR (framework-agnostic) so they work on both Svelte and React during migration. ## Test Coverage (18 tests) ### Board Rendering (4 tests) - should display board page with all 6 columns (Queued, Spec, Implement, Test, Review, Done) - should show correct column headers and task counts - should render task cards in correct columns based on status/phase - should show task count in header ### View Mode Toggle (5 tests) - should default to flat view mode - should switch to swimlane view when selected - should persist view mode in localStorage - should disable swimlane toggle when initiative filter active - should show initiative banner when filtering ### Drag-Drop (5 tests) - CRITICAL - should move task between columns (triggers status change API) - should reorder tasks within column (priority change) - should show visual feedback during drag - should update task status after drop completes - should handle drop cancellation (escape key) ### Swimlane View (4 tests) - should group tasks by initiative in swimlane view - should collapse/expand swimlanes - should persist collapsed state in localStorage - should show Unassigned swimlane for tasks without initiative ## Implementation Notes - Use behavior-based selectors: page.getByRole(), page.getByTestId() - Avoid implementation-specific selectors like .svelte-xyz - All tests must pass on BOTH Svelte and React implementations - See screenshots in .orc/initiatives/INIT-005/ for reference ## Success Criteria - All 18 tests pass on current Svelte implementation - Tests are deterministic (no flaky tests) - Tests use framework-agnostic selectors"
+              - generic [ref=e504]:
+                - generic [ref=e505]:
+                  - generic [ref=e506]: large
+                  - button "Svelte 5 to React 1…" [ref=e507]
+                  - generic [ref=e508]: 46m ago
+                - generic [ref=e509]:
+                  - button "Finalize and merge" [ref=e510]:
+                    - img [ref=e511]
+                  - button "Quick actions" [ref=e516]:
+                    - img [ref=e517]
+          - listitem [ref=e521] [cursor=pointer]:
+            - 'article "Task TASK-157: Phase 0: Expand E2E tests for WebSocket real-time updates (12 tests)" [ref=e522]':
+              - generic [ref=e525]: TASK-157
+              - 'heading "Phase 0: Expand E2E tests for WebSocket real-time updates (12 tests)" [level=3] [ref=e528]'
+              - paragraph [ref=e529]: "## Purpose E2E tests for WebSocket integration and real-time UI updates - CRITICAL for migration success. ## Test Coverage (12 tests) ### Task Lifecycle Updates (5 tests) - should update task card when task status changes via WebSocket - should move card to new column when phase changes - should show toast notification on task creation event - should remove card when task deleted event received - should update progress indicators during task running ### Live Transcript (4 tests) - should open live transcript modal when clicking running task - should show streaming content in real-time - should display connection status (Live/Connecting/Disconnected) - should update token counts during execution ### Connection Handling (3 tests) - should reconnect automatically after disconnect - should show reconnecting banner/status - should resume updates after reconnection ## Implementation Notes - Use Playwright network interception or real WebSocket connections - May need test fixtures that trigger real task execution - Verify event types: state, transcript, phase, tokens, complete, task_created, task_updated, task_deleted ## Success Criteria - All 12 tests pass reliably (no flaky tests) - Tests verify actual WebSocket behavior, not mocked"
+              - generic [ref=e530]:
+                - generic [ref=e531]: "Phase:"
+                - generic [ref=e532]: validate
+              - generic [ref=e533]:
+                - generic [ref=e534]:
+                  - generic [ref=e535]: large
+                  - button "Svelte 5 to React 1…" [ref=e536]
+                  - generic [ref=e537]: 55m ago
+                - generic [ref=e538]:
+                  - button "Finalize and merge" [ref=e539]:
+                    - img [ref=e540]
+                  - button "Quick actions" [ref=e545]:
+                    - img [ref=e546]
+          - listitem [ref=e550] [cursor=pointer]:
+            - 'article "Task TASK-178: Phase 3: Integration - Connect all stores and real-time updates" [ref=e551]':
+              - generic [ref=e554]: TASK-178
+              - 'heading "Phase 3: Integration - Connect all stores and real-time updates" [level=3] [ref=e557]'
+              - paragraph [ref=e558]: "## Purpose Integrate all components with stores and verify real-time updates work across the app. ## Integration Tasks ### WebSocket Event Flow - Verify task_created events appear on Board and Task List - Verify task_updated events update cards in place - Verify task_deleted events remove cards with toast - Verify state/phase events update running tasks - Verify finalize events update FinalizeModal ### Store Synchronization - Project change clears/reloads tasks and initiatives - Initiative filter reflects in Board and Task List - Dependency filter works on both pages - URL params sync bidirectionally with stores ### Cross-Component State - Running task count in Dashboard matches Board - Initiative progress updates when tasks complete - Sidebar initiative counts stay in sync ### Browser Integration - Back/forward navigation restores correct state - Page refresh preserves all filters - Deep links work correctly ## Testing Approach - Run React app alongside Svelte app - Perform same actions on both - Compare behavior ## Success Criteria - All real-time updates work - State is consistent across components - Browser history works correctly"
+              - generic [ref=e559]:
+                - generic [ref=e560]: "Phase:"
+                - generic [ref=e561]: docs
+              - generic [ref=e562]:
+                - generic [ref=e563]:
+                  - generic [ref=e564]: medium
+                  - button "Svelte 5 to React 1…" [ref=e565]
+                  - generic [ref=e566]: 1h ago
+                - button "Quick actions" [ref=e569]:
+                  - img [ref=e570]
+          - listitem [ref=e574] [cursor=pointer]:
+            - 'article "Task TASK-160: Phase 0: Expand E2E tests for Keyboard shortcuts (12 tests)" [ref=e575]':
+              - generic [ref=e578]: TASK-160
+              - 'heading "Phase 0: Expand E2E tests for Keyboard shortcuts (12 tests)" [level=3] [ref=e581]'
+              - paragraph [ref=e582]: "## Purpose E2E tests for the keyboard shortcut system - uses Shift+Alt modifier to avoid browser conflicts. ## Test Coverage (12 tests) ### Global Shortcuts (6 tests) - should open command palette with Shift+Alt+K - should open new task modal with Shift+Alt+N - should toggle sidebar with Shift+Alt+B - should open project switcher with Shift+Alt+P - should show keyboard help with ? key - should close all modals with Escape ### Navigation Sequences (3 tests) - should navigate to dashboard with g then d - should navigate to tasks with g then t - should navigate to environment with g then e ### Task List Context (3 tests) - should navigate tasks with j/k keys - should open selected task with Enter - should focus search with / key ## Implementation Notes - Keyboard shortcuts use Shift+Alt (not Cmd/Ctrl) to avoid browser conflicts - Multi-key sequences have timing window - Context-aware: some shortcuts only work in certain pages ## Success Criteria - All 12 tests pass - Tests verify actual navigation/modal behavior"
+              - generic [ref=e583]:
+                - generic [ref=e584]: "Phase:"
+                - generic [ref=e585]: docs
+              - generic [ref=e586]:
+                - generic [ref=e587]:
+                  - generic [ref=e588]: medium
+                  - button "Svelte 5 to React 1…" [ref=e589]
+                  - generic [ref=e590]: 1h ago
+                - generic [ref=e591]:
+                  - button "Finalize and merge" [ref=e592]:
+                    - img [ref=e593]
+                  - button "Quick actions" [ref=e598]:
+                    - img [ref=e599]
+          - listitem [ref=e603] [cursor=pointer]:
+            - 'article "Task TASK-152: Bug: Worktrees disappear during parallel task execution" [ref=e604]':
+              - generic [ref=e607]: TASK-152
+              - 'heading "Bug: Worktrees disappear during parallel task execution" [level=3] [ref=e610]'
+              - paragraph [ref=e611]: When running multiple tasks in parallel, worktrees get cleaned up while tasks are still using them, causing 'chdir no such file or directory' errors. Likely a race condition in worktree cleanup logic - one task's cleanup is removing another task's worktree, or worktree names are colliding.
+              - generic [ref=e612]:
+                - generic [ref=e613]:
+                  - generic [ref=e614]: medium
+                  - generic [ref=e615]: 1h ago
+                - generic [ref=e616]:
+                  - button "Finalize and merge" [ref=e617]:
+                    - img [ref=e618]
+                  - button "Quick actions" [ref=e623]:
+                    - img [ref=e624]
+          - listitem [ref=e628] [cursor=pointer]:
+            - 'article "Task TASK-197: Add process/resource tracking to diagnose system freezes" [ref=e629]':
+              - generic [ref=e631]:
+                - generic [ref=e632]: TASK-197
+                - generic "Critical priority" [ref=e633]:
+                  - img [ref=e634]
+              - heading "Add process/resource tracking to diagnose system freezes" [level=3] [ref=e638]
+              - paragraph [ref=e639]: "## Problem System freezes occur across Linux, Mac, and WSL after running multiple orc tasks. Suspected cause: orphaned MCP server processes (Playwright, browsers) not being cleaned up when Claude CLI sessions end. ## Root Cause Analysis When orc runs a task: ``` orc (Go process) └── Claude CLI (spawned by llmkit) └── MCP servers (Playwright, etc) └── Chromium browsers ``` llmkit kills Claude CLI on session.Close(), but doesn't kill the process GROUP - leaving MCP servers and browsers as orphans that accumulate. ## Solution: Add Resource Tracking ### 1. Process Tree Tracking - Before task: snapshot running processes - After task: compare, log any new orphans - Track: PID, PPID, command, memory usage ### 2. Memory Tracking - Log memory before/after each phase - Alert if memory grows significantly between tasks ### 3. Child Process Cleanup (llmkit fix) - Use process groups (Setpgid) when spawning Claude CLI - Kill entire process group on Close(), not just parent ### 4. MCP Server Lifecycle Logging - Log when MCP servers start/stop - Detect orphaned MCP processes ## Files to Modify - internal/executor/session_adapter.go - Add pre/post tracking - internal/executor/executor.go - Add memory logging - llmkit/claude/session/session.go - Process group kill (separate PR) ## Success Criteria - Logs show process counts before/after tasks - Orphaned processes are detected and logged - Memory growth is tracked between tasks"
+              - generic [ref=e640]:
+                - generic [ref=e641]: "Phase:"
+                - generic [ref=e642]: docs
+              - generic [ref=e643]:
+                - generic [ref=e644]:
+                  - generic [ref=e645]: medium
+                  - generic [ref=e646]: 1h ago
+                - button "Quick actions" [ref=e649]:
+                  - img [ref=e650]
+          - listitem [ref=e654] [cursor=pointer]:
+            - 'article "Task TASK-177: Phase 2: React - Environment and Config pages" [ref=e655]':
+              - generic [ref=e658]: TASK-177
+              - 'heading "Phase 2: React - Environment and Config pages" [level=3] [ref=e661]'
+              - paragraph [ref=e662]: "## Purpose Port all environment and configuration pages. ## Pages to Port ### Preferences (/preferences) - Global settings tab - Project settings tab - Environment variables editor ### Environment Hub (/environment) - Overview with links to sub-pages ### Claude Code Settings - /environment/docs - CLAUDE.md editor - /environment/claude/skills - Skill management - /environment/claude/hooks - Hook configuration - /environment/claude/agents - Agent definitions - /environment/claude/tools - Tool permissions - /environment/claude/mcp - MCP server config - /environment/claude/plugins - Plugin management - /environment/claude/statusline - Statusline config ### Orc Settings - /environment/orchestrator/automation - Profile, timeouts, worktree settings - /environment/orchestrator/prompts - Phase prompt overrides - /environment/orchestrator/scripts - Script registry - /environment/orchestrator/export - Export configuration - /environment/knowledge - Knowledge queue ## Common Patterns - Settings forms with validation - Save/cancel buttons - JSON/YAML editors where needed - Preview functionality ## Success Criteria - All config pages render and save correctly - Settings persist after save - Validation errors display properly"
+              - generic [ref=e663]:
+                - generic [ref=e664]: "Phase:"
+                - generic [ref=e665]: validate
+              - generic [ref=e666]:
+                - generic [ref=e667]:
+                  - generic [ref=e668]: large
+                  - button "Svelte 5 to React 1…" [ref=e669]
+                  - generic [ref=e670]: 1h ago
+                - generic [ref=e671]:
+                  - button "Finalize and merge" [ref=e672]:
+                    - img [ref=e673]
+                  - button "Quick actions" [ref=e678]:
+                    - img [ref=e679]
+          - listitem [ref=e683] [cursor=pointer]:
+            - 'article "Task TASK-196: Fix: Auto-merge fails when main branch is checked out locally" [ref=e684]':
+              - generic [ref=e686]:
+                - generic [ref=e687]: TASK-196
+                - generic "High priority" [ref=e688]:
+                  - img [ref=e689]
+              - 'heading "Fix: Auto-merge fails when main branch is checked out locally" [level=3] [ref=e693]'
+              - paragraph [ref=e694]: "## Problem When a task completes and tries to auto-merge, it fails if main is checked out in the main repo: ``` gh pr merge: exit status 1: failed to run git: fatal: 'main' is already used by worktree at '/home/randy/repos/orc' ``` This is the common case - users typically have main checked out when running orc. ## Root Cause The `gh pr merge` command tries to checkout main locally to fast-forward it, but can't because it's already in use. ## Solutions to Investigate 1. Use `gh pr merge --merge` with `--admin` flag to bypass local checkout 2. Temporarily switch main repo to a detached HEAD or temp branch 3. Use GitHub API directly instead of gh CLI 4. Accept the limitation and just skip auto-merge when main is checked out (document it) ## Success Criteria `orc run TASK-XXX` with auto-merge enabled works when main is checked out locally"
+              - generic [ref=e695]:
+                - generic [ref=e696]: "Phase:"
+                - generic [ref=e697]: docs
+              - generic [ref=e698]:
+                - generic [ref=e699]:
+                  - generic [ref=e700]: medium
+                  - generic [ref=e701]: 2h ago
+                - generic [ref=e702]:
+                  - button "Finalize and merge" [ref=e703]:
+                    - img [ref=e704]
+                  - button "Quick actions" [ref=e709]:
+                    - img [ref=e710]
+          - listitem [ref=e714] [cursor=pointer]:
+            - 'article "Task TASK-195: Add --status flag to orc edit command" [ref=e715]':
+              - generic [ref=e717]:
+                - generic [ref=e718]: TASK-195
+                - generic "High priority" [ref=e719]:
+                  - img [ref=e720]
+              - heading "Add --status flag to orc edit command" [level=3] [ref=e724]
+              - paragraph [ref=e725]: "## Problem Cannot change task status via CLI without running the task or editing YAML directly. Tried: `orc edit TASK-189 --status completed` Got: `Error: unknown flag: --status` ## Solution Add --status flag to the edit command with validation: - Valid values: planned, running, paused, completed, failed - Prevent invalid transitions (e.g., can't go from planned to running without actually running) - Simple status corrections like marking already-fixed tasks as completed should work ## Implementation - Add --status string flag to edit command in internal/cli/edit.go - Validate status values - Update task.yaml status field - Trigger auto-commit ## Success Criteria `orc edit TASK-XXX --status completed` works"
+              - generic [ref=e726]:
+                - generic [ref=e727]: "Phase:"
+                - generic [ref=e728]: docs
+              - generic [ref=e729]:
+                - generic [ref=e730]:
+                  - generic [ref=e731]: medium
+                  - generic [ref=e732]: 2h ago
+                - generic [ref=e733]:
+                  - button "Finalize and merge" [ref=e734]:
+                    - img [ref=e735]
+                  - button "Quick actions" [ref=e740]:
+                    - img [ref=e741]
+          - listitem [ref=e745] [cursor=pointer]:
+            - 'article "Task TASK-176: Phase 2: React - All modal components" [ref=e746]':
+              - generic [ref=e749]: TASK-176
+              - 'heading "Phase 2: React - All modal components" [level=3] [ref=e752]'
+              - paragraph [ref=e753]: "## Purpose Port all modal/overlay components. ## Modals to Port ### NewTaskModal.svelte -> NewTaskModal.tsx - Title input - Description textarea - Weight selector - Category selector - Priority selector - Initiative selector - Attachment upload - Create button ### NewInitiativeModal.svelte -> NewInitiativeModal.tsx - Title input - Vision textarea - Create button ### TaskEditModal.svelte -> TaskEditModal.tsx - Edit all task fields inline - Save/cancel buttons ### CommandPalette.svelte -> CommandPalette.tsx - Search input - Command sections (Tasks, Navigation, Environment, Settings, Projects, View) - Keyboard navigation - Fuzzy search ### KeyboardShortcutsHelp.svelte -> KeyboardShortcutsHelp.tsx - Shortcut list organized by category - Triggered by ? key ### LiveTranscriptModal.svelte -> LiveTranscriptModal.tsx - Real-time Claude output streaming - Connection status indicator - Token counts - Auto-scroll with manual override ### FinalizeModal.svelte -> FinalizeModal.tsx - Explanation text - Start button - Progress bar with step labels - Success/failure results - Merge info display ### ConfirmModal.svelte -> ConfirmModal.tsx - Generic confirmation dialog - Customizable message and buttons ### AddDependencyModal.svelte -> AddDependencyModal.tsx - Task search - Add blocker/related functionality ## Success Criteria - All modals render and function correctly - Focus trap works in all modals - Escape closes modals - Keyboard shortcuts open correct modals"
+              - generic [ref=e754]:
+                - generic [ref=e755]: "Phase:"
+                - generic [ref=e756]: validate
+              - generic [ref=e757]:
+                - generic [ref=e758]:
+                  - generic [ref=e759]: large
+                  - button "Svelte 5 to React 1…" [ref=e760]
+                  - generic [ref=e761]: 3h ago
+                - generic [ref=e762]:
+                  - button "Finalize and merge" [ref=e763]:
+                    - img [ref=e764]
+                  - button "Quick actions" [ref=e769]:
+                    - img [ref=e770]
+          - listitem [ref=e774] [cursor=pointer]:
+            - 'article "Task TASK-174: Phase 2: React - Task Detail page with all tabs" [ref=e775]':
+              - generic [ref=e778]: TASK-174
+              - 'heading "Phase 2: React - Task Detail page with all tabs" [level=3] [ref=e781]'
+              - paragraph [ref=e782]: "## Purpose Port the Task Detail page with all 6 tabs and sidebar. ## Components to Port ### TaskDetail page structure - TaskHeader with title, status, badges, edit/delete buttons - DependencySidebar (collapsible) - PR Actions button - Export dropdown - Tab navigation - Tab content panels ### TaskHeader.svelte -> TaskHeader.tsx - Task ID, weight badge, status badge, category badge - Edit task button (opens TaskEditModal) - Delete task button (with confirmation) ### DependencySidebar.svelte -> DependencySidebar.tsx - Blocked by section - Blocks section (computed) - Related section - Referenced by section (computed) - Add dependency modal ### Timeline Tab - Phase timeline visualization - Token usage stats panel - Iterations count ### Changes Tab (Diff Viewer) - DiffViewer with split/unified toggle - File list with expand/collapse - DiffFile, DiffHunk, DiffLine components - Virtual scrolling for large diffs - InlineCommentThread for review comments ### Transcript Tab - Transcript history list - Expandable content sections - Token counts per turn ### Test Results Tab - TestResults component - Screenshot gallery - Trace viewer links ### Attachments Tab - Attachment list/gallery - Upload functionality - Image preview modal ### Comments Tab - TaskCommentsPanel - TaskCommentThread, TaskCommentForm ## Success Criteria - All 6 tabs render correctly - Tab selection persists in URL (?tab=xxx) - Dependencies sidebar collapses/expands - E2E tests from Phase 0 pass"
+              - generic [ref=e783]:
+                - generic [ref=e784]: "Phase:"
+                - generic [ref=e785]: spec
+              - generic [ref=e786]:
+                - generic [ref=e787]:
+                  - generic [ref=e788]: large
+                  - button "Svelte 5 to React 1…" [ref=e789]
+                  - generic [ref=e790]: 7h ago
+                - generic [ref=e791]:
+                  - button "Finalize and merge" [ref=e792]:
+                    - img [ref=e793]
+                  - button "Quick actions" [ref=e798]:
+                    - img [ref=e799]
+          - listitem [ref=e803] [cursor=pointer]:
+            - 'article "Task TASK-172: Phase 2: React - Board page (flat and swimlane views)" [ref=e804]':
+              - generic [ref=e807]: TASK-172
+              - 'heading "Phase 2: React - Board page (flat and swimlane views)" [level=3] [ref=e810]'
+              - paragraph [ref=e811]: "## Purpose Port the Kanban board with both flat and swimlane view modes. ## Components to Port ### Board.svelte -> Board.tsx - View mode toggle (flat/swimlane) - Filter dropdowns (initiative, dependency status) - Column rendering ### Column.svelte -> Column.tsx - Column header with count - Task card container - Drop zone for drag-drop ### QueuedColumn.svelte -> QueuedColumn.tsx - Special column with active/backlog sections - Collapsible backlog ### Swimlane.svelte -> Swimlane.tsx - Initiative row with all columns - Collapsible with progress indicator - 'Unassigned' swimlane for orphan tasks ### TaskCard.svelte (kanban) -> TaskCard.tsx - Task ID, title, description preview - Weight, priority, phase badges - Action buttons (run, pause, finalize, menu) - Running state with pulsing animation - Finalizing state with progress bar - Finished state with merge badge ## Drag-Drop Implementation - Use @dnd-kit/core or react-beautiful-dnd - Drag between columns = status change - Drag between swimlanes = initiative change (with confirm) ## Success Criteria - Both view modes work identically - Drag-drop changes status/initiative - Running tasks show animation - E2E tests from Phase 0 pass"
+              - generic [ref=e812]:
+                - generic [ref=e813]: "Phase:"
+                - generic [ref=e814]: implement
+              - generic [ref=e815]:
+                - generic [ref=e816]:
+                  - generic [ref=e817]: large
+                  - button "Svelte 5 to React 1…" [ref=e818]
+                  - generic [ref=e819]: 8h ago
+                - generic [ref=e820]:
+                  - button "Finalize and merge" [ref=e821]:
+                    - img [ref=e822]
+                  - button "Quick actions" [ref=e827]:
+                    - img [ref=e828]
+          - listitem [ref=e832] [cursor=pointer]:
+            - 'article "Task TASK-171: Phase 2: React - Dashboard page" [ref=e833]':
+              - generic [ref=e836]: TASK-171
+              - 'heading "Phase 2: React - Dashboard page" [level=3] [ref=e839]'
+              - paragraph [ref=e840]: "## Purpose Port the Dashboard page with all its subcomponents. ## Components to Port ### DashboardStats.svelte -> DashboardStats.tsx - Running count - Blocked count - Today's completed count - Token usage (total + cached) - Live indicator ### DashboardActiveTasks.svelte -> DashboardActiveTasks.tsx - List of running/paused/blocked tasks - Click to navigate to task detail - Shows phase and timestamp ### DashboardQuickActions.svelte -> DashboardQuickActions.tsx - New Task button - View All Tasks button ### DashboardRecentActivity.svelte -> DashboardRecentActivity.tsx - Recently completed tasks timeline - Timestamps ### DashboardInitiatives.svelte -> DashboardInitiatives.tsx - Active initiatives with progress bars - Click to filter by initiative ### DashboardSummary.svelte -> DashboardSummary.tsx - Total tasks, completed, failed counts ## Data Flow - Fetches from TaskStore and InitiativeStore - WebSocket updates stats in real-time ## Success Criteria - Dashboard matches visual design exactly - Stats update in real-time via WebSocket - All clicks navigate correctly - E2E tests from Phase 0 pass"
+              - generic [ref=e841]:
+                - generic [ref=e842]: "Phase:"
+                - generic [ref=e843]: docs
+              - generic [ref=e844]:
+                - generic [ref=e845]:
+                  - generic [ref=e846]: medium
+                  - button "Svelte 5 to React 1…" [ref=e847]
+                  - generic [ref=e848]: 9h ago
+                - generic [ref=e849]:
+                  - button "Finalize and merge" [ref=e850]:
+                    - img [ref=e851]
+                  - button "Quick actions" [ref=e856]:
+                    - img [ref=e857]
+          - listitem [ref=e861] [cursor=pointer]:
+            - 'article "Task TASK-173: Phase 2: React - Task List page" [ref=e862]':
+              - generic [ref=e865]: TASK-173
+              - 'heading "Phase 2: React - Task List page" [level=3] [ref=e868]'
+              - paragraph [ref=e869]: "## Purpose Port the Task List page with filtering and search. ## Components to Port ### TaskList page - Filter bar (initiative, dependency status dropdowns) - Search input with debounce - Task cards in list layout - Keyboard navigation (j/k) ### Filter Components - InitiativeDropdown.svelte -> InitiativeDropdown.tsx - DependencyDropdown.svelte -> DependencyDropdown.tsx ### Task Card (list variant) - Compact card for list view - Same info as board card but different layout ## Filtering Logic - Filter by initiative (including 'Unassigned') - Filter by dependency status (all/blocked/ready/none) - Search by title/ID - Filters combine (AND logic) - Persist to URL params ## Success Criteria - All filters work correctly - Search debounces properly - Keyboard nav works (j/k/Enter) - URL params sync with filters"
+              - generic [ref=e870]:
+                - generic [ref=e871]: "Phase:"
+                - generic [ref=e872]: implement
+              - generic [ref=e873]:
+                - generic [ref=e874]:
+                  - generic [ref=e875]: medium
+                  - button "Svelte 5 to React 1…" [ref=e876]
+                  - generic [ref=e877]: 9h ago
+                - generic [ref=e878]:
+                  - button "Finalize and merge" [ref=e879]:
+                    - img [ref=e880]
+                  - button "Quick actions" [ref=e885]:
+                    - img [ref=e886]
+          - listitem [ref=e890] [cursor=pointer]:
+            - 'article "Task TASK-165: Phase 1: Create useWebSocket hook and WebSocketProvider" [ref=e891]':
+              - generic [ref=e894]: TASK-165
+              - 'heading "Phase 1: Create useWebSocket hook and WebSocketProvider" [level=3] [ref=e897]'
+              - paragraph [ref=e898]: "## Purpose Port the WebSocket client to React with proper hook-based API. ## Implementation ### WebSocket Client (port from websocket.ts) - OrcWebSocket class (keep similar structure) - Connection lifecycle: connect, reconnect, disconnect - Subscription model: global (*) vs task-specific - Auto-reconnect with exponential backoff - Ping/pong heartbeat (30s interval) - Primary subscription restoration on reconnect ### React Integration #### WebSocketProvider - Context provider wrapping app - Manages single WebSocket instance - Exposes connection status #### useWebSocket hook ```typescript const { status, subscribe, unsubscribe } = useWebSocket() ``` #### useTaskSubscription hook ```typescript const { state, transcript } = useTaskSubscription('TASK-001') ``` ### Event Handling - state -> update TaskStore - transcript -> streaming to component - task_created/updated/deleted -> update TaskStore - error -> toast notification ## Success Criteria - WebSocket connects and reconnects correctly - Events update stores in real-time - Connection status visible in UI - No memory leaks on unmount"
+              - generic [ref=e899]:
+                - generic [ref=e900]: "Phase:"
+                - generic [ref=e901]: implement
+              - generic [ref=e902]:
+                - generic [ref=e903]:
+                  - generic [ref=e904]: medium
+                  - button "Svelte 5 to React 1…" [ref=e905]
+                  - generic [ref=e906]: 11h ago
+                - generic [ref=e907]:
+                  - button "Finalize and merge" [ref=e908]:
+                    - img [ref=e909]
+                  - button "Quick actions" [ref=e914]:
+                    - img [ref=e915]
+          - listitem [ref=e919] [cursor=pointer]:
+            - 'article "Task TASK-193: Comprehensive auto-commit: ALL .orc/ file mutations must commit" [ref=e920]':
+              - generic [ref=e922]:
+                - generic [ref=e923]: TASK-193
+                - generic "High priority" [ref=e924]:
+                  - img [ref=e925]
+              - 'heading "Comprehensive auto-commit: ALL .orc/ file mutations must commit" [level=3] [ref=e929]'
+              - paragraph [ref=e930]: "## Problem TASK-153 and TASK-191 added auto-commit for some task operations, but many mutations still don't auto-commit: ### Task operations missing auto-commit: - Status changes during execution (running, completed, failed) - State file updates (state.yaml) - Transcript additions - Phase transitions - Retry context updates - Token/cost tracking updates ### Initiative operations missing auto-commit: - Status changes (draft → active → completed) - Task linking/unlinking - Decision additions - Progress updates ### Other .orc/ changes: - Config changes via API - Project registration - Any file watcher-triggered changes ## Solution Audit ALL code paths that write to .orc/ and ensure they call CommitAndSync: 1. **Task lifecycle:** - internal/executor/*.go - all state updates - internal/task/store.go - all Save() calls 2. **Initiative lifecycle:** - internal/initiative/*.go - all mutations 3. **API handlers:** - internal/api/handlers*.go - all POST/PUT/DELETE 4. **Consider:** Centralized hook that commits after any .orc/ file write ## Success Criteria 1. `git status` shows clean after ANY orc operation 2. No manual commits needed for .orc/ files ever 3. Commit messages are descriptive of what changed"
+              - generic [ref=e931]:
+                - generic [ref=e932]: "Phase:"
+                - generic [ref=e933]: docs
+              - generic [ref=e934]:
+                - generic [ref=e935]:
+                  - generic [ref=e936]: medium
+                  - generic [ref=e937]: 19h ago
+                - generic [ref=e938]:
+                  - button "Finalize and merge" [ref=e939]:
+                    - img [ref=e940]
+                  - button "Quick actions" [ref=e945]:
+                    - img [ref=e946]
+          - listitem [ref=e950] [cursor=pointer]:
+            - 'article "Task TASK-189: CRITICAL: Worktree cleanup must NEVER touch main repo/branch" [ref=e951]':
+              - generic [ref=e953]:
+                - generic [ref=e954]: TASK-189
+                - generic "Critical priority" [ref=e955]:
+                  - img [ref=e956]
+              - 'heading "CRITICAL: Worktree cleanup must NEVER touch main repo/branch" [level=3] [ref=e960]'
+              - paragraph [ref=e961]: "## Problem When a task completes in a worktree, something in the cleanup/sync process is resetting or modifying the main repository branch. This caused loss of uncommitted work on main. Evidence from reflog: ``` reset: moving to HEAD~1 reset: moving to HEAD~1 reset: moving to origin/main ``` This is UNACCEPTABLE. The worktree system exists specifically to isolate task execution from the main repo. ## Root Cause Investigation Needed 1. Check worktree cleanup in internal/git/worktree.go 2. Check completion sync in internal/git/sync.go 3. Check if any code does `git checkout main` or `git reset` in main repo context 4. Check the .orc/ restoration logic from TASK-115 ## Requirements 1. Worktree operations must NEVER affect main repo 2. No git reset, checkout, or destructive ops on main 3. Add safeguards to detect if accidentally in main repo 4. Add tests to verify main repo is untouched after task completion ## Success Criteria 1. Run a task to completion - main branch unchanged 2. Parallel tasks - main branch unchanged 3. Failed tasks - main branch unchanged 4. Add integration test that verifies main repo integrity"
+              - generic [ref=e962]:
+                - generic [ref=e963]: "Phase:"
+                - generic [ref=e964]: implement
+              - generic [ref=e965]:
+                - generic [ref=e966]:
+                  - generic [ref=e967]: medium
+                  - generic [ref=e968]: 19h ago
+                - generic [ref=e969]:
+                  - button "Finalize and merge" [ref=e970]:
+                    - img [ref=e971]
+                  - button "Quick actions" [ref=e976]:
+                    - img [ref=e977]
+          - listitem [ref=e981] [cursor=pointer]:
+            - 'article "Task TASK-192: Add --initiative flag to orc list for filtering tasks by initiative" [ref=e982]':
+              - generic [ref=e985]: TASK-192
+              - heading "Add --initiative flag to orc list for filtering tasks by initiative" [level=3] [ref=e988]
+              - paragraph [ref=e989]: Add --initiative flag to orc list command to filter tasks by initiative ID. Support 'unassigned' or empty string to show tasks without an initiative. Include tab completion for initiative IDs.
+              - generic [ref=e990]:
+                - generic [ref=e991]: "Phase:"
+                - generic [ref=e992]: test
+              - generic [ref=e993]:
+                - generic [ref=e994]:
+                  - generic [ref=e995]: small
+                  - generic [ref=e996]: 19h ago
+                - generic [ref=e997]:
+                  - button "Finalize and merge" [ref=e998]:
+                    - img [ref=e999]
+                  - button "Quick actions" [ref=e1004]:
+                    - img [ref=e1005]
+          - listitem [ref=e1009] [cursor=pointer]:
+            - 'article "Task TASK-191: Auto-commit for all task operations: delete, edit, status changes, and API/UI updates" [ref=e1010]':
+              - generic [ref=e1013]: TASK-191
+              - 'heading "Auto-commit for all task operations: delete, edit, status changes, and API/UI updates" [level=3] [ref=e1016]'
+              - paragraph [ref=e1017]: "## Problem TASK-153 added auto-commit for task creation, but other operations don't auto-commit: - `orc delete` - task removal not committed - `orc edit` - changes not committed - Status changes during execution - not committed - API/UI operations - not committed ## Solution Ensure all task mutations trigger git commit: 1. **CLI operations:** - `orc delete` - commit the removal - `orc edit` - commit changes - Any status change 2. **API operations:** - POST/PUT/DELETE /api/tasks/* endpoints - Should call same CommitAndSync as CLI 3. **Commit message format:** - Delete: `[orc] task TASK-001: deleted - Title` - Edit: `[orc] task TASK-001: updated - Title` - Status: `[orc] task TASK-001: status -> running` ## Files to Modify - internal/cli/cmd_delete.go - internal/cli/cmd_edit.go - internal/api/handlers.go (task endpoints) - internal/task/commit.go (if needed) ## Success Criteria 1. `orc delete TASK-XXX` auto-commits 2. `orc edit TASK-XXX --weight medium` auto-commits 3. API task updates auto-commit 4. No manual git add/commit needed for any task operation"
+              - generic [ref=e1018]:
+                - generic [ref=e1019]: "Phase:"
+                - generic [ref=e1020]: test
+              - generic [ref=e1021]:
+                - generic [ref=e1022]:
+                  - generic [ref=e1023]: small
+                  - generic [ref=e1024]: 20h ago
+                - generic [ref=e1025]:
+                  - button "Finalize and merge" [ref=e1026]:
+                    - img [ref=e1027]
+                  - button "Quick actions" [ref=e1032]:
+                    - img [ref=e1033]
+          - listitem [ref=e1037] [cursor=pointer]:
+            - 'article "Task TASK-190: Add --priority flag to orc new command" [ref=e1038]':
+              - generic [ref=e1041]: TASK-190
+              - heading "Add --priority flag to orc new command" [level=3] [ref=e1044]
+              - paragraph [ref=e1045]: "## Problem `orc new --priority critical` and `orc edit --priority critical` both fail with 'unknown flag: --priority' Priority field exists in task.yaml but can't be set via CLI. ## Solution Add `--priority` / `-p` flag to both `orc new` and `orc edit` commands accepting: critical, high, normal, low ## Files to Modify - internal/cli/cmd_new.go - internal/cli/cmd_edit.go"
+              - generic [ref=e1046]:
+                - generic [ref=e1047]: "Phase:"
+                - generic [ref=e1048]: implement
+              - generic [ref=e1049]:
+                - generic [ref=e1050]:
+                  - generic [ref=e1051]: trivial
+                  - generic [ref=e1052]: 20h ago
+                - generic [ref=e1053]:
+                  - button "Finalize and merge" [ref=e1054]:
+                    - img [ref=e1055]
+                  - button "Quick actions" [ref=e1060]:
+                    - img [ref=e1061]
+          - listitem [ref=e1065] [cursor=pointer]:
+            - 'article "Task TASK-153: Auto-commit task files on creation and modification" [ref=e1066]':
+              - generic [ref=e1069]: TASK-153
+              - heading "Auto-commit task files on creation and modification" [level=3] [ref=e1072]
+              - paragraph [ref=e1073]: "## Problem Task files can get lost if not tracked in git. When tasks are created or modified, changes should be committed automatically (like initiatives already do). ## Solution Add auto-commit behavior to task operations: 1. On task creation (`orc new`): commit the new task.yaml and plan.yaml 2. On task modification (`orc edit`): commit the updated task.yaml 3. On status changes: commit state updates Use same pattern as initiatives: ``` [orc] task TASK-001: created - Title [orc] task TASK-001: updated - changed weight to medium [orc] task TASK-001: status - running ``` ## Success Criteria 1. `orc new` auto-commits the task files 2. `orc edit` auto-commits changes 3. Commit messages follow consistent format 4. Can be disabled via config if needed ## Files to Modify - internal/task/store.go (add git commit after save) - internal/cli/cmd_new.go (ensure commit happens) - internal/cli/cmd_edit.go (ensure commit happens)"
+              - generic [ref=e1074]:
+                - generic [ref=e1075]: "Phase:"
+                - generic [ref=e1076]: test
+              - generic [ref=e1077]:
+                - generic [ref=e1078]:
+                  - generic [ref=e1079]: small
+                  - generic [ref=e1080]: 20h ago
+                - generic [ref=e1081]:
+                  - button "Finalize and merge" [ref=e1082]:
+                    - img [ref=e1083]
+                  - button "Quick actions" [ref=e1088]:
+                    - img [ref=e1089]
+          - listitem [ref=e1093] [cursor=pointer]:
+            - 'article "Task TASK-151: Complete auto-merge flow: wait for CI then merge after finalize" [ref=e1094]':
+              - generic [ref=e1097]: TASK-151
+              - 'heading "Complete auto-merge flow: wait for CI then merge after finalize" [level=3] [ref=e1100]'
+              - paragraph [ref=e1101]: "After finalize phase completes successfully: 1. Push any finalize changes (conflict resolution, sync commits) 2. Poll gh pr checks until all CI checks pass (with timeout) 3. Merge PR directly with gh pr merge --squash This removes dependency on GitHub's auto-merge feature (requires branch protection) and self-approval (blocked by GitHub). The gate becomes: finalize passes + CI passes = safe to merge. Config options: - completion.wait_for_ci: true (default) - wait for checks before merge - completion.ci_timeout: 10m - max time to wait for CI - completion.merge_on_ci_pass: true - auto-merge when CI passes"
+              - generic [ref=e1102]:
+                - generic [ref=e1103]: "Phase:"
+                - generic [ref=e1104]: docs
+              - generic [ref=e1105]:
+                - generic [ref=e1106]:
+                  - generic [ref=e1107]: medium
+                  - generic [ref=e1108]: 20h ago
+                - generic [ref=e1109]:
+                  - button "Finalize and merge" [ref=e1110]:
+                    - img [ref=e1111]
+                  - button "Quick actions" [ref=e1116]:
+                    - img [ref=e1117]
+          - listitem [ref=e1121] [cursor=pointer]:
+            - 'article "Task TASK-175: Phase 2: React - Initiative Detail page" [ref=e1122]':
+              - generic [ref=e1125]: TASK-175
+              - 'heading "Phase 2: React - Initiative Detail page" [level=3] [ref=e1128]'
+              - paragraph [ref=e1129]: "## Purpose Port the Initiative Detail page with tasks, decisions, and graph tabs. ## Components to Port ### Initiative Detail page structure - Header with title, status, progress bar - Status management buttons (activate, complete, archive) - Tab navigation (Tasks, Decisions, Graph) ### Tasks Tab - Linked tasks list - Add task button (search modal) - Unlink task button - Task status indicators ### Decisions Tab - Decision list with dates - Add decision form - Decision rationale display ### Graph Tab - DependencyGraph component - Interactive DAG visualization - Kahn's algorithm for topological layout - Zoom/pan controls - Click node to navigate - Export to PNG ### Status Management - Status badge (draft/active/completed/archived) - Status transition buttons with confirmation - API calls for status changes ## Success Criteria - All tabs render correctly - Status transitions work - Dependency graph renders and is interactive - E2E tests from Phase 0 pass"
+              - generic [ref=e1130]:
+                - generic [ref=e1131]:
+                  - generic [ref=e1132]: large
+                  - button "Svelte 5 to React 1…" [ref=e1133]
+                  - generic [ref=e1134]: 20h ago
+                - generic [ref=e1135]:
+                  - button "Finalize and merge" [ref=e1136]:
+                    - img [ref=e1137]
+                  - button "Quick actions" [ref=e1142]:
+                    - img [ref=e1143]
+          - listitem [ref=e1147] [cursor=pointer]:
+            - 'article "Task TASK-170: Phase 2: React - Layout components (Sidebar, Header, AppLayout)" [ref=e1148]':
+              - generic [ref=e1151]: TASK-170
+              - 'heading "Phase 2: React - Layout components (Sidebar, Header, AppLayout)" [level=3] [ref=e1154]'
+              - paragraph [ref=e1155]: "## Purpose Port the main layout components that wrap all pages. ## Components to Port ### Sidebar.svelte -> Sidebar.tsx - Navigation menu (Work section) - Initiatives section (collapsible) - Environment section (collapsible) - Expand/collapse toggle - Active route highlighting - Initiative list with progress counts ### Header.svelte -> Header.tsx - Project selector dropdown - Breadcrumb trail - Commands button (Shift+Alt+K) - New Task button ### AppLayout.tsx - Combines Sidebar + Header + content area - Responsive layout - Uses React Router Outlet ### ProjectSwitcher.svelte -> ProjectSwitcher.tsx - Modal overlay for project selection - Lists all projects - Persists selection to URL + localStorage ## Success Criteria - Layout matches Svelte pixel-for-pixel - Sidebar collapse persists in localStorage - Project switcher works with keyboard (Shift+Alt+P) - Routes highlight correctly in sidebar"
+              - generic [ref=e1156]:
+                - generic [ref=e1157]:
+                  - generic [ref=e1158]: medium
+                  - button "Svelte 5 to React 1…" [ref=e1159]
+                  - generic [ref=e1160]: 20h ago
+                - generic [ref=e1161]:
+                  - button "Finalize and merge" [ref=e1162]:
+                    - img [ref=e1163]
+                  - button "Quick actions" [ref=e1168]:
+                    - img [ref=e1169]
+          - listitem [ref=e1173] [cursor=pointer]:
+            - 'article "Task TASK-169: Phase 2: React - UI primitives (Icon, StatusIndicator, Modal, Toast)" [ref=e1174]':
+              - generic [ref=e1177]: TASK-169
+              - 'heading "Phase 2: React - UI primitives (Icon, StatusIndicator, Modal, Toast)" [level=3] [ref=e1180]'
+              - paragraph [ref=e1181]: "## Purpose Port the foundational UI components that other components depend on. ## Components to Port ### Icon.svelte -> Icon.tsx - 40+ SVG icons - Props: name, size, class - Consider using lucide-react or keeping inline SVGs ### StatusIndicator.svelte -> StatusIndicator.tsx - Colored status orb - Animation for running state - Props: status, size, pulse ### Modal.svelte -> Modal.tsx - Generic modal wrapper with backdrop - Focus trap - Escape to close - Portal rendering (createPortal) ### ToastContainer + toast store - Toast notification queue - Auto-dismiss with timeout - Multiple toast types (success, error, warning, info) - Consider react-hot-toast or custom ### Breadcrumbs.tsx - Navigation breadcrumb trail - Based on current route ## Success Criteria - All primitive components render identically - Modal focus trap works - Toast notifications appear and dismiss correctly - Icons render with correct sizes/colors"
+              - generic [ref=e1182]:
+                - generic [ref=e1183]:
+                  - generic [ref=e1184]: medium
+                  - button "Svelte 5 to React 1…" [ref=e1185]
+                  - generic [ref=e1186]: 20h ago
+                - generic [ref=e1187]:
+                  - button "Finalize and merge" [ref=e1188]:
+                    - img [ref=e1189]
+                  - button "Quick actions" [ref=e1194]:
+                    - img [ref=e1195]
+          - listitem [ref=e1199] [cursor=pointer]:
+            - 'article "Task TASK-168: Phase 1: Port keyboard shortcuts system to React" [ref=e1200]':
+              - generic [ref=e1203]: TASK-168
+              - 'heading "Phase 1: Port keyboard shortcuts system to React" [level=3] [ref=e1206]'
+              - paragraph [ref=e1207]: "## Purpose Port the keyboard shortcut system to React using hooks and context. ## Implementation ### ShortcutContext + useShortcuts hook ```typescript // Provider at app root <ShortcutProvider> <App /> </ShortcutProvider> // Hook in components const { registerShortcut, unregisterShortcut } = useShortcuts() ``` ### Global Shortcuts (Shift+Alt modifier) | Shortcut | Action | |----------|--------| | Shift+Alt+K | Open command palette | | Shift+Alt+N | Open new task modal | | Shift+Alt+B | Toggle sidebar | | Shift+Alt+P | Open project switcher | | ? | Show keyboard help | | Escape | Close modals | ### Navigation Sequences (g + key) | Sequence | Destination | |----------|-------------| | g d | Dashboard | | g t | Tasks | | g e | Environment | ### Context-Aware Shortcuts - Task list: j/k navigation, Enter to open, r to run - Search focus: / key ## Key Implementation Details - Use Shift+Alt modifier (not Cmd/Ctrl) to avoid browser conflicts - Multi-key sequences need timing window tracking - Disable shortcuts when in input/textarea fields ## Success Criteria - All shortcuts work identically to Svelte - No conflicts with browser shortcuts - Shortcuts disabled in form inputs"
+              - generic [ref=e1208]:
+                - generic [ref=e1209]:
+                  - generic [ref=e1210]: medium
+                  - button "Svelte 5 to React 1…" [ref=e1211]
+                  - generic [ref=e1212]: 20h ago
+                - generic [ref=e1213]:
+                  - button "Finalize and merge" [ref=e1214]:
+                    - img [ref=e1215]
+                  - button "Quick actions" [ref=e1220]:
+                    - img [ref=e1221]
+          - listitem [ref=e1225] [cursor=pointer]:
+            - 'article "Task TASK-167: Phase 1: Port API client to React" [ref=e1226]':
+              - generic [ref=e1229]: TASK-167
+              - 'heading "Phase 1: Port API client to React" [level=3] [ref=e1232]'
+              - paragraph [ref=e1233]: "## Purpose Port the API client (api.ts) to React - mostly copy with minor adjustments. ## Implementation ### Copy and Adapt - Copy web/src/lib/api.ts to web-react/src/lib/api.ts - Copy web/src/lib/types.ts to web-react/src/lib/types.ts - Keep same function signatures and return types ### Changes Needed - Remove Svelte-specific imports if any - Ensure fetch wrapper works in React context - Add React Query integration hooks (optional) ### API Functions to Port (~50 functions) - Task CRUD: listTasks, getTask, createTask, updateTask, deleteTask - Task control: runTask, pauseTask, resumeTask, escalateTask - Task state: getTaskState, getTaskPlan, getTranscripts - Projects: listProjects, getProject - Initiatives: listInitiatives, getInitiative, createInitiative, etc. - GitHub: createPR, mergePR, getPRStatus, getPRChecks - Config: getConfig, updateConfig, getSettings, updateSettings - Finalize: getFinalize, startFinalize ## Success Criteria - All API functions work identically to Svelte version - TypeScript types match - Error handling preserved"
+              - generic [ref=e1234]:
+                - generic [ref=e1235]:
+                  - generic [ref=e1236]: small
+                  - button "Svelte 5 to React 1…" [ref=e1237]
+                  - generic [ref=e1238]: 20h ago
+                - generic [ref=e1239]:
+                  - button "Finalize and merge" [ref=e1240]:
+                    - img [ref=e1241]
+                  - button "Quick actions" [ref=e1246]:
+                    - img [ref=e1247]
+          - listitem [ref=e1251] [cursor=pointer]:
+            - 'article "Task TASK-166: Phase 1: Setup React Router with URL param persistence" [ref=e1252]':
+              - generic [ref=e1255]: TASK-166
+              - 'heading "Phase 1: Setup React Router with URL param persistence" [level=3] [ref=e1258]'
+              - paragraph [ref=e1259]: "## Purpose Setup routing to match existing Svelte routes with URL parameter handling. ## Routes to Implement | Route | Component | Params | |-------|-----------|--------| | / | TaskList | ?project, ?initiative, ?dependency_status | | /board | Board | ?project, ?initiative, ?dependency_status | | /dashboard | Dashboard | ?project | | /tasks/:id | TaskDetail | ?tab | | /initiatives/:id | InitiativeDetail | | | /preferences | Preferences | | | /environment/* | EnvironmentPages | | ## URL Param Handling - Use React Router's useSearchParams - Sync with Zustand stores on navigation - Push to history when params change programmatically - Handle popstate for back/forward navigation ## Layout Structure ``` <AppLayout> <Sidebar /> <Header /> <Outlet /> {/* Route content */} </AppLayout> ``` ## Success Criteria - All routes match Svelte app - URL params sync correctly with stores - Browser back/forward works - Deep linking works (paste URL -> correct state)"
+              - generic [ref=e1260]:
+                - generic [ref=e1261]:
+                  - generic [ref=e1262]: medium
+                  - button "Svelte 5 to React 1…" [ref=e1263]
+                  - generic [ref=e1264]: 20h ago
+                - generic [ref=e1265]:
+                  - button "Finalize and merge" [ref=e1266]:
+                    - img [ref=e1267]
+                  - button "Quick actions" [ref=e1272]:
+                    - img [ref=e1273]
+          - listitem [ref=e1277] [cursor=pointer]:
+            - 'article "Task TASK-164: Phase 1: Setup Zustand stores mirroring Svelte stores" [ref=e1278]':
+              - generic [ref=e1281]: TASK-164
+              - 'heading "Phase 1: Setup Zustand stores mirroring Svelte stores" [level=3] [ref=e1284]'
+              - paragraph [ref=e1285]: "## Purpose Create Zustand stores that replicate the exact behavior of Svelte stores. ## Stores to Create ### TaskStore - tasks: Task[] - main array - taskStates: Map<string, TaskState> - state by ID - Derived: activeTasks, recentTasks, runningTasks, statusCounts - Actions: loadTasks, addTask, updateTask, removeTask, updateTaskState ### ProjectStore - projects: Project[] - currentProjectId: string | null - Priority: URL param > localStorage > server default - Sync with browser history (pushState/popState) ### InitiativeStore - initiatives: Initiative[] - currentInitiativeId: string | null (filter) - initiativeProgress: Map<id, {completed, total}> - Special value: UNASSIGNED_INITIATIVE = '__unassigned__' ### UIStore - sidebarExpanded: boolean (localStorage) - wsStatus: ConnectionStatus - toast queue ## Key Patterns - Use Zustand subscribeWithSelector for derived state - Use persist middleware for localStorage - Custom URL sync middleware for URL params - isHandlingPopState flag to prevent recursive history updates ## Success Criteria - All stores pass unit tests - URL/localStorage sync works correctly - Derived state calculations match Svelte exactly"
+              - generic [ref=e1286]:
+                - generic [ref=e1287]:
+                  - generic [ref=e1288]: medium
+                  - button "Svelte 5 to React 1…" [ref=e1289]
+                  - generic [ref=e1290]: 20h ago
+                - generic [ref=e1291]:
+                  - button "Finalize and merge" [ref=e1292]:
+                    - img [ref=e1293]
+                  - button "Quick actions" [ref=e1298]:
+                    - img [ref=e1299]
+          - listitem [ref=e1303] [cursor=pointer]:
+            - 'article "Task TASK-163: Phase 1: React 19 project scaffolding with Vite" [ref=e1304]':
+              - generic [ref=e1307]: TASK-163
+              - 'heading "Phase 1: React 19 project scaffolding with Vite" [level=3] [ref=e1310]'
+              - paragraph [ref=e1311]: "## Purpose Setup React 19 project structure alongside existing Svelte app for parallel development. ## Implementation ### Project Setup - Create web-react/ directory (parallel to web/) - Initialize with Vite + React 19 + TypeScript - Configure same port (5174) for dual-run testing - Setup build output to match Svelte structure ### Dependencies - react@19, react-dom@19 - vite, @vitejs/plugin-react - typescript, @types/react, @types/react-dom ### File Structure ``` web-react/ ├── src/ │ ├── main.tsx │ ├── App.tsx │ ├── index.css │ ├── lib/ # Shared utilities │ ├── components/ # UI components │ ├── pages/ # Route pages │ ├── stores/ # Zustand stores │ └── hooks/ # Custom hooks ├── vite.config.ts ├── tsconfig.json └── package.json ``` ### Configuration - Copy and adapt vite.config.ts from Svelte - Setup API proxy to localhost:8080 - Configure path aliases (@/ for src/) ## Success Criteria - npm run dev starts React app on :5174 - API proxy works (can fetch /api/health) - TypeScript compiles without errors"
+              - generic [ref=e1312]:
+                - generic [ref=e1313]:
+                  - generic [ref=e1314]: medium
+                  - button "Svelte 5 to React 1…" [ref=e1315]
+                  - generic [ref=e1316]: 20h ago
+                - generic [ref=e1317]:
+                  - button "Finalize and merge" [ref=e1318]:
+                    - img [ref=e1319]
+                  - button "Quick actions" [ref=e1324]:
+                    - img [ref=e1325]
+          - listitem [ref=e1329] [cursor=pointer]:
+            - 'article "Task TASK-149: Add initiative status management to UI - complete/archive actions" [ref=e1330]':
+              - generic [ref=e1333]: TASK-149
+              - heading "Add initiative status management to UI - complete/archive actions" [level=3] [ref=e1336]
+              - paragraph [ref=e1337]: "## Problem There's no way to mark initiatives as completed or archived through the UI. The CLI has `orc initiative complete` but users should be able to manage initiative lifecycle from the web interface. ## Solution Add initiative status management to the UI: 1. **Initiative Detail Page** (`/initiatives/[id]`): - Add status badge showing current status (draft/active/completed/archived) - Add action buttons/dropdown for status transitions: - Draft → Active (activate) - Active → Completed (complete) - Active → Archived (archive) - Confirm dialog for destructive actions (archive) 2. **API Endpoints** (if not existing): - `PUT /api/initiatives/:id/status` with body `{status: 'completed'|'archived'|'active'}` - Or individual endpoints: `POST /api/initiatives/:id/complete`, etc. 3. **Initiatives List**: - Show status badge on each initiative card - Optional: filter by status ## Success Criteria 1. Users can mark initiative as completed from initiative detail page 2. Users can archive initiatives from UI 3. Status changes reflect immediately in UI 4. API endpoints for status management exist and work 5. Completed/archived initiatives visually distinct in lists ## Files to Modify - web/src/routes/initiatives/[id]/+page.svelte (add status actions) - web/src/lib/api.ts (add status change methods) - internal/api/handlers.go or similar (add/verify endpoints) - internal/api/routes.go (register endpoints if new)"
+              - generic [ref=e1338]:
+                - generic [ref=e1339]: "Phase:"
+                - generic [ref=e1340]: test
+              - generic [ref=e1341]:
+                - generic [ref=e1342]:
+                  - generic [ref=e1343]: small
+                  - generic [ref=e1344]: 20h ago
+                - generic [ref=e1345]:
+                  - button "Finalize and merge" [ref=e1346]:
+                    - img [ref=e1347]
+                  - button "Quick actions" [ref=e1352]:
+                    - img [ref=e1353]
+          - listitem [ref=e1357] [cursor=pointer]:
+            - 'article "Task TASK-119: Show file change summary after task completion" [ref=e1358]':
+              - generic [ref=e1361]: TASK-119
+              - heading "Show file change summary after task completion" [level=3] [ref=e1364]
+              - paragraph [ref=e1365]: "After a task completes, show a brief summary of what changed: 'Modified: 3 files (+150/-20)' or similar. Currently only shows tokens and time. This gives users quick visibility into the scope of changes without checking git diff."
+              - generic [ref=e1366]:
+                - generic [ref=e1367]: "Phase:"
+                - generic [ref=e1368]: test
+              - generic [ref=e1369]:
+                - generic [ref=e1370]:
+                  - generic [ref=e1371]: small
+                  - generic [ref=e1372]: 20h ago
+                - generic [ref=e1373]:
+                  - button "Finalize and merge" [ref=e1374]:
+                    - img [ref=e1375]
+                  - button "Quick actions" [ref=e1380]:
+                    - img [ref=e1381]
+          - listitem [ref=e1385] [cursor=pointer]:
+            - 'article "Task TASK-138: Fix pre-commit hook false positive on main branch" [ref=e1386]':
+              - generic [ref=e1389]: TASK-138
+              - heading "Fix pre-commit hook false positive on main branch" [level=3] [ref=e1392]
+              - paragraph [ref=e1393]: "## Problem The pre-commit hook incorrectly detects the main branch as a task worktree, blocking commits with: ``` =============================================== WARNING: Unexpected branch for task =============================================== Task: TASK-096 Expected branch: orc/TASK-096 Current branch: main ``` This happens when committing directly to main, even though we're not in a worktree. ## Root Cause The hook extracts a task ID from somewhere (possibly file changes or commit message) and assumes we should be on that task's branch. It doesn't distinguish between: 1. Working in a task worktree (should enforce branch match) 2. Working on main (no task branch enforcement needed) ## Solution Update the pre-commit hook to: 1. Only enforce branch matching when actually in a worktree 2. Detect if we're in the main repo vs a worktree using git common-dir 3. Allow commits on main branch without task branch validation ## Success Criteria 1. Commits to main branch succeed without false warnings 2. Commits in task worktrees still enforce correct branch 3. Hook correctly detects worktree vs main repo context ## Files to Modify - .claude/hooks/pre-commit or wherever the hook is defined"
+              - generic [ref=e1394]:
+                - generic [ref=e1395]: "Phase:"
+                - generic [ref=e1396]: test
+              - generic [ref=e1397]:
+                - generic [ref=e1398]:
+                  - generic [ref=e1399]: small
+                  - generic [ref=e1400]: 20h ago
+                - generic [ref=e1401]:
+                  - button "Finalize and merge" [ref=e1402]:
+                    - img [ref=e1403]
+                  - button "Quick actions" [ref=e1408]:
+                    - img [ref=e1409]
+```
