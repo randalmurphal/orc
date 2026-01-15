@@ -26,11 +26,11 @@ cat .orc/initiatives/INIT-XXX.yaml 2>/dev/null
 
 ## Step 2: Identify Work
 
-From status output, identify:
-- **RUNNING**: What's in progress? Let it continue or start parallel work
-- **PAUSED**: Resume or leave for later?
-- **READY**: Which tasks advance the project goals?
-- **BLOCKED**: Can blockers be resolved?
+From status output, identify READY tasks. Check their specs to understand scope:
+```bash
+cat .orc/tasks/TASK-XXX/task.yaml 2>/dev/null
+cat .orc/tasks/TASK-XXX/spec.md 2>/dev/null
+```
 
 ### Orc-Specific Priorities
 1. **Blockers first** - bugs that break the workflow
@@ -38,33 +38,61 @@ From status output, identify:
 3. **Missing features** - gaps in the orchestration flow
 4. **Polish** - UX improvements, better error messages
 
-## Step 3: Run Tasks
+## Step 3: Plan Parallel Execution (up to 3 tasks)
 
-Delegate to `orc run` - do not implement yourself:
+Before running tasks in parallel, check for conflicts:
+
+### Conflict Detection
+Read the specs/descriptions of candidate tasks and identify:
+- **File overlap**: Do tasks modify the same files? → Run serial
+- **Package overlap**: Do tasks modify the same Go package? → Run serial
+- **Dependency chain**: Is one task blocked by another? → Run blocker first
+- **Shared resources**: Do both touch the same subsystem (API, CLI, executor)? → Consider serial
+
+### Safe to Parallelize
+- Tasks in different packages (e.g., `internal/cli` vs `internal/api`)
+- Tasks in different layers (e.g., backend vs frontend)
+- Independent bug fixes in unrelated areas
+- Docs tasks alongside code tasks
+
+### Execution Plan
+Based on conflict analysis, decide:
+- Which tasks can run in parallel (max 3)
+- Which must run serially
+- What order for serial tasks
+
+Present your plan to the user before executing.
+
+## Step 4: Run Tasks
+
+Start up to 3 non-conflicting tasks in parallel:
 
 ```bash
-orc run TASK-XXX
+orc run TASK-001
+orc run TASK-002
+orc run TASK-003
 ```
 
-Set `run_in_background: true` on the Bash call, then **stop and wait**. You will be notified when the task completes.
+Set `run_in_background: true` on each Bash call, then **stop and wait**. You will be notified when tasks complete.
 
-## Step 4: Validate After Completion
+## Step 5: Validate After Completion
 
 When notified of completion:
 
 ```bash
+orc status --plain 2>/dev/null
 orc diff TASK-XXX --stat
 orc show TASK-XXX --plain
 ```
 
-For orc changes specifically:
+For orc changes specifically, verify the build:
 ```bash
 make build 2>&1 | tail -20
 ```
 
 If the build fails, that's a blocker - create and run a fix task immediately.
 
-## Step 5: Discover Issues
+## Step 6: Discover Issues
 
 As Tech Lead for orc, actively look for:
 
@@ -83,13 +111,13 @@ orc new "Improve: [description]" --priority normal --category refactor
 
 If a new task is a blocker, run it immediately before continuing.
 
-## Step 6: Continue or Stop
+## Step 7: Continue or Stop
 
 ```bash
 orc status --plain
 ```
 
-- More READY tasks? Continue running them
+- More READY tasks? Plan next parallel batch and continue
 - Found friction during usage? Create task for it
 - Build broken? Fix it first
 - All caught up? Report summary and stop
@@ -110,7 +138,7 @@ orc status --plain
 - Minor UX improvements
 - Refactoring for clarity
 
-## Orc Development Commands
+## Commands
 
 | Action | Command |
 |--------|---------|
@@ -121,6 +149,8 @@ orc status --plain
 | Build | `make build` |
 | Test | `make test` |
 | Diff | `orc diff TASK-XXX --stat` |
+| Show task | `orc show TASK-XXX --plain` |
+| Read spec | `cat .orc/tasks/TASK-XXX/spec.md` |
 
 ## Self-Improvement Mindset
 
