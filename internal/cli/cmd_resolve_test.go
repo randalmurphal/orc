@@ -609,3 +609,501 @@ func TestCheckWorktreeStatus_NonExistentWorktree(t *testing.T) {
 		t.Error("expected hasWorktreeIssues to return false for non-existent worktree")
 	}
 }
+
+// =============================================================================
+// Tests required by spec: Testing Requirements
+// =============================================================================
+
+// TestResolveCommand_DetectsDirtyWorktree verifies that orc resolve detects
+// uncommitted changes in a task's worktree.
+func TestResolveCommand_DetectsDirtyWorktree(t *testing.T) {
+	tmpDir := setupTestRepoForResolve(t)
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	baseBranch, _ := gitOps.GetCurrentBranch()
+
+	// Create worktree
+	worktreePath, err := gitOps.CreateWorktree("TASK-DIRTY", baseBranch)
+	if err != nil {
+		t.Fatalf("failed to create worktree: %v", err)
+	}
+	defer gitOps.CleanupWorktree("TASK-DIRTY")
+
+	// Commit the injected .claude/ directory to start clean
+	wtGit := gitOps.InWorktree(worktreePath)
+	ctx := wtGit.Context()
+	ctx.RunGit("add", ".claude/")
+	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+
+	// Create uncommitted changes
+	dirtyFile := filepath.Join(worktreePath, "dirty.txt")
+	if err := os.WriteFile(dirtyFile, []byte("dirty content"), 0644); err != nil {
+		t.Fatalf("failed to create dirty file: %v", err)
+	}
+
+	// Check status - should detect dirty worktree
+	status, err := checkWorktreeStatus("TASK-DIRTY", gitOps)
+	if err != nil {
+		t.Fatalf("checkWorktreeStatus failed: %v", err)
+	}
+
+	if !status.exists {
+		t.Error("expected exists to be true")
+	}
+	if !status.isDirty {
+		t.Error("expected isDirty to be true - worktree has uncommitted changes")
+	}
+	if status.uncommittedMsg == "" {
+		t.Error("expected uncommittedMsg to describe the dirty state")
+	}
+	if !status.hasWorktreeIssues() {
+		t.Error("expected hasWorktreeIssues() to return true for dirty worktree")
+	}
+}
+
+// TestResolveCommand_DetectsRebaseInProgress verifies that orc resolve detects
+// an in-progress rebase in a task's worktree.
+func TestResolveCommand_DetectsRebaseInProgress(t *testing.T) {
+	tmpDir := setupTestRepoForResolve(t)
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	baseBranch, _ := gitOps.GetCurrentBranch()
+
+	// Create worktree
+	worktreePath, err := gitOps.CreateWorktree("TASK-REBASE", baseBranch)
+	if err != nil {
+		t.Fatalf("failed to create worktree: %v", err)
+	}
+	defer gitOps.CleanupWorktree("TASK-REBASE")
+
+	// Commit the injected .claude/ directory first
+	wtGit := gitOps.InWorktree(worktreePath)
+	ctx := wtGit.Context()
+	ctx.RunGit("add", ".claude/")
+	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+
+	// Modify README on task branch
+	readmeFile := filepath.Join(worktreePath, "README.md")
+	if err := os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644); err != nil {
+		t.Fatalf("failed to modify README: %v", err)
+	}
+	ctx.RunGit("add", "README.md")
+	ctx.RunGit("commit", "-m", "modify readme on task")
+
+	// Switch back to base branch and make conflicting change
+	cmd := exec.Command("git", "checkout", baseBranch)
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to checkout base branch: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Base branch changes\n"), 0644); err != nil {
+		t.Fatalf("failed to modify README on base: %v", err)
+	}
+	cmd = exec.Command("git", "add", "README.md")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	cmd = exec.Command("git", "commit", "-m", "modify readme on base")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit on base: %v", err)
+	}
+
+	// Start a rebase that will conflict
+	ctx.RunGit("rebase", baseBranch)
+	// This should leave us in a conflicted rebase state
+
+	// Check status - should detect rebase in progress
+	status, err := checkWorktreeStatus("TASK-REBASE", gitOps)
+	if err != nil {
+		t.Fatalf("checkWorktreeStatus failed: %v", err)
+	}
+
+	if !status.exists {
+		t.Error("expected exists to be true")
+	}
+	if !status.rebaseInProg {
+		t.Error("expected rebaseInProg to be true - worktree has rebase in progress")
+	}
+	if !status.hasWorktreeIssues() {
+		t.Error("expected hasWorktreeIssues() to return true for rebase in progress")
+	}
+
+	// Cleanup: abort the rebase
+	ctx.RunGit("rebase", "--abort")
+}
+
+// TestResolveCommand_DetectsMergeInProgress verifies that orc resolve detects
+// an in-progress merge in a task's worktree.
+func TestResolveCommand_DetectsMergeInProgress(t *testing.T) {
+	tmpDir := setupTestRepoForResolve(t)
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	baseBranch, _ := gitOps.GetCurrentBranch()
+
+	// Create worktree
+	worktreePath, err := gitOps.CreateWorktree("TASK-MERGE", baseBranch)
+	if err != nil {
+		t.Fatalf("failed to create worktree: %v", err)
+	}
+	defer gitOps.CleanupWorktree("TASK-MERGE")
+
+	// Commit the injected .claude/ directory first
+	wtGit := gitOps.InWorktree(worktreePath)
+	ctx := wtGit.Context()
+	ctx.RunGit("add", ".claude/")
+	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+
+	// Create a branch from task branch to merge
+	ctx.RunGit("branch", "feature-to-merge")
+
+	// Modify README on task branch
+	readmeFile := filepath.Join(worktreePath, "README.md")
+	if err := os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644); err != nil {
+		t.Fatalf("failed to modify README: %v", err)
+	}
+	ctx.RunGit("add", "README.md")
+	ctx.RunGit("commit", "-m", "modify readme on task")
+
+	// Switch to feature branch and make conflicting change
+	ctx.RunGit("checkout", "feature-to-merge")
+
+	if err := os.WriteFile(readmeFile, []byte("# Feature branch changes\n"), 0644); err != nil {
+		t.Fatalf("failed to modify README on feature: %v", err)
+	}
+	ctx.RunGit("add", "README.md")
+	ctx.RunGit("commit", "-m", "modify readme on feature")
+
+	// Switch back to task branch
+	ctx.RunGit("checkout", "orc/TASK-MERGE")
+
+	// Start a merge that will conflict
+	ctx.RunGit("merge", "feature-to-merge")
+	// This should leave us in a conflicted merge state
+
+	// Check status - should detect merge in progress
+	status, err := checkWorktreeStatus("TASK-MERGE", gitOps)
+	if err != nil {
+		t.Fatalf("checkWorktreeStatus failed: %v", err)
+	}
+
+	if !status.exists {
+		t.Error("expected exists to be true")
+	}
+	if !status.mergeInProg {
+		t.Error("expected mergeInProg to be true - worktree has merge in progress")
+	}
+	if !status.hasWorktreeIssues() {
+		t.Error("expected hasWorktreeIssues() to return true for merge in progress")
+	}
+
+	// Cleanup: abort the merge
+	ctx.RunGit("merge", "--abort")
+}
+
+// TestResolveCommand_CleanupFlag verifies that --cleanup aborts in-progress
+// operations and discards uncommitted changes.
+func TestResolveCommand_CleanupFlag(t *testing.T) {
+	tmpDir := setupTestRepoForResolve(t)
+
+	// Create .orc directory for project detection
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc directory: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	baseBranch, _ := gitOps.GetCurrentBranch()
+
+	// Create worktree
+	worktreePath, err := gitOps.CreateWorktree("TASK-CLEANUP", baseBranch)
+	if err != nil {
+		t.Fatalf("failed to create worktree: %v", err)
+	}
+	defer gitOps.CleanupWorktree("TASK-CLEANUP")
+
+	// Commit the injected .claude/ directory first
+	wtGit := gitOps.InWorktree(worktreePath)
+	ctx := wtGit.Context()
+	ctx.RunGit("add", ".claude/")
+	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+
+	// Create uncommitted changes
+	dirtyFile := filepath.Join(worktreePath, "dirty.txt")
+	if err := os.WriteFile(dirtyFile, []byte("dirty content"), 0644); err != nil {
+		t.Fatalf("failed to create dirty file: %v", err)
+	}
+
+	// Verify worktree is dirty
+	status, _ := checkWorktreeStatus("TASK-CLEANUP", gitOps)
+	if !status.isDirty {
+		t.Fatal("expected worktree to be dirty before cleanup")
+	}
+
+	// Create a failed task in the backend
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+
+	tk := task.New("TASK-CLEANUP", "Test cleanup")
+	tk.Status = task.StatusFailed
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
+
+	// Change to project dir and run resolve with --cleanup
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-CLEANUP", "--force", "--cleanup"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve command failed: %v", err)
+	}
+
+	// Verify worktree is now clean
+	clean, _ := wtGit.IsClean()
+	if !clean {
+		t.Error("expected worktree to be clean after --cleanup")
+	}
+
+	// Verify dirty file was removed
+	if _, err := os.Stat(dirtyFile); !os.IsNotExist(err) {
+		t.Error("expected dirty.txt to be removed after --cleanup")
+	}
+
+	// Verify worktree still exists (--cleanup should NOT remove worktree)
+	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+		t.Error("worktree should still exist after --cleanup (--cleanup discards changes, doesn't remove worktree)")
+	}
+}
+
+// TestResolveCommand_NoWorktree verifies that orc resolve works when
+// the task doesn't have an associated worktree.
+func TestResolveCommand_NoWorktree(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create backend and save a failed task (no worktree)
+	backend := createResolveTestBackend(t, tmpDir)
+
+	tk := task.New("TASK-NO-WT", "Test task without worktree")
+	tk.Status = task.StatusFailed
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
+
+	// Run resolve - should succeed without worktree
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-NO-WT", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve command failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend = createResolveTestBackend(t, tmpDir)
+	defer backend.Close()
+
+	reloaded, err := backend.LoadTask("TASK-NO-WT")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusCompleted)
+	}
+	if reloaded.Metadata["resolved"] != "true" {
+		t.Errorf("metadata resolved = %q, want 'true'", reloaded.Metadata["resolved"])
+	}
+}
+
+// TestResolveCommand_ForceSkipsChecks verifies that --force skips
+// worktree state checks entirely.
+func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
+	tmpDir := setupTestRepoForResolve(t)
+
+	// Create .orc directory for project detection
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc directory: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	baseBranch, _ := gitOps.GetCurrentBranch()
+
+	// Create worktree
+	worktreePath, err := gitOps.CreateWorktree("TASK-FORCE", baseBranch)
+	if err != nil {
+		t.Fatalf("failed to create worktree: %v", err)
+	}
+	defer gitOps.CleanupWorktree("TASK-FORCE")
+
+	// Commit the injected .claude/ directory first
+	wtGit := gitOps.InWorktree(worktreePath)
+	ctx := wtGit.Context()
+	ctx.RunGit("add", ".claude/")
+	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+
+	// Create uncommitted changes
+	dirtyFile := filepath.Join(worktreePath, "dirty.txt")
+	if err := os.WriteFile(dirtyFile, []byte("dirty content"), 0644); err != nil {
+		t.Fatalf("failed to create dirty file: %v", err)
+	}
+
+	// Create a failed task
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+
+	tk := task.New("TASK-FORCE", "Test force flag")
+	tk.Status = task.StatusFailed
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
+
+	// Change to project dir and run resolve with --force
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-FORCE", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve command failed: %v", err)
+	}
+
+	// Verify task was resolved (even though worktree is dirty)
+	backend, _ = storage.NewDatabaseBackend(tmpDir, nil)
+	defer backend.Close()
+
+	reloaded, err := backend.LoadTask("TASK-FORCE")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusCompleted)
+	}
+
+	// Verify dirty file still exists (--force doesn't clean up)
+	if _, err := os.Stat(dirtyFile); os.IsNotExist(err) {
+		t.Error("expected dirty.txt to still exist with --force (no cleanup)")
+	}
+
+	// Verify metadata indicates worktree was dirty
+	if reloaded.Metadata["worktree_was_dirty"] != "true" {
+		t.Error("expected worktree_was_dirty metadata to be set")
+	}
+}
+
+// TestResolveCommand_CleanWorktree verifies that orc resolve doesn't
+// display warnings when the worktree is clean.
+func TestResolveCommand_CleanWorktree(t *testing.T) {
+	tmpDir := setupTestRepoForResolve(t)
+
+	// Create .orc directory for project detection
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc directory: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	baseBranch, _ := gitOps.GetCurrentBranch()
+
+	// Create worktree
+	worktreePath, err := gitOps.CreateWorktree("TASK-CLEAN-WT", baseBranch)
+	if err != nil {
+		t.Fatalf("failed to create worktree: %v", err)
+	}
+	defer gitOps.CleanupWorktree("TASK-CLEAN-WT")
+
+	// Commit the injected .claude/ directory to make worktree clean
+	wtGit := gitOps.InWorktree(worktreePath)
+	ctx := wtGit.Context()
+	ctx.RunGit("add", ".claude/")
+	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+
+	// Verify worktree is clean
+	status, _ := checkWorktreeStatus("TASK-CLEAN-WT", gitOps)
+	if status.hasWorktreeIssues() {
+		t.Fatal("expected worktree to be clean before test")
+	}
+
+	// Create a failed task
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+
+	tk := task.New("TASK-CLEAN-WT", "Test clean worktree")
+	tk.Status = task.StatusFailed
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
+
+	// Change to project dir and run resolve
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-CLEAN-WT", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve command failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend, _ = storage.NewDatabaseBackend(tmpDir, nil)
+	defer backend.Close()
+
+	reloaded, err := backend.LoadTask("TASK-CLEAN-WT")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusCompleted)
+	}
+
+	// Verify no worktree issues recorded in metadata
+	if reloaded.Metadata["worktree_was_dirty"] == "true" {
+		t.Error("expected worktree_was_dirty to NOT be set for clean worktree")
+	}
+	if reloaded.Metadata["worktree_had_conflicts"] == "true" {
+		t.Error("expected worktree_had_conflicts to NOT be set for clean worktree")
+	}
+	if reloaded.Metadata["worktree_had_incomplete_operation"] == "true" {
+		t.Error("expected worktree_had_incomplete_operation to NOT be set for clean worktree")
+	}
+}

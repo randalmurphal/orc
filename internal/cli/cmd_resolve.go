@@ -110,8 +110,11 @@ Worktree handling:
   git operations (rebase/merge), or unresolved conflicts, a warning will be
   displayed with suggested actions:
 
-  --cleanup   Abort in-progress operations and discard uncommitted changes
+  --cleanup   Abort in-progress git operations and discard uncommitted changes
   --force     Skip worktree state checks entirely (resolve without cleanup)
+
+Note: --cleanup cleans the worktree state but preserves the worktree itself.
+Use 'orc cleanup TASK-XXX' to fully remove a worktree after resolving.
 
 Examples:
   orc resolve TASK-001                          # Mark as resolved
@@ -200,17 +203,54 @@ Examples:
 				fmt.Println()
 			}
 
+			// Perform cleanup if requested (before confirmation so user sees what was cleaned)
+			var cleanupPerformed bool
+			var cleanupErr error
+			if cleanup && wtStatus != nil && wtStatus.hasWorktreeIssues() && gitOps != nil {
+				if !quiet {
+					fmt.Println("🧹 Cleaning up worktree state...")
+				}
+				worktreeGit := gitOps.InWorktree(wtStatus.path)
+				ctx := worktreeGit.Context()
+
+				// Abort rebase if in progress
+				if wtStatus.rebaseInProg {
+					if _, err := ctx.RunGit("rebase", "--abort"); err == nil {
+						if !quiet {
+							fmt.Println("   Aborted rebase-in-progress")
+						}
+					}
+				}
+				// Abort merge if in progress
+				if wtStatus.mergeInProg {
+					if _, err := ctx.RunGit("merge", "--abort"); err == nil {
+						if !quiet {
+							fmt.Println("   Aborted merge-in-progress")
+						}
+					}
+				}
+				// Discard uncommitted changes
+				if wtStatus.isDirty || wtStatus.hasConflicts {
+					cleanupErr = worktreeGit.DiscardChanges()
+					if cleanupErr == nil {
+						if !quiet {
+							fmt.Println("   Discarded uncommitted changes")
+						}
+					}
+				}
+				cleanupPerformed = true
+				if !quiet {
+					fmt.Println()
+				}
+			}
+
 			// Confirmation prompt
 			if !force && !quiet {
 				fmt.Printf("⚠️  Resolve task %s as completed?\n", id)
 				fmt.Println("   The task will be marked as completed (resolved).")
 				fmt.Println("   Execution state will be preserved for reference.")
-				if wtStatus != nil && wtStatus.exists {
-					if cleanup {
-						fmt.Println("   The worktree will be removed after resolution.")
-					} else {
-						fmt.Println("   The worktree will be preserved (use --cleanup to remove).")
-					}
+				if wtStatus != nil && wtStatus.exists && !cleanupPerformed {
+					fmt.Println("   The worktree will be preserved.")
 				}
 				fmt.Print("   Continue? [y/N]: ")
 
@@ -253,22 +293,6 @@ Examples:
 				return fmt.Errorf("save task: %w", err)
 			}
 
-			// Cleanup worktree if requested
-			var cleanupErr error
-			if cleanup && wtStatus != nil && wtStatus.exists && gitOps != nil {
-				// Abort any in-progress operations before cleanup
-				worktreeGit := gitOps.InWorktree(wtStatus.path)
-				ctx := worktreeGit.Context()
-				if wtStatus.rebaseInProg {
-					ctx.RunGit("rebase", "--abort")
-				}
-				if wtStatus.mergeInProg {
-					ctx.RunGit("merge", "--abort")
-				}
-
-				cleanupErr = gitOps.CleanupWorktree(id)
-			}
-
 			// Output results
 			if plain {
 				fmt.Printf("Task %s resolved\n", id)
@@ -278,12 +302,8 @@ Examples:
 			if message != "" {
 				fmt.Printf("   Message: %s\n", message)
 			}
-			if cleanup && wtStatus != nil && wtStatus.exists {
-				if cleanupErr != nil {
-					fmt.Printf("   ⚠️  Worktree cleanup failed: %v\n", cleanupErr)
-				} else {
-					fmt.Println("   Worktree removed.")
-				}
+			if cleanupPerformed && cleanupErr != nil {
+				fmt.Printf("   ⚠️  Worktree cleanup had errors: %v\n", cleanupErr)
 			}
 			return nil
 		},
@@ -291,6 +311,6 @@ Examples:
 
 	cmd.Flags().BoolP("force", "f", false, "skip confirmation")
 	cmd.Flags().StringVarP(&message, "message", "m", "", "resolution message explaining why task was resolved")
-	cmd.Flags().BoolVar(&cleanup, "cleanup", false, "remove the task's worktree after resolving")
+	cmd.Flags().BoolVar(&cleanup, "cleanup", false, "abort in-progress git operations and discard uncommitted changes")
 	return cmd
 }
