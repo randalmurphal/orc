@@ -6,6 +6,7 @@ import {
 	deleteTaskComment,
 	updateTaskComment,
 } from '@/lib/api';
+import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { toast } from '@/stores/uiStore';
 import './CommentsTab.css';
@@ -104,22 +105,28 @@ function CommentThread({ comment, onEdit, onDelete }: CommentThreadProps) {
 			{(onEdit || onDelete) && (
 				<div className="comment-actions">
 					{onEdit && (
-						<button
-							className="action-btn edit"
+						<Button
+							variant="ghost"
+							size="sm"
+							iconOnly
 							onClick={() => onEdit(comment.id)}
 							title="Edit comment"
+							aria-label="Edit comment"
 						>
 							<Icon name="edit" size={14} />
-						</button>
+						</Button>
 					)}
 					{onDelete && (
-						<button
-							className="action-btn delete"
+						<Button
+							variant="danger"
+							size="sm"
+							iconOnly
 							onClick={() => onDelete(comment.id)}
 							title="Delete comment"
+							aria-label="Delete comment"
 						>
 							<Icon name="trash" size={14} />
-						</button>
+						</Button>
 					)}
 				</div>
 			)}
@@ -202,9 +209,17 @@ function CommentForm({
 		<form className="comment-form" onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
 			<div className="form-header">
 				<h3>{editMode ? 'Edit Comment' : 'Add Comment'}</h3>
-				<button type="button" className="close-btn" onClick={onCancel} title="Cancel">
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					iconOnly
+					onClick={onCancel}
+					title="Cancel"
+					aria-label="Cancel"
+				>
 					<Icon name="x" size={16} />
-				</button>
+				</Button>
 			</div>
 
 			{!editMode && (
@@ -280,10 +295,16 @@ function CommentForm({
 			</div>
 
 			<div className="form-actions">
-				<button type="button" className="ghost" onClick={onCancel} disabled={isLoading}>
+				<Button type="button" variant="secondary" size="sm" onClick={onCancel} disabled={isLoading}>
 					Cancel
-				</button>
-				<button type="submit" className="primary" disabled={!canSubmit}>
+				</Button>
+				<Button
+					type="submit"
+					variant="primary"
+					size="sm"
+					disabled={!canSubmit || isLoading}
+					loading={isLoading}
+				>
 					{isLoading
 						? editMode
 							? 'Saving...'
@@ -291,7 +312,7 @@ function CommentForm({
 						: editMode
 							? 'Save Changes'
 							: 'Add Comment'}
-				</button>
+				</Button>
 			</div>
 
 			<div className="keyboard-hint">
@@ -418,10 +439,14 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 				</div>
 				<div className="header-right">
 					{!showForm && (
-						<button className="add-btn" onClick={handleAddComment}>
-							<Icon name="plus" size={14} />
+						<Button
+							variant="primary"
+							size="sm"
+							onClick={handleAddComment}
+							leftIcon={<Icon name="plus" size={14} />}
+						>
 							Add Comment
-						</button>
+						</Button>
 					)}
 				</div>
 			</div>
@@ -430,7 +455,9 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 				<div className="error-message">
 					<Icon name="alert-circle" size={14} />
 					{error}
-					<button onClick={loadComments}>Retry</button>
+					<Button variant="ghost" size="sm" onClick={loadComments}>
+						Retry
+					</Button>
 				</div>
 			)}
 
@@ -449,35 +476,43 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 			{comments.length > 0 && !showForm && (
 				<div className="filter-bar">
 					<span className="filter-label">Filter:</span>
-					<button
+					<Button
+						variant="ghost"
+						size="sm"
 						className={`filter-btn ${filterAuthorType === '' ? 'active' : ''}`}
 						onClick={() => setFilterAuthorType('')}
 					>
 						All ({comments.length})
-					</button>
+					</Button>
 					{humanComments.length > 0 && (
-						<button
+						<Button
+							variant="ghost"
+							size="sm"
 							className={`filter-btn human ${filterAuthorType === 'human' ? 'active' : ''}`}
 							onClick={() => setFilterAuthorType('human')}
 						>
 							Human ({humanComments.length})
-						</button>
+						</Button>
 					)}
 					{agentComments.length > 0 && (
-						<button
+						<Button
+							variant="ghost"
+							size="sm"
 							className={`filter-btn agent ${filterAuthorType === 'agent' ? 'active' : ''}`}
 							onClick={() => setFilterAuthorType('agent')}
 						>
 							Agent ({agentComments.length})
-						</button>
+						</Button>
 					)}
 					{systemComments.length > 0 && (
-						<button
+						<Button
+							variant="ghost"
+							size="sm"
 							className={`filter-btn system ${filterAuthorType === 'system' ? 'active' : ''}`}
 							onClick={() => setFilterAuthorType('system')}
 						>
 							System ({systemComments.length})
-						</button>
+						</Button>
 					)}
 				</div>
 			)}

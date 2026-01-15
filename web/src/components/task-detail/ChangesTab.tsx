@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { DiffFile } from '@/components/task-detail/diff/DiffFile';
 import { DiffStats } from '@/components/task-detail/diff/DiffStats';
@@ -290,28 +291,36 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 				<div className="toolbar-left">
 					{/* View Mode Toggle */}
 					<div className="view-toggle" role="tablist" aria-label="Diff view mode">
-						<button
+						<Button
+							variant="ghost"
+							size="sm"
 							role="tab"
 							aria-selected={viewMode === 'split'}
 							className={viewMode === 'split' ? 'active' : ''}
 							onClick={() => setViewMode('split')}
 						>
 							Split
-						</button>
-						<button
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
 							role="tab"
 							aria-selected={viewMode === 'unified'}
 							className={viewMode === 'unified' ? 'active' : ''}
 							onClick={() => setViewMode('unified')}
 						>
 							Unified
-						</button>
+						</Button>
 					</div>
 
 					{/* Expand/Collapse */}
-					<button className="expand-btn" onClick={() => (allExpanded ? collapseAll() : expandAll())}>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => (allExpanded ? collapseAll() : expandAll())}
+					>
 						{allExpanded ? 'Collapse all' : 'Expand all'}
-					</button>
+					</Button>
 				</div>
 
 				<div className="toolbar-right">
@@ -335,23 +344,15 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 									</span>
 								)}
 							</div>
-							<button
-								className="send-to-agent-btn"
+							<Button
+								variant="primary"
+								size="sm"
 								onClick={handleSendToAgent}
-								disabled={sendingToAgent}
+								loading={sendingToAgent}
+								leftIcon={<Icon name="play" size={14} />}
 							>
-								{sendingToAgent ? (
-									<>
-										<span className="btn-spinner" />
-										Sending...
-									</>
-								) : (
-									<>
-										<Icon name="play" size={14} />
-										Send to Agent
-									</>
-								)}
-							</button>
+								{sendingToAgent ? 'Sending...' : 'Send to Agent'}
+							</Button>
 						</>
 					)}
 
@@ -385,9 +386,14 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 				<div className="general-comments-header">
 					<h3>General Comments</h3>
 					{!showGeneralCommentForm && (
-						<button className="add-general-btn" onClick={() => setShowGeneralCommentForm(true)}>
-							<span>+</span> Add Comment
-						</button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setShowGeneralCommentForm(true)}
+							leftIcon={<span>+</span>}
+						>
+							Add Comment
+						</Button>
 					)}
 				</div>
 
@@ -408,24 +414,27 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 									</div>
 									<div className="comment-content">{comment.content}</div>
 									<div className="comment-actions">
-										<button
-											className="action-btn"
+										<Button
+											variant="ghost"
+											size="sm"
 											onClick={() => handleResolveComment(comment.id)}
 										>
 											Resolve
-										</button>
-										<button
-											className="action-btn"
+										</Button>
+										<Button
+											variant="ghost"
+											size="sm"
 											onClick={() => handleWontFixComment(comment.id)}
 										>
 											Won't Fix
-										</button>
-										<button
-											className="action-btn delete"
+										</Button>
+										<Button
+											variant="danger"
+											size="sm"
 											onClick={() => handleDeleteComment(comment.id)}
 										>
 											Delete
-										</button>
+										</Button>
 									</div>
 								</div>
 							))}
@@ -437,14 +446,16 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 					<div className="general-comment-form">
 						<div className="severity-pills">
 							{(['suggestion', 'issue', 'blocker'] as const).map((sev) => (
-								<button
+								<Button
 									key={sev}
 									type="button"
+									variant="ghost"
+									size="sm"
 									className={`severity-pill ${generalCommentSeverity === sev ? 'selected' : ''}`}
 									onClick={() => setGeneralCommentSeverity(sev)}
 								>
 									{sev}
-								</button>
+								</Button>
 							))}
 						</div>
 						<textarea
@@ -455,22 +466,25 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 							disabled={addingGeneralComment}
 						/>
 						<div className="form-actions">
-							<button
-								className="cancel-btn"
+							<Button
+								variant="secondary"
+								size="sm"
 								onClick={() => {
 									setShowGeneralCommentForm(false);
 									setGeneralCommentContent('');
 								}}
 							>
 								Cancel
-							</button>
-							<button
-								className="submit-btn"
+							</Button>
+							<Button
+								variant="primary"
+								size="sm"
 								onClick={handleAddGeneralComment}
-								disabled={!generalCommentContent.trim() || addingGeneralComment}
+								disabled={!generalCommentContent.trim()}
+								loading={addingGeneralComment}
 							>
 								{addingGeneralComment ? 'Adding...' : 'Add Comment'}
-							</button>
+							</Button>
 						</div>
 					</div>
 				)}

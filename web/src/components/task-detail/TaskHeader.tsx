@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { TaskEditModal } from '@/components/task-detail/TaskEditModal';
@@ -79,37 +80,47 @@ export function TaskHeader({ task, onTaskUpdate, onTaskDelete }: TaskHeaderProps
 
 	// Determine which action button to show
 	const getActionButton = () => {
-		if (actionLoading) {
-			return (
-				<button className="action-btn" disabled>
-					<div className="btn-spinner" />
-				</button>
-			);
-		}
-
 		switch (task.status) {
 			case 'created':
 			case 'planned':
 			case 'failed':
 				return (
-					<button className="action-btn run" onClick={handleRun} title="Run task">
-						<Icon name="play" size={16} />
-						<span>Run</span>
-					</button>
+					<Button
+						variant="success"
+						size="md"
+						onClick={handleRun}
+						loading={actionLoading}
+						leftIcon={<Icon name="play" size={16} />}
+						title="Run task"
+					>
+						Run
+					</Button>
 				);
 			case 'running':
 				return (
-					<button className="action-btn pause" onClick={handlePause} title="Pause task">
-						<Icon name="pause" size={16} />
-						<span>Pause</span>
-					</button>
+					<Button
+						variant="secondary"
+						size="md"
+						onClick={handlePause}
+						loading={actionLoading}
+						leftIcon={<Icon name="pause" size={16} />}
+						title="Pause task"
+					>
+						Pause
+					</Button>
 				);
 			case 'paused':
 				return (
-					<button className="action-btn resume" onClick={handleResume} title="Resume task">
-						<Icon name="play" size={16} />
-						<span>Resume</span>
-					</button>
+					<Button
+						variant="primary"
+						size="md"
+						onClick={handleResume}
+						loading={actionLoading}
+						leftIcon={<Icon name="play" size={16} />}
+						title="Resume task"
+					>
+						Resume
+					</Button>
 				);
 			default:
 				return null;
@@ -122,9 +133,16 @@ export function TaskHeader({ task, onTaskUpdate, onTaskDelete }: TaskHeaderProps
 	return (
 		<header className="task-header">
 			<div className="task-header-top">
-				<button className="back-btn" onClick={() => navigate(-1)} title="Go back">
+				<Button
+					variant="ghost"
+					size="sm"
+					iconOnly
+					onClick={() => navigate(-1)}
+					title="Go back"
+					aria-label="Go back"
+				>
 					<Icon name="arrow-left" size={20} />
-				</button>
+				</Button>
 
 				<div className="task-identity">
 					<span className="task-id">{task.id}</span>
@@ -154,20 +172,26 @@ export function TaskHeader({ task, onTaskUpdate, onTaskDelete }: TaskHeaderProps
 				<div className="task-actions">
 					{getActionButton()}
 					<ExportDropdown taskId={task.id} />
-					<button
-						className="icon-btn"
+					<Button
+						variant="ghost"
+						size="sm"
+						iconOnly
 						onClick={() => setShowEditModal(true)}
 						title="Edit task"
+						aria-label="Edit task"
 					>
 						<Icon name="edit" size={18} />
-					</button>
-					<button
-						className="icon-btn danger"
+					</Button>
+					<Button
+						variant="danger"
+						size="sm"
+						iconOnly
 						onClick={() => setShowDeleteConfirm(true)}
 						title="Delete task"
+						aria-label="Delete task"
 					>
 						<Icon name="trash" size={18} />
-					</button>
+					</Button>
 				</div>
 			</div>
 
@@ -202,20 +226,22 @@ export function TaskHeader({ task, onTaskUpdate, onTaskDelete }: TaskHeaderProps
 							be undone.
 						</p>
 						<div className="confirm-actions">
-							<button
-								className="cancel-btn"
+							<Button
+								variant="secondary"
+								size="md"
 								onClick={() => setShowDeleteConfirm(false)}
 								disabled={isDeleting}
 							>
 								Cancel
-							</button>
-							<button
-								className="delete-btn"
+							</Button>
+							<Button
+								variant="danger"
+								size="md"
 								onClick={handleDelete}
-								disabled={isDeleting}
+								loading={isDeleting}
 							>
-								{isDeleting ? 'Deleting...' : 'Delete'}
-							</button>
+								Delete
+							</Button>
 						</div>
 					</div>
 				</div>

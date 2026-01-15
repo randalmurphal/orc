@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import {
@@ -129,9 +130,16 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 	if (collapsed) {
 		return (
 			<aside className="dependency-sidebar collapsed">
-				<button className="toggle-btn" onClick={onToggle} title="Show dependencies">
+				<Button
+					variant="ghost"
+					size="sm"
+					iconOnly
+					onClick={onToggle}
+					title="Show dependencies"
+					aria-label="Show dependencies"
+				>
 					<Icon name="panel-left-open" size={18} />
-				</button>
+				</Button>
 			</aside>
 		);
 	}
@@ -146,9 +154,16 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 					<Icon name="link" size={16} />
 					Dependencies
 				</h3>
-				<button className="toggle-btn" onClick={onToggle} title="Hide dependencies">
+				<Button
+					variant="ghost"
+					size="sm"
+					iconOnly
+					onClick={onToggle}
+					title="Hide dependencies"
+					aria-label="Hide dependencies"
+				>
 					<Icon name="panel-left-close" size={18} />
-				</button>
+				</Button>
 			</div>
 
 			{loading ? (
@@ -245,9 +260,16 @@ function DependencySection({
 			<div className="dep-section-header">
 				<span className="dep-section-title">{title}</span>
 				{!readonly && onAdd && (
-					<button className="add-dep-btn" onClick={onAdd} title={`Add ${title.toLowerCase()}`}>
+					<Button
+						variant="ghost"
+						size="sm"
+						iconOnly
+						onClick={onAdd}
+						title={`Add ${title.toLowerCase()}`}
+						aria-label={`Add ${title.toLowerCase()}`}
+					>
 						<Icon name="plus" size={14} />
-					</button>
+					</Button>
 				)}
 			</div>
 			{items.length === 0 ? (
@@ -262,13 +284,16 @@ function DependencySection({
 								<span className="dep-title">{item.title}</span>
 							</Link>
 							{canRemove && onRemove && (
-								<button
-									className="remove-dep-btn"
+								<Button
+									variant="ghost"
+									size="sm"
+									iconOnly
 									onClick={() => onRemove(item.id)}
 									title="Remove"
+									aria-label="Remove dependency"
 								>
 									<Icon name="x" size={14} />
-								</button>
+								</Button>
 							)}
 						</li>
 					))}
@@ -301,9 +326,15 @@ function AddDependencyModal({ title, tasks, onSelect, onClose, loading }: AddDep
 			<div className="add-dep-modal" onClick={(e) => e.stopPropagation()}>
 				<div className="modal-header">
 					<h4>{title}</h4>
-					<button className="close-btn" onClick={onClose}>
+					<Button
+						variant="ghost"
+						size="sm"
+						iconOnly
+						onClick={onClose}
+						aria-label="Close"
+					>
 						<Icon name="x" size={18} />
-					</button>
+					</Button>
 				</div>
 				<div className="modal-search">
 					<Icon name="search" size={16} />
@@ -320,8 +351,10 @@ function AddDependencyModal({ title, tasks, onSelect, onClose, loading }: AddDep
 						<div className="modal-empty">No matching tasks</div>
 					) : (
 						filteredTasks.map((t) => (
-							<button
+							<Button
 								key={t.id}
+								variant="ghost"
+								size="md"
 								className="task-option"
 								onClick={() => onSelect(t.id)}
 								disabled={loading}
@@ -329,7 +362,7 @@ function AddDependencyModal({ title, tasks, onSelect, onClose, loading }: AddDep
 								<StatusIndicator status={t.status} size="sm" />
 								<span className="task-id">{t.id}</span>
 								<span className="task-title">{t.title}</span>
-							</button>
+							</Button>
 						))
 					)}
 				</div>

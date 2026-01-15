@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { DiffHunk } from './DiffHunk';
 import type { FileDiff, ReviewComment, CreateCommentRequest } from '@/lib/types';
@@ -70,7 +71,13 @@ export function DiffFile({
 	return (
 		<div className={`diff-file ${getStatusClass()}`}>
 			{/* File Header */}
-			<button className="file-header" onClick={onToggle}>
+			<Button
+				variant="ghost"
+				size="md"
+				className="file-header"
+				onClick={onToggle}
+				aria-expanded={expanded}
+			>
 				<Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} />
 				<Icon name={getStatusIcon()} size={14} className={`status-icon ${getStatusClass()}`} />
 				<span className="file-path">
@@ -92,7 +99,7 @@ export function DiffFile({
 						{fileComments.filter((c) => c.status === 'open').length}
 					</span>
 				)}
-			</button>
+			</Button>
 
 			{/* File Content */}
 			{expanded && (

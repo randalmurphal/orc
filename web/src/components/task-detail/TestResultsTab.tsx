@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TestResultsInfo } from '@/lib/types';
 import { getTestResults, getScreenshotUrl, getHTMLReportUrl, getTraceUrl } from '@/lib/api';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import './TestResultsTab.css';
 
@@ -131,27 +132,33 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 		<div className="test-results-container">
 			{/* Tab navigation */}
 			<div className="tabs">
-				<button
+				<Button
+					variant="ghost"
+					size="sm"
 					className={`tab ${activeTab === 'summary' ? 'active' : ''}`}
 					onClick={() => setActiveTab('summary')}
 				>
 					Summary
-				</button>
+				</Button>
 				{hasScreenshots && (
-					<button
+					<Button
+						variant="ghost"
+						size="sm"
 						className={`tab ${activeTab === 'screenshots' ? 'active' : ''}`}
 						onClick={() => setActiveTab('screenshots')}
 					>
 						Screenshots ({results.screenshots?.length})
-					</button>
+					</Button>
 				)}
 				{hasSuites && (
-					<button
+					<Button
+						variant="ghost"
+						size="sm"
 						className={`tab ${activeTab === 'suites' ? 'active' : ''}`}
 						onClick={() => setActiveTab('suites')}
 					>
 						Test Suites
-					</button>
+					</Button>
 				)}
 			</div>
 
@@ -370,9 +377,16 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 					tabIndex={-1}
 				>
 					<div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-						<button className="lightbox-close" onClick={closeLightbox} aria-label="Close">
+						<Button
+							variant="ghost"
+							size="sm"
+							iconOnly
+							className="lightbox-close"
+							onClick={closeLightbox}
+							aria-label="Close"
+						>
 							<Icon name="x" size={24} />
-						</button>
+						</Button>
 						<img src={lightboxImage} alt={lightboxFilename ?? 'Screenshot'} />
 						{lightboxFilename && <div className="lightbox-filename">{lightboxFilename}</div>}
 					</div>

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { Button } from '@/components/ui/Button';
 import type { ReviewComment, CreateCommentRequest, CommentSeverity } from '@/lib/types';
 import './InlineCommentThread.css';
 
@@ -67,11 +68,15 @@ export function InlineCommentThread({
 					</div>
 					<div className="comment-content">{comment.content}</div>
 					<div className="comment-actions">
-						<button onClick={() => onResolveComment(comment.id)}>Resolve</button>
-						<button onClick={() => onWontFixComment(comment.id)}>Won't Fix</button>
-						<button className="delete" onClick={() => onDeleteComment(comment.id)}>
+						<Button variant="success" size="sm" onClick={() => onResolveComment(comment.id)}>
+							Resolve
+						</Button>
+						<Button variant="secondary" size="sm" onClick={() => onWontFixComment(comment.id)}>
+							Won't Fix
+						</Button>
+						<Button variant="danger" size="sm" onClick={() => onDeleteComment(comment.id)}>
 							Delete
-						</button>
+						</Button>
 					</div>
 				</div>
 			))}
@@ -90,14 +95,16 @@ export function InlineCommentThread({
 				<div className="comment-form">
 					<div className="severity-pills">
 						{(['suggestion', 'issue', 'blocker'] as const).map((sev) => (
-							<button
+							<Button
 								key={sev}
 								type="button"
+								variant="ghost"
+								size="sm"
 								className={`severity-pill ${severity === sev ? 'selected' : ''}`}
 								onClick={() => setSeverity(sev)}
 							>
 								{sev}
-							</button>
+							</Button>
 						))}
 					</div>
 					<textarea
@@ -109,16 +116,18 @@ export function InlineCommentThread({
 						autoFocus
 					/>
 					<div className="form-actions">
-						<button className="cancel-btn" onClick={onCloseThread} disabled={submitting}>
+						<Button variant="secondary" size="sm" onClick={onCloseThread} disabled={submitting}>
 							Cancel
-						</button>
-						<button
-							className="submit-btn"
+						</Button>
+						<Button
+							variant="primary"
+							size="sm"
 							onClick={handleSubmit}
-							disabled={!content.trim() || submitting}
+							disabled={!content.trim()}
+							loading={submitting}
 						>
-							{submitting ? 'Adding...' : 'Add Comment'}
-						</button>
+							Add Comment
+						</Button>
 					</div>
 				</div>
 			)}

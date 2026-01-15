@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, DragEvent, ChangeEvent } from 'react';
 import type { Attachment } from '@/lib/types';
 import { listAttachments, uploadAttachment, deleteAttachment, getAttachmentUrl } from '@/lib/api';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { toast } from '@/stores/uiStore';
 import './AttachmentsTab.css';
@@ -207,13 +208,16 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 											</span>
 											<span className="image-meta">{formatSize(attachment.size)}</span>
 										</div>
-										<button
-											className="delete-btn"
+										<Button
+											variant="danger"
+											size="sm"
+											iconOnly
 											onClick={() => handleDelete(attachment.filename)}
 											title="Delete"
+											aria-label="Delete attachment"
 										>
 											<Icon name="trash" size={14} />
-										</button>
+										</Button>
 									</div>
 								))}
 							</div>
@@ -238,13 +242,16 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 										</a>
 										<span className="file-meta">{formatSize(attachment.size)}</span>
 										<span className="file-date">{formatDate(attachment.created_at)}</span>
-										<button
-											className="delete-btn"
+										<Button
+											variant="danger"
+											size="sm"
+											iconOnly
 											onClick={() => handleDelete(attachment.filename)}
 											title="Delete"
+											aria-label="Delete attachment"
 										>
 											<Icon name="trash" size={14} />
-										</button>
+										</Button>
 									</div>
 								))}
 							</div>
@@ -263,9 +270,16 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 					tabIndex={-1}
 				>
 					<div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-						<button className="lightbox-close" onClick={closeLightbox} aria-label="Close">
+						<Button
+							variant="ghost"
+							size="lg"
+							iconOnly
+							onClick={closeLightbox}
+							aria-label="Close"
+							className="lightbox-close"
+						>
 							<Icon name="x" size={24} />
-						</button>
+						</Button>
 						<img src={lightboxImage} alt={lightboxFilename ?? 'Image'} />
 						{lightboxFilename && <div className="lightbox-filename">{lightboxFilename}</div>}
 					</div>

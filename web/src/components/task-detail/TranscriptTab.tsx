@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { TranscriptFile } from '@/lib/types';
 import { getTranscripts } from '@/lib/api';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { toast } from '@/stores/uiStore';
 import './TranscriptTab.css';
@@ -311,40 +312,44 @@ export function TranscriptTab({
 				<div className="header-actions">
 					{files.length > 1 && (
 						<>
-							<button className="header-btn" onClick={expandAll} title="Expand all">
+							<Button variant="ghost" size="sm" onClick={expandAll} title="Expand all">
 								Expand All
-							</button>
-							<button className="header-btn" onClick={collapseAll} title="Collapse all">
+							</Button>
+							<Button variant="ghost" size="sm" onClick={collapseAll} title="Collapse all">
 								Collapse All
-							</button>
+							</Button>
 						</>
 					)}
-					<button
-						className="header-btn"
+					<Button
+						variant="ghost"
+						size="sm"
 						onClick={copyToClipboard}
 						title="Copy transcript to clipboard"
 						disabled={files.length === 0}
+						leftIcon={<Icon name="clipboard" size={14} />}
 					>
-						<Icon name="clipboard" size={14} />
 						Copy
-					</button>
-					<button
-						className="header-btn"
+					</Button>
+					<Button
+						variant="secondary"
+						size="sm"
 						onClick={exportToMarkdown}
 						title="Export transcript as markdown"
 						disabled={files.length === 0}
+						leftIcon={<Icon name="download" size={14} />}
 					>
-						<Icon name="download" size={14} />
 						Export
-					</button>
-					<button
-						className={`header-btn ${isAutoScrollEnabled ? 'active' : ''}`}
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						className={isAutoScrollEnabled ? 'active' : ''}
 						onClick={toggleAutoScroll}
 						title={isAutoScrollEnabled ? 'Disable auto-scroll' : 'Enable auto-scroll'}
+						leftIcon={<Icon name="chevrons-down" size={14} />}
 					>
-						<Icon name="chevrons-down" size={14} />
 						Auto-scroll
-					</button>
+					</Button>
 				</div>
 			</div>
 
@@ -373,7 +378,13 @@ export function TranscriptTab({
 									className={`transcript-file ${isExpanded ? 'expanded' : ''}`}
 								>
 									{/* File Header */}
-									<button className="file-header" onClick={() => toggleFile(file.filename)}>
+									<Button
+										variant="ghost"
+										size="md"
+										className="file-header"
+										onClick={() => toggleFile(file.filename)}
+										aria-expanded={isExpanded}
+									>
 										<div className="file-info">
 											<span className={`chevron ${isExpanded ? 'rotated' : ''}`}>
 												<Icon name="chevron-right" size={16} />
@@ -408,7 +419,7 @@ export function TranscriptTab({
 											)}
 											<span className="file-time">{formatTime(file.created_at)}</span>
 										</div>
-									</button>
+									</Button>
 
 									{/* File Content */}
 									{isExpanded && (
@@ -448,37 +459,41 @@ export function TranscriptTab({
 						{/* Pagination */}
 						{totalPages > 1 && (
 							<div className="pagination">
-								<button
-									className="page-btn"
+								<Button
+									variant="ghost"
+									size="sm"
 									disabled={currentPage === 1}
 									onClick={() => setCurrentPage(1)}
 								>
 									First
-								</button>
-								<button
-									className="page-btn"
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
 									disabled={currentPage === 1}
 									onClick={() => setCurrentPage((p) => p - 1)}
 								>
 									Prev
-								</button>
+								</Button>
 								<span className="page-info">
 									Page {currentPage} of {totalPages} ({files.length} files)
 								</span>
-								<button
-									className="page-btn"
+								<Button
+									variant="ghost"
+									size="sm"
 									disabled={currentPage === totalPages}
 									onClick={() => setCurrentPage((p) => p + 1)}
 								>
 									Next
-								</button>
-								<button
-									className="page-btn"
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
 									disabled={currentPage === totalPages}
 									onClick={() => setCurrentPage(totalPages)}
 								>
 									Last
-								</button>
+								</Button>
 							</div>
 						)}
 					</div>

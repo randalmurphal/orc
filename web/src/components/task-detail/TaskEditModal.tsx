@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/overlays/Modal';
 import { updateTask } from '@/lib/api';
 import { toast } from '@/stores/uiStore';
@@ -148,22 +149,23 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 
 				{/* Actions */}
 				<div className="form-actions">
-					<button
-						type="button"
-						className="cancel-btn"
+					<Button
+						variant="secondary"
+						size="md"
 						onClick={onClose}
 						disabled={saving}
 					>
 						Cancel
-					</button>
-					<button
-						type="button"
-						className="save-btn"
+					</Button>
+					<Button
+						variant="primary"
+						size="md"
 						onClick={handleSave}
-						disabled={saving || !title.trim()}
+						loading={saving}
+						disabled={!title.trim()}
 					>
-						{saving ? 'Saving...' : 'Save Changes'}
-					</button>
+						Save Changes
+					</Button>
 				</div>
 			</div>
 		</Modal>
