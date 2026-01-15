@@ -402,6 +402,70 @@ git:
 
 ---
 
+## Diverged Branch Handling (Re-runs)
+
+When re-running a task that was previously completed and pushed, the remote branch has different history from the fresh local branch. Orc automatically handles this with safe force pushing.
+
+### The Problem
+
+```
+Timeline:
+1. TASK-001 runs, commits A→B→C, pushes to origin/orc/TASK-001
+2. User re-runs TASK-001 (e.g., to incorporate feedback)
+3. Worktree recreated fresh from main, new commits X→Y
+4. Push fails: "non-fast-forward" - local (X→Y) diverges from remote (A→B→C)
+```
+
+### The Solution
+
+Orc detects non-fast-forward push errors and automatically retries with `--force-with-lease`:
+
+```go
+if err := gitOps.Push("origin", taskBranch, true); err != nil {
+    if isNonFastForwardError(err) {
+        // Safe force push - fails if remote has unexpected commits
+        return gitOps.PushForce("origin", taskBranch, true)
+    }
+    return err
+}
+```
+
+### Why `--force-with-lease`?
+
+| Option | Behavior | Safety |
+|--------|----------|--------|
+| `--force` | Overwrites remote unconditionally | Dangerous - may lose others' work |
+| `--force-with-lease` | Overwrites only if remote matches expected state | Safe - fails if remote was updated |
+
+If another developer pushed to the same branch after your last fetch, `--force-with-lease` will fail rather than overwrite their work. This is the right behavior - you should fetch and review their changes first.
+
+### Protected Branches
+
+Force push is **never allowed** on protected branches. The `PushForce()` method checks against the protected branches list:
+
+```go
+func (g *Git) PushForce(remote, branch string, setUpstream bool) error {
+    if IsProtectedBranch(branch, g.protectedBranches) {
+        return fmt.Errorf("%w: cannot force push to '%s'", ErrProtectedBranch, branch)
+    }
+    // ... proceed with --force-with-lease
+}
+```
+
+Default protected branches: `main`, `master`, `develop`, `release/*`
+
+### Logging
+
+When a diverged branch triggers force push, orc logs a warning:
+
+```
+WARN remote branch has diverged, force pushing branch=orc/TASK-001 reason=re-run of completed task
+```
+
+This provides visibility without interrupting the automated workflow.
+
+---
+
 ## CI Wait and Auto-Merge
 
 After the finalize phase completes, orc can automatically wait for CI checks to pass and then merge the PR. This provides a complete automation flow without requiring GitHub's auto-merge feature (which requires branch protection).
