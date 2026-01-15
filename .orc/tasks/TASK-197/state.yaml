@@ -3,11 +3,12 @@ current_phase: implement
 current_iteration: 1
 status: interrupted
 started_at: 2026-01-14T21:03:27.216892734-06:00
-updated_at: 2026-01-14T21:08:37.662182989-06:00
+updated_at: 2026-01-14T21:04:54.559211141-06:00
 phases:
     implement:
-        status: pending
+        status: interrupted
         started_at: 2026-01-14T21:04:53.294861536-06:00
+        interrupted_at: 2026-01-14T21:04:54.55921044-06:00
         iterations: 0
         tokens:
             input_tokens: 0
@@ -39,6 +40,8 @@ tokens:
     total_tokens: 428498
 cost:
     total_cost_usd: 0
-error: |-
-    setup worktree: create worktree for TASK-197: create worktree for TASK-197: Preparing worktree (checking out 'orc/TASK-197')
-    fatal: 'orc/TASK-197' is already used by worktree at '/home/randy/repos/orc/.orc/worktrees/orc-TASK-197'
+execution:
+    pid: 44887
+    hostname: Nexus
+    started_at: 2026-01-14T21:04:52.522299558-06:00
+    last_heartbeat: 2026-01-14T21:04:53.294861967-06:00
