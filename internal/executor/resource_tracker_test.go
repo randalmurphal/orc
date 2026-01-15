@@ -362,3 +362,162 @@ func TestCheckMemoryGrowthNoSnapshots(t *testing.T) {
 		t.Errorf("expected 0 delta with no snapshots, got %f", delta)
 	}
 }
+
+// TestResourceTrackingDuringTask verifies the full resource tracking lifecycle.
+// This is an integration test that simulates what happens during task execution.
+func TestResourceTrackingDuringTask(t *testing.T) {
+	// Create a buffer to capture log output
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	config := ResourceTrackerConfig{
+		Enabled:            true,
+		MemoryThresholdMB:  100,
+		LogOrphanedMCPOnly: false,
+	}
+	tracker := NewResourceTracker(config, logger)
+
+	// Simulate: take snapshot before task execution (like ExecuteTask does)
+	err := tracker.SnapshotBefore()
+	if err != nil {
+		t.Fatalf("SnapshotBefore failed: %v", err)
+	}
+
+	// Verify "before" log was emitted
+	logOutput := logBuf.String()
+	if !strings.Contains(logOutput, "resource snapshot taken (before)") {
+		t.Error("expected 'resource snapshot taken (before)' log message")
+	}
+	if !strings.Contains(logOutput, "processes=") {
+		t.Error("expected processes count in log")
+	}
+	if !strings.Contains(logOutput, "memory_mb=") {
+		t.Error("expected memory_mb in log")
+	}
+
+	// Simulate: task runs (in real execution, processes may spawn and die)
+	// For this test, we just wait a tiny bit to ensure different timestamps
+	// In a real scenario, MCP servers/browsers might spawn here
+
+	// Simulate: take snapshot after task execution (like runResourceAnalysis does)
+	err = tracker.SnapshotAfter()
+	if err != nil {
+		t.Fatalf("SnapshotAfter failed: %v", err)
+	}
+
+	// Verify "after" log was emitted
+	logOutput = logBuf.String()
+	if !strings.Contains(logOutput, "resource snapshot taken (after)") {
+		t.Error("expected 'resource snapshot taken (after)' log message")
+	}
+
+	// Verify both snapshots have data
+	beforeSnap := tracker.GetBeforeSnapshot()
+	afterSnap := tracker.GetAfterSnapshot()
+	if beforeSnap == nil || afterSnap == nil {
+		t.Fatal("expected both snapshots to be captured")
+	}
+
+	// Verify snapshots contain process data
+	if beforeSnap.ProcessCount == 0 {
+		t.Error("expected before snapshot to have processes")
+	}
+	if afterSnap.ProcessCount == 0 {
+		t.Error("expected after snapshot to have processes")
+	}
+
+	// Detect orphans (should be empty or few in a clean test environment)
+	orphans := tracker.DetectOrphans()
+	// We don't assert orphan count since it depends on system state
+	// But we verify the detection ran without error
+	t.Logf("Detected %d orphans during test", len(orphans))
+
+	// Check memory growth (should complete without error)
+	delta := tracker.CheckMemoryGrowth()
+	t.Logf("Memory delta: %.1f MB", delta)
+
+	// Reset for next task
+	tracker.Reset()
+	if tracker.GetBeforeSnapshot() != nil || tracker.GetAfterSnapshot() != nil {
+		t.Error("expected snapshots to be cleared after Reset")
+	}
+}
+
+// TestResourceTrackingLifecycleWithMockOrphans tests the full lifecycle with injected orphans.
+func TestResourceTrackingLifecycleWithMockOrphans(t *testing.T) {
+	// Create a buffer to capture log output
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+
+	config := ResourceTrackerConfig{
+		Enabled:            true,
+		MemoryThresholdMB:  50, // Low threshold to trigger warning
+		LogOrphanedMCPOnly: false,
+	}
+	tracker := NewResourceTracker(config, logger)
+
+	// Set up mock "before" state - simulates system before task
+	tracker.beforeSnapshot = &ProcessSnapshot{
+		Processes: []ProcessInfo{
+			{PID: 1, PPID: 0, Command: "init", MemoryMB: 10},
+			{PID: 100, PPID: 1, Command: "orc", MemoryMB: 50},
+		},
+		TotalMemoryMB: 1000,
+		ProcessCount:  2,
+	}
+
+	// Set up mock "after" state - simulates system after task with orphans
+	tracker.afterSnapshot = &ProcessSnapshot{
+		Processes: []ProcessInfo{
+			{PID: 1, PPID: 0, Command: "init", MemoryMB: 10},
+			{PID: 100, PPID: 1, Command: "orc", MemoryMB: 50},
+			// New orphaned MCP processes (parent is init = reparented)
+			{PID: 200, PPID: 1, Command: "chromium --headless", MemoryMB: 200, IsMCP: true},
+			{PID: 201, PPID: 1, Command: "playwright-mcp-server", MemoryMB: 100, IsMCP: true},
+			// Non-MCP orphan
+			{PID: 300, PPID: 1, Command: "zombie-child", MemoryMB: 5, IsMCP: false},
+		},
+		TotalMemoryMB: 1100, // 100MB growth
+		ProcessCount:  5,
+	}
+
+	// Detect orphans
+	orphans := tracker.DetectOrphans()
+
+	// Verify we found the orphans (3 new processes with PPID=1)
+	if len(orphans) != 3 {
+		t.Errorf("expected 3 orphans, got %d", len(orphans))
+	}
+
+	// Verify MCP processes are flagged
+	mcpCount := 0
+	for _, o := range orphans {
+		if o.IsMCP {
+			mcpCount++
+		}
+	}
+	if mcpCount != 2 {
+		t.Errorf("expected 2 MCP orphans, got %d", mcpCount)
+	}
+
+	// Verify warning was logged for orphans
+	logOutput := logBuf.String()
+	if !strings.Contains(logOutput, "orphaned processes detected") {
+		t.Error("expected orphan warning log")
+	}
+	if !strings.Contains(logOutput, "[MCP]") {
+		t.Error("expected MCP tag in orphan log")
+	}
+
+	// Check memory growth - should trigger warning (100MB > 50MB threshold)
+	delta := tracker.CheckMemoryGrowth()
+	if delta != 100.0 {
+		t.Errorf("expected 100MB delta, got %.1f", delta)
+	}
+
+	// Verify memory warning was logged (re-read buffer after CheckMemoryGrowth)
+	logOutput = logBuf.String()
+	if !strings.Contains(logOutput, "memory growth exceeded threshold") {
+		t.Error("expected memory growth warning log")
+	}
+}
