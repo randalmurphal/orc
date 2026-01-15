@@ -1,43 +1,8 @@
 version: 1
-task_id: TASK-177
+task_id: ""
 weight: large
 description: Large task - spec, implement, test, validate with E2E testing
 phases:
-    - id: spec
-      name: spec
-      prompt: |
-        Create a specification for this large task:
-
-        **Task**: {{TASK_TITLE}}
-
-        **Description**: {{TASK_DESCRIPTION}}
-
-        Define:
-        1. Requirements and scope
-        2. Technical approach
-        3. Component breakdown (backend, frontend if applicable)
-        4. API design (if applicable)
-        5. Success criteria with explicit checkboxes
-        6. Testing strategy:
-           - Unit tests
-           - Integration tests
-           - E2E tests (using Playwright MCP tools if frontend exists)
-
-        Include clear completion criteria:
-        - What code must be written
-        - What tests must pass
-        - What E2E scenarios must work
-        - What documentation must exist
-
-        Keep iterating until the specification is clear and complete.
-
-        When done, output:
-        <phase_complete>true</phase_complete>
-      gate:
-        type: auto
-      checkpoint: true
-      status: completed
-      commit_sha: 669e26a9d620e5cb453e5513a038e5283c9d112b
     - id: implement
       name: implement
       prompt: |
@@ -74,7 +39,8 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
+      commit_sha: 3c3117cd279e15eec4e2d26ff0efe46d25acc68a
     - id: test
       name: test
       prompt: |
