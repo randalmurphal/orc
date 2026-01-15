@@ -428,7 +428,11 @@ export type WSEventType =
 	// File watcher events (triggered by external file changes)
 	| 'task_created'
 	| 'task_updated'
-	| 'task_deleted';
+	| 'task_deleted'
+	// Initiative events (triggered by initiative file changes)
+	| 'initiative_created'
+	| 'initiative_updated'
+	| 'initiative_deleted';
 
 // Special task ID for subscribing to all task events
 export const GLOBAL_TASK_ID = '*';
