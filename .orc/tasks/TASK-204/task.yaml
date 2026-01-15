@@ -84,8 +84,7 @@ description: |-
     - All 3 sizes
     - With icons
 weight: medium
-status: paused
-current_phase: implement
+status: planned
 branch: orc/TASK-204
 queue: active
 priority: high

@@ -2,8 +2,7 @@ id: TASK-200
 title: 'Investigate: Tasks auto-started without user action'
 description: 'During a session, TASK-198, TASK-199, and TASK-180 were started without user action. User had no other Claude sessions open and didn''t click anything in the web UI. Somehow an agent running TASK-179 or another mechanism triggered orc run on these tasks. Need to investigate: 1) Check if TASK-179 agent called orc run via bash, 2) Check for any auto-trigger mechanisms in orc serve, 3) Check hooks or automation. Evidence: All three tasks have Claude project directories and were running simultaneously.'
 weight: medium
-status: paused
-current_phase: implement
+status: planned
 branch: orc/TASK-200
 queue: active
 priority: normal
