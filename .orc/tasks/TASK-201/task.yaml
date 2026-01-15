@@ -1,0 +1,13 @@
+id: TASK-201
+title: 'Bug: Sync fails with ''0 files in conflict'' error'
+description: 'TASK-180 failed during sync_on_start with error: ''sync conflict detected: task branch has 0 files in conflict with target''. If there are 0 conflicts, sync should succeed, not fail. The error message shows ''Conflicting files: []'' - an empty list. Bug is in the sync logic that triggers conflict detection even when no actual conflicts exist.'
+weight: medium
+status: planned
+branch: orc/TASK-201
+queue: active
+priority: normal
+category: bug
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T22:39:00.650202606-06:00
+updated_at: 2026-01-14T22:39:00.673835033-06:00
