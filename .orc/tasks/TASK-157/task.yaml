@@ -34,7 +34,7 @@ description: |-
     - Tests verify actual WebSocket behavior, not mocked
 weight: large
 status: running
-current_phase: docs
+current_phase: validate
 branch: orc/TASK-157
 queue: active
 priority: normal
@@ -44,5 +44,5 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:18:14.524416011-06:00
-updated_at: 2026-01-14T21:53:05.318180783-06:00
+updated_at: 2026-01-14T21:54:15.275532595-06:00
 started_at: 2026-01-14T21:38:15.677998841-06:00
