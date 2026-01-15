@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -348,7 +347,7 @@ func executeTaskWithBackend(ctx context.Context, backend storage.Backend, cfg *c
 		fileStats = getGoFileChangeStats(ctx, t.Branch, cfg)
 	}
 
-	disp.TaskComplete(s.Tokens.TotalTokens, time.Since(s.StartedAt), fileStats)
+	disp.TaskComplete(s.Tokens.TotalTokens, s.Elapsed(), fileStats)
 	return nil
 }
 
