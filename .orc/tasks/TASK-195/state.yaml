@@ -1,10 +1,18 @@
 task_id: TASK-195
-current_phase: ""
+current_phase: spec
 current_iteration: 0
-status: pending
+status: running
 started_at: 2026-01-14T19:44:09.886937434-06:00
-updated_at: 2026-01-14T19:44:09.917627062-06:00
-phases: {}
+updated_at: 2026-01-14T19:44:11.088322271-06:00
+phases:
+    spec:
+        status: running
+        started_at: 2026-01-14T19:44:11.088317823-06:00
+        iterations: 0
+        tokens:
+            input_tokens: 0
+            output_tokens: 0
+            total_tokens: 0
 tokens:
     input_tokens: 0
     output_tokens: 0
@@ -15,4 +23,4 @@ execution:
     pid: 482470
     hostname: Nexus
     started_at: 2026-01-14T19:44:09.91138186-06:00
-    last_heartbeat: 2026-01-14T19:44:09.91138186-06:00
+    last_heartbeat: 2026-01-14T19:44:11.088322041-06:00
