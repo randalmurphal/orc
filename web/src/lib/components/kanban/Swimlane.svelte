@@ -19,6 +19,7 @@
 		onDrop: (columnId: string, task: Task, targetInitiativeId: string | null) => void;
 		onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 		onTaskClick?: (task: Task) => void;
+		onFinalizeClick?: (task: Task) => void;
 	}
 
 	let {
@@ -30,7 +31,8 @@
 		onToggleCollapse,
 		onDrop,
 		onAction,
-		onTaskClick
+		onTaskClick,
+		onFinalizeClick
 	}: Props = $props();
 
 	let progress = $derived($initiativeProgress);
@@ -114,6 +116,7 @@
 					onDrop={(task) => handleDrop(column.id, task)}
 					{onAction}
 					{onTaskClick}
+					{onFinalizeClick}
 				/>
 			{/each}
 		</div>
