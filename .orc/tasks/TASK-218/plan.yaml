@@ -1,0 +1,252 @@
+version: 1
+task_id: TASK-218
+weight: medium
+description: Medium task - spec, implement, test, docs with clear success criteria
+phases:
+    - id: spec
+      name: spec
+      prompt: |
+        Create a specification for this task:
+
+        **Task**: {{TASK_TITLE}}
+        **Category**: {{TASK_CATEGORY}}
+        **Description**: {{TASK_DESCRIPTION}}
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Instructions
+
+        Create a clear, actionable specification that defines exactly what needs to be done
+        and how to verify it's complete.
+
+        ### 1. Problem Statement
+        Summarize what needs to be solved in 1-2 sentences.
+
+        ### 2. Success Criteria (REQUIRED)
+        Define specific, testable criteria as checkboxes:
+        - Each criterion must be verifiable (file exists, test passes, API returns X)
+        - No vague language ("works well", "is fast")
+        - Include both functional and quality criteria
+
+        ### 3. Testing Requirements (REQUIRED)
+        Specify what tests must pass:
+        - [ ] Unit test: [specific test description]
+        - [ ] Integration test: [if applicable]
+        - [ ] E2E test: [if UI changes]
+
+        ### 4. Scope
+        Define boundaries to prevent scope creep:
+        - **In Scope**: What will be implemented
+        - **Out of Scope**: What will NOT be implemented
+
+        ### 5. Technical Approach
+        Brief plan for implementation:
+        - Files to modify
+        - Key changes in each file
+
+        ### 6. Category-Specific Analysis
+
+        **If this is a BUG (category=bug):**
+        - Reproduction Steps: Exact steps to trigger the bug
+        - Current Behavior: What happens now (the bug)
+        - Expected Behavior: What should happen
+        - Root Cause: Where the bug originates (if known)
+        - Verification: How to confirm the fix works
+
+        **If this is a FEATURE (category=feature):**
+        - User Story: As a [user], I want [feature] so that [benefit]
+        - Acceptance Criteria: Specific conditions for feature acceptance
+
+        **If this is a REFACTOR (category=refactor):**
+        - Before Pattern: Current code/architecture
+        - After Pattern: Target code/architecture
+        - Risk Assessment: What could break
+
+        ## Output Format
+
+        Wrap your spec in artifact tags:
+
+        <artifact>
+        # Specification: {{TASK_TITLE}}
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+        </artifact>
+
+        After completing the spec, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] {{TASK_ID}}: spec - completed"
+        ```
+
+        Then output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+        If blocked (requirements unclear):
+        ```
+        <phase_blocked>
+        reason: [what's unclear]
+        needs: [what clarification is needed]
+        </phase_blocked>
+        ```
+      gate:
+        type: auto
+      checkpoint: true
+      status: pending
+    - id: implement
+      name: implement
+      prompt: |
+        Implement the task according to the specification:
+
+        **Task**: {{TASK_TITLE}}
+        **Category**: {{TASK_CATEGORY}}
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Specification
+
+        {{SPEC_CONTENT}}
+
+        {{RETRY_CONTEXT}}
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] {{TASK_ID}}: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+      depends_on:
+        - spec
+      gate:
+        type: auto
+      checkpoint: true
+      status: pending
+    - id: test
+      name: test
+      prompt: |
+        Test and review the implementation:
+
+        **Task**: {{TASK_TITLE}}
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        {{SPEC_CONTENT}}
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] {{TASK_ID}}: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+      depends_on:
+        - implement
+      gate:
+        type: auto
+      checkpoint: true
+      status: pending
+    - id: docs
+      name: docs
+      prompt: |
+        Update documentation for:
+
+        **Task**: {{TASK_TITLE}}
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        {{SPEC_CONTENT}}
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] {{TASK_ID}}: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+      depends_on:
+        - test
+      gate:
+        type: auto
+      checkpoint: true
+      status: pending
