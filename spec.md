@@ -1,83 +1,68 @@
-# Specification: Fix: Execution info not persisted to database causing false orphan detection
+# Specification: Add cleanup for finalizeTracker memory leak
 
 ## Problem Statement
-
-The `ExecutionInfo` (PID, hostname, heartbeat) is set in memory by the executor when a task starts running, but is never persisted to the database. When state is loaded (via `LoadState`), the `Execution` field is always `nil`, causing `CheckOrphaned()` to return `true` for any running task after an orc restart or when viewing state from another process.
+The `finalizeTracker` global variable in `internal/api/handlers_finalize.go` accumulates `FinalizeState` entries indefinitely. Entries are added when finalize operations start but are never removed after completion or failure, causing unbounded memory growth.
 
 ## Success Criteria
-
-- [ ] `SaveState` persists `ExecutionInfo` fields (PID, Hostname, StartedAt, LastHeartbeat) to the `tasks` table
-- [ ] `LoadState` restores `ExecutionInfo` from the database when loading state
-- [ ] After orc restart, running tasks with valid execution info are NOT flagged as orphaned
-- [ ] Tasks with stale heartbeats (>5 min) are still correctly detected as orphaned
-- [ ] Tasks with dead PIDs are still correctly detected as orphaned
-- [ ] `UpdateHeartbeat()` calls are persisted to database (heartbeat updates work)
-- [ ] `ClearExecution()` clears execution columns in database
+- [ ] Completed/failed finalize states are removed from memory after a configurable retention period (default: 5 minutes)
+- [ ] Cleanup runs automatically via background goroutine started with server
+- [ ] Cleanup goroutine stops cleanly on server shutdown (no goroutine leak)
+- [ ] GET `/api/tasks/{id}/finalize` still returns completed state from persistent storage after cleanup
+- [ ] `finTracker.delete(taskID)` is called at appropriate time (not immediately, to allow status polling)
+- [ ] No data races introduced (proper mutex usage)
+- [ ] `make test` passes
 
 ## Testing Requirements
-
-- [ ] Unit test: `SaveState` with `ExecutionInfo` persists all fields to database
-- [ ] Unit test: `LoadState` restores `ExecutionInfo` from database correctly
-- [ ] Unit test: `LoadState` returns `nil` Execution when columns are NULL
-- [ ] Unit test: Round-trip test - save state with execution info, load it back, verify fields match
-- [ ] Integration test: Start task, save state, create new DatabaseBackend instance, load state, verify execution info present
-- [ ] Existing orphan tests continue to pass
+- [ ] Unit test: `TestFinalizeTrackerCleanup` verifies old completed/failed entries are removed
+- [ ] Unit test: `TestFinalizeTrackerCleanupPreservesRunning` verifies running entries are preserved
+- [ ] Unit test: `TestFinalizeTrackerCleanupShutdown` verifies cleanup goroutine stops on context cancel
+- [ ] Integration test: Verify GET finalize status works after entry cleaned up (falls back to state.yaml)
 
 ## Scope
-
 ### In Scope
-- Modify `DatabaseBackend.SaveState()` to persist `ExecutionInfo` to database
-- Modify `DatabaseBackend.loadStateUnlocked()` to restore `ExecutionInfo` from database
-- Add execution info fields to the SQL queries in `SaveState`
-- Add execution info field scanning in `LoadState`
-- Add/update unit tests for execution info persistence
+- Add cleanup method to `finalizeTracker` that removes stale completed/failed entries
+- Add background goroutine to run cleanup periodically
+- Wire cleanup into server lifecycle (start/stop with server)
+- Configure retention period
 
 ### Out of Scope
-- Modifying the database schema (columns already exist in `project_012.sql`)
-- Changing the orphan detection logic itself
-- Adding new CLI commands or API endpoints
-- Modifying the Task struct or TaskFull struct
+- Changing the finalize status API response format
+- Persisting in-progress finalize state to disk
+- Adding config options (use sensible defaults for now)
 
 ## Technical Approach
-
-The database schema already has the required columns (`executor_pid`, `executor_hostname`, `executor_started_at`, `last_heartbeat`) added in migration `project_012.sql`. The issue is that `SaveState` and `LoadState` don't use these columns.
+The fix adds a background cleanup routine that periodically removes completed/failed finalize states older than a retention period. The cleanup respects server shutdown via context cancellation.
 
 ### Files to Modify
+- `internal/api/handlers_finalize.go`:
+  - Add `cleanupStale(retention time.Duration)` method to `finalizeTracker`
+  - Add `startCleanup(ctx context.Context, interval, retention time.Duration)` method
+  - Export cleanup start function for server integration
 
-1. **`internal/storage/database_backend.go`**:
-   - `SaveState()`: Add execution info fields to the UPDATE query for the tasks table
-   - `loadStateUnlocked()`: Add execution info fields to the SELECT query and populate `s.Execution`
+- `internal/api/server.go`:
+  - Start finalize tracker cleanup in `StartContext()`
+  - No explicit stop needed (context cancellation handles it)
 
-2. **`internal/storage/database_backend_test.go`**:
-   - Add tests for execution info persistence round-trip
-   - Add test for heartbeat update persistence
-   - Add test for execution clear persistence
+- `internal/api/handlers_finalize_test.go`:
+  - Add unit tests for cleanup behavior
 
 ## Bug Analysis
 
-### Reproduction Steps
-1. Start `orc run TASK-XXX`
-2. While running, restart orc (Ctrl+C, then re-run)
-3. Running task immediately shows as orphaned with reason "no execution info (legacy state or incomplete)"
+**Root Cause:** The `runFinalizeAsync` function (line 279) updates `finState.Status` to `FinalizeStatusCompleted` or `FinalizeStatusFailed` but never calls `finTracker.delete(taskID)`.
 
-### Current Behavior
-- `StartExecution()` is called in executor and sets `s.Execution` in memory
-- `SaveState()` is called but does NOT persist `s.Execution` to database
-- On next `LoadState()`, execution info columns are not queried
-- `s.Execution` is always `nil` after loading
-- `CheckOrphaned()` returns `true, "no execution info (legacy state or incomplete)"`
+**Current Behavior:** Each finalize operation adds an entry to `finTracker.states` that remains in memory forever:
+```go
+// Line 175: Entry added
+finTracker.set(taskID, finState)
 
-### Expected Behavior
-- `SaveState()` persists all `ExecutionInfo` fields to database columns
-- `LoadState()` restores `ExecutionInfo` from database when columns have values
-- Running tasks with valid execution info (alive PID, fresh heartbeat) are NOT orphaned
-- Only tasks with actually stale/dead execution info are flagged as orphaned
+// Lines 448-466: Status updated but entry NOT removed
+finState.Status = FinalizeStatusCompleted
+// Missing: finTracker.delete(taskID)
+```
 
-### Root Cause
-Gap between the in-memory state model (`state.State.Execution`) and the database persistence layer (`DatabaseBackend.SaveState/LoadState`) - execution info fields were added to schema but never wired into the save/load logic.
+**Expected Behavior:** Completed/failed entries should be cleaned up after a reasonable retention period to allow clients to poll for status.
 
-### Verification
-After fix:
-1. Start `orc run TASK-XXX`
-2. In another terminal, run `orc status` - should show task as running (not orphaned)
-3. Kill orc process, restart, run `orc status` - should show task as orphaned with "executor process not running" (correct detection)
+**Verification:** After the fix:
+1. Memory usage should stabilize over time (not grow with each finalize)
+2. `GET /api/tasks/{id}/finalize` should continue working (falls back to persistent state)
+3. Duplicate finalize requests should still be detected during the operation

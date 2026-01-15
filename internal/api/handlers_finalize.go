@@ -63,12 +63,12 @@ type FinalizeResult struct {
 	TargetBranch      string   `json:"target_branch"`
 
 	// CI and merge results (populated after finalize sync)
-	CIPassed    bool   `json:"ci_passed,omitempty"`     // CI checks passed
-	CIDetails   string `json:"ci_details,omitempty"`    // CI status summary
-	Merged      bool   `json:"merged,omitempty"`        // PR was merged
-	MergeCommit string `json:"merge_commit,omitempty"`  // SHA of merge commit
-	CITimedOut  bool   `json:"ci_timed_out,omitempty"`  // CI polling timed out
-	MergeError  string `json:"merge_error,omitempty"`   // Error during CI/merge
+	CIPassed    bool   `json:"ci_passed,omitempty"`    // CI checks passed
+	CIDetails   string `json:"ci_details,omitempty"`   // CI status summary
+	Merged      bool   `json:"merged,omitempty"`       // PR was merged
+	MergeCommit string `json:"merge_commit,omitempty"` // SHA of merge commit
+	CITimedOut  bool   `json:"ci_timed_out,omitempty"` // CI polling timed out
+	MergeError  string `json:"merge_error,omitempty"`  // Error during CI/merge
 }
 
 // FinalizeRequest is the request body for triggering finalize.
@@ -113,6 +113,53 @@ func (ft *finalizeTracker) delete(taskID string) {
 	ft.mu.Lock()
 	defer ft.mu.Unlock()
 	delete(ft.states, taskID)
+}
+
+// cleanupStale removes completed/failed entries older than the retention period.
+// Running/pending entries are preserved to avoid interrupting active operations.
+func (ft *finalizeTracker) cleanupStale(retention time.Duration) int {
+	ft.mu.Lock()
+	defer ft.mu.Unlock()
+
+	now := time.Now()
+	removed := 0
+
+	for taskID, state := range ft.states {
+		state.mu.RLock()
+		status := state.Status
+		updatedAt := state.UpdatedAt
+		state.mu.RUnlock()
+
+		// Only clean up terminal states (completed/failed)
+		if status != FinalizeStatusCompleted && status != FinalizeStatusFailed {
+			continue
+		}
+
+		// Remove if older than retention period
+		if now.Sub(updatedAt) > retention {
+			delete(ft.states, taskID)
+			removed++
+		}
+	}
+
+	return removed
+}
+
+// startCleanup starts a background goroutine that periodically cleans up stale entries.
+// The goroutine stops when the context is cancelled.
+func (ft *finalizeTracker) startCleanup(ctx context.Context, interval, retention time.Duration) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				ft.cleanupStale(retention)
+			}
+		}
+	}()
 }
 
 // handleFinalizeTask triggers the finalize phase for a task.

@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -481,6 +482,180 @@ func TestFinalizeTracker(t *testing.T) {
 			t.Error("expected nil after delete")
 		}
 	})
+}
+
+func TestFinalizeTrackerCleanup(t *testing.T) {
+	// Create a fresh tracker for this test to avoid interference
+	tracker := &finalizeTracker{
+		states: make(map[string]*FinalizeState),
+	}
+
+	// Add some test entries with different states and ages
+	now := time.Now()
+	retention := 5 * time.Minute
+
+	// Old completed entry (should be removed)
+	tracker.set("old-completed", &FinalizeState{
+		TaskID:    "old-completed",
+		Status:    FinalizeStatusCompleted,
+		UpdatedAt: now.Add(-10 * time.Minute),
+	})
+
+	// Old failed entry (should be removed)
+	tracker.set("old-failed", &FinalizeState{
+		TaskID:    "old-failed",
+		Status:    FinalizeStatusFailed,
+		UpdatedAt: now.Add(-10 * time.Minute),
+	})
+
+	// Recent completed entry (should be preserved)
+	tracker.set("recent-completed", &FinalizeState{
+		TaskID:    "recent-completed",
+		Status:    FinalizeStatusCompleted,
+		UpdatedAt: now.Add(-1 * time.Minute),
+	})
+
+	// Old running entry (should be preserved - still active)
+	tracker.set("old-running", &FinalizeState{
+		TaskID:    "old-running",
+		Status:    FinalizeStatusRunning,
+		UpdatedAt: now.Add(-10 * time.Minute),
+	})
+
+	// Old pending entry (should be preserved - still active)
+	tracker.set("old-pending", &FinalizeState{
+		TaskID:    "old-pending",
+		Status:    FinalizeStatusPending,
+		UpdatedAt: now.Add(-10 * time.Minute),
+	})
+
+	// Run cleanup
+	removed := tracker.cleanupStale(retention)
+
+	// Verify correct number removed
+	if removed != 2 {
+		t.Errorf("removed = %d, want 2", removed)
+	}
+
+	// Verify old completed is gone
+	if tracker.get("old-completed") != nil {
+		t.Error("old-completed should have been removed")
+	}
+
+	// Verify old failed is gone
+	if tracker.get("old-failed") != nil {
+		t.Error("old-failed should have been removed")
+	}
+
+	// Verify recent completed is preserved
+	if tracker.get("recent-completed") == nil {
+		t.Error("recent-completed should be preserved")
+	}
+
+	// Verify running entries are preserved regardless of age
+	if tracker.get("old-running") == nil {
+		t.Error("old-running should be preserved (active operation)")
+	}
+
+	// Verify pending entries are preserved regardless of age
+	if tracker.get("old-pending") == nil {
+		t.Error("old-pending should be preserved (active operation)")
+	}
+}
+
+func TestFinalizeTrackerCleanupPreservesRunning(t *testing.T) {
+	tracker := &finalizeTracker{
+		states: make(map[string]*FinalizeState),
+	}
+
+	now := time.Now()
+	retention := 1 * time.Minute // Very short retention
+
+	// Add running entries that are well past retention
+	tracker.set("running-1", &FinalizeState{
+		TaskID:    "running-1",
+		Status:    FinalizeStatusRunning,
+		UpdatedAt: now.Add(-1 * time.Hour),
+	})
+
+	tracker.set("pending-1", &FinalizeState{
+		TaskID:    "pending-1",
+		Status:    FinalizeStatusPending,
+		UpdatedAt: now.Add(-1 * time.Hour),
+	})
+
+	// Run cleanup
+	removed := tracker.cleanupStale(retention)
+
+	// Verify nothing was removed (running/pending are never cleaned up)
+	if removed != 0 {
+		t.Errorf("removed = %d, want 0 (running/pending should never be removed)", removed)
+	}
+
+	if tracker.get("running-1") == nil {
+		t.Error("running-1 should not be removed")
+	}
+
+	if tracker.get("pending-1") == nil {
+		t.Error("pending-1 should not be removed")
+	}
+}
+
+func TestFinalizeTrackerCleanupShutdown(t *testing.T) {
+	tracker := &finalizeTracker{
+		states: make(map[string]*FinalizeState),
+	}
+
+	// Add an old completed entry
+	tracker.set("cleanup-shutdown-test", &FinalizeState{
+		TaskID:    "cleanup-shutdown-test",
+		Status:    FinalizeStatusCompleted,
+		UpdatedAt: time.Now().Add(-1 * time.Hour),
+	})
+
+	// Create context that we'll cancel
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Start cleanup with short interval (10ms interval, 1 min retention)
+	tracker.startCleanup(ctx, 10*time.Millisecond, 1*time.Minute)
+
+	// Poll for cleanup to complete (more reliable than fixed sleep)
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if tracker.get("cleanup-shutdown-test") == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Verify the entry was cleaned up
+	if tracker.get("cleanup-shutdown-test") != nil {
+		t.Error("cleanup-shutdown-test should have been cleaned up")
+	}
+
+	// Cancel context to stop cleanup goroutine
+	cancel()
+
+	// Give goroutine time to exit
+	time.Sleep(50 * time.Millisecond)
+
+	// Add another entry after cancellation
+	tracker.set("post-cancel-shutdown", &FinalizeState{
+		TaskID:    "post-cancel-shutdown",
+		Status:    FinalizeStatusCompleted,
+		UpdatedAt: time.Now().Add(-1 * time.Hour),
+	})
+
+	// Wait a bit - cleanup should not run since context was cancelled
+	time.Sleep(50 * time.Millisecond)
+
+	// Entry should still exist (cleanup goroutine stopped)
+	if tracker.get("post-cancel-shutdown") == nil {
+		t.Error("post-cancel-shutdown should still exist (cleanup stopped)")
+	}
+
+	// Cleanup
+	tracker.delete("post-cancel-shutdown")
 }
 
 func TestTriggerFinalizeOnApproval(t *testing.T) {

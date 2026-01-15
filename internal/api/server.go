@@ -424,6 +424,9 @@ func (s *Server) StartContext(ctx context.Context) error {
 		Handler: s.mux,
 	}
 
+	// Start finalize tracker cleanup (5 min retention, 1 min interval)
+	finTracker.startCleanup(ctx, 1*time.Minute, 5*time.Minute)
+
 	// Create and start PR status poller
 	s.prPoller = NewPRPoller(PRPollerConfig{
 		WorkDir:   s.workDir,
