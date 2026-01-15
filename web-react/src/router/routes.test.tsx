@@ -81,6 +81,24 @@ vi.mock('@/lib/api', () => ({
 		referenced_by: [],
 	}),
 	getTaskTimeline: vi.fn().mockResolvedValue([]),
+	// Environment page APIs
+	getSettings: vi.fn().mockResolvedValue({}),
+	listPrompts: vi.fn().mockResolvedValue([]),
+	listScripts: vi.fn().mockResolvedValue([]),
+	listHooks: vi.fn().mockResolvedValue({}),
+	getHookTypes: vi.fn().mockResolvedValue([]),
+	listSkills: vi.fn().mockResolvedValue([]),
+	listMCPServers: vi.fn().mockResolvedValue([]),
+	getConfig: vi.fn().mockResolvedValue({ profile: 'auto' }),
+	getClaudeMd: vi.fn().mockResolvedValue({ content: '' }),
+	listToolsByCategory: vi.fn().mockResolvedValue({}),
+	getToolPermissions: vi.fn().mockResolvedValue({}),
+	listAgents: vi.fn().mockResolvedValue([]),
+	// Preferences page APIs
+	getGlobalSettings: vi.fn().mockResolvedValue({}),
+	getProjectSettings: vi.fn().mockResolvedValue({}),
+	updateSettings: vi.fn().mockResolvedValue({}),
+	updateGlobalSettings: vi.fn().mockResolvedValue({}),
 }));
 
 // Test wrapper component
@@ -274,11 +292,9 @@ describe('Routes', () => {
 		it('renders Preferences page', async () => {
 			renderWithRouter('/preferences');
 			await waitFor(() => {
-				// There's "Preferences" in sidebar and in page heading
-				// Check the h2 specifically
-				expect(
-					screen.getByRole('heading', { level: 2, name: 'Preferences' })
-				).toBeInTheDocument();
+				// Preferences page has h1 heading (may appear in header AND page)
+				const headings = screen.getAllByRole('heading', { level: 1, name: 'Preferences' });
+				expect(headings.length).toBeGreaterThanOrEqual(1);
 			});
 		});
 	});
@@ -287,51 +303,57 @@ describe('Routes', () => {
 		it('redirects /environment to /environment/settings', async () => {
 			renderWithRouter('/environment');
 			await waitFor(() => {
-				// Environment pages use h3 headings
-				expect(screen.getByRole('heading', { level: 3, name: 'Settings' })).toBeInTheDocument();
+				// Settings page is a placeholder using h3 heading
+				expect(screen.getByRole('heading', { level: 3, name: /settings/i })).toBeInTheDocument();
 			});
 		});
 
 		it('renders Settings page at /environment/settings', async () => {
 			renderWithRouter('/environment/settings');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Settings' })).toBeInTheDocument();
+				// Settings page is a placeholder using h3 heading
+				expect(screen.getByRole('heading', { level: 3, name: /settings/i })).toBeInTheDocument();
 			});
 		});
 
 		it('renders Prompts page at /environment/prompts', async () => {
 			renderWithRouter('/environment/prompts');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Prompts' })).toBeInTheDocument();
+				// Prompts page has title "Phase Prompts"
+				expect(screen.getByRole('heading', { level: 1, name: /phase prompts/i })).toBeInTheDocument();
 			});
 		});
 
 		it('renders Scripts page at /environment/scripts', async () => {
 			renderWithRouter('/environment/scripts');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Scripts' })).toBeInTheDocument();
+				// Scripts page has title "Project Scripts"
+				expect(screen.getByRole('heading', { level: 1, name: /project scripts/i })).toBeInTheDocument();
 			});
 		});
 
 		it('renders Hooks page at /environment/hooks', async () => {
 			renderWithRouter('/environment/hooks');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Hooks' })).toBeInTheDocument();
+				// Hooks page has title "Claude Code Hooks"
+				expect(screen.getByRole('heading', { level: 1, name: /claude code hooks/i })).toBeInTheDocument();
 			});
 		});
 
 		it('renders Skills page at /environment/skills', async () => {
 			renderWithRouter('/environment/skills');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Skills' })).toBeInTheDocument();
+				// Skills page has title "Claude Code Skills"
+				expect(screen.getByRole('heading', { level: 1, name: /claude code skills/i })).toBeInTheDocument();
 			});
 		});
 
 		it('renders MCP page at /environment/mcp', async () => {
 			renderWithRouter('/environment/mcp');
 			await waitFor(() => {
+				// MCP page has title "MCP Servers"
 				expect(
-					screen.getByRole('heading', { level: 3, name: 'MCP Servers' })
+					screen.getByRole('heading', { level: 1, name: /mcp servers/i })
 				).toBeInTheDocument();
 			});
 		});
@@ -339,8 +361,9 @@ describe('Routes', () => {
 		it('renders Config page at /environment/config', async () => {
 			renderWithRouter('/environment/config');
 			await waitFor(() => {
+				// Config page has title "Orc Configuration"
 				expect(
-					screen.getByRole('heading', { level: 3, name: 'Configuration' })
+					screen.getByRole('heading', { level: 1, name: /orc configuration/i })
 				).toBeInTheDocument();
 			});
 		});
@@ -348,8 +371,9 @@ describe('Routes', () => {
 		it('renders ClaudeMd page at /environment/claudemd', async () => {
 			renderWithRouter('/environment/claudemd');
 			await waitFor(() => {
+				// ClaudeMd page has h1 with page title (may vary)
 				expect(
-					screen.getByRole('heading', { level: 3, name: 'CLAUDE.md' })
+					screen.getByRole('heading', { level: 1, name: /claude\.md/i })
 				).toBeInTheDocument();
 			});
 		});
@@ -357,14 +381,16 @@ describe('Routes', () => {
 		it('renders Tools page at /environment/tools', async () => {
 			renderWithRouter('/environment/tools');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Tools' })).toBeInTheDocument();
+				// Tools page has title "Tool Permissions"
+				expect(screen.getByRole('heading', { level: 1, name: /tool permissions/i })).toBeInTheDocument();
 			});
 		});
 
 		it('renders Agents page at /environment/agents', async () => {
 			renderWithRouter('/environment/agents');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Agents' })).toBeInTheDocument();
+				// Agents page has title "Sub-Agents"
+				expect(screen.getByRole('heading', { level: 1, name: /sub-agents/i })).toBeInTheDocument();
 			});
 		});
 	});

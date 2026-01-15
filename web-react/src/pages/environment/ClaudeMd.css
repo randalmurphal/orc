@@ -1,0 +1,232 @@
+/* CLAUDE.md Editor Page */
+.claudemd-page {
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+
+.claudemd-header h1 {
+	margin: 0;
+	font-size: 1.5rem;
+}
+
+.header-content {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+}
+
+.subtitle {
+	margin: 0.5rem 0 0;
+	color: var(--color-text-muted, #8b949e);
+	font-size: 0.875rem;
+}
+
+/* Alert Messages */
+.alert {
+	padding: 0.75rem 1rem;
+	border-radius: 6px;
+	font-size: 0.875rem;
+}
+
+.alert-error {
+	background: rgba(239, 68, 68, 0.1);
+	color: #f87171;
+	border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.alert-success {
+	background: rgba(34, 197, 94, 0.1);
+	color: #4ade80;
+	border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.loading-state {
+	text-align: center;
+	padding: 3rem;
+	color: var(--color-text-muted, #8b949e);
+}
+
+/* Layout */
+.claudemd-layout {
+	display: grid;
+	grid-template-columns: 250px 1fr;
+	gap: 1.5rem;
+	min-height: 600px;
+}
+
+/* Source List */
+.source-list {
+	background: var(--color-bg-secondary, #161b22);
+	border-radius: 8px;
+	padding: 1rem;
+	border: 1px solid var(--color-border, #30363d);
+}
+
+.source-list h2 {
+	font-size: 0.875rem;
+	font-weight: 600;
+	margin: 0 0 0.5rem;
+	color: var(--color-text-muted, #8b949e);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.help-text {
+	font-size: 0.75rem;
+	color: var(--color-text-muted, #8b949e);
+	margin: 0 0 1rem;
+}
+
+.source-list ul {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.source-item {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	width: 100%;
+	padding: 0.75rem;
+	background: transparent;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	text-align: left;
+	color: var(--color-text, #e6edf3);
+	font-size: 0.875rem;
+	gap: 0.25rem;
+	transition: background-color 0.15s ease;
+}
+
+.source-item:hover {
+	background: var(--color-bg-tertiary, #21262d);
+}
+
+.source-item.selected {
+	background: rgba(56, 139, 253, 0.15);
+	color: #58a6ff;
+}
+
+.source-name {
+	font-weight: 600;
+}
+
+.source-path {
+	font-size: 0.75rem;
+	color: var(--color-text-muted, #8b949e);
+	font-family: var(--font-mono, monospace);
+}
+
+.source-item.selected .source-path {
+	color: #58a6ff;
+	opacity: 0.7;
+}
+
+.badge {
+	font-size: 0.625rem;
+	padding: 0.125rem 0.375rem;
+	border-radius: 4px;
+	text-transform: uppercase;
+	font-weight: 600;
+}
+
+.badge-new {
+	background: rgba(56, 139, 253, 0.15);
+	color: #58a6ff;
+}
+
+/* Editor Panel */
+.editor-panel {
+	display: flex;
+	flex-direction: column;
+	background: var(--color-bg-secondary, #161b22);
+	border-radius: 8px;
+	border: 1px solid var(--color-border, #30363d);
+	overflow: hidden;
+}
+
+.editor-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 1rem;
+	border-bottom: 1px solid var(--color-border, #30363d);
+}
+
+.editor-header h2 {
+	margin: 0;
+	font-size: 1rem;
+}
+
+.editor-content {
+	flex: 1;
+	padding: 1rem;
+}
+
+.editor-content textarea {
+	width: 100%;
+	height: 100%;
+	min-height: 500px;
+	padding: 1rem;
+	border: 1px solid var(--color-border, #30363d);
+	border-radius: 6px;
+	font-size: 0.875rem;
+	background: var(--color-bg, #0d1117);
+	color: var(--color-text, #e6edf3);
+	font-family: var(--font-mono, monospace);
+	resize: vertical;
+}
+
+.editor-content textarea:focus {
+	outline: none;
+	border-color: #58a6ff;
+}
+
+.editor-content textarea:disabled {
+	background: var(--color-bg-tertiary, #21262d);
+	cursor: not-allowed;
+}
+
+/* Buttons */
+.btn {
+	padding: 0.5rem 1rem;
+	border-radius: 6px;
+	font-size: 0.875rem;
+	font-weight: 500;
+	cursor: pointer;
+	border: 1px solid transparent;
+	transition: background-color 0.15s ease;
+}
+
+.btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.btn-primary {
+	background: #238636;
+	color: white;
+	border-color: rgba(240, 246, 252, 0.1);
+}
+
+.btn-primary:hover:not(:disabled) {
+	background: #2ea043;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+	.claudemd-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.source-list {
+		max-height: 200px;
+		overflow-y: auto;
+	}
+}
