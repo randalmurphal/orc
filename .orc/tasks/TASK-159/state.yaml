@@ -1,9 +1,10 @@
 task_id: TASK-159
 current_phase: validate
 current_iteration: 5
-status: running
+status: completed
 started_at: 2026-01-14T22:00:44.967311465-06:00
-updated_at: 2026-01-14T22:11:26.186698262-06:00
+updated_at: 2026-01-14T22:11:26.213392053-06:00
+completed_at: 2026-01-14T22:11:26.213391823-06:00
 phases:
     docs:
         status: completed
@@ -86,6 +87,11 @@ gates:
       approved: true
       reason: auto-approved on success
       timestamp: 2026-01-14T22:10:16.200216621-06:00
+    - phase: validate
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T22:11:26.213388747-06:00
 tokens:
     input_tokens: 3998249
     output_tokens: 16071
@@ -94,8 +100,3 @@ tokens:
     total_tokens: 4014320
 cost:
     total_cost_usd: 0
-execution:
-    pid: 292560
-    hostname: Nexus
-    started_at: 2026-01-14T22:00:45.014681592-06:00
-    last_heartbeat: 2026-01-14T22:10:16.200219977-06:00
