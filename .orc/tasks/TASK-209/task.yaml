@@ -1,0 +1,18 @@
+id: TASK-209
+title: Migrate dashboard and layout components to Button primitive
+description: 'Replace all raw <button> elements in dashboard and layout components with the Button primitive. Files: DashboardStats.tsx, DashboardQuickActions.tsx, DashboardInitiatives.tsx, Header.tsx, Sidebar.tsx, ProjectSwitcher.tsx. Success: All dashboard/layout buttons use Button component. Testing: E2E dashboard tests pass.'
+weight: medium
+status: planned
+branch: orc/TASK-209
+queue: active
+priority: normal
+category: refactor
+initiative_id: INIT-009
+blocked_by:
+    - TASK-203
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:04:47.524293752-06:00
+updated_at: 2026-01-14T23:04:47.551107237-06:00
