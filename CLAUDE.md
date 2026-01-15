@@ -512,6 +512,7 @@ Patterns, gotchas, and decisions learned during development.
 | Multi-table DB transactions | Operations spanning multiple tables (task+dependencies, state+phases, initiative+decisions+tasks) wrapped in `RunInTx()` for atomicity; transaction-aware functions (`SaveTaskTx`, `SavePhaseTx`, etc.) use `TxOps` context; rollback on any error ensures consistency | TASK-223 |
 | Button primitive for board components | All board buttons (TaskCard, QueuedColumn, Swimlane, ViewModeDropdown) use Button component with `variant="ghost" size="sm"` for consistency; preserve existing CSS classes via `className` prop for backwards compatibility; icon-only buttons require `aria-label` | TASK-207 |
 | Button primitive migration | Dashboard and layout components migrated from raw `<button>` to unified Button component; preserve existing CSS class names via `className` prop; use `variant="ghost"` for minimal styling, `variant="primary"` for primary actions | TASK-209 |
+| FinalizeTracker cleanup | `finalizeTracker` (in-memory map of finalize operations) auto-cleans completed/failed entries after 5 min retention; `startCleanup()` runs in background goroutine triggered by `Server.StartContext()`; running/pending entries never cleaned (active operations); prevents unbounded memory growth from completed finalize operations | TASK-225 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
