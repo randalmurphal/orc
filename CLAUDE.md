@@ -339,6 +339,15 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 
 **Initiative detail:** Click an initiative in the sidebar or navigate to `/initiatives/:id` to view/manage initiative tasks and decisions. Features include progress tracking, task linking, decision recording, and status management.
 
+### Component Library
+
+**Radix UI**: Accessible primitives for Dialog, Dropdown, Select, Tabs, Tooltip, Popover, Toast.
+- All Radix components portal to `document.body` by default (matches existing Modal.tsx behavior)
+- Components are unstyled - style via CSS using `data-*` attributes (`data-state`, `data-highlighted`, etc.)
+- Focus management and keyboard navigation handled automatically
+- Global `data-state` animations defined in `index.css` with `prefers-reduced-motion` support
+- See ADR-008 for adoption rationale
+
 See `web/CLAUDE.md` for component architecture.
 
 ## Documentation Reference
