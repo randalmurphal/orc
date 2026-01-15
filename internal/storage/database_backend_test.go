@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -901,5 +903,146 @@ func TestSaveState_ExecutionInfoCleared(t *testing.T) {
 
 	if loaded.Execution != nil {
 		t.Errorf("expected ExecutionInfo to be nil after completion, got %+v", loaded.Execution)
+	}
+}
+
+// TestSaveTaskCtx_ContextCancellation verifies that a canceled context aborts the transaction.
+// This tests the context propagation from DatabaseBackend through TxOps to the driver.
+func TestSaveTaskCtx_ContextCancellation(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create a context that's already canceled
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	// Try to save with canceled context
+	task1 := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test Task",
+		Weight:    task.WeightSmall,
+		Status:    task.StatusCreated,
+		CreatedAt: time.Now(),
+	}
+	err := backend.SaveTaskCtx(ctx, task1)
+
+	// Should return context canceled error
+	if err == nil {
+		t.Fatal("expected error with canceled context")
+	}
+	if !strings.Contains(err.Error(), "context canceled") {
+		t.Errorf("expected context canceled error, got: %v", err)
+	}
+
+	// Verify task was not saved
+	_, loadErr := backend.LoadTask("TASK-001")
+	if loadErr == nil {
+		t.Error("task should not have been saved with canceled context")
+	}
+}
+
+// TestSaveStateCtx_ContextCancellation verifies that a canceled context aborts the state save.
+func TestSaveStateCtx_ContextCancellation(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// First create a task with a valid context
+	task1 := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test Task",
+		Weight:    task.WeightSmall,
+		Status:    task.StatusCreated,
+		CreatedAt: time.Now(),
+	}
+	if err := backend.SaveTask(task1); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Create a context that's already canceled
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Try to save state with canceled context
+	s := &state.State{
+		TaskID:       "TASK-001",
+		CurrentPhase: "implement",
+		Status:       state.StatusRunning,
+		StartedAt:    time.Now(),
+		Phases:       make(map[string]*state.PhaseState),
+	}
+	err := backend.SaveStateCtx(ctx, s)
+
+	// Should return context canceled error
+	if err == nil {
+		t.Fatal("expected error with canceled context")
+	}
+	if !strings.Contains(err.Error(), "context canceled") {
+		t.Errorf("expected context canceled error, got: %v", err)
+	}
+}
+
+// TestSaveInitiativeCtx_ContextCancellation verifies that a canceled context aborts the initiative save.
+func TestSaveInitiativeCtx_ContextCancellation(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create a context that's already canceled
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Try to save initiative with canceled context
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Test Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	err := backend.SaveInitiativeCtx(ctx, init)
+
+	// Should return context canceled error
+	if err == nil {
+		t.Fatal("expected error with canceled context")
+	}
+	if !strings.Contains(err.Error(), "context canceled") {
+		t.Errorf("expected context canceled error, got: %v", err)
+	}
+
+	// Verify initiative was not saved
+	_, loadErr := backend.LoadInitiative("INIT-001")
+	if loadErr == nil {
+		t.Error("initiative should not have been saved with canceled context")
+	}
+}
+
+// TestSaveTaskCtx_ValidContext verifies that a valid context allows the operation to succeed.
+func TestSaveTaskCtx_ValidContext(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create a context with timeout (plenty of time)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Save with valid context
+	task1 := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test Task",
+		Weight:    task.WeightSmall,
+		Status:    task.StatusCreated,
+		CreatedAt: time.Now(),
+	}
+	err := backend.SaveTaskCtx(ctx, task1)
+	if err != nil {
+		t.Fatalf("save with valid context should succeed: %v", err)
+	}
+
+	// Verify task was saved
+	loaded, err := backend.LoadTask("TASK-001")
+	if err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+	if loaded.Title != "Test Task" {
+		t.Errorf("expected title 'Test Task', got %s", loaded.Title)
 	}
 }

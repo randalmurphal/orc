@@ -25,24 +25,35 @@ type TxRunner interface {
 // TxOps provides database operations within a transaction.
 // It wraps a driver.Tx to provide the same interface as ProjectDB
 // but executes all operations within the transaction.
+// The context is stored and used for all operations, enabling cancellation
+// and timeout propagation through the entire transaction.
 type TxOps struct {
 	tx      driver.Tx
 	dialect driver.Dialect
+	ctx     context.Context
 }
 
 // Exec executes a query within the transaction.
+// Uses the context passed when the transaction was created.
 func (t *TxOps) Exec(query string, args ...any) (sql.Result, error) {
-	return t.tx.Exec(context.Background(), query, args...)
+	return t.tx.Exec(t.ctx, query, args...)
 }
 
 // Query executes a query that returns rows within the transaction.
+// Uses the context passed when the transaction was created.
 func (t *TxOps) Query(query string, args ...any) (*sql.Rows, error) {
-	return t.tx.Query(context.Background(), query, args...)
+	return t.tx.Query(t.ctx, query, args...)
 }
 
 // QueryRow executes a query that returns at most one row within the transaction.
+// Uses the context passed when the transaction was created.
 func (t *TxOps) QueryRow(query string, args ...any) *sql.Row {
-	return t.tx.QueryRow(context.Background(), query, args...)
+	return t.tx.QueryRow(t.ctx, query, args...)
+}
+
+// Context returns the context associated with this transaction.
+func (t *TxOps) Context() context.Context {
+	return t.ctx
 }
 
 // Dialect returns the database dialect.
@@ -90,6 +101,8 @@ func OpenProjectWithDialect(dsn string, dialect driver.Dialect) (*ProjectDB, err
 // RunInTx executes the given function within a database transaction.
 // If fn returns an error, the transaction is rolled back.
 // If fn returns nil, the transaction is committed.
+// The context is propagated to all database operations within the transaction,
+// enabling proper cancellation and timeout handling.
 func (p *ProjectDB) RunInTx(ctx context.Context, fn func(tx *TxOps) error) error {
 	tx, err := p.BeginTx(ctx, nil)
 	if err != nil {
@@ -99,6 +112,7 @@ func (p *ProjectDB) RunInTx(ctx context.Context, fn func(tx *TxOps) error) error
 	txOps := &TxOps{
 		tx:      tx,
 		dialect: p.Dialect(),
+		ctx:     ctx,
 	}
 
 	if err := fn(txOps); err != nil {

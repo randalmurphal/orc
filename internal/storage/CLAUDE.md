@@ -57,11 +57,11 @@ Multi-table write operations use transactions for atomicity. This prevents parti
 
 | Operation | Tables Modified |
 |-----------|-----------------|
-| `SaveTask` | `tasks`, `task_dependencies` |
-| `SaveState` | `tasks`, `phases`, `gate_decisions` |
-| `SaveInitiative` | `initiatives`, `initiative_decisions`, `initiative_tasks`, `initiative_dependencies` |
+| `SaveTask` / `SaveTaskCtx` | `tasks`, `task_dependencies` |
+| `SaveState` / `SaveStateCtx` | `tasks`, `phases`, `gate_decisions` |
+| `SaveInitiative` / `SaveInitiativeCtx` | `initiatives`, `initiative_decisions`, `initiative_tasks`, `initiative_dependencies` |
 
-Example: `SaveTask` wraps task + dependencies in a single transaction:
+Example: `SaveTaskCtx` wraps task + dependencies in a single transaction:
 
 ```go
 return d.db.RunInTx(ctx, func(tx *db.TxOps) error {
@@ -81,6 +81,24 @@ return d.db.RunInTx(ctx, func(tx *db.TxOps) error {
 ```
 
 If any step fails, all changes are rolled back, ensuring database consistency.
+
+### Context-Aware Methods
+
+For operations requiring cancellation or timeout support, use the `*Ctx` variants:
+
+| Method | Context-Aware Variant | Purpose |
+|--------|----------------------|---------|
+| `SaveTask` | `SaveTaskCtx` | Save task with context propagation |
+| `SaveState` | `SaveStateCtx` | Save execution state with context |
+| `SaveInitiative` | `SaveInitiativeCtx` | Save initiative with context |
+
+The `*Ctx` methods propagate context through `RunInTx` to `TxOps`, which stores and uses the context for all database operations within the transaction. This enables:
+
+- **Request cancellation**: HTTP handlers can pass `r.Context()` to abort DB operations when client disconnects
+- **Timeouts**: Wrap context with `context.WithTimeout()` to limit operation duration
+- **Tracing**: Future integration with OpenTelemetry spans
+
+The non-context methods (`SaveTask`, `SaveState`, `SaveInitiative`) use `context.Background()` internally and remain for backward compatibility.
 
 ### Direct DB Access
 

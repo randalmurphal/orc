@@ -65,7 +65,16 @@ func (d *DatabaseBackend) DB() *db.ProjectDB {
 // Note: This preserves state fields (StateStatus, RetryContext) which are managed
 // by SaveState. When updating a task, we read existing state values and preserve them.
 // All operations (task + dependencies) are wrapped in a transaction for atomicity.
+// This method uses context.Background(). Use SaveTaskCtx for cancellation support.
 func (d *DatabaseBackend) SaveTask(t *task.Task) error {
+	return d.SaveTaskCtx(context.Background(), t)
+}
+
+// SaveTaskCtx saves a task to the database with context support.
+// Note: This preserves state fields (StateStatus, RetryContext) which are managed
+// by SaveState. When updating a task, we read existing state values and preserve them.
+// All operations (task + dependencies) are wrapped in a transaction for atomicity.
+func (d *DatabaseBackend) SaveTaskCtx(ctx context.Context, t *task.Task) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -81,7 +90,7 @@ func (d *DatabaseBackend) SaveTask(t *task.Task) error {
 	}
 
 	// Wrap all operations in a transaction for atomicity
-	return d.db.RunInTx(context.Background(), func(tx *db.TxOps) error {
+	return d.db.RunInTx(ctx, func(tx *db.TxOps) error {
 		if err := db.SaveTaskTx(tx, dbTask); err != nil {
 			return fmt.Errorf("save task: %w", err)
 		}
@@ -174,7 +183,14 @@ func (d *DatabaseBackend) DeleteTask(id string) error {
 
 // SaveState saves execution state to the database.
 // All operations (task update + phases + gate decisions) are wrapped in a transaction for atomicity.
+// This method uses context.Background(). Use SaveStateCtx for cancellation support.
 func (d *DatabaseBackend) SaveState(s *state.State) error {
+	return d.SaveStateCtx(context.Background(), s)
+}
+
+// SaveStateCtx saves execution state to the database with context support.
+// All operations (task update + phases + gate decisions) are wrapped in a transaction for atomicity.
+func (d *DatabaseBackend) SaveStateCtx(ctx context.Context, s *state.State) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -226,7 +242,7 @@ func (d *DatabaseBackend) SaveState(s *state.State) error {
 	}
 
 	// Wrap all operations in a transaction for atomicity
-	return d.db.RunInTx(context.Background(), func(tx *db.TxOps) error {
+	return d.db.RunInTx(ctx, func(tx *db.TxOps) error {
 		if err := db.SaveTaskTx(tx, dbTask); err != nil {
 			return fmt.Errorf("update task from state: %w", err)
 		}
@@ -789,14 +805,21 @@ func (d *DatabaseBackend) TaskExists(id string) (bool, error) {
 
 // SaveInitiative saves an initiative to the database.
 // All operations (initiative + decisions + tasks + dependencies) are wrapped in a transaction for atomicity.
+// This method uses context.Background(). Use SaveInitiativeCtx for cancellation support.
 func (d *DatabaseBackend) SaveInitiative(i *initiative.Initiative) error {
+	return d.SaveInitiativeCtx(context.Background(), i)
+}
+
+// SaveInitiativeCtx saves an initiative to the database with context support.
+// All operations (initiative + decisions + tasks + dependencies) are wrapped in a transaction for atomicity.
+func (d *DatabaseBackend) SaveInitiativeCtx(ctx context.Context, i *initiative.Initiative) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	dbInit := initiativeToDBInitiative(i)
 
 	// Wrap all operations in a transaction for atomicity
-	return d.db.RunInTx(context.Background(), func(tx *db.TxOps) error {
+	return d.db.RunInTx(ctx, func(tx *db.TxOps) error {
 		if err := db.SaveInitiativeTx(tx, dbInit); err != nil {
 			return fmt.Errorf("save initiative: %w", err)
 		}
