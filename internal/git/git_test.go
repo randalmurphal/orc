@@ -852,6 +852,87 @@ func TestRebaseWithConflictCheck_Conflict(t *testing.T) {
 	}
 }
 
+// TestRebaseWithConflictCheck_FailWithoutConflicts tests rebase failure without conflicts.
+// This tests the bug fix for TASK-201: when rebase fails but there are no conflict files,
+// the error should NOT be ErrMergeConflict (previously returned "0 files in conflict").
+func TestRebaseWithConflictCheck_FailWithoutConflicts(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	baseGit, _ := New(tmpDir, DefaultConfig())
+	// Use InWorktree to mark as worktree context (rebase requires this)
+	g := baseGit.InWorktree(tmpDir)
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-REBASE-FAIL")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Add a commit on task branch
+	testFile := filepath.Join(tmpDir, "feature.txt")
+	os.WriteFile(testFile, []byte("feature"), 0644)
+	_, _ = g.CreateCheckpoint("TASK-REBASE-FAIL", "implement", "add feature")
+
+	// Switch back to base branch and make a non-conflicting change
+	cmd := exec.Command("git", "checkout", baseBranch)
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to checkout base branch: %v", err)
+	}
+
+	otherFile := filepath.Join(tmpDir, "other.txt")
+	os.WriteFile(otherFile, []byte("other content"), 0644)
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	cmd = exec.Command("git", "commit", "-m", "add other file on base")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit on base: %v", err)
+	}
+
+	// Switch to task branch
+	err = g.SwitchBranch("TASK-REBASE-FAIL")
+	if err != nil {
+		t.Fatalf("SwitchBranch() failed: %v", err)
+	}
+
+	// Create uncommitted changes to trigger a rebase failure without conflicts
+	// (dirty working tree prevents rebase)
+	dirtyFile := filepath.Join(tmpDir, "dirty.txt")
+	os.WriteFile(dirtyFile, []byte("dirty"), 0644)
+	cmd = exec.Command("git", "add", dirtyFile)
+	cmd.Dir = tmpDir
+	cmd.Run()
+	// The staged but uncommitted file will cause rebase to fail
+
+	// Rebase should fail but NOT with ErrMergeConflict
+	result, err := g.RebaseWithConflictCheck(baseBranch)
+	if err == nil {
+		t.Fatal("RebaseWithConflictCheck() should fail with dirty working tree")
+	}
+
+	// The error should NOT be a merge conflict error
+	if errors.Is(err, ErrMergeConflict) {
+		t.Errorf("error should NOT be ErrMergeConflict when no conflicts detected, got: %v", err)
+	}
+
+	// Error should mention rebase failure
+	if !strings.Contains(err.Error(), "rebase failed") {
+		t.Errorf("error should mention 'rebase failed', got: %v", err)
+	}
+
+	// Result should NOT indicate conflicts
+	if result.ConflictsDetected {
+		t.Error("ConflictsDetected = true, want false (no actual conflicts)")
+	}
+	if len(result.ConflictFiles) != 0 {
+		t.Errorf("ConflictFiles = %v, want empty (no actual conflicts)", result.ConflictFiles)
+	}
+}
+
 // TestAbortRebase tests aborting an in-progress rebase
 func TestAbortRebase(t *testing.T) {
 	tmpDir := setupTestRepo(t)
@@ -1462,6 +1543,72 @@ func TestMainRepoProtection_MainBranchUnchangedAfterWorktreeOperations(t *testin
 	_, err = os.Stat(filepath.Join(tmpDir, "test-file.txt"))
 	if !os.IsNotExist(err) {
 		t.Error("test-file.txt should NOT exist in main repo")
+	}
+}
+
+// TestPushForce_TaskBranch tests that PushForce works for task branches
+func TestPushForce_TaskBranch(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// PushForce should NOT fail with protected branch error for task branches
+	// (it will fail because there's no remote, but that's a different error)
+	err := g.PushForce("origin", "orc/TASK-001", false)
+	if err != nil && strings.Contains(err.Error(), "protected branch") {
+		t.Error("PushForce() should not fail with protected branch error for task branches")
+	}
+}
+
+// TestPushForce_ProtectedBranch tests that PushForce blocks protected branches
+func TestPushForce_ProtectedBranch(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	tests := []struct {
+		branch    string
+		wantError bool
+	}{
+		{"main", true},
+		{"master", true},
+		{"develop", true},
+		{"release", true},
+		{"orc/TASK-001", false},
+		{"feature/foo", false},
+	}
+
+	for _, tt := range tests {
+		err := g.PushForce("origin", tt.branch, false)
+		if tt.wantError {
+			if err == nil {
+				t.Errorf("PushForce(%q) should return error for protected branch", tt.branch)
+			}
+			if !strings.Contains(err.Error(), "protected branch") {
+				t.Errorf("PushForce(%q) error should mention protected branch, got: %v", tt.branch, err)
+			}
+		} else {
+			// For non-protected branches, it will still fail (no remote)
+			// but NOT with protected branch error
+			if err != nil && strings.Contains(err.Error(), "protected branch") {
+				t.Errorf("PushForce(%q) should not fail with protected branch error", tt.branch)
+			}
+		}
+	}
+}
+
+// TestRemoteBranchExists tests the RemoteBranchExists method
+func TestRemoteBranchExists(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// For a local-only repo without a configured remote, ls-remote will fail
+	// This is expected behavior - we're testing the method exists and works correctly
+	_, err := g.RemoteBranchExists("origin", "main")
+	// The error should be about ls-remote failing (no remote), not a panic
+	if err != nil {
+		if !strings.Contains(err.Error(), "ls-remote failed") {
+			t.Errorf("RemoteBranchExists() unexpected error: %v", err)
+		}
+		// This is expected - no remote configured
 	}
 }
 

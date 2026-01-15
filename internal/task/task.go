@@ -989,7 +989,7 @@ func (t *Task) GetIncompleteBlockers(tasks map[string]*Task) []BlockerInfo {
 			})
 			continue
 		}
-		if blocker.Status != StatusCompleted {
+		if !isDone(blocker.Status) {
 			blockers = append(blockers, BlockerInfo{
 				ID:     blocker.ID,
 				Title:  blocker.Title,

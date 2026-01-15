@@ -493,8 +493,16 @@ Patterns, gotchas, and decisions learned during development.
 | Sync on start for stale worktrees | Before execution starts, sync task branch with target to catch conflicts from parallel tasks; `sync_on_start: true` (default) rebases onto latest target so implement phase sees current code; disable if you need isolation from concurrent changes | TASK-194 |
 | Resource tracking for orphan detection | Executor snapshots processes before/after task; compares to detect orphaned MCP processes (playwright, chromium); logs warnings with process details and memory growth; configure via `diagnostics.resource_tracking` in config | TASK-197 |
 | Task completion uses isDone() helper | Blocker checks use `isDone(status)` helper (not direct `== StatusCompleted`) to recognize both `completed` and `finished` as done; ensures merged tasks don't block dependents | TASK-199 |
+
 | Diverged branch auto-force-push | When re-running a completed task, the remote branch has different history; push detects non-fast-forward error and retries with `--force-with-lease`; safer than `--force` as it fails if remote has unexpected commits; logged as warning | TASK-198 |
 | Dual-run E2E validation | For framework migration, run E2E tests against both implementations: `web/playwright.config.ts` (Svelte :5173), `web-react/playwright.config.ts` (React :5174); shared test files in `web/e2e/` use framework-agnostic selectors (role, text, CSS classes); tracks parity percentage and performance delta | TASK-179 |
+
+
+| Task completion uses isDone() helper | Blocker checks use `isDone(status)` helper (not direct `== StatusCompleted`) to recognize both `completed` and `finished` as done; ensures merged tasks don't block dependents | TASK-199 |
+
+| Diverged branch auto-force-push | When re-running a completed task, the remote branch has different history; push detects non-fast-forward error and retries with `--force-with-lease`; safer than `--force` as it fails if remote has unexpected commits; logged as warning | TASK-198 |
+
+
 
 ### Known Gotchas
 | Issue | Resolution | Source |
@@ -510,7 +518,16 @@ Patterns, gotchas, and decisions learned during development.
 | Web UI shows "No project selected" | Select a project via `Shift+Alt+P` - server can run from any directory | TASK-005 |
 | Auto-merge fails with worktree error | Fixed: Uses GitHub REST API for merge instead of `gh pr merge` CLI which tried to checkout target branch locally | TASK-196 |
 | Finished tasks still blocked dependents | Fixed: `GetIncompleteBlockers()` now uses `isDone()` helper to recognize both `completed` and `finished` statuses as done | TASK-199 |
+
 | Re-running completed task fails to push | Fixed: Push now detects non-fast-forward errors (diverged remote) and automatically retries with `--force-with-lease` | TASK-198 |
+
+
+| Finished tasks still blocked dependents | Fixed: `GetIncompleteBlockers()` now uses `isDone()` helper to recognize both `completed` and `finished` statuses as done | TASK-199 |
+
+| Re-running completed task fails to push | Fixed: Push now detects non-fast-forward errors (diverged remote) and automatically retries with `--force-with-lease` | TASK-198 |
+| Sync fails with '0 files in conflict' error | Fixed: `RebaseWithConflictCheck()` now only returns `ErrMergeConflict` when actual conflicts detected; other rebase failures (dirty tree, rebase in progress) return the raw error | TASK-201 |
+
+
 
 ### Decisions
 | Decision | Rationale | Source |
