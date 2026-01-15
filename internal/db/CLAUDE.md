@@ -16,7 +16,7 @@ This package provides two database types:
 | `GlobalDB` | Global operations (extends DB) |
 | `ProjectDB` | Project operations with FTS (extends DB) |
 | `TxRunner` | Interface for transaction execution |
-| `TxOps` | Transaction context for multi-table operations |
+| `TxOps` | Transaction context for multi-table operations (stores context for cancellation) |
 | `driver.Driver` | Interface for SQLite/PostgreSQL backends |
 | `driver.Dialect` | Enum: `DialectSQLite`, `DialectPostgres` |
 | `Transcript` | Transcript record with task/phase/content |
@@ -149,6 +149,37 @@ err := pdb.RunInTx(ctx, func(tx *db.TxOps) error {
     return nil  // Commits transaction
 })
 ```
+
+### Context Propagation in TxOps
+
+`TxOps` stores and propagates the context passed to `RunInTx`:
+
+```go
+type TxOps struct {
+    tx      driver.Tx
+    dialect driver.Dialect
+    ctx     context.Context  // Stored from RunInTx
+}
+
+// All operations use the stored context
+func (t *TxOps) Exec(query string, args ...any) (sql.Result, error) {
+    return t.tx.Exec(t.ctx, query, args...)  // Respects cancellation
+}
+
+func (t *TxOps) Query(query string, args ...any) (*sql.Rows, error) {
+    return t.tx.Query(t.ctx, query, args...)
+}
+
+func (t *TxOps) QueryRow(query string, args ...any) *sql.Row {
+    return t.tx.QueryRow(t.ctx, query, args...)
+}
+
+func (t *TxOps) Context() context.Context {
+    return t.ctx
+}
+```
+
+This enables cancellation and timeout propagation through the entire transaction. When the context is cancelled, in-flight database operations will return `context.Canceled` or `context.DeadlineExceeded`.
 
 **Transaction-aware functions (TxOps):**
 | Function | Purpose |
