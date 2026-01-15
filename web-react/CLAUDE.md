@@ -25,6 +25,7 @@ web-react/src/
 │   └── routes.tsx        # Route definitions
 ├── lib/                  # Shared utilities
 │   ├── types.ts          # TypeScript interfaces
+│   ├── api.ts            # API client functions
 │   ├── websocket.ts      # OrcWebSocket class
 │   ├── shortcuts.ts      # ShortcutManager class
 │   └── platform.ts       # Platform detection (isMac)
@@ -83,8 +84,19 @@ web-react/src/
 │   ├── Dashboard.tsx     # /dashboard - Dashboard
 │   ├── TaskDetail.tsx    # /tasks/:id - Task detail
 │   ├── InitiativeDetail.tsx # /initiatives/:id
-│   ├── Preferences.tsx   # /preferences
+│   ├── Preferences.tsx   # /preferences - Settings tabs
 │   └── environment/      # /environment/* pages
+│       ├── EnvironmentLayout.tsx # Sub-navigation layout
+│       ├── Settings.tsx   # General settings
+│       ├── Prompts.tsx    # Phase prompt overrides
+│       ├── Scripts.tsx    # Script registry
+│       ├── Hooks.tsx      # Hook configuration
+│       ├── Skills.tsx     # Skill management
+│       ├── Mcp.tsx        # MCP server config
+│       ├── Config.tsx     # Orc configuration
+│       ├── ClaudeMd.tsx   # CLAUDE.md editor
+│       ├── Tools.tsx      # Tool permissions
+│       └── Agents.tsx     # Agent definitions
 ├── stores/               # Zustand stores
 └── hooks/                # Custom hooks
 ```
@@ -139,8 +151,8 @@ npm run build
 This React app runs alongside Svelte during migration:
 
 1. **Phase 1** ✅: Project scaffolding, Zustand stores mirroring Svelte stores
-2. **Phase 2** ✅: Core infrastructure (API client, WebSocket, Router with URL sync), Dashboard page, Board page (flat/swimlane views), TaskList page, TaskDetail page with all 6 tabs
-3. **Phase 3** (current): Component migration (parallel implementation) - InitiativeDetail, remaining environment pages
+2. **Phase 2** ✅: Core infrastructure (API client, WebSocket, Router with URL sync), Dashboard page, Board page (flat/swimlane views), TaskList page, TaskDetail page with all 6 tabs, Environment pages (Settings, Prompts, Scripts, Hooks, Skills, MCP, Config, CLAUDE.md, Tools, Agents), Preferences page with tabs (Global/Project settings, Environment variables)
+3. **Phase 3** (current): Component migration (parallel implementation) - InitiativeDetail, remaining features
 4. **Phase 4**: E2E test validation, feature parity verification
 5. **Phase 5**: Cutover and Svelte removal
 
@@ -194,6 +206,18 @@ Migration follows the existing Svelte component structure:
 | `lib/websocket.ts` | `src/lib/websocket.ts` | ✅ Complete |
 | `lib/utils/` | `src/lib/` | ✅ Complete |
 | Route pages | `src/pages/` | ✅ Complete |
+| `routes/preferences/+page.svelte` | `pages/Preferences.tsx` | ✅ Complete |
+| `routes/environment/+layout.svelte` | `pages/environment/EnvironmentLayout.tsx` | ✅ Complete |
+| `routes/environment/settings/+page.svelte` | `pages/environment/Settings.tsx` | ✅ Complete |
+| `routes/environment/prompts/+page.svelte` | `pages/environment/Prompts.tsx` | ✅ Complete |
+| `routes/environment/scripts/+page.svelte` | `pages/environment/Scripts.tsx` | ✅ Complete |
+| `routes/environment/hooks/+page.svelte` | `pages/environment/Hooks.tsx` | ✅ Complete |
+| `routes/environment/skills/+page.svelte` | `pages/environment/Skills.tsx` | ✅ Complete |
+| `routes/environment/mcp/+page.svelte` | `pages/environment/Mcp.tsx` | ✅ Complete |
+| `routes/environment/config/+page.svelte` | `pages/environment/Config.tsx` | ✅ Complete |
+| `routes/environment/claudemd/+page.svelte` | `pages/environment/ClaudeMd.tsx` | ✅ Complete |
+| `routes/environment/tools/+page.svelte` | `pages/environment/Tools.tsx` | ✅ Complete |
+| `routes/environment/agents/+page.svelte` | `pages/environment/Agents.tsx` | ✅ Complete |
 
 **Stores implemented (Phase 1 + Phase 3):**
 - `taskStore.ts` - Task data and execution state with derived selectors
@@ -1968,6 +1992,348 @@ Located in `components/task-detail/diff/`:
 - `blocker` - Red, must fix before merge
 - `issue` - Orange, should fix
 - `suggestion` - Blue, optional improvement
+
+## Preferences Page
+
+Settings management for Claude Code with tabbed interface.
+
+### Preferences (Page)
+
+Main preferences page with three tabs for settings management.
+
+```tsx
+import { Preferences } from '@/pages/Preferences';
+
+// Used in route configuration
+<Route path="/preferences" element={<Preferences />} />
+```
+
+**Tabs:**
+
+| Tab | Content | Storage |
+|-----|---------|---------|
+| Global Settings | `~/.claude/settings.json` preview | Read-only display |
+| Project Settings | `.claude/settings.json` preview | Read-only display |
+| Environment Variables | Key-value editor | Saves to project settings |
+
+**URL params:**
+- `tab`: Active tab (`global`, `project`, `env`)
+
+**Features:**
+- Tab state persisted to URL
+- JSON preview for settings files
+- Environment variable CRUD with inline editing
+- Add new variable with Enter key
+- Save/cancel buttons with feedback
+- Links to edit individual settings (Hooks, Skills, CLAUDE.md)
+
+**Environment Variables Editor:**
+- Key-value pairs displayed as editable inputs
+- Delete button per row
+- New variable input row at bottom
+- Saves all variables at once
+
+## Environment Pages
+
+Configuration pages for Claude Code and orc settings under `/environment/*`.
+
+### EnvironmentLayout
+
+Layout wrapper providing sub-navigation for environment pages.
+
+```tsx
+import { EnvironmentLayout } from '@/pages/environment/EnvironmentLayout';
+
+// Used in route configuration
+<Route path="environment" element={<EnvironmentLayout />}>
+  <Route path="settings" element={<Settings />} />
+  {/* ... more routes */}
+</Route>
+```
+
+**Structure:**
+- Horizontal tab-style navigation bar
+- Active route highlighting via NavLink
+- Content area with `<Outlet />` for child routes
+
+**Sub-routes:**
+
+| Route | Component | Purpose |
+|-------|-----------|---------|
+| `/environment/settings` | Settings | General settings overview |
+| `/environment/prompts` | Prompts | Phase prompt overrides |
+| `/environment/scripts` | Scripts | Script registry |
+| `/environment/hooks` | Hooks | Hook configuration |
+| `/environment/skills` | Skills | Skill management |
+| `/environment/mcp` | Mcp | MCP server configuration |
+| `/environment/config` | Config | Orc configuration |
+| `/environment/claudemd` | ClaudeMd | CLAUDE.md editor |
+| `/environment/tools` | Tools | Tool permissions |
+| `/environment/agents` | Agents | Agent definitions |
+
+### Config
+
+Orc configuration editor for `.orc/config.yaml`.
+
+```tsx
+import { Config } from '@/pages/environment/Config';
+
+<Route path="config" element={<Config />} />
+```
+
+**Sections:**
+
+| Section | Fields |
+|---------|--------|
+| Automation Profile | `auto`, `fast`, `safe`, `strict` radio cards |
+| Gates & Retry | Default gates, max retries, retry enabled toggle |
+| Execution | Model, max iterations, timeout |
+| Git Settings | Branch prefix, commit prefix |
+| Worktree Settings | Enabled toggle, directory, cleanup options |
+| Completion Settings | Action (pr/merge/none), target branch, delete branch |
+| Timeouts | Phase max, turn max, idle warning, heartbeat interval, idle timeout |
+
+**Features:**
+- Profile cards with visual selection
+- Form validation on save
+- Success/error feedback messages
+- All duration fields accept Go format (e.g., `30m`, `1h`)
+
+### Skills
+
+Claude Code skill management with scope toggle.
+
+```tsx
+import { Skills } from '@/pages/environment/Skills';
+
+<Route path="skills" element={<Skills />} />
+```
+
+**URL params:**
+- `scope`: `global` for `~/.claude/skills/`, omit for `.claude/skills/`
+
+**Features:**
+- Project/Global scope toggle
+- Skill list sidebar with selection
+- Skill detail panel with form:
+  - Name (directory name)
+  - Description (required)
+  - Allowed tools (comma-separated)
+  - Content (Markdown textarea)
+- Create new skill
+- Delete with confirmation
+- Path preview showing final file location
+
+**API Integration:**
+- `GET /api/skills?scope=global` - List skills
+- `GET /api/skills/:name?scope=global` - Get skill
+- `POST /api/skills?scope=global` - Create
+- `PUT /api/skills/:name?scope=global` - Update
+- `DELETE /api/skills/:name?scope=global` - Delete
+
+### Hooks
+
+Claude Code hook configuration.
+
+```tsx
+import { Hooks } from '@/pages/environment/Hooks';
+
+<Route path="hooks" element={<Hooks />} />
+```
+
+**URL params:**
+- `scope`: `global` for `~/.claude/settings.json`, omit for project
+
+**Features:**
+- Project/Global scope toggle
+- Hook list with event type grouping
+- Hook editor form:
+  - Event type (selection from known events)
+  - Matcher pattern (optional)
+  - Command to execute
+- Add/remove hooks
+- Reorder hooks (drag-drop or buttons)
+
+**Hook Event Types:**
+- `PreToolUse`, `PostToolUse`
+- `Notification`
+- Custom events
+
+### Prompts
+
+Phase prompt override editor.
+
+```tsx
+import { Prompts } from '@/pages/environment/Prompts';
+
+<Route path="prompts" element={<Prompts />} />
+```
+
+**Features:**
+- List of phase prompts (spec, implement, test, etc.)
+- Click to edit prompt content
+- Markdown editor with preview
+- Reset to default button
+- Shows source: default, project override, or custom
+
+### Scripts
+
+Script registry for orc.
+
+```tsx
+import { Scripts } from '@/pages/environment/Scripts';
+
+<Route path="scripts" element={<Scripts />} />
+```
+
+**Features:**
+- List registered scripts
+- Add new script with name and path
+- Delete scripts
+- Shows script location and description
+
+### ClaudeMd
+
+CLAUDE.md file editor with scope toggle.
+
+```tsx
+import { ClaudeMd } from '@/pages/environment/ClaudeMd';
+
+<Route path="claudemd" element={<ClaudeMd />} />
+```
+
+**URL params:**
+- `scope`: `global` for `~/.claude/CLAUDE.md`, omit for project
+
+**Features:**
+- Project/Global scope toggle
+- Full-width Markdown editor
+- Preview toggle
+- Save button with feedback
+- Syntax highlighting (if available)
+
+### Mcp
+
+MCP (Model Context Protocol) server configuration.
+
+```tsx
+import { Mcp } from '@/pages/environment/Mcp';
+
+<Route path="mcp" element={<Mcp />} />
+```
+
+**Features:**
+- List configured MCP servers
+- Add new server configuration
+- Edit existing servers
+- Enable/disable servers
+- Server fields: name, command, args, environment variables
+
+### Tools
+
+Claude Code tool permissions.
+
+```tsx
+import { Tools } from '@/pages/environment/Tools';
+
+<Route path="tools" element={<Tools />} />
+```
+
+**Features:**
+- List available tools
+- Permission states: allowed, denied, ask
+- Toggle permissions per tool
+- Group by category (file, bash, web, etc.)
+
+### Agents
+
+Claude Code agent definitions.
+
+```tsx
+import { Agents } from '@/pages/environment/Agents';
+
+<Route path="agents" element={<Agents />} />
+```
+
+**Features:**
+- List defined agents
+- Agent editor form:
+  - Name
+  - Description
+  - Model preference
+  - System prompt
+  - Allowed tools
+- Create/edit/delete agents
+
+### Common Environment Page Patterns
+
+All environment pages share common patterns:
+
+**State Management:**
+```tsx
+const [loading, setLoading] = useState(true);
+const [saving, setSaving] = useState(false);
+const [error, setError] = useState<string | null>(null);
+const [success, setSuccess] = useState<string | null>(null);
+```
+
+**Data Loading:**
+```tsx
+const loadData = useCallback(async () => {
+  setLoading(true);
+  setError(null);
+  try {
+    const data = await fetchData();
+    // Populate form state
+  } catch (e) {
+    setError(e instanceof Error ? e.message : 'Failed to load');
+  } finally {
+    setLoading(false);
+  }
+}, [dependencies]);
+
+useEffect(() => {
+  loadData();
+}, [loadData]);
+```
+
+**Save Handler:**
+```tsx
+const handleSave = async () => {
+  setSaving(true);
+  setError(null);
+  setSuccess(null);
+  try {
+    await saveData(formData);
+    await loadData(); // Refresh
+    setSuccess('Saved successfully');
+    setTimeout(() => setSuccess(null), 3000);
+  } catch (e) {
+    setError(e instanceof Error ? e.message : 'Failed to save');
+  } finally {
+    setSaving(false);
+  }
+};
+```
+
+**Scope Toggle (Skills, Hooks, ClaudeMd):**
+```tsx
+const [searchParams, setSearchParams] = useSearchParams();
+const scope = searchParams.get('scope') as 'global' | null;
+const isGlobal = scope === 'global';
+
+// Toggle links
+<Link to="?scope=global" className={isGlobal ? 'active' : ''}>Global</Link>
+<Link to="" className={!isGlobal ? 'active' : ''}>Project</Link>
+```
+
+**CSS Structure:**
+- `.{page}-page` - Page container
+- `.{page}-header` - Header with title and actions
+- `.{page}-content` or `.{page}-layout` - Main content
+- `.form-group`, `.form-grid` - Form elements
+- `.btn`, `.btn-primary`, `.btn-danger` - Buttons
+- `.alert`, `.alert-error`, `.alert-success` - Feedback
 
 ## Known Differences from Svelte
 
