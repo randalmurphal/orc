@@ -23,8 +23,9 @@ type PRPoller struct {
 	backend   storage.Backend
 
 	// stopCh signals the poller to stop
-	stopCh chan struct{}
-	wg     sync.WaitGroup
+	stopCh   chan struct{}
+	stopOnce sync.Once
+	wg       sync.WaitGroup
 
 	// callback for status changes
 	onStatusChange func(taskID string, pr *task.PRInfo)
@@ -69,9 +70,11 @@ func (p *PRPoller) Start(ctx context.Context) {
 	go p.run(ctx)
 }
 
-// Stop gracefully stops the poller.
+// Stop gracefully stops the poller. Safe to call multiple times.
 func (p *PRPoller) Stop() {
-	close(p.stopCh)
+	p.stopOnce.Do(func() {
+		close(p.stopCh)
+	})
 	p.wg.Wait()
 }
 

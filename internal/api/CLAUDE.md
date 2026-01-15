@@ -201,6 +201,8 @@ PRPoller (60s interval)
 └── Trigger callback on status change
 ```
 
+**Lifecycle:** Call `Start(ctx)` to begin polling, `Stop()` to gracefully shutdown. `Stop()` is idempotent - safe to call multiple times from concurrent shutdown paths (uses `sync.Once` internally).
+
 ### Configuration
 
 | Setting | Default | Description |
@@ -277,3 +279,4 @@ Test files:
 - `middleware_test.go` - CORS middleware tests
 - `response_test.go` - Response helper tests
 - `websocket_test.go` - WebSocket protocol tests
+- `pr_poller_test.go` - PR poller lifecycle and double-stop safety tests
