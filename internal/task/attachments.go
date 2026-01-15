@@ -102,7 +102,7 @@ func GetAttachment(projectDir, taskID, filename string) (*Attachment, io.ReadClo
 
 	info, err := file.Stat()
 	if err != nil {
-		file.Close()
+		_ = file.Close()
 		return nil, nil, fmt.Errorf("stat attachment: %w", err)
 	}
 
@@ -145,19 +145,19 @@ func SaveAttachment(projectDir, taskID, filename string, reader io.Reader) (*Att
 	// Copy content to temp file
 	size, err := io.Copy(tmpFile, reader)
 	if err != nil {
-		tmpFile.Close()
-		os.Remove(tmpPath)
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
 		return nil, fmt.Errorf("write attachment: %w", err)
 	}
 
 	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return nil, fmt.Errorf("close temp file: %w", err)
 	}
 
 	// Rename to final location (atomic on POSIX)
 	if err := os.Rename(tmpPath, attachmentPath); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return nil, fmt.Errorf("save attachment: %w", err)
 	}
 

@@ -79,7 +79,7 @@ func estimateProjectSize(workDir string) string {
 	count := 0
 	maxCount := 5000 // Stop counting after this
 
-	filepath.WalkDir(workDir, func(path string, d os.DirEntry, err error) error {
+	_ = filepath.WalkDir(workDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}

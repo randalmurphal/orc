@@ -103,7 +103,7 @@ func (c *PoolConfig) Save(path string) error {
 		return fmt.Errorf("write pool config temp: %w", err)
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
-		os.Remove(tmpPath) // Clean up temp file on rename failure
+		_ = os.Remove(tmpPath) // Clean up temp file on rename failure
 		return fmt.Errorf("rename pool config: %w", err)
 	}
 

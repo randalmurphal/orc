@@ -32,19 +32,19 @@ func AtomicWriteFile(path string, data []byte, perm os.FileMode) error {
 	success := false
 	defer func() {
 		if !success {
-			os.Remove(tmpPath)
+			_ = os.Remove(tmpPath)
 		}
 	}()
 
 	// Write data
 	if _, err := tmpFile.Write(data); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		return fmt.Errorf("write temp file: %w", err)
 	}
 
 	// Sync to disk before rename
 	if err := tmpFile.Sync(); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		return fmt.Errorf("sync temp file: %w", err)
 	}
 

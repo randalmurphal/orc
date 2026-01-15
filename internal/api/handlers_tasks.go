@@ -427,7 +427,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 
 			filename := filepath.Base(fileHeader.Filename)
 			_, err = task.SaveAttachment(s.workDir, id, filename, file)
-			file.Close()
+			_ = file.Close()
 			if err != nil {
 				s.logger.Warn("failed to save attachment",
 					"taskID", id,
@@ -866,7 +866,7 @@ func (s *Server) autoCommitTask(t *task.Task, action string) {
 		CommitPrefix: s.orcConfig.CommitPrefix,
 		Logger:       s.logger,
 	}
-	task.CommitAndSync(t, action, commitCfg)
+	_ = task.CommitAndSync(t, action, commitCfg)
 }
 
 // autoCommitTaskDeletion commits a task deletion to git if auto-commit is enabled.
@@ -881,7 +881,7 @@ func (s *Server) autoCommitTaskDeletion(taskID string) {
 		CommitPrefix: s.orcConfig.CommitPrefix,
 		Logger:       s.logger,
 	}
-	task.CommitDeletion(taskID, commitCfg)
+	_ = task.CommitDeletion(taskID, commitCfg)
 }
 
 // autoCommitTaskState commits task state files (task.yaml, state.yaml) to git.
@@ -896,5 +896,5 @@ func (s *Server) autoCommitTaskState(taskID, action string) {
 		CommitPrefix: s.orcConfig.CommitPrefix,
 		Logger:       s.logger,
 	}
-	state.CommitTaskState(taskID, action, commitCfg)
+	_ = state.CommitTaskState(taskID, action, commitCfg)
 }

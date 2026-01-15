@@ -267,7 +267,9 @@ func runTeamJoin(initials, name, email string) error {
 		return fmt.Errorf("initials must be 2-4 characters")
 	}
 	for _, c := range initials {
-		if !((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+		isLetter := c >= 'A' && c <= 'Z'
+		isDigit := c >= '0' && c <= '9'
+		if !isLetter && !isDigit {
 			return fmt.Errorf("initials must be alphanumeric")
 		}
 	}

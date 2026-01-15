@@ -270,7 +270,7 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 
 			filename := filepath.Base(fileHeader.Filename)
 			_, err = task.SaveAttachment(proj.Path, id, filename, file)
-			file.Close()
+			_ = file.Close()
 			if err != nil {
 				s.logger.Warn("failed to save attachment",
 					"taskID", id,
@@ -387,7 +387,7 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 	statePath := filepath.Join(proj.Path, ".orc", "tasks", taskID, "state.yaml")
 	var st state.State
 	if stateData, err := os.ReadFile(statePath); err == nil {
-		yaml.Unmarshal(stateData, &st)
+		_ = yaml.Unmarshal(stateData, &st)
 	} else {
 		st = state.State{
 			TaskID:           taskID,
@@ -682,7 +682,7 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 	}
 	var st state.State
 	if err == nil {
-		yaml.Unmarshal(stateData, &st)
+		_ = yaml.Unmarshal(stateData, &st)
 	}
 
 	// Mark target and all later phases as pending
@@ -806,7 +806,7 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 	}
 	var st state.State
 	if err == nil {
-		yaml.Unmarshal(stateData, &st)
+		_ = yaml.Unmarshal(stateData, &st)
 	}
 
 	// Get current phase for context
@@ -1041,7 +1041,7 @@ func (s *Server) autoCommitProjectTask(projectPath string, t *task.Task, action 
 		CommitPrefix: s.orcConfig.CommitPrefix,
 		Logger:       s.logger,
 	}
-	task.CommitAndSync(t, action, commitCfg)
+	_ = task.CommitAndSync(t, action, commitCfg)
 }
 
 // autoCommitProjectTaskDeletion commits a task deletion to git in a specific project directory.
@@ -1055,5 +1055,5 @@ func (s *Server) autoCommitProjectTaskDeletion(projectPath, taskID string) {
 		CommitPrefix: s.orcConfig.CommitPrefix,
 		Logger:       s.logger,
 	}
-	task.CommitDeletion(taskID, commitCfg)
+	_ = task.CommitDeletion(taskID, commitCfg)
 }

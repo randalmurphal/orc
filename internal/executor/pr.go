@@ -480,7 +480,7 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 		// Extract PR number from URL (e.g., https://github.com/owner/repo/pull/123)
 		prNumber := 0
 		if parts := strings.Split(prURL, "/pull/"); len(parts) == 2 {
-			fmt.Sscanf(parts[1], "%d", &prNumber)
+			_, _ = fmt.Sscanf(parts[1], "%d", &prNumber)
 		}
 
 		// Set PR info on task

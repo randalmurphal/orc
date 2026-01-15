@@ -204,7 +204,7 @@ func (s *Server) handleSyncPRComments(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	comments, err := pdb.ListReviewComments(taskID, "")
 	if err != nil {
@@ -304,7 +304,7 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	comment, err := pdb.GetReviewComment(commentID)
 	if err != nil {
@@ -767,7 +767,7 @@ func (s *Server) handleImportPRComments(w http.ResponseWriter, r *http.Request) 
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Get existing comments to check for duplicates
 	existingComments, err := pdb.ListReviewComments(taskID, "")

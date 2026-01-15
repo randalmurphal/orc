@@ -294,7 +294,7 @@ func showDependencyTree(t *task.Task, taskMap map[string]*task.Task) error {
 	return nil
 }
 
-func printTree(t *task.Task, taskMap map[string]*task.Task, prefix string, isLast bool, seen map[string]bool) {
+func printTree(t *task.Task, taskMap map[string]*task.Task, prefix string, _ bool, seen map[string]bool) {
 	if len(t.BlockedBy) == 0 {
 		return
 	}
@@ -370,7 +370,6 @@ func showDependencyGraph(allTasks []*task.Task, taskMap map[string]*task.Task, i
 
 	// Find root tasks (no dependencies or all deps outside filter)
 	var roots []*task.Task
-	var dependent []*task.Task
 
 	for _, t := range filteredTasks {
 		hasInternalDep := false
@@ -382,8 +381,6 @@ func showDependencyGraph(allTasks []*task.Task, taskMap map[string]*task.Task, i
 		}
 		if !hasInternalDep {
 			roots = append(roots, t)
-		} else {
-			dependent = append(dependent, t)
 		}
 	}
 
@@ -445,10 +442,11 @@ func printGraphNode(t *task.Task, taskMap map[string]*task.Task, filteredIDs map
 	})
 
 	// Print this node
-	status := ""
-	if t.Status == task.StatusCompleted || t.Status == task.StatusFinished {
+	var status string
+	switch t.Status {
+	case task.StatusCompleted, task.StatusFinished:
 		status = " ✓"
-	} else if t.Status == task.StatusRunning {
+	case task.StatusRunning:
 		status = " ◐"
 	}
 
@@ -484,9 +482,10 @@ func printGraphNode(t *task.Task, taskMap map[string]*task.Task, filteredIDs map
 			var chainStr []string
 			for _, c := range chain {
 				s := c.ID
-				if c.Status == task.StatusCompleted || c.Status == task.StatusFinished {
+				switch c.Status {
+				case task.StatusCompleted, task.StatusFinished:
 					s += " ✓"
-				} else if c.Status == task.StatusRunning {
+				case task.StatusRunning:
 					s += " ◐"
 				}
 				chainStr = append(chainStr, s)
@@ -505,10 +504,7 @@ func getChain(t *task.Task, taskMap map[string]*task.Task, filteredIDs map[strin
 	var chain []*task.Task
 	current := t
 
-	for {
-		if printed[current.ID] {
-			break
-		}
+	for !printed[current.ID] {
 		chain = append(chain, current)
 
 		// Find downstream tasks

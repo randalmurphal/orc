@@ -34,7 +34,7 @@ func (d *SQLiteDriver) Open(dsn string) error {
 		PRAGMA synchronous = NORMAL;
 		PRAGMA busy_timeout = 5000;
 	`); err != nil {
-		db.Close()
+		_ = db.Close()
 		return fmt.Errorf("set pragmas: %w", err)
 	}
 
@@ -92,7 +92,7 @@ func (d *SQLiteDriver) Migrate(ctx context.Context, schemaFS SchemaFS, schemaTyp
 	if err != nil {
 		return fmt.Errorf("query migrations: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var v int
@@ -138,12 +138,12 @@ func (d *SQLiteDriver) Migrate(ctx context.Context, schemaFS SchemaFS, schemaTyp
 		}
 
 		if _, err := tx.ExecContext(ctx, string(content)); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("apply migration %s: %w", name, err)
 		}
 
 		if _, err := tx.ExecContext(ctx, "INSERT INTO _migrations (version) VALUES (?)", version); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("record migration %s: %w", name, err)
 		}
 
@@ -186,6 +186,6 @@ func extractVersion(name, prefix string) int {
 	s := strings.TrimPrefix(name, prefix)
 	s = strings.TrimSuffix(s, ".sql")
 	var v int
-	fmt.Sscanf(s, "%d", &v)
+	_, _ = fmt.Sscanf(s, "%d", &v)
 	return v
 }

@@ -29,7 +29,7 @@ func (d *PostgresDriver) Open(dsn string) error {
 
 	// Test the connection
 	if err := db.Ping(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return fmt.Errorf("ping postgres: %w", err)
 	}
 
@@ -88,7 +88,7 @@ func (d *PostgresDriver) Migrate(ctx context.Context, schemaFS SchemaFS, schemaT
 	if err != nil {
 		return fmt.Errorf("query migrations: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var v int
@@ -134,12 +134,12 @@ func (d *PostgresDriver) Migrate(ctx context.Context, schemaFS SchemaFS, schemaT
 		}
 
 		if _, err := tx.ExecContext(ctx, string(content)); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("apply migration %s: %w", name, err)
 		}
 
 		if _, err := tx.ExecContext(ctx, "INSERT INTO _migrations (version) VALUES ($1)", version); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("record migration %s: %w", name, err)
 		}
 

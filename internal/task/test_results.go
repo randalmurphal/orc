@@ -326,7 +326,7 @@ func GetScreenshot(projectDir, taskID, filename string) (*Screenshot, io.ReadClo
 
 	info, err := file.Stat()
 	if err != nil {
-		file.Close()
+		_ = file.Close()
 		return nil, nil, fmt.Errorf("stat screenshot: %w", err)
 	}
 
@@ -388,19 +388,19 @@ func SaveScreenshot(projectDir, taskID, filename string, reader io.Reader) (*Scr
 	// Copy content to temp file
 	size, err := io.Copy(tmpFile, reader)
 	if err != nil {
-		tmpFile.Close()
-		os.Remove(tmpPath)
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
 		return nil, fmt.Errorf("write screenshot: %w", err)
 	}
 
 	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return nil, fmt.Errorf("close temp file: %w", err)
 	}
 
 	// Rename to final location (atomic on POSIX)
 	if err := os.Rename(tmpPath, screenshotPath); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return nil, fmt.Errorf("save screenshot: %w", err)
 	}
 

@@ -70,7 +70,7 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 					// Return 409 Conflict with blocker details
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusConflict)
-					json.NewEncoder(w).Encode(map[string]any{
+					_ = json.NewEncoder(w).Encode(map[string]any{
 						"error":           "task_blocked",
 						"message":         "Task is blocked by incomplete dependencies",
 						"blocked_by":      blockers,
@@ -237,7 +237,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	// Send initial state
 	if st, err := state.LoadFrom(s.workDir, id); err == nil {
 		data, _ := json.Marshal(st)
-		fmt.Fprintf(w, "event: state\ndata: %s\n\n", data)
+		_, _ = fmt.Fprintf(w, "event: state\ndata: %s\n\n", data)
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}

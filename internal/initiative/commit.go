@@ -114,7 +114,7 @@ func CommitDeletion(id string, cfg CommitConfig) error {
 		logger.Warn("failed to open database for deletion sync", "error", err)
 		return nil
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	if err := pdb.DeleteInitiative(id); err != nil {
 		logger.Warn("failed to delete initiative from database", "id", id, "error", err)
@@ -134,7 +134,7 @@ func DeleteFromDB(projectRoot, id string, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	if err := pdb.DeleteInitiative(id); err != nil {
 		return fmt.Errorf("delete initiative from database: %w", err)
@@ -152,7 +152,7 @@ func SyncToDB(projectRoot string, init *Initiative, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Convert to DB model
 	dbInit := &db.Initiative{
@@ -275,7 +275,7 @@ func RecoverFromDB(projectRoot, id string, shared bool, logger *slog.Logger) (*I
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Load from database
 	dbInit, err := pdb.GetInitiative(id)

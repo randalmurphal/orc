@@ -81,7 +81,7 @@ func (s *State) Save() error {
 		return fmt.Errorf("write state temp: %w", err)
 	}
 	if err := os.Rename(tmpPath, s.path); err != nil {
-		os.Remove(tmpPath) // Clean up temp file on rename failure
+		_ = os.Remove(tmpPath) // Clean up temp file on rename failure
 		return fmt.Errorf("rename state: %w", err)
 	}
 

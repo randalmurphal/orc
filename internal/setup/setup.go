@@ -61,7 +61,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open project database: %w", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	detection, err := pdb.LoadDetection()
 	if err != nil {

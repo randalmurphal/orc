@@ -116,7 +116,7 @@ func (g *GlobalDB) ListProjects() ([]Project, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var projects []Project
 	for rows.Next() {
@@ -222,7 +222,7 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 	if err != nil {
 		return nil, fmt.Errorf("get cost by project: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var pid string
@@ -261,7 +261,7 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 	if err != nil {
 		return nil, fmt.Errorf("get cost by phase: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var phase string

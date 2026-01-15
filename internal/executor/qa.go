@@ -137,16 +137,16 @@ func ParseQAResult(response string) (*QAResult, error) {
 		result.TestsRun = &QATestRun{}
 		runContent := m[1]
 		if tm := regexp.MustCompile(`<total>(\d+)</total>`).FindStringSubmatch(runContent); tm != nil {
-			fmt.Sscanf(tm[1], "%d", &result.TestsRun.Total)
+			_, _ = fmt.Sscanf(tm[1], "%d", &result.TestsRun.Total)
 		}
 		if pm := regexp.MustCompile(`<passed>(\d+)</passed>`).FindStringSubmatch(runContent); pm != nil {
-			fmt.Sscanf(pm[1], "%d", &result.TestsRun.Passed)
+			_, _ = fmt.Sscanf(pm[1], "%d", &result.TestsRun.Passed)
 		}
 		if fm := regexp.MustCompile(`<failed>(\d+)</failed>`).FindStringSubmatch(runContent); fm != nil {
-			fmt.Sscanf(fm[1], "%d", &result.TestsRun.Failed)
+			_, _ = fmt.Sscanf(fm[1], "%d", &result.TestsRun.Failed)
 		}
 		if sm := regexp.MustCompile(`<skipped>(\d+)</skipped>`).FindStringSubmatch(runContent); sm != nil {
-			fmt.Sscanf(sm[1], "%d", &result.TestsRun.Skipped)
+			_, _ = fmt.Sscanf(sm[1], "%d", &result.TestsRun.Skipped)
 		}
 	}
 
