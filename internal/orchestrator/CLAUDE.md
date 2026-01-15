@@ -88,7 +88,17 @@ Priority levels:
 3. Claude runs with `--dangerously-skip-permissions`
 4. On completion: ralph state removed, phase marked complete
 5. Worker continues to next phase or marks task complete
-6. Cleanup: worktree removed (if configured)
+6. Worker self-removes from pool map (immediate capacity release)
+7. Cleanup: worktree removed (if configured)
+
+### Worker Pool Cleanup
+
+Workers remove themselves from the `WorkerPool.workers` map immediately when their run completes (success or failure). This ensures pool capacity is freed without waiting for the next orchestrator tick.
+
+**Key behaviors:**
+- `RemoveWorker()` is idempotent - safe to call multiple times
+- Orchestrator handlers check `GetWorker()` first (worker may have self-cleaned)
+- `ActiveCount()` only counts workers with `running` status
 
 ## Events
 
