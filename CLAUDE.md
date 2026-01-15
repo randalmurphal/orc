@@ -481,7 +481,8 @@ Patterns, gotchas, and decisions learned during development.
 | Initiative hybrid storage | Initiatives use YAML as source of truth with DB cache; `initiative_dependencies` table tracks blocked_by; recovery via `RebuildDBIndex()` from YAML or `RecoverFromDB()` from database | TASK-097 |
 | CLAUDE.md auto-merge | During git sync, conflicts in knowledge section (within `orc:knowledge:begin/end` markers) are auto-resolved if purely additive (both sides add new table rows); rows combined and sorted by TASK-XXX source ID; complex conflicts (overlapping edits) fall back to manual resolution | TASK-096 |
 | Task auto-commit | Task files auto-commit to git on create/modify via CLI; uses `task.CommitAndSync()` after each save; commit messages follow format `[orc] task TASK-001: action - Title`; disable via `tasks.disable_auto_commit` config | TASK-153 |
-| CI wait and auto-merge | After finalize, poll `gh pr checks` until CI passes (30s interval, 10m timeout), then merge via `gh pr merge --squash`; bypasses GitHub auto-merge feature (no branch protection needed); `auto`/`fast` profiles only | TASK-151 |
+| CI wait and auto-merge | After finalize, poll `gh pr checks` until CI passes (30s interval, 10m timeout), then merge via GitHub REST API (`PUT /repos/.../pulls/.../merge`); bypasses GitHub auto-merge feature (no branch protection needed); `auto`/`fast` profiles only | TASK-151 |
+| PR merge via REST API | Use GitHub REST API for merge instead of `gh pr merge` CLI; CLI tries to fast-forward local target branch which fails when target is checked out in another worktree (common case); API merges server-side only | TASK-196 |
 | Comprehensive auto-commit | ALL .orc/ file mutations auto-commit to git: task lifecycle (status, state, phase transitions), initiative operations (status, linking, decisions), API/UI changes (config, prompts, projects), PR status updates; `state.CommitTaskState()` and `state.CommitPhaseTransition()` for executor; `autoCommit*()` helpers in API handlers; disable via `tasks.disable_auto_commit` config | TASK-193 |
 | WebSocket E2E event injection | Use Playwright's `routeWebSocket` to intercept connections and inject events via `ws.send()`; captures real WebSocket, forwards messages bidirectionally, allows test-initiated events; framework-agnostic approach for testing real-time UI updates | TASK-157 |
 | Visual regression baselines | Separate Playwright project (`visual`) with 1440x900 @2x viewport, disabled animations, masked dynamic content (timestamps, tokens); use `--update-snapshots` to regenerate after intentional UI changes; baselines in `web/e2e/__snapshots__/` | TASK-159 |
@@ -501,6 +502,7 @@ Patterns, gotchas, and decisions learned during development.
 | Spurious "Task deleted" toast notifications | Fixed: Watcher now verifies deletions with debounce to filter false positives from git ops/atomic saves | TASK-053 |
 | Setup errors (worktree creation) failed silently | Fixed: Errors now always display even in quiet mode, task status set to failed | TASK-044 |
 | Web UI shows "No project selected" | Select a project via `Shift+Alt+P` - server can run from any directory | TASK-005 |
+| Auto-merge fails with worktree error | Fixed: Uses GitHub REST API for merge instead of `gh pr merge` CLI which tried to checkout target branch locally | TASK-196 |
 
 ### Decisions
 | Decision | Rationale | Source |

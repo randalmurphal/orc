@@ -409,13 +409,33 @@ After the finalize phase completes, orc can automatically wait for CI checks to 
 ### Flow After Finalize
 
 ```
-finalize completes → push changes → poll CI → merge PR → cleanup
+finalize completes → push changes → poll CI → merge PR via API → cleanup
 ```
 
 1. **Push finalize changes**: Any commits from conflict resolution or sync
 2. **Poll CI checks**: Wait for all required checks to pass
-3. **Merge PR**: Use `gh pr merge` with configured method
-4. **Cleanup**: Delete branch if configured
+3. **Merge PR via API**: Use GitHub REST API directly (avoids worktree conflicts)
+4. **Cleanup**: Delete branch via API if configured
+
+### Why API Instead of CLI?
+
+The `gh pr merge` CLI command has a "helpful" feature that tries to fast-forward the local target branch after a server-side merge. When running from a worktree while the target branch (e.g., `main`) is checked out in the main repo (the common workflow), git refuses with:
+
+```
+fatal: 'main' is already used by worktree at '/path/to/main/repo'
+```
+
+By using the GitHub REST API directly via `gh api`, we:
+- Merge server-side only (no local git operations)
+- Work regardless of which branch is checked out locally
+- Get the merge commit SHA directly from the response
+
+### API Endpoints Used
+
+| Operation | Endpoint | Method |
+|-----------|----------|--------|
+| Merge PR | `/repos/{owner}/{repo}/pulls/{pull_number}/merge` | PUT |
+| Delete branch | `/repos/{owner}/{repo}/git/refs/heads/{branch}` | DELETE |
 
 ### CI Polling
 
