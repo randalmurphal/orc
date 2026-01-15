@@ -110,9 +110,17 @@ export function DataProvider({ children }: DataProviderProps) {
 		initializeInitiativeFromUrl();
 
 		// Load all data
-		loadProjects();
-		loadInitiatives();
-	}, [loadProjects, loadInitiatives, initializeProjectFromUrl, initializeInitiativeFromUrl]);
+		const init = async () => {
+			await loadProjects();
+			await loadInitiatives();
+			// After projects are loaded and selected, load tasks for the selected project
+			const projectId = useProjectStore.getState().currentProjectId;
+			if (projectId) {
+				await loadTasks(projectId);
+			}
+		};
+		init();
+	}, [loadProjects, loadInitiatives, loadTasks, initializeProjectFromUrl, initializeInitiativeFromUrl]);
 
 	// Reload tasks and initiatives when project changes
 	useEffect(() => {

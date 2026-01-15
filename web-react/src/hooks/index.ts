@@ -17,5 +17,8 @@ export {
 	useTaskListShortcuts,
 } from './useShortcuts';
 
+// Document title hook
+export { useDocumentTitle } from './useDocumentTitle';
+
 // Re-export commonly used store hooks for convenience
 export { useCurrentProject } from '@/stores';

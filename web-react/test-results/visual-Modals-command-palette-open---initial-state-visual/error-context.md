@@ -1,0 +1,129 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation "Main navigation" [ref=e4]:
+    - generic [ref=e5]:
+      - link ">_ ORC" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: ">_"
+        - generic [ref=e8]: ORC
+      - button "Collapse sidebar" [ref=e9] [cursor=pointer]:
+        - img [ref=e10]
+    - generic [ref=e13]:
+      - navigation [ref=e14]:
+        - generic [ref=e15]: Work
+        - list [ref=e16]:
+          - listitem [ref=e17]:
+            - link "Dashboard" [ref=e18] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e20]
+              - generic [ref=e25]: Dashboard
+          - listitem [ref=e26]:
+            - link "Tasks" [ref=e27] [cursor=pointer]:
+              - /url: /
+              - img [ref=e29]
+              - generic [ref=e31]: Tasks
+          - listitem [ref=e32]:
+            - link "Board" [ref=e33] [cursor=pointer]:
+              - /url: /board
+              - img [ref=e35]
+              - generic [ref=e39]: Board
+      - navigation [ref=e40]:
+        - button "Initiatives" [expanded] [ref=e41] [cursor=pointer]:
+          - generic [ref=e42]: Initiatives
+          - img [ref=e43]
+        - list [ref=e45]:
+          - listitem [ref=e46]:
+            - link "All Tasks" [ref=e47] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e50]: All Tasks
+          - listitem [ref=e51]:
+            - link "Visual Regression Testing" [ref=e52] [cursor=pointer]:
+              - /url: /?initiative=INIT-001
+              - generic [ref=e55]: Visual Regression Testing
+          - listitem [ref=e56]:
+            - link "React Migration draft" [ref=e57] [cursor=pointer]:
+              - /url: /?initiative=INIT-002
+              - generic [ref=e60]: React Migration
+              - generic [ref=e61]: draft
+      - navigation [ref=e63]:
+        - button "Environment" [ref=e64] [cursor=pointer]:
+          - generic [ref=e65]: Environment
+          - img [ref=e66]
+    - navigation [ref=e70]:
+      - list [ref=e71]:
+        - listitem [ref=e72]:
+          - link "Preferences" [ref=e73] [cursor=pointer]:
+            - /url: /preferences
+            - img [ref=e75]
+            - generic [ref=e78]: Preferences
+    - generic [ref=e79]:
+      - generic [ref=e80]: Shift+Alt+B
+      - text: to toggle
+  - generic [ref=e81]:
+    - banner [ref=e82]:
+      - generic [ref=e83]:
+        - button "orc" [ref=e84] [cursor=pointer]:
+          - img [ref=e86]
+          - generic [ref=e88]: orc
+          - img [ref=e90]
+        - generic [ref=e92]:
+          - generic [ref=e93]: /
+          - heading "Tasks" [level=1] [ref=e94]
+      - generic [ref=e95]:
+        - button "Commands Shift+Alt+K" [ref=e96] [cursor=pointer]:
+          - generic [ref=e97]: Commands
+          - generic [ref=e98]: Shift+Alt+K
+        - button "New Task" [ref=e99] [cursor=pointer]:
+          - img [ref=e100]
+          - text: New Task
+    - main [ref=e101]:
+      - generic [ref=e102]:
+        - generic [ref=e103]:
+          - generic [ref=e104]:
+            - button "All 0" [ref=e105] [cursor=pointer]:
+              - text: All
+              - generic [ref=e106]: "0"
+            - button "Active 0" [ref=e107] [cursor=pointer]:
+              - text: Active
+              - generic [ref=e108]: "0"
+            - button "Completed 0" [ref=e109] [cursor=pointer]:
+              - text: Completed
+              - generic [ref=e110]: "0"
+            - button "Failed 0" [ref=e111] [cursor=pointer]:
+              - text: Failed
+              - generic [ref=e112]: "0"
+          - generic [ref=e113]:
+            - generic [ref=e114]:
+              - img [ref=e115]
+              - textbox "Search tasks..." [ref=e118]
+            - button "All initiatives" [ref=e120] [cursor=pointer]:
+              - img [ref=e121]
+              - generic [ref=e125]: All initiatives
+              - img [ref=e126]
+            - button "All tasks" [ref=e129] [cursor=pointer]:
+              - generic [ref=e130]: All tasks
+              - img [ref=e131]
+            - combobox "Filter by weight" [ref=e133] [cursor=pointer]:
+              - option "All weights" [selected]
+              - option "trivial"
+              - option "small"
+              - option "medium"
+              - option "large"
+              - option "greenfield"
+            - combobox "Sort tasks by" [ref=e134] [cursor=pointer]:
+              - option "Most recent" [selected]
+              - option "Oldest first"
+              - option "By status"
+            - button "New Task" [ref=e135] [cursor=pointer]:
+              - img [ref=e136]
+              - text: New Task
+        - generic [ref=e137]:
+          - img [ref=e139]
+          - heading "No tasks yet" [level=3] [ref=e141]
+          - paragraph [ref=e142]: Create your first task to get started with orc
+          - button "Create Task" [ref=e143] [cursor=pointer]:
+            - img [ref=e144]
+            - text: Create Task
+```

@@ -37,18 +37,21 @@ export function UrlParamSync() {
 	const supportsInitiative = location.pathname === '/' || location.pathname === '/board';
 
 	// URL -> Store sync
+	// Only sync FROM URL when URL explicitly has the parameter
+	// Don't overwrite store state with null when URL param is absent
 	useEffect(() => {
 		if (isSyncingFromStore.current) return;
 
 		isSyncingFromUrl.current = true;
 
-		// Sync project
-		if (urlProjectId !== currentProjectId) {
+		// Sync project - only if URL has explicit project param
+		// (don't reset store to null when URL param is absent)
+		if (urlProjectId && urlProjectId !== currentProjectId) {
 			selectProject(urlProjectId);
 		}
 
-		// Sync initiative (only on supported routes)
-		if (supportsInitiative && urlInitiativeId !== currentInitiativeId) {
+		// Sync initiative (only on supported routes) - only if URL has explicit initiative param
+		if (supportsInitiative && urlInitiativeId && urlInitiativeId !== currentInitiativeId) {
 			selectInitiative(urlInitiativeId);
 		}
 
