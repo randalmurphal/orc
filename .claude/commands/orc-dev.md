@@ -32,6 +32,11 @@ cat .orc/tasks/TASK-XXX/task.yaml 2>/dev/null
 cat .orc/tasks/TASK-XXX/spec.md 2>/dev/null
 ```
 
+If no spec exists, check if the task belongs to an initiative - the initiative file often contains the task context:
+```bash
+cat .orc/initiatives/INIT-XXX.yaml 2>/dev/null
+```
+
 ### Orc-Specific Priorities
 1. **Blockers first** - bugs that break the workflow
 2. **Friction points** - things that slow down or frustrate usage
