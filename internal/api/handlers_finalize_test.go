@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,6 +37,24 @@ func createTestBackend(t *testing.T) storage.Backend {
 		backend.Close()
 	})
 	return backend
+}
+
+// createTestServerWithContext creates a server with proper context for testing.
+func createTestServerWithContext(t *testing.T, backend storage.Backend, orcCfg *config.Config) *Server {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() { cancel() })
+
+	return &Server{
+		workDir:         t.TempDir(),
+		mux:             http.NewServeMux(),
+		orcConfig:       orcCfg,
+		logger:          testLogger(),
+		publisher:       events.NewNopPublisher(),
+		backend:         backend,
+		serverCtx:       ctx,
+		serverCtxCancel: cancel,
+	}
 }
 
 func TestHandleFinalizeTask(t *testing.T) {
@@ -69,14 +88,19 @@ func TestHandleFinalizeTask(t *testing.T) {
 	// Create default config
 	orcCfg := config.Default()
 
-	// Create server
+	// Create server with context for finalize goroutine management
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() { cancel() })
+
 	srv := &Server{
-		workDir:   t.TempDir(),
-		mux:       http.NewServeMux(),
-		orcConfig: orcCfg,
-		logger:    testLogger(),
-		publisher: events.NewNopPublisher(),
-		backend:   backend,
+		workDir:         t.TempDir(),
+		mux:             http.NewServeMux(),
+		orcConfig:       orcCfg,
+		logger:          testLogger(),
+		publisher:       events.NewNopPublisher(),
+		backend:         backend,
+		serverCtx:       ctx,
+		serverCtxCancel: cancel,
 	}
 
 	// Register route
@@ -658,6 +682,182 @@ func TestFinalizeTrackerCleanupShutdown(t *testing.T) {
 	tracker.delete("post-cancel-shutdown")
 }
 
+func TestFinalizeTrackerCancelAll(t *testing.T) {
+	// Create a fresh tracker for this test
+	tracker := &finalizeTracker{
+		states:  make(map[string]*FinalizeState),
+		cancels: make(map[string]context.CancelFunc),
+	}
+
+	// Track which cancels were called
+	canceledTasks := make(map[string]bool)
+	var cancelMu sync.Mutex
+
+	// Add some tasks with cancel functions
+	for _, taskID := range []string{"task-1", "task-2", "task-3"} {
+		tracker.set(taskID, &FinalizeState{
+			TaskID: taskID,
+			Status: FinalizeStatusRunning,
+		})
+		taskIDCopy := taskID
+		tracker.setCancel(taskID, func() {
+			cancelMu.Lock()
+			canceledTasks[taskIDCopy] = true
+			cancelMu.Unlock()
+		})
+	}
+
+	// Verify cancels are tracked
+	tracker.mu.RLock()
+	if len(tracker.cancels) != 3 {
+		t.Errorf("expected 3 cancels, got %d", len(tracker.cancels))
+	}
+	tracker.mu.RUnlock()
+
+	// Call cancelAll
+	tracker.cancelAll()
+
+	// Verify all cancel functions were called
+	cancelMu.Lock()
+	for _, taskID := range []string{"task-1", "task-2", "task-3"} {
+		if !canceledTasks[taskID] {
+			t.Errorf("cancel function for %s was not called", taskID)
+		}
+	}
+	cancelMu.Unlock()
+
+	// Verify cancels map is empty
+	tracker.mu.RLock()
+	if len(tracker.cancels) != 0 {
+		t.Errorf("expected 0 cancels after cancelAll, got %d", len(tracker.cancels))
+	}
+	tracker.mu.RUnlock()
+}
+
+func TestFinalizeTrackerSetCancelAndCancel(t *testing.T) {
+	// Create a fresh tracker for this test
+	tracker := &finalizeTracker{
+		states:  make(map[string]*FinalizeState),
+		cancels: make(map[string]context.CancelFunc),
+	}
+
+	t.Run("setCancel stores cancel function", func(t *testing.T) {
+		called := false
+		tracker.setCancel("test-task", func() { called = true })
+
+		// Verify it's stored
+		tracker.mu.RLock()
+		_, exists := tracker.cancels["test-task"]
+		tracker.mu.RUnlock()
+
+		if !exists {
+			t.Error("cancel function should be stored")
+		}
+
+		// Call cancel
+		tracker.cancel("test-task")
+
+		if !called {
+			t.Error("cancel function should have been called")
+		}
+
+		// Verify it's removed after cancel
+		tracker.mu.RLock()
+		_, exists = tracker.cancels["test-task"]
+		tracker.mu.RUnlock()
+
+		if exists {
+			t.Error("cancel function should be removed after cancel")
+		}
+	})
+
+	t.Run("cancel is idempotent", func(t *testing.T) {
+		callCount := 0
+		tracker.setCancel("idempotent-task", func() { callCount++ })
+
+		// Call cancel multiple times
+		tracker.cancel("idempotent-task")
+		tracker.cancel("idempotent-task")
+		tracker.cancel("idempotent-task")
+
+		// Should only be called once
+		if callCount != 1 {
+			t.Errorf("cancel should only be called once, got %d", callCount)
+		}
+	})
+
+	t.Run("cancel on non-existent task is safe", func(t *testing.T) {
+		// Should not panic
+		tracker.cancel("non-existent-task")
+	})
+
+	t.Run("delete removes cancel function", func(t *testing.T) {
+		called := false
+		tracker.set("delete-test", &FinalizeState{TaskID: "delete-test"})
+		tracker.setCancel("delete-test", func() { called = true })
+
+		// Delete the task
+		tracker.delete("delete-test")
+
+		// Verify cancel is also removed
+		tracker.mu.RLock()
+		_, exists := tracker.cancels["delete-test"]
+		tracker.mu.RUnlock()
+
+		if exists {
+			t.Error("cancel function should be removed by delete")
+		}
+
+		// The cancel function should not have been called by delete
+		if called {
+			t.Error("delete should not call the cancel function")
+		}
+	})
+}
+
+func TestServerContextOnShutdown(t *testing.T) {
+	// Create server with a context we control
+	ctx, cancel := context.WithCancel(context.Background())
+	serverCtx, _ := context.WithCancel(ctx)
+
+	taskID := "TASK-SHUTDOWN-TEST"
+
+	// Ensure clean state
+	finTracker.delete(taskID)
+
+	// Track if cancel was called via context
+	finState := &FinalizeState{
+		TaskID:    taskID,
+		Status:    FinalizeStatusPending,
+		StartedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	finTracker.set(taskID, finState)
+
+	// Create a derived context and store its cancel
+	derivedCtx, derivedCancel := context.WithCancel(serverCtx)
+	finTracker.setCancel(taskID, derivedCancel)
+
+	// Verify context is not cancelled yet
+	if derivedCtx.Err() != nil {
+		t.Error("derived context should not be cancelled yet")
+	}
+
+	// Cancel the server context (simulating shutdown)
+	cancel()
+
+	// The derived context should now be cancelled (because it's derived from server context)
+	// Wait a moment for propagation
+	time.Sleep(10 * time.Millisecond)
+
+	if derivedCtx.Err() == nil {
+		t.Error("derived context should be cancelled after server context cancel")
+	}
+
+	// Clean up
+	finTracker.delete(taskID)
+}
+
 func TestTriggerFinalizeOnApproval(t *testing.T) {
 	t.Run("does not trigger when config disabled", func(t *testing.T) {
 		backend := createTestBackend(t)
@@ -873,12 +1073,18 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 		// Ensure auto-trigger is enabled
 		orcCfg.Completion.Finalize.AutoTriggerOnApproval = true
 
+		// Create server with context for finalize goroutine management
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(func() { cancel() })
+
 		srv := &Server{
-			workDir:   t.TempDir(),
-			orcConfig: orcCfg,
-			logger:    testLogger(),
-			publisher: events.NewNopPublisher(),
-			backend:   backend,
+			workDir:         t.TempDir(),
+			orcConfig:       orcCfg,
+			logger:          testLogger(),
+			publisher:       events.NewNopPublisher(),
+			backend:         backend,
+			serverCtx:       ctx,
+			serverCtxCancel: cancel,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)

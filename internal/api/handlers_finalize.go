@@ -86,12 +86,14 @@ type FinalizeResponse struct {
 
 // finalizeTracker tracks ongoing finalize operations.
 type finalizeTracker struct {
-	mu     sync.RWMutex
-	states map[string]*FinalizeState
+	mu      sync.RWMutex
+	states  map[string]*FinalizeState
+	cancels map[string]context.CancelFunc
 }
 
 var finTracker = &finalizeTracker{
-	states: make(map[string]*FinalizeState),
+	states:  make(map[string]*FinalizeState),
+	cancels: make(map[string]context.CancelFunc),
 }
 
 // get retrieves the finalize state for a task.
@@ -113,6 +115,35 @@ func (ft *finalizeTracker) delete(taskID string) {
 	ft.mu.Lock()
 	defer ft.mu.Unlock()
 	delete(ft.states, taskID)
+	delete(ft.cancels, taskID)
+}
+
+// setCancel stores the cancel function for a task's finalize goroutine.
+func (ft *finalizeTracker) setCancel(taskID string, cancel context.CancelFunc) {
+	ft.mu.Lock()
+	defer ft.mu.Unlock()
+	ft.cancels[taskID] = cancel
+}
+
+// cancel cancels the finalize operation for a specific task.
+func (ft *finalizeTracker) cancel(taskID string) {
+	ft.mu.Lock()
+	defer ft.mu.Unlock()
+	if cancel, ok := ft.cancels[taskID]; ok {
+		cancel()
+		delete(ft.cancels, taskID)
+	}
+}
+
+// cancelAll cancels all running finalize operations.
+// This is called during server shutdown to prevent goroutine leaks.
+func (ft *finalizeTracker) cancelAll() {
+	ft.mu.Lock()
+	defer ft.mu.Unlock()
+	for taskID, cancel := range ft.cancels {
+		cancel()
+		delete(ft.cancels, taskID)
+	}
 }
 
 // cleanupStale removes completed/failed entries older than the retention period.
@@ -224,8 +255,12 @@ func (s *Server) handleFinalizeTask(w http.ResponseWriter, r *http.Request) {
 	// Publish initial event
 	s.publishFinalizeEvent(taskID, finState)
 
+	// Create cancellable context derived from server context
+	ctx, cancel := context.WithCancel(s.serverCtx)
+	finTracker.setCancel(taskID, cancel)
+
 	// Start async finalize
-	go s.runFinalizeAsync(taskID, t, req, finState)
+	go s.runFinalizeAsync(ctx, taskID, t, req, finState)
 
 	// Return immediate acknowledgment
 	s.jsonResponse(w, FinalizeResponse{
@@ -324,8 +359,16 @@ func (s *Server) handleGetFinalizeStatus(w http.ResponseWriter, r *http.Request)
 }
 
 // runFinalizeAsync runs the finalize operation asynchronously.
-func (s *Server) runFinalizeAsync(taskID string, t *task.Task, _ FinalizeRequest, finState *FinalizeState) {
-	ctx := context.Background()
+// The context should be derived from the server context to support graceful shutdown.
+func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Task, _ FinalizeRequest, finState *FinalizeState) {
+	// Clean up cancel function when done (regardless of success/failure)
+	defer finTracker.cancel(taskID)
+
+	// Check if context is already cancelled (e.g., server shutting down)
+	if ctx.Err() != nil {
+		s.finalizeFailed(taskID, finState, fmt.Errorf("cancelled before start: %w", ctx.Err()))
+		return
+	}
 
 	// Update state to running
 	finState.mu.Lock()
@@ -363,6 +406,12 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, _ FinalizeRequest
 			ID:     "finalize",
 			Status: plan.PhasePending,
 		}
+	}
+
+	// Check for cancellation before creating git service
+	if ctx.Err() != nil {
+		s.finalizeFailed(taskID, finState, fmt.Errorf("cancelled during setup: %w", ctx.Err()))
+		return
 	}
 
 	// Update progress
@@ -426,6 +475,12 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, _ FinalizeRequest
 		}),
 	)
 
+	// Check for cancellation before execution
+	if ctx.Err() != nil {
+		s.finalizeFailed(taskID, finState, fmt.Errorf("cancelled before execution: %w", ctx.Err()))
+		return
+	}
+
 	// Update progress - starting execution
 	finState.mu.Lock()
 	finState.Step = "Executing finalize"
@@ -440,7 +495,7 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, _ FinalizeRequest
 		s.logger.Warn("failed to save state", "error", err)
 	}
 
-	// Execute finalize
+	// Execute finalize (context is passed to executor for cancellation support)
 	result, err := finalizeExec.Execute(ctx, t, finalizePhase, st)
 	if err != nil {
 		st.FailPhase("finalize", err)
@@ -635,8 +690,12 @@ func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error) {
 	// Log the auto-trigger
 	s.logger.Info("auto-triggering finalize on PR approval", "task", taskID)
 
+	// Create cancellable context derived from server context
+	ctx, cancel := context.WithCancel(s.serverCtx)
+	finTracker.setCancel(taskID, cancel)
+
 	// Start async finalize
-	go s.runFinalizeAsync(taskID, t, FinalizeRequest{Force: true}, finState)
+	go s.runFinalizeAsync(ctx, taskID, t, FinalizeRequest{Force: true}, finState)
 
 	return true, nil
 }

@@ -11,7 +11,7 @@ REST API server with WebSocket support for real-time updates.
 | `middleware.go` | CORS middleware | ~50 |
 | `response.go` | JSON response helpers, error handling | ~80 |
 
-### Handler Files (18 total)
+### Handler Files (19 total)
 
 | File | Endpoints | Description |
 |------|-----------|-------------|
@@ -19,6 +19,7 @@ REST API server with WebSocket support for real-time updates.
 | `handlers_attachments.go` | `attachments` | Task file attachments (upload, download, delete) |
 | `handlers_tasks_control.go` | `run`, `pause`, `resume` | Task execution control |
 | `handlers_tasks_state.go` | `state`, `plan`, `transcripts`, `stream` | Task state and streaming |
+| `handlers_finalize.go` | `finalize`, `finalize/status` | Finalize operations with cancellation support |
 | `handlers_projects.go` | `/api/projects/*` | Project-scoped task operations |
 | `handlers_prompts.go` | `/api/prompts/*` | Prompt template management |
 | `handlers_hooks.go` | `/api/hooks/*` | Hook configuration |
@@ -67,9 +68,35 @@ Server
 │   └── Client connections, subscriptions
 ├── PR Poller
 │   └── Background PR status updates
+├── Finalize Tracker
+│   └── In-memory finalize state + cancellation
 └── Event Publisher
     └── Real-time task updates
 ```
+
+### Graceful Shutdown
+
+The server manages background goroutines through `serverCtx`:
+
+```go
+type Server struct {
+    serverCtx       context.Context
+    serverCtxCancel context.CancelFunc
+}
+```
+
+**Shutdown sequence** (triggered when `StartContext` context is cancelled):
+
+1. `serverCtxCancel()` - Signals all background work to stop
+2. `finTracker.cancelAll()` - Terminates running finalize goroutines
+3. `prPoller.Stop()` - Stops PR status polling
+
+**Background services using serverCtx:**
+- `finTracker.startCleanup()` - Periodic stale entry cleanup
+- `prPoller.Start()` - PR status polling
+- `runFinalizeAsync()` - Each finalize operation
+
+**Adding new background goroutines:** Derive context from `s.serverCtx` and check `ctx.Err()` at blocking points to support cancellation.
 
 ## Key Patterns
 
@@ -280,3 +307,4 @@ Test files:
 - `response_test.go` - Response helper tests
 - `websocket_test.go` - WebSocket protocol tests
 - `pr_poller_test.go` - PR poller lifecycle and double-stop safety tests
+- `handlers_finalize_test.go` - Finalize tracker and goroutine cancellation tests

@@ -515,6 +515,7 @@ Patterns, gotchas, and decisions learned during development.
 | FinalizeTracker cleanup | `finalizeTracker` (in-memory map of finalize operations) auto-cleans completed/failed entries after 5 min retention; `startCleanup()` runs in background goroutine triggered by `Server.StartContext()`; running/pending entries never cleaned (active operations); prevents unbounded memory growth from completed finalize operations | TASK-225 |
 | Initiative batch loading | `LoadAllInitiatives()` uses batch queries (`GetAllInitiativeDecisions`, `GetAllInitiativeTaskRefs`, etc.) to fetch all related data in 4 queries instead of N+1 per initiative; batch methods return maps keyed by initiative ID; `GetAllInitiativeTaskRefs()` JOINs tasks table to include title/status | TASK-234 |
 | WorkerPool self-cleanup | Workers remove themselves from `WorkerPool.workers` map immediately on completion/failure via defer in `run()`; frees capacity without waiting for next orchestrator tick; handlers check `GetWorker()` first (idempotent - worker may have self-cleaned) | TASK-238 |
+| Finalize goroutine cancellation | `runFinalizeAsync` goroutines use contexts derived from `Server.serverCtx`; `finalizeTracker.cancels` map stores cancel functions; server shutdown calls `cancelAll()` to terminate running operations; goroutines check `ctx.Err()` at key points to exit cleanly | TASK-226 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
