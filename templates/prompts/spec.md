@@ -7,6 +7,7 @@ You are writing a detailed specification for a task.
 **Task ID**: {{TASK_ID}}
 **Task**: {{TASK_TITLE}}
 **Weight**: {{WEIGHT}}
+**Category**: {{TASK_CATEGORY}}
 **Description**: {{TASK_DESCRIPTION}}
 
 {{INITIATIVE_CONTEXT}}
@@ -34,21 +35,31 @@ You are working in an **isolated git worktree**.
 
 ## Instructions
 
+Create a clear, actionable specification that defines exactly what needs to be done
+and how to verify it's complete. The spec drives all subsequent phases.
+
 ### Step 1: Analyze Requirements
 
 Break down the task into:
-- What needs to be built
-- What already exists
-- What constraints apply
+- What needs to be built/fixed/changed
+- What already exists (relevant code, patterns)
+- What constraints apply (compatibility, performance, security)
 
-### Step 2: Define Success Criteria
+### Step 2: Define Success Criteria (REQUIRED)
 
-Create specific, testable criteria:
-- Each criterion should be verifiable
-- Use concrete conditions (file exists, test passes, API returns X)
-- No vague language ("works well", "is fast")
+Create specific, testable criteria as checkboxes:
+- Each criterion should be verifiable (file exists, test passes, API returns X)
+- Use concrete conditions, not vague language ("works well", "is fast")
+- Include both functional criteria (what it does) and quality criteria (how well)
 
-### Step 3: Define Scope
+### Step 3: Define Testing Requirements (REQUIRED)
+
+Specify what tests must pass to consider the work complete:
+- Unit tests: specific functions/modules to test
+- Integration tests: component interactions to verify
+- E2E tests: user flows to validate (if UI changes)
+
+### Step 4: Define Scope
 
 #### In Scope
 List exactly what will be implemented.
@@ -56,7 +67,7 @@ List exactly what will be implemented.
 #### Out of Scope
 List what will NOT be implemented (prevents scope creep).
 
-### Step 4: Technical Approach
+### Step 5: Technical Approach
 
 Describe:
 - Key files to create/modify
@@ -64,10 +75,69 @@ Describe:
 - Dependencies needed
 - Data structures/schemas
 
-### Step 5: Edge Cases
+### Step 6: Category-Specific Analysis
+
+**For BUG tasks (category = bug):**
+
+#### Bug Analysis
+
+##### Reproduction Steps
+1. [Exact step to reproduce]
+2. [Exact step to reproduce]
+3. [Observe: describe the bug behavior]
+
+##### Current Behavior
+Describe what happens now (the bug).
+
+##### Expected Behavior
+Describe what should happen instead.
+
+##### Root Cause (if known)
+Where the bug originates in the code.
+
+##### Verification Method
+How to confirm the fix works:
+- Manual steps to verify
+- Automated test to add
+
+---
+
+**For FEATURE tasks (category = feature):**
+
+#### Feature Definition
+
+##### User Story
+As a [type of user], I want [feature/capability] so that [benefit/value].
+
+##### Acceptance Criteria
+Specific conditions that must be met for the feature to be accepted:
+- [ ] [Acceptance criterion 1]
+- [ ] [Acceptance criterion 2]
+
+---
+
+**For REFACTOR tasks (category = refactor):**
+
+#### Refactor Scope
+
+##### Before Pattern
+Describe the current code/architecture pattern being refactored.
+
+##### After Pattern
+Describe the target code/architecture pattern.
+
+##### Risk Assessment
+What could break during refactoring:
+- Callers affected
+- Tests that may need updates
+- Integration points to verify
+
+---
+
+### Step 7: Edge Cases
 
 Document:
-- Error conditions
+- Error conditions and how to handle them
 - Boundary values
 - Invalid inputs
 
@@ -85,6 +155,11 @@ Create the spec and wrap it in artifact tags for automatic persistence:
 - [ ] [Criterion 1 - specific and testable]
 - [ ] [Criterion 2 - specific and testable]
 - [ ] [Criterion 3 - specific and testable]
+
+## Testing Requirements
+- [ ] Unit test: [description]
+- [ ] Integration test: [description]
+- [ ] E2E test: [if applicable]
 
 ## Scope
 
@@ -105,6 +180,9 @@ Create the spec and wrap it in artifact tags for automatic persistence:
 
 ### New Files
 - [file1]: [purpose]
+
+## [Category-Specific Section]
+[Include Bug Analysis / Feature Definition / Refactor Scope based on category]
 
 ## Edge Cases
 - [Edge case 1]: [how to handle]
@@ -129,6 +207,7 @@ Then output:
 ### Spec Summary
 
 **Success Criteria**: [count] defined
+**Testing Requirements**: [count] defined
 **Scope**: [narrow/moderate/wide]
 **Commit**: [commit SHA]
 

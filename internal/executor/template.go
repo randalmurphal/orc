@@ -44,6 +44,7 @@ type TemplateVars struct {
 	TaskID           string
 	TaskTitle        string
 	TaskDescription  string
+	TaskCategory     string // Task category (bug, feature, refactor, etc.)
 	Phase            string
 	Weight           string
 	Iteration        int
@@ -172,6 +173,7 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{TASK_ID}}":                vars.TaskID,
 		"{{TASK_TITLE}}":             vars.TaskTitle,
 		"{{TASK_DESCRIPTION}}":       vars.TaskDescription,
+		"{{TASK_CATEGORY}}":          vars.TaskCategory,
 		"{{PHASE}}":                  vars.Phase,
 		"{{WEIGHT}}":                 vars.Weight,
 		"{{ITERATION}}":              fmt.Sprintf("%d", vars.Iteration),
@@ -253,6 +255,7 @@ func BuildTemplateVars(
 		TaskID:          t.ID,
 		TaskTitle:       t.Title,
 		TaskDescription: t.Description,
+		TaskCategory:    string(t.Category),
 		Phase:           p.ID,
 		Weight:          string(t.Weight),
 		Iteration:       iteration,
