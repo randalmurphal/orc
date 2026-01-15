@@ -519,20 +519,21 @@ When `auto_approve` is enabled and the profile is `auto` or `fast`:
 
 ## CI Wait and Auto-Merge
 
-After the finalize phase completes, orc can automatically wait for CI checks to pass and then merge the PR directly. This bypasses GitHub's auto-merge feature (which requires branch protection) and provides full control over the merge process.
+After the finalize phase completes, orc can automatically wait for CI checks to pass and then merge the PR directly via the GitHub REST API. This bypasses GitHub's auto-merge feature (which requires branch protection) and avoids issues with worktrees.
 
-### Why Direct Merge?
+### Why REST API Instead of CLI?
 
-GitHub's built-in auto-merge has limitations:
-- Requires branch protection rules to be configured
-- Self-approval is blocked by GitHub (can't approve your own PR)
-- Less control over merge timing and method
+The `gh pr merge` CLI command has limitations:
+- Tries to fast-forward the local target branch after merge
+- Fails when target branch is checked out in another worktree (common case)
+- Error: `fatal: 'main' is already used by worktree at '/path/to/repo'`
 
-Orc's direct merge flow:
-- Works without branch protection
+Orc's REST API merge flow:
+- Merges server-side only (no local git operations)
+- Works regardless of which branch is checked out locally
 - Polls CI status and merges when all checks pass
-- Configurable timeout and merge method
-- Graceful degradation if merge fails
+- Gets merge commit SHA directly from API response
+- Deletes branch via API after merge (no local branch cleanup issues)
 
 ### Auto-Merge Flow
 
@@ -541,8 +542,9 @@ After finalize phase completes successfully:
 ```
 1. Push finalize changes     → Sync commits, conflict resolutions
 2. Poll CI checks            → Wait for all checks to pass (or timeout)
-3. Merge PR directly         → Use gh pr merge --squash (configurable)
-4. Update task state         → Record merge commit SHA, set status to finished
+3. Merge PR via API          → PUT /repos/{owner}/{repo}/pulls/{number}/merge
+4. Delete branch via API     → DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}
+5. Update task state         → Record merge commit SHA, set status to finished
 ```
 
 ### CI Status Evaluation
@@ -572,11 +574,11 @@ During polling, WebSocket events broadcast progress:
 
 ### Merge Methods
 
-| Method | Flag | Behavior |
-|--------|------|----------|
-| `squash` (default) | `--squash` | Combines all commits into one |
-| `merge` | `--merge` | Creates merge commit |
-| `rebase` | `--rebase` | Rebases commits onto target |
+| Method | API Value | Behavior |
+|--------|-----------|----------|
+| `squash` (default) | `merge_method=squash` | Combines all commits into one |
+| `merge` | `merge_method=merge` | Creates merge commit |
+| `rebase` | `merge_method=rebase` | Rebases commits onto target |
 
 ### Profile Behavior
 

@@ -159,8 +159,24 @@ orc status --plain
 
 ## Self-Improvement Mindset
 
-You're building the tool you're using. If something feels clunky:
-1. Note the friction
-2. Create a task for it
-3. Prioritize based on impact
-4. Keep improving the loop
+You're building the tool you're using. **Friction you experience IS the backlog.**
+
+### Recognize Friction As It Happens
+If during this session you:
+- Can't do something with a CLI command → create task for missing command
+- Have to manually edit a file that should have a command → create task
+- Get a confusing error message → create task to improve it
+- Have to run multiple commands for one action → create task to combine them
+- Can't find information easily → create task for better output/docs
+
+**Don't wait to be told.** If you hit a wall, that wall is a task. Create it immediately:
+```bash
+orc new "CLI: Add command to [action]" --priority high --category feature
+```
+
+### The Loop
+1. Use orc to do work
+2. Notice what's hard/missing
+3. Create task for it
+4. Run the task
+5. Repeat with improved tool

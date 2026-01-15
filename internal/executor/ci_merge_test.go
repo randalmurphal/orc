@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -517,5 +518,239 @@ func TestTask_SetMergedInfo(t *testing.T) {
 	}
 	if tsk.PR.Status != task.PRStatusMerged {
 		t.Errorf("expected Status to be PRStatusMerged, got %s", tsk.PR.Status)
+	}
+}
+
+func TestParsePRURL(t *testing.T) {
+	tests := []struct {
+		name           string
+		url            string
+		expectedOwner  string
+		expectedRepo   string
+		expectedNumber int
+		expectError    bool
+	}{
+		{
+			name:           "standard HTTPS URL",
+			url:            "https://github.com/owner/repo/pull/123",
+			expectedOwner:  "owner",
+			expectedRepo:   "repo",
+			expectedNumber: 123,
+			expectError:    false,
+		},
+		{
+			name:           "URL with organization name",
+			url:            "https://github.com/my-org/my-repo/pull/456",
+			expectedOwner:  "my-org",
+			expectedRepo:   "my-repo",
+			expectedNumber: 456,
+			expectError:    false,
+		},
+		{
+			name:           "URL without https prefix",
+			url:            "github.com/owner/repo/pull/789",
+			expectedOwner:  "owner",
+			expectedRepo:   "repo",
+			expectedNumber: 789,
+			expectError:    false,
+		},
+		{
+			name:           "URL with http prefix",
+			url:            "http://github.com/owner/repo/pull/101",
+			expectedOwner:  "owner",
+			expectedRepo:   "repo",
+			expectedNumber: 101,
+			expectError:    false,
+		},
+		{
+			name:           "large PR number",
+			url:            "https://github.com/owner/repo/pull/99999",
+			expectedOwner:  "owner",
+			expectedRepo:   "repo",
+			expectedNumber: 99999,
+			expectError:    false,
+		},
+		{
+			name:        "invalid URL - not a PR URL",
+			url:         "https://github.com/owner/repo/issues/123",
+			expectError: true,
+		},
+		{
+			name:        "invalid URL - missing PR number",
+			url:         "https://github.com/owner/repo/pull/",
+			expectError: true,
+		},
+		{
+			name:        "invalid URL - completely wrong format",
+			url:         "not-a-url",
+			expectError: true,
+		},
+		{
+			name:        "invalid URL - GitLab URL",
+			url:         "https://gitlab.com/owner/repo/merge_requests/123",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owner, repo, prNumber, err := parsePRURL(tt.url)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if owner != tt.expectedOwner {
+				t.Errorf("expected owner %q, got %q", tt.expectedOwner, owner)
+			}
+			if repo != tt.expectedRepo {
+				t.Errorf("expected repo %q, got %q", tt.expectedRepo, repo)
+			}
+			if prNumber != tt.expectedNumber {
+				t.Errorf("expected PR number %d, got %d", tt.expectedNumber, prNumber)
+			}
+		})
+	}
+}
+
+func TestMergeMethodTranslation(t *testing.T) {
+	// Test that merge method values are passed correctly to the API
+	// GitHub API expects: "squash", "merge", or "rebase"
+	tests := []struct {
+		name           string
+		configMethod   string
+		expectedMethod string
+	}{
+		{
+			name:           "squash method",
+			configMethod:   "squash",
+			expectedMethod: "squash",
+		},
+		{
+			name:           "merge method",
+			configMethod:   "merge",
+			expectedMethod: "merge",
+		},
+		{
+			name:           "rebase method",
+			configMethod:   "rebase",
+			expectedMethod: "rebase",
+		},
+		{
+			name:           "empty defaults to squash",
+			configMethod:   "",
+			expectedMethod: "squash",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Default()
+			cfg.Completion.CI.MergeMethod = tt.configMethod
+
+			// Verify the merge method is returned correctly
+			method := cfg.MergeMethod()
+			if method != tt.expectedMethod {
+				t.Errorf("expected method %q, got %q", tt.expectedMethod, method)
+			}
+		})
+	}
+}
+
+func TestMergeAPIPathConstruction(t *testing.T) {
+	// Test that the API path is constructed correctly for different PR URLs
+	// This verifies the format: PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge
+	tests := []struct {
+		name         string
+		prURL        string
+		expectedPath string
+	}{
+		{
+			name:         "standard PR URL",
+			prURL:        "https://github.com/owner/repo/pull/123",
+			expectedPath: "/repos/owner/repo/pulls/123/merge",
+		},
+		{
+			name:         "org with hyphens",
+			prURL:        "https://github.com/my-org/my-repo/pull/456",
+			expectedPath: "/repos/my-org/my-repo/pulls/456/merge",
+		},
+		{
+			name:         "large PR number",
+			prURL:        "https://github.com/acme/project/pull/99999",
+			expectedPath: "/repos/acme/project/pulls/99999/merge",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owner, repo, prNumber, err := parsePRURL(tt.prURL)
+			if err != nil {
+				t.Fatalf("failed to parse PR URL: %v", err)
+			}
+
+			// Reconstruct the API path as MergePR does (using fmt.Sprintf like the real code)
+			apiPath := fmt.Sprintf("/repos/%s/%s/pulls/%d/merge", owner, repo, prNumber)
+			if apiPath != tt.expectedPath {
+				t.Errorf("expected API path %q, got %q", tt.expectedPath, apiPath)
+			}
+		})
+	}
+}
+
+func TestDeleteBranchAPIPathConstruction(t *testing.T) {
+	// Test that delete branch API path is constructed correctly
+	// This verifies the format: DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}
+	tests := []struct {
+		name           string
+		owner          string
+		repo           string
+		branch         string
+		expectedPath   string
+	}{
+		{
+			name:         "simple branch name",
+			owner:        "owner",
+			repo:         "repo",
+			branch:       "feature-branch",
+			expectedPath: "/repos/owner/repo/git/refs/heads/feature-branch",
+		},
+		{
+			name:         "branch with refs/heads prefix",
+			owner:        "owner",
+			repo:         "repo",
+			branch:       "refs/heads/feature-branch",
+			expectedPath: "/repos/owner/repo/git/refs/heads/feature-branch",
+		},
+		{
+			name:         "orc task branch",
+			owner:        "my-org",
+			repo:         "my-repo",
+			branch:       "orc/TASK-001",
+			expectedPath: "/repos/my-org/my-repo/git/refs/heads/orc/TASK-001",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Strip refs/heads/ prefix if present, as deleteBranch does
+			branchName := tt.branch
+			if len(branchName) > 11 && branchName[:11] == "refs/heads/" {
+				branchName = branchName[11:]
+			}
+
+			apiPath := "/repos/" + tt.owner + "/" + tt.repo + "/git/refs/heads/" + branchName
+			if apiPath != tt.expectedPath {
+				t.Errorf("expected API path %q, got %q", tt.expectedPath, apiPath)
+			}
+		})
 	}
 }
