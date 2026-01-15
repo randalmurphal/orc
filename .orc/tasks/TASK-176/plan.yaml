@@ -1,81 +1,8 @@
 version: 1
-task_id: TASK-176
+task_id: ""
 weight: large
 description: Large task - spec, implement, test, validate with E2E testing
 phases:
-    - id: spec
-      name: spec
-      prompt: |
-        Create a specification for this large task:
-
-        **Task**: {{TASK_TITLE}}
-
-        **Description**: {{TASK_DESCRIPTION}}
-
-        Define:
-        1. Requirements and scope
-        2. Technical approach
-        3. Component breakdown (backend, frontend if applicable)
-        4. API design (if applicable)
-        5. Success criteria with explicit checkboxes
-        6. Testing strategy:
-           - Unit tests
-           - Integration tests
-           - E2E tests (using Playwright MCP tools if frontend exists)
-
-        Include clear completion criteria:
-        - What code must be written
-        - What tests must pass
-        - What E2E scenarios must work
-        - What documentation must exist
-
-        Keep iterating until the specification is clear and complete.
-
-        When done, output:
-        <phase_complete>true</phase_complete>
-      gate:
-        type: auto
-      checkpoint: true
-      status: completed
-      commit_sha: 512468150bafdc42019cd42735425c5f93ffb22f
-    - id: implement
-      name: implement
-      prompt: |
-        Implement the large task according to the specification:
-
-        **Task**: {{TASK_TITLE}}
-
-        **Description**: {{TASK_DESCRIPTION}}
-
-        **Specification**:
-        {{SPEC_CONTENT}}
-
-        {{RETRY_CONTEXT}}
-
-        Implementation protocol:
-        1. Implement all components defined in the spec
-        2. Write unit tests alongside code
-        3. Run tests frequently: `go test ./... -v -race`
-        4. Fix failures before continuing
-        5. If frontend exists:
-           - Implement all components
-           - Add loading/error states
-           - Integrate with API
-
-        Keep iterating until:
-        - All components implemented
-        - All unit tests pass
-        - No race conditions
-
-        When done, output:
-        <phase_complete>true</phase_complete>
-      depends_on:
-        - spec
-      gate:
-        type: auto
-      checkpoint: true
-      status: completed
-      commit_sha: 0f9c095c62a604f3dc977890bea92029231d129f
     - id: test
       name: test
       prompt: |
@@ -122,7 +49,8 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
+      commit_sha: 6b6d9aba1685e7ea005010e97fee9bf0509fa36d
     - id: docs
       name: docs
       prompt: |
