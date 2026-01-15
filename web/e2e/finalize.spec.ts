@@ -25,6 +25,8 @@ import { test, expect, type Page } from '@playwright/test';
 const WS_EVENT_PROPAGATION_MS = 500;
 const WS_PROGRESS_PROPAGATION_MS = 300;
 const UI_SETTLE_MS = 200;
+// Additional wait for modal WebSocket setup - the modal's $effect runs async after mount
+const MODAL_WS_SETUP_MS = 400;
 
 // WebSocket event message structure
 interface WSEvent {
@@ -262,6 +264,10 @@ test.describe('Finalize Workflow', () => {
 					const modal = page.locator('.modal-backdrop[role="dialog"]');
 					await expect(modal).toBeVisible({ timeout: 5000 });
 
+					// Wait for modal's WebSocket listener to initialize
+					// The modal sets up its listener in an $effect after opening
+					await page.waitForTimeout(MODAL_WS_SETUP_MS);
+
 					// Send finalize running event with progress
 					const finalizeEvent = createWSEvent('finalize', taskId, {
 						task_id: taskId,
@@ -377,8 +383,8 @@ test.describe('Finalize Workflow', () => {
 					const modal = page.locator('.modal-backdrop[role="dialog"]');
 					await expect(modal).toBeVisible({ timeout: 5000 });
 
-					// Wait a bit for modal to initialize
-					await page.waitForTimeout(UI_SETTLE_MS);
+					// Wait for modal's WebSocket listener to initialize
+					await page.waitForTimeout(MODAL_WS_SETUP_MS);
 
 					// Send finalize completed event with result
 					const finalizeResult: FinalizeResult = {
@@ -443,8 +449,8 @@ test.describe('Finalize Workflow', () => {
 					const modal = page.locator('.modal-backdrop[role="dialog"]');
 					await expect(modal).toBeVisible({ timeout: 5000 });
 
-					// Wait a bit for modal to initialize
-					await page.waitForTimeout(UI_SETTLE_MS);
+					// Wait for modal's WebSocket listener to initialize
+					await page.waitForTimeout(MODAL_WS_SETUP_MS);
 
 					// Send completed finalize with commit SHA
 					const finalizeEvent = createWSEvent('finalize', taskId, {
@@ -508,8 +514,8 @@ test.describe('Finalize Workflow', () => {
 					const modal = page.locator('.modal-backdrop[role="dialog"]');
 					await expect(modal).toBeVisible({ timeout: 5000 });
 
-					// Wait a bit for modal to initialize
-					await page.waitForTimeout(UI_SETTLE_MS);
+					// Wait for modal's WebSocket listener to initialize
+					await page.waitForTimeout(MODAL_WS_SETUP_MS);
 
 					// Send completed finalize
 					const finalizeEvent = createWSEvent('finalize', taskId, {
@@ -572,6 +578,9 @@ test.describe('Finalize Workflow', () => {
 
 					const modal = page.locator('.modal-backdrop[role="dialog"]');
 					await expect(modal).toBeVisible({ timeout: 5000 });
+
+					// Wait for modal's WebSocket listener to initialize
+					await page.waitForTimeout(MODAL_WS_SETUP_MS);
 
 					// Send failed finalize event
 					const finalizeEvent = createWSEvent('finalize', taskId, {
