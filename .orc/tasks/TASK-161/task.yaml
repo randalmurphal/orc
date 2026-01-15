@@ -29,7 +29,8 @@ description: |-
     - All 10 tests pass
     - Tests cover both success and failure paths
 weight: medium
-status: planned
+status: running
+current_phase: implement
 branch: orc/TASK-161
 queue: active
 priority: normal
@@ -39,4 +40,5 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:19:09.679181722-06:00
-updated_at: 2026-01-14T02:19:09.686359066-06:00
+updated_at: 2026-01-14T22:00:44.457463607-06:00
+started_at: 2026-01-14T22:00:44.457463356-06:00
