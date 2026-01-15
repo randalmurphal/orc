@@ -168,8 +168,12 @@ If during this session you:
 - Get a confusing error message → create task to improve it
 - Have to run multiple commands for one action → create task to combine them
 - Can't find information easily → create task for better output/docs
+- Do the same sequence of steps repeatedly → create task to automate it
+- Wish you could do something that doesn't exist → that wish is a task
+- Think "this would be easier if..." → create task for that feature
+- Feel annoyed by anything → create task to fix it
 
-**Don't wait to be told.** If you hit a wall, that wall is a task. Create it immediately:
+**Don't wait to be told.** If you hit a wall, that wall is a task. If you wish something existed, that's a task. Create it immediately:
 ```bash
 orc new "CLI: Add command to [action]" --priority high --category feature
 ```
