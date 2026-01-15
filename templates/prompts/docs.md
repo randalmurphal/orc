@@ -72,16 +72,27 @@ You are working in an **isolated git worktree**.
 **Before writing ANY new docs, search for stale references:**
 
 ```bash
-# Storage model consistency
-grep -rn "source of truth" docs/ internal/**/CLAUDE.md
-grep -rn "YAML.*source\|hybrid.*storage\|HybridBackend" docs/ internal/
+# Storage model consistency (all locations)
+grep -rn "source of truth" docs/ internal/**/CLAUDE.md web/CLAUDE.md
+grep -rn "YAML.*source\|hybrid.*storage\|HybridBackend" docs/ internal/ web/
+grep -rn "\.yaml.*task\|task.*\.yaml" docs/ CLAUDE.md  # Except FILE_FORMATS.md
+
+# File watcher (deprecated - now uses database events)
+grep -rn "file.*watcher\|watcher\s*monitor\|watcher/" docs/ internal/**/CLAUDE.md web/CLAUDE.md
 
 # Deprecated tech/framework references
-grep -rn "matching Svelte\|mirror.*Svelte" web/ docs/
-grep -rn "watcher/" docs/ internal/CLAUDE.md  # If removed
+grep -rn "matching Svelte\|mirror.*Svelte\|Svelte.*store" web/ docs/
 
-# Superseded ADRs still marked Accepted
-grep -l "Status.*Accepted" docs/decisions/
+# Package-specific staleness
+grep -rn "initiative.*YAML\|YAML.*initiative" internal/initiative/ docs/
+
+# ADR status check
+grep -l "Status.*Accepted" docs/decisions/ | while read f; do
+  echo "Check if superseded: $f"
+done
+
+# Knowledge table duplicate TASK IDs
+grep -oE 'TASK-[0-9]+' CLAUDE.md | sort | uniq -d
 ```
 
 **For EVERY stale reference found:**
@@ -139,6 +150,41 @@ Ensure CLAUDE.md files are:
 - List actual commands that work
 - No duplicate content from parent CLAUDE.md
 
+**Verify line counts (excluding knowledge tables):**
+
+```bash
+# Root CLAUDE.md (target: 150-180, max 400)
+head -n $(grep -n "orc:knowledge:begin" CLAUDE.md | cut -d: -f1) CLAUDE.md | wc -l
+
+# Package CLAUDE.md files (target: 100-150)
+find internal -name "CLAUDE.md" -exec wc -l {} \; | sort -rn
+
+# Web CLAUDE.md (target: 200-250 for complex tools)
+wc -l web/CLAUDE.md
+```
+
+If any file exceeds limits:
+- Extract detailed content to `docs/*.md` or `QUICKREF.md`
+- Keep CLAUDE.md as concise reference with "See X for details"
+
+### Step 5.1: File Layout Accuracy Check
+
+If CLAUDE.md contains a File Layout or Directory Structure section:
+
+```bash
+# Verify documented structure matches reality
+ls -la ~/.orc/ 2>/dev/null || echo "No global ~/.orc/"
+ls -la .orc/ 2>/dev/null || echo "No project .orc/"
+ls .orc/*.db 2>/dev/null || echo "No database files"
+```
+
+**Common issues:**
+- Showing YAML files that no longer exist (task.yaml, state.yaml, plan.yaml)
+- Showing directories that were removed (watcher/)
+- Missing actual structure (orc.db)
+
+Update File Layout to match actual current structure.
+
 ### Step 6: Validate Documentation
 
 - All code blocks have correct syntax highlighting
@@ -171,6 +217,18 @@ Look for the section between `<!-- orc:knowledge:begin -->` and `<!-- orc:knowle
 - Skip if nothing new was learned (empty tables are fine)
 - Edit the tables directly - no special markup needed
 
+**Before adding entries, check for duplicates:**
+
+```bash
+# Extract all TASK-XXX references from knowledge section
+sed -n '/orc:knowledge:begin/,/orc:knowledge:end/p' CLAUDE.md | grep -oE 'TASK-[0-9]+' | sort | uniq -d
+```
+
+If duplicates found, review each case:
+- **Same insight in multiple tables**: Consolidate to most appropriate table (Gotcha > Pattern for bug fixes)
+- **Different insights from same task**: Valid - one task can produce multiple learnings
+- **Example**: TASK-016 can have two Gotchas (embed issue + go.work issue) if they're different problems
+
 ---
 
 ## Validation Checklist (Run Before Completing)
@@ -195,6 +253,16 @@ Look for the section between `<!-- orc:knowledge:begin -->` and `<!-- orc:knowle
 - [ ] Tables over prose for business logic
 - [ ] Bullet points over paragraphs
 - [ ] File references include path (and line when relevant)
+
+### Knowledge Tables
+- [ ] No same-insight duplicates across Patterns/Gotchas/Decisions (different insights OK)
+- [ ] Each entry has Pattern/Issue, Description, and Source columns
+- [ ] Source column uses TASK-XXX format
+
+### File Layout
+- [ ] File Layout section matches actual directory structure
+- [ ] No references to non-existent files (task.yaml, plan.yaml, state.yaml)
+- [ ] Database file (orc.db) shown if applicable
 
 ---
 
