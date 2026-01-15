@@ -90,8 +90,7 @@ description: |-
     ### E2E Tests
     - Button interactions work in context (New Task button, etc.)
 weight: medium
-status: paused
-current_phase: implement
+status: planned
 branch: orc/TASK-203
 queue: active
 priority: high

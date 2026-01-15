@@ -139,8 +139,7 @@ description: |-
     - CommandPalette works
     - TaskEditModal works
 weight: medium
-status: paused
-current_phase: spec
+status: planned
 branch: orc/TASK-211
 queue: active
 priority: high
