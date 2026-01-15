@@ -8,9 +8,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -60,6 +60,12 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			taskID := args[0]
 			newTitle, _ := cmd.Flags().GetString("title")
 			newDescription, _ := cmd.Flags().GetString("description")
@@ -78,7 +84,7 @@ Example:
 			removeRelated, _ := cmd.Flags().GetStringSlice("remove-related")
 
 			// Load task to verify it exists
-			t, err := task.Load(taskID)
+			t, err := backend.LoadTask(taskID)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -157,7 +163,11 @@ Example:
 			if initiativeChanged {
 				if newInitiative != "" {
 					// Verify initiative exists
-					if !initiative.Exists(newInitiative, false) {
+					exists, err := backend.InitiativeExists(newInitiative)
+					if err != nil {
+						return fmt.Errorf("check initiative: %w", err)
+					}
+					if !exists {
 						return fmt.Errorf("initiative %s not found", newInitiative)
 					}
 				}
@@ -173,7 +183,7 @@ Example:
 
 			if hasDepChanges {
 				// Load all tasks for validation
-				allTasks, err := task.LoadAll()
+				allTasks, err := backend.LoadAllTasks()
 				if err != nil {
 					return fmt.Errorf("load tasks for validation: %w", err)
 				}
@@ -298,13 +308,13 @@ Example:
 			}
 
 			// Save task
-			if err := t.Save(); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 
 			// Handle weight change - regenerate plan and reset state
 			if weightChanged {
-				if err := regeneratePlanForWeight(t, oldWeight); err != nil {
+				if err := regeneratePlanForWeight(backend, t, oldWeight); err != nil {
 					return fmt.Errorf("regenerate plan: %w", err)
 				}
 			}
@@ -313,36 +323,21 @@ Example:
 			if initiativeChanged && oldInitiative != t.InitiativeID {
 				// Remove from old initiative if it was linked
 				if oldInitiative != "" {
-					if oldInit, err := initiative.Load(oldInitiative); err == nil {
+					if oldInit, err := backend.LoadInitiative(oldInitiative); err == nil {
 						oldInit.RemoveTask(t.ID)
-						if err := oldInit.Save(); err != nil {
+						if err := backend.SaveInitiative(oldInit); err != nil {
 							fmt.Printf("Warning: failed to remove task from old initiative: %v\n", err)
 						}
 					}
 				}
 				// Add to new initiative if linking
 				if t.HasInitiative() {
-					if newInit, err := initiative.Load(t.InitiativeID); err == nil {
+					if newInit, err := backend.LoadInitiative(t.InitiativeID); err == nil {
 						newInit.AddTask(t.ID, t.Title, nil)
-						if err := newInit.Save(); err != nil {
+						if err := backend.SaveInitiative(newInit); err != nil {
 							fmt.Printf("Warning: failed to add task to new initiative: %v\n", err)
 						}
 					}
-				}
-			}
-
-			// Auto-commit the task changes
-			cfg, err := config.Load()
-			if err == nil && !cfg.Tasks.DisableAutoCommit {
-				projectDir, err := config.FindProjectRoot()
-				if err == nil {
-					commitCfg := task.CommitConfig{
-						ProjectRoot:  projectDir,
-						CommitPrefix: cfg.CommitPrefix,
-					}
-					// Build change description for commit message
-					changeDesc := strings.Join(changes, ", ")
-					task.CommitAndSync(t, "updated "+changeDesc, commitCfg)
 				}
 			}
 
@@ -414,15 +409,23 @@ Example:
 
 // regeneratePlanForWeight creates a new plan based on the task's current weight,
 // preserving completed/skipped phase statuses, and resets the state appropriately.
-func regeneratePlanForWeight(t *task.Task, oldWeight task.Weight) error {
+func regeneratePlanForWeight(backend storage.Backend, t *task.Task, oldWeight task.Weight) error {
+	// Load current plan if it exists
+	oldPlan, _ := backend.LoadPlan(t.ID)
+
 	// Use the shared plan regeneration function
-	result, err := plan.RegeneratePlanForTask(".", t)
+	result, err := plan.RegeneratePlan(t, oldPlan)
 	if err != nil {
 		return err
 	}
 
+	// Save the new plan
+	if err := backend.SavePlan(result.NewPlan, t.ID); err != nil {
+		return fmt.Errorf("save plan: %w", err)
+	}
+
 	// Reset state - but preserve phase states for preserved phases
-	s, err := state.Load(t.ID)
+	s, err := backend.LoadState(t.ID)
 	if err != nil {
 		// State doesn't exist, create new one
 		s = state.New(t.ID)
@@ -450,13 +453,13 @@ func regeneratePlanForWeight(t *task.Task, oldWeight task.Weight) error {
 		s.Phases = newPhases
 	}
 
-	if err := s.Save(); err != nil {
+	if err := backend.SaveState(s); err != nil {
 		return fmt.Errorf("save state: %w", err)
 	}
 
 	// Update task status to planned
 	t.Status = task.StatusPlanned
-	if err := t.Save(); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return fmt.Errorf("update task status: %w", err)
 	}
 

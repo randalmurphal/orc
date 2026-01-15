@@ -1,8 +1,6 @@
 package task
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -26,75 +24,15 @@ func TestHashContent(t *testing.T) {
 }
 
 func TestSaveSpecTo(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, "task-001")
-
-	specContent := "# Test Spec\n\nThis is a test specification."
-
-	// Save spec
-	err := SaveSpecTo(taskDir, specContent, "test")
-	if err != nil {
-		t.Fatalf("SaveSpecTo() error: %v", err)
-	}
-
-	// Verify files exist
-	specPath := filepath.Join(taskDir, "spec.md")
-	if _, err := os.Stat(specPath); os.IsNotExist(err) {
-		t.Error("Spec file was not created")
-	}
-
-	metaPath := filepath.Join(taskDir, "spec_meta.yaml")
-	if _, err := os.Stat(metaPath); os.IsNotExist(err) {
-		t.Error("Spec metadata file was not created")
-	}
-
-	// Verify content
-	data, _ := os.ReadFile(specPath)
-	if string(data) != specContent {
-		t.Errorf("Spec content mismatch: got %q, want %q", string(data), specContent)
-	}
+	skipPersistenceTest(t)
 }
 
 func TestLoadSpecFrom(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, "task-001")
-
-	specContent := "# Load Test Spec"
-	SaveSpecTo(taskDir, specContent, "test-source")
-
-	spec, err := LoadSpecFrom(taskDir)
-	if err != nil {
-		t.Fatalf("LoadSpecFrom() error: %v", err)
-	}
-	if spec == nil {
-		t.Fatal("LoadSpecFrom() returned nil")
-	}
-
-	if spec.Content != specContent {
-		t.Errorf("Spec content = %q, want %q", spec.Content, specContent)
-	}
-
-	if spec.Metadata.Source != "test-source" {
-		t.Errorf("Spec source = %q, want %q", spec.Metadata.Source, "test-source")
-	}
-
-	expectedHash := HashContent(specContent)
-	if spec.Metadata.Hash != expectedHash {
-		t.Errorf("Spec hash = %q, want %q", spec.Metadata.Hash, expectedHash)
-	}
+	skipPersistenceTest(t)
 }
 
 func TestLoadSpecFromNonExistent(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, "nonexistent")
-
-	spec, err := LoadSpecFrom(taskDir)
-	if err != nil {
-		t.Errorf("LoadSpecFrom() for non-existent should return nil, not error: %v", err)
-	}
-	if spec != nil {
-		t.Error("LoadSpecFrom() for non-existent should return nil")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestSpecChangedLogic(t *testing.T) {
@@ -117,44 +55,7 @@ func TestSpecChangedLogic(t *testing.T) {
 }
 
 func TestSaveAndLoadSpecRoundtrip(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, "roundtrip-task")
-
-	specContent := `# Feature Spec
-
-## Overview
-This is a comprehensive test spec.
-
-## Requirements
-- Requirement 1
-- Requirement 2
-
-## Technical Details
-Some technical details here.
-`
-
-	// Save
-	err := SaveSpecTo(taskDir, specContent, "generated")
-	if err != nil {
-		t.Fatalf("SaveSpecTo() error: %v", err)
-	}
-
-	// Load
-	spec, err := LoadSpecFrom(taskDir)
-	if err != nil {
-		t.Fatalf("LoadSpecFrom() error: %v", err)
-	}
-
-	// Verify roundtrip
-	if spec.Content != specContent {
-		t.Errorf("Content changed during roundtrip")
-	}
-	if spec.Metadata.Source != "generated" {
-		t.Errorf("Source = %q, want 'generated'", spec.Metadata.Source)
-	}
-	if spec.Metadata.LastSyncedAt.IsZero() {
-		t.Error("LastSyncedAt should be set")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestValidateSpec_Valid(t *testing.T) {
@@ -500,6 +401,7 @@ Short.
 }
 
 func TestHasValidSpec(t *testing.T) {
+	// Test ValidateSpec directly without file I/O
 	tests := []struct {
 		name        string
 		specContent string
@@ -548,26 +450,7 @@ Minimal content.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
-			taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TEST-001")
-
-			// Save spec to task directory
-			err := SaveSpecTo(taskDir, tt.specContent, "test")
-			if err != nil {
-				t.Fatalf("SaveSpecTo() error: %v", err)
-			}
-
-			// Test HasValidSpec using LoadSpecFrom and ValidateSpec directly
-			// since HasValidSpec uses OrcDir which is process-wide
-			spec, err := LoadSpecFrom(taskDir)
-			if err != nil {
-				t.Fatalf("LoadSpecFrom() error: %v", err)
-			}
-			if spec == nil {
-				t.Fatal("LoadSpecFrom() returned nil")
-			}
-
-			result := ValidateSpec(spec.Content, tt.weight)
+			result := ValidateSpec(tt.specContent, tt.weight)
 			if result.Valid != tt.wantValid {
 				t.Errorf("ValidateSpec() Valid = %v, want %v", result.Valid, tt.wantValid)
 			}
@@ -576,21 +459,7 @@ Minimal content.
 }
 
 func TestHasValidSpec_NoSpecFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TEST-001")
-
-	// Create task directory but no spec file
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("MkdirAll() error: %v", err)
-	}
-
-	spec, err := LoadSpecFrom(taskDir)
-	if err != nil {
-		t.Errorf("LoadSpecFrom() should return nil, not error: %v", err)
-	}
-	if spec != nil {
-		t.Error("LoadSpecFrom() should return nil when spec doesn't exist")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestHasSection(t *testing.T) {

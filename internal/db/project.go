@@ -143,16 +143,20 @@ type Task struct {
 	Description  string
 	Weight       string
 	Status       string
+	StateStatus  string // State status: pending, running, completed, failed, paused, interrupted, skipped
 	CurrentPhase string
 	Branch       string
 	WorktreePath string
 	Queue        string // "active" or "backlog"
 	Priority     string // "critical", "high", "normal", "low"
 	Category     string // "feature", "bug", "refactor", "chore", "docs", "test"
+	InitiativeID string // Links this task to an initiative (e.g., INIT-001)
 	CreatedAt    time.Time
 	StartedAt    *time.Time
 	CompletedAt  *time.Time
 	TotalCostUSD float64
+	Metadata     string // JSON object: {"key": "value", ...}
+	RetryContext string // JSON: state.RetryContext serialized
 }
 
 // SaveTask creates or updates a task.
@@ -181,25 +185,35 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 		category = "feature"
 	}
 
+	// Default state_status if not set
+	stateStatus := t.StateStatus
+	if stateStatus == "" {
+		stateStatus = "pending"
+	}
+
 	_, err := p.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, category, created_at, started_at, completed_at, total_cost_usd)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
 			weight = excluded.weight,
 			status = excluded.status,
+			state_status = excluded.state_status,
 			current_phase = excluded.current_phase,
 			branch = excluded.branch,
 			worktree_path = excluded.worktree_path,
 			queue = excluded.queue,
 			priority = excluded.priority,
 			category = excluded.category,
+			initiative_id = excluded.initiative_id,
 			started_at = excluded.started_at,
 			completed_at = excluded.completed_at,
-			total_cost_usd = excluded.total_cost_usd
-	`, t.ID, t.Title, t.Description, t.Weight, t.Status, t.CurrentPhase, t.Branch, t.WorktreePath,
-		queue, priority, category, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD)
+			total_cost_usd = excluded.total_cost_usd,
+			metadata = excluded.metadata,
+			retry_context = excluded.retry_context
+	`, t.ID, t.Title, t.Description, t.Weight, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
+		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
@@ -209,7 +223,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 // GetTask retrieves a task by ID.
 func (p *ProjectDB) GetTask(id string) (*Task, error) {
 	row := p.QueryRow(`
-		SELECT id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, category, created_at, started_at, completed_at, total_cost_usd
+		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context
 		FROM tasks WHERE id = ?
 	`, id)
 
@@ -272,7 +286,7 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 
 	// Query tasks
 	query := `
-		SELECT id, title, description, weight, status, current_phase, branch, worktree_path, queue, priority, category, created_at, started_at, completed_at, total_cost_usd
+		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context
 		FROM tasks
 	` + whereClause + " ORDER BY created_at DESC"
 
@@ -314,15 +328,20 @@ func scanTask(row *sql.Row) (*Task, error) {
 	var t Task
 	var createdAt string
 	var startedAt, completedAt sql.NullString
-	var description, currentPhase, branch, worktreePath, queue, priority, category sql.NullString
+	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext sql.NullString
 
-	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &currentPhase, &branch, &worktreePath,
-		&queue, &priority, &category, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD); err != nil {
+	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
+		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext); err != nil {
 		return nil, err
 	}
 
 	if description.Valid {
 		t.Description = description.String
+	}
+	if stateStatus.Valid {
+		t.StateStatus = stateStatus.String
+	} else {
+		t.StateStatus = "pending" // Default
 	}
 	if currentPhase.Valid {
 		t.CurrentPhase = currentPhase.String
@@ -347,6 +366,15 @@ func scanTask(row *sql.Row) (*Task, error) {
 		t.Category = category.String
 	} else {
 		t.Category = "feature" // Default
+	}
+	if initiativeID.Valid {
+		t.InitiativeID = initiativeID.String
+	}
+	if metadata.Valid {
+		t.Metadata = metadata.String
+	}
+	if retryContext.Valid {
+		t.RetryContext = retryContext.String
 	}
 
 	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
@@ -371,15 +399,20 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	var t Task
 	var createdAt string
 	var startedAt, completedAt sql.NullString
-	var description, currentPhase, branch, worktreePath, queue, priority, category sql.NullString
+	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext sql.NullString
 
-	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &currentPhase, &branch, &worktreePath,
-		&queue, &priority, &category, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD); err != nil {
+	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
+		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext); err != nil {
 		return nil, err
 	}
 
 	if description.Valid {
 		t.Description = description.String
+	}
+	if stateStatus.Valid {
+		t.StateStatus = stateStatus.String
+	} else {
+		t.StateStatus = "pending" // Default
 	}
 	if currentPhase.Valid {
 		t.CurrentPhase = currentPhase.String
@@ -404,6 +437,15 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 		t.Category = category.String
 	} else {
 		t.Category = "feature" // Default
+	}
+	if initiativeID.Valid {
+		t.InitiativeID = initiativeID.String
+	}
+	if metadata.Valid {
+		t.Metadata = metadata.String
+	}
+	if retryContext.Valid {
+		t.RetryContext = retryContext.String
 	}
 
 	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
@@ -435,6 +477,8 @@ type Phase struct {
 	OutputTokens int
 	CostUSD      float64
 	ErrorMessage string
+	CommitSHA    string
+	SkipReason   string
 }
 
 // SavePhase creates or updates a phase.
@@ -450,8 +494,8 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 	}
 
 	_, err := p.Exec(`
-		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(task_id, phase_id) DO UPDATE SET
 			status = excluded.status,
 			iterations = excluded.iterations,
@@ -460,9 +504,11 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 			input_tokens = excluded.input_tokens,
 			output_tokens = excluded.output_tokens,
 			cost_usd = excluded.cost_usd,
-			error_message = excluded.error_message
+			error_message = excluded.error_message,
+			commit_sha = excluded.commit_sha,
+			skip_reason = excluded.skip_reason
 	`, ph.TaskID, ph.PhaseID, ph.Status, ph.Iterations, startedAt, completedAt,
-		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage)
+		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason)
 	if err != nil {
 		return fmt.Errorf("save phase: %w", err)
 	}
@@ -472,7 +518,7 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 // GetPhases retrieves all phases for a task.
 func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 	rows, err := p.Query(`
-		SELECT task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message
+		SELECT task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason
 		FROM phases WHERE task_id = ?
 	`, taskID)
 	if err != nil {
@@ -483,9 +529,9 @@ func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 	var phases []Phase
 	for rows.Next() {
 		var ph Phase
-		var startedAt, completedAt, errorMsg sql.NullString
+		var startedAt, completedAt, errorMsg, commitSHA, skipReason sql.NullString
 		if err := rows.Scan(&ph.TaskID, &ph.PhaseID, &ph.Status, &ph.Iterations, &startedAt, &completedAt,
-			&ph.InputTokens, &ph.OutputTokens, &ph.CostUSD, &errorMsg); err != nil {
+			&ph.InputTokens, &ph.OutputTokens, &ph.CostUSD, &errorMsg, &commitSHA, &skipReason); err != nil {
 			return nil, fmt.Errorf("scan phase: %w", err)
 		}
 		if startedAt.Valid {
@@ -501,6 +547,12 @@ func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 		if errorMsg.Valid {
 			ph.ErrorMessage = errorMsg.String
 		}
+		if commitSHA.Valid {
+			ph.CommitSHA = commitSHA.String
+		}
+		if skipReason.Valid {
+			ph.SkipReason = skipReason.String
+		}
 		phases = append(phases, ph)
 	}
 	if err := rows.Err(); err != nil {
@@ -508,6 +560,15 @@ func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 	}
 
 	return phases, nil
+}
+
+// ClearPhases removes all phases for a task.
+func (p *ProjectDB) ClearPhases(taskID string) error {
+	_, err := p.Exec("DELETE FROM phases WHERE task_id = ?", taskID)
+	if err != nil {
+		return fmt.Errorf("clear phases: %w", err)
+	}
+	return nil
 }
 
 // Transcript represents a transcript entry.
@@ -1068,4 +1129,654 @@ func (p *ProjectDB) ClearInitiativeDependencies(initiativeID string) error {
 		return fmt.Errorf("clear initiative dependencies: %w", err)
 	}
 	return nil
+}
+
+// ClearInitiativeTasks removes all task references from an initiative.
+func (p *ProjectDB) ClearInitiativeTasks(initiativeID string) error {
+	_, err := p.Exec(`DELETE FROM initiative_tasks WHERE initiative_id = ?`, initiativeID)
+	if err != nil {
+		return fmt.Errorf("clear initiative tasks: %w", err)
+	}
+	return nil
+}
+
+// ============================================================================
+// Plan operations (for pure SQL storage mode)
+// ============================================================================
+
+// Plan represents an execution plan stored in the database.
+type Plan struct {
+	TaskID      string
+	Version     int
+	Weight      string
+	Description string
+	Phases      string // JSON array of phase definitions
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+// SavePlan creates or updates a plan.
+func (p *ProjectDB) SavePlan(plan *Plan) error {
+	now := time.Now().Format(time.RFC3339)
+	if plan.CreatedAt.IsZero() {
+		plan.CreatedAt = time.Now()
+	}
+
+	_, err := p.Exec(`
+		INSERT INTO plans (task_id, version, weight, description, phases, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(task_id) DO UPDATE SET
+			version = excluded.version,
+			weight = excluded.weight,
+			description = excluded.description,
+			phases = excluded.phases,
+			updated_at = excluded.updated_at
+	`, plan.TaskID, plan.Version, plan.Weight, plan.Description, plan.Phases,
+		plan.CreatedAt.Format(time.RFC3339), now)
+	if err != nil {
+		return fmt.Errorf("save plan: %w", err)
+	}
+	return nil
+}
+
+// GetPlan retrieves a plan by task ID.
+func (p *ProjectDB) GetPlan(taskID string) (*Plan, error) {
+	row := p.QueryRow(`
+		SELECT task_id, version, weight, description, phases, created_at, updated_at
+		FROM plans WHERE task_id = ?
+	`, taskID)
+
+	var plan Plan
+	var description sql.NullString
+	var createdAt, updatedAt string
+
+	if err := row.Scan(&plan.TaskID, &plan.Version, &plan.Weight, &description, &plan.Phases, &createdAt, &updatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get plan %s: %w", taskID, err)
+	}
+
+	if description.Valid {
+		plan.Description = description.String
+	}
+	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
+		plan.CreatedAt = ts
+	}
+	if ts, err := time.Parse(time.RFC3339, updatedAt); err == nil {
+		plan.UpdatedAt = ts
+	}
+
+	return &plan, nil
+}
+
+// DeletePlan removes a plan.
+func (p *ProjectDB) DeletePlan(taskID string) error {
+	_, err := p.Exec("DELETE FROM plans WHERE task_id = ?", taskID)
+	if err != nil {
+		return fmt.Errorf("delete plan: %w", err)
+	}
+	return nil
+}
+
+// ============================================================================
+// Spec operations (for pure SQL storage mode)
+// ============================================================================
+
+// Spec represents a task specification stored in the database.
+type Spec struct {
+	TaskID      string
+	Content     string
+	ContentHash string
+	Source      string // 'file', 'db', 'generated', 'migrated'
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+// SaveSpec creates or updates a spec.
+func (p *ProjectDB) SaveSpec(spec *Spec) error {
+	now := time.Now().Format(time.RFC3339)
+	if spec.CreatedAt.IsZero() {
+		spec.CreatedAt = time.Now()
+	}
+
+	_, err := p.Exec(`
+		INSERT INTO specs (task_id, content, content_hash, source, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(task_id) DO UPDATE SET
+			content = excluded.content,
+			content_hash = excluded.content_hash,
+			source = excluded.source,
+			updated_at = excluded.updated_at
+	`, spec.TaskID, spec.Content, spec.ContentHash, spec.Source,
+		spec.CreatedAt.Format(time.RFC3339), now)
+	if err != nil {
+		return fmt.Errorf("save spec: %w", err)
+	}
+	return nil
+}
+
+// GetSpec retrieves a spec by task ID.
+func (p *ProjectDB) GetSpec(taskID string) (*Spec, error) {
+	row := p.QueryRow(`
+		SELECT task_id, content, content_hash, source, created_at, updated_at
+		FROM specs WHERE task_id = ?
+	`, taskID)
+
+	var spec Spec
+	var contentHash, source sql.NullString
+	var createdAt, updatedAt string
+
+	if err := row.Scan(&spec.TaskID, &spec.Content, &contentHash, &source, &createdAt, &updatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get spec %s: %w", taskID, err)
+	}
+
+	if contentHash.Valid {
+		spec.ContentHash = contentHash.String
+	}
+	if source.Valid {
+		spec.Source = source.String
+	}
+	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
+		spec.CreatedAt = ts
+	}
+	if ts, err := time.Parse(time.RFC3339, updatedAt); err == nil {
+		spec.UpdatedAt = ts
+	}
+
+	return &spec, nil
+}
+
+// DeleteSpec removes a spec.
+func (p *ProjectDB) DeleteSpec(taskID string) error {
+	_, err := p.Exec("DELETE FROM specs WHERE task_id = ?", taskID)
+	if err != nil {
+		return fmt.Errorf("delete spec: %w", err)
+	}
+	return nil
+}
+
+// SpecExists checks if a spec exists for a task.
+func (p *ProjectDB) SpecExists(taskID string) (bool, error) {
+	var count int
+	err := p.QueryRow("SELECT COUNT(*) FROM specs WHERE task_id = ?", taskID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("check spec exists: %w", err)
+	}
+	return count > 0, nil
+}
+
+// SearchSpecs performs full-text search on spec content.
+func (p *ProjectDB) SearchSpecs(query string) ([]TranscriptMatch, error) {
+	var rows *sql.Rows
+	var err error
+
+	if p.Dialect() == driver.DialectSQLite {
+		sanitized := `"` + escapeQuotes(query) + `"`
+		rows, err = p.Query(`
+			SELECT task_id, '' as phase, snippet(specs_fts, 0, '<mark>', '</mark>', '...', 32), rank
+			FROM specs_fts
+			WHERE content MATCH ?
+			ORDER BY rank
+			LIMIT 50
+		`, sanitized)
+	} else {
+		likePattern := "%" + query + "%"
+		rows, err = p.Query(`
+			SELECT task_id, '' as phase,
+				SUBSTRING(content FROM GREATEST(1, POSITION($1 IN content) - 20) FOR 64) as snippet,
+				0.0 as rank
+			FROM specs
+			WHERE content ILIKE $2
+			ORDER BY task_id
+			LIMIT 50
+		`, query, likePattern)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("search specs: %w", err)
+	}
+	defer rows.Close()
+
+	var matches []TranscriptMatch
+	for rows.Next() {
+		var m TranscriptMatch
+		if err := rows.Scan(&m.TaskID, &m.Phase, &m.Snippet, &m.Rank); err != nil {
+			return nil, fmt.Errorf("scan spec match: %w", err)
+		}
+		matches = append(matches, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate spec matches: %w", err)
+	}
+
+	return matches, nil
+}
+
+// ============================================================================
+// Gate decision operations (for pure SQL storage mode)
+// ============================================================================
+
+// GateDecision represents a gate approval decision.
+type GateDecision struct {
+	ID        int64
+	TaskID    string
+	Phase     string
+	GateType  string // 'auto', 'ai', 'human', 'skip'
+	Approved  bool
+	Reason    string
+	DecidedBy string
+	DecidedAt time.Time
+}
+
+// AddGateDecision records a gate decision.
+func (p *ProjectDB) AddGateDecision(d *GateDecision) error {
+	approved := 0
+	if d.Approved {
+		approved = 1
+	}
+	if d.DecidedAt.IsZero() {
+		d.DecidedAt = time.Now()
+	}
+
+	result, err := p.Exec(`
+		INSERT INTO gate_decisions (task_id, phase, gate_type, approved, reason, decided_by, decided_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, d.TaskID, d.Phase, d.GateType, approved, d.Reason, d.DecidedBy, d.DecidedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("add gate decision: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	d.ID = id
+	return nil
+}
+
+// GetGateDecisions retrieves all gate decisions for a task.
+func (p *ProjectDB) GetGateDecisions(taskID string) ([]GateDecision, error) {
+	rows, err := p.Query(`
+		SELECT id, task_id, phase, gate_type, approved, reason, decided_by, decided_at
+		FROM gate_decisions WHERE task_id = ? ORDER BY decided_at
+	`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get gate decisions: %w", err)
+	}
+	defer rows.Close()
+
+	var decisions []GateDecision
+	for rows.Next() {
+		var d GateDecision
+		var approved int
+		var reason, decidedBy sql.NullString
+		var decidedAt string
+
+		if err := rows.Scan(&d.ID, &d.TaskID, &d.Phase, &d.GateType, &approved, &reason, &decidedBy, &decidedAt); err != nil {
+			return nil, fmt.Errorf("scan gate decision: %w", err)
+		}
+
+		d.Approved = approved == 1
+		if reason.Valid {
+			d.Reason = reason.String
+		}
+		if decidedBy.Valid {
+			d.DecidedBy = decidedBy.String
+		}
+		if ts, err := time.Parse(time.RFC3339, decidedAt); err == nil {
+			d.DecidedAt = ts
+		}
+
+		decisions = append(decisions, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate gate decisions: %w", err)
+	}
+
+	return decisions, nil
+}
+
+// GetGateDecisionForPhase retrieves the gate decision for a specific phase.
+func (p *ProjectDB) GetGateDecisionForPhase(taskID, phase string) (*GateDecision, error) {
+	row := p.QueryRow(`
+		SELECT id, task_id, phase, gate_type, approved, reason, decided_by, decided_at
+		FROM gate_decisions WHERE task_id = ? AND phase = ?
+		ORDER BY decided_at DESC LIMIT 1
+	`, taskID, phase)
+
+	var d GateDecision
+	var approved int
+	var reason, decidedBy sql.NullString
+	var decidedAt string
+
+	if err := row.Scan(&d.ID, &d.TaskID, &d.Phase, &d.GateType, &approved, &reason, &decidedBy, &decidedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get gate decision: %w", err)
+	}
+
+	d.Approved = approved == 1
+	if reason.Valid {
+		d.Reason = reason.String
+	}
+	if decidedBy.Valid {
+		d.DecidedBy = decidedBy.String
+	}
+	if ts, err := time.Parse(time.RFC3339, decidedAt); err == nil {
+		d.DecidedAt = ts
+	}
+
+	return &d, nil
+}
+
+// ============================================================================
+// Attachment operations (for pure SQL storage mode)
+// ============================================================================
+
+// Attachment represents a task attachment stored in the database.
+type Attachment struct {
+	ID          int64
+	TaskID      string
+	Filename    string
+	ContentType string
+	SizeBytes   int64
+	Data        []byte
+	IsImage     bool
+	CreatedAt   time.Time
+}
+
+// SaveAttachment stores an attachment in the database.
+func (p *ProjectDB) SaveAttachment(a *Attachment) error {
+	isImage := 0
+	if a.IsImage {
+		isImage = 1
+	}
+	if a.CreatedAt.IsZero() {
+		a.CreatedAt = time.Now()
+	}
+
+	result, err := p.Exec(`
+		INSERT INTO task_attachments (task_id, filename, content_type, size_bytes, data, is_image, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(task_id, filename) DO UPDATE SET
+			content_type = excluded.content_type,
+			size_bytes = excluded.size_bytes,
+			data = excluded.data,
+			is_image = excluded.is_image
+	`, a.TaskID, a.Filename, a.ContentType, a.SizeBytes, a.Data, isImage, a.CreatedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("save attachment: %w", err)
+	}
+	if a.ID == 0 {
+		id, _ := result.LastInsertId()
+		a.ID = id
+	}
+	return nil
+}
+
+// GetAttachment retrieves an attachment by task ID and filename.
+func (p *ProjectDB) GetAttachment(taskID, filename string) (*Attachment, error) {
+	row := p.QueryRow(`
+		SELECT id, task_id, filename, content_type, size_bytes, data, is_image, created_at
+		FROM task_attachments WHERE task_id = ? AND filename = ?
+	`, taskID, filename)
+
+	var a Attachment
+	var contentType sql.NullString
+	var isImage int
+	var createdAt string
+
+	if err := row.Scan(&a.ID, &a.TaskID, &a.Filename, &contentType, &a.SizeBytes, &a.Data, &isImage, &createdAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get attachment: %w", err)
+	}
+
+	if contentType.Valid {
+		a.ContentType = contentType.String
+	}
+	a.IsImage = isImage == 1
+	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
+		a.CreatedAt = ts
+	}
+
+	return &a, nil
+}
+
+// ListAttachments retrieves attachment metadata for a task (without data).
+func (p *ProjectDB) ListAttachments(taskID string) ([]Attachment, error) {
+	rows, err := p.Query(`
+		SELECT id, task_id, filename, content_type, size_bytes, is_image, created_at
+		FROM task_attachments WHERE task_id = ? ORDER BY filename
+	`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("list attachments: %w", err)
+	}
+	defer rows.Close()
+
+	var attachments []Attachment
+	for rows.Next() {
+		var a Attachment
+		var contentType sql.NullString
+		var isImage int
+		var createdAt string
+
+		if err := rows.Scan(&a.ID, &a.TaskID, &a.Filename, &contentType, &a.SizeBytes, &isImage, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan attachment: %w", err)
+		}
+
+		if contentType.Valid {
+			a.ContentType = contentType.String
+		}
+		a.IsImage = isImage == 1
+		if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
+			a.CreatedAt = ts
+		}
+
+		attachments = append(attachments, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate attachments: %w", err)
+	}
+
+	return attachments, nil
+}
+
+// DeleteAttachment removes an attachment.
+// Returns an error containing "not found" if the attachment doesn't exist.
+func (p *ProjectDB) DeleteAttachment(taskID, filename string) error {
+	result, err := p.Exec("DELETE FROM task_attachments WHERE task_id = ? AND filename = ?", taskID, filename)
+	if err != nil {
+		return fmt.Errorf("delete attachment: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("attachment %s not found", filename)
+	}
+
+	return nil
+}
+
+// DeleteAllAttachments removes all attachments for a task.
+func (p *ProjectDB) DeleteAllAttachments(taskID string) error {
+	_, err := p.Exec("DELETE FROM task_attachments WHERE task_id = ?", taskID)
+	if err != nil {
+		return fmt.Errorf("delete all attachments: %w", err)
+	}
+	return nil
+}
+
+// ============================================================================
+// Sync state operations (for CR-SQLite P2P sync)
+// ============================================================================
+
+// SyncState represents the sync state for P2P replication.
+type SyncState struct {
+	SiteID          string
+	LastSyncVersion int64
+	LastSyncAt      *time.Time
+	SyncEnabled     bool
+	SyncMode        string // 'none', 'folder', 'http'
+	SyncEndpoint    string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+// GetSyncState retrieves the sync state.
+func (p *ProjectDB) GetSyncState() (*SyncState, error) {
+	row := p.QueryRow(`
+		SELECT site_id, last_sync_version, last_sync_at, sync_enabled, sync_mode, sync_endpoint, created_at, updated_at
+		FROM sync_state WHERE id = 1
+	`)
+
+	var s SyncState
+	var lastSyncAt, syncEndpoint sql.NullString
+	var syncEnabled int
+	var createdAt, updatedAt string
+
+	if err := row.Scan(&s.SiteID, &s.LastSyncVersion, &lastSyncAt, &syncEnabled, &s.SyncMode, &syncEndpoint, &createdAt, &updatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get sync state: %w", err)
+	}
+
+	s.SyncEnabled = syncEnabled == 1
+	if lastSyncAt.Valid {
+		if ts, err := time.Parse(time.RFC3339, lastSyncAt.String); err == nil {
+			s.LastSyncAt = &ts
+		}
+	}
+	if syncEndpoint.Valid {
+		s.SyncEndpoint = syncEndpoint.String
+	}
+	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
+		s.CreatedAt = ts
+	}
+	if ts, err := time.Parse(time.RFC3339, updatedAt); err == nil {
+		s.UpdatedAt = ts
+	}
+
+	return &s, nil
+}
+
+// UpdateSyncState updates the sync state.
+func (p *ProjectDB) UpdateSyncState(s *SyncState) error {
+	now := time.Now().Format(time.RFC3339)
+	syncEnabled := 0
+	if s.SyncEnabled {
+		syncEnabled = 1
+	}
+
+	var lastSyncAt *string
+	if s.LastSyncAt != nil {
+		ts := s.LastSyncAt.Format(time.RFC3339)
+		lastSyncAt = &ts
+	}
+
+	_, err := p.Exec(`
+		UPDATE sync_state SET
+			last_sync_version = ?,
+			last_sync_at = ?,
+			sync_enabled = ?,
+			sync_mode = ?,
+			sync_endpoint = ?,
+			updated_at = ?
+		WHERE id = 1
+	`, s.LastSyncVersion, lastSyncAt, syncEnabled, s.SyncMode, s.SyncEndpoint, now)
+	if err != nil {
+		return fmt.Errorf("update sync state: %w", err)
+	}
+	return nil
+}
+
+// ============================================================================
+// Extended Task operations (for pure SQL storage mode)
+// ============================================================================
+
+// TaskFull represents a task with all fields for database-only storage.
+type TaskFull struct {
+	Task
+
+	// PR info
+	PRUrl           string
+	PRNumber        int
+	PRStatus        string
+	PRChecksStatus  string
+	PRMergeable     bool
+	PRReviewCount   int
+	PRApprovalCount int
+	PRMerged        bool
+	PRMergedAt      *time.Time
+	PRMergeCommitSHA string
+	PRTargetBranch  string
+	PRLastCheckedAt *time.Time
+
+	// Testing
+	TestingRequirements string // JSON
+	RequiresUITesting   bool
+
+	// Metadata
+	Tags           string // JSON array
+	InitiativeID   string
+	MetadataSource string
+	CreatedBy      string
+
+	// Execution tracking
+	ExecutorPID       int
+	ExecutorHostname  string
+	ExecutorStartedAt *time.Time
+	LastHeartbeat     *time.Time
+
+	// Session tracking
+	SessionID           string
+	SessionModel        string
+	SessionStatus       string
+	SessionCreatedAt    *time.Time
+	SessionLastActivity *time.Time
+	SessionTurnCount    int
+
+	// Token tracking
+	InputTokens         int
+	OutputTokens        int
+	CacheCreationTokens int
+	CacheReadTokens     int
+	TotalTokens         int
+
+	// Retry context
+	RetryContext string // JSON
+}
+
+// GetNextTaskID generates the next task ID.
+func (p *ProjectDB) GetNextTaskID() (string, error) {
+	var maxID sql.NullString
+	err := p.QueryRow(`
+		SELECT id FROM tasks
+		WHERE id LIKE 'TASK-%'
+		ORDER BY CAST(SUBSTR(id, 6) AS INTEGER) DESC
+		LIMIT 1
+	`).Scan(&maxID)
+
+	if err != nil && err != sql.ErrNoRows {
+		return "", fmt.Errorf("get max task id: %w", err)
+	}
+
+	if !maxID.Valid || maxID.String == "" {
+		return "TASK-001", nil
+	}
+
+	// Extract number and increment
+	var num int
+	_, err = fmt.Sscanf(maxID.String, "TASK-%d", &num)
+	if err != nil {
+		return "TASK-001", nil
+	}
+
+	return fmt.Sprintf("TASK-%03d", num+1), nil
 }

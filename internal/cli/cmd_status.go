@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -57,7 +56,13 @@ Examples:
 }
 
 func showStatus(showAll bool) error {
-	tasks, err := task.LoadAll()
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer backend.Close()
+
+	tasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return fmt.Errorf("load tasks: %w", err)
 	}
@@ -78,13 +83,21 @@ func showStatus(showAll bool) error {
 		taskMap[t.ID] = t
 	}
 
-	// Check for orphaned tasks
-	orphans, err := state.FindOrphanedTasks()
-	if err != nil {
-		// Log but don't fail - orphan detection is supplementary
-		fmt.Fprintf(os.Stderr, "warning: could not check for orphaned tasks: %v\n", err)
+	// Check for orphaned tasks by loading states
+	type orphanInfo struct {
+		TaskID string
+		Reason string
 	}
-	orphanedIDs := make(map[string]state.OrphanInfo)
+	var orphans []orphanInfo
+	states, stateErr := backend.LoadAllStates()
+	if stateErr == nil {
+		for _, s := range states {
+			if isOrphaned, reason := s.CheckOrphaned(); isOrphaned {
+				orphans = append(orphans, orphanInfo{TaskID: s.TaskID, Reason: reason})
+			}
+		}
+	}
+	orphanedIDs := make(map[string]orphanInfo)
 	for _, o := range orphans {
 		orphanedIDs[o.TaskID] = o
 	}

@@ -1,7 +1,7 @@
 package cli
 
-// NOTE: Tests in this file use os.Chdir() which is process-wide and not goroutine-safe.
-// These tests MUST NOT use t.Parallel() and run sequentially within this package.
+// NOTE: Tests in this file use the backend pattern with temporary directories.
+// The edit command creates its own backend based on working directory.
 
 import (
 	"os"
@@ -10,43 +10,32 @@ import (
 
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// withEditTestDir creates a temp directory with task structure, changes to it,
-// and restores the original working directory when the test completes.
-func withEditTestDir(t *testing.T) string {
+// createEditTestBackend creates a backend for testing edit operations.
+func createEditTestBackend(t *testing.T) (storage.Backend, string) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir)
-	taskDir := filepath.Join(tasksDir, "TASK-001")
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("create task directory: %v", err)
-	}
-
-	origDir, err := os.Getwd()
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
 	if err != nil {
-		t.Fatalf("get working directory: %v", err)
-	}
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("chdir to temp dir: %v", err)
+		t.Fatalf("create backend: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := os.Chdir(origDir); err != nil {
-			t.Errorf("restore working directory: %v", err)
-		}
+		backend.Close()
 	})
-	return tmpDir
+	return backend, tmpDir
 }
 
 func TestRegeneratePlanForWeight(t *testing.T) {
-	withEditTestDir(t)
+	backend, _ := createEditTestBackend(t)
 
 	// Create and save a task
 	tk := task.New("TASK-001", "Test task")
 	tk.Weight = task.WeightLarge
 	tk.Status = task.StatusPlanned
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -61,7 +50,7 @@ func TestRegeneratePlanForWeight(t *testing.T) {
 			{ID: "test", Name: "test", Status: plan.PhasePending},
 		},
 	}
-	if err := initialPlan.Save("TASK-001"); err != nil {
+	if err := backend.SavePlan(initialPlan, "TASK-001"); err != nil {
 		t.Fatalf("failed to save initial plan: %v", err)
 	}
 
@@ -72,18 +61,18 @@ func TestRegeneratePlanForWeight(t *testing.T) {
 	initialState.Phases["implement"] = &state.PhaseState{
 		Status: state.StatusCompleted,
 	}
-	if err := initialState.Save(); err != nil {
+	if err := backend.SaveState(initialState); err != nil {
 		t.Fatalf("failed to save initial state: %v", err)
 	}
 
 	// Regenerate plan for weight change
 	oldWeight := task.WeightSmall
-	if err := regeneratePlanForWeight(tk, oldWeight); err != nil {
+	if err := regeneratePlanForWeight(backend, tk, oldWeight); err != nil {
 		t.Fatalf("regeneratePlanForWeight() error = %v", err)
 	}
 
 	// Verify plan was regenerated
-	newPlan, err := plan.Load("TASK-001")
+	newPlan, err := backend.LoadPlan("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to load new plan: %v", err)
 	}
@@ -98,7 +87,7 @@ func TestRegeneratePlanForWeight(t *testing.T) {
 	}
 
 	// Verify state was reset
-	newState, err := state.Load("TASK-001")
+	newState, err := backend.LoadState("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to load new state: %v", err)
 	}
@@ -116,7 +105,7 @@ func TestRegeneratePlanForWeight(t *testing.T) {
 	}
 
 	// Verify task status was set to planned
-	reloadedTask, err := task.Load("TASK-001")
+	reloadedTask, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
@@ -127,25 +116,25 @@ func TestRegeneratePlanForWeight(t *testing.T) {
 }
 
 func TestRegeneratePlanForWeight_NoExistingState(t *testing.T) {
-	withEditTestDir(t)
+	backend, _ := createEditTestBackend(t)
 
 	// Create and save a task
 	tk := task.New("TASK-001", "Test task")
 	tk.Weight = task.WeightMedium
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	// No state.yaml exists yet
+	// No state exists yet
 
 	// Regenerate plan
 	oldWeight := task.WeightSmall
-	if err := regeneratePlanForWeight(tk, oldWeight); err != nil {
+	if err := regeneratePlanForWeight(backend, tk, oldWeight); err != nil {
 		t.Fatalf("regeneratePlanForWeight() error = %v", err)
 	}
 
 	// Verify state was created
-	newState, err := state.Load("TASK-001")
+	newState, err := backend.LoadState("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to load new state: %v", err)
 	}
@@ -215,20 +204,32 @@ func TestEditCommand_StatusFlag(t *testing.T) {
 	}
 }
 
+// TestEditCommand_StatusValidation tests that invalid status values are rejected.
+// This test requires a working directory structure, so we use backend directly.
 func TestEditCommand_StatusValidation(t *testing.T) {
-	withEditTestDir(t)
+	_, tmpDir := createEditTestBackend(t)
 
-	// Create and save a task
+	// Set up working directory for command execution
+	origDir := setupTestWorkDir(t, tmpDir)
+	defer restoreWorkDir(t, origDir)
+
+	// Create task via backend created by edit command
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer backend.Close()
+
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusPlanned
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Try to set invalid status
 	cmd := newEditCmd()
 	cmd.SetArgs([]string{"TASK-001", "--status", "invalid"})
-	err := cmd.Execute()
+	err = cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error for invalid status")
 	}
@@ -244,12 +245,22 @@ func TestEditCommand_StatusValidation(t *testing.T) {
 }
 
 func TestEditCommand_StatusChange(t *testing.T) {
-	withEditTestDir(t)
+	_, tmpDir := createEditTestBackend(t)
 
-	// Create and save a task
+	// Set up working directory for command execution
+	origDir := setupTestWorkDir(t, tmpDir)
+	defer restoreWorkDir(t, origDir)
+
+	// Create task via backend
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer backend.Close()
+
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusPlanned
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -261,7 +272,7 @@ func TestEditCommand_StatusChange(t *testing.T) {
 	}
 
 	// Verify status was updated
-	updated, err := task.Load("TASK-001")
+	updated, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
@@ -272,12 +283,22 @@ func TestEditCommand_StatusChange(t *testing.T) {
 }
 
 func TestEditCommand_StatusNoChangeIfSame(t *testing.T) {
-	withEditTestDir(t)
+	_, tmpDir := createEditTestBackend(t)
 
-	// Create and save a task already in completed status
+	// Set up working directory for command execution
+	origDir := setupTestWorkDir(t, tmpDir)
+	defer restoreWorkDir(t, origDir)
+
+	// Create task via backend
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer backend.Close()
+
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusCompleted
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -289,7 +310,7 @@ func TestEditCommand_StatusNoChangeIfSame(t *testing.T) {
 	}
 
 	// Verify task is still completed
-	updated, err := task.Load("TASK-001")
+	updated, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
@@ -300,19 +321,29 @@ func TestEditCommand_StatusNoChangeIfSame(t *testing.T) {
 }
 
 func TestEditCommand_CannotEditRunningTask(t *testing.T) {
-	withEditTestDir(t)
+	_, tmpDir := createEditTestBackend(t)
 
-	// Create and save a running task
+	// Set up working directory for command execution
+	origDir := setupTestWorkDir(t, tmpDir)
+	defer restoreWorkDir(t, origDir)
+
+	// Create task via backend
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer backend.Close()
+
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusRunning
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Try to edit status
 	cmd := newEditCmd()
 	cmd.SetArgs([]string{"TASK-001", "--status", "completed"})
-	err := cmd.Execute()
+	err = cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error for editing running task")
 	}
@@ -330,4 +361,31 @@ func hasSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// setupTestWorkDir changes to the given directory and returns the original directory.
+func setupTestWorkDir(t *testing.T, dir string) string {
+	t.Helper()
+	// Create .orc directory to satisfy project root detection
+	orcDir := filepath.Join(dir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get current dir: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("change to test dir: %v", err)
+	}
+	return origDir
+}
+
+// restoreWorkDir restores the working directory.
+func restoreWorkDir(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.Chdir(dir); err != nil {
+		t.Errorf("restore work dir: %v", err)
+	}
 }

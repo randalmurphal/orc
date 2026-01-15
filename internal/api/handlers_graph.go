@@ -5,7 +5,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -31,16 +30,11 @@ type DependencyGraphResponse struct {
 // handleGetInitiativeDependencyGraph returns the dependency graph for tasks within an initiative.
 func (s *Server) handleGetInitiativeDependencyGraph(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	shared := r.URL.Query().Get("shared") == "true"
+	// Note: shared parameter ignored - all initiatives are loaded from backend
+	_ = r.URL.Query().Get("shared")
 
 	// Load initiative
-	var init *initiative.Initiative
-	var err error
-	if shared {
-		init, err = initiative.LoadShared(id)
-	} else {
-		init, err = initiative.Load(id)
-	}
+	init, err := s.backend.LoadInitiative(id)
 	if err != nil {
 		s.jsonError(w, "initiative not found", http.StatusNotFound)
 		return
@@ -53,9 +47,7 @@ func (s *Server) handleGetInitiativeDependencyGraph(w http.ResponseWriter, r *ht
 	}
 
 	// Load all tasks to get full dependency data (TaskRef doesn't store blocked_by)
-	tasksDir := task.TaskDirIn(s.workDir, "")
-	tasksDir = strings.TrimSuffix(tasksDir, "/")
-	allTasks, err := task.LoadAllFrom(tasksDir)
+	allTasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
 		return
@@ -103,10 +95,7 @@ func (s *Server) handleGetTasksDependencyGraph(w http.ResponseWriter, r *http.Re
 	}
 
 	// Load all tasks
-	tasksDir := task.TaskDirIn(s.workDir, "")
-	// TaskDirIn returns .orc/tasks/TASK-ID, we need parent
-	tasksDir = strings.TrimSuffix(tasksDir, "/")
-	allTasks, err := task.LoadAllFrom(tasksDir)
+	allTasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
 		return

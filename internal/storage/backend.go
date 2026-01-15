@@ -1,9 +1,9 @@
 // Package storage provides storage backend abstraction for orc.
-// It supports multiple storage modes: hybrid (files + SQLite cache),
-// files-only, and database-primary.
+// SQLite is the source of truth for all data.
 package storage
 
 import (
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
@@ -34,19 +34,41 @@ type Backend interface {
 	LoadTask(id string) (*task.Task, error)
 	LoadAllTasks() ([]*task.Task, error)
 	DeleteTask(id string) error
+	TaskExists(id string) (bool, error)
+	GetNextTaskID() (string, error)
 
 	// State operations
 	SaveState(s *state.State) error
 	LoadState(taskID string) (*state.State, error)
+	LoadAllStates() ([]*state.State, error)
 
 	// Plan operations
 	SavePlan(p *plan.Plan, taskID string) error
 	LoadPlan(taskID string) (*plan.Plan, error)
 
+	// Spec operations
+	SaveSpec(taskID, content, source string) error
+	LoadSpec(taskID string) (string, error)
+	SpecExists(taskID string) (bool, error)
+
+	// Initiative operations
+	SaveInitiative(i *initiative.Initiative) error
+	LoadInitiative(id string) (*initiative.Initiative, error)
+	LoadAllInitiatives() ([]*initiative.Initiative, error)
+	DeleteInitiative(id string) error
+	InitiativeExists(id string) (bool, error)
+	GetNextInitiativeID() (string, error)
+
 	// Transcript operations
 	AddTranscript(t *Transcript) error
 	GetTranscripts(taskID string) ([]Transcript, error)
 	SearchTranscripts(query string) ([]TranscriptMatch, error)
+
+	// Attachment operations
+	SaveAttachment(taskID, filename, contentType string, data []byte) (*task.Attachment, error)
+	GetAttachment(taskID, filename string) (*task.Attachment, []byte, error)
+	ListAttachments(taskID string) ([]*task.Attachment, error)
+	DeleteAttachment(taskID, filename string) error
 
 	// Context materialization (for agents working in worktrees)
 	// Generates context.md with all relevant task information

@@ -3,10 +3,8 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"time"
 
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -28,8 +26,7 @@ type DashboardStats struct {
 
 // handleGetDashboardStats returns dashboard statistics.
 func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request) {
-	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
-	tasks, err := task.LoadAllFrom(tasksDir)
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to load tasks: %v", err), http.StatusInternalServerError)
 		return
@@ -44,7 +41,7 @@ func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request)
 
 	for _, t := range tasks {
 		// Load state for token counts and orphan detection
-		st, _ := state.LoadFrom(s.workDir, t.ID)
+		st, _ := s.backend.LoadState(t.ID)
 
 		switch t.Status {
 		case task.StatusRunning:

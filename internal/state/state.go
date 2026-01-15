@@ -1,16 +1,10 @@
 // Package state provides execution state tracking for orc tasks.
+// Note: File I/O functions have been removed. Use storage.Backend for persistence.
 package state
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/internal/util"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -142,61 +136,6 @@ func New(taskID string) *State {
 	}
 }
 
-// Load loads state from disk for a given task ID.
-func Load(taskID string) (*State, error) {
-	return LoadFrom(".", taskID)
-}
-
-// LoadFrom loads state from a specific project directory.
-func LoadFrom(projectDir, taskID string) (*State, error) {
-	path := filepath.Join(projectDir, task.OrcDir, task.TasksDir, taskID, StateFileName)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// Check if the task exists - if so, return empty state; otherwise error
-			if task.ExistsIn(projectDir, taskID) {
-				return New(taskID), nil
-			}
-			return nil, fmt.Errorf("task %s not found", taskID)
-		}
-		return nil, fmt.Errorf("read state for task %s: %w", taskID, err)
-	}
-
-	var s State
-	if err := yaml.Unmarshal(data, &s); err != nil {
-		return nil, fmt.Errorf("parse state for task %s: %w", taskID, err)
-	}
-
-	// Ensure phases map is initialized
-	if s.Phases == nil {
-		s.Phases = make(map[string]*PhaseState)
-	}
-
-	return &s, nil
-}
-
-// Save persists the state to disk.
-func (s *State) Save() error {
-	dir := filepath.Join(task.OrcDir, task.TasksDir, s.TaskID)
-	return s.SaveTo(dir)
-}
-
-// SaveTo persists the state to a specific directory using atomic writes.
-func (s *State) SaveTo(dir string) error {
-	s.UpdatedAt = time.Now()
-
-	data, err := yaml.Marshal(s)
-	if err != nil {
-		return fmt.Errorf("marshal state: %w", err)
-	}
-
-	path := filepath.Join(dir, StateFileName)
-	if err := util.AtomicWriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("write state: %w", err)
-	}
-
-	return nil
-}
 
 // StartPhase marks a phase as started.
 func (s *State) StartPhase(phaseID string) {
@@ -512,34 +451,3 @@ func (s *State) GetExecutorPID() int {
 	return 0
 }
 
-// LoadAllStates loads state for all tasks.
-func LoadAllStates() ([]*State, error) {
-	return LoadAllStatesFrom("")
-}
-
-// LoadAllStatesFrom loads state for all tasks from a specific project directory.
-func LoadAllStatesFrom(projectDir string) ([]*State, error) {
-	tasksDir := filepath.Join(projectDir, task.OrcDir, task.TasksDir)
-	entries, err := os.ReadDir(tasksDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("read tasks directory: %w", err)
-	}
-
-	var states []*State
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		s, err := LoadFrom(projectDir, entry.Name())
-		if err != nil {
-			continue // Skip tasks that can't be loaded
-		}
-		states = append(states, s)
-	}
-
-	return states, nil
-}

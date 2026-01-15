@@ -3,12 +3,24 @@ package cli
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
+
+// createSignalsTestBackend creates a backend in the given directory.
+func createSignalsTestBackend(t *testing.T, dir string) storage.Backend {
+	t.Helper()
+	backend, err := storage.NewDatabaseBackend(dir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	return backend
+}
 
 func TestSetupSignalHandler(t *testing.T) {
 	ctx, cancel := SetupSignalHandler()
@@ -40,16 +52,27 @@ func TestSetupSignalHandler(t *testing.T) {
 func TestInterruptHandler(t *testing.T) {
 	// Use temp directory to avoid pollution from Cleanup's GracefulShutdown
 	tmpDir := t.TempDir()
+
+	// Create .orc directory for project detection
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
+
 	origDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
 	t.Cleanup(func() {
 		os.Chdir(origDir)
 	})
 
+	// Create backend
+	backend := createSignalsTestBackend(t, tmpDir)
+	defer backend.Close()
+
 	tsk := task.New("TASK-001", "Test task")
 	st := state.New("TASK-001")
 
-	h := NewInterruptHandler(tsk, st)
+	h := NewInterruptHandler(backend, tsk, st)
 	defer h.Cleanup()
 
 	if h.Context() == nil {
@@ -98,18 +121,34 @@ func TestWaitWithTimeout(t *testing.T) {
 func TestGracefulShutdown(t *testing.T) {
 	// Use a temp directory to test graceful shutdown behavior
 	tmpDir := t.TempDir()
+
+	// Create .orc directory for project detection
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
+
 	origDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
 	t.Cleanup(func() {
 		os.Chdir(origDir)
 	})
 
-	tsk := &task.Task{ID: "TASK-001"}
+	// Create backend
+	backend := createSignalsTestBackend(t, tmpDir)
+	defer backend.Close()
+
+	tsk := &task.Task{ID: "TASK-001", Title: "Test task", Weight: task.WeightSmall}
+	// Save task to backend first (required for SaveState to work)
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
 	st := state.New("TASK-001")
 	st.StartPhase("implement")
 
 	// GracefulShutdown saves state and task
-	err := GracefulShutdown(tsk, st, "implement")
+	err := GracefulShutdown(backend, tsk, st, "implement")
 
 	// Should succeed (creates directories as needed)
 	if err != nil {

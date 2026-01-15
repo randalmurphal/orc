@@ -10,9 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/templates"
 )
@@ -317,12 +317,12 @@ func (v TemplateVars) WithInitiativeContext(ctx InitiativeContext) TemplateVars 
 
 // LoadInitiativeContext loads initiative context for a task if it belongs to an initiative.
 // Returns nil if the task doesn't belong to an initiative or if the initiative can't be loaded.
-func LoadInitiativeContext(t *task.Task) *InitiativeContext {
-	if t == nil || t.InitiativeID == "" {
+func LoadInitiativeContext(t *task.Task, backend storage.Backend) *InitiativeContext {
+	if t == nil || t.InitiativeID == "" || backend == nil {
 		return nil
 	}
 
-	init, err := initiative.Load(t.InitiativeID)
+	init, err := backend.LoadInitiative(t.InitiativeID)
 	if err != nil {
 		slog.Debug("failed to load initiative for task",
 			"task_id", t.ID,

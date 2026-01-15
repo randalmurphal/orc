@@ -10,6 +10,8 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// getBackend is imported from commands.go
+
 // newPauseCmd creates the pause command
 func newPauseCmd() *cobra.Command {
 	return &cobra.Command{
@@ -30,9 +32,15 @@ Examples:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 
-			t, err := task.Load(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -42,20 +50,8 @@ Examples:
 			}
 
 			t.Status = task.StatusPaused
-			if err := t.Save(); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
-			}
-
-			// Auto-commit the status change
-			cfg, _ := config.Load()
-			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
-				if projectDir, err := config.FindProjectRoot(); err == nil {
-					commitCfg := task.CommitConfig{
-						ProjectRoot:  projectDir,
-						CommitPrefix: cfg.CommitPrefix,
-					}
-					task.CommitAndSync(t, "paused", commitCfg)
-				}
 			}
 
 			fmt.Printf("⏸️  Task %s paused\n", id)
@@ -86,10 +82,16 @@ Examples:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
 
-			t, err := task.Load(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -119,20 +121,8 @@ Examples:
 			}
 
 			t.Status = task.StatusFailed
-			if err := t.Save(); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
-			}
-
-			// Auto-commit the status change
-			cfg, _ := config.Load()
-			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
-				if projectDir, err := config.FindProjectRoot(); err == nil {
-					commitCfg := task.CommitConfig{
-						ProjectRoot:  projectDir,
-						CommitPrefix: cfg.CommitPrefix,
-					}
-					task.CommitAndSync(t, "stopped", commitCfg)
-				}
 			}
 
 			fmt.Printf("🛑 Task %s stopped (marked as failed)\n", id)

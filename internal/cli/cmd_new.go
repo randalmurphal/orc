@@ -11,7 +11,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/detect"
-	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/template"
@@ -71,6 +70,12 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			title := args[0]
 			weight, _ := cmd.Flags().GetString("weight")
 			category, _ := cmd.Flags().GetString("category")
@@ -93,7 +98,7 @@ Example:
 			}
 
 			// Generate next task ID
-			id, err := task.NextID()
+			id, err := backend.GetNextTaskID()
 			if err != nil {
 				return fmt.Errorf("generate task ID: %w", err)
 			}
@@ -159,7 +164,11 @@ Example:
 			// Link to initiative if specified
 			if initiativeID != "" {
 				// Verify initiative exists
-				if !initiative.Exists(initiativeID, false) {
+				exists, err := backend.InitiativeExists(initiativeID)
+				if err != nil {
+					return fmt.Errorf("check initiative: %w", err)
+				}
+				if !exists {
 					return fmt.Errorf("initiative %s not found", initiativeID)
 				}
 				t.SetInitiative(initiativeID)
@@ -176,8 +185,8 @@ Example:
 			// Set dependencies if provided
 			if len(blockedBy) > 0 || len(relatedTo) > 0 {
 				// Load existing tasks for validation
-				existingTasks, err := task.LoadAll()
-				if err != nil && !os.IsNotExist(err) {
+				existingTasks, err := backend.LoadAllTasks()
+				if err != nil {
 					return fmt.Errorf("load existing tasks: %w", err)
 				}
 				existingIDs := make(map[string]bool)
@@ -200,7 +209,7 @@ Example:
 			}
 
 			// Save task
-			if err := t.Save(); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 
@@ -242,25 +251,25 @@ Example:
 			}
 
 			// Save plan
-			if err := p.Save(id); err != nil {
+			if err := backend.SavePlan(p, id); err != nil {
 				return fmt.Errorf("save plan: %w", err)
 			}
 
 			// Update task status
 			t.Status = task.StatusPlanned
-			if err := t.Save(); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("update task: %w", err)
 			}
 
 			// Sync task to initiative if linked
 			if t.HasInitiative() {
-				init, err := initiative.Load(t.InitiativeID)
+				init, err := backend.LoadInitiative(t.InitiativeID)
 				if err != nil {
 					// Log warning but don't fail task creation
 					fmt.Printf("Warning: failed to load initiative %s for sync: %v\n", t.InitiativeID, err)
 				} else {
 					init.AddTask(t.ID, t.Title, nil)
-					if err := init.Save(); err != nil {
+					if err := backend.SaveInitiative(init); err != nil {
 						fmt.Printf("Warning: failed to sync task to initiative: %v\n", err)
 					}
 				}
@@ -305,11 +314,6 @@ Example:
 
 			// Upload attachments if provided
 			if len(attachments) > 0 {
-				projectDir, err := config.FindProjectRoot()
-				if err != nil {
-					return fmt.Errorf("find project root: %w", err)
-				}
-
 				var uploadedCount int
 				for _, attachPath := range attachments {
 					// Resolve relative paths
@@ -321,23 +325,19 @@ Example:
 						attachPath = filepath.Join(cwd, attachPath)
 					}
 
-					// Verify file exists
-					if _, err := os.Stat(attachPath); err != nil {
+					// Read file
+					data, err := os.ReadFile(attachPath)
+					if err != nil {
 						if os.IsNotExist(err) {
 							return fmt.Errorf("attachment not found: %s", attachPath)
 						}
-						return fmt.Errorf("check attachment %s: %w", attachPath, err)
+						return fmt.Errorf("read attachment %s: %w", attachPath, err)
 					}
 
-					// Open and upload
-					file, err := os.Open(attachPath)
-					if err != nil {
-						return fmt.Errorf("open attachment %s: %w", attachPath, err)
-					}
-
+					// Save attachment via backend
 					filename := filepath.Base(attachPath)
-					_, err = task.SaveAttachment(projectDir, id, filename, file)
-					file.Close()
+					contentType := task.DetectContentType(filename)
+					_, err = backend.SaveAttachment(id, filename, contentType, data)
 					if err != nil {
 						return fmt.Errorf("save attachment %s: %w", filename, err)
 					}
@@ -346,20 +346,6 @@ Example:
 
 				if uploadedCount > 0 {
 					fmt.Printf("   Attachments: %d file(s) uploaded\n", uploadedCount)
-				}
-			}
-
-			// Auto-commit the new task files
-			cfg, err := config.Load()
-			if err == nil && !cfg.Tasks.DisableAutoCommit {
-				projectDir, err := config.FindProjectRoot()
-				if err == nil {
-					commitCfg := task.CommitConfig{
-						ProjectRoot:  projectDir,
-						CommitPrefix: cfg.CommitPrefix,
-					}
-					// Non-blocking - warn on error but don't fail
-					task.CommitAndSync(t, "created", commitCfg)
 				}
 			}
 

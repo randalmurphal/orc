@@ -1,11 +1,7 @@
 package state
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
-
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 func TestNew(t *testing.T) {
@@ -233,48 +229,6 @@ func TestIsPhaseCompleted(t *testing.T) {
 	}
 }
 
-func TestSaveAndLoad(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir, "TASK-001")
-
-	err := os.MkdirAll(taskDir, 0755)
-	if err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
-	// Create a task.yaml so task.ExistsIn returns true
-	tsk := task.New("TASK-001", "Test task")
-	tsk.SaveTo(taskDir)
-
-	// Create and save state
-	s := New("TASK-001")
-	s.StartPhase("implement")
-	s.AddTokens(100, 50, 0, 0)
-
-	err = s.SaveTo(taskDir)
-	if err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	// Load state
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
-	}
-
-	if loaded.TaskID != s.TaskID {
-		t.Errorf("loaded TaskID = %s, want %s", loaded.TaskID, s.TaskID)
-	}
-
-	if loaded.CurrentPhase != s.CurrentPhase {
-		t.Errorf("loaded CurrentPhase = %s, want %s", loaded.CurrentPhase, s.CurrentPhase)
-	}
-
-	if loaded.Tokens.TotalTokens != s.Tokens.TotalTokens {
-		t.Errorf("loaded TotalTokens = %d, want %d", loaded.Tokens.TotalTokens, s.Tokens.TotalTokens)
-	}
-}
-
 func TestInterruptPhase(t *testing.T) {
 	s := New("TASK-001")
 	s.StartPhase("implement")
@@ -399,20 +353,6 @@ func TestSkipPhase(t *testing.T) {
 	}
 }
 
-func TestLoadNonExistentTask(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir)
-
-	// Create tasks directory but not the task
-	os.MkdirAll(tasksDir, 0755)
-
-	// Try to load non-existent task
-	_, err := LoadFrom(tmpDir, "TASK-999")
-	if err == nil {
-		t.Error("LoadFrom() should return error for non-existent task")
-	}
-}
-
 func TestReset(t *testing.T) {
 	s := New("TASK-001")
 
@@ -504,10 +444,10 @@ func TestIsPhaseCompleted_IncludesSkipped(t *testing.T) {
 		phaseID string
 		want    bool
 	}{
-		{"spec", true},      // Completed
-		{"research", true},  // Skipped - should also be considered "completed" (done)
+		{"spec", true},       // Completed
+		{"research", true},   // Skipped - should also be considered "completed" (done)
 		{"implement", false}, // Pending
-		{"unknown", false},  // Not in map
+		{"unknown", false},   // Not in map
 	}
 
 	for _, tt := range tests {

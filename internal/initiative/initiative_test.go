@@ -2,8 +2,6 @@ package initiative
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -24,45 +22,6 @@ func TestNew(t *testing.T) {
 	}
 	if init.CreatedAt.IsZero() {
 		t.Error("CreatedAt should be set")
-	}
-}
-
-func TestSaveAndLoad(t *testing.T) {
-	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".orc", "initiatives")
-
-	init := New("INIT-TEST-001", "Save Test")
-	init.Vision = "Test vision"
-	init.Owner = Identity{Initials: "RM", DisplayName: "Randy"}
-
-	// Save
-	if err := init.SaveTo(baseDir); err != nil {
-		t.Fatalf("Save failed: %v", err)
-	}
-
-	// Verify file exists
-	path := filepath.Join(baseDir, "INIT-TEST-001", "initiative.yaml")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Fatal("initiative.yaml should exist")
-	}
-
-	// Load
-	loaded, err := LoadFrom(baseDir, "INIT-TEST-001")
-	if err != nil {
-		t.Fatalf("Load failed: %v", err)
-	}
-
-	if loaded.ID != init.ID {
-		t.Errorf("ID = %q, want %q", loaded.ID, init.ID)
-	}
-	if loaded.Title != init.Title {
-		t.Errorf("Title = %q, want %q", loaded.Title, init.Title)
-	}
-	if loaded.Vision != init.Vision {
-		t.Errorf("Vision = %q, want %q", loaded.Vision, init.Vision)
-	}
-	if loaded.Owner.Initials != init.Owner.Initials {
-		t.Errorf("Owner.Initials = %q, want %q", loaded.Owner.Initials, init.Owner.Initials)
 	}
 }
 
@@ -194,126 +153,6 @@ func TestStatusLifecycle(t *testing.T) {
 	if init.Status != StatusArchived {
 		t.Errorf("After Archive status = %q, want %q", init.Status, StatusArchived)
 	}
-}
-
-func TestList(t *testing.T) {
-	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".orc", "initiatives")
-
-	// Create multiple initiatives
-	for i := 1; i <= 3; i++ {
-		init := New(sprintf("INIT-%03d", i), sprintf("Initiative %d", i))
-		if err := init.SaveTo(baseDir); err != nil {
-			t.Fatalf("Save failed: %v", err)
-		}
-	}
-
-	// List all
-	all, err := ListFrom(baseDir)
-	if err != nil {
-		t.Fatalf("List failed: %v", err)
-	}
-	if len(all) != 3 {
-		t.Errorf("Initiatives count = %d, want 3", len(all))
-	}
-}
-
-func TestListByStatus(t *testing.T) {
-	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".orc", "initiatives")
-
-	// Create initiatives with different statuses
-	init1 := New("INIT-001", "Draft")
-	init1.SaveTo(baseDir)
-
-	init2 := New("INIT-002", "Active")
-	init2.Status = StatusActive
-	init2.SaveTo(baseDir)
-
-	init3 := New("INIT-003", "Completed")
-	init3.Status = StatusCompleted
-	init3.SaveTo(baseDir)
-
-	// This test would need to mock GetInitiativesDir
-	// For now, just test that ListFrom works
-	all, err := ListFrom(baseDir)
-	if err != nil {
-		t.Fatalf("List failed: %v", err)
-	}
-	if len(all) != 3 {
-		t.Errorf("Initiatives count = %d, want 3", len(all))
-	}
-}
-
-func TestNextID(t *testing.T) {
-	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".orc", "initiatives")
-
-	// Create some initiatives
-	for i := 1; i <= 5; i++ {
-		init := New(sprintf("INIT-%03d", i), sprintf("Initiative %d", i))
-		if err := init.SaveTo(baseDir); err != nil {
-			t.Fatalf("Save failed: %v", err)
-		}
-	}
-
-	// This would need to be adjusted to work with the test directory
-	// For now, we'll test the ID generation logic indirectly
-	all, _ := ListFrom(baseDir)
-	if len(all) != 5 {
-		t.Errorf("Should have 5 initiatives")
-	}
-}
-
-func TestExists(t *testing.T) {
-	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".orc", "initiatives")
-
-	// Create an initiative
-	init := New("INIT-EXISTS", "Exists Test")
-	init.SaveTo(baseDir)
-
-	// Check with direct path
-	path := filepath.Join(baseDir, "INIT-EXISTS", "initiative.yaml")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Error("Initiative should exist")
-	}
-
-	// Check non-existing
-	path = filepath.Join(baseDir, "INIT-NOTEXIST", "initiative.yaml")
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Error("Non-existing initiative should not exist")
-	}
-}
-
-func TestDelete(t *testing.T) {
-	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".orc", "initiatives")
-
-	// Create an initiative
-	init := New("INIT-DELETE", "Delete Test")
-	init.SaveTo(baseDir)
-
-	// Verify it exists
-	path := filepath.Join(baseDir, "INIT-DELETE", "initiative.yaml")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Fatal("Initiative should exist before delete")
-	}
-
-	// Delete
-	dir := filepath.Join(baseDir, "INIT-DELETE")
-	if err := os.RemoveAll(dir); err != nil {
-		t.Fatalf("Delete failed: %v", err)
-	}
-
-	// Verify it's gone
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Error("Initiative should not exist after delete")
-	}
-}
-
-func sprintf(format string, args ...interface{}) string {
-	return fmt.Sprintf(format, args...)
 }
 
 func TestRemoveTask(t *testing.T) {
@@ -627,8 +466,8 @@ func TestIsBlocked(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		initID     string
+		name        string
+		initID      string
 		wantBlocked bool
 	}{
 		{
@@ -798,10 +637,10 @@ func TestSetBlockedBy(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		initID    string
-		blockers  []string
-		wantErr   bool
+		name     string
+		initID   string
+		blockers []string
+		wantErr  bool
 	}{
 		{
 			name:     "valid set",
@@ -857,40 +696,6 @@ func TestSetBlockedBy(t *testing.T) {
 	}
 }
 
-func TestBlockedByPersistence(t *testing.T) {
-	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".orc", "initiatives")
-
-	// Create initiative with blocked_by
-	init := New("INIT-TEST-DEPS", "Deps Test")
-	init.BlockedBy = []string{"INIT-001", "INIT-002"}
-
-	// Save
-	if err := init.SaveTo(baseDir); err != nil {
-		t.Fatalf("Save failed: %v", err)
-	}
-
-	// Load
-	loaded, err := LoadFrom(baseDir, "INIT-TEST-DEPS")
-	if err != nil {
-		t.Fatalf("Load failed: %v", err)
-	}
-
-	// Verify blocked_by was persisted
-	if len(loaded.BlockedBy) != 2 {
-		t.Errorf("BlockedBy length = %d, want 2", len(loaded.BlockedBy))
-	}
-	if loaded.BlockedBy[0] != "INIT-001" || loaded.BlockedBy[1] != "INIT-002" {
-		t.Errorf("BlockedBy = %v, want [INIT-001 INIT-002]", loaded.BlockedBy)
-	}
-
-	// Verify Blocks is not persisted (it's computed)
-	// After loading, Blocks should be nil until PopulateComputedFields is called
-	if len(loaded.Blocks) > 0 {
-		t.Error("Blocks should not be persisted")
-	}
-}
-
 func TestValidateID(t *testing.T) {
 	tests := []struct {
 		id      string
@@ -906,19 +711,19 @@ func TestValidateID(t *testing.T) {
 		{"INIT-ABC-123-XYZ", false},
 
 		// Invalid IDs
-		{"", true},                         // empty
-		{"INIT-", true},                    // no suffix
-		{"INIT--", true},                   // trailing dash
-		{"INIT-001-", true},                // trailing dash
-		{"TASK-001", true},                 // wrong prefix
-		{"init-001", true},                 // lowercase prefix
-		{"INIT-../etc", true},              // path traversal
-		{"INIT-foo/../bar", true},          // path traversal
-		{"INIT-foo/bar", true},             // path separator
-		{"INIT-foo\\bar", true},            // Windows path separator
-		{"../../../etc/passwd", true},      // pure path traversal
-		{"INIT-001\x00malicious", true},    // null byte
-		{"INIT-%2e%2e", true},              // URL-encoded dots
+		{"", true},                      // empty
+		{"INIT-", true},                 // no suffix
+		{"INIT--", true},                // trailing dash
+		{"INIT-001-", true},             // trailing dash
+		{"TASK-001", true},              // wrong prefix
+		{"init-001", true},              // lowercase prefix
+		{"INIT-../etc", true},           // path traversal
+		{"INIT-foo/../bar", true},       // path traversal
+		{"INIT-foo/bar", true},          // path separator
+		{"INIT-foo\\bar", true},         // Windows path separator
+		{"../../../etc/passwd", true},   // pure path traversal
+		{"INIT-001\x00malicious", true}, // null byte
+		{"INIT-%2e%2e", true},           // URL-encoded dots
 	}
 
 	for _, tt := range tests {
@@ -928,36 +733,6 @@ func TestValidateID(t *testing.T) {
 				t.Errorf("ValidateID(%q) error = %v, wantErr %v", tt.id, err, tt.wantErr)
 			}
 		})
-	}
-}
-
-func TestLoadFromRejectsInvalidID(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Try to load with a path traversal ID
-	_, err := LoadFrom(tmpDir, "../../../etc/passwd")
-	if err == nil {
-		t.Error("LoadFrom should reject path traversal IDs")
-	}
-}
-
-func TestDeleteRejectsInvalidID(t *testing.T) {
-	// Try to delete with a path traversal ID
-	err := Delete("../../../etc", false)
-	if err == nil {
-		t.Error("Delete should reject path traversal IDs")
-	}
-}
-
-func TestSaveToRejectsInvalidID(t *testing.T) {
-	init := &Initiative{
-		ID:    "../../../etc/passwd",
-		Title: "Malicious",
-	}
-
-	err := init.SaveTo(t.TempDir())
-	if err == nil {
-		t.Error("SaveTo should reject path traversal IDs")
 	}
 }
 

@@ -17,7 +17,6 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/progress"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -61,10 +60,16 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 
 			// Load task
-			t, err := task.LoadFrom(projectRoot, id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -75,13 +80,13 @@ Example:
 			}
 
 			// Load plan
-			p, err := plan.LoadFrom(projectRoot, id)
+			p, err := backend.LoadPlan(id)
 			if err != nil {
 				return fmt.Errorf("load plan: %w", err)
 			}
 
 			// Load state
-			s, err := state.LoadFrom(projectRoot, id)
+			s, err := backend.LoadState(id)
 			if err != nil {
 				return fmt.Errorf("load state: %w", err)
 			}
@@ -123,6 +128,7 @@ Example:
 
 			// Create executor with config
 			exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
+			exec.SetBackend(backend)
 
 			// Set up streaming publisher if verbose or --stream flag is set
 			if verbose || stream {
@@ -140,12 +146,11 @@ Example:
 				if ctx.Err() != nil {
 					// Update task and state status for clean interrupt
 					s.InterruptPhase("finalize")
-					taskDir := task.TaskDirIn(projectRoot, id)
-					if saveErr := s.SaveTo(taskDir); saveErr != nil {
+					if saveErr := backend.SaveState(s); saveErr != nil {
 						disp.Warning(fmt.Sprintf("failed to save state on interrupt: %v", saveErr))
 					}
 					t.Status = task.StatusBlocked
-					if saveErr := t.SaveTo(taskDir); saveErr != nil {
+					if saveErr := backend.SaveTask(t); saveErr != nil {
 						disp.Warning(fmt.Sprintf("failed to save task on interrupt: %v", saveErr))
 					}
 					disp.TaskInterrupted()

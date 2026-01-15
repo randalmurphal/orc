@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newDiffCmd creates the diff command
@@ -31,12 +30,18 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			taskID := args[0]
 			stat, _ := cmd.Flags().GetBool("stat")
 			nameOnly, _ := cmd.Flags().GetBool("name-only")
 
 			// Load task
-			t, err := task.Load(taskID)
+			t, err := backend.LoadTask(taskID)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}

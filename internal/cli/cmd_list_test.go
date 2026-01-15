@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/initiative"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -19,13 +20,11 @@ import (
 func withListTestDir(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir)
-	if err := os.MkdirAll(tasksDir, 0755); err != nil {
-		t.Fatalf("create tasks directory: %v", err)
-	}
-	initDir := filepath.Join(tmpDir, task.OrcDir, initiative.InitiativesDir)
-	if err := os.MkdirAll(initDir, 0755); err != nil {
-		t.Fatalf("create initiatives directory: %v", err)
+
+	// Create .orc directory for project detection
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc directory: %v", err)
 	}
 
 	origDir, err := os.Getwd()
@@ -41,6 +40,16 @@ func withListTestDir(t *testing.T) string {
 		}
 	})
 	return tmpDir
+}
+
+// createListTestBackend creates a backend in the given directory.
+func createListTestBackend(t *testing.T, dir string) storage.Backend {
+	t.Helper()
+	backend, err := storage.NewDatabaseBackend(dir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	return backend
 }
 
 func TestListCommand_Flags(t *testing.T) {
@@ -80,31 +89,37 @@ func TestListCommand_Flags(t *testing.T) {
 }
 
 func TestListCommand_InitiativeFilter(t *testing.T) {
-	withListTestDir(t)
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
 
 	// Create an initiative
 	init := initiative.New("INIT-001", "Test Initiative")
-	if err := init.Save(); err != nil {
+	if err := backend.SaveInitiative(init); err != nil {
 		t.Fatalf("save initiative: %v", err)
 	}
 
 	// Create tasks with different initiative assignments
 	t1 := task.New("TASK-001", "Task in initiative")
 	t1.InitiativeID = "INIT-001"
-	if err := t1.Save(); err != nil {
+	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
 	t2 := task.New("TASK-002", "Task without initiative")
-	if err := t2.Save(); err != nil {
+	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
 
 	t3 := task.New("TASK-003", "Another task in initiative")
 	t3.InitiativeID = "INIT-001"
-	if err := t3.Save(); err != nil {
+	if err := backend.SaveTask(t3); err != nil {
 		t.Fatalf("save task 3: %v", err)
 	}
+
+	// Close backend before running command
+	backend.Close()
 
 	// Test: Filter by initiative ID
 	cmd := newListCmd()
@@ -128,25 +143,31 @@ func TestListCommand_InitiativeFilter(t *testing.T) {
 }
 
 func TestListCommand_UnassignedFilter(t *testing.T) {
-	withListTestDir(t)
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
 
 	// Create an initiative
 	init := initiative.New("INIT-001", "Test Initiative")
-	if err := init.Save(); err != nil {
+	if err := backend.SaveInitiative(init); err != nil {
 		t.Fatalf("save initiative: %v", err)
 	}
 
 	// Create tasks with different initiative assignments
 	t1 := task.New("TASK-001", "Task in initiative")
 	t1.InitiativeID = "INIT-001"
-	if err := t1.Save(); err != nil {
+	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
 	t2 := task.New("TASK-002", "Task without initiative")
-	if err := t2.Save(); err != nil {
+	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
+
+	// Close backend before running command
+	backend.Close()
 
 	// Test: Filter by "unassigned"
 	cmd := newListCmd()
@@ -167,19 +188,25 @@ func TestListCommand_UnassignedFilter(t *testing.T) {
 }
 
 func TestListCommand_EmptyInitiativeFilter(t *testing.T) {
-	withListTestDir(t)
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
 
 	// Create tasks
 	t1 := task.New("TASK-001", "Task with initiative")
 	t1.InitiativeID = "INIT-001"
-	if err := t1.Save(); err != nil {
+	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
 	t2 := task.New("TASK-002", "Task without initiative")
-	if err := t2.Save(); err != nil {
+	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
+
+	// Close backend before running command
+	backend.Close()
 
 	// Test: Filter by empty string (same as unassigned)
 	cmd := newListCmd()
@@ -200,13 +227,19 @@ func TestListCommand_EmptyInitiativeFilter(t *testing.T) {
 }
 
 func TestListCommand_InvalidInitiative(t *testing.T) {
-	withListTestDir(t)
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
 
 	// Create a task
 	t1 := task.New("TASK-001", "Test task")
-	if err := t1.Save(); err != nil {
+	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
+
+	// Close backend before running command
+	backend.Close()
 
 	// Test: Filter by non-existent initiative
 	cmd := newListCmd()
@@ -225,11 +258,14 @@ func TestListCommand_InvalidInitiative(t *testing.T) {
 }
 
 func TestListCommand_CombinedFilters(t *testing.T) {
-	withListTestDir(t)
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
 
 	// Create an initiative
 	init := initiative.New("INIT-001", "Test Initiative")
-	if err := init.Save(); err != nil {
+	if err := backend.SaveInitiative(init); err != nil {
 		t.Fatalf("save initiative: %v", err)
 	}
 
@@ -238,7 +274,7 @@ func TestListCommand_CombinedFilters(t *testing.T) {
 	t1.InitiativeID = "INIT-001"
 	t1.Status = task.StatusRunning
 	t1.Weight = task.WeightSmall
-	if err := t1.Save(); err != nil {
+	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
@@ -246,16 +282,19 @@ func TestListCommand_CombinedFilters(t *testing.T) {
 	t2.InitiativeID = "INIT-001"
 	t2.Status = task.StatusCompleted
 	t2.Weight = task.WeightSmall
-	if err := t2.Save(); err != nil {
+	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
 
 	t3 := task.New("TASK-003", "Running task without initiative")
 	t3.Status = task.StatusRunning
 	t3.Weight = task.WeightSmall
-	if err := t3.Save(); err != nil {
+	if err := backend.SaveTask(t3); err != nil {
 		t.Fatalf("save task 3: %v", err)
 	}
+
+	// Close backend before running command
+	backend.Close()
 
 	// Test: Filter by initiative AND status
 	cmd := newListCmd()
@@ -279,19 +318,25 @@ func TestListCommand_CombinedFilters(t *testing.T) {
 }
 
 func TestListCommand_NoMatchingTasks(t *testing.T) {
-	withListTestDir(t)
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
 
 	// Create an initiative
 	init := initiative.New("INIT-001", "Test Initiative")
-	if err := init.Save(); err != nil {
+	if err := backend.SaveInitiative(init); err != nil {
 		t.Fatalf("save initiative: %v", err)
 	}
 
 	// Create a task NOT in the initiative
 	t1 := task.New("TASK-001", "Task without initiative")
-	if err := t1.Save(); err != nil {
+	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
+
+	// Close backend before running command
+	backend.Close()
 
 	// Test: Filter by initiative with no matching tasks
 	cmd := newListCmd()
@@ -312,18 +357,24 @@ func TestListCommand_NoMatchingTasks(t *testing.T) {
 }
 
 func TestCompleteInitiativeIDs(t *testing.T) {
-	withListTestDir(t)
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
 
 	// Create some initiatives
 	init1 := initiative.New("INIT-001", "First Initiative")
-	if err := init1.Save(); err != nil {
+	if err := backend.SaveInitiative(init1); err != nil {
 		t.Fatalf("save initiative 1: %v", err)
 	}
 
 	init2 := initiative.New("INIT-002", "Second Initiative")
-	if err := init2.Save(); err != nil {
+	if err := backend.SaveInitiative(init2); err != nil {
 		t.Fatalf("save initiative 2: %v", err)
 	}
+
+	// Close backend before running completion
+	backend.Close()
 
 	// Test completion function
 	cmd := newListCmd()
@@ -371,18 +422,24 @@ func TestCompleteInitiativeIDs(t *testing.T) {
 }
 
 func TestCompleteInitiativeIDs_Filtering(t *testing.T) {
-	withListTestDir(t)
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
 
 	// Create initiatives with different prefixes
 	init1 := initiative.New("INIT-001", "First Initiative")
-	if err := init1.Save(); err != nil {
+	if err := backend.SaveInitiative(init1); err != nil {
 		t.Fatalf("save initiative 1: %v", err)
 	}
 
 	init2 := initiative.New("INIT-002", "Second Initiative")
-	if err := init2.Save(); err != nil {
+	if err := backend.SaveInitiative(init2); err != nil {
 		t.Fatalf("save initiative 2: %v", err)
 	}
+
+	// Close backend before running completion
+	backend.Close()
 
 	// Test completion with prefix filter
 	cmd := newListCmd()

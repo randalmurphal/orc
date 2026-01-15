@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -57,12 +56,18 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 			profile, _ := cmd.Flags().GetString("profile")
 			force, _ := cmd.Flags().GetBool("force")
 
 			// Load task
-			t, err := task.LoadFrom(projectRoot, id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -70,8 +75,7 @@ Example:
 			// Check for incomplete blockers
 			if len(t.BlockedBy) > 0 {
 				// Load all tasks to check blocker status
-				tasksDir := filepath.Join(projectRoot, task.OrcDir, task.TasksDir)
-				allTasks, err := task.LoadAllFrom(tasksDir)
+				allTasks, err := backend.LoadAllTasks()
 				if err != nil {
 					return fmt.Errorf("load tasks for dependency check: %w", err)
 				}
@@ -145,15 +149,16 @@ Example:
 			}
 
 			// Load plan
-			p, err := plan.LoadFrom(projectRoot, id)
+			p, err := backend.LoadPlan(id)
 			if err != nil {
 				return fmt.Errorf("load plan: %w", err)
 			}
 
 			// Load or create state
-			s, err := state.LoadFrom(projectRoot, id)
+			s, err := backend.LoadState(id)
 			if err != nil {
-				return fmt.Errorf("load state: %w", err)
+				// State might not exist, create new one
+				s = state.New(id)
 			}
 
 			// Load config
@@ -228,10 +233,10 @@ Example:
 				}
 
 				// Save state and plan if any phases were skipped
-				if err := s.SaveTo(taskDir); err != nil {
+				if err := backend.SaveState(s); err != nil {
 					return fmt.Errorf("save state after artifact skip: %w", err)
 				}
-				if err := p.SaveTo(taskDir); err != nil {
+				if err := backend.SavePlan(p, id); err != nil {
 					return fmt.Errorf("save plan after artifact skip: %w", err)
 				}
 			}
@@ -254,6 +259,7 @@ Example:
 
 			// Create executor with config
 			exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
+			exec.SetBackend(backend)
 
 			// Set up streaming publisher if verbose or --stream flag is set
 			stream, _ := cmd.Flags().GetBool("stream")
@@ -269,13 +275,12 @@ Example:
 				if ctx.Err() != nil {
 					// Update task and state status for clean interrupt
 					s.InterruptPhase(s.CurrentPhase)
-					taskDir := task.TaskDirIn(projectRoot, id)
-					if saveErr := s.SaveTo(taskDir); saveErr != nil {
+					if saveErr := backend.SaveState(s); saveErr != nil {
 						// Log but continue - we're in cleanup mode
 						disp.Warning(fmt.Sprintf("failed to save state on interrupt: %v", saveErr))
 					}
 					t.Status = task.StatusBlocked
-					if saveErr := t.SaveTo(taskDir); saveErr != nil {
+					if saveErr := backend.SaveTask(t); saveErr != nil {
 						disp.Warning(fmt.Sprintf("failed to save task on interrupt: %v", saveErr))
 					}
 					disp.TaskInterrupted()

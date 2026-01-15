@@ -9,7 +9,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newRewindCmd creates the rewind command
@@ -32,6 +31,12 @@ Examples:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 			toPhase, _ := cmd.Flags().GetString("to")
 			force, _ := cmd.Flags().GetBool("force")
@@ -41,7 +46,7 @@ Examples:
 			}
 
 			// Load plan to get commit SHA for the phase
-			p, err := plan.Load(id)
+			p, err := backend.LoadPlan(id)
 			if err != nil {
 				return fmt.Errorf("load plan: %w", err)
 			}
@@ -78,9 +83,10 @@ Examples:
 			}
 
 			// Load state and reset phases after this one
-			s, err := state.Load(id)
+			s, err := backend.LoadState(id)
 			if err != nil {
-				return fmt.Errorf("load state: %w", err)
+				// State might not exist, create new one
+				s = state.New(id)
 			}
 
 			// Mark later phases as pending
@@ -102,26 +108,11 @@ Examples:
 			}
 
 			// Save updated state
-			if err := p.Save(id); err != nil {
+			if err := backend.SavePlan(p, id); err != nil {
 				return fmt.Errorf("save plan: %w", err)
 			}
-			if err := s.Save(); err != nil {
+			if err := backend.SaveState(s); err != nil {
 				return fmt.Errorf("save state: %w", err)
-			}
-
-			// Auto-commit the rewind
-			cfg, _ := config.Load()
-			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
-				if projectDir, err := config.FindProjectRoot(); err == nil {
-					t, _ := task.Load(id)
-					if t != nil {
-						commitCfg := task.CommitConfig{
-							ProjectRoot:  projectDir,
-							CommitPrefix: cfg.CommitPrefix,
-						}
-						task.CommitAndSync(t, fmt.Sprintf("rewound to %s", toPhase), commitCfg)
-					}
-				}
 			}
 
 			fmt.Printf("✅ Rewound to phase: %s\n", toPhase)

@@ -13,6 +13,8 @@ import (
 	"github.com/randalmurphal/orc/internal/template"
 )
 
+// Note: getBackend is imported from commands.go
+
 // newTemplateCmd creates the template command group.
 func newTemplateCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -225,7 +227,13 @@ Example:
 				return fmt.Errorf("template %q already exists", name)
 			}
 
-			t, err := template.SaveFromTask(taskID, name, description, global)
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
+			t, err := template.SaveFromTask(taskID, name, description, global, backend)
 			if err != nil {
 				return fmt.Errorf("save template: %w", err)
 			}

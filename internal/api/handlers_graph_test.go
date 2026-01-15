@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"testing"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/initiative"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -162,52 +163,44 @@ func TestHandleGetInitiativeDependencyGraph(t *testing.T) {
 	// Create temp directory for test
 	tmpDir := t.TempDir()
 
-	// Create initiative directory structure
-	initDir := filepath.Join(tmpDir, ".orc", "initiatives")
-	if err := os.MkdirAll(initDir, 0755); err != nil {
-		t.Fatalf("failed to create initiative dir: %v", err)
+	// Create .orc directory
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
 	}
 
-	// Create test initiative
-	init := initiative.New("INIT-001", "Test Initiative")
-	init.Tasks = []initiative.TaskRef{
-		{ID: "TASK-001", Title: "First task", Status: "completed"},
-		{ID: "TASK-002", Title: "Second task", Status: "planned"},
+	// Create backend and save test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	// Save initiative using SaveTo with the base dir
-	if err := init.SaveTo(initDir); err != nil {
-		t.Fatalf("failed to save initiative: %v", err)
-	}
-
-	// Create task files (handler now loads full task data for dependencies)
-	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
-
+	// Create and save tasks
 	task1 := task.New("TASK-001", "First task")
 	task1.Status = task.StatusCompleted
-	task1Dir := filepath.Join(tasksDir, "TASK-001")
-	if err := os.MkdirAll(task1Dir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
-	if err := task1.SaveTo(task1Dir); err != nil {
+	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	task2 := task.New("TASK-002", "Second task")
 	task2.Status = task.StatusPlanned
 	task2.BlockedBy = []string{"TASK-001"}
-	task2Dir := filepath.Join(tasksDir, "TASK-002")
-	if err := os.MkdirAll(task2Dir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
-	if err := task2.SaveTo(task2Dir); err != nil {
+	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	// Update the default initiative directory for loading
-	oldWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	// Create and save initiative
+	init := initiative.New("INIT-001", "Test Initiative")
+	init.Tasks = []initiative.TaskRef{
+		{ID: "TASK-001", Title: "First task", Status: "completed"},
+		{ID: "TASK-002", Title: "Second task", Status: "planned"},
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("failed to save initiative: %v", err)
+	}
+
+	// Close backend before creating server
+	backend.Close()
 
 	// Create server
 	cfg := &Config{
@@ -252,30 +245,34 @@ func TestHandleGetTasksDependencyGraph(t *testing.T) {
 	// Create temp directory for test
 	tmpDir := t.TempDir()
 
-	// Create task directory structure
-	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
+	// Create .orc directory
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
 
-	// Create test tasks
+	// Create backend and save test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	// Create and save tasks
 	task1 := task.New("TASK-001", "First task")
 	task1.Status = task.StatusCompleted
-	task1Dir := filepath.Join(tasksDir, "TASK-001")
-	if err := os.MkdirAll(task1Dir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
-	if err := task1.SaveTo(task1Dir); err != nil {
+	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	task2 := task.New("TASK-002", "Second task")
 	task2.Status = task.StatusPlanned
 	task2.BlockedBy = []string{"TASK-001"}
-	task2Dir := filepath.Join(tasksDir, "TASK-002")
-	if err := os.MkdirAll(task2Dir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
-	if err := task2.SaveTo(task2Dir); err != nil {
+	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
+
+	// Close backend before creating server
+	backend.Close()
 
 	// Create server
 	cfg := &Config{

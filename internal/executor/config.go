@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // Config holds executor configuration.
@@ -32,6 +33,9 @@ type Config struct {
 
 	// Checkpoint settings
 	EnableCheckpoints bool
+
+	// Storage backend (required)
+	Backend storage.Backend
 }
 
 // DefaultConfig returns the default executor configuration.

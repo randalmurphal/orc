@@ -50,17 +50,14 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 	if len(p.Phases) > 0 {
 		t.CurrentPhase = p.Phases[0].ID
 	}
-	if err := t.SaveTo(e.currentTaskDir); err != nil {
+	if err := e.backend.SaveTask(t); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 
 	// Save initial state with execution info
-	if err := s.SaveTo(e.currentTaskDir); err != nil {
+	if err := e.backend.SaveState(s); err != nil {
 		return fmt.Errorf("save state: %w", err)
 	}
-
-	// Auto-commit: task execution started
-	e.commitTaskStatus(t, "running")
 
 	// Setup worktree if enabled
 	if e.orcConfig.Worktree.Enabled && e.gitOps != nil {
@@ -104,18 +101,15 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		// Start phase and update heartbeat
 		s.StartPhase(phase.ID)
 		s.UpdateHeartbeat()
-		if err := s.SaveTo(e.currentTaskDir); err != nil {
+		if err := e.backend.SaveState(s); err != nil {
 			return fmt.Errorf("save state: %w", err)
 		}
 
 		// Update task's current phase for status display
 		t.CurrentPhase = phase.ID
-		if err := t.SaveTo(e.currentTaskDir); err != nil {
+		if err := e.backend.SaveTask(t); err != nil {
 			return fmt.Errorf("save task: %w", err)
 		}
-
-		// Auto-commit: phase started
-		e.commitTaskState(t, fmt.Sprintf("%s phase started", phase.ID))
 
 		e.logger.Info("executing phase", "phase", phase.ID, "task", t.ID)
 
@@ -124,7 +118,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			// Sync failures are treated as phase failures for retry handling
 			e.logger.Error("pre-phase sync failed", "phase", phase.ID, "error", err)
 			s.FailPhase(phase.ID, err)
-			if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+			if saveErr := e.backend.SaveState(s); saveErr != nil {
 				e.logger.Error("failed to save state on sync failure", "error", saveErr)
 			}
 			return fmt.Errorf("pre-phase sync for %s: %w", phase.ID, err)
@@ -140,11 +134,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			// Check for context cancellation (interrupt)
 			if ctx.Err() != nil {
 				s.InterruptPhase(phase.ID)
-				if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+				if saveErr := e.backend.SaveState(s); saveErr != nil {
 					e.logger.Error("failed to save state on interrupt", "error", saveErr)
 				}
-				// Auto-commit: phase interrupted
-				e.commitTaskState(t, fmt.Sprintf("%s phase interrupted", phase.ID))
 				return ctx.Err()
 			}
 
@@ -176,15 +168,12 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		}
 
 		// Save state and plan
-		if err := s.SaveTo(e.currentTaskDir); err != nil {
+		if err := e.backend.SaveState(s); err != nil {
 			return fmt.Errorf("save state: %w", err)
 		}
-		if err := p.SaveTo(e.currentTaskDir); err != nil {
+		if err := e.backend.SavePlan(p, t.ID); err != nil {
 			return fmt.Errorf("save plan: %w", err)
 		}
-
-		// Auto-commit: phase completed
-		e.commitTaskState(t, fmt.Sprintf("%s phase completed", phase.ID))
 
 		// Publish phase completion events
 		e.publishPhaseComplete(t.ID, phase.ID, result.CommitSHA)
@@ -322,7 +311,7 @@ func (e *Executor) handlePhaseFailure(phaseID string, err error, result *Result,
 				for k := j; k <= currentIdx; k++ {
 					s.ResetPhase(p.Phases[k].ID)
 				}
-				if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+				if saveErr := e.backend.SaveState(s); saveErr != nil {
 					e.logger.Error("failed to save state on retry", "error", saveErr)
 				}
 				return true, j
@@ -341,18 +330,15 @@ func (e *Executor) failSetup(t *task.Task, s *state.State, err error) {
 	// Clear execution tracking and set error
 	s.ClearExecution()
 	s.Error = err.Error()
-	if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+	if saveErr := e.backend.SaveState(s); saveErr != nil {
 		e.logger.Error("failed to save state on setup failure", "error", saveErr)
 	}
 
 	// Update task status
 	t.Status = task.StatusFailed
-	if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+	if saveErr := e.backend.SaveTask(t); saveErr != nil {
 		e.logger.Error("failed to save task on setup failure", "error", saveErr)
 	}
-
-	// Auto-commit: setup failed
-	e.commitTaskStatus(t, "failed")
 
 	// Publish failure events - use "setup" as the phase identifier
 	e.publishError(t.ID, "setup", err.Error(), true)
@@ -363,16 +349,13 @@ func (e *Executor) failSetup(t *task.Task, s *state.State, err error) {
 func (e *Executor) failTask(t *task.Task, phase *plan.Phase, s *state.State, err error) {
 	s.FailPhase(phase.ID, err)
 	s.ClearExecution() // Clear execution tracking on failure
-	if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+	if saveErr := e.backend.SaveState(s); saveErr != nil {
 		e.logger.Error("failed to save state on failure", "error", saveErr)
 	}
 	t.Status = task.StatusFailed
-	if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+	if saveErr := e.backend.SaveTask(t); saveErr != nil {
 		e.logger.Error("failed to save task on failure", "error", saveErr)
 	}
-
-	// Auto-commit: task failed
-	e.commitTaskStatus(t, "failed")
 
 	// Publish failure events
 	e.publishPhaseFailed(t.ID, phase.ID, err)
@@ -419,7 +402,7 @@ func (e *Executor) handleGateEvaluation(ctx context.Context, phase *plan.Phase, 
 					for k := j; k <= currentIdx; k++ {
 						s.ResetPhase(p.Phases[k].ID)
 					}
-					if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+					if saveErr := e.backend.SaveState(s); saveErr != nil {
 						e.logger.Error("failed to save state after retry reset", "error", saveErr)
 					}
 					return true, j
@@ -444,19 +427,16 @@ func (e *Executor) handleGateEvaluation(ctx context.Context, phase *plan.Phase, 
 func (e *Executor) completeTask(ctx context.Context, t *task.Task, s *state.State) error {
 	s.Complete()
 	s.ClearExecution() // Clear execution tracking on completion
-	if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+	if saveErr := e.backend.SaveState(s); saveErr != nil {
 		e.logger.Error("failed to save state on completion", "error", saveErr)
 	}
 
 	t.Status = task.StatusCompleted
 	completedAt := time.Now()
 	t.CompletedAt = &completedAt
-	if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+	if saveErr := e.backend.SaveTask(t); saveErr != nil {
 		e.logger.Error("failed to save task on completion", "error", saveErr)
 	}
-
-	// Auto-commit: task completed
-	e.commitTaskStatus(t, "completed")
 
 	// Run completion action (merge/PR)
 	if err := e.runCompletion(ctx, t); err != nil {
@@ -542,14 +522,20 @@ func (e *Executor) checkSpecRequirements(t *task.Task) error {
 			}
 		}
 
-		// Check if spec exists and is valid
-		if !task.SpecExists(t.ID) {
+		// Check if spec exists using backend
+		specExists, err := e.backend.SpecExists(t.ID)
+		if err != nil {
+			e.logger.Warn("failed to check spec existence", "task", t.ID, "error", err)
+			specExists = false
+		}
+		if !specExists {
 			e.logger.Warn("task has no spec", "task", t.ID, "weight", t.Weight)
 			return fmt.Errorf("task %s requires a spec for weight '%s' - run 'orc plan %s' to create one", t.ID, t.Weight, t.ID)
 		}
 
-		// Validate spec content
-		if !task.HasValidSpec(t.ID, t.Weight) {
+		// Load spec content to validate
+		specContent, err := e.backend.LoadSpec(t.ID)
+		if err != nil || specContent == "" {
 			e.logger.Warn("task spec is invalid", "task", t.ID, "weight", t.Weight)
 			return fmt.Errorf("task %s has an incomplete spec - run 'orc plan %s' to update it", t.ID, t.ID)
 		}
@@ -564,7 +550,8 @@ func (e *Executor) checkSpecRequirements(t *task.Task) error {
 		}
 
 		// Just warn, don't block
-		if shouldWarn && !task.SpecExists(t.ID) {
+		specExists, _ := e.backend.SpecExists(t.ID)
+		if shouldWarn && !specExists {
 			e.logger.Warn("task has no spec (execution will continue)",
 				"task", t.ID,
 				"weight", t.Weight,
@@ -579,11 +566,7 @@ func (e *Executor) checkSpecRequirements(t *task.Task) error {
 // FinalizeTask executes only the finalize phase for a task.
 // This is used when manually triggering finalize via CLI.
 func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) error {
-	// Set current task directory for saving files
-	projectRoot, err := findProjectRootFromDir(e.config.WorkDir)
-	if err != nil {
-		return fmt.Errorf("find project root: %w", err)
-	}
+	// Set current task directory for worktree operations
 	e.currentTaskDir = e.taskDir(t.ID)
 
 	// Record execution info for orphan detection
@@ -598,17 +581,14 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 		t.StartedAt = &now
 	}
 	t.CurrentPhase = "finalize"
-	if err := t.SaveTo(e.currentTaskDir); err != nil {
+	if err := e.backend.SaveTask(t); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 
 	// Save initial state with execution info
-	if err := s.SaveTo(e.currentTaskDir); err != nil {
+	if err := e.backend.SaveState(s); err != nil {
 		return fmt.Errorf("save state: %w", err)
 	}
-
-	// Auto-commit: finalize phase starting
-	e.commitTaskState(t, "finalize phase starting")
 
 	// Setup worktree if enabled
 	if e.orcConfig.Worktree.Enabled && e.gitOps != nil {
@@ -623,7 +603,7 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 	// Start phase and update heartbeat
 	s.StartPhase("finalize")
 	s.UpdateHeartbeat()
-	if err := s.SaveTo(e.currentTaskDir); err != nil {
+	if err := e.backend.SaveState(s); err != nil {
 		return fmt.Errorf("save state: %w", err)
 	}
 
@@ -654,7 +634,7 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 		WithFinalizeWorkingDir(workingDir),
 		WithFinalizeTaskDir(e.currentTaskDir),
 		WithFinalizeStateUpdater(func(st *state.State) {
-			if saveErr := st.SaveTo(e.currentTaskDir); saveErr != nil {
+			if saveErr := e.backend.SaveState(st); saveErr != nil {
 				e.logger.Error("failed to save state during finalize", "error", saveErr)
 			}
 		}),
@@ -666,7 +646,7 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 		// Check for context cancellation (interrupt)
 		if ctx.Err() != nil {
 			s.InterruptPhase("finalize")
-			if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+			if saveErr := e.backend.SaveState(s); saveErr != nil {
 				e.logger.Error("failed to save state on interrupt", "error", saveErr)
 			}
 			return ctx.Err()
@@ -675,13 +655,13 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 		// Fail the phase
 		s.FailPhase("finalize", err)
 		s.ClearExecution()
-		if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+		if saveErr := e.backend.SaveState(s); saveErr != nil {
 			e.logger.Error("failed to save state on failure", "error", saveErr)
 		}
 
 		// Restore original status on failure
 		t.Status = originalStatus
-		if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+		if saveErr := e.backend.SaveTask(t); saveErr != nil {
 			e.logger.Error("failed to save task on failure", "error", saveErr)
 		}
 
@@ -699,13 +679,12 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 	p.CommitSHA = result.CommitSHA
 
 	// Save state
-	if err := s.SaveTo(e.currentTaskDir); err != nil {
+	if err := e.backend.SaveState(s); err != nil {
 		return fmt.Errorf("save state: %w", err)
 	}
 
-	// Save plan if we have project root (to persist the phase status)
-	planPath := task.TaskDirIn(projectRoot, t.ID)
-	existingPlan, loadErr := plan.LoadFrom(projectRoot, t.ID)
+	// Save plan to persist the phase status
+	existingPlan, loadErr := e.backend.LoadPlan(t.ID)
 	if loadErr == nil {
 		// Update finalize phase status in existing plan
 		for i := range existingPlan.Phases {
@@ -715,7 +694,7 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 				break
 			}
 		}
-		if saveErr := existingPlan.SaveTo(planPath); saveErr != nil {
+		if saveErr := e.backend.SavePlan(existingPlan, t.ID); saveErr != nil {
 			e.logger.Warn("failed to save plan", "error", saveErr)
 		}
 	}
@@ -745,15 +724,12 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 	}
 	s.ClearExecution()
 
-	if saveErr := s.SaveTo(e.currentTaskDir); saveErr != nil {
+	if saveErr := e.backend.SaveState(s); saveErr != nil {
 		e.logger.Error("failed to save state on completion", "error", saveErr)
 	}
-	if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+	if saveErr := e.backend.SaveTask(t); saveErr != nil {
 		e.logger.Error("failed to save task on completion", "error", saveErr)
 	}
-
-	// Auto-commit: finalize phase completed
-	e.commitTaskState(t, "finalize phase completed")
 
 	// Publish completion events
 	e.publishPhaseComplete(t.ID, "finalize", result.CommitSHA)
@@ -776,6 +752,7 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 			WithCIMergerPublisher(e.publisher),
 			WithCIMergerLogger(e.logger),
 			WithCIMergerWorkDir(workingDir),
+			WithCIMergerBackend(e.backend),
 		)
 
 		if mergeErr := ciMerger.WaitForCIAndMerge(ctx, t); mergeErr != nil {
@@ -785,12 +762,9 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 		} else {
 			// Update task status to finished if merge succeeded
 			t.Status = task.StatusFinished
-			if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+			if saveErr := e.backend.SaveTask(t); saveErr != nil {
 				e.logger.Error("failed to save task after merge", "error", saveErr)
 			}
-
-			// Auto-commit: task finished (merged)
-			e.commitTaskStatus(t, "finished")
 
 			e.publishState(t.ID, s)
 		}

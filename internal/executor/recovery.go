@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -90,8 +89,7 @@ func (e *Executor) ExecuteWithRetry(ctx context.Context, t *task.Task, p *plan.P
 		// Save recovery state before retry
 		if s != nil {
 			s.Error = lastErr.Error()
-			taskDir := filepath.Join(e.config.WorkDir, task.OrcDir, task.TasksDir, s.TaskID)
-			if saveErr := s.SaveTo(taskDir); saveErr != nil {
+			if saveErr := e.backend.SaveState(s); saveErr != nil {
 				e.logger.Error("failed to save recovery state", "error", saveErr)
 			}
 		}

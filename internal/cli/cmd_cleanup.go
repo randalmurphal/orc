@@ -3,7 +3,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -31,11 +30,17 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			all, _ := cmd.Flags().GetBool("all")
 			olderThan, _ := cmd.Flags().GetString("older-than")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 
-			tasks, err := task.LoadAll()
+			tasks, err := backend.LoadAllTasks()
 			if err != nil {
 				return fmt.Errorf("load tasks: %w", err)
 			}
@@ -76,9 +81,7 @@ Example:
 
 			fmt.Printf("Cleaning up %d task(s)...\n", len(toClean))
 			for _, t := range toClean {
-				// Remove task directory
-				taskDir := task.TaskDir(t.ID)
-				if err := os.RemoveAll(taskDir); err != nil {
+				if err := backend.DeleteTask(t.ID); err != nil {
 					fmt.Printf("  Warning: Failed to remove %s: %v\n", t.ID, err)
 					continue
 				}

@@ -18,7 +18,7 @@ func (s *Server) handleGetTestResults(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	if exists, err := s.backend.TaskExists(taskID); err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -38,7 +38,7 @@ func (s *Server) handleListScreenshots(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	if exists, err := s.backend.TaskExists(taskID); err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -59,7 +59,7 @@ func (s *Server) handleGetScreenshot(w http.ResponseWriter, r *http.Request) {
 	filename := r.PathValue("filename")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	if exists, err := s.backend.TaskExists(taskID); err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -108,7 +108,7 @@ func (s *Server) handleUploadScreenshot(w http.ResponseWriter, r *http.Request) 
 	taskID := r.PathValue("id")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	if exists, err := s.backend.TaskExists(taskID); err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -156,7 +156,7 @@ func (s *Server) handleGetHTMLReport(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	if exists, err := s.backend.TaskExists(taskID); err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -183,7 +183,7 @@ func (s *Server) handleGetTrace(w http.ResponseWriter, r *http.Request) {
 	filename := r.PathValue("filename")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	if exists, err := s.backend.TaskExists(taskID); err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -217,7 +217,7 @@ func (s *Server) handleSaveTestReport(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	if exists, err := s.backend.TaskExists(taskID); err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -243,7 +243,7 @@ func (s *Server) handleInitTestResults(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	if exists, err := s.backend.TaskExists(taskID); err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}

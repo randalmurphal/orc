@@ -67,7 +67,7 @@ func (s *Server) handleCreateTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t, err := template.SaveFromTask(req.TaskID, req.Name, req.Description, req.Global)
+	t, err := template.SaveFromTask(req.TaskID, req.Name, req.Description, req.Global, s.backend)
 	if err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to create template: %v", err), http.StatusInternalServerError)
 		return

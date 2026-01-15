@@ -7,7 +7,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // ExportRequest represents a request to export task artifacts.
@@ -43,7 +42,8 @@ func (s *Server) handleExportTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	exists, err := s.backend.TaskExists(taskID)
+	if err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -92,7 +92,7 @@ func (s *Server) handleExportTask(w http.ResponseWriter, r *http.Request) {
 	// Perform export
 	if req.ToBranch {
 		// Get current branch for the task
-		t, err := task.LoadFrom(s.workDir, taskID)
+		t, err := s.backend.LoadTask(taskID)
 		if err != nil {
 			s.jsonError(w, "failed to load task: "+err.Error(), http.StatusInternalServerError)
 			return

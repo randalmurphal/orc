@@ -1,0 +1,972 @@
+package storage
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"sync"
+	"time"
+
+	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/initiative"
+	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
+)
+
+// DatabaseBackend uses SQLite/PostgreSQL as the sole source of truth.
+// No YAML files are created or read. This enables database sync across machines.
+// All operations are protected by a mutex for concurrent access safety.
+type DatabaseBackend struct {
+	projectPath string
+	db          *db.ProjectDB
+	cfg         *config.StorageConfig
+	mu          sync.RWMutex
+	logger      *log.Logger
+}
+
+// NewDatabaseBackend creates a new database-only storage backend.
+func NewDatabaseBackend(projectPath string, cfg *config.StorageConfig) (*DatabaseBackend, error) {
+	pdb, err := db.OpenProject(projectPath)
+	if err != nil {
+		return nil, fmt.Errorf("open project database: %w", err)
+	}
+
+	// Create a logger that discards output by default
+	logger := log.New(io.Discard, "", 0)
+
+	return &DatabaseBackend{
+		projectPath: projectPath,
+		db:          pdb,
+		cfg:         cfg,
+		logger:      logger,
+	}, nil
+}
+
+// SetLogger sets the logger for warnings and debug messages.
+func (d *DatabaseBackend) SetLogger(l *log.Logger) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.logger = l
+}
+
+// DB returns the underlying database for direct access.
+func (d *DatabaseBackend) DB() *db.ProjectDB {
+	return d.db
+}
+
+// SaveTask saves a task to the database.
+// Note: This preserves state fields (StateStatus, RetryContext) which are managed
+// by SaveState. When updating a task, we read existing state values and preserve them.
+func (d *DatabaseBackend) SaveTask(t *task.Task) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Convert to db.Task
+	dbTask := taskToDBTask(t)
+
+	// Preserve state fields (StateStatus, RetryContext) from existing task
+	// These fields are managed by SaveState, not SaveTask
+	existingTask, err := d.db.GetTask(t.ID)
+	if err == nil && existingTask != nil {
+		dbTask.StateStatus = existingTask.StateStatus
+		dbTask.RetryContext = existingTask.RetryContext
+	}
+
+	if err := d.db.SaveTask(dbTask); err != nil {
+		return fmt.Errorf("save task: %w", err)
+	}
+
+	// Save dependencies
+	if err := d.db.ClearTaskDependencies(t.ID); err != nil {
+		d.logger.Printf("warning: failed to clear task dependencies: %v", err)
+	}
+	for _, depID := range t.BlockedBy {
+		if err := d.db.AddTaskDependency(t.ID, depID); err != nil {
+			d.logger.Printf("warning: failed to add task dependency %s: %v", depID, err)
+		}
+	}
+
+	return nil
+}
+
+// LoadTask loads a task from the database.
+func (d *DatabaseBackend) LoadTask(id string) (*task.Task, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbTask, err := d.db.GetTask(id)
+	if err != nil {
+		return nil, fmt.Errorf("get task: %w", err)
+	}
+	if dbTask == nil {
+		return nil, fmt.Errorf("task %s not found", id)
+	}
+
+	// Convert from db.Task
+	t := dbTaskToTask(dbTask)
+
+	// Load dependencies
+	deps, err := d.db.GetTaskDependencies(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get task dependencies: %v", err)
+	} else {
+		t.BlockedBy = deps
+	}
+
+	return t, nil
+}
+
+// LoadAllTasks loads all tasks from the database.
+func (d *DatabaseBackend) LoadAllTasks() ([]*task.Task, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbTasks, _, err := d.db.ListTasks(db.ListOpts{})
+	if err != nil {
+		return nil, fmt.Errorf("list tasks: %w", err)
+	}
+
+	tasks := make([]*task.Task, 0, len(dbTasks))
+	for _, dbTask := range dbTasks {
+		t := dbTaskToTask(&dbTask)
+
+		// Load dependencies for each task
+		deps, err := d.db.GetTaskDependencies(t.ID)
+		if err != nil {
+			d.logger.Printf("warning: failed to get dependencies for %s: %v", t.ID, err)
+		} else {
+			t.BlockedBy = deps
+		}
+
+		tasks = append(tasks, t)
+	}
+
+	return tasks, nil
+}
+
+// DeleteTask removes a task from the database.
+func (d *DatabaseBackend) DeleteTask(id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Delete cascades to plans, specs, attachments, etc. via foreign keys
+	if err := d.db.DeleteTask(id); err != nil {
+		return fmt.Errorf("delete task: %w", err)
+	}
+
+	return nil
+}
+
+// SaveState saves execution state to the database.
+func (d *DatabaseBackend) SaveState(s *state.State) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Update task with state information
+	dbTask, err := d.db.GetTask(s.TaskID)
+	if err != nil {
+		return fmt.Errorf("get task for state: %w", err)
+	}
+	if dbTask == nil {
+		return fmt.Errorf("task %s not found for state", s.TaskID)
+	}
+
+	// Update task fields from state
+	// Note: state.Status and task.Status have different value sets
+	// state.Status: pending, running, completed, failed, paused, interrupted, skipped
+	// task.Status: created, classifying, planned, running, paused, blocked, finalizing, completed, finished, failed
+	// We store state status in a separate field (StateStatus)
+	dbTask.StateStatus = string(s.Status)
+	dbTask.CurrentPhase = s.CurrentPhase
+
+	// Serialize RetryContext if present
+	if s.RetryContext != nil {
+		retryContextJSON, err := json.Marshal(s.RetryContext)
+		if err != nil {
+			d.logger.Printf("warning: failed to serialize retry context: %v", err)
+		} else {
+			dbTask.RetryContext = string(retryContextJSON)
+		}
+	} else {
+		dbTask.RetryContext = ""
+	}
+
+	if err := d.db.SaveTask(dbTask); err != nil {
+		return fmt.Errorf("update task from state: %w", err)
+	}
+
+	// Clear existing phases before saving new ones
+	// This ensures phases removed from s.Phases are deleted from DB
+	if err := d.db.ClearPhases(s.TaskID); err != nil {
+		d.logger.Printf("warning: failed to clear phases: %v", err)
+	}
+
+	// Save phase states
+	for phaseID, ps := range s.Phases {
+		var startedAt *time.Time
+		if !ps.StartedAt.IsZero() {
+			startedAt = &ps.StartedAt
+		}
+		dbPhase := &db.Phase{
+			TaskID:       s.TaskID,
+			PhaseID:      phaseID,
+			Status:       string(ps.Status),
+			Iterations:   ps.Iterations,
+			StartedAt:    startedAt,
+			CompletedAt:  ps.CompletedAt,
+			InputTokens:  ps.Tokens.InputTokens,
+			OutputTokens: ps.Tokens.OutputTokens,
+			CostUSD:      0, // Cost is tracked at state level, not phase level
+			ErrorMessage: ps.Error,
+			CommitSHA:    ps.CommitSHA,
+		}
+		if err := d.db.SavePhase(dbPhase); err != nil {
+			d.logger.Printf("warning: failed to save phase %s: %v", phaseID, err)
+		}
+	}
+
+	// Save gate decisions
+	for _, gate := range s.Gates {
+		dbGate := &db.GateDecision{
+			TaskID:    s.TaskID,
+			Phase:     gate.Phase,
+			GateType:  gate.GateType,
+			Approved:  gate.Approved,
+			Reason:    gate.Reason,
+			DecidedAt: gate.Timestamp,
+		}
+		if err := d.db.AddGateDecision(dbGate); err != nil {
+			d.logger.Printf("warning: failed to save gate decision: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// LoadState loads execution state from the database.
+func (d *DatabaseBackend) LoadState(taskID string) (*state.State, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	// Get task for basic info
+	dbTask, err := d.db.GetTask(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get task for state: %w", err)
+	}
+	if dbTask == nil {
+		return nil, fmt.Errorf("task %s not found", taskID)
+	}
+
+	// Get phases
+	dbPhases, err := d.db.GetPhases(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get phases: %w", err)
+	}
+
+	// Get gate decisions
+	dbGates, err := d.db.GetGateDecisions(taskID)
+	if err != nil {
+		d.logger.Printf("warning: failed to get gate decisions: %v", err)
+	}
+
+	// Build state
+	var startedAt time.Time
+	if dbTask.StartedAt != nil {
+		startedAt = *dbTask.StartedAt
+	}
+
+	// Get state status from StateStatus field (not Status which is task status)
+	stateStatus := dbTask.StateStatus
+	if stateStatus == "" {
+		stateStatus = "pending" // Default
+	}
+
+	s := &state.State{
+		TaskID:       taskID,
+		CurrentPhase: dbTask.CurrentPhase,
+		Status:       state.Status(stateStatus),
+		Phases:       make(map[string]*state.PhaseState),
+		StartedAt:    startedAt,
+	}
+
+	// Deserialize RetryContext if present
+	if dbTask.RetryContext != "" {
+		var retryCtx state.RetryContext
+		if err := json.Unmarshal([]byte(dbTask.RetryContext), &retryCtx); err != nil {
+			d.logger.Printf("warning: failed to deserialize retry context: %v", err)
+		} else {
+			s.RetryContext = &retryCtx
+		}
+	}
+
+	// Populate phases
+	for _, dbPhase := range dbPhases {
+		var phaseStartedAt time.Time
+		if dbPhase.StartedAt != nil {
+			phaseStartedAt = *dbPhase.StartedAt
+		}
+		s.Phases[dbPhase.PhaseID] = &state.PhaseState{
+			Status:      state.Status(dbPhase.Status),
+			Iterations:  dbPhase.Iterations,
+			StartedAt:   phaseStartedAt,
+			CompletedAt: dbPhase.CompletedAt,
+			Error:       dbPhase.ErrorMessage,
+			CommitSHA:   dbPhase.CommitSHA,
+			Tokens: state.TokenUsage{
+				InputTokens:  dbPhase.InputTokens,
+				OutputTokens: dbPhase.OutputTokens,
+			},
+		}
+	}
+
+	// Populate gates
+	for _, dbGate := range dbGates {
+		s.Gates = append(s.Gates, state.GateDecision{
+			Phase:     dbGate.Phase,
+			GateType:  dbGate.GateType,
+			Approved:  dbGate.Approved,
+			Reason:    dbGate.Reason,
+			Timestamp: dbGate.DecidedAt,
+		})
+	}
+
+	return s, nil
+}
+
+// LoadAllStates loads all task states from the database.
+func (d *DatabaseBackend) LoadAllStates() ([]*state.State, error) {
+	// Load all tasks first
+	tasks, err := d.LoadAllTasks()
+	if err != nil {
+		return nil, fmt.Errorf("load all tasks: %w", err)
+	}
+
+	var states []*state.State
+	for _, t := range tasks {
+		s, err := d.LoadState(t.ID)
+		if err != nil {
+			// Skip tasks without state (e.g., never started)
+			continue
+		}
+		states = append(states, s)
+	}
+
+	return states, nil
+}
+
+// SavePlan saves a plan to the database.
+func (d *DatabaseBackend) SavePlan(p *plan.Plan, taskID string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Serialize phases to JSON
+	phasesJSON, err := json.Marshal(p.Phases)
+	if err != nil {
+		return fmt.Errorf("marshal phases: %w", err)
+	}
+
+	dbPlan := &db.Plan{
+		TaskID:      taskID,
+		Version:     p.Version,
+		Weight:      string(p.Weight),
+		Description: p.Description,
+		Phases:      string(phasesJSON),
+	}
+
+	if err := d.db.SavePlan(dbPlan); err != nil {
+		return fmt.Errorf("save plan: %w", err)
+	}
+
+	return nil
+}
+
+// LoadPlan loads a plan from the database.
+func (d *DatabaseBackend) LoadPlan(taskID string) (*plan.Plan, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbPlan, err := d.db.GetPlan(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get plan: %w", err)
+	}
+	if dbPlan == nil {
+		return nil, fmt.Errorf("plan for %s not found", taskID)
+	}
+
+	// Deserialize phases from JSON
+	var phases []plan.Phase
+	if err := json.Unmarshal([]byte(dbPlan.Phases), &phases); err != nil {
+		return nil, fmt.Errorf("unmarshal phases: %w", err)
+	}
+
+	p := &plan.Plan{
+		Version:     dbPlan.Version,
+		TaskID:      dbPlan.TaskID,
+		Weight:      task.Weight(dbPlan.Weight),
+		Description: dbPlan.Description,
+		Phases:      phases,
+	}
+
+	return p, nil
+}
+
+// AddTranscript adds a transcript to database (for FTS).
+func (d *DatabaseBackend) AddTranscript(t *Transcript) error {
+	dbTranscript := &db.Transcript{
+		TaskID:  t.TaskID,
+		Phase:   t.Phase,
+		Content: t.Content,
+	}
+	if err := d.db.AddTranscript(dbTranscript); err != nil {
+		return fmt.Errorf("add transcript: %w", err)
+	}
+	t.ID = dbTranscript.ID
+	return nil
+}
+
+// GetTranscripts retrieves transcripts for a task.
+func (d *DatabaseBackend) GetTranscripts(taskID string) ([]Transcript, error) {
+	dbTranscripts, err := d.db.GetTranscripts(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get transcripts: %w", err)
+	}
+
+	result := make([]Transcript, len(dbTranscripts))
+	for i, t := range dbTranscripts {
+		result[i] = Transcript{
+			ID:        t.ID,
+			TaskID:    t.TaskID,
+			Phase:     t.Phase,
+			Content:   t.Content,
+			Timestamp: t.Timestamp.Unix(),
+		}
+	}
+	return result, nil
+}
+
+// SearchTranscripts performs FTS search across transcripts.
+func (d *DatabaseBackend) SearchTranscripts(query string) ([]TranscriptMatch, error) {
+	dbMatches, err := d.db.SearchTranscripts(query)
+	if err != nil {
+		return nil, fmt.Errorf("search transcripts: %w", err)
+	}
+
+	result := make([]TranscriptMatch, len(dbMatches))
+	for i, m := range dbMatches {
+		result[i] = TranscriptMatch{
+			TaskID:  m.TaskID,
+			Phase:   m.Phase,
+			Snippet: m.Snippet,
+			Rank:    m.Rank,
+		}
+	}
+	return result, nil
+}
+
+// MaterializeContext generates context files for worktree execution.
+// In database mode, this writes task info to the specified path.
+func (d *DatabaseBackend) MaterializeContext(taskID, outputPath string) error {
+	// TODO: Generate context.md from database data
+	// For now, return nil as the executor can read from DB directly
+	return nil
+}
+
+// NeedsMaterialization returns true for database mode.
+func (d *DatabaseBackend) NeedsMaterialization() bool {
+	return true
+}
+
+// Sync flushes any pending operations.
+func (d *DatabaseBackend) Sync() error {
+	// Database operations are synchronous, nothing to sync
+	return nil
+}
+
+// Cleanup removes old data based on retention policy.
+func (d *DatabaseBackend) Cleanup() error {
+	// TODO: Implement cleanup based on retention policy
+	return nil
+}
+
+// Close releases database resources.
+func (d *DatabaseBackend) Close() error {
+	return d.db.Close()
+}
+
+// GetNextTaskID generates the next task ID from the database.
+func (d *DatabaseBackend) GetNextTaskID() (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.GetNextTaskID()
+}
+
+// ============================================================================
+// Spec operations
+// ============================================================================
+
+// SaveSpec saves a spec to the database.
+func (d *DatabaseBackend) SaveSpec(taskID, content, source string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	spec := &db.Spec{
+		TaskID:  taskID,
+		Content: content,
+		Source:  source,
+	}
+	return d.db.SaveSpec(spec)
+}
+
+// LoadSpec loads a spec from the database.
+func (d *DatabaseBackend) LoadSpec(taskID string) (string, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	spec, err := d.db.GetSpec(taskID)
+	if err != nil {
+		return "", err
+	}
+	if spec == nil {
+		return "", nil
+	}
+	return spec.Content, nil
+}
+
+// SpecExists checks if a spec exists for a task.
+func (d *DatabaseBackend) SpecExists(taskID string) (bool, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.SpecExists(taskID)
+}
+
+// ============================================================================
+// Attachment operations
+// ============================================================================
+
+// SaveAttachment stores an attachment in the database.
+func (d *DatabaseBackend) SaveAttachment(taskID, filename, contentType string, data []byte) (*task.Attachment, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	isImage := isImageContentType(contentType)
+	dbAttachment := &db.Attachment{
+		TaskID:      taskID,
+		Filename:    filename,
+		ContentType: contentType,
+		SizeBytes:   int64(len(data)),
+		Data:        data,
+		IsImage:     isImage,
+	}
+	if err := d.db.SaveAttachment(dbAttachment); err != nil {
+		return nil, err
+	}
+
+	return &task.Attachment{
+		Filename:    filename,
+		Size:        int64(len(data)),
+		ContentType: contentType,
+		CreatedAt:   dbAttachment.CreatedAt,
+		IsImage:     isImage,
+	}, nil
+}
+
+// GetAttachment retrieves an attachment from the database.
+func (d *DatabaseBackend) GetAttachment(taskID, filename string) (*task.Attachment, []byte, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbAttachment, err := d.db.GetAttachment(taskID, filename)
+	if err != nil {
+		return nil, nil, err
+	}
+	if dbAttachment == nil {
+		return nil, nil, fmt.Errorf("attachment %s not found", filename)
+	}
+
+	attachment := &task.Attachment{
+		Filename:    dbAttachment.Filename,
+		Size:        dbAttachment.SizeBytes,
+		ContentType: dbAttachment.ContentType,
+		CreatedAt:   dbAttachment.CreatedAt,
+		IsImage:     dbAttachment.IsImage,
+	}
+	return attachment, dbAttachment.Data, nil
+}
+
+// ListAttachments lists attachments for a task.
+func (d *DatabaseBackend) ListAttachments(taskID string) ([]*task.Attachment, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbAttachments, err := d.db.ListAttachments(taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	attachments := make([]*task.Attachment, len(dbAttachments))
+	for i, a := range dbAttachments {
+		attachments[i] = &task.Attachment{
+			Filename:    a.Filename,
+			Size:        a.SizeBytes,
+			ContentType: a.ContentType,
+			CreatedAt:   a.CreatedAt,
+			IsImage:     a.IsImage,
+		}
+	}
+	return attachments, nil
+}
+
+// DeleteAttachment removes an attachment.
+func (d *DatabaseBackend) DeleteAttachment(taskID, filename string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeleteAttachment(taskID, filename)
+}
+
+// ============================================================================
+// Helper functions
+// ============================================================================
+
+// taskToDBTask converts a task.Task to db.Task.
+func taskToDBTask(t *task.Task) *db.Task {
+	// Serialize metadata to JSON
+	var metadataJSON string
+	if len(t.Metadata) > 0 {
+		if data, err := json.Marshal(t.Metadata); err == nil {
+			metadataJSON = string(data)
+		}
+	}
+
+	return &db.Task{
+		ID:           t.ID,
+		Title:        t.Title,
+		Description:  t.Description,
+		Weight:       string(t.Weight),
+		Status:       string(t.Status),
+		CurrentPhase: t.CurrentPhase,
+		Branch:       t.Branch,
+		Queue:        string(t.GetQueue()),
+		Priority:     string(t.GetPriority()),
+		Category:     string(t.GetCategory()),
+		InitiativeID: t.InitiativeID,
+		CreatedAt:    t.CreatedAt,
+		StartedAt:    t.StartedAt,
+		CompletedAt:  t.CompletedAt,
+		Metadata:     metadataJSON,
+	}
+}
+
+// dbTaskToTask converts a db.Task to task.Task.
+func dbTaskToTask(dbTask *db.Task) *task.Task {
+	// Deserialize metadata from JSON
+	var metadata map[string]string
+	if dbTask.Metadata != "" {
+		_ = json.Unmarshal([]byte(dbTask.Metadata), &metadata)
+	}
+
+	return &task.Task{
+		ID:           dbTask.ID,
+		Title:        dbTask.Title,
+		Description:  dbTask.Description,
+		Weight:       task.Weight(dbTask.Weight),
+		Status:       task.Status(dbTask.Status),
+		CurrentPhase: dbTask.CurrentPhase,
+		Branch:       dbTask.Branch,
+		Queue:        task.Queue(dbTask.Queue),
+		Priority:     task.Priority(dbTask.Priority),
+		Category:     task.Category(dbTask.Category),
+		InitiativeID: dbTask.InitiativeID,
+		CreatedAt:    dbTask.CreatedAt,
+		StartedAt:    dbTask.StartedAt,
+		CompletedAt:  dbTask.CompletedAt,
+		Metadata:     metadata,
+	}
+}
+
+// isImageContentType checks if a content type is an image.
+func isImageContentType(contentType string) bool {
+	switch contentType {
+	case "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml":
+		return true
+	default:
+		return false
+	}
+}
+
+// TaskExists checks if a task exists in the database.
+func (d *DatabaseBackend) TaskExists(id string) (bool, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbTask, err := d.db.GetTask(id)
+	if err != nil {
+		return false, err
+	}
+	return dbTask != nil, nil
+}
+
+// ============================================================================
+// Initiative operations
+// ============================================================================
+
+// SaveInitiative saves an initiative to the database.
+func (d *DatabaseBackend) SaveInitiative(i *initiative.Initiative) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	dbInit := initiativeToDBInitiative(i)
+	if err := d.db.SaveInitiative(dbInit); err != nil {
+		return fmt.Errorf("save initiative: %w", err)
+	}
+
+	// Save decisions
+	for _, decision := range i.Decisions {
+		dbDecision := &db.InitiativeDecision{
+			ID:           decision.ID,
+			InitiativeID: i.ID,
+			DecidedAt:    decision.Date,
+			DecidedBy:    decision.By,
+			Decision:     decision.Decision,
+			Rationale:    decision.Rationale,
+		}
+		if err := d.db.AddInitiativeDecision(dbDecision); err != nil {
+			d.logger.Printf("warning: failed to save decision %s: %v", decision.ID, err)
+		}
+	}
+
+	// Clear and save task references
+	if err := d.db.ClearInitiativeTasks(i.ID); err != nil {
+		d.logger.Printf("warning: failed to clear initiative tasks: %v", err)
+	}
+	for idx, taskRef := range i.Tasks {
+		if err := d.db.AddTaskToInitiative(i.ID, taskRef.ID, idx); err != nil {
+			d.logger.Printf("warning: failed to add task %s to initiative: %v", taskRef.ID, err)
+		}
+	}
+
+	// Save dependencies (blocked_by)
+	if err := d.db.ClearInitiativeDependencies(i.ID); err != nil {
+		d.logger.Printf("warning: failed to clear initiative dependencies: %v", err)
+	}
+	for _, depID := range i.BlockedBy {
+		if err := d.db.AddInitiativeDependency(i.ID, depID); err != nil {
+			d.logger.Printf("warning: failed to add initiative dependency %s: %v", depID, err)
+		}
+	}
+
+	return nil
+}
+
+// LoadInitiative loads an initiative from the database.
+func (d *DatabaseBackend) LoadInitiative(id string) (*initiative.Initiative, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbInit, err := d.db.GetInitiative(id)
+	if err != nil {
+		return nil, fmt.Errorf("get initiative: %w", err)
+	}
+	if dbInit == nil {
+		return nil, fmt.Errorf("initiative %s not found", id)
+	}
+
+	i := dbInitiativeToInitiative(dbInit)
+
+	// Load decisions
+	dbDecisions, err := d.db.GetInitiativeDecisions(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get decisions: %v", err)
+	} else {
+		for _, dbDec := range dbDecisions {
+			i.Decisions = append(i.Decisions, initiative.Decision{
+				ID:        dbDec.ID,
+				Date:      dbDec.DecidedAt,
+				By:        dbDec.DecidedBy,
+				Decision:  dbDec.Decision,
+				Rationale: dbDec.Rationale,
+			})
+		}
+	}
+
+	// Load task references
+	taskIDs, err := d.db.GetInitiativeTasks(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get initiative tasks: %v", err)
+	} else {
+		for _, taskID := range taskIDs {
+			dbTask, err := d.db.GetTask(taskID)
+			if err != nil || dbTask == nil {
+				continue
+			}
+			i.Tasks = append(i.Tasks, initiative.TaskRef{
+				ID:     taskID,
+				Title:  dbTask.Title,
+				Status: dbTask.Status,
+			})
+		}
+	}
+
+	// Load dependencies (blocked_by)
+	deps, err := d.db.GetInitiativeDependencies(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get initiative dependencies: %v", err)
+	} else {
+		i.BlockedBy = deps
+	}
+
+	// Load dependents (blocks)
+	dependents, err := d.db.GetInitiativeDependents(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get initiative dependents: %v", err)
+	} else {
+		i.Blocks = dependents
+	}
+
+	return i, nil
+}
+
+// LoadAllInitiatives loads all initiatives from the database.
+func (d *DatabaseBackend) LoadAllInitiatives() ([]*initiative.Initiative, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbInits, err := d.db.ListInitiatives(db.ListOpts{})
+	if err != nil {
+		return nil, fmt.Errorf("list initiatives: %w", err)
+	}
+
+	initiatives := make([]*initiative.Initiative, 0, len(dbInits))
+	for _, dbInit := range dbInits {
+		i := dbInitiativeToInitiative(&dbInit)
+
+		// Load decisions
+		dbDecisions, _ := d.db.GetInitiativeDecisions(i.ID)
+		for _, dbDec := range dbDecisions {
+			i.Decisions = append(i.Decisions, initiative.Decision{
+				ID:        dbDec.ID,
+				Date:      dbDec.DecidedAt,
+				By:        dbDec.DecidedBy,
+				Decision:  dbDec.Decision,
+				Rationale: dbDec.Rationale,
+			})
+		}
+
+		// Load task references
+		taskIDs, _ := d.db.GetInitiativeTasks(i.ID)
+		for _, taskID := range taskIDs {
+			dbTask, err := d.db.GetTask(taskID)
+			if err != nil || dbTask == nil {
+				continue
+			}
+			i.Tasks = append(i.Tasks, initiative.TaskRef{
+				ID:     taskID,
+				Title:  dbTask.Title,
+				Status: dbTask.Status,
+			})
+		}
+
+		// Load dependencies
+		deps, _ := d.db.GetInitiativeDependencies(i.ID)
+		i.BlockedBy = deps
+
+		// Load dependents
+		dependents, _ := d.db.GetInitiativeDependents(i.ID)
+		i.Blocks = dependents
+
+		initiatives = append(initiatives, i)
+	}
+
+	return initiatives, nil
+}
+
+// DeleteInitiative removes an initiative from the database.
+func (d *DatabaseBackend) DeleteInitiative(id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if err := d.db.DeleteInitiative(id); err != nil {
+		return fmt.Errorf("delete initiative: %w", err)
+	}
+	return nil
+}
+
+// InitiativeExists checks if an initiative exists in the database.
+func (d *DatabaseBackend) InitiativeExists(id string) (bool, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	init, err := d.db.GetInitiative(id)
+	if err != nil {
+		return false, fmt.Errorf("check initiative: %w", err)
+	}
+	return init != nil, nil
+}
+
+// GetNextInitiativeID generates the next initiative ID from the database.
+func (d *DatabaseBackend) GetNextInitiativeID() (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Get all initiatives and find the max numeric ID
+	dbInits, err := d.db.ListInitiatives(db.ListOpts{})
+	if err != nil {
+		return "", fmt.Errorf("list initiatives: %w", err)
+	}
+
+	maxNum := 0
+	for _, init := range dbInits {
+		var num int
+		if _, err := fmt.Sscanf(init.ID, "INIT-%d", &num); err == nil {
+			if num > maxNum {
+				maxNum = num
+			}
+		}
+	}
+
+	return fmt.Sprintf("INIT-%03d", maxNum+1), nil
+}
+
+// ============================================================================
+// Initiative helper functions
+// ============================================================================
+
+// initiativeToDBInitiative converts an initiative.Initiative to db.Initiative.
+func initiativeToDBInitiative(i *initiative.Initiative) *db.Initiative {
+	return &db.Initiative{
+		ID:               i.ID,
+		Title:            i.Title,
+		Status:           string(i.Status),
+		OwnerInitials:    i.Owner.Initials,
+		OwnerDisplayName: i.Owner.DisplayName,
+		OwnerEmail:       i.Owner.Email,
+		Vision:           i.Vision,
+		CreatedAt:        i.CreatedAt,
+		UpdatedAt:        i.UpdatedAt,
+	}
+}
+
+// dbInitiativeToInitiative converts a db.Initiative to initiative.Initiative.
+func dbInitiativeToInitiative(dbInit *db.Initiative) *initiative.Initiative {
+	return &initiative.Initiative{
+		ID:     dbInit.ID,
+		Title:  dbInit.Title,
+		Status: initiative.Status(dbInit.Status),
+		Owner: initiative.Identity{
+			Initials:    dbInit.OwnerInitials,
+			DisplayName: dbInit.OwnerDisplayName,
+			Email:       dbInit.OwnerEmail,
+		},
+		Vision:    dbInit.Vision,
+		CreatedAt: dbInit.CreatedAt,
+		UpdatedAt: dbInit.UpdatedAt,
+	}
+}
+
+// Ensure DatabaseBackend implements Backend
+var _ Backend = (*DatabaseBackend)(nil)

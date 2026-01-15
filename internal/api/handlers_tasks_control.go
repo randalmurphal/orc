@@ -6,11 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path/filepath"
 
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -26,7 +24,7 @@ func truncate(s string, maxLen int) string {
 // handleRunTask starts task execution.
 func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := task.LoadFrom(s.workDir, id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -52,8 +50,7 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 
 		if !force {
 			// Load all tasks to check blocker status
-			tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
-			allTasks, err := task.LoadAllFrom(tasksDir)
+			allTasks, err := s.backend.LoadAllTasks()
 			if err != nil {
 				s.logger.Warn("failed to load tasks for dependency check", "error", err)
 				// Continue anyway - don't block on dependency check failure
@@ -83,14 +80,14 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load plan and state
-	p, err := plan.LoadFrom(s.workDir, id)
+	p, err := s.backend.LoadPlan(id)
 	if err != nil {
 		s.jsonError(w, "plan not found", http.StatusNotFound)
 		return
 	}
 
-	st, err := state.LoadFrom(s.workDir, id)
-	if err != nil {
+	st, err := s.backend.LoadState(id)
+	if err != nil || st == nil {
 		// Create new state if it doesn't exist
 		st = state.New(id)
 	}
@@ -105,14 +102,10 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	if len(p.Phases) > 0 {
 		t.CurrentPhase = p.Phases[0].ID
 	}
-	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: task starting to run
-	// Note: executor will also commit when it starts, but this ensures no gap
-	s.autoCommitTask(t, "started")
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -133,6 +126,7 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		execCfg := executor.ConfigFromOrc(s.orcConfig)
 		execCfg.WorkDir = s.workDir
 		exec := executor.NewWithConfig(execCfg, s.orcConfig)
+		exec.SetBackend(s.backend)
 		exec.SetPublisher(s.publisher)
 
 		// Execute with event publishing
@@ -146,7 +140,7 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Reload and publish final state
-		if finalState, err := state.LoadFrom(s.workDir, id); err == nil {
+		if finalState, err := s.backend.LoadState(id); err == nil {
 			s.Publish(id, Event{Type: "state", Data: finalState})
 		}
 	}()
@@ -158,20 +152,17 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 // handlePauseTask pauses task execution.
 func (s *Server) handlePauseTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := task.LoadFrom(s.workDir, id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
 	t.Status = task.StatusPaused
-	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: task paused
-	s.autoCommitTask(t, "paused")
 
 	s.jsonResponse(w, map[string]string{"status": "paused", "task_id": id})
 }
@@ -179,20 +170,17 @@ func (s *Server) handlePauseTask(w http.ResponseWriter, r *http.Request) {
 // handleResumeTask resumes task execution.
 func (s *Server) handleResumeTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := task.LoadFrom(s.workDir, id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
 	t.Status = task.StatusRunning
-	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: task resumed
-	s.autoCommitTask(t, "resumed")
 
 	s.jsonResponse(w, map[string]string{"status": "resumed", "task_id": id})
 }
@@ -202,7 +190,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, id) {
+	if _, err := s.backend.LoadTask(id); err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
@@ -235,7 +223,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Send initial state
-	if st, err := state.LoadFrom(s.workDir, id); err == nil {
+	if st, err := s.backend.LoadState(id); err == nil {
 		data, _ := json.Marshal(st)
 		_, _ = fmt.Fprintf(w, "event: state\ndata: %s\n\n", data)
 		if f, ok := w.(http.Flusher); ok {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
+	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // Options configures a spec session.
@@ -31,6 +32,9 @@ type Options struct {
 
 	// Shared indicates if initiative is in the shared directory
 	Shared bool
+
+	// Backend is the storage backend for tasks and initiatives
+	Backend storage.Backend
 }
 
 // Result contains the outcome of a spec session.
@@ -61,12 +65,8 @@ func Run(ctx context.Context, title string, opts Options) (*Result, error) {
 
 	// Load initiative if specified
 	var init *initiative.Initiative
-	if opts.InitiativeID != "" {
-		if opts.Shared {
-			init, err = initiative.LoadShared(opts.InitiativeID)
-		} else {
-			init, err = initiative.Load(opts.InitiativeID)
-		}
+	if opts.InitiativeID != "" && opts.Backend != nil {
+		init, err = opts.Backend.LoadInitiative(opts.InitiativeID)
 		if err != nil {
 			return nil, fmt.Errorf("load initiative: %w", err)
 		}

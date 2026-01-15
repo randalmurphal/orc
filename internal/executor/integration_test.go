@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -191,15 +193,18 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 	skipIfNoRealClaude(t)
 
 	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/INT-002")
 
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
+	// Create backend for storage
+	backend, err := storage.NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
 	}
+	defer backend.Close()
 
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir
 	e := New(cfg)
+	e.SetBackend(backend)
 
 	client := claude.NewClaudeCLI(claude.WithDangerouslySkipPermissions())
 	e.SetClient(client)
@@ -213,7 +218,7 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 	testTask := task.New("INT-002", "Integration test task")
 	testTask.Weight = task.WeightTrivial
 	testTask.Status = task.StatusPlanned
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -229,7 +234,7 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(testPlan, "INT-002"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -239,7 +244,7 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	err := e.ExecuteTask(ctx, testTask, testPlan, testState)
+	err = e.ExecuteTask(ctx, testTask, testPlan, testState)
 	duration := time.Since(start)
 
 	if err != nil {
@@ -266,13 +271,13 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 	<-done
 
 	// Track costs from state
-	reloadedState, _ := state.LoadFrom(tmpDir, "INT-002")
+	reloadedState, _ := backend.LoadState("INT-002")
 	costs.Add(t.Name(),
 		reloadedState.Tokens.InputTokens,
 		reloadedState.Tokens.OutputTokens,
 		duration)
 
-	reloadedTask, _ := task.LoadFrom(tmpDir, "INT-002")
+	reloadedTask, _ := backend.LoadTask("INT-002")
 	if reloadedTask.Status != task.StatusCompleted {
 		t.Errorf("task status = %s, want completed", reloadedTask.Status)
 	}
@@ -284,16 +289,19 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 	skipIfNoRealClaude(t)
 
 	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/INT-003")
 
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
+	// Create backend for storage
+	backend, err := storage.NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
 	}
+	defer backend.Close()
 
 	cfg := DefaultConfig()
 	cfg.MaxIterations = 5
 	cfg.WorkDir = tmpDir
 	e := New(cfg)
+	e.SetBackend(backend)
 
 	client := claude.NewClaudeCLI(claude.WithDangerouslySkipPermissions())
 	e.SetClient(client)
@@ -301,7 +309,7 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 	testTask := task.New("INT-003", "Multi-phase integration test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -321,7 +329,7 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(testPlan, "INT-003"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -331,20 +339,20 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	err := e.ExecuteTask(ctx, testTask, testPlan, testState)
+	err = e.ExecuteTask(ctx, testTask, testPlan, testState)
 	duration := time.Since(start)
 
 	if err != nil {
 		t.Fatalf("ExecuteTask failed: %v", err)
 	}
 
-	reloadedState, _ := state.LoadFrom(tmpDir, "INT-003")
+	reloadedState, _ := backend.LoadState("INT-003")
 	costs.Add(t.Name(),
 		reloadedState.Tokens.InputTokens,
 		reloadedState.Tokens.OutputTokens,
 		duration)
 
-	reloadedTask, _ := task.LoadFrom(tmpDir, "INT-003")
+	reloadedTask, _ := backend.LoadTask("INT-003")
 	if reloadedTask.Status != task.StatusCompleted {
 		t.Errorf("task status = %s, want completed", reloadedTask.Status)
 	}
@@ -364,15 +372,18 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 	skipIfNoRealClaude(t)
 
 	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/INT-004")
 
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
+	// Create backend for storage
+	backend, err := storage.NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
 	}
+	defer backend.Close()
 
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir
 	e := New(cfg)
+	e.SetBackend(backend)
 
 	client := claude.NewClaudeCLI(claude.WithDangerouslySkipPermissions())
 	e.SetClient(client)
@@ -380,7 +391,7 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 	testTask := task.New("INT-004", "Pause/Resume test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -398,7 +409,7 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(testPlan, "INT-004"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -417,22 +428,22 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 	// Simulate pause
 	testState.InterruptPhase("phase1")
 	testTask.Status = task.StatusPaused
-	if err := testState.SaveTo(taskDir); err != nil {
+	if err := backend.SaveState(testState); err != nil {
 		t.Fatalf("failed to save state: %v", err)
 	}
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Verify paused state
-	reloadedTask, _ := task.LoadFrom(tmpDir, "INT-004")
+	reloadedTask, _ := backend.LoadTask("INT-004")
 	if reloadedTask.Status != task.StatusPaused {
 		t.Error("Task should be paused")
 	}
 
 	// Resume and execute phase2
 	testTask.Status = task.StatusRunning
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -503,15 +514,18 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/MOCK-002")
 
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
+	// Create backend for storage
+	backend, err := storage.NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
 	}
+	defer backend.Close()
 
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir
 	e := New(cfg)
+	e.SetBackend(backend)
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>")
 	e.SetClient(mockClient)
 
@@ -523,7 +537,7 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 	testTask := task.New("MOCK-002", "Event test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -533,7 +547,7 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 			{ID: "implement", Prompt: "Test"},
 		},
 	}
-	if err := testPlan.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(testPlan, "MOCK-002"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -558,7 +572,7 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 	}()
 
 	ctx := context.Background()
-	err := e.ExecuteTask(ctx, testTask, testPlan, testState)
+	err = e.ExecuteTask(ctx, testTask, testPlan, testState)
 
 	<-done
 

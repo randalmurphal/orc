@@ -10,15 +10,13 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
-	"github.com/randalmurphal/orc/internal/plan"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
 // handleGetState returns task execution state.
 func (s *Server) handleGetState(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	st, err := state.LoadFrom(s.workDir, id)
+	st, err := s.backend.LoadState(id)
 	if err != nil {
 		s.jsonError(w, "state not found", http.StatusNotFound)
 		return
@@ -30,7 +28,7 @@ func (s *Server) handleGetState(w http.ResponseWriter, r *http.Request) {
 // handleGetPlan returns task plan.
 func (s *Server) handleGetPlan(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	p, err := plan.LoadFrom(s.workDir, id)
+	p, err := s.backend.LoadPlan(id)
 	if err != nil {
 		s.jsonError(w, "plan not found", http.StatusNotFound)
 		return
@@ -42,7 +40,7 @@ func (s *Server) handleGetPlan(w http.ResponseWriter, r *http.Request) {
 // handleGetSession returns session information for a task.
 func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	st, err := state.LoadFrom(s.workDir, id)
+	st, err := s.backend.LoadState(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -59,7 +57,7 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 // handleGetTokens returns token usage and cost for a task.
 func (s *Server) handleGetTokens(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	st, err := state.LoadFrom(s.workDir, id)
+	st, err := s.backend.LoadState(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -106,7 +104,7 @@ func (s *Server) handleGetCostSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load all states
-	states, err := state.LoadAllStatesFrom(s.workDir)
+	states, err := s.backend.LoadAllStates()
 	if err != nil {
 		s.jsonError(w, "failed to load task states", http.StatusInternalServerError)
 		return
@@ -182,7 +180,7 @@ func (s *Server) handleGetTranscripts(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, id) {
+	if exists, err := s.backend.TaskExists(id); err != nil || !exists {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}

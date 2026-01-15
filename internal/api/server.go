@@ -17,10 +17,8 @@ import (
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/plan"
-	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/internal/watcher"
 )
 
 // Server is the orc API server.
@@ -37,8 +35,8 @@ type Server struct {
 	publisher events.Publisher
 	wsHandler *WSHandler
 
-	// File watcher for real-time task updates
-	fileWatcher *watcher.Watcher
+	// Storage backend
+	backend storage.Backend
 
 	// SSE subscribers per task (legacy, kept for compatibility)
 	subscribers   map[string][]chan Event
@@ -106,6 +104,14 @@ func New(cfg *Config) *Server {
 	// Create event publisher
 	pub := events.NewMemoryPublisher()
 
+	// Create storage backend (database-only mode)
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(workDir, storageCfg)
+	if err != nil {
+		logger.Error("failed to create storage backend", "error", err)
+		return nil
+	}
+
 	s := &Server{
 		addr:         cfg.Addr,
 		workDir:      workDir,
@@ -113,6 +119,7 @@ func New(cfg *Config) *Server {
 		logger:       logger,
 		orcConfig:    orcCfg,
 		publisher:    pub,
+		backend:      backend,
 		subscribers:  make(map[string][]chan Event),
 		runningTasks: make(map[string]context.CancelFunc),
 		diffCache:    diff.NewCache(100), // Cache up to 100 file diffs
@@ -120,9 +127,6 @@ func New(cfg *Config) *Server {
 
 	// Create WebSocket handler
 	s.wsHandler = NewWSHandler(pub, s, logger)
-
-	// File watcher is created lazily in StartContext() to avoid
-	// resource exhaustion in tests that create many server instances
 
 	s.registerRoutes()
 	return s
@@ -420,31 +424,13 @@ func (s *Server) StartContext(ctx context.Context) error {
 		Handler: s.mux,
 	}
 
-	// Create and start file watcher for real-time task updates (non-fatal if fails)
-	// Created here instead of New() to avoid resource exhaustion in tests
-	fw, err := watcher.New(&watcher.Config{
-		WorkDir:    s.workDir,
-		Publisher:  s.publisher,
-		Logger:     s.logger,
-		DebounceMs: 500,
-	})
-	if err != nil {
-		s.logger.Warn("file watcher unavailable", "error", err)
-	} else {
-		s.fileWatcher = fw
-		go func() {
-			if err := s.fileWatcher.Start(ctx); err != nil && err != context.Canceled {
-				s.logger.Error("file watcher error", "error", err)
-			}
-		}()
-	}
-
 	// Create and start PR status poller
 	s.prPoller = NewPRPoller(PRPollerConfig{
 		WorkDir:   s.workDir,
 		Interval:  60 * time.Second,
 		Logger:    s.logger,
 		OrcConfig: s.orcConfig,
+		Backend:   s.backend,
 		OnStatusChange: func(taskID string, pr *task.PRInfo) {
 			// Publish task update event when PR status changes
 			s.logger.Info("PR status changed", "task", taskID, "status", pr.Status)
@@ -496,6 +482,11 @@ func (s *Server) Publish(taskID string, event Event) {
 	}
 }
 
+// Backend returns the storage backend (for testing).
+func (s *Server) Backend() storage.Backend {
+	return s.backend
+}
+
 // handleHealth returns server health status.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
@@ -523,18 +514,15 @@ func (s *Server) handleOrcError(w http.ResponseWriter, err *orcerrors.OrcError) 
 
 // pauseTask pauses a running task (called by WebSocket handler).
 func (s *Server) pauseTask(id string) (map[string]any, error) {
-	t, err := task.LoadFrom(s.workDir, id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
 	t.Status = task.StatusPaused
-	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
-
-	// Auto-commit: task paused (WebSocket)
-	s.autoCommitTask(t, "paused")
 
 	return map[string]any{
 		"status":  "paused",
@@ -544,7 +532,7 @@ func (s *Server) pauseTask(id string) (map[string]any, error) {
 
 // resumeTask resumes a paused task (called by WebSocket handler).
 func (s *Server) resumeTask(id string) (map[string]any, error) {
-	t, err := task.LoadFrom(s.workDir, id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
@@ -552,20 +540,17 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 	// If task was paused, restart execution
 	if t.Status == task.StatusPaused {
 		t.Status = task.StatusRunning
-		if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
+		if err := s.backend.SaveTask(t); err != nil {
 			return nil, fmt.Errorf("failed to update task: %w", err)
 		}
 
-		// Auto-commit: task resumed (WebSocket)
-		s.autoCommitTask(t, "resumed")
-
 		// Resume execution
-		p, err := plan.LoadFrom(s.workDir, id)
+		p, err := s.backend.LoadPlan(id)
 		if err != nil {
 			return nil, fmt.Errorf("plan not found")
 		}
 
-		st, err := state.LoadFrom(s.workDir, id)
+		st, err := s.backend.LoadState(id)
 		if err != nil {
 			return nil, fmt.Errorf("state not found")
 		}
@@ -593,6 +578,7 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 			execCfg := executor.ConfigFromOrc(s.orcConfig)
 			execCfg.WorkDir = s.workDir
 			exec := executor.NewWithConfig(execCfg, s.orcConfig)
+			exec.SetBackend(s.backend)
 			exec.SetPublisher(s.publisher)
 			err := exec.ResumeFromPhase(ctx, t, p, st, resumePhase)
 			if err != nil {
@@ -617,18 +603,15 @@ func (s *Server) cancelTask(id string) (map[string]any, error) {
 		cancel()
 	}
 
-	t, err := task.LoadFrom(s.workDir, id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
 	t.Status = task.StatusFailed
-	if err := t.SaveTo(task.TaskDirIn(s.workDir, id)); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
-
-	// Auto-commit: task cancelled (WebSocket)
-	s.autoCommitTask(t, "cancelled")
 
 	return map[string]any{
 		"status":  "cancelled",

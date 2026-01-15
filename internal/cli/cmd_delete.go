@@ -3,7 +3,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -30,11 +29,17 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			taskID := args[0]
 			force, _ := cmd.Flags().GetBool("force")
 
 			// Load task to verify it exists and check status
-			t, err := task.Load(taskID)
+			t, err := backend.LoadTask(taskID)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -49,23 +54,9 @@ Example:
 				fmt.Printf("Deleting task %s (%s)...\n", t.ID, t.Title)
 			}
 
-			// Remove task directory
-			taskDir := task.TaskDir(taskID)
-			if err := os.RemoveAll(taskDir); err != nil {
-				return fmt.Errorf("remove task directory: %w", err)
-			}
-
-			// Auto-commit the task deletion
-			cfg, err := config.Load()
-			if err == nil && !cfg.Tasks.DisableAutoCommit {
-				projectDir, err := config.FindProjectRoot()
-				if err == nil {
-					commitCfg := task.CommitConfig{
-						ProjectRoot:  projectDir,
-						CommitPrefix: cfg.CommitPrefix,
-					}
-					task.CommitDeletion(taskID, commitCfg)
-				}
+			// Delete from database
+			if err := backend.DeleteTask(taskID); err != nil {
+				return fmt.Errorf("delete task: %w", err)
 			}
 
 			if !quiet {

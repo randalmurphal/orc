@@ -30,8 +30,14 @@ This information is useful for debugging or resuming tasks.`,
 				return wrapNotInitialized()
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
-			s, err := state.Load(id)
+			s, err := backend.LoadState(id)
 			if err != nil {
 				return wrapTaskNotFound(id)
 			}
@@ -108,7 +114,13 @@ Use --period to filter by time range:
 
 // showTaskCost displays cost breakdown for a single task.
 func showTaskCost(id string) error {
-	s, err := state.Load(id)
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer backend.Close()
+
+	s, err := backend.LoadState(id)
 	if err != nil {
 		return wrapTaskNotFound(id)
 	}
@@ -145,8 +157,14 @@ func showTaskCost(id string) error {
 
 // showAggregateCost displays cost summary across all tasks.
 func showAggregateCost(period string) error {
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer backend.Close()
+
 	// Get all task IDs
-	entries, err := state.LoadAllStates()
+	entries, err := backend.LoadAllStates()
 	if err != nil {
 		fmt.Println("No tasks found.")
 		return nil

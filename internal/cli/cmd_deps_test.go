@@ -8,18 +8,29 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
 // withDepsTestDir creates a temp directory with task structure, changes to it,
 // and restores the original working directory when the test completes.
-func withDepsTestDir(t *testing.T) string {
+// Returns the temp dir and a backend for database operations.
+func withDepsTestDir(t *testing.T) (string, storage.Backend) {
 	t.Helper()
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir)
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("create tasks directory: %v", err)
 	}
+
+	// Create backend for database operations
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	t.Cleanup(func() {
+		backend.Close()
+	})
 
 	origDir, err := os.Getwd()
 	if err != nil {
@@ -33,7 +44,7 @@ func withDepsTestDir(t *testing.T) string {
 			t.Errorf("restore working directory: %v", err)
 		}
 	})
-	return tmpDir
+	return tmpDir, backend
 }
 
 func TestDepsCommand_Structure(t *testing.T) {
@@ -77,17 +88,17 @@ func TestDepsCommand_MaxArgs(t *testing.T) {
 }
 
 func TestShowDependencyTree_SingleTask(t *testing.T) {
-	withDepsTestDir(t)
+	_, backend := withDepsTestDir(t)
 
 	// Create a task with no dependencies
 	tk := task.New("TASK-001", "Root task")
 	tk.Status = task.StatusPlanned
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := task.LoadAll()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}
@@ -106,31 +117,31 @@ func TestShowDependencyTree_SingleTask(t *testing.T) {
 }
 
 func TestShowDependencyTree_WithDependencies(t *testing.T) {
-	withDepsTestDir(t)
+	_, backend := withDepsTestDir(t)
 
 	// Create tasks with dependencies: TASK-003 -> TASK-002 -> TASK-001
 	tk1 := task.New("TASK-001", "Root task")
 	tk1.Status = task.StatusPlanned
-	if err := tk1.Save(); err != nil {
+	if err := backend.SaveTask(tk1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	tk2 := task.New("TASK-002", "Middle task")
 	tk2.Status = task.StatusPlanned
 	tk2.BlockedBy = []string{"TASK-001"}
-	if err := tk2.Save(); err != nil {
+	if err := backend.SaveTask(tk2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	tk3 := task.New("TASK-003", "Leaf task")
 	tk3.Status = task.StatusPlanned
 	tk3.BlockedBy = []string{"TASK-002"}
-	if err := tk3.Save(); err != nil {
+	if err := backend.SaveTask(tk3); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := task.LoadAll()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}
@@ -157,30 +168,30 @@ func TestShowDependencyTree_WithDependencies(t *testing.T) {
 }
 
 func TestShowDependencyOverview(t *testing.T) {
-	withDepsTestDir(t)
+	_, backend := withDepsTestDir(t)
 
 	// Create tasks: one blocking, one blocked, one independent
 	tk1 := task.New("TASK-001", "Root task")
 	tk1.Status = task.StatusPlanned
-	if err := tk1.Save(); err != nil {
+	if err := backend.SaveTask(tk1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	tk2 := task.New("TASK-002", "Blocked task")
 	tk2.Status = task.StatusPlanned
 	tk2.BlockedBy = []string{"TASK-001"}
-	if err := tk2.Save(); err != nil {
+	if err := backend.SaveTask(tk2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	tk3 := task.New("TASK-003", "Independent task")
 	tk3.Status = task.StatusPlanned
-	if err := tk3.Save(); err != nil {
+	if err := backend.SaveTask(tk3); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := task.LoadAll()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}
@@ -199,24 +210,24 @@ func TestShowDependencyOverview(t *testing.T) {
 }
 
 func TestShowDependencyGraph(t *testing.T) {
-	withDepsTestDir(t)
+	_, backend := withDepsTestDir(t)
 
 	// Create a simple dependency chain
 	tk1 := task.New("TASK-001", "Root task")
 	tk1.Status = task.StatusPlanned
-	if err := tk1.Save(); err != nil {
+	if err := backend.SaveTask(tk1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	tk2 := task.New("TASK-002", "Child task")
 	tk2.Status = task.StatusPlanned
 	tk2.BlockedBy = []string{"TASK-001"}
-	if err := tk2.Save(); err != nil {
+	if err := backend.SaveTask(tk2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := task.LoadAll()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}
@@ -278,24 +289,24 @@ func TestFormatBlockerList(t *testing.T) {
 }
 
 func TestDepsOutput_JSON(t *testing.T) {
-	withDepsTestDir(t)
+	_, backend := withDepsTestDir(t)
 
 	// Create tasks with dependencies
 	tk1 := task.New("TASK-001", "Root task")
 	tk1.Status = task.StatusCompleted
-	if err := tk1.Save(); err != nil {
+	if err := backend.SaveTask(tk1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	tk2 := task.New("TASK-002", "Child task")
 	tk2.Status = task.StatusPlanned
 	tk2.BlockedBy = []string{"TASK-001"}
-	if err := tk2.Save(); err != nil {
+	if err := backend.SaveTask(tk2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := task.LoadAll()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}
@@ -321,31 +332,31 @@ func TestDepsOutput_JSON(t *testing.T) {
 }
 
 func TestGetChain(t *testing.T) {
-	withDepsTestDir(t)
+	_, backend := withDepsTestDir(t)
 
 	// Create a linear chain: TASK-003 -> TASK-002 -> TASK-001
 	tk1 := task.New("TASK-001", "Root task")
 	tk1.Status = task.StatusPlanned
-	if err := tk1.Save(); err != nil {
+	if err := backend.SaveTask(tk1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	tk2 := task.New("TASK-002", "Middle task")
 	tk2.Status = task.StatusPlanned
 	tk2.BlockedBy = []string{"TASK-001"}
-	if err := tk2.Save(); err != nil {
+	if err := backend.SaveTask(tk2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	tk3 := task.New("TASK-003", "Leaf task")
 	tk3.Status = task.StatusPlanned
 	tk3.BlockedBy = []string{"TASK-002"}
-	if err := tk3.Save(); err != nil {
+	if err := backend.SaveTask(tk3); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := task.LoadAll()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}

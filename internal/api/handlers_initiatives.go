@@ -4,15 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
-// makeTaskLoader creates a TaskLoader that fetches task status from task.yaml files.
+// makeTaskLoader creates a TaskLoader that fetches task status from the database.
 func (s *Server) makeTaskLoader() initiative.TaskLoader {
 	return func(taskID string) (status string, title string, err error) {
-		t, err := task.LoadFrom(s.workDir, taskID)
+		t, err := s.backend.LoadTask(taskID)
 		if err != nil {
 			// Task not found or unreadable - return empty to use fallback
 			return "", "", nil
@@ -23,17 +21,12 @@ func (s *Server) makeTaskLoader() initiative.TaskLoader {
 
 // handleListInitiatives returns all initiatives.
 func (s *Server) handleListInitiatives(w http.ResponseWriter, r *http.Request) {
-	status := r.URL.Query().Get("status")
-	shared := r.URL.Query().Get("shared") == "true"
+	// Note: status filter and shared parameter are ignored - all initiatives come from backend
+	// Filter by status can be done in-memory if needed
+	_ = r.URL.Query().Get("status")
+	_ = r.URL.Query().Get("shared")
 
-	var initiatives []*initiative.Initiative
-	var err error
-
-	if status != "" {
-		initiatives, err = initiative.ListByStatus(initiative.Status(status), shared)
-	} else {
-		initiatives, err = initiative.List(shared)
-	}
+	initiatives, err := s.backend.LoadAllInitiatives()
 	if err != nil {
 		s.jsonError(w, "failed to load initiatives", http.StatusInternalServerError)
 		return
@@ -47,7 +40,7 @@ func (s *Server) handleListInitiatives(w http.ResponseWriter, r *http.Request) {
 	// Populate computed fields (Blocks)
 	initiative.PopulateComputedFields(initiatives)
 
-	// Enrich task statuses with actual values from task.yaml files
+	// Enrich task statuses with actual values from database
 	loader := s.makeTaskLoader()
 	for _, init := range initiatives {
 		init.EnrichTaskStatuses(loader)
@@ -67,7 +60,7 @@ func (s *Server) handleCreateInitiative(w http.ResponseWriter, r *http.Request) 
 			DisplayName string `json:"display_name,omitempty"`
 			Email       string `json:"email,omitempty"`
 		} `json:"owner,omitempty"`
-		Shared bool `json:"shared,omitempty"`
+		Shared bool `json:"shared,omitempty"` // Ignored - all initiatives stored in DB
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -81,7 +74,7 @@ func (s *Server) handleCreateInitiative(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Generate next initiative ID
-	id, err := initiative.NextID(req.Shared)
+	id, err := s.backend.GetNextInitiativeID()
 	if err != nil {
 		s.jsonError(w, "failed to generate initiative ID", http.StatusInternalServerError)
 		return
@@ -89,7 +82,7 @@ func (s *Server) handleCreateInitiative(w http.ResponseWriter, r *http.Request) 
 
 	// Validate blocked_by references
 	if len(req.BlockedBy) > 0 {
-		allInits, err := initiative.List(req.Shared)
+		allInits, err := s.backend.LoadAllInitiatives()
 		if err != nil {
 			s.jsonError(w, "failed to load initiatives for validation", http.StatusInternalServerError)
 			return
@@ -116,20 +109,11 @@ func (s *Server) handleCreateInitiative(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// Save
-	var saveErr error
-	if req.Shared {
-		saveErr = init.SaveShared()
-	} else {
-		saveErr = init.Save()
-	}
-	if saveErr != nil {
+	// Save to database
+	if err := s.backend.SaveInitiative(init); err != nil {
 		s.jsonError(w, "failed to save initiative", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit initiative creation
-	s.autoCommitInitiative(init, "created")
 
 	w.WriteHeader(http.StatusCreated)
 	s.jsonResponse(w, init)
@@ -138,22 +122,17 @@ func (s *Server) handleCreateInitiative(w http.ResponseWriter, r *http.Request) 
 // handleGetInitiative returns a specific initiative.
 func (s *Server) handleGetInitiative(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	shared := r.URL.Query().Get("shared") == "true"
+	// Note: shared parameter ignored - all initiatives come from backend
+	_ = r.URL.Query().Get("shared")
 
-	var init *initiative.Initiative
-	var err error
-	if shared {
-		init, err = initiative.LoadShared(id)
-	} else {
-		init, err = initiative.Load(id)
-	}
+	init, err := s.backend.LoadInitiative(id)
 	if err != nil {
 		s.jsonError(w, "initiative not found", http.StatusNotFound)
 		return
 	}
 
 	// Load all initiatives to populate computed fields
-	allInits, err := initiative.List(shared)
+	allInits, err := s.backend.LoadAllInitiatives()
 	if err == nil && len(allInits) > 0 {
 		// Build map to find our initiative in the list
 		for i, all := range allInits {
@@ -165,7 +144,7 @@ func (s *Server) handleGetInitiative(w http.ResponseWriter, r *http.Request) {
 		initiative.PopulateComputedFields(allInits)
 	}
 
-	// Enrich task statuses with actual values from task.yaml files
+	// Enrich task statuses with actual values from database
 	init.EnrichTaskStatuses(s.makeTaskLoader())
 
 	s.jsonResponse(w, init)
@@ -174,16 +153,11 @@ func (s *Server) handleGetInitiative(w http.ResponseWriter, r *http.Request) {
 // handleUpdateInitiative updates an initiative.
 func (s *Server) handleUpdateInitiative(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	shared := r.URL.Query().Get("shared") == "true"
+	// Note: shared parameter ignored - all initiatives come from backend
+	_ = r.URL.Query().Get("shared")
 
 	// Load existing initiative
-	var init *initiative.Initiative
-	var err error
-	if shared {
-		init, err = initiative.LoadShared(id)
-	} else {
-		init, err = initiative.Load(id)
-	}
+	init, err := s.backend.LoadInitiative(id)
 	if err != nil {
 		s.jsonError(w, "initiative not found", http.StatusNotFound)
 		return
@@ -227,7 +201,7 @@ func (s *Server) handleUpdateInitiative(w http.ResponseWriter, r *http.Request) 
 
 	// Handle blocked_by update
 	if req.BlockedBy != nil {
-		allInits, err := initiative.List(shared)
+		allInits, err := s.backend.LoadAllInitiatives()
 		if err != nil {
 			s.jsonError(w, "failed to load initiatives for validation", http.StatusInternalServerError)
 			return
@@ -242,22 +216,14 @@ func (s *Server) handleUpdateInitiative(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// Save
-	if shared {
-		err = init.SaveShared()
-	} else {
-		err = init.Save()
-	}
-	if err != nil {
+	// Save to database
+	if err := s.backend.SaveInitiative(init); err != nil {
 		s.jsonError(w, "failed to save initiative", http.StatusInternalServerError)
 		return
 	}
 
-	// Auto-commit initiative update
-	s.autoCommitInitiative(init, "updated")
-
 	// Reload all initiatives to populate computed fields for response
-	allInits, err := initiative.List(shared)
+	allInits, err := s.backend.LoadAllInitiatives()
 	if err == nil && len(allInits) > 0 {
 		for i, all := range allInits {
 			if all.ID == id {
@@ -268,7 +234,7 @@ func (s *Server) handleUpdateInitiative(w http.ResponseWriter, r *http.Request) 
 		initiative.PopulateComputedFields(allInits)
 	}
 
-	// Enrich task statuses with actual values from task.yaml files
+	// Enrich task statuses with actual values from database
 	init.EnrichTaskStatuses(s.makeTaskLoader())
 
 	s.jsonResponse(w, init)
@@ -277,20 +243,20 @@ func (s *Server) handleUpdateInitiative(w http.ResponseWriter, r *http.Request) 
 // handleDeleteInitiative deletes an initiative.
 func (s *Server) handleDeleteInitiative(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	shared := r.URL.Query().Get("shared") == "true"
+	// Note: shared parameter ignored - all initiatives come from backend
+	_ = r.URL.Query().Get("shared")
 
-	if !initiative.Exists(id, shared) {
+	// Check if initiative exists by trying to load it
+	_, err := s.backend.LoadInitiative(id)
+	if err != nil {
 		s.jsonError(w, "initiative not found", http.StatusNotFound)
 		return
 	}
 
-	if err := initiative.Delete(id, shared); err != nil {
+	if err := s.backend.DeleteInitiative(id); err != nil {
 		s.jsonError(w, "failed to delete initiative", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit initiative deletion
-	s.autoCommitInitiativeDeletion(id)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -298,21 +264,16 @@ func (s *Server) handleDeleteInitiative(w http.ResponseWriter, r *http.Request) 
 // handleListInitiativeTasks returns tasks linked to an initiative.
 func (s *Server) handleListInitiativeTasks(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	shared := r.URL.Query().Get("shared") == "true"
+	// Note: shared parameter ignored - all initiatives come from backend
+	_ = r.URL.Query().Get("shared")
 
-	var init *initiative.Initiative
-	var err error
-	if shared {
-		init, err = initiative.LoadShared(id)
-	} else {
-		init, err = initiative.Load(id)
-	}
+	init, err := s.backend.LoadInitiative(id)
 	if err != nil {
 		s.jsonError(w, "initiative not found", http.StatusNotFound)
 		return
 	}
 
-	// Return tasks with actual status from task.yaml files
+	// Return tasks with actual status from database
 	tasks := init.GetTasksWithStatus(s.makeTaskLoader())
 	s.jsonResponse(w, tasks)
 }
@@ -320,7 +281,8 @@ func (s *Server) handleListInitiativeTasks(w http.ResponseWriter, r *http.Reques
 // handleAddInitiativeTask links a task to an initiative.
 func (s *Server) handleAddInitiativeTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	shared := r.URL.Query().Get("shared") == "true"
+	// Note: shared parameter ignored - all initiatives come from backend
+	_ = r.URL.Query().Get("shared")
 
 	var req struct {
 		TaskID    string   `json:"task_id"`
@@ -338,20 +300,14 @@ func (s *Server) handleAddInitiativeTask(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Load initiative
-	var init *initiative.Initiative
-	var err error
-	if shared {
-		init, err = initiative.LoadShared(id)
-	} else {
-		init, err = initiative.Load(id)
-	}
+	init, err := s.backend.LoadInitiative(id)
 	if err != nil {
 		s.jsonError(w, "initiative not found", http.StatusNotFound)
 		return
 	}
 
 	// Load task to get title
-	t, err := task.LoadFrom(s.workDir, req.TaskID)
+	t, err := s.backend.LoadTask(req.TaskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -360,21 +316,13 @@ func (s *Server) handleAddInitiativeTask(w http.ResponseWriter, r *http.Request)
 	// Add task
 	init.AddTask(req.TaskID, t.Title, req.DependsOn)
 
-	// Save
-	if shared {
-		err = init.SaveShared()
-	} else {
-		err = init.Save()
-	}
-	if err != nil {
+	// Save to database
+	if err := s.backend.SaveInitiative(init); err != nil {
 		s.jsonError(w, "failed to save initiative", http.StatusInternalServerError)
 		return
 	}
 
-	// Auto-commit: task added to initiative
-	s.autoCommitInitiative(init, "task "+req.TaskID+" added")
-
-	// Return tasks with actual status from task.yaml files
+	// Return tasks with actual status from database
 	tasks := init.GetTasksWithStatus(s.makeTaskLoader())
 	s.jsonResponse(w, tasks)
 }
@@ -382,7 +330,8 @@ func (s *Server) handleAddInitiativeTask(w http.ResponseWriter, r *http.Request)
 // handleAddInitiativeDecision adds a decision to an initiative.
 func (s *Server) handleAddInitiativeDecision(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	shared := r.URL.Query().Get("shared") == "true"
+	// Note: shared parameter ignored - all initiatives come from backend
+	_ = r.URL.Query().Get("shared")
 
 	var req struct {
 		Decision  string `json:"decision"`
@@ -401,13 +350,7 @@ func (s *Server) handleAddInitiativeDecision(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Load initiative
-	var init *initiative.Initiative
-	var err error
-	if shared {
-		init, err = initiative.LoadShared(id)
-	} else {
-		init, err = initiative.Load(id)
-	}
+	init, err := s.backend.LoadInitiative(id)
 	if err != nil {
 		s.jsonError(w, "initiative not found", http.StatusNotFound)
 		return
@@ -416,19 +359,11 @@ func (s *Server) handleAddInitiativeDecision(w http.ResponseWriter, r *http.Requ
 	// Add decision
 	init.AddDecision(req.Decision, req.Rationale, req.By)
 
-	// Save
-	if shared {
-		err = init.SaveShared()
-	} else {
-		err = init.Save()
-	}
-	if err != nil {
+	// Save to database
+	if err := s.backend.SaveInitiative(init); err != nil {
 		s.jsonError(w, "failed to save initiative", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: decision added
-	s.autoCommitInitiative(init, "decision added")
 
 	s.jsonResponse(w, init.Decisions)
 }
@@ -437,16 +372,11 @@ func (s *Server) handleAddInitiativeDecision(w http.ResponseWriter, r *http.Requ
 func (s *Server) handleRemoveInitiativeTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	taskID := r.PathValue("taskId")
-	shared := r.URL.Query().Get("shared") == "true"
+	// Note: shared parameter ignored - all initiatives come from backend
+	_ = r.URL.Query().Get("shared")
 
 	// Load initiative
-	var init *initiative.Initiative
-	var err error
-	if shared {
-		init, err = initiative.LoadShared(id)
-	} else {
-		init, err = initiative.Load(id)
-	}
+	init, err := s.backend.LoadInitiative(id)
 	if err != nil {
 		s.jsonError(w, "initiative not found", http.StatusNotFound)
 		return
@@ -458,19 +388,11 @@ func (s *Server) handleRemoveInitiativeTask(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Save
-	if shared {
-		err = init.SaveShared()
-	} else {
-		err = init.Save()
-	}
-	if err != nil {
+	// Save to database
+	if err := s.backend.SaveInitiative(init); err != nil {
 		s.jsonError(w, "failed to save initiative", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: task removed from initiative
-	s.autoCommitInitiative(init, "task "+taskID+" removed")
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -478,71 +400,20 @@ func (s *Server) handleRemoveInitiativeTask(w http.ResponseWriter, r *http.Reque
 // handleGetReadyTasks returns tasks that are ready to run (all deps satisfied).
 func (s *Server) handleGetReadyTasks(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	shared := r.URL.Query().Get("shared") == "true"
+	// Note: shared parameter ignored - all initiatives come from backend
+	_ = r.URL.Query().Get("shared")
 
-	var init *initiative.Initiative
-	var err error
-	if shared {
-		init, err = initiative.LoadShared(id)
-	} else {
-		init, err = initiative.Load(id)
-	}
+	init, err := s.backend.LoadInitiative(id)
 	if err != nil {
 		s.jsonError(w, "initiative not found", http.StatusNotFound)
 		return
 	}
 
-	// Use actual task status from task.yaml files
+	// Use actual task status from database
 	ready := init.GetReadyTasksWithLoader(s.makeTaskLoader())
 	if ready == nil {
 		ready = []initiative.TaskRef{}
 	}
 
 	s.jsonResponse(w, ready)
-}
-
-// autoCommitInitiative commits an initiative change to git if auto-commit is enabled.
-// This is a non-blocking operation that logs warnings on failure.
-func (s *Server) autoCommitInitiative(init *initiative.Initiative, action string) {
-	// Use tasks.disable_auto_commit since there's no separate initiative setting
-	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
-		return
-	}
-
-	projectRoot, err := config.FindProjectRoot()
-	if err != nil {
-		s.logger.Debug("skip initiative auto-commit: could not find project root", "error", err)
-		return
-	}
-
-	commitCfg := initiative.CommitConfig{
-		ProjectRoot:  projectRoot,
-		CommitPrefix: s.orcConfig.CommitPrefix,
-		Logger:       s.logger,
-	}
-	if err := initiative.CommitAndSync(init, action, commitCfg); err != nil {
-		s.logger.Warn("failed to auto-commit initiative", "id", init.ID, "action", action, "error", err)
-	}
-}
-
-// autoCommitInitiativeDeletion commits an initiative deletion to git if auto-commit is enabled.
-func (s *Server) autoCommitInitiativeDeletion(initID string) {
-	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
-		return
-	}
-
-	projectRoot, err := config.FindProjectRoot()
-	if err != nil {
-		s.logger.Debug("skip initiative auto-commit: could not find project root", "error", err)
-		return
-	}
-
-	commitCfg := initiative.CommitConfig{
-		ProjectRoot:  projectRoot,
-		CommitPrefix: s.orcConfig.CommitPrefix,
-		Logger:       s.logger,
-	}
-	if err := initiative.CommitDeletion(initID, commitCfg); err != nil {
-		s.logger.Warn("failed to auto-commit initiative deletion", "id", initID, "error", err)
-	}
 }
