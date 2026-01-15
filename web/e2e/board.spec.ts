@@ -5,6 +5,10 @@
  * These tests define BEHAVIOR, not implementation, to work on both
  * Svelte (current) and React (future migration) implementations.
  *
+ * CRITICAL: These tests run against an ISOLATED SANDBOX project created by
+ * global-setup.ts. Tests perform real actions (drag-drop, clicks) that modify
+ * task statuses. The sandbox ensures real production tasks are NEVER affected.
+ *
  * Test Coverage (18 tests):
  * - Board Rendering (4): columns, headers, task cards, counts
  * - View Mode Toggle (5): flat/swimlane views, persistence, filtering
@@ -21,7 +25,8 @@
  *
  * @see web/CLAUDE.md for selector strategy documentation
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from './fixtures';
+import type { Page } from '@playwright/test';
 
 // Helper function to wait for board to load
 async function waitForBoardLoad(page: Page) {

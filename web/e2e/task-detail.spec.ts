@@ -22,7 +22,8 @@
  *
  * @see web/CLAUDE.md for selector strategy documentation
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from './fixtures';
+import type { Page } from '@playwright/test';
 
 // Helper: Navigate to a task detail page
 async function navigateToTask(page: Page): Promise<string | null> {

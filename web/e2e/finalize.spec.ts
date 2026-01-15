@@ -18,7 +18,8 @@
  *
  * @see web/CLAUDE.md for selector strategy documentation
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from './fixtures';
+import type { Page } from '@playwright/test';
 
 // Delay for WebSocket events to propagate through Svelte reactivity
 // WebSocket -> store update -> component re-render -> DOM update

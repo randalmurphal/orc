@@ -1,4 +1,7 @@
-import { test, expect } from '@playwright/test';
+/**
+ * Hooks E2E Tests - CRITICAL: Tests run against ISOLATED SANDBOX project.
+ */
+import { test, expect } from './fixtures';
 
 test.describe('Hooks Management', () => {
 	test.beforeEach(async ({ page }) => {

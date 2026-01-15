@@ -1,4 +1,7 @@
-import { test, expect } from '@playwright/test';
+/**
+ * Prompts E2E Tests - CRITICAL: Tests run against ISOLATED SANDBOX project.
+ */
+import { test, expect } from './fixtures';
 
 test.describe('Prompt Management', () => {
 	test.beforeEach(async ({ page }) => {

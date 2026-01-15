@@ -1,4 +1,7 @@
-import { test, expect } from '@playwright/test';
+/**
+ * Sidebar E2E Tests - CRITICAL: Tests run against ISOLATED SANDBOX project.
+ */
+import { test, expect } from './fixtures';
 
 test.describe('Sidebar', () => {
 	// Note: Don't use addInitScript to clear localStorage - it persists across reloads

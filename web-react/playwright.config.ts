@@ -3,6 +3,12 @@
  *
  * This config reuses the tests from web/e2e/ but runs against the React app on port 5174.
  * This enables dual-run validation to verify feature parity during migration.
+ *
+ * CRITICAL: E2E tests run against an ISOLATED SANDBOX project, NOT the real orc project.
+ * Tests perform real actions (drag-drop, clicks, API calls) that modify task statuses.
+ * Running against production data WILL corrupt real task states.
+ *
+ * The sandbox is created by global-setup.ts and cleaned up by global-teardown.ts.
  */
 import { defineConfig, devices } from '@playwright/test';
 import path from 'path';
@@ -14,6 +20,8 @@ const __dirname = path.dirname(__filename);
 export default defineConfig({
 	// Point to the shared e2e tests in web/
 	testDir: path.resolve(__dirname, '../web/e2e'),
+	globalSetup: path.resolve(__dirname, '../web/e2e/global-setup.ts'),
+	globalTeardown: path.resolve(__dirname, '../web/e2e/global-teardown.ts'),
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 1, // Add 1 retry for local runs to handle flaky UI tests
