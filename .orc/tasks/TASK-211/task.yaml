@@ -1,0 +1,18 @@
+id: TASK-211
+title: Replace Modal.tsx with Radix Dialog
+description: 'Replace the custom Modal component with Radix Dialog primitive while preserving existing CSS classes (modal-backdrop, modal-content, modal-title). Keep the same component API. Benefits: proper focus trap, return focus, aria-modal, escape handling. Files: Modal.tsx, Modal.css. Success: Modal works identically with improved accessibility. Testing: Modal unit tests pass, E2E tests pass, accessibility audit passes.'
+weight: medium
+status: planned
+branch: orc/TASK-211
+queue: active
+priority: high
+category: refactor
+initiative_id: INIT-009
+blocked_by:
+    - TASK-210
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:05:04.333212064-06:00
+updated_at: 2026-01-14T23:05:04.361970352-06:00
