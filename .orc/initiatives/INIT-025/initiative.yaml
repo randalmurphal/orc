@@ -2,5 +2,10 @@ version: 1
 id: INIT-025
 title: E2E-Test-AllDecisions-1768450108302
 status: draft
+decisions:
+    - id: DEC-001
+      date: 2026-01-14T22:08:31.526995582-06:00
+      by: ""
+      decision: First decision
 created_at: 2026-01-14T22:08:29.04070514-06:00
-updated_at: 2026-01-14T22:08:29.040774001-06:00
+updated_at: 2026-01-14T22:08:31.527006012-06:00
