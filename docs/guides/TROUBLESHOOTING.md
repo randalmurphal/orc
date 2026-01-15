@@ -514,6 +514,76 @@ git branch recovery-TASK-XXX <commit-sha>
 
 ---
 
+## Orphaned Processes / System Freezes
+
+**Symptoms**:
+- System becomes sluggish after running multiple orc tasks
+- `WARN orphaned processes detected` appears in logs
+- `WARN memory growth exceeded threshold` appears in logs
+- Many `chromium`, `playwright`, or browser processes in `ps aux`
+
+**Cause**: Claude CLI sessions spawn MCP servers (Playwright, browsers) that don't get cleaned up when sessions end. The parent process dies but the child processes survive, becoming orphaned.
+
+**Diagnosis**:
+```bash
+# Check for orphaned browser/MCP processes
+ps aux | grep -E 'playwright|chromium|chrome|firefox|webkit'
+
+# Check orc logs for orphan warnings
+orc log TASK-XXX | grep -i orphan
+
+# Check memory growth warnings
+orc log TASK-XXX | grep -i "memory growth"
+```
+
+**Solutions**:
+
+| Approach | Command | When to Use |
+|----------|---------|-------------|
+| Manual cleanup | `pkill -f playwright && pkill -f chromium` | Immediate relief when system is slow |
+| Disable UI testing | Set `requires_ui_testing: false` in task.yaml | If not actually doing UI tests |
+| Monitor logs | Watch for orphan warnings after tasks | Identify which tasks cause issues |
+
+**Understanding the Logs**:
+
+```
+INFO resource snapshot taken (before) processes=145 memory_mb=2456.3
+INFO resource snapshot taken (after) processes=148 memory_mb=2892.1
+WARN orphaned processes detected count=3 processes="chromium (PID=12345) [MCP]..."
+WARN memory growth exceeded threshold delta_mb=435.8 threshold_mb=100
+```
+
+- **before/after snapshots**: Shows process count and total memory at task start/end
+- **orphaned processes**: New processes that survived task completion (reparented to init)
+- **[MCP] tag**: Indicates MCP-related process (Playwright, browser)
+- **memory growth**: Delta between before/after (warning if > threshold)
+
+**Configuration**:
+
+```yaml
+# config.yaml
+diagnostics:
+  resource_tracking:
+    enabled: true            # Enable tracking (default: true)
+    memory_threshold_mb: 100 # Warn threshold (default: 100)
+    log_orphaned_mcp_only: false  # Only log MCP orphans (default: false)
+```
+
+**Disabling Resource Tracking**:
+
+If tracking itself causes issues (unlikely), disable it:
+```yaml
+diagnostics:
+  resource_tracking:
+    enabled: false
+```
+
+**Long-term Fix**:
+
+The root cause is that llmkit kills the Claude CLI process but not its entire process tree. A future llmkit fix will use process groups (Setpgid/SIGTERM to process group) to properly clean up all descendants. For now, the resource tracker provides visibility into the problem.
+
+---
+
 ## Performance Issues
 
 ### Slow Execution

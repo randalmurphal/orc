@@ -287,6 +287,13 @@ timeouts:
 tasks:
   disable_auto_commit: false           # Disable auto-commit for .orc/ file mutations (default: false)
 
+# Diagnostics configuration
+diagnostics:
+  resource_tracking:
+    enabled: true                      # Enable process/memory tracking (default: true)
+    memory_threshold_mb: 100           # Warn if memory grows by > threshold (default: 100)
+    log_orphaned_mcp_only: false       # Only log MCP-related orphans (default: false)
+
 # Task ID configuration (team mode)
 task_id:
   mode: solo                           # solo | p2p | team
@@ -321,6 +328,7 @@ team:
 | `worktree` | Always | Can set defaults |
 | `timeouts` | Always | Can set defaults |
 | `tasks` | Always | Can set defaults |
+| `diagnostics` | Always | Can set defaults |
 | `completion` | Project | Project level |
 | `git` | Project | Project level |
 | `claude` | Always | No |

@@ -222,6 +222,8 @@ orc config profile strict
 | `tasks.disable_auto_commit` | Disable auto-commit for all .orc/ file mutations | `docs/architecture/GIT_INTEGRATION.md` |
 | `timeouts.turn_max` | Max time per API turn | `docs/architecture/EXECUTOR.md` |
 | `timeouts.heartbeat_interval` | Progress dots interval | `docs/architecture/EXECUTOR.md` |
+| `diagnostics.resource_tracking.enabled` | Enable process/memory tracking | `docs/guides/TROUBLESHOOTING.md` |
+| `diagnostics.resource_tracking.memory_threshold_mb` | Memory growth warning threshold | `docs/guides/TROUBLESHOOTING.md` |
 
 **All config:** `orc config docs` or `docs/specs/CONFIG_HIERARCHY.md`
 
@@ -489,6 +491,7 @@ Patterns, gotchas, and decisions learned during development.
 | Keyboard shortcut E2E testing | Test multi-key sequences (g+d, g+t) with sequential `page.keyboard.press()` calls; test Shift+Alt modifiers; verify input field awareness (shortcuts disabled when typing); use `.selected` class for task navigation; 13 tests in `web/e2e/keyboard-shortcuts.spec.ts` | TASK-160 |
 | Finalize workflow E2E testing | Test finalize modal states (not started, running, completed, failed) via WebSocket event injection; covers button visibility on completed tasks, modal content, progress bar with step labels, success/failure results, retry option; 10 tests in `web/e2e/finalize.spec.ts` | TASK-161 |
 | Sync on start for stale worktrees | Before execution starts, sync task branch with target to catch conflicts from parallel tasks; `sync_on_start: true` (default) rebases onto latest target so implement phase sees current code; disable if you need isolation from concurrent changes | TASK-194 |
+| Resource tracking for orphan detection | Executor snapshots processes before/after task; compares to detect orphaned MCP processes (playwright, chromium); logs warnings with process details and memory growth; configure via `diagnostics.resource_tracking` in config | TASK-197 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
