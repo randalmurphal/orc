@@ -147,7 +147,8 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
+      commit_sha: 0beb25d5242df07e7c74f3b90d253f9baa2a90f5
     - id: validate
       name: validate
       prompt: |
