@@ -1,0 +1,18 @@
+id: TASK-213
+title: Replace filter dropdowns with Radix Select
+description: 'Replace custom filter dropdowns with Radix Select for proper accessibility. Files: InitiativeDropdown.tsx, ViewModeDropdown.tsx, DependencyDropdown.tsx, ExportDropdown.tsx. Benefits: keyboard navigation, typeahead search, screen reader support. Preserve existing CSS classes. Success: All filter dropdowns are keyboard accessible. Testing: E2E filter tests pass.'
+weight: medium
+status: planned
+branch: orc/TASK-213
+queue: active
+priority: normal
+category: refactor
+initiative_id: INIT-009
+blocked_by:
+    - TASK-212
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:05:17.258468132-06:00
+updated_at: 2026-01-14T23:05:17.28821365-06:00
