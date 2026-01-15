@@ -213,7 +213,8 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
+      commit_sha: fa74bf75a7a5f8d4b27b6c4e8811de4dd583baf3
     - id: docs
       name: docs
       prompt: |
