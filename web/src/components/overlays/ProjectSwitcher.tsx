@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
 import { useProjectStore, useCurrentProjectId } from '@/stores';
 import './ProjectSwitcher.css';
@@ -121,9 +122,17 @@ export function ProjectSwitcher({ open, onClose }: ProjectSwitcherProps) {
 				{/* Header */}
 				<div className="switcher-header">
 					<h2>Switch Project</h2>
-					<button className="close-btn" onClick={onClose} aria-label="Close" title="Close (Esc)">
+					<Button
+						variant="ghost"
+						size="sm"
+						iconOnly
+						className="close-btn"
+						onClick={onClose}
+						aria-label="Close"
+						title="Close (Esc)"
+					>
 						<Icon name="close" size={16} />
-					</button>
+					</Button>
 				</div>
 
 				{/* Current Project */}

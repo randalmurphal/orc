@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
 import {
 	useSidebarExpanded,
@@ -237,14 +238,17 @@ export function Sidebar({ onNewInitiative }: SidebarProps) {
 						<span className="logo-text">ORC</span>
 					</NavLink>
 				)}
-				<button
+				<Button
+					variant="ghost"
+					size="sm"
+					iconOnly
 					className="toggle-btn"
 					onClick={toggleSidebar}
 					title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
 					aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
 				>
 					<Icon name={expanded ? 'panel-left-close' : 'panel-left-open'} size={18} />
-				</button>
+				</Button>
 			</div>
 
 			{/* Scrollable Navigation */}

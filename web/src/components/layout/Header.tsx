@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
 import { useCurrentProject } from '@/stores';
 import { getModifierKey, formatShortcut } from '@/lib/platform';
@@ -65,10 +66,14 @@ export function Header({ onProjectClick, onNewTask, onCommandPalette }: HeaderPr
 
 				{/* New Task Button */}
 				{onNewTask && (
-					<button className="primary new-task-btn" onClick={onNewTask}>
-						<Icon name="plus" size={16} />
+					<Button
+						variant="primary"
+						size="sm"
+						leftIcon={<Icon name="plus" size={16} />}
+						onClick={onNewTask}
+					>
 						New Task
-					</button>
+					</Button>
 				)}
 			</div>
 		</header>

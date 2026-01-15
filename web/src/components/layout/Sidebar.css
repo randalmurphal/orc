@@ -59,25 +59,17 @@
 	animation: fade-in var(--duration-fast, 150ms) var(--ease-out, ease-out);
 }
 
-.toggle-btn {
+/* Toggle button uses Button ghost+iconOnly with custom sizing */
+.toggle-btn.btn {
 	width: 32px;
 	height: 32px;
-	padding: var(--space-1, 4px);
 	background: var(--bg-tertiary);
 	border: 1px solid var(--border-subtle);
-	border-radius: var(--radius-md, 6px);
-	color: var(--text-secondary);
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
 	flex-shrink: 0;
-	transition: all var(--duration-fast, 150ms) var(--ease-out, ease-out);
 }
 
-.toggle-btn:hover {
+.toggle-btn.btn:hover:not(:disabled) {
 	background: var(--bg-hover);
-	color: var(--text-primary);
 	border-color: var(--border-default);
 }
 

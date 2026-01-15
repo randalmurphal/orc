@@ -111,18 +111,13 @@
 	text-align: right;
 }
 
-.view-all-link {
+/* View All link uses Button ghost variant with custom accent color */
+.view-all-link.btn {
 	align-self: flex-end;
-	font-size: var(--text-sm);
 	color: var(--accent-primary);
-	background: none;
-	border: none;
-	padding: var(--space-1) var(--space-2);
-	cursor: pointer;
-	transition: color var(--duration-fast) var(--ease-out);
 }
 
-.view-all-link:hover {
+.view-all-link.btn:hover:not(:disabled) {
 	color: var(--accent-hover);
 	text-decoration: underline;
 }

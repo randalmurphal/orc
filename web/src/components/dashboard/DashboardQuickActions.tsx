@@ -3,6 +3,7 @@
  * New Task and View All Tasks buttons.
  */
 
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import './DashboardQuickActions.css';
 
@@ -15,14 +16,22 @@ export function DashboardQuickActions({ onNewTask, onViewTasks }: DashboardQuick
 	return (
 		<section className="actions-section">
 			<div className="quick-actions">
-				<button className="action-btn primary" onClick={onNewTask}>
-					<Icon name="plus" size={16} />
+				<Button
+					variant="primary"
+					size="md"
+					leftIcon={<Icon name="plus" size={16} />}
+					onClick={onNewTask}
+				>
 					New Task
-				</button>
-				<button className="action-btn" onClick={onViewTasks}>
-					<Icon name="tasks" size={16} />
+				</Button>
+				<Button
+					variant="secondary"
+					size="md"
+					leftIcon={<Icon name="tasks" size={16} />}
+					onClick={onViewTasks}
+				>
 					View All Tasks
-				</button>
+				</Button>
 			</div>
 		</section>
 	);
