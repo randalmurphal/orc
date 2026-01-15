@@ -132,15 +132,19 @@ func (d *DatabaseBackend) LoadAllTasks() ([]*task.Task, error) {
 		return nil, fmt.Errorf("list tasks: %w", err)
 	}
 
+	// Batch load all dependencies in one query to avoid N+1
+	allDeps, err := d.db.GetAllTaskDependencies()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load dependencies: %v", err)
+		allDeps = make(map[string][]string) // Fall back to empty
+	}
+
 	tasks := make([]*task.Task, 0, len(dbTasks))
 	for _, dbTask := range dbTasks {
 		t := dbTaskToTask(&dbTask)
 
-		// Load dependencies for each task
-		deps, err := d.db.GetTaskDependencies(t.ID)
-		if err != nil {
-			d.logger.Printf("warning: failed to get dependencies for %s: %v", t.ID, err)
-		} else {
+		// Use pre-fetched dependencies
+		if deps, ok := allDeps[t.ID]; ok {
 			t.BlockedBy = deps
 		}
 
