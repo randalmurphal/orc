@@ -118,7 +118,8 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
+      commit_sha: 85d2fcb061ac0026247a9a68196c479568b27e57
     - id: implement
       name: implement
       prompt: |
