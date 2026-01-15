@@ -467,7 +467,6 @@ Patterns, gotchas, and decisions learned during development.
 | Pattern | Description | Source |
 |---------|-------------|--------|
 | Branch sync before completion | Task branches rebase onto target before PR to catch conflicts early | TASK-019 |
-| Executor PID tracking | Track executor PID + heartbeat in state.yaml to detect orphaned tasks (running but executor dead) | TASK-046 |
 | Atomic status+phase updates | Set `current_phase` atomically with `status=running` to avoid UI timing issues (task shows in wrong column) | TASK-057 |
 | Plan regeneration on weight change | When task weight changes, plan.yaml auto-regenerates with new phases; completed/skipped phases preserved if they exist in both plans | TASK-003 |
 | Artifact detection for phase skip | Before running phases, check if artifacts exist (spec.md, research.md, docs.md) and offer to skip; use `--auto-skip` for non-interactive mode | TASK-004 |
@@ -497,7 +496,6 @@ Patterns, gotchas, and decisions learned during development.
 | CLAUDE.md auto-merge | During git sync, conflicts in knowledge section (within `orc:knowledge:begin/end` markers) are auto-resolved if purely additive (both sides add new table rows); rows combined and sorted by TASK-XXX source ID; complex conflicts (overlapping edits) fall back to manual resolution | TASK-096 |
 | Task database storage | Tasks stored in SQLite (`tasks`, `phases`, `plans`, `specs` tables); all task operations write directly to database; config changes and prompt files still tracked in git | TASK-153 |
 | CI wait and auto-merge | After finalize, poll `gh pr checks` until CI passes (30s interval, 10m timeout), then merge via GitHub REST API (`PUT /repos/.../pulls/.../merge`); bypasses GitHub auto-merge feature (no branch protection needed); `auto`/`fast` profiles only | TASK-151 |
-| PR merge via REST API | Use GitHub REST API for merge instead of `gh pr merge` CLI; CLI tries to fast-forward local target branch which fails when target is checked out in another worktree (common case); API merges server-side only | TASK-196 |
 | Config and prompt auto-commit | Configuration files (`.orc/config.yaml`) and prompt templates (`.orc/prompts/`) auto-commit to git on modification; task and initiative data stored in SQLite (not git-tracked) | TASK-193 |
 | WebSocket E2E event injection | Use Playwright's `routeWebSocket` to intercept connections and inject events via `ws.send()`; captures real WebSocket, forwards messages bidirectionally, allows test-initiated events; framework-agnostic approach for testing real-time UI updates | TASK-157 |
 | Visual regression baselines | Separate Playwright project (`visual`) with 1440x900 @2x viewport, disabled animations, masked dynamic content (timestamps, tokens); use `--update-snapshots` to regenerate after intentional UI changes; baselines in `web/e2e/__snapshots__/` | TASK-159 |
