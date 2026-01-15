@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from './App';
+import { useProjectStore, useTaskStore, useInitiativeStore } from '@/stores';
 
 // Mock WebSocket to prevent actual connections
 vi.mock('@/lib/websocket', () => ({
@@ -21,6 +22,32 @@ vi.mock('@/lib/websocket', () => ({
 	GLOBAL_TASK_ID: '*',
 }));
 
+// Mock API calls
+vi.mock('@/lib/api', () => ({
+	listProjects: vi.fn().mockResolvedValue([
+		{ id: 'project-1', name: 'Test Project', path: '/path/to/project', created_at: new Date().toISOString() },
+	]),
+	listProjectTasks: vi.fn().mockResolvedValue([]),
+	listInitiatives: vi.fn().mockResolvedValue([]),
+	getDashboardStats: vi.fn().mockResolvedValue({
+		running: 1,
+		paused: 0,
+		blocked: 2,
+		completed: 5,
+		failed: 0,
+		today: 3,
+		total: 10,
+		tokens: 50000,
+		cost: 0.5,
+	}),
+	runProjectTask: vi.fn(),
+	pauseProjectTask: vi.fn(),
+	resumeProjectTask: vi.fn(),
+	escalateProjectTask: vi.fn(),
+	updateTask: vi.fn(),
+	deleteProjectTask: vi.fn(),
+}));
+
 function renderApp(initialPath: string = '/') {
 	return render(
 		<MemoryRouter initialEntries={[initialPath]}>
@@ -31,6 +58,32 @@ function renderApp(initialPath: string = '/') {
 
 describe('App', () => {
 	beforeEach(() => {
+		vi.clearAllMocks();
+		// Reset stores before each test
+		useProjectStore.setState({
+			projects: [],
+			currentProjectId: null,
+			loading: false,
+			error: null,
+			_isHandlingPopState: false,
+		});
+		useTaskStore.setState({
+			tasks: [],
+			taskStates: new Map(),
+			loading: false,
+			error: null,
+		});
+		useInitiativeStore.setState({
+			initiatives: new Map(),
+			currentInitiativeId: null,
+			loading: false,
+			error: null,
+			hasLoaded: false,
+			_isHandlingPopState: false,
+		});
+	});
+
+	afterEach(() => {
 		vi.clearAllMocks();
 	});
 
@@ -59,38 +112,6 @@ describe('App', () => {
 	});
 
 	it('renders Dashboard page at /dashboard route', async () => {
-		// Mock API responses for dashboard
-		vi.mocked(fetch).mockImplementation((url) => {
-			const urlStr = typeof url === 'string' ? url : url.toString();
-			if (urlStr.includes('/api/dashboard/stats')) {
-				return Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							running: 1,
-							paused: 0,
-							blocked: 2,
-							completed: 5,
-							failed: 0,
-							today: 3,
-							total: 10,
-							tokens: 50000,
-							cost: 0.5,
-						}),
-				} as Response);
-			}
-			if (urlStr.includes('/api/initiatives')) {
-				return Promise.resolve({
-					ok: true,
-					json: () => Promise.resolve([]),
-				} as Response);
-			}
-			return Promise.resolve({
-				ok: true,
-				json: () => Promise.resolve({}),
-			} as Response);
-		});
-
 		renderApp('/dashboard');
 		await waitFor(() => {
 			// Dashboard renders Quick Stats section
