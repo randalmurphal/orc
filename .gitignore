@@ -42,6 +42,13 @@ web/test-results/
 .orc/tasks/
 .orc/initiatives/
 
+# Nested .orc directories (test artifacts, subdirectories)
+# Use **/ to match anywhere in the tree
+**/.orc/orc.db
+**/.orc/orc.db-*
+**/.orc/tasks/
+**/.orc/initiatives/
+
 # Go workspace (local development only)
 go.work
 go.work.sum
