@@ -4,7 +4,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -152,7 +151,7 @@ Examples:
 			}
 
 			// Load config for git settings
-			cfg, err := config.LoadMerged(projectRoot)
+			cfg, err := config.Load()
 			if err != nil {
 				// Non-fatal: use defaults if config can't be loaded
 				cfg = config.Default()

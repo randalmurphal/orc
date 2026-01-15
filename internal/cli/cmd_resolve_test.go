@@ -5,10 +5,12 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -334,5 +336,276 @@ func TestWorktreeStatus_Struct(t *testing.T) {
 	}
 	if status.uncommittedMsg != "3 uncommitted file(s)" {
 		t.Errorf("uncommittedMsg = %q, want '3 uncommitted file(s)'", status.uncommittedMsg)
+	}
+}
+
+func TestWorktreeStatus_HasWorktreeIssues(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   *worktreeStatus
+		wantTrue bool
+	}{
+		{
+			name:     "nil status",
+			status:   nil,
+			wantTrue: false,
+		},
+		{
+			name:     "worktree does not exist",
+			status:   &worktreeStatus{exists: false},
+			wantTrue: false,
+		},
+		{
+			name:     "clean worktree",
+			status:   &worktreeStatus{exists: true, isDirty: false, hasConflicts: false, rebaseInProg: false, mergeInProg: false},
+			wantTrue: false,
+		},
+		{
+			name:     "dirty worktree",
+			status:   &worktreeStatus{exists: true, isDirty: true},
+			wantTrue: true,
+		},
+		{
+			name:     "worktree with conflicts",
+			status:   &worktreeStatus{exists: true, hasConflicts: true, conflictFiles: []string{"file.go"}},
+			wantTrue: true,
+		},
+		{
+			name:     "worktree with rebase in progress",
+			status:   &worktreeStatus{exists: true, rebaseInProg: true},
+			wantTrue: true,
+		},
+		{
+			name:     "worktree with merge in progress",
+			status:   &worktreeStatus{exists: true, mergeInProg: true},
+			wantTrue: true,
+		},
+		{
+			name: "worktree with multiple issues",
+			status: &worktreeStatus{
+				exists:       true,
+				isDirty:      true,
+				hasConflicts: true,
+				rebaseInProg: true,
+				mergeInProg:  false,
+			},
+			wantTrue: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.status.hasWorktreeIssues()
+			if got != tt.wantTrue {
+				t.Errorf("hasWorktreeIssues() = %v, want %v", got, tt.wantTrue)
+			}
+		})
+	}
+}
+
+// setupTestRepoForResolve creates a git repository for testing checkWorktreeStatus.
+func setupTestRepoForResolve(t *testing.T) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+
+	// Initialize git repo
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to init git repo: %v", err)
+	}
+
+	// Configure git user for commits
+	cmd = exec.Command("git", "config", "user.email", "test@test.com")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	cmd = exec.Command("git", "config", "user.name", "Test User")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	// Create initial commit
+	testFile := filepath.Join(tmpDir, "README.md")
+	if err := os.WriteFile(testFile, []byte("# Test\n"), 0644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to create initial commit: %v", err)
+	}
+
+	return tmpDir
+}
+
+func TestCheckWorktreeStatus_WorktreeWithInjectedHooks(t *testing.T) {
+	tmpDir := setupTestRepoForResolve(t)
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	// Get base branch
+	baseBranch, _ := gitOps.GetCurrentBranch()
+
+	// Create worktree - this injects Claude Code hooks which creates .claude/ directory
+	worktreePath, err := gitOps.CreateWorktree("TASK-001", baseBranch)
+	if err != nil {
+		t.Fatalf("failed to create worktree: %v", err)
+	}
+	defer gitOps.CleanupWorktree("TASK-001")
+
+	// Check worktree status
+	status, err := checkWorktreeStatus("TASK-001", gitOps)
+	if err != nil {
+		t.Fatalf("checkWorktreeStatus failed: %v", err)
+	}
+
+	if !status.exists {
+		t.Error("expected exists to be true")
+	}
+	if status.path != worktreePath {
+		t.Errorf("path = %q, want %q", status.path, worktreePath)
+	}
+	// Note: CreateWorktree injects Claude Code hooks which creates .claude/ directory.
+	// The hooks call EnsureClaudeSettingsUntracked which marks .claude/settings.json
+	// as assume-unchanged and adds it to git exclude. However, the .claude/hooks/
+	// directory is newly created and shows as untracked.
+	// The isDirty flag will be true due to these injected files.
+	if status.isDirty && status.uncommittedMsg == "" {
+		t.Error("if isDirty, uncommittedMsg should be set")
+	}
+	if status.hasConflicts {
+		t.Error("expected hasConflicts to be false")
+	}
+	if status.rebaseInProg {
+		t.Error("expected rebaseInProg to be false")
+	}
+	if status.mergeInProg {
+		t.Error("expected mergeInProg to be false")
+	}
+	// hasWorktreeIssues() returns true because of the injected Claude Code hooks.
+	// This is expected - the purpose of this test is to verify status detection works.
+}
+
+func TestCheckWorktreeStatus_CleanWorktree(t *testing.T) {
+	tmpDir := setupTestRepoForResolve(t)
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	// Get base branch
+	baseBranch, _ := gitOps.GetCurrentBranch()
+
+	// Create worktree with hook injection
+	worktreePath, err := gitOps.CreateWorktree("TASK-CLEAN", baseBranch)
+	if err != nil {
+		t.Fatalf("failed to create worktree: %v", err)
+	}
+	defer gitOps.CleanupWorktree("TASK-CLEAN")
+
+	// Commit the injected .claude/ directory to make the worktree "clean"
+	wtGit := gitOps.InWorktree(worktreePath)
+	ctx := wtGit.Context()
+	ctx.RunGit("add", ".claude/")
+	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+
+	// Check worktree status - should be clean now
+	status, err := checkWorktreeStatus("TASK-CLEAN", gitOps)
+	if err != nil {
+		t.Fatalf("checkWorktreeStatus failed: %v", err)
+	}
+
+	if !status.exists {
+		t.Error("expected exists to be true")
+	}
+	if status.isDirty {
+		t.Errorf("expected isDirty to be false after committing, got true (uncommittedMsg: %s)", status.uncommittedMsg)
+	}
+	if status.hasConflicts {
+		t.Error("expected hasConflicts to be false")
+	}
+	if status.rebaseInProg {
+		t.Error("expected rebaseInProg to be false")
+	}
+	if status.mergeInProg {
+		t.Error("expected mergeInProg to be false")
+	}
+	if status.hasWorktreeIssues() {
+		t.Error("expected hasWorktreeIssues to return false for clean worktree")
+	}
+}
+
+func TestCheckWorktreeStatus_DirtyWorktree(t *testing.T) {
+	tmpDir := setupTestRepoForResolve(t)
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	// Get base branch
+	baseBranch, _ := gitOps.GetCurrentBranch()
+
+	// Create worktree
+	worktreePath, err := gitOps.CreateWorktree("TASK-002", baseBranch)
+	if err != nil {
+		t.Fatalf("failed to create worktree: %v", err)
+	}
+	defer gitOps.CleanupWorktree("TASK-002")
+
+	// Create uncommitted changes
+	dirtyFile := filepath.Join(worktreePath, "dirty.txt")
+	if err := os.WriteFile(dirtyFile, []byte("dirty content"), 0644); err != nil {
+		t.Fatalf("failed to create dirty file: %v", err)
+	}
+
+	// Check dirty worktree status
+	status, err := checkWorktreeStatus("TASK-002", gitOps)
+	if err != nil {
+		t.Fatalf("checkWorktreeStatus failed: %v", err)
+	}
+
+	if !status.exists {
+		t.Error("expected exists to be true")
+	}
+	if !status.isDirty {
+		t.Error("expected isDirty to be true for dirty worktree")
+	}
+	if status.uncommittedMsg == "" {
+		t.Error("expected uncommittedMsg to be set")
+	}
+	if !status.hasWorktreeIssues() {
+		t.Error("expected hasWorktreeIssues to return true for dirty worktree")
+	}
+}
+
+func TestCheckWorktreeStatus_NonExistentWorktree(t *testing.T) {
+	tmpDir := setupTestRepoForResolve(t)
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	// Check non-existent worktree
+	status, err := checkWorktreeStatus("TASK-NONEXISTENT", gitOps)
+	if err != nil {
+		t.Fatalf("checkWorktreeStatus failed: %v", err)
+	}
+
+	if status.exists {
+		t.Error("expected exists to be false for non-existent worktree")
+	}
+	if status.hasWorktreeIssues() {
+		t.Error("expected hasWorktreeIssues to return false for non-existent worktree")
 	}
 }
