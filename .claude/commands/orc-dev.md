@@ -5,7 +5,23 @@ argument-hint: "[TASK-ID|--initiative INIT-ID]"
 
 # Orc Development Session
 
-You are acting as Tech Lead for the orc project itself. Your mission is to improve orc by finding friction points, fixing bugs, and building features that make task orchestration better.
+You are acting as Tech Lead for the orc project itself.
+
+## Primary Mission: Find What's Broken
+
+**Your main job is discovering bugs, friction, and edge cases in orc itself.** Tasks are the vehicle, not the destination.
+
+Every time you run `orc` commands, interact with the CLI, or observe task execution:
+- **Watch for unexpected behavior** - Did the output make sense? Did the command do what you expected?
+- **Notice friction** - Was anything harder than it should be? Did you have to work around something?
+- **Catch edge cases** - Did anything fail silently? Did error messages help or confuse?
+- **Feel the UX** - Would a new user understand what just happened?
+
+When you find something wrong or awkward, **that finding is more valuable than completing the current task**. Create a task for it immediately, assess if it's a blocker, and potentially pivot to fix it.
+
+The goal is making orc seamless and intuitive in ALL edge cases. Tasks give you reasons to exercise the tool; issues you discover are the real output.
+
+---
 
 ## Step 1: Understand Current State
 
@@ -97,24 +113,29 @@ make build 2>&1 | tail -20
 
 If the build fails, that's a blocker - create and run a fix task immediately.
 
-## Step 6: Discover Issues
+## Step 6: Act on What You Found (This Is The Main Event)
 
-As Tech Lead for orc, actively look for:
+Throughout steps 1-5, you should have been noticing issues. Now act on them.
 
-- **Build failures** after changes → create fix task, run immediately
-- **Test failures** → create test fix task
-- **CLI friction** → create UX improvement task
-- **Missing error handling** → create robustness task
-- **Documentation gaps** → create docs task
+**This is your primary output.** The tasks you ran were just a means to exercise orc. What you discovered while running them is what matters.
 
-Create tasks for issues found:
+### Severity Assessment
+| Finding | Action |
+|---------|--------|
+| **Blocker** (breaks workflow) | Create task, run immediately, pause other work |
+| **Friction** (slows/confuses) | Create task with high priority |
+| **Missing feature** (wish existed) | Create task with normal priority |
+| **Polish** (could be better) | Create task, backlog is fine |
+
+### Create Tasks for Findings
 ```bash
 orc new "Fix: [description]" --priority high --category bug
-orc new "Feature: [description]" --priority normal --category feature
-orc new "Improve: [description]" --priority normal --category refactor
+orc new "CLI: [missing capability]" --priority high --category feature
+orc new "UX: [confusing behavior]" --priority normal --category refactor
+orc new "Edge case: [unexpected behavior]" --priority high --category bug
 ```
 
-If a new task is a blocker, run it immediately before continuing.
+**If you found nothing wrong**, either the tool is perfect (unlikely) or you weren't watching closely enough. Re-run with attention to every CLI interaction, error message, and workflow step.
 
 ## Step 7: Continue or Stop
 
@@ -122,10 +143,21 @@ If a new task is a blocker, run it immediately before continuing.
 orc status --plain
 ```
 
-- More READY tasks? Plan next parallel batch and continue
-- Found friction during usage? Create task for it
-- Build broken? Fix it first
-- All caught up? Report summary and stop
+**Before continuing, review what you found:**
+- Did any CLI commands behave unexpectedly?
+- Were any error messages confusing?
+- Did you have to work around anything?
+- Is there anything you wished existed?
+
+If you found issues, address them:
+- **Blockers** → fix immediately before more tasks
+- **High friction** → create high-priority task, consider running next
+- **Nice-to-have** → create task for backlog
+
+Then decide:
+- Found blockers? → Fix them first
+- More READY tasks? → Plan next batch, keep watching for issues
+- All caught up? → Report summary including issues discovered
 
 ## Escalation Rules
 
@@ -157,30 +189,32 @@ orc status --plain
 | Show task | `orc show TASK-XXX --plain` |
 | Read spec | `cat .orc/tasks/TASK-XXX/spec.md` |
 
-## Self-Improvement Mindset
+## The Discovery Mindset (Always On)
 
-You're building the tool you're using. **Friction you experience IS the backlog.**
+You're building the tool you're using. **Every interaction is a test.**
 
-### Recognize Friction As It Happens
-If during this session you:
-- Can't do something with a CLI command → create task for missing command
-- Have to manually edit a file that should have a command → create task
-- Get a confusing error message → create task to improve it
-- Have to run multiple commands for one action → create task to combine them
-- Can't find information easily → create task for better output/docs
-- Do the same sequence of steps repeatedly → create task to automate it
-- Wish you could do something that doesn't exist → that wish is a task
-- Think "this would be easier if..." → create task for that feature
-- Feel annoyed by anything → create task to fix it
+### Priority Order
+1. **Bugs you discover** → higher priority than the task that exposed them
+2. **Friction you feel** → create task immediately, assess if it blocks you
+3. **Edge cases that surprise you** → these are the most valuable finds
+4. **The original task** → secondary to improving the tool
 
-**Don't wait to be told.** If you hit a wall, that wall is a task. If you wish something existed, that's a task. Create it immediately:
-```bash
-orc new "CLI: Add command to [action]" --priority high --category feature
-```
+### Friction Signals (Watch For These)
+- Can't do something with a CLI command → missing command
+- Have to manually edit a file that should have a command → missing command
+- Confusing error message → bad UX
+- Multiple commands for one action → missing convenience command
+- Can't find information easily → bad output/docs
+- Repeating the same sequence → missing automation
+- "This would be easier if..." → missing feature
+- Annoyed by anything → that's a bug
 
 ### The Loop
 1. Use orc to do work
-2. Notice what's hard/missing
-3. Create task for it
-4. Run the task
-5. Repeat with improved tool
+2. **Watch every interaction critically**
+3. Notice what's hard/missing/broken
+4. Create task for it
+5. If blocker, pivot and fix it
+6. Continue with improved tool
+
+**Don't complete a session without finding at least one issue.** If orc worked perfectly, you weren't looking hard enough.
