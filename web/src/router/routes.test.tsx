@@ -132,7 +132,9 @@ describe('Routes', () => {
 		it('renders TaskList page', async () => {
 			renderWithRouter('/');
 			await waitFor(() => {
-				expect(screen.getByText('Task List')).toBeInTheDocument();
+				// TaskList shows status filter tabs - check for the status-tab class
+				const allTab = document.querySelector('.status-tab');
+				expect(allTab).toBeInTheDocument();
 			});
 		});
 

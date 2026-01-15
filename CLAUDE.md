@@ -499,14 +499,9 @@ Patterns, gotchas, and decisions learned during development.
 | Sync on start for stale worktrees | Before execution starts, sync task branch with target to catch conflicts from parallel tasks; `sync_on_start: true` (default) rebases onto latest target so implement phase sees current code; disable if you need isolation from concurrent changes | TASK-194 |
 | Resource tracking for orphan detection | Executor snapshots processes before/after task; compares to detect orphaned MCP processes (playwright, chromium); logs warnings with process details and memory growth; configure via `diagnostics.resource_tracking` in config | TASK-197 |
 | Task completion uses isDone() helper | Blocker checks use `isDone(status)` helper (not direct `== StatusCompleted`) to recognize both `completed` and `finished` as done; ensures merged tasks don't block dependents | TASK-199 |
-
 | Diverged branch auto-force-push | When re-running a completed task, the remote branch has different history; push detects non-fast-forward error and retries with `--force-with-lease`; safer than `--force` as it fails if remote has unexpected commits; logged as warning | TASK-198 |
-| Dual-run E2E validation | For framework migration, run E2E tests against both implementations: `web/playwright.config.ts` (Svelte :5173), `web-react/playwright.config.ts` (React :5174); shared test files in `web/e2e/` use framework-agnostic selectors (role, text, CSS classes); tracks parity percentage and performance delta | TASK-179 |
 | E2E sandbox isolation | E2E tests MUST run against isolated sandbox project in `/tmp`, not production; `global-setup.ts` creates sandbox with test tasks/initiatives, `global-teardown.ts` removes it; test files import from `./fixtures` (not `@playwright/test`) to auto-select sandbox; tests that bypass fixtures will corrupt real task data | TASK-201 |
-
-| Task completion uses isDone() helper | Blocker checks use `isDone(status)` helper (not direct `== StatusCompleted`) to recognize both `completed` and `finished` as done; ensures merged tasks don't block dependents | TASK-199 |
-
-| Diverged branch auto-force-push | When re-running a completed task, the remote branch has different history; push detects non-fast-forward error and retries with `--force-with-lease`; safer than `--force` as it fails if remote has unexpected commits; logged as warning | TASK-198 |
+| React migration complete | Frontend migrated from Svelte 5 to React 19; archived Svelte codebase at `web-svelte-archive/`, moved React to `web/`; E2E tests use framework-agnostic selectors (role, text, CSS classes) | TASK-180 |
 
 
 

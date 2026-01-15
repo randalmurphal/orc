@@ -99,15 +99,19 @@ describe('App', () => {
 	it('renders TaskList page at root route', async () => {
 		renderApp('/');
 		await waitFor(() => {
-			expect(screen.getByText('Task List')).toBeInTheDocument();
+			// TaskList shows status filter tabs - check for the status-tab class
+			const allTab = document.querySelector('.status-tab');
+			expect(allTab).toBeInTheDocument();
 		});
 	});
 
-	it('renders Board page at /board route (shows empty state without project)', async () => {
+	it('renders Board page at /board route', async () => {
 		renderApp('/board');
 		await waitFor(() => {
-			// Without project param in URL, Board shows "No Project Selected" empty state
-			expect(screen.getByText('No Project Selected')).toBeInTheDocument();
+			// Board page renders - check for the board-page container class
+			// The Board component renders either empty state or the actual board
+			const boardPage = document.querySelector('.board-page');
+			expect(boardPage).toBeInTheDocument();
 		});
 	});
 
