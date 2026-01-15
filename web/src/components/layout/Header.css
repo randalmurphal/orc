@@ -133,32 +133,4 @@
 	box-shadow: 0 1px 0 var(--border-default);
 }
 
-/* New Task Button */
-.new-task-btn {
-	display: flex;
-	align-items: center;
-	gap: var(--space-2, 8px);
-}
-
-/* Primary button style */
-.primary {
-	background: var(--accent-primary);
-	border: 1px solid var(--accent-primary);
-	border-radius: var(--radius-md, 6px);
-	color: var(--text-inverse, #fff);
-	font-size: var(--text-sm, 0.875rem);
-	font-weight: var(--font-medium, 500);
-	padding: var(--space-2, 8px) var(--space-4, 16px);
-	cursor: pointer;
-	transition: all var(--duration-fast, 150ms) var(--ease-out, ease-out);
-}
-
-.primary:hover {
-	background: var(--accent-hover);
-	border-color: var(--accent-hover);
-}
-
-.primary:focus-visible {
-	box-shadow: 0 0 0 3px var(--accent-glow, rgba(56, 139, 253, 0.3));
-	outline: none;
-}
+/* New Task Button - uses Button component now, no custom styles needed */

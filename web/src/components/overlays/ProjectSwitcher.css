@@ -44,24 +44,7 @@
 	margin: 0;
 }
 
-.close-btn {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 28px;
-	height: 28px;
-	background: transparent;
-	border: none;
-	border-radius: var(--radius-md, 6px);
-	color: var(--text-muted);
-	cursor: pointer;
-	transition: all var(--duration-fast, 150ms) var(--ease-out, ease-out);
-}
-
-.close-btn:hover {
-	background: var(--bg-tertiary);
-	color: var(--text-primary);
-}
+/* Close button uses Button ghost+iconOnly - uses Button component now */
 
 /* Current Project */
 .current-project {

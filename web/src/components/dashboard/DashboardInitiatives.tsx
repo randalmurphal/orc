@@ -5,6 +5,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import type { Initiative } from '@/lib/types';
+import { Button } from '@/components/ui/Button';
 import './DashboardInitiatives.css';
 
 interface DashboardInitiativesProps {
@@ -107,9 +108,14 @@ export function DashboardInitiatives({ initiatives }: DashboardInitiativesProps)
 			</div>
 
 			{hasMore && (
-				<button className="view-all-link" onClick={handleViewAll}>
+				<Button
+					variant="ghost"
+					size="sm"
+					className="view-all-link"
+					onClick={handleViewAll}
+				>
 					View All →
-				</button>
+				</Button>
 			)}
 		</section>
 	);

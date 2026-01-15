@@ -393,6 +393,8 @@ import { Modal } from '@/components/overlays';
 
 **Implementation:** Uses `@radix-ui/react-dialog` internally with preserved CSS classes (`.modal-backdrop`, `.modal-content`, `.modal-header`, `.modal-title`, `.modal-close`, `.modal-body`). Animations use `data-state="open/closed"` attributes.
 
+**Implementation:** Uses `createPortal` from react-dom with manual focus trap logic. Stores previously focused element and restores focus on close. Focus trap wraps Tab/Shift+Tab navigation within modal boundaries.
+
 ### ToastContainer
 
 Toast notification queue rendered via portal. Uses `uiStore` for state management.
@@ -2250,7 +2252,6 @@ Accessible, unstyled UI primitives for complex interactive components. See ADR-0
 
 | Package | Purpose |
 |---------|---------|
-| `@radix-ui/react-dialog` | Modals, alerts, confirmations |
 | `@radix-ui/react-dropdown-menu` | Context menus, action menus |
 | `@radix-ui/react-select` | Custom select inputs |
 | `@radix-ui/react-tabs` | Tab panels |
@@ -2258,6 +2259,8 @@ Accessible, unstyled UI primitives for complex interactive components. See ADR-0
 | `@radix-ui/react-popover` | Generic popovers |
 | `@radix-ui/react-slot` | Component composition |
 | `@radix-ui/react-toast` | Toast notifications |
+
+**Note:** Modal uses native React portal with manual focus trap (not Radix Dialog) for better reliability across modal use cases.
 
 **Key features:**
 - All components portal to `document.body` by default (prevents z-index issues)
