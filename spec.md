@@ -1,167 +1,83 @@
-# Specification: Migrate dashboard and layout components to Button primitive
+# Specification: Fix: Execution info not persisted to database causing false orphan detection
 
 ## Problem Statement
 
-Dashboard and layout components use raw `<button>` elements with ad-hoc CSS classes instead of the unified Button primitive. This creates inconsistent styling, missing accessibility features (aria-disabled, aria-busy), and duplicated hover/focus/disabled state handling.
+The `ExecutionInfo` (PID, hostname, heartbeat) is set in memory by the executor when a task starts running, but is never persisted to the database. When state is loaded (via `LoadState`), the `Execution` field is always `nil`, causing `CheckOrphaned()` to return `true` for any running task after an orc restart or when viewing state from another process.
 
 ## Success Criteria
 
-- [ ] All action buttons in target files use the `Button` component from `@/components/ui`
-- [ ] Navigation links remain as `NavLink` or `<a>` elements (not converted to buttons)
-- [ ] Visual appearance matches current implementation (no visual regression)
-- [ ] All existing E2E tests pass without selector changes
-- [ ] `npm run test` passes
-- [ ] `bunx playwright test dashboard.spec.ts` passes
-- [ ] `bunx playwright test --project=visual` passes (visual regression)
+- [ ] `SaveState` persists `ExecutionInfo` fields (PID, Hostname, StartedAt, LastHeartbeat) to the `tasks` table
+- [ ] `LoadState` restores `ExecutionInfo` from the database when loading state
+- [ ] After orc restart, running tasks with valid execution info are NOT flagged as orphaned
+- [ ] Tasks with stale heartbeats (>5 min) are still correctly detected as orphaned
+- [ ] Tasks with dead PIDs are still correctly detected as orphaned
+- [ ] `UpdateHeartbeat()` calls are persisted to database (heartbeat updates work)
+- [ ] `ClearExecution()` clears execution columns in database
 
 ## Testing Requirements
 
-- [ ] Unit test: Button component already tested; verify imports work
-- [ ] E2E test: `bunx playwright test dashboard.spec.ts` passes
-- [ ] E2E test: `bunx playwright test --project=visual` passes (visual baselines)
-- [ ] Manual verification: Compare before/after screenshots of Dashboard page
+- [ ] Unit test: `SaveState` with `ExecutionInfo` persists all fields to database
+- [ ] Unit test: `LoadState` restores `ExecutionInfo` from database correctly
+- [ ] Unit test: `LoadState` returns `nil` Execution when columns are NULL
+- [ ] Unit test: Round-trip test - save state with execution info, load it back, verify fields match
+- [ ] Integration test: Start task, save state, create new DatabaseBackend instance, load state, verify execution info present
+- [ ] Existing orphan tests continue to pass
 
 ## Scope
 
 ### In Scope
-
-**DashboardStats.tsx** (3 buttons)
-| Element | Current | Migrate To |
-|---------|---------|------------|
-| Running stat card | `<button className="stat-card running">` | `<Button variant="ghost" className="stat-card running">` |
-| Blocked stat card | `<button className="stat-card blocked">` | `<Button variant="ghost" className="stat-card blocked">` |
-| Today stat card | `<button className="stat-card today">` | `<Button variant="ghost" className="stat-card today">` |
-
-Note: Tokens card is a `<div>` (non-interactive) - leave as-is.
-
-**DashboardQuickActions.tsx** (2 buttons)
-| Element | Current | Migrate To |
-|---------|---------|------------|
-| New Task | `<button className="action-btn primary">` | `<Button variant="primary" leftIcon={<Icon name="plus" size={16} />}>` |
-| View All Tasks | `<button className="action-btn">` | `<Button variant="secondary" leftIcon={<Icon name="tasks" size={16} />}>` |
-
-**DashboardInitiatives.tsx** (2 button types)
-| Element | Current | Migrate To |
-|---------|---------|------------|
-| Initiative row | `<button className="initiative-row">` | `<Button variant="ghost" className="initiative-row">` |
-| View All link | `<button className="view-all-link">` | `<Button variant="ghost" className="view-all-link">` |
-
-**Header.tsx** (3 buttons)
-| Element | Current | Migrate To |
-|---------|---------|------------|
-| Project switcher | `<button className="project-btn">` | `<Button variant="ghost" className="project-btn">` |
-| Command palette | `<button className="cmd-hint">` | `<Button variant="ghost" className="cmd-hint">` |
-| New Task | `<button className="primary new-task-btn">` | `<Button variant="primary" leftIcon={<Icon name="plus" size={16} />}>` |
-
-**Sidebar.tsx** (4 button types)
-| Element | Current | Migrate To |
-|---------|---------|------------|
-| Toggle sidebar | `<button className="toggle-btn">` | `<Button variant="ghost" iconOnly className="toggle-btn">` |
-| Section headers | `<button className="section-header clickable">` | `<Button variant="ghost" className="section-header clickable">` |
-| Group headers | `<button className="group-header">` | `<Button variant="ghost" className="group-header">` |
-| New Initiative | `<button className="nav-item new-initiative-btn">` | `<Button variant="ghost" leftIcon={<Icon name="plus" size={14} />} className="new-initiative-btn">` |
-
-**ProjectSwitcher.tsx** (2 button types)
-| Element | Current | Migrate To |
-|---------|---------|------------|
-| Close button | `<button className="close-btn">` | `<Button variant="ghost" iconOnly aria-label="Close" title="Close (Esc)">` |
-| Project items | `<button className="project-item">` | `<Button variant="ghost" className="project-item">` |
+- Modify `DatabaseBackend.SaveState()` to persist `ExecutionInfo` to database
+- Modify `DatabaseBackend.loadStateUnlocked()` to restore `ExecutionInfo` from database
+- Add execution info fields to the SQL queries in `SaveState`
+- Add execution info field scanning in `LoadState`
+- Add/update unit tests for execution info persistence
 
 ### Out of Scope
-
-- **DashboardActiveTasks.tsx**: Uses `<Link>` for navigation - correct, leave as-is
-- **DashboardRecentActivity.tsx**: Uses `<Link>` for navigation - correct, leave as-is
-- **Sidebar.tsx NavLinks**: Navigation items use `<NavLink>` - correct, leave as-is
-- **CSS files**: May need minor adjustments to work with `.btn` base class, but no major refactoring
-- **Other components**: Only dashboard and layout components in this task
+- Modifying the database schema (columns already exist in `project_012.sql`)
+- Changing the orphan detection logic itself
+- Adding new CLI commands or API endpoints
+- Modifying the Task struct or TaskFull struct
 
 ## Technical Approach
 
-### Key Considerations
-
-1. **Preserve CSS class names**: The Button component accepts `className` prop, so existing classes like `stat-card`, `action-btn`, `project-btn` can be preserved for styling.
-
-2. **Handle button content structure**: The Button component wraps children in `<span className="btn-content">`. For complex content (like stat cards with icons and labels), use the Button as a wrapper but keep the internal structure.
-
-3. **Icon handling**: Use `leftIcon` prop for buttons with leading icons instead of including Icon as a child.
-
-4. **E2E selector stability**: Tests use role-based selectors (`getByRole('button')`) and text content. The Button component renders a `<button>` element, so selectors should remain stable.
+The database schema already has the required columns (`executor_pid`, `executor_hostname`, `executor_started_at`, `last_heartbeat`) added in migration `project_012.sql`. The issue is that `SaveState` and `LoadState` don't use these columns.
 
 ### Files to Modify
 
-1. **`web/src/components/dashboard/DashboardStats.tsx`**
-   - Import `Button` from `@/components/ui`
-   - Replace 3 `<button>` elements with `<Button variant="ghost">`
-   - Preserve `className` and `onClick` props
-   - Keep internal content structure (stat-icon, stat-content)
+1. **`internal/storage/database_backend.go`**:
+   - `SaveState()`: Add execution info fields to the UPDATE query for the tasks table
+   - `loadStateUnlocked()`: Add execution info fields to the SELECT query and populate `s.Execution`
 
-2. **`web/src/components/dashboard/DashboardQuickActions.tsx`**
-   - Import `Button` from `@/components/ui`
-   - Replace 2 `<button>` elements with `<Button>`
-   - Use `leftIcon` prop for icons
-   - Primary button: `variant="primary"`
-   - Secondary button: `variant="secondary"`
+2. **`internal/storage/database_backend_test.go`**:
+   - Add tests for execution info persistence round-trip
+   - Add test for heartbeat update persistence
+   - Add test for execution clear persistence
 
-3. **`web/src/components/dashboard/DashboardInitiatives.tsx`**
-   - Import `Button` from `@/components/ui`
-   - Replace initiative row buttons with `<Button variant="ghost">`
-   - Replace "View All" button with `<Button variant="ghost">`
-   - Preserve internal content structure for initiative rows
+## Bug Analysis
 
-4. **`web/src/components/layout/Header.tsx`**
-   - Import `Button` from `@/components/ui`
-   - Replace 3 `<button>` elements with `<Button>`
-   - Project button: `variant="ghost"`
-   - Command palette: `variant="ghost"`
-   - New Task: `variant="primary"` with `leftIcon`
+### Reproduction Steps
+1. Start `orc run TASK-XXX`
+2. While running, restart orc (Ctrl+C, then re-run)
+3. Running task immediately shows as orphaned with reason "no execution info (legacy state or incomplete)"
 
-5. **`web/src/components/layout/Sidebar.tsx`**
-   - Import `Button` from `@/components/ui`
-   - Replace toggle button with `<Button variant="ghost" iconOnly>`
-   - Replace section/group header buttons with `<Button variant="ghost">`
-   - Replace New Initiative button with `<Button variant="ghost">`
-   - Preserve `aria-expanded` attributes on collapsible buttons
+### Current Behavior
+- `StartExecution()` is called in executor and sets `s.Execution` in memory
+- `SaveState()` is called but does NOT persist `s.Execution` to database
+- On next `LoadState()`, execution info columns are not queried
+- `s.Execution` is always `nil` after loading
+- `CheckOrphaned()` returns `true, "no execution info (legacy state or incomplete)"`
 
-6. **`web/src/components/overlays/ProjectSwitcher.tsx`**
-   - Import `Button` from `@/components/ui`
-   - Replace close button with `<Button variant="ghost" iconOnly>`
-   - Replace project item buttons with `<Button variant="ghost">`
+### Expected Behavior
+- `SaveState()` persists all `ExecutionInfo` fields to database columns
+- `LoadState()` restores `ExecutionInfo` from database when columns have values
+- Running tasks with valid execution info (alive PID, fresh heartbeat) are NOT orphaned
+- Only tasks with actually stale/dead execution info are flagged as orphaned
 
-### CSS Adjustments
+### Root Cause
+Gap between the in-memory state model (`state.State.Execution`) and the database persistence layer (`DatabaseBackend.SaveState/LoadState`) - execution info fields were added to schema but never wired into the save/load logic.
 
-The Button component adds `.btn`, `.btn-ghost`, `.btn-md` classes. Component-specific CSS may need adjustments to:
-- Override height/padding from `.btn-md` when needed
-- Ensure custom backgrounds/borders still apply over `.btn-ghost` defaults
-- Handle the `.btn-content` wrapper for text children
-
-## Refactor Analysis
-
-### Before Pattern
-```tsx
-<button className="action-btn primary" onClick={onNewTask}>
-  <Icon name="plus" size={16} />
-  New Task
-</button>
-```
-
-### After Pattern
-```tsx
-<Button
-  variant="primary"
-  leftIcon={<Icon name="plus" size={16} />}
-  onClick={onNewTask}
->
-  New Task
-</Button>
-```
-
-### Risk Assessment
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| Visual regression | Medium | Low | Run visual regression tests, compare screenshots |
-| E2E selector breakage | Low | Medium | Button renders `<button>`, role selectors should work |
-| CSS specificity conflicts | Medium | Low | Use `className` to preserve existing class-based styles |
-| Content structure changes | Low | Low | Button allows complex children when not using `leftIcon` |
-
-The main risk is CSS specificity - the Button component's base styles (`.btn`) may conflict with component-specific styles. However, since component classes are preserved via `className`, and CSS order matters, this should be manageable with minor adjustments.
+### Verification
+After fix:
+1. Start `orc run TASK-XXX`
+2. In another terminal, run `orc status` - should show task as running (not orphaned)
+3. Kill orc process, restart, run `orc status` - should show task as orphaned with "executor process not running" (correct detection)

@@ -530,6 +530,7 @@ Patterns, gotchas, and decisions learned during development.
 | Sync fails with '0 files in conflict' error | Fixed: `RebaseWithConflictCheck()` now only returns `ErrMergeConflict` when actual conflicts detected; other rebase failures (dirty tree, rebase in progress) return the raw error | TASK-201 |
 | PRPoller.Stop() panics on double call | Fixed: `Stop()` now uses `sync.Once` to guard channel close; safe to call multiple times from concurrent shutdown paths | TASK-231 |
 | Total time shows 292 years | Fixed: `State.Elapsed()` method checks for zero `StartedAt` before calling `time.Since()`; returns 0 for uninitialized states instead of Unix epoch difference | TASK-243 |
+| Running tasks falsely flagged as orphaned | Fixed: `SaveState()` now persists `ExecutionInfo` (PID, hostname, heartbeat) to database; `LoadState()` restores it; orphan detection works correctly across orc restarts | TASK-242 |
 
 ### Decisions
 | Decision | Rationale | Source |
