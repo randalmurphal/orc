@@ -519,3 +519,147 @@ func TestTask_SetMergedInfo(t *testing.T) {
 		t.Errorf("expected Status to be PRStatusMerged, got %s", tsk.PR.Status)
 	}
 }
+
+func TestParsePRURL(t *testing.T) {
+	tests := []struct {
+		name           string
+		url            string
+		expectedOwner  string
+		expectedRepo   string
+		expectedNumber int
+		expectError    bool
+	}{
+		{
+			name:           "standard HTTPS URL",
+			url:            "https://github.com/owner/repo/pull/123",
+			expectedOwner:  "owner",
+			expectedRepo:   "repo",
+			expectedNumber: 123,
+			expectError:    false,
+		},
+		{
+			name:           "URL with organization name",
+			url:            "https://github.com/my-org/my-repo/pull/456",
+			expectedOwner:  "my-org",
+			expectedRepo:   "my-repo",
+			expectedNumber: 456,
+			expectError:    false,
+		},
+		{
+			name:           "URL without https prefix",
+			url:            "github.com/owner/repo/pull/789",
+			expectedOwner:  "owner",
+			expectedRepo:   "repo",
+			expectedNumber: 789,
+			expectError:    false,
+		},
+		{
+			name:           "URL with http prefix",
+			url:            "http://github.com/owner/repo/pull/101",
+			expectedOwner:  "owner",
+			expectedRepo:   "repo",
+			expectedNumber: 101,
+			expectError:    false,
+		},
+		{
+			name:           "large PR number",
+			url:            "https://github.com/owner/repo/pull/99999",
+			expectedOwner:  "owner",
+			expectedRepo:   "repo",
+			expectedNumber: 99999,
+			expectError:    false,
+		},
+		{
+			name:        "invalid URL - not a PR URL",
+			url:         "https://github.com/owner/repo/issues/123",
+			expectError: true,
+		},
+		{
+			name:        "invalid URL - missing PR number",
+			url:         "https://github.com/owner/repo/pull/",
+			expectError: true,
+		},
+		{
+			name:        "invalid URL - completely wrong format",
+			url:         "not-a-url",
+			expectError: true,
+		},
+		{
+			name:        "invalid URL - GitLab URL",
+			url:         "https://gitlab.com/owner/repo/merge_requests/123",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owner, repo, prNumber, err := parsePRURL(tt.url)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if owner != tt.expectedOwner {
+				t.Errorf("expected owner %q, got %q", tt.expectedOwner, owner)
+			}
+			if repo != tt.expectedRepo {
+				t.Errorf("expected repo %q, got %q", tt.expectedRepo, repo)
+			}
+			if prNumber != tt.expectedNumber {
+				t.Errorf("expected PR number %d, got %d", tt.expectedNumber, prNumber)
+			}
+		})
+	}
+}
+
+func TestMergeMethodTranslation(t *testing.T) {
+	// Test that merge method values are passed correctly to the API
+	// GitHub API expects: "squash", "merge", or "rebase"
+	tests := []struct {
+		name           string
+		configMethod   string
+		expectedMethod string
+	}{
+		{
+			name:           "squash method",
+			configMethod:   "squash",
+			expectedMethod: "squash",
+		},
+		{
+			name:           "merge method",
+			configMethod:   "merge",
+			expectedMethod: "merge",
+		},
+		{
+			name:           "rebase method",
+			configMethod:   "rebase",
+			expectedMethod: "rebase",
+		},
+		{
+			name:           "empty defaults to squash",
+			configMethod:   "",
+			expectedMethod: "squash",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Default()
+			cfg.Completion.CI.MergeMethod = tt.configMethod
+
+			// Verify the merge method is returned correctly
+			method := cfg.MergeMethod()
+			if method != tt.expectedMethod {
+				t.Errorf("expected method %q, got %q", tt.expectedMethod, method)
+			}
+		})
+	}
+}

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -322,38 +324,63 @@ func (m *CIMerger) CheckCIStatus(ctx context.Context, prURL string) (*CICheckRes
 }
 
 // MergePR merges a PR using the configured merge method.
+// Uses the GitHub REST API directly to avoid local git checkout issues
+// when the target branch is checked out in another worktree.
 func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) error {
 	method := m.config.MergeMethod()
 
-	// Build merge command
-	args := []string{"pr", "merge", prURL}
-
-	switch method {
-	case "squash":
-		args = append(args, "--squash")
-	case "merge":
-		args = append(args, "--merge")
-	case "rebase":
-		args = append(args, "--rebase")
-	default:
-		args = append(args, "--squash") // Default to squash
+	// Extract owner, repo, and PR number from the URL
+	owner, repo, prNumber, err := parsePRURL(prURL)
+	if err != nil {
+		return fmt.Errorf("parse PR URL: %w", err)
 	}
 
-	// Add delete branch if configured
-	if m.config.Completion.DeleteBranch {
-		args = append(args, "--delete-branch")
-	}
-
-	m.logger.Info("merging PR",
+	m.logger.Info("merging PR via API",
 		"task", t.ID,
 		"pr", prURL,
+		"owner", owner,
+		"repo", repo,
+		"pr_number", prNumber,
 		"method", method,
 		"delete_branch", m.config.Completion.DeleteBranch,
 	)
 
-	output, err := m.runGH(ctx, args...)
+	// GitHub API uses "merge", "squash", or "rebase" for merge_method
+	mergeMethod := method
+	if mergeMethod == "" {
+		mergeMethod = "squash" // Default to squash
+	}
+
+	// Call GitHub API to merge the PR
+	// PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge
+	apiPath := fmt.Sprintf("/repos/%s/%s/pulls/%d/merge", owner, repo, prNumber)
+	output, err := m.runGH(ctx, "api", "-X", "PUT", apiPath, "-f", fmt.Sprintf("merge_method=%s", mergeMethod))
 	if err != nil {
-		return fmt.Errorf("gh pr merge: %w\nOutput: %s", err, output)
+		return fmt.Errorf("merge PR via API: %w\nOutput: %s", err, output)
+	}
+
+	// Parse the response to get the merge commit SHA
+	var mergeResponse struct {
+		SHA     string `json:"sha"`
+		Merged  bool   `json:"merged"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(output), &mergeResponse); err != nil {
+		m.logger.Warn("failed to parse merge response", "error", err, "output", output)
+	} else if mergeResponse.SHA != "" {
+		t.PR.MergeCommitSHA = mergeResponse.SHA
+		m.logger.Info("PR merged", "sha", mergeResponse.SHA)
+	}
+
+	// Delete the branch if configured
+	if m.config.Completion.DeleteBranch {
+		if err := m.deleteBranch(ctx, owner, repo, t.Branch); err != nil {
+			// Log but don't fail - the merge succeeded
+			m.logger.Warn("failed to delete branch after merge",
+				"branch", t.Branch,
+				"error", err,
+			)
+		}
 	}
 
 	// Update task with merge info
@@ -363,6 +390,42 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) erro
 	}
 
 	return nil
+}
+
+// deleteBranch deletes a branch via the GitHub API.
+func (m *CIMerger) deleteBranch(ctx context.Context, owner, repo, branch string) error {
+	// Strip the "refs/heads/" prefix if present, or add nothing if it's a simple branch name
+	branchName := strings.TrimPrefix(branch, "refs/heads/")
+
+	// DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}
+	apiPath := fmt.Sprintf("/repos/%s/%s/git/refs/heads/%s", owner, repo, branchName)
+	output, err := m.runGH(ctx, "api", "-X", "DELETE", apiPath)
+	if err != nil {
+		return fmt.Errorf("delete branch: %w\nOutput: %s", err, output)
+	}
+	m.logger.Info("deleted branch", "branch", branchName)
+	return nil
+}
+
+// parsePRURL extracts owner, repo, and PR number from a GitHub PR URL.
+// Supports formats like:
+//   - https://github.com/owner/repo/pull/123
+//   - github.com/owner/repo/pull/123
+func parsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
+	// Regex to match GitHub PR URLs
+	// Captures: owner, repo, PR number
+	pattern := regexp.MustCompile(`(?:https?://)?github\.com/([^/]+)/([^/]+)/pull/(\d+)`)
+	matches := pattern.FindStringSubmatch(prURL)
+	if len(matches) != 4 {
+		return "", "", 0, fmt.Errorf("invalid PR URL format: %s", prURL)
+	}
+
+	prNumber, err = strconv.Atoi(matches[3])
+	if err != nil {
+		return "", "", 0, fmt.Errorf("invalid PR number in URL: %s", prURL)
+	}
+
+	return matches[1], matches[2], prNumber, nil
 }
 
 // publishProgress publishes a progress message.
