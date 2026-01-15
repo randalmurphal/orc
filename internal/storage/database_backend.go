@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -63,6 +64,7 @@ func (d *DatabaseBackend) DB() *db.ProjectDB {
 // SaveTask saves a task to the database.
 // Note: This preserves state fields (StateStatus, RetryContext) which are managed
 // by SaveState. When updating a task, we read existing state values and preserve them.
+// All operations (task + dependencies) are wrapped in a transaction for atomicity.
 func (d *DatabaseBackend) SaveTask(t *task.Task) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -78,21 +80,24 @@ func (d *DatabaseBackend) SaveTask(t *task.Task) error {
 		dbTask.RetryContext = existingTask.RetryContext
 	}
 
-	if err := d.db.SaveTask(dbTask); err != nil {
-		return fmt.Errorf("save task: %w", err)
-	}
-
-	// Save dependencies - clear first, then add new ones
-	if err := d.db.ClearTaskDependencies(t.ID); err != nil {
-		return fmt.Errorf("clear task dependencies: %w", err)
-	}
-	for _, depID := range t.BlockedBy {
-		if err := d.db.AddTaskDependency(t.ID, depID); err != nil {
-			return fmt.Errorf("add task dependency %s: %w", depID, err)
+	// Wrap all operations in a transaction for atomicity
+	return d.db.RunInTx(context.Background(), func(tx *db.TxOps) error {
+		if err := db.SaveTaskTx(tx, dbTask); err != nil {
+			return fmt.Errorf("save task: %w", err)
 		}
-	}
 
-	return nil
+		// Save dependencies - clear first, then add new ones
+		if err := db.ClearTaskDependenciesTx(tx, t.ID); err != nil {
+			return fmt.Errorf("clear task dependencies: %w", err)
+		}
+		for _, depID := range t.BlockedBy {
+			if err := db.AddTaskDependencyTx(tx, t.ID, depID); err != nil {
+				return fmt.Errorf("add task dependency %s: %w", depID, err)
+			}
+		}
+
+		return nil
+	})
 }
 
 // LoadTask loads a task from the database.
@@ -168,11 +173,12 @@ func (d *DatabaseBackend) DeleteTask(id string) error {
 }
 
 // SaveState saves execution state to the database.
+// All operations (task update + phases + gate decisions) are wrapped in a transaction for atomicity.
 func (d *DatabaseBackend) SaveState(s *state.State) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	// Update task with state information
+	// Get task first (outside transaction since it's read-only)
 	dbTask, err := d.db.GetTask(s.TaskID)
 	if err != nil {
 		return fmt.Errorf("get task for state: %w", err)
@@ -201,56 +207,59 @@ func (d *DatabaseBackend) SaveState(s *state.State) error {
 		dbTask.RetryContext = ""
 	}
 
-	if err := d.db.SaveTask(dbTask); err != nil {
-		return fmt.Errorf("update task from state: %w", err)
-	}
+	// Wrap all operations in a transaction for atomicity
+	return d.db.RunInTx(context.Background(), func(tx *db.TxOps) error {
+		if err := db.SaveTaskTx(tx, dbTask); err != nil {
+			return fmt.Errorf("update task from state: %w", err)
+		}
 
-	// Clear existing phases before saving new ones
-	// This ensures phases removed from s.Phases are deleted from DB
-	if err := d.db.ClearPhases(s.TaskID); err != nil {
-		d.logger.Printf("warning: failed to clear phases: %v", err)
-	}
+		// Clear existing phases before saving new ones
+		// This ensures phases removed from s.Phases are deleted from DB
+		if err := db.ClearPhasesTx(tx, s.TaskID); err != nil {
+			return fmt.Errorf("clear phases: %w", err)
+		}
 
-	// Save phase states
-	for phaseID, ps := range s.Phases {
-		var startedAt *time.Time
-		if !ps.StartedAt.IsZero() {
-			startedAt = &ps.StartedAt
+		// Save phase states
+		for phaseID, ps := range s.Phases {
+			var startedAt *time.Time
+			if !ps.StartedAt.IsZero() {
+				startedAt = &ps.StartedAt
+			}
+			dbPhase := &db.Phase{
+				TaskID:       s.TaskID,
+				PhaseID:      phaseID,
+				Status:       string(ps.Status),
+				Iterations:   ps.Iterations,
+				StartedAt:    startedAt,
+				CompletedAt:  ps.CompletedAt,
+				InputTokens:  ps.Tokens.InputTokens,
+				OutputTokens: ps.Tokens.OutputTokens,
+				CostUSD:      0, // Cost is tracked at state level, not phase level
+				ErrorMessage: ps.Error,
+				CommitSHA:    ps.CommitSHA,
+			}
+			if err := db.SavePhaseTx(tx, dbPhase); err != nil {
+				return fmt.Errorf("save phase %s: %w", phaseID, err)
+			}
 		}
-		dbPhase := &db.Phase{
-			TaskID:       s.TaskID,
-			PhaseID:      phaseID,
-			Status:       string(ps.Status),
-			Iterations:   ps.Iterations,
-			StartedAt:    startedAt,
-			CompletedAt:  ps.CompletedAt,
-			InputTokens:  ps.Tokens.InputTokens,
-			OutputTokens: ps.Tokens.OutputTokens,
-			CostUSD:      0, // Cost is tracked at state level, not phase level
-			ErrorMessage: ps.Error,
-			CommitSHA:    ps.CommitSHA,
-		}
-		if err := d.db.SavePhase(dbPhase); err != nil {
-			d.logger.Printf("warning: failed to save phase %s: %v", phaseID, err)
-		}
-	}
 
-	// Save gate decisions
-	for _, gate := range s.Gates {
-		dbGate := &db.GateDecision{
-			TaskID:    s.TaskID,
-			Phase:     gate.Phase,
-			GateType:  gate.GateType,
-			Approved:  gate.Approved,
-			Reason:    gate.Reason,
-			DecidedAt: gate.Timestamp,
+		// Save gate decisions
+		for _, gate := range s.Gates {
+			dbGate := &db.GateDecision{
+				TaskID:    s.TaskID,
+				Phase:     gate.Phase,
+				GateType:  gate.GateType,
+				Approved:  gate.Approved,
+				Reason:    gate.Reason,
+				DecidedAt: gate.Timestamp,
+			}
+			if err := db.AddGateDecisionTx(tx, dbGate); err != nil {
+				return fmt.Errorf("save gate decision: %w", err)
+			}
 		}
-		if err := d.db.AddGateDecision(dbGate); err != nil {
-			d.logger.Printf("warning: failed to save gate decision: %v", err)
-		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // LoadState loads execution state from the database.
@@ -745,51 +754,56 @@ func (d *DatabaseBackend) TaskExists(id string) (bool, error) {
 // ============================================================================
 
 // SaveInitiative saves an initiative to the database.
+// All operations (initiative + decisions + tasks + dependencies) are wrapped in a transaction for atomicity.
 func (d *DatabaseBackend) SaveInitiative(i *initiative.Initiative) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	dbInit := initiativeToDBInitiative(i)
-	if err := d.db.SaveInitiative(dbInit); err != nil {
-		return fmt.Errorf("save initiative: %w", err)
-	}
 
-	// Save decisions
-	for _, decision := range i.Decisions {
-		dbDecision := &db.InitiativeDecision{
-			ID:           decision.ID,
-			InitiativeID: i.ID,
-			DecidedAt:    decision.Date,
-			DecidedBy:    decision.By,
-			Decision:     decision.Decision,
-			Rationale:    decision.Rationale,
+	// Wrap all operations in a transaction for atomicity
+	return d.db.RunInTx(context.Background(), func(tx *db.TxOps) error {
+		if err := db.SaveInitiativeTx(tx, dbInit); err != nil {
+			return fmt.Errorf("save initiative: %w", err)
 		}
-		if err := d.db.AddInitiativeDecision(dbDecision); err != nil {
-			d.logger.Printf("warning: failed to save decision %s: %v", decision.ID, err)
-		}
-	}
 
-	// Clear and save task references
-	if err := d.db.ClearInitiativeTasks(i.ID); err != nil {
-		d.logger.Printf("warning: failed to clear initiative tasks: %v", err)
-	}
-	for idx, taskRef := range i.Tasks {
-		if err := d.db.AddTaskToInitiative(i.ID, taskRef.ID, idx); err != nil {
-			d.logger.Printf("warning: failed to add task %s to initiative: %v", taskRef.ID, err)
+		// Save decisions
+		for _, decision := range i.Decisions {
+			dbDecision := &db.InitiativeDecision{
+				ID:           decision.ID,
+				InitiativeID: i.ID,
+				DecidedAt:    decision.Date,
+				DecidedBy:    decision.By,
+				Decision:     decision.Decision,
+				Rationale:    decision.Rationale,
+			}
+			if err := db.AddInitiativeDecisionTx(tx, dbDecision); err != nil {
+				return fmt.Errorf("save decision %s: %w", decision.ID, err)
+			}
 		}
-	}
 
-	// Save dependencies (blocked_by)
-	if err := d.db.ClearInitiativeDependencies(i.ID); err != nil {
-		d.logger.Printf("warning: failed to clear initiative dependencies: %v", err)
-	}
-	for _, depID := range i.BlockedBy {
-		if err := d.db.AddInitiativeDependency(i.ID, depID); err != nil {
-			d.logger.Printf("warning: failed to add initiative dependency %s: %v", depID, err)
+		// Clear and save task references
+		if err := db.ClearInitiativeTasksTx(tx, i.ID); err != nil {
+			return fmt.Errorf("clear initiative tasks: %w", err)
 		}
-	}
+		for idx, taskRef := range i.Tasks {
+			if err := db.AddTaskToInitiativeTx(tx, i.ID, taskRef.ID, idx); err != nil {
+				return fmt.Errorf("add task %s to initiative: %w", taskRef.ID, err)
+			}
+		}
 
-	return nil
+		// Save dependencies (blocked_by)
+		if err := db.ClearInitiativeDependenciesTx(tx, i.ID); err != nil {
+			return fmt.Errorf("clear initiative dependencies: %w", err)
+		}
+		for _, depID := range i.BlockedBy {
+			if err := db.AddInitiativeDependencyTx(tx, i.ID, depID); err != nil {
+				return fmt.Errorf("add initiative dependency %s: %w", depID, err)
+			}
+		}
+
+		return nil
+	})
 }
 
 // LoadInitiative loads an initiative from the database.

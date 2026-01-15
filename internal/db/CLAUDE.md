@@ -15,6 +15,8 @@ This package provides two database types:
 | `DB` | Core database wrapper with driver abstraction |
 | `GlobalDB` | Global operations (extends DB) |
 | `ProjectDB` | Project operations with FTS (extends DB) |
+| `TxRunner` | Interface for transaction execution |
+| `TxOps` | Transaction context for multi-table operations |
 | `driver.Driver` | Interface for SQLite/PostgreSQL backends |
 | `driver.Dialect` | Enum: `DialectSQLite`, `DialectPostgres` |
 | `Transcript` | Transcript record with task/phase/content |
@@ -120,6 +122,49 @@ if pdb.Dialect() == driver.DialectSQLite {
 ```
 
 ## Key Features
+
+### Transaction Support
+
+Multi-table operations use transactions for atomicity:
+
+```go
+// TxRunner interface for transaction execution
+type TxRunner interface {
+    RunInTx(ctx context.Context, fn func(tx *TxOps) error) error
+}
+
+// ProjectDB implements TxRunner
+err := pdb.RunInTx(ctx, func(tx *db.TxOps) error {
+    if err := db.SaveTaskTx(tx, task); err != nil {
+        return err  // Triggers rollback
+    }
+    if err := db.ClearTaskDependenciesTx(tx, taskID); err != nil {
+        return err  // Triggers rollback
+    }
+    for _, depID := range blockedBy {
+        if err := db.AddTaskDependencyTx(tx, taskID, depID); err != nil {
+            return err  // Triggers rollback
+        }
+    }
+    return nil  // Commits transaction
+})
+```
+
+**Transaction-aware functions (TxOps):**
+| Function | Purpose |
+|----------|---------|
+| `SaveTaskTx` | Save task within transaction |
+| `ClearTaskDependenciesTx` | Clear task dependencies |
+| `AddTaskDependencyTx` | Add task dependency |
+| `ClearPhasesTx` | Clear task phases |
+| `SavePhaseTx` | Save phase state |
+| `AddGateDecisionTx` | Add gate decision |
+| `SaveInitiativeTx` | Save initiative |
+| `AddInitiativeDecisionTx` | Add initiative decision |
+| `ClearInitiativeTasksTx` | Clear initiative task links |
+| `AddTaskToInitiativeTx` | Add task to initiative |
+| `ClearInitiativeDependenciesTx` | Clear initiative dependencies |
+| `AddInitiativeDependencyTx` | Add initiative dependency |
 
 ### Automatic Migrations
 
