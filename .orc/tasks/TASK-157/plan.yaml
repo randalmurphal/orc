@@ -74,7 +74,8 @@ phases:
       gate:
         type: auto
       checkpoint: true
-      status: pending
+      status: completed
+      commit_sha: c57dae30401838ce013d80861745b17edfcb7108
     - id: test
       name: test
       prompt: |
