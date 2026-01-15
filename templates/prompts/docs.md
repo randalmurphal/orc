@@ -30,20 +30,82 @@ You are working in an **isolated git worktree**.
 
 {{IMPLEMENT_CONTENT}}
 
+---
+
+## AI Documentation Standards
+
+**Key Insight**: Documentation = MAP to codebase, not replacement. AI agents can read code - provide structure and location references, not exhaustive explanations.
+
+### Core Principles
+
+| Principle | Rule |
+|-----------|------|
+| Concise over comprehensive | Tables, bullets, code snippets >>> Paragraphs |
+| Location references | Include `file:line` for implementation details |
+| Structure over prose | AI parses structured content faster |
+| No duplication | Define once at appropriate level, reference elsewhere |
+
+### CLAUDE.md Line Count Rules
+
+| Level | Target Lines | Focus |
+|-------|--------------|-------|
+| Project root | 150-180 | Project standards, commands, structure |
+| Package/subsystem | 100-150 | Architecture overview, key patterns |
+| Simple tool | 200-250 | Tool-specific logic, gotchas |
+| Complex tool | 300-400 max | Critical business logic, architecture |
+
+**Rule**: Context-loaded files (CLAUDE.md) must be concise. Reference docs in `docs/` can be longer.
+
+### Anti-Patterns
+
+- **Don't write tutorials** - AI needs REFERENCE, not teaching
+- **Don't explain obvious code** - One-line summary + file:line + WHY
+- **Don't duplicate across hierarchy** - Testing in project, core principles in global
+- **Don't mix abstraction levels** - OVERVIEW stays high-level
+
+---
+
 ## Instructions
 
-### Step 1: Audit Existing Documentation
+### Step 1: Staleness Audit (MANDATORY)
 
-Check what documentation exists and what's missing:
+**Before writing ANY new docs, search for stale references:**
+
+```bash
+# Storage model consistency
+grep -rn "source of truth" docs/ internal/**/CLAUDE.md
+grep -rn "YAML.*source\|hybrid.*storage\|HybridBackend" docs/ internal/
+
+# Deprecated tech/framework references
+grep -rn "matching Svelte\|mirror.*Svelte" web/ docs/
+grep -rn "watcher/" docs/ internal/CLAUDE.md  # If removed
+
+# Superseded ADRs still marked Accepted
+grep -l "Status.*Accepted" docs/decisions/
+```
+
+**For EVERY stale reference found:**
+1. Update to match current implementation
+2. Mark superseded ADRs as "Superseded" with date
+3. Remove deprecated code examples
+4. Update package descriptions in CLAUDE.md files
+
+**Report format:**
+```
+Staleness audit:
+- [file:line] - [what was stale] → [what it was changed to]
+```
+
+### Step 2: Audit Missing Documentation
+
+Check what exists and what's missing:
 
 1. **Root level**: README.md, CLAUDE.md, CONTRIBUTING.md
 2. **Changed directories**: README.md, CLAUDE.md in affected paths
 3. **Architecture docs**: docs/architecture/ if structural changes
 4. **API docs**: If public interfaces changed
 
-### Step 2: Create Missing Required Docs
-
-Based on project type, create any missing required documentation:
+### Step 3: Create Missing Required Docs
 
 **For all projects:**
 - `CLAUDE.md` at root (AI-readable project overview)
@@ -57,7 +119,7 @@ Based on project type, create any missing required documentation:
 - Architecture docs if new components added
 - ADR if architectural decisions were made
 
-### Step 3: Update Existing Docs
+### Step 4: Update Existing Docs
 
 For each existing doc in the blast radius:
 
@@ -67,23 +129,25 @@ For each existing doc in the blast radius:
 4. Update examples if behavior changed
 5. Update command references if CLI changed
 
-### Step 4: CLAUDE.md Quality Check
+### Step 5: CLAUDE.md Quality Check
 
 Ensure CLAUDE.md files are:
-- Under 200 lines
+- Under target line count (see table above)
 - Use tables over prose
 - Include Quick Start section
 - Have accurate Structure table
 - List actual commands that work
+- No duplicate content from parent CLAUDE.md
 
-### Step 5: Validate Documentation
+### Step 6: Validate Documentation
 
 - All code blocks have correct syntax highlighting
 - All internal links resolve to existing files
 - All examples are runnable
 - No TODO/FIXME placeholders in final docs
+- No references to deprecated/removed features
 
-### Step 6: Update Project Knowledge
+### Step 7: Update Project Knowledge
 
 Review what you learned during this task and update CLAUDE.md's knowledge section.
 
@@ -107,6 +171,33 @@ Look for the section between `<!-- orc:knowledge:begin -->` and `<!-- orc:knowle
 - Skip if nothing new was learned (empty tables are fine)
 - Edit the tables directly - no special markup needed
 
+---
+
+## Validation Checklist (Run Before Completing)
+
+### Staleness
+- [ ] No references to deprecated storage patterns (YAML source of truth, hybrid storage)
+- [ ] No references to removed packages/frameworks
+- [ ] All ADRs have correct status (Accepted/Superseded)
+- [ ] Code examples match current implementation
+
+### Line Counts
+- [ ] Root CLAUDE.md ≤ 180 lines (excluding knowledge tables)
+- [ ] Package CLAUDE.md files ≤ 150 lines
+- [ ] No CLAUDE.md > 400 lines
+
+### No Duplication
+- [ ] Testing standards not repeated (project level only)
+- [ ] Core principles not repeated (global level only)
+- [ ] Package patterns not repeated (parent level only)
+
+### Structure
+- [ ] Tables over prose for business logic
+- [ ] Bullet points over paragraphs
+- [ ] File references include path (and line when relevant)
+
+---
+
 ## Output Format
 
 Create a documentation summary and wrap it in artifact tags for automatic persistence:
@@ -115,6 +206,12 @@ Create a documentation summary and wrap it in artifact tags for automatic persis
 ## Documentation Summary
 
 **Task**: {{TASK_TITLE}}
+
+### Staleness Audit Results
+- Files searched: [count]
+- Stale references found: [count]
+- Fixes applied:
+  - [file:line]: [old] → [new]
 
 ### Auto-Updated Sections
 Look for sections marked with `<!-- orc:auto:* -->` and regenerate them:
@@ -129,7 +226,7 @@ Look for sections marked with `<!-- orc:auto:* -->` and regenerate them:
 - [path/to/doc.md]: [what changed]
 
 ### CLAUDE.md Status
-[created/updated/verified]
+[created/updated/verified] - [line count]
 </artifact>
 
 ## Phase Completion
