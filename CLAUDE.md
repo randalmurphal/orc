@@ -522,6 +522,7 @@ Patterns, gotchas, and decisions learned during development.
 | Finished tasks still blocked dependents | Fixed: `GetIncompleteBlockers()` now uses `isDone()` helper to recognize both `completed` and `finished` statuses as done | TASK-199 |
 | Re-running completed task fails to push | Fixed: Push now detects non-fast-forward errors (diverged remote) and automatically retries with `--force-with-lease` | TASK-198 |
 | Sync fails with '0 files in conflict' error | Fixed: `RebaseWithConflictCheck()` now only returns `ErrMergeConflict` when actual conflicts detected; other rebase failures (dirty tree, rebase in progress) return the raw error | TASK-201 |
+| PRPoller.Stop() panics on double call | Fixed: `Stop()` now uses `sync.Once` to guard channel close; safe to call multiple times from concurrent shutdown paths | TASK-231 |
 
 ### Decisions
 | Decision | Rationale | Source |
