@@ -166,6 +166,43 @@ err := pdb.RunInTx(ctx, func(tx *db.TxOps) error {
 | `ClearInitiativeDependenciesTx` | Clear initiative dependencies |
 | `AddInitiativeDependencyTx` | Add initiative dependency |
 
+### Batch Loading (N+1 Query Avoidance)
+
+For bulk operations, use batch loading methods to avoid N+1 query patterns:
+
+```go
+// Instead of per-task queries in a loop:
+for _, task := range tasks {
+    deps, _ := db.GetTaskDependencies(task.ID)  // N queries!
+}
+
+// Use batch loading:
+allDeps, _ := db.GetAllTaskDependencies()  // 1 query
+for _, task := range tasks {
+    deps := allDeps[task.ID]  // Map lookup
+}
+```
+
+**Batch loading functions:**
+| Function | Returns | Purpose |
+|----------|---------|---------|
+| `GetAllTaskDependencies()` | `map[string][]string` | All task blocked_by relationships |
+| `GetAllInitiativeDecisions()` | `map[string][]InitiativeDecision` | All decisions grouped by initiative |
+| `GetAllInitiativeTaskRefs()` | `map[string][]InitiativeTaskRef` | Task refs with titles/status (JOINed) |
+| `GetAllInitiativeDependencies()` | `map[string][]string` | All initiative blocked_by relationships |
+| `GetAllInitiativeDependents()` | `map[string][]string` | All initiative blocks relationships |
+
+The `InitiativeTaskRef` struct includes task details from a JOIN:
+```go
+type InitiativeTaskRef struct {
+    InitiativeID string
+    TaskID       string
+    Title        string  // From tasks table
+    Status       string  // From tasks table
+    Sequence     int
+}
+```
+
 ### Automatic Migrations
 
 ```go

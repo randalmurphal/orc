@@ -2194,3 +2194,136 @@ func AddInitiativeDependencyTx(tx *TxOps, initiativeID, dependsOn string) error 
 	}
 	return nil
 }
+
+// ============================================================================
+// Batch loading operations for initiatives (avoid N+1 queries)
+// ============================================================================
+
+// GetAllInitiativeDecisions retrieves all initiative decisions in one query.
+// Returns a map from initiative_id to list of decisions.
+func (p *ProjectDB) GetAllInitiativeDecisions() (map[string][]InitiativeDecision, error) {
+	rows, err := p.Query(`
+		SELECT id, initiative_id, decision, rationale, decided_by, decided_at
+		FROM initiative_decisions ORDER BY initiative_id, decided_at
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("get all initiative decisions: %w", err)
+	}
+	defer rows.Close()
+
+	decisions := make(map[string][]InitiativeDecision)
+	for rows.Next() {
+		var d InitiativeDecision
+		var rationale, decidedBy sql.NullString
+		var decidedAt string
+
+		if err := rows.Scan(&d.ID, &d.InitiativeID, &d.Decision, &rationale, &decidedBy, &decidedAt); err != nil {
+			return nil, fmt.Errorf("scan decision: %w", err)
+		}
+
+		if rationale.Valid {
+			d.Rationale = rationale.String
+		}
+		if decidedBy.Valid {
+			d.DecidedBy = decidedBy.String
+		}
+		if ts, err := time.Parse(time.RFC3339, decidedAt); err == nil {
+			d.DecidedAt = ts
+		} else if ts, err := time.Parse("2006-01-02 15:04:05", decidedAt); err == nil {
+			d.DecidedAt = ts
+		}
+
+		decisions[d.InitiativeID] = append(decisions[d.InitiativeID], d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate decisions: %w", err)
+	}
+
+	return decisions, nil
+}
+
+// InitiativeTaskRef represents a task reference with its details for batch loading.
+type InitiativeTaskRef struct {
+	InitiativeID string
+	TaskID       string
+	Title        string
+	Status       string
+	Sequence     int
+}
+
+// GetAllInitiativeTaskRefs retrieves all initiative task references with task details in one query.
+// Returns a map from initiative_id to list of task refs (already populated with title/status).
+func (p *ProjectDB) GetAllInitiativeTaskRefs() (map[string][]InitiativeTaskRef, error) {
+	rows, err := p.Query(`
+		SELECT it.initiative_id, it.task_id, t.title, t.status, it.sequence
+		FROM initiative_tasks it
+		JOIN tasks t ON it.task_id = t.id
+		ORDER BY it.initiative_id, it.sequence
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("get all initiative task refs: %w", err)
+	}
+	defer rows.Close()
+
+	refs := make(map[string][]InitiativeTaskRef)
+	for rows.Next() {
+		var r InitiativeTaskRef
+		if err := rows.Scan(&r.InitiativeID, &r.TaskID, &r.Title, &r.Status, &r.Sequence); err != nil {
+			return nil, fmt.Errorf("scan task ref: %w", err)
+		}
+		refs[r.InitiativeID] = append(refs[r.InitiativeID], r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate task refs: %w", err)
+	}
+
+	return refs, nil
+}
+
+// GetAllInitiativeDependencies retrieves all initiative dependencies in one query.
+// Returns a map from initiative_id to list of depends_on IDs (blocked_by).
+func (p *ProjectDB) GetAllInitiativeDependencies() (map[string][]string, error) {
+	rows, err := p.Query(`SELECT initiative_id, depends_on FROM initiative_dependencies ORDER BY initiative_id`)
+	if err != nil {
+		return nil, fmt.Errorf("get all initiative dependencies: %w", err)
+	}
+	defer rows.Close()
+
+	deps := make(map[string][]string)
+	for rows.Next() {
+		var initiativeID, dependsOn string
+		if err := rows.Scan(&initiativeID, &dependsOn); err != nil {
+			return nil, fmt.Errorf("scan dependency: %w", err)
+		}
+		deps[initiativeID] = append(deps[initiativeID], dependsOn)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate dependencies: %w", err)
+	}
+
+	return deps, nil
+}
+
+// GetAllInitiativeDependents retrieves all initiative dependents in one query.
+// Returns a map from initiative_id to list of initiative IDs that depend on it (blocks).
+func (p *ProjectDB) GetAllInitiativeDependents() (map[string][]string, error) {
+	rows, err := p.Query(`SELECT depends_on, initiative_id FROM initiative_dependencies ORDER BY depends_on`)
+	if err != nil {
+		return nil, fmt.Errorf("get all initiative dependents: %w", err)
+	}
+	defer rows.Close()
+
+	dependents := make(map[string][]string)
+	for rows.Next() {
+		var dependsOn, initiativeID string
+		if err := rows.Scan(&dependsOn, &initiativeID); err != nil {
+			return nil, fmt.Errorf("scan dependent: %w", err)
+		}
+		dependents[dependsOn] = append(dependents[dependsOn], initiativeID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate dependents: %w", err)
+	}
+
+	return dependents, nil
+}
