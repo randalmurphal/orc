@@ -200,3 +200,134 @@ func TestEditCommand_RequiresArg(t *testing.T) {
 		t.Error("expected error for two args")
 	}
 }
+
+func TestEditCommand_StatusFlag(t *testing.T) {
+	cmd := newEditCmd()
+
+	// Verify --status flag exists
+	if cmd.Flag("status") == nil {
+		t.Error("missing --status flag")
+	}
+
+	// Verify shorthand -s exists
+	if cmd.Flag("status").Shorthand != "s" {
+		t.Errorf("status shorthand = %q, want 's'", cmd.Flag("status").Shorthand)
+	}
+}
+
+func TestEditCommand_StatusValidation(t *testing.T) {
+	withEditTestDir(t)
+
+	// Create and save a task
+	tk := task.New("TASK-001", "Test task")
+	tk.Status = task.StatusPlanned
+	if err := tk.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Try to set invalid status
+	cmd := newEditCmd()
+	cmd.SetArgs([]string{"TASK-001", "--status", "invalid"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for invalid status")
+	}
+
+	// Check error message contains valid options
+	errMsg := err.Error()
+	if !hasSubstring(errMsg, "invalid status") {
+		t.Errorf("error message should mention 'invalid status', got: %s", errMsg)
+	}
+	if !hasSubstring(errMsg, "created") || !hasSubstring(errMsg, "completed") {
+		t.Errorf("error message should list valid options, got: %s", errMsg)
+	}
+}
+
+func TestEditCommand_StatusChange(t *testing.T) {
+	withEditTestDir(t)
+
+	// Create and save a task
+	tk := task.New("TASK-001", "Test task")
+	tk.Status = task.StatusPlanned
+	if err := tk.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Change status to completed
+	cmd := newEditCmd()
+	cmd.SetArgs([]string{"TASK-001", "--status", "completed"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("failed to execute edit command: %v", err)
+	}
+
+	// Verify status was updated
+	updated, err := task.Load("TASK-001")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if updated.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want %s", updated.Status, task.StatusCompleted)
+	}
+}
+
+func TestEditCommand_StatusNoChangeIfSame(t *testing.T) {
+	withEditTestDir(t)
+
+	// Create and save a task already in completed status
+	tk := task.New("TASK-001", "Test task")
+	tk.Status = task.StatusCompleted
+	if err := tk.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Try to set same status
+	cmd := newEditCmd()
+	cmd.SetArgs([]string{"TASK-001", "--status", "completed"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("failed to execute edit command: %v", err)
+	}
+
+	// Verify task is still completed
+	updated, err := task.Load("TASK-001")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if updated.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want %s", updated.Status, task.StatusCompleted)
+	}
+}
+
+func TestEditCommand_CannotEditRunningTask(t *testing.T) {
+	withEditTestDir(t)
+
+	// Create and save a running task
+	tk := task.New("TASK-001", "Test task")
+	tk.Status = task.StatusRunning
+	if err := tk.Save(); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Try to edit status
+	cmd := newEditCmd()
+	cmd.SetArgs([]string{"TASK-001", "--status", "completed"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for editing running task")
+	}
+
+	if !hasSubstring(err.Error(), "cannot edit running task") {
+		t.Errorf("error should mention cannot edit running task, got: %s", err.Error())
+	}
+}
+
+// hasSubstring checks if substr is in s (helper for tests).
+func hasSubstring(s, substr string) bool {
+	for i := 0; i+len(substr) <= len(s); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
