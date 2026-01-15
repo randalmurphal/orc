@@ -6,14 +6,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
+
+func createTestBackend(t *testing.T) storage.Backend {
+	t.Helper()
+	tmpDir := t.TempDir()
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	t.Cleanup(func() {
+		backend.Close()
+	})
+	return backend
+}
 
 func TestDetectMode(t *testing.T) {
 	tests := []struct {
 		name       string
 		target     string
-		setup      func(t *testing.T, tmpDir string)
+		setup      func(t *testing.T, backend storage.Backend)
 		wantMode   Mode
 		wantTarget string
 		wantErr    bool
@@ -29,14 +43,9 @@ func TestDetectMode(t *testing.T) {
 		{
 			name:   "existing task returns task mode",
 			target: "TASK-001",
-			setup: func(t *testing.T, tmpDir string) {
-				// Create the task
-				tasksDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-001")
-				if err := os.MkdirAll(tasksDir, 0755); err != nil {
-					t.Fatalf("failed to create task dir: %v", err)
-				}
+			setup: func(t *testing.T, backend storage.Backend) {
 				tsk := task.New("TASK-001", "Test task")
-				if err := tsk.SaveTo(tasksDir); err != nil {
+				if err := backend.SaveTask(tsk); err != nil {
 					t.Fatalf("failed to save task: %v", err)
 				}
 			},
@@ -88,13 +97,13 @@ func TestDetectMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
+			backend := createTestBackend(t)
 
 			if tt.setup != nil {
-				tt.setup(t, tmpDir)
+				tt.setup(t, backend)
 			}
 
-			mode, target, err := DetectMode(tmpDir, tt.target)
+			mode, target, err := DetectMode(tt.target, backend)
 
 			if tt.wantErr {
 				if err == nil {
@@ -120,24 +129,19 @@ func TestDetectMode(t *testing.T) {
 }
 
 func TestDetectMode_MultipleTasksExist(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
+	backend := createTestBackend(t)
 
 	// Create multiple tasks
 	for _, id := range []string{"TASK-001", "TASK-002", "TASK-003"} {
-		taskDir := filepath.Join(tasksDir, id)
-		if err := os.MkdirAll(taskDir, 0755); err != nil {
-			t.Fatalf("failed to create task dir: %v", err)
-		}
 		tsk := task.New(id, "Test task "+id)
-		if err := tsk.SaveTo(taskDir); err != nil {
+		if err := backend.SaveTask(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
 
 	// Test that we can detect each one
 	for _, id := range []string{"TASK-001", "TASK-002", "TASK-003"} {
-		mode, target, err := DetectMode(tmpDir, id)
+		mode, target, err := DetectMode(id, backend)
 		if err != nil {
 			t.Errorf("DetectMode(%q) unexpected error: %v", id, err)
 			continue
@@ -151,7 +155,7 @@ func TestDetectMode_MultipleTasksExist(t *testing.T) {
 	}
 
 	// Test non-existent task in sequence
-	mode, _, err := DetectMode(tmpDir, "TASK-004")
+	mode, _, err := DetectMode("TASK-004", backend)
 	if err == nil {
 		t.Error("DetectMode(TASK-004) expected error for non-existent task")
 	}

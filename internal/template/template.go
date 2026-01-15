@@ -12,7 +12,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -340,15 +340,19 @@ func listBuiltin() ([]TemplateInfo, error) {
 }
 
 // SaveFromTask creates a template from a completed task.
-func SaveFromTask(taskID, name, description string, global bool) (*Template, error) {
+func SaveFromTask(taskID, name, description string, global bool, backend storage.Backend) (*Template, error) {
+	if backend == nil {
+		return nil, fmt.Errorf("backend is required")
+	}
+
 	// Load the task
-	t, err := task.Load(taskID)
+	t, err := backend.LoadTask(taskID)
 	if err != nil {
 		return nil, fmt.Errorf("load task: %w", err)
 	}
 
 	// Load the plan to get phases
-	p, err := plan.Load(taskID)
+	p, err := backend.LoadPlan(taskID)
 	if err != nil {
 		return nil, fmt.Errorf("load plan: %w", err)
 	}

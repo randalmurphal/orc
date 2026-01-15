@@ -10,6 +10,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/github"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -19,6 +20,7 @@ type PRPoller struct {
 	interval  time.Duration
 	logger    *slog.Logger
 	orcConfig *config.Config
+	backend   storage.Backend
 
 	// stopCh signals the poller to stop
 	stopCh chan struct{}
@@ -34,6 +36,7 @@ type PRPollerConfig struct {
 	Interval       time.Duration
 	Logger         *slog.Logger
 	OrcConfig      *config.Config
+	Backend        storage.Backend
 	OnStatusChange func(taskID string, pr *task.PRInfo)
 }
 
@@ -54,6 +57,7 @@ func NewPRPoller(cfg PRPollerConfig) *PRPoller {
 		interval:       interval,
 		logger:         logger,
 		orcConfig:      cfg.OrcConfig,
+		backend:        cfg.Backend,
 		stopCh:         make(chan struct{}),
 		onStatusChange: cfg.OnStatusChange,
 	}
@@ -93,9 +97,8 @@ func (p *PRPoller) run(ctx context.Context) {
 }
 
 func (p *PRPoller) pollAll(ctx context.Context) {
-	// Load all tasks from the tasks directory
-	tasksDir := p.workDir + "/.orc/tasks"
-	tasks, err := task.LoadAllFrom(tasksDir)
+	// Load all tasks from the backend
+	tasks, err := p.backend.LoadAllTasks()
 	if err != nil {
 		p.logger.Debug("failed to load tasks for PR polling", "error", err)
 		return
@@ -233,34 +236,13 @@ func DeterminePRStatus(pr *github.PR, summary *github.PRStatusSummary) task.PRSt
 }
 
 func (p *PRPoller) saveTask(t *task.Task) error {
-	taskDir := task.TaskDirIn(p.workDir, t.ID)
-	if err := t.SaveTo(taskDir); err != nil {
-		return err
-	}
-
-	// Auto-commit PR status update
-	p.autoCommitTask(t, "PR status updated")
-	return nil
-}
-
-// autoCommitTask commits a task change to git if auto-commit is enabled.
-func (p *PRPoller) autoCommitTask(t *task.Task, action string) {
-	if p.orcConfig == nil || p.orcConfig.Tasks.DisableAutoCommit {
-		return
-	}
-
-	commitCfg := task.CommitConfig{
-		ProjectRoot:  p.workDir,
-		CommitPrefix: p.orcConfig.CommitPrefix,
-		Logger:       p.logger,
-	}
-	task.CommitAndSync(t, action, commitCfg)
+	return p.backend.SaveTask(t)
 }
 
 // PollTask manually triggers a poll for a specific task.
 // This is useful for on-demand refresh.
 func (p *PRPoller) PollTask(ctx context.Context, taskID string) error {
-	t, err := task.LoadFrom(p.workDir, taskID)
+	t, err := p.backend.LoadTask(taskID)
 	if err != nil {
 		return err
 	}

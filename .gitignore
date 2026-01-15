@@ -38,6 +38,10 @@ web/test-results/
 # Orc worktrees (parallel task execution)
 .orc/worktrees/
 
+# Orc data directories (synced via CR-SQLite, not git)
+.orc/tasks/
+.orc/initiatives/
+
 # Go workspace (local development only)
 go.work
 go.work.sum

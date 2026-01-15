@@ -10,6 +10,7 @@ import (
 	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -25,6 +26,7 @@ type TrivialExecutor struct {
 	publisher *EventPublisher
 	logger    *slog.Logger
 	config    ExecutorConfig
+	backend   storage.Backend // Storage backend for loading initiatives
 }
 
 // TrivialExecutorOption configures a TrivialExecutor.
@@ -48,6 +50,11 @@ func WithTrivialLogger(l *slog.Logger) TrivialExecutorOption {
 // WithTrivialConfig sets the execution config.
 func WithTrivialConfig(cfg ExecutorConfig) TrivialExecutorOption {
 	return func(e *TrivialExecutor) { e.config = cfg }
+}
+
+// WithTrivialBackend sets the storage backend for loading initiatives.
+func WithTrivialBackend(b storage.Backend) TrivialExecutorOption {
+	return func(e *TrivialExecutor) { e.backend = b }
 }
 
 // NewTrivialExecutor creates a new trivial executor.
@@ -100,7 +107,7 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 	vars := BuildTemplateVars(t, p, s, 0, "")
 
 	// Add initiative context if task belongs to an initiative
-	if initCtx := LoadInitiativeContext(t); initCtx != nil {
+	if initCtx := LoadInitiativeContext(t, e.backend); initCtx != nil {
 		vars = vars.WithInitiativeContext(*initCtx)
 		e.logger.Info("initiative context injected (trivial)",
 			"task", t.ID,

@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -39,11 +38,17 @@ Examples:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
 
 			// Load task to verify it exists and check status
-			t, err := task.Load(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -75,13 +80,14 @@ Examples:
 			}
 
 			// Load state (may not exist for new tasks)
-			s, err := state.Load(id)
+			s, err := backend.LoadState(id)
 			if err != nil {
-				return fmt.Errorf("load state: %w", err)
+				// State might not exist, create new one
+				s = state.New(id)
 			}
 
 			// Load plan (may not exist)
-			p, err := plan.Load(id)
+			p, err := backend.LoadPlan(id)
 			if err != nil {
 				// Plan might not exist yet, that's okay
 				p = nil
@@ -93,32 +99,20 @@ Examples:
 			// Reset plan if it exists
 			if p != nil {
 				p.Reset()
-				if err := p.Save(id); err != nil {
+				if err := backend.SavePlan(p, id); err != nil {
 					return fmt.Errorf("save plan: %w", err)
 				}
 			}
 
 			// Save state
-			if err := s.Save(); err != nil {
+			if err := backend.SaveState(s); err != nil {
 				return fmt.Errorf("save state: %w", err)
 			}
 
 			// Update task status
 			t.Status = task.StatusPlanned
-			if err := t.Save(); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
-			}
-
-			// Auto-commit the reset
-			cfg, _ := config.Load()
-			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
-				if projectDir, err := config.FindProjectRoot(); err == nil {
-					commitCfg := task.CommitConfig{
-						ProjectRoot:  projectDir,
-						CommitPrefix: cfg.CommitPrefix,
-					}
-					task.CommitAndSync(t, "reset", commitCfg)
-				}
 			}
 
 			fmt.Printf("🔄 Task %s reset to initial state\n", id)

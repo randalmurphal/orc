@@ -8,6 +8,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -36,6 +37,9 @@ type Options struct {
 
 	// BatchMode creates tasks without confirmation
 	BatchMode bool
+
+	// Backend is the storage backend for tasks and initiatives
+	Backend storage.Backend
 }
 
 // CreationResult tracks a created task.
@@ -80,8 +84,8 @@ func (p *Planner) GeneratePrompt(files []*SpecFile) (string, error) {
 	}
 
 	// Load initiative context if specified
-	if p.opts.InitiativeID != "" {
-		init, err := initiative.Load(p.opts.InitiativeID)
+	if p.opts.InitiativeID != "" && p.opts.Backend != nil {
+		init, err := p.opts.Backend.LoadInitiative(p.opts.InitiativeID)
 		if err == nil {
 			data.InitiativeID = init.ID
 			data.InitiativeTitle = init.Title
@@ -133,13 +137,17 @@ func (p *Planner) ParseResponse(response string) (*TaskBreakdown, error) {
 
 // CreateTasks creates tasks from the breakdown.
 func (p *Planner) CreateTasks(breakdown *TaskBreakdown) ([]CreationResult, error) {
+	if p.opts.Backend == nil {
+		return nil, fmt.Errorf("backend is required for creating tasks")
+	}
+
 	// Map index to created task ID
 	indexToID := make(map[int]string)
 	var results []CreationResult
 
 	for _, proposed := range breakdown.Tasks {
 		// Generate task ID
-		id, err := task.NextID()
+		id, err := p.opts.Backend.GetNextTaskID()
 		if err != nil {
 			return nil, fmt.Errorf("generate task ID: %w", err)
 		}
@@ -150,7 +158,7 @@ func (p *Planner) CreateTasks(breakdown *TaskBreakdown) ([]CreationResult, error
 		t.Weight = proposed.Weight
 
 		// Save task
-		if err := t.Save(); err != nil {
+		if err := p.opts.Backend.SaveTask(t); err != nil {
 			return nil, fmt.Errorf("save task %s: %w", id, err)
 		}
 
@@ -159,7 +167,7 @@ func (p *Planner) CreateTasks(breakdown *TaskBreakdown) ([]CreationResult, error
 		if err != nil {
 			return nil, fmt.Errorf("create plan for %s: %w", id, err)
 		}
-		if err := pln.Save(id); err != nil {
+		if err := p.opts.Backend.SavePlan(pln, id); err != nil {
 			return nil, fmt.Errorf("save plan for %s: %w", id, err)
 		}
 
@@ -183,7 +191,7 @@ func (p *Planner) CreateTasks(breakdown *TaskBreakdown) ([]CreationResult, error
 
 	// Add to initiative if specified
 	if p.opts.InitiativeID != "" {
-		init, err := initiative.Load(p.opts.InitiativeID)
+		init, err := p.opts.Backend.LoadInitiative(p.opts.InitiativeID)
 		if err != nil {
 			return nil, fmt.Errorf("load initiative: %w", err)
 		}
@@ -192,7 +200,7 @@ func (p *Planner) CreateTasks(breakdown *TaskBreakdown) ([]CreationResult, error
 			init.AddTask(r.TaskID, r.Title, r.DependsOn)
 		}
 
-		if err := init.Save(); err != nil {
+		if err := p.opts.Backend.SaveInitiative(init); err != nil {
 			return nil, fmt.Errorf("save initiative: %w", err)
 		}
 	}
@@ -200,7 +208,7 @@ func (p *Planner) CreateTasks(breakdown *TaskBreakdown) ([]CreationResult, error
 	// Create new initiative if requested
 	if p.opts.CreateInitiative && len(results) > 0 {
 		// Generate initiative ID
-		initID, err := initiative.NextID(false)
+		initID, err := p.opts.Backend.GetNextInitiativeID()
 		if err != nil {
 			return nil, fmt.Errorf("generate initiative ID: %w", err)
 		}
@@ -214,7 +222,7 @@ func (p *Planner) CreateTasks(breakdown *TaskBreakdown) ([]CreationResult, error
 			init.AddTask(r.TaskID, r.Title, r.DependsOn)
 		}
 
-		if err := init.Save(); err != nil {
+		if err := p.opts.Backend.SaveInitiative(init); err != nil {
 			return nil, fmt.Errorf("save initiative: %w", err)
 		}
 

@@ -11,9 +11,8 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/prompt"
-	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -62,6 +61,7 @@ type Orchestrator struct {
 	publisher  events.Publisher
 	gitOps     *git.Git
 	promptSvc  *prompt.Service
+	backend    storage.Backend
 	logger     *slog.Logger
 
 	status      Status
@@ -73,7 +73,7 @@ type Orchestrator struct {
 }
 
 // New creates a new orchestrator.
-func New(cfg *Config, orcConfig *config.Config, publisher events.Publisher, gitOps *git.Git, promptSvc *prompt.Service, logger *slog.Logger) *Orchestrator {
+func New(cfg *Config, orcConfig *config.Config, publisher events.Publisher, gitOps *git.Git, promptSvc *prompt.Service, backend storage.Backend, logger *slog.Logger) *Orchestrator {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
@@ -85,10 +85,11 @@ func New(cfg *Config, orcConfig *config.Config, publisher events.Publisher, gitO
 		config:     cfg,
 		orcConfig:  orcConfig,
 		scheduler:  NewScheduler(cfg.MaxConcurrent),
-		workerPool: NewWorkerPool(cfg.MaxConcurrent, publisher, orcConfig, gitOps, promptSvc),
+		workerPool: NewWorkerPool(cfg.MaxConcurrent, publisher, orcConfig, gitOps, promptSvc, backend),
 		publisher:  publisher,
 		gitOps:     gitOps,
 		promptSvc:  promptSvc,
+		backend:    backend,
 		logger:     logger,
 		status:     StatusStopped,
 	}
@@ -253,19 +254,19 @@ func (o *Orchestrator) scheduleNext() {
 // spawnTask spawns a worker for a task.
 func (o *Orchestrator) spawnTask(taskID string) error {
 	// Load task
-	t, err := task.Load(taskID)
+	t, err := o.backend.LoadTask(taskID)
 	if err != nil {
 		return fmt.Errorf("load task: %w", err)
 	}
 
 	// Load plan
-	pln, err := plan.Load(taskID)
+	pln, err := o.backend.LoadPlan(taskID)
 	if err != nil {
 		return fmt.Errorf("load plan: %w", err)
 	}
 
 	// Load or create state
-	st, err := state.Load(taskID)
+	st, err := o.backend.LoadState(taskID)
 	if err != nil {
 		return fmt.Errorf("load state: %w", err)
 	}
@@ -297,7 +298,7 @@ func (o *Orchestrator) AddTasksFromInitiative(init *initiative.Initiative) error
 
 // AddPendingTasks adds all pending tasks from the task store.
 func (o *Orchestrator) AddPendingTasks() error {
-	tasks, err := task.LoadAll()
+	tasks, err := o.backend.LoadAllTasks()
 	if err != nil {
 		return fmt.Errorf("list tasks: %w", err)
 	}

@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -10,9 +11,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
-	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -35,7 +34,7 @@ func splitAndTrim(s string) []string {
 	return result
 }
 
-// syncTaskToDB ensures a task exists in the database by loading from YAML if needed.
+// syncTaskToDB ensures a task exists in the database.
 // This is used for foreign key constraints (e.g., review_comments references tasks).
 func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 	// Check if task already exists in database
@@ -47,10 +46,10 @@ func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 		return nil // Task already synced
 	}
 
-	// Load from YAML and sync to database
-	t, err := task.LoadFrom(s.workDir, taskID)
+	// Load from backend
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
-		return fmt.Errorf("load task from yaml: %w", err)
+		return fmt.Errorf("load task: %w", err)
 	}
 
 	dbTask := &db.Task{
@@ -86,10 +85,9 @@ func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 // Note: This endpoint uses the server's workDir which may not be a valid orc project.
 // Prefer using /api/projects/{id}/tasks for explicit project-scoped operations.
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
-	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
-	tasks, err := task.LoadAllFrom(tasksDir)
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
-		// If the tasks directory doesn't exist, return empty list
+		// If there's no tasks yet, return empty list
 		// This handles the case where server is started from a non-project directory
 		s.jsonResponse(w, []*task.Task{})
 		return
@@ -277,8 +275,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
-	id, err := task.NextIDIn(tasksDir)
+	id, err := s.backend.GetNextTaskID()
 	if err != nil {
 		s.jsonError(w, "failed to generate task ID", http.StatusInternalServerError)
 		return
@@ -326,7 +323,8 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	// Link to initiative if specified
 	if req.InitiativeID != "" {
 		// Verify initiative exists
-		if !initiative.Exists(req.InitiativeID, false) {
+		_, err := s.backend.LoadInitiative(req.InitiativeID)
+		if err != nil {
 			s.jsonError(w, fmt.Sprintf("initiative %s not found", req.InitiativeID), http.StatusBadRequest)
 			return
 		}
@@ -336,7 +334,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	// Set dependencies
 	if len(req.BlockedBy) > 0 || len(req.RelatedTo) > 0 {
 		// Build map of existing task IDs for validation
-		existingTasks, err := task.LoadAllFrom(tasksDir)
+		existingTasks, err := s.backend.LoadAllTasks()
 		if err != nil {
 			s.jsonError(w, "failed to load existing tasks for validation", http.StatusInternalServerError)
 			return
@@ -362,8 +360,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		t.RelatedTo = req.RelatedTo
 	}
 
-	taskDir := task.TaskDirIn(s.workDir, id)
-	if err := t.SaveTo(taskDir); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
@@ -383,25 +380,25 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Save plan to taskDir
-	if err := p.SaveTo(taskDir); err != nil {
+	// Save plan
+	if err := s.backend.SavePlan(p, id); err != nil {
 		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
 		return
 	}
 
 	// Update task status to planned
 	t.Status = task.StatusPlanned
-	if err := t.SaveTo(taskDir); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}
 
 	// Sync task to initiative if linked
 	if t.HasInitiative() {
-		init, err := initiative.Load(t.InitiativeID)
+		init, err := s.backend.LoadInitiative(t.InitiativeID)
 		if err == nil {
 			init.AddTask(t.ID, t.Title, nil)
-			if err := init.Save(); err != nil {
+			if err := s.backend.SaveInitiative(init); err != nil {
 				s.logger.Warn("failed to sync task to initiative",
 					"taskID", id,
 					"initiativeID", t.InitiativeID,
@@ -426,8 +423,18 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 			}
 
 			filename := filepath.Base(fileHeader.Filename)
-			_, err = task.SaveAttachment(s.workDir, id, filename, file)
+			data, err := io.ReadAll(file)
 			_ = file.Close()
+			if err != nil {
+				s.logger.Warn("failed to read attachment",
+					"taskID", id,
+					"filename", filename,
+					"error", err,
+				)
+				continue
+			}
+
+			_, err = s.backend.SaveAttachment(id, filename, fileHeader.Header.Get("Content-Type"), data)
 			if err != nil {
 				s.logger.Warn("failed to save attachment",
 					"taskID", id,
@@ -438,9 +445,6 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Auto-commit task creation
-	s.autoCommitTask(t, "created")
-
 	w.WriteHeader(http.StatusCreated)
 	s.jsonResponse(w, t)
 }
@@ -448,15 +452,14 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 // handleGetTask returns a specific task.
 func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := task.LoadFrom(s.workDir, id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
 	// Load all tasks to compute Blocks, ReferencedBy, and DependencyStatus
-	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
-	allTasks, err := task.LoadAllFrom(tasksDir)
+	allTasks, err := s.backend.LoadAllTasks()
 	if err == nil && len(allTasks) > 0 {
 		// Build task map for dependency checking
 		taskMap := make(map[string]*task.Task)
@@ -479,7 +482,7 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	// Check if task is running
-	t, err := task.LoadFrom(s.workDir, id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -492,9 +495,9 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 
 	// Remove from initiative if linked
 	if t.HasInitiative() {
-		if init, err := initiative.Load(t.InitiativeID); err == nil {
+		if init, err := s.backend.LoadInitiative(t.InitiativeID); err == nil {
 			init.RemoveTask(t.ID)
-			if err := init.Save(); err != nil {
+			if err := s.backend.SaveInitiative(init); err != nil {
 				s.logger.Warn("failed to remove task from initiative on delete",
 					"taskID", id,
 					"initiativeID", t.InitiativeID,
@@ -505,13 +508,10 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete task
-	if err := task.DeleteIn(s.workDir, id); err != nil {
+	if err := s.backend.DeleteTask(id); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to delete task: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit task deletion
-	s.autoCommitTaskDeletion(id)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -521,7 +521,7 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	// Load existing task
-	t, err := task.LoadFrom(s.workDir, id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -616,7 +616,7 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		// Empty string means unlink
 		if *req.InitiativeID != "" {
 			// Verify initiative exists
-			if !initiative.Exists(*req.InitiativeID, false) {
+			if _, err := s.backend.LoadInitiative(*req.InitiativeID); err != nil {
 				s.jsonError(w, fmt.Sprintf("initiative %s not found", *req.InitiativeID), http.StatusBadRequest)
 				return
 			}
@@ -643,8 +643,7 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	// Handle dependency updates
 	if req.BlockedBy != nil || req.RelatedTo != nil {
 		// Build map of existing task IDs for validation
-		tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
-		existingTasks, err := task.LoadAllFrom(tasksDir)
+		existingTasks, err := s.backend.LoadAllTasks()
 		if err != nil {
 			s.jsonError(w, "failed to load existing tasks for validation", http.StatusInternalServerError)
 			return
@@ -684,15 +683,19 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save updated task
-	taskDir := task.TaskDirIn(s.workDir, id)
-	if err := t.SaveTo(taskDir); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save task: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	// Regenerate plan if weight changed
 	if weightChanged {
-		result, err := plan.RegeneratePlanForTask(s.workDir, t)
+		oldPlan, err := s.backend.LoadPlan(id)
+		if err != nil {
+			s.logger.Warn("failed to load existing plan for regeneration", "taskID", id, "error", err)
+			oldPlan = nil
+		}
+		result, err := plan.RegeneratePlan(t, oldPlan)
 		if err != nil {
 			// Plan regeneration failed - return error to client
 			// The task has been saved with new weight, but plan is stale
@@ -703,6 +706,15 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 				"error", err,
 			)
 			s.jsonError(w, fmt.Sprintf("task updated but plan regeneration failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+		// Save the regenerated plan
+		if err := s.backend.SavePlan(result.NewPlan, id); err != nil {
+			s.logger.Error("failed to save regenerated plan",
+				"taskID", id,
+				"error", err,
+			)
+			s.jsonError(w, fmt.Sprintf("task updated but failed to save plan: %v", err), http.StatusInternalServerError)
 			return
 		}
 		s.logger.Info("plan regenerated for weight change",
@@ -718,9 +730,9 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	if initiativeChanged {
 		// Remove from old initiative if it was linked
 		if oldInitiative != "" {
-			if oldInit, err := initiative.Load(oldInitiative); err == nil {
+			if oldInit, err := s.backend.LoadInitiative(oldInitiative); err == nil {
 				oldInit.RemoveTask(t.ID)
-				if err := oldInit.Save(); err != nil {
+				if err := s.backend.SaveInitiative(oldInit); err != nil {
 					s.logger.Warn("failed to remove task from old initiative",
 						"taskID", id,
 						"initiativeID", oldInitiative,
@@ -731,9 +743,9 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		}
 		// Add to new initiative if linking
 		if t.HasInitiative() {
-			if newInit, err := initiative.Load(t.InitiativeID); err == nil {
+			if newInit, err := s.backend.LoadInitiative(t.InitiativeID); err == nil {
 				newInit.AddTask(t.ID, t.Title, nil)
-				if err := newInit.Save(); err != nil {
+				if err := s.backend.SaveInitiative(newInit); err != nil {
 					s.logger.Warn("failed to add task to new initiative",
 						"taskID", id,
 						"initiativeID", t.InitiativeID,
@@ -743,9 +755,6 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
-	// Auto-commit task update
-	s.autoCommitTask(t, "updated")
 
 	s.jsonResponse(w, t)
 }
@@ -772,15 +781,14 @@ type DependencyInfo struct {
 // handleGetDependencies returns the full dependency graph for a task.
 func (s *Server) handleGetDependencies(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := task.LoadFrom(s.workDir, id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
 	// Load all tasks to build the graph
-	tasksDir := filepath.Join(s.workDir, task.OrcDir, task.TasksDir)
-	allTasks, err := task.LoadAllFrom(tasksDir)
+	allTasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
 		return
@@ -854,47 +862,3 @@ func (s *Server) handleGetDependencies(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, graph)
 }
 
-// autoCommitTask commits a task change to git if auto-commit is enabled.
-// This is a non-blocking operation that logs warnings on failure.
-func (s *Server) autoCommitTask(t *task.Task, action string) {
-	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
-		return
-	}
-
-	commitCfg := task.CommitConfig{
-		ProjectRoot:  s.workDir,
-		CommitPrefix: s.orcConfig.CommitPrefix,
-		Logger:       s.logger,
-	}
-	_ = task.CommitAndSync(t, action, commitCfg)
-}
-
-// autoCommitTaskDeletion commits a task deletion to git if auto-commit is enabled.
-// This is a non-blocking operation that logs warnings on failure.
-func (s *Server) autoCommitTaskDeletion(taskID string) {
-	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
-		return
-	}
-
-	commitCfg := task.CommitConfig{
-		ProjectRoot:  s.workDir,
-		CommitPrefix: s.orcConfig.CommitPrefix,
-		Logger:       s.logger,
-	}
-	_ = task.CommitDeletion(taskID, commitCfg)
-}
-
-// autoCommitTaskState commits task state files (task.yaml, state.yaml) to git.
-// This is for committing state changes like phase transitions without loading the task.
-func (s *Server) autoCommitTaskState(taskID, action string) {
-	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
-		return
-	}
-
-	commitCfg := state.CommitConfig{
-		ProjectRoot:  s.workDir,
-		CommitPrefix: s.orcConfig.CommitPrefix,
-		Logger:       s.logger,
-	}
-	_ = state.CommitTaskState(taskID, action, commitCfg)
-}

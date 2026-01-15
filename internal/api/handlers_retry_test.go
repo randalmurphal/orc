@@ -9,10 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -32,47 +35,61 @@ func setupRetryTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) (
 `
 	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
 
-	// Create task directory
 	taskID = "TASK-RETRY-001"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	os.MkdirAll(taskDir, 0755)
+	startTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	completedTime := time.Date(2025, 1, 1, 0, 1, 0, 0, time.UTC)
 
-	// Create task.yaml
-	taskYAML := fmt.Sprintf(`id: %s
-title: Retry Test Task
-description: A task for testing retry handlers
-status: failed
-weight: medium
-current_phase: test
-created_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-started_at: 2025-01-01T00:00:00Z
-`, taskID)
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create backend and save test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	// Create state.yaml
-	stateYAML := fmt.Sprintf(`task_id: %s
-current_phase: test
-current_iteration: 3
-status: failed
-started_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-phases:
-  implement:
-    status: completed
-    started_at: 2025-01-01T00:00:00Z
-    completed_at: 2025-01-01T00:01:00Z
-    iterations: 5
-  test:
-    status: failed
-    started_at: 2025-01-01T00:01:00Z
-    iterations: 3
-tokens:
-  input_tokens: 5000
-  output_tokens: 2500
-  total_tokens: 7500
-`, taskID)
-	os.WriteFile(filepath.Join(taskDir, "state.yaml"), []byte(stateYAML), 0644)
+	// Create and save task
+	tsk := task.New(taskID, "Retry Test Task")
+	tsk.Description = "A task for testing retry handlers"
+	tsk.Status = task.StatusFailed
+	tsk.Weight = task.WeightMedium
+	tsk.CurrentPhase = "test"
+	tsk.CreatedAt = startTime
+	tsk.UpdatedAt = startTime
+	tsk.StartedAt = &startTime
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create and save state
+	st := state.New(taskID)
+	st.CurrentPhase = "test"
+	st.CurrentIteration = 3
+	st.Status = state.StatusFailed
+	st.StartedAt = startTime
+	st.UpdatedAt = startTime
+	st.Phases = map[string]*state.PhaseState{
+		"implement": {
+			Status:      state.StatusCompleted,
+			StartedAt:   startTime,
+			CompletedAt: &completedTime,
+			Iterations:  5,
+		},
+		"test": {
+			Status:     state.StatusFailed,
+			StartedAt:  completedTime,
+			Iterations: 3,
+		},
+	}
+	st.Tokens = state.TokenUsage{
+		InputTokens:  5000,
+		OutputTokens: 2500,
+		TotalTokens:  7500,
+	}
+	if err := backend.SaveState(st); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
+
+	// Close backend before applying opts and creating server
+	backend.Close()
 
 	// Apply optional setup functions
 	for _, opt := range opts {
@@ -99,15 +116,7 @@ func withRetryReviewComments(comments []db.ReviewComment) func(*testing.T, strin
 		}
 		defer pdb.Close()
 
-		// Insert the task into the database first (for foreign key constraint)
-		_, err = pdb.Exec(`
-			INSERT INTO tasks (id, title, status, weight, created_at)
-			VALUES (?, ?, ?, ?, datetime('now'))
-		`, taskID, "Retry Test Task", "failed", "medium")
-		if err != nil {
-			t.Fatalf("failed to create task in database: %v", err)
-		}
-
+		// Task is already created by setupRetryTestEnv, just add the review comments
 		for _, c := range comments {
 			c.TaskID = taskID
 			if err := pdb.CreateReviewComment(&c); err != nil {
@@ -122,7 +131,15 @@ func withRetryContext(attempt int) func(*testing.T, string, string) {
 	return func(t *testing.T, tmpDir, taskID string) {
 		t.Helper()
 
-		st, err := state.LoadFrom(tmpDir, taskID)
+		// Create backend to load/save state
+		storageCfg := &config.StorageConfig{Mode: "database"}
+		backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+		if err != nil {
+			t.Fatalf("failed to create backend: %v", err)
+		}
+		defer backend.Close()
+
+		st, err := backend.LoadState(taskID)
 		if err != nil {
 			// Create new state if loading fails
 			st = state.New(taskID)
@@ -136,8 +153,7 @@ func withRetryContext(attempt int) func(*testing.T, string, string) {
 			ContextFile: "",
 		}
 
-		taskDir := task.TaskDirIn(tmpDir, taskID)
-		if err := st.SaveTo(taskDir); err != nil {
+		if err := backend.SaveState(st); err != nil {
 			t.Fatalf("failed to save state with retry context: %v", err)
 		}
 	}
@@ -811,19 +827,25 @@ func TestHandleRetryTask_EmptyTaskID(t *testing.T) {
 func TestHandleRetryTask_NoState(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task without state file
-	taskID := "TASK-NOSTATE"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	os.MkdirAll(taskDir, 0755)
+	// Create .orc directory
+	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
-	taskYAML := fmt.Sprintf(`id: %s
-title: No State Task
-status: failed
-current_phase: test
-created_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-`, taskID)
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task without state via backend
+	taskID := "TASK-NOSTATE"
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	tsk := task.New(taskID, "No State Task")
+	tsk.Status = task.StatusFailed
+	tsk.CurrentPhase = "test"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	// Note: Not saving state - that's the point of this test
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 

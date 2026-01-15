@@ -11,9 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -33,52 +35,61 @@ func setupGitHubTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) 
 `
 	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
 
-	// Create task directory
 	taskID = "TASK-GH-001"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	os.MkdirAll(taskDir, 0755)
+	startTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	// Create task.yaml with branch
-	taskYAML := fmt.Sprintf(`id: %s
-title: GitHub Test Task
-description: A task for testing GitHub handlers
-status: running
-weight: medium
-branch: orc/%s
-current_phase: implement
-created_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-started_at: 2025-01-01T00:00:00Z
-`, taskID, taskID)
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create backend and save test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	// Create plan.yaml
-	planYAML := `phases:
-  - id: implement
-    status: running
-  - id: test
-    status: pending
-`
-	os.WriteFile(filepath.Join(taskDir, "plan.yaml"), []byte(planYAML), 0644)
+	// Create and save task with branch
+	tsk := task.New(taskID, "GitHub Test Task")
+	tsk.Description = "A task for testing GitHub handlers"
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	tsk.Branch = fmt.Sprintf("orc/%s", taskID)
+	tsk.CurrentPhase = "implement"
+	tsk.CreatedAt = startTime
+	tsk.UpdatedAt = startTime
+	tsk.StartedAt = &startTime
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
-	// Create state.yaml
-	stateYAML := fmt.Sprintf(`task_id: %s
-current_phase: implement
-current_iteration: 1
-status: running
-started_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-phases:
-  implement:
-    status: running
-    started_at: 2025-01-01T00:00:00Z
-    iterations: 1
-tokens:
-  input_tokens: 0
-  output_tokens: 0
-  total_tokens: 0
-`, taskID)
-	os.WriteFile(filepath.Join(taskDir, "state.yaml"), []byte(stateYAML), 0644)
+	// Create and save plan
+	p := &plan.Plan{
+		Phases: []plan.Phase{
+			{ID: "implement", Status: plan.PhaseRunning},
+			{ID: "test", Status: plan.PhasePending},
+		},
+	}
+	if err := backend.SavePlan(p, taskID); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
+
+	// Create and save state
+	st := state.New(taskID)
+	st.CurrentPhase = "implement"
+	st.CurrentIteration = 1
+	st.Status = state.StatusRunning
+	st.StartedAt = startTime
+	st.UpdatedAt = startTime
+	st.Phases = map[string]*state.PhaseState{
+		"implement": {
+			Status:     state.StatusRunning,
+			StartedAt:  startTime,
+			Iterations: 1,
+		},
+	}
+	if err := backend.SaveState(st); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
+
+	// Close backend before applying opts and creating server
+	backend.Close()
 
 	// Apply optional setup functions
 	for _, opt := range opts {
@@ -105,15 +116,7 @@ func withReviewComments(comments []db.ReviewComment) func(*testing.T, string, st
 		}
 		defer pdb.Close()
 
-		// Insert the task into the database first (for foreign key constraint)
-		_, err = pdb.Exec(`
-			INSERT INTO tasks (id, title, status, weight, created_at)
-			VALUES (?, ?, ?, ?, datetime('now'))
-		`, taskID, "Test Task", "running", "medium")
-		if err != nil {
-			t.Fatalf("failed to create task in database: %v", err)
-		}
-
+		// Task is already created by setupGitHubTestEnv, just add the review comments
 		for _, c := range comments {
 			c.TaskID = taskID
 			if err := pdb.CreateReviewComment(&c); err != nil {
@@ -194,7 +197,7 @@ func TestHandleAutoFixComment_BuildsRetryContext(t *testing.T) {
 	}
 
 	// Verify state was updated with retry context
-	st, err := state.LoadFrom(srv.workDir, taskID)
+	st, err := srv.Backend().LoadState(taskID)
 	if err != nil {
 		t.Fatalf("failed to load state: %v", err)
 	}
@@ -233,7 +236,7 @@ func TestHandleAutoFixComment_StoresMetadata(t *testing.T) {
 	}
 
 	// Verify task metadata was updated
-	tsk, err := task.LoadFrom(srv.workDir, taskID)
+	tsk, err := srv.Backend().LoadTask(taskID)
 	if err != nil {
 		t.Fatalf("failed to load task: %v", err)
 	}
@@ -273,9 +276,9 @@ func TestHandleAutoFixComment_UpdatesCompletedTaskStatus(t *testing.T) {
 	}()
 
 	// Set task to completed status first
-	tsk, _ := task.LoadFrom(srv.workDir, taskID)
+	tsk, _ := srv.Backend().LoadTask(taskID)
 	tsk.Status = task.StatusCompleted
-	tsk.SaveTo(task.TaskDirIn(srv.workDir, taskID))
+	srv.Backend().SaveTask(tsk)
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/github/pr/comments/RC-status1/autofix", taskID), nil)
 	w := httptest.NewRecorder()
@@ -287,7 +290,7 @@ func TestHandleAutoFixComment_UpdatesCompletedTaskStatus(t *testing.T) {
 	}
 
 	// Verify task status was reset to planned for re-execution
-	reloadedTask, _ := task.LoadFrom(srv.workDir, taskID)
+	reloadedTask, _ := srv.Backend().LoadTask(taskID)
 	if reloadedTask.Status != task.StatusPlanned {
 		t.Errorf("expected status to be reset to planned, got %s", reloadedTask.Status)
 	}
@@ -313,18 +316,24 @@ func TestHandleReplyToPRComment_TaskNotFound(t *testing.T) {
 func TestHandleReplyToPRComment_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task without branch
-	taskID := "TASK-NOBRANCH"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	os.MkdirAll(taskDir, 0755)
+	// Create .orc directory
+	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
-	taskYAML := fmt.Sprintf(`id: %s
-title: No Branch Task
-status: running
-created_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-`, taskID)
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task without branch via backend
+	taskID := "TASK-NOBRANCH"
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	tsk := task.New(taskID, "No Branch Task")
+	tsk.Status = task.StatusRunning
+	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -418,18 +427,24 @@ func TestHandleImportPRComments_TaskNotFound(t *testing.T) {
 func TestHandleImportPRComments_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task without branch
-	taskID := "TASK-NOBRANCH2"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	os.MkdirAll(taskDir, 0755)
+	// Create .orc directory
+	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
-	taskYAML := fmt.Sprintf(`id: %s
-title: No Branch Task
-status: running
-created_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-`, taskID)
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task without branch via backend
+	taskID := "TASK-NOBRANCH2"
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	tsk := task.New(taskID, "No Branch Task")
+	tsk.Status = task.StatusRunning
+	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -461,18 +476,24 @@ func TestHandleListPRChecks_TaskNotFound(t *testing.T) {
 func TestHandleListPRChecks_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task without branch
-	taskID := "TASK-NOBRANCH3"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	os.MkdirAll(taskDir, 0755)
+	// Create .orc directory
+	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
-	taskYAML := fmt.Sprintf(`id: %s
-title: No Branch Task
-status: running
-created_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-`, taskID)
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task without branch via backend
+	taskID := "TASK-NOBRANCH3"
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	tsk := task.New(taskID, "No Branch Task")
+	tsk.Status = task.StatusRunning
+	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -560,18 +581,24 @@ func TestHandleCreatePR_TaskNotFound(t *testing.T) {
 func TestHandleCreatePR_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task without branch
-	taskID := "TASK-NOBRANCH4"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	os.MkdirAll(taskDir, 0755)
+	// Create .orc directory
+	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
-	taskYAML := fmt.Sprintf(`id: %s
-title: No Branch Task
-status: running
-created_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-`, taskID)
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task without branch via backend
+	taskID := "TASK-NOBRANCH4"
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	tsk := task.New(taskID, "No Branch Task")
+	tsk.Status = task.StatusRunning
+	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -630,18 +657,24 @@ func TestHandleGetPR_TaskNotFound(t *testing.T) {
 func TestHandleGetPR_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task without branch
-	taskID := "TASK-NOBRANCH5"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	os.MkdirAll(taskDir, 0755)
+	// Create .orc directory
+	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
-	taskYAML := fmt.Sprintf(`id: %s
-title: No Branch Task
-status: running
-created_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-`, taskID)
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task without branch via backend
+	taskID := "TASK-NOBRANCH5"
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	tsk := task.New(taskID, "No Branch Task")
+	tsk.Status = task.StatusRunning
+	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -673,18 +706,24 @@ func TestHandleMergePR_TaskNotFound(t *testing.T) {
 func TestHandleMergePR_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task without branch
-	taskID := "TASK-NOBRANCH6"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	os.MkdirAll(taskDir, 0755)
+	// Create .orc directory
+	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
-	taskYAML := fmt.Sprintf(`id: %s
-title: No Branch Task
-status: running
-created_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-`, taskID)
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task without branch via backend
+	taskID := "TASK-NOBRANCH6"
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	tsk := task.New(taskID, "No Branch Task")
+	tsk.Status = task.StatusRunning
+	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -716,18 +755,24 @@ func TestHandleSyncPRComments_TaskNotFound(t *testing.T) {
 func TestHandleSyncPRComments_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task without branch
-	taskID := "TASK-NOBRANCH7"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	os.MkdirAll(taskDir, 0755)
+	// Create .orc directory
+	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
-	taskYAML := fmt.Sprintf(`id: %s
-title: No Branch Task
-status: running
-created_at: 2025-01-01T00:00:00Z
-updated_at: 2025-01-01T00:00:00Z
-`, taskID)
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task without branch via backend
+	taskID := "TASK-NOBRANCH7"
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	tsk := task.New(taskID, "No Branch Task")
+	tsk.Status = task.StatusRunning
+	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -920,13 +965,13 @@ func TestHandleAutoFixComment_LoadsPlanAndState(t *testing.T) {
 	}
 
 	// Verify plan is loadable
-	_, err := plan.LoadFrom(srv.workDir, taskID)
+	_, err := srv.Backend().LoadPlan(taskID)
 	if err != nil {
 		t.Errorf("expected plan to be loadable: %v", err)
 	}
 
 	// Verify state has retry context
-	st, err := state.LoadFrom(srv.workDir, taskID)
+	st, err := srv.Backend().LoadState(taskID)
 	if err != nil {
 		t.Errorf("expected state to be loadable: %v", err)
 	}

@@ -1,8 +1,6 @@
 package plan
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/task"
@@ -153,51 +151,6 @@ func TestGeneratorGenerate(t *testing.T) {
 	}
 }
 
-func TestSaveAndLoad(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir, "TASK-001")
-
-	err := os.MkdirAll(taskDir, 0755)
-	if err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
-	// Create and save plan
-	p := &Plan{
-		Version:     1,
-		TaskID:      "TASK-001",
-		Weight:      task.WeightMedium,
-		Description: "Test plan",
-		Phases: []Phase{
-			{ID: "spec", Name: "spec", Status: PhasePending},
-			{ID: "implement", Name: "implement", Status: PhasePending},
-		},
-	}
-
-	err = p.SaveTo(taskDir)
-	if err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	// Load plan
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
-	}
-
-	if loaded.TaskID != p.TaskID {
-		t.Errorf("loaded TaskID = %s, want %s", loaded.TaskID, p.TaskID)
-	}
-
-	if loaded.Weight != p.Weight {
-		t.Errorf("loaded Weight = %s, want %s", loaded.Weight, p.Weight)
-	}
-
-	if len(loaded.Phases) != len(p.Phases) {
-		t.Errorf("loaded phases = %d, want %d", len(loaded.Phases), len(p.Phases))
-	}
-}
-
 func TestPlanError(t *testing.T) {
 	// Test the planError type - verify they are non-empty strings
 	err := ErrNoTemplate
@@ -208,19 +161,6 @@ func TestPlanError(t *testing.T) {
 	err = ErrNotFound
 	if err.Error() == "" {
 		t.Error("ErrNotFound.Error() should not be empty")
-	}
-}
-
-func TestLoadNonExistentPlan(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir, "TASK-999")
-
-	// Create task directory but no plan file
-	os.MkdirAll(taskDir, 0755)
-
-	_, err := LoadFrom(tmpDir, "TASK-999")
-	if err == nil {
-		t.Error("LoadFrom() should return error for non-existent plan")
 	}
 }
 
@@ -510,61 +450,5 @@ func TestRegeneratePlan_WeightDowngrade(t *testing.T) {
 	specPhase := result.NewPlan.GetPhase("spec")
 	if specPhase != nil {
 		t.Error("spec phase should not exist in small weight plan")
-	}
-}
-
-func TestRegeneratePlanForTask(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir, "TASK-001")
-
-	err := os.MkdirAll(taskDir, 0755)
-	if err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
-	// Create initial plan with some progress
-	oldPlan := &Plan{
-		Version:     1,
-		TaskID:      "TASK-001",
-		Weight:      task.WeightSmall,
-		Description: "Small task",
-		Phases: []Phase{
-			{ID: "implement", Name: "implement", Status: PhaseCompleted, CommitSHA: "abc123"},
-			{ID: "test", Name: "test", Status: PhasePending},
-		},
-	}
-	if err := oldPlan.SaveTo(taskDir); err != nil {
-		t.Fatalf("failed to save old plan: %v", err)
-	}
-
-	// Regenerate with new weight
-	tsk := &task.Task{ID: "TASK-001", Weight: task.WeightMedium}
-	result, err := RegeneratePlanForTask(tmpDir, tsk)
-	if err != nil {
-		t.Fatalf("RegeneratePlanForTask() failed: %v", err)
-	}
-
-	// Verify result
-	if result.NewPlan.Weight != task.WeightMedium {
-		t.Errorf("NewPlan.Weight = %s, want medium", result.NewPlan.Weight)
-	}
-
-	// Load saved plan and verify
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("failed to load saved plan: %v", err)
-	}
-
-	if loaded.Weight != task.WeightMedium {
-		t.Errorf("saved plan weight = %s, want medium", loaded.Weight)
-	}
-
-	// Verify implement status was preserved
-	implementPhase := loaded.GetPhase("implement")
-	if implementPhase == nil {
-		t.Fatal("implement phase not found in saved plan")
-	}
-	if implementPhase.Status != PhaseCompleted {
-		t.Errorf("implement status = %s, want completed", implementPhase.Status)
 	}
 }

@@ -15,7 +15,6 @@ import (
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/progress"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
@@ -44,16 +43,23 @@ Use --force to resume a task even if it appears to still be running.`,
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 
-			t, err := task.LoadFrom(projectRoot, id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			s, err := state.LoadFrom(projectRoot, id)
+			s, err := backend.LoadState(id)
 			if err != nil {
-				return fmt.Errorf("load state: %w", err)
+				// State might not exist, create new one
+				s = state.New(id)
 			}
 
 			// Handle different task statuses
@@ -66,17 +72,14 @@ Use --force to resume a task even if it appears to still be running.`,
 				if isOrphaned {
 					fmt.Printf("Task %s appears orphaned (%s)\n", id, reason)
 					fmt.Println("Marking as interrupted and resuming...")
-					if err := state.MarkOrphanedAsInterrupted(projectRoot, id); err != nil {
-						return fmt.Errorf("mark orphaned task as interrupted: %w", err)
+					// Mark as interrupted and save
+					s.InterruptPhase(s.CurrentPhase)
+					if err := backend.SaveState(s); err != nil {
+						return fmt.Errorf("save state: %w", err)
 					}
-					// Reload task after marking
-					t, err = task.LoadFrom(projectRoot, id)
-					if err != nil {
-						return fmt.Errorf("reload task: %w", err)
-					}
-					s, err = state.LoadFrom(projectRoot, id)
-					if err != nil {
-						return fmt.Errorf("reload state: %w", err)
+					t.Status = task.StatusBlocked
+					if err := backend.SaveTask(t); err != nil {
+						return fmt.Errorf("save task: %w", err)
 					}
 				} else if forceResume {
 					fmt.Printf("Warning: Task %s may still be running (PID %d)\n", id, s.GetExecutorPID())
@@ -84,23 +87,12 @@ Use --force to resume a task even if it appears to still be running.`,
 					// Clear execution info to allow resume
 					s.ClearExecution()
 					s.InterruptPhase(s.CurrentPhase)
-					taskDir := task.TaskDirIn(projectRoot, id)
-					if err := s.SaveTo(taskDir); err != nil {
+					if err := backend.SaveState(s); err != nil {
 						return fmt.Errorf("save state: %w", err)
 					}
 					t.Status = task.StatusBlocked
-					if err := t.SaveTo(taskDir); err != nil {
+					if err := backend.SaveTask(t); err != nil {
 						return fmt.Errorf("save task: %w", err)
-					}
-
-					// Auto-commit the force resume state change
-					cfg, _ := config.Load()
-					if cfg != nil && !cfg.Tasks.DisableAutoCommit {
-						commitCfg := task.CommitConfig{
-							ProjectRoot:  projectRoot,
-							CommitPrefix: cfg.CommitPrefix,
-						}
-						task.CommitAndSync(t, "force-resumed", commitCfg)
 					}
 				} else {
 					return fmt.Errorf("task is currently running (PID %d). Use --force to resume anyway", s.GetExecutorPID())
@@ -113,7 +105,7 @@ Use --force to resume a task even if it appears to still be running.`,
 				return fmt.Errorf("task cannot be resumed (status: %s)", t.Status)
 			}
 
-			p, err := plan.LoadFrom(projectRoot, id)
+			p, err := backend.LoadPlan(id)
 			if err != nil {
 				return fmt.Errorf("load plan: %w", err)
 			}
@@ -144,6 +136,7 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 
 			exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
+			exec.SetBackend(backend)
 
 			// Set up streaming publisher if verbose or --stream flag is set
 			stream, _ := cmd.Flags().GetBool("stream")

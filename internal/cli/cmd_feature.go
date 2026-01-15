@@ -27,23 +27,28 @@ This is a combined workflow that:
 
 Example:
   orc feature "Real-time notifications"
-  orc feature "User dashboard" --shared`,
+  orc feature "User dashboard"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			name := args[0]
 			model, _ := cmd.Flags().GetString("model")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			shared, _ := cmd.Flags().GetBool("shared")
 			owner, _ := cmd.Flags().GetString("owner")
 
 			ctx := context.Background()
 
 			// Step 1: Create initiative
-			initID, err := initiative.NextID(shared)
+			initID, err := backend.GetNextInitiativeID()
 			if err != nil {
 				return fmt.Errorf("generate initiative ID: %w", err)
 			}
@@ -57,14 +62,8 @@ Example:
 				fmt.Printf("Would create initiative: %s - %s\n", initID, name)
 				fmt.Println("\n=== Spec Session Prompt Preview ===")
 			} else {
-				var saveErr error
-				if shared {
-					saveErr = init.SaveShared()
-				} else {
-					saveErr = init.Save()
-				}
-				if saveErr != nil {
-					return fmt.Errorf("save initiative: %w", saveErr)
+				if err := backend.SaveInitiative(init); err != nil {
+					return fmt.Errorf("save initiative: %w", err)
 				}
 
 				fmt.Printf("Initiative created: %s\n", initID)
@@ -80,7 +79,6 @@ Example:
 				InitiativeID: initID,
 				DryRun:       dryRun,
 				CreateTasks:  true,
-				Shared:       shared,
 			})
 			if err != nil {
 				return fmt.Errorf("spec session failed: %w", err)
@@ -92,10 +90,8 @@ Example:
 
 			// Activate the initiative now that spec is done
 			init.Activate()
-			if shared {
-				init.SaveShared()
-			} else {
-				init.Save()
+			if err := backend.SaveInitiative(init); err != nil {
+				return fmt.Errorf("save initiative: %w", err)
 			}
 
 			fmt.Printf("\nFeature workflow complete!\n")
@@ -117,7 +113,6 @@ Example:
 
 	cmd.Flags().String("model", "", "Claude model to use")
 	cmd.Flags().Bool("dry-run", false, "show what would happen without executing")
-	cmd.Flags().Bool("shared", false, "create in shared directory for team access")
 	cmd.Flags().StringP("owner", "o", "", "owner initials")
 
 	return cmd

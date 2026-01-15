@@ -19,6 +19,7 @@ import (
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/progress"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -65,6 +66,13 @@ Examples:
 				return err
 			}
 
+			// Get backend
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			// Load config
 			cfg, err := config.Load()
 			if err != nil {
@@ -99,14 +107,14 @@ Examples:
 			stream, _ := cmd.Flags().GetBool("stream")
 
 			if quick && description != "" {
-				return runQuickMode(ctx, cfg, description, weight, stream)
+				return runQuickMode(ctx, backend, cfg, description, weight, stream)
 			}
 
 			if headless {
-				return runHeadlessMode(ctx, cfg)
+				return runHeadlessMode(ctx, backend, cfg)
 			}
 
-			return runInteractiveMode(ctx, cfg)
+			return runInteractiveMode(ctx, backend, cfg)
 		},
 	}
 
@@ -137,11 +145,11 @@ func ensureInit() error {
 }
 
 // runQuickMode creates a single task and executes it immediately
-func runQuickMode(ctx context.Context, cfg *config.Config, description, weight string, stream bool) error {
+func runQuickMode(ctx context.Context, backend storage.Backend, cfg *config.Config, description, weight string, stream bool) error {
 	fmt.Printf("Quick mode: %s\n\n", description)
 
 	// Create task
-	id, err := task.NextID()
+	id, err := backend.GetNextTaskID()
 	if err != nil {
 		return fmt.Errorf("generate task id: %w", err)
 	}
@@ -153,7 +161,7 @@ func runQuickMode(ctx context.Context, cfg *config.Config, description, weight s
 	t.Weight = task.Weight(weight)
 
 	// Save task
-	if err := t.Save(); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 
@@ -173,19 +181,19 @@ func runQuickMode(ctx context.Context, cfg *config.Config, description, weight s
 		}
 	}
 
-	if err := p.Save(id); err != nil {
+	if err := backend.SavePlan(p, id); err != nil {
 		return fmt.Errorf("save plan: %w", err)
 	}
 
 	// Update task status
 	t.Status = task.StatusPlanned
-	if err := t.Save(); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return fmt.Errorf("update task: %w", err)
 	}
 
 	// Create state
 	s := state.New(id)
-	if err := s.Save(); err != nil {
+	if err := backend.SaveState(s); err != nil {
 		return fmt.Errorf("save state: %w", err)
 	}
 
@@ -194,16 +202,16 @@ func runQuickMode(ctx context.Context, cfg *config.Config, description, weight s
 	fmt.Printf("  Phases: %d\n\n", len(p.Phases))
 
 	// Execute task
-	return executeTask(ctx, cfg, t, p, s, stream)
+	return executeTaskWithBackend(ctx, backend, cfg, t, p, s, stream)
 }
 
 // runHeadlessMode executes existing tasks or parses spec in automated mode
-func runHeadlessMode(ctx context.Context, cfg *config.Config) error {
+func runHeadlessMode(ctx context.Context, backend storage.Backend, cfg *config.Config) error {
 	fmt.Println("Headless mode: Looking for tasks to execute...")
 	fmt.Println()
 
 	// Find tasks to run
-	tasks, err := task.LoadAll()
+	tasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return fmt.Errorf("load tasks: %w", err)
 	}
@@ -227,19 +235,19 @@ func runHeadlessMode(ctx context.Context, cfg *config.Config) error {
 
 	// Execute tasks in order
 	for _, t := range runnable {
-		p, err := plan.Load(t.ID)
+		p, err := backend.LoadPlan(t.ID)
 		if err != nil {
 			fmt.Printf("Warning: Skipping %s: could not load plan: %v\n", t.ID, err)
 			continue
 		}
 
-		s, err := state.Load(t.ID)
+		s, err := backend.LoadState(t.ID)
 		if err != nil {
 			s = state.New(t.ID)
 		}
 
 		fmt.Printf("Running %s: %s\n", t.ID, t.Title)
-		if err := executeTask(ctx, cfg, t, p, s, false); err != nil {
+		if err := executeTaskWithBackend(ctx, backend, cfg, t, p, s, false); err != nil {
 			if ctx.Err() != nil {
 				return nil // Clean interrupt
 			}
@@ -253,13 +261,13 @@ func runHeadlessMode(ctx context.Context, cfg *config.Config) error {
 }
 
 // runInteractiveMode starts an interactive Claude session for spec creation
-func runInteractiveMode(ctx context.Context, cfg *config.Config) error {
+func runInteractiveMode(ctx context.Context, backend storage.Backend, cfg *config.Config) error {
 	fmt.Println("Orc Interactive Mode")
 	fmt.Println()
 
 	// Check for existing runnable tasks
-	tasks, err := task.LoadAll()
-	if err != nil && !os.IsNotExist(err) {
+	tasks, err := backend.LoadAllTasks()
+	if err != nil {
 		return fmt.Errorf("load tasks: %w", err)
 	}
 
@@ -299,8 +307,8 @@ func runInteractiveMode(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-// executeTask runs a single task through all phases
-func executeTask(ctx context.Context, cfg *config.Config, t *task.Task, p *plan.Plan, s *state.State, stream bool) error {
+// executeTaskWithBackend runs a single task through all phases
+func executeTaskWithBackend(ctx context.Context, backend storage.Backend, cfg *config.Config, t *task.Task, p *plan.Plan, s *state.State, stream bool) error {
 	// Create progress display
 	disp := progress.New(t.ID, quiet)
 	disp.Info(fmt.Sprintf("Executing %s (%s)", t.ID, t.Weight))
@@ -320,9 +328,13 @@ func executeTask(ctx context.Context, cfg *config.Config, t *task.Task, p *plan.
 	if err != nil {
 		if ctx.Err() != nil {
 			s.InterruptPhase(s.CurrentPhase)
-			s.Save()
+			if saveErr := backend.SaveState(s); saveErr != nil {
+				disp.Warning(fmt.Sprintf("failed to save state on interrupt: %v", saveErr))
+			}
 			t.Status = task.StatusBlocked
-			t.Save()
+			if saveErr := backend.SaveTask(t); saveErr != nil {
+				disp.Warning(fmt.Sprintf("failed to save task on interrupt: %v", saveErr))
+			}
 			disp.TaskInterrupted()
 			return nil
 		}

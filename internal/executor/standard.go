@@ -12,6 +12,7 @@ import (
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -29,6 +30,7 @@ type StandardExecutor struct {
 	logger     *slog.Logger
 	config     ExecutorConfig
 	workingDir string
+	backend    storage.Backend // Storage backend for loading initiatives
 }
 
 // StandardExecutorOption configures a StandardExecutor.
@@ -57,6 +59,11 @@ func WithExecutorConfig(cfg ExecutorConfig) StandardExecutorOption {
 // WithWorkingDir sets the working directory for the session.
 func WithWorkingDir(dir string) StandardExecutorOption {
 	return func(e *StandardExecutor) { e.workingDir = dir }
+}
+
+// WithStandardBackend sets the storage backend for loading initiatives.
+func WithStandardBackend(b storage.Backend) StandardExecutorOption {
+	return func(e *StandardExecutor) { e.backend = b }
 }
 
 // getTargetBranch returns the target branch from config, defaulting to "main".
@@ -164,7 +171,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	}
 
 	// Add initiative context if task belongs to an initiative
-	if initCtx := LoadInitiativeContext(t); initCtx != nil {
+	if initCtx := LoadInitiativeContext(t, e.backend); initCtx != nil {
 		vars = vars.WithInitiativeContext(*initCtx)
 		e.logger.Info("initiative context injected",
 			"task", t.ID,

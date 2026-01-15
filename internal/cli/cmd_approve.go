@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -22,9 +21,15 @@ func newApproveCmd() *cobra.Command {
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 
-			t, err := task.Load(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -34,7 +39,7 @@ func newApproveCmd() *cobra.Command {
 			}
 
 			t.Status = task.StatusPlanned
-			if err := t.Save(); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 
@@ -56,15 +61,21 @@ func newRejectCmd() *cobra.Command {
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 			reason, _ := cmd.Flags().GetString("reason")
 
-			t, err := task.Load(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			s, err := state.Load(id)
+			s, err := backend.LoadState(id)
 			if err != nil {
 				return fmt.Errorf("load state: %w", err)
 			}
@@ -74,12 +85,12 @@ func newRejectCmd() *cobra.Command {
 			}
 
 			s.RecordGateDecision(s.CurrentPhase, "human", false, reason)
-			if err := s.Save(); err != nil {
+			if err := backend.SaveState(s); err != nil {
 				return fmt.Errorf("save state: %w", err)
 			}
 
 			t.Status = task.StatusFailed
-			if err := t.Save(); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

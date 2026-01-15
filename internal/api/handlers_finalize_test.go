@@ -7,8 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -16,6 +14,7 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -24,29 +23,32 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-func TestHandleFinalizeTask(t *testing.T) {
-	// Create temp directory with orc structure
-	tmpDir, err := os.MkdirTemp("", "orc-finalize-test-*")
+// createTestBackend creates a backend for testing.
+func createTestBackend(t *testing.T) storage.Backend {
+	t.Helper()
+	tmpDir := t.TempDir()
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
 	if err != nil {
-		t.Fatalf("create temp dir: %v", err)
+		t.Fatalf("create backend: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		backend.Close()
+	})
+	return backend
+}
 
-	// Create task directory structure
-	taskID := "TASK-001"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("create task dir: %v", err)
-	}
+func TestHandleFinalizeTask(t *testing.T) {
+	backend := createTestBackend(t)
 
 	// Create a task
+	taskID := "TASK-001"
 	tsk := &task.Task{
 		ID:     taskID,
 		Title:  "Test task",
 		Status: task.StatusCompleted,
 		Weight: task.WeightMedium,
 	}
-	if err := tsk.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
@@ -59,7 +61,7 @@ func TestHandleFinalizeTask(t *testing.T) {
 			{ID: "finalize", Status: plan.PhasePending},
 		},
 	}
-	if err := p.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(p, taskID); err != nil {
 		t.Fatalf("save plan: %v", err)
 	}
 
@@ -68,11 +70,12 @@ func TestHandleFinalizeTask(t *testing.T) {
 
 	// Create server
 	srv := &Server{
-		workDir:   tmpDir,
+		workDir:   t.TempDir(),
 		mux:       http.NewServeMux(),
 		orcConfig: orcCfg,
 		logger:    testLogger(),
 		publisher: events.NewNopPublisher(),
+		backend:   backend,
 	}
 
 	// Register route
@@ -186,18 +189,13 @@ func TestHandleFinalizeTask(t *testing.T) {
 	t.Run("rejects non-finalizable task status without force", func(t *testing.T) {
 		// Create a running task
 		runningTaskID := "TASK-002"
-		runningTaskDir := filepath.Join(tmpDir, ".orc", "tasks", runningTaskID)
-		if err := os.MkdirAll(runningTaskDir, 0755); err != nil {
-			t.Fatalf("create task dir: %v", err)
-		}
-
 		runningTask := &task.Task{
 			ID:     runningTaskID,
 			Title:  "Running task",
 			Status: task.StatusRunning,
 			Weight: task.WeightMedium,
 		}
-		if err := runningTask.SaveTo(runningTaskDir); err != nil {
+		if err := backend.SaveTask(runningTask); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
@@ -213,28 +211,17 @@ func TestHandleFinalizeTask(t *testing.T) {
 }
 
 func TestHandleGetFinalizeStatus(t *testing.T) {
-	// Create temp directory with orc structure
-	tmpDir, err := os.MkdirTemp("", "orc-finalize-status-test-*")
-	if err != nil {
-		t.Fatalf("create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Create task directory structure
-	taskID := "TASK-001"
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("create task dir: %v", err)
-	}
+	backend := createTestBackend(t)
 
 	// Create a task
+	taskID := "TASK-001"
 	tsk := &task.Task{
 		ID:     taskID,
 		Title:  "Test task",
 		Status: task.StatusCompleted,
 		Weight: task.WeightMedium,
 	}
-	if err := tsk.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
@@ -243,11 +230,12 @@ func TestHandleGetFinalizeStatus(t *testing.T) {
 
 	// Create server
 	srv := &Server{
-		workDir:   tmpDir,
+		workDir:   t.TempDir(),
 		mux:       http.NewServeMux(),
 		orcConfig: orcCfg,
 		logger:    testLogger(),
 		publisher: events.NewNopPublisher(),
+		backend:   backend,
 	}
 
 	// Register route
@@ -402,7 +390,7 @@ func TestHandleGetFinalizeStatus(t *testing.T) {
 		}
 	})
 
-	t.Run("returns from state.yaml when no tracker state", func(t *testing.T) {
+	t.Run("returns from state when no tracker state", func(t *testing.T) {
 		// Clear tracker state
 		finTracker.delete(taskID)
 
@@ -415,7 +403,7 @@ func TestHandleGetFinalizeStatus(t *testing.T) {
 			CompletedAt: &now,
 			CommitSHA:   "def456",
 		}
-		if err := st.SaveTo(taskDir); err != nil {
+		if err := backend.SaveState(st); err != nil {
 			t.Fatalf("save state: %v", err)
 		}
 
@@ -497,27 +485,17 @@ func TestFinalizeTracker(t *testing.T) {
 
 func TestTriggerFinalizeOnApproval(t *testing.T) {
 	t.Run("does not trigger when config disabled", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
-		if err != nil {
-			t.Fatalf("create temp dir: %v", err)
-		}
-		defer os.RemoveAll(tmpDir)
-
-		// Create task directory structure
-		taskID := "TASK-001"
-		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-		if err := os.MkdirAll(taskDir, 0755); err != nil {
-			t.Fatalf("create task dir: %v", err)
-		}
+		backend := createTestBackend(t)
 
 		// Create a completed task
+		taskID := "TASK-001"
 		tsk := &task.Task{
 			ID:     taskID,
 			Title:  "Test task",
 			Status: task.StatusCompleted,
 			Weight: task.WeightMedium,
 		}
-		if err := tsk.SaveTo(taskDir); err != nil {
+		if err := backend.SaveTask(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
@@ -526,10 +504,11 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 		orcCfg.Completion.Finalize.AutoTriggerOnApproval = false
 
 		srv := &Server{
-			workDir:   tmpDir,
+			workDir:   t.TempDir(),
 			orcConfig: orcCfg,
 			logger:    testLogger(),
 			publisher: events.NewNopPublisher(),
+			backend:   backend,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
@@ -542,25 +521,16 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 	})
 
 	t.Run("does not trigger when finalize already running", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
-		if err != nil {
-			t.Fatalf("create temp dir: %v", err)
-		}
-		defer os.RemoveAll(tmpDir)
+		backend := createTestBackend(t)
 
 		taskID := "TASK-002"
-		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-		if err := os.MkdirAll(taskDir, 0755); err != nil {
-			t.Fatalf("create task dir: %v", err)
-		}
-
 		tsk := &task.Task{
 			ID:     taskID,
 			Title:  "Test task",
 			Status: task.StatusCompleted,
 			Weight: task.WeightMedium,
 		}
-		if err := tsk.SaveTo(taskDir); err != nil {
+		if err := backend.SaveTask(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
@@ -573,10 +543,11 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 
 		orcCfg := config.Default()
 		srv := &Server{
-			workDir:   tmpDir,
+			workDir:   t.TempDir(),
 			orcConfig: orcCfg,
 			logger:    testLogger(),
 			publisher: events.NewNopPublisher(),
+			backend:   backend,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
@@ -589,34 +560,26 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 	})
 
 	t.Run("does not trigger for trivial weight tasks", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
-		if err != nil {
-			t.Fatalf("create temp dir: %v", err)
-		}
-		defer os.RemoveAll(tmpDir)
+		backend := createTestBackend(t)
 
 		taskID := "TASK-003"
-		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-		if err := os.MkdirAll(taskDir, 0755); err != nil {
-			t.Fatalf("create task dir: %v", err)
-		}
-
 		tsk := &task.Task{
 			ID:     taskID,
 			Title:  "Trivial task",
 			Status: task.StatusCompleted,
 			Weight: task.WeightTrivial, // Trivial weight
 		}
-		if err := tsk.SaveTo(taskDir); err != nil {
+		if err := backend.SaveTask(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
 		orcCfg := config.Default()
 		srv := &Server{
-			workDir:   tmpDir,
+			workDir:   t.TempDir(),
 			orcConfig: orcCfg,
 			logger:    testLogger(),
 			publisher: events.NewNopPublisher(),
+			backend:   backend,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
@@ -629,34 +592,26 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 	})
 
 	t.Run("does not trigger for non-completed tasks", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
-		if err != nil {
-			t.Fatalf("create temp dir: %v", err)
-		}
-		defer os.RemoveAll(tmpDir)
+		backend := createTestBackend(t)
 
 		taskID := "TASK-004"
-		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-		if err := os.MkdirAll(taskDir, 0755); err != nil {
-			t.Fatalf("create task dir: %v", err)
-		}
-
 		tsk := &task.Task{
 			ID:     taskID,
 			Title:  "Running task",
 			Status: task.StatusRunning, // Not completed
 			Weight: task.WeightMedium,
 		}
-		if err := tsk.SaveTo(taskDir); err != nil {
+		if err := backend.SaveTask(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
 		orcCfg := config.Default()
 		srv := &Server{
-			workDir:   tmpDir,
+			workDir:   t.TempDir(),
 			orcConfig: orcCfg,
 			logger:    testLogger(),
 			publisher: events.NewNopPublisher(),
+			backend:   backend,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
@@ -669,25 +624,16 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 	})
 
 	t.Run("does not trigger when finalize already completed", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
-		if err != nil {
-			t.Fatalf("create temp dir: %v", err)
-		}
-		defer os.RemoveAll(tmpDir)
+		backend := createTestBackend(t)
 
 		taskID := "TASK-005"
-		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-		if err := os.MkdirAll(taskDir, 0755); err != nil {
-			t.Fatalf("create task dir: %v", err)
-		}
-
 		tsk := &task.Task{
 			ID:     taskID,
 			Title:  "Completed task",
 			Status: task.StatusCompleted,
 			Weight: task.WeightMedium,
 		}
-		if err := tsk.SaveTo(taskDir); err != nil {
+		if err := backend.SaveTask(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
@@ -696,16 +642,17 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 		st.Phases["finalize"] = &state.PhaseState{
 			Status: state.StatusCompleted,
 		}
-		if err := st.SaveTo(taskDir); err != nil {
+		if err := backend.SaveState(st); err != nil {
 			t.Fatalf("save state: %v", err)
 		}
 
 		orcCfg := config.Default()
 		srv := &Server{
-			workDir:   tmpDir,
+			workDir:   t.TempDir(),
 			orcConfig: orcCfg,
 			logger:    testLogger(),
 			publisher: events.NewNopPublisher(),
+			backend:   backend,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
@@ -718,18 +665,9 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 	})
 
 	t.Run("triggers finalize for valid task", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
-		if err != nil {
-			t.Fatalf("create temp dir: %v", err)
-		}
-		defer os.RemoveAll(tmpDir)
+		backend := createTestBackend(t)
 
 		taskID := "TASK-006"
-		taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-		if err := os.MkdirAll(taskDir, 0755); err != nil {
-			t.Fatalf("create task dir: %v", err)
-		}
-
 		// Create a completed task with medium weight
 		tsk := &task.Task{
 			ID:     taskID,
@@ -737,7 +675,7 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 			Status: task.StatusCompleted,
 			Weight: task.WeightMedium,
 		}
-		if err := tsk.SaveTo(taskDir); err != nil {
+		if err := backend.SaveTask(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
@@ -749,7 +687,7 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 				{ID: "finalize", Status: plan.PhasePending},
 			},
 		}
-		if err := p.SaveTo(taskDir); err != nil {
+		if err := backend.SavePlan(p, taskID); err != nil {
 			t.Fatalf("save plan: %v", err)
 		}
 
@@ -761,10 +699,11 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 		orcCfg.Completion.Finalize.AutoTriggerOnApproval = true
 
 		srv := &Server{
-			workDir:   tmpDir,
+			workDir:   t.TempDir(),
 			orcConfig: orcCfg,
 			logger:    testLogger(),
 			publisher: events.NewNopPublisher(),
+			backend:   backend,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
@@ -785,27 +724,18 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 	})
 
 	t.Run("returns error for non-existent task", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "orc-auto-finalize-test-*")
-		if err != nil {
-			t.Fatalf("create temp dir: %v", err)
-		}
-		defer os.RemoveAll(tmpDir)
-
-		// Create .orc/tasks directory but no task
-		tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
-		if err := os.MkdirAll(tasksDir, 0755); err != nil {
-			t.Fatalf("create tasks dir: %v", err)
-		}
+		backend := createTestBackend(t)
 
 		orcCfg := config.Default()
 		srv := &Server{
-			workDir:   tmpDir,
+			workDir:   t.TempDir(),
 			orcConfig: orcCfg,
 			logger:    testLogger(),
 			publisher: events.NewNopPublisher(),
+			backend:   backend,
 		}
 
-		_, err = srv.TriggerFinalizeOnApproval("TASK-NONEXISTENT")
+		_, err := srv.TriggerFinalizeOnApproval("TASK-NONEXISTENT")
 		if err == nil {
 			t.Error("should return error for non-existent task")
 		}

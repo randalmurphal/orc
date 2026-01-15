@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // handleListAttachments returns all attachments for a task.
@@ -18,12 +16,13 @@ func (s *Server) handleListAttachments(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	exists, err := s.backend.TaskExists(taskID)
+	if err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
 
-	attachments, err := task.ListAttachments(s.workDir, taskID)
+	attachments, err := s.backend.ListAttachments(taskID)
 	if err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to list attachments: %v", err), http.StatusInternalServerError)
 		return
@@ -38,7 +37,8 @@ func (s *Server) handleUploadAttachment(w http.ResponseWriter, r *http.Request) 
 	taskID := r.PathValue("id")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	exists, err := s.backend.TaskExists(taskID)
+	if err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -69,8 +69,15 @@ func (s *Server) handleUploadAttachment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Read file data
+	data, err := io.ReadAll(file)
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to read file: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	// Save the attachment
-	attachment, err := task.SaveAttachment(s.workDir, taskID, filename, file)
+	attachment, err := s.backend.SaveAttachment(taskID, filename, header.Header.Get("Content-Type"), data)
 	if err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save attachment: %v", err), http.StatusInternalServerError)
 		return
@@ -87,7 +94,8 @@ func (s *Server) handleGetAttachment(w http.ResponseWriter, r *http.Request) {
 	filename := r.PathValue("filename")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	exists, err := s.backend.TaskExists(taskID)
+	if err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -95,7 +103,7 @@ func (s *Server) handleGetAttachment(w http.ResponseWriter, r *http.Request) {
 	// Sanitize filename
 	filename = filepath.Base(filename)
 
-	attachment, reader, err := task.GetAttachment(s.workDir, taskID, filename)
+	attachment, data, err := s.backend.GetAttachment(taskID, filename)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			s.jsonError(w, "attachment not found", http.StatusNotFound)
@@ -106,7 +114,6 @@ func (s *Server) handleGetAttachment(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	defer func() { _ = reader.Close() }()
 
 	// Set response headers
 	w.Header().Set("Content-Type", attachment.ContentType)
@@ -119,10 +126,10 @@ func (s *Server) handleGetAttachment(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", attachment.Filename))
 	}
 
-	// Stream the file
-	if _, err := io.Copy(w, reader); err != nil {
+	// Write the file data
+	if _, err := w.Write(data); err != nil {
 		// Client may have disconnected; just log and return
-		slog.Debug("error streaming attachment", "filename", attachment.Filename, "error", err)
+		slog.Debug("error writing attachment", "filename", attachment.Filename, "error", err)
 	}
 }
 
@@ -133,7 +140,8 @@ func (s *Server) handleDeleteAttachment(w http.ResponseWriter, r *http.Request) 
 	filename := r.PathValue("filename")
 
 	// Verify task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	exists, err := s.backend.TaskExists(taskID)
+	if err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -141,7 +149,7 @@ func (s *Server) handleDeleteAttachment(w http.ResponseWriter, r *http.Request) 
 	// Sanitize filename
 	filename = filepath.Base(filename)
 
-	if err := task.DeleteAttachment(s.workDir, taskID, filename); err != nil {
+	if err := s.backend.DeleteAttachment(taskID, filename); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			s.jsonError(w, "attachment not found", http.StatusNotFound)
 		} else if strings.Contains(err.Error(), "invalid filename") {

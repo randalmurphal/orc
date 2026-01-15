@@ -4,19 +4,20 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
-
+	"github.com/randalmurphal/orc/internal/config"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -107,11 +108,18 @@ func (s *Server) handleListProjectTasks(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Load tasks from project directory
-	tasksDir := filepath.Join(proj.Path, ".orc", "tasks")
-	tasks, err := task.LoadAllFrom(tasksDir)
+	// Load tasks from project using backend
+	backend, err := s.getProjectBackend(proj.Path)
 	if err != nil {
-		// No tasks dir is OK - return empty list
+		// No database yet is OK - return empty list
+		s.jsonResponse(w, []*task.Task{})
+		return
+	}
+	defer func() { _ = backend.Close() }()
+
+	tasks, err := backend.LoadAllTasks()
+	if err != nil {
+		// No tasks is OK - return empty list
 		s.jsonResponse(w, []*task.Task{})
 		return
 	}
@@ -200,8 +208,16 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Get project backend
+	backend, err := s.getProjectBackend(proj.Path)
+	if err != nil {
+		s.jsonError(w, "failed to access project database", http.StatusInternalServerError)
+		return
+	}
+	defer func() { _ = backend.Close() }()
+
 	// Generate ID in project context
-	id, err := task.NextIDIn(filepath.Join(proj.Path, ".orc", "tasks"))
+	id, err := backend.GetNextTaskID()
 	if err != nil {
 		s.jsonError(w, "failed to generate task ID", http.StatusInternalServerError)
 		return
@@ -221,9 +237,8 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Save in project directory
-	taskDir := filepath.Join(proj.Path, ".orc", "tasks", id)
-	if err := t.SaveTo(taskDir); err != nil {
+	// Save task
+	if err := backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
@@ -242,14 +257,14 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Save plan in project directory
-	if err := p.SaveTo(taskDir); err != nil {
+	// Save plan
+	if err := backend.SavePlan(p, id); err != nil {
 		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
 		return
 	}
 
 	t.Status = task.StatusPlanned
-	if err := t.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}
@@ -269,8 +284,18 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 			}
 
 			filename := filepath.Base(fileHeader.Filename)
-			_, err = task.SaveAttachment(proj.Path, id, filename, file)
+			data, err := io.ReadAll(file)
 			_ = file.Close()
+			if err != nil {
+				s.logger.Warn("failed to read attachment",
+					"taskID", id,
+					"filename", filename,
+					"error", err,
+				)
+				continue
+			}
+
+			_, err = backend.SaveAttachment(id, filename, fileHeader.Header.Get("Content-Type"), data)
 			if err != nil {
 				s.logger.Warn("failed to save attachment",
 					"taskID", id,
@@ -280,9 +305,6 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 			}
 		}
 	}
-
-	// Auto-commit task creation in project context
-	s.autoCommitProjectTask(proj.Path, t, "created")
 
 	w.WriteHeader(http.StatusCreated)
 	s.jsonResponse(w, t)
@@ -319,7 +341,14 @@ func (s *Server) handleDeleteProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	t, err := s.loadProjectTask(proj.Path, taskID)
+	backend, err := s.getProjectBackend(proj.Path)
+	if err != nil {
+		s.jsonError(w, "failed to access project database", http.StatusInternalServerError)
+		return
+	}
+	defer func() { _ = backend.Close() }()
+
+	t, err := backend.LoadTask(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
@@ -330,14 +359,10 @@ func (s *Server) handleDeleteProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	taskDir := filepath.Join(proj.Path, ".orc", "tasks", taskID)
-	if err := os.RemoveAll(taskDir); err != nil {
+	if err := backend.DeleteTask(taskID); err != nil {
 		s.jsonError(w, "failed to delete task", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit task deletion in project context
-	s.autoCommitProjectTaskDeletion(proj.Path, taskID)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -357,7 +382,14 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 
 	s.logger.Info("resolved project", "name", proj.Name, "path", proj.Path)
 
-	t, err := s.loadProjectTask(proj.Path, taskID)
+	backend, err := s.getProjectBackend(proj.Path)
+	if err != nil {
+		s.jsonError(w, "failed to access project database", http.StatusInternalServerError)
+		return
+	}
+	defer func() { _ = backend.Close() }()
+
+	t, err := backend.LoadTask(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
@@ -371,25 +403,16 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load plan
-	planPath := filepath.Join(proj.Path, ".orc", "tasks", taskID, "plan.yaml")
-	planData, err := os.ReadFile(planPath)
+	p, err := backend.LoadPlan(taskID)
 	if err != nil {
 		s.jsonError(w, "failed to load plan", http.StatusInternalServerError)
 		return
 	}
-	var p plan.Plan
-	if err := yaml.Unmarshal(planData, &p); err != nil {
-		s.jsonError(w, "failed to parse plan", http.StatusInternalServerError)
-		return
-	}
 
 	// Load or create state
-	statePath := filepath.Join(proj.Path, ".orc", "tasks", taskID, "state.yaml")
-	var st state.State
-	if stateData, err := os.ReadFile(statePath); err == nil {
-		_ = yaml.Unmarshal(stateData, &st)
-	} else {
-		st = state.State{
+	st, err := backend.LoadState(taskID)
+	if err != nil || st == nil {
+		st = &state.State{
 			TaskID:           taskID,
 			CurrentPhase:     p.Phases[0].ID,
 			Status:           state.StatusRunning,
@@ -403,15 +426,11 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 	t.Status = task.StatusRunning
 	now := time.Now()
 	t.StartedAt = &now
-	savePath := filepath.Join(proj.Path, ".orc", "tasks", taskID)
-	s.logger.Info("saving task", "path", savePath)
-	if err := t.SaveTo(savePath); err != nil {
+	s.logger.Info("saving task", "taskID", taskID)
+	if err := backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: task started running
-	s.autoCommitProjectTask(proj.Path, t, "running")
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -430,12 +449,22 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 			s.runningTasksMu.Unlock()
 		}()
 
+		// Create executor backend (goroutine needs its own backend)
+		execBackend, err := s.getProjectBackend(projectPath)
+		if err != nil {
+			s.logger.Error("failed to create executor backend", "error", err)
+			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
+			return
+		}
+		defer execBackend.Close()
+
 		cfg := executor.ConfigFromOrc(s.orcConfig)
 		cfg.WorkDir = projectPath
 		exec := executor.NewWithConfig(cfg, s.orcConfig)
+		exec.SetBackend(execBackend)
 		exec.SetPublisher(s.publisher)
 
-		if err := exec.ExecuteTask(ctx, t, &p, &st); err != nil {
+		if err := exec.ExecuteTask(ctx, t, p, st); err != nil {
 			s.logger.Error("task execution failed", "task", taskID, "error", err)
 			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
 		} else {
@@ -463,7 +492,14 @@ func (s *Server) handlePauseProjectTask(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	t, err := s.loadProjectTask(proj.Path, taskID)
+	backend, err := s.getProjectBackend(proj.Path)
+	if err != nil {
+		s.jsonError(w, "failed to access project database", http.StatusInternalServerError)
+		return
+	}
+	defer func() { _ = backend.Close() }()
+
+	t, err := backend.LoadTask(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
@@ -485,26 +521,18 @@ func (s *Server) handlePauseProjectTask(w http.ResponseWriter, r *http.Request) 
 
 	// Update task status
 	t.Status = task.StatusPaused
-	taskDir := filepath.Join(proj.Path, ".orc", "tasks", taskID)
-	if err := t.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
 		return
 	}
 
 	// Update state status
-	statePath := filepath.Join(taskDir, "state.yaml")
-	if stateData, err := os.ReadFile(statePath); err == nil {
-		var st state.State
-		if err := yaml.Unmarshal(stateData, &st); err == nil {
-			st.Status = state.StatusPaused
-			if err := st.SaveTo(taskDir); err != nil {
-				s.logger.Error("failed to save state", "error", err)
-			}
+	if st, err := backend.LoadState(taskID); err == nil && st != nil {
+		st.Status = state.StatusPaused
+		if err := backend.SaveState(st); err != nil {
+			s.logger.Error("failed to save state", "error", err)
 		}
 	}
-
-	// Auto-commit: task paused
-	s.autoCommitProjectTask(proj.Path, t, "paused")
 
 	s.jsonResponse(w, map[string]any{
 		"status":  "paused",
@@ -523,7 +551,14 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	t, err := s.loadProjectTask(proj.Path, taskID)
+	backend, err := s.getProjectBackend(proj.Path)
+	if err != nil {
+		s.jsonError(w, "failed to access project database", http.StatusInternalServerError)
+		return
+	}
+	defer func() { _ = backend.Close() }()
+
+	t, err := backend.LoadTask(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
@@ -536,35 +571,22 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Load plan
-	planPath := filepath.Join(proj.Path, ".orc", "tasks", taskID, "plan.yaml")
-	planData, err := os.ReadFile(planPath)
+	p, err := backend.LoadPlan(taskID)
 	if err != nil {
 		s.jsonError(w, "failed to load plan", http.StatusInternalServerError)
 		return
 	}
-	var p plan.Plan
-	if err := yaml.Unmarshal(planData, &p); err != nil {
-		s.jsonError(w, "failed to parse plan", http.StatusInternalServerError)
-		return
-	}
 
 	// Load state
-	taskDir := filepath.Join(proj.Path, ".orc", "tasks", taskID)
-	statePath := filepath.Join(taskDir, "state.yaml")
-	stateData, err := os.ReadFile(statePath)
-	if err != nil {
+	st, err := backend.LoadState(taskID)
+	if err != nil || st == nil {
 		s.jsonError(w, "failed to load state", http.StatusInternalServerError)
-		return
-	}
-	var st state.State
-	if err := yaml.Unmarshal(stateData, &st); err != nil {
-		s.jsonError(w, "failed to parse state", http.StatusInternalServerError)
 		return
 	}
 
 	// Update task status
 	t.Status = task.StatusRunning
-	if err := t.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
 		return
 	}
@@ -575,13 +597,10 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 		st.Phases[st.CurrentPhase].Status = state.StatusRunning
 		st.Phases[st.CurrentPhase].InterruptedAt = nil
 	}
-	if err := st.SaveTo(taskDir); err != nil {
+	if err := backend.SaveState(st); err != nil {
 		s.jsonError(w, "failed to update state", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: task resumed
-	s.autoCommitProjectTask(proj.Path, t, "resumed")
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -602,12 +621,22 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 			s.runningTasksMu.Unlock()
 		}()
 
+		// Create executor backend (goroutine needs its own backend)
+		execBackend, err := s.getProjectBackend(projectPath)
+		if err != nil {
+			s.logger.Error("failed to create executor backend", "error", err)
+			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
+			return
+		}
+		defer execBackend.Close()
+
 		cfg := executor.ConfigFromOrc(s.orcConfig)
 		cfg.WorkDir = projectPath
 		exec := executor.NewWithConfig(cfg, s.orcConfig)
+		exec.SetBackend(execBackend)
 		exec.SetPublisher(s.publisher)
 
-		if err := exec.ExecuteTask(ctx, t, &p, &st); err != nil {
+		if err := exec.ExecuteTask(ctx, t, p, st); err != nil {
 			s.logger.Error("task execution failed", "task", taskID, "error", err)
 			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
 		} else {
@@ -646,23 +675,23 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	t, err := s.loadProjectTask(proj.Path, taskID)
+	backend, err := s.getProjectBackend(proj.Path)
+	if err != nil {
+		s.jsonError(w, "failed to access project database", http.StatusInternalServerError)
+		return
+	}
+	defer func() { _ = backend.Close() }()
+
+	t, err := backend.LoadTask(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
 	// Load plan
-	taskDir := filepath.Join(proj.Path, ".orc", "tasks", taskID)
-	planPath := filepath.Join(taskDir, "plan.yaml")
-	planData, err := os.ReadFile(planPath)
+	p, err := backend.LoadPlan(taskID)
 	if err != nil {
 		s.jsonError(w, "failed to load plan", http.StatusInternalServerError)
-		return
-	}
-	var p plan.Plan
-	if err := yaml.Unmarshal(planData, &p); err != nil {
-		s.jsonError(w, "failed to parse plan", http.StatusInternalServerError)
 		return
 	}
 
@@ -673,16 +702,13 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Load state
-	statePath := filepath.Join(taskDir, "state.yaml")
-	stateData, err := os.ReadFile(statePath)
-	if err != nil && !os.IsNotExist(err) {
-		s.jsonError(w, "failed to load state", http.StatusInternalServerError)
-		return
-	}
-	var st state.State
-	if err == nil {
-		_ = yaml.Unmarshal(stateData, &st)
+	// Load state (may not exist)
+	st, _ := backend.LoadState(taskID)
+	if st == nil {
+		st = &state.State{
+			TaskID: taskID,
+			Phases: make(map[string]*state.PhaseState),
+		}
 	}
 
 	// Mark target and all later phases as pending
@@ -712,21 +738,18 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 	t.CompletedAt = nil
 
 	// Save all updates
-	if err := p.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(p, taskID); err != nil {
 		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
 		return
 	}
-	if err := st.SaveTo(taskDir); err != nil {
+	if err := backend.SaveState(st); err != nil {
 		s.jsonError(w, "failed to save state", http.StatusInternalServerError)
 		return
 	}
-	if err := t.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: task rewound
-	s.autoCommitProjectTask(proj.Path, t, "rewound to "+req.Phase)
 
 	s.logger.Info("rewound task", "task", taskID, "toPhase", req.Phase)
 
@@ -763,7 +786,14 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	t, err := s.loadProjectTask(proj.Path, taskID)
+	backend, err := s.getProjectBackend(proj.Path)
+	if err != nil {
+		s.jsonError(w, "failed to access project database", http.StatusInternalServerError)
+		return
+	}
+	defer func() { _ = backend.Close() }()
+
+	t, err := backend.LoadTask(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
@@ -775,18 +805,10 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	taskDir := filepath.Join(proj.Path, ".orc", "tasks", taskID)
-
 	// Load plan
-	planPath := filepath.Join(taskDir, "plan.yaml")
-	planData, err := os.ReadFile(planPath)
+	p, err := backend.LoadPlan(taskID)
 	if err != nil {
 		s.jsonError(w, "failed to load plan", http.StatusInternalServerError)
-		return
-	}
-	var p plan.Plan
-	if err := yaml.Unmarshal(planData, &p); err != nil {
-		s.jsonError(w, "failed to parse plan", http.StatusInternalServerError)
 		return
 	}
 
@@ -797,16 +819,13 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Load state
-	statePath := filepath.Join(taskDir, "state.yaml")
-	stateData, err := os.ReadFile(statePath)
-	if err != nil && !os.IsNotExist(err) {
-		s.jsonError(w, "failed to load state", http.StatusInternalServerError)
-		return
-	}
-	var st state.State
-	if err == nil {
-		_ = yaml.Unmarshal(stateData, &st)
+	// Load state (may not exist)
+	st, _ := backend.LoadState(taskID)
+	if st == nil {
+		st = &state.State{
+			TaskID: taskID,
+			Phases: make(map[string]*state.PhaseState),
+		}
 	}
 
 	// Get current phase for context
@@ -866,21 +885,18 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 	t.CompletedAt = nil
 
 	// Save all updates
-	if err := p.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(p, taskID); err != nil {
 		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
 		return
 	}
-	if err := st.SaveTo(taskDir); err != nil {
+	if err := backend.SaveState(st); err != nil {
 		s.jsonError(w, "failed to save state", http.StatusInternalServerError)
 		return
 	}
-	if err := t.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: task escalated
-	s.autoCommitProjectTask(proj.Path, t, "escalated to implement")
 
 	s.logger.Info("escalated task", "task", taskID, "reason", req.Reason)
 
@@ -904,20 +920,16 @@ func (s *Server) handleGetProjectTaskState(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	statePath := filepath.Join(proj.Path, ".orc", "tasks", taskID, "state.yaml")
-	data, err := os.ReadFile(statePath)
+	backend, err := s.getProjectBackend(proj.Path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			s.jsonError(w, "state not found", http.StatusNotFound)
-			return
-		}
-		s.jsonError(w, "failed to read state", http.StatusInternalServerError)
+		s.jsonError(w, "failed to access project database", http.StatusInternalServerError)
 		return
 	}
+	defer func() { _ = backend.Close() }()
 
-	var st state.State
-	if err := yaml.Unmarshal(data, &st); err != nil {
-		s.jsonError(w, "failed to parse state", http.StatusInternalServerError)
+	st, err := backend.LoadState(taskID)
+	if err != nil || st == nil {
+		s.jsonError(w, "state not found", http.StatusNotFound)
 		return
 	}
 
@@ -935,20 +947,16 @@ func (s *Server) handleGetProjectTaskPlan(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	planPath := filepath.Join(proj.Path, ".orc", "tasks", taskID, "plan.yaml")
-	data, err := os.ReadFile(planPath)
+	backend, err := s.getProjectBackend(proj.Path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			s.jsonError(w, "plan not found", http.StatusNotFound)
-			return
-		}
-		s.jsonError(w, "failed to read plan", http.StatusInternalServerError)
+		s.jsonError(w, "failed to access project database", http.StatusInternalServerError)
 		return
 	}
+	defer func() { _ = backend.Close() }()
 
-	var p plan.Plan
-	if err := yaml.Unmarshal(data, &p); err != nil {
-		s.jsonError(w, "failed to parse plan", http.StatusInternalServerError)
+	p, err := backend.LoadPlan(taskID)
+	if err != nil || p == nil {
+		s.jsonError(w, "plan not found", http.StatusNotFound)
 		return
 	}
 
@@ -1012,48 +1020,23 @@ func (s *Server) getProject(projectID string) (*project.Project, error) {
 	return reg.Get(projectID)
 }
 
-// loadProjectTask loads a task from a specific project path.
+// getProjectBackend creates a storage backend for a specific project path.
+// The caller is responsible for closing the backend when done.
+func (s *Server) getProjectBackend(projectPath string) (storage.Backend, error) {
+	var storageCfg *config.StorageConfig
+	if s.orcConfig != nil {
+		storageCfg = &s.orcConfig.Storage
+	}
+	return storage.NewDatabaseBackend(projectPath, storageCfg)
+}
+
+// loadProjectTask loads a task from a specific project using a backend.
 func (s *Server) loadProjectTask(projectPath, taskID string) (*task.Task, error) {
-	taskPath := filepath.Join(projectPath, ".orc", "tasks", taskID, "task.yaml")
-	data, err := os.ReadFile(taskPath)
+	backend, err := s.getProjectBackend(projectPath)
 	if err != nil {
 		return nil, err
 	}
+	defer func() { _ = backend.Close() }()
 
-	var t task.Task
-	if err := yaml.Unmarshal(data, &t); err != nil {
-		return nil, err
-	}
-
-	return &t, nil
-}
-
-// autoCommitProjectTask commits a task change to git in a specific project directory.
-// This is used for project-scoped operations where the task is in a different project
-// than the server's workDir.
-func (s *Server) autoCommitProjectTask(projectPath string, t *task.Task, action string) {
-	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
-		return
-	}
-
-	commitCfg := task.CommitConfig{
-		ProjectRoot:  projectPath,
-		CommitPrefix: s.orcConfig.CommitPrefix,
-		Logger:       s.logger,
-	}
-	_ = task.CommitAndSync(t, action, commitCfg)
-}
-
-// autoCommitProjectTaskDeletion commits a task deletion to git in a specific project directory.
-func (s *Server) autoCommitProjectTaskDeletion(projectPath, taskID string) {
-	if s.orcConfig == nil || s.orcConfig.Tasks.DisableAutoCommit {
-		return
-	}
-
-	commitCfg := task.CommitConfig{
-		ProjectRoot:  projectPath,
-		CommitPrefix: s.orcConfig.CommitPrefix,
-		Logger:       s.logger,
-	}
-	_ = task.CommitDeletion(taskID, commitCfg)
+	return backend.LoadTask(taskID)
 }

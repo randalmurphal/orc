@@ -13,7 +13,6 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/github"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -50,7 +49,7 @@ type autoFixResponse struct {
 func (s *Server) handleCreatePR(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -130,7 +129,7 @@ func (s *Server) handleCreatePR(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetPR(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -187,7 +186,7 @@ func (s *Server) handleGetPR(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSyncPRComments(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -292,7 +291,7 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 	commentID := r.PathValue("commentId")
 
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -317,13 +316,13 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load plan and state for the rewind/retry
-	p, err := plan.LoadFrom(s.workDir, taskID)
+	p, err := s.backend.LoadPlan(taskID)
 	if err != nil {
 		s.jsonError(w, "plan not found: "+err.Error(), http.StatusNotFound)
 		return
 	}
 
-	st, err := state.LoadFrom(s.workDir, taskID)
+	st, err := s.backend.LoadState(taskID)
 	if err != nil {
 		// Create new state if it doesn't exist
 		st = state.New(taskID)
@@ -355,7 +354,7 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 	st.SetRetryContext(t.CurrentPhase, "implement", opts.FailureReason, retryContext, 1)
 
 	// Save state with retry context
-	if err := st.SaveTo(task.TaskDirIn(s.workDir, taskID)); err != nil {
+	if err := s.backend.SaveState(st); err != nil {
 		s.jsonError(w, "failed to save state: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -374,13 +373,10 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 		t.Status = task.StatusPlanned
 	}
 
-	if err := t.SaveTo(task.TaskDirIn(s.workDir, taskID)); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to save task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: auto-fix triggered
-	s.autoCommitTask(t, "auto-fix triggered")
 
 	// Create cancellable context for execution
 	ctx, cancel := context.WithCancel(context.Background())
@@ -401,6 +397,7 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 		execCfg := executor.ConfigFromOrc(s.orcConfig)
 		execCfg.WorkDir = s.workDir
 		exec := executor.NewWithConfig(execCfg, s.orcConfig)
+		exec.SetBackend(s.backend)
 		exec.SetPublisher(s.publisher)
 
 		// Resume from implement phase with retry context
@@ -414,7 +411,7 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Reload and publish final state
-		if finalState, err := state.LoadFrom(s.workDir, taskID); err == nil {
+		if finalState, err := s.backend.LoadState(taskID); err == nil {
 			s.Publish(taskID, Event{Type: "state", Data: finalState})
 		}
 	}()
@@ -433,7 +430,7 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMergePR(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -492,12 +489,9 @@ func (s *Server) handleMergePR(w http.ResponseWriter, r *http.Request) {
 	// Update task status to completed
 	t.Status = task.StatusCompleted
 	var warning string
-	if err := t.Save(); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		s.logger.Error("failed to update task status after merge", "task", taskID, "error", err)
 		warning = "task status not updated: " + err.Error()
-	} else {
-		// Auto-commit: PR merged
-		s.autoCommitTask(t, "merged")
 	}
 
 	response := map[string]any{
@@ -517,7 +511,7 @@ func (s *Server) handleMergePR(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleListPRChecks(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -632,7 +626,7 @@ func (s *Server) handleReplyToPRComment(w http.ResponseWriter, r *http.Request) 
 	taskID := r.PathValue("id")
 	commentID := r.PathValue("commentId")
 
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -712,7 +706,7 @@ type importPRCommentsResponse struct {
 func (s *Server) handleImportPRComments(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -844,7 +838,7 @@ func (s *Server) handleImportPRComments(w http.ResponseWriter, r *http.Request) 
 func (s *Server) handleRefreshPRStatus(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -902,13 +896,10 @@ func (s *Server) handleRefreshPRStatus(w http.ResponseWriter, r *http.Request) {
 	t.PR.LastCheckedAt = &now
 
 	// Save task
-	if err := t.SaveTo(task.TaskDirIn(s.workDir, taskID)); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save task: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: PR status updated
-	s.autoCommitTask(t, "PR status updated")
 
 	s.jsonResponse(w, map[string]any{
 		"pr":      pr,

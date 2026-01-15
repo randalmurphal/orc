@@ -11,6 +11,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -54,6 +55,9 @@ type Options struct {
 
 	// Shared indicates if initiative is in the shared directory.
 	Shared bool
+
+	// Backend is the storage backend for tasks and initiatives.
+	Backend storage.Backend
 }
 
 // Result contains the outcome of a planning session.
@@ -75,14 +79,17 @@ type Result struct {
 }
 
 // DetectMode determines the planning mode from the target argument.
-func DetectMode(workDir, target string) (Mode, string, error) {
+func DetectMode(target string, backend storage.Backend) (Mode, string, error) {
 	if target == "" {
 		return ModeInteractive, "", nil
 	}
 
 	// Check if it's an existing task
-	if task.ExistsIn(workDir, target) {
-		return ModeTask, target, nil
+	if backend != nil {
+		exists, _ := backend.TaskExists(target)
+		if exists {
+			return ModeTask, target, nil
+		}
 	}
 
 	// Check if it looks like a task ID but doesn't exist
@@ -101,7 +108,7 @@ func Run(ctx context.Context, target string, opts Options) (*Result, error) {
 	}
 
 	// Detect mode
-	mode, resolvedTarget, err := DetectMode(opts.WorkDir, target)
+	mode, resolvedTarget, err := DetectMode(target, opts.Backend)
 	if err != nil {
 		return nil, err
 	}
@@ -121,12 +128,8 @@ func Run(ctx context.Context, target string, opts Options) (*Result, error) {
 
 	// Load initiative if specified
 	var init *initiative.Initiative
-	if opts.InitiativeID != "" {
-		if opts.Shared {
-			init, err = initiative.LoadShared(opts.InitiativeID)
-		} else {
-			init, err = initiative.Load(opts.InitiativeID)
-		}
+	if opts.InitiativeID != "" && opts.Backend != nil {
+		init, err = opts.Backend.LoadInitiative(opts.InitiativeID)
 		if err != nil {
 			return nil, fmt.Errorf("load initiative: %w", err)
 		}
@@ -145,8 +148,12 @@ func Run(ctx context.Context, target string, opts Options) (*Result, error) {
 
 // runTaskMode handles planning for an existing task.
 func runTaskMode(ctx context.Context, taskID string, opts Options, detection *db.Detection, init *initiative.Initiative) (*Result, error) {
+	if opts.Backend == nil {
+		return nil, fmt.Errorf("backend is required for task mode")
+	}
+
 	// Load the task
-	t, err := task.LoadFrom(opts.WorkDir, taskID)
+	t, err := opts.Backend.LoadTask(taskID)
 	if err != nil {
 		return nil, fmt.Errorf("load task: %w", err)
 	}
@@ -193,23 +200,22 @@ func runTaskMode(ctx context.Context, taskID string, opts Options, detection *db
 		TaskID: taskID,
 	}
 
-	// Find the spec file (use path-aware function)
-	specPath := task.SpecPathIn(opts.WorkDir, taskID)
-	if _, err := os.Stat(specPath); err == nil {
-		result.SpecPath = specPath
+	// Check if spec exists in database
+	specExists, _ := opts.Backend.SpecExists(taskID)
+	if specExists {
+		result.SpecPath = task.SpecPathIn(opts.WorkDir, taskID)
 
 		// Validate spec if not skipped
 		if !opts.SkipValidation {
-			spec, err := task.LoadSpecIn(opts.WorkDir, taskID)
-			if err == nil && spec != nil {
-				result.ValidationResult = ValidateSpec(spec.Content, t.Weight)
+			specContent, err := opts.Backend.LoadSpec(taskID)
+			if err == nil && specContent != "" {
+				result.ValidationResult = ValidateSpec(specContent, t.Weight)
 			}
 		}
 
 		// Update task status to planned (spec created)
 		t.Status = task.StatusPlanned
-		taskDir := task.TaskDirIn(opts.WorkDir, taskID)
-		if saveErr := t.SaveTo(taskDir); saveErr != nil {
+		if saveErr := opts.Backend.SaveTask(t); saveErr != nil {
 			// Log but don't fail - spec was created successfully
 			fmt.Fprintf(os.Stderr, "Warning: could not update task status: %v\n", saveErr)
 		}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -35,17 +36,17 @@ func SetupSignalHandler() (context.Context, context.CancelFunc) {
 }
 
 // GracefulShutdown saves current state before exit
-func GracefulShutdown(t *task.Task, s *state.State, phase string) error {
+func GracefulShutdown(backend storage.Backend, t *task.Task, s *state.State, phase string) error {
 	// Mark phase as interrupted (not failed - can be resumed)
 	s.InterruptPhase(phase)
 
-	if err := s.Save(); err != nil {
+	if err := backend.SaveState(s); err != nil {
 		return fmt.Errorf("save state on interrupt: %w", err)
 	}
 
 	// Update task status to interrupted so it can be resumed
 	t.Status = task.StatusBlocked
-	if err := t.Save(); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return fmt.Errorf("save task on interrupt: %w", err)
 	}
 
@@ -57,19 +58,21 @@ func GracefulShutdown(t *task.Task, s *state.State, phase string) error {
 type InterruptHandler struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
+	backend   storage.Backend
 	task      *task.Task
 	state     *state.State
 	lastPhase string
 }
 
 // NewInterruptHandler creates a new interrupt handler
-func NewInterruptHandler(t *task.Task, s *state.State) *InterruptHandler {
+func NewInterruptHandler(backend storage.Backend, t *task.Task, s *state.State) *InterruptHandler {
 	ctx, cancel := SetupSignalHandler()
 	return &InterruptHandler{
-		ctx:    ctx,
-		cancel: cancel,
-		task:   t,
-		state:  s,
+		ctx:     ctx,
+		cancel:  cancel,
+		backend: backend,
+		task:    t,
+		state:   s,
 	}
 }
 
@@ -86,7 +89,7 @@ func (h *InterruptHandler) SetCurrentPhase(phase string) {
 // Cleanup saves state if interrupted
 func (h *InterruptHandler) Cleanup() {
 	if h.ctx.Err() != nil && h.lastPhase != "" {
-		GracefulShutdown(h.task, h.state, h.lastPhase)
+		GracefulShutdown(h.backend, h.task, h.state, h.lastPhase)
 	}
 	h.cancel()
 }

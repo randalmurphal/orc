@@ -9,7 +9,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newSkipCmd creates the skip command
@@ -31,6 +30,12 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 			phaseID, _ := cmd.Flags().GetString("phase")
 			reason, _ := cmd.Flags().GetString("reason")
@@ -40,7 +45,7 @@ Example:
 			}
 
 			// Load plan
-			p, err := plan.Load(id)
+			p, err := backend.LoadPlan(id)
 			if err != nil {
 				return fmt.Errorf("load plan: %w", err)
 			}
@@ -58,30 +63,20 @@ Example:
 			phase.Status = plan.PhaseSkipped
 
 			// Save plan
-			if err := p.Save(id); err != nil {
+			if err := backend.SavePlan(p, id); err != nil {
 				return fmt.Errorf("save plan: %w", err)
 			}
 
 			// Load and update state
-			s, err := state.Load(id)
+			s, err := backend.LoadState(id)
 			if err == nil && s != nil {
 				s.SkipPhase(phaseID, reason)
-				s.Save()
-			}
-
-			// Auto-commit the phase skip
-			cfg, _ := config.Load()
-			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
-				if projectDir, err := config.FindProjectRoot(); err == nil {
-					t, _ := task.Load(id)
-					if t != nil {
-						commitCfg := task.CommitConfig{
-							ProjectRoot:  projectDir,
-							CommitPrefix: cfg.CommitPrefix,
-						}
-						task.CommitAndSync(t, fmt.Sprintf("phase %s skipped", phaseID), commitCfg)
-					}
-				}
+				backend.SaveState(s)
+			} else {
+				// State might not exist, create new one
+				s = state.New(id)
+				s.SkipPhase(phaseID, reason)
+				backend.SaveState(s)
 			}
 
 			fmt.Printf("⊘ Phase %s skipped", phaseID)

@@ -289,22 +289,22 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load task
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found: "+err.Error(), http.StatusNotFound)
 		return
 	}
 
 	// Load plan
-	p, err := plan.LoadFrom(s.workDir, taskID)
+	p, err := s.backend.LoadPlan(taskID)
 	if err != nil {
 		s.jsonError(w, "plan not found: "+err.Error(), http.StatusNotFound)
 		return
 	}
 
 	// Load or create state
-	st, err := state.LoadFrom(s.workDir, taskID)
-	if err != nil {
+	st, err := s.backend.LoadState(taskID)
+	if err != nil || st == nil {
 		st = state.New(taskID)
 	}
 
@@ -337,12 +337,11 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 	st.CompletedAt = nil
 
 	// Save plan and state
-	taskDir := task.TaskDirIn(s.workDir, taskID)
-	if err := p.SaveTo(taskDir); err != nil {
+	if err := s.backend.SavePlan(p, taskID); err != nil {
 		s.jsonError(w, "failed to save plan: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := st.SaveTo(taskDir); err != nil {
+	if err := s.backend.SaveState(st); err != nil {
 		s.jsonError(w, "failed to save state: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -350,13 +349,10 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 	// Reset task status to allow re-running
 	t.Status = task.StatusRunning
 	t.CompletedAt = nil
-	if err := t.SaveTo(task.TaskDirIn(s.workDir, taskID)); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	// Auto-commit: review retry triggered
-	s.autoCommitTask(t, "review retry triggered")
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -377,6 +373,7 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 		execCfg := executor.ConfigFromOrc(s.orcConfig)
 		execCfg.WorkDir = s.workDir
 		exec := executor.NewWithConfig(execCfg, s.orcConfig)
+		exec.SetBackend(s.backend)
 		exec.SetPublisher(s.publisher)
 
 		// Execute with event publishing
@@ -402,7 +399,7 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Reload and publish final state
-		if finalState, loadErr := state.LoadFrom(s.workDir, taskID); loadErr == nil {
+		if finalState, loadErr := s.backend.LoadState(taskID); loadErr == nil && finalState != nil {
 			s.Publish(taskID, Event{Type: "state", Data: finalState})
 		}
 	}()

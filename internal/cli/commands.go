@@ -2,9 +2,31 @@
 package cli
 
 import (
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
+
+// getBackend creates a storage backend for the current project.
+// Most CLI commands that need to access task data should use this.
+func getBackend() (storage.Backend, error) {
+	// Find project root (works from worktrees too)
+	projectRoot, err := config.FindProjectRoot()
+	if err != nil {
+		// If not in a project, use current directory
+		projectRoot = "."
+	}
+
+	// Load config for storage settings
+	var storageCfg *config.StorageConfig
+	cfg, err := config.Load()
+	if err == nil && cfg != nil {
+		storageCfg = &cfg.Storage
+	}
+
+	return storage.NewDatabaseBackend(projectRoot, storageCfg)
+}
 
 // Helper functions
 

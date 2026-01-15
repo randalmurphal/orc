@@ -113,8 +113,14 @@ Examples:
 
 // exportToYAML performs the legacy YAML export for backup/migration.
 func exportToYAML(taskID, outputFile string, withState, withTranscripts bool) error {
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer backend.Close()
+
 	// Load task
-	t, err := task.Load(taskID)
+	t, err := backend.LoadTask(taskID)
 	if err != nil {
 		return fmt.Errorf("load task: %w", err)
 	}
@@ -122,7 +128,7 @@ func exportToYAML(taskID, outputFile string, withState, withTranscripts bool) er
 	export := &ExportData{Task: t}
 
 	// Load plan
-	p, err := plan.Load(taskID)
+	p, err := backend.LoadPlan(taskID)
 	if err == nil {
 		export.Plan = p
 	} else {
@@ -131,7 +137,7 @@ func exportToYAML(taskID, outputFile string, withState, withTranscripts bool) er
 
 	// Load state if requested
 	if withState {
-		s, err := state.Load(taskID)
+		s, err := backend.LoadState(taskID)
 		if err == nil {
 			export.State = s
 		} else {
@@ -286,6 +292,12 @@ func importFileWithMerge(path string, force, skipExisting bool) error {
 
 // importData imports task data with smart merge logic.
 func importData(data []byte, sourceName string, force, skipExisting bool) error {
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer backend.Close()
+
 	var export ExportData
 	if err := yaml.Unmarshal(data, &export); err != nil {
 		return fmt.Errorf("parse yaml: %w", err)
@@ -296,7 +308,7 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	}
 
 	// Check if task exists
-	existing, _ := task.Load(export.Task.ID)
+	existing, _ := backend.LoadTask(export.Task.ID)
 	if existing != nil {
 		if skipExisting {
 			return fmt.Errorf("task %s skipped (--skip-existing)", export.Task.ID)
@@ -312,13 +324,13 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	}
 
 	// Save task
-	if err := export.Task.Save(); err != nil {
+	if err := backend.SaveTask(export.Task); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 
 	// Save plan if present
 	if export.Plan != nil {
-		if err := export.Plan.Save(export.Task.ID); err != nil {
+		if err := backend.SavePlan(export.Plan, export.Task.ID); err != nil {
 			// Non-fatal
 			fmt.Fprintf(os.Stderr, "Warning: could not save plan: %v\n", err)
 		}
@@ -326,7 +338,7 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 
 	// Save state if present
 	if export.State != nil {
-		if err := export.State.Save(); err != nil {
+		if err := backend.SaveState(export.State); err != nil {
 			// Non-fatal
 			fmt.Fprintf(os.Stderr, "Warning: could not save state: %v\n", err)
 		}
@@ -454,8 +466,14 @@ func importDirectory(dir string, force, skipExisting bool) error {
 
 // exportAllTasks exports all tasks to a directory or zip file.
 func exportAllTasks(outputPath string, withState, withTranscripts bool) error {
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer backend.Close()
+
 	// Load all tasks
-	tasks, err := task.LoadAll()
+	tasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return fmt.Errorf("load tasks: %w", err)
 	}
@@ -469,13 +487,13 @@ func exportAllTasks(outputPath string, withState, withTranscripts bool) error {
 	isZip := strings.HasSuffix(strings.ToLower(outputPath), ".zip")
 
 	if isZip {
-		return exportAllTasksToZip(tasks, outputPath, withState, withTranscripts)
+		return exportAllTasksToZipWithBackend(backend, tasks, outputPath, withState, withTranscripts)
 	}
-	return exportAllTasksToDir(tasks, outputPath, withState, withTranscripts)
+	return exportAllTasksToDirWithBackend(backend, tasks, outputPath, withState, withTranscripts)
 }
 
-// exportAllTasksToDir exports all tasks to a directory.
-func exportAllTasksToDir(tasks []*task.Task, dir string, withState, withTranscripts bool) error {
+// exportAllTasksToDirWithBackend exports all tasks to a directory.
+func exportAllTasksToDirWithBackend(backend storage.Backend, tasks []*task.Task, dir string, withState, withTranscripts bool) error {
 	// Create output directory
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
@@ -483,7 +501,7 @@ func exportAllTasksToDir(tasks []*task.Task, dir string, withState, withTranscri
 
 	var exported int
 	for _, t := range tasks {
-		export := buildExportData(t, withState, withTranscripts)
+		export := buildExportDataWithBackend(backend, t, withState, withTranscripts)
 
 		data, err := yaml.Marshal(export)
 		if err != nil {
@@ -503,8 +521,8 @@ func exportAllTasksToDir(tasks []*task.Task, dir string, withState, withTranscri
 	return nil
 }
 
-// exportAllTasksToZip exports all tasks to a zip archive.
-func exportAllTasksToZip(tasks []*task.Task, zipPath string, withState, withTranscripts bool) error {
+// exportAllTasksToZipWithBackend exports all tasks to a zip archive.
+func exportAllTasksToZipWithBackend(backend storage.Backend, tasks []*task.Task, zipPath string, withState, withTranscripts bool) error {
 	// Create zip file
 	zipFile, err := os.Create(zipPath)
 	if err != nil {
@@ -517,7 +535,7 @@ func exportAllTasksToZip(tasks []*task.Task, zipPath string, withState, withTran
 
 	var exported int
 	for _, t := range tasks {
-		export := buildExportData(t, withState, withTranscripts)
+		export := buildExportDataWithBackend(backend, t, withState, withTranscripts)
 
 		data, err := yaml.Marshal(export)
 		if err != nil {
@@ -543,19 +561,19 @@ func exportAllTasksToZip(tasks []*task.Task, zipPath string, withState, withTran
 	return nil
 }
 
-// buildExportData creates ExportData for a task.
-func buildExportData(t *task.Task, withState, withTranscripts bool) *ExportData {
+// buildExportDataWithBackend creates ExportData for a task using the backend.
+func buildExportDataWithBackend(backend storage.Backend, t *task.Task, withState, withTranscripts bool) *ExportData {
 	export := &ExportData{Task: t}
 
 	// Load plan
-	p, err := plan.Load(t.ID)
+	p, err := backend.LoadPlan(t.ID)
 	if err == nil {
 		export.Plan = p
 	}
 
 	// Load state if requested
 	if withState {
-		s, err := state.Load(t.ID)
+		s, err := backend.LoadState(t.ID)
 		if err == nil {
 			export.State = s
 		}

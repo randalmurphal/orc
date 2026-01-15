@@ -1,14 +1,11 @@
 // Package plan provides plan generation and management for orc.
+// Note: File I/O functions have been removed. Use storage.Backend for persistence.
 package plan
 
 import (
-	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/internal/util"
 	"github.com/randalmurphal/orc/templates"
 	"gopkg.in/yaml.v3"
 )
@@ -175,50 +172,6 @@ type planError string
 
 func (e planError) Error() string { return string(e) }
 
-// Load loads a plan from disk for a given task ID.
-func Load(taskID string) (*Plan, error) {
-	return LoadFrom(".", taskID)
-}
-
-// LoadFrom loads a plan from a specific project directory.
-func LoadFrom(projectDir, taskID string) (*Plan, error) {
-	path := filepath.Join(projectDir, task.OrcDir, task.TasksDir, taskID, PlanFileName)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("plan for task %s: %w", taskID, ErrNotFound)
-		}
-		return nil, fmt.Errorf("read plan for task %s: %w", taskID, err)
-	}
-
-	var p Plan
-	if err := yaml.Unmarshal(data, &p); err != nil {
-		return nil, fmt.Errorf("parse plan for task %s: %w", taskID, err)
-	}
-
-	return &p, nil
-}
-
-// Save persists the plan to disk using atomic writes.
-func (p *Plan) Save(taskID string) error {
-	dir := filepath.Join(task.OrcDir, task.TasksDir, taskID)
-	return p.SaveTo(dir)
-}
-
-// SaveTo saves the plan to a specific directory using atomic writes.
-func (p *Plan) SaveTo(dir string) error {
-	data, err := yaml.Marshal(p)
-	if err != nil {
-		return fmt.Errorf("marshal plan: %w", err)
-	}
-
-	path := filepath.Join(dir, PlanFileName)
-	if err := util.AtomicWriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("write plan: %w", err)
-	}
-
-	return nil
-}
 
 // LoadTemplate loads a plan template for a given weight class from embedded files.
 func LoadTemplate(weight task.Weight) (*PlanTemplate, error) {
@@ -328,31 +281,3 @@ func RegeneratePlan(t *task.Task, oldPlan *Plan) (*RegenerateResult, error) {
 	return result, nil
 }
 
-// RegeneratePlanForTask regenerates the plan for a task and saves it.
-// Also resets the task state appropriately, preserving completed phase states
-// for phases that exist in both the old and new plans.
-// Returns the regeneration result or an error.
-func RegeneratePlanForTask(projectDir string, t *task.Task) (*RegenerateResult, error) {
-	// Load the old plan to preserve phase statuses
-	// Only ignore "not found" errors - other errors might indicate a real problem
-	oldPlan, err := LoadFrom(projectDir, t.ID)
-	if err != nil && !errors.Is(err, ErrNotFound) {
-		// Non-"not found" error - plan file exists but couldn't be read
-		// Proceed without old plan (will lose phase statuses) but log would be appropriate
-		oldPlan = nil
-	}
-
-	// Regenerate the plan
-	result, err := RegeneratePlan(t, oldPlan)
-	if err != nil {
-		return nil, fmt.Errorf("regenerate plan: %w", err)
-	}
-
-	// Save the new plan
-	taskDir := filepath.Join(projectDir, task.OrcDir, task.TasksDir, t.ID)
-	if err := result.NewPlan.SaveTo(taskDir); err != nil {
-		return nil, fmt.Errorf("save plan: %w", err)
-	}
-
-	return result, nil
-}

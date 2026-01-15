@@ -14,14 +14,30 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
+
+// newTestBackend creates a test backend.
+func newTestBackend(t *testing.T) storage.Backend {
+	t.Helper()
+	tmpDir := t.TempDir()
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	t.Cleanup(func() {
+		backend.Close()
+	})
+	return backend
+}
 
 // newTestExecutor creates an executor configured for test isolation.
 func newTestExecutor(t *testing.T) *Executor {
 	t.Helper()
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
+	cfg.Backend = newTestBackend(t)
 	return New(cfg)
 }
 
@@ -838,7 +854,12 @@ func TestPublishWithNoPublisher(t *testing.T) {
 }
 
 func TestExecutePhase_Complete(t *testing.T) {
-	e := newTestExecutor(t)
+	backend := newTestBackend(t)
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	e := New(cfg)
+
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Implementation done.")
 	e.SetClient(mockClient)
 
@@ -881,9 +902,11 @@ func TestExecutePhase_Complete(t *testing.T) {
 }
 
 func TestExecutePhase_MaxIterations(t *testing.T) {
+	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.MaxIterations = 2 // Low for testing
 	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
 	e := New(cfg)
 
 	// Mock that never completes
@@ -915,7 +938,12 @@ func TestExecutePhase_MaxIterations(t *testing.T) {
 }
 
 func TestExecutePhase_Blocked(t *testing.T) {
-	e := newTestExecutor(t)
+	backend := newTestBackend(t)
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	e := New(cfg)
+
 	mockClient := claude.NewMockClient("<phase_blocked>Need clarification on requirements</phase_blocked>")
 	e.SetClient(mockClient)
 
@@ -947,7 +975,11 @@ func TestExecutePhase_Blocked(t *testing.T) {
 }
 
 func TestExecutePhase_ContextCancellation(t *testing.T) {
-	e := newTestExecutor(t)
+	backend := newTestBackend(t)
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	e := New(cfg)
 
 	// Mock that takes time (simulated by the mock sleeping)
 	mockClient := claude.NewMockClient("Response")
@@ -982,7 +1014,12 @@ func TestExecutePhase_ContextCancellation(t *testing.T) {
 }
 
 func TestExecutePhase_WithPublisher(t *testing.T) {
-	e := newTestExecutor(t)
+	backend := newTestBackend(t)
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	e := New(cfg)
+
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
 
@@ -1191,6 +1228,12 @@ func TestLoadRetryContextForPhase_WithContext(t *testing.T) {
 func TestSaveRetryContextFile(t *testing.T) {
 	tmpDir := t.TempDir()
 
+	// Create task directory for context file
+	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-001")
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
+		t.Fatalf("create task dir: %v", err)
+	}
+
 	// Save retry context
 	path, err := SaveRetryContextFile(tmpDir, "TASK-001", "test", "implement", "tests failed", "error output", 1)
 	if err != nil {
@@ -1219,6 +1262,12 @@ func TestSaveRetryContextFile(t *testing.T) {
 
 func TestSaveRetryContextFile_MultipleAttempts(t *testing.T) {
 	tmpDir := t.TempDir()
+
+	// Create task directory for context files
+	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-002")
+	if err := os.MkdirAll(taskDir, 0755); err != nil {
+		t.Fatalf("create task dir: %v", err)
+	}
 
 	// Save multiple retry contexts
 	path1, _ := SaveRetryContextFile(tmpDir, "TASK-002", "test", "implement", "first failure", "output1", 1)
@@ -1299,7 +1348,12 @@ func TestBuildPromptNode_NoPrompt(t *testing.T) {
 }
 
 func TestExecuteWithRetry_Success(t *testing.T) {
-	e := newTestExecutor(t)
+	backend := newTestBackend(t)
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	e := New(cfg)
+
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
 	e.SetClient(mockClient)
 
@@ -1331,7 +1385,12 @@ func TestExecuteWithRetry_Success(t *testing.T) {
 }
 
 func TestExecuteWithRetry_ContextCancelled(t *testing.T) {
-	e := newTestExecutor(t)
+	backend := newTestBackend(t)
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	e := New(cfg)
+
 	mockClient := claude.NewMockClient("Still working...")
 	e.SetClient(mockClient)
 
@@ -1362,8 +1421,10 @@ func TestCommitCheckpointNode(t *testing.T) {
 	// Create temp dir that's not a git repo to ensure gitOps is nil
 	tmpDir := t.TempDir()
 
+	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir
+	cfg.Backend = backend
 	e := New(cfg)
 
 	nodeFunc := e.commitCheckpointNode()
@@ -1389,21 +1450,17 @@ func TestCommitCheckpointNode(t *testing.T) {
 }
 
 // === ExecuteTask Tests ===
+// Note: These tests require full integration and are simplified
+// since they would need a real git repo and more setup.
 
 func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-EXEC-001")
-
-	// Initialize orc directory structure
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
+	backend := newTestBackend(t)
 
 	// Create task
 	testTask := task.New("TASK-EXEC-001", "Execute Task Test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -1420,7 +1477,7 @@ func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(testPlan, "TASK-EXEC-001"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -1429,7 +1486,8 @@ func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
 
 	// Create executor with mock client
 	cfg := DefaultConfig()
-	cfg.WorkDir = tmpDir
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
 	e := New(cfg)
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Implementation done!")
 	e.SetClient(mockClient)
@@ -1442,7 +1500,7 @@ func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
 	}
 
 	// Reload and verify task status
-	reloadedTask, err := task.LoadFrom(tmpDir, "TASK-EXEC-001")
+	reloadedTask, err := backend.LoadTask("TASK-EXEC-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
@@ -1452,19 +1510,13 @@ func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
 }
 
 func TestExecuteTask_ContextCancelled(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-CANCEL-001")
-
-	// Initialize orc directory structure
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
+	backend := newTestBackend(t)
 
 	// Create task
 	testTask := task.New("TASK-CANCEL-001", "Cancel Test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -1480,7 +1532,7 @@ func TestExecuteTask_ContextCancelled(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(testPlan, "TASK-CANCEL-001"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -1489,7 +1541,8 @@ func TestExecuteTask_ContextCancelled(t *testing.T) {
 
 	// Create executor with mock client that returns incomplete response
 	cfg := DefaultConfig()
-	cfg.WorkDir = tmpDir
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
 	e := New(cfg)
 	mockClient := claude.NewMockClient("Still working...")
 	e.SetClient(mockClient)
@@ -1510,19 +1563,13 @@ func TestExecuteTask_ContextCancelled(t *testing.T) {
 }
 
 func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-SKIP-001")
-
-	// Initialize orc directory structure
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
+	backend := newTestBackend(t)
 
 	// Create task
 	testTask := task.New("TASK-SKIP-001", "Skip Phase Test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -1543,7 +1590,7 @@ func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(testPlan, "TASK-SKIP-001"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -1551,13 +1598,14 @@ func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 	testState := state.New("TASK-SKIP-001")
 	testState.StartPhase("spec")
 	testState.CompletePhase("spec", "abc123")
-	if err := testState.SaveTo(taskDir); err != nil {
+	if err := backend.SaveState(testState); err != nil {
 		t.Fatalf("failed to save state: %v", err)
 	}
 
 	// Create executor with mock client
 	cfg := DefaultConfig()
-	cfg.WorkDir = tmpDir
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
 	e := New(cfg)
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
 	e.SetClient(mockClient)
@@ -1570,13 +1618,13 @@ func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 	}
 
 	// Verify task completed
-	reloadedTask, _ := task.LoadFrom(tmpDir, "TASK-SKIP-001")
+	reloadedTask, _ := backend.LoadTask("TASK-SKIP-001")
 	if reloadedTask.Status != task.StatusCompleted {
 		t.Errorf("task status = %s, want completed", reloadedTask.Status)
 	}
 
 	// Verify spec phase was skipped (not re-executed)
-	reloadedState, _ := state.LoadFrom(tmpDir, "TASK-SKIP-001")
+	reloadedState, _ := backend.LoadState("TASK-SKIP-001")
 	specPhase := reloadedState.Phases["spec"]
 	if specPhase.CommitSHA != "abc123" {
 		t.Errorf("spec phase commit SHA changed unexpectedly: %s", specPhase.CommitSHA)
@@ -1584,19 +1632,13 @@ func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 }
 
 func TestExecuteTask_WithPublisher(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-PUB-001")
-
-	// Initialize orc directory structure
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
+	backend := newTestBackend(t)
 
 	// Create task
 	testTask := task.New("TASK-PUB-001", "Publisher Test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -1612,7 +1654,7 @@ func TestExecuteTask_WithPublisher(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(testPlan, "TASK-PUB-001"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -1637,7 +1679,8 @@ func TestExecuteTask_WithPublisher(t *testing.T) {
 
 	// Create executor with mock client and publisher
 	cfg := DefaultConfig()
-	cfg.WorkDir = tmpDir
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
 	e := New(cfg)
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
 	e.SetClient(mockClient)
@@ -1685,19 +1728,13 @@ func TestExecuteTask_WithPublisher(t *testing.T) {
 // === ResumeFromPhase Tests ===
 
 func TestResumeFromPhase_Success(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-RESUME-001")
-
-	// Initialize orc directory structure
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
+	backend := newTestBackend(t)
 
 	// Create task
 	testTask := task.New("TASK-RESUME-001", "Resume Test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPaused
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -1718,7 +1755,7 @@ func TestResumeFromPhase_Success(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(testPlan, "TASK-RESUME-001"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
@@ -1728,13 +1765,14 @@ func TestResumeFromPhase_Success(t *testing.T) {
 	testState.CompletePhase("spec", "abc123")
 	testState.StartPhase("implement")
 	testState.InterruptPhase("implement")
-	if err := testState.SaveTo(taskDir); err != nil {
+	if err := backend.SaveState(testState); err != nil {
 		t.Fatalf("failed to save state: %v", err)
 	}
 
 	// Create executor with mock client
 	cfg := DefaultConfig()
-	cfg.WorkDir = tmpDir
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
 	e := New(cfg)
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
 	e.SetClient(mockClient)
@@ -1747,23 +1785,18 @@ func TestResumeFromPhase_Success(t *testing.T) {
 	}
 
 	// Verify task completed
-	reloadedTask, _ := task.LoadFrom(tmpDir, "TASK-RESUME-001")
+	reloadedTask, _ := backend.LoadTask("TASK-RESUME-001")
 	if reloadedTask.Status != task.StatusCompleted {
 		t.Errorf("task status = %s, want completed", reloadedTask.Status)
 	}
 }
 
 func TestResumeFromPhase_PhaseNotFound(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-RESUME-002")
-
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
+	backend := newTestBackend(t)
 
 	testTask := task.New("TASK-RESUME-002", "Resume Test")
 	testTask.Weight = task.WeightSmall
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -1776,14 +1809,15 @@ func TestResumeFromPhase_PhaseNotFound(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(testPlan, "TASK-RESUME-002"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	testState := state.New("TASK-RESUME-002")
 
 	cfg := DefaultConfig()
-	cfg.WorkDir = tmpDir
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
 	e := New(cfg)
 
 	ctx := context.Background()
@@ -1799,7 +1833,11 @@ func TestResumeFromPhase_PhaseNotFound(t *testing.T) {
 // === ExecuteWithRetry Tests ===
 
 func TestExecuteWithRetry_RetryOnTransientError(t *testing.T) {
-	e := newTestExecutor(t)
+	backend := newTestBackend(t)
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	e := New(cfg)
 
 	// Create a mock client that fails with an error
 	mockClient := claude.NewMockClient("").
@@ -1844,8 +1882,10 @@ func TestSaveTranscript(t *testing.T) {
 		t.Fatalf("failed to create task dir: %v", err)
 	}
 
+	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir
+	cfg.Backend = backend
 	e := New(cfg)
 
 	phaseState := PhaseState{
@@ -1870,18 +1910,14 @@ func TestSaveTranscript(t *testing.T) {
 // TestFailSetup_UpdatesTaskStatus verifies that when setup fails (e.g., worktree creation),
 // the task status is properly updated to "failed" and the error is stored.
 func TestFailSetup_UpdatesTaskStatus(t *testing.T) {
+	backend := newTestBackend(t)
 	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-SETUP-FAIL")
-
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
 
 	// Create task
 	testTask := task.New("TASK-SETUP-FAIL", "Setup Failure Test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusRunning // Set to running as if execution started
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -1891,8 +1927,9 @@ func TestFailSetup_UpdatesTaskStatus(t *testing.T) {
 	// Create executor
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir
+	cfg.Backend = backend
 	e := New(cfg)
-	e.currentTaskDir = taskDir
+	e.currentTaskDir = filepath.Join(tmpDir, ".orc/tasks/TASK-SETUP-FAIL")
 
 	// Setup publisher to capture error events
 	pub := events.NewMemoryPublisher()
@@ -1909,8 +1946,8 @@ func TestFailSetup_UpdatesTaskStatus(t *testing.T) {
 		t.Errorf("task status = %s, want failed", testTask.Status)
 	}
 
-	// Reload from disk to verify persistence
-	reloadedTask, err := task.LoadFrom(tmpDir, "TASK-SETUP-FAIL")
+	// Reload from backend to verify persistence
+	reloadedTask, err := backend.LoadTask("TASK-SETUP-FAIL")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
@@ -1951,18 +1988,13 @@ func TestFailSetup_UpdatesTaskStatus(t *testing.T) {
 }
 
 func TestExecuteTask_UpdatesTaskCurrentPhase(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-PHASE-001")
-
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
+	backend := newTestBackend(t)
 
 	// Create task
 	testTask := task.New("TASK-PHASE-001", "Current Phase Test")
 	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
-	if err := testTask.SaveTo(taskDir); err != nil {
+	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -1983,14 +2015,15 @@ func TestExecuteTask_UpdatesTaskCurrentPhase(t *testing.T) {
 			},
 		},
 	}
-	if err := testPlan.SaveTo(taskDir); err != nil {
+	if err := backend.SavePlan(testPlan, "TASK-PHASE-001"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	testState := state.New("TASK-PHASE-001")
 
 	cfg := DefaultConfig()
-	cfg.WorkDir = tmpDir
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
 	e := New(cfg)
 	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
 	e.SetClient(mockClient)
@@ -2001,8 +2034,8 @@ func TestExecuteTask_UpdatesTaskCurrentPhase(t *testing.T) {
 		t.Fatalf("ExecuteTask failed: %v", err)
 	}
 
-	// Reload task from disk to verify CurrentPhase was saved
-	reloadedTask, err := task.LoadFrom(tmpDir, "TASK-PHASE-001")
+	// Reload task from backend to verify CurrentPhase was saved
+	reloadedTask, err := backend.LoadTask("TASK-PHASE-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}

@@ -42,11 +42,17 @@ Examples:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
 
 			// Load task to verify it exists and check status
-			t, err := task.Load(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -86,20 +92,8 @@ Examples:
 				t.Metadata["resolution_message"] = message
 			}
 
-			if err := t.Save(); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
-			}
-
-			// Auto-commit the resolution
-			cfg, _ := config.Load()
-			if cfg != nil && !cfg.Tasks.DisableAutoCommit {
-				if projectDir, err := config.FindProjectRoot(); err == nil {
-					commitCfg := task.CommitConfig{
-						ProjectRoot:  projectDir,
-						CommitPrefix: cfg.CommitPrefix,
-					}
-					task.CommitAndSync(t, "resolved", commitCfg)
-				}
 			}
 
 			if plain {

@@ -1,11 +1,16 @@
 package task
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
-	"time"
 )
+
+// skipPersistenceTest skips tests that require file persistence.
+// File I/O was removed from the task package as part of the database-only migration.
+// Persistence is now tested via the storage package.
+func skipPersistenceTest(t *testing.T) {
+	t.Helper()
+	t.Skip("skipping persistence test: file I/O removed from task package, tested via storage backend")
+}
 
 func TestNew(t *testing.T) {
 	task := New("TASK-001", "Test task")
@@ -82,75 +87,11 @@ func TestCanRun(t *testing.T) {
 }
 
 func TestSaveAndLoad(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
-
-	// Create task directory
-	err := os.MkdirAll(taskDir, 0755)
-	if err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
-	// Create and save task
-	task := New("TASK-001", "Test task")
-	task.Weight = WeightMedium
-	task.Description = "Test description"
-
-	err = task.SaveTo(taskDir)
-	if err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	// Load task
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
-	}
-
-	if loaded.ID != task.ID {
-		t.Errorf("loaded ID = %s, want %s", loaded.ID, task.ID)
-	}
-
-	if loaded.Title != task.Title {
-		t.Errorf("loaded Title = %s, want %s", loaded.Title, task.Title)
-	}
-
-	if loaded.Weight != task.Weight {
-		t.Errorf("loaded Weight = %s, want %s", loaded.Weight, task.Weight)
-	}
-
-	if loaded.Description != task.Description {
-		t.Errorf("loaded Description = %s, want %s", loaded.Description, task.Description)
-	}
+	skipPersistenceTest(t)
 }
 
 func TestNextID(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
-
-	// First ID should be TASK-001 (no tasks directory yet)
-	id, err := NextIDIn(tasksDir)
-	if err != nil {
-		t.Fatalf("NextIDIn() failed: %v", err)
-	}
-	if id != "TASK-001" {
-		t.Errorf("NextIDIn() = %s, want TASK-001", id)
-	}
-
-	// Create tasks directory and first task
-	err = os.MkdirAll(filepath.Join(tasksDir, "TASK-001"), 0755)
-	if err != nil {
-		t.Fatalf("failed to create task directory: %v", err)
-	}
-
-	// Second ID should be TASK-002
-	id, err = NextIDIn(tasksDir)
-	if err != nil {
-		t.Fatalf("NextIDIn() failed: %v", err)
-	}
-	if id != "TASK-002" {
-		t.Errorf("NextIDIn() = %s, want TASK-002", id)
-	}
+	skipPersistenceTest(t)
 }
 
 func TestTaskDir(t *testing.T) {
@@ -162,319 +103,63 @@ func TestTaskDir(t *testing.T) {
 }
 
 func TestLoadAll(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
-
-	err := os.MkdirAll(tasksDir, 0755)
-	if err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
-	// Create two tasks
-	task1 := New("TASK-001", "First task")
-	task1.CreatedAt = time.Now().Add(-time.Hour)
-	task1.SaveTo(filepath.Join(tasksDir, "TASK-001"))
-
-	task2 := New("TASK-002", "Second task")
-	task2.CreatedAt = time.Now()
-	task2.SaveTo(filepath.Join(tasksDir, "TASK-002"))
-
-	// Load all
-	tasks, err := LoadAllFrom(tasksDir)
-	if err != nil {
-		t.Fatalf("LoadAllFrom() failed: %v", err)
-	}
-
-	if len(tasks) != 2 {
-		t.Errorf("LoadAllFrom() returned %d tasks, want 2", len(tasks))
-	}
-
-	// Should be sorted by creation time (newest first)
-	if tasks[0].ID != "TASK-002" {
-		t.Errorf("tasks not sorted correctly: first task is %s, want TASK-002", tasks[0].ID)
-	}
+	skipPersistenceTest(t)
 }
 
 func TestExists(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
-
-	err := os.MkdirAll(tasksDir, 0755)
-	if err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
-	// Non-existent task
-	if ExistsIn(tmpDir, "TASK-999") {
-		t.Error("ExistsIn() = true for non-existent task")
-	}
-
-	// Create task
-	task := New("TASK-001", "Test task")
-	task.SaveTo(filepath.Join(tasksDir, "TASK-001"))
-
-	// Existing task
-	if !ExistsIn(tmpDir, "TASK-001") {
-		t.Error("ExistsIn() = false for existing task")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestLoadNonExistentTask(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
-
-	err := os.MkdirAll(tasksDir, 0755)
-	if err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
-	_, err = LoadFrom(tmpDir, "TASK-999")
-	if err == nil {
-		t.Error("LoadFrom() should return error for non-existent task")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestLoadAllEmpty(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// No tasks directory at all
-	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
-	tasks, err := LoadAllFrom(tasksDir)
-	if err != nil {
-		t.Fatalf("LoadAllFrom() on empty dir should not error: %v", err)
-	}
-	if len(tasks) != 0 {
-		t.Error("LoadAllFrom() on empty dir should return nil/empty")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestLoadAllSkipsNonDirs(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
-
-	err := os.MkdirAll(tasksDir, 0755)
-	if err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
-	// Create a regular file in tasks directory (should be skipped)
-	err = os.WriteFile(filepath.Join(tasksDir, ".gitkeep"), []byte(""), 0644)
-	if err != nil {
-		t.Fatalf("failed to create .gitkeep: %v", err)
-	}
-
-	// Create a valid task
-	task := New("TASK-001", "Test task")
-	task.SaveTo(filepath.Join(tasksDir, "TASK-001"))
-
-	tasks, err := LoadAllFrom(tasksDir)
-	if err != nil {
-		t.Fatalf("LoadAllFrom() failed: %v", err)
-	}
-
-	// Should only have the valid task, not the .gitkeep file
-	if len(tasks) != 1 {
-		t.Errorf("LoadAllFrom() returned %d tasks, want 1", len(tasks))
-	}
+	skipPersistenceTest(t)
 }
 
 func TestNextIDWithGaps(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
-
-	err := os.MkdirAll(tasksDir, 0755)
-	if err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
-	// Create TASK-001 and TASK-003 (gap at 002)
-	os.MkdirAll(filepath.Join(tasksDir, "TASK-001"), 0755)
-	os.MkdirAll(filepath.Join(tasksDir, "TASK-003"), 0755)
-
-	// NextIDIn should give TASK-004 (highest + 1)
-	id, err := NextIDIn(tasksDir)
-	if err != nil {
-		t.Fatalf("NextIDIn() failed: %v", err)
-	}
-	if id != "TASK-004" {
-		t.Errorf("NextIDIn() = %s, want TASK-004", id)
-	}
+	skipPersistenceTest(t)
 }
 
 func TestDelete(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
-	os.MkdirAll(tasksDir, 0755)
-
-	task := New("TASK-001", "Test task")
-	task.Status = StatusCompleted
-	task.SaveTo(filepath.Join(tasksDir, "TASK-001"))
-
-	if !ExistsIn(tmpDir, "TASK-001") {
-		t.Error("Task should exist before delete")
-	}
-
-	err := DeleteIn(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("DeleteIn() failed: %v", err)
-	}
-
-	if ExistsIn(tmpDir, "TASK-001") {
-		t.Error("Task should not exist after delete")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestDelete_RunningTask(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
-	os.MkdirAll(tasksDir, 0755)
-
-	task := New("TASK-001", "Running task")
-	task.Status = StatusRunning
-	task.SaveTo(filepath.Join(tasksDir, "TASK-001"))
-
-	err := DeleteIn(tmpDir, "TASK-001")
-	if err == nil {
-		t.Error("DeleteIn() should fail for running task")
-	}
-
-	if !ExistsIn(tmpDir, "TASK-001") {
-		t.Error("Running task should still exist after failed delete")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestDelete_NonExistent(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, OrcDir, TasksDir)
-	os.MkdirAll(tasksDir, 0755)
-
-	err := DeleteIn(tmpDir, "TASK-999")
-	if err == nil {
-		t.Error("DeleteIn() should fail for non-existent task")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestSaveTo(t *testing.T) {
-	tmpDir := t.TempDir()
-	customDir := tmpDir + "/custom-project/.orc/tasks/TASK-001"
-
-	task := New("TASK-001", "Custom save test")
-	task.Weight = WeightLarge
-	task.Description = "Test description"
-
-	err := task.SaveTo(customDir)
-	if err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	if _, err := os.Stat(customDir + "/task.yaml"); os.IsNotExist(err) {
-		t.Error("SaveTo() did not create task.yaml")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestLoadAllFrom(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := tmpDir + "/project/.orc/tasks"
-	os.MkdirAll(tasksDir, 0755)
-
-	task1 := New("TASK-001", "First task")
-	task1.CreatedAt = time.Now().Add(-time.Hour)
-	task1.SaveTo(tasksDir + "/TASK-001")
-
-	task2 := New("TASK-002", "Second task")
-	task2.CreatedAt = time.Now()
-	task2.SaveTo(tasksDir + "/TASK-002")
-
-	tasks, err := LoadAllFrom(tasksDir)
-	if err != nil {
-		t.Fatalf("LoadAllFrom() failed: %v", err)
-	}
-
-	if len(tasks) != 2 {
-		t.Errorf("LoadAllFrom() returned %d tasks, want 2", len(tasks))
-	}
-
-	if tasks[0].ID != "TASK-002" {
-		t.Errorf("tasks not sorted correctly: first task is %s, want TASK-002", tasks[0].ID)
-	}
+	skipPersistenceTest(t)
 }
 
 func TestLoadAllFrom_Empty(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	tasks, err := LoadAllFrom(tmpDir + "/nonexistent")
-	if err != nil {
-		t.Fatalf("LoadAllFrom() should not error for non-existent: %v", err)
-	}
-	if len(tasks) != 0 {
-		t.Error("LoadAllFrom() should return nil/empty for non-existent directory")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestLoadAllFrom_SkipsInvalid(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := tmpDir + "/project/.orc/tasks"
-	os.MkdirAll(tasksDir, 0755)
-
-	task := New("TASK-001", "Valid task")
-	task.SaveTo(tasksDir + "/TASK-001")
-
-	os.MkdirAll(tasksDir+"/TASK-002", 0755)
-	os.WriteFile(tasksDir+"/TASK-002/task.yaml", []byte("invalid: yaml: [broken"), 0644)
-
-	os.MkdirAll(tasksDir+"/TASK-003", 0755)
-
-	tasks, err := LoadAllFrom(tasksDir)
-	if err != nil {
-		t.Fatalf("LoadAllFrom() failed: %v", err)
-	}
-
-	if len(tasks) != 1 {
-		t.Errorf("LoadAllFrom() returned %d tasks, want 1", len(tasks))
-	}
+	skipPersistenceTest(t)
 }
 
 func TestNextIDIn(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := tmpDir + "/project/.orc/tasks"
-
-	id, err := NextIDIn(tmpDir + "/nonexistent")
-	if err != nil {
-		t.Fatalf("NextIDIn() failed: %v", err)
-	}
-	if id != "TASK-001" {
-		t.Errorf("NextIDIn() = %s, want TASK-001", id)
-	}
-
-	os.MkdirAll(tasksDir, 0755)
-	os.MkdirAll(tasksDir+"/TASK-001", 0755)
-	os.MkdirAll(tasksDir+"/TASK-005", 0755)
-
-	id, err = NextIDIn(tasksDir)
-	if err != nil {
-		t.Fatalf("NextIDIn() failed: %v", err)
-	}
-	if id != "TASK-006" {
-		t.Errorf("NextIDIn() = %s, want TASK-006", id)
-	}
+	skipPersistenceTest(t)
 }
 
 func TestNextIDIn_SkipsNonMatching(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := tmpDir + "/project/.orc/tasks"
-
-	os.MkdirAll(tasksDir, 0755)
-	os.MkdirAll(tasksDir+"/TASK-001", 0755)
-	os.MkdirAll(tasksDir+"/invalid-task", 0755)
-	os.MkdirAll(tasksDir+"/FEATURE-001", 0755)
-
-	id, err := NextIDIn(tasksDir)
-	if err != nil {
-		t.Fatalf("NextIDIn() failed: %v", err)
-	}
-	if id != "TASK-002" {
-		t.Errorf("NextIDIn() = %s, want TASK-002", id)
-	}
+	skipPersistenceTest(t)
 }
 
 func TestIsValidWeight(t *testing.T) {
@@ -699,45 +384,7 @@ func TestSetTestingRequirements_VisualTests(t *testing.T) {
 }
 
 func TestTestingRequirements_YAMLSerialization(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
-	os.MkdirAll(taskDir, 0755)
-
-	// Create task with testing requirements
-	task := New("TASK-001", "Add login button")
-	task.Weight = WeightMedium
-	task.RequiresUITesting = true
-	task.TestingRequirements = &TestingRequirements{
-		Unit:   true,
-		E2E:    true,
-		Visual: false,
-	}
-
-	if err := task.SaveTo(taskDir); err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	// Load and verify
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
-	}
-
-	if !loaded.RequiresUITesting {
-		t.Error("RequiresUITesting not preserved")
-	}
-	if loaded.TestingRequirements == nil {
-		t.Fatal("TestingRequirements not preserved")
-	}
-	if !loaded.TestingRequirements.Unit {
-		t.Error("TestingRequirements.Unit not preserved")
-	}
-	if !loaded.TestingRequirements.E2E {
-		t.Error("TestingRequirements.E2E not preserved")
-	}
-	if loaded.TestingRequirements.Visual {
-		t.Error("TestingRequirements.Visual incorrectly set")
-	}
+	skipPersistenceTest(t)
 }
 
 // Tests for Queue functionality
@@ -922,65 +569,11 @@ func TestMoveToActive(t *testing.T) {
 }
 
 func TestQueueAndPriority_YAMLSerialization(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
-	os.MkdirAll(taskDir, 0755)
-
-	// Create task with queue and priority
-	task := New("TASK-001", "Test task")
-	task.Queue = QueueBacklog
-	task.Priority = PriorityHigh
-
-	if err := task.SaveTo(taskDir); err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	// Load and verify
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
-	}
-
-	if loaded.Queue != QueueBacklog {
-		t.Errorf("Queue not preserved: got %s, want %s", loaded.Queue, QueueBacklog)
-	}
-	if loaded.Priority != PriorityHigh {
-		t.Errorf("Priority not preserved: got %s, want %s", loaded.Priority, PriorityHigh)
-	}
+	skipPersistenceTest(t)
 }
 
 func TestQueueAndPriority_DefaultsAfterLoad(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
-	os.MkdirAll(taskDir, 0755)
-
-	// Create task without explicit queue/priority (simulating old tasks)
-	task := &Task{
-		ID:        "TASK-001",
-		Title:     "Old task",
-		Status:    StatusCreated,
-		Branch:    "orc/TASK-001",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	if err := task.SaveTo(taskDir); err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	// Load and verify defaults work correctly
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
-	}
-
-	// GetQueue and GetPriority should return defaults
-	if loaded.GetQueue() != QueueActive {
-		t.Errorf("GetQueue() should default to active, got %s", loaded.GetQueue())
-	}
-	if loaded.GetPriority() != PriorityNormal {
-		t.Errorf("GetPriority() should default to normal, got %s", loaded.GetPriority())
-	}
+	skipPersistenceTest(t)
 }
 
 // Tests for InitiativeID functionality
@@ -1055,56 +648,11 @@ func TestHasInitiative(t *testing.T) {
 }
 
 func TestInitiativeID_YAMLSerialization(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
-	os.MkdirAll(taskDir, 0755)
-
-	// Create task with initiative
-	task := New("TASK-001", "Test task")
-	task.SetInitiative("INIT-001")
-
-	if err := task.SaveTo(taskDir); err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	// Load and verify
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
-	}
-
-	if loaded.InitiativeID != "INIT-001" {
-		t.Errorf("InitiativeID not preserved: got %s, want INIT-001", loaded.InitiativeID)
-	}
-	if !loaded.HasInitiative() {
-		t.Error("HasInitiative() should return true after load")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestInitiativeID_EmptySerialization(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
-	os.MkdirAll(taskDir, 0755)
-
-	// Create task without initiative
-	task := New("TASK-001", "Test task")
-
-	if err := task.SaveTo(taskDir); err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	// Load and verify
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
-	}
-
-	if loaded.InitiativeID != "" {
-		t.Errorf("InitiativeID should be empty, got %s", loaded.InitiativeID)
-	}
-	if loaded.HasInitiative() {
-		t.Error("HasInitiative() should return false for task without initiative")
-	}
+	skipPersistenceTest(t)
 }
 
 // Tests for dependency functionality
@@ -1575,40 +1123,7 @@ func TestGetUnmetDependencies(t *testing.T) {
 }
 
 func TestDependency_YAMLSerialization(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
-	os.MkdirAll(taskDir, 0755)
-
-	// Create task with dependencies
-	task := New("TASK-001", "Test task")
-	task.BlockedBy = []string{"TASK-002", "TASK-003"}
-	task.RelatedTo = []string{"TASK-004"}
-	// Blocks and ReferencedBy are computed, not stored
-
-	if err := task.SaveTo(taskDir); err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	// Load and verify stored fields
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
-	}
-
-	if len(loaded.BlockedBy) != 2 {
-		t.Errorf("BlockedBy not preserved: got %v, want [TASK-002 TASK-003]", loaded.BlockedBy)
-	}
-	if len(loaded.RelatedTo) != 1 || loaded.RelatedTo[0] != "TASK-004" {
-		t.Errorf("RelatedTo not preserved: got %v, want [TASK-004]", loaded.RelatedTo)
-	}
-
-	// Computed fields should be empty after load (not persisted)
-	if len(loaded.Blocks) != 0 {
-		t.Errorf("Blocks should be empty after load (computed), got %v", loaded.Blocks)
-	}
-	if len(loaded.ReferencedBy) != 0 {
-		t.Errorf("ReferencedBy should be empty after load (computed), got %v", loaded.ReferencedBy)
-	}
+	skipPersistenceTest(t)
 }
 
 func TestDependencyError(t *testing.T) {
@@ -1876,84 +1391,11 @@ func TestUpdatePRStatus(t *testing.T) {
 }
 
 func TestPRInfo_YAMLSerialization(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
-	os.MkdirAll(taskDir, 0755)
-
-	// Create task with PR info
-	task := New("TASK-001", "Test task")
-	task.PR = &PRInfo{
-		URL:           "https://github.com/owner/repo/pull/123",
-		Number:        123,
-		Status:        PRStatusApproved,
-		ChecksStatus:  "success",
-		Mergeable:     true,
-		ReviewCount:   3,
-		ApprovalCount: 2,
-	}
-	now := time.Now()
-	task.PR.LastCheckedAt = &now
-
-	if err := task.SaveTo(taskDir); err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	// Load and verify
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
-	}
-
-	if loaded.PR == nil {
-		t.Fatal("PR should not be nil after loading")
-	}
-	if loaded.PR.URL != "https://github.com/owner/repo/pull/123" {
-		t.Errorf("PR.URL = %s, want https://github.com/owner/repo/pull/123", loaded.PR.URL)
-	}
-	if loaded.PR.Number != 123 {
-		t.Errorf("PR.Number = %d, want 123", loaded.PR.Number)
-	}
-	if loaded.PR.Status != PRStatusApproved {
-		t.Errorf("PR.Status = %s, want %s", loaded.PR.Status, PRStatusApproved)
-	}
-	if loaded.PR.ChecksStatus != "success" {
-		t.Errorf("PR.ChecksStatus = %s, want success", loaded.PR.ChecksStatus)
-	}
-	if !loaded.PR.Mergeable {
-		t.Error("PR.Mergeable should be true")
-	}
-	if loaded.PR.ReviewCount != 3 {
-		t.Errorf("PR.ReviewCount = %d, want 3", loaded.PR.ReviewCount)
-	}
-	if loaded.PR.ApprovalCount != 2 {
-		t.Errorf("PR.ApprovalCount = %d, want 2", loaded.PR.ApprovalCount)
-	}
-	if loaded.PR.LastCheckedAt == nil {
-		t.Error("PR.LastCheckedAt should be preserved")
-	}
+	skipPersistenceTest(t)
 }
 
 func TestPRInfo_EmptyPreserved(t *testing.T) {
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, "TASK-001")
-	os.MkdirAll(taskDir, 0755)
-
-	// Create task without PR info
-	task := New("TASK-001", "Test task")
-
-	if err := task.SaveTo(taskDir); err != nil {
-		t.Fatalf("SaveTo() failed: %v", err)
-	}
-
-	// Load and verify PR is nil
-	loaded, err := LoadFrom(tmpDir, "TASK-001")
-	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
-	}
-
-	if loaded.PR != nil {
-		t.Error("PR should be nil for task without PR info")
-	}
+	skipPersistenceTest(t)
 }
 
 // Tests for DependencyStatus functionality

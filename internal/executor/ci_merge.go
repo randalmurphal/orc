@@ -15,6 +15,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -58,6 +59,7 @@ type CIMerger struct {
 	publisher *EventPublisher
 	logger    *slog.Logger
 	workDir   string
+	backend   storage.Backend
 }
 
 // CIMergerOption configures a CIMerger.
@@ -76,6 +78,11 @@ func WithCIMergerLogger(l *slog.Logger) CIMergerOption {
 // WithCIMergerWorkDir sets the working directory for gh commands.
 func WithCIMergerWorkDir(dir string) CIMergerOption {
 	return func(m *CIMerger) { m.workDir = dir }
+}
+
+// WithCIMergerBackend sets the storage backend for task persistence.
+func WithCIMergerBackend(b storage.Backend) CIMergerOption {
+	return func(m *CIMerger) { m.backend = b }
 }
 
 // NewCIMerger creates a new CIMerger.
@@ -387,8 +394,10 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) erro
 
 	// Update task with merge info
 	t.SetMergedInfo(prURL, m.config.Completion.TargetBranch)
-	if saveErr := t.Save(); saveErr != nil {
-		m.logger.Warn("failed to save task after merge", "error", saveErr)
+	if m.backend != nil {
+		if saveErr := m.backend.SaveTask(t); saveErr != nil {
+			m.logger.Warn("failed to save task after merge", "error", saveErr)
+		}
 	}
 
 	return nil

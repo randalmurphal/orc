@@ -10,15 +10,26 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
 // === Test Results API Tests ===
 
+// createTestResultsBackend creates a backend for test results tests.
+func createTestResultsBackend(t *testing.T, tmpDir string) *storage.DatabaseBackend {
+	t.Helper()
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	return backend
+}
+
 func TestGetTestResultsEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	backend := createTestResultsBackend(t, tmpDir)
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -34,19 +45,16 @@ func TestGetTestResultsEndpoint_TaskNotFound(t *testing.T) {
 
 func TestGetTestResultsEndpoint_NoResults(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-001")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-001
-title: Test Results Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend
+	tsk := task.New("TASK-TR-001", "Test Results Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -74,22 +82,22 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetTestResultsEndpoint_WithReport(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory with test results
+	// Create task via backend
+	tsk := task.New("TASK-TR-002", "Test Results Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
+
+	// Create test results directory and report (file system artifacts)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-002")
 	testResultsDir := filepath.Join(taskDir, "test-results")
 	os.MkdirAll(testResultsDir, 0755)
 
-	taskYAML := `id: TASK-TR-002
-title: Test Results Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
-
-	// Create test report with proper structure
 	report := task.TestReport{
 		Version:   1,
 		Framework: "playwright",
@@ -136,8 +144,8 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestListScreenshotsEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	backend := createTestResultsBackend(t, tmpDir)
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -153,19 +161,16 @@ func TestListScreenshotsEndpoint_TaskNotFound(t *testing.T) {
 
 func TestListScreenshotsEndpoint_EmptyList(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-003")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-003
-title: Screenshot Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend
+	tsk := task.New("TASK-TR-003", "Screenshot Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -190,22 +195,21 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestListScreenshotsEndpoint_WithScreenshots(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory with screenshots
+	// Create task via backend
+	tsk := task.New("TASK-TR-004", "Screenshot Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
+
+	// Create screenshots directory and files (file system artifacts)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-004")
 	screenshotsDir := filepath.Join(taskDir, "test-results", "screenshots")
 	os.MkdirAll(screenshotsDir, 0755)
-
-	taskYAML := `id: TASK-TR-004
-title: Screenshot Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
-
-	// Create test screenshots
 	os.WriteFile(filepath.Join(screenshotsDir, "login-page.png"), []byte("PNG content"), 0644)
 	os.WriteFile(filepath.Join(screenshotsDir, "dashboard.png"), []byte("PNG content 2"), 0644)
 
@@ -232,22 +236,21 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetScreenshotEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory with screenshot
+	// Create task via backend
+	tsk := task.New("TASK-TR-005", "Screenshot Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
+
+	// Create screenshot (file system artifact)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-005")
 	screenshotsDir := filepath.Join(taskDir, "test-results", "screenshots")
 	os.MkdirAll(screenshotsDir, 0755)
-
-	taskYAML := `id: TASK-TR-005
-title: Screenshot Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
-
-	// Create test screenshot
 	content := []byte("PNG content")
 	os.WriteFile(filepath.Join(screenshotsDir, "test.png"), content, 0644)
 
@@ -273,19 +276,16 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetScreenshotEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-006")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-006
-title: Screenshot Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend
+	tsk := task.New("TASK-TR-006", "Screenshot Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -301,19 +301,16 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetScreenshotEndpoint_PathTraversal(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-007")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-007
-title: Screenshot Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend
+	tsk := task.New("TASK-TR-007", "Screenshot Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -331,19 +328,16 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestUploadScreenshotEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-008")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-008
-title: Screenshot Upload Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend
+	tsk := task.New("TASK-TR-008", "Screenshot Upload Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -377,8 +371,8 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestUploadScreenshotEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	backend := createTestResultsBackend(t, tmpDir)
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -401,19 +395,16 @@ func TestUploadScreenshotEndpoint_TaskNotFound(t *testing.T) {
 
 func TestUploadScreenshotEndpoint_NoFile(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-009")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-009
-title: Screenshot Upload Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend
+	tsk := task.New("TASK-TR-009", "Screenshot Upload Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -434,19 +425,16 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestSaveTestReportEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-010")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-010
-title: Test Report Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend
+	tsk := task.New("TASK-TR-010", "Test Report Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -473,7 +461,8 @@ updated_at: 2024-01-01T00:00:00Z
 		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 
-	// Verify report was saved
+	// Verify report was saved (file system artifact)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-010")
 	savedReport, _ := os.ReadFile(filepath.Join(taskDir, "test-results", "report.json"))
 	if len(savedReport) == 0 {
 		t.Error("expected report.json to be saved")
@@ -482,8 +471,8 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestSaveTestReportEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	backend := createTestResultsBackend(t, tmpDir)
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -503,19 +492,16 @@ func TestSaveTestReportEndpoint_TaskNotFound(t *testing.T) {
 
 func TestSaveTestReportEndpoint_InvalidBody(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-011")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-011
-title: Test Report Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend
+	tsk := task.New("TASK-TR-011", "Test Report Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -532,19 +518,16 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestInitTestResultsEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-012")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-012
-title: Init Test Results Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend
+	tsk := task.New("TASK-TR-012", "Init Test Results Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -569,7 +552,8 @@ updated_at: 2024-01-01T00:00:00Z
 		t.Error("expected path to be returned")
 	}
 
-	// Verify directories were created
+	// Verify directories were created (file system artifacts)
+	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-012")
 	if _, err := os.Stat(filepath.Join(taskDir, "test-results", "screenshots")); os.IsNotExist(err) {
 		t.Error("expected screenshots directory to be created")
 	}
@@ -580,8 +564,8 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestInitTestResultsEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	backend := createTestResultsBackend(t, tmpDir)
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -597,21 +581,21 @@ func TestInitTestResultsEndpoint_TaskNotFound(t *testing.T) {
 
 func TestGetHTMLReportEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory with HTML report
+	// Create task via backend
+	tsk := task.New("TASK-TR-013", "HTML Report Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
+
+	// Create HTML report (file system artifact)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-013")
 	testResultsDir := filepath.Join(taskDir, "test-results")
 	os.MkdirAll(testResultsDir, 0755)
-
-	taskYAML := `id: TASK-TR-013
-title: HTML Report Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
-
 	htmlContent := "<html><body>Test Report</body></html>"
 	os.WriteFile(filepath.Join(testResultsDir, "index.html"), []byte(htmlContent), 0644)
 
@@ -637,19 +621,16 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetHTMLReportEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory without HTML report
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-014")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-014
-title: HTML Report Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend (no HTML report)
+	tsk := task.New("TASK-TR-014", "HTML Report Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -665,21 +646,21 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetTraceEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory with trace file
+	// Create task via backend
+	tsk := task.New("TASK-TR-015", "Trace Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
+
+	// Create trace file (file system artifact)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-015")
 	tracesDir := filepath.Join(taskDir, "test-results", "traces")
 	os.MkdirAll(tracesDir, 0755)
-
-	taskYAML := `id: TASK-TR-015
-title: Trace Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
-
 	traceContent := []byte("fake zip content")
 	os.WriteFile(filepath.Join(tracesDir, "trace.zip"), traceContent, 0644)
 
@@ -705,19 +686,16 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetTraceEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory without trace
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-016")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-016
-title: Trace Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend (no trace file)
+	tsk := task.New("TASK-TR-016", "Trace Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -733,19 +711,16 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetTraceEndpoint_PathTraversal(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-017")
-	os.MkdirAll(taskDir, 0755)
-
-	taskYAML := `id: TASK-TR-017
-title: Trace Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	// Create task via backend
+	tsk := task.New("TASK-TR-017", "Trace Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -763,8 +738,18 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestGetTestResultsEndpoint_WithScreenshotsAndTraces(t *testing.T) {
 	tmpDir := t.TempDir()
+	backend := createTestResultsBackend(t, tmpDir)
 
-	// Create task directory with full test results
+	// Create task via backend
+	tsk := task.New("TASK-TR-018", "Full Test Results Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	backend.Close()
+
+	// Create full test results (file system artifacts)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-018")
 	testResultsDir := filepath.Join(taskDir, "test-results")
 	screenshotsDir := filepath.Join(testResultsDir, "screenshots")
@@ -772,16 +757,7 @@ func TestGetTestResultsEndpoint_WithScreenshotsAndTraces(t *testing.T) {
 	os.MkdirAll(screenshotsDir, 0755)
 	os.MkdirAll(tracesDir, 0755)
 
-	taskYAML := `id: TASK-TR-018
-title: Full Test Results Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
-
-	// Create test report with proper structure
+	// Create test report
 	report := task.TestReport{
 		Version:   1,
 		Framework: "playwright",

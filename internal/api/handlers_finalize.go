@@ -147,7 +147,7 @@ func (s *Server) handleFinalizeTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load task
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
@@ -198,7 +198,8 @@ func (s *Server) handleGetFinalizeStatus(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Check if task exists
-	if !task.ExistsIn(s.workDir, taskID) {
+	exists, err := s.backend.TaskExists(taskID)
+	if err != nil || !exists {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
@@ -206,8 +207,8 @@ func (s *Server) handleGetFinalizeStatus(w http.ResponseWriter, r *http.Request)
 	// Get finalize state
 	finState := finTracker.get(taskID)
 	if finState == nil {
-		// No finalize in progress - check state.yaml for completed finalize
-		st, err := state.LoadFrom(s.workDir, taskID)
+		// No finalize in progress - check state for completed finalize
+		st, err := s.backend.LoadState(taskID)
 		if err != nil {
 			s.jsonResponse(w, map[string]any{
 				"task_id": taskID,
@@ -290,13 +291,13 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, _ FinalizeRequest
 	s.publishFinalizeEvent(taskID, finState)
 
 	// Load plan and state
-	p, err := plan.LoadFrom(s.workDir, taskID)
+	p, err := s.backend.LoadPlan(taskID)
 	if err != nil {
 		s.finalizeFailed(taskID, finState, fmt.Errorf("load plan: %w", err))
 		return
 	}
 
-	st, err := state.LoadFrom(s.workDir, taskID)
+	st, err := s.backend.LoadState(taskID)
 	if err != nil {
 		st = state.New(taskID)
 	}
@@ -388,7 +389,7 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, _ FinalizeRequest
 
 	// Update state to running
 	st.StartPhase("finalize")
-	if err := st.SaveTo(task.TaskDirIn(s.workDir, taskID)); err != nil {
+	if err := s.backend.SaveState(st); err != nil {
 		s.logger.Warn("failed to save state", "error", err)
 	}
 
@@ -396,7 +397,7 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, _ FinalizeRequest
 	result, err := finalizeExec.Execute(ctx, t, finalizePhase, st)
 	if err != nil {
 		st.FailPhase("finalize", err)
-		_ = st.SaveTo(task.TaskDirIn(s.workDir, taskID))
+		_ = s.backend.SaveState(st)
 		s.finalizeFailed(taskID, finState, err)
 		return
 	}
@@ -408,7 +409,7 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, _ FinalizeRequest
 	case plan.PhaseFailed:
 		st.FailPhase("finalize", result.Error)
 	}
-	_ = st.SaveTo(task.TaskDirIn(s.workDir, taskID))
+	_ = s.backend.SaveState(st)
 
 	// Build result from executor result
 	finResult := &FinalizeResult{
@@ -465,9 +466,6 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, _ FinalizeRequest
 	finState.mu.Unlock()
 	s.publishFinalizeEvent(taskID, finState)
 
-	// Auto-commit: finalize completed
-	s.autoCommitTaskState(taskID, "finalize completed")
-
 	s.logger.Info("finalize completed", "task", taskID, "commit", result.CommitSHA)
 }
 
@@ -482,9 +480,6 @@ func (s *Server) finalizeFailed(taskID string, finState *FinalizeState, err erro
 	finState.mu.Unlock()
 
 	s.publishFinalizeEvent(taskID, finState)
-
-	// Auto-commit: finalize failed
-	s.autoCommitTaskState(taskID, "finalize failed")
 
 	s.logger.Error("finalize failed", "task", taskID, "error", err)
 }
@@ -537,7 +532,7 @@ func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error) {
 	}
 
 	// Load task
-	t, err := task.LoadFrom(s.workDir, taskID)
+	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		return false, fmt.Errorf("load task: %w", err)
 	}
@@ -556,7 +551,7 @@ func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error) {
 	}
 
 	// Check if finalize was already completed
-	st, err := state.LoadFrom(s.workDir, taskID)
+	st, err := s.backend.LoadState(taskID)
 	if err == nil {
 		if phaseState, ok := st.Phases["finalize"]; ok {
 			if phaseState.Status == state.StatusCompleted {

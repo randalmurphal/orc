@@ -11,7 +11,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 func newInitiativeCmd() *cobra.Command {
@@ -68,7 +67,6 @@ func newInitiativeNewCmd() *cobra.Command {
 Example:
   orc initiative new "User Authentication System"
   orc initiative new "API Refactor" --vision "Modern REST API with OpenAPI spec"
-  orc initiative new "Dark Mode" --shared  # Creates in shared directory for teams
   orc initiative new "React Migration" --blocked-by INIT-001  # Depends on another initiative`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -76,14 +74,19 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			title := args[0]
 			vision, _ := cmd.Flags().GetString("vision")
-			shared, _ := cmd.Flags().GetBool("shared")
 			ownerInitials, _ := cmd.Flags().GetString("owner")
 			blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")
 
 			// Generate next initiative ID
-			id, err := initiative.NextID(shared)
+			id, err := backend.GetNextInitiativeID()
 			if err != nil {
 				return fmt.Errorf("generate initiative ID: %w", err)
 			}
@@ -91,7 +94,7 @@ Example:
 			// Validate blocked-by references
 			if len(blockedBy) > 0 {
 				// Load all initiatives to validate
-				allInits, err := initiative.List(shared)
+				allInits, err := backend.LoadAllInitiatives()
 				if err != nil {
 					return fmt.Errorf("load initiatives for validation: %w", err)
 				}
@@ -119,18 +122,9 @@ Example:
 			}
 
 			// Save
-			var saveErr error
-			if shared {
-				saveErr = init.SaveShared()
-			} else {
-				saveErr = init.Save()
+			if err := backend.SaveInitiative(init); err != nil {
+				return fmt.Errorf("save initiative: %w", err)
 			}
-			if saveErr != nil {
-				return fmt.Errorf("save initiative: %w", saveErr)
-			}
-
-			// Auto-commit and sync to DB
-			initiative.CommitAndSync(init, "create", initiative.DefaultCommitConfig())
 
 			if !quiet {
 				fmt.Printf("Initiative created: %s\n", id)
@@ -141,9 +135,6 @@ Example:
 				}
 				if len(blockedBy) > 0 {
 					fmt.Printf("   Blocked by: %s\n", strings.Join(blockedBy, ", "))
-				}
-				if shared {
-					fmt.Println("   Location: shared (team visible)")
 				}
 				fmt.Println("\nNext steps:")
 				fmt.Printf("  orc initiative add-task %s TASK-XXX  - Link tasks\n", id)
@@ -157,7 +148,6 @@ Example:
 
 	cmd.Flags().StringP("vision", "V", "", "initiative vision statement")
 	cmd.Flags().StringP("owner", "o", "", "owner initials")
-	cmd.Flags().Bool("shared", false, "create in shared directory for team access")
 	cmd.Flags().StringSlice("blocked-by", nil, "initiative IDs that must complete before this initiative")
 
 	return cmd
@@ -172,19 +162,29 @@ func newInitiativeListCmd() *cobra.Command {
 				return err
 			}
 
-			status, _ := cmd.Flags().GetString("status")
-			shared, _ := cmd.Flags().GetBool("shared")
-
-			var initiatives []*initiative.Initiative
-			var err error
-
-			if status != "" {
-				initiatives, err = initiative.ListByStatus(initiative.Status(status), shared)
-			} else {
-				initiatives, err = initiative.List(shared)
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
 			}
+			defer backend.Close()
+
+			statusFilter, _ := cmd.Flags().GetString("status")
+
+			initiatives, err := backend.LoadAllInitiatives()
 			if err != nil {
 				return fmt.Errorf("list initiatives: %w", err)
+			}
+
+			// Filter by status if provided
+			if statusFilter != "" {
+				targetStatus := initiative.Status(statusFilter)
+				var filtered []*initiative.Initiative
+				for _, init := range initiatives {
+					if init.Status == targetStatus {
+						filtered = append(filtered, init)
+					}
+				}
+				initiatives = filtered
 			}
 
 			if len(initiatives) == 0 {
@@ -225,7 +225,6 @@ func newInitiativeListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringP("status", "s", "", "filter by status (draft, active, completed, archived)")
-	cmd.Flags().Bool("shared", false, "list shared initiatives")
 
 	return cmd
 }
@@ -248,23 +247,22 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
-			shared, _ := cmd.Flags().GetBool("shared")
 
 			// Load initiative
-			var init *initiative.Initiative
-			var err error
-			if shared {
-				init, err = initiative.LoadShared(id)
-			} else {
-				init, err = initiative.Load(id)
-			}
+			init, err := backend.LoadInitiative(id)
 			if err != nil {
 				return fmt.Errorf("load initiative: %w", err)
 			}
 
 			// Load all initiatives for validation
-			allInits, err := initiative.List(shared)
+			allInits, err := backend.LoadAllInitiatives()
 			if err != nil {
 				return fmt.Errorf("load initiatives for validation: %w", err)
 			}
@@ -334,24 +332,15 @@ Example:
 			}
 
 			// Save
-			if shared {
-				err = init.SaveShared()
-			} else {
-				err = init.Save()
-			}
-			if err != nil {
+			if err := backend.SaveInitiative(init); err != nil {
 				return fmt.Errorf("save initiative: %w", err)
 			}
-
-			// Auto-commit and sync to DB
-			initiative.CommitAndSync(init, "edit", initiative.DefaultCommitConfig())
 
 			fmt.Printf("Updated initiative %s\n", id)
 			return nil
 		},
 	}
 
-	cmd.Flags().Bool("shared", false, "use shared initiative")
 	cmd.Flags().String("title", "", "set initiative title")
 	cmd.Flags().StringP("vision", "V", "", "set initiative vision")
 	cmd.Flags().StringP("owner", "o", "", "set owner initials")
@@ -372,22 +361,21 @@ func newInitiativeShowCmd() *cobra.Command {
 				return err
 			}
 
-			id := args[0]
-			shared, _ := cmd.Flags().GetBool("shared")
-
-			var init *initiative.Initiative
-			var err error
-			if shared {
-				init, err = initiative.LoadShared(id)
-			} else {
-				init, err = initiative.Load(id)
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
 			}
+			defer backend.Close()
+
+			id := args[0]
+
+			init, err := backend.LoadInitiative(id)
 			if err != nil {
 				return fmt.Errorf("load initiative: %w", err)
 			}
 
 			// Load all initiatives for dependency info
-			allInits, err := initiative.List(shared)
+			allInits, err := backend.LoadAllInitiatives()
 			if err != nil {
 				return fmt.Errorf("load initiatives: %w", err)
 			}
@@ -465,11 +453,11 @@ func newInitiativeShowCmd() *cobra.Command {
 				}
 			}
 
-			// Show tasks with actual status from task.yaml
+			// Show tasks with actual status from database
 			if len(init.Tasks) > 0 {
 				// Create task loader to get actual status
 				taskLoader := func(taskID string) (string, string, error) {
-					t, err := task.Load(taskID)
+					t, err := backend.LoadTask(taskID)
 					if err != nil {
 						return "", "", nil // Task not found, keep stored status
 					}
@@ -503,8 +491,6 @@ func newInitiativeShowCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("shared", false, "look in shared directory")
-
 	return cmd
 }
 
@@ -523,25 +509,24 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			initID := args[0]
 			taskID := args[1]
 			dependsOn, _ := cmd.Flags().GetStringSlice("depends-on")
-			shared, _ := cmd.Flags().GetBool("shared")
 
 			// Load initiative
-			var init *initiative.Initiative
-			var err error
-			if shared {
-				init, err = initiative.LoadShared(initID)
-			} else {
-				init, err = initiative.Load(initID)
-			}
+			init, err := backend.LoadInitiative(initID)
 			if err != nil {
 				return fmt.Errorf("load initiative: %w", err)
 			}
 
 			// Load task to get title
-			t, err := task.Load(taskID)
+			t, err := backend.LoadTask(taskID)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -550,17 +535,9 @@ Example:
 			init.AddTask(taskID, t.Title, dependsOn)
 
 			// Save
-			if shared {
-				err = init.SaveShared()
-			} else {
-				err = init.Save()
-			}
-			if err != nil {
+			if err := backend.SaveInitiative(init); err != nil {
 				return fmt.Errorf("save initiative: %w", err)
 			}
-
-			// Auto-commit and sync to DB
-			initiative.CommitAndSync(init, "add-task", initiative.DefaultCommitConfig())
 
 			fmt.Printf("Added %s to %s\n", taskID, initID)
 			if len(dependsOn) > 0 {
@@ -572,7 +549,6 @@ Example:
 	}
 
 	cmd.Flags().StringSlice("depends-on", nil, "task dependencies (can specify multiple)")
-	cmd.Flags().Bool("shared", false, "use shared initiative")
 
 	return cmd
 }
@@ -593,29 +569,33 @@ Examples:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			initID := args[0]
 			taskIDs := args[1:]
 			allMatching, _ := cmd.Flags().GetString("all-matching")
-			shared, _ := cmd.Flags().GetBool("shared")
 
 			// Load initiative
-			var init *initiative.Initiative
-			var err error
-			if shared {
-				init, err = initiative.LoadShared(initID)
-			} else {
-				init, err = initiative.Load(initID)
-			}
+			init, err := backend.LoadInitiative(initID)
 			if err != nil {
 				return fmt.Errorf("load initiative: %w", err)
 			}
 
 			// Collect tasks to link
-			var tasksToLink []*task.Task
+			type taskInfo struct {
+				ID           string
+				Title        string
+				InitiativeID string
+			}
+			var tasksToLink []taskInfo
 
 			// If --all-matching is provided, find matching tasks
 			if allMatching != "" {
-				allTasks, err := task.LoadAll()
+				allTasks, err := backend.LoadAllTasks()
 				if err != nil {
 					return fmt.Errorf("load tasks: %w", err)
 				}
@@ -629,7 +609,7 @@ Examples:
 						if t.InitiativeID == initID && init.HasTask(t.ID) {
 							continue
 						}
-						tasksToLink = append(tasksToLink, t)
+						tasksToLink = append(tasksToLink, taskInfo{ID: t.ID, Title: t.Title, InitiativeID: t.InitiativeID})
 					}
 				}
 
@@ -641,7 +621,7 @@ Examples:
 
 			// Add explicitly specified task IDs
 			for _, taskID := range taskIDs {
-				t, err := task.Load(taskID)
+				t, err := backend.LoadTask(taskID)
 				if err != nil {
 					return fmt.Errorf("load task %s: %w", taskID, err)
 				}
@@ -650,7 +630,7 @@ Examples:
 					fmt.Printf("Skipping %s: already linked to %s\n", taskID, initID)
 					continue
 				}
-				tasksToLink = append(tasksToLink, t)
+				tasksToLink = append(tasksToLink, taskInfo{ID: t.ID, Title: t.Title, InitiativeID: t.InitiativeID})
 			}
 
 			if len(tasksToLink) == 0 {
@@ -661,16 +641,22 @@ Examples:
 			// Link all tasks
 			var linked []string
 			var skippedOther []string // Tasks linked to a different initiative
-			for _, t := range tasksToLink {
+			for _, ti := range tasksToLink {
 				// Check if already linked to another initiative
-				if t.InitiativeID != "" && t.InitiativeID != initID {
-					skippedOther = append(skippedOther, fmt.Sprintf("%s (linked to %s)", t.ID, t.InitiativeID))
+				if ti.InitiativeID != "" && ti.InitiativeID != initID {
+					skippedOther = append(skippedOther, fmt.Sprintf("%s (linked to %s)", ti.ID, ti.InitiativeID))
 					continue
+				}
+
+				// Load full task to update
+				t, err := backend.LoadTask(ti.ID)
+				if err != nil {
+					return fmt.Errorf("load task %s for update: %w", ti.ID, err)
 				}
 
 				// Update task
 				t.SetInitiative(initID)
-				if err := t.Save(); err != nil {
+				if err := backend.SaveTask(t); err != nil {
 					return fmt.Errorf("save task %s: %w", t.ID, err)
 				}
 
@@ -680,17 +666,9 @@ Examples:
 			}
 
 			// Save initiative
-			if shared {
-				err = init.SaveShared()
-			} else {
-				err = init.Save()
-			}
-			if err != nil {
+			if err := backend.SaveInitiative(init); err != nil {
 				return fmt.Errorf("save initiative: %w", err)
 			}
-
-			// Auto-commit and sync to DB
-			initiative.CommitAndSync(init, "link-tasks", initiative.DefaultCommitConfig())
 
 			// Print summary
 			if len(linked) > 0 {
@@ -732,19 +710,18 @@ Examples:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			initID := args[0]
 			taskIDs := args[1:]
 			unlinkAll, _ := cmd.Flags().GetBool("all")
-			shared, _ := cmd.Flags().GetBool("shared")
 
 			// Load initiative
-			var init *initiative.Initiative
-			var err error
-			if shared {
-				init, err = initiative.LoadShared(initID)
-			} else {
-				init, err = initiative.Load(initID)
-			}
+			init, err := backend.LoadInitiative(initID)
 			if err != nil {
 				return fmt.Errorf("load initiative: %w", err)
 			}
@@ -767,7 +744,7 @@ Examples:
 			var notFound []string
 			for _, taskID := range taskIDs {
 				// Load task
-				t, err := task.Load(taskID)
+				t, err := backend.LoadTask(taskID)
 				if err != nil {
 					notFound = append(notFound, taskID)
 					continue
@@ -785,7 +762,7 @@ Examples:
 
 				// Update task
 				t.SetInitiative("")
-				if err := t.Save(); err != nil {
+				if err := backend.SaveTask(t); err != nil {
 					return fmt.Errorf("save task %s: %w", taskID, err)
 				}
 
@@ -795,17 +772,9 @@ Examples:
 			}
 
 			// Save initiative
-			if shared {
-				err = init.SaveShared()
-			} else {
-				err = init.Save()
-			}
-			if err != nil {
+			if err := backend.SaveInitiative(init); err != nil {
 				return fmt.Errorf("save initiative: %w", err)
 			}
-
-			// Auto-commit and sync to DB
-			initiative.CommitAndSync(init, "unlink-tasks", initiative.DefaultCommitConfig())
 
 			// Print summary
 			if len(unlinked) > 0 {
@@ -846,20 +815,19 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			initID := args[0]
 			decision := args[1]
 			rationale, _ := cmd.Flags().GetString("rationale")
 			by, _ := cmd.Flags().GetString("by")
-			shared, _ := cmd.Flags().GetBool("shared")
 
 			// Load initiative
-			var init *initiative.Initiative
-			var err error
-			if shared {
-				init, err = initiative.LoadShared(initID)
-			} else {
-				init, err = initiative.Load(initID)
-			}
+			init, err := backend.LoadInitiative(initID)
 			if err != nil {
 				return fmt.Errorf("load initiative: %w", err)
 			}
@@ -868,17 +836,9 @@ Example:
 			init.AddDecision(decision, rationale, by)
 
 			// Save
-			if shared {
-				err = init.SaveShared()
-			} else {
-				err = init.Save()
-			}
-			if err != nil {
+			if err := backend.SaveInitiative(init); err != nil {
 				return fmt.Errorf("save initiative: %w", err)
 			}
-
-			// Auto-commit and sync to DB
-			initiative.CommitAndSync(init, "decide", initiative.DefaultCommitConfig())
 
 			decID := init.Decisions[len(init.Decisions)-1].ID
 			fmt.Printf("Decision recorded: %s\n", decID)
@@ -893,7 +853,6 @@ Example:
 
 	cmd.Flags().StringP("rationale", "r", "", "rationale for the decision")
 	cmd.Flags().StringP("by", "b", "", "who made the decision (initials)")
-	cmd.Flags().Bool("shared", false, "use shared initiative")
 
 	return cmd
 }
@@ -908,40 +867,30 @@ func newInitiativeActivateCmd() *cobra.Command {
 				return err
 			}
 
-			id := args[0]
-			shared, _ := cmd.Flags().GetBool("shared")
-
-			var init *initiative.Initiative
-			var err error
-			if shared {
-				init, err = initiative.LoadShared(id)
-			} else {
-				init, err = initiative.Load(id)
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
 			}
+			defer backend.Close()
+
+			id := args[0]
+
+			init, err := backend.LoadInitiative(id)
 			if err != nil {
 				return fmt.Errorf("load initiative: %w", err)
 			}
 
 			init.Activate()
 
-			if shared {
-				err = init.SaveShared()
-			} else {
-				err = init.Save()
-			}
-			if err != nil {
+			if err := backend.SaveInitiative(init); err != nil {
 				return fmt.Errorf("save initiative: %w", err)
 			}
-
-			// Auto-commit and sync to DB
-			initiative.CommitAndSync(init, "activate", initiative.DefaultCommitConfig())
 
 			fmt.Printf("Initiative %s is now active\n", id)
 			return nil
 		},
 	}
 
-	cmd.Flags().Bool("shared", false, "use shared initiative")
 	return cmd
 }
 
@@ -955,40 +904,30 @@ func newInitiativeCompleteCmd() *cobra.Command {
 				return err
 			}
 
-			id := args[0]
-			shared, _ := cmd.Flags().GetBool("shared")
-
-			var init *initiative.Initiative
-			var err error
-			if shared {
-				init, err = initiative.LoadShared(id)
-			} else {
-				init, err = initiative.Load(id)
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
 			}
+			defer backend.Close()
+
+			id := args[0]
+
+			init, err := backend.LoadInitiative(id)
 			if err != nil {
 				return fmt.Errorf("load initiative: %w", err)
 			}
 
 			init.Complete()
 
-			if shared {
-				err = init.SaveShared()
-			} else {
-				err = init.Save()
-			}
-			if err != nil {
+			if err := backend.SaveInitiative(init); err != nil {
 				return fmt.Errorf("save initiative: %w", err)
 			}
-
-			// Auto-commit and sync to DB
-			initiative.CommitAndSync(init, "complete", initiative.DefaultCommitConfig())
 
 			fmt.Printf("Initiative %s marked as completed\n", id)
 			return nil
 		},
 	}
 
-	cmd.Flags().Bool("shared", false, "use shared initiative")
 	return cmd
 }
 
@@ -1012,26 +951,25 @@ Examples:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
-			shared, _ := cmd.Flags().GetBool("shared")
 			execute, _ := cmd.Flags().GetBool("execute")
 			parallel, _ := cmd.Flags().GetBool("parallel")
 			profile, _ := cmd.Flags().GetString("profile")
 			force, _ := cmd.Flags().GetBool("force")
 
-			var init *initiative.Initiative
-			var err error
-			if shared {
-				init, err = initiative.LoadShared(id)
-			} else {
-				init, err = initiative.Load(id)
-			}
+			init, err := backend.LoadInitiative(id)
 			if err != nil {
 				return fmt.Errorf("load initiative: %w", err)
 			}
 
 			// Load all initiatives to check blocking status
-			allInits, err := initiative.List(shared)
+			allInits, err := backend.LoadAllInitiatives()
 			if err != nil {
 				return fmt.Errorf("load initiatives: %w", err)
 			}
@@ -1115,14 +1053,14 @@ Examples:
 				fmt.Printf("[%d/%d] Running %s: %s\n", i+1, len(ready), initTask.ID, initTask.Title)
 
 				// Load actual task
-				t, err := task.Load(initTask.ID)
+				t, err := backend.LoadTask(initTask.ID)
 				if err != nil {
 					fmt.Printf("  ✗ Failed to load: %v\n", err)
 					continue
 				}
 
 				// Check if can run
-				if !t.CanRun() && t.Status != task.StatusRunning {
+				if !t.CanRun() && t.Status != "running" {
 					fmt.Printf("  ✗ Cannot run (status: %s)\n", t.Status)
 					continue
 				}
@@ -1144,7 +1082,6 @@ Examples:
 		},
 	}
 
-	cmd.Flags().Bool("shared", false, "use shared initiative")
 	cmd.Flags().Bool("execute", false, "actually run the tasks (default: preview only)")
 	cmd.Flags().Bool("parallel", false, "run ready tasks in parallel (requires --execute)")
 	cmd.Flags().StringP("profile", "p", "", "automation profile for task execution")
@@ -1163,12 +1100,21 @@ func newInitiativeDeleteCmd() *cobra.Command {
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
-			shared, _ := cmd.Flags().GetBool("shared")
 			force, _ := cmd.Flags().GetBool("force")
 
 			// Check if exists
-			if !initiative.Exists(id, shared) {
+			exists, err := backend.InitiativeExists(id)
+			if err != nil {
+				return fmt.Errorf("check initiative: %w", err)
+			}
+			if !exists {
 				return fmt.Errorf("initiative %s not found", id)
 			}
 
@@ -1182,19 +1128,15 @@ func newInitiativeDeleteCmd() *cobra.Command {
 				}
 			}
 
-			if err := initiative.Delete(id, shared); err != nil {
+			if err := backend.DeleteInitiative(id); err != nil {
 				return fmt.Errorf("delete initiative: %w", err)
 			}
-
-			// Auto-commit deletion and remove from DB
-			initiative.CommitDeletion(id, initiative.DefaultCommitConfig())
 
 			fmt.Printf("Deleted initiative %s\n", id)
 			return nil
 		},
 	}
 
-	cmd.Flags().Bool("shared", false, "delete from shared directory")
 	cmd.Flags().BoolP("force", "f", false, "skip confirmation")
 
 	return cmd

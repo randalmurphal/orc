@@ -9,11 +9,12 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
 // withResumeTestDir creates a temp directory with orc initialized and changes to it
-func withResumeTestDir(t *testing.T) {
+func withResumeTestDir(t *testing.T) string {
 	t.Helper()
 
 	tmpDir := t.TempDir()
@@ -33,17 +34,32 @@ func withResumeTestDir(t *testing.T) {
 	t.Cleanup(func() {
 		_ = os.Chdir(origWd)
 	})
+
+	return tmpDir
+}
+
+// createResumeTestBackend creates a backend in the given directory.
+func createResumeTestBackend(t *testing.T, dir string) storage.Backend {
+	t.Helper()
+	backend, err := storage.NewDatabaseBackend(dir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	return backend
 }
 
 // createTaskWithStatus creates a task with the given status and sets up plan/state
-func createTaskWithStatus(t *testing.T, id string, status task.Status) *task.Task {
+func createTaskWithStatus(t *testing.T, tmpDir, id string, status task.Status) *task.Task {
 	t.Helper()
+
+	backend := createResumeTestBackend(t, tmpDir)
+	defer backend.Close()
 
 	tk := task.New(id, "Test task")
 	tk.Status = status
 	tk.Weight = task.WeightSmall
 
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -58,14 +74,14 @@ func createTaskWithStatus(t *testing.T, id string, status task.Status) *task.Tas
 			{ID: "test", Name: "test", Status: plan.PhasePending},
 		},
 	}
-	if err := p.Save(id); err != nil {
+	if err := backend.SavePlan(p, id); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	// Create state with a current phase
 	s := state.New(id)
 	s.CurrentPhase = "implement"
-	if err := s.Save(); err != nil {
+	if err := backend.SaveState(s); err != nil {
 		t.Fatalf("failed to save state: %v", err)
 	}
 
@@ -73,10 +89,10 @@ func createTaskWithStatus(t *testing.T, id string, status task.Status) *task.Tas
 }
 
 func TestResumeCommand_FailedTask(t *testing.T) {
-	withResumeTestDir(t)
+	tmpDir := withResumeTestDir(t)
 
 	// Create a failed task
-	createTaskWithStatus(t, "TASK-001", task.StatusFailed)
+	createTaskWithStatus(t, tmpDir, "TASK-001", task.StatusFailed)
 
 	// Run resume command
 	cmd := newResumeCmd()
@@ -126,10 +142,10 @@ func TestResumeCommand_TaskNotFound(t *testing.T) {
 }
 
 func TestResumeCommand_PausedTask(t *testing.T) {
-	withResumeTestDir(t)
+	tmpDir := withResumeTestDir(t)
 
 	// Create a paused task
-	createTaskWithStatus(t, "TASK-001", task.StatusPaused)
+	createTaskWithStatus(t, tmpDir, "TASK-001", task.StatusPaused)
 
 	cmd := newResumeCmd()
 	cmd.SetArgs([]string{"TASK-001"})
@@ -143,10 +159,10 @@ func TestResumeCommand_PausedTask(t *testing.T) {
 }
 
 func TestResumeCommand_BlockedTask(t *testing.T) {
-	withResumeTestDir(t)
+	tmpDir := withResumeTestDir(t)
 
 	// Create a blocked task
-	createTaskWithStatus(t, "TASK-001", task.StatusBlocked)
+	createTaskWithStatus(t, tmpDir, "TASK-001", task.StatusBlocked)
 
 	cmd := newResumeCmd()
 	cmd.SetArgs([]string{"TASK-001"})
@@ -160,10 +176,10 @@ func TestResumeCommand_BlockedTask(t *testing.T) {
 }
 
 func TestResumeCommand_CompletedTaskNotResumable(t *testing.T) {
-	withResumeTestDir(t)
+	tmpDir := withResumeTestDir(t)
 
 	// Create a completed task
-	createTaskWithStatus(t, "TASK-001", task.StatusCompleted)
+	createTaskWithStatus(t, tmpDir, "TASK-001", task.StatusCompleted)
 
 	cmd := newResumeCmd()
 	cmd.SetArgs([]string{"TASK-001"})
@@ -189,10 +205,10 @@ func TestResumeCommand_CompletedTaskNotResumable(t *testing.T) {
 }
 
 func TestResumeCommand_CreatedTaskNotResumable(t *testing.T) {
-	withResumeTestDir(t)
+	tmpDir := withResumeTestDir(t)
 
 	// Create a task with created status
-	createTaskWithStatus(t, "TASK-001", task.StatusCreated)
+	createTaskWithStatus(t, tmpDir, "TASK-001", task.StatusCreated)
 
 	cmd := newResumeCmd()
 	cmd.SetArgs([]string{"TASK-001"})
@@ -215,7 +231,7 @@ func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 		t.Fatalf("failed to init orc: %v", err)
 	}
 
-	// Create a task in the main repo
+	// Create a task in the main repo via backend
 	origWd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("failed to get working dir: %v", err)
@@ -226,10 +242,13 @@ func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 		t.Fatalf("failed to chdir to tmpDir: %v", err)
 	}
 
+	// Create test data via backend
+	backend := createResumeTestBackend(t, tmpDir)
+
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusFailed
 	tk.Weight = task.WeightSmall
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -243,15 +262,17 @@ func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 			{ID: "test", Name: "test", Status: plan.PhasePending},
 		},
 	}
-	if err := p.Save("TASK-001"); err != nil {
+	if err := backend.SavePlan(p, "TASK-001"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	s := state.New("TASK-001")
 	s.CurrentPhase = "implement"
-	if err := s.Save(); err != nil {
+	if err := backend.SaveState(s); err != nil {
 		t.Fatalf("failed to save state: %v", err)
 	}
+
+	backend.Close()
 
 	// Create a "worktree-like" subdirectory (simulating worktree context)
 	// In a real worktree, this would be .orc/worktrees/orc-TASK-001/

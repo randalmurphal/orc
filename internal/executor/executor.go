@@ -18,6 +18,7 @@ import (
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/tokenpool"
 )
@@ -168,6 +169,7 @@ type Executor struct {
 	checkpointStore checkpoint.Store
 	logger          *slog.Logger
 	publisher       events.Publisher
+	backend         storage.Backend
 
 	// Token pool for automatic account switching (nil if disabled)
 	tokenPool *tokenpool.Pool
@@ -295,6 +297,7 @@ func New(cfg *Config) *Executor {
 		checkpointStore:     cpStore,
 		logger:              slog.Default(),
 		tokenPool:           pool,
+		backend:             cfg.Backend,
 		useSessionExecution: orcCfg.Execution.UseSessionExecution,
 		resourceTracker:     resourceTracker,
 	}
@@ -312,6 +315,11 @@ func NewWithConfig(cfg *Config, orcCfg *config.Config) *Executor {
 // SetPublisher sets the event publisher for real-time updates.
 func (e *Executor) SetPublisher(p events.Publisher) {
 	e.publisher = p
+}
+
+// SetBackend sets the storage backend for task/state persistence.
+func (e *Executor) SetBackend(b storage.Backend) {
+	e.backend = b
 }
 
 // taskDir returns the directory for a task's files.
@@ -547,54 +555,6 @@ func (e *Executor) rebuildClientWithToken(token string) {
 func (e *Executor) MarkCurrentAccountExhausted(reason string) {
 	if e.tokenPool != nil {
 		e.tokenPool.MarkExhausted(reason)
-	}
-}
-
-// commitTaskState commits task state changes to git if auto-commit is enabled.
-// This should be called after significant state changes during execution.
-func (e *Executor) commitTaskState(t *task.Task, action string) {
-	if e.orcConfig.Tasks.DisableAutoCommit {
-		return
-	}
-
-	projectRoot, err := config.FindProjectRoot()
-	if err != nil {
-		e.logger.Debug("skip auto-commit: could not find project root", "error", err)
-		return
-	}
-
-	commitCfg := task.CommitConfig{
-		ProjectRoot:  projectRoot,
-		CommitPrefix: e.orcConfig.CommitPrefix,
-		Logger:       e.logger,
-	}
-
-	if err := task.CommitAndSync(t, action, commitCfg); err != nil {
-		e.logger.Warn("failed to auto-commit task state", "task", t.ID, "action", action, "error", err)
-	}
-}
-
-// commitTaskStatus commits a task status change to git if auto-commit is enabled.
-// This is a convenience wrapper for status-specific commits.
-func (e *Executor) commitTaskStatus(t *task.Task, status string) {
-	if e.orcConfig.Tasks.DisableAutoCommit {
-		return
-	}
-
-	projectRoot, err := config.FindProjectRoot()
-	if err != nil {
-		e.logger.Debug("skip auto-commit: could not find project root", "error", err)
-		return
-	}
-
-	commitCfg := task.CommitConfig{
-		ProjectRoot:  projectRoot,
-		CommitPrefix: e.orcConfig.CommitPrefix,
-		Logger:       e.logger,
-	}
-
-	if err := task.CommitStatusChange(t, status, commitCfg); err != nil {
-		e.logger.Warn("failed to auto-commit task status", "task", t.ID, "status", status, "error", err)
 	}
 }
 

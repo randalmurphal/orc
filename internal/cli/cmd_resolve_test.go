@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -17,10 +18,11 @@ import (
 func withResolveTestDir(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir)
-	taskDir := filepath.Join(tasksDir, "TASK-001")
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("create task directory: %v", err)
+
+	// Create .orc directory for project detection
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc directory: %v", err)
 	}
 
 	origDir, err := os.Getwd()
@@ -36,6 +38,16 @@ func withResolveTestDir(t *testing.T) string {
 		}
 	})
 	return tmpDir
+}
+
+// createResolveTestBackend creates a backend in the given directory.
+func createResolveTestBackend(t *testing.T, dir string) storage.Backend {
+	t.Helper()
+	backend, err := storage.NewDatabaseBackend(dir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	return backend
 }
 
 func TestResolveCommand_Structure(t *testing.T) {
@@ -79,14 +91,20 @@ func TestResolveCommand_RequiresArg(t *testing.T) {
 }
 
 func TestResolveCommand_FailedTask(t *testing.T) {
-	withResolveTestDir(t)
+	tmpDir := withResolveTestDir(t)
+
+	// Create backend and save test data
+	backend := createResolveTestBackend(t, tmpDir)
 
 	// Create a failed task
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusFailed
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
+
+	// Close backend before running command
+	backend.Close()
 
 	// Run resolve with --force to skip confirmation
 	cmd := newResolveCmd()
@@ -96,7 +114,10 @@ func TestResolveCommand_FailedTask(t *testing.T) {
 	}
 
 	// Reload task and verify status
-	reloaded, err := task.Load("TASK-001")
+	backend = createResolveTestBackend(t, tmpDir)
+	defer backend.Close()
+
+	reloaded, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
@@ -126,14 +147,20 @@ func TestResolveCommand_FailedTask(t *testing.T) {
 }
 
 func TestResolveCommand_WithMessage(t *testing.T) {
-	withResolveTestDir(t)
+	tmpDir := withResolveTestDir(t)
+
+	// Create backend and save test data
+	backend := createResolveTestBackend(t, tmpDir)
 
 	// Create a failed task
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusFailed
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
+
+	// Close backend before running command
+	backend.Close()
 
 	// Run resolve with message
 	cmd := newResolveCmd()
@@ -143,7 +170,10 @@ func TestResolveCommand_WithMessage(t *testing.T) {
 	}
 
 	// Reload task and verify message
-	reloaded, err := task.Load("TASK-001")
+	backend = createResolveTestBackend(t, tmpDir)
+	defer backend.Close()
+
+	reloaded, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
@@ -156,7 +186,7 @@ func TestResolveCommand_WithMessage(t *testing.T) {
 }
 
 func TestResolveCommand_OnlyFailedTasks(t *testing.T) {
-	withResolveTestDir(t)
+	tmpDir := withResolveTestDir(t)
 
 	// Test various non-failed statuses
 	statuses := []task.Status{
@@ -170,12 +200,14 @@ func TestResolveCommand_OnlyFailedTasks(t *testing.T) {
 
 	for _, status := range statuses {
 		t.Run(string(status), func(t *testing.T) {
-			// Create task with this status
+			// Create backend and save task with this status
+			backend := createResolveTestBackend(t, tmpDir)
 			tk := task.New("TASK-001", "Test task")
 			tk.Status = status
-			if err := tk.Save(); err != nil {
+			if err := backend.SaveTask(tk); err != nil {
 				t.Fatalf("failed to save task: %v", err)
 			}
+			backend.Close()
 
 			// Run resolve - should fail
 			cmd := newResolveCmd()
@@ -200,7 +232,10 @@ func TestResolveCommand_TaskNotFound(t *testing.T) {
 }
 
 func TestResolveCommand_PreservesExistingMetadata(t *testing.T) {
-	withResolveTestDir(t)
+	tmpDir := withResolveTestDir(t)
+
+	// Create backend and save test data
+	backend := createResolveTestBackend(t, tmpDir)
 
 	// Create a failed task with existing metadata
 	tk := task.New("TASK-001", "Test task")
@@ -209,9 +244,12 @@ func TestResolveCommand_PreservesExistingMetadata(t *testing.T) {
 		"existing_key": "existing_value",
 		"another_key":  "another_value",
 	}
-	if err := tk.Save(); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
+
+	// Close backend before running command
+	backend.Close()
 
 	// Run resolve
 	cmd := newResolveCmd()
@@ -221,7 +259,10 @@ func TestResolveCommand_PreservesExistingMetadata(t *testing.T) {
 	}
 
 	// Reload task and verify all metadata
-	reloaded, err := task.Load("TASK-001")
+	backend = createResolveTestBackend(t, tmpDir)
+	defer backend.Close()
+
+	reloaded, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}

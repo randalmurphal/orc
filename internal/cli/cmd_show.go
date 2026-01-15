@@ -8,9 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
-	"github.com/randalmurphal/orc/internal/state"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newShowCmd creates the show command
@@ -24,15 +21,21 @@ func newShowCmd() *cobra.Command {
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			id := args[0]
 
-			t, err := task.Load(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			p, _ := plan.Load(id)
-			s, _ := state.Load(id)
+			p, _ := backend.LoadPlan(id)
+			s, _ := backend.LoadState(id)
 
 			// Print task details
 			fmt.Printf("\n%s - %s\n", t.ID, t.Title)

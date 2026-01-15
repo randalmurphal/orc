@@ -16,6 +16,7 @@ import (
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -54,12 +55,13 @@ type WorkerPool struct {
 	cfg        *config.Config
 	gitOps     *git.Git
 	promptSvc  *prompt.Service
+	backend    storage.Backend
 	eventChan  chan events.Event
 	mu         sync.RWMutex
 }
 
 // NewWorkerPool creates a new worker pool.
-func NewWorkerPool(maxWorkers int, publisher events.Publisher, cfg *config.Config, gitOps *git.Git, promptSvc *prompt.Service) *WorkerPool {
+func NewWorkerPool(maxWorkers int, publisher events.Publisher, cfg *config.Config, gitOps *git.Git, promptSvc *prompt.Service, backend storage.Backend) *WorkerPool {
 	return &WorkerPool{
 		workers:    make(map[string]*Worker),
 		maxWorkers: maxWorkers,
@@ -67,6 +69,7 @@ func NewWorkerPool(maxWorkers int, publisher events.Publisher, cfg *config.Confi
 		cfg:        cfg,
 		gitOps:     gitOps,
 		promptSvc:  promptSvc,
+		backend:    backend,
 		eventChan:  make(chan events.Event, 100),
 	}
 }
@@ -191,7 +194,9 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.S
 	if !mgr.Exists() {
 		// Phase completed
 		st.CompletePhase(currentPhase.ID, "")
-		_ = st.Save()
+		if pool.backend != nil {
+			_ = pool.backend.SaveState(st)
+		}
 
 		pool.publishEvent(events.Event{
 			Type:   events.EventPhase,
@@ -204,13 +209,17 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.S
 
 		// Check if more phases
 		pln.GetPhase(currentPhase.ID).Status = plan.PhaseCompleted
-		_ = pln.Save(t.ID)
+		if pool.backend != nil {
+			_ = pool.backend.SavePlan(pln, t.ID)
+		}
 
 		nextPhase := pln.CurrentPhase()
 		if nextPhase == nil {
 			// Task complete
 			st.Complete()
-			_ = st.Save()
+			if pool.backend != nil {
+				_ = pool.backend.SaveState(st)
+			}
 			w.setStatus(WorkerStatusComplete)
 		} else {
 			// Continue with next phase (recursive)

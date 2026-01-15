@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -37,6 +36,12 @@ Example:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			// Get filter flags
 			initiativeFilter, _ := cmd.Flags().GetString("initiative")
 			statusFilter, _ := cmd.Flags().GetString("status")
@@ -45,12 +50,16 @@ Example:
 			// Validate initiative filter if provided (unless it's "unassigned" or empty)
 			initiativeFilterActive := cmd.Flags().Changed("initiative")
 			if initiativeFilterActive && initiativeFilter != "" && initiativeFilter != "unassigned" {
-				if !initiative.Exists(initiativeFilter, false) && !initiative.Exists(initiativeFilter, true) {
+				exists, err := backend.InitiativeExists(initiativeFilter)
+				if err != nil {
+					return fmt.Errorf("check initiative: %w", err)
+				}
+				if !exists {
 					return fmt.Errorf("initiative %s not found", initiativeFilter)
 				}
 			}
 
-			tasks, err := task.LoadAll()
+			tasks, err := backend.LoadAllTasks()
 			if err != nil {
 				return fmt.Errorf("load tasks: %w", err)
 			}
@@ -148,15 +157,17 @@ Example:
 
 // completeInitiativeIDs provides tab completion for initiative IDs
 func completeInitiativeIDs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	// Load initiatives (ignore errors for completion)
-	inits, err := initiative.List(false)
+	// Load initiatives via backend (ignore errors for completion)
+	backend, err := getBackend()
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
+	defer backend.Close()
 
-	// Shared initiatives
-	sharedInits, _ := initiative.List(true)
-	inits = append(inits, sharedInits...)
+	inits, err := backend.LoadAllInitiatives()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	// Build completion list
 	var completions []string

@@ -213,8 +213,8 @@ func GetTestResults(projectDir, taskID string) (*TestResultsInfo, error) {
 			}
 
 			filename := entry.Name()
-			contentType := detectContentType(filename)
-			if !isImageContentType(contentType) {
+			contentType := DetectContentType(filename)
+			if !IsImageContentType(contentType) {
 				continue
 			}
 
@@ -279,8 +279,8 @@ func ListScreenshots(projectDir, taskID string) ([]Screenshot, error) {
 		}
 
 		filename := entry.Name()
-		contentType := detectContentType(filename)
-		if !isImageContentType(contentType) {
+		contentType := DetectContentType(filename)
+		if !IsImageContentType(contentType) {
 			continue
 		}
 

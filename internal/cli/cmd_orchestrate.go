@@ -11,7 +11,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/orchestrator"
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/spf13/cobra"
@@ -67,6 +66,13 @@ func runOrchestrate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("orc not initialized in this directory (run 'orc init' first)")
 	}
 
+	// Get backend
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer backend.Close()
+
 	// Load config
 	cfg, err := config.Load()
 	if err != nil {
@@ -93,12 +99,12 @@ func runOrchestrate(cmd *cobra.Command, args []string) error {
 		MaxConcurrent: orchestrateMaxConcurrent,
 		PollInterval:  2 * time.Second,
 	}
-	orc := orchestrator.New(orcCfg, cfg, publisher, gitOps, promptSvc, nil)
+	orc := orchestrator.New(orcCfg, cfg, publisher, gitOps, promptSvc, backend, nil)
 
 	// Add tasks based on arguments
 	if orchestrateInitiative != "" {
 		// Load initiative and add its tasks
-		init, err := initiative.Load(orchestrateInitiative)
+		init, err := backend.LoadInitiative(orchestrateInitiative)
 		if err != nil {
 			return fmt.Errorf("load initiative: %w", err)
 		}

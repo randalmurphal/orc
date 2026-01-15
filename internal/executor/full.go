@@ -14,6 +14,7 @@ import (
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -32,6 +33,7 @@ type FullExecutor struct {
 	workingDir   string
 	taskDir      string             // Directory for task-specific files
 	stateUpdater func(*state.State) // Callback to persist state changes
+	backend      storage.Backend    // Storage backend for loading initiatives
 }
 
 // FullExecutorOption configures a FullExecutor.
@@ -70,6 +72,11 @@ func WithTaskDir(dir string) FullExecutorOption {
 // WithStateUpdater sets a callback for persisting state changes.
 func WithStateUpdater(fn func(*state.State)) FullExecutorOption {
 	return func(e *FullExecutor) { e.stateUpdater = fn }
+}
+
+// WithFullBackend sets the storage backend for loading initiatives.
+func WithFullBackend(b storage.Backend) FullExecutorOption {
+	return func(e *FullExecutor) { e.backend = b }
 }
 
 // getTargetBranch returns the target branch from config, defaulting to "main".
@@ -199,7 +206,7 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 	}
 
 	// Add initiative context if task belongs to an initiative
-	if initCtx := LoadInitiativeContext(t); initCtx != nil {
+	if initCtx := LoadInitiativeContext(t, e.backend); initCtx != nil {
 		vars = vars.WithInitiativeContext(*initCtx)
 		e.logger.Info("initiative context injected (full)",
 			"task", t.ID,

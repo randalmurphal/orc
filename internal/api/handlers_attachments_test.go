@@ -6,10 +6,13 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -35,18 +38,20 @@ func TestListAttachmentsEndpoint_TaskNotFound(t *testing.T) {
 func TestListAttachmentsEndpoint_EmptyList(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ATT-001")
-	os.MkdirAll(taskDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-ATT-001
-title: Attachment Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-ATT-001", "Attachment Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -72,23 +77,29 @@ updated_at: 2024-01-01T00:00:00Z
 func TestListAttachmentsEndpoint_WithAttachments(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory with attachments
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ATT-002")
-	attachmentsDir := filepath.Join(taskDir, "attachments")
-	os.MkdirAll(attachmentsDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-ATT-002
-title: Attachment Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-ATT-002", "Attachment Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
-	// Create test attachments
-	os.WriteFile(filepath.Join(attachmentsDir, "screenshot.png"), []byte("PNG content"), 0644)
-	os.WriteFile(filepath.Join(attachmentsDir, "notes.txt"), []byte("Some notes"), 0644)
+	// Create test attachments through backend (stored in database)
+	if _, err := backend.SaveAttachment("TASK-ATT-002", "screenshot.png", "image/png", []byte("PNG content")); err != nil {
+		t.Fatalf("failed to save attachment: %v", err)
+	}
+	if _, err := backend.SaveAttachment("TASK-ATT-002", "notes.txt", "text/plain", []byte("Some notes")); err != nil {
+		t.Fatalf("failed to save attachment: %v", err)
+	}
+
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -139,18 +150,20 @@ func TestUploadAttachmentEndpoint_TaskNotFound(t *testing.T) {
 func TestUploadAttachmentEndpoint_NoFile(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ATT-003")
-	os.MkdirAll(taskDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-ATT-003
-title: Upload Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-ATT-003", "Upload Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -173,25 +186,30 @@ updated_at: 2024-01-01T00:00:00Z
 func TestUploadAttachmentEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ATT-004")
-	os.MkdirAll(taskDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-ATT-004
-title: Upload Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-ATT-004", "Upload Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
-	// Create multipart form
+	// Create multipart form with explicit content type header
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	part, _ := writer.CreateFormFile("file", "screenshot.png")
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", `form-data; name="file"; filename="screenshot.png"`)
+	h.Set("Content-Type", "image/png")
+	part, _ := writer.CreatePart(h)
 	part.Write([]byte("PNG test content"))
 	writer.Close()
 
@@ -222,28 +240,33 @@ updated_at: 2024-01-01T00:00:00Z
 		t.Error("expected IsImage to be true")
 	}
 
-	// Verify file was created
-	attachmentPath := filepath.Join(taskDir, "attachments", "screenshot.png")
-	if _, err := os.Stat(attachmentPath); os.IsNotExist(err) {
-		t.Error("expected attachment file to be created")
+	// Verify attachment can be retrieved via API
+	req = httptest.NewRequest("GET", "/api/tasks/TASK-ATT-004/attachments/screenshot.png", nil)
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected attachment to be retrievable (200), got %d", w.Code)
 	}
 }
 
 func TestUploadAttachmentEndpoint_WithCustomFilename(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ATT-005")
-	os.MkdirAll(taskDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-ATT-005
-title: Upload Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-ATT-005", "Upload Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -293,19 +316,21 @@ func TestGetAttachmentEndpoint_TaskNotFound(t *testing.T) {
 func TestGetAttachmentEndpoint_AttachmentNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ATT-006")
-	attachmentsDir := filepath.Join(taskDir, "attachments")
-	os.MkdirAll(attachmentsDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-ATT-006
-title: Get Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-ATT-006", "Get Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	// No attachments saved - testing 404 response
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -322,22 +347,27 @@ updated_at: 2024-01-01T00:00:00Z
 func TestGetAttachmentEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory with attachment
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ATT-007")
-	attachmentsDir := filepath.Join(taskDir, "attachments")
-	os.MkdirAll(attachmentsDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-ATT-007
-title: Get Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-ATT-007", "Get Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
+	// Create attachment through backend (stored in database)
 	testContent := []byte("PNG test content here")
-	os.WriteFile(filepath.Join(attachmentsDir, "screenshot.png"), testContent, 0644)
+	if _, err := backend.SaveAttachment("TASK-ATT-007", "screenshot.png", "image/png", testContent); err != nil {
+		t.Fatalf("failed to save attachment: %v", err)
+	}
+
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -369,20 +399,26 @@ updated_at: 2024-01-01T00:00:00Z
 func TestGetAttachmentEndpoint_NonImageAttachment(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory with non-image attachment
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ATT-008")
-	attachmentsDir := filepath.Join(taskDir, "attachments")
-	os.MkdirAll(attachmentsDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-ATT-008
-title: Get Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
-	os.WriteFile(filepath.Join(attachmentsDir, "document.pdf"), []byte("PDF content"), 0644)
+	tsk := task.New("TASK-ATT-008", "Get Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create non-image attachment through backend
+	if _, err := backend.SaveAttachment("TASK-ATT-008", "document.pdf", "application/pdf", []byte("PDF content")); err != nil {
+		t.Fatalf("failed to save attachment: %v", err)
+	}
+
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -421,19 +457,21 @@ func TestDeleteAttachmentEndpoint_TaskNotFound(t *testing.T) {
 func TestDeleteAttachmentEndpoint_AttachmentNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ATT-009")
-	attachmentsDir := filepath.Join(taskDir, "attachments")
-	os.MkdirAll(attachmentsDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-ATT-009
-title: Delete Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-ATT-009", "Delete Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	// No attachments saved - testing 404 response
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -450,22 +488,26 @@ updated_at: 2024-01-01T00:00:00Z
 func TestDeleteAttachmentEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory with attachment
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ATT-010")
-	attachmentsDir := filepath.Join(taskDir, "attachments")
-	os.MkdirAll(attachmentsDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-ATT-010
-title: Delete Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-ATT-010", "Delete Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
-	attachmentPath := filepath.Join(attachmentsDir, "to-delete.png")
-	os.WriteFile(attachmentPath, []byte("PNG content"), 0644)
+	// Create attachment through backend
+	if _, err := backend.SaveAttachment("TASK-ATT-010", "to-delete.png", "image/png", []byte("PNG content")); err != nil {
+		t.Fatalf("failed to save attachment: %v", err)
+	}
+
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -478,9 +520,13 @@ updated_at: 2024-01-01T00:00:00Z
 		t.Errorf("expected status 204, got %d: %s", w.Code, w.Body.String())
 	}
 
-	// Verify file was deleted
-	if _, err := os.Stat(attachmentPath); !os.IsNotExist(err) {
-		t.Error("expected attachment file to be deleted")
+	// Verify attachment was deleted by trying to get it
+	req = httptest.NewRequest("GET", "/api/tasks/TASK-ATT-010/attachments/to-delete.png", nil)
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected attachment to be deleted (404), got %d", w.Code)
 	}
 }
 
@@ -489,25 +535,26 @@ updated_at: 2024-01-01T00:00:00Z
 func TestGetAttachmentEndpoint_PathTraversal(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SEC-001")
-	attachmentsDir := filepath.Join(taskDir, "attachments")
-	os.MkdirAll(attachmentsDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-SEC-001
-title: Security Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-SEC-001", "Security Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
-	// Create a file in attachments to make sure it exists
-	os.WriteFile(filepath.Join(attachmentsDir, "safe.txt"), []byte("Safe content"), 0644)
+	// Create a safe attachment via backend
+	if _, err := backend.SaveAttachment("TASK-SEC-001", "safe.txt", "text/plain", []byte("Safe content")); err != nil {
+		t.Fatalf("failed to save attachment: %v", err)
+	}
 
-	// Also create a "sensitive" file outside the attachments directory
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -537,18 +584,20 @@ updated_at: 2024-01-01T00:00:00Z
 func TestUploadAttachmentEndpoint_PathTraversalInFilename(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SEC-002")
-	os.MkdirAll(taskDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-SEC-002
-title: Security Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-SEC-002", "Security Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -599,26 +648,32 @@ updated_at: 2024-01-01T00:00:00Z
 func TestDeleteAttachmentEndpoint_PathTraversal(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create task directory
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SEC-003")
-	attachmentsDir := filepath.Join(taskDir, "attachments")
-	os.MkdirAll(attachmentsDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-SEC-003
-title: Security Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-SEC-003", "Security Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
 
-	// Create a file we want to protect
-	sensitiveFile := filepath.Join(taskDir, "sensitive.txt")
-	os.WriteFile(sensitiveFile, []byte("Sensitive data"), 0644)
+	// Create a safe attachment via backend
+	if _, err := backend.SaveAttachment("TASK-SEC-003", "safe.txt", "text/plain", []byte("Safe content")); err != nil {
+		t.Fatalf("failed to save attachment: %v", err)
+	}
+
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
+	// Path traversal attempts should fail because:
+	// 1. filepath.Base strips path components
+	// 2. The resulting filename doesn't exist in the database
 	pathTraversalAttempts := []string{
 		"../sensitive.txt",
 		"..%2Fsensitive.txt",
@@ -631,33 +686,40 @@ updated_at: 2024-01-01T00:00:00Z
 
 		srv.mux.ServeHTTP(w, req)
 
-		// The handler uses filepath.Base which should strip path traversal
-		// So it should fail with 404 (file not found in attachments dir)
+		// The handler uses filepath.Base which strips path traversal
+		// So "../sensitive.txt" becomes "sensitive.txt" which doesn't exist -> 404
 		if w.Code == http.StatusNoContent {
 			t.Errorf("path traversal delete attempt %q should not succeed", attempt)
 		}
+	}
 
-		// Verify sensitive file still exists
-		if _, err := os.Stat(sensitiveFile); os.IsNotExist(err) {
-			t.Errorf("sensitive file was deleted by path traversal attempt %q", attempt)
-		}
+	// Verify safe.txt still exists after all attempts
+	req := httptest.NewRequest("GET", "/api/tasks/TASK-SEC-003/attachments/safe.txt", nil)
+	w := httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Error("safe attachment should still exist after path traversal attempts")
 	}
 }
 
 func TestUploadAttachmentEndpoint_EmptyFilename(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SEC-004")
-	os.MkdirAll(taskDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-SEC-004
-title: Security Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-SEC-004", "Security Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -684,17 +746,20 @@ updated_at: 2024-01-01T00:00:00Z
 func TestUploadAttachmentEndpoint_DotFilename(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SEC-005")
-	os.MkdirAll(taskDir, 0755)
+	// Create backend and task
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
 
-	taskYAML := `id: TASK-SEC-005
-title: Security Test
-status: running
-weight: medium
-created_at: 2024-01-01T00:00:00Z
-updated_at: 2024-01-01T00:00:00Z
-`
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	tsk := task.New("TASK-SEC-005", "Security Test")
+	tsk.Status = task.StatusRunning
+	tsk.Weight = "medium"
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -722,7 +787,6 @@ updated_at: 2024-01-01T00:00:00Z
 
 func TestCreateTaskEndpoint_WithAttachments(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -763,21 +827,28 @@ func TestCreateTaskEndpoint_WithAttachments(t *testing.T) {
 		t.Errorf("expected category 'bug', got %q", createdTask.Category)
 	}
 
-	// Verify attachments were saved
-	attachmentsDir := filepath.Join(tmpDir, ".orc", "tasks", createdTask.ID, "attachments")
-	files, err := os.ReadDir(attachmentsDir)
-	if err != nil {
-		t.Fatalf("failed to read attachments dir: %v", err)
+	// Verify attachments were saved by listing them via API
+	req = httptest.NewRequest("GET", "/api/tasks/"+createdTask.ID+"/attachments", nil)
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("failed to list attachments: %s", w.Body.String())
 	}
 
-	if len(files) != 2 {
-		t.Errorf("expected 2 attachments, got %d", len(files))
+	var attachments []task.Attachment
+	if err := json.NewDecoder(w.Body).Decode(&attachments); err != nil {
+		t.Fatalf("failed to decode attachments: %v", err)
+	}
+
+	if len(attachments) != 2 {
+		t.Errorf("expected 2 attachments, got %d", len(attachments))
 	}
 
 	// Check filenames
 	filenames := make(map[string]bool)
-	for _, f := range files {
-		filenames[f.Name()] = true
+	for _, a := range attachments {
+		filenames[a.Filename] = true
 	}
 
 	if !filenames["screenshot1.png"] {

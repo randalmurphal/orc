@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -65,12 +64,18 @@ Examples:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			treeView, _ := cmd.Flags().GetBool("tree")
 			graphView, _ := cmd.Flags().GetBool("graph")
 			initFilter, _ := cmd.Flags().GetString("initiative")
 
 			// Load all tasks for dependency computation
-			allTasks, err := task.LoadAll()
+			allTasks, err := backend.LoadAllTasks()
 			if err != nil {
 				return fmt.Errorf("load tasks: %w", err)
 			}
@@ -345,10 +350,8 @@ func showDependencyGraph(allTasks []*task.Task, taskMap map[string]*task.Task, i
 	// Filter tasks by initiative if specified
 	var filteredTasks []*task.Task
 	if initFilter != "" {
-		// Verify initiative exists
-		if !initiative.Exists(initFilter, false) && !initiative.Exists(initFilter, true) {
-			return fmt.Errorf("initiative %s not found", initFilter)
-		}
+		// When filtering by initiative, just check if any tasks have that initiative
+		// (no need to verify initiative exists separately - if no tasks, we report that)
 		for _, t := range allTasks {
 			if t.InitiativeID == initFilter {
 				filteredTasks = append(filteredTasks, t)

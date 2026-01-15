@@ -12,7 +12,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 func newCommentCmd() *cobra.Command {
@@ -57,15 +56,21 @@ Examples:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			taskID := args[0]
 			content := strings.Join(args[1:], " ")
 
 			// Validate task exists
-			wd, err := os.Getwd()
+			exists, err := backend.TaskExists(taskID)
 			if err != nil {
-				return fmt.Errorf("get working directory: %w", err)
+				return fmt.Errorf("check task: %w", err)
 			}
-			if !task.ExistsIn(wd, taskID) {
+			if !exists {
 				return fmt.Errorf("task %s not found", taskID)
 			}
 
@@ -78,32 +83,16 @@ Examples:
 				at = db.AuthorTypeHuman
 			}
 
+			wd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("get working directory: %w", err)
+			}
+
 			pdb, err := db.OpenProject(wd)
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
 			defer pdb.Close()
-
-			// Ensure task exists in DB
-			t, err := task.LoadFrom(wd, taskID)
-			if err != nil {
-				return fmt.Errorf("load task: %w", err)
-			}
-			dbTask := &db.Task{
-				ID:           t.ID,
-				Title:        t.Title,
-				Description:  t.Description,
-				Weight:       string(t.Weight),
-				Status:       string(t.Status),
-				CurrentPhase: t.CurrentPhase,
-				Branch:       t.Branch,
-				CreatedAt:    t.CreatedAt,
-				StartedAt:    t.StartedAt,
-				CompletedAt:  t.CompletedAt,
-			}
-			if err := pdb.SaveTask(dbTask); err != nil {
-				return fmt.Errorf("sync task to db: %w", err)
-			}
 
 			comment := &db.TaskComment{
 				TaskID:     taskID,
@@ -148,15 +137,26 @@ Examples:
 				return err
 			}
 
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer backend.Close()
+
 			taskID := args[0]
+
+			// Validate task exists
+			exists, err := backend.TaskExists(taskID)
+			if err != nil {
+				return fmt.Errorf("check task: %w", err)
+			}
+			if !exists {
+				return fmt.Errorf("task %s not found", taskID)
+			}
+
 			wd, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("get working directory: %w", err)
-			}
-
-			// Validate task exists
-			if !task.ExistsIn(wd, taskID) {
-				return fmt.Errorf("task %s not found", taskID)
 			}
 
 			pdb, err := db.OpenProject(wd)

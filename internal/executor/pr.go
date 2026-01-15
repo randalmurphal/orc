@@ -496,12 +496,9 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 		// Set PR info on task
 		t.SetPRInfo(prURL, prNumber)
 
-		if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+		if saveErr := e.backend.SaveTask(t); saveErr != nil {
 			e.logger.Error("failed to save task with PR URL", "error", saveErr)
 		}
-
-		// Auto-commit: PR created
-		e.commitTaskState(t, "PR created")
 	}
 
 	e.logger.Info("created pull request", "task", t.ID, "url", prURL)
@@ -537,6 +534,7 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 			WithCIMergerPublisher(e.publisher),
 			WithCIMergerLogger(e.logger),
 			WithCIMergerWorkDir(e.worktreePath),
+			WithCIMergerBackend(e.backend),
 		)
 
 		if mergeErr := ciMerger.WaitForCIAndMerge(ctx, t); mergeErr != nil {
@@ -545,12 +543,9 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 		} else {
 			// Update task status to finished after successful merge
 			t.Status = task.StatusFinished
-			if saveErr := t.SaveTo(e.currentTaskDir); saveErr != nil {
+			if saveErr := e.backend.SaveTask(t); saveErr != nil {
 				e.logger.Error("failed to save task after merge", "error", saveErr)
 			}
-
-			// Auto-commit: task finished (merged)
-			e.commitTaskStatus(t, "finished")
 		}
 	}
 
