@@ -516,6 +516,7 @@ Patterns, gotchas, and decisions learned during development.
 | Initiative batch loading | `LoadAllInitiatives()` uses batch queries (`GetAllInitiativeDecisions`, `GetAllInitiativeTaskRefs`, etc.) to fetch all related data in 4 queries instead of N+1 per initiative; batch methods return maps keyed by initiative ID; `GetAllInitiativeTaskRefs()` JOINs tasks table to include title/status | TASK-234 |
 | WorkerPool self-cleanup | Workers remove themselves from `WorkerPool.workers` map immediately on completion/failure via defer in `run()`; frees capacity without waiting for next orchestrator tick; handlers check `GetWorker()` first (idempotent - worker may have self-cleaned) | TASK-238 |
 | Finalize goroutine cancellation | `runFinalizeAsync` goroutines use contexts derived from `Server.serverCtx`; `finalizeTracker.cancels` map stores cancel functions; server shutdown calls `cancelAll()` to terminate running operations; goroutines check `ctx.Err()` at key points to exit cleanly | TASK-226 |
+| Scheduler map cleanup | `Scheduler.MarkCompleted()` cleans up `taskDeps` immediately and prunes `completed` entries no longer needed by queued/running tasks; `RemoveTask()` available for failed tasks that won't be retried; prevents unbounded memory growth in long-running orchestrator | TASK-239 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
