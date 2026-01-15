@@ -14,6 +14,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
+import { Button } from '@/components/ui/Button';
 import type { Task, TaskPriority, TaskQueue } from '@/lib/types';
 import { PRIORITY_CONFIG } from '@/lib/types';
 import { updateTask, triggerFinalize, type FinalizeState } from '@/lib/api';
@@ -408,25 +409,30 @@ export function TaskCard({
 						</span>
 					)}
 					{initiativeBadge && (
-						<button
+						<Button
+							variant="ghost"
+							size="sm"
 							className="initiative-badge"
 							onClick={handleInitiativeClick}
 							title={initiativeBadge.full}
-							type="button"
 						>
 							{initiativeBadge.display}
-						</button>
+						</Button>
 					)}
 					<span className="updated-time">{formatDate(task.updated_at)}</span>
 				</div>
 
 				<div className="actions">
 					{(task.status === 'created' || task.status === 'planned') && (
-						<button
+						<Button
+							variant="ghost"
+							size="sm"
+							iconOnly
 							className="action-btn run"
 							onClick={(e) => handleAction('run', e)}
 							disabled={actionLoading}
 							title="Run task"
+							aria-label="Run task"
 						>
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -438,14 +444,18 @@ export function TaskCard({
 							>
 								<polygon points="5 3 19 12 5 21 5 3" />
 							</svg>
-						</button>
+						</Button>
 					)}
 					{task.status === 'running' && (
-						<button
+						<Button
+							variant="ghost"
+							size="sm"
+							iconOnly
 							className="action-btn pause"
 							onClick={(e) => handleAction('pause', e)}
 							disabled={actionLoading}
 							title="Pause task"
+							aria-label="Pause task"
 						>
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -458,14 +468,18 @@ export function TaskCard({
 								<rect x="6" y="4" width="4" height="16" rx="1" />
 								<rect x="14" y="4" width="4" height="16" rx="1" />
 							</svg>
-						</button>
+						</Button>
 					)}
 					{task.status === 'paused' && (
-						<button
+						<Button
+							variant="ghost"
+							size="sm"
+							iconOnly
 							className="action-btn resume"
 							onClick={(e) => handleAction('resume', e)}
 							disabled={actionLoading}
 							title="Resume task"
+							aria-label="Resume task"
 						>
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -477,43 +491,48 @@ export function TaskCard({
 							>
 								<polygon points="5 3 19 12 5 21 5 3" />
 							</svg>
-						</button>
+						</Button>
 					)}
 					{task.status === 'completed' && (
-						<button
+						<Button
+							variant="ghost"
+							size="sm"
+							iconOnly
 							className="action-btn finalize"
 							onClick={handleFinalize}
 							disabled={finalizeLoading}
+							loading={finalizeLoading}
 							title="Finalize and merge"
+							aria-label="Finalize and merge"
 						>
-							{finalizeLoading ? (
-								<div className="btn-spinner" />
-							) : (
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<circle cx="18" cy="18" r="3" />
-									<circle cx="6" cy="6" r="3" />
-									<path d="M6 21V9a9 9 0 0 0 9 9" />
-								</svg>
-							)}
-						</button>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<circle cx="18" cy="18" r="3" />
+								<circle cx="6" cy="6" r="3" />
+								<path d="M6 21V9a9 9 0 0 0 9 9" />
+							</svg>
+						</Button>
 					)}
 
 					{/* Quick menu for queue/priority */}
 					<div className="quick-menu">
-						<button
+						<Button
+							variant="ghost"
+							size="sm"
+							iconOnly
 							className="action-btn more"
 							onClick={toggleQuickMenu}
 							title="Quick actions"
+							aria-label="Quick actions"
 							aria-expanded={showQuickMenu}
 							aria-haspopup="true"
 						>
@@ -529,7 +548,7 @@ export function TaskCard({
 								<circle cx="12" cy="12" r="2" />
 								<circle cx="12" cy="19" r="2" />
 							</svg>
-						</button>
+						</Button>
 
 						{showQuickMenu && (
 							<>
@@ -548,22 +567,30 @@ export function TaskCard({
 											{/* Queue section */}
 											<div className="menu-section">
 												<div className="menu-label">Queue</div>
-												<button
+												<Button
+													variant="ghost"
+													size="sm"
 													className={`menu-item ${queue === 'active' ? 'selected' : ''}`}
 													onClick={() => setQueueValue('active')}
 													role="menuitem"
+													leftIcon={
+														<span className="menu-icon active-icon" />
+													}
 												>
-													<span className="menu-icon active-icon" />
 													Active
-												</button>
-												<button
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
 													className={`menu-item ${queue === 'backlog' ? 'selected' : ''}`}
 													onClick={() => setQueueValue('backlog')}
 													role="menuitem"
+													leftIcon={
+														<span className="menu-icon backlog-icon" />
+													}
 												>
-													<span className="menu-icon backlog-icon" />
 													Backlog
-												</button>
+												</Button>
 											</div>
 
 											<div className="menu-divider" />
@@ -571,58 +598,74 @@ export function TaskCard({
 											{/* Priority section */}
 											<div className="menu-section">
 												<div className="menu-label">Priority</div>
-												<button
+												<Button
+													variant="ghost"
+													size="sm"
 													className={`menu-item ${priority === 'critical' ? 'selected' : ''}`}
 													onClick={() => setPriorityValue('critical')}
 													role="menuitem"
+													leftIcon={
+														<span
+															className="menu-icon priority-icon"
+															style={{
+																background: 'var(--status-error)',
+															}}
+														/>
+													}
 												>
-													<span
-														className="menu-icon priority-icon"
-														style={{
-															background: 'var(--status-error)',
-														}}
-													/>
 													Critical
-												</button>
-												<button
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
 													className={`menu-item ${priority === 'high' ? 'selected' : ''}`}
 													onClick={() => setPriorityValue('high')}
 													role="menuitem"
+													leftIcon={
+														<span
+															className="menu-icon priority-icon"
+															style={{
+																background: 'var(--status-warning)',
+															}}
+														/>
+													}
 												>
-													<span
-														className="menu-icon priority-icon"
-														style={{
-															background: 'var(--status-warning)',
-														}}
-													/>
 													High
-												</button>
-												<button
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
 													className={`menu-item ${priority === 'normal' ? 'selected' : ''}`}
 													onClick={() => setPriorityValue('normal')}
 													role="menuitem"
+													leftIcon={
+														<span
+															className="menu-icon priority-icon"
+															style={{
+																background: 'var(--text-muted)',
+															}}
+														/>
+													}
 												>
-													<span
-														className="menu-icon priority-icon"
-														style={{
-															background: 'var(--text-muted)',
-														}}
-													/>
 													Normal
-												</button>
-												<button
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
 													className={`menu-item ${priority === 'low' ? 'selected' : ''}`}
 													onClick={() => setPriorityValue('low')}
 													role="menuitem"
+													leftIcon={
+														<span
+															className="menu-icon priority-icon"
+															style={{
+																background: 'var(--text-disabled)',
+															}}
+														/>
+													}
 												>
-													<span
-														className="menu-icon priority-icon"
-														style={{
-															background: 'var(--text-disabled)',
-														}}
-													/>
 													Low
-												</button>
+												</Button>
 											</div>
 										</>
 									)}
