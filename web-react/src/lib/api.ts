@@ -221,6 +221,16 @@ export async function deletePrompt(phase: string): Promise<void> {
 	}
 }
 
+// Alias for consistency with UI component naming
+export async function updatePrompt(phase: string, content: string): Promise<Prompt> {
+	return savePrompt(phase, content);
+}
+
+// Alias for resetting prompts (deletes the override)
+export async function resetPrompt(phase: string): Promise<void> {
+	return deletePrompt(phase);
+}
+
 // Hooks (settings.json format)
 export type HookEvent = 'PreToolUse' | 'PostToolUse' | 'PreCompact' | 'PrePrompt' | 'Stop';
 
