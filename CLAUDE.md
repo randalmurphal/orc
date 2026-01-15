@@ -518,6 +518,7 @@ Patterns, gotchas, and decisions learned during development.
 | Finalize goroutine cancellation | `runFinalizeAsync` goroutines use contexts derived from `Server.serverCtx`; `finalizeTracker.cancels` map stores cancel functions; server shutdown calls `cancelAll()` to terminate running operations; goroutines check `ctx.Err()` at key points to exit cleanly | TASK-226 |
 | Scheduler map cleanup | `Scheduler.MarkCompleted()` cleans up `taskDeps` immediately and prunes `completed` entries no longer needed by queued/running tasks; `RemoveTask()` available for failed tasks that won't be retried; prevents unbounded memory growth in long-running orchestrator | TASK-239 |
 | Context propagation in DatabaseBackend | `SaveTaskCtx`, `SaveStateCtx`, `SaveInitiativeCtx` methods propagate context through `RunInTx` to `TxOps`; enables request cancellation and timeouts for database operations; non-context methods use `context.Background()` for backward compatibility | TASK-240 |
+| Worker.run() iterative phase loop | `Worker.run()` uses `for` loop (not recursion) to execute phases sequentially; eliminates stack growth risk for tasks with many phases; loop continues until all phases complete, context cancelled, or error occurs | TASK-230 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
