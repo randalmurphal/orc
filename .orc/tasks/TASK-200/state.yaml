@@ -1,0 +1,26 @@
+task_id: TASK-200
+current_phase: spec
+current_iteration: 1
+status: paused
+started_at: 2026-01-14T22:45:56.813507045-06:00
+updated_at: 2026-01-14T22:46:05.95492428-06:00
+phases:
+    spec:
+        status: running
+        started_at: 2026-01-14T22:45:58.349072184-06:00
+        iterations: 0
+        tokens:
+            input_tokens: 0
+            output_tokens: 0
+            total_tokens: 0
+tokens:
+    input_tokens: 0
+    output_tokens: 0
+    total_tokens: 0
+cost:
+    total_cost_usd: 0
+execution:
+    pid: 363035
+    hostname: Nexus
+    started_at: 2026-01-14T22:45:56.955639953-06:00
+    last_heartbeat: 2026-01-14T22:45:58.349076231-06:00
