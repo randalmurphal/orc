@@ -2,7 +2,7 @@ id: TASK-199
 title: 'Bug: Blocker check doesn''t recognize ''finished'' status as complete'
 description: When checking if a task's blockers are resolved, only 'completed' status is recognized. Tasks with 'finished' status (merged to main) still block dependent tasks. The IsComplete() or equivalent check should include both 'completed' and 'finished' statuses.
 weight: medium
-status: running
+status: completed
 branch: orc/TASK-199
 queue: active
 priority: high
