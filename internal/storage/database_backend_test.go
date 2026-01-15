@@ -611,3 +611,122 @@ func padNumber(n int) string {
 func timePtr(t time.Time) *time.Time {
 	return &t
 }
+
+// TestSaveState_ExecutionInfo verifies ExecutionInfo is saved and loaded correctly.
+// This is critical for orphan detection - without this, running tasks appear orphaned
+// when their state is loaded from the database.
+func TestSaveState_ExecutionInfo(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create task
+	task1 := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test Task",
+		Weight:    task.WeightSmall,
+		Status:    task.StatusRunning,
+		CreatedAt: time.Now(),
+	}
+	if err := backend.SaveTask(task1); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Save state with ExecutionInfo (simulates executor starting)
+	now := time.Now()
+	execStart := now.Add(-time.Minute) // Started 1 minute ago
+	heartbeat := now                    // Last heartbeat just now
+	s := &state.State{
+		TaskID:       "TASK-001",
+		CurrentPhase: "implement",
+		Status:       state.StatusRunning,
+		StartedAt:    now,
+		Phases:       make(map[string]*state.PhaseState),
+		Execution: &state.ExecutionInfo{
+			PID:           12345,
+			Hostname:      "test-host",
+			StartedAt:     execStart,
+			LastHeartbeat: heartbeat,
+		},
+	}
+
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+
+	// Load and verify ExecutionInfo is persisted
+	loaded, err := backend.LoadState("TASK-001")
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+
+	if loaded.Execution == nil {
+		t.Fatal("expected ExecutionInfo to be set, got nil (this causes false orphan detection)")
+	}
+	if loaded.Execution.PID != 12345 {
+		t.Errorf("expected PID=12345, got %d", loaded.Execution.PID)
+	}
+	if loaded.Execution.Hostname != "test-host" {
+		t.Errorf("expected Hostname='test-host', got %s", loaded.Execution.Hostname)
+	}
+	// Check timestamps are preserved (within 1 second tolerance for serialization)
+	if loaded.Execution.StartedAt.Sub(execStart).Abs() > time.Second {
+		t.Errorf("StartedAt not preserved: expected %v, got %v", execStart, loaded.Execution.StartedAt)
+	}
+	if loaded.Execution.LastHeartbeat.Sub(heartbeat).Abs() > time.Second {
+		t.Errorf("LastHeartbeat not preserved: expected %v, got %v", heartbeat, loaded.Execution.LastHeartbeat)
+	}
+}
+
+// TestSaveState_ExecutionInfoCleared verifies ExecutionInfo is cleared when task completes.
+func TestSaveState_ExecutionInfoCleared(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create task
+	task1 := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test Task",
+		Weight:    task.WeightSmall,
+		Status:    task.StatusRunning,
+		CreatedAt: time.Now(),
+	}
+	if err := backend.SaveTask(task1); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// First save with ExecutionInfo
+	now := time.Now()
+	s := &state.State{
+		TaskID:       "TASK-001",
+		CurrentPhase: "implement",
+		Status:       state.StatusRunning,
+		StartedAt:    now,
+		Phases:       make(map[string]*state.PhaseState),
+		Execution: &state.ExecutionInfo{
+			PID:           12345,
+			Hostname:      "test-host",
+			StartedAt:     now,
+			LastHeartbeat: now,
+		},
+	}
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("save state with execution: %v", err)
+	}
+
+	// Now complete the task (ExecutionInfo should be cleared)
+	s.Status = state.StatusCompleted
+	s.Execution = nil // Executor clears this on completion
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("save completed state: %v", err)
+	}
+
+	// Load and verify ExecutionInfo is cleared
+	loaded, err := backend.LoadState("TASK-001")
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+
+	if loaded.Execution != nil {
+		t.Errorf("expected ExecutionInfo to be nil after completion, got %+v", loaded.Execution)
+	}
+}

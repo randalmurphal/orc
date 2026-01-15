@@ -227,6 +227,12 @@ type Task struct {
 	TotalCostUSD float64
 	Metadata     string // JSON object: {"key": "value", ...}
 	RetryContext string // JSON: state.RetryContext serialized
+
+	// Execution tracking for orphan detection
+	ExecutorPID       int        // Process ID of executor
+	ExecutorHostname  string     // Hostname running the executor
+	ExecutorStartedAt *time.Time // When execution started
+	LastHeartbeat     *time.Time // Last heartbeat update
 }
 
 // SaveTask creates or updates a task.
@@ -261,9 +267,20 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 		stateStatus = "pending"
 	}
 
+	// Format execution tracking timestamps
+	var executorStartedAt, lastHeartbeat *string
+	if t.ExecutorStartedAt != nil {
+		s := t.ExecutorStartedAt.Format(time.RFC3339)
+		executorStartedAt = &s
+	}
+	if t.LastHeartbeat != nil {
+		s := t.LastHeartbeat.Format(time.RFC3339)
+		lastHeartbeat = &s
+	}
+
 	_, err := p.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
@@ -281,9 +298,14 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 			completed_at = excluded.completed_at,
 			total_cost_usd = excluded.total_cost_usd,
 			metadata = excluded.metadata,
-			retry_context = excluded.retry_context
+			retry_context = excluded.retry_context,
+			executor_pid = excluded.executor_pid,
+			executor_hostname = excluded.executor_hostname,
+			executor_started_at = excluded.executor_started_at,
+			last_heartbeat = excluded.last_heartbeat
 	`, t.ID, t.Title, t.Description, t.Weight, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
-		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext)
+		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext,
+		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
@@ -293,7 +315,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 // GetTask retrieves a task by ID.
 func (p *ProjectDB) GetTask(id string) (*Task, error) {
 	row := p.QueryRow(`
-		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context
+		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat
 		FROM tasks WHERE id = ?
 	`, id)
 
@@ -356,7 +378,7 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 
 	// Query tasks
 	query := `
-		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context
+		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat
 		FROM tasks
 	` + whereClause + " ORDER BY created_at DESC"
 
@@ -399,9 +421,12 @@ func scanTask(row *sql.Row) (*Task, error) {
 	var createdAt string
 	var startedAt, completedAt sql.NullString
 	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext sql.NullString
+	var executorPID sql.NullInt64
+	var executorHostname, executorStartedAt, lastHeartbeat sql.NullString
 
 	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
-		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext); err != nil {
+		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext,
+		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat); err != nil {
 		return nil, err
 	}
 
@@ -458,6 +483,24 @@ func scanTask(row *sql.Row) (*Task, error) {
 	if completedAt.Valid {
 		if ts, err := time.Parse(time.RFC3339, completedAt.String); err == nil {
 			t.CompletedAt = &ts
+		}
+	}
+
+	// Execution tracking fields
+	if executorPID.Valid {
+		t.ExecutorPID = int(executorPID.Int64)
+	}
+	if executorHostname.Valid {
+		t.ExecutorHostname = executorHostname.String
+	}
+	if executorStartedAt.Valid {
+		if ts, err := time.Parse(time.RFC3339, executorStartedAt.String); err == nil {
+			t.ExecutorStartedAt = &ts
+		}
+	}
+	if lastHeartbeat.Valid {
+		if ts, err := time.Parse(time.RFC3339, lastHeartbeat.String); err == nil {
+			t.LastHeartbeat = &ts
 		}
 	}
 
@@ -470,9 +513,12 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	var createdAt string
 	var startedAt, completedAt sql.NullString
 	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext sql.NullString
+	var executorPID sql.NullInt64
+	var executorHostname, executorStartedAt, lastHeartbeat sql.NullString
 
 	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
-		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext); err != nil {
+		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext,
+		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat); err != nil {
 		return nil, err
 	}
 
@@ -529,6 +575,24 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	if completedAt.Valid {
 		if ts, err := time.Parse(time.RFC3339, completedAt.String); err == nil {
 			t.CompletedAt = &ts
+		}
+	}
+
+	// Execution tracking fields
+	if executorPID.Valid {
+		t.ExecutorPID = int(executorPID.Int64)
+	}
+	if executorHostname.Valid {
+		t.ExecutorHostname = executorHostname.String
+	}
+	if executorStartedAt.Valid {
+		if ts, err := time.Parse(time.RFC3339, executorStartedAt.String); err == nil {
+			t.ExecutorStartedAt = &ts
+		}
+	}
+	if lastHeartbeat.Valid {
+		if ts, err := time.Parse(time.RFC3339, lastHeartbeat.String); err == nil {
+			t.LastHeartbeat = &ts
 		}
 	}
 
@@ -1912,9 +1976,20 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 		stateStatus = "pending"
 	}
 
+	// Format execution tracking timestamps
+	var executorStartedAt, lastHeartbeat *string
+	if t.ExecutorStartedAt != nil {
+		s := t.ExecutorStartedAt.Format(time.RFC3339)
+		executorStartedAt = &s
+	}
+	if t.LastHeartbeat != nil {
+		s := t.LastHeartbeat.Format(time.RFC3339)
+		lastHeartbeat = &s
+	}
+
 	_, err := tx.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
@@ -1932,9 +2007,14 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 			completed_at = excluded.completed_at,
 			total_cost_usd = excluded.total_cost_usd,
 			metadata = excluded.metadata,
-			retry_context = excluded.retry_context
+			retry_context = excluded.retry_context,
+			executor_pid = excluded.executor_pid,
+			executor_hostname = excluded.executor_hostname,
+			executor_started_at = excluded.executor_started_at,
+			last_heartbeat = excluded.last_heartbeat
 	`, t.ID, t.Title, t.Description, t.Weight, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
-		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext)
+		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext,
+		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
