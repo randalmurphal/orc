@@ -53,6 +53,9 @@ func (d *DatabaseBackend) SetLogger(l *log.Logger) {
 }
 
 // DB returns the underlying database for direct access.
+// WARNING: Direct database access bypasses the mutex protection.
+// Callers must coordinate their own locking or ensure exclusive access.
+// Prefer using the Backend interface methods which provide thread-safety.
 func (d *DatabaseBackend) DB() *db.ProjectDB {
 	return d.db
 }
@@ -79,13 +82,13 @@ func (d *DatabaseBackend) SaveTask(t *task.Task) error {
 		return fmt.Errorf("save task: %w", err)
 	}
 
-	// Save dependencies
+	// Save dependencies - clear first, then add new ones
 	if err := d.db.ClearTaskDependencies(t.ID); err != nil {
-		d.logger.Printf("warning: failed to clear task dependencies: %v", err)
+		return fmt.Errorf("clear task dependencies: %w", err)
 	}
 	for _, depID := range t.BlockedBy {
 		if err := d.db.AddTaskDependency(t.ID, depID); err != nil {
-			d.logger.Printf("warning: failed to add task dependency %s: %v", depID, err)
+			return fmt.Errorf("add task dependency %s: %w", depID, err)
 		}
 	}
 
@@ -250,7 +253,12 @@ func (d *DatabaseBackend) SaveState(s *state.State) error {
 func (d *DatabaseBackend) LoadState(taskID string) (*state.State, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
+	return d.loadStateUnlocked(taskID)
+}
 
+// loadStateUnlocked is the internal implementation of LoadState without locking.
+// Caller must hold d.mu.RLock() or d.mu.Lock().
+func (d *DatabaseBackend) loadStateUnlocked(taskID string) (*state.State, error) {
 	// Get task for basic info
 	dbTask, err := d.db.GetTask(taskID)
 	if err != nil {
@@ -337,16 +345,21 @@ func (d *DatabaseBackend) LoadState(taskID string) (*state.State, error) {
 }
 
 // LoadAllStates loads all task states from the database.
+// Note: This holds the read lock for the entire operation to ensure consistency.
 func (d *DatabaseBackend) LoadAllStates() ([]*state.State, error) {
-	// Load all tasks first
-	tasks, err := d.LoadAllTasks()
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	// Use internal unlocked version to avoid deadlock
+	dbTasks, _, err := d.db.ListTasks(db.ListOpts{})
 	if err != nil {
-		return nil, fmt.Errorf("load all tasks: %w", err)
+		return nil, fmt.Errorf("list tasks: %w", err)
 	}
 
 	var states []*state.State
-	for _, t := range tasks {
-		s, err := d.LoadState(t.ID)
+	for _, dbTask := range dbTasks {
+		// Load state for each task using internal unlocked access
+		s, err := d.loadStateUnlocked(dbTask.ID)
 		if err != nil {
 			// Skip tasks without state (e.g., never started)
 			continue
@@ -415,6 +428,9 @@ func (d *DatabaseBackend) LoadPlan(taskID string) (*plan.Plan, error) {
 
 // AddTranscript adds a transcript to database (for FTS).
 func (d *DatabaseBackend) AddTranscript(t *Transcript) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	dbTranscript := &db.Transcript{
 		TaskID:  t.TaskID,
 		Phase:   t.Phase,
@@ -429,6 +445,9 @@ func (d *DatabaseBackend) AddTranscript(t *Transcript) error {
 
 // GetTranscripts retrieves transcripts for a task.
 func (d *DatabaseBackend) GetTranscripts(taskID string) ([]Transcript, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
 	dbTranscripts, err := d.db.GetTranscripts(taskID)
 	if err != nil {
 		return nil, fmt.Errorf("get transcripts: %w", err)
@@ -449,6 +468,9 @@ func (d *DatabaseBackend) GetTranscripts(taskID string) ([]Transcript, error) {
 
 // SearchTranscripts performs FTS search across transcripts.
 func (d *DatabaseBackend) SearchTranscripts(query string) ([]TranscriptMatch, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
 	dbMatches, err := d.db.SearchTranscripts(query)
 	if err != nil {
 		return nil, fmt.Errorf("search transcripts: %w", err)
@@ -492,7 +514,10 @@ func (d *DatabaseBackend) Cleanup() error {
 }
 
 // Close releases database resources.
+// Note: Acquires write lock to ensure no operations are in progress.
 func (d *DatabaseBackend) Close() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	return d.db.Close()
 }
 

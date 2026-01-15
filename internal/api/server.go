@@ -108,8 +108,8 @@ func New(cfg *Config) *Server {
 	storageCfg := &config.StorageConfig{Mode: "database"}
 	backend, err := storage.NewDatabaseBackend(workDir, storageCfg)
 	if err != nil {
-		logger.Error("failed to create storage backend", "error", err)
-		return nil
+		// Fatal error - server cannot function without storage backend
+		panic(fmt.Sprintf("failed to create storage backend: %v", err))
 	}
 
 	s := &Server{
