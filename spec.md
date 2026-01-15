@@ -1,168 +1,186 @@
-# Specification: Replace Modal.tsx with Radix Dialog
+# Specification: Migrate TaskCard and board components to Button primitive
 
 ## Problem Statement
-Replace the custom Modal component implementation with Radix Dialog to leverage accessible primitives while preserving the existing CSS styling and component API.
+
+Replace all raw `<button>` elements in board components (TaskCard, Board, Column, QueuedColumn, Swimlane) with the unified `Button` primitive to ensure consistent styling, accessibility, and maintainability across the Kanban board UI.
 
 ## Success Criteria
-- [ ] Modal component uses Radix Dialog internally
-- [ ] All existing Modal props (`open`, `onClose`, `size`, `title`, `showClose`, `children`) work identically
-- [ ] CSS classes `.modal-backdrop`, `.modal-content`, `.modal-header`, `.modal-title`, `.modal-close`, `.modal-body` are preserved
-- [ ] Animations work with Radix `data-state` attributes (open/closed)
-- [ ] No changes required in consuming components (TaskEditModal, KeyboardShortcutsHelp, InitiativeDetail)
-- [ ] Focus trap cycles within modal (Tab/Shift+Tab)
-- [ ] Focus returns to trigger element after close
-- [ ] Escape key closes modal
-- [ ] Click outside (on overlay) closes modal
-- [ ] Body scroll prevented when modal open
-- [ ] All existing unit tests pass with minimal modification
-- [ ] E2E tests that use modals continue to pass
+
+- [ ] All 12 TaskCard.tsx buttons migrated to Button component
+- [ ] All 4 Board.tsx modal buttons migrated to Button component
+- [ ] Column.tsx verified - no raw buttons present (no changes needed)
+- [ ] QueuedColumn.tsx backlog toggle (1 button) migrated to Button component
+- [ ] Swimlane.tsx collapse toggle (1 button) migrated to Button component
+- [ ] All icon-only buttons have `aria-label` attributes
+- [ ] Existing CSS classes preserved via `className` prop for backwards compatibility
+- [ ] Visual appearance matches current implementation exactly
+- [ ] E2E tests pass without selector modifications
 
 ## Testing Requirements
-- [ ] Unit test: Modal opens when `open=true`
-- [ ] Unit test: Modal closes when `onClose` called
-- [ ] Unit test: Title renders when provided
-- [ ] Unit test: Size classes apply correctly (sm, md, lg, xl)
-- [ ] Unit test: Children render inside content
-- [ ] Unit test: Close button hidden when `showClose=false`
-- [ ] Unit test: Escape closes modal
-- [ ] Unit test: Backdrop click closes modal
-- [ ] Unit test: Content click does not close modal
-- [ ] Unit test: Proper accessibility attributes (role, aria-modal, aria-labelledby)
-- [ ] Unit test: Portal renders to document.body
-- [ ] Unit test: Body overflow hidden when open
-- [ ] E2E: `bunx playwright test` - all modal-using tests pass
+
+- [ ] Unit: `npm run test` passes (frontend tests)
+- [ ] E2E: `bunx playwright test board.spec.ts` passes with no changes to test selectors
+- [ ] Visual: `bunx playwright test --project=visual` passes (board snapshots match baselines)
+- [ ] Manual: Verify all button interactions work (run, pause, resume, finalize, menu items)
 
 ## Scope
 
 ### In Scope
-- Replace Modal.tsx implementation with Radix Dialog
-- Update Modal.css for `data-state` animation triggers
-- Update Modal.test.tsx for any Radix-specific behavior changes
-- Export types remain unchanged (`Modal`, `ModalSize`)
+
+**TaskCard.tsx (12 buttons):**
+| Line | Current | Migration |
+|------|---------|-----------|
+| 411-418 | Initiative badge `<button>` | `<Button variant="ghost" size="sm" className="initiative-badge">` |
+| 425-441 | Run action `.action-btn.run` | `<Button variant="success" size="sm" iconOnly className="action-btn run" aria-label="Run task">` |
+| 444-461 | Pause action `.action-btn.pause` | `<Button variant="secondary" size="sm" iconOnly className="action-btn pause" aria-label="Pause task">` |
+| 463-480 | Resume action `.action-btn.resume` | `<Button variant="primary" size="sm" iconOnly className="action-btn resume" aria-label="Resume task">` |
+| 482-508 | Finalize action `.action-btn.finalize` | `<Button variant="primary" size="sm" iconOnly loading={finalizeLoading} className="action-btn finalize" aria-label="Finalize and merge">` |
+| 513-531 | More menu trigger `.action-btn.more` | `<Button variant="ghost" size="sm" iconOnly className="action-btn more" aria-label="Quick actions">` |
+| 551-558 | Queue: Active `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
+| 559-566 | Queue: Backlog `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
+| 574-586 | Priority: Critical `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
+| 587-600 | Priority: High `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
+| 601-613 | Priority: Normal `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
+| 614-625 | Priority: Low `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
+
+**Board.tsx (4 buttons):**
+| Line | Current | Migration |
+|------|---------|-----------|
+| 469-475 | Escalate Cancel `.btn.btn-secondary` | `<Button variant="secondary">Cancel</Button>` |
+| 476-483 | Escalate Confirm `.btn.btn-primary` | `<Button variant="primary" disabled={...}>` |
+| 503-509 | Initiative Change Cancel `.btn.btn-secondary` | `<Button variant="secondary">Cancel</Button>` |
+| 510-517 | Initiative Change Confirm `.btn.btn-primary` | `<Button variant="primary" disabled={...}>` |
+
+**QueuedColumn.tsx (1 button):**
+| Line | Current | Migration |
+|------|---------|-----------|
+| 145-169 | Backlog toggle `.backlog-toggle` | `<Button variant="ghost" size="sm" className="backlog-toggle">` |
+
+**Swimlane.tsx (1 button):**
+| Line | Current | Migration |
+|------|---------|-----------|
+| 96-126 | Collapse toggle `.swimlane-header` | `<Button variant="ghost" size="sm" className="swimlane-header">` |
 
 ### Out of Scope
-- Changing Modal's external API
-- Modifying consuming components (TaskEditModal, KeyboardShortcutsHelp, InitiativeDetail)
-- Adding exit animations (nice-to-have, not required)
-- Changing modal styling/appearance
+
+- Creating new E2E tests (existing tests must pass as-is)
+- Refactoring CSS (preserve existing class names and styles)
+- Changing button behavior or event handling
+- Modifying the Button primitive itself
+- Buttons in other components outside board folder
 
 ## Technical Approach
 
-### Component Mapping
-| Current Custom | Radix Component | Notes |
-|----------------|-----------------|-------|
-| Portal via `createPortal` | `Dialog.Portal` | Built-in portal handling |
-| Backdrop div | `Dialog.Overlay` | Class: `.modal-backdrop` |
-| Content div | `Dialog.Content` | Class: `.modal-content` |
-| Title h2 | `Dialog.Title` | Class: `.modal-title` |
-| Close button | `Dialog.Close` | Class: `.modal-close` |
-| Custom focus trap | Built-in | Radix handles automatically |
-| Custom escape handler | Built-in | Radix handles automatically |
-| Custom scroll lock | Built-in | Radix handles automatically |
+### CSS Class Preservation Strategy
+
+Keep existing CSS classes as additional `className` for E2E selector compatibility:
+
+```tsx
+// Before
+<button className="action-btn run" onClick={...} disabled={actionLoading} title="Run task">
+
+// After
+<Button
+  variant="success"
+  size="sm"
+  iconOnly
+  className="action-btn run"
+  onClick={...}
+  disabled={actionLoading}
+  aria-label="Run task"
+>
+```
+
+The Button component already concatenates its base classes (`btn btn-success btn-sm btn-icon-only`) with the provided `className`, so both selectors will work:
+- New: `.btn-success`
+- Legacy: `.action-btn.run`
 
 ### Files to Modify
-- `web/src/components/overlays/Modal.tsx`: Replace implementation with Radix Dialog
-- `web/src/components/overlays/Modal.css`: Add `data-state` selectors for animations
-- `web/src/components/overlays/Modal.test.tsx`: Update tests for Radix behavior differences
 
-### Implementation Structure
-```tsx
-import * as Dialog from '@radix-ui/react-dialog';
-import { Icon } from '@/components/ui/Icon';
-import './Modal.css';
+1. **web/src/components/board/TaskCard.tsx**
+   - Import `Button` from `@/components/ui/Button`
+   - Replace 12 `<button>` elements with `<Button>` components
+   - Add `aria-label` to all icon-only buttons
+   - Preserve existing click handlers and disabled states
 
-export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
+2. **web/src/components/board/Board.tsx**
+   - Import `Button` from `@/components/ui/Button`
+   - Replace 4 modal buttons with `<Button>` components
+   - Remove inline `.btn` classes (Button provides these)
 
-interface ModalProps {
-  open: boolean;
-  onClose: () => void;
-  size?: ModalSize;
-  title?: string;
-  showClose?: boolean;
-  children: ReactNode;
-}
+3. **web/src/components/board/QueuedColumn.tsx**
+   - Import `Button` from `@/components/ui/Button`
+   - Replace backlog toggle with `<Button>`
+   - Preserve ARIA attributes
 
-const sizeClasses: Record<ModalSize, string> = {
-  sm: 'max-width-sm',
-  md: 'max-width-md',
-  lg: 'max-width-lg',
-  xl: 'max-width-xl',
-};
+4. **web/src/components/board/Swimlane.tsx**
+   - Import `Button` from `@/components/ui/Button`
+   - Replace swimlane header toggle with `<Button>`
+   - Preserve ARIA attributes
 
-export function Modal({
-  open,
-  onClose,
-  size = 'md',
-  title,
-  showClose = true,
-  children,
-}: ModalProps) {
-  return (
-    <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="modal-backdrop" />
-        <Dialog.Content className={`modal-content ${sizeClasses[size]}`}>
-          {(title || showClose) && (
-            <div className="modal-header">
-              {title && <Dialog.Title className="modal-title">{title}</Dialog.Title>}
-              {showClose && (
-                <Dialog.Close className="modal-close" aria-label="Close modal" title="Close (Esc)">
-                  <Icon name="close" size={18} />
-                </Dialog.Close>
-              )}
-            </div>
-          )}
-          <div className="modal-body">{children}</div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
-```
+5. **web/src/components/board/Column.tsx** (no changes needed)
+   - Verified: No raw `<button>` elements present
 
-### CSS Changes Required
-```css
-/* Update animation triggers to use data-state */
-.modal-backdrop[data-state='open'] {
-  animation: fade-in var(--duration-normal) var(--ease-out);
-}
+### CSS Adjustments
 
-.modal-content[data-state='open'] {
-  animation: modal-content-in var(--duration-normal) var(--ease-out);
-}
-```
+Minor CSS overrides may be needed in component CSS files to ensure Button component styles match current appearance:
 
-### Test Changes Expected
-- Radix Dialog.Content has `role="dialog"` automatically
-- `aria-labelledby` uses auto-generated IDs - update tests to check relationship exists, not specific ID
-- Focus behavior is managed by Radix - focus trap tests may need timing adjustments
-- Backdrop element is `Dialog.Overlay`, separate from `Dialog.Content`
+- TaskCard.css: Override Button base styles for `.action-btn` sizing (28px square)
+- TaskCard.css: Override `.menu-item` styles for full-width display
+- QueuedColumn.css: Override `.backlog-toggle` layout
+- Swimlane.css: Override `.swimlane-header` layout
 
 ## Refactor Analysis
 
-### Before Pattern
-- Custom implementation using `createPortal`, `useEffect`, `useRef`
-- Manual focus trap via keyboard event listeners
-- Manual escape key handling
-- Manual body scroll lock
-- ~80 lines of custom logic
+### Before Pattern (raw buttons)
+```tsx
+<button
+  className="action-btn run"
+  onClick={(e) => handleAction('run', e)}
+  disabled={actionLoading}
+  title="Run task"
+>
+  <svg>...</svg>
+</button>
+```
 
-### After Pattern
-- Radix Dialog primitives with composition
-- Focus trap, escape, scroll lock handled automatically
-- ~40 lines of declarative JSX
-- Better accessibility out of the box
+### After Pattern (Button primitive)
+```tsx
+<Button
+  variant="success"
+  size="sm"
+  iconOnly
+  className="action-btn run"
+  onClick={(e) => handleAction('run', e)}
+  disabled={actionLoading}
+  aria-label="Run task"
+>
+  <svg>...</svg>
+</Button>
+```
 
 ### Risk Assessment
+
 | Risk | Mitigation |
 |------|------------|
-| Focus behavior differs | Radix focus trap is superior; tests may need timing adjustments |
-| `aria-labelledby` ID change | Radix generates IDs; update tests to check relationship not specific ID |
-| Animation timing | Keep same keyframes, just change triggers to `data-state` |
-| Breaking consuming components | Keep identical external API |
+| Visual regression | Run visual regression tests before/after, compare snapshots |
+| E2E selector breakage | Preserve all existing CSS classes via `className` prop |
+| Accessibility regression | Add `aria-label` to all icon-only buttons (improvement) |
+| Event handler changes | Button uses `...props` spread, no handler changes needed |
+| Focus ring differences | Button has built-in focus-visible styling; verify matches |
 
-### Benefits
-- Removes ~40 lines of manual accessibility code
-- Better screen reader support via Radix
-- Consistent behavior with other Radix components in codebase
-- Maintained by Radix team, fewer bugs long-term
+### E2E Selector Analysis
+
+The board.spec.ts tests use these selectors that must continue to work:
+
+| Selector | Component | Status |
+|----------|-----------|--------|
+| `.task-card` | TaskCard | Preserved (article element) |
+| `.task-id` | TaskCard | Preserved (span element) |
+| `.column-header` | Column/QueuedColumn | Preserved |
+| `.swimlane-header` | Swimlane | Preserved via className |
+| `.backlog-toggle` | QueuedColumn | Preserved via className |
+| `.action-btn` | TaskCard | Preserved via className |
+| `.menu-item` | TaskCard | Preserved via className |
+
+No E2E test selector changes required.

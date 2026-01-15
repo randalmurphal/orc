@@ -9,26 +9,27 @@
 	pointer-events: none;
 }
 
-.dropdown-trigger {
+/* Override Button primitive styles for dropdown trigger */
+.dropdown-trigger.btn {
 	display: flex;
 	align-items: center;
 	gap: var(--space-2);
 	padding: var(--space-1-5) var(--space-3);
+	height: auto;
 	background: var(--bg-secondary);
 	border: 1px solid var(--border-default);
 	border-radius: var(--radius-md);
-	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
 	font-size: var(--text-sm);
 	color: var(--text-primary);
 }
 
-.dropdown-trigger:hover:not(:disabled) {
+.dropdown-trigger.btn:hover:not(:disabled) {
 	background: var(--bg-tertiary);
 	border-color: var(--border-strong);
+	transform: none;
 }
 
-.dropdown-trigger:focus-visible {
+.dropdown-trigger.btn:focus-visible {
 	outline: none;
 	border-color: var(--accent-primary);
 	box-shadow: 0 0 0 3px var(--accent-glow);
@@ -62,25 +63,32 @@
 	overflow: hidden;
 }
 
-.dropdown-item {
+/* Override Button primitive styles for dropdown items */
+.dropdown-item.btn {
 	display: flex;
 	align-items: flex-start;
 	gap: var(--space-2);
 	width: 100%;
+	height: auto;
 	padding: var(--space-2) var(--space-3);
 	background: transparent;
 	border: none;
-	cursor: pointer;
+	border-radius: 0;
 	text-align: left;
-	transition: background var(--duration-fast) var(--ease-out);
 }
 
-.dropdown-item:hover {
+.dropdown-item.btn:hover:not(:disabled) {
 	background: var(--bg-tertiary);
+	transform: none;
 }
 
-.dropdown-item.selected {
+.dropdown-item.btn.selected {
 	background: var(--accent-subtle);
+}
+
+/* Allow children to display inline */
+.dropdown-item.btn .btn-content {
+	display: contents;
 }
 
 .indicator-dot {

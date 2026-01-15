@@ -9,6 +9,7 @@
 
 import { useState, useCallback } from 'react';
 import { TaskCard } from './TaskCard';
+import { Button } from '@/components/ui/Button';
 import type { Task } from '@/lib/types';
 import type { FinalizeState } from '@/lib/api';
 import type { ColumnConfig } from './Column';
@@ -142,31 +143,34 @@ export function QueuedColumn({
 				{backlogTasks.length > 0 && (
 					<>
 						<div className="backlog-divider">
-							<button
-								type="button"
+							<Button
+								variant="ghost"
+								size="sm"
 								className="backlog-toggle"
 								onClick={onToggleBacklog}
 								onKeyDown={handleToggleKeydown}
 								aria-expanded={showBacklog}
 								aria-controls="backlog-section"
+								leftIcon={
+									<svg
+										className={`toggle-icon ${showBacklog ? 'expanded' : ''}`}
+										xmlns="http://www.w3.org/2000/svg"
+										width="12"
+										height="12"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									>
+										<polyline points="9 18 15 12 9 6" />
+									</svg>
+								}
 							>
-								<svg
-									className={`toggle-icon ${showBacklog ? 'expanded' : ''}`}
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<polyline points="9 18 15 12 9 6" />
-								</svg>
 								<span className="backlog-label">Backlog</span>
 								<span className="backlog-count">{backlogTasks.length}</span>
-							</button>
+							</Button>
 						</div>
 
 						{/* Backlog section */}

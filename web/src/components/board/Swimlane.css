@@ -13,22 +13,28 @@
 	background: var(--bg-tertiary);
 }
 
-/* Swimlane Header */
-.swimlane-header {
+/* Swimlane Header - override Button primitive styles */
+.swimlane-header.btn {
 	display: flex;
 	align-items: center;
 	gap: var(--space-3);
 	padding: var(--space-3) var(--space-4);
+	height: auto;
 	background: transparent;
 	border: none;
-	cursor: pointer;
+	border-radius: 0;
 	text-align: left;
 	width: 100%;
-	transition: background var(--duration-fast) var(--ease-out);
 }
 
-.swimlane-header:hover {
+.swimlane-header.btn:hover:not(:disabled) {
 	background: var(--bg-tertiary);
+	transform: none;
+}
+
+/* Allow children to display inline */
+.swimlane-header.btn .btn-content {
+	display: contents;
 }
 
 .swimlane .collapse-icon {

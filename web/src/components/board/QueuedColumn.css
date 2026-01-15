@@ -82,22 +82,28 @@
 	margin: var(--space-3) 0;
 }
 
-.queued-column .backlog-toggle {
+/* Override Button primitive styles for backlog toggle */
+.queued-column .backlog-toggle.btn {
 	display: flex;
 	align-items: center;
 	gap: var(--space-2);
 	width: 100%;
+	height: auto;
 	padding: var(--space-2);
 	background: transparent;
 	border: 1px dashed var(--border-default);
 	border-radius: var(--radius-md);
-	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
 }
 
-.queued-column .backlog-toggle:hover {
+.queued-column .backlog-toggle.btn:hover:not(:disabled) {
 	background: var(--bg-tertiary);
 	border-color: var(--border-strong);
+	transform: none;
+}
+
+/* Allow children to display inline */
+.queued-column .backlog-toggle.btn .btn-content {
+	display: contents;
 }
 
 .queued-column .toggle-icon {

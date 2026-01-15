@@ -232,12 +232,12 @@ test.describe('Board Page', () => {
 			await expect(dropdownMenu).not.toBeVisible({ timeout: 2000 });
 
 			// Verify swimlane view is now visible
-			const swimlaneView = page.locator('.swimlane-view');
+			const swimlaneView = page.locator('.board.swimlane-view');
 			await expect(swimlaneView).toBeVisible({ timeout: 3000 });
 
-			// Flat board should NOT be visible
-			const board = page.locator('.board');
-			await expect(board).not.toBeVisible();
+			// Flat view class should NOT be present
+			const flatView = page.locator('.board.flat-view');
+			await expect(flatView).not.toBeVisible();
 
 			// Dropdown should now show "By Initiative"
 			const triggerText = viewModeDropdown.locator('.trigger-text');

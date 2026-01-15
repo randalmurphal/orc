@@ -508,6 +508,7 @@ Patterns, gotchas, and decisions learned during development.
 | React migration complete | Frontend migrated from Svelte 5 to React 19; archived Svelte codebase at `web-svelte-archive/`, moved React to `web/`; E2E tests use framework-agnostic selectors (role, text, CSS classes) | TASK-180 |
 | Resolve with worktree cleanup | `orc resolve` detects worktree state (dirty, rebase/merge in progress, conflicts) and offers `--cleanup` to abort git ops and discard changes; `--force` skips checks; worktree state recorded in task metadata for audit | TASK-221 |
 | Multi-table DB transactions | Operations spanning multiple tables (task+dependencies, state+phases, initiative+decisions+tasks) wrapped in `RunInTx()` for atomicity; transaction-aware functions (`SaveTaskTx`, `SavePhaseTx`, etc.) use `TxOps` context; rollback on any error ensures consistency | TASK-223 |
+| Button primitive for board components | All board buttons (TaskCard, QueuedColumn, Swimlane, ViewModeDropdown) use Button component with `variant="ghost" size="sm"` for consistency; preserve existing CSS classes via `className` prop for backwards compatibility; icon-only buttons require `aria-label` | TASK-207 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
