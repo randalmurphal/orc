@@ -1,0 +1,191 @@
+/* =============================================================================
+   Input Component Styles
+   ============================================================================= */
+
+.input-container {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1-5);
+}
+
+.input-wrapper {
+	position: relative;
+	display: flex;
+	align-items: center;
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	transition: all var(--duration-normal) var(--ease-out);
+}
+
+/* =============================================================================
+   Size Variants
+   ============================================================================= */
+
+.input-size-sm {
+	height: 28px;
+}
+
+.input-size-sm .input-field {
+	padding: 0 var(--space-3);
+	font-size: var(--text-sm);
+}
+
+.input-size-sm.has-left-icon .input-field {
+	padding-left: calc(var(--space-3) + 16px + var(--space-2));
+}
+
+.input-size-sm.has-right-icon .input-field {
+	padding-right: calc(var(--space-3) + 16px + var(--space-2));
+}
+
+.input-size-sm .input-icon {
+	width: 16px;
+	height: 16px;
+}
+
+.input-size-md {
+	height: 36px;
+}
+
+.input-size-md .input-field {
+	padding: 0 var(--space-4);
+	font-size: var(--text-base);
+}
+
+.input-size-md.has-left-icon .input-field {
+	padding-left: calc(var(--space-4) + 18px + var(--space-2));
+}
+
+.input-size-md.has-right-icon .input-field {
+	padding-right: calc(var(--space-4) + 18px + var(--space-2));
+}
+
+.input-size-md .input-icon {
+	width: 18px;
+	height: 18px;
+}
+
+.input-size-lg {
+	height: 44px;
+}
+
+.input-size-lg .input-field {
+	padding: 0 var(--space-5);
+	font-size: var(--text-lg);
+}
+
+.input-size-lg.has-left-icon .input-field {
+	padding-left: calc(var(--space-5) + 20px + var(--space-2));
+}
+
+.input-size-lg.has-right-icon .input-field {
+	padding-right: calc(var(--space-5) + 20px + var(--space-2));
+}
+
+.input-size-lg .input-icon {
+	width: 20px;
+	height: 20px;
+}
+
+/* =============================================================================
+   Input Field
+   ============================================================================= */
+
+.input-field {
+	flex: 1;
+	width: 100%;
+	height: 100%;
+	background: transparent;
+	border: none;
+	outline: none;
+	color: var(--text-primary);
+	font-family: inherit;
+}
+
+.input-field::placeholder {
+	color: var(--text-muted);
+}
+
+/* =============================================================================
+   State Variants
+   ============================================================================= */
+
+/* Default hover */
+.input-wrapper:hover:not(.input-disabled) {
+	border-color: var(--border-strong);
+}
+
+/* Focus state - only on keyboard navigation */
+.input-wrapper:focus-within:not(.input-disabled) {
+	border-color: var(--accent-primary);
+	box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+/* Error variant */
+.input-variant-error {
+	border-color: var(--status-danger);
+}
+
+.input-variant-error:focus-within:not(.input-disabled) {
+	border-color: var(--status-danger);
+	box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.3);
+}
+
+/* Disabled state */
+.input-disabled {
+	background: var(--bg-tertiary);
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.input-disabled .input-field {
+	cursor: not-allowed;
+}
+
+/* =============================================================================
+   Icons
+   ============================================================================= */
+
+.input-icon {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	pointer-events: none;
+}
+
+.input-icon-left {
+	left: var(--space-3);
+}
+
+.input-size-md .input-icon-left {
+	left: var(--space-4);
+}
+
+.input-size-lg .input-icon-left {
+	left: var(--space-5);
+}
+
+.input-icon-right {
+	right: var(--space-3);
+}
+
+.input-size-md .input-icon-right {
+	right: var(--space-4);
+}
+
+.input-size-lg .input-icon-right {
+	right: var(--space-5);
+}
+
+/* =============================================================================
+   Error Message
+   ============================================================================= */
+
+.input-error-message {
+	font-size: var(--text-sm);
+	color: var(--status-danger);
+	line-height: var(--leading-tight);
+}
