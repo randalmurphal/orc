@@ -1433,12 +1433,12 @@ function ConnectionIndicator() {
 | `tokens` | `TokenUsage` | Token usage update |
 | `complete` | `{ status, phase? }` | Task completed |
 | `finalize` | `{ step, status, progress? }` | Finalize phase update |
-| `task_created` | `Task` | New task created (file watcher) |
-| `task_updated` | `Task` | Task modified (file watcher) |
-| `task_deleted` | `null` | Task deleted (file watcher) |
-| `initiative_created` | `Initiative` | New initiative created (file watcher) |
-| `initiative_updated` | `Initiative` | Initiative modified (file watcher) |
-| `initiative_deleted` | `null` | Initiative deleted (file watcher) |
+| `task_created` | `Task` | New task created (database event) |
+| `task_updated` | `Task` | Task modified (database event) |
+| `task_deleted` | `null` | Task deleted (database event) |
+| `initiative_created` | `Initiative` | New initiative created (database event) |
+| `initiative_updated` | `Initiative` | Initiative modified (database event) |
+| `initiative_deleted` | `null` | Initiative deleted (database event) |
 | `error` | `{ message }` | Error from server |
 
 #### Connection Behavior

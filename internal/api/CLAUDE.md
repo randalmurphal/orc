@@ -170,18 +170,18 @@ Without scope parameter, endpoints return project-level config (`.claude/`).
 {"type": "pong"}
 ```
 
-### File Watcher Events
+### Database Events
 
-The API server runs a file watcher that monitors `.orc/tasks/` for changes made outside the API (CLI, filesystem). Events are published to WebSocket clients subscribed to `"*"`:
+The API server publishes events to WebSocket clients subscribed to `"*"` when tasks/initiatives are modified:
 
 | Event | Trigger | Data |
 |-------|---------|------|
-| `task_created` | New `task.yaml` detected | `{task: Task}` |
-| `task_updated` | `task.yaml`, `plan.yaml`, or `spec.md` modified | `{task: Task}` |
-| `task_deleted` | Task directory removed (verified) | `{task_id: string}` |
-| `state` | `state.yaml` modified | `{raw: string}` |
+| `task_created` | New task saved to database | `{task: Task}` |
+| `task_updated` | Task modified in database | `{task: Task}` |
+| `task_deleted` | Task deleted from database | `{task_id: string}` |
+| `state` | Task state updated | `{raw: string}` |
 
-**Flow:** CLI/filesystem change → file watcher → debounce (500ms) → content hash check → publish event → WebSocket broadcast
+**Flow:** CLI/API operation → database write → event publish → WebSocket broadcast
 
 ## PR Status Polling
 

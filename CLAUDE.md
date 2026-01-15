@@ -202,7 +202,6 @@ orc config profile strict
 
 | Option | Purpose | Docs |
 |--------|---------|------|
-| `storage.mode` | hybrid/files/database | `docs/specs/DATABASE_ABSTRACTION.md` |
 | `worktree.enabled` | Git worktree isolation | `docs/architecture/GIT_INTEGRATION.md` |
 | `pool.enabled` | OAuth token rotation | - |
 | `team.mode` | local/shared_db | `docs/specs/TEAM_ARCHITECTURE.md` |
@@ -310,7 +309,7 @@ make web-dev    # Frontend :5173 (separate terminal)
 
 If port 8080 is in use, the frontend can run standalone with `make web-dev` while pointing to a different API port via environment variable.
 
-**Live refresh:** Task board auto-updates when tasks are created/modified/deleted via CLI or filesystem. File watcher monitors `.orc/tasks/` and broadcasts events over WebSocket.
+**Live refresh:** Task board auto-updates when tasks are created/modified/deleted via CLI or API. Database operations publish events over WebSocket.
 
 **Project selection:** The server can run from any directory. Project selection persists in URL (`?project=xxx`) and localStorage, surviving page refresh. Use `Shift+Alt+P` to switch projects.
 
@@ -494,21 +493,18 @@ Patterns, gotchas, and decisions learned during development.
 | Auto-trigger finalize on approval | In `auto` profile, finalize phase auto-triggers when PR is approved; controlled by `completion.finalize.auto_trigger_on_approval`; respects 30s rate limit, skips trivial tasks | TASK-091 |
 | Finalize UI components | FinalizeModal for progress/results; TaskCard shows finalize button (completed), progress bar (finalizing), merge info (finished); WebSocket `finalize` events for real-time updates | TASK-094 |
 | Auto-approve PRs in auto mode | In `auto`/`fast` profiles, PRs are auto-approved after verifying CI passes; uses `gh pr review --approve` with summary comment; `safe`/`strict` profiles require human approval | TASK-099 |
-| Initiative auto-commit | Initiative files auto-commit to git and sync to DB on create/modify via CLI; uses `initiative.CommitAndSync()` after each save; watcher monitors `.orc/initiatives/` for external edits | TASK-097 |
-| Initiative hybrid storage | Initiatives use YAML as source of truth with DB cache; `initiative_dependencies` table tracks blocked_by; recovery via `RebuildDBIndex()` from YAML or `RecoverFromDB()` from database | TASK-097 |
+| Initiative database storage | Initiatives stored in SQLite (`initiatives`, `initiative_tasks`, `initiative_decisions`, `initiative_dependencies` tables); `initiative.Save()` writes directly to database; CLI operations auto-commit changes | TASK-097 |
 | CLAUDE.md auto-merge | During git sync, conflicts in knowledge section (within `orc:knowledge:begin/end` markers) are auto-resolved if purely additive (both sides add new table rows); rows combined and sorted by TASK-XXX source ID; complex conflicts (overlapping edits) fall back to manual resolution | TASK-096 |
-| Task auto-commit | Task files auto-commit to git on create/modify via CLI; uses `task.CommitAndSync()` after each save; commit messages follow format `[orc] task TASK-001: action - Title`; disable via `tasks.disable_auto_commit` config | TASK-153 |
+| Task database storage | Tasks stored in SQLite (`tasks`, `phases`, `plans`, `specs` tables); all task operations write directly to database; config changes and prompt files still tracked in git | TASK-153 |
 | CI wait and auto-merge | After finalize, poll `gh pr checks` until CI passes (30s interval, 10m timeout), then merge via GitHub REST API (`PUT /repos/.../pulls/.../merge`); bypasses GitHub auto-merge feature (no branch protection needed); `auto`/`fast` profiles only | TASK-151 |
 | PR merge via REST API | Use GitHub REST API for merge instead of `gh pr merge` CLI; CLI tries to fast-forward local target branch which fails when target is checked out in another worktree (common case); API merges server-side only | TASK-196 |
-| Comprehensive auto-commit | ALL .orc/ file mutations auto-commit to git: task lifecycle (status, state, phase transitions), initiative operations (status, linking, decisions), API/UI changes (config, prompts, projects), PR status updates; `state.CommitTaskState()` and `state.CommitPhaseTransition()` for executor; `autoCommit*()` helpers in API handlers; disable via `tasks.disable_auto_commit` config | TASK-193 |
+| Config and prompt auto-commit | Configuration files (`.orc/config.yaml`) and prompt templates (`.orc/prompts/`) auto-commit to git on modification; task and initiative data stored in SQLite (not git-tracked) | TASK-193 |
 | WebSocket E2E event injection | Use Playwright's `routeWebSocket` to intercept connections and inject events via `ws.send()`; captures real WebSocket, forwards messages bidirectionally, allows test-initiated events; framework-agnostic approach for testing real-time UI updates | TASK-157 |
 | Visual regression baselines | Separate Playwright project (`visual`) with 1440x900 @2x viewport, disabled animations, masked dynamic content (timestamps, tokens); use `--update-snapshots` to regenerate after intentional UI changes; baselines in `web/e2e/__snapshots__/` | TASK-159 |
 | Keyboard shortcut E2E testing | Test multi-key sequences (g+d, g+t) with sequential `page.keyboard.press()` calls; test Shift+Alt modifiers; verify input field awareness (shortcuts disabled when typing); use `.selected` class for task navigation; 13 tests in `web/e2e/keyboard-shortcuts.spec.ts` | TASK-160 |
 | Finalize workflow E2E testing | Test finalize modal states (not started, running, completed, failed) via WebSocket event injection; covers button visibility on completed tasks, modal content, progress bar with step labels, success/failure results, retry option; 10 tests in `web/e2e/finalize.spec.ts` | TASK-161 |
 | Sync on start for stale worktrees | Before execution starts, sync task branch with target to catch conflicts from parallel tasks; `sync_on_start: true` (default) rebases onto latest target so implement phase sees current code; disable if you need isolation from concurrent changes | TASK-194 |
 | Resource tracking for orphan detection | Executor snapshots processes before/after task; compares to detect orphaned MCP processes (playwright, chromium); logs warnings with process details and memory growth; configure via `diagnostics.resource_tracking` in config | TASK-197 |
-| Task completion uses isDone() helper | Blocker checks use `isDone(status)` helper (not direct `== StatusCompleted`) to recognize both `completed` and `finished` as done; ensures merged tasks don't block dependents | TASK-199 |
-| Diverged branch auto-force-push | When re-running a completed task, the remote branch has different history; push detects non-fast-forward error and retries with `--force-with-lease`; safer than `--force` as it fails if remote has unexpected commits; logged as warning | TASK-198 |
 | E2E sandbox isolation | E2E tests MUST run against isolated sandbox project in `/tmp`, not production; `global-setup.ts` creates sandbox with test tasks/initiatives, `global-teardown.ts` removes it; test files import from `./fixtures` (not `@playwright/test`) to auto-select sandbox; tests that bypass fixtures will corrupt real task data | TASK-201 |
 | React migration complete | Frontend migrated from Svelte 5 to React 19; archived Svelte codebase at `web-svelte-archive/`, moved React to `web/`; E2E tests use framework-agnostic selectors (role, text, CSS classes) | TASK-180 |
 | Resolve with worktree cleanup | `orc resolve` detects worktree state (dirty, rebase/merge in progress, conflicts) and offers `--cleanup` to abort git ops and discard changes; `--force` skips checks; worktree state recorded in task metadata for audit | TASK-221 |
@@ -522,14 +518,12 @@ Patterns, gotchas, and decisions learned during development.
 | Raw `InputTokens` appears misleadingly low | Use `EffectiveInputTokens()` which adds cached tokens to get actual context size | TASK-010 |
 | Task stuck in "running" after crash | Use `orc resume TASK-XXX` (auto-detects orphaned state) or `--force` to override | TASK-046 |
 | Failed task can't be resumed | Fixed: `orc resume` now supports failed tasks, resuming from last incomplete phase | TASK-025 |
-| Spurious "Task deleted" toast notifications | Fixed: Watcher now verifies deletions with debounce to filter false positives from git ops/atomic saves | TASK-053 |
 | Setup errors (worktree creation) failed silently | Fixed: Errors now always display even in quiet mode, task status set to failed | TASK-044 |
 | Web UI shows "No project selected" | Select a project via `Shift+Alt+P` - server can run from any directory | TASK-005 |
 | Auto-merge fails with worktree error | Fixed: Uses GitHub REST API for merge instead of `gh pr merge` CLI which tried to checkout target branch locally | TASK-196 |
 | Finished tasks still blocked dependents | Fixed: `GetIncompleteBlockers()` now uses `isDone()` helper to recognize both `completed` and `finished` statuses as done | TASK-199 |
 | Re-running completed task fails to push | Fixed: Push now detects non-fast-forward errors (diverged remote) and automatically retries with `--force-with-lease` | TASK-198 |
 | Sync fails with '0 files in conflict' error | Fixed: `RebaseWithConflictCheck()` now only returns `ErrMergeConflict` when actual conflicts detected; other rebase failures (dirty tree, rebase in progress) return the raw error | TASK-201 |
-| E2E tests modify production task statuses | Fixed: Tests now use isolated sandbox project in `/tmp`; test files MUST import from `./fixtures` to get sandbox selection; tests that import directly from `@playwright/test` will corrupt real data | TASK-201 |
 
 ### Decisions
 | Decision | Rationale | Source |
