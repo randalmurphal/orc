@@ -883,6 +883,54 @@ E2E tests are shared with Svelte in `web/e2e/`. Tests use framework-agnostic sel
 - `getByText()` for headings/labels
 - `.locator()` with class names for structural elements
 
+```bash
+# Run E2E tests against React app
+npm run e2e              # All functional tests (excludes visual)
+npm run e2e:visual       # Visual regression tests only
+npm run e2e:update       # Update visual baselines
+npm run e2e:report       # Open HTML report
+```
+
+**Configuration:** `playwright.config.ts` points to shared tests in `../web/e2e` but targets React app on `:5174`.
+
+**Dual-run Validation Results (Phase 4):**
+
+| Category | Tests | Pass Rate | Notes |
+|----------|-------|-----------|-------|
+| Dashboard | 7 | 100% | Full parity |
+| Finalize workflow | 10 | 100% | Full parity |
+| Board interactions | 18 | 94% | Minor selector issues |
+| Sidebar | 11 | 82% | - |
+| Filters & URL | 16 | 81% | - |
+| Navigation | 5 | 80% | - |
+| WebSocket updates | 17 | 65% | Timing differences |
+| Keyboard shortcuts | 13 | 62% | Context handling |
+| Accessibility | 8 | 50% | ARIA attributes needed |
+| Tasks | 10 | 40% | NewTaskModal missing |
+| Prompts | 10 | 40% | Environment page partial |
+| Hooks | 4 | 0% | Environment page not implemented |
+| Task Detail | 15 | 0% | Selector mismatches |
+| Initiatives | 20 | 0% | Page incomplete |
+| **Total** | **164** | **55%** | See recommendations below |
+
+**Note:** Svelte baseline is 91% (149/164) - some tests fail in both frameworks.
+
+**Performance Comparison:**
+
+| Metric | Svelte | React | Delta |
+|--------|--------|-------|-------|
+| JS (uncompressed) | 643 KB | 435 KB | -32% |
+| CSS (uncompressed) | 375 KB | 164 KB | -56% |
+| Build time | 7.4s | 1.3s | -82% |
+| JS (gzipped) | ~100 KB | 122 KB | +22% |
+
+**Recommendations for 100% Parity:**
+1. Implement NewTaskModal with `.new-task-form` class
+2. Complete TaskDetail selectors (tab nav, timeline phases)
+3. Complete InitiativeDetail page
+4. Add missing ARIA attributes for accessibility
+5. Implement remaining Environment pages (Hooks, etc.)
+
 ### Integration Tests
 
 Integration tests in `src/integration/` verify WebSocket event handling and store synchronization.
