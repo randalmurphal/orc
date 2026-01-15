@@ -1,0 +1,18 @@
+id: TASK-214
+title: Replace TabNav with Radix Tabs
+description: 'Replace custom TabNav component in task-detail with Radix Tabs. Benefits: proper aria-selected, arrow key navigation, panel association. Preserve existing CSS classes (tab-nav, tab-item, tab-panel). Success: Tab navigation is fully keyboard accessible. Testing: E2E task-detail tests pass, keyboard navigation works.'
+weight: medium
+status: planned
+branch: orc/TASK-214
+queue: active
+priority: normal
+category: refactor
+initiative_id: INIT-009
+blocked_by:
+    - TASK-210
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:05:24.219304116-06:00
+updated_at: 2026-01-14T23:05:24.260786519-06:00
