@@ -340,6 +340,8 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 
 ### Component Library
 
+**Button Primitive**: Unified button component used across all pages. Features variants (primary, secondary, danger, ghost, success), sizes (sm, md, lg), icon support (leftIcon, rightIcon, iconOnly), and loading state. Provides consistent accessibility (focus-visible, aria-disabled, aria-busy).
+
 **Radix UI**: Accessible primitives for Dialog, Dropdown, Select, Tabs, Tooltip, Popover, Toast.
 - All Radix components portal to `document.body` by default
 - Modal.tsx uses Radix Dialog internally while preserving existing CSS classes and API
@@ -509,6 +511,7 @@ Patterns, gotchas, and decisions learned during development.
 | Resolve with worktree cleanup | `orc resolve` detects worktree state (dirty, rebase/merge in progress, conflicts) and offers `--cleanup` to abort git ops and discard changes; `--force` skips checks; worktree state recorded in task metadata for audit | TASK-221 |
 | Multi-table DB transactions | Operations spanning multiple tables (task+dependencies, state+phases, initiative+decisions+tasks) wrapped in `RunInTx()` for atomicity; transaction-aware functions (`SaveTaskTx`, `SavePhaseTx`, etc.) use `TxOps` context; rollback on any error ensures consistency | TASK-223 |
 | Button primitive for board components | All board buttons (TaskCard, QueuedColumn, Swimlane, ViewModeDropdown) use Button component with `variant="ghost" size="sm"` for consistency; preserve existing CSS classes via `className` prop for backwards compatibility; icon-only buttons require `aria-label` | TASK-207 |
+| Button primitive migration | Dashboard and layout components migrated from raw `<button>` to unified Button component; preserve existing CSS class names via `className` prop; use `variant="ghost"` for minimal styling, `variant="primary"` for primary actions | TASK-209 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

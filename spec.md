@@ -1,186 +1,167 @@
-# Specification: Migrate TaskCard and board components to Button primitive
+# Specification: Migrate dashboard and layout components to Button primitive
 
 ## Problem Statement
 
-Replace all raw `<button>` elements in board components (TaskCard, Board, Column, QueuedColumn, Swimlane) with the unified `Button` primitive to ensure consistent styling, accessibility, and maintainability across the Kanban board UI.
+Dashboard and layout components use raw `<button>` elements with ad-hoc CSS classes instead of the unified Button primitive. This creates inconsistent styling, missing accessibility features (aria-disabled, aria-busy), and duplicated hover/focus/disabled state handling.
 
 ## Success Criteria
 
-- [ ] All 12 TaskCard.tsx buttons migrated to Button component
-- [ ] All 4 Board.tsx modal buttons migrated to Button component
-- [ ] Column.tsx verified - no raw buttons present (no changes needed)
-- [ ] QueuedColumn.tsx backlog toggle (1 button) migrated to Button component
-- [ ] Swimlane.tsx collapse toggle (1 button) migrated to Button component
-- [ ] All icon-only buttons have `aria-label` attributes
-- [ ] Existing CSS classes preserved via `className` prop for backwards compatibility
-- [ ] Visual appearance matches current implementation exactly
-- [ ] E2E tests pass without selector modifications
+- [ ] All action buttons in target files use the `Button` component from `@/components/ui`
+- [ ] Navigation links remain as `NavLink` or `<a>` elements (not converted to buttons)
+- [ ] Visual appearance matches current implementation (no visual regression)
+- [ ] All existing E2E tests pass without selector changes
+- [ ] `npm run test` passes
+- [ ] `bunx playwright test dashboard.spec.ts` passes
+- [ ] `bunx playwright test --project=visual` passes (visual regression)
 
 ## Testing Requirements
 
-- [ ] Unit: `npm run test` passes (frontend tests)
-- [ ] E2E: `bunx playwright test board.spec.ts` passes with no changes to test selectors
-- [ ] Visual: `bunx playwright test --project=visual` passes (board snapshots match baselines)
-- [ ] Manual: Verify all button interactions work (run, pause, resume, finalize, menu items)
+- [ ] Unit test: Button component already tested; verify imports work
+- [ ] E2E test: `bunx playwright test dashboard.spec.ts` passes
+- [ ] E2E test: `bunx playwright test --project=visual` passes (visual baselines)
+- [ ] Manual verification: Compare before/after screenshots of Dashboard page
 
 ## Scope
 
 ### In Scope
 
-**TaskCard.tsx (12 buttons):**
-| Line | Current | Migration |
-|------|---------|-----------|
-| 411-418 | Initiative badge `<button>` | `<Button variant="ghost" size="sm" className="initiative-badge">` |
-| 425-441 | Run action `.action-btn.run` | `<Button variant="success" size="sm" iconOnly className="action-btn run" aria-label="Run task">` |
-| 444-461 | Pause action `.action-btn.pause` | `<Button variant="secondary" size="sm" iconOnly className="action-btn pause" aria-label="Pause task">` |
-| 463-480 | Resume action `.action-btn.resume` | `<Button variant="primary" size="sm" iconOnly className="action-btn resume" aria-label="Resume task">` |
-| 482-508 | Finalize action `.action-btn.finalize` | `<Button variant="primary" size="sm" iconOnly loading={finalizeLoading} className="action-btn finalize" aria-label="Finalize and merge">` |
-| 513-531 | More menu trigger `.action-btn.more` | `<Button variant="ghost" size="sm" iconOnly className="action-btn more" aria-label="Quick actions">` |
-| 551-558 | Queue: Active `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
-| 559-566 | Queue: Backlog `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
-| 574-586 | Priority: Critical `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
-| 587-600 | Priority: High `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
-| 601-613 | Priority: Normal `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
-| 614-625 | Priority: Low `.menu-item` | `<Button variant="ghost" size="sm" className="menu-item ...">` |
+**DashboardStats.tsx** (3 buttons)
+| Element | Current | Migrate To |
+|---------|---------|------------|
+| Running stat card | `<button className="stat-card running">` | `<Button variant="ghost" className="stat-card running">` |
+| Blocked stat card | `<button className="stat-card blocked">` | `<Button variant="ghost" className="stat-card blocked">` |
+| Today stat card | `<button className="stat-card today">` | `<Button variant="ghost" className="stat-card today">` |
 
-**Board.tsx (4 buttons):**
-| Line | Current | Migration |
-|------|---------|-----------|
-| 469-475 | Escalate Cancel `.btn.btn-secondary` | `<Button variant="secondary">Cancel</Button>` |
-| 476-483 | Escalate Confirm `.btn.btn-primary` | `<Button variant="primary" disabled={...}>` |
-| 503-509 | Initiative Change Cancel `.btn.btn-secondary` | `<Button variant="secondary">Cancel</Button>` |
-| 510-517 | Initiative Change Confirm `.btn.btn-primary` | `<Button variant="primary" disabled={...}>` |
+Note: Tokens card is a `<div>` (non-interactive) - leave as-is.
 
-**QueuedColumn.tsx (1 button):**
-| Line | Current | Migration |
-|------|---------|-----------|
-| 145-169 | Backlog toggle `.backlog-toggle` | `<Button variant="ghost" size="sm" className="backlog-toggle">` |
+**DashboardQuickActions.tsx** (2 buttons)
+| Element | Current | Migrate To |
+|---------|---------|------------|
+| New Task | `<button className="action-btn primary">` | `<Button variant="primary" leftIcon={<Icon name="plus" size={16} />}>` |
+| View All Tasks | `<button className="action-btn">` | `<Button variant="secondary" leftIcon={<Icon name="tasks" size={16} />}>` |
 
-**Swimlane.tsx (1 button):**
-| Line | Current | Migration |
-|------|---------|-----------|
-| 96-126 | Collapse toggle `.swimlane-header` | `<Button variant="ghost" size="sm" className="swimlane-header">` |
+**DashboardInitiatives.tsx** (2 button types)
+| Element | Current | Migrate To |
+|---------|---------|------------|
+| Initiative row | `<button className="initiative-row">` | `<Button variant="ghost" className="initiative-row">` |
+| View All link | `<button className="view-all-link">` | `<Button variant="ghost" className="view-all-link">` |
+
+**Header.tsx** (3 buttons)
+| Element | Current | Migrate To |
+|---------|---------|------------|
+| Project switcher | `<button className="project-btn">` | `<Button variant="ghost" className="project-btn">` |
+| Command palette | `<button className="cmd-hint">` | `<Button variant="ghost" className="cmd-hint">` |
+| New Task | `<button className="primary new-task-btn">` | `<Button variant="primary" leftIcon={<Icon name="plus" size={16} />}>` |
+
+**Sidebar.tsx** (4 button types)
+| Element | Current | Migrate To |
+|---------|---------|------------|
+| Toggle sidebar | `<button className="toggle-btn">` | `<Button variant="ghost" iconOnly className="toggle-btn">` |
+| Section headers | `<button className="section-header clickable">` | `<Button variant="ghost" className="section-header clickable">` |
+| Group headers | `<button className="group-header">` | `<Button variant="ghost" className="group-header">` |
+| New Initiative | `<button className="nav-item new-initiative-btn">` | `<Button variant="ghost" leftIcon={<Icon name="plus" size={14} />} className="new-initiative-btn">` |
+
+**ProjectSwitcher.tsx** (2 button types)
+| Element | Current | Migrate To |
+|---------|---------|------------|
+| Close button | `<button className="close-btn">` | `<Button variant="ghost" iconOnly aria-label="Close" title="Close (Esc)">` |
+| Project items | `<button className="project-item">` | `<Button variant="ghost" className="project-item">` |
 
 ### Out of Scope
 
-- Creating new E2E tests (existing tests must pass as-is)
-- Refactoring CSS (preserve existing class names and styles)
-- Changing button behavior or event handling
-- Modifying the Button primitive itself
-- Buttons in other components outside board folder
+- **DashboardActiveTasks.tsx**: Uses `<Link>` for navigation - correct, leave as-is
+- **DashboardRecentActivity.tsx**: Uses `<Link>` for navigation - correct, leave as-is
+- **Sidebar.tsx NavLinks**: Navigation items use `<NavLink>` - correct, leave as-is
+- **CSS files**: May need minor adjustments to work with `.btn` base class, but no major refactoring
+- **Other components**: Only dashboard and layout components in this task
 
 ## Technical Approach
 
-### CSS Class Preservation Strategy
+### Key Considerations
 
-Keep existing CSS classes as additional `className` for E2E selector compatibility:
+1. **Preserve CSS class names**: The Button component accepts `className` prop, so existing classes like `stat-card`, `action-btn`, `project-btn` can be preserved for styling.
 
-```tsx
-// Before
-<button className="action-btn run" onClick={...} disabled={actionLoading} title="Run task">
+2. **Handle button content structure**: The Button component wraps children in `<span className="btn-content">`. For complex content (like stat cards with icons and labels), use the Button as a wrapper but keep the internal structure.
 
-// After
-<Button
-  variant="success"
-  size="sm"
-  iconOnly
-  className="action-btn run"
-  onClick={...}
-  disabled={actionLoading}
-  aria-label="Run task"
->
-```
+3. **Icon handling**: Use `leftIcon` prop for buttons with leading icons instead of including Icon as a child.
 
-The Button component already concatenates its base classes (`btn btn-success btn-sm btn-icon-only`) with the provided `className`, so both selectors will work:
-- New: `.btn-success`
-- Legacy: `.action-btn.run`
+4. **E2E selector stability**: Tests use role-based selectors (`getByRole('button')`) and text content. The Button component renders a `<button>` element, so selectors should remain stable.
 
 ### Files to Modify
 
-1. **web/src/components/board/TaskCard.tsx**
-   - Import `Button` from `@/components/ui/Button`
-   - Replace 12 `<button>` elements with `<Button>` components
-   - Add `aria-label` to all icon-only buttons
-   - Preserve existing click handlers and disabled states
+1. **`web/src/components/dashboard/DashboardStats.tsx`**
+   - Import `Button` from `@/components/ui`
+   - Replace 3 `<button>` elements with `<Button variant="ghost">`
+   - Preserve `className` and `onClick` props
+   - Keep internal content structure (stat-icon, stat-content)
 
-2. **web/src/components/board/Board.tsx**
-   - Import `Button` from `@/components/ui/Button`
-   - Replace 4 modal buttons with `<Button>` components
-   - Remove inline `.btn` classes (Button provides these)
+2. **`web/src/components/dashboard/DashboardQuickActions.tsx`**
+   - Import `Button` from `@/components/ui`
+   - Replace 2 `<button>` elements with `<Button>`
+   - Use `leftIcon` prop for icons
+   - Primary button: `variant="primary"`
+   - Secondary button: `variant="secondary"`
 
-3. **web/src/components/board/QueuedColumn.tsx**
-   - Import `Button` from `@/components/ui/Button`
-   - Replace backlog toggle with `<Button>`
-   - Preserve ARIA attributes
+3. **`web/src/components/dashboard/DashboardInitiatives.tsx`**
+   - Import `Button` from `@/components/ui`
+   - Replace initiative row buttons with `<Button variant="ghost">`
+   - Replace "View All" button with `<Button variant="ghost">`
+   - Preserve internal content structure for initiative rows
 
-4. **web/src/components/board/Swimlane.tsx**
-   - Import `Button` from `@/components/ui/Button`
-   - Replace swimlane header toggle with `<Button>`
-   - Preserve ARIA attributes
+4. **`web/src/components/layout/Header.tsx`**
+   - Import `Button` from `@/components/ui`
+   - Replace 3 `<button>` elements with `<Button>`
+   - Project button: `variant="ghost"`
+   - Command palette: `variant="ghost"`
+   - New Task: `variant="primary"` with `leftIcon`
 
-5. **web/src/components/board/Column.tsx** (no changes needed)
-   - Verified: No raw `<button>` elements present
+5. **`web/src/components/layout/Sidebar.tsx`**
+   - Import `Button` from `@/components/ui`
+   - Replace toggle button with `<Button variant="ghost" iconOnly>`
+   - Replace section/group header buttons with `<Button variant="ghost">`
+   - Replace New Initiative button with `<Button variant="ghost">`
+   - Preserve `aria-expanded` attributes on collapsible buttons
+
+6. **`web/src/components/overlays/ProjectSwitcher.tsx`**
+   - Import `Button` from `@/components/ui`
+   - Replace close button with `<Button variant="ghost" iconOnly>`
+   - Replace project item buttons with `<Button variant="ghost">`
 
 ### CSS Adjustments
 
-Minor CSS overrides may be needed in component CSS files to ensure Button component styles match current appearance:
-
-- TaskCard.css: Override Button base styles for `.action-btn` sizing (28px square)
-- TaskCard.css: Override `.menu-item` styles for full-width display
-- QueuedColumn.css: Override `.backlog-toggle` layout
-- Swimlane.css: Override `.swimlane-header` layout
+The Button component adds `.btn`, `.btn-ghost`, `.btn-md` classes. Component-specific CSS may need adjustments to:
+- Override height/padding from `.btn-md` when needed
+- Ensure custom backgrounds/borders still apply over `.btn-ghost` defaults
+- Handle the `.btn-content` wrapper for text children
 
 ## Refactor Analysis
 
-### Before Pattern (raw buttons)
+### Before Pattern
 ```tsx
-<button
-  className="action-btn run"
-  onClick={(e) => handleAction('run', e)}
-  disabled={actionLoading}
-  title="Run task"
->
-  <svg>...</svg>
+<button className="action-btn primary" onClick={onNewTask}>
+  <Icon name="plus" size={16} />
+  New Task
 </button>
 ```
 
-### After Pattern (Button primitive)
+### After Pattern
 ```tsx
 <Button
-  variant="success"
-  size="sm"
-  iconOnly
-  className="action-btn run"
-  onClick={(e) => handleAction('run', e)}
-  disabled={actionLoading}
-  aria-label="Run task"
+  variant="primary"
+  leftIcon={<Icon name="plus" size={16} />}
+  onClick={onNewTask}
 >
-  <svg>...</svg>
+  New Task
 </Button>
 ```
 
 ### Risk Assessment
 
-| Risk | Mitigation |
-|------|------------|
-| Visual regression | Run visual regression tests before/after, compare snapshots |
-| E2E selector breakage | Preserve all existing CSS classes via `className` prop |
-| Accessibility regression | Add `aria-label` to all icon-only buttons (improvement) |
-| Event handler changes | Button uses `...props` spread, no handler changes needed |
-| Focus ring differences | Button has built-in focus-visible styling; verify matches |
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| Visual regression | Medium | Low | Run visual regression tests, compare screenshots |
+| E2E selector breakage | Low | Medium | Button renders `<button>`, role selectors should work |
+| CSS specificity conflicts | Medium | Low | Use `className` to preserve existing class-based styles |
+| Content structure changes | Low | Low | Button allows complex children when not using `leftIcon` |
 
-### E2E Selector Analysis
-
-The board.spec.ts tests use these selectors that must continue to work:
-
-| Selector | Component | Status |
-|----------|-----------|--------|
-| `.task-card` | TaskCard | Preserved (article element) |
-| `.task-id` | TaskCard | Preserved (span element) |
-| `.column-header` | Column/QueuedColumn | Preserved |
-| `.swimlane-header` | Swimlane | Preserved via className |
-| `.backlog-toggle` | QueuedColumn | Preserved via className |
-| `.action-btn` | TaskCard | Preserved via className |
-| `.menu-item` | TaskCard | Preserved via className |
-
-No E2E test selector changes required.
+The main risk is CSS specificity - the Button component's base styles (`.btn`) may conflict with component-specific styles. However, since component classes are preserved via `className`, and CSS order matters, this should be manageable with minor adjustments.
