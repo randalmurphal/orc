@@ -537,6 +537,7 @@ Patterns, gotchas, and decisions learned during development.
 | PRPoller.Stop() panics on double call | Fixed: `Stop()` now uses `sync.Once` to guard channel close; safe to call multiple times from concurrent shutdown paths | TASK-231 |
 | Total time shows 292 years | Fixed: `State.Elapsed()` method checks for zero `StartedAt` before calling `time.Since()`; returns 0 for uninitialized states instead of Unix epoch difference | TASK-243 |
 | Running tasks falsely flagged as orphaned | Fixed: `SaveState()` now persists `ExecutionInfo` (PID, hostname, heartbeat) to database; `LoadState()` restores it; orphan detection works correctly across orc restarts | TASK-242 |
+| SaveTask overwrites executor fields | Fixed: `SaveTask()` now preserves executor fields (PID, hostname, heartbeat) when updating task metadata; prevents false orphan detection when CLI/API updates a running task | TASK-249 |
 | detectConflictsViaMerge left worktree in merge state | Fixed: Cleanup (`merge --abort` + `reset --hard`) now uses `defer` to guarantee execution even on error/panic; idempotent cleanup is safe even if merge wasn't started | TASK-229 |
 
 ### Decisions

@@ -636,7 +636,7 @@ func TestSaveState_ExecutionInfo(t *testing.T) {
 	// Save state with ExecutionInfo (simulates executor starting)
 	now := time.Now()
 	execStart := now.Add(-time.Minute) // Started 1 minute ago
-	heartbeat := now                    // Last heartbeat just now
+	heartbeat := now                   // Last heartbeat just now
 	s := &state.State{
 		TaskID:       "TASK-001",
 		CurrentPhase: "implement",
@@ -1044,5 +1044,139 @@ func TestSaveTaskCtx_ValidContext(t *testing.T) {
 	}
 	if loaded.Title != "Test Task" {
 		t.Errorf("expected title 'Test Task', got %s", loaded.Title)
+	}
+}
+
+// TestSaveTask_PreservesExecutorFields verifies that SaveTask does NOT overwrite executor fields.
+// This is a regression test for TASK-249: SaveTask was overwriting ExecutorPID, ExecutorHostname,
+// ExecutorStartedAt, and LastHeartbeat with zero values, causing false orphan detection.
+//
+// Scenario:
+// 1. Executor starts task, sets executor fields via SaveState
+// 2. Some other code (e.g., CLI edit, API update) calls SaveTask to update task metadata
+// 3. SaveTask MUST preserve executor fields to avoid false orphan detection
+func TestSaveTask_PreservesExecutorFields(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Step 1: Create task
+	task1 := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Original Title",
+		Weight:    task.WeightSmall,
+		Status:    task.StatusRunning,
+		CreatedAt: time.Now(),
+	}
+	if err := backend.SaveTask(task1); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Step 2: Executor starts task, sets executor fields via SaveState
+	// This simulates what the executor does when starting a task
+	now := time.Now()
+	s := &state.State{
+		TaskID:       "TASK-001",
+		CurrentPhase: "implement",
+		Status:       state.StatusRunning,
+		StartedAt:    now,
+		Phases:       make(map[string]*state.PhaseState),
+		Execution: &state.ExecutionInfo{
+			PID:           12345,
+			Hostname:      "worker-1",
+			StartedAt:     now,
+			LastHeartbeat: now,
+		},
+	}
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+
+	// Verify executor fields are set
+	loaded, err := backend.LoadState("TASK-001")
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if loaded.Execution == nil || loaded.Execution.PID != 12345 {
+		t.Fatalf("executor fields not set properly: %+v", loaded.Execution)
+	}
+
+	// Step 3: Someone updates task metadata via SaveTask (e.g., CLI edit, API update)
+	// This should NOT clear the executor fields!
+	task1.Title = "Updated Title"
+	task1.Description = "Added description"
+	if err := backend.SaveTask(task1); err != nil {
+		t.Fatalf("update task: %v", err)
+	}
+
+	// Step 4: Verify executor fields are STILL SET after SaveTask
+	loaded, err = backend.LoadState("TASK-001")
+	if err != nil {
+		t.Fatalf("load state after task update: %v", err)
+	}
+
+	// This is the critical assertion that was failing before TASK-249 fix
+	if loaded.Execution == nil {
+		t.Fatal("REGRESSION: SaveTask overwrote executor fields - ExecutionInfo is nil (causes false orphan detection)")
+	}
+	if loaded.Execution.PID != 12345 {
+		t.Errorf("REGRESSION: SaveTask overwrote ExecutorPID: expected 12345, got %d", loaded.Execution.PID)
+	}
+	if loaded.Execution.Hostname != "worker-1" {
+		t.Errorf("REGRESSION: SaveTask overwrote ExecutorHostname: expected 'worker-1', got %s", loaded.Execution.Hostname)
+	}
+
+	// Verify task metadata was updated correctly
+	loadedTask, err := backend.LoadTask("TASK-001")
+	if err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+	if loadedTask.Title != "Updated Title" {
+		t.Errorf("expected title to be updated to 'Updated Title', got %s", loadedTask.Title)
+	}
+}
+
+// TestSaveTask_PreservesStateStatus verifies that SaveTask preserves StateStatus field.
+// This tests the existing behavior along with the new executor field preservation.
+func TestSaveTask_PreservesStateStatus(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create task
+	task1 := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test Task",
+		Weight:    task.WeightSmall,
+		Status:    task.StatusRunning,
+		CreatedAt: time.Now(),
+	}
+	if err := backend.SaveTask(task1); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Set state status via SaveState
+	s := &state.State{
+		TaskID:       "TASK-001",
+		CurrentPhase: "test",
+		Status:       state.StatusFailed, // Important: state status is "failed"
+		StartedAt:    time.Now(),
+		Phases:       make(map[string]*state.PhaseState),
+	}
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+
+	// Update task metadata
+	task1.Title = "Updated Task"
+	if err := backend.SaveTask(task1); err != nil {
+		t.Fatalf("update task: %v", err)
+	}
+
+	// Verify state status is preserved
+	loaded, err := backend.LoadState("TASK-001")
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if loaded.Status != state.StatusFailed {
+		t.Errorf("StateStatus not preserved: expected 'failed', got %s", loaded.Status)
 	}
 }
