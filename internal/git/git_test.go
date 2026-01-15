@@ -2,6 +2,7 @@ package git
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1963,5 +1964,136 @@ func TestDiscardChanges_InWorktree(t *testing.T) {
 	clean, _ = wtGit.IsClean()
 	if !clean {
 		t.Error("worktree should be clean after DiscardChanges")
+	}
+}
+
+// TestConcurrentCheckpoints tests that CreateCheckpoint is protected by mutex
+// when called concurrently from multiple goroutines.
+func TestConcurrentCheckpoints(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	g.CreateBranch("TASK-CONCURRENT")
+
+	// Create multiple files for concurrent commits
+	const numGoroutines = 5
+	done := make(chan error, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(idx int) {
+			// Create a unique file for this goroutine
+			testFile := filepath.Join(tmpDir, fmt.Sprintf("concurrent-%d.txt", idx))
+			os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", idx)), 0644)
+
+			// Create checkpoint - mutex should ensure atomicity
+			_, err := g.CreateCheckpoint("TASK-CONCURRENT", "implement", fmt.Sprintf("change %d", idx))
+			done <- err
+		}(i)
+	}
+
+	// Wait for all goroutines to complete
+	var errors []error
+	for i := 0; i < numGoroutines; i++ {
+		if err := <-done; err != nil {
+			errors = append(errors, err)
+		}
+	}
+
+	// With mutex protection, all checkpoints should succeed
+	// (they serialize access to the git operations)
+	if len(errors) > 0 {
+		t.Errorf("CreateCheckpoint() concurrent calls failed: %v", errors)
+	}
+}
+
+// TestInWorktree_IndependentMutex verifies that InWorktree returns
+// a Git instance with its own independent mutex.
+func TestInWorktree_IndependentMutex(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+	worktreePath, err := g.CreateWorktree("TASK-MUTEX", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-MUTEX")
+
+	// Get worktree Git instance
+	wtGit := g.InWorktree(worktreePath)
+
+	// Create file in worktree
+	testFile := filepath.Join(worktreePath, "mutex-test.txt")
+	os.WriteFile(testFile, []byte("test"), 0644)
+
+	// Both instances should be able to work independently
+	// (they have separate mutexes)
+	done := make(chan error, 2)
+
+	// Parent Git instance
+	go func() {
+		// Create a file in main repo
+		mainFile := filepath.Join(tmpDir, "main-test.txt")
+		os.WriteFile(mainFile, []byte("main content"), 0644)
+		_, err := g.CreateCheckpoint("TASK-MUTEX-MAIN", "implement", "main change")
+		done <- err
+	}()
+
+	// Worktree Git instance
+	go func() {
+		_, err := wtGit.CreateCheckpoint("TASK-MUTEX", "implement", "worktree change")
+		done <- err
+	}()
+
+	// Both should complete without deadlock
+	for i := 0; i < 2; i++ {
+		select {
+		case err := <-done:
+			if err != nil {
+				// Errors are expected (different directories), just verify no deadlock
+				t.Logf("Expected error (different contexts): %v", err)
+			}
+		}
+	}
+}
+
+// TestMutex_CompoundOperationAtomicity verifies that compound operations
+// are protected from concurrent interference.
+func TestMutex_CompoundOperationAtomicity(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	baseGit, _ := New(tmpDir, DefaultConfig())
+	// Use InWorktree to mark as worktree context
+	g := baseGit.InWorktree(tmpDir)
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-ATOMIC")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Add a commit
+	testFile := filepath.Join(tmpDir, "atomic-test.txt")
+	os.WriteFile(testFile, []byte("test content"), 0644)
+	_, _ = g.CreateCheckpoint("TASK-ATOMIC", "implement", "add file")
+
+	// Create concurrent conflict checks - they should not interfere
+	const numGoroutines = 3
+	results := make(chan *SyncResult, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			result, _ := g.DetectConflicts(baseBranch)
+			results <- result
+		}()
+	}
+
+	// Collect results
+	for i := 0; i < numGoroutines; i++ {
+		result := <-results
+		if result == nil {
+			t.Error("DetectConflicts() returned nil result")
+		}
 	}
 }
