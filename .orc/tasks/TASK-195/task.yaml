@@ -22,7 +22,8 @@ description: |-
     ## Success Criteria
     `orc edit TASK-XXX --status completed` works
 weight: medium
-status: planned
+status: running
+current_phase: spec
 branch: orc/TASK-195
 queue: active
 priority: high
@@ -30,4 +31,5 @@ category: feature
 testing_requirements:
     unit: true
 created_at: 2026-01-14T19:43:52.096924254-06:00
-updated_at: 2026-01-14T19:43:52.119762281-06:00
+updated_at: 2026-01-14T19:44:09.911382531-06:00
+started_at: 2026-01-14T19:44:09.911382361-06:00
