@@ -1,68 +1,107 @@
-# Specification: Add cleanup for finalizeTracker memory leak
+# Specification: Fix detectConflictsViaMerge cleanup on failure
 
 ## Problem Statement
-The `finalizeTracker` global variable in `internal/api/handlers_finalize.go` accumulates `FinalizeState` entries indefinitely. Entries are added when finalize operations start but are never removed after completion or failure, causing unbounded memory growth.
+
+The `detectConflictsViaMerge` function in `internal/git/git.go` performs merge and reset operations to detect conflicts, but cleanup (merge abort + reset) only runs at the end of the function. If an error or panic occurs after the merge attempt, the worktree is left in a broken state with a merge in progress.
 
 ## Success Criteria
-- [ ] Completed/failed finalize states are removed from memory after a configurable retention period (default: 5 minutes)
-- [ ] Cleanup runs automatically via background goroutine started with server
-- [ ] Cleanup goroutine stops cleanly on server shutdown (no goroutine leak)
-- [ ] GET `/api/tasks/{id}/finalize` still returns completed state from persistent storage after cleanup
-- [ ] `finTracker.delete(taskID)` is called at appropriate time (not immediately, to allow status polling)
-- [ ] No data races introduced (proper mutex usage)
-- [ ] `make test` passes
+
+- [ ] Cleanup (`merge --abort` and `reset --hard`) runs via `defer` to guarantee execution even on error/panic
+- [ ] Function still returns correct `SyncResult` with conflict information when conflicts are detected
+- [ ] Function still returns correct `SyncResult` when no conflicts exist
+- [ ] Worktree is never left in merge-in-progress state after function returns (success or failure)
+- [ ] Existing tests continue to pass
 
 ## Testing Requirements
-- [ ] Unit test: `TestFinalizeTrackerCleanup` verifies old completed/failed entries are removed
-- [ ] Unit test: `TestFinalizeTrackerCleanupPreservesRunning` verifies running entries are preserved
-- [ ] Unit test: `TestFinalizeTrackerCleanupShutdown` verifies cleanup goroutine stops on context cancel
-- [ ] Integration test: Verify GET finalize status works after entry cleaned up (falls back to state.yaml)
+
+- [ ] Unit test: `TestDetectConflictsViaMerge_CleanupOnError` - verify cleanup runs when an error occurs mid-function
+- [ ] Unit test: Existing `TestDetectConflicts_NoConflicts` passes
+- [ ] Unit test: Existing `TestDetectConflicts_WithConflicts` passes
+- [ ] Integration: Run `make test` with all git tests passing
 
 ## Scope
+
 ### In Scope
-- Add cleanup method to `finalizeTracker` that removes stale completed/failed entries
-- Add background goroutine to run cleanup periodically
-- Wire cleanup into server lifecycle (start/stop with server)
-- Configure retention period
+- Refactor `detectConflictsViaMerge` to use `defer` for cleanup
+- Ensure cleanup is idempotent (safe to call even if merge wasn't started)
 
 ### Out of Scope
-- Changing the finalize status API response format
-- Persisting in-progress finalize state to disk
-- Adding config options (use sensible defaults for now)
+- Changes to `DetectConflicts` (the public method)
+- Changes to `merge-tree` based conflict detection (the preferred path)
+- Changes to other git operations
 
 ## Technical Approach
-The fix adds a background cleanup routine that periodically removes completed/failed finalize states older than a retention period. The cleanup respects server shutdown via context cancellation.
+
+### Current Code (problematic)
+```go
+func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
+    // ... safety checks ...
+
+    head, err := g.ctx.HeadCommit()  // Get HEAD for reset
+    if err != nil {
+        return nil, err  // Early return - no cleanup needed (merge not started)
+    }
+
+    _, mergeErr := g.ctx.RunGit("merge", "--no-commit", "--no-ff", target)  // MERGE STARTS
+
+    // ... conflict detection logic ...
+
+    // CLEANUP - only runs if we reach this point!
+    _, _ = g.ctx.RunGit("merge", "--abort")
+    _, _ = g.ctx.RunGit("reset", "--hard", head)
+
+    return result, nil
+}
+```
+
+### Fixed Code (using defer)
+```go
+func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
+    // ... safety checks ...
+
+    head, err := g.ctx.HeadCommit()
+    if err != nil {
+        return nil, err
+    }
+
+    // Defer cleanup BEFORE merge attempt - guaranteed to run
+    defer func() {
+        _, _ = g.ctx.RunGit("merge", "--abort")
+        _, _ = g.ctx.RunGit("reset", "--hard", head)
+    }()
+
+    _, mergeErr := g.ctx.RunGit("merge", "--no-commit", "--no-ff", target)
+
+    // ... conflict detection logic ...
+
+    return result, nil
+}
+```
 
 ### Files to Modify
-- `internal/api/handlers_finalize.go`:
-  - Add `cleanupStale(retention time.Duration)` method to `finalizeTracker`
-  - Add `startCleanup(ctx context.Context, interval, retention time.Duration)` method
-  - Export cleanup start function for server integration
-
-- `internal/api/server.go`:
-  - Start finalize tracker cleanup in `StartContext()`
-  - No explicit stop needed (context cancellation handles it)
-
-- `internal/api/handlers_finalize_test.go`:
-  - Add unit tests for cleanup behavior
+- `internal/git/git.go:545-582`: Refactor `detectConflictsViaMerge` to use `defer` for cleanup
+- `internal/git/git_test.go`: Add test to verify cleanup runs on error
 
 ## Bug Analysis
 
-**Root Cause:** The `runFinalizeAsync` function (line 279) updates `finState.Status` to `FinalizeStatusCompleted` or `FinalizeStatusFailed` but never calls `finTracker.delete(taskID)`.
+### Reproduction Steps
+1. Call `DetectConflicts()` on a worktree with git < 2.38 (or force fallback)
+2. Have the merge attempt succeed but a subsequent operation (e.g., `diff --name-only`) fail
+3. Observe worktree left in merge-in-progress state
 
-**Current Behavior:** Each finalize operation adds an entry to `finTracker.states` that remains in memory forever:
-```go
-// Line 175: Entry added
-finTracker.set(taskID, finState)
+### Current Behavior
+Cleanup only runs if the function reaches line 577-579. Any panic, runtime error, or early return after the merge starts would skip cleanup, leaving:
+- `MERGE_HEAD` file present
+- Working tree in conflict state
+- Subsequent operations fail with "merge in progress" error
 
-// Lines 448-466: Status updated but entry NOT removed
-finState.Status = FinalizeStatusCompleted
-// Missing: finTracker.delete(taskID)
-```
+### Expected Behavior
+Cleanup always runs after merge is attempted, regardless of function exit path.
 
-**Expected Behavior:** Completed/failed entries should be cleaned up after a reasonable retention period to allow clients to poll for status.
+### Root Cause
+Cleanup code is placed at the end of the function instead of using Go's `defer` mechanism, which guarantees execution even during panics or early returns.
 
-**Verification:** After the fix:
-1. Memory usage should stabilize over time (not grow with each finalize)
-2. `GET /api/tasks/{id}/finalize` should continue working (falls back to persistent state)
-3. Duplicate finalize requests should still be detected during the operation
+### Verification
+1. Run existing tests - they should still pass
+2. Add new test that simulates error during conflict detection
+3. Verify `IsMergeInProgress()` returns false after function exits (success or failure)

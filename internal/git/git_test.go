@@ -753,6 +753,151 @@ func TestDetectConflicts_WithConflicts(t *testing.T) {
 	}
 }
 
+// TestDetectConflictsViaMerge_CleanupOnSuccess verifies cleanup runs and no merge is left in progress
+// after successful conflict detection via the merge fallback path.
+func TestDetectConflictsViaMerge_CleanupOnSuccess(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	baseGit, _ := New(tmpDir, DefaultConfig())
+	// Use InWorktree to mark as worktree context (fallback conflict detection requires this)
+	g := baseGit.InWorktree(tmpDir)
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-CLEANUP-001")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Modify README on task branch
+	readmeFile := filepath.Join(tmpDir, "README.md")
+	os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644)
+	_, _ = g.CreateCheckpoint("TASK-CLEANUP-001", "implement", "modify readme on task")
+
+	// Switch back to base branch and make conflicting change
+	cmd := exec.Command("git", "checkout", baseBranch)
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to checkout base branch: %v", err)
+	}
+
+	os.WriteFile(readmeFile, []byte("# Base branch changes\n"), 0644)
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	cmd = exec.Command("git", "commit", "-m", "modify readme on base")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit on base: %v", err)
+	}
+
+	// Switch to task branch
+	err = g.SwitchBranch("TASK-CLEANUP-001")
+	if err != nil {
+		t.Fatalf("SwitchBranch() failed: %v", err)
+	}
+
+	// Call detectConflictsViaMerge directly (bypasses merge-tree)
+	result, err := g.detectConflictsViaMerge(baseBranch)
+	if err != nil {
+		t.Fatalf("detectConflictsViaMerge() failed: %v", err)
+	}
+
+	// Should detect conflict on README.md
+	if !result.ConflictsDetected {
+		t.Error("ConflictsDetected = false, want true")
+	}
+
+	// CRITICAL: Verify no merge is in progress after function returns
+	mergeInProgress, err := g.IsMergeInProgress()
+	if err != nil {
+		t.Fatalf("IsMergeInProgress() failed: %v", err)
+	}
+	if mergeInProgress {
+		t.Error("IsMergeInProgress() = true after detectConflictsViaMerge - cleanup failed!")
+	}
+
+	// Also verify the working tree is clean (reset worked)
+	clean, _ := g.IsClean()
+	if !clean {
+		t.Error("working tree should be clean after detectConflictsViaMerge cleanup")
+	}
+}
+
+// TestDetectConflictsViaMerge_CleanupEvenWithoutConflicts verifies cleanup runs even when
+// no conflicts are detected during the merge fallback path.
+func TestDetectConflictsViaMerge_CleanupEvenWithoutConflicts(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	baseGit, _ := New(tmpDir, DefaultConfig())
+	// Use InWorktree to mark as worktree context (fallback conflict detection requires this)
+	g := baseGit.InWorktree(tmpDir)
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-CLEANUP-002")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Add a non-conflicting commit
+	testFile := filepath.Join(tmpDir, "new-feature.txt")
+	os.WriteFile(testFile, []byte("new feature"), 0644)
+	_, _ = g.CreateCheckpoint("TASK-CLEANUP-002", "implement", "add new feature")
+
+	// Switch back to base branch and add a different file (no conflict)
+	cmd := exec.Command("git", "checkout", baseBranch)
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to checkout base branch: %v", err)
+	}
+
+	otherFile := filepath.Join(tmpDir, "other.txt")
+	os.WriteFile(otherFile, []byte("other content"), 0644)
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	cmd = exec.Command("git", "commit", "-m", "add other file on base")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit on base: %v", err)
+	}
+
+	// Switch to task branch
+	err = g.SwitchBranch("TASK-CLEANUP-002")
+	if err != nil {
+		t.Fatalf("SwitchBranch() failed: %v", err)
+	}
+
+	// Call detectConflictsViaMerge directly (bypasses merge-tree)
+	result, err := g.detectConflictsViaMerge(baseBranch)
+	if err != nil {
+		t.Fatalf("detectConflictsViaMerge() failed: %v", err)
+	}
+
+	// Should NOT detect conflicts
+	if result.ConflictsDetected {
+		t.Errorf("ConflictsDetected = true, want false (files: %v)", result.ConflictFiles)
+	}
+
+	// CRITICAL: Verify no merge is in progress after function returns
+	mergeInProgress, err := g.IsMergeInProgress()
+	if err != nil {
+		t.Fatalf("IsMergeInProgress() failed: %v", err)
+	}
+	if mergeInProgress {
+		t.Error("IsMergeInProgress() = true after detectConflictsViaMerge - cleanup failed!")
+	}
+
+	// Also verify the working tree is clean (reset worked)
+	clean, _ := g.IsClean()
+	if !clean {
+		t.Error("working tree should be clean after detectConflictsViaMerge cleanup")
+	}
+}
+
 // TestRebaseWithConflictCheck_Success tests successful rebase
 func TestRebaseWithConflictCheck_Success(t *testing.T) {
 	tmpDir := setupTestRepo(t)
