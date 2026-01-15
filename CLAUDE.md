@@ -511,6 +511,7 @@ Patterns, gotchas, and decisions learned during development.
 | Diverged branch auto-force-push | When re-running a completed task, the remote branch has different history; push detects non-fast-forward error and retries with `--force-with-lease`; safer than `--force` as it fails if remote has unexpected commits; logged as warning | TASK-198 |
 | E2E sandbox isolation | E2E tests MUST run against isolated sandbox project in `/tmp`, not production; `global-setup.ts` creates sandbox with test tasks/initiatives, `global-teardown.ts` removes it; test files import from `./fixtures` (not `@playwright/test`) to auto-select sandbox; tests that bypass fixtures will corrupt real task data | TASK-201 |
 | React migration complete | Frontend migrated from Svelte 5 to React 19; archived Svelte codebase at `web-svelte-archive/`, moved React to `web/`; E2E tests use framework-agnostic selectors (role, text, CSS classes) | TASK-180 |
+| Resolve with worktree cleanup | `orc resolve` detects worktree state (dirty, rebase/merge in progress, conflicts) and offers `--cleanup` to abort git ops and discard changes; `--force` skips checks; worktree state recorded in task metadata for audit | TASK-221 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

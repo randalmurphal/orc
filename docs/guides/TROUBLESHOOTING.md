@@ -242,6 +242,49 @@ This preserves completed phases and continues from the last incomplete phase. Us
 
 **Note**: If the same error recurs, consider using `orc reset` to start fresh or `orc resolve` to mark it as handled.
 
+### Worktree State Issues During Resolve
+
+**Symptoms**:
+- `orc resolve` shows warnings about dirty worktree or in-progress git operations
+- Worktree has uncommitted changes from interrupted task
+- Worktree has rebase-in-progress or merge-in-progress state
+
+**Example output**:
+```
+📁 Worktree: .orc/worktrees/orc-TASK-001
+   ⚠️  Rebase in progress - worktree is in an incomplete state
+   ⚠️  3 uncommitted file(s)
+
+⚠️  Resolve task TASK-001 as completed?
+```
+
+**Solutions**:
+
+| Flag | Behavior | When to Use |
+|------|----------|-------------|
+| `--cleanup` | Abort in-progress git ops, discard uncommitted changes | Worktree state is garbage from a crash |
+| `--force` | Skip checks, resolve anyway (worktree unchanged) | You want to preserve worktree state |
+| (default) | Show warnings, prompt for confirmation | Review the state before deciding |
+
+**Using --cleanup**:
+```bash
+orc resolve TASK-XXX --cleanup   # Clean worktree state, then resolve
+```
+
+This aborts any in-progress rebase/merge and discards uncommitted changes, leaving the worktree clean. The worktree itself is preserved (not deleted).
+
+**Using --force**:
+```bash
+orc resolve TASK-XXX --force     # Skip checks, keep worktree as-is
+```
+
+This resolves the task without touching the worktree at all. Useful if you want to preserve the worktree state for manual inspection.
+
+**Worktree Metadata**: When resolving, orc records worktree state in task metadata:
+- `worktree_was_dirty: true` - Had uncommitted changes
+- `worktree_had_conflicts: true` - Had unresolved merge conflicts
+- `worktree_had_incomplete_operation: true` - Had rebase/merge in progress
+
 ---
 
 ## Gate Rejection
