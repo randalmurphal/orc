@@ -1,9 +1,9 @@
 task_id: TASK-197
 current_phase: spec
 current_iteration: 0
-status: running
+status: paused
 started_at: 2026-01-14T21:03:27.216892734-06:00
-updated_at: 2026-01-14T21:03:28.389830885-06:00
+updated_at: 2026-01-14T21:04:12.40006257-06:00
 phases:
     spec:
         status: running
