@@ -1,0 +1,18 @@
+id: TASK-217
+title: Update visual regression baselines
+description: 'After E2E validation passes, update visual regression baselines if any intentional visual changes occurred. Review diff for each baseline: dashboard, board (flat/swimlane), task-detail tabs, modals. Document any intentional changes. Success: Visual regression tests pass with updated baselines. Testing: Playwright visual tests green.'
+weight: medium
+status: planned
+branch: orc/TASK-217
+queue: active
+priority: normal
+category: test
+initiative_id: INIT-009
+blocked_by:
+    - TASK-216
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:05:46.491649094-06:00
+updated_at: 2026-01-14T23:05:46.523801913-06:00
