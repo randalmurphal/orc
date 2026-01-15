@@ -492,6 +492,7 @@ Patterns, gotchas, and decisions learned during development.
 | Finalize workflow E2E testing | Test finalize modal states (not started, running, completed, failed) via WebSocket event injection; covers button visibility on completed tasks, modal content, progress bar with step labels, success/failure results, retry option; 10 tests in `web/e2e/finalize.spec.ts` | TASK-161 |
 | Sync on start for stale worktrees | Before execution starts, sync task branch with target to catch conflicts from parallel tasks; `sync_on_start: true` (default) rebases onto latest target so implement phase sees current code; disable if you need isolation from concurrent changes | TASK-194 |
 | Resource tracking for orphan detection | Executor snapshots processes before/after task; compares to detect orphaned MCP processes (playwright, chromium); logs warnings with process details and memory growth; configure via `diagnostics.resource_tracking` in config | TASK-197 |
+| Task completion uses isDone() helper | Blocker checks use `isDone(status)` helper (not direct `== StatusCompleted`) to recognize both `completed` and `finished` as done; ensures merged tasks don't block dependents | TASK-199 |
 
 | Task completion uses isDone() helper | Blocker checks use `isDone(status)` helper (not direct `== StatusCompleted`) to recognize both `completed` and `finished` as done; ensures merged tasks don't block dependents | TASK-199 |
 
@@ -511,6 +512,7 @@ Patterns, gotchas, and decisions learned during development.
 | Setup errors (worktree creation) failed silently | Fixed: Errors now always display even in quiet mode, task status set to failed | TASK-044 |
 | Web UI shows "No project selected" | Select a project via `Shift+Alt+P` - server can run from any directory | TASK-005 |
 | Auto-merge fails with worktree error | Fixed: Uses GitHub REST API for merge instead of `gh pr merge` CLI which tried to checkout target branch locally | TASK-196 |
+| Finished tasks still blocked dependents | Fixed: `GetIncompleteBlockers()` now uses `isDone()` helper to recognize both `completed` and `finished` statuses as done | TASK-199 |
 
 | Finished tasks still blocked dependents | Fixed: `GetIncompleteBlockers()` now uses `isDone()` helper to recognize both `completed` and `finished` statuses as done | TASK-199 |
 
