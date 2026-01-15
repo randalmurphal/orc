@@ -677,6 +677,179 @@ func TestSaveState_ExecutionInfo(t *testing.T) {
 	}
 }
 
+// TestSaveState_ExecutionInfo_RoundTrip verifies ExecutionInfo persists across backend restarts.
+// This simulates an orc restart where a new DatabaseBackend is created against the same database.
+// The test ensures execution info is properly persisted to disk (not just held in memory).
+func TestSaveState_ExecutionInfo_RoundTrip(t *testing.T) {
+	// Create initial backend and save state with ExecutionInfo
+	tmpDir, err := os.MkdirTemp("", "orc-test-*")
+	if err != nil {
+		t.Fatalf("create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create .orc directory
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatalf("create .orc dir: %v", err)
+	}
+
+	// First backend instance (simulates initial orc process)
+	backend1, err := NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("create backend1: %v", err)
+	}
+
+	// Create task
+	task1 := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test Task",
+		Weight:    task.WeightSmall,
+		Status:    task.StatusRunning,
+		CreatedAt: time.Now(),
+	}
+	if err := backend1.SaveTask(task1); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Save state with ExecutionInfo (simulates executor starting)
+	now := time.Now()
+	execStart := now.Add(-time.Minute)
+	heartbeat := now
+	s := &state.State{
+		TaskID:       "TASK-001",
+		CurrentPhase: "implement",
+		Status:       state.StatusRunning,
+		StartedAt:    now,
+		Phases:       make(map[string]*state.PhaseState),
+		Execution: &state.ExecutionInfo{
+			PID:           os.Getpid(), // Use current PID so it passes orphan check
+			Hostname:      "test-host",
+			StartedAt:     execStart,
+			LastHeartbeat: heartbeat,
+		},
+	}
+	if err := backend1.SaveState(s); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+
+	// Close the first backend (simulates orc process ending)
+	if err := backend1.Close(); err != nil {
+		t.Fatalf("close backend1: %v", err)
+	}
+
+	// Create a NEW backend instance (simulates orc restart)
+	backend2, err := NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("create backend2: %v", err)
+	}
+	defer backend2.Close()
+
+	// Load state from new backend and verify ExecutionInfo was persisted
+	loaded, err := backend2.LoadState("TASK-001")
+	if err != nil {
+		t.Fatalf("load state from backend2: %v", err)
+	}
+
+	// This is the critical assertion - without proper persistence, this would be nil
+	if loaded.Execution == nil {
+		t.Fatal("ExecutionInfo was NOT persisted to database - this causes false orphan detection on orc restart")
+	}
+
+	// Verify all fields survived the round-trip
+	if loaded.Execution.PID != os.Getpid() {
+		t.Errorf("PID not persisted: expected %d, got %d", os.Getpid(), loaded.Execution.PID)
+	}
+	if loaded.Execution.Hostname != "test-host" {
+		t.Errorf("Hostname not persisted: expected 'test-host', got %s", loaded.Execution.Hostname)
+	}
+	if loaded.Execution.StartedAt.Sub(execStart).Abs() > time.Second {
+		t.Errorf("StartedAt not persisted: expected %v, got %v", execStart, loaded.Execution.StartedAt)
+	}
+	if loaded.Execution.LastHeartbeat.Sub(heartbeat).Abs() > time.Second {
+		t.Errorf("LastHeartbeat not persisted: expected %v, got %v", heartbeat, loaded.Execution.LastHeartbeat)
+	}
+
+	// Verify that orphan check now passes (since PID is our own process)
+	isOrphaned, reason := loaded.CheckOrphaned()
+	if isOrphaned {
+		t.Errorf("Task incorrectly flagged as orphaned after reload: %s", reason)
+	}
+}
+
+// TestSaveState_HeartbeatUpdate verifies that heartbeat updates are persisted to database.
+// This is critical for preventing stale heartbeat false positives in orphan detection.
+func TestSaveState_HeartbeatUpdate(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create task
+	task1 := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test Task",
+		Weight:    task.WeightSmall,
+		Status:    task.StatusRunning,
+		CreatedAt: time.Now(),
+	}
+	if err := backend.SaveTask(task1); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Initial save with old heartbeat (6 minutes ago - would be stale)
+	initialTime := time.Now().Add(-6 * time.Minute)
+	s := &state.State{
+		TaskID:       "TASK-001",
+		CurrentPhase: "implement",
+		Status:       state.StatusRunning,
+		StartedAt:    initialTime,
+		Phases:       make(map[string]*state.PhaseState),
+		Execution: &state.ExecutionInfo{
+			PID:           os.Getpid(),
+			Hostname:      "test-host",
+			StartedAt:     initialTime,
+			LastHeartbeat: initialTime, // 6 min ago - stale
+		},
+	}
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("save initial state: %v", err)
+	}
+
+	// Verify initial heartbeat was stale
+	loaded, err := backend.LoadState("TASK-001")
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	isOrphaned, reason := loaded.CheckOrphaned()
+	if !isOrphaned {
+		t.Error("expected task with 6-minute-old heartbeat to be flagged as orphaned")
+	}
+	if reason != "heartbeat stale (>5 minutes)" {
+		t.Errorf("expected stale heartbeat reason, got: %s", reason)
+	}
+
+	// Now update the heartbeat (simulates UpdateHeartbeat() call + SaveState)
+	s.UpdateHeartbeat() // This updates LastHeartbeat to now
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("save state with updated heartbeat: %v", err)
+	}
+
+	// Verify the updated heartbeat was persisted
+	loaded, err = backend.LoadState("TASK-001")
+	if err != nil {
+		t.Fatalf("load state after heartbeat update: %v", err)
+	}
+
+	// Task should no longer be orphaned after heartbeat update
+	isOrphaned, reason = loaded.CheckOrphaned()
+	if isOrphaned {
+		t.Errorf("expected task to NOT be orphaned after heartbeat update, got: %s", reason)
+	}
+
+	// Verify the heartbeat timestamp was actually updated
+	if time.Since(loaded.Execution.LastHeartbeat) > 2*time.Second {
+		t.Errorf("heartbeat was not updated in database: %v", loaded.Execution.LastHeartbeat)
+	}
+}
+
 // TestSaveState_ExecutionInfoCleared verifies ExecutionInfo is cleared when task completes.
 func TestSaveState_ExecutionInfoCleared(t *testing.T) {
 	backend, tmpDir := setupTestDB(t)
