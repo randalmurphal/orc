@@ -49,3 +49,4 @@ internal/api/static/
 .orc/orc.db-wal
 .orc/orc.db-shm
 .mcp.json
+.claude/settings.json
