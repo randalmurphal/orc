@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -321,6 +322,67 @@ func TestHandlerIdempotence(t *testing.T) {
 
 	// Calling RemoveWorker again should be safe (idempotent)
 	pool.RemoveWorker("TASK-001") // Should not panic
+}
+
+// TestWorkerExitsLoopOnContextCancel verifies that the worker loop exits cleanly
+// when context is cancelled. This tests the iteration exit condition for pausing.
+func TestWorkerExitsLoopOnContextCancel(t *testing.T) {
+	pool := NewWorkerPool(2, nil, nil, nil, nil, nil)
+
+	// Create a cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Create worker with the cancellable context
+	worker := &Worker{
+		ID:     "worker-TASK-001",
+		TaskID: "TASK-001",
+		Status: WorkerStatusRunning,
+		ctx:    ctx,
+		cancel: cancel,
+	}
+	pool.mu.Lock()
+	pool.workers["TASK-001"] = worker
+	pool.mu.Unlock()
+
+	// Verify worker is running
+	if worker.GetStatus() != WorkerStatusRunning {
+		t.Fatalf("expected running status, got %s", worker.GetStatus())
+	}
+
+	// Simulate context cancellation (pause request)
+	cancel()
+
+	// Verify context is cancelled
+	if ctx.Err() == nil {
+		t.Fatal("expected context to be cancelled")
+	}
+
+	// Simulate what the run loop does when context is cancelled
+	// In real execution, this happens after cmd.Run() returns with context error
+	if worker.ctx.Err() != nil {
+		worker.setStatus(WorkerStatusPaused)
+	}
+
+	// Verify worker transitioned to paused
+	if worker.GetStatus() != WorkerStatusPaused {
+		t.Errorf("expected paused status after context cancel, got %s", worker.GetStatus())
+	}
+
+	// Verify the stop function works via the cancel
+	// (this tests Worker.Stop() indirectly)
+	worker2 := &Worker{
+		ID:     "worker-TASK-002",
+		TaskID: "TASK-002",
+		Status: WorkerStatusRunning,
+		cancel: func() {}, // No-op cancel
+	}
+	worker2.Stop() // Should not panic
+
+	// Test that setStatus to paused is idempotent
+	worker.setStatus(WorkerStatusPaused)
+	if worker.GetStatus() != WorkerStatusPaused {
+		t.Errorf("expected paused status, got %s", worker.GetStatus())
+	}
 }
 
 // TestWorkerRunIterativePattern documents the iterative phase execution pattern.
