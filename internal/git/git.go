@@ -560,6 +560,16 @@ func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
 		return nil, fmt.Errorf("get HEAD: %w", err)
 	}
 
+	// Defer cleanup BEFORE merge attempt - guaranteed to run even on error/panic.
+	// These operations are idempotent: merge --abort and reset --hard are safe
+	// to call even if no merge was started or if already at the target state.
+	defer func() {
+		// Abort any in-progress merge (idempotent - safe if no merge)
+		_, _ = g.ctx.RunGit("merge", "--abort")
+		// Reset to original HEAD just in case (idempotent - safe if already at HEAD)
+		_, _ = g.ctx.RunGit("reset", "--hard", head)
+	}()
+
 	// Attempt merge with --no-commit to detect conflicts
 	_, mergeErr := g.ctx.RunGit("merge", "--no-commit", "--no-ff", target)
 
@@ -572,11 +582,6 @@ func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
 			result.ConflictFiles = strings.Split(strings.TrimSpace(output), "\n")
 		}
 	}
-
-	// Abort the merge attempt
-	_, _ = g.ctx.RunGit("merge", "--abort")
-	// Reset to original HEAD just in case
-	_, _ = g.ctx.RunGit("reset", "--hard", head)
 
 	return result, nil
 }
