@@ -909,3 +909,183 @@ func TestProjectDB_InitiativeDependencies(t *testing.T) {
 		t.Errorf("len(deps) after duplicate = %d, want 1", len(deps4))
 	}
 }
+
+func TestProjectDB_InitiativeBatchLoading(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create initiatives
+	pdb.SaveInitiative(&Initiative{ID: "INIT-001", Title: "Auth System", Status: "draft"})
+	pdb.SaveInitiative(&Initiative{ID: "INIT-002", Title: "API Gateway", Status: "active"})
+
+	// Create tasks
+	pdb.SaveTask(&Task{ID: "TASK-001", Title: "Task 1", Status: "running", CreatedAt: time.Now()})
+	pdb.SaveTask(&Task{ID: "TASK-002", Title: "Task 2", Status: "completed", CreatedAt: time.Now()})
+	pdb.SaveTask(&Task{ID: "TASK-003", Title: "Task 3", Status: "pending", CreatedAt: time.Now()})
+
+	// Link tasks to initiatives
+	pdb.AddTaskToInitiative("INIT-001", "TASK-001", 1)
+	pdb.AddTaskToInitiative("INIT-001", "TASK-002", 2)
+	pdb.AddTaskToInitiative("INIT-002", "TASK-003", 1)
+
+	// Add decisions
+	pdb.AddInitiativeDecision(&InitiativeDecision{
+		ID:           "DEC-001",
+		InitiativeID: "INIT-001",
+		Decision:     "Use JWT",
+		Rationale:    "Industry standard",
+		DecidedBy:    "RM",
+		DecidedAt:    time.Now(),
+	})
+	pdb.AddInitiativeDecision(&InitiativeDecision{
+		ID:           "DEC-002",
+		InitiativeID: "INIT-001",
+		Decision:     "RSA256",
+		Rationale:    "Security",
+		DecidedBy:    "RM",
+		DecidedAt:    time.Now(),
+	})
+	pdb.AddInitiativeDecision(&InitiativeDecision{
+		ID:           "DEC-003",
+		InitiativeID: "INIT-002",
+		Decision:     "Kong Gateway",
+		Rationale:    "Open source",
+		DecidedBy:    "RM",
+		DecidedAt:    time.Now(),
+	})
+
+	// Add dependencies
+	pdb.AddInitiativeDependency("INIT-002", "INIT-001") // INIT-002 depends on INIT-001
+
+	// Test GetAllInitiativeDecisions
+	t.Run("GetAllInitiativeDecisions", func(t *testing.T) {
+		allDecisions, err := pdb.GetAllInitiativeDecisions()
+		if err != nil {
+			t.Fatalf("GetAllInitiativeDecisions failed: %v", err)
+		}
+		if len(allDecisions) != 2 {
+			t.Errorf("len(allDecisions) = %d, want 2", len(allDecisions))
+		}
+		if len(allDecisions["INIT-001"]) != 2 {
+			t.Errorf("len(allDecisions[INIT-001]) = %d, want 2", len(allDecisions["INIT-001"]))
+		}
+		if len(allDecisions["INIT-002"]) != 1 {
+			t.Errorf("len(allDecisions[INIT-002]) = %d, want 1", len(allDecisions["INIT-002"]))
+		}
+	})
+
+	// Test GetAllInitiativeTaskRefs
+	t.Run("GetAllInitiativeTaskRefs", func(t *testing.T) {
+		allTaskRefs, err := pdb.GetAllInitiativeTaskRefs()
+		if err != nil {
+			t.Fatalf("GetAllInitiativeTaskRefs failed: %v", err)
+		}
+		if len(allTaskRefs) != 2 {
+			t.Errorf("len(allTaskRefs) = %d, want 2", len(allTaskRefs))
+		}
+		if len(allTaskRefs["INIT-001"]) != 2 {
+			t.Errorf("len(allTaskRefs[INIT-001]) = %d, want 2", len(allTaskRefs["INIT-001"]))
+		}
+		if len(allTaskRefs["INIT-002"]) != 1 {
+			t.Errorf("len(allTaskRefs[INIT-002]) = %d, want 1", len(allTaskRefs["INIT-002"]))
+		}
+
+		// Verify task details are populated
+		if allTaskRefs["INIT-001"][0].Title != "Task 1" {
+			t.Errorf("INIT-001 first task title = %q, want 'Task 1'", allTaskRefs["INIT-001"][0].Title)
+		}
+		if allTaskRefs["INIT-001"][0].Status != "running" {
+			t.Errorf("INIT-001 first task status = %q, want 'running'", allTaskRefs["INIT-001"][0].Status)
+		}
+	})
+
+	// Test GetAllInitiativeDependencies
+	t.Run("GetAllInitiativeDependencies", func(t *testing.T) {
+		allDeps, err := pdb.GetAllInitiativeDependencies()
+		if err != nil {
+			t.Fatalf("GetAllInitiativeDependencies failed: %v", err)
+		}
+		if len(allDeps) != 1 {
+			t.Errorf("len(allDeps) = %d, want 1", len(allDeps))
+		}
+		if len(allDeps["INIT-002"]) != 1 || allDeps["INIT-002"][0] != "INIT-001" {
+			t.Errorf("allDeps[INIT-002] = %v, want [INIT-001]", allDeps["INIT-002"])
+		}
+	})
+
+	// Test GetAllInitiativeDependents
+	t.Run("GetAllInitiativeDependents", func(t *testing.T) {
+		allDependents, err := pdb.GetAllInitiativeDependents()
+		if err != nil {
+			t.Fatalf("GetAllInitiativeDependents failed: %v", err)
+		}
+		if len(allDependents) != 1 {
+			t.Errorf("len(allDependents) = %d, want 1", len(allDependents))
+		}
+		if len(allDependents["INIT-001"]) != 1 || allDependents["INIT-001"][0] != "INIT-002" {
+			t.Errorf("allDependents[INIT-001] = %v, want [INIT-002]", allDependents["INIT-001"])
+		}
+	})
+}
+
+func TestProjectDB_InitiativeBatchLoading_Empty(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Test batch loading with empty database
+	allDecisions, err := pdb.GetAllInitiativeDecisions()
+	if err != nil {
+		t.Fatalf("GetAllInitiativeDecisions failed: %v", err)
+	}
+	if len(allDecisions) != 0 {
+		t.Errorf("len(allDecisions) = %d, want 0", len(allDecisions))
+	}
+
+	allTaskRefs, err := pdb.GetAllInitiativeTaskRefs()
+	if err != nil {
+		t.Fatalf("GetAllInitiativeTaskRefs failed: %v", err)
+	}
+	if len(allTaskRefs) != 0 {
+		t.Errorf("len(allTaskRefs) = %d, want 0", len(allTaskRefs))
+	}
+
+	allDeps, err := pdb.GetAllInitiativeDependencies()
+	if err != nil {
+		t.Fatalf("GetAllInitiativeDependencies failed: %v", err)
+	}
+	if len(allDeps) != 0 {
+		t.Errorf("len(allDeps) = %d, want 0", len(allDeps))
+	}
+
+	allDependents, err := pdb.GetAllInitiativeDependents()
+	if err != nil {
+		t.Fatalf("GetAllInitiativeDependents failed: %v", err)
+	}
+	if len(allDependents) != 0 {
+		t.Errorf("len(allDependents) = %d, want 0", len(allDependents))
+	}
+}

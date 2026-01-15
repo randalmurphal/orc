@@ -909,6 +909,7 @@ func (d *DatabaseBackend) LoadInitiative(id string) (*initiative.Initiative, err
 }
 
 // LoadAllInitiatives loads all initiatives from the database.
+// Uses batch loading to avoid N+1 query patterns.
 func (d *DatabaseBackend) LoadAllInitiatives() ([]*initiative.Initiative, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -918,43 +919,68 @@ func (d *DatabaseBackend) LoadAllInitiatives() ([]*initiative.Initiative, error)
 		return nil, fmt.Errorf("list initiatives: %w", err)
 	}
 
+	// Batch load all related data in parallel queries to avoid N+1
+	allDecisions, err := d.db.GetAllInitiativeDecisions()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load decisions: %v", err)
+		allDecisions = make(map[string][]db.InitiativeDecision)
+	}
+
+	allTaskRefs, err := d.db.GetAllInitiativeTaskRefs()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load task refs: %v", err)
+		allTaskRefs = make(map[string][]db.InitiativeTaskRef)
+	}
+
+	allDeps, err := d.db.GetAllInitiativeDependencies()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load dependencies: %v", err)
+		allDeps = make(map[string][]string)
+	}
+
+	allDependents, err := d.db.GetAllInitiativeDependents()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load dependents: %v", err)
+		allDependents = make(map[string][]string)
+	}
+
 	initiatives := make([]*initiative.Initiative, 0, len(dbInits))
 	for _, dbInit := range dbInits {
 		i := dbInitiativeToInitiative(&dbInit)
 
-		// Load decisions
-		dbDecisions, _ := d.db.GetInitiativeDecisions(i.ID)
-		for _, dbDec := range dbDecisions {
-			i.Decisions = append(i.Decisions, initiative.Decision{
-				ID:        dbDec.ID,
-				Date:      dbDec.DecidedAt,
-				By:        dbDec.DecidedBy,
-				Decision:  dbDec.Decision,
-				Rationale: dbDec.Rationale,
-			})
-		}
-
-		// Load task references
-		taskIDs, _ := d.db.GetInitiativeTasks(i.ID)
-		for _, taskID := range taskIDs {
-			dbTask, err := d.db.GetTask(taskID)
-			if err != nil || dbTask == nil {
-				continue
+		// Use pre-fetched decisions
+		if dbDecisions, ok := allDecisions[i.ID]; ok {
+			for _, dbDec := range dbDecisions {
+				i.Decisions = append(i.Decisions, initiative.Decision{
+					ID:        dbDec.ID,
+					Date:      dbDec.DecidedAt,
+					By:        dbDec.DecidedBy,
+					Decision:  dbDec.Decision,
+					Rationale: dbDec.Rationale,
+				})
 			}
-			i.Tasks = append(i.Tasks, initiative.TaskRef{
-				ID:     taskID,
-				Title:  dbTask.Title,
-				Status: dbTask.Status,
-			})
 		}
 
-		// Load dependencies
-		deps, _ := d.db.GetInitiativeDependencies(i.ID)
-		i.BlockedBy = deps
+		// Use pre-fetched task refs (already joined with task details)
+		if taskRefs, ok := allTaskRefs[i.ID]; ok {
+			for _, ref := range taskRefs {
+				i.Tasks = append(i.Tasks, initiative.TaskRef{
+					ID:     ref.TaskID,
+					Title:  ref.Title,
+					Status: ref.Status,
+				})
+			}
+		}
 
-		// Load dependents
-		dependents, _ := d.db.GetInitiativeDependents(i.ID)
-		i.Blocks = dependents
+		// Use pre-fetched dependencies
+		if deps, ok := allDeps[i.ID]; ok {
+			i.BlockedBy = deps
+		}
+
+		// Use pre-fetched dependents
+		if dependents, ok := allDependents[i.ID]; ok {
+			i.Blocks = dependents
+		}
 
 		initiatives = append(initiatives, i)
 	}
