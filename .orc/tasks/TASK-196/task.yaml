@@ -31,7 +31,7 @@ category: bug
 testing_requirements:
     unit: true
 created_at: 2026-01-14T19:55:55.435064654-06:00
-updated_at: 2026-01-14T20:08:12.829683727-06:00
+updated_at: 2026-01-14T20:08:38.10980301-06:00
 started_at: 2026-01-14T19:56:13.240179115-06:00
 completed_at: 2026-01-14T20:08:07.89033189-06:00
 metadata:
@@ -39,4 +39,4 @@ metadata:
 pr:
     url: https://github.com/randalmurphal/orc/pull/97
     number: 97
-    status: pending_review
+    status: closed
