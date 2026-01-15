@@ -1,5 +1,5 @@
 version: 1
-task_id: TASK-200
+task_id: TASK-204
 weight: medium
 description: Medium task - spec, implement, test, docs with clear success criteria
 phases:
@@ -119,7 +119,7 @@ phases:
         type: auto
       checkpoint: true
       status: completed
-      commit_sha: ed6ac875ec16d2bc2663a17832db663decfb0e47
+      commit_sha: 91893021f50bfe04a8993f736fab89e61c27e345
     - id: implement
       name: implement
       prompt: |

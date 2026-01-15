@@ -1,0 +1,102 @@
+id: TASK-204
+title: Create Input primitive component
+description: |-
+    ## Overview
+    Create a shared Input component in web-react/src/components/ui/Input.tsx with variants, sizes, and proper accessibility.
+
+    ## Design Specifications
+
+    ### Sizing
+    | Size | Height | Padding (x) | Font Size |
+    |------|--------|-------------|-----------|
+    | sm | 28px | var(--space-3) | var(--text-sm) |
+    | md | 36px | var(--space-4) | var(--text-base) |
+    | lg | 44px | var(--space-5) | var(--text-lg) |
+
+    ### Visual Properties
+    - Border radius: var(--radius-md) (6px)
+    - Border: 1px solid var(--border-default)
+    - Background: var(--bg-secondary)
+    - Text: var(--text-primary)
+    - Placeholder: var(--text-muted)
+    - Transition: all var(--duration-normal) var(--ease-out)
+
+    ### State Styles
+    | State | Border | Background | Ring |
+    |-------|--------|------------|------|
+    | default | --border-default | --bg-secondary | none |
+    | hover | --border-strong | --bg-secondary | none |
+    | focus | --accent-primary | --bg-secondary | 0 0 0 2px var(--accent-glow) |
+    | error | --status-danger | --bg-secondary | none |
+    | error:focus | --status-danger | --bg-secondary | 0 0 0 2px rgba(248,113,113,0.3) |
+    | disabled | --border-subtle | --bg-tertiary | none (opacity 0.5) |
+
+    ### Disabled State
+    - Background: var(--bg-tertiary)
+    - Opacity: 0.5
+    - Cursor: not-allowed
+
+    ### Props Interface
+    ```typescript
+    interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
+      variant?: 'default' | 'error';
+      size?: 'sm' | 'md' | 'lg';
+      leftIcon?: React.ReactNode;
+      rightIcon?: React.ReactNode;
+      error?: string; // Error message to display below input
+    }
+    ```
+
+    ## Accessibility Requirements
+    - Use :focus-visible for focus ring
+    - Error state: aria-invalid="true"
+    - If error message provided: aria-describedby linking to error element
+    - Required inputs: aria-required="true"
+
+    ## Success Criteria
+    - Consistent input styling across all forms
+    - Controlled component pattern works (value + onChange)
+    - Error state clearly visible with message
+    - Focus ring only appears on keyboard navigation
+
+    ## Test Criteria
+
+    ### Unit Tests (Vitest)
+    - Renders with default variant
+    - Renders with error variant (correct border color)
+    - Renders all 3 sizes correctly
+    - Disabled state shows correct styling
+    - Placeholder text renders
+    - onChange handler is called
+    - Can be controlled (value prop works)
+    - Forwards ref correctly
+    - Passes through standard input props (type, name, id, etc.)
+    - Left/right icons render correctly
+    - Error message displays with aria-describedby
+
+    ### Visual Snapshot Tests
+    - Default state (empty)
+    - With value
+    - With placeholder
+    - Focused state
+    - Error state with message
+    - Disabled state
+    - All 3 sizes
+    - With icons
+weight: medium
+status: paused
+current_phase: implement
+branch: orc/TASK-204
+queue: active
+priority: high
+category: feature
+initiative_id: INIT-009
+blocked_by:
+    - TASK-219
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:04:05.346059409-06:00
+updated_at: 2026-01-14T23:18:25.424104141-06:00
+started_at: 2026-01-14T23:04:07.035797222-06:00

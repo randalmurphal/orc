@@ -1,0 +1,99 @@
+id: TASK-205
+title: Create Textarea primitive component
+description: |-
+    ## Overview
+    Create a shared Textarea component in web-react/src/components/ui/Textarea.tsx with consistent styling, auto-resize, and character count support.
+
+    ## Design Specifications
+
+    ### Base Styling
+    - Font: var(--font-body) (Inter)
+    - Font size: var(--text-sm) (13px)
+    - Background: var(--bg-secondary)
+    - Border: 1px solid var(--border-default)
+    - Border radius: var(--radius-md) (6px)
+    - Padding: var(--space-2) var(--space-3) (8px 12px)
+    - Text color: var(--text-primary)
+    - Placeholder color: var(--text-muted)
+
+    ### State Styles
+    | State | Border | Ring |
+    |-------|--------|------|
+    | default | --border-default | none |
+    | hover | --border-strong | none |
+    | focus | --accent-primary | 0 0 0 2px var(--accent-glow) |
+    | error | --status-danger | none |
+    | disabled | --border-subtle | opacity 0.5, cursor: not-allowed |
+
+    ### Dimensions
+    - Min height: 80px (3 rows default)
+    - Default rows: 3
+    - Max height (when auto-resize): 300px (configurable)
+
+    ### Auto-Resize Behavior
+    - When autoResize={true}, textarea grows with content up to maxHeight
+    - Scrollbar appears when content exceeds maxHeight
+    - Uses scrollHeight to calculate required height
+
+    ### Character Count
+    - When maxLength provided and showCount={true}, display count below
+    - Format: "123/500" right-aligned
+    - Font size: var(--text-xs), color: var(--text-muted)
+    - Color changes to var(--status-danger) when >= 90% capacity
+
+    ### Props Interface
+    ```typescript
+    interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+      variant?: 'default' | 'error';
+      autoResize?: boolean;
+      maxHeight?: number; // Default: 300
+      showCount?: boolean;
+      error?: string;
+    }
+    ```
+
+    ## Accessibility Requirements
+    - Use aria-describedby to link character count to textarea
+    - Use aria-invalid="true" when error state
+    - Link error message via aria-describedby
+    - Support required attribute with visual indicator
+
+    ## Success Criteria
+    - Consistent textarea styling in comments, descriptions
+    - Auto-resize works smoothly up to maxHeight
+    - Character count updates in real-time
+    - Error state clearly visible
+
+    ## Test Criteria
+
+    ### Unit Tests
+    - Renders with default props
+    - Calls onChange when text entered
+    - Respects disabled state
+    - Auto-resize grows textarea height
+    - Auto-resize respects maxHeight
+    - Character count displays correctly
+    - Character count changes color at 90%
+    - Error state displays error message and red border
+
+    ### Visual Snapshots
+    - Default state
+    - Focus state
+    - Error state
+    - With character count (normal and warning)
+    - Auto-resize expanded
+weight: medium
+status: planned
+branch: orc/TASK-205
+queue: active
+priority: normal
+category: feature
+initiative_id: INIT-009
+blocked_by:
+    - TASK-219
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:04:12.068793852-06:00
+updated_at: 2026-01-14T23:18:45.185566207-06:00

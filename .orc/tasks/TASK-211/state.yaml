@@ -1,0 +1,27 @@
+task_id: TASK-211
+current_phase: spec
+current_iteration: 1
+status: interrupted
+started_at: 2026-01-14T23:16:32.350648424-06:00
+updated_at: 2026-01-14T23:16:38.165166483-06:00
+phases:
+    spec:
+        status: interrupted
+        started_at: 2026-01-14T23:16:34.418671523-06:00
+        interrupted_at: 2026-01-14T23:16:38.165165501-06:00
+        iterations: 0
+        tokens:
+            input_tokens: 0
+            output_tokens: 0
+            total_tokens: 0
+tokens:
+    input_tokens: 0
+    output_tokens: 0
+    total_tokens: 0
+cost:
+    total_cost_usd: 0
+execution:
+    pid: 363035
+    hostname: Nexus
+    started_at: 2026-01-14T23:16:32.431441575-06:00
+    last_heartbeat: 2026-01-14T23:16:34.418675551-06:00

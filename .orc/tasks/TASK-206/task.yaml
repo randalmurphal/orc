@@ -1,0 +1,139 @@
+id: TASK-206
+title: Create Badge primitive component
+description: |-
+    ## Overview
+    Create a shared Badge component in web-react/src/components/ui/Badge.tsx for status, category, priority, and weight indicators.
+
+    ## Design Specifications
+
+    ### Base Badge Styling
+    - Font: var(--font-body) (Inter)
+    - Font size: var(--text-2xs) (10px)
+    - Font weight: var(--font-semibold) (600)
+    - Text transform: uppercase
+    - Letter spacing: 0.05em
+    - Border radius: var(--radius-sm) (4px)
+    - Padding: 2px 6px
+    - Display: inline-flex with align-items: center
+
+    ### Size Variants
+    | Size | Font | Padding | Icon Size |
+    |------|------|---------|-----------|
+    | sm | var(--text-2xs) | 2px 6px | 10px |
+    | md | var(--text-xs) | 2px 8px | 12px |
+
+    ### Variant: Status
+    | Status | Text Color | Background |
+    |--------|------------|------------|
+    | created | --text-muted | --bg-tertiary |
+    | classifying | --status-warning | --status-warning-bg |
+    | planned | --text-secondary | --bg-tertiary |
+    | running | --accent-primary | --accent-subtle |
+    | paused | --status-warning | --status-warning-bg |
+    | blocked | --status-danger | --status-danger-bg |
+    | finalizing | --status-info | --status-info-bg |
+    | completed | --status-success | --status-success-bg |
+    | finished | --status-success | --status-success-bg |
+    | failed | --status-danger | --status-danger-bg |
+
+    ### Variant: Category
+    | Category | Text Color | Background |
+    |----------|------------|------------|
+    | feature | --accent-primary | --accent-subtle |
+    | bug | --status-danger | --status-danger-bg |
+    | refactor | --status-info | --status-info-bg |
+    | chore | --text-muted | --bg-tertiary |
+    | docs | --status-success | --status-success-bg |
+    | test | --status-warning | --status-warning-bg |
+
+    ### Variant: Priority
+    | Priority | Text Color | Icon | Animation |
+    |----------|------------|------|-----------|
+    | critical | --status-danger | alert-circle | 1.5s pulse |
+    | high | --status-warning | chevron-up | none |
+    | normal | (not displayed) | - | - |
+    | low | --text-disabled | chevron-down | none |
+
+    Note: Priority 'normal' should return null (no badge rendered)
+
+    ### Variant: Weight
+    | Weight | Text Color | Background |
+    |--------|------------|------------|
+    | trivial | --weight-trivial | rgba(107,114,128,0.15) |
+    | small | --weight-small | --status-success-bg |
+    | medium | --weight-medium | --status-info-bg |
+    | large | --weight-large | --status-warning-bg |
+    | greenfield | --weight-greenfield | --accent-subtle |
+
+    ### Critical Priority Pulse Animation
+    ```css
+    @keyframes priority-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .badge-priority-critical {
+      animation: priority-pulse 1.5s ease-in-out infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .badge-priority-critical { animation: none; }
+    }
+    ```
+
+    ### Props Interface
+    ```typescript
+    type BadgeVariant = 'status' | 'category' | 'priority' | 'weight';
+
+    interface BadgeProps {
+      variant: BadgeVariant;
+      value: string;
+      size?: 'sm' | 'md';
+      className?: string;
+    }
+    ```
+
+    ## Accessibility Requirements
+    - Priority badges with icons include aria-label with full text
+    - Ensure 4.5:1 contrast ratio (tokens are WCAG AA compliant)
+    - Respect prefers-reduced-motion for pulse animation
+
+    ## Success Criteria
+    - Replace inline badge styling across TaskCard, TaskHeader
+    - All status/category/priority/weight values render correctly
+    - Critical priority pulses (unless reduced motion)
+
+    ## Test Criteria
+
+    ### Unit Tests
+    - Renders all status variants with correct colors
+    - Renders all category variants with correct colors
+    - Renders all weight variants with correct colors
+    - Priority 'normal' returns null
+    - Priority variants show correct icons
+    - Critical priority has animation class
+    - Size variants apply correct font/padding
+
+    ### Visual Snapshots
+    - All status badges in a row
+    - All category badges in a row
+    - All priority badges (except normal)
+    - All weight badges
+    - Size comparison (sm vs md)
+
+    ## Components to Update After Badge Complete
+    - TaskCard.tsx - weight, priority, blocked badges
+    - TaskHeader.tsx - weight, status badges
+weight: medium
+status: planned
+branch: orc/TASK-206
+queue: active
+priority: normal
+category: feature
+initiative_id: INIT-009
+blocked_by:
+    - TASK-219
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:04:24.357631657-06:00
+updated_at: 2026-01-14T23:19:11.181564475-06:00
