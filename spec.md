@@ -1,107 +1,95 @@
-# Specification: Fix detectConflictsViaMerge cleanup on failure
+# Specification: Clean up WorkerPool.workers map on completion
 
 ## Problem Statement
 
-The `detectConflictsViaMerge` function in `internal/git/git.go` performs merge and reset operations to detect conflicts, but cleanup (merge abort + reset) only runs at the end of the function. If an error or panic occurs after the merge attempt, the worktree is left in a broken state with a merge in progress.
+Workers in `WorkerPool.workers` map are not cleaned up when they complete or fail. They remain in the map until the orchestrator's next `tick()` cycle calls `checkWorkers()`, which leads to memory leaks, incorrect capacity counting, and potential race conditions when re-running tasks.
 
 ## Success Criteria
 
-- [ ] Cleanup (`merge --abort` and `reset --hard`) runs via `defer` to guarantee execution even on error/panic
-- [ ] Function still returns correct `SyncResult` with conflict information when conflicts are detected
-- [ ] Function still returns correct `SyncResult` when no conflicts exist
-- [ ] Worktree is never left in merge-in-progress state after function returns (success or failure)
-- [ ] Existing tests continue to pass
+- [ ] Worker removes itself from `WorkerPool.workers` map upon completion
+- [ ] Worker removes itself from `WorkerPool.workers` map upon failure
+- [ ] Capacity check (`len(p.workers) >= p.maxWorkers`) only counts actively running workers
+- [ ] No race condition when same task ID is re-queued after completion
+- [ ] `ActiveCount()` returns correct count immediately after worker completion (not delayed until next tick)
+- [ ] Events are still published before worker cleanup (completion events must fire first)
 
 ## Testing Requirements
 
-- [ ] Unit test: `TestDetectConflictsViaMerge_CleanupOnError` - verify cleanup runs when an error occurs mid-function
-- [ ] Unit test: Existing `TestDetectConflicts_NoConflicts` passes
-- [ ] Unit test: Existing `TestDetectConflicts_WithConflicts` passes
-- [ ] Integration: Run `make test` with all git tests passing
+- [ ] Unit test: `TestWorkerPoolCleansUpOnCompletion` - spawn worker, let it complete, verify map is empty
+- [ ] Unit test: `TestWorkerPoolCleansUpOnFailure` - spawn worker that fails, verify map is empty
+- [ ] Unit test: `TestWorkerPoolCapacityAfterCompletion` - fill pool to capacity, complete one worker, verify new worker can spawn immediately
+- [ ] Unit test: `TestConcurrentWorkerCleanup` - multiple workers completing simultaneously don't cause race conditions
 
 ## Scope
 
 ### In Scope
-- Refactor `detectConflictsViaMerge` to use `defer` for cleanup
-- Ensure cleanup is idempotent (safe to call even if merge wasn't started)
+- Worker self-cleanup from pool map on completion/failure in `Worker.run()`
+- Proper locking to prevent race conditions during cleanup
+- Maintaining event publishing order (events before cleanup)
 
 ### Out of Scope
-- Changes to `DetectConflicts` (the public method)
-- Changes to `merge-tree` based conflict detection (the preferred path)
-- Changes to other git operations
+- Worktree cleanup (already handled by orchestrator's `handleWorkerComplete/Failed`)
+- Scheduler state updates (already handled by orchestrator)
+- Changes to the orchestrator's main loop or tick mechanism
 
 ## Technical Approach
 
-### Current Code (problematic)
-```go
-func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
-    // ... safety checks ...
+The worker needs a reference to the pool to remove itself. Options:
 
-    head, err := g.ctx.HeadCommit()  // Get HEAD for reset
-    if err != nil {
-        return nil, err  // Early return - no cleanup needed (merge not started)
-    }
+1. **Pass pool reference to Worker** - Worker gets `pool` in `run()` already, use it for self-removal
+2. **Callback function** - Pass a cleanup callback to the worker
 
-    _, mergeErr := g.ctx.RunGit("merge", "--no-commit", "--no-ff", target)  // MERGE STARTS
+Option 1 is simpler since `run(pool, ...)` already receives the pool.
 
-    // ... conflict detection logic ...
+### Implementation Plan
 
-    // CLEANUP - only runs if we reach this point!
-    _, _ = g.ctx.RunGit("merge", "--abort")
-    _, _ = g.ctx.RunGit("reset", "--hard", head)
+1. In `Worker.run()` defer block, call `pool.RemoveWorker(w.TaskID)` after setting final status
+2. Ensure events are published before removal (already happening inside `run()`)
+3. The orchestrator's `handleWorkerComplete/Failed` will then be a no-op for removal (already removed), but still handles worktree cleanup
 
-    return result, nil
-}
-```
-
-### Fixed Code (using defer)
-```go
-func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
-    // ... safety checks ...
-
-    head, err := g.ctx.HeadCommit()
-    if err != nil {
-        return nil, err
-    }
-
-    // Defer cleanup BEFORE merge attempt - guaranteed to run
-    defer func() {
-        _, _ = g.ctx.RunGit("merge", "--abort")
-        _, _ = g.ctx.RunGit("reset", "--hard", head)
-    }()
-
-    _, mergeErr := g.ctx.RunGit("merge", "--no-commit", "--no-ff", target)
-
-    // ... conflict detection logic ...
-
-    return result, nil
-}
-```
+**Key insight**: The orchestrator's `checkWorkers()` iterates over `GetWorkers()` which returns a copy. Workers that complete between ticks will already be removed from the map by self-cleanup, but the copy will still have stale entries. We need to:
+- Skip workers that no longer exist in the pool (already removed)
+- Or rely on status being already set to complete/failed for idempotent handling
 
 ### Files to Modify
-- `internal/git/git.go:545-582`: Refactor `detectConflictsViaMerge` to use `defer` for cleanup
-- `internal/git/git_test.go`: Add test to verify cleanup runs on error
+
+- `internal/orchestrator/worker.go`:
+  - `Worker.run()`: Add `pool.RemoveWorker(w.TaskID)` in defer block after status update
+  - Ensure proper ordering: set status -> publish events -> remove from map
+
+- `internal/orchestrator/orchestrator.go`:
+  - `handleWorkerComplete()`: Make idempotent - check if worker still exists before operations
+  - `handleWorkerFailed()`: Make idempotent - check if worker still exists before operations
+
+- `internal/orchestrator/worker_test.go` (new file):
+  - Add unit tests for cleanup behavior
 
 ## Bug Analysis
 
 ### Reproduction Steps
-1. Call `DetectConflicts()` on a worktree with git < 2.38 (or force fallback)
-2. Have the merge attempt succeed but a subsequent operation (e.g., `diff --name-only`) fail
-3. Observe worktree left in merge-in-progress state
+1. Create WorkerPool with `maxWorkers=2`
+2. Spawn 2 workers for TASK-001 and TASK-002
+3. Both workers complete (change status to `complete`)
+4. Try to spawn worker for TASK-003 before next orchestrator tick
+5. **Bug**: Spawn fails with "worker pool at capacity (2)"
 
 ### Current Behavior
-Cleanup only runs if the function reaches line 577-579. Any panic, runtime error, or early return after the merge starts would skip cleanup, leaving:
-- `MERGE_HEAD` file present
-- Working tree in conflict state
-- Subsequent operations fail with "merge in progress" error
+- Workers complete and set `Status = WorkerStatusComplete`
+- Workers remain in `p.workers` map until orchestrator's next `tick()` calls `checkWorkers()`
+- `checkWorkers()` calls `RemoveWorker()` to clean up
+- Between completion and tick: `len(p.workers)` includes completed workers
 
 ### Expected Behavior
-Cleanup always runs after merge is attempted, regardless of function exit path.
+- Workers should remove themselves from map immediately upon completion/failure
+- `len(p.workers)` should only count actively running workers
+- New workers can spawn immediately after another completes
 
 ### Root Cause
-Cleanup code is placed at the end of the function instead of using Go's `defer` mechanism, which guarantees execution even during panics or early returns.
+`Worker.run()` sets status but doesn't call `pool.RemoveWorker()`. The cleanup is delegated to `checkWorkers()` which runs on poll interval.
+
+**Location**: `internal/orchestrator/worker.go:122-128` (defer block in `run()`)
 
 ### Verification
-1. Run existing tests - they should still pass
-2. Add new test that simulates error during conflict detection
-3. Verify `IsMergeInProgress()` returns false after function exits (success or failure)
+1. Run unit tests for cleanup behavior
+2. Verify `ActiveCount()` returns correct value immediately after worker completion
+3. Verify new worker can spawn right after another completes (no tick delay)

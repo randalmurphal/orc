@@ -125,6 +125,10 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.S
 			w.Status = WorkerStatusComplete
 		}
 		w.mu.Unlock()
+
+		// Remove worker from pool immediately after setting final status.
+		// This ensures capacity is freed without waiting for the next tick.
+		pool.RemoveWorker(w.TaskID)
 	}()
 
 	// Get current phase

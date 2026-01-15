@@ -178,7 +178,13 @@ func (o *Orchestrator) checkWorkers() {
 }
 
 // handleWorkerComplete handles a completed worker.
+// This is idempotent - the worker may have already removed itself from the pool.
 func (o *Orchestrator) handleWorkerComplete(taskID string, worker *Worker) {
+	// Check if worker still exists in pool (may have already self-removed)
+	if o.workerPool.GetWorker(taskID) == nil {
+		return // Already cleaned up
+	}
+
 	o.logger.Info("task completed", "task_id", taskID)
 
 	// Mark in scheduler
@@ -189,7 +195,7 @@ func (o *Orchestrator) handleWorkerComplete(taskID string, worker *Worker) {
 		o.logger.Warn("cleanup worktree failed", "task_id", taskID, "error", err)
 	}
 
-	// Remove worker
+	// Remove worker (idempotent - no-op if already removed)
 	o.workerPool.RemoveWorker(taskID)
 
 	// Publish event
@@ -202,7 +208,13 @@ func (o *Orchestrator) handleWorkerComplete(taskID string, worker *Worker) {
 }
 
 // handleWorkerFailed handles a failed worker.
+// This is idempotent - the worker may have already removed itself from the pool.
 func (o *Orchestrator) handleWorkerFailed(taskID string, worker *Worker) {
+	// Check if worker still exists in pool (may have already self-removed)
+	if o.workerPool.GetWorker(taskID) == nil {
+		return // Already cleaned up
+	}
+
 	err := worker.GetError()
 	o.logger.Error("task failed", "task_id", taskID, "error", err)
 
@@ -214,20 +226,24 @@ func (o *Orchestrator) handleWorkerFailed(taskID string, worker *Worker) {
 	o.scheduler.MarkFailed(taskID)
 
 	// Cleanup worktree (keep for debugging)
-	if err := o.workerPool.CleanupWorktree(taskID, false, true); err != nil {
-		o.logger.Warn("cleanup worktree failed", "task_id", taskID, "error", err)
+	if cleanupErr := o.workerPool.CleanupWorktree(taskID, false, true); cleanupErr != nil {
+		o.logger.Warn("cleanup worktree failed", "task_id", taskID, "error", cleanupErr)
 	}
 
-	// Remove worker
+	// Remove worker (idempotent - no-op if already removed)
 	o.workerPool.RemoveWorker(taskID)
 
 	// Publish event
 	if o.publisher != nil {
+		errMsg := "unknown error"
+		if err != nil {
+			errMsg = err.Error()
+		}
 		o.publisher.Publish(events.Event{
 			Type:   events.EventError,
 			TaskID: taskID,
 			Data: map[string]any{
-				"error": err.Error(),
+				"error": errMsg,
 			},
 		})
 	}
