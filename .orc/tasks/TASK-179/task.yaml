@@ -38,8 +38,7 @@ description: |-
     - Performance within 10% of Svelte
     - Accessibility audit passes
 weight: large
-status: running
-current_phase: implement
+status: planned
 branch: orc/TASK-179
 queue: active
 priority: normal
@@ -51,5 +50,4 @@ testing_requirements:
     unit: true
     visual: true
 created_at: 2026-01-14T02:23:27.82290652-06:00
-updated_at: 2026-01-14T22:04:06.013371837-06:00
-started_at: 2026-01-14T22:01:13.221128766-06:00
+updated_at: 2026-01-14T02:23:27.83254513-06:00
