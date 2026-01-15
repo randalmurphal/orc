@@ -26,8 +26,8 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `project/` | Multi-project registry | `Registry`, `Project` |
 | `prompt/` | Prompt template management | `Service` |
 | `state/` | Execution state persistence, auto-commit helpers | `State`, `CommitTaskState`, `CommitPhaseTransition` |
-| `storage/` | Storage backend abstraction layer | `Backend`, `HybridBackend`, `ExportService` |
-| `task/` | Task model, YAML persistence, attachments, testing requirements | `Task`, `TestingRequirements`, `Store`, `Attachment` |
+| `storage/` | Storage backend abstraction (SQLite source of truth) | `Backend`, `DatabaseBackend`, `ExportService` |
+| `task/` | Task model, attachments, testing requirements | `Task`, `TestingRequirements`, `Attachment` |
 | `setup/` | Claude-powered interactive setup | `Run`, `Spawner`, `Validator` |
 | `template/` | Go template rendering | `Engine` |
 | `tokenpool/` | OAuth token pool for rate limit failover | `Pool`, `Account` |
@@ -163,4 +163,4 @@ See package-specific CLAUDE.md files:
 - `db/CLAUDE.md` - SQLite persistence layer
 - `executor/CLAUDE.md` - Execution engine modules
 - `setup/CLAUDE.md` - Claude-powered setup
-- `watcher/CLAUDE.md` - File system watcher for live updates
+- `storage/CLAUDE.md` - Storage backend abstraction

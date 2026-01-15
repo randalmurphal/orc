@@ -80,6 +80,7 @@ Embedded via `//go:embed schema/*.sql`:
 | `schema/project_009.sql` | Task queue (backlog/active) and priority fields |
 | `schema/project_010.sql` | Task category field (feature/bug/refactor/chore/docs/test) |
 | `schema/project_011.sql` | Initiative dependencies (blocked_by relationships between initiatives) |
+| `schema/project_012.sql` | Pure SQL storage: plans, specs, gate_decisions, attachments, sync_state tables; expanded task/phase columns for full state storage |
 
 ## Usage
 
@@ -154,8 +155,11 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 
 ### Project Tables
 - `detection` - Project detection results (language, frameworks, build tools)
-- `tasks` - Task records (id, title, weight, status, queue, priority, category, cost)
-- `phases` - Phase execution state (iterations, tokens)
+- `tasks` - Task records (id, title, weight, status, queue, priority, category, PR info, session tracking, tokens)
+- `phases` - Phase execution state (iterations, tokens, commit_sha, skip_reason)
+- `plans` - Phase plans (version, weight, phases JSON)
+- `specs` - Task specifications (content, source)
+- `specs_fts` - FTS5 virtual table for spec search (SQLite only)
 - `transcripts` - Claude conversation logs
 - `transcripts_fts` - FTS5 virtual table with triggers (SQLite only)
 - `initiatives` - Initiative groupings (id, title, status, vision, owner)
@@ -163,6 +167,8 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 - `initiative_tasks` - Task-to-initiative mappings with sequence
 - `initiative_dependencies` - Initiative blocked_by relationships
 - `task_dependencies` - Task dependency relationships
+- `gate_decisions` - Gate approval records (phase, gate_type, approved, reason)
+- `task_attachments` - Task file attachments (BLOB storage)
 - `subtasks` - Subtask queue (parent_task, title, status, proposed_by)
 - `review_comments` - Inline review comments (file_path, line_number, severity, status)
 - `team_members` - Organization members (email, display_name, initials, role)
@@ -170,6 +176,7 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 - `activity_log` - Audit trail (action, task_id, member_id, details)
 - `knowledge_queue` - Knowledge approval queue (patterns, gotchas, decisions)
 - `task_comments` - Task comments/notes (author, author_type, content, phase)
+- `sync_state` - P2P sync tracking (site_id, sync_version, mode)
 
 ## Dialect-Specific Queries
 

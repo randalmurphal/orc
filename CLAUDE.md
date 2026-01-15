@@ -42,7 +42,7 @@ Commands: `/orc:init`, `/orc:status`, `/orc:continue`, `/orc:review`, `/orc:qa`,
 | `web-svelte-archive/` | Svelte 5 frontend (archived) | Previous implementation |
 | `docs/` | Architecture, specs, ADRs | See `docs/CLAUDE.md` |
 
-**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `task/` (YAML persistence), `git/` (worktrees), `db/` (SQLite), `watcher/` (live refresh)
+**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite)
 
 ## Task Execution Model
 
@@ -512,8 +512,6 @@ Patterns, gotchas, and decisions learned during development.
 | E2E sandbox isolation | E2E tests MUST run against isolated sandbox project in `/tmp`, not production; `global-setup.ts` creates sandbox with test tasks/initiatives, `global-teardown.ts` removes it; test files import from `./fixtures` (not `@playwright/test`) to auto-select sandbox; tests that bypass fixtures will corrupt real task data | TASK-201 |
 | React migration complete | Frontend migrated from Svelte 5 to React 19; archived Svelte codebase at `web-svelte-archive/`, moved React to `web/`; E2E tests use framework-agnostic selectors (role, text, CSS classes) | TASK-180 |
 
-
-
 ### Known Gotchas
 | Issue | Resolution | Source |
 |-------|------------|--------|
@@ -528,17 +526,9 @@ Patterns, gotchas, and decisions learned during development.
 | Web UI shows "No project selected" | Select a project via `Shift+Alt+P` - server can run from any directory | TASK-005 |
 | Auto-merge fails with worktree error | Fixed: Uses GitHub REST API for merge instead of `gh pr merge` CLI which tried to checkout target branch locally | TASK-196 |
 | Finished tasks still blocked dependents | Fixed: `GetIncompleteBlockers()` now uses `isDone()` helper to recognize both `completed` and `finished` statuses as done | TASK-199 |
-
-| Re-running completed task fails to push | Fixed: Push now detects non-fast-forward errors (diverged remote) and automatically retries with `--force-with-lease` | TASK-198 |
-
-
-| Finished tasks still blocked dependents | Fixed: `GetIncompleteBlockers()` now uses `isDone()` helper to recognize both `completed` and `finished` statuses as done | TASK-199 |
-
 | Re-running completed task fails to push | Fixed: Push now detects non-fast-forward errors (diverged remote) and automatically retries with `--force-with-lease` | TASK-198 |
 | Sync fails with '0 files in conflict' error | Fixed: `RebaseWithConflictCheck()` now only returns `ErrMergeConflict` when actual conflicts detected; other rebase failures (dirty tree, rebase in progress) return the raw error | TASK-201 |
 | E2E tests modify production task statuses | Fixed: Tests now use isolated sandbox project in `/tmp`; test files MUST import from `./fixtures` to get sandbox selection; tests that import directly from `@playwright/test` will corrupt real data | TASK-201 |
-
-
 
 ### Decisions
 | Decision | Rationale | Source |

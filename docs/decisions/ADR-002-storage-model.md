@@ -1,72 +1,67 @@
 # ADR-002: Storage Model
 
-**Status**: Accepted  
-**Date**: 2026-01-10
+**Status**: Superseded by Pure SQL Storage (2026-01)
+**Date**: 2026-01-10 (original), 2026-01 (superseded)
 
 ---
 
-## Context
+## Original Decision (Superseded)
 
-Orc needs to persist: task definitions, execution state, transcripts, artifacts, and configuration.
+The original design used YAML files as the source of truth with SQLite as an optional cache/index. This was superseded by pure SQL storage in January 2026.
 
-**Key Requirements**:
-1. Version control trackable/rewindable
-2. Collaboration via git
-3. No external services to set up
-4. Human-inspectable state
+## Current Decision
 
-## Decision
+**Primary Storage**: SQLite database (`.orc/orc.db`) is the sole source of truth.
 
-**Primary Storage**: File-based storage in `.orc/` directory, tracked by git.
+No YAML files are created for tasks, states, plans, or initiatives. Configuration (`config.yaml`) and prompts remain as files.
 
-SQLite can be added later ONLY if search/query needs arise.
+## Rationale for Change
 
-## Rationale
+### Why We Moved Away from YAML
 
-### Git-Native is the Killer Feature
+| Issue | Problem | Solution |
+|-------|---------|----------|
+| Dual writes | Every operation wrote YAML then DB, causing sync bugs | Single DB write |
+| Git noise | Auto-commits for every state change cluttered history | No auto-commits for task state |
+| Conflict resolution | Merge conflicts in YAML files during parallel work | CR-SQLite for P2P sync |
+| Query performance | Filesystem scanning for task lists was slow | SQL queries |
+| Consistency | YAML/DB could diverge, requiring rebuild logic | Single source of truth |
 
-Git already provides everything we need:
-
-| Orc Need | Git Solution |
-|----------|--------------|
-| History | `git log` shows all state changes |
-| Rewind | `git checkout` restores any previous state |
-| Branching | `git branch` enables parallel task exploration |
-| Diffing | `git diff` shows exactly what changed |
-| Collaboration | `git push/pull` shares state |
-
-### Storage Structure
+### New Storage Structure
 
 ```
 .orc/
-├── config.yaml              # Project configuration
-├── tasks/
-│   └── {task-id}/
-│       ├── task.yaml        # Task definition
-│       ├── state.yaml       # Current execution state
-│       ├── plan.yaml        # Generated plan
-│       └── transcripts/     # Claude session logs
-├── prompts/                 # Prompt templates (overrides)
-└── templates/plans/         # Plan templates by weight
+├── orc.db                   # SQLite database (source of truth)
+├── config.yaml              # Project configuration (file)
+└── prompts/                 # Prompt templates (files)
 ```
 
-### Why YAML Over JSON
+### Database Tables
 
-- Human-readable and editable
-- Comments allowed (documentation inline)
-- Multi-line strings without escaping (prompts!)
-- Git diffs are cleaner
+All task, state, plan, and initiative data stored in SQLite:
+- `tasks` - Task definitions and execution state
+- `phases` - Phase execution records
+- `plans` - Phase sequences (JSON)
+- `specs` - Task specifications
+- `initiatives` - Initiative groupings
+- `transcripts` - Claude session logs
+- `attachments` - Task file attachments (BLOB)
+
+### Sync Strategy
+
+P2P sync via CR-SQLite extension replaces git-based collaboration for task data.
+Configuration and prompts remain git-tracked.
 
 ## Consequences
 
 **Positive**:
-- Zero setup: clone repo, run orc, done
-- Full history: every state change is a git commit
-- Inspectable: `cat .orc/tasks/abc123/state.yaml`
-- Transparent: no magic, files are the truth
+- Single source of truth eliminates sync bugs
+- Fast queries for all operations
+- P2P sync without git noise
+- Simpler codebase (removed YAML I/O, file watchers, commit logic)
 
 **Negative**:
-- Query limitations (no `SELECT * FROM tasks WHERE status='failed'`)
-- Scale concerns for thousands of tasks
+- Less human-inspectable (use `orc status`, `orc show` instead of `cat`)
+- Database corruption requires backup recovery
 
-**Mitigation**: Build in-memory index on startup; add SQLite for indexing only if needed.
+**Mitigation**: Regular database backups; `orc export` for human-readable snapshots.

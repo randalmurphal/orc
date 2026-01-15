@@ -321,26 +321,21 @@ blocked_by:
 | `completed` | Initiative finished successfully |
 | `archived` | Initiative archived (no longer relevant) |
 
-### Hybrid Storage and Auto-Commit
+### Database Storage
 
-Initiatives use a hybrid storage pattern:
-- **YAML files** are the source of truth (git-tracked, human-editable)
-- **SQLite database** caches data for fast queries
+Initiatives are stored in SQLite (source of truth):
+- `initiatives` table - Core initiative data
+- `initiative_tasks` table - Task-to-initiative links
+- `initiative_decisions` table - Decisions within initiatives
+- `initiative_dependencies` table - Blocked-by relationships
 
-**Auto-commit behavior:**
-CLI commands (`new`, `add-task`, `decide`, `activate`, `complete`) automatically:
-1. Save changes to `initiative.yaml`
-2. Sync to database cache (`initiatives`, `initiative_decisions`, `initiative_tasks`, `initiative_dependencies` tables)
-3. Commit to git with message: `[orc] initiative INIT-001: action - Title`
+**CLI behavior:**
+CLI commands (`new`, `add-task`, `decide`, `activate`, `complete`) write directly to the database.
 
-**File watcher sync:**
-External edits to `initiative.yaml` (outside CLI) trigger automatic database sync via the file watcher.
-
-**Recovery options:**
-| Scenario | Recovery |
-|----------|----------|
-| Database missing/corrupted | `RebuildDBIndex()` rebuilds from YAML files |
-| YAML file missing | `RecoverFromDB()` regenerates from database cache |
+**Export for inspection:**
+```bash
+orc initiative show INIT-001 --format yaml
+```
 
 ---
 

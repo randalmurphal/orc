@@ -12,147 +12,117 @@
 
 ---
 
-## Storage Roles: YAML vs Database
+## Storage Architecture
 
 ### Key Principle
 
-**YAML files are the source of truth for task and initiative data. Database is derived/cached data for performance.**
+**SQLite is the sole source of truth for all task, state, plan, and initiative data.**
+
+Configuration files (`config.yaml`) and prompt templates remain as files for human editability.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Storage Roles                             │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  YAML Files (git-tracked, human-editable, SOURCE OF TRUTH)      │
-│  ├── .orc/tasks/TASK-001/task.yaml       Task definition        │
-│  ├── .orc/tasks/TASK-001/plan.yaml       Phase sequence         │
-│  ├── .orc/tasks/TASK-001/state.yaml      Execution state        │
-│  ├── .orc/initiatives/INIT-001/          Initiative definition  │
-│  │   └── initiative.yaml                                        │
-│  ├── .orc/shared/config.yaml             Team configuration     │
-│  └── .orc/shared/prompts/*.md            Shared prompts         │
+│  SQLite Database (.orc/orc.db - SOURCE OF TRUTH)                │
+│  ├── tasks                    Task definitions, status, PR info │
+│  ├── phases                   Phase execution records           │
+│  ├── plans                    Phase sequences (JSON)            │
+│  ├── specs + specs_fts        Task specifications with FTS      │
+│  ├── initiatives              Initiative groupings              │
+│  ├── initiative_tasks         Task-to-initiative links          │
+│  ├── initiative_decisions     Decisions within initiatives      │
+│  ├── initiative_dependencies  Initiative blocked_by relations   │
+│  ├── task_dependencies        Task blocked_by relations         │
+│  ├── gate_decisions           Gate approval records             │
+│  ├── task_attachments         File attachments (BLOB)           │
+│  ├── transcripts + _fts       Claude session logs with FTS      │
+│  ├── cost_log                 Token usage tracking              │
+│  └── sync_state               P2P sync tracking                 │
 │                                                                  │
-│  SQLite Database (local index, NOT source of truth)             │
-│  ├── tasks table                         Index for search/list  │
-│  ├── initiatives table                   Initiative cache       │
-│  ├── initiative_decisions table          Decision cache         │
-│  ├── initiative_tasks table              Task links cache       │
-│  ├── initiative_dependencies table       Blocked-by cache       │
-│  ├── cost_log table                      Token usage tracking   │
-│  ├── transcripts_fts                     Full-text search       │
-│  └── projects table                      Project registry       │
+│  Files (git-tracked, human-editable)                            │
+│  ├── .orc/config.yaml         Project configuration             │
+│  └── .orc/prompts/*.md        Prompt templates                  │
 │                                                                  │
-│  Postgres (team server only, aggregation + visibility)          │
-│  ├── organizations                       Org management         │
-│  ├── members                             User membership        │
-│  ├── task_visibility                     Read-only task mirror  │
-│  ├── cost_aggregation                    Team cost rollups      │
-│  └── audit_log                           Security audit trail   │
+│  Global SQLite (~/.orc/orc.db)                                  │
+│  ├── projects                 Project registry                  │
+│  ├── cost_log                 Cross-project cost tracking       │
+│  └── templates                Shared task templates             │
+│                                                                  │
+│  Postgres (optional team mode)                                  │
+│  ├── Same schema as SQLite    All tables supported              │
+│  ├── organizations            Org management                    │
+│  └── members                  User membership                   │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Sync Pattern
+### Storage Backend Pattern
 
 ```go
-// internal/task/repo.go
+// internal/storage/database_backend.go
 
-// Save writes to YAML first (source of truth), then updates DB index
-func (r *Repo) Save(task *Task) error {
-    // 1. Write YAML (source of truth)
-    if err := r.writeYAML(task); err != nil {
-        return fmt.Errorf("write task yaml: %w", err)
-    }
-
-    // 2. Update DB index (for search, can be rebuilt)
-    if err := r.updateIndex(task); err != nil {
-        log.Warn("failed to update db index", "task", task.ID, "error", err)
-        // Don't fail - YAML is saved
-    }
-
-    return nil
+// DatabaseBackend implements Backend using SQLite as source of truth
+type DatabaseBackend struct {
+    db  *db.ProjectDB
+    mu  sync.RWMutex
 }
 
-// Get reads from YAML (source of truth)
-func (r *Repo) Get(id string) (*Task, error) {
-    return r.readYAML(id)
+// Save writes directly to database
+func (d *DatabaseBackend) SaveTask(t *task.Task) error {
+    d.mu.Lock()
+    defer d.mu.Unlock()
+    return d.db.SaveTask(t)
 }
 
-// List uses DB index for fast listing
-func (r *Repo) List() ([]*Task, error) {
-    return r.db.ListTasks()
+// Load reads directly from database
+func (d *DatabaseBackend) LoadTask(id string) (*task.Task, error) {
+    d.mu.RLock()
+    defer d.mu.RUnlock()
+    return d.db.LoadTask(id)
 }
 
-// RebuildIndex regenerates DB from YAML files
-func (r *Repo) RebuildIndex() error {
-    tasks, err := r.scanYAMLFiles()
-    if err != nil {
-        return err
-    }
-    return r.db.ReplaceIndex(tasks)
+// List queries database
+func (d *DatabaseBackend) LoadAllTasks() ([]*task.Task, error) {
+    d.mu.RLock()
+    defer d.mu.RUnlock()
+    return d.db.LoadAllTasks()
 }
 ```
 
-### Initiative Sync Pattern
+### P2P Sync (CR-SQLite)
 
-Initiatives follow the same hybrid storage pattern with auto-commit to git:
+Sync between machines uses CR-SQLite extension for conflict-free replication:
 
 ```go
-// internal/initiative/store.go
+// internal/db/crsqlite.go
 
-// Save writes YAML, syncs DB, and commits to git
-func (s *Store) Save(init *Initiative) error {
-    // 1. Save to YAML (source of truth)
-    if err := init.Save(); err != nil {
-        return fmt.Errorf("save initiative to YAML: %w", err)
-    }
-
-    // 2. Sync to database cache
-    if err := s.syncToDB(init); err != nil {
-        s.logger.Warn("failed to sync to database", "id", init.ID, "error", err)
-        // Don't fail - YAML is saved
-    }
-
-    // 3. Auto-commit if enabled
-    if s.autoCommit {
-        if err := s.commitInitiative(init, "save"); err != nil {
-            s.logger.Warn("failed to commit", "id", init.ID, "error", err)
-        }
-    }
-
-    return nil
+// GetChangesSince returns changes for sync
+func (db *DB) GetChangesSince(version int64) ([]Change, error) {
+    return db.Query(`
+        SELECT "table", pk, cid, val, col_version, db_version, site_id
+        FROM crsql_changes WHERE db_version > ?`, version)
 }
 
-// RebuildIndex regenerates DB from YAML files
-func (s *Store) RebuildIndex() error {
-    initiatives, _ := List(s.shared)
-    for _, init := range initiatives {
-        s.syncToDB(init)
+// ApplyChanges merges remote changes
+func (db *DB) ApplyChanges(changes []Change) error {
+    for _, c := range changes {
+        db.Exec(`INSERT INTO crsql_changes ...`, c.Fields()...)
     }
     return nil
-}
-
-// RecoverFromDB regenerates YAML from database
-func (s *Store) RecoverFromDB(id string) (*Initiative, error) {
-    // Load from DB, reconstruct Initiative, save to YAML
-    dbInit, _ := s.db.GetInitiative(id)
-    init := reconstructFromDB(dbInit)
-    return init, init.Save()
 }
 ```
 
-**File watcher integration:** The watcher monitors `.orc/initiatives/` and calls `SyncToDB()` when external edits are detected, keeping the database cache current.
+### Why Pure SQL?
 
-### Why This Pattern?
-
-| Concern | YAML | Database |
-|---------|------|----------|
-| Git tracking | Yes | No |
-| Human readable | Yes | No |
-| Survives corruption | Yes (text) | Rebuild from YAML |
-| Fast search | No | Yes (FTS) |
-| Fast listing | Slow (filesystem) | Yes |
-| Aggregation | No | Yes |
+| Concern | Old (YAML+DB) | New (SQL only) |
+|---------|---------------|----------------|
+| Consistency | Sync bugs possible | Single source |
+| Performance | Filesystem scanning | SQL queries |
+| Git noise | Auto-commits clutter | None |
+| Conflict resolution | Manual merge | CR-SQLite |
+| Code complexity | Dual write logic | Simple CRUD |
 
 ---
 
@@ -934,44 +904,34 @@ func setupPostgresTestDB(t *testing.T) *bun.DB {
 
 ---
 
-## Migration from Current Schema
+## Current Schema
 
-### Current: Split YAML + SQLite
+### Pure SQL Storage (Implemented)
 
 ```
 .orc/
-├── orc.db                    # SQLite with detection, tasks, phases, transcripts
-└── tasks/TASK-001/
-    ├── task.yaml             # Task definition
-    ├── plan.yaml             # Phase sequence
-    └── state.yaml            # Execution state
+├── orc.db                    # SQLite database (source of truth)
+├── config.yaml               # Project configuration (file)
+└── prompts/                  # Prompt templates (files)
+
+~/.orc/
+├── orc.db                    # Global database (projects, cost, templates)
+└── config.yaml               # Global configuration
 ```
 
-### New: Unified Database
+### Database Schema
 
-All state in database, YAML files for backup/export only.
+The database contains all task, state, plan, and initiative data. See `internal/db/schema/` for full schema definitions (project_001.sql through project_012.sql).
 
-### Migration Strategy
+### Export for Inspection
 
-```go
-func MigrateFromYAML(db *bun.DB, orcDir string) error {
-    // Find all task directories
-    taskDirs, _ := filepath.Glob(filepath.Join(orcDir, "tasks", "TASK-*"))
+```bash
+# Export task details for human inspection
+orc show TASK-001 --format yaml
 
-    for _, dir := range taskDirs {
-        // Read YAML files
-        taskYAML, _ := os.ReadFile(filepath.Join(dir, "task.yaml"))
-        var task Task
-        yaml.Unmarshal(taskYAML, &task)
-
-        // Insert into database
-        db.NewInsert().Model(&task).Exec(context.Background())
-
-        // Similar for plan, state, transcripts
-    }
-
-    return nil
-}
+# Export all tasks
+orc status --format json > tasks.json
+```
 ```
 
 ---
