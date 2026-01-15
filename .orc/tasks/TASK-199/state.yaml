@@ -1,0 +1,85 @@
+task_id: TASK-199
+current_phase: docs
+current_iteration: 5
+status: completed
+started_at: 2026-01-14T22:19:23.664856014-06:00
+updated_at: 2026-01-14T22:26:41.765439042-06:00
+completed_at: 2026-01-14T22:26:41.765438601-06:00
+phases:
+    docs:
+        status: completed
+        started_at: 2026-01-14T22:25:32.028880684-06:00
+        completed_at: 2026-01-14T22:26:41.739295258-06:00
+        iterations: 1
+        commit_sha: 206baaea72c5e38026fc8604f8bfd2ad3863da32
+        tokens:
+            input_tokens: 979537
+            output_tokens: 2436
+            cache_creation_input_tokens: 86888
+            cache_read_input_tokens: 891267
+            total_tokens: 981973
+    implement:
+        status: completed
+        started_at: 2026-01-14T22:20:45.682919043-06:00
+        completed_at: 2026-01-14T22:23:50.53057568-06:00
+        iterations: 1
+        commit_sha: 8319c2ea7e5c69453c38c27840f4bb33647911df
+        tokens:
+            input_tokens: 1902499
+            output_tokens: 5938
+            cache_creation_input_tokens: 123194
+            cache_read_input_tokens: 1779282
+            total_tokens: 1908437
+    spec:
+        status: completed
+        started_at: 2026-01-14T22:19:26.447303734-06:00
+        completed_at: 2026-01-14T22:20:45.665354784-06:00
+        iterations: 1
+        commit_sha: 23670e012434b108480fa4fbff2fd8902ecb9d22
+        tokens:
+            input_tokens: 884188
+            output_tokens: 2772
+            cache_creation_input_tokens: 104410
+            cache_read_input_tokens: 779765
+            total_tokens: 886960
+    test:
+        status: completed
+        started_at: 2026-01-14T22:23:50.555587271-06:00
+        completed_at: 2026-01-14T22:25:32.012516407-06:00
+        iterations: 1
+        commit_sha: f13ffca759ad17ceeaceaa758b274f2f2d9c7653
+        tokens:
+            input_tokens: 1029241
+            output_tokens: 3568
+            cache_creation_input_tokens: 103318
+            cache_read_input_tokens: 925904
+            total_tokens: 1032809
+gates:
+    - phase: spec
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T22:20:45.6829177-06:00
+    - phase: implement
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T22:23:50.555585618-06:00
+    - phase: test
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T22:25:32.02887365-06:00
+    - phase: docs
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T22:26:41.765436377-06:00
+tokens:
+    input_tokens: 4795465
+    output_tokens: 14714
+    cache_creation_input_tokens: 417810
+    cache_read_input_tokens: 4376218
+    total_tokens: 4810179
+cost:
+    total_cost_usd: 0
