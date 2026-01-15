@@ -14,7 +14,7 @@
  * - dependency_status: Dependency status filter
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
 	useTaskStore,
@@ -37,8 +37,6 @@ import {
 	resumeProjectTask,
 	escalateProjectTask,
 	updateTask,
-	listProjectTasks,
-	listInitiatives,
 	type FinalizeState,
 } from '@/lib/api';
 import type { Task, DependencyStatus } from '@/lib/types';
@@ -52,18 +50,14 @@ export function Board() {
 	const currentProjectId = useCurrentProjectId();
 	const currentInitiativeId = useCurrentInitiativeId();
 	const selectInitiative = useInitiativeStore((state) => state.selectInitiative);
-	const setInitiatives = useInitiativeStore((state) => state.setInitiatives);
 	const dependencyStatus = searchParams.get('dependency_status') as DependencyStatus | null;
 
-	// Get tasks and initiatives from stores
+	// Get tasks and initiatives from stores (data loaded by DataProvider)
 	const tasks = useTaskStore((state) => state.tasks);
-	const setTasks = useTaskStore((state) => state.setTasks);
 	const updateTaskInStore = useTaskStore((state) => state.updateTask);
 	const initiatives = useInitiatives();
 	const loading = useTaskStore((state) => state.loading);
-	const setLoading = useTaskStore((state) => state.setLoading);
 	const error = useTaskStore((state) => state.error);
-	const setError = useTaskStore((state) => state.setError);
 
 	// UI state
 	const [viewMode, setViewMode] = useState<BoardViewMode>(() => {
@@ -107,30 +101,6 @@ export function Board() {
 
 		return filtered;
 	}, [tasks, currentInitiativeId, dependencyStatus]);
-
-	// Load tasks and initiatives
-	useEffect(() => {
-		if (!currentProjectId) return;
-
-		const loadData = async () => {
-			setLoading(true);
-			setError(null);
-			try {
-				const [tasksData, initiativesData] = await Promise.all([
-					listProjectTasks(currentProjectId),
-					listInitiatives(),
-				]);
-				setTasks(tasksData);
-				setInitiatives(initiativesData);
-			} catch (err) {
-				setError(err instanceof Error ? err.message : 'Failed to load data');
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		loadData();
-	}, [currentProjectId, setTasks, setInitiatives, setLoading, setError]);
 
 	// Handle view mode change
 	const handleViewModeChange = useCallback((mode: BoardViewMode) => {

@@ -1,6 +1,7 @@
 import { useRoutes } from 'react-router-dom';
 import { routes } from '@/router';
 import { WebSocketProvider, ShortcutProvider } from '@/hooks';
+import { DataProvider } from '@/components/layout';
 
 /**
  * Root application component.
@@ -8,6 +9,7 @@ import { WebSocketProvider, ShortcutProvider } from '@/hooks';
  * Wraps the app with:
  * - ShortcutProvider for keyboard shortcuts
  * - WebSocketProvider for real-time updates
+ * - DataProvider for centralized data loading
  * - Router for navigation
  */
 function App() {
@@ -15,7 +17,9 @@ function App() {
 
 	return (
 		<ShortcutProvider>
-			<WebSocketProvider>{routeElements}</WebSocketProvider>
+			<WebSocketProvider>
+				<DataProvider>{routeElements}</DataProvider>
+			</WebSocketProvider>
 		</ShortcutProvider>
 	);
 }
