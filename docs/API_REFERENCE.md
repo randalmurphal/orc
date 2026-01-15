@@ -1349,13 +1349,13 @@ Tokens are incremental (add to existing totals, don't replace).
 
 ### Global Subscriptions
 
-Subscribe to `"*"` to receive file watcher events for all tasks:
+Subscribe to `"*"` to receive database events for all tasks:
 
 ```json
 {"type": "subscribe", "task_id": "*"}
 ```
 
-File watcher events (`task_created`, `task_updated`, `task_deleted`, `initiative_created`, `initiative_updated`, `initiative_deleted`) are only broadcast to global subscribers. These events are triggered when tasks or initiatives are created, modified, or deleted outside the API (e.g., via CLI or direct filesystem edits).
+Database events (`task_created`, `task_updated`, `task_deleted`, `initiative_created`, `initiative_updated`, `initiative_deleted`) are only broadcast to global subscribers. These events are triggered when tasks or initiatives are created, modified, or deleted via CLI or API operations.
 
 ---
 

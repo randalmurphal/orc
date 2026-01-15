@@ -19,74 +19,40 @@ Initiatives group multiple related tasks under a shared vision, decisions, and c
 | `Decision` | Recorded decision with rationale |
 | `TaskRef` | Reference to a task within the initiative |
 | `Identity` | Owner information (initials, name, email) |
-| `Store` | Hybrid storage manager (YAML + DB cache) |
+| `Store` | Database storage manager |
 | `CommitConfig` | Git commit configuration |
 
-## Hybrid Storage Pattern
+## Database Storage
 
-Initiatives use the same hybrid storage pattern as tasks:
-- **YAML files** are the source of truth (git-tracked, human-editable)
-- **SQLite database** is a derived cache for fast queries and recovery
+Initiatives are stored in SQLite (source of truth):
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ YAML (Source of Truth)          DB (Cache)                  │
-│ .orc/initiatives/INIT-001/      initiatives table           │
-│ └── initiative.yaml             initiative_decisions table  │
-│                                 initiative_tasks table      │
-│                                 initiative_dependencies     │
+│ SQLite Database (.orc/orc.db)                               │
+│ ├── initiatives              Initiative definitions         │
+│ ├── initiative_tasks         Task-to-initiative links       │
+│ ├── initiative_decisions     Decisions with rationale       │
+│ └── initiative_dependencies  Blocked-by relationships       │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-### Auto-Commit Behavior
-
-CLI commands (`new`, `add-task`, `decide`, `activate`, `complete`) automatically:
-1. Save YAML file (source of truth)
-2. Sync to database cache
-3. Commit to git with message format: `[orc] initiative INIT-001: action - Title`
-
-### Recovery Functions
-
-| Function | Use Case |
-|----------|----------|
-| `RebuildDBIndex()` | DB missing/corrupted → rebuild from YAML files |
-| `RecoverFromDB()` | YAML missing → regenerate from DB cache |
-| `SyncFromYAML()` | External YAML edit → update DB cache |
 
 ### Store Usage
 
 ```go
-// Create store with auto-commit enabled
+// Create store
 store, err := initiative.NewStore(initiative.StoreConfig{
-    ProjectRoot:  projectRoot,
-    AutoCommit:   true,
-    CommitPrefix: "[orc]",
+    ProjectRoot: projectRoot,
 })
 defer store.Close()
 
-// Save (writes YAML, syncs DB, commits git)
+// Save (writes to database)
 err = store.Save(init)
 
-// Recovery
-store.RebuildIndex()                    // Rebuild DB from all YAML files
-init, err := store.RecoverFromDB(id)    // Recover YAML from DB
-store.SyncFromYAML(id)                  // Sync single initiative to DB
-```
+// Load
+init, err := store.Load(id)
 
-## Directory Structure
-
-```
-# Solo mode
-.orc/initiatives/INIT-001/
-├── initiative.yaml
-├── research.md      # Context file
-├── spec.md          # Context file
-└── architecture.md  # Context file
-
-# P2P/Team mode
-.orc/shared/initiatives/INIT-001/
-├── initiative.yaml
-└── ...
+// List all
+initiatives, err := store.List()
 ```
 
 ## Usage
