@@ -90,6 +90,11 @@
   --accent-active: #8b5cf6;
   --accent-subtle: rgba(167, 139, 250, 0.1);
 
+  /* React-specific aliases (compatibility with existing components) */
+  --bg-hover: var(--bg-surface);
+  --accent-primary-hover: var(--accent-hover);
+  --accent-primary-transparent: var(--accent-subtle);
+
   /* Status Colors */
   --status-success: #10b981;
   --status-success-glow: rgba(16, 185, 129, 0.25);
@@ -110,6 +115,9 @@
   --status-running: #8b5cf6;
   --status-running-glow: rgba(139, 92, 246, 0.25);
   --status-running-bg: rgba(139, 92, 246, 0.1);
+
+  /* Status alias (React compatibility) */
+  --status-error: var(--status-danger);
 
   /* Weight Colors - WCAG AA compliant for badge backgrounds */
   --weight-trivial: #9ca3af;         /* Lightened from #6b7280 for contrast */
@@ -198,6 +206,7 @@
   --space-16: 4rem;        /* 64px */
   --space-20: 5rem;        /* 80px */
   --space-24: 6rem;        /* 96px */
+  --space-32: 8rem;        /* 128px */
 
   /* ==========================================================================
      SIZING
