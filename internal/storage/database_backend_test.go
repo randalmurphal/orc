@@ -636,7 +636,7 @@ func TestSaveState_ExecutionInfo(t *testing.T) {
 	// Save state with ExecutionInfo (simulates executor starting)
 	now := time.Now()
 	execStart := now.Add(-time.Minute) // Started 1 minute ago
-	heartbeat := now                    // Last heartbeat just now
+	heartbeat := now                   // Last heartbeat just now
 	s := &state.State{
 		TaskID:       "TASK-001",
 		CurrentPhase: "implement",
