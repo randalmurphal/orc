@@ -39,8 +39,7 @@ description: |-
     - State is consistent across components
     - Browser history works correctly
 weight: medium
-status: running
-current_phase: implement
+status: planned
 branch: orc/TASK-178
 queue: active
 priority: normal
@@ -58,5 +57,4 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:23:16.107607669-06:00
-updated_at: 2026-01-14T21:38:14.954726341-06:00
-started_at: 2026-01-14T21:38:13.81105051-06:00
+updated_at: 2026-01-14T02:23:16.11972777-06:00
