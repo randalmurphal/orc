@@ -1,0 +1,223 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - navigation "Main navigation" [ref=e4]:
+      - generic [ref=e5]:
+        - link ">_ ORC" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e7]: ">_"
+          - generic [ref=e8]: ORC
+        - button "Collapse sidebar" [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+      - generic [ref=e13]:
+        - navigation [ref=e14]:
+          - generic [ref=e15]: Work
+          - list [ref=e16]:
+            - listitem [ref=e17]:
+              - link "Dashboard" [ref=e18] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e20]
+                - generic [ref=e25]: Dashboard
+            - listitem [ref=e26]:
+              - link "Tasks" [ref=e27] [cursor=pointer]:
+                - /url: /
+                - img [ref=e29]
+                - generic [ref=e31]: Tasks
+            - listitem [ref=e32]:
+              - link "Board" [ref=e33] [cursor=pointer]:
+                - /url: /board
+                - img [ref=e35]
+                - generic [ref=e39]: Board
+        - navigation [ref=e40]:
+          - button "Initiatives" [expanded] [ref=e41] [cursor=pointer]:
+            - generic [ref=e42]: Initiatives
+            - img [ref=e43]
+          - list [ref=e45]:
+            - listitem [ref=e46]:
+              - link "All Tasks" [ref=e47] [cursor=pointer]:
+                - /url: /
+                - generic [ref=e50]: All Tasks
+            - listitem [ref=e51]:
+              - link "Visual Regression Testing" [ref=e52] [cursor=pointer]:
+                - /url: /?initiative=INIT-001
+                - generic [ref=e55]: Visual Regression Testing
+            - listitem [ref=e56]:
+              - link "React Migration draft" [ref=e57] [cursor=pointer]:
+                - /url: /?initiative=INIT-002
+                - generic [ref=e60]: React Migration
+                - generic [ref=e61]: draft
+        - navigation [ref=e63]:
+          - button "Environment" [ref=e64] [cursor=pointer]:
+            - generic [ref=e65]: Environment
+            - img [ref=e66]
+      - navigation [ref=e70]:
+        - list [ref=e71]:
+          - listitem [ref=e72]:
+            - link "Preferences" [ref=e73] [cursor=pointer]:
+              - /url: /preferences
+              - img [ref=e75]
+              - generic [ref=e78]: Preferences
+      - generic [ref=e79]:
+        - generic [ref=e80]: Shift+Alt+B
+        - text: to toggle
+    - generic [ref=e81]:
+      - banner [ref=e82]:
+        - generic [ref=e83]:
+          - button "orc" [ref=e84] [cursor=pointer]:
+            - img [ref=e86]
+            - generic [ref=e88]: orc
+            - img [ref=e90]
+          - generic [ref=e92]:
+            - generic [ref=e93]: /
+            - heading "Tasks" [level=1] [ref=e94]
+        - generic [ref=e95]:
+          - button "Commands Shift+Alt+K" [ref=e96] [cursor=pointer]:
+            - generic [ref=e97]: Commands
+            - generic [ref=e98]: Shift+Alt+K
+          - button "New Task" [ref=e99] [cursor=pointer]:
+            - img [ref=e100]
+            - text: New Task
+      - main [ref=e101]:
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - heading "Task List" [level=1] [ref=e104]
+            - generic [ref=e105]: 0 tasks
+          - generic [ref=e106]:
+            - generic [ref=e107]:
+              - button "All 0" [ref=e108] [cursor=pointer]:
+                - text: All
+                - generic [ref=e109]: "0"
+              - button "Active 0" [ref=e110] [cursor=pointer]:
+                - text: Active
+                - generic [ref=e111]: "0"
+              - button "Completed 0" [ref=e112] [cursor=pointer]:
+                - text: Completed
+                - generic [ref=e113]: "0"
+              - button "Failed 0" [ref=e114] [cursor=pointer]:
+                - text: Failed
+                - generic [ref=e115]: "0"
+            - generic [ref=e116]:
+              - generic [ref=e117]:
+                - img [ref=e118]
+                - textbox "Search tasks..." [ref=e121]
+              - button "All initiatives" [ref=e123] [cursor=pointer]:
+                - img [ref=e124]
+                - generic [ref=e128]: All initiatives
+                - img [ref=e129]
+              - button "All tasks" [ref=e132] [cursor=pointer]:
+                - generic [ref=e133]: All tasks
+                - img [ref=e134]
+              - combobox "Filter by weight" [ref=e136] [cursor=pointer]:
+                - option "All weights" [selected]
+                - option "trivial"
+                - option "small"
+                - option "medium"
+                - option "large"
+                - option "greenfield"
+              - combobox "Sort tasks by" [ref=e137] [cursor=pointer]:
+                - option "Most recent" [selected]
+                - option "Oldest first"
+                - option "By status"
+              - button "New Task" [ref=e138] [cursor=pointer]:
+                - img [ref=e139]
+                - text: New Task
+          - generic [ref=e140]:
+            - img [ref=e142]
+            - heading "No tasks yet" [level=3] [ref=e144]
+            - paragraph [ref=e145]: Create your first task to get started with orc
+            - button "Create Task" [ref=e146] [cursor=pointer]:
+              - img [ref=e147]
+              - text: Create Task
+  - dialog "Keyboard Shortcuts" [ref=e148]:
+    - generic [ref=e149]:
+      - generic [ref=e150]:
+        - heading "Keyboard Shortcuts" [level=2] [ref=e151]
+        - button "Close modal" [active] [ref=e152] [cursor=pointer]:
+          - img [ref=e153]
+      - generic [ref=e157]:
+        - generic [ref=e158]:
+          - heading "Global" [level=3] [ref=e159]
+          - generic [ref=e160]:
+            - generic [ref=e161]:
+              - generic [ref=e163]: Shift+Alt+K
+              - generic [ref=e164]: Open command palette
+            - generic [ref=e165]:
+              - generic [ref=e167]: Shift+Alt+N
+              - generic [ref=e168]: Create new task
+            - generic [ref=e169]:
+              - generic [ref=e171]: Shift+Alt+B
+              - generic [ref=e172]: Toggle sidebar
+            - generic [ref=e173]:
+              - generic [ref=e175]: Shift+Alt+P
+              - generic [ref=e176]: Switch project
+            - generic [ref=e177]:
+              - generic [ref=e179]: /
+              - generic [ref=e180]: Focus search
+            - generic [ref=e181]:
+              - generic [ref=e183]: "?"
+              - generic [ref=e184]: Show this help
+            - generic [ref=e185]:
+              - generic [ref=e187]: Esc
+              - generic [ref=e188]: Close overlay
+        - generic [ref=e189]:
+          - heading "Navigation" [level=3] [ref=e190]
+          - generic [ref=e191]:
+            - generic [ref=e192]:
+              - generic [ref=e193]:
+                - generic [ref=e194]: g
+                - generic [ref=e195]: d
+              - generic [ref=e196]: Go to dashboard
+            - generic [ref=e197]:
+              - generic [ref=e198]:
+                - generic [ref=e199]: g
+                - generic [ref=e200]: t
+              - generic [ref=e201]: Go to tasks
+            - generic [ref=e202]:
+              - generic [ref=e203]:
+                - generic [ref=e204]: g
+                - generic [ref=e205]: e
+              - generic [ref=e206]: Go to environment
+            - generic [ref=e207]:
+              - generic [ref=e208]:
+                - generic [ref=e209]: g
+                - generic [ref=e210]: r
+              - generic [ref=e211]: Go to preferences
+            - generic [ref=e212]:
+              - generic [ref=e213]:
+                - generic [ref=e214]: g
+                - generic [ref=e215]: p
+              - generic [ref=e216]: Go to prompts
+            - generic [ref=e217]:
+              - generic [ref=e218]:
+                - generic [ref=e219]: g
+                - generic [ref=e220]: h
+              - generic [ref=e221]: Go to hooks
+            - generic [ref=e222]:
+              - generic [ref=e223]:
+                - generic [ref=e224]: g
+                - generic [ref=e225]: k
+              - generic [ref=e226]: Go to skills
+        - generic [ref=e227]:
+          - heading "Task List" [level=3] [ref=e228]
+          - generic [ref=e229]:
+            - generic [ref=e230]:
+              - generic [ref=e232]: j
+              - generic [ref=e233]: Select next task
+            - generic [ref=e234]:
+              - generic [ref=e236]: k
+              - generic [ref=e237]: Select previous task
+            - generic [ref=e238]:
+              - generic [ref=e240]: Enter
+              - generic [ref=e241]: Open selected task
+            - generic [ref=e242]:
+              - generic [ref=e244]: r
+              - generic [ref=e245]: Run selected task
+            - generic [ref=e246]:
+              - generic [ref=e248]: p
+              - generic [ref=e249]: Pause selected task
+            - generic [ref=e250]:
+              - generic [ref=e252]: d
+              - generic [ref=e253]: Delete selected task
+```
