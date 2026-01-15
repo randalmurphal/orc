@@ -102,7 +102,7 @@ export const useUIStore = create<UIStore>()(
 				dismissible,
 			};
 
-			set((state) => ({
+			set((state: UIStore) => ({
 				toasts: [...state.toasts, newToast],
 			}));
 
@@ -120,39 +120,40 @@ export const useUIStore = create<UIStore>()(
 
 			// Sidebar actions
 			toggleSidebar: () =>
-				set((state) => {
+				set((state: UIStore) => {
 					const newExpanded = !state.sidebarExpanded;
 					setStoredSidebarExpanded(newExpanded);
 					return { sidebarExpanded: newExpanded };
 				}),
 
-			setSidebarExpanded: (expanded) => {
+			setSidebarExpanded: (expanded: boolean) => {
 				setStoredSidebarExpanded(expanded);
 				set({ sidebarExpanded: expanded });
 			},
 
 			// WebSocket actions
-			setWsStatus: (status) => set({ wsStatus: status }),
+			setWsStatus: (status: ConnectionStatus) => set({ wsStatus: status }),
 
 			// Toast actions
 			addToast: addToastImpl,
 
-			dismissToast: (id) =>
-				set((state) => ({
-					toasts: state.toasts.filter((t) => t.id !== id),
+			dismissToast: (id: string) =>
+				set((state: UIStore) => ({
+					toasts: state.toasts.filter((t: Toast) => t.id !== id),
 				})),
 
 			clearToasts: () => set({ toasts: [] }),
 
 			// Convenience toast methods
 			toast: {
-				success: (message, options) =>
+				success: (message: string, options?: Partial<Omit<Toast, 'id' | 'type' | 'message'>>) =>
 					addToastImpl({ type: 'success', message, ...options }),
-				error: (message, options) =>
+				error: (message: string, options?: Partial<Omit<Toast, 'id' | 'type' | 'message'>>) =>
 					addToastImpl({ type: 'error', message, ...options }),
-				warning: (message, options) =>
+				warning: (message: string, options?: Partial<Omit<Toast, 'id' | 'type' | 'message'>>) =>
 					addToastImpl({ type: 'warning', message, ...options }),
-				info: (message, options) => addToastImpl({ type: 'info', message, ...options }),
+				info: (message: string, options?: Partial<Omit<Toast, 'id' | 'type' | 'message'>>) =>
+					addToastImpl({ type: 'info', message, ...options }),
 			},
 
 			reset: () => set(initialState),
@@ -162,16 +163,16 @@ export const useUIStore = create<UIStore>()(
 
 // Subscribe to sidebar changes to persist
 useUIStore.subscribe(
-	(state) => state.sidebarExpanded,
-	(expanded) => {
+	(state: UIStore) => state.sidebarExpanded,
+	(expanded: boolean) => {
 		setStoredSidebarExpanded(expanded);
 	}
 );
 
 // Selector hooks
-export const useSidebarExpanded = () => useUIStore((state) => state.sidebarExpanded);
-export const useWsStatus = () => useUIStore((state) => state.wsStatus);
-export const useToasts = () => useUIStore((state) => state.toasts);
+export const useSidebarExpanded = () => useUIStore((state: UIStore) => state.sidebarExpanded);
+export const useWsStatus = () => useUIStore((state: UIStore) => state.wsStatus);
+export const useToasts = () => useUIStore((state: UIStore) => state.toasts);
 
 // Direct access to toast methods (for use outside React components)
 export const toast = {
