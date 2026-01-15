@@ -1,0 +1,18 @@
+id: TASK-212
+title: Replace TaskCard quick menu with Radix DropdownMenu
+description: 'Replace the custom quick menu in TaskCard with Radix DropdownMenu. Benefits: proper keyboard navigation (arrow keys, typeahead), focus management, screen reader support. Preserve existing CSS classes. Update pattern can then be applied to other dropdowns. Success: Quick menu is keyboard accessible, screen reader announces items. Testing: E2E board tests pass, keyboard navigation works.'
+weight: medium
+status: planned
+branch: orc/TASK-212
+queue: active
+priority: high
+category: refactor
+initiative_id: INIT-009
+blocked_by:
+    - TASK-211
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:05:11.181076327-06:00
+updated_at: 2026-01-14T23:05:11.207409371-06:00
