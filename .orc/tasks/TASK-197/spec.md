@@ -6,23 +6,23 @@ System freezes occur across Linux, Mac, and WSL after running multiple orc tasks
 
 ## Success Criteria
 
-- [ ] Process snapshot taken before each task execution with PID, PPID, command, and memory usage
-- [ ] Process snapshot taken after each task execution
-- [ ] New orphaned processes detected by comparing snapshots (processes spawned during task that survive after session close)
-- [ ] Orphaned processes logged with warning level including process details
-- [ ] Memory usage logged before/after each phase execution
-- [ ] Memory growth > 100MB between phases triggers warning log
-- [ ] MCP-related processes (playwright, chromium, firefox, webkit) specifically flagged in orphan detection
-- [ ] Resource tracking can be disabled via config (`diagnostics.resource_tracking.enabled: false`)
-- [ ] All tracking works cross-platform (Linux, macOS, Windows/WSL)
+- [x] Process snapshot taken before each task execution with PID, PPID, command, and memory usage
+- [x] Process snapshot taken after each task execution
+- [x] New orphaned processes detected by comparing snapshots (processes spawned during task that survive after session close)
+- [x] Orphaned processes logged with warning level including process details
+- [x] Memory usage logged before/after each phase execution
+- [x] Memory growth > 100MB between phases triggers warning log
+- [x] MCP-related processes (playwright, chromium, firefox, webkit) specifically flagged in orphan detection
+- [x] Resource tracking can be disabled via config (`diagnostics.resource_tracking.enabled: false`)
+- [x] All tracking works cross-platform (Linux, macOS, Windows/WSL)
 
 ## Testing Requirements
 
-- [ ] Unit test: `TestProcessSnapshot` - verifies snapshot captures correct fields
-- [ ] Unit test: `TestOrphanDetection` - verifies orphan detection logic with mock data
-- [ ] Unit test: `TestMemoryTracking` - verifies memory delta calculation
-- [ ] Unit test: `TestResourceTrackerConfig` - verifies config enables/disables tracking
-- [ ] Integration test: `TestResourceTrackingDuringTask` - runs a trivial task and verifies logs are emitted
+- [x] Unit test: `TestProcessSnapshot` - verifies snapshot captures correct fields
+- [x] Unit test: `TestOrphanDetection` - verifies orphan detection logic with mock data
+- [x] Unit test: `TestMemoryTracking` - verifies memory delta calculation
+- [x] Unit test: `TestResourceTrackerConfig` - verifies config enables/disables tracking
+- [x] Integration test: `TestResourceTrackingDuringTask` - runs a trivial task and verifies logs are emitted
 
 ## Scope
 
