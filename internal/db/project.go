@@ -1020,6 +1020,30 @@ func (p *ProjectDB) GetTaskDependencies(taskID string) ([]string, error) {
 	return deps, nil
 }
 
+// GetAllTaskDependencies retrieves all task dependencies in one query.
+// Returns a map from task_id to list of depends_on IDs.
+func (p *ProjectDB) GetAllTaskDependencies() (map[string][]string, error) {
+	rows, err := p.Query(`SELECT task_id, depends_on FROM task_dependencies ORDER BY task_id`)
+	if err != nil {
+		return nil, fmt.Errorf("get all task dependencies: %w", err)
+	}
+	defer rows.Close()
+
+	deps := make(map[string][]string)
+	for rows.Next() {
+		var taskID, dependsOn string
+		if err := rows.Scan(&taskID, &dependsOn); err != nil {
+			return nil, fmt.Errorf("scan dependency: %w", err)
+		}
+		deps[taskID] = append(deps[taskID], dependsOn)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate dependencies: %w", err)
+	}
+
+	return deps, nil
+}
+
 // GetTaskDependents retrieves IDs of tasks that depend on taskID.
 func (p *ProjectDB) GetTaskDependents(taskID string) ([]string, error) {
 	rows, err := p.Query(`SELECT task_id FROM task_dependencies WHERE depends_on = ?`, taskID)

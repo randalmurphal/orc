@@ -289,10 +289,10 @@ func runMigrateDBToYAML(outputDir string) error {
 	tasksOutputDir := filepath.Join(outputDir, "tasks")
 	initiativesOutputDir := filepath.Join(outputDir, "initiatives")
 
-	if err := os.MkdirAll(tasksOutputDir, 0755); err != nil {
+	if err := os.MkdirAll(tasksOutputDir, 0700); err != nil {
 		return fmt.Errorf("create tasks output dir: %w", err)
 	}
-	if err := os.MkdirAll(initiativesOutputDir, 0755); err != nil {
+	if err := os.MkdirAll(initiativesOutputDir, 0700); err != nil {
 		return fmt.Errorf("create initiatives output dir: %w", err)
 	}
 
@@ -312,14 +312,14 @@ func runMigrateDBToYAML(outputDir string) error {
 
 	for _, t := range tasks {
 		taskDir := filepath.Join(tasksOutputDir, t.ID)
-		if err := os.MkdirAll(taskDir, 0755); err != nil {
+		if err := os.MkdirAll(taskDir, 0700); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to create task dir for %s: %v\n", t.ID, err)
 			continue
 		}
 
 		// Save task.yaml
 		taskData, _ := yaml.Marshal(t)
-		if err := os.WriteFile(filepath.Join(taskDir, "task.yaml"), taskData, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(taskDir, "task.yaml"), taskData, 0600); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to write task.yaml for %s: %v\n", t.ID, err)
 			continue
 		}
@@ -328,7 +328,7 @@ func runMigrateDBToYAML(outputDir string) error {
 		// Save plan.yaml if exists
 		if p, err := backend.LoadPlan(t.ID); err == nil {
 			planData, _ := yaml.Marshal(p)
-			if err := os.WriteFile(filepath.Join(taskDir, "plan.yaml"), planData, 0644); err == nil {
+			if err := os.WriteFile(filepath.Join(taskDir, "plan.yaml"), planData, 0600); err == nil {
 				stats.Plans++
 			}
 		}
@@ -336,14 +336,14 @@ func runMigrateDBToYAML(outputDir string) error {
 		// Save state.yaml if exists
 		if s, err := backend.LoadState(t.ID); err == nil {
 			stateData, _ := yaml.Marshal(s)
-			if err := os.WriteFile(filepath.Join(taskDir, "state.yaml"), stateData, 0644); err == nil {
+			if err := os.WriteFile(filepath.Join(taskDir, "state.yaml"), stateData, 0600); err == nil {
 				stats.States++
 			}
 		}
 
 		// Save spec.md if exists
 		if specContent, err := backend.LoadSpec(t.ID); err == nil && specContent != "" {
-			if err := os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(specContent), 0644); err == nil {
+			if err := os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(specContent), 0600); err == nil {
 				stats.Specs++
 			}
 		}
@@ -354,13 +354,13 @@ func runMigrateDBToYAML(outputDir string) error {
 	if err == nil {
 		for _, init := range initiatives {
 			initDir := filepath.Join(initiativesOutputDir, init.ID)
-			if err := os.MkdirAll(initDir, 0755); err != nil {
+			if err := os.MkdirAll(initDir, 0700); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to create initiative dir for %s: %v\n", init.ID, err)
 				continue
 			}
 
 			initData, _ := yaml.Marshal(init)
-			if err := os.WriteFile(filepath.Join(initDir, "initiative.yaml"), initData, 0644); err == nil {
+			if err := os.WriteFile(filepath.Join(initDir, "initiative.yaml"), initData, 0600); err == nil {
 				stats.Initiatives++
 			}
 		}
