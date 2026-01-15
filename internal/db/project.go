@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,44 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db/driver"
 )
+
+// TxRunner provides a transactional execution interface.
+// This allows operations to run within a transaction context,
+// ensuring atomicity of multi-table operations.
+type TxRunner interface {
+	// RunInTx executes the given function within a transaction.
+	// If fn returns an error, the transaction is rolled back.
+	// If fn returns nil, the transaction is committed.
+	RunInTx(ctx context.Context, fn func(tx *TxOps) error) error
+}
+
+// TxOps provides database operations within a transaction.
+// It wraps a driver.Tx to provide the same interface as ProjectDB
+// but executes all operations within the transaction.
+type TxOps struct {
+	tx      driver.Tx
+	dialect driver.Dialect
+}
+
+// Exec executes a query within the transaction.
+func (t *TxOps) Exec(query string, args ...any) (sql.Result, error) {
+	return t.tx.Exec(context.Background(), query, args...)
+}
+
+// Query executes a query that returns rows within the transaction.
+func (t *TxOps) Query(query string, args ...any) (*sql.Rows, error) {
+	return t.tx.Query(context.Background(), query, args...)
+}
+
+// QueryRow executes a query that returns at most one row within the transaction.
+func (t *TxOps) QueryRow(query string, args ...any) *sql.Row {
+	return t.tx.QueryRow(context.Background(), query, args...)
+}
+
+// Dialect returns the database dialect.
+func (t *TxOps) Dialect() driver.Dialect {
+	return t.dialect
+}
 
 // ProjectDB provides operations on a project database (.orc/orc.db).
 type ProjectDB struct {
@@ -47,6 +86,37 @@ func OpenProjectWithDialect(dsn string, dialect driver.Dialect) (*ProjectDB, err
 
 	return &ProjectDB{DB: db}, nil
 }
+
+// RunInTx executes the given function within a database transaction.
+// If fn returns an error, the transaction is rolled back.
+// If fn returns nil, the transaction is committed.
+func (p *ProjectDB) RunInTx(ctx context.Context, fn func(tx *TxOps) error) error {
+	tx, err := p.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+
+	txOps := &TxOps{
+		tx:      tx,
+		dialect: p.Dialect(),
+	}
+
+	if err := fn(txOps); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("rollback failed: %w (original error: %v)", rbErr, err)
+		}
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+// Ensure ProjectDB implements TxRunner
+var _ TxRunner = (*ProjectDB)(nil)
 
 // Detection stores project detection results.
 type Detection struct {
@@ -1803,4 +1873,244 @@ func (p *ProjectDB) GetNextTaskID() (string, error) {
 	}
 
 	return fmt.Sprintf("TASK-%03d", num+1), nil
+}
+
+// ============================================================================
+// Transaction-aware operations (TxOps methods)
+// These methods allow operations to run within a transaction context.
+// ============================================================================
+
+// SaveTaskTx saves a task within a transaction.
+func SaveTaskTx(tx *TxOps, t *Task) error {
+	var startedAt, completedAt *string
+	if t.StartedAt != nil {
+		s := t.StartedAt.Format(time.RFC3339)
+		startedAt = &s
+	}
+	if t.CompletedAt != nil {
+		s := t.CompletedAt.Format(time.RFC3339)
+		completedAt = &s
+	}
+
+	// Default queue, priority, and category if not set
+	queue := t.Queue
+	if queue == "" {
+		queue = "active"
+	}
+	priority := t.Priority
+	if priority == "" {
+		priority = "normal"
+	}
+	category := t.Category
+	if category == "" {
+		category = "feature"
+	}
+
+	// Default state_status if not set
+	stateStatus := t.StateStatus
+	if stateStatus == "" {
+		stateStatus = "pending"
+	}
+
+	_, err := tx.Exec(`
+		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			title = excluded.title,
+			description = excluded.description,
+			weight = excluded.weight,
+			status = excluded.status,
+			state_status = excluded.state_status,
+			current_phase = excluded.current_phase,
+			branch = excluded.branch,
+			worktree_path = excluded.worktree_path,
+			queue = excluded.queue,
+			priority = excluded.priority,
+			category = excluded.category,
+			initiative_id = excluded.initiative_id,
+			started_at = excluded.started_at,
+			completed_at = excluded.completed_at,
+			total_cost_usd = excluded.total_cost_usd,
+			metadata = excluded.metadata,
+			retry_context = excluded.retry_context
+	`, t.ID, t.Title, t.Description, t.Weight, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
+		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext)
+	if err != nil {
+		return fmt.Errorf("save task: %w", err)
+	}
+	return nil
+}
+
+// ClearTaskDependenciesTx removes all dependencies for a task within a transaction.
+func ClearTaskDependenciesTx(tx *TxOps, taskID string) error {
+	_, err := tx.Exec(`DELETE FROM task_dependencies WHERE task_id = ?`, taskID)
+	if err != nil {
+		return fmt.Errorf("clear task dependencies: %w", err)
+	}
+	return nil
+}
+
+// AddTaskDependencyTx adds a task dependency within a transaction.
+func AddTaskDependencyTx(tx *TxOps, taskID, dependsOn string) error {
+	var query string
+	if tx.Dialect() == driver.DialectSQLite {
+		query = `INSERT OR IGNORE INTO task_dependencies (task_id, depends_on) VALUES (?, ?)`
+	} else {
+		query = `INSERT INTO task_dependencies (task_id, depends_on) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	}
+	_, err := tx.Exec(query, taskID, dependsOn)
+	if err != nil {
+		return fmt.Errorf("add task dependency: %w", err)
+	}
+	return nil
+}
+
+// ClearPhasesTx removes all phases for a task within a transaction.
+func ClearPhasesTx(tx *TxOps, taskID string) error {
+	_, err := tx.Exec("DELETE FROM phases WHERE task_id = ?", taskID)
+	if err != nil {
+		return fmt.Errorf("clear phases: %w", err)
+	}
+	return nil
+}
+
+// SavePhaseTx saves a phase within a transaction.
+func SavePhaseTx(tx *TxOps, ph *Phase) error {
+	var startedAt, completedAt *string
+	if ph.StartedAt != nil {
+		s := ph.StartedAt.Format(time.RFC3339)
+		startedAt = &s
+	}
+	if ph.CompletedAt != nil {
+		s := ph.CompletedAt.Format(time.RFC3339)
+		completedAt = &s
+	}
+
+	_, err := tx.Exec(`
+		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(task_id, phase_id) DO UPDATE SET
+			status = excluded.status,
+			iterations = excluded.iterations,
+			started_at = excluded.started_at,
+			completed_at = excluded.completed_at,
+			input_tokens = excluded.input_tokens,
+			output_tokens = excluded.output_tokens,
+			cost_usd = excluded.cost_usd,
+			error_message = excluded.error_message,
+			commit_sha = excluded.commit_sha,
+			skip_reason = excluded.skip_reason
+	`, ph.TaskID, ph.PhaseID, ph.Status, ph.Iterations, startedAt, completedAt,
+		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason)
+	if err != nil {
+		return fmt.Errorf("save phase: %w", err)
+	}
+	return nil
+}
+
+// AddGateDecisionTx adds a gate decision within a transaction.
+func AddGateDecisionTx(tx *TxOps, d *GateDecision) error {
+	approved := 0
+	if d.Approved {
+		approved = 1
+	}
+	if d.DecidedAt.IsZero() {
+		d.DecidedAt = time.Now()
+	}
+
+	result, err := tx.Exec(`
+		INSERT INTO gate_decisions (task_id, phase, gate_type, approved, reason, decided_by, decided_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, d.TaskID, d.Phase, d.GateType, approved, d.Reason, d.DecidedBy, d.DecidedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("add gate decision: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	d.ID = id
+	return nil
+}
+
+// SaveInitiativeTx saves an initiative within a transaction.
+func SaveInitiativeTx(tx *TxOps, i *Initiative) error {
+	now := time.Now().Format(time.RFC3339)
+	if i.CreatedAt.IsZero() {
+		i.CreatedAt = time.Now()
+	}
+
+	_, err := tx.Exec(`
+		INSERT INTO initiatives (id, title, status, owner_initials, owner_display_name, owner_email, vision, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			title = excluded.title,
+			status = excluded.status,
+			owner_initials = excluded.owner_initials,
+			owner_display_name = excluded.owner_display_name,
+			owner_email = excluded.owner_email,
+			vision = excluded.vision,
+			updated_at = excluded.updated_at
+	`, i.ID, i.Title, i.Status, i.OwnerInitials, i.OwnerDisplayName, i.OwnerEmail, i.Vision,
+		i.CreatedAt.Format(time.RFC3339), now)
+	if err != nil {
+		return fmt.Errorf("save initiative: %w", err)
+	}
+	return nil
+}
+
+// AddInitiativeDecisionTx adds a decision within a transaction.
+func AddInitiativeDecisionTx(tx *TxOps, d *InitiativeDecision) error {
+	_, err := tx.Exec(`
+		INSERT INTO initiative_decisions (id, initiative_id, decision, rationale, decided_by, decided_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, d.ID, d.InitiativeID, d.Decision, d.Rationale, d.DecidedBy, d.DecidedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("add initiative decision: %w", err)
+	}
+	return nil
+}
+
+// ClearInitiativeTasksTx removes all task references from an initiative within a transaction.
+func ClearInitiativeTasksTx(tx *TxOps, initiativeID string) error {
+	_, err := tx.Exec(`DELETE FROM initiative_tasks WHERE initiative_id = ?`, initiativeID)
+	if err != nil {
+		return fmt.Errorf("clear initiative tasks: %w", err)
+	}
+	return nil
+}
+
+// AddTaskToInitiativeTx links a task to an initiative within a transaction.
+func AddTaskToInitiativeTx(tx *TxOps, initiativeID, taskID string, sequence int) error {
+	_, err := tx.Exec(`
+		INSERT INTO initiative_tasks (initiative_id, task_id, sequence)
+		VALUES (?, ?, ?)
+		ON CONFLICT(initiative_id, task_id) DO UPDATE SET
+			sequence = excluded.sequence
+	`, initiativeID, taskID, sequence)
+	if err != nil {
+		return fmt.Errorf("add task to initiative: %w", err)
+	}
+	return nil
+}
+
+// ClearInitiativeDependenciesTx removes all dependencies for an initiative within a transaction.
+func ClearInitiativeDependenciesTx(tx *TxOps, initiativeID string) error {
+	_, err := tx.Exec(`DELETE FROM initiative_dependencies WHERE initiative_id = ?`, initiativeID)
+	if err != nil {
+		return fmt.Errorf("clear initiative dependencies: %w", err)
+	}
+	return nil
+}
+
+// AddInitiativeDependencyTx adds an initiative dependency within a transaction.
+func AddInitiativeDependencyTx(tx *TxOps, initiativeID, dependsOn string) error {
+	var query string
+	if tx.Dialect() == driver.DialectSQLite {
+		query = `INSERT OR IGNORE INTO initiative_dependencies (initiative_id, depends_on) VALUES (?, ?)`
+	} else {
+		query = `INSERT INTO initiative_dependencies (initiative_id, depends_on) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	}
+	_, err := tx.Exec(query, initiativeID, dependsOn)
+	if err != nil {
+		return fmt.Errorf("add initiative dependency: %w", err)
+	}
+	return nil
 }
