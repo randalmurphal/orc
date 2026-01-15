@@ -12,6 +12,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { Column, type ColumnConfig } from './Column';
 import { QueuedColumn } from './QueuedColumn';
 import { Swimlane } from './Swimlane';
+import { Button } from '@/components/ui/Button';
 import type { Task, Initiative, TaskPriority } from '@/lib/types';
 import type { FinalizeState } from '@/lib/api';
 import { PRIORITY_ORDER } from '@/lib/types';
@@ -466,21 +467,20 @@ export function Board({
 							/>
 						</div>
 						<div className="modal-actions">
-							<button
-								type="button"
-								className="btn btn-secondary"
+							<Button
+								variant="secondary"
 								onClick={handleEscalateCancel}
 							>
 								Cancel
-							</button>
-							<button
-								type="button"
-								className="btn btn-primary"
+							</Button>
+							<Button
+								variant="primary"
 								onClick={handleEscalateConfirm}
 								disabled={!escalateReason.trim() || actionLoading}
+								loading={actionLoading}
 							>
 								{actionLoading ? 'Escalating...' : 'Escalate'}
-							</button>
+							</Button>
 						</div>
 					</div>
 				</>
@@ -500,21 +500,20 @@ export function Board({
 							?
 						</p>
 						<div className="modal-actions">
-							<button
-								type="button"
-								className="btn btn-secondary"
+							<Button
+								variant="secondary"
 								onClick={cancelInitiativeChange}
 							>
 								Cancel
-							</button>
-							<button
-								type="button"
-								className="btn btn-primary"
+							</Button>
+							<Button
+								variant="primary"
 								onClick={confirmInitiativeChange}
 								disabled={actionLoading}
+								loading={actionLoading}
 							>
 								{actionLoading ? 'Moving...' : 'Move'}
-							</button>
+							</Button>
 						</div>
 					</div>
 				</>

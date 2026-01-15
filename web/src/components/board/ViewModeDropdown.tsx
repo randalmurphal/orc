@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import type { BoardViewMode } from './Board';
 import './ViewModeDropdown.css';
@@ -75,25 +76,27 @@ export function ViewModeDropdown({ value, onChange, disabled }: ViewModeDropdown
 			ref={dropdownRef}
 			onKeyDown={handleKeydown}
 		>
-			<button
-				type="button"
+			<Button
+				variant="ghost"
+				size="sm"
 				className="dropdown-trigger"
 				onClick={handleToggle}
 				aria-expanded={isOpen}
 				aria-haspopup="listbox"
 				disabled={disabled}
+				leftIcon={<Icon name="layout" size={16} />}
+				rightIcon={<Icon name="chevron-down" size={14} className={`chevron ${isOpen ? 'open' : ''}`} />}
 			>
-				<Icon name="layout" size={16} />
 				<span className="trigger-text">{currentOption.label}</span>
-				<Icon name="chevron-down" size={14} className={`chevron ${isOpen ? 'open' : ''}`} />
-			</button>
+			</Button>
 
 			{isOpen && (
 				<div className="dropdown-menu" role="listbox">
 					{VIEW_OPTIONS.map((option) => (
-						<button
+						<Button
 							key={option.id}
-							type="button"
+							variant="ghost"
+							size="sm"
 							className={`dropdown-item ${option.id === value ? 'selected' : ''}`}
 							onClick={() => handleSelect(option.id)}
 							role="option"
@@ -104,7 +107,7 @@ export function ViewModeDropdown({ value, onChange, disabled }: ViewModeDropdown
 								<span className="item-label">{option.label}</span>
 								<span className="item-description">{option.description}</span>
 							</div>
-						</button>
+						</Button>
 					))}
 				</div>
 			)}

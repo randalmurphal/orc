@@ -1687,7 +1687,7 @@ import { QueuedColumn } from '@/components/board';
 
 **Features:**
 - Active section always visible
-- Backlog section collapsible with toggle button
+- Backlog section collapsible with toggle button (uses `Button` primitive with `leftIcon`)
 - Backlog count badge
 - State persisted to localStorage (`orc-show-backlog`)
 
@@ -1711,7 +1711,7 @@ import { Swimlane } from '@/components/board';
 ```
 
 **Features:**
-- Collapsible header with chevron icon
+- Collapsible header uses `Button` primitive (`variant="ghost" size="sm"`) with `leftIcon` for chevron
 - Progress bar (completed/total tasks)
 - Progress percentage display
 - Keyboard accessible toggle (Enter/Space)
@@ -1745,10 +1745,11 @@ import { TaskCard } from '@/components/board';
 - Relative timestamp
 
 **Action Buttons (contextual):**
+All action buttons use the `Button` primitive (`variant="ghost" size="sm" iconOnly`) with `aria-label` for accessibility:
 - **Run** (play icon): created/planned status
 - **Pause** (pause icon): running status
 - **Resume** (play icon): paused status
-- **Finalize** (merge icon): completed status
+- **Finalize** (merge icon): completed status with loading state
 - **Quick menu** (three dots): queue/priority changes
 
 **Visual States:**
@@ -1758,6 +1759,7 @@ import { TaskCard } from '@/components/board';
 - **Dragging**: Reduced opacity
 
 **Quick Menu:**
+Menu items use `Button` primitive (`variant="ghost" size="sm"`) with `leftIcon` for indicator dots:
 - Queue selection (Active/Backlog)
 - Priority selection (Critical/High/Normal/Low)
 - Updates via API and store
@@ -1786,6 +1788,9 @@ import { ViewModeDropdown } from '@/components/board';
 | `value` | `'flat' \| 'swimlane'` | Current view mode |
 | `onChange` | `(mode) => void` | Change handler |
 | `disabled` | `boolean` | Disable dropdown |
+
+**Implementation:**
+Uses `Button` primitive for trigger (`variant="ghost" size="sm"` with `leftIcon` and `rightIcon`) and menu items.
 
 **Options:**
 - **Flat**: All tasks in columns

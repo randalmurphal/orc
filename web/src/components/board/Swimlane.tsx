@@ -9,6 +9,7 @@
 
 import { useCallback } from 'react';
 import { TaskCard } from './TaskCard';
+import { Button } from '@/components/ui/Button';
 import type { Task, Initiative } from '@/lib/types';
 import type { FinalizeState } from '@/lib/api';
 import type { ColumnConfig } from './Column';
@@ -93,28 +94,31 @@ export function Swimlane({
 
 	return (
 		<div className={swimlaneClasses}>
-			<button
-				type="button"
+			<Button
+				variant="ghost"
+				size="sm"
 				className="swimlane-header"
 				onClick={onToggleCollapse}
 				onKeyDown={handleKeydown}
 				aria-expanded={!collapsed}
 				aria-controls={`swimlane-content-${swimlaneId ?? 'unassigned'}`}
+				leftIcon={
+					<svg
+						className={`collapse-icon ${collapsed ? 'collapsed' : ''}`}
+						xmlns="http://www.w3.org/2000/svg"
+						width="14"
+						height="14"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					>
+						<polyline points="6 9 12 15 18 9" />
+					</svg>
+				}
 			>
-				<svg
-					className={`collapse-icon ${collapsed ? 'collapsed' : ''}`}
-					xmlns="http://www.w3.org/2000/svg"
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="2"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-				>
-					<polyline points="6 9 12 15 18 9" />
-				</svg>
 				<span className="swimlane-title">{swimlaneTitle}</span>
 				<span className="task-count">
 					{completedCount}/{totalCount}
@@ -123,7 +127,7 @@ export function Swimlane({
 					<div className="progress-fill" style={{ width: `${progress}%` }} />
 				</div>
 				<span className="progress-percent">{progress}%</span>
-			</button>
+			</Button>
 
 			{!collapsed && (
 				<div
