@@ -202,9 +202,12 @@ Mark a failed task as resolved/completed without re-running.
 | Flag | Description |
 |------|-------------|
 | `--message, -m` | Resolution message explaining why task was resolved |
-| `--force, -f` | Skip confirmation prompt |
+| `--cleanup` | Abort in-progress git operations and discard uncommitted changes in worktree |
+| `--force, -f` | Skip confirmation prompt and worktree state checks |
 
 Unlike `reset` (which clears for retry), `resolve` closes the task while preserving execution state. Only works on failed tasks.
+
+**Worktree handling**: If the task has a worktree with uncommitted changes, in-progress git operations (rebase/merge), or conflicts, warnings are displayed. Use `--cleanup` to automatically abort git ops and discard changes before resolving. Use `--force` to skip all worktree checks. Worktree state is recorded in task metadata (`worktree_was_dirty`, `worktree_had_conflicts`, `worktree_had_incomplete_operation`).
 
 ### `orc stop`
 Permanently stop task and mark as failed (unlike `pause` which allows resume).
