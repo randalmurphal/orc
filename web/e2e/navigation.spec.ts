@@ -1,4 +1,7 @@
-import { test, expect } from '@playwright/test';
+/**
+ * Navigation E2E Tests - CRITICAL: Tests run against ISOLATED SANDBOX project.
+ */
+import { test, expect } from './fixtures';
 
 test.describe('Navigation', () => {
 	test('should navigate between main pages', async ({ page }) => {

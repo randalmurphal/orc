@@ -366,6 +366,12 @@ cd web && bunx playwright test --project=visual                    # Compare aga
 cd web && bunx playwright test --project=visual --update-snapshots # Capture new baselines
 ```
 
+**⚠️ CRITICAL: E2E Test Sandbox Isolation**
+
+E2E tests run against an **ISOLATED SANDBOX PROJECT** in `/tmp`, NOT the real orc project. Tests perform real actions (drag-drop, clicks, API calls) that modify task statuses. Running against production data WILL corrupt real task states.
+
+Test files MUST import from `./fixtures` (not `@playwright/test`) to get automatic sandbox selection. See `web/CLAUDE.md` for details.
+
 **Visual regression baselines** are stored in `web/e2e/__snapshots__/` covering Dashboard, Board, Task Detail, and Modal states. See `web/CLAUDE.md` for details.
 
 ## UI Testing with Playwright MCP
@@ -496,7 +502,7 @@ Patterns, gotchas, and decisions learned during development.
 
 | Diverged branch auto-force-push | When re-running a completed task, the remote branch has different history; push detects non-fast-forward error and retries with `--force-with-lease`; safer than `--force` as it fails if remote has unexpected commits; logged as warning | TASK-198 |
 | Dual-run E2E validation | For framework migration, run E2E tests against both implementations: `web/playwright.config.ts` (Svelte :5173), `web-react/playwright.config.ts` (React :5174); shared test files in `web/e2e/` use framework-agnostic selectors (role, text, CSS classes); tracks parity percentage and performance delta | TASK-179 |
-
+| E2E sandbox isolation | E2E tests MUST run against isolated sandbox project in `/tmp`, not production; `global-setup.ts` creates sandbox with test tasks/initiatives, `global-teardown.ts` removes it; test files import from `./fixtures` (not `@playwright/test`) to auto-select sandbox; tests that bypass fixtures will corrupt real task data | TASK-201 |
 
 | Task completion uses isDone() helper | Blocker checks use `isDone(status)` helper (not direct `== StatusCompleted`) to recognize both `completed` and `finished` as done; ensures merged tasks don't block dependents | TASK-199 |
 
@@ -526,6 +532,7 @@ Patterns, gotchas, and decisions learned during development.
 
 | Re-running completed task fails to push | Fixed: Push now detects non-fast-forward errors (diverged remote) and automatically retries with `--force-with-lease` | TASK-198 |
 | Sync fails with '0 files in conflict' error | Fixed: `RebaseWithConflictCheck()` now only returns `ErrMergeConflict` when actual conflicts detected; other rebase failures (dirty tree, rebase in progress) return the raw error | TASK-201 |
+| E2E tests modify production task statuses | Fixed: Tests now use isolated sandbox project in `/tmp`; test files MUST import from `./fixtures` to get sandbox selection; tests that import directly from `@playwright/test` will corrupt real data | TASK-201 |
 
 
 

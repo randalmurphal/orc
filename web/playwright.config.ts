@@ -1,7 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
 
+/**
+ * CRITICAL: E2E tests run against an ISOLATED SANDBOX project, NOT the real orc project.
+ *
+ * Tests perform real actions (drag-drop, clicks, API calls) that modify task statuses.
+ * Running against production data WILL corrupt real task states.
+ *
+ * The sandbox is created by global-setup.ts and cleaned up by global-teardown.ts.
+ * Tests should import from './e2e/fixtures' instead of '@playwright/test' to ensure
+ * the sandbox project is selected automatically.
+ *
+ * See web/e2e/global-setup.ts for sandbox creation details.
+ */
 export default defineConfig({
 	testDir: './e2e',
+	globalSetup: './e2e/global-setup.ts',
+	globalTeardown: './e2e/global-teardown.ts',
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 1, // Add 1 retry for local runs to handle flaky UI tests

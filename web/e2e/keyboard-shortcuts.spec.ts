@@ -1,7 +1,8 @@
-import { test, expect } from '@playwright/test';
-
 /**
  * E2E tests for keyboard shortcuts
+ *
+ * CRITICAL: Tests run against an ISOLATED SANDBOX project.
+ * See global-setup.ts for details.
  *
  * The app uses Shift+Alt modifier (Shift+Option on Mac) to avoid browser
  * conflicts with Cmd+K, Cmd+N, Cmd+B, Cmd+P etc.
@@ -12,6 +13,7 @@ import { test, expect } from '@playwright/test';
  * - Task List Context (3 tests): j/k navigation, Enter, /
  * - Input Fields (1 test): shortcuts disabled when typing
  */
+import { test, expect } from './fixtures';
 
 test.describe('Keyboard Shortcuts - Global', () => {
 	test('should open command palette with Shift+Alt+K', async ({ page }) => {

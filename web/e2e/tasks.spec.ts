@@ -1,4 +1,10 @@
-import { test, expect } from '@playwright/test';
+/**
+ * Task Management E2E Tests
+ *
+ * CRITICAL: These tests run against an ISOLATED SANDBOX project.
+ * See global-setup.ts for sandbox creation details.
+ */
+import { test, expect } from './fixtures';
 
 test.describe('Task Management', () => {
 	test.beforeEach(async ({ page }) => {

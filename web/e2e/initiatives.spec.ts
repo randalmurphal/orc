@@ -19,7 +19,8 @@
  *
  * @see web/CLAUDE.md for selector strategy documentation
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from './fixtures';
+import type { Page } from '@playwright/test';
 
 // Unique prefix for test initiatives to avoid conflicts
 const TEST_PREFIX = 'E2E-Test-';

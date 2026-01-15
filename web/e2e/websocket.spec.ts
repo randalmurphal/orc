@@ -28,7 +28,8 @@
  *
  * @see web/CLAUDE.md for selector strategy documentation
  */
-import { test, expect, type Page, type WebSocketRoute } from '@playwright/test';
+import { test, expect } from './fixtures';
+import type { Page, WebSocketRoute } from '@playwright/test';
 
 // WebSocket event message structure
 interface WSEvent {

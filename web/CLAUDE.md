@@ -904,6 +904,29 @@ bun run test:coverage
 ```
 
 ### E2E Tests (Playwright)
+
+**⚠️ CRITICAL: E2E Test Sandbox Isolation**
+
+E2E tests run against an **ISOLATED SANDBOX PROJECT** in `/tmp`, NOT the real orc project. This is essential because tests perform real actions (drag-drop, clicks, API calls) that modify task statuses.
+
+**NEVER run E2E tests against production data** - it will corrupt real task states.
+
+**How it works:**
+1. `global-setup.ts` creates a temporary project in `/tmp/orc-e2e-sandbox-{timestamp}`
+2. Initializes orc and creates test tasks/initiatives
+3. Tests select the sandbox project via localStorage
+4. `global-teardown.ts` removes the sandbox from registry and filesystem
+
+**Test files must import from `./fixtures`** to get automatic sandbox selection:
+```typescript
+// ✅ Correct - uses sandbox fixtures
+import { test, expect } from './fixtures';
+
+// ❌ Wrong - bypasses sandbox, may corrupt production data
+import { test, expect } from '@playwright/test';
+```
+
+**Run E2E tests:**
 ```bash
 bunx playwright test
 bunx playwright test --ui
