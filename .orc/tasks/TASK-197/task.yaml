@@ -2,7 +2,7 @@ id: TASK-197
 title: Add process/resource tracking to diagnose system freezes
 description: "## Problem\nSystem freezes occur across Linux, Mac, and WSL after running multiple orc tasks. Suspected cause: orphaned MCP server processes (Playwright, browsers) not being cleaned up when Claude CLI sessions end.\n\n## Root Cause Analysis\nWhen orc runs a task:\n```\norc (Go process)\n└── Claude CLI (spawned by llmkit)\n    └── MCP servers (Playwright, etc)\n        └── Chromium browsers\n```\n\nllmkit kills Claude CLI on session.Close(), but doesn't kill the process GROUP - leaving MCP servers and browsers as orphans that accumulate.\n\n## Solution: Add Resource Tracking\n\n### 1. Process Tree Tracking\n- Before task: snapshot running processes\n- After task: compare, log any new orphans\n- Track: PID, PPID, command, memory usage\n\n### 2. Memory Tracking  \n- Log memory before/after each phase\n- Alert if memory grows significantly between tasks\n\n### 3. Child Process Cleanup (llmkit fix)\n- Use process groups (Setpgid) when spawning Claude CLI\n- Kill entire process group on Close(), not just parent\n\n### 4. MCP Server Lifecycle Logging\n- Log when MCP servers start/stop\n- Detect orphaned MCP processes\n\n## Files to Modify\n- internal/executor/session_adapter.go - Add pre/post tracking\n- internal/executor/executor.go - Add memory logging\n- llmkit/claude/session/session.go - Process group kill (separate PR)\n\n## Success Criteria\n- Logs show process counts before/after tasks\n- Orphaned processes are detected and logged\n- Memory growth is tracked between tasks"
 weight: medium
-status: completed
+status: finished
 current_phase: docs
 branch: orc/TASK-197
 queue: active
@@ -12,7 +12,7 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T20:53:29.775456633-06:00
-updated_at: 2026-01-14T21:23:00.281336422-06:00
+updated_at: 2026-01-14T21:23:03.506117182-06:00
 started_at: 2026-01-14T21:09:51.927947219-06:00
 completed_at: 2026-01-14T21:22:56.306652496-06:00
 metadata:
@@ -20,4 +20,8 @@ metadata:
 pr:
     url: https://github.com/randalmurphal/orc/pull/99
     number: 99
-    status: pending_review
+    status: merged
+    merged: true
+    merged_at: 2026-01-14T21:23:03.491111994-06:00
+    merge_commit_sha: ac74b4a0d5b100bfa38d7ce36f28082a591a8b4a
+    target_branch: main
