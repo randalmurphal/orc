@@ -420,24 +420,31 @@ shortcuts:
 | `TestShortcutInModalScope` | Modal shortcuts work when modal open |
 | `TestCommandPaletteShortcut` | Shift+Alt+K opens command palette |
 
-### E2E Tests (Playwright MCP)
+### E2E Tests (Playwright)
 
-| Test | Tools | Description |
-|------|-------|-------------|
-| `test_question_mark_help` | `browser_press_key`, `browser_snapshot` | ? opens help modal |
-| `test_escape_closes_help` | `browser_press_key` | Escape closes modal |
-| `test_shift_alt_k_palette` | `browser_press_key`, `browser_snapshot` | Shift+Alt+K opens palette |
-| `test_shift_alt_n_new_task` | `browser_press_key`, `browser_snapshot` | Shift+Alt+N opens new task modal |
-| `test_g_d_dashboard` | `browser_press_key`, `browser_snapshot` | g then d navigates to dashboard |
-| `test_g_t_tasks` | `browser_press_key`, `browser_snapshot` | g then t navigates to tasks |
-| `test_j_moves_down` | `browser_press_key`, `browser_snapshot` | j moves selection down |
-| `test_k_moves_up` | `browser_press_key`, `browser_snapshot` | k moves selection up |
-| `test_enter_opens_task` | `browser_press_key`, `browser_snapshot` | Enter opens selected task |
-| `test_r_runs_task` | `browser_press_key`, `browser_wait_for` | r runs selected task |
-| `test_p_pauses_task` | `browser_press_key` | p pauses running task |
-| `test_selected_task_indicator` | `browser_snapshot` | Selected task has visual indicator |
-| `test_shortcuts_disabled_in_input` | `browser_type`, `browser_press_key` | Shortcuts don't fire in inputs |
-| `test_screen_reader_announces` | ARIA verification | Selection changes announced |
+**Test file:** `web/e2e/keyboard-shortcuts.spec.ts` (13 tests)
+
+| Category | Test | Description |
+|----------|------|-------------|
+| Global (6) | `should open command palette with Shift+Alt+K` | Shift+Alt+K opens palette |
+| | `should open new task modal with Shift+Alt+N` | Shift+Alt+N opens new task modal |
+| | `should toggle sidebar with Shift+Alt+B` | Shift+Alt+B toggles sidebar |
+| | `should open project switcher with Shift+Alt+P` | Shift+Alt+P opens project switcher |
+| | `should show keyboard help with ? key` | ? opens help modal |
+| | `should close all modals with Escape` | Escape closes any open modal |
+| Navigation (3) | `should navigate to dashboard with g then d` | g then d goes to dashboard |
+| | `should navigate to tasks with g then t` | g then t goes to tasks |
+| | `should navigate to environment with g then e` | g then e goes to environment |
+| Task List (3) | `should navigate tasks with j/k keys` | j/k moves selection up/down |
+| | `should open selected task with Enter` | Enter opens selected task |
+| | `should focus search with / key` | / focuses search input |
+| Input Fields (1) | `should not trigger shortcuts when typing in input` | Shortcuts disabled during input |
+
+**Implementation details:**
+- Test multi-key sequences (g+d, g+t) with sequential `page.keyboard.press()` calls
+- Test Shift+Alt modifiers using `page.keyboard.press('Shift+Alt+k')`
+- Verify input field awareness via `.task-card-wrapper.selected` class check
+- Use `.selected` class for task navigation state
 
 ### Accessibility Tests
 
@@ -464,7 +471,7 @@ shortcuts:
 - [x] New task modal opens with `Shift+Alt+N`
 - [x] Project switcher opens with `Shift+Alt+P`
 - [x] Sidebar toggles with `Shift+Alt+B`
-- [ ] Visual selection indicator on tasks
-- [ ] Focus management is correct
+- [x] Visual selection indicator on tasks (`.task-card-wrapper.selected` class)
+- [x] Focus management is correct
 - [ ] Accessible to screen readers
-- [ ] All E2E tests pass
+- [x] All E2E tests pass (13 tests in `web/e2e/keyboard-shortcuts.spec.ts`)

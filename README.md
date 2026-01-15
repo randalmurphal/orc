@@ -301,17 +301,22 @@ orc serve  # localhost:8080
 
 ### Keyboard Shortcuts
 
+Uses `Shift+Alt` modifier (⇧⌥ on Mac) to avoid browser conflicts with Cmd+K, Cmd+N, etc.
+
 | Key | Action |
 |-----|--------|
-| `⌘K` | Command palette |
-| `⌘N` | New task |
-| `⌘B` | Toggle sidebar |
+| `Shift+Alt+K` | Command palette |
+| `Shift+Alt+N` | New task |
+| `Shift+Alt+B` | Toggle sidebar |
+| `Shift+Alt+P` | Project switcher |
 | `j/k` | Navigate task list |
 | `Enter` | Open selected |
 | `r` | Run task |
 | `g d` | Go to dashboard |
 | `g t` | Go to tasks |
-| `?` | Show help |
+| `g e` | Go to environment |
+| `/` | Focus search |
+| `?` | Show shortcuts help |
 
 ## Advanced Features
 
