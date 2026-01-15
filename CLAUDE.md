@@ -230,26 +230,26 @@ orc config profile strict
 
 ```
 ~/.orc/                          # Global
-├── orc.db, config.yaml, projects.yaml, token-pool/
+├── orc.db                       # Global database (projects, cost, templates)
+├── config.yaml                  # Global configuration
+├── projects.yaml                # Project registry
+└── token-pool/                  # OAuth token pool
 
 .orc/                            # Project
-├── orc.db, config.yaml
-├── prompts/                     # Phase prompt overrides
-├── worktrees/                   # Isolated worktrees
-└── tasks/TASK-001/
-    ├── task.yaml, plan.yaml, state.yaml, spec.md
-    ├── transcripts/
-    ├── attachments/             # Task attachments (images, files)
+├── orc.db                       # Project database (tasks, states, plans, specs, initiatives)
+├── config.yaml                  # Project configuration
+├── prompts/                     # Phase prompt overrides (files)
+└── worktrees/TASK-001/          # Isolated worktrees per task
     └── test-results/            # Playwright test results
-        ├── report.json, index.html
-        ├── screenshots/
-        └── traces/
+        ├── report.json, screenshots/, traces/
 
 .claude/                         # Claude Code
 ├── settings.json, hooks/, skills/
 
 .mcp.json                        # MCP server configuration (auto-generated for UI tasks)
 ```
+
+**Note:** Task data (tasks, plans, states, specs, initiatives) is stored in SQLite (`orc.db`), not YAML files. Use `orc show TASK-001 --format yaml` for human-readable export.
 
 ## Commands
 
