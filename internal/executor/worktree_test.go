@@ -392,3 +392,246 @@ func TestSetupWorktree_StaleWorktree(t *testing.T) {
 		t.Error("worktree should exist after re-creation")
 	}
 }
+
+func TestSetupWorktree_CleansDirtyWorktree(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-worktree-dirty-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := initTestRepo(tmpDir); err != nil {
+		t.Fatalf("failed to init test repo: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	// Create worktree
+	result1, err := SetupWorktree("TASK-DIRTY", nil, gitOps)
+	if err != nil {
+		t.Fatalf("SetupWorktree failed: %v", err)
+	}
+
+	// Make the worktree dirty by creating an untracked file
+	dirtyFile := filepath.Join(result1.Path, "dirty_file.txt")
+	if err := os.WriteFile(dirtyFile, []byte("dirty content"), 0644); err != nil {
+		t.Fatalf("failed to create dirty file: %v", err)
+	}
+
+	// Also stage a modified file to test staged changes
+	readmePath := filepath.Join(result1.Path, "README.md")
+	if err := os.WriteFile(readmePath, []byte("modified content\n"), 0644); err != nil {
+		t.Fatalf("failed to modify README: %v", err)
+	}
+	if err := runGitCmd(result1.Path, "add", "README.md"); err != nil {
+		t.Fatalf("failed to stage changes: %v", err)
+	}
+
+	// Verify worktree is dirty
+	worktreeGit := gitOps.InWorktree(result1.Path)
+	clean, _ := worktreeGit.IsClean()
+	if clean {
+		t.Fatal("worktree should be dirty before reuse")
+	}
+
+	// Reuse worktree - should clean up dirty state
+	result2, err := SetupWorktree("TASK-DIRTY", nil, gitOps)
+	if err != nil {
+		t.Fatalf("SetupWorktree failed on reuse: %v", err)
+	}
+
+	if !result2.Reused {
+		t.Error("should be marked as reused")
+	}
+
+	// Verify worktree is now clean
+	clean, err = worktreeGit.IsClean()
+	if err != nil {
+		t.Fatalf("failed to check clean status: %v", err)
+	}
+	if !clean {
+		t.Error("worktree should be clean after reuse")
+	}
+
+	// Verify dirty file was removed
+	if _, err := os.Stat(dirtyFile); !os.IsNotExist(err) {
+		t.Error("dirty file should be removed after reuse")
+	}
+}
+
+func TestSetupWorktree_AbortsRebaseInProgress(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-worktree-rebase-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := initTestRepo(tmpDir); err != nil {
+		t.Fatalf("failed to init test repo: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	// Create worktree
+	result1, err := SetupWorktree("TASK-REBASE", nil, gitOps)
+	if err != nil {
+		t.Fatalf("SetupWorktree failed: %v", err)
+	}
+
+	// Create a conflicting scenario to trigger rebase conflict
+	// 1. Create a commit in main that modifies README.md
+	readmePath := filepath.Join(tmpDir, "README.md")
+	if err := os.WriteFile(readmePath, []byte("main branch change\n"), 0644); err != nil {
+		t.Fatalf("failed to modify README in main: %v", err)
+	}
+	if err := runGitCmd(tmpDir, "add", "README.md"); err != nil {
+		t.Fatalf("failed to stage in main: %v", err)
+	}
+	if err := runGitCmd(tmpDir, "commit", "-m", "main branch commit"); err != nil {
+		t.Fatalf("failed to commit in main: %v", err)
+	}
+
+	// 2. In worktree, make a conflicting change
+	wtReadmePath := filepath.Join(result1.Path, "README.md")
+	if err := os.WriteFile(wtReadmePath, []byte("worktree branch change\n"), 0644); err != nil {
+		t.Fatalf("failed to modify README in worktree: %v", err)
+	}
+	if err := runGitCmd(result1.Path, "add", "README.md"); err != nil {
+		t.Fatalf("failed to stage in worktree: %v", err)
+	}
+	if err := runGitCmd(result1.Path, "commit", "-m", "worktree commit"); err != nil {
+		t.Fatalf("failed to commit in worktree: %v", err)
+	}
+
+	// 3. Start a rebase that will conflict
+	cmd := exec.Command("git", "rebase", "main")
+	cmd.Dir = result1.Path
+	// We expect this to fail due to conflict
+	_ = cmd.Run()
+
+	// Verify rebase is in progress
+	worktreeGit := gitOps.InWorktree(result1.Path)
+	rebaseInProgress, _ := worktreeGit.IsRebaseInProgress()
+	if !rebaseInProgress {
+		t.Skip("could not create rebase-in-progress state, skipping test")
+	}
+
+	// Reuse worktree - should abort the rebase
+	result2, err := SetupWorktree("TASK-REBASE", nil, gitOps)
+	if err != nil {
+		t.Fatalf("SetupWorktree failed on reuse: %v", err)
+	}
+
+	if !result2.Reused {
+		t.Error("should be marked as reused")
+	}
+
+	// Verify rebase is no longer in progress
+	rebaseInProgress, err = worktreeGit.IsRebaseInProgress()
+	if err != nil {
+		t.Fatalf("failed to check rebase status: %v", err)
+	}
+	if rebaseInProgress {
+		t.Error("rebase should be aborted after reuse")
+	}
+}
+
+func TestSetupWorktree_AbortsMergeInProgress(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-worktree-merge-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := initTestRepo(tmpDir); err != nil {
+		t.Fatalf("failed to init test repo: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	// Create worktree
+	result1, err := SetupWorktree("TASK-MERGE", nil, gitOps)
+	if err != nil {
+		t.Fatalf("SetupWorktree failed: %v", err)
+	}
+
+	// Create a branch in main with conflicting changes
+	if err := runGitCmd(tmpDir, "checkout", "-b", "conflict-branch"); err != nil {
+		t.Fatalf("failed to create conflict branch: %v", err)
+	}
+	readmePath := filepath.Join(tmpDir, "README.md")
+	if err := os.WriteFile(readmePath, []byte("conflict branch change\n"), 0644); err != nil {
+		t.Fatalf("failed to modify README: %v", err)
+	}
+	if err := runGitCmd(tmpDir, "add", "README.md"); err != nil {
+		t.Fatalf("failed to stage: %v", err)
+	}
+	if err := runGitCmd(tmpDir, "commit", "-m", "conflict branch commit"); err != nil {
+		t.Fatalf("failed to commit: %v", err)
+	}
+	if err := runGitCmd(tmpDir, "checkout", "main"); err != nil {
+		t.Fatalf("failed to checkout main: %v", err)
+	}
+
+	// In worktree, make a conflicting change
+	wtReadmePath := filepath.Join(result1.Path, "README.md")
+	if err := os.WriteFile(wtReadmePath, []byte("worktree branch change\n"), 0644); err != nil {
+		t.Fatalf("failed to modify README in worktree: %v", err)
+	}
+	if err := runGitCmd(result1.Path, "add", "README.md"); err != nil {
+		t.Fatalf("failed to stage in worktree: %v", err)
+	}
+	if err := runGitCmd(result1.Path, "commit", "-m", "worktree commit"); err != nil {
+		t.Fatalf("failed to commit in worktree: %v", err)
+	}
+
+	// Start a merge that will conflict
+	cmd := exec.Command("git", "merge", "conflict-branch")
+	cmd.Dir = result1.Path
+	// We expect this to fail due to conflict
+	_ = cmd.Run()
+
+	// Verify merge is in progress
+	worktreeGit := gitOps.InWorktree(result1.Path)
+	mergeInProgress, _ := worktreeGit.IsMergeInProgress()
+	if !mergeInProgress {
+		t.Skip("could not create merge-in-progress state, skipping test")
+	}
+
+	// Reuse worktree - should abort the merge
+	result2, err := SetupWorktree("TASK-MERGE", nil, gitOps)
+	if err != nil {
+		t.Fatalf("SetupWorktree failed on reuse: %v", err)
+	}
+
+	if !result2.Reused {
+		t.Error("should be marked as reused")
+	}
+
+	// Verify merge is no longer in progress
+	mergeInProgress, err = worktreeGit.IsMergeInProgress()
+	if err != nil {
+		t.Fatalf("failed to check merge status: %v", err)
+	}
+	if mergeInProgress {
+		t.Error("merge should be aborted after reuse")
+	}
+
+	// Verify worktree is clean (conflicts resolved by discarding)
+	clean, err := worktreeGit.IsClean()
+	if err != nil {
+		t.Fatalf("failed to check clean status: %v", err)
+	}
+	if !clean {
+		t.Error("worktree should be clean after reuse")
+	}
+}
