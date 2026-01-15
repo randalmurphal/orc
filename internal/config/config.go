@@ -528,6 +528,25 @@ type TasksConfig struct {
 	DisableAutoCommit bool `yaml:"disable_auto_commit"`
 }
 
+// ResourceTrackingConfig defines resource tracking configuration for diagnostics.
+type ResourceTrackingConfig struct {
+	// Enabled enables process/memory tracking before and after task execution (default: true)
+	Enabled bool `yaml:"enabled"`
+
+	// MemoryThresholdMB is the memory growth threshold that triggers warnings (default: 100)
+	MemoryThresholdMB int `yaml:"memory_threshold_mb"`
+
+	// LogOrphanedMCPOnly limits orphan logging to MCP-related processes (playwright, browsers)
+	// When true, only MCP processes are logged. When false, all orphaned processes are logged.
+	LogOrphanedMCPOnly bool `yaml:"log_orphaned_mcp_only"`
+}
+
+// DiagnosticsConfig defines diagnostic feature configuration.
+type DiagnosticsConfig struct {
+	// ResourceTracking contains settings for process/memory tracking
+	ResourceTracking ResourceTrackingConfig `yaml:"resource_tracking"`
+}
+
 // DatabaseConfig defines database connection settings.
 type DatabaseConfig struct {
 	// Driver is the database type: "sqlite" or "postgres"
@@ -708,6 +727,9 @@ type Config struct {
 
 	// Tasks configuration
 	Tasks TasksConfig `yaml:"tasks"`
+
+	// Diagnostics configuration
+	Diagnostics DiagnosticsConfig `yaml:"diagnostics"`
 
 	// Database configuration
 	Database DatabaseConfig `yaml:"database"`
@@ -962,6 +984,13 @@ func Default() *Config {
 		},
 		Tasks: TasksConfig{
 			DisableAutoCommit: false, // Auto-commit enabled by default
+		},
+		Diagnostics: DiagnosticsConfig{
+			ResourceTracking: ResourceTrackingConfig{
+				Enabled:            true,  // Enabled by default to detect orphaned processes
+				MemoryThresholdMB:  100,   // Warn if memory grows by >100MB
+				LogOrphanedMCPOnly: false, // Log all orphans, not just MCP
+			},
 		},
 		Database: DatabaseConfig{
 			Driver: "sqlite",

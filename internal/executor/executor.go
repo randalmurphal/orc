@@ -184,6 +184,9 @@ type Executor struct {
 
 	// Use session-based execution (new) vs flowgraph (legacy)
 	useSessionExecution bool
+
+	// Resource tracker for process/memory diagnostics
+	resourceTracker *ResourceTracker
 }
 
 // New creates a new executor with the given configuration.
@@ -274,6 +277,14 @@ func New(cfg *Config) *Executor {
 		}
 	}
 
+	// Create resource tracker with config from orcCfg.Diagnostics
+	rtConfig := ResourceTrackerConfig{
+		Enabled:            orcCfg.Diagnostics.ResourceTracking.Enabled,
+		MemoryThresholdMB:  orcCfg.Diagnostics.ResourceTracking.MemoryThresholdMB,
+		LogOrphanedMCPOnly: orcCfg.Diagnostics.ResourceTracking.LogOrphanedMCPOnly,
+	}
+	resourceTracker := NewResourceTracker(rtConfig, slog.Default())
+
 	return &Executor{
 		config:              cfg,
 		orcConfig:           orcCfg,
@@ -285,6 +296,7 @@ func New(cfg *Config) *Executor {
 		logger:              slog.Default(),
 		tokenPool:           pool,
 		useSessionExecution: orcCfg.Execution.UseSessionExecution,
+		resourceTracker:     resourceTracker,
 	}
 }
 
@@ -584,4 +596,27 @@ func (e *Executor) commitTaskStatus(t *task.Task, status string) {
 	if err := task.CommitStatusChange(t, status, commitCfg); err != nil {
 		e.logger.Warn("failed to auto-commit task status", "task", t.ID, "status", status, "error", err)
 	}
+}
+
+// runResourceAnalysis takes the after-snapshot and analyzes resource usage.
+// Called via defer in ExecuteTask to run regardless of success or failure.
+func (e *Executor) runResourceAnalysis() {
+	if e.resourceTracker == nil {
+		return
+	}
+
+	// Take after snapshot
+	if err := e.resourceTracker.SnapshotAfter(); err != nil {
+		e.logger.Warn("failed to take resource snapshot after task", "error", err)
+		return
+	}
+
+	// Detect orphaned processes (logs warnings for any found)
+	e.resourceTracker.DetectOrphans()
+
+	// Check memory growth against threshold (logs warning if exceeded)
+	e.resourceTracker.CheckMemoryGrowth()
+
+	// Reset tracker for next task
+	e.resourceTracker.Reset()
 }
