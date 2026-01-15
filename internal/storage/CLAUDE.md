@@ -51,6 +51,37 @@ d.mu.Lock()
 defer d.mu.Unlock()
 ```
 
+### Transaction Support
+
+Multi-table write operations use transactions for atomicity. This prevents partial updates if any operation fails:
+
+| Operation | Tables Modified |
+|-----------|-----------------|
+| `SaveTask` | `tasks`, `task_dependencies` |
+| `SaveState` | `tasks`, `phases`, `gate_decisions` |
+| `SaveInitiative` | `initiatives`, `initiative_decisions`, `initiative_tasks`, `initiative_dependencies` |
+
+Example: `SaveTask` wraps task + dependencies in a single transaction:
+
+```go
+return d.db.RunInTx(ctx, func(tx *db.TxOps) error {
+    if err := db.SaveTaskTx(tx, dbTask); err != nil {
+        return err  // Rollback
+    }
+    if err := db.ClearTaskDependenciesTx(tx, t.ID); err != nil {
+        return err  // Rollback
+    }
+    for _, depID := range t.BlockedBy {
+        if err := db.AddTaskDependencyTx(tx, t.ID, depID); err != nil {
+            return err  // Rollback
+        }
+    }
+    return nil  // Commit
+})
+```
+
+If any step fails, all changes are rolled back, ensuring database consistency.
+
 ### Direct DB Access
 
 ```go
