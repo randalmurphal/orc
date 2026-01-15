@@ -394,7 +394,17 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 
 	// Push task branch to remote
 	if err := gitOps.Push("origin", taskBranch, true); err != nil {
-		return fmt.Errorf("push branch: %w", err)
+		// Check if this is a non-fast-forward error (diverged branch from previous run)
+		if isNonFastForwardError(err) {
+			e.logger.Warn("remote branch has diverged, force pushing",
+				"branch", taskBranch,
+				"reason", "re-run of completed task or local/remote history diverged")
+			if forceErr := gitOps.PushForce("origin", taskBranch, true); forceErr != nil {
+				return fmt.Errorf("force push branch (remote diverged): %w", forceErr)
+			}
+		} else {
+			return fmt.Errorf("push branch: %w", err)
+		}
 	}
 
 	// Build PR title
@@ -781,6 +791,23 @@ func isAuthError(err error) bool {
 		strings.Contains(errStr, "401") ||
 		strings.Contains(errStr, "unauthorized") ||
 		strings.Contains(errStr, "auth token")
+}
+
+// isNonFastForwardError checks if an error is a git non-fast-forward push rejection.
+// This occurs when the local branch has diverged from the remote branch,
+// typically when re-running a completed task from scratch.
+// Common patterns:
+// - "non-fast-forward" (standard git message)
+// - "rejected" + "fetch first" (alternative git message)
+// - "failed to push some refs" + "behind" (hint text)
+func isNonFastForwardError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	return strings.Contains(errStr, "non-fast-forward") ||
+		(strings.Contains(errStr, "rejected") && strings.Contains(errStr, "fetch first")) ||
+		(strings.Contains(errStr, "failed to push") && strings.Contains(errStr, "behind"))
 }
 
 // runGH executes a gh CLI command.
