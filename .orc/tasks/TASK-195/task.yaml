@@ -1,0 +1,33 @@
+id: TASK-195
+title: Add --status flag to orc edit command
+description: |-
+    ## Problem
+    Cannot change task status via CLI without running the task or editing YAML directly.
+
+    Tried: `orc edit TASK-189 --status completed`
+    Got: `Error: unknown flag: --status`
+
+    ## Solution
+    Add --status flag to the edit command with validation:
+    - Valid values: planned, running, paused, completed, failed
+    - Prevent invalid transitions (e.g., can't go from planned to running without actually running)
+    - Simple status corrections like marking already-fixed tasks as completed should work
+
+    ## Implementation
+    - Add --status string flag to edit command in internal/cli/edit.go
+    - Validate status values
+    - Update task.yaml status field
+    - Trigger auto-commit
+
+    ## Success Criteria
+    `orc edit TASK-XXX --status completed` works
+weight: medium
+status: planned
+branch: orc/TASK-195
+queue: active
+priority: high
+category: feature
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T19:43:52.096924254-06:00
+updated_at: 2026-01-14T19:43:52.119762281-06:00
