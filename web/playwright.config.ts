@@ -1,8 +1,5 @@
 /**
- * Playwright configuration for React app E2E testing
- *
- * This config reuses the tests from web/e2e/ but runs against the React app on port 5174.
- * This enables dual-run validation to verify feature parity during migration.
+ * Playwright configuration for React frontend E2E testing
  *
  * CRITICAL: E2E tests run against an ISOLATED SANDBOX project, NOT the real orc project.
  * Tests perform real actions (drag-drop, clicks, API calls) that modify task statuses.
@@ -18,10 +15,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-	// Point to the shared e2e tests in web/
-	testDir: path.resolve(__dirname, '../web/e2e'),
-	globalSetup: path.resolve(__dirname, '../web/e2e/global-setup.ts'),
-	globalTeardown: path.resolve(__dirname, '../web/e2e/global-teardown.ts'),
+	testDir: path.resolve(__dirname, 'e2e'),
+	globalSetup: path.resolve(__dirname, 'e2e/global-setup.ts'),
+	globalTeardown: path.resolve(__dirname, 'e2e/global-teardown.ts'),
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 1, // Add 1 retry for local runs to handle flaky UI tests
@@ -34,7 +30,7 @@ export default defineConfig({
 	/* Output directory for test artifacts (screenshots, traces) */
 	outputDir: 'test-results',
 	/* Snapshot/visual comparison settings */
-	snapshotDir: '../web/e2e/__snapshots__',
+	snapshotDir: 'e2e/__snapshots__',
 	snapshotPathTemplate: '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
 	expect: {
 		toHaveScreenshot: {
@@ -46,8 +42,7 @@ export default defineConfig({
 		},
 	},
 	use: {
-		// React app runs on port 5174
-		baseURL: 'http://localhost:5174',
+		baseURL: 'http://localhost:5173',
 		trace: 'on-first-retry',
 		screenshot: 'only-on-failure',
 	},
@@ -77,7 +72,7 @@ export default defineConfig({
 		},
 		{
 			command: 'npm run dev',
-			url: 'http://localhost:5174',
+			url: 'http://localhost:5173',
 			reuseExistingServer: !process.env.CI,
 			timeout: 30000,
 		},

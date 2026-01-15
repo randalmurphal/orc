@@ -1,6 +1,6 @@
-# React 19 Frontend (Migration)
+# React 19 Frontend
 
-React 19 application for orc web UI, running in parallel with existing Svelte app during migration.
+React 19 application for orc web UI.
 
 ## Tech Stack
 
@@ -16,7 +16,7 @@ React 19 application for orc web UI, running in parallel with existing Svelte ap
 ## Directory Structure
 
 ```
-web-react/src/
+web/src/
 ├── main.tsx              # Entry point (BrowserRouter)
 ├── App.tsx               # Root component (useRoutes + ShortcutProvider + WebSocketProvider)
 ├── index.css             # Global styles
@@ -95,9 +95,9 @@ web-react/src/
 
 ```bash
 # Install dependencies
-cd web-react && npm install
+cd web && npm install
 
-# Start dev server (port 5174)
+# Start dev server (port 5173)
 npm run dev
 
 # Run tests
@@ -110,8 +110,7 @@ npm run build
 ```
 
 **Ports:**
-- Svelte (current): `http://localhost:5173`
-- React (migration): `http://localhost:5174`
+- Frontend: `http://localhost:5173`
 - API server: `http://localhost:8080`
 
 ## Configuration
@@ -120,11 +119,11 @@ npm run build
 
 | Setting | Value | Purpose |
 |---------|-------|---------|
-| Port | 5174 | Avoid conflict with Svelte on 5173 |
+| Port | 5173 | Frontend dev server |
 | API Proxy | `/api` → `:8080` | Backend communication |
 | WebSocket | Proxied via `/api` | Real-time updates |
 | Path Alias | `@/` → `src/` | Clean imports |
-| Build Output | `build/` | Matches Svelte structure |
+| Build Output | `build/` | Production output |
 
 ### TypeScript Config
 
@@ -136,108 +135,40 @@ npm run build
 | `paths: @/*` | Import aliases |
 | `types: vitest/globals` | Test globals |
 
-## Migration Strategy
+## Architecture
 
-This React app runs alongside Svelte during migration:
+### State Management (Zustand)
 
-1. **Phase 1** ✅: Project scaffolding, Zustand stores mirroring Svelte stores
-2. **Phase 2** ✅: Core infrastructure (API client, WebSocket, Router with URL sync), Dashboard page, Board page (flat/swimlane views), TaskList page, TaskDetail page with all 6 tabs
-3. **Phase 3** ✅: Integration - Connect all stores and real-time updates, DataProvider for centralized data loading, WebSocket event handling for initiatives, comprehensive integration tests
-4. **Phase 4** (current): E2E test validation, feature parity verification, InitiativeDetail, remaining environment pages
-5. **Phase 5**: Cutover and Svelte removal
+Five Zustand stores manage application state. All use `subscribeWithSelector` middleware for efficient derived state.
 
-### Shared Resources
+| Store | State | Persistence | Purpose |
+|-------|-------|-------------|---------|
+| `taskStore.ts` | tasks, taskStates | None (API-driven) | Task data and execution state |
+| `projectStore.ts` | projects, currentProjectId | URL + localStorage | Project selection |
+| `initiativeStore.ts` | initiatives, currentInitiativeId | URL + localStorage | Initiative filter |
+| `dependencyStore.ts` | currentDependencyStatus | URL + localStorage | Dependency status filter |
+| `uiStore.ts` | sidebarExpanded, wsStatus, toasts | localStorage (sidebar) | UI state |
 
-| Resource | Location | Notes |
-|----------|----------|-------|
-| E2E tests | `web/e2e/` | Shared, framework-agnostic |
-| API server | `:8080` | Same backend |
-| Visual baselines | `web/e2e/__snapshots__/` | Will need React baselines |
+### WebSocket Integration
 
-### Component Mapping
-
-Migration follows the existing Svelte component structure:
-
-| Svelte Component | React Equivalent | Status |
-|------------------|------------------|--------|
-| `+layout.svelte` | `App.tsx` + Router | ✅ Complete |
-| `lib/components/` | `src/components/` | In Progress |
-| `lib/components/Icon.svelte` | `components/ui/Icon.tsx` | ✅ Complete |
-| `lib/components/StatusIndicator.svelte` | `components/ui/StatusIndicator.tsx` | ✅ Complete |
-| `lib/components/Modal.svelte` | `components/overlays/Modal.tsx` | ✅ Complete |
-| `lib/components/ToastContainer.svelte` | `components/ui/ToastContainer.tsx` | ✅ Complete |
-| `lib/components/Breadcrumbs.svelte` | `components/ui/Breadcrumbs.tsx` | ✅ Complete |
-| `lib/components/Sidebar.svelte` | `components/layout/Sidebar.tsx` | ✅ Complete |
-| `lib/components/Header.svelte` | `components/layout/Header.tsx` | ✅ Complete |
-| `+layout.svelte` (full layout) | `components/layout/AppLayout.tsx` | ✅ Complete |
-| `lib/components/ProjectSwitcher.svelte` | `components/overlays/ProjectSwitcher.tsx` | ✅ Complete |
-| `lib/components/Dashboard.svelte` | `pages/Dashboard.tsx` | ✅ Complete |
-| `lib/components/dashboard/*` | `components/dashboard/*` | ✅ Complete |
-| `lib/components/Board.svelte` | `components/board/Board.tsx` | ✅ Complete |
-| `lib/components/Column.svelte` | `components/board/Column.tsx` | ✅ Complete |
-| `lib/components/QueuedColumn.svelte` | `components/board/QueuedColumn.tsx` | ✅ Complete |
-| `lib/components/Swimlane.svelte` | `components/board/Swimlane.tsx` | ✅ Complete |
-| `lib/components/TaskCard.svelte` (kanban) | `components/board/TaskCard.tsx` | ✅ Complete |
-| `lib/components/InitiativeDropdown.svelte` | `components/board/InitiativeDropdown.tsx` | ✅ Complete |
-| `lib/components/DependencyDropdown.svelte` | `components/filters/DependencyDropdown.tsx` | ✅ Complete |
-| `routes/+page.svelte` (task list) | `pages/TaskList.tsx` | ✅ Complete |
-| `routes/tasks/[id]/+page.svelte` | `pages/TaskDetail.tsx` | ✅ Complete |
-| `lib/components/TaskHeader.svelte` | `components/task-detail/TaskHeader.tsx` | ✅ Complete |
-| `lib/components/DependencySidebar.svelte` | `components/task-detail/DependencySidebar.tsx` | ✅ Complete |
-| `lib/components/TabNav.svelte` | `components/task-detail/TabNav.tsx` | ✅ Complete |
-| `lib/components/TimelineTab.svelte` | `components/task-detail/TimelineTab.tsx` | ✅ Complete |
-| `lib/components/ChangesTab.svelte` | `components/task-detail/ChangesTab.tsx` | ✅ Complete |
-| `lib/components/TranscriptTab.svelte` | `components/task-detail/TranscriptTab.tsx` | ✅ Complete |
-| `lib/components/TestResultsTab.svelte` | `components/task-detail/TestResultsTab.tsx` | ✅ Complete |
-| `lib/components/AttachmentsTab.svelte` | `components/task-detail/AttachmentsTab.tsx` | ✅ Complete |
-| `lib/components/CommentsTab.svelte` | `components/task-detail/CommentsTab.tsx` | ✅ Complete |
-| `lib/components/diff/*` | `components/task-detail/diff/*` | ✅ Complete |
-| `lib/stores/` | `src/stores/` (Zustand) | ✅ Complete |
-| `lib/websocket.ts` | `src/lib/websocket.ts` | ✅ Complete |
-| `lib/utils/` | `src/lib/` | ✅ Complete |
-| Route pages | `src/pages/` | ✅ Complete |
-
-**Stores implemented (Phase 1 + Phase 3):**
-- `taskStore.ts` - Task data and execution state with derived selectors
-- `projectStore.ts` - Project selection with URL/localStorage sync
-- `initiativeStore.ts` - Initiative filter with progress tracking
-- `dependencyStore.ts` - Dependency status filter with URL/localStorage sync
-- `uiStore.ts` - Sidebar, WebSocket status, toast notifications
-
-**WebSocket hooks implemented (Phase 2):**
+Real-time updates via WebSocket hooks:
 - `useWebSocket.tsx` - WebSocketProvider, useWebSocket, useTaskSubscription, useConnectionStatus
 
-**Router implemented (Phase 2):**
-- `router/routes.tsx` - Route configuration matching Svelte app
+### Routing
+
+React Router 7 with URL/store sync:
+- `router/routes.tsx` - Route configuration
 - `components/layout/UrlParamSync.tsx` - Bidirectional URL/store sync
 
-**Keyboard shortcuts implemented (Phase 1):**
+### Keyboard Shortcuts
+
 - `lib/shortcuts.ts` - ShortcutManager class with sequence support
 - `hooks/useShortcuts.tsx` - ShortcutProvider, useShortcuts, useGlobalShortcuts, useTaskListShortcuts
-- `components/overlays/KeyboardShortcutsHelp.tsx` - Help modal with platform-aware key display
 
-**UI primitives implemented (Phase 2):**
-- `components/ui/Icon.tsx` - SVG icon component with 60+ built-in icons
-- `components/ui/StatusIndicator.tsx` - Colored status orb with animations
-- `components/ui/ToastContainer.tsx` - Toast notification queue (uses uiStore)
-- `components/ui/Breadcrumbs.tsx` - Route-based navigation breadcrumbs
-- `components/overlays/Modal.tsx` - Portal-based modal with focus trap
+### Data Loading
 
-**Layout components implemented (Phase 2):**
-- `components/layout/AppLayout.tsx` - Root layout with sidebar, header, outlet
-- `components/layout/Sidebar.tsx` - Navigation with initiative filtering
-- `components/layout/Header.tsx` - Project selector, page title, actions
-- `components/overlays/ProjectSwitcher.tsx` - Modal for project selection
-
-**Pages implemented (Phase 2):**
-- `pages/TaskList.tsx` - Task list with filtering, search, keyboard navigation
-- `components/filters/DependencyDropdown.tsx` - Dependency status filter dropdown
-
-**Data loading and integration implemented (Phase 3):**
 - `components/layout/DataProvider.tsx` - Centralized data loading and synchronization
-- Initiative WebSocket event handlers (created/updated/deleted)
 - Cross-store synchronization (Task, Initiative, UI stores)
-- `integration/websocket-integration.test.tsx` - Comprehensive WebSocket event tests
 
 ## UI Primitives
 
@@ -878,68 +809,19 @@ Test files use `*.test.tsx` convention. Setup in `src/test-setup.ts` includes:
 
 ### E2E Tests (Playwright)
 
-E2E tests are shared with Svelte in `web/e2e/`. Tests use framework-agnostic selectors:
+E2E tests in `e2e/` use framework-agnostic selectors:
 - `getByRole()` for semantic elements
 - `getByText()` for headings/labels
 - `.locator()` with class names for structural elements
 
 ```bash
-# Run E2E tests against React app
 npm run e2e              # All functional tests (excludes visual)
 npm run e2e:visual       # Visual regression tests only
 npm run e2e:update       # Update visual baselines
 npm run e2e:report       # Open HTML report
 ```
 
-**Configuration:** `playwright.config.ts` points to shared tests in `../web/e2e` but targets React app on `:5174`.
-
-**Dual-run Validation Results (Phase 4):**
-
-| Category | Tests | React Passed | Svelte Passed | Notes |
-|----------|-------|--------------|---------------|-------|
-| Board rendering | 4 | 4 | 4 | Full parity |
-| Board view toggle | 5 | 4 | 5 | Swimlane view timing |
-| Board drag-drop | 5 | 5 | 5 | Full parity |
-| Board swimlane | 4 | 4 | 4 | Full parity |
-| Dashboard | 7 | 5 | 7 | Quick stats selector |
-| Accessibility | 8 | 3 | 8 | Color contrast issues |
-| Filters & URL | 16 | 0 | 14 | Initiative dropdown missing |
-| Finalize workflow | 10 | 0 | 10 | Selector mismatches |
-| Hooks/Skills | 4 | 0 | 4 | Environment pages missing |
-| Initiatives | 20 | 0 | 15 | Page incomplete |
-| Keyboard shortcuts | 13 | 0 | 13 | Context handling |
-| Navigation | 5 | 0 | 5 | Route structure |
-| Prompts | 10 | 0 | 5 | Environment pages |
-| Sidebar | 11 | 0 | 10 | Selector differences |
-| Task Detail | 15 | 0 | 15 | Selector mismatches |
-| Tasks | 10 | 0 | 6 | NewTaskModal missing |
-| WebSocket updates | 17 | 0 | 17 | Event handling |
-| **Total** | **164** | **25** | **147** | 15% vs 90% |
-
-**Key findings:**
-- Core board functionality works (22/22 tests pass)
-- Dashboard loads and basic navigation works
-- Most failures are due to missing components or selector differences
-
-**Svelte baseline:** 147/164 = **90%** (some tests fail in both frameworks)
-
-**Performance Comparison:**
-
-| Metric | Svelte | React | Delta |
-|--------|--------|-------|-------|
-| Total build (JS+CSS) | 1018 KB | 599 KB | **-41%** |
-| Build time | 6.8s | 1.3s | **-81%** |
-| Chunks | 112 files | 1 bundle | Bundling strategy |
-
-React produces a smaller bundle due to single-file output vs Svelte's code-split chunks.
-
-**Recommendations for 100% Parity:**
-1. Implement NewTaskModal with `.new-task-form` class
-2. Complete TaskDetail selectors (tab nav, timeline phases)
-3. Complete InitiativeDetail page
-4. Add missing ARIA attributes for accessibility
-5. Implement remaining Environment pages (Hooks, etc.)
-6. Fix color contrast issues (`.stat-label`, `.initiative-title`)
+**Configuration:** `playwright.config.ts` targets the React app on `:5173`.
 
 ### Integration Tests
 

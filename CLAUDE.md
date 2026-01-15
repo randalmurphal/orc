@@ -38,8 +38,8 @@ Commands: `/orc:init`, `/orc:status`, `/orc:continue`, `/orc:review`, `/orc:qa`,
 | `cmd/orc/` | CLI entry point | - |
 | `internal/` | Core packages | See `internal/CLAUDE.md` |
 | `templates/` | Phase prompts | See `templates/CLAUDE.md` |
-| `web/` | Svelte 5 frontend (current) | See `web/CLAUDE.md` |
-| `web-react/` | React 19 frontend (migration) | See `web-react/CLAUDE.md` |
+| `web/` | React 19 frontend | See `web/CLAUDE.md` |
+| `web-svelte-archive/` | Svelte 5 frontend (archived) | Previous implementation |
 | `docs/` | Architecture, specs, ADRs | See `docs/CLAUDE.md` |
 
 **Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `task/` (YAML persistence), `git/` (worktrees), `db/` (SQLite), `watcher/` (live refresh)
@@ -362,8 +362,8 @@ make web-test   # Frontend (Vitest)
 make e2e        # E2E (Playwright)
 
 # Visual regression tests
-cd web && bunx playwright test --project=visual                    # Compare against baselines
-cd web && bunx playwright test --project=visual --update-snapshots # Capture new baselines
+cd web && npx playwright test --project=visual                    # Compare against baselines
+cd web && npx playwright test --project=visual --update-snapshots # Capture new baselines
 ```
 
 **⚠️ CRITICAL: E2E Test Sandbox Isolation**
