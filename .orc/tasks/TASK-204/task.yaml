@@ -2,7 +2,8 @@ id: TASK-204
 title: Create Input primitive component
 description: 'Create a shared Input component in web-react/src/components/ui/Input.tsx with variants (default, error), sizes (sm, md, lg), and proper focus states. Include Input.css using existing design tokens. Handle disabled state, placeholder styling. Success: Consistent input styling across forms. Testing: Unit tests for states, visual snapshot.'
 weight: medium
-status: running
+status: paused
+current_phase: implement
 branch: orc/TASK-204
 queue: active
 priority: high
@@ -13,5 +14,5 @@ testing_requirements:
     unit: true
     visual: true
 created_at: 2026-01-14T23:04:05.346059409-06:00
-updated_at: 2026-01-14T23:04:06.94661561-06:00
-started_at: 2026-01-14T23:04:06.946580413-06:00
+updated_at: 2026-01-14T23:07:29.115505379-06:00
+started_at: 2026-01-14T23:04:07.035797222-06:00
