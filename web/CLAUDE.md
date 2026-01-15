@@ -174,6 +174,7 @@ web/src/
 │   │   └── KeyboardShortcutsHelp.tsx # Shortcuts help modal
 │   └── ui/               # UI primitives
 │       ├── Icon.tsx      # SVG icons (60+ built-in)
+│       ├── Input.tsx     # Form input with variants/sizes/icons
 │       ├── StatusIndicator.tsx # Status orb with animations
 │       ├── ToastContainer.tsx  # Toast notification queue
 │       └── Breadcrumbs.tsx     # Route-based breadcrumbs
@@ -292,6 +293,59 @@ import { Icon } from '@/components/ui';
 | `className` | `string` | `''` | Additional CSS classes |
 
 **Icon categories:** Navigation (dashboard, tasks, board, etc.), Actions (plus, search, close, check, trash), Playback (play, pause), Chevrons, Status (success, error, warning, info), Git (branch, git-branch), Circle variants (circle, check-circle, play-circle, etc.)
+
+### Input
+
+Reusable form input with variants, sizes, icons, and proper accessibility.
+
+```tsx
+import { Input } from '@/components/ui';
+
+<Input placeholder="Enter text..." />
+<Input size="lg" leftIcon={<Icon name="search" />} />
+<Input variant="error" error="This field is required" />
+<Input disabled value="Cannot edit" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `'default' \| 'error'` | `'default'` | Visual variant |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Input size |
+| `leftIcon` | `ReactNode` | - | Icon on the left side |
+| `rightIcon` | `ReactNode` | - | Icon on the right side |
+| `error` | `string` | - | Error message (sets variant to error) |
+
+**Sizing:**
+
+| Size | Height | Padding | Font Size |
+|------|--------|---------|-----------|
+| `sm` | 28px | `--space-3` | `--text-sm` |
+| `md` | 36px | `--space-4` | `--text-base` |
+| `lg` | 44px | `--space-5` | `--text-lg` |
+
+**State styles:**
+
+| State | Border | Ring |
+|-------|--------|------|
+| default | `--border-default` | none |
+| hover | `--border-strong` | none |
+| focus | `--accent-primary` | `0 0 0 2px var(--accent-glow)` |
+| error | `--status-danger` | none |
+| error:focus | `--status-danger` | `0 0 0 2px rgba(248,113,113,0.3)` |
+| disabled | `--border-subtle` | none (opacity 0.5) |
+
+**Accessibility:**
+- Focus ring only on keyboard navigation (`:focus-within`)
+- Error state sets `aria-invalid="true"`
+- Error message linked via `aria-describedby`
+- Required inputs set `aria-required="true"`
+- Forwards ref to underlying `<input>` element
+
+**Features:**
+- Controlled component pattern (`value` + `onChange`)
+- All standard HTML input attributes supported
+- Error prop automatically sets error variant
+- Icons positioned absolutely, don't affect input text
 
 ### StatusIndicator
 
