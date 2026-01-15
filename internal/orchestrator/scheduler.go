@@ -160,21 +160,70 @@ func (s *Scheduler) allDepsSatisfied(task *ScheduledTask) bool {
 	return true
 }
 
-// MarkCompleted marks a task as completed.
+// cleanupCompletedLocked removes completed entries that are no longer needed.
+// A completed task ID is still needed if any queued or running task depends on it.
+// Must be called with lock held.
+func (s *Scheduler) cleanupCompletedLocked() {
+	// Build set of all dependencies still needed by queued or running tasks
+	needed := make(map[string]bool)
+
+	// Collect deps from queued tasks
+	for _, task := range s.queue {
+		for _, dep := range task.DependsOn {
+			needed[dep] = true
+		}
+	}
+
+	// Collect deps from running tasks (stored in taskDeps)
+	for taskID := range s.running {
+		if deps, ok := s.taskDeps[taskID]; ok {
+			for _, dep := range deps {
+				needed[dep] = true
+			}
+		}
+	}
+
+	// Remove completed entries that aren't needed
+	for taskID := range s.completed {
+		if !needed[taskID] {
+			delete(s.completed, taskID)
+		}
+	}
+}
+
+// MarkCompleted marks a task as completed and cleans up map entries.
 func (s *Scheduler) MarkCompleted(taskID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	delete(s.running, taskID)
 	s.completed[taskID] = true
+
+	// Clean up taskDeps for the completed task - no longer needed
+	delete(s.taskDeps, taskID)
+
+	// Clean up completed entries that no other task depends on
+	s.cleanupCompletedLocked()
 }
 
 // MarkFailed marks a task as failed (removes from running).
+// Note: taskDeps is preserved to allow Requeue to restore dependencies.
 func (s *Scheduler) MarkFailed(taskID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	delete(s.running, taskID)
+}
+
+// RemoveTask permanently removes a task from the scheduler.
+// Use this for failed tasks that won't be retried to clean up taskDeps.
+func (s *Scheduler) RemoveTask(taskID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.running, taskID)
+	delete(s.taskDeps, taskID)
+	delete(s.completed, taskID)
 }
 
 // Requeue adds a task back to the queue (for retry).
