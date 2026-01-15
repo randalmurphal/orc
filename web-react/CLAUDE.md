@@ -48,6 +48,7 @@ web-react/src/
 │   │   ├── AppLayout.tsx # Main layout (Sidebar + Header + Outlet)
 │   │   ├── Sidebar.tsx   # Left navigation
 │   │   ├── Header.tsx    # Top bar
+│   │   ├── DataProvider.tsx # Centralized data loading
 │   │   └── UrlParamSync.tsx # URL <-> Store bidirectional sync
 │   ├── task-detail/      # Task detail components
 │   │   ├── TaskHeader.tsx        # Header with actions
@@ -86,7 +87,8 @@ web-react/src/
 │   ├── Preferences.tsx   # /preferences
 │   └── environment/      # /environment/* pages
 ├── stores/               # Zustand stores
-└── hooks/                # Custom hooks
+├── hooks/                # Custom hooks
+└── integration/          # Integration tests (WebSocket, stores)
 ```
 
 ## Development
@@ -140,8 +142,8 @@ This React app runs alongside Svelte during migration:
 
 1. **Phase 1** ✅: Project scaffolding, Zustand stores mirroring Svelte stores
 2. **Phase 2** ✅: Core infrastructure (API client, WebSocket, Router with URL sync), Dashboard page, Board page (flat/swimlane views), TaskList page, TaskDetail page with all 6 tabs
-3. **Phase 3** (current): Component migration (parallel implementation) - InitiativeDetail, remaining environment pages
-4. **Phase 4**: E2E test validation, feature parity verification
+3. **Phase 3** ✅: Integration - Connect all stores and real-time updates, DataProvider for centralized data loading, WebSocket event handling for initiatives, comprehensive integration tests
+4. **Phase 4** (current): E2E test validation, feature parity verification, InitiativeDetail, remaining environment pages
 5. **Phase 5**: Cutover and Svelte removal
 
 ### Shared Resources
@@ -221,15 +223,21 @@ Migration follows the existing Svelte component structure:
 - `components/ui/Breadcrumbs.tsx` - Route-based navigation breadcrumbs
 - `components/overlays/Modal.tsx` - Portal-based modal with focus trap
 
-**Layout components implemented (Phase 3):**
+**Layout components implemented (Phase 2):**
 - `components/layout/AppLayout.tsx` - Root layout with sidebar, header, outlet
 - `components/layout/Sidebar.tsx` - Navigation with initiative filtering
 - `components/layout/Header.tsx` - Project selector, page title, actions
 - `components/overlays/ProjectSwitcher.tsx` - Modal for project selection
 
-**Pages implemented (Phase 3):**
+**Pages implemented (Phase 2):**
 - `pages/TaskList.tsx` - Task list with filtering, search, keyboard navigation
 - `components/filters/DependencyDropdown.tsx` - Dependency status filter dropdown
+
+**Data loading and integration implemented (Phase 3):**
+- `components/layout/DataProvider.tsx` - Centralized data loading and synchronization
+- Initiative WebSocket event handlers (created/updated/deleted)
+- Cross-store synchronization (Task, Initiative, UI stores)
+- `integration/websocket-integration.test.tsx` - Comprehensive WebSocket event tests
 
 ## UI Primitives
 
@@ -450,6 +458,39 @@ import { ProjectSwitcher } from '@/components/overlays';
 - Portal-rendered to document.body
 
 **Keyboard shortcuts:** ⇧⌥P opens project switcher (handled by AppLayout)
+
+### DataProvider
+
+Centralized data loading and synchronization component.
+
+```tsx
+import { DataProvider } from '@/components/layout';
+
+// Placed inside WebSocketProvider, outside router
+<WebSocketProvider>
+  <DataProvider>
+    <BrowserRouter>
+      {/* ... */}
+    </BrowserRouter>
+  </DataProvider>
+</WebSocketProvider>
+```
+
+**Responsibilities:**
+- Loads projects, tasks, and initiatives on mount
+- Reloads tasks and initiatives when project changes
+- Handles browser back/forward navigation
+- Initializes stores from URL params
+
+**Data Flow:**
+1. On mount: Initialize stores from URL, load all projects
+2. On project change: Clear tasks/initiatives, load new data for selected project
+3. On popstate: Sync project and initiative stores with browser history
+
+**Integration with stores:**
+- Calls `projectStore.initializeFromUrl()` and `initiativeStore.initializeFromUrl()` on mount
+- Subscribes to `projectStore.currentProjectId` changes
+- Resets `taskStore` and `initiativeStore` before loading new project data
 
 ## Dashboard Components
 
@@ -751,13 +792,18 @@ All routes are defined in `src/router/routes.tsx` using React Router's `RouteObj
 
 ```
 main.tsx
-└── BrowserRouter
-    └── App.tsx (useRoutes + WebSocketProvider)
-        └── AppLayout
-            ├── UrlParamSync (invisible, handles URL <-> store sync)
-            ├── Sidebar
-            ├── Header
-            └── Outlet (page content)
+└── StrictMode
+    └── BrowserRouter
+        └── App.tsx
+            └── ShortcutProvider
+                └── WebSocketProvider
+                    └── DataProvider (loads projects, tasks, initiatives)
+                        └── useRoutes(routes)
+                            └── AppLayout
+                                ├── UrlParamSync (invisible, handles URL <-> store sync)
+                                ├── Sidebar
+                                ├── Header
+                                └── Outlet (page content)
 ```
 
 ### URL Parameter Handling
@@ -836,6 +882,41 @@ E2E tests are shared with Svelte in `web/e2e/`. Tests use framework-agnostic sel
 - `getByRole()` for semantic elements
 - `getByText()` for headings/labels
 - `.locator()` with class names for structural elements
+
+### Integration Tests
+
+Integration tests in `src/integration/` verify WebSocket event handling and store synchronization.
+
+```bash
+npm run test -- src/integration/  # Run integration tests
+```
+
+**Test coverage (`websocket-integration.test.tsx`):**
+
+| Category | Events Tested |
+|----------|---------------|
+| Task Events | `task_created`, `task_updated`, `task_deleted`, `state`, `complete` |
+| Initiative Events | `initiative_created`, `initiative_updated`, `initiative_deleted` |
+| Finalize Events | `finalize` (running, completed, failed statuses) |
+| Phase Events | `phase` transitions |
+
+**Test approach:**
+- Mock WebSocket to capture event handlers
+- Mock API calls to provide test data
+- Simulate WebSocket events via `simulateWsEvent()` helper
+- Assert store state after events
+
+**Key test patterns:**
+```tsx
+// Simulate WebSocket event
+await act(async () => {
+  simulateWsEvent('task_created', 'TASK-002', newTask);
+});
+
+// Verify store update
+const tasks = useTaskStore.getState().tasks;
+expect(tasks.find(t => t.id === 'TASK-002')).toBeDefined();
+```
 
 ## API Integration
 
@@ -1197,6 +1278,9 @@ function ConnectionIndicator() {
 | `task_created` | `Task` | New task created (file watcher) |
 | `task_updated` | `Task` | Task modified (file watcher) |
 | `task_deleted` | `null` | Task deleted (file watcher) |
+| `initiative_created` | `Initiative` | New initiative created (file watcher) |
+| `initiative_updated` | `Initiative` | Initiative modified (file watcher) |
+| `initiative_deleted` | `null` | Initiative deleted (file watcher) |
 | `error` | `{ message }` | Error from server |
 
 #### Connection Behavior
@@ -1205,7 +1289,7 @@ function ConnectionIndicator() {
 - **Auto-reconnect:** Exponential backoff (1s, 2s, 4s...), max 5 attempts
 - **Ping/pong:** 30s heartbeat to keep connection alive
 - **Primary subscription:** Global subscription restored after reconnect
-- **Store integration:** Events automatically update TaskStore and UIStore
+- **Store integration:** Events automatically update TaskStore, InitiativeStore, and UIStore
 
 #### OrcWebSocket Class (Internal)
 

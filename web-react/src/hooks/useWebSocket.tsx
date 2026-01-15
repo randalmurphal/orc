@@ -23,8 +23,9 @@ import type {
 	WSCallback,
 	Task,
 	TaskState,
+	Initiative,
 } from '@/lib/types';
-import { useUIStore, useTaskStore, toast } from '@/stores';
+import { useUIStore, useTaskStore, useInitiativeStore, toast } from '@/stores';
 
 export { GLOBAL_TASK_ID };
 
@@ -271,6 +272,32 @@ function handleWSEvent(event: WSEvent): void {
 			// Task deleted (file watcher event)
 			taskStore.removeTask(task_id);
 			toast.info(`Task ${task_id} was deleted`);
+			break;
+		}
+
+		case 'initiative_created': {
+			// New initiative created (file watcher event)
+			const initiative = data as Initiative;
+			const initiativeStore = useInitiativeStore.getState();
+			initiativeStore.addInitiative(initiative);
+			break;
+		}
+
+		case 'initiative_updated': {
+			// Initiative updated (file watcher event)
+			// task_id field contains initiative_id for initiative events
+			const initiative = data as Initiative;
+			const initiativeStore = useInitiativeStore.getState();
+			initiativeStore.updateInitiative(initiative.id, initiative);
+			break;
+		}
+
+		case 'initiative_deleted': {
+			// Initiative deleted (file watcher event)
+			// task_id field contains initiative_id for initiative events
+			const initiativeStore = useInitiativeStore.getState();
+			initiativeStore.removeInitiative(task_id);
+			toast.info(`Initiative ${task_id} was deleted`);
 			break;
 		}
 
