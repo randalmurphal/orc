@@ -95,8 +95,8 @@ Replace task list as the default landing page with a comprehensive dashboard tha
 
 Four key metrics displayed as cards:
 
-```svelte
-<div class="stats-grid">
+```tsx
+<div className="stats-grid">
   <StatCard
     label="Running"
     value={runningCount}
@@ -132,25 +132,25 @@ Four key metrics displayed as cards:
 
 Shows running and blocked tasks with inline progress:
 
-```svelte
-<section class="active-tasks">
+```tsx
+<section className="active-tasks">
   <header>
     <h2>Active Tasks</h2>
-    <button class="primary" on:click={openNewTask}>+ New</button>
+    <button className="primary" onClick={openNewTask}>+ New</button>
   </header>
 
-  {#if activeTasks.length === 0}
+  {activeTasks.length === 0 ? (
     <EmptyState
       icon="check"
       title="All clear!"
       description="No tasks currently running or blocked"
       action={{ label: "Create Task", onClick: openNewTask }}
     />
-  {:else}
-    {#each activeTasks as task (task.id)}
-      <ActiveTaskCard {task} />
-    {/each}
-  {/if}
+  ) : (
+    activeTasks.map((task) => (
+      <ActiveTaskCard key={task.id} task={task} />
+    ))
+  )}
 </section>
 ```
 
@@ -178,21 +178,23 @@ More detailed than list view, includes inline timeline:
 
 Simple list of completed/failed tasks using shared `StatusIndicator` component for consistent status display across all pages:
 
-```svelte
-<section class="recent-activity">
+```tsx
+<section className="recent-activity">
   <header>
     <h2>Recent Activity</h2>
-    <a href="/tasks?sort=recent">View All</a>
+    <Link to="/tasks?sort=recent">View All</Link>
   </header>
 
-  <ul class="activity-list">
-    {#each recentTasks.slice(0, 5) as task (task.id)}
-      <li class="activity-item">
+  <ul className="activity-list">
+    {recentTasks.slice(0, 5).map((task) => (
+      <li key={task.id} className="activity-item">
         <StatusIndicator status={task.status} size="md" />
-        <a href="/tasks/{task.id}" class="task-link">{task.id} {task.title}</a>
+        <Link to={`/tasks/${task.id}`} className="task-link">
+          {task.id} {task.title}
+        </Link>
         <time>{formatRelative(task.completed_at)}</time>
       </li>
-    {/each}
+    ))}
   </ul>
 </section>
 ```
@@ -203,20 +205,20 @@ Simple list of completed/failed tasks using shared `StatusIndicator` component f
 
 Common actions always accessible:
 
-```svelte
-<section class="quick-actions">
-  <button class="action-btn primary" on:click={openNewTask}>
-    <PlusIcon /> New Task
+```tsx
+<section className="quick-actions">
+  <button className="action-btn primary" onClick={openNewTask}>
+    <Icon name="plus" /> New Task
   </button>
-  <button class="action-btn" on:click={resumeLast} disabled={!lastPaused}>
-    <PlayIcon /> Resume Last
+  <button className="action-btn" onClick={resumeLast} disabled={!lastPaused}>
+    <Icon name="play" /> Resume Last
   </button>
-  <a href="/tasks" class="action-btn">
-    <ListIcon /> View All Tasks
-  </a>
-  <a href="/settings" class="action-btn">
-    <SettingsIcon /> Settings
-  </a>
+  <Link to="/tasks" className="action-btn">
+    <Icon name="list" /> View All Tasks
+  </Link>
+  <Link to="/preferences" className="action-btn">
+    <Icon name="settings" /> Settings
+  </Link>
 </section>
 ```
 
@@ -305,7 +307,7 @@ Opens when clicking a running task card:
 
 ### Implementation
 
-Located at `web/src/lib/components/overlays/LiveTranscriptModal.svelte`
+Located at `web/src/components/overlays/LiveTranscriptModal.tsx`
 
 WebSocket events handled:
 - `transcript` - chunk (streaming) and response (complete)
@@ -317,39 +319,47 @@ WebSocket events handled:
 
 ## Real-time Updates
 
-Dashboard subscribes to WebSocket for live updates:
+Dashboard subscribes to WebSocket for live updates via the `useWebSocket` hook:
 
-```typescript
-onMount(() => {
-  const ws = getWebSocket();
+```tsx
+function Dashboard() {
+  const [activeTasks, setActiveTasks] = useState<Task[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const { on } = useWebSocket();
 
-  ws.on('task:started', (task) => {
-    activeTasks = [...activeTasks, task];
-    stats.running++;
-  });
+  useEffect(() => {
+    const unsubStarted = on('task_created', (event) => {
+      if ('data' in event && event.data) {
+        setActiveTasks(prev => [...prev, event.data]);
+        setStats(prev => prev ? { ...prev, running: prev.running + 1 } : prev);
+      }
+    });
 
-  ws.on('task:completed', (task) => {
-    activeTasks = activeTasks.filter(t => t.id !== task.id);
-    stats.running--;
-    recentActivity = [task, ...recentActivity.slice(0, 4)];
-  });
+    const unsubCompleted = on('complete', (event) => {
+      if ('task_id' in event) {
+        setActiveTasks(prev => prev.filter(t => t.id !== event.task_id));
+        setStats(prev => prev ? { ...prev, running: prev.running - 1 } : prev);
+      }
+    });
 
-  ws.on('task:failed', (task) => {
-    activeTasks = activeTasks.filter(t => t.id !== task.id);
-    stats.running--;
-    recentActivity = [task, ...recentActivity.slice(0, 4)];
-  });
+    const unsubUpdated = on('task_updated', (event) => {
+      if ('data' in event && event.data?.status === 'blocked') {
+        setActiveTasks(prev =>
+          prev.map(t => t.id === event.task_id ? event.data : t)
+        );
+        setStats(prev => prev ? { ...prev, blocked: prev.blocked + 1 } : prev);
+      }
+    });
 
-  ws.on('task:blocked', (task) => {
-    const idx = activeTasks.findIndex(t => t.id === task.id);
-    if (idx >= 0) {
-      activeTasks[idx] = task;
-      stats.blocked++;
-    }
-  });
+    return () => {
+      unsubStarted();
+      unsubCompleted();
+      unsubUpdated();
+    };
+  }, [on]);
 
-  return () => ws.disconnect();
-});
+  // ... render
+}
 ```
 
 ---

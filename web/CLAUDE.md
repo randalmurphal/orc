@@ -1,1216 +1,2022 @@
-# Web Frontend
+# React 19 Frontend
 
-Svelte 5 SvelteKit application for the orc web UI.
+React 19 application for orc web UI.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
-| Framework | SvelteKit 2.x, Svelte 5 (runes) |
-| Styling | CSS (component-scoped) |
-| Testing | Vitest (unit), Playwright (E2E) |
-| Build | Vite, Bun |
+| Framework | React 19, Vite |
+| Language | TypeScript 5.6+ |
+| State Management | Zustand |
+| Routing | React Router 7 |
+| Styling | CSS (component-scoped, matching Svelte) |
+| Testing | Vitest (unit), Playwright (E2E - shared) |
 
 ## Directory Structure
 
 ```
 web/src/
-├── lib/
-│   ├── components/
-│   │   ├── DependencyGraph.svelte  # Task dependency DAG visualization
-│   │   ├── comments/     # TaskCommentsPanel, TaskCommentThread, TaskCommentForm
-│   │   ├── dashboard/    # Stats, actions, activity
-│   │   ├── diff/         # DiffViewer, DiffFile, DiffHunk, VirtualScroller
-│   │   ├── filters/      # InitiativeDropdown, ViewModeDropdown
-│   │   ├── kanban/       # Board, Column, QueuedColumn, TaskCard, Swimlane
-│   │   ├── layout/       # Header, Sidebar
-│   │   ├── overlays/     # Modal, CommandPalette, NewTaskModal, KeyboardShortcutsHelp
-│   │   ├── review/       # CommentForm, CommentThread, ReviewPanel
-│   │   ├── task/         # TaskHeader, TaskEditModal, Timeline, Transcript, RetryPanel, Attachments
-│   │   └── ui/           # Icon, StatusIndicator, Toast
-│   ├── stores/           # tasks.ts, project.ts, sidebar.ts, toast.svelte.ts
-│   ├── utils/            # format.ts, status.ts, platform.ts, graph-layout.ts
-│   ├── api.ts            # API client
-│   ├── websocket.ts      # WebSocket client
-│   └── shortcuts.ts      # Keyboard shortcuts
-└── routes/               # SvelteKit pages
+├── main.tsx              # Entry point (BrowserRouter)
+├── App.tsx               # Root component (useRoutes + ShortcutProvider + WebSocketProvider)
+├── index.css             # Global styles
+├── router/               # Route configuration
+│   ├── index.ts          # Exports
+│   └── routes.tsx        # Route definitions
+├── lib/                  # Shared utilities
+│   ├── types.ts          # TypeScript interfaces
+│   ├── websocket.ts      # OrcWebSocket class
+│   ├── shortcuts.ts      # ShortcutManager class
+│   └── platform.ts       # Platform detection (isMac)
+├── components/           # UI components
+│   ├── board/            # Kanban board components
+│   │   ├── Board.tsx     # Main board (flat/swimlane views)
+│   │   ├── Column.tsx    # Board column with drop zone
+│   │   ├── QueuedColumn.tsx # Queued column (active/backlog)
+│   │   ├── Swimlane.tsx  # Initiative swimlane row
+│   │   ├── TaskCard.tsx  # Task card for board
+│   │   ├── ViewModeDropdown.tsx # Flat/swimlane toggle
+│   │   └── InitiativeDropdown.tsx # Initiative filter
+│   ├── dashboard/        # Dashboard components
+│   │   ├── DashboardStats.tsx      # Quick stats cards
+│   │   ├── DashboardActiveTasks.tsx # Running/paused/blocked tasks
+│   │   ├── DashboardQuickActions.tsx # New Task / View All buttons
+│   │   ├── DashboardRecentActivity.tsx # Recently completed tasks
+│   │   ├── DashboardInitiatives.tsx # Active initiatives with progress
+│   │   └── DashboardSummary.tsx    # Total/completed/failed counts
+│   ├── layout/           # Layout components
+│   │   ├── AppLayout.tsx # Main layout (Sidebar + Header + Outlet)
+│   │   ├── Sidebar.tsx   # Left navigation
+│   │   ├── Header.tsx    # Top bar
+│   │   ├── DataProvider.tsx # Centralized data loading
+│   │   └── UrlParamSync.tsx # URL <-> Store bidirectional sync
+│   ├── task-detail/      # Task detail components
+│   │   ├── TaskHeader.tsx        # Header with actions
+│   │   ├── TabNav.tsx            # 6-tab navigation
+│   │   ├── DependencySidebar.tsx # Collapsible deps panel
+│   │   ├── TimelineTab.tsx       # Phase timeline + tokens
+│   │   ├── ChangesTab.tsx        # Git diff viewer
+│   │   ├── TranscriptTab.tsx     # Transcript history
+│   │   ├── TestResultsTab.tsx    # Test results + screenshots
+│   │   ├── AttachmentsTab.tsx    # File uploads
+│   │   ├── CommentsTab.tsx       # Task comments
+│   │   ├── TaskEditModal.tsx     # Edit form modal
+│   │   ├── ExportDropdown.tsx    # Export options
+│   │   └── diff/                 # Diff viewer sub-components
+│   │       ├── DiffStats.tsx
+│   │       ├── DiffFile.tsx
+│   │       ├── DiffHunk.tsx
+│   │       ├── DiffLine.tsx
+│   │       └── InlineCommentThread.tsx
+│   ├── filters/          # Filter dropdowns
+│   │   └── DependencyDropdown.tsx # Dependency status filter
+│   ├── overlays/         # Modal overlays
+│   │   ├── Modal.tsx     # Base modal component
+│   │   └── KeyboardShortcutsHelp.tsx # Shortcuts help modal
+│   └── ui/               # UI primitives
+│       ├── Icon.tsx      # SVG icons (60+ built-in)
+│       ├── StatusIndicator.tsx # Status orb with animations
+│       ├── ToastContainer.tsx  # Toast notification queue
+│       └── Breadcrumbs.tsx     # Route-based breadcrumbs
+├── pages/                # Route pages
+│   ├── TaskList.tsx      # / - Task list
+│   ├── Board.tsx         # /board - Kanban board
+│   ├── Dashboard.tsx     # /dashboard - Dashboard
+│   ├── TaskDetail.tsx    # /tasks/:id - Task detail
+│   ├── InitiativeDetail.tsx # /initiatives/:id
+│   ├── Preferences.tsx   # /preferences
+│   └── environment/      # /environment/* pages
+├── stores/               # Zustand stores
+├── hooks/                # Custom hooks
+└── integration/          # Integration tests (WebSocket, stores)
 ```
-
-## Key Components
-
-| Category | Components | Purpose |
-|----------|------------|---------|
-| Layout | Header, Sidebar | Navigation, project/initiative switcher |
-| Dashboard | Stats, QuickActions, ActiveTasks, RecentActivity | Overview page |
-| Task | TaskCard, Timeline, Transcript, TaskHeader, TaskEditModal, PRActions, Attachments, TokenUsage, DependencySidebar, AddDependencyModal | Task detail |
-| Graph | DependencyGraph | Task dependency visualization |
-| Diff | DiffViewer, DiffFile, DiffHunk, DiffLine, VirtualScroller | Changes tab |
-| Filters | InitiativeDropdown, ViewModeDropdown | Filter bar dropdowns |
-| Kanban | Board, Column, QueuedColumn, TaskCard, Swimlane, ConfirmModal | Board view with queue/priority/swimlanes |
-| Overlays | Modal, LiveTranscriptModal, FinalizeModal, CommandPalette, KeyboardShortcutsHelp | Modal dialogs and overlays |
-| Comments | TaskCommentsPanel, TaskCommentThread, TaskCommentForm | Task discussion notes |
-| Review | CommentForm, CommentThread, ReviewPanel, ReviewSummary | Code review comments |
-| UI | Icon (40 icons), StatusIndicator, Toast, Modal | Shared components |
-
-## State Management
-
-| Store | Purpose |
-|-------|---------|
-| `tasks` | Global reactive task state, WebSocket updates |
-| `project` | Current project selection with persistence |
-| `initiative` | Initiative filter selection with URL + localStorage persistence |
-| `sidebar` | Expanded/collapsed state (persisted in localStorage) |
-| `toast` | Notification queue |
-
-**Task store** initialized in `+layout.svelte`, synced via global WebSocket. Pages subscribe for reactive updates.
-
-### Initiative Filter
-
-Initiative filtering persists across page refreshes using URL and localStorage:
-
-**Priority order** (highest to lowest):
-1. **URL parameter** (`?initiative=<id>`) - Shareable links, survives refresh
-2. **localStorage** (`orc_current_initiative_id`) - User's last selection
-3. **null** - No filter (show all tasks)
-
-**Browser history:** Selecting initiatives pushes to browser history, so back/forward buttons navigate between filter states.
-
-**Store:** Use `currentInitiativeId` for the active filter, `initiatives` for the list, and `initiativeProgress` for completion counts.
-
-**API:** Use `selectInitiative(id)` to filter by initiative (updates URL + localStorage). Pass `null` to clear the filter.
-
-### Project Selection
-
-Project selection persists across page refreshes using URL and localStorage:
-
-**Priority order** (highest to lowest):
-1. **URL parameter** (`?project=<id>`) - Shareable links, survives refresh
-2. **localStorage** (`orc_current_project_id`) - User's last selection
-3. **Server default** (`GET /api/projects/default`) - From `~/.orc/projects.yaml`
-4. **First project** - Falls back to first available project
-
-**Browser history:** Switching projects pushes to browser history, so back/forward buttons navigate between previously viewed projects.
-
-**API:** Use `selectProject(id)` to switch projects (updates URL + localStorage). Use `setDefaultProject(id)` to persist a server-side default.
-
-**Note:** Task operations (create, run, pause, resume, delete) require a project to be selected. When no project is selected, the UI shows a "Select Project" prompt instead of an empty task list. All task operations use the project-scoped API endpoints (`/api/projects/:id/tasks/*`) rather than the CWD-based endpoints.
-
-## Keyboard Shortcuts
-
-**Global shortcuts use Shift+Alt** (Shift+Option on Mac) to avoid browser conflicts with Cmd+K, Cmd+N, etc.
-
-### Global Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Shift+Alt+K` | Command palette |
-| `Shift+Alt+N` | New task modal |
-| `Shift+Alt+B` | Toggle sidebar |
-| `Shift+Alt+P` | Project switcher |
-| `?` | Show keyboard shortcuts help |
-| `Escape` | Close any open modal |
-
-### Navigation Sequences
-
-Multi-key sequences for navigation (type keys in quick succession):
-
-| Sequence | Action |
-|----------|--------|
-| `g d` | Go to dashboard |
-| `g t` | Go to tasks (board/list) |
-| `g e` | Go to environment |
-
-### Task List Context
-
-These shortcuts work when on the tasks/board page:
-
-| Shortcut | Action |
-|----------|--------|
-| `j` | Move selection down |
-| `k` | Move selection up |
-| `Enter` | Open selected task |
-| `/` | Focus search input |
-| `r` | Run selected task |
-| `p` | Pause selected task |
-| `d` | Delete selected task |
-
-**Input field behavior:** Shortcuts are disabled when typing in input fields, text areas, or contenteditable elements to prevent interference.
-
-**E2E test coverage:** See `e2e/keyboard-shortcuts.spec.ts` (13 tests) for comprehensive shortcut testing.
 
 ## Development
 
 ```bash
-bun install           # Install deps
-bun run dev           # Dev server
-bun run build         # Production build
-bun run test          # Unit tests
-bunx playwright test  # E2E tests
+# Install dependencies
+cd web && npm install
+
+# Start dev server (port 5173)
+npm run dev
+
+# Run tests
+npm run test
+npm run test:watch
+npm run test:coverage
+
+# Build for production
+npm run build
 ```
 
-## Svelte 5 Runes
+**Ports:**
+- Frontend: `http://localhost:5173`
+- API server: `http://localhost:8080`
 
-**All pages use runes mode.** Legacy syntax causes build errors.
+## Configuration
 
-```svelte
-<script>
-  let { data } = $props()        // Props (not export let)
-  let count = $state(0)          // Reactive state (NOT let count = 0)
-  let doubled = $derived(count * 2)  // Derived (NOT $: doubled)
-</script>
+### Vite Config
 
-<!-- Event handlers: use onclick, NOT on:click -->
-<button onclick={handleClick}>Click</button>
-<form onsubmit={(e) => { e.preventDefault(); save(); }}>
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| Port | 5173 | Frontend dev server |
+| API Proxy | `/api` → `:8080` | Backend communication |
+| WebSocket | Proxied via `/api` | Real-time updates |
+| Path Alias | `@/` → `src/` | Clean imports |
+| Build Output | `build/` | Production output |
+
+### TypeScript Config
+
+| Setting | Purpose |
+|---------|---------|
+| `strict: true` | Full type safety |
+| `noUnusedLocals: true` | Clean code |
+| `jsx: react-jsx` | React 19 JSX transform |
+| `paths: @/*` | Import aliases |
+| `types: vitest/globals` | Test globals |
+
+## Architecture
+
+### State Management (Zustand)
+
+Five Zustand stores manage application state. All use `subscribeWithSelector` middleware for efficient derived state.
+
+| Store | State | Persistence | Purpose |
+|-------|-------|-------------|---------|
+| `taskStore.ts` | tasks, taskStates | None (API-driven) | Task data and execution state |
+| `projectStore.ts` | projects, currentProjectId | URL + localStorage | Project selection |
+| `initiativeStore.ts` | initiatives, currentInitiativeId | URL + localStorage | Initiative filter |
+| `dependencyStore.ts` | currentDependencyStatus | URL + localStorage | Dependency status filter |
+| `uiStore.ts` | sidebarExpanded, wsStatus, toasts | localStorage (sidebar) | UI state |
+
+### WebSocket Integration
+
+Real-time updates via WebSocket hooks:
+- `useWebSocket.tsx` - WebSocketProvider, useWebSocket, useTaskSubscription, useConnectionStatus
+
+### Routing
+
+React Router 7 with URL/store sync:
+- `router/routes.tsx` - Route configuration
+- `components/layout/UrlParamSync.tsx` - Bidirectional URL/store sync
+
+### Keyboard Shortcuts
+
+- `lib/shortcuts.ts` - ShortcutManager class with sequence support
+- `hooks/useShortcuts.tsx` - ShortcutProvider, useShortcuts, useGlobalShortcuts, useTaskListShortcuts
+
+### Data Loading
+
+- `components/layout/DataProvider.tsx` - Centralized data loading and synchronization
+- Cross-store synchronization (Task, Initiative, UI stores)
+
+## UI Primitives
+
+Foundational components that other components depend on.
+
+### Icon
+
+SVG icon component with 60+ built-in icons using stroke-based rendering.
+
+```tsx
+import { Icon } from '@/components/ui';
+
+<Icon name="dashboard" />
+<Icon name="check" size={16} />
+<Icon name="error" size={24} className="text-danger" />
 ```
 
-**Common mistakes:** `let x = []` without `$state()`, `$:` reactive statements, `on:click` handlers.
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `name` | `IconName` | required | Icon identifier |
+| `size` | `number` | `20` | Width/height in pixels |
+| `className` | `string` | `''` | Additional CSS classes |
 
-## Global Modal Pattern
+**Icon categories:** Navigation (dashboard, tasks, board, etc.), Actions (plus, search, close, check, trash), Playback (play, pause), Chevrons, Status (success, error, warning, info), Git (branch, git-branch), Circle variants (circle, check-circle, play-circle, etc.)
 
-Modals that can be triggered from multiple pages (via keyboard shortcuts, command palette, etc.) live in `+layout.svelte`:
+### StatusIndicator
 
-| Modal | Trigger Event | Keyboard |
-|-------|--------------|----------|
-| `NewTaskModal` | `orc:new-task` | `Shift+Alt+N` |
-| `CommandPalette` | `orc:command-palette` | `Shift+Alt+K` |
-| `KeyboardShortcutsHelp` | `orc:show-shortcuts` | `?` |
+Colored status orb with animations for running/paused states.
 
-**To trigger from any page:**
-```svelte
-window.dispatchEvent(new CustomEvent('orc:new-task'));
+```tsx
+import { StatusIndicator } from '@/components/ui';
+
+<StatusIndicator status="running" />
+<StatusIndicator status="completed" size="lg" showLabel />
 ```
 
-Page-specific modals (like `TaskEditModal`) can live in individual routes.
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `status` | `TaskStatus` | required | Task status (running, paused, completed, etc.) |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Indicator size |
+| `showLabel` | `boolean` | `false` | Show status text label |
 
-## WebSocket Architecture
+**Status colors:** running (accent/pulse), paused (warning/pulse), blocked (danger), completed/finished (success), failed (danger), classifying (warning), created/planned (muted)
 
-Global WebSocket in `+layout.svelte` subscribes with `"*"`. All task events flow to task store. Pages react to store changes - no individual WebSocket connections needed.
+### Modal
 
-### Live Refresh
+Portal-based modal with focus trap, escape-to-close, and backdrop click handling.
 
-The board and task list automatically update when tasks are created, modified, or deleted via CLI or filesystem:
+```tsx
+import { Modal } from '@/components/overlays';
 
-| Event | Store Action | UI Effect |
-|-------|--------------|-----------|
-| `task_created` | `addTask(task)` | New card appears, toast notification |
-| `task_updated` | `updateTask(id, task)` | Card updates in place |
-| `task_deleted` | `removeTask(id)` | Card removed, toast notification |
+<Modal open={isOpen} onClose={() => setIsOpen(false)} title="Confirm">
+  <p>Are you sure?</p>
+  <button onClick={() => setIsOpen(false)}>Cancel</button>
+</Modal>
+```
 
-**Event flow:** File watcher (backend) → WebSocket → `+layout.svelte` handler → task store → reactive UI update
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `open` | `boolean` | required | Whether modal is visible |
+| `onClose` | `() => void` | required | Close handler |
+| `title` | `string` | - | Optional header title |
+| `size` | `'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | Max width |
+| `showClose` | `boolean` | `true` | Show close button |
+| `children` | `ReactNode` | required | Modal content |
 
-The file watcher uses content hashing and debouncing to prevent duplicate notifications from atomic saves or git operations.
+**Features:** Focus trap (Tab cycles within modal), Escape key closes, Click outside closes, Body scroll lock, Focus restoration on close, Portal renders to document.body
 
-See `QUICKREF.md` for subscription helpers.
+### ToastContainer
 
-## Task Organization (Queue, Priority & Category)
+Toast notification queue rendered via portal. Uses `uiStore` for state management.
 
-Tasks support queue, priority, and category organization to manage and filter work:
+```tsx
+// Add ToastContainer to app root (renders via portal)
+import { ToastContainer } from '@/components/ui';
+<ToastContainer />
 
-### Queue
+// Trigger toasts from anywhere
+import { toast } from '@/stores';
+toast.success('Task created');
+toast.error('Failed to save', { duration: 10000 });
+toast.warning('Unsaved changes');
+toast.info('Processing...');
+toast.dismiss('toast-id');  // Dismiss specific toast
+toast.clear();              // Clear all toasts
+```
 
-| Queue | Display | Purpose |
-|-------|---------|---------|
-| `active` | Prominent in column | Current work |
-| `backlog` | Collapsed section, dashed borders | "Someday" items |
+**Toast types:** success (5s), error (8s), warning (5s), info (5s)
 
-Each column shows active tasks first, then a collapsible "Backlog" divider with count.
+### Breadcrumbs
 
-### Priority
+Route-based navigation breadcrumb trail. Only renders for `/environment/*` and `/preferences` routes.
 
-| Priority | Indicator | Sort Order |
-|----------|-----------|------------|
-| `critical` | Pulsing red icon | First |
-| `high` | Orange up arrow | Second |
-| `normal` | None shown | Third |
-| `low` | Gray down arrow | Fourth |
+```tsx
+import { Breadcrumbs } from '@/components/ui';
 
-Tasks are sorted within each column by: **running status first** (running tasks always appear at the top), then by priority. Priority badges only appear for non-normal priorities.
+// Typically placed in Header or page layout
+<Breadcrumbs />
+```
 
-### Category
+**Behavior:** Auto-generates from current route path, Category segments (claude, orchestrator) link to parent `/environment`, Last segment is non-clickable current page
 
-| Category | Badge Style | Description |
-|----------|-------------|-------------|
-| `feature` | Purple | New functionality (default) |
-| `bug` | Red | Bug fix |
-| `refactor` | Blue | Code restructuring |
-| `chore` | Gray | Maintenance tasks |
-| `docs` | Green | Documentation |
-| `test` | Orange | Test-related |
+## Layout Components
 
-Categories are displayed as badges on task cards and can be used for filtering. Set via CLI (`--category`) or web UI.
+Main layout components that wrap all pages.
 
-### Running Task Indicator
+### AppLayout
 
-Running tasks display a distinct visual indicator:
-- Thicker accent-colored border (2px)
-- Subtle gradient background
-- Pulsing glow animation (2s cycle)
+Root layout component combining Sidebar, Header, and page content area.
 
-This makes running tasks immediately visible in any column, distinguishing them from pending tasks.
+```tsx
+// Used in router configuration (routes.tsx)
+import { AppLayout } from '@/components/layout/AppLayout';
 
-### Live Transcript Modal
+const routes = [
+  {
+    element: <AppLayout />,
+    children: [/* page routes */]
+  }
+];
+```
 
-Clicking a running task opens `LiveTranscriptModal` - a modal overlay showing real-time Claude output:
-
-| Feature | Description |
-|---------|-------------|
-| Live streaming | Shows current response as it generates via WebSocket |
-| Connection status | Displays "Live", "Connecting", or "Disconnected" indicator |
-| Token tracking | Updates input/output/cached token counts in real-time |
-| Phase display | Shows current phase badge and task status |
-| Transcript history | Paginated list of completed transcript files |
-| Full view link | Button to open `/tasks/:id?tab=transcript` |
-| Auto-scroll | Scrolls to bottom as new content arrives |
-
-**WebSocket events handled:**
-- `transcript` - Streaming chunks and complete responses
-- `state` - Task state updates (phase, status)
-- `tokens` - Token usage updates
-- `phase` / `complete` - Triggers transcript reload
-
-**Triggering the modal:**
-- Click running task card on board or task list
-- Cards pass `onViewTranscript` callback to open modal
-
-### Finalize Modal
-
-The `FinalizeModal` (`overlays/FinalizeModal.svelte`) manages the finalize phase UI for completed tasks with approved PRs. It provides real-time progress tracking, result display, and retry capabilities.
-
-**Opening the modal:**
-- Click the finalize button on a completed task card in the Done column
-- Button only appears when task status is `completed`
-
-**Modal states:**
-
-| State | Display | Actions |
-|-------|---------|---------|
-| Not Started | Explanation + "Start Finalize" button | Start finalize |
-| Pending | Status badge, waiting message | - |
-| Running | Progress bar, step label, live updates | - |
-| Completed | Success message, result details | Close |
-| Failed | Error message, explanation | Retry |
-
-**Result display (on completion):**
-
-| Field | Description |
-|-------|-------------|
-| Merged Commit | 7-char abbreviated SHA |
-| Target Branch | Branch merged into (e.g., `main`) |
-| Files Changed | Number of modified files |
-| Conflicts Resolved | Count of merge conflicts handled |
-| Tests | Pass/fail status with color indicator |
-| Risk Level | Low (green) / Medium (yellow) / High (red) |
-
-**WebSocket integration:**
-- Subscribes to `finalize` events for real-time progress
-- Updates step label, progress message, and percentage
-- Shows connection status indicator (Live/Connecting/Disconnected)
-
-**API functions:**
-- `triggerFinalize(taskId)` - Start finalize operation
-- `getFinalizeStatus(taskId)` - Load current finalize state
-
-### TaskCard Finalize States
-
-TaskCard displays different visual states for finalize workflow:
-
-| Task Status | Visual Indicator | Actions |
-|-------------|------------------|---------|
-| `completed` | Success border, finalize button in actions | Click to open FinalizeModal |
-| `finalizing` | Info border (2px), pulsing animation, progress bar | View progress |
-| `finished` | Success border, merged commit info | View merge details |
-
-**Finalize button:**
-- Appears in card action area for `completed` tasks
-- Icon: two connected circles (merge symbol)
-- Shows spinner when loading
-- Disabled during finalizing
-
-**Progress indicator (finalizing state):**
-- Shows current step label
-- Progress bar with percentage
-- Animated border pulse (2s cycle)
-
-**Finished info:**
-- Green background section
-- Displays abbreviated commit SHA (7 chars)
-- Shows target branch name
-- Merge icon indicator
+**Structure:**
+- Handles global keyboard shortcuts
+- Manages modal states (shortcuts help, project switcher)
+- Provides responsive layout with sidebar margin
+- Uses React Router's `<Outlet>` for page content
 
 **CSS classes:**
-```css
-.task-card.finalizing {
-  border-color: var(--status-info);
-  border-width: 2px;
-  animation: finalize-pulse 2s ease-in-out infinite;
-}
+- `.app-layout` - Root container (flex)
+- `.app-layout.sidebar-expanded` - When sidebar is open (240px margin)
+- `.app-layout.sidebar-collapsed` - When sidebar is collapsed (60px margin)
+- `.app-main` - Main content wrapper
+- `.app-content` - Page content area (scrollable)
 
-.task-card.finished {
-  border-color: var(--status-success);
-  background: gradient with success tint;
-}
+### Sidebar
+
+Left navigation with collapsible sections and initiative filtering.
+
+```tsx
+import { Sidebar } from '@/components/layout/Sidebar';
+
+<Sidebar onNewInitiative={() => openNewInitiativeModal()} />
 ```
 
-### Task Dependency Sidebar
+| Prop | Type | Description |
+|------|------|-------------|
+| `onNewInitiative` | `() => void` | Optional callback for new initiative button |
 
-The task detail page includes a `DependencySidebar` component showing task relationships and dependencies.
-
-```
-┌─ Dependencies ────────────────────────────┐
-│                                           │
-│ Blocked by (2)              [+ Add]       │
-│ ┌─────────────────────────────────────┐   │
-│ │ ✓ TASK-060 Add initiative_id...     │   │  ← completed, green check
-│ │ ○ TASK-061 Add sidebar navigation   │   │  ← pending, gray circle
-│ └─────────────────────────────────────┘   │
-│                                           │
-│ Blocks (1)                                │
-│ ┌─────────────────────────────────────┐   │
-│ │ ○ TASK-065 Swimlane view toggle     │   │
-│ └─────────────────────────────────────┘   │
-│                                           │
-│ Related (1)                   [+ Add]     │
-│ ┌─────────────────────────────────────┐   │
-│ │ TASK-063 Initiative badge on cards  │   │
-│ └─────────────────────────────────────┘   │
-│                                           │
-│ Referenced in (2)                         │
-│ ┌─────────────────────────────────────┐   │
-│ │ TASK-072 Dependency documentation   │   │
-│ └─────────────────────────────────────┘   │
-│                                           │
-└───────────────────────────────────────────┘
-```
-
-| Section | Description | Editable |
-|---------|-------------|----------|
-| **Blocked by** | Tasks that must complete first | Yes (+ Add / Remove) |
-| **Blocks** | Tasks waiting on this task | No (computed inverse) |
-| **Related** | Informational task relationships | Yes (+ Add / Remove) |
-| **Referenced in** | Tasks mentioning this one in description | No (auto-detected) |
-
-**Status indicators:**
-- ✓ (green) - Completed task
-- ● (blue, pulsing) - Running task
-- ○ (gray) - Pending/planned task
+**Sections:**
+- **Work**: Dashboard, Tasks, Board navigation links
+- **Initiatives**: Collapsible list with progress counts, filters tasks
+- **Environment**: Claude Code and Orchestrator sub-groups with nested navigation
+- **Preferences**: Bottom-pinned settings link
 
 **Features:**
-- Collapsible header with task count badge
-- Blocked banner when task has unmet dependencies
-- Blocking info when task is blocking other tasks
-- Click dependency to navigate to that task
-- `+ Add` button opens `AddDependencyModal` for search/select
-- Remove buttons appear on hover for editable sections
-- Empty states for sections with no items
+- Expand/collapse toggle persisted in localStorage
+- Section/group expansion states persisted separately
+- Initiative list shows progress (completed/total) or status badge
+- Active route highlighting via NavLink
+- Keyboard shortcut hint (⇧⌥B to toggle)
 
-**API integration:**
-- Uses `getTaskDependencies(taskId)` to fetch dependency graph
-- Uses `addBlocker()`, `removeBlocker()`, `addRelated()`, `removeRelated()` for mutations
-- Notifies parent via `onTaskUpdated` callback after changes
+**CSS classes:**
+- `.sidebar` / `.sidebar.expanded` - Main container
+- `.nav-section` / `.nav-item` / `.nav-item.active` - Navigation structure
+- `.initiative-list` / `.initiative-item` - Initiative entries
+- `.nav-group` / `.group-header` - Environment sub-groups
 
-### Dependency Graph Visualization
+### Header
 
-The `DependencyGraph` component (`lib/components/DependencyGraph.svelte`) provides an interactive DAG (directed acyclic graph) visualization of task dependencies.
+Top bar with project selector, page title, and action buttons.
 
-```
-┌─ Dependency Graph ─────────────────────────────────────────────┐
-│ [Zoom +] [Zoom -] [Fit] [Export PNG]                           │
-│                                                                │
-│           ┌──────────┐                                         │
-│           │ TASK-060 │                                         │
-│           │ (done)   │                                         │
-│           └────┬─────┘                                         │
-│      ┌─────────┼─────────┬─────────┐                           │
-│      ▼         ▼         ▼         ▼                           │
-│ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐                    │
-│ │TASK-061│ │TASK-063│ │TASK-064│ │TASK-066│                    │
-│ │(ready) │ │(ready) │ │(ready) │ │(ready) │                    │
-│ └────┬───┘ └────────┘ └────────┘ └────────┘                    │
-│      ▼                                                         │
-│ ┌────────┐                                                     │
-│ │TASK-062│                                                     │
-│ │(blocked)│                                                    │
-│ └────────┘                                                     │
-│                                                                │
-│ Legend: ■ done  ○ ready  ⊘ blocked  ● running                  │
-└────────────────────────────────────────────────────────────────┘
+```tsx
+import { Header } from '@/components/layout/Header';
+
+<Header
+  onProjectClick={() => openProjectSwitcher()}
+  onNewTask={() => openNewTaskModal()}
+  onCommandPalette={() => openCommandPalette()}
+/>
 ```
 
-| Feature | Description |
-|---------|-------------|
-| Automatic layout | Topological sort positions tasks by dependency order (root tasks at top) |
-| Interactive pan/zoom | Mouse wheel zoom, drag to pan, "Fit" button auto-sizes |
-| Node colors | Status-based colors (green=done, blue=ready, red=blocked, etc.) |
-| Click navigation | Click node to navigate to task detail page |
-| Hover tooltips | Shows full task title and status on hover |
-| Export PNG | Download graph as PNG image |
-| Legend | Color key at bottom of graph |
+| Prop | Type | Description |
+|------|------|-------------|
+| `onProjectClick` | `() => void` | Project switcher trigger |
+| `onNewTask` | `() => void` | Optional new task button handler |
+| `onCommandPalette` | `() => void` | Command palette trigger |
 
-**Props:**
+**Features:**
+- Project name with folder icon and chevron
+- Auto-derived page title from current route
+- Commands button with keyboard shortcut hint (⇧⌥K)
+- New Task button (primary style)
+
+### ProjectSwitcher
+
+Modal overlay for switching between projects.
+
+```tsx
+import { ProjectSwitcher } from '@/components/overlays';
+
+<ProjectSwitcher
+  open={showProjectSwitcher}
+  onClose={() => setShowProjectSwitcher(false)}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `open` | `boolean` | Whether modal is visible |
+| `onClose` | `() => void` | Close handler |
+
+**Features:**
+- Search/filter projects by name or path
+- Keyboard navigation (↑/↓ arrows, Enter to select, Esc to close)
+- Shows current project with "Active" badge
+- Loading and error states
+- Portal-rendered to document.body
+
+**Keyboard shortcuts:** ⇧⌥P opens project switcher (handled by AppLayout)
+
+### DataProvider
+
+Centralized data loading and synchronization component.
+
+```tsx
+import { DataProvider } from '@/components/layout';
+
+// Placed inside WebSocketProvider, outside router
+<WebSocketProvider>
+  <DataProvider>
+    <BrowserRouter>
+      {/* ... */}
+    </BrowserRouter>
+  </DataProvider>
+</WebSocketProvider>
+```
+
+**Responsibilities:**
+- Loads projects, tasks, and initiatives on mount
+- Reloads tasks and initiatives when project changes
+- Handles browser back/forward navigation
+- Initializes stores from URL params
+
+**Data Flow:**
+1. On mount: Initialize stores from URL, load all projects
+2. On project change: Clear tasks/initiatives, load new data for selected project
+3. On popstate: Sync project and initiative stores with browser history
+
+**Integration with stores:**
+- Calls `projectStore.initializeFromUrl()` and `initiativeStore.initializeFromUrl()` on mount
+- Subscribes to `projectStore.currentProjectId` changes
+- Resets `taskStore` and `initiativeStore` before loading new project data
+
+## Dashboard Components
+
+Components for the Dashboard page (`/dashboard`).
+
+### Dashboard (Page)
+
+Main dashboard page component that orchestrates all dashboard sections.
+
+```tsx
+import { Dashboard } from '@/pages/Dashboard';
+
+// Used in route configuration
+<Route path="/dashboard" element={<Dashboard />} />
+```
+
+**Data flow:**
+- Fetches `DashboardStats` from `/api/dashboard/stats`
+- Fetches active initiatives from `/api/initiatives?status=active`
+- Derives active/recent tasks from `TaskStore`
+- Subscribes to WebSocket events for real-time updates
+
+**URL params:**
+- `project`: Project filter (handled by UrlParamSync)
+
+### DashboardStats
+
+Quick stats cards with live connection indicator.
+
+```tsx
+import { DashboardStats } from '@/components/dashboard';
+
+<DashboardStats
+  stats={stats}
+  wsStatus={wsStatus}
+  onFilterClick={(status) => navigate(`/?status=${status}`)}
+  onDependencyFilterClick={(status) => navigate(`/?dependency_status=${status}`)}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `stats` | `DashboardStats` | Stats object from API |
+| `wsStatus` | `ConnectionStatus` | WebSocket connection status |
+| `onFilterClick` | `(status: string) => void` | Handler for status card clicks |
+| `onDependencyFilterClick` | `(status: string) => void` | Optional handler for blocked card |
+
+**Stats displayed:**
+- **Running**: Tasks currently executing (clickable)
+- **Blocked**: Tasks waiting on dependencies (clickable)
+- **Today**: Tasks completed today (clickable)
+- **Tokens**: Total token usage with cached tokens breakdown (tooltip)
+
+**Connection indicator states:**
+- Connected: Green dot, "Live"
+- Connecting/Reconnecting: Yellow dot, pulsing
+- Disconnected: Gray dot, "Offline"
+
+### DashboardActiveTasks
+
+List of running/paused/blocked tasks with navigation.
+
+```tsx
+import { DashboardActiveTasks } from '@/components/dashboard';
+
+<DashboardActiveTasks tasks={activeTasks} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `tasks` | `Task[]` | Tasks with status: running, paused, or blocked |
+
+**Features:**
+- Click to navigate to task detail
+- Shows StatusIndicator, task ID, title, and current phase
+- Limited to 5 tasks
+- Hidden when no active tasks
+
+### DashboardQuickActions
+
+Action buttons for common operations.
+
+```tsx
+import { DashboardQuickActions } from '@/components/dashboard';
+
+<DashboardQuickActions
+  onNewTask={() => window.dispatchEvent(new CustomEvent('orc:new-task'))}
+  onViewTasks={() => navigate('/')}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onNewTask` | `() => void` | Handler for "New Task" button |
+| `onViewTasks` | `() => void` | Handler for "View All Tasks" button |
+
+### DashboardRecentActivity
+
+Timeline of recently completed/failed tasks.
+
+```tsx
+import { DashboardRecentActivity } from '@/components/dashboard';
+
+<DashboardRecentActivity tasks={recentTasks} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `tasks` | `Task[]` | Tasks with status: completed or failed, sorted by updated_at |
+
+**Features:**
+- Click to navigate to task detail
+- Shows StatusIndicator, task ID, title, and relative timestamp
+- Relative time format: "just now", "5m ago", "2h ago", "3d ago"
+- Limited to 5 most recent
+- Hidden when no recent tasks
+
+### DashboardInitiatives
+
+Active initiatives with progress bars.
+
+```tsx
+import { DashboardInitiatives } from '@/components/dashboard';
+
+<DashboardInitiatives initiatives={initiatives} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `initiatives` | `Initiative[]` | Active initiatives with embedded tasks |
+
+**Features:**
+- Click to filter board by initiative (`/board?initiative=XXX`)
+- Progress bar shows completed/total tasks
+- Progress color: green (75%+), yellow (25-74%), red (<25%)
+- Non-active initiatives show status badge instead of progress
+- Sorted by updated_at, limited to 5
+- "View All" link when >5 initiatives
+- Vision text shown in tooltip
+- Hidden when no initiatives
+
+### DashboardSummary
+
+Overall task counts at bottom of dashboard.
+
+```tsx
+import { DashboardSummary } from '@/components/dashboard';
+
+<DashboardSummary stats={stats} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `stats` | `DashboardStats` | Stats object from API |
+
+**Displays:**
+- Total Tasks (all tasks)
+- Completed (green)
+- Failed (red)
+
+### DashboardStats Type
+
+Stats returned by `/api/dashboard/stats`:
+
 ```typescript
-interface Props {
-  nodes: DependencyGraphNode[];  // Tasks with id, title, status
-  edges: DependencyGraphEdge[];  // { from, to } pairs
-  onNodeClick?: (nodeId: string) => void;  // Custom click handler (default: navigate)
+interface DashboardStats {
+  running: number;
+  paused: number;
+  blocked: number;
+  completed: number;
+  failed: number;
+  today: number;           // Completed today
+  total: number;
+  tokens: number;          // Total tokens used
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+  cost: number;            // Estimated cost
 }
 ```
 
-**Status colors:**
-| Status | Border/Text | Background |
-|--------|-------------|------------|
-| `done` | `--status-success` | `--status-success-bg` |
-| `running` | `--accent-primary` | `--accent-subtle` |
-| `blocked` | `--status-danger` | `--status-danger-bg` |
-| `ready` | `--status-info` | `--status-info-bg` |
-| `pending` | `--text-muted` | `--bg-tertiary` |
-| `paused` | `--status-warning` | `--status-warning-bg` |
-| `failed` | `--status-danger` | `--status-danger-bg` |
+## TaskList Page
 
-**Layout algorithm** (`lib/utils/graph-layout.ts`):
-- Uses Kahn's algorithm for topological sort
-- Groups tasks into horizontal layers by dependency depth
-- Centers layers horizontally within the viewport
-- Curved bezier edges for visual clarity
-- Handles cycles gracefully (places remaining nodes in current layer)
+The task list page (`/`) provides a filterable, searchable list view of all tasks with keyboard navigation.
 
-**Integration:**
-- Used in Initiative detail page ("Graph" tab) via `getInitiativeDependencyGraph(id)`
-- Can be used for arbitrary task sets via `getTasksDependencyGraph(taskIds)`
+### TaskList (Page)
 
-### TaskCard Quick Menu
+Main task list page component with comprehensive filtering and search.
 
-Right-click or use the "..." menu on TaskCard to:
-- Move to Active/Backlog queue
-- Set priority (Critical/High/Normal/Low)
-- Set category (Feature/Bug/Refactor/Chore/Docs/Test)
-- Run/Pause task actions
+```tsx
+import { TaskList } from '@/pages/TaskList';
 
-### Initiatives Sidebar Navigation
-
-The sidebar includes a collapsible Initiatives section following Linear-style UX patterns:
-
+// Used in route configuration
+<Route path="/" element={<TaskList />} />
 ```
-Work
-├── Dashboard
-├── Tasks
-├── Board
-└── Initiatives           ← Collapsible section
-    ├── ● All Tasks       (selected = shows all tasks)
-    ├── ○ Frontend Migration (3/7)
-    ├── ○ Auth Rework (1/4)
-    └── + New Initiative  (opens create modal)
-```
-
-| Feature | Description |
-|---------|-------------|
-| Selection indicator | Filled dot (●) for selected, empty dot (○) for others |
-| Progress display | Shows (completed/total) count from initiative tasks |
-| Sorting | Active initiatives first, then by recency |
-| Create button | '+ New Initiative' triggers `onNewInitiative` callback |
-| Filtering | Selection applies to both Board and Tasks pages |
-
-**Selection behavior:**
-- Click "All Tasks" to clear filter and show all tasks
-- Click an initiative to filter Board/Tasks to only those tasks
-- Selection persists in URL (`?initiative=INIT-001`) and localStorage
-
-**Store integration:**
-- Uses `$initiatives` for the list
-- Uses `$currentInitiativeId` for the selection (null = all tasks)
-- Uses `$initiativeProgress` for completion counts
-
-### Board View Mode Toggle
-
-The board supports two view modes selectable via a dropdown in the header:
-
-| Mode | Description |
-|------|-------------|
-| **Flat** (default) | Traditional kanban - all tasks in columns |
-| **By Initiative** | Swimlane view - tasks grouped by initiative |
-
-**Toggle control:** `ViewModeDropdown` in board header persists selection in localStorage (`orc-board-view-mode`).
-
-**Filter interaction:** When an initiative filter is active, swimlane view is disabled (the toggle becomes inactive) since filtering already shows a single initiative's tasks.
-
-### Swimlane View
-
-When "By Initiative" view is selected, tasks are grouped into horizontal swimlanes:
-
-```
-[By Initiative ▾]  Task Board (59 tasks)
-
-Frontend Migration (6/8)                                    67%
-┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
-│ Queued  │ Spec    │ Impl    │ Test    │ Review  │ Done    │
-│ task    │         │ task    │         │         │ task    │
-└─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
-
-Unassigned (12)                                             0%
-┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
-│ task    │         │ task    │         │         │ task    │
-└─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
-```
-
-| Feature | Description |
-|---------|-------------|
-| Swimlane header | Initiative title + progress (completed/total) + percentage bar |
-| Collapsible | Click header to collapse/expand; state persists in localStorage (`orc-collapsed-swimlanes`) |
-| Sort order | Active initiatives first (alphabetically), then other statuses, then "Unassigned" at bottom |
-| Empty swimlanes | Initiatives with no tasks are hidden |
-| Cross-swimlane drag-drop | Dragging task to different swimlane prompts initiative change confirmation |
-
-**Components:**
-- `ViewModeDropdown` (`filters/ViewModeDropdown.svelte`) - View mode selector
-- `Swimlane` (`kanban/Swimlane.svelte`) - Individual swimlane row with columns
-- `Board` (`kanban/Board.svelte`) - Renders flat or swimlane view based on `viewMode` prop
-
-**Initiative change via drag-drop:** When a task is dropped into a different initiative's swimlane, a confirmation modal appears asking to change the task's initiative. This provides a quick way to reassign tasks between initiatives.
-
-### Initiative Filter Dropdown
-
-The `InitiativeDropdown` component (`filters/InitiativeDropdown.svelte`) provides initiative filtering in the filter bars on both Tasks and Board pages:
-
-```
-[All | Active | Completed | Failed] [Search...] [Initiative ▾] [Weight ▾] [Sort ▾]
-```
-
-| Feature | Description |
-|---------|-------------|
-| All initiatives | Default option showing all tasks |
-| Unassigned | Shows only tasks with no initiative_id |
-| Initiative list | Sorted by status (active first), then by title |
-| Task count | Shows task count in parentheses: 'Frontend Migration (7)' |
-| Title truncation | Long titles truncated to 24 chars with ellipsis |
-
-**Dropdown options:**
-1. "All initiatives" - Clears filter, shows all tasks
-2. "Unassigned" - Shows only standalone tasks (no initiative_id)
-3. Initiative items - Each shows truncated title + task count
-
-**State sync:** The dropdown uses the same initiative store as the sidebar, so selections are synchronized. Selecting from either location updates both.
-
-**Special value:** The `UNASSIGNED_INITIATIVE` constant (`'__unassigned__'`) is used to filter tasks without an initiative_id. This is exported from the initiative store for use in filtering logic.
-
-**Filter bar placement:**
-- Tasks page: Between search input and weight filter
-- Board page: In header alongside "New Task" button
-
-### Initiative Detail Page
-
-The initiative detail page (`/initiatives/:id`) provides a dedicated view for managing individual initiatives including their tasks, dependency graph, and decisions.
-
-```
-← Back to Tasks
-
-Frontend Framework Migration                    [Edit] [Archive]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Vision: Migrate from Svelte 5 to React 19 for better ecosystem
-
-Progress  ████████████░░░░░░  12/18 tasks (67%)
-Owner: RM
-Status: Active
-Created: Jan 10, 2026
-
-┌─ Tasks ─────────────────────────────────────────────────────┐
-│ [+ Add Task]  [+ Link Existing Task]                        │
-│                                                             │
-│ ✓ TASK-060 Add initiative_id field...          completed   │
-│ ● TASK-061 Add sidebar navigation...           running     │
-│ ○ TASK-062 Add initiative filter...            planned     │
-└─────────────────────────────────────────────────────────────┘
-
-┌─ Decisions ─────────────────────────────────────────────────┐
-│ [+ Add Decision]                                            │
-│                                                             │
-│ DEC-001 (Jan 10): Use filter-based nav, not more columns   │
-│   Rationale: Columns are workflow stages, not groupings     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Tabs:**
-| Tab | Content |
-|-----|---------|
-| **Tasks** | Task list with status icons, add/link/remove tasks |
-| **Graph** | Interactive dependency graph visualization (see Dependency Graph Visualization section) |
-| **Decisions** | Decision list with date/author/rationale |
-
-| Section | Features |
-|---------|----------|
-| **Header** | Title, status badge, edit/archive buttons, vision statement, progress bar, owner, dates |
-| **Tasks tab** | Task list with status icons, add new task, link existing tasks, remove tasks |
-| **Graph tab** | Visual DAG showing task dependencies within the initiative (loads via `getInitiativeDependencyGraph`) |
-| **Decisions tab** | Decision list with date/author/rationale, add new decisions |
-
-**Header section:**
-- Initiative title with status badge (draft/active/completed/archived)
-- Edit button opens modal for title, vision, status changes
-- Archive button changes status to archived (with confirmation)
-- Progress bar shows completed/total task count with percentage
-- Owner display (if set) and creation date
-
-**Tasks tab:**
-- List shows task ID, title, and status with colored icon indicators
-- Click task to navigate to task detail page
-- "Add Task" button opens new task modal with initiative pre-selected
-- "Link Existing" button opens search modal to add existing tasks
-- Remove button (X) unlinks task from initiative (doesn't delete task)
-
-**Graph tab:**
-- Interactive dependency graph using `DependencyGraph` component
-- Shows tasks with `blocked_by` relationships as a visual DAG
-- Click nodes to navigate to task detail
-- Zoom/pan controls, export to PNG
-- Loads data via `getInitiativeDependencyGraph(id)` API
-
-**Decisions tab:**
-- Each decision shows ID, date, optional author, decision text, and rationale
-- "Add Decision" opens modal with decision text, rationale, and author fields
-- Decisions provide context for AI when working on initiative tasks
-
-**Status indicators:**
-| Icon | Status | Color |
-|------|--------|-------|
-| ✓ (check-circle) | completed | Green (success) |
-| ✓✓ (check-circle-2) | finished | Green (success), bold |
-| ● (play-circle) | running | Blue (info) |
-| ⟳ (refresh-cw) | finalizing | Blue (info), animated |
-| ○ (circle) | planned/created | Gray (muted) |
-| ⚠ (alert-circle) | blocked | Yellow (warning) |
-| ✗ (x-circle) | failed | Red (danger) |
-| ⏸ (pause-circle) | paused | Yellow (warning) |
-
-**API integration:**
-- `getInitiative(id)` - Load initiative with tasks and decisions
-- `updateInitiative(id, data)` - Update title, vision, status
-- `addInitiativeTask(id, { task_id })` - Link existing task
-- `removeInitiativeTask(id, taskId)` - Unlink task from initiative
-- `addInitiativeDecision(id, { decision, rationale?, by? })` - Add decision
-
-**Store integration:**
-- `updateInitiativeInStore()` - Sync changes to initiative store after edits
-
-## Attachments
-
-Task attachments (images, files) can be added during task creation or after via the Attachments tab.
-
-### Task Creation
-
-`NewTaskModal` supports attaching files during task creation:
-- Drag-and-drop zone or file picker
-- Image thumbnails for preview
-- Supports images, PDF, text, markdown, JSON, and log files
-- Files included in multipart form submission
-
-### Task Detail (Attachments Tab)
-
-`Attachments` component on task detail page:
-- Drag-and-drop upload with visual feedback
-- Image gallery with thumbnails and lightbox viewer
-- File list with metadata (size, date)
-- Supports delete with confirmation
-
-API functions: `listAttachments()`, `uploadAttachment()`, `getAttachmentUrl()`, `deleteAttachment()`
-
-## Token Usage Display
-
-Token usage is displayed in multiple locations with cached token support:
-
-| Location | Component | Display |
-|----------|-----------|---------|
-| Dashboard stats | `DashboardStats` | Total tokens with cached count in label and tooltip |
-| Task detail (Timeline tab) | Stats grid | Input/Output/Cached/Total breakdown |
-| Transcript | `Transcript` | Per-iteration tokens with cache info in tooltip |
-
-**Cached tokens:** When `cache_creation_input_tokens` or `cache_read_input_tokens` are present, UI shows:
-- Combined cached total in parentheses (e.g., "245K tokens (120K cached)")
-- Tooltip with breakdown: cache creation vs cache read
-- Cached stat card styled in success color (green)
-
-**Data flow:** WebSocket `tokens` events update `taskState.tokens` in real-time. Components derive display values from the `TokenUsage` interface.
-
-## Review Workflow
-
-"Changes" tab combines diff + inline review:
-1. View diff (split/unified toggle)
-2. Click line number → comment form
-3. Set severity (Suggestion/Issue/Blocker)
-4. "Send to Agent" → triggers retry with context
-
-See `QUICKREF.md` for component hierarchy.
-
-## Statusline Configuration
-
-The statusline page (`/environment/claude/statusline`) provides a user-friendly interface for configuring Claude Code's terminal statusline.
-
-### Configuration Modes
-
-| Mode | Purpose |
-|------|---------|
-| Simple | User-friendly UI with checkboxes and presets |
-| Advanced | Raw shell command or script path input |
-
-### Simple Mode Features
-
-| Feature | Description |
-|---------|-------------|
-| Presets | Quick configuration templates (Minimal, Standard, Developer, Plain) |
-| Components | Toggle username, hostname, directory, git branch, Python venv |
-| Colors | Enable/disable ANSI color codes in output |
-| Custom text | Add prefix/suffix to the statusline |
-| Live preview | Shows sample statusline output as you configure |
-
-**Presets:**
-- **Minimal**: Directory + git branch only
-- **Standard**: All components enabled with colors
-- **Developer**: Venv + git branch + directory
-- **Plain**: All components without colors
-
-### Advanced Mode
-
-Enter raw shell commands or script paths directly. The statusline receives JSON context on stdin with model info, workspace, and token usage.
-
-### Scope Toggle
-
-| Scope | Path | Purpose |
-|-------|------|---------|
-| Global | `~/.claude/settings.json` | Applies to all projects |
-| Project | `.claude/settings.json` | Project-specific override |
-
-**API:** Use `updateSettings(settings, 'global')` to save globally, or `updateSettings(settings)` for project scope.
-
-### Generated Script Format
-
-Simple mode generates shell scripts with:
-- Bash builtins for performance (`$PWD`, `$USER`, `$HOSTNAME`)
-- ANSI escape codes for colors when enabled
-- Git branch detection with proper quoting
-- Python virtual environment display
-- Shell injection prevention via escaping
-
-## Plugins Page
-
-The plugins page (`/environment/claude/plugins`) manages Claude Code plugins with two tabs:
-
-| Tab | Purpose |
-|-----|---------|
-| Installed | Manage local plugins in `.claude/plugins/` |
-| Marketplace | Browse and install plugins from the marketplace |
 
 **Features:**
-- Scope filter (All/Global/Project) for installed plugins
-- Enable/disable toggle per plugin
-- Update indicator when newer versions available
-- Plugin detail panel showing commands, hooks, MCP servers
-- Marketplace search and browsing with pagination
-- Install to project or global scope
+- Status tabs (All/Active/Completed/Failed) with counts
+- Search with 300ms debounce
+- Filter by initiative, dependency status, weight
+- Sort by recent/oldest/status
+- Keyboard navigation (j/k/Enter/r/p/d)
+- Initiative filter banner when filtered
+- New task button
 
-**Marketplace fallback:** When the official Claude Code plugin marketplace is unavailable, the UI displays sample plugins with a message explaining how to manually install plugins via CLI (`claude plugin add <github-repo>`).
+**URL params:**
+- `project`: Project filter (handled by UrlParamSync)
+- `initiative`: Initiative filter (synced via store)
+- `dependency_status`: Dependency status filter
 
-**API functions:** `listPlugins()`, `enablePlugin()`, `disablePlugin()`, `browseMarketplace()`, `searchMarketplace()`, `installPlugin()`, `checkPluginUpdates()`, `updatePlugin()`
+**Keyboard shortcuts (context: 'tasks'):**
 
-## Preferences Page
+| Key | Action |
+|-----|--------|
+| `j` | Select next task |
+| `k` | Select previous task |
+| `Enter` | Open selected task |
+| `r` | Run selected task |
+| `p` | Pause selected task |
+| `d` | Delete selected task (with confirmation) |
+| `/` | Focus search input |
+| `?` | Show keyboard help |
 
-The preferences page (`/preferences`) provides a unified interface for editing both global and project Claude Code settings.
+**Status Filters:**
+- **All**: All tasks
+- **Active**: Tasks not in terminal status (running, paused, blocked, planned, created)
+- **Completed**: Tasks with status completed or finished
+- **Failed**: Tasks with status failed
 
-### Settings Tabs
+**Sorting:**
+- **Recent**: By updated_at descending (default)
+- **Oldest**: By updated_at ascending
+- **Status**: By status order (running → paused → blocked → planned → created → finalizing → completed → finished → failed)
 
-| Tab | Scope | Path |
-|-----|-------|------|
-| Global | All projects | `~/.claude/settings.json` |
-| Project | Current project | `.claude/settings.json` |
+## Filter Components
 
-### Editable Settings
+Reusable filter dropdowns for task filtering.
 
-| Setting | Description |
-|---------|-------------|
-| Environment Variables | Key-value pairs passed to Claude Code |
-| StatusLine Type | Type of statusline command |
-| StatusLine Command | Shell command for terminal statusline |
+### DependencyDropdown
 
-**Note:** Both global and project settings are fully editable through the UI. Changes are saved directly to the respective `settings.json` files.
+Dropdown to filter tasks by dependency status.
 
-### CLAUDE.md Display
+```tsx
+import { DependencyDropdown } from '@/components/filters';
 
-The preferences page also displays CLAUDE.md file hierarchy (read-only display):
-- Global: `~/.claude/CLAUDE.md`
-- User: `~/CLAUDE.md`
-- Project: `./CLAUDE.md`
+<DependencyDropdown tasks={tasks} />
+```
 
-Edit CLAUDE.md files via `/environment/docs` route.
+| Prop | Type | Description |
+|------|------|-------------|
+| `tasks` | `Task[]` | Tasks to count (for badge numbers) |
 
-## Orchestrator Settings Page
+**Filter Options:**
+- **All tasks**: No filter (shows all)
+- **Ready**: Tasks with `dependency_status: 'ready'`
+- **Blocked**: Tasks with `dependency_status: 'blocked'`
+- **No dependencies**: Tasks with `dependency_status: 'none'`
 
-The automation page (`/environment/orchestrator/automation`) provides a complete interface for configuring orc behavior.
+**Features:**
+- Task count badges for each option
+- Active filter visual indication
+- Click outside to close
+- Escape key closes dropdown
+- Syncs with `dependencyStore`
 
-### Editable Settings
+**CSS classes:**
+- `.dependency-dropdown` - Container
+- `.dropdown-trigger` / `.dropdown-trigger.active` - Button
+- `.dropdown-menu` / `.dropdown-item` - Menu
 
-| Section | Settings |
-|---------|----------|
-| **Profile** | auto, fast, safe, strict |
-| **Automation** | Gates default (auto/human/ai), retry enabled, max retries |
-| **Execution** | Model, max iterations, timeout |
-| **Git** | Branch prefix, commit prefix |
-| **Worktree** | Enabled, directory, cleanup on complete/fail |
-| **Completion** | Action (pr/merge/none), target branch, delete branch |
-| **Timeouts** | Phase max, turn max, idle warning, heartbeat interval, idle timeout |
+## Routing
 
-**Note:** All orc configuration is editable through the UI. Changes are saved to `.orc/config.yaml`.
+### Route Configuration
 
-**API functions:** `getConfig()`, `updateConfig()`
+All routes are defined in `src/router/routes.tsx` using React Router's `RouteObject` array pattern.
 
-## Routes
+| Route | Component | URL Params |
+|-------|-----------|------------|
+| `/` | `TaskList` | `?project`, `?initiative`, `?dependency_status` |
+| `/board` | `Board` | `?project`, `?initiative`, `?dependency_status` |
+| `/dashboard` | `Dashboard` | `?project` |
+| `/tasks/:id` | `TaskDetail` | `?tab` |
+| `/initiatives/:id` | `InitiativeDetail` | - |
+| `/preferences` | `Preferences` | - |
+| `/environment/*` | `EnvironmentLayout` | - |
 
-| Route | Page |
-|-------|------|
-| `/` | Dashboard |
-| `/board` | Kanban board |
-| `/tasks` | Task list |
-| `/tasks/:id` | Task detail (Timeline/Changes/Transcript/Test Results/Attachments/Comments tabs) |
-| `/initiatives/:id` | Initiative detail (Tasks/Decisions sections, edit capabilities) |
-| `/config` | Redirects to `/environment/orchestrator/automation` |
-| `/environment` | Environment hub (Claude Code + Orchestrator config) |
-| `/environment/docs` | CLAUDE.md editor (`?scope=global\|user\|project`) |
-| `/environment/claude/skills` | Skills (`?scope=global`) |
-| `/environment/claude/hooks` | Hooks (`?scope=global`) |
-| `/environment/claude/agents` | Agents (`?scope=global`) |
-| `/environment/claude/mcp` | MCP servers (`?scope=global`) |
-| `/environment/claude/plugins` | Plugin management & marketplace |
-| `/environment/claude/statusline` | Statusline configuration (`?scope=global`) |
-| `/environment/orchestrator/automation` | Orc automation settings |
-| `/environment/orchestrator/prompts` | Phase prompt overrides |
-| `/environment/orchestrator/scripts` | Script registry |
-| `/environment/orchestrator/export` | Export configuration |
-| `/preferences` | User preferences (global + project settings)
+**Environment sub-routes:**
+- `/environment/settings`
+- `/environment/prompts`
+- `/environment/scripts`
+- `/environment/hooks`
+- `/environment/skills`
+- `/environment/mcp`
+- `/environment/config`
+- `/environment/claudemd`
+- `/environment/tools`
+- `/environment/agents`
 
-## API Client
+### Layout Structure
 
-See `QUICKREF.md` for full function list.
+```
+main.tsx
+└── StrictMode
+    └── BrowserRouter
+        └── App.tsx
+            └── ShortcutProvider
+                └── WebSocketProvider
+                    └── DataProvider (loads projects, tasks, initiatives)
+                        └── useRoutes(routes)
+                            └── AppLayout
+                                ├── UrlParamSync (invisible, handles URL <-> store sync)
+                                ├── Sidebar
+                                ├── Header
+                                └── Outlet (page content)
+```
 
-```typescript
-// Common patterns
-await listTasks(projectId?)
-await runTask(taskId, projectId?)
-await updateTask(taskId, { title?, description?, weight?, metadata? })
-await createReviewComment(taskId, { file_path, line_number, content, severity })
+### URL Parameter Handling
+
+The `UrlParamSync` component provides bidirectional sync between URL params and Zustand stores:
+
+**URL -> Store (on navigation/back/forward):**
+- Reads `?project` and `?initiative` from URL
+- Updates `projectStore.selectProject()` and `initiativeStore.selectInitiative()`
+
+**Store -> URL (on programmatic changes):**
+- Listens to store state changes
+- Updates URL via `setSearchParams()` with `replace: true`
+- Uses ref flags (`isSyncingFromUrl`, `isSyncingFromStore`) to prevent infinite loops
+
+**Route-specific params:**
+- `project`: Available on all routes
+- `initiative`: Only synced on `/` and `/board`
+- `dependency_status`: Read directly in components (not store-synced)
+
+### Usage in Components
+
+```tsx
+import { useSearchParams, useParams } from 'react-router-dom';
+import { useCurrentProjectId, useCurrentInitiativeId } from '@/stores';
+
+function TaskList() {
+  // Store state (synced from URL automatically)
+  const projectId = useCurrentProjectId();
+  const initiativeId = useCurrentInitiativeId();
+
+  // Direct URL param access (for non-store params)
+  const [searchParams] = useSearchParams();
+  const dependencyStatus = searchParams.get('dependency_status');
+
+  // Route params
+  const { id } = useParams();  // For /tasks/:id
+}
+```
+
+### Navigation
+
+```tsx
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+
+// Declarative links
+<Link to="/board">Board</Link>
+<NavLink to="/board" className={({ isActive }) => isActive ? 'active' : ''}>
+  Board
+</NavLink>
+
+// Programmatic navigation
+const navigate = useNavigate();
+navigate('/tasks/TASK-001');
+navigate('/board?project=abc&initiative=xyz');
 ```
 
 ## Testing
 
 ### Unit Tests (Vitest)
+
 ```bash
-bun run test
-bun run test:coverage
+npm run test          # Run once
+npm run test:watch    # Watch mode
+npm run test:coverage # With coverage
 ```
+
+Test files use `*.test.tsx` convention. Setup in `src/test-setup.ts` includes:
+- `@testing-library/react` for component testing
+- `@testing-library/jest-dom` for DOM matchers
+- jsdom environment
 
 ### E2E Tests (Playwright)
 
-**⚠️ CRITICAL: E2E Test Sandbox Isolation**
+E2E tests in `e2e/` use framework-agnostic selectors:
+- `getByRole()` for semantic elements
+- `getByText()` for headings/labels
+- `.locator()` with class names for structural elements
 
-E2E tests run against an **ISOLATED SANDBOX PROJECT** in `/tmp`, NOT the real orc project. This is essential because tests perform real actions (drag-drop, clicks, API calls) that modify task statuses.
-
-**NEVER run E2E tests against production data** - it will corrupt real task states.
-
-**How it works:**
-1. `global-setup.ts` creates a temporary project in `/tmp/orc-e2e-sandbox-{timestamp}`
-2. Initializes orc and creates test tasks/initiatives
-3. Tests select the sandbox project via localStorage
-4. `global-teardown.ts` removes the sandbox from registry and filesystem
-
-**Test files must import from `./fixtures`** to get automatic sandbox selection:
-```typescript
-// ✅ Correct - uses sandbox fixtures
-import { test, expect } from './fixtures';
-
-// ❌ Wrong - bypasses sandbox, may corrupt production data
-import { test, expect } from '@playwright/test';
-```
-
-**Run E2E tests:**
 ```bash
-bunx playwright test
-bunx playwright test --ui
-bunx playwright test --grep board  # Run board tests only
+npm run e2e              # All functional tests (excludes visual)
+npm run e2e:visual       # Visual regression tests only
+npm run e2e:update       # Update visual baselines
+npm run e2e:report       # Open HTML report
 ```
 
-### Visual Regression Tests
+**Configuration:** `playwright.config.ts` targets the React app on `:5173`.
 
-Visual regression tests capture baseline screenshots for all major pages and UI states, enabling detection of unintended visual changes during development or migration.
+### Integration Tests
 
-**Run visual tests:**
+Integration tests in `src/integration/` verify WebSocket event handling and store synchronization.
+
 ```bash
-bunx playwright test --project=visual                    # Compare against baselines
-bunx playwright test --project=visual --update-snapshots # Capture new baselines
+npm run test -- src/integration/  # Run integration tests
 ```
 
-**Configuration (see `playwright.config.ts`):**
-- Viewport: 1440x900 @2x (retina quality)
-- Single browser: Chromium only for consistency
-- Snapshot tolerance: 1000 pixels max diff, 20% color threshold
+**Test coverage (`websocket-integration.test.tsx`):**
 
-**Test file:** `e2e/visual.spec.ts`
+| Category | Events Tested |
+|----------|---------------|
+| Task Events | `task_created`, `task_updated`, `task_deleted`, `state`, `complete` |
+| Initiative Events | `initiative_created`, `initiative_updated`, `initiative_deleted` |
+| Finalize Events | `finalize` (running, completed, failed statuses) |
+| Phase Events | `phase` transitions |
 
-| Category | Screenshots | States Captured |
-|----------|-------------|-----------------|
-| Dashboard (3) | `dashboard/populated.png`, `dashboard/empty.png`, `dashboard/loading.png` | Full data, empty state, skeleton loading |
-| Board Flat (2) | `board/flat/populated.png`, `board/flat/with-running.png` | Tasks in columns, running task pulse |
-| Board Swimlane (2) | `board/swimlane/populated.png`, `board/swimlane/collapsed.png` | Multiple swimlanes, collapsed state |
-| Task Detail (5) | `task-detail/timeline/*.png`, `task-detail/changes/*.png`, `task-detail/transcript/*.png` | Running/completed timeline, split/unified diff, transcript content |
-| Modals (4) | `modals/new-task/*.png`, `modals/command-palette/open.png`, `modals/keyboard-shortcuts.png` | Empty/filled forms, palette, shortcuts help |
+**Test approach:**
+- Mock WebSocket to capture event handlers
+- Mock API calls to provide test data
+- Simulate WebSocket events via `simulateWsEvent()` helper
+- Assert store state after events
 
-**Techniques for deterministic screenshots:**
-- CSS animations disabled via injected stylesheet
-- Dynamic content masked (timestamps, token counts, PIDs)
-- Mock API responses for consistent data
-- Retry logic for flaky dropdown interactions
-
-**Baselines stored in:** `e2e/__snapshots__/visual.spec.ts-snapshots/`
-
-**Test files:**
-
-| File | Coverage |
-|------|----------|
-| `e2e/visual.spec.ts` | Visual regression baselines for all pages (16 screenshots) |
-| `e2e/board.spec.ts` | Board page: rendering, view modes, drag-drop, swimlanes (18 tests) |
-| `e2e/filters.spec.ts` | Filter dropdowns, search, URL/localStorage persistence (16 tests) |
-| `e2e/initiatives.spec.ts` | Initiative CRUD, detail page, task linking, decisions, dependency graph (20 tests) |
-| `e2e/task-detail.spec.ts` | Task detail tabs: navigation, timeline, changes, transcript, attachments (15 tests) |
-| `e2e/tasks.spec.ts` | Task list, task detail, CRUD operations |
-| `e2e/navigation.spec.ts` | Routing, navigation, back button |
-| `e2e/sidebar.spec.ts` | Sidebar navigation, collapse state |
-| `e2e/dashboard.spec.ts` | Dashboard stats, quick actions |
-| `e2e/keyboard-shortcuts.spec.ts` | Global shortcuts (Shift+Alt+K/N/B/P, ?), navigation sequences (g+d/t/e), task list context (j/k, Enter, /) (13 tests) |
-| `e2e/hooks.spec.ts` | Hook configuration UI |
-| `e2e/prompts.spec.ts` | Prompt editor UI |
-| `e2e/websocket.spec.ts` | WebSocket real-time updates, connection handling (17 tests) |
-| `e2e/finalize.spec.ts` | Finalize workflow: UI states, modal interaction, progress updates, success/failure handling (10 tests) |
-
-### Framework-Agnostic E2E Testing
-
-E2E tests use framework-agnostic selectors to support future React migration:
-
-| Priority | Method | Example | Use Case |
-|----------|--------|---------|----------|
-| 1 | `getByRole()` | `getByRole('region', { name: 'Queued column' })` | Semantic elements |
-| 2 | `getByText()` | `getByText('Task Board')` | Headings, labels |
-| 3 | `.locator()` with class | `locator('.task-card')` | Structural elements |
-| 4 | ARIA attributes | `locator('[aria-label="..."]')` | Accessible elements |
-
-**Avoid:**
-- CSS class fragments (`.svelte-abc123`, `.react-xyz`)
-- Implementation-specific attributes
-- Deep DOM path selectors
-
-**Helper functions** (see `board.spec.ts`, `filters.spec.ts`):
-- `waitForBoardLoad(page)` - Wait for board to render
-- `waitForTasksPageLoad(page)` - Wait for tasks page to load
-- `clearBoardStorage(page)` - Reset localStorage for board tests
-- `clearFilterStorage(page)` - Reset localStorage for filter tests
-- `switchToSwimlaneView(page)` - Toggle view mode
-- `openInitiativeDropdown(page)` - Open initiative dropdown with retry
-- `openDependencyDropdown(page)` - Open dependency dropdown with retry
-
-**Flakiness prevention:**
-- Use `waitForSelector()` with reasonable timeouts
-- Clear localStorage before persistence tests
-- Use `.catch(() => false)` for optional element checks
-- Add small waits after animations (`waitForTimeout(100)`)
-
-### WebSocket E2E Testing
-
-The `websocket.spec.ts` file provides comprehensive E2E tests for WebSocket real-time updates, using Playwright's WebSocket route interception to inject events without mocking.
-
-**Test Categories (17 tests total):**
-
-| Category | Tests | Coverage |
-|----------|-------|----------|
-| Task Lifecycle (5) | Status changes, phase moves, create/delete events, progress indicators | `state`, `task_created`, `task_deleted`, `phase` events |
-| Live Transcript (4) | Modal open, streaming content, connection status, token updates | `transcript`, `tokens` events |
-| Connection Handling (3) | Auto-reconnect, reconnecting status, resume after reconnect | WebSocket disconnect/reconnect cycle |
-| Legacy (5) | Connection status display, page reload, transcript/timeline tabs | Regression coverage |
-
-**WebSocket Event Injection Pattern:**
-
-```typescript
-// Set up WebSocket interception with event injection
-let wsSendToPage: ((data: string) => void) | null = null;
-
-await page.routeWebSocket(/\/api\/ws/, async (ws) => {
-  const server = await ws.connectToServer();
-  wsSendToPage = (data: string) => ws.send(data);  // Capture send function
-
-  ws.onMessage((message) => server.send(message));
-  server.onMessage((message) => ws.send(message));
+**Key test patterns:**
+```tsx
+// Simulate WebSocket event
+await act(async () => {
+  simulateWsEvent('task_created', 'TASK-002', newTask);
 });
 
-// Inject events to test UI response
-if (wsSendToPage) {
-  const event = createWSEvent('state', taskId, { status: 'running' });
-  wsSendToPage(JSON.stringify(event));
+// Verify store update
+const tasks = useTaskStore.getState().tasks;
+expect(tasks.find(t => t.id === 'TASK-002')).toBeDefined();
+```
+
+## API Integration
+
+The app connects to the orc API server via Vite proxy:
+
+```typescript
+// Example: Health check
+fetch('/api/health')
+  .then(res => res.json())
+  .then(data => console.log(data.status));
+```
+
+All `/api/*` requests proxy to `localhost:8080`. WebSocket connections also proxy through the same path.
+
+## Patterns
+
+### Component Structure
+
+```tsx
+// Functional components with hooks
+function TaskCard({ task }: { task: Task }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="task-card">
+      {/* ... */}
+    </div>
+  );
 }
 ```
 
-**Event Types Tested:**
-- `state` - Task status and phase changes
-- `transcript` - Streaming content chunks
-- `tokens` - Token usage updates (input/output/cached)
-- `phase` - Phase transitions (started/completed/failed)
-- `task_created` / `task_updated` / `task_deleted` - File watcher events
+### State Management (Zustand)
 
-**Key Testing Helpers:**
-- `createWSEvent(event, taskId, data)` - Create properly structured WebSocket event message
-- `waitForBoardLoad(page)` - Wait for board to render with tasks
-- `findTask(page, preferRunning)` - Find a task card, optionally preferring running tasks
+Five Zustand stores mirror the Svelte store behavior. All use `subscribeWithSelector` middleware for efficient derived state.
 
-**Why This Approach:**
-- Uses real WebSocket connections (not mocked) for true E2E testing
-- Tests actual UI updates in response to events
-- Framework-agnostic - works with any frontend (Svelte, React, etc.)
-- Playwright's `routeWebSocket` allows event injection without modifying production code
+#### Store Overview
 
-### Filter and URL Persistence E2E Testing
+| Store | State | Persistence | Purpose |
+|-------|-------|-------------|---------|
+| `useTaskStore` | tasks, taskStates | None (API-driven) | Task data and execution state |
+| `useProjectStore` | projects, currentProjectId | URL + localStorage | Project selection |
+| `useInitiativeStore` | initiatives, currentInitiativeId | URL + localStorage | Initiative filter |
+| `useDependencyStore` | currentDependencyStatus | URL + localStorage | Dependency status filter |
+| `useUIStore` | sidebarExpanded, wsStatus, toasts | localStorage (sidebar) | UI state |
 
-The `filters.spec.ts` file tests filter functionality and state persistence (16 tests):
+**URL/localStorage priority:** URL param > localStorage > default
 
-**Test Categories:**
+#### TaskStore
 
-| Category | Tests | Coverage |
-|----------|-------|----------|
-| Initiative Filter (7) | Dropdown visibility, task filtering, Unassigned option, URL/localStorage persistence, sidebar sync | Initiative dropdown on tasks/board pages |
-| Dependency Filter (4) | Dropdown visibility, blocked/ready filtering, combination with initiative filter | Dependency status dropdown |
-| Search (3) | Text filtering, clear functionality, debounce behavior | Search input |
-| URL State Persistence (2) | Restore on refresh, browser back/forward | Filter state in URL params |
+Primary state for task data and execution states.
 
-**State Persistence Testing:**
+| State | Type | Description |
+|-------|------|-------------|
+| `tasks` | `Task[]` | Main task array |
+| `taskStates` | `Map<string, TaskState>` | Execution state by task ID |
+| `loading` | `boolean` | Loading indicator |
+| `error` | `string \| null` | Error message |
 
-```typescript
-// URL persistence - filter appears in URL params
-await expect(page).toHaveURL(/initiative=__unassigned__/);
-await expect(page).toHaveURL(/dependency_status=ready/);
+| Derived | Hook | Description |
+|---------|------|-------------|
+| Active tasks | `useActiveTasks()` | Tasks with status: running, blocked, paused |
+| Recent tasks | `useRecentTasks()` | Last 10 completed/failed/finished, sorted by updated_at |
+| Running tasks | `useRunningTasks()` | Tasks with status: running |
+| Status counts | `useStatusCounts()` | Counts: all, active, completed, failed, running, blocked |
+| Single task | `useTask(id)` | Get task by ID |
+| Task state | `useTaskState(id)` | Get execution state by ID |
 
-// localStorage persistence - check stored value
-const storedId = await page.evaluate(() =>
-  localStorage.getItem('orc_current_initiative_id')
-);
-expect(storedId).toBe('__unassigned__');
+| Action | Purpose |
+|--------|---------|
+| `setTasks(tasks)` | Replace all tasks |
+| `addTask(task)` | Add task (prevents duplicates) |
+| `updateTask(id, updates)` | Partial update |
+| `updateTaskStatus(id, status, phase?)` | Update status and optionally current_phase |
+| `removeTask(id)` | Remove task and its state |
+| `updateTaskState(id, state)` | Set execution state (syncs status to task) |
+| `removeTaskState(id)` | Remove execution state |
+| `getTask(id)` | Get task directly |
+| `getTaskState(id)` | Get state directly |
 
-// Browser history - back/forward navigates filter state
-await page.goBack();
-expect(page.url()).not.toContain('initiative=');
-await page.goForward();
-expect(page.url()).toContain('initiative=');
+#### ProjectStore
+
+Project selection with URL and localStorage sync.
+
+| State | Type | Description |
+|-------|------|-------------|
+| `projects` | `Project[]` | Available projects |
+| `currentProjectId` | `string \| null` | Selected project |
+| `_isHandlingPopState` | `boolean` | Internal flag for history handling |
+
+| Hook | Description |
+|------|-------------|
+| `useProjects()` | All projects |
+| `useCurrentProject()` | Current project object |
+| `useCurrentProjectId()` | Current project ID |
+
+| Action | Purpose |
+|--------|---------|
+| `setProjects(projects)` | Set projects (auto-selects first if current invalid) |
+| `selectProject(id)` | Select project (updates URL and localStorage) |
+| `handlePopState(event)` | Handle browser back/forward |
+| `initializeFromUrl()` | Initialize from URL on mount |
+
+#### InitiativeStore
+
+Initiative filter with URL sync. Stores initiatives in a Map for O(1) lookup.
+
+| State | Type | Description |
+|-------|------|-------------|
+| `initiatives` | `Map<string, Initiative>` | Initiatives by ID |
+| `currentInitiativeId` | `string \| null` | Filter selection (null = all) |
+| `hasLoaded` | `boolean` | Tracks initial load |
+
+| Hook | Description |
+|------|-------------|
+| `useInitiatives()` | All initiatives as array |
+| `useCurrentInitiative()` | Current initiative object |
+| `useCurrentInitiativeId()` | Current filter ID |
+
+| Action | Purpose |
+|--------|---------|
+| `setInitiatives(list)` | Set initiatives (clears filter if selected no longer exists) |
+| `addInitiative(initiative)` | Add single initiative |
+| `updateInitiative(id, updates)` | Partial update |
+| `removeInitiative(id)` | Remove (clears filter if selected) |
+| `selectInitiative(id)` | Set filter |
+| `getInitiative(id)` | Get by ID |
+| `getInitiativeTitle(id)` | Get title (falls back to ID) |
+| `getInitiativeProgress(tasks)` | Calculate completed/total per initiative |
+
+**Helper functions:**
+- `truncateInitiativeTitle(title, maxLength)` - Truncate for badges
+- `getInitiativeBadgeTitle(id, maxLength)` - Get display and full title for tooltip
+
+#### UIStore
+
+UI state including sidebar, WebSocket status, and toast notifications.
+
+| State | Type | Description |
+|-------|------|-------------|
+| `sidebarExpanded` | `boolean` | Sidebar state (persisted) |
+| `wsStatus` | `ConnectionStatus` | WebSocket connection status |
+| `toasts` | `Toast[]` | Active toast queue |
+
+| Hook | Description |
+|------|-------------|
+| `useSidebarExpanded()` | Sidebar expanded state |
+| `useWsStatus()` | WebSocket status |
+| `useToasts()` | Toast array |
+
+| Action | Purpose |
+|--------|---------|
+| `toggleSidebar()` | Toggle and persist |
+| `setSidebarExpanded(bool)` | Set and persist |
+| `setWsStatus(status)` | Update WebSocket status |
+| `addToast(toast)` | Add toast (returns ID) |
+| `dismissToast(id)` | Remove toast |
+| `clearToasts()` | Remove all |
+
+**Toast default durations:** success/warning/info: 5s, error: 8s
+
+#### DependencyStore
+
+Dependency status filter with URL and localStorage sync.
+
+| State | Type | Description |
+|-------|------|-------------|
+| `currentDependencyStatus` | `DependencyStatusFilter` | Current filter ('all', 'blocked', 'ready', 'none') |
+| `_isHandlingPopState` | `boolean` | Internal flag for history handling |
+
+| Hook | Description |
+|------|-------------|
+| `useCurrentDependencyStatus()` | Current filter selection |
+
+| Action | Purpose |
+|--------|---------|
+| `selectDependencyStatus(status)` | Set filter (null or 'all' clears filter) |
+| `handlePopState(event)` | Handle browser back/forward |
+| `initializeFromUrl()` | Initialize from URL on mount |
+
+**Type exports:**
+- `DependencyStatusFilter` - 'all' | 'blocked' | 'ready' | 'none'
+- `DEPENDENCY_OPTIONS` - Array of { value, label } for dropdown options
+
+**URL param:** `?dependency_status=blocked|ready|none`
+
+**localStorage key:** `orc_dependency_status_filter`
+
+#### Usage Examples
+
+```tsx
+import {
+  useTaskStore,
+  useProjectStore,
+  useInitiativeStore,
+  useDependencyStore,
+  useUIStore,
+  useCurrentDependencyStatus,
+  DEPENDENCY_OPTIONS,
+  toast,
+} from '@/stores';
+
+// Direct state access
+const tasks = useTaskStore((state) => state.tasks);
+
+// Derived state via selector hooks
+import { useActiveTasks, useStatusCounts } from '@/stores';
+const activeTasks = useActiveTasks();
+const counts = useStatusCounts();
+
+// Dependency filter
+const dependencyStatus = useCurrentDependencyStatus();
+useDependencyStore.getState().selectDependencyStatus('blocked');
+
+// Actions (can be called outside components)
+useTaskStore.getState().updateTask('TASK-001', { status: 'running' });
+useProjectStore.getState().selectProject('proj-001');
+
+// Toast notifications (works outside React components)
+toast.success('Task created');
+toast.error('Failed to load', { duration: 10000 });
+toast.dismiss('toast-id');
+toast.clear();
 ```
 
-**Flaky Dropdown Handling:**
+**Special values:**
+- `UNASSIGNED_INITIATIVE = '__unassigned__'` - Filter for tasks without an initiative
+- `DEPENDENCY_OPTIONS` - Array of { value, label } for dependency filter dropdown
 
-Dropdowns can be flaky in E2E tests (clicks not registering). Use retry pattern:
+#### Key Implementation Patterns
 
-```typescript
-async function openInitiativeDropdown(page: Page) {
-  const dropdown = page.locator('.initiative-dropdown');
-  const trigger = dropdown.locator('.dropdown-trigger');
-  const menu = dropdown.locator('.dropdown-menu[role="listbox"]');
+1. **URL sync middleware:** Project and Initiative stores use custom URL sync with `isHandlingPopState` flag to prevent recursive updates during browser navigation
 
-  // Retry loop for flaky dropdown clicks
-  for (let attempt = 0; attempt < 5; attempt++) {
-    await trigger.click();
-    await page.waitForTimeout(200);
-    if (await menu.isVisible().catch(() => false)) break;
-    await page.waitForTimeout(100);
-  }
+2. **localStorage sync:** All persisted stores subscribe to state changes and sync to localStorage automatically
 
-  await expect(menu).toBeVisible({ timeout: 5000 });
-  return { dropdown, trigger, menu };
+3. **Derived state as getters:** Computed values (activeTasks, statusCounts) are methods on the store rather than stored state, ensuring fresh calculations
+
+4. **Map vs Array:** InitiativeStore uses `Map<string, Initiative>` for O(1) lookups; `getInitiativesList()` converts to array when needed
+
+### WebSocket Hooks
+
+Real-time task updates via WebSocket connection to the orc API.
+
+#### WebSocketProvider
+
+Wraps the app to provide WebSocket functionality. Must be a parent of any component using WebSocket hooks.
+
+```tsx
+import { WebSocketProvider } from '@/hooks';
+
+function App() {
+  return (
+    <WebSocketProvider autoConnect={true} autoSubscribeGlobal={true}>
+      <YourApp />
+    </WebSocketProvider>
+  );
 }
 ```
 
-**Test Isolation:**
+| Prop | Default | Description |
+|------|---------|-------------|
+| `autoConnect` | `true` | Connect on mount |
+| `autoSubscribeGlobal` | `true` | Subscribe to all task events |
+| `baseUrl` | `window.location.host` | Custom WebSocket host |
+
+#### useWebSocket
+
+Access WebSocket functionality from any component.
+
+```tsx
+import { useWebSocket } from '@/hooks';
+
+function TaskControls({ taskId }: { taskId: string }) {
+  const { status, command, subscribe, on } = useWebSocket();
+
+  // Send commands
+  const handlePause = () => command(taskId, 'pause');
+  const handleResume = () => command(taskId, 'resume');
+
+  // Subscribe to events
+  useEffect(() => {
+    const unsub = on('state', (event) => {
+      if ('event' in event && event.task_id === taskId) {
+        console.log('State update:', event.data);
+      }
+    });
+    return unsub;
+  }, [taskId, on]);
+
+  return <div>Status: {status}</div>;
+}
+```
+
+| Return | Type | Description |
+|--------|------|-------------|
+| `status` | `ConnectionStatus` | 'connecting' \| 'connected' \| 'disconnected' \| 'reconnecting' |
+| `subscribe(taskId)` | `void` | Subscribe to task events |
+| `unsubscribe()` | `void` | Unsubscribe from current task |
+| `subscribeGlobal()` | `void` | Subscribe to all task events |
+| `on(eventType, callback)` | `() => void` | Add event listener, returns cleanup |
+| `command(taskId, action)` | `void` | Send pause/resume/cancel command |
+| `isConnected()` | `boolean` | Check connection state |
+| `getTaskId()` | `string \| null` | Current subscribed task |
+
+#### useTaskSubscription
+
+Subscribe to a specific task for streaming updates.
+
+```tsx
+import { useTaskSubscription } from '@/hooks';
+
+function TaskTranscript({ taskId }: { taskId: string }) {
+  const { state, transcript, isSubscribed, connectionStatus, clearTranscript } =
+    useTaskSubscription(taskId);
+
+  return (
+    <div>
+      <div>Phase: {state?.current_phase}</div>
+      <div>
+        {transcript.map((line, i) => (
+          <div key={i}>{line.content}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+| Return | Type | Description |
+|--------|------|-------------|
+| `state` | `TaskState \| undefined` | Current execution state |
+| `transcript` | `TranscriptLine[]` | Streaming transcript lines |
+| `isSubscribed` | `boolean` | Whether actively subscribed |
+| `connectionStatus` | `ConnectionStatus` | WebSocket connection status |
+| `clearTranscript()` | `void` | Clear transcript array |
+
+#### useConnectionStatus
+
+Simple hook for connection status only.
+
+```tsx
+import { useConnectionStatus } from '@/hooks';
+
+function ConnectionIndicator() {
+  const status = useConnectionStatus();
+  return <span className={`indicator ${status}`} />;
+}
+```
+
+#### Event Types
+
+| Event | Data | Description |
+|-------|------|-------------|
+| `state` | `TaskState` | Task execution state update |
+| `transcript` | `TranscriptLine` | New transcript line |
+| `phase` | `{ phase, status }` | Phase transition |
+| `tokens` | `TokenUsage` | Token usage update |
+| `complete` | `{ status, phase? }` | Task completed |
+| `finalize` | `{ step, status, progress? }` | Finalize phase update |
+| `task_created` | `Task` | New task created (file watcher) |
+| `task_updated` | `Task` | Task modified (file watcher) |
+| `task_deleted` | `null` | Task deleted (file watcher) |
+| `initiative_created` | `Initiative` | New initiative created (file watcher) |
+| `initiative_updated` | `Initiative` | Initiative modified (file watcher) |
+| `initiative_deleted` | `null` | Initiative deleted (file watcher) |
+| `error` | `{ message }` | Error from server |
+
+#### Connection Behavior
+
+- **Auto-connect:** Connects on mount, subscribes to global events
+- **Auto-reconnect:** Exponential backoff (1s, 2s, 4s...), max 5 attempts
+- **Ping/pong:** 30s heartbeat to keep connection alive
+- **Primary subscription:** Global subscription restored after reconnect
+- **Store integration:** Events automatically update TaskStore, InitiativeStore, and UIStore
+
+#### OrcWebSocket Class (Internal)
+
+The hooks wrap `OrcWebSocket` from `@/lib/websocket`. For most cases, use the hooks. Direct class usage is only needed for advanced scenarios outside React.
 
 ```typescript
-// Clear filter-related localStorage before tests
-async function clearFilterStorage(page: Page) {
-  await page.evaluate(() => {
-    localStorage.removeItem('orc_current_initiative_id');
-    localStorage.removeItem('orc_dependency_status_filter');
+import { OrcWebSocket, GLOBAL_TASK_ID } from '@/lib/websocket';
+
+const ws = new OrcWebSocket();
+ws.connect(GLOBAL_TASK_ID);  // Connect and subscribe to all events
+ws.on('state', (event) => console.log(event));
+ws.pause('TASK-001');  // Send pause command
+ws.disconnect();  // Cleanup
+```
+
+### Lib Utilities
+
+| File | Purpose |
+|------|---------|
+| `lib/types.ts` | TypeScript interfaces matching Go backend types |
+| `lib/websocket.ts` | OrcWebSocket class for WebSocket connection management |
+| `lib/shortcuts.ts` | ShortcutManager class for keyboard shortcuts |
+| `lib/platform.ts` | Platform detection (isMac) and modifier key formatting |
+
+### Keyboard Shortcuts
+
+The keyboard shortcut system uses context and hooks pattern.
+
+#### ShortcutProvider
+
+Wraps the app at root level in `App.tsx`:
+
+```tsx
+<ShortcutProvider>
+  <WebSocketProvider>{children}</WebSocketProvider>
+</ShortcutProvider>
+```
+
+#### Hooks
+
+| Hook | Purpose |
+|------|---------|
+| `useShortcuts()` | Access shortcut manager methods |
+| `useShortcutContext(context)` | Set active context for a component |
+| `useGlobalShortcuts(options)` | Register global shortcuts with navigation |
+| `useTaskListShortcuts(options)` | Register task list shortcuts (j/k navigation) |
+
+#### Global Shortcuts (Shift+Alt modifier)
+
+| Shortcut | Action |
+|----------|--------|
+| `Shift+Alt+K` | Open command palette |
+| `Shift+Alt+N` | Create new task |
+| `Shift+Alt+B` | Toggle sidebar |
+| `Shift+Alt+P` | Switch project |
+| `/` | Focus search |
+| `?` | Show keyboard help |
+| `Escape` | Close modal |
+
+#### Navigation Sequences
+
+| Sequence | Destination |
+|----------|-------------|
+| `g d` | Dashboard |
+| `g t` | Tasks |
+| `g e` | Environment |
+| `g r` | Preferences |
+| `g p` | Prompts |
+| `g h` | Hooks |
+| `g k` | Skills |
+
+#### Task List Shortcuts (context: 'tasks')
+
+| Key | Action |
+|-----|--------|
+| `j` | Select next task |
+| `k` | Select previous task |
+| `Enter` | Open selected task |
+| `r` | Run selected task |
+| `p` | Pause selected task |
+| `d` | Delete selected task |
+
+#### Implementation Notes
+
+- Uses `Shift+Alt` modifier instead of `Cmd/Ctrl` to avoid browser conflicts
+- Multi-key sequences have 1000ms timeout window
+- Shortcuts disabled in input/textarea fields (except Escape)
+- Context system filters shortcuts by active context
+
+#### Usage Example
+
+```tsx
+// In a component
+import { useGlobalShortcuts, useTaskListShortcuts } from '@/hooks';
+
+function TaskList() {
+  useTaskListShortcuts({
+    onNavDown: () => setSelectedIndex(i => i + 1),
+    onNavUp: () => setSelectedIndex(i => Math.max(0, i - 1)),
+    onOpen: () => navigate(`/tasks/${selectedTask.id}`),
+    onRun: () => runTask(selectedTask.id),
   });
+
+  // ...
 }
 ```
 
-### Finalize Workflow E2E Testing
+## Board Components
 
-The `finalize.spec.ts` file provides E2E tests for the finalize phase workflow (10 tests):
+Components for the Kanban board page (`/board`).
 
-**Test Categories:**
+### Board (Page)
 
-| Category | Tests | Coverage |
-|----------|-------|----------|
-| Finalize UI (5) | Button visibility, modal opening, modal content, progress bar, card state | Button on completed tasks, FinalizeModal states |
-| Finalize Results (5) | Success state, commit SHA, target branch, failure/retry, finished card state | Result display, error handling |
+Page component that orchestrates the board display with data loading, filtering, and action handling.
 
-**WebSocket Event Injection:**
+```tsx
+import { Board } from '@/pages/Board';
 
-Tests use the same WebSocket interception pattern as `websocket.spec.ts`:
-
-```typescript
-// Set up interception and get send function
-const ws = await setupWSInterception(page);
-
-// Simulate task completion
-const taskUpdatedEvent = createWSEvent('task_updated', taskId, {
-  task: { id: taskId, status: 'completed' }
-});
-ws.send(JSON.stringify(taskUpdatedEvent));
-
-// Simulate finalize progress
-const finalizeEvent = createWSEvent('finalize', taskId, {
-  task_id: taskId,
-  status: 'running',
-  step: 'Syncing branch...',
-  step_percent: 25
-});
-ws.send(JSON.stringify(finalizeEvent));
+// Used in route configuration
+<Route path="/board" element={<Board />} />
 ```
 
-**Finalize Event Types:**
+**Features:**
+- View mode persistence (localStorage)
+- Initiative filtering (URL + store sync)
+- Task actions (run/pause/resume/escalate)
+- Drag-drop handling for status/initiative changes
+- Loading/error/empty states
 
-| Status | Description | UI Update |
-|--------|-------------|-----------|
-| `running` | Finalize in progress | Progress bar, step label |
-| `completed` | Finalize successful | Success section, result details |
-| `failed` | Finalize failed | Error message, retry button |
+**URL params:**
+- `project`: Project filter (handled by UrlParamSync)
+- `initiative`: Initiative filter
+- `dependency_status`: Filter by blocked/ready
 
-**Result Object Structure:**
+### Board (Component)
 
+Main board component with flat and swimlane view modes.
+
+```tsx
+import { Board, BOARD_COLUMNS, type BoardViewMode } from '@/components/board';
+
+<Board
+  tasks={tasks}
+  viewMode="flat"               // or "swimlane"
+  initiatives={initiatives}
+  onAction={handleAction}       // run/pause/resume
+  onEscalate={handleEscalate}   // escalation with reason
+  onTaskClick={handleTaskClick} // for running tasks modal
+  onFinalizeClick={handleFinalize}
+  onInitiativeClick={handleInitiativeClick}
+  onInitiativeChange={handleInitiativeChange} // drag-drop initiative change
+  getFinalizeState={getFinalizeState}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `tasks` | `Task[]` | Tasks to display |
+| `viewMode` | `'flat' \| 'swimlane'` | View mode (default: flat) |
+| `initiatives` | `Initiative[]` | For swimlane grouping |
+| `onAction` | `(id, action) => Promise` | Run/pause/resume handler |
+| `onEscalate` | `(id, reason) => Promise` | Escalation handler (optional) |
+| `onTaskClick` | `(task) => void` | Task click handler |
+| `onFinalizeClick` | `(task) => void` | Finalize button handler |
+| `onInitiativeClick` | `(id) => void` | Initiative badge click |
+| `onInitiativeChange` | `(taskId, initId) => Promise` | Initiative change via drag |
+| `getFinalizeState` | `(id) => FinalizeState` | Get finalize state for task |
+
+**Column Configuration (`BOARD_COLUMNS`):**
+
+| Column ID | Title | Phases |
+|-----------|-------|--------|
+| `queued` | Queued | (none - uses status) |
+| `spec` | Spec | research, spec, design |
+| `implement` | Implement | implement |
+| `test` | Test | test |
+| `review` | Review | docs, validate, review |
+| `done` | Done | (terminal statuses) |
+
+**View Modes:**
+- **Flat**: Traditional kanban columns side by side
+- **Swimlane**: Horizontal rows grouped by initiative with collapsible headers
+
+**Task Sorting:** Running tasks first, then by priority (critical > high > normal > low)
+
+### Column
+
+Standard board column with header and task cards.
+
+```tsx
+import { Column, type ColumnConfig } from '@/components/board';
+
+<Column
+  column={{ id: 'implement', title: 'Implement', phases: ['implement'] }}
+  tasks={tasks}
+  onDrop={handleDrop}
+  onAction={handleAction}
+  onTaskClick={handleTaskClick}
+/>
+```
+
+**Features:**
+- Column-specific accent colors
+- Drag-over visual feedback (counter-based for nested elements)
+- Empty state when no tasks
+
+**Column Styles:**
+
+| Column | Accent Color |
+|--------|--------------|
+| queued | muted gray |
+| spec | blue |
+| implement | purple (accent) |
+| test | cyan |
+| review | warning yellow |
+| done | success green |
+
+### QueuedColumn
+
+Special column for queued tasks with active/backlog sections.
+
+```tsx
+import { QueuedColumn } from '@/components/board';
+
+<QueuedColumn
+  column={column}
+  activeTasks={activeTasks}    // queue !== 'backlog'
+  backlogTasks={backlogTasks}  // queue === 'backlog'
+  showBacklog={showBacklog}
+  onToggleBacklog={toggleBacklog}
+  onDrop={handleDrop}
+  onAction={handleAction}
+/>
+```
+
+**Features:**
+- Active section always visible
+- Backlog section collapsible with toggle button
+- Backlog count badge
+- State persisted to localStorage (`orc-show-backlog`)
+
+### Swimlane
+
+Initiative row for swimlane view with all columns.
+
+```tsx
+import { Swimlane } from '@/components/board';
+
+<Swimlane
+  initiative={initiative}       // null for unassigned
+  tasks={tasks}
+  columns={BOARD_COLUMNS}
+  tasksByColumn={tasksByColumn}
+  collapsed={isCollapsed}
+  onToggleCollapse={toggle}
+  onDrop={handleSwimlaneDrop}   // receives targetInitiativeId
+  onAction={handleAction}
+/>
+```
+
+**Features:**
+- Collapsible header with chevron icon
+- Progress bar (completed/total tasks)
+- Progress percentage display
+- Keyboard accessible toggle (Enter/Space)
+- Unassigned swimlane for tasks without initiative
+
+### TaskCard
+
+Task card for kanban board with full feature set.
+
+```tsx
+import { TaskCard } from '@/components/board';
+
+<TaskCard
+  task={task}
+  onAction={handleAction}
+  onTaskClick={handleTaskClick}     // Opens transcript modal for running
+  onFinalizeClick={handleFinalize}  // Opens finalize modal
+  onInitiativeClick={handleInitiativeClick}
+  finalizeState={finalizeState}
+/>
+```
+
+**Display Elements:**
+- Task ID and priority badge (critical/high/low icons)
+- Status indicator (colored orb with animation)
+- Title and description preview
+- Current phase (when running)
+- Weight badge with color coding
+- Blocked badge (when is_blocked)
+- Initiative badge (clickable, truncated with tooltip)
+- Relative timestamp
+
+**Action Buttons (contextual):**
+- **Run** (play icon): created/planned status
+- **Pause** (pause icon): running status
+- **Resume** (play icon): paused status
+- **Finalize** (merge icon): completed status
+- **Quick menu** (three dots): queue/priority changes
+
+**Visual States:**
+- **Running**: Pulsing border animation
+- **Finalizing**: Progress bar with step label
+- **Finished**: Merge info (commit SHA + target branch)
+- **Dragging**: Reduced opacity
+
+**Quick Menu:**
+- Queue selection (Active/Backlog)
+- Priority selection (Critical/High/Normal/Low)
+- Updates via API and store
+
+**Drag-Drop:**
+- Native HTML5 drag-drop
+- Sets `application/json` data with task object
+- Visual feedback on drag start/end
+
+### ViewModeDropdown
+
+Dropdown to toggle between flat and swimlane views.
+
+```tsx
+import { ViewModeDropdown } from '@/components/board';
+
+<ViewModeDropdown
+  value={viewMode}
+  onChange={setViewMode}
+  disabled={initiativeFilterActive}  // Swimlane disabled when filtered
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `value` | `'flat' \| 'swimlane'` | Current view mode |
+| `onChange` | `(mode) => void` | Change handler |
+| `disabled` | `boolean` | Disable dropdown |
+
+**Options:**
+- **Flat**: All tasks in columns
+- **By Initiative**: Grouped by initiative (swimlane)
+
+### InitiativeDropdown
+
+Dropdown to filter tasks by initiative.
+
+```tsx
+import { InitiativeDropdown } from '@/components/board';
+
+<InitiativeDropdown
+  currentInitiativeId={currentInitiativeId}
+  onSelect={setInitiativeFilter}
+  tasks={tasks}  // For task counts
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `currentInitiativeId` | `string \| null` | Current filter |
+| `onSelect` | `(id) => void` | Selection handler |
+| `tasks` | `Task[]` | For calculating task counts |
+
+**Options:**
+- **All initiatives**: No filter (null)
+- **Unassigned**: Tasks without initiative (UNASSIGNED_INITIATIVE constant)
+- **Initiative list**: Sorted (active first, then alphabetical) with task counts
+
+**Features:**
+- Task counts per initiative
+- Title truncation with tooltip
+- Active filter visual indication
+- Click outside to close
+
+## Task Detail Components
+
+Components for the Task Detail page (`/tasks/:id`).
+
+### TaskDetail (Page)
+
+Main page component that orchestrates task display with all tabs and real-time updates.
+
+```tsx
+import { TaskDetail } from '@/pages/TaskDetail';
+
+// Used in route configuration
+<Route path="/tasks/:id" element={<TaskDetail />} />
+```
+
+**Features:**
+- Loads task, plan, and state data on mount
+- Tab navigation with URL persistence (`?tab=xxx`)
+- Real-time WebSocket subscription for running tasks
+- Collapsible dependencies sidebar
+- Task actions (run/pause/resume/delete)
+
+**URL params:**
+- `id`: Task ID (route param)
+- `tab`: Active tab (timeline, changes, transcript, test-results, attachments, comments)
+
+**Data flow:**
+- Fetches task data via `/api/tasks/:id`
+- Fetches plan via `/api/tasks/:id/plan`
+- Subscribes to task via `useTaskSubscription(id)`
+- Updates store from WebSocket events
+
+### TaskHeader
+
+Header component with task metadata, status, and action buttons.
+
+```tsx
+import { TaskHeader } from '@/components/task-detail';
+
+<TaskHeader
+  task={task}
+  taskState={taskState}
+  plan={plan}
+  onRun={handleRun}
+  onPause={handlePause}
+  onResume={handleResume}
+  onDelete={handleDelete}
+  onEdit={() => setShowEditModal(true)}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `task` | `Task` | Task data |
+| `taskState` | `TaskState \| undefined` | Execution state |
+| `plan` | `Plan \| undefined` | Phase plan |
+| `onRun` | `() => void` | Run task handler |
+| `onPause` | `() => void` | Pause handler |
+| `onResume` | `() => void` | Resume handler |
+| `onDelete` | `() => void` | Delete handler |
+| `onEdit` | `() => void` | Open edit modal |
+
+**Display elements:**
+- Back navigation link
+- Task ID and status indicator
+- Weight badge with color coding
+- Category and priority badges
+- Initiative badge (if assigned)
+- Branch name display
+- Phase progress (e.g., "3/6")
+
+**Action buttons (contextual):**
+- **Run**: For created/planned tasks
+- **Pause**: For running tasks
+- **Resume**: For paused tasks
+- **Edit**: Opens TaskEditModal
+- **Delete**: With confirmation dialog
+
+### TabNav
+
+Tab navigation component with 6 tabs.
+
+```tsx
+import { TabNav, type TabId } from '@/components/task-detail';
+
+<TabNav
+  activeTab={activeTab}
+  onTabChange={handleTabChange}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `activeTab` | `TabId` | Current active tab |
+| `onTabChange` | `(tab: TabId) => void` | Tab change handler |
+
+**Tab configuration:**
+
+| Tab ID | Label | Icon |
+|--------|-------|------|
+| `timeline` | Timeline | clock |
+| `changes` | Changes | branch |
+| `transcript` | Transcript | file-text |
+| `test-results` | Test Results | check-circle |
+| `attachments` | Attachments | folder |
+| `comments` | Comments | message-circle |
+
+### DependencySidebar
+
+Collapsible sidebar showing task dependencies.
+
+```tsx
+import { DependencySidebar } from '@/components/task-detail';
+
+<DependencySidebar
+  task={task}
+  collapsed={sidebarCollapsed}
+  onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+  onUpdate={handleTaskUpdate}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `task` | `Task` | Task with dependency fields |
+| `collapsed` | `boolean` | Collapsed state |
+| `onToggle` | `() => void` | Toggle handler |
+| `onUpdate` | `(task: Task) => void` | Update callback |
+
+**Sections:**
+- **Blocked By**: Tasks blocking this one (removable via API)
+- **Blocks**: Tasks this one blocks (computed, read-only)
+- **Related To**: Related tasks (removable)
+- **Referenced By**: Tasks mentioning this one (computed, read-only)
+
+**Features:**
+- Expand/collapse toggle with chevron icon
+- Add blocker/related task via modal
+- Remove with single click
+- Status indicators for each dependency
+- Click to navigate to dependency
+
+### TimelineTab
+
+Phase execution timeline with token usage stats.
+
+```tsx
+import { TimelineTab } from '@/components/task-detail';
+
+<TimelineTab
+  task={task}
+  taskState={taskState}
+  plan={plan}
+/>
+```
+
+**Features:**
+- Horizontal phase flow visualization
+- Phase status icons (pending/running/completed/failed/skipped)
+- Phase connector lines
+- Duration display per phase
+- Iteration/retry counts
+- Error messages for failed phases
+- Commit SHA links for completed phases
+
+**Token Stats Panel:**
+- Total input/output tokens
+- Cache creation/read tokens
+- Cache hit rate percentage
+- Per-phase token breakdown
+
+**Task Info Section:**
+- Weight classification
+- Status with timestamp
+- Created/started/completed dates
+
+### ChangesTab
+
+Git diff viewer with inline review comments.
+
+```tsx
+import { ChangesTab } from '@/components/task-detail';
+
+<ChangesTab taskId={taskId} />
+```
+
+**Features:**
+- Split/unified view mode toggle
+- File list with expand/collapse all
+- Lazy-loaded file hunks (fetch on expand)
+- Diff statistics (additions, deletions)
+- Line numbers with syntax context
+- Review comments at specific lines
+- Comment severity levels (blocker, issue, suggestion)
+- "Send to Agent" for retry with feedback
+- General comments section
+
+**Sub-components:**
+- `DiffFile` - File container with expand/collapse
+- `DiffHunk` - Code hunk with context lines
+- `DiffLine` - Individual line with optional comments
+- `DiffStats` - Addition/deletion counts
+- `InlineCommentThread` - Comments on specific lines
+
+### TranscriptTab
+
+Transcript viewer with pagination and streaming support.
+
+```tsx
+import { TranscriptTab } from '@/components/task-detail';
+
+<TranscriptTab taskId={taskId} isRunning={isRunning} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `taskId` | `string` | Task ID |
+| `isRunning` | `boolean` | Show streaming content |
+
+**Features:**
+- Paginated transcript list (10 per page)
+- Expand/collapse individual transcripts
+- Auto-expand on initial load
+- Section types: prompt, retry-context, response, metadata
+- Token counts per turn (input, output, cached)
+- Status badges (complete, blocked)
+- Live streaming content for running tasks
+- Export to markdown
+- Copy to clipboard
+- Auto-scroll toggle
+- Relative time formatting
+
+**Parsed transcript structure:**
 ```typescript
-interface FinalizeResult {
-  synced: boolean;
-  conflicts_resolved: number;
-  conflict_files?: string[];
-  tests_passed: boolean;
-  risk_level: string;  // 'low' | 'medium' | 'high'
-  files_changed: number;
-  lines_changed: number;
-  needs_review: boolean;
-  commit_sha?: string;
-  target_branch: string;
+interface ParsedTranscript {
+  phase: string;
+  iteration: number;
+  sections: ParsedSection[];
+  metadata: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheCreationTokens: number;
+    cacheReadTokens: number;
+    complete: boolean;
+    blocked: boolean;
+  };
 }
 ```
 
-**Timing Constants:**
+### TestResultsTab
 
-```typescript
-const WS_EVENT_PROPAGATION_MS = 500;   // WebSocket → store → DOM
-const WS_PROGRESS_PROPAGATION_MS = 300; // Progress update delays
-const UI_SETTLE_MS = 200;               // Animation/transition delays
+Test results display with screenshots and report links.
+
+```tsx
+import { TestResultsTab } from '@/components/task-detail';
+
+<TestResultsTab taskId={taskId} />
 ```
 
-## Deep-Dive Reference
+**Features:**
+- Summary metrics: passed, failed, skipped, total
+- Pass rate bar with color coding (green/yellow/red)
+- Code coverage breakdown (lines, branches, functions)
+- Screenshot gallery with lightbox modal
+- Test suites with individual test results
+- Quick links to HTML report and trace files
+- Lazy-loaded images
 
-See `QUICKREF.md` for:
-- Virtual scrolling pattern
-- Kanban board phase mapping
-- WebSocket subscription helpers
-- Task store actions
-- API client functions
-- Utility functions
-- Component gotchas
+**Tab navigation within component:**
+- **Summary**: Overview metrics and coverage
+- **Screenshots**: Gallery view with lightbox
+- **Test Suites**: Detailed test breakdown
+
+### AttachmentsTab
+
+File attachments with upload and gallery view.
+
+```tsx
+import { AttachmentsTab } from '@/components/task-detail';
+
+<AttachmentsTab taskId={taskId} />
+```
+
+**Features:**
+- Drag-and-drop file upload
+- Multi-file upload support
+- Image gallery with lightbox
+- File list with metadata (size, date)
+- File type detection (image vs document)
+- Delete with confirmation
+- Lazy-loaded images
+- Upload progress feedback
+- Error handling with toast notifications
+
+**State management:**
+- `dragOver` - Visual feedback during drag
+- `uploading` - Upload progress state
+- `lightboxImage` - Current lightbox image
+
+### CommentsTab
+
+Task discussion with author classification.
+
+```tsx
+import { CommentsTab } from '@/components/task-detail';
+
+<CommentsTab taskId={taskId} />
+```
+
+**Features:**
+- Author type classification: human, agent, system
+- Phase-scoped comments (optional)
+- Custom author names
+- Edit/delete functionality
+- Filter by author type
+- Comment counts per type
+- Relative time formatting
+- Edit mode with cancel/save
+- Keyboard shortcuts: Cmd/Ctrl+Enter to submit, Escape to cancel
+
+**Comment form:**
+- Author type selector dropdown
+- Optional phase association
+- Custom author name field
+- Textarea with auto-focus
+
+### TaskEditModal
+
+Modal form for editing task metadata.
+
+```tsx
+import { TaskEditModal } from '@/components/task-detail';
+
+<TaskEditModal
+  task={task}
+  open={showEditModal}
+  onClose={() => setShowEditModal(false)}
+  onSave={handleSave}
+/>
+```
+
+**Editable fields:**
+- Title
+- Description
+- Weight (trivial, small, medium, large, greenfield)
+- Priority (critical, high, normal, low)
+- Category (feature, bug, refactor, chore, docs, test)
+- Queue (active, backlog)
+- Initiative (dropdown with search)
+
+### ExportDropdown
+
+Export options for task data.
+
+```tsx
+import { ExportDropdown } from '@/components/task-detail';
+
+<ExportDropdown
+  taskId={taskId}
+  onExport={handleExport}
+/>
+```
+
+**Export formats:**
+- JSON (task data)
+- Markdown (formatted report)
+- Transcript (raw transcript files)
+
+### Diff Sub-components
+
+Located in `components/task-detail/diff/`:
+
+| Component | Purpose |
+|-----------|---------|
+| `DiffStats.tsx` | File statistics (additions, deletions, file count) |
+| `DiffFile.tsx` | File container with header and hunks |
+| `DiffHunk.tsx` | Code hunk with context lines |
+| `DiffLine.tsx` | Single line with type styling and optional comments |
+| `InlineCommentThread.tsx` | Review comments at specific line |
+
+**DiffLine types:**
+- `added` - Green background, "+" prefix
+- `removed` - Red background, "-" prefix
+- `context` - Normal background, " " prefix
+- `hunk-header` - Blue background, "@@ ... @@" format
+
+**Review comment severity:**
+- `blocker` - Red, must fix before merge
+- `issue` - Orange, should fix
+- `suggestion` - Blue, optional improvement
+
+## Known Differences from Svelte
+
+| Aspect | Svelte 5 | React 19 |
+|--------|----------|----------|
+| Reactivity | `$state()`, `$derived()` | `useState()`, `useMemo()` |
+| Props | `$props()` | Destructured props |
+| Events | `onclick` | `onClick` |
+| Two-way binding | `bind:value` | `value` + `onChange` |
+| Stores | Svelte stores | Zustand stores |
+| Routing | SvelteKit (`+page.svelte`) | React Router (`useRoutes`) |
+| URL params | `$page.url.searchParams` | `useSearchParams()` |
+| Route params | `$page.params` | `useParams()` |
+| Navigation | `goto()` | `useNavigate()` |
+| Active links | `$page.url.pathname` | `NavLink` with `isActive` |
+
+## Dependencies
+
+### Production
+- `react@19`, `react-dom@19` - Core framework
+- `react-router-dom@7` - Client-side routing
+- `zustand@5` - State management with subscribeWithSelector middleware
+- `@fontsource/inter`, `@fontsource/jetbrains-mono` - Typography (matching Svelte)
+
+### Development
+- `vite`, `@vitejs/plugin-react` - Build tooling
+- `typescript`, `@types/react*` - Type safety
+- `vitest`, `@testing-library/*`, `jsdom` - Testing

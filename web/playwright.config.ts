@@ -1,28 +1,36 @@
-import { defineConfig, devices } from '@playwright/test';
-
 /**
- * CRITICAL: E2E tests run against an ISOLATED SANDBOX project, NOT the real orc project.
+ * Playwright configuration for React frontend E2E testing
  *
+ * CRITICAL: E2E tests run against an ISOLATED SANDBOX project, NOT the real orc project.
  * Tests perform real actions (drag-drop, clicks, API calls) that modify task statuses.
  * Running against production data WILL corrupt real task states.
  *
  * The sandbox is created by global-setup.ts and cleaned up by global-teardown.ts.
- * Tests should import from './e2e/fixtures' instead of '@playwright/test' to ensure
- * the sandbox project is selected automatically.
- *
- * See web/e2e/global-setup.ts for sandbox creation details.
  */
+import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export default defineConfig({
-	testDir: './e2e',
-	globalSetup: './e2e/global-setup.ts',
-	globalTeardown: './e2e/global-teardown.ts',
+	testDir: path.resolve(__dirname, 'e2e'),
+	globalSetup: path.resolve(__dirname, 'e2e/global-setup.ts'),
+	globalTeardown: path.resolve(__dirname, 'e2e/global-teardown.ts'),
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 1, // Add 1 retry for local runs to handle flaky UI tests
 	workers: process.env.CI ? 1 : undefined,
-	reporter: 'html',
+	reporter: [
+		['list'],
+		['html', { outputFolder: 'playwright-report' }],
+		['json', { outputFile: 'test-results/results.json' }],
+	],
+	/* Output directory for test artifacts (screenshots, traces) */
+	outputDir: 'test-results',
 	/* Snapshot/visual comparison settings */
-	snapshotDir: './e2e/__snapshots__',
+	snapshotDir: 'e2e/__snapshots__',
 	snapshotPathTemplate: '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
 	expect: {
 		toHaveScreenshot: {

@@ -18,7 +18,7 @@
 #
 # =============================================================================
 
-.PHONY: all setup build test lint clean dev docker-build docker-test docker-shell help react-install react-dev react-build react-test dev-react
+.PHONY: all setup build test lint clean dev docker-build docker-test docker-shell help
 
 # Configuration
 BINARY := orc
@@ -51,7 +51,7 @@ setup:
 		echo "go.work already exists"; \
 	fi
 	@echo "==> Installing frontend dependencies..."
-	cd web && bun install
+	cd web && npm install
 	@echo "==> Setup complete!"
 	@echo ""
 	@echo "For development, run: make dev-full"
@@ -168,28 +168,24 @@ release-darwin:
 	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY)-darwin-arm64 ./cmd/orc
 
 # =============================================================================
-# Frontend (Svelte - current)
+# Frontend (React)
 # =============================================================================
 
 ## web-install: Install frontend dependencies
 web-install:
-	cd web && bun install
+	cd web && npm install
 
 ## web-dev: Start frontend dev server (proxies to :8080)
 web-dev:
-	cd web && bun run dev
+	cd web && npm run dev
 
 ## web-build: Build frontend for production
 web-build:
-	cd web && bun run build
-
-## web-check: Type-check frontend
-web-check:
-	cd web && bun run check
+	cd web && npm run build
 
 ## web-test: Run frontend tests (vitest unit tests)
 web-test:
-	cd web && bun run test
+	cd web && npm run test
 
 ## serve: Start API server (for frontend development)
 serve: build
@@ -200,34 +196,7 @@ dev-full:
 	@echo "Starting API server on :8080 and frontend on :5173..."
 	@echo "API: http://localhost:8080"
 	@echo "UI:  http://localhost:5173"
-	@$(MAKE) serve & cd web && bun run dev
-
-# =============================================================================
-# Frontend (React - migration)
-# =============================================================================
-
-## react-install: Install React frontend dependencies
-react-install:
-	cd web-react && npm install
-
-## react-dev: Start React dev server on :5174 (proxies to :8080)
-react-dev:
-	cd web-react && npm run dev
-
-## react-build: Build React frontend for production
-react-build:
-	cd web-react && npm run build
-
-## react-test: Run React frontend tests (vitest unit tests)
-react-test:
-	cd web-react && npm run test
-
-## dev-react: Start API server and React dev server
-dev-react:
-	@echo "Starting API server on :8080 and React frontend on :5174..."
-	@echo "API:   http://localhost:8080"
-	@echo "React: http://localhost:5174"
-	@$(MAKE) serve & cd web-react && npm run dev
+	@$(MAKE) serve & cd web && npm run dev
 
 # =============================================================================
 # Coverage

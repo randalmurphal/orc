@@ -1,4 +1,29 @@
-import type { Task, Plan, TaskState, Project, ReviewComment, CreateCommentRequest, UpdateCommentRequest, PR, PRComment, CheckRun, CheckSummary, Attachment, TaskComment, CreateTaskCommentRequest, UpdateTaskCommentRequest, TaskCommentStats, TestResultsInfo, Screenshot, TestReport, Initiative, InitiativeStatus, InitiativeIdentity, InitiativeTaskRef, InitiativeDecision } from './types';
+import type {
+	Task,
+	Plan,
+	TaskState,
+	Project,
+	ReviewComment,
+	CreateCommentRequest,
+	UpdateCommentRequest,
+	PR,
+	PRComment,
+	CheckRun,
+	CheckSummary,
+	Attachment,
+	TaskComment,
+	CreateTaskCommentRequest,
+	UpdateTaskCommentRequest,
+	TaskCommentStats,
+	TestResultsInfo,
+	Screenshot,
+	TestReport,
+	Initiative,
+	InitiativeStatus,
+	InitiativeIdentity,
+	InitiativeTaskRef,
+	InitiativeDecision,
+} from './types';
 
 const API_BASE = '/api';
 
@@ -7,8 +32,8 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
 		...options,
 		headers: {
 			'Content-Type': 'application/json',
-			...options?.headers
-		}
+			...options?.headers,
+		},
 	});
 
 	if (!res.ok) {
@@ -28,7 +53,10 @@ export interface PaginatedTasks {
 	total_pages: number;
 }
 
-export async function listTasks(options?: { page?: number; limit?: number }): Promise<Task[] | PaginatedTasks> {
+export async function listTasks(options?: {
+	page?: number;
+	limit?: number;
+}): Promise<Task[] | PaginatedTasks> {
 	if (options?.page || options?.limit) {
 		const params = new URLSearchParams();
 		if (options.page) params.set('page', String(options.page));
@@ -42,7 +70,13 @@ export async function getTask(id: string): Promise<Task> {
 	return fetchJSON<Task>(`/tasks/${id}`);
 }
 
-export async function createTask(title: string, description?: string, weight?: string, category?: string, attachments?: File[]): Promise<Task> {
+export async function createTask(
+	title: string,
+	description?: string,
+	weight?: string,
+	category?: string,
+	attachments?: File[]
+): Promise<Task> {
 	// If there are attachments, use multipart form
 	if (attachments && attachments.length > 0) {
 		const formData = new FormData();
@@ -56,7 +90,7 @@ export async function createTask(title: string, description?: string, weight?: s
 
 		const res = await fetch(`${API_BASE}/tasks`, {
 			method: 'POST',
-			body: formData
+			body: formData,
 		});
 
 		if (!res.ok) {
@@ -70,7 +104,7 @@ export async function createTask(title: string, description?: string, weight?: s
 	// Otherwise use JSON
 	return fetchJSON<Task>('/tasks', {
 		method: 'POST',
-		body: JSON.stringify({ title, description, weight, category })
+		body: JSON.stringify({ title, description, weight, category }),
 	});
 }
 
@@ -90,7 +124,7 @@ export interface UpdateTaskRequest {
 export async function updateTask(id: string, update: UpdateTaskRequest): Promise<Task> {
 	return fetchJSON<Task>(`/tasks/${id}`, {
 		method: 'PATCH',
-		body: JSON.stringify(update)
+		body: JSON.stringify(update),
 	});
 }
 
@@ -175,7 +209,7 @@ export async function getPromptVariables(): Promise<Record<string, string>> {
 export async function savePrompt(phase: string, content: string): Promise<Prompt> {
 	return fetchJSON<Prompt>(`/prompts/${phase}`, {
 		method: 'PUT',
-		body: JSON.stringify({ content })
+		body: JSON.stringify({ content }),
 	});
 }
 
@@ -217,19 +251,27 @@ export async function getHook(event: string, scope?: 'global' | 'project'): Prom
 	return fetchJSON<Hook[]>(`/hooks/${event}${params}`);
 }
 
-export async function createHook(event: string, hook: Hook, scope?: 'global' | 'project'): Promise<Hook[]> {
+export async function createHook(
+	event: string,
+	hook: Hook,
+	scope?: 'global' | 'project'
+): Promise<Hook[]> {
 	const params = scope ? `?scope=${scope}` : '';
 	return fetchJSON<Hook[]>(`/hooks${params}`, {
 		method: 'POST',
-		body: JSON.stringify({ event, hook })
+		body: JSON.stringify({ event, hook }),
 	});
 }
 
-export async function updateHook(event: string, hooks: Hook[], scope?: 'global' | 'project'): Promise<Hook[]> {
+export async function updateHook(
+	event: string,
+	hooks: Hook[],
+	scope?: 'global' | 'project'
+): Promise<Hook[]> {
 	const params = scope ? `?scope=${scope}` : '';
 	return fetchJSON<Hook[]>(`/hooks/${event}${params}`, {
 		method: 'PUT',
-		body: JSON.stringify({ hooks })
+		body: JSON.stringify({ hooks }),
 	});
 }
 
@@ -275,15 +317,19 @@ export async function createSkill(skill: Skill, scope?: 'global' | 'project'): P
 	const params = scope ? `?scope=${scope}` : '';
 	return fetchJSON<Skill>(`/skills${params}`, {
 		method: 'POST',
-		body: JSON.stringify(skill)
+		body: JSON.stringify(skill),
 	});
 }
 
-export async function updateSkill(name: string, skill: Skill, scope?: 'global' | 'project'): Promise<Skill> {
+export async function updateSkill(
+	name: string,
+	skill: Skill,
+	scope?: 'global' | 'project'
+): Promise<Skill> {
 	const params = scope ? `?scope=${scope}` : '';
 	return fetchJSON<Skill>(`/skills/${name}${params}`, {
 		method: 'PUT',
-		body: JSON.stringify(skill)
+		body: JSON.stringify(skill),
 	});
 }
 
@@ -391,12 +437,15 @@ export async function getConfigWithSources(): Promise<ConfigWithSources> {
 export async function updateConfig(req: ConfigUpdateRequest): Promise<Config> {
 	return fetchJSON<Config>('/config', {
 		method: 'PUT',
-		body: JSON.stringify(req)
+		body: JSON.stringify(req),
 	});
 }
 
 // SSE streaming
-export function subscribeToTask(id: string, onEvent: (event: string, data: unknown) => void): () => void {
+export function subscribeToTask(
+	id: string,
+	onEvent: (event: string, data: unknown) => void
+): () => void {
 	const eventSource = new EventSource(`${API_BASE}/tasks/${id}/stream`);
 
 	eventSource.onmessage = (e) => {
@@ -460,7 +509,7 @@ export async function getDefaultProject(): Promise<string> {
 export async function setDefaultProject(projectId: string): Promise<void> {
 	await fetchJSON<{ default_project: string }>('/projects/default', {
 		method: 'PUT',
-		body: JSON.stringify({ project_id: projectId })
+		body: JSON.stringify({ project_id: projectId }),
 	});
 }
 
@@ -468,7 +517,14 @@ export async function listProjectTasks(projectId: string): Promise<Task[]> {
 	return fetchJSON<Task[]>(`/projects/${projectId}/tasks`);
 }
 
-export async function createProjectTask(projectId: string, title: string, description?: string, weight?: string, category?: string, attachments?: File[]): Promise<Task> {
+export async function createProjectTask(
+	projectId: string,
+	title: string,
+	description?: string,
+	weight?: string,
+	category?: string,
+	attachments?: File[]
+): Promise<Task> {
 	// If there are attachments, use multipart form
 	if (attachments && attachments.length > 0) {
 		const formData = new FormData();
@@ -482,7 +538,7 @@ export async function createProjectTask(projectId: string, title: string, descri
 
 		const res = await fetch(`${API_BASE}/projects/${projectId}/tasks`, {
 			method: 'POST',
-			body: formData
+			body: formData,
 		});
 
 		if (!res.ok) {
@@ -496,7 +552,7 @@ export async function createProjectTask(projectId: string, title: string, descri
 	// Otherwise use JSON
 	return fetchJSON<Task>(`/projects/${projectId}/tasks`, {
 		method: 'POST',
-		body: JSON.stringify({ title, description, weight, category })
+		body: JSON.stringify({ title, description, weight, category }),
 	});
 }
 
@@ -530,14 +586,14 @@ export async function updateSettings(settings: Settings, scope?: 'global'): Prom
 	const params = scope ? `?scope=${scope}` : '';
 	return fetchJSON<Settings>(`/settings${params}`, {
 		method: 'PUT',
-		body: JSON.stringify(settings)
+		body: JSON.stringify(settings),
 	});
 }
 
 export async function updateGlobalSettings(settings: Settings): Promise<Settings> {
 	return fetchJSON<Settings>('/settings/global', {
 		method: 'PUT',
-		body: JSON.stringify(settings)
+		body: JSON.stringify(settings),
 	});
 }
 
@@ -595,7 +651,7 @@ export async function getToolPermissions(): Promise<ToolPermissions> {
 export async function updateToolPermissions(perms: ToolPermissions): Promise<ToolPermissions> {
 	return fetchJSON<ToolPermissions>('/tools/permissions', {
 		method: 'PUT',
-		body: JSON.stringify(perms)
+		body: JSON.stringify(perms),
 	});
 }
 
@@ -624,14 +680,14 @@ export async function getAgent(name: string): Promise<SubAgent> {
 export async function createAgent(agent: SubAgent): Promise<SubAgent> {
 	return fetchJSON<SubAgent>('/agents', {
 		method: 'POST',
-		body: JSON.stringify(agent)
+		body: JSON.stringify(agent),
 	});
 }
 
 export async function updateAgent(name: string, agent: SubAgent): Promise<SubAgent> {
 	return fetchJSON<SubAgent>(`/agents/${name}`, {
 		method: 'PUT',
-		body: JSON.stringify(agent)
+		body: JSON.stringify(agent),
 	});
 }
 
@@ -662,14 +718,14 @@ export async function getScript(name: string): Promise<ProjectScript> {
 export async function createScript(script: ProjectScript): Promise<ProjectScript> {
 	return fetchJSON<ProjectScript>('/scripts', {
 		method: 'POST',
-		body: JSON.stringify(script)
+		body: JSON.stringify(script),
 	});
 }
 
 export async function updateScript(name: string, script: ProjectScript): Promise<ProjectScript> {
 	return fetchJSON<ProjectScript>(`/scripts/${name}`, {
 		method: 'PUT',
-		body: JSON.stringify(script)
+		body: JSON.stringify(script),
 	});
 }
 
@@ -683,7 +739,7 @@ export async function deleteScript(name: string): Promise<void> {
 
 export async function discoverScripts(): Promise<ProjectScript[]> {
 	return fetchJSON<ProjectScript[]>('/scripts/discover', {
-		method: 'POST'
+		method: 'POST',
 	});
 }
 
@@ -707,12 +763,15 @@ export async function getClaudeMD(scope?: 'global' | 'user' | 'project'): Promis
 	return fetchJSON<ClaudeMD>(`/claudemd${params}`);
 }
 
-export async function updateClaudeMD(content: string, scope?: 'global' | 'user' | 'project'): Promise<void> {
+export async function updateClaudeMD(
+	content: string,
+	scope?: 'global' | 'user' | 'project'
+): Promise<void> {
 	const params = scope ? `?scope=${scope}` : '';
 	const res = await fetch(`${API_BASE}/claudemd${params}`, {
 		method: 'PUT',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ content })
+		body: JSON.stringify({ content }),
 	});
 	if (!res.ok) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
@@ -770,14 +829,17 @@ export async function getMCPServer(name: string): Promise<MCPServer> {
 export async function createMCPServer(server: MCPServerCreate): Promise<MCPServerInfo> {
 	return fetchJSON<MCPServerInfo>('/mcp', {
 		method: 'POST',
-		body: JSON.stringify(server)
+		body: JSON.stringify(server),
 	});
 }
 
-export async function updateMCPServer(name: string, server: Partial<MCPServerCreate>): Promise<MCPServerInfo> {
+export async function updateMCPServer(
+	name: string,
+	server: Partial<MCPServerCreate>
+): Promise<MCPServerInfo> {
 	return fetchJSON<MCPServerInfo>(`/mcp/${name}`, {
 		method: 'PUT',
-		body: JSON.stringify(server)
+		body: JSON.stringify(server),
 	});
 }
 
@@ -903,25 +965,28 @@ export async function getPlugin(name: string, scope?: PluginScope): Promise<Plug
 export async function enablePlugin(name: string, scope?: PluginScope): Promise<PluginResponse> {
 	const query = scope ? `?scope=${scope}` : '';
 	return fetchJSON<PluginResponse>(`/plugins/${name}/enable${query}`, {
-		method: 'POST'
+		method: 'POST',
 	});
 }
 
 export async function disablePlugin(name: string, scope?: PluginScope): Promise<PluginResponse> {
 	const query = scope ? `?scope=${scope}` : '';
 	return fetchJSON<PluginResponse>(`/plugins/${name}/disable${query}`, {
-		method: 'POST'
+		method: 'POST',
 	});
 }
 
 export async function uninstallPlugin(name: string, scope?: PluginScope): Promise<PluginResponse> {
 	const query = scope ? `?scope=${scope}` : '';
 	return fetchJSON<PluginResponse>(`/plugins/${name}${query}`, {
-		method: 'DELETE'
+		method: 'DELETE',
 	});
 }
 
-export async function listPluginCommands(name: string, scope?: PluginScope): Promise<PluginCommand[]> {
+export async function listPluginCommands(
+	name: string,
+	scope?: PluginScope
+): Promise<PluginCommand[]> {
 	const query = scope ? `?scope=${scope}` : '';
 	return fetchJSON<PluginCommand[]>(`/plugins/${name}/commands${query}`);
 }
@@ -953,7 +1018,10 @@ export async function getPluginResources(): Promise<PluginResourcesResponse> {
 }
 
 // Marketplace (separate API prefix to avoid route conflicts)
-export async function browseMarketplace(page?: number, limit?: number): Promise<MarketplaceBrowseResponse> {
+export async function browseMarketplace(
+	page?: number,
+	limit?: number
+): Promise<MarketplaceBrowseResponse> {
 	const params = new URLSearchParams();
 	if (page) params.set('page', String(page));
 	if (limit) params.set('limit', String(limit));
@@ -962,18 +1030,24 @@ export async function browseMarketplace(page?: number, limit?: number): Promise<
 }
 
 export async function searchMarketplace(query: string): Promise<MarketplacePlugin[]> {
-	return fetchJSON<MarketplacePlugin[]>(`/marketplace/plugins/search?q=${encodeURIComponent(query)}`);
+	return fetchJSON<MarketplacePlugin[]>(
+		`/marketplace/plugins/search?q=${encodeURIComponent(query)}`
+	);
 }
 
 export async function getMarketplacePlugin(name: string): Promise<MarketplacePlugin> {
 	return fetchJSON<MarketplacePlugin>(`/marketplace/plugins/${name}`);
 }
 
-export async function installPlugin(name: string, scope?: PluginScope, version?: string): Promise<PluginResponse> {
+export async function installPlugin(
+	name: string,
+	scope?: PluginScope,
+	version?: string
+): Promise<PluginResponse> {
 	const query = scope ? `?scope=${scope}` : '';
 	return fetchJSON<PluginResponse>(`/marketplace/plugins/${name}/install${query}`, {
 		method: 'POST',
-		body: version ? JSON.stringify({ version }) : undefined
+		body: version ? JSON.stringify({ version }) : undefined,
 	});
 }
 
@@ -985,7 +1059,7 @@ export async function checkPluginUpdates(): Promise<PluginUpdateInfo[]> {
 export async function updatePlugin(name: string, scope?: PluginScope): Promise<PluginResponse> {
 	const query = scope ? `?scope=${scope}` : '';
 	return fetchJSON<PluginResponse>(`/plugins/${name}/update${query}`, {
-		method: 'POST'
+		method: 'POST',
 	});
 }
 
@@ -1002,34 +1076,52 @@ export async function getProjectTaskPlan(projectId: string, taskId: string): Pro
 	return fetchJSON<Plan>(`/projects/${projectId}/tasks/${taskId}/plan`);
 }
 
-export async function runProjectTask(projectId: string, taskId: string): Promise<RunTaskResponse> {
+export async function runProjectTask(
+	projectId: string,
+	taskId: string
+): Promise<RunTaskResponse> {
 	return fetchJSON(`/projects/${projectId}/tasks/${taskId}/run`, { method: 'POST' });
 }
 
-export async function pauseProjectTask(projectId: string, taskId: string): Promise<{ status: string; task_id: string }> {
+export async function pauseProjectTask(
+	projectId: string,
+	taskId: string
+): Promise<{ status: string; task_id: string }> {
 	return fetchJSON(`/projects/${projectId}/tasks/${taskId}/pause`, { method: 'POST' });
 }
 
-export async function resumeProjectTask(projectId: string, taskId: string): Promise<{ status: string; task_id: string }> {
+export async function resumeProjectTask(
+	projectId: string,
+	taskId: string
+): Promise<{ status: string; task_id: string }> {
 	return fetchJSON(`/projects/${projectId}/tasks/${taskId}/resume`, { method: 'POST' });
 }
 
 export async function deleteProjectTask(projectId: string, taskId: string): Promise<void> {
-	const res = await fetch(`${API_BASE}/projects/${projectId}/tasks/${taskId}`, { method: 'DELETE' });
+	const res = await fetch(`${API_BASE}/projects/${projectId}/tasks/${taskId}`, {
+		method: 'DELETE',
+	});
 	if (!res.ok && res.status !== 204) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Failed to delete task');
 	}
 }
 
-export async function escalateProjectTask(projectId: string, taskId: string, reason: string): Promise<{ status: string; task_id: string; phase: string; reason: string; attempt: number }> {
+export async function escalateProjectTask(
+	projectId: string,
+	taskId: string,
+	reason: string
+): Promise<{ status: string; task_id: string; phase: string; reason: string; attempt: number }> {
 	return fetchJSON(`/projects/${projectId}/tasks/${taskId}/escalate`, {
 		method: 'POST',
-		body: JSON.stringify({ reason })
+		body: JSON.stringify({ reason }),
 	});
 }
 
-export async function getProjectTranscripts(projectId: string, taskId: string): Promise<TranscriptFile[]> {
+export async function getProjectTranscripts(
+	projectId: string,
+	taskId: string
+): Promise<TranscriptFile[]> {
 	return fetchJSON<TranscriptFile[]>(`/projects/${projectId}/tasks/${taskId}/transcripts`);
 }
 
@@ -1079,10 +1171,15 @@ export async function getTemplate(name: string): Promise<Template> {
 	return fetchJSON<Template>(`/templates/${name}`);
 }
 
-export async function createTemplate(taskId: string, name: string, description?: string, global?: boolean): Promise<Template> {
+export async function createTemplate(
+	taskId: string,
+	name: string,
+	description?: string,
+	global?: boolean
+): Promise<Template> {
 	return fetchJSON<Template>('/templates', {
 		method: 'POST',
-		body: JSON.stringify({ task_id: taskId, name, description, global })
+		body: JSON.stringify({ task_id: taskId, name, description, global }),
 	});
 }
 
@@ -1099,22 +1196,31 @@ export async function getReviewComments(taskId: string): Promise<ReviewComment[]
 	return fetchJSON<ReviewComment[]>(`/tasks/${taskId}/review/comments`);
 }
 
-export async function createReviewComment(taskId: string, comment: CreateCommentRequest): Promise<ReviewComment> {
+export async function createReviewComment(
+	taskId: string,
+	comment: CreateCommentRequest
+): Promise<ReviewComment> {
 	return fetchJSON<ReviewComment>(`/tasks/${taskId}/review/comments`, {
 		method: 'POST',
-		body: JSON.stringify(comment)
+		body: JSON.stringify(comment),
 	});
 }
 
-export async function updateReviewComment(taskId: string, commentId: string, update: UpdateCommentRequest): Promise<ReviewComment> {
+export async function updateReviewComment(
+	taskId: string,
+	commentId: string,
+	update: UpdateCommentRequest
+): Promise<ReviewComment> {
 	return fetchJSON<ReviewComment>(`/tasks/${taskId}/review/comments/${commentId}`, {
 		method: 'PATCH',
-		body: JSON.stringify(update)
+		body: JSON.stringify(update),
 	});
 }
 
 export async function deleteReviewComment(taskId: string, commentId: string): Promise<void> {
-	const res = await fetch(`${API_BASE}/tasks/${taskId}/review/comments/${commentId}`, { method: 'DELETE' });
+	const res = await fetch(`${API_BASE}/tasks/${taskId}/review/comments/${commentId}`, {
+		method: 'DELETE',
+	});
 	if (!res.ok && res.status !== 204) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Failed to delete comment');
@@ -1124,7 +1230,7 @@ export async function deleteReviewComment(taskId: string, commentId: string): Pr
 export async function triggerReviewRetry(taskId: string): Promise<void> {
 	await fetchJSON(`/tasks/${taskId}/review/retry`, {
 		method: 'POST',
-		body: JSON.stringify({ include_comments: true })
+		body: JSON.stringify({ include_comments: true }),
 	});
 }
 
@@ -1167,7 +1273,8 @@ export async function getReviewStats(taskId: string): Promise<ReviewStatsRespons
 			total_comments: comments.length,
 			blockers: comments.filter((c) => c.severity === 'blocker' && c.status === 'open').length,
 			issues: comments.filter((c) => c.severity === 'issue' && c.status === 'open').length,
-			suggestions: comments.filter((c) => c.severity === 'suggestion' && c.status === 'open').length
+			suggestions: comments.filter((c) => c.severity === 'suggestion' && c.status === 'open')
+				.length,
 		};
 	} catch {
 		return null;
@@ -1175,7 +1282,11 @@ export async function getReviewStats(taskId: string): Promise<ReviewStatsRespons
 }
 
 // Task Comments (general notes/discussion)
-export async function getTaskComments(taskId: string, authorType?: string, phase?: string): Promise<TaskComment[]> {
+export async function getTaskComments(
+	taskId: string,
+	authorType?: string,
+	phase?: string
+): Promise<TaskComment[]> {
 	let url = `/tasks/${taskId}/comments`;
 	const params = new URLSearchParams();
 	if (authorType) params.set('author_type', authorType);
@@ -1188,22 +1299,31 @@ export async function getTaskComment(taskId: string, commentId: string): Promise
 	return fetchJSON<TaskComment>(`/tasks/${taskId}/comments/${commentId}`);
 }
 
-export async function createTaskComment(taskId: string, comment: CreateTaskCommentRequest): Promise<TaskComment> {
+export async function createTaskComment(
+	taskId: string,
+	comment: CreateTaskCommentRequest
+): Promise<TaskComment> {
 	return fetchJSON<TaskComment>(`/tasks/${taskId}/comments`, {
 		method: 'POST',
-		body: JSON.stringify(comment)
+		body: JSON.stringify(comment),
 	});
 }
 
-export async function updateTaskComment(taskId: string, commentId: string, update: UpdateTaskCommentRequest): Promise<TaskComment> {
+export async function updateTaskComment(
+	taskId: string,
+	commentId: string,
+	update: UpdateTaskCommentRequest
+): Promise<TaskComment> {
 	return fetchJSON<TaskComment>(`/tasks/${taskId}/comments/${commentId}`, {
 		method: 'PATCH',
-		body: JSON.stringify(update)
+		body: JSON.stringify(update),
 	});
 }
 
 export async function deleteTaskComment(taskId: string, commentId: string): Promise<void> {
-	const res = await fetch(`${API_BASE}/tasks/${taskId}/comments/${commentId}`, { method: 'DELETE' });
+	const res = await fetch(`${API_BASE}/tasks/${taskId}/comments/${commentId}`, {
+		method: 'DELETE',
+	});
 	if (!res.ok && res.status !== 204) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Failed to delete comment');
@@ -1244,17 +1364,20 @@ export interface GetChecksResponse {
 	summary: CheckSummary;
 }
 
-export async function createPR(taskId: string, options?: {
-	title?: string;
-	body?: string;
-	base?: string;
-	labels?: string[];
-	reviewers?: string[];
-	draft?: boolean;
-}): Promise<CreatePRResponse> {
+export async function createPR(
+	taskId: string,
+	options?: {
+		title?: string;
+		body?: string;
+		base?: string;
+		labels?: string[];
+		reviewers?: string[];
+		draft?: boolean;
+	}
+): Promise<CreatePRResponse> {
 	return fetchJSON<CreatePRResponse>(`/tasks/${taskId}/github/pr`, {
 		method: 'POST',
-		body: JSON.stringify(options || {})
+		body: JSON.stringify(options || {}),
 	});
 }
 
@@ -1262,13 +1385,16 @@ export async function getPR(taskId: string): Promise<GetPRResponse> {
 	return fetchJSON<GetPRResponse>(`/tasks/${taskId}/github/pr`);
 }
 
-export async function mergePR(taskId: string, options?: {
-	method?: 'merge' | 'squash' | 'rebase';
-	delete_branch?: boolean;
-}): Promise<MergePRResponse> {
+export async function mergePR(
+	taskId: string,
+	options?: {
+		method?: 'merge' | 'squash' | 'rebase';
+		delete_branch?: boolean;
+	}
+): Promise<MergePRResponse> {
 	return fetchJSON<MergePRResponse>(`/tasks/${taskId}/github/pr/merge`, {
 		method: 'POST',
-		body: JSON.stringify(options || { method: 'squash', delete_branch: true })
+		body: JSON.stringify(options || { method: 'squash', delete_branch: true }),
 	});
 }
 
@@ -1305,7 +1431,7 @@ export interface ExportResponse {
 export async function exportTask(taskId: string, options: ExportRequest): Promise<ExportResponse> {
 	return fetchJSON<ExportResponse>(`/tasks/${taskId}/export`, {
 		method: 'POST',
-		body: JSON.stringify(options)
+		body: JSON.stringify(options),
 	});
 }
 
@@ -1316,7 +1442,7 @@ export async function getExportConfig(): Promise<ExportConfig> {
 export async function updateExportConfig(config: Partial<ExportConfig>): Promise<ExportConfig> {
 	return fetchJSON<ExportConfig>('/config/export', {
 		method: 'PUT',
-		body: JSON.stringify(config)
+		body: JSON.stringify(config),
 	});
 }
 
@@ -1348,7 +1474,10 @@ export interface KnowledgeStatusResponse {
 	approved_count: number;
 }
 
-export async function listKnowledge(options?: { status?: KnowledgeStatus; type?: KnowledgeType }): Promise<KnowledgeEntry[]> {
+export async function listKnowledge(options?: {
+	status?: KnowledgeStatus;
+	type?: KnowledgeType;
+}): Promise<KnowledgeEntry[]> {
 	const params = new URLSearchParams();
 	if (options?.status) params.set('status', options.status);
 	if (options?.type) params.set('type', options.type);
@@ -1374,7 +1503,7 @@ export async function createKnowledge(entry: {
 }): Promise<KnowledgeEntry> {
 	return fetchJSON<KnowledgeEntry>('/knowledge', {
 		method: 'POST',
-		body: JSON.stringify(entry)
+		body: JSON.stringify(entry),
 	});
 }
 
@@ -1385,21 +1514,26 @@ export async function getKnowledge(id: string): Promise<KnowledgeEntry> {
 export async function approveKnowledge(id: string, approvedBy?: string): Promise<KnowledgeEntry> {
 	return fetchJSON<KnowledgeEntry>(`/knowledge/${id}/approve`, {
 		method: 'POST',
-		body: JSON.stringify({ approved_by: approvedBy })
+		body: JSON.stringify({ approved_by: approvedBy }),
 	});
 }
 
-export async function approveAllKnowledge(approvedBy?: string): Promise<{ approved_count: number }> {
+export async function approveAllKnowledge(
+	approvedBy?: string
+): Promise<{ approved_count: number }> {
 	return fetchJSON<{ approved_count: number }>('/knowledge/approve-all', {
 		method: 'POST',
-		body: JSON.stringify({ approved_by: approvedBy })
+		body: JSON.stringify({ approved_by: approvedBy }),
 	});
 }
 
-export async function validateKnowledge(id: string, validatedBy?: string): Promise<KnowledgeEntry> {
+export async function validateKnowledge(
+	id: string,
+	validatedBy?: string
+): Promise<KnowledgeEntry> {
 	return fetchJSON<KnowledgeEntry>(`/knowledge/${id}/validate`, {
 		method: 'POST',
-		body: JSON.stringify({ validated_by: validatedBy })
+		body: JSON.stringify({ validated_by: validatedBy }),
 	});
 }
 
@@ -1407,7 +1541,7 @@ export async function rejectKnowledge(id: string, reason?: string): Promise<void
 	const res = await fetch(`${API_BASE}/knowledge/${id}/reject`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ reason })
+		body: JSON.stringify({ reason }),
 	});
 	if (!res.ok && res.status !== 204) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
@@ -1428,7 +1562,11 @@ export async function listAttachments(taskId: string): Promise<Attachment[]> {
 	return fetchJSON<Attachment[]>(`/tasks/${taskId}/attachments`);
 }
 
-export async function uploadAttachment(taskId: string, file: File, filename?: string): Promise<Attachment> {
+export async function uploadAttachment(
+	taskId: string,
+	file: File,
+	filename?: string
+): Promise<Attachment> {
 	const formData = new FormData();
 	formData.append('file', file);
 	if (filename) {
@@ -1437,7 +1575,7 @@ export async function uploadAttachment(taskId: string, file: File, filename?: st
 
 	const res = await fetch(`${API_BASE}/tasks/${taskId}/attachments`, {
 		method: 'POST',
-		body: formData
+		body: formData,
 	});
 
 	if (!res.ok) {
@@ -1453,9 +1591,12 @@ export function getAttachmentUrl(taskId: string, filename: string): string {
 }
 
 export async function deleteAttachment(taskId: string, filename: string): Promise<void> {
-	const res = await fetch(`${API_BASE}/tasks/${taskId}/attachments/${encodeURIComponent(filename)}`, {
-		method: 'DELETE'
-	});
+	const res = await fetch(
+		`${API_BASE}/tasks/${taskId}/attachments/${encodeURIComponent(filename)}`,
+		{
+			method: 'DELETE',
+		}
+	);
 	if (!res.ok && res.status !== 204) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Delete failed');
@@ -1475,7 +1616,11 @@ export function getScreenshotUrl(taskId: string, filename: string): string {
 	return `${API_BASE}/tasks/${taskId}/test-results/screenshots/${encodeURIComponent(filename)}`;
 }
 
-export async function uploadScreenshot(taskId: string, file: File, filename?: string): Promise<Screenshot> {
+export async function uploadScreenshot(
+	taskId: string,
+	file: File,
+	filename?: string
+): Promise<Screenshot> {
 	const formData = new FormData();
 	formData.append('file', file);
 	if (filename) {
@@ -1484,7 +1629,7 @@ export async function uploadScreenshot(taskId: string, file: File, filename?: st
 
 	const res = await fetch(`${API_BASE}/tasks/${taskId}/test-results/screenshots`, {
 		method: 'POST',
-		body: formData
+		body: formData,
 	});
 
 	if (!res.ok) {
@@ -1498,13 +1643,15 @@ export async function uploadScreenshot(taskId: string, file: File, filename?: st
 export async function saveTestReport(taskId: string, report: TestReport): Promise<void> {
 	await fetchJSON(`/tasks/${taskId}/test-results`, {
 		method: 'POST',
-		body: JSON.stringify(report)
+		body: JSON.stringify(report),
 	});
 }
 
-export async function initTestResults(taskId: string): Promise<{ status: string; path: string }> {
+export async function initTestResults(
+	taskId: string
+): Promise<{ status: string; path: string }> {
 	return fetchJSON(`/tasks/${taskId}/test-results/init`, {
-		method: 'POST'
+		method: 'POST',
 	});
 }
 
@@ -1550,7 +1697,7 @@ export async function addBlocker(taskId: string, blockerId: string): Promise<Tas
 
 export async function removeBlocker(taskId: string, blockerId: string): Promise<Task> {
 	const task = await getTask(taskId);
-	const blockedBy = (task.blocked_by || []).filter(id => id !== blockerId);
+	const blockedBy = (task.blocked_by || []).filter((id) => id !== blockerId);
 	return updateTask(taskId, { blocked_by: blockedBy });
 }
 
@@ -1565,7 +1712,7 @@ export async function addRelated(taskId: string, relatedId: string): Promise<Tas
 
 export async function removeRelated(taskId: string, relatedId: string): Promise<Task> {
 	const task = await getTask(taskId);
-	const relatedTo = (task.related_to || []).filter(id => id !== relatedId);
+	const relatedTo = (task.related_to || []).filter((id) => id !== relatedId);
 	return updateTask(taskId, { related_to: relatedTo });
 }
 
@@ -1584,7 +1731,10 @@ export interface UpdateInitiativeRequest {
 	owner?: InitiativeIdentity;
 }
 
-export async function listInitiatives(options?: { status?: InitiativeStatus; shared?: boolean }): Promise<Initiative[]> {
+export async function listInitiatives(options?: {
+	status?: InitiativeStatus;
+	shared?: boolean;
+}): Promise<Initiative[]> {
 	const params = new URLSearchParams();
 	if (options?.status) params.set('status', options.status);
 	if (options?.shared) params.set('shared', 'true');
@@ -1600,15 +1750,19 @@ export async function getInitiative(id: string, shared?: boolean): Promise<Initi
 export async function createInitiative(req: CreateInitiativeRequest): Promise<Initiative> {
 	return fetchJSON<Initiative>('/initiatives', {
 		method: 'POST',
-		body: JSON.stringify(req)
+		body: JSON.stringify(req),
 	});
 }
 
-export async function updateInitiative(id: string, req: UpdateInitiativeRequest, shared?: boolean): Promise<Initiative> {
+export async function updateInitiative(
+	id: string,
+	req: UpdateInitiativeRequest,
+	shared?: boolean
+): Promise<Initiative> {
 	const query = shared ? '?shared=true' : '';
 	return fetchJSON<Initiative>(`/initiatives/${id}${query}`, {
 		method: 'PUT',
-		body: JSON.stringify(req)
+		body: JSON.stringify(req),
 	});
 }
 
@@ -1627,22 +1781,35 @@ export interface AddInitiativeTaskRequest {
 	depends_on?: string[];
 }
 
-export async function listInitiativeTasks(id: string, shared?: boolean): Promise<InitiativeTaskRef[]> {
+export async function listInitiativeTasks(
+	id: string,
+	shared?: boolean
+): Promise<InitiativeTaskRef[]> {
 	const query = shared ? '?shared=true' : '';
 	return fetchJSON<InitiativeTaskRef[]>(`/initiatives/${id}/tasks${query}`);
 }
 
-export async function addInitiativeTask(id: string, req: AddInitiativeTaskRequest, shared?: boolean): Promise<InitiativeTaskRef[]> {
+export async function addInitiativeTask(
+	id: string,
+	req: AddInitiativeTaskRequest,
+	shared?: boolean
+): Promise<InitiativeTaskRef[]> {
 	const query = shared ? '?shared=true' : '';
 	return fetchJSON<InitiativeTaskRef[]>(`/initiatives/${id}/tasks${query}`, {
 		method: 'POST',
-		body: JSON.stringify(req)
+		body: JSON.stringify(req),
 	});
 }
 
-export async function removeInitiativeTask(id: string, taskId: string, shared?: boolean): Promise<void> {
+export async function removeInitiativeTask(
+	id: string,
+	taskId: string,
+	shared?: boolean
+): Promise<void> {
 	const query = shared ? '?shared=true' : '';
-	const res = await fetch(`${API_BASE}/initiatives/${id}/tasks/${taskId}${query}`, { method: 'DELETE' });
+	const res = await fetch(`${API_BASE}/initiatives/${id}/tasks/${taskId}${query}`, {
+		method: 'DELETE',
+	});
 	if (!res.ok && res.status !== 204) {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Failed to remove task from initiative');
@@ -1656,11 +1823,15 @@ export interface AddInitiativeDecisionRequest {
 	by?: string;
 }
 
-export async function addInitiativeDecision(id: string, req: AddInitiativeDecisionRequest, shared?: boolean): Promise<InitiativeDecision[]> {
+export async function addInitiativeDecision(
+	id: string,
+	req: AddInitiativeDecisionRequest,
+	shared?: boolean
+): Promise<InitiativeDecision[]> {
 	const query = shared ? '?shared=true' : '';
 	return fetchJSON<InitiativeDecision[]>(`/initiatives/${id}/decisions${query}`, {
 		method: 'POST',
-		body: JSON.stringify(req)
+		body: JSON.stringify(req),
 	});
 }
 
@@ -1711,10 +1882,13 @@ export interface FinalizeResponse {
 	message?: string;
 }
 
-export async function triggerFinalize(taskId: string, options?: FinalizeRequest): Promise<FinalizeResponse> {
+export async function triggerFinalize(
+	taskId: string,
+	options?: FinalizeRequest
+): Promise<FinalizeResponse> {
 	return fetchJSON<FinalizeResponse>(`/tasks/${taskId}/finalize`, {
 		method: 'POST',
-		body: JSON.stringify(options || {})
+		body: JSON.stringify(options || {}),
 	});
 }
 
@@ -1739,7 +1913,10 @@ export interface DependencyGraphData {
 	edges: DependencyGraphEdge[];
 }
 
-export async function getInitiativeDependencyGraph(id: string, shared?: boolean): Promise<DependencyGraphData> {
+export async function getInitiativeDependencyGraph(
+	id: string,
+	shared?: boolean
+): Promise<DependencyGraphData> {
 	const query = shared ? '?shared=true' : '';
 	return fetchJSON<DependencyGraphData>(`/initiatives/${id}/dependency-graph${query}`);
 }

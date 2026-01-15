@@ -407,6 +407,83 @@ export interface Initiative {
 	decisions?: InitiativeDecision[];
 	context_files?: string[];
 	tasks?: InitiativeTaskRef[];
+	blocked_by?: string[];
+	blocks?: string[];
 	created_at: string;
 	updated_at: string;
+}
+
+// WebSocket connection status
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
+
+// WebSocket event types
+export type WSEventType =
+	| 'state'
+	| 'transcript'
+	| 'phase'
+	| 'tokens'
+	| 'error'
+	| 'complete'
+	| 'finalize'
+	// File watcher events (triggered by external file changes)
+	| 'task_created'
+	| 'task_updated'
+	| 'task_deleted'
+	// Initiative events (triggered by initiative file changes)
+	| 'initiative_created'
+	| 'initiative_updated'
+	| 'initiative_deleted';
+
+// Special task ID for subscribing to all task events
+export const GLOBAL_TASK_ID = '*';
+
+export interface WSEvent {
+	type: 'event';
+	event: WSEventType;
+	task_id: string;
+	data: unknown;
+	time: string;
+}
+
+export interface WSMessage {
+	type: string;
+	task_id?: string;
+	action?: string;
+	data?: unknown;
+}
+
+export interface WSError {
+	type: 'error';
+	error: string;
+}
+
+export type WSCallback = (event: WSEvent | WSError) => void;
+
+// Toast notification types
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+export interface Toast {
+	id: string;
+	type: ToastType;
+	message: string;
+	title?: string;
+	duration?: number;
+	dismissible?: boolean;
+}
+
+// Initiative progress tracking
+export interface InitiativeProgress {
+	id: string;
+	completed: number;
+	total: number;
+}
+
+// Status counts for dashboard
+export interface StatusCounts {
+	all: number;
+	active: number;
+	completed: number;
+	failed: number;
+	running: number;
+	blocked: number;
 }

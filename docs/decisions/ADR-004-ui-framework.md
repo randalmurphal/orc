@@ -1,7 +1,8 @@
 # ADR-004: UI Framework
 
-**Status**: Accepted  
+**Status**: Superseded by ADR-004a
 **Date**: 2026-01-10
+**Superseded**: 2026-01-15 (migrated to React 19)
 
 ---
 
@@ -14,52 +15,82 @@ Orc needs a web UI for task list, timeline visualization, live transcript stream
 - Real-time updates critical (live transcript)
 - Lightweight (ships with CLI tool)
 
-## Decision
+## Original Decision (Superseded)
 
-**Svelte 5 with SvelteKit** for the frontend UI.
+**Svelte 5 with SvelteKit** was the original choice for the frontend UI.
 
-## Rationale
+## Migration Decision (2026-01-15)
 
-### Why Svelte Over React
+**React 19 with Vite** is now the production frontend framework.
 
-| Factor | React | Svelte 5 |
-|--------|-------|----------|
-| Bundle size | ~45KB gzipped | ~5KB gzipped |
-| State management | useState + Context/Redux | $state (native) |
-| Derived values | useMemo with deps | $derived (automatic) |
-| Effects | useEffect with deps | $effect (automatic) |
-| Real-time | Custom hooks | Direct binding |
-| Routing | react-router (extra) | SvelteKit built-in |
+### Why We Migrated
 
-### Real-time Transcript Example
+| Factor | Svelte 5 | React 19 |
+|--------|----------|----------|
+| Ecosystem | Smaller, fewer libraries | Vast ecosystem, mature tooling |
+| Developer familiarity | Learning curve | Industry standard |
+| Testing tools | Limited | Extensive (Testing Library, MSW) |
+| Component libraries | Few options | Many production-ready options |
+| Long-term maintenance | Uncertain | Stable, well-supported |
+| E2E testing | Framework-specific selectors | Standard DOM patterns |
 
-```svelte
-<script lang="ts">
-  let lines = $state<TranscriptLine[]>([]);
-  
-  $effect(() => {
+### Migration Process
+
+The migration followed a phased approach:
+1. **Research**: Evaluated React 19 features, state management (Zustand)
+2. **Implementation**: Built parallel React app in `web-react/`
+3. **Validation**: Ran E2E tests against both implementations
+4. **Cutover**: Archived Svelte to `web-svelte-archive/`, moved React to `web/`
+
+### Real-time Transcript Example (React)
+
+```tsx
+function TaskTranscript({ taskId }: { taskId: string }) {
+  const [lines, setLines] = useState<TranscriptLine[]>([]);
+
+  useEffect(() => {
     const eventSource = new EventSource(`/api/tasks/${taskId}/stream`);
-    eventSource.onmessage = (e) => lines.push(JSON.parse(e.data));
+    eventSource.onmessage = (e) => {
+      setLines(prev => [...prev, JSON.parse(e.data)]);
+    };
     return () => eventSource.close();
-  });
-</script>
+  }, [taskId]);
 
-{#each lines as line}
-  <p>{line.content}</p>
-{/each}
+  return (
+    <>
+      {lines.map((line, i) => (
+        <p key={i}>{line.content}</p>
+      ))}
+    </>
+  );
+}
 ```
 
-No virtual DOM diffing - updates go directly to DOM.
+## Current Stack
+
+| Layer | Technology |
+|-------|------------|
+| Framework | React 19, Vite |
+| Language | TypeScript 5.6+ |
+| State Management | Zustand |
+| Routing | React Router 7 |
+| Styling | CSS (component-scoped) |
+| Testing | Vitest (unit), Playwright (E2E) |
 
 ## Consequences
 
 **Positive**:
-- Smaller bundles, faster updates, less memory
-- Less boilerplate, cleaner code
-- SvelteKit provides routing, SSR, API routes
+- Larger ecosystem, more hiring options
+- Better tooling and testing infrastructure
+- Industry-standard patterns
+- E2E tests use framework-agnostic selectors
 
 **Negative**:
-- Smaller ecosystem than React
-- Fewer Svelte developers
+- Larger bundle size than Svelte (~45KB vs ~5KB gzipped)
+- More boilerplate for state management
 
-**Mitigation**: REST API means UI framework is swappable if needed.
+**Mitigation**: Zustand provides ergonomic state management similar to Svelte stores. REST API separation means framework remains swappable.
+
+## Archive
+
+The original Svelte implementation is preserved at `web-svelte-archive/` for 30 days post-cutover as a rollback option.

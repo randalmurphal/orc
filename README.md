@@ -493,7 +493,7 @@ git worktree remove .orc/worktrees/TASK-001
 ### Requirements
 
 - Go 1.24+
-- Bun (for frontend)
+- Node.js 22+ and npm (for frontend)
 
 ### Setup
 
