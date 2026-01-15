@@ -368,7 +368,9 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) erro
 	if err := json.Unmarshal([]byte(output), &mergeResponse); err != nil {
 		m.logger.Warn("failed to parse merge response", "error", err, "output", output)
 	} else if mergeResponse.SHA != "" {
-		t.PR.MergeCommitSHA = mergeResponse.SHA
+		if t.PR != nil {
+			t.PR.MergeCommitSHA = mergeResponse.SHA
+		}
 		m.logger.Info("PR merged", "sha", mergeResponse.SHA)
 	}
 

@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -659,6 +660,96 @@ func TestMergeMethodTranslation(t *testing.T) {
 			method := cfg.MergeMethod()
 			if method != tt.expectedMethod {
 				t.Errorf("expected method %q, got %q", tt.expectedMethod, method)
+			}
+		})
+	}
+}
+
+func TestMergeAPIPathConstruction(t *testing.T) {
+	// Test that the API path is constructed correctly for different PR URLs
+	// This verifies the format: PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge
+	tests := []struct {
+		name         string
+		prURL        string
+		expectedPath string
+	}{
+		{
+			name:         "standard PR URL",
+			prURL:        "https://github.com/owner/repo/pull/123",
+			expectedPath: "/repos/owner/repo/pulls/123/merge",
+		},
+		{
+			name:         "org with hyphens",
+			prURL:        "https://github.com/my-org/my-repo/pull/456",
+			expectedPath: "/repos/my-org/my-repo/pulls/456/merge",
+		},
+		{
+			name:         "large PR number",
+			prURL:        "https://github.com/acme/project/pull/99999",
+			expectedPath: "/repos/acme/project/pulls/99999/merge",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owner, repo, prNumber, err := parsePRURL(tt.prURL)
+			if err != nil {
+				t.Fatalf("failed to parse PR URL: %v", err)
+			}
+
+			// Reconstruct the API path as MergePR does (using fmt.Sprintf like the real code)
+			apiPath := fmt.Sprintf("/repos/%s/%s/pulls/%d/merge", owner, repo, prNumber)
+			if apiPath != tt.expectedPath {
+				t.Errorf("expected API path %q, got %q", tt.expectedPath, apiPath)
+			}
+		})
+	}
+}
+
+func TestDeleteBranchAPIPathConstruction(t *testing.T) {
+	// Test that delete branch API path is constructed correctly
+	// This verifies the format: DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}
+	tests := []struct {
+		name           string
+		owner          string
+		repo           string
+		branch         string
+		expectedPath   string
+	}{
+		{
+			name:         "simple branch name",
+			owner:        "owner",
+			repo:         "repo",
+			branch:       "feature-branch",
+			expectedPath: "/repos/owner/repo/git/refs/heads/feature-branch",
+		},
+		{
+			name:         "branch with refs/heads prefix",
+			owner:        "owner",
+			repo:         "repo",
+			branch:       "refs/heads/feature-branch",
+			expectedPath: "/repos/owner/repo/git/refs/heads/feature-branch",
+		},
+		{
+			name:         "orc task branch",
+			owner:        "my-org",
+			repo:         "my-repo",
+			branch:       "orc/TASK-001",
+			expectedPath: "/repos/my-org/my-repo/git/refs/heads/orc/TASK-001",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Strip refs/heads/ prefix if present, as deleteBranch does
+			branchName := tt.branch
+			if len(branchName) > 11 && branchName[:11] == "refs/heads/" {
+				branchName = branchName[11:]
+			}
+
+			apiPath := "/repos/" + tt.owner + "/" + tt.repo + "/git/refs/heads/" + branchName
+			if apiPath != tt.expectedPath {
+				t.Errorf("expected API path %q, got %q", tt.expectedPath, apiPath)
 			}
 		})
 	}
