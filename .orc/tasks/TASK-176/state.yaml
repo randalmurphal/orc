@@ -1,9 +1,10 @@
 task_id: TASK-176
 current_phase: validate
 current_iteration: 6
-status: running
+status: completed
 started_at: 2026-01-14T15:51:19.9528-06:00
-updated_at: 2026-01-14T19:04:43.477420459-06:00
+updated_at: 2026-01-14T19:04:43.507074109-06:00
+completed_at: 2026-01-14T19:04:43.507073859-06:00
 phases:
     docs:
         status: completed
@@ -86,6 +87,11 @@ gates:
       approved: true
       reason: auto-approved on success
       timestamp: 2026-01-14T18:50:42.233794928-06:00
+    - phase: validate
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T19:04:43.507071074-06:00
 tokens:
     input_tokens: 49988851
     output_tokens: 228713
@@ -94,11 +100,6 @@ tokens:
     total_tokens: 50217564
 cost:
     total_cost_usd: 0
-execution:
-    pid: 273051
-    hostname: Nexus
-    started_at: 2026-01-14T18:40:51.814680961-06:00
-    last_heartbeat: 2026-01-14T18:50:42.233798044-06:00
 error: |-
     sync conflict detected: task branch has 0 files in conflict with target
       Conflicting files: []
