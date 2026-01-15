@@ -81,23 +81,23 @@ func (p *CLIPublisher) handleTranscript(event Event) {
 	// Format output based on type
 	switch line.Type {
 	case "prompt":
-		fmt.Fprintf(p.out, "\n━━━ Prompt [%s iter:%d] ━━━\n", line.Phase, line.Iteration)
-		fmt.Fprintln(p.out, line.Content)
+		_, _ = fmt.Fprintf(p.out, "\n━━━ Prompt [%s iter:%d] ━━━\n", line.Phase, line.Iteration)
+		_, _ = fmt.Fprintln(p.out, line.Content)
 	case "response":
-		fmt.Fprintf(p.out, "\n━━━ Response [%s iter:%d] ━━━\n", line.Phase, line.Iteration)
-		fmt.Fprintln(p.out, line.Content)
+		_, _ = fmt.Fprintf(p.out, "\n━━━ Response [%s iter:%d] ━━━\n", line.Phase, line.Iteration)
+		_, _ = fmt.Fprintln(p.out, line.Content)
 	case "chunk":
 		// Streaming chunk - write directly without newline
-		fmt.Fprint(p.out, line.Content)
+		_, _ = fmt.Fprint(p.out, line.Content)
 	case "tool":
 		// Tool calls - abbreviated output
 		content := line.Content
 		if len(content) > 200 {
 			content = content[:200] + "..."
 		}
-		fmt.Fprintf(p.out, "\n🔧 Tool: %s\n", strings.TrimSpace(content))
+		_, _ = fmt.Fprintf(p.out, "\n🔧 Tool: %s\n", strings.TrimSpace(content))
 	case "error":
-		fmt.Fprintf(p.out, "\n❌ Error: %s\n", line.Content)
+		_, _ = fmt.Fprintf(p.out, "\n❌ Error: %s\n", line.Content)
 	}
 }
 
@@ -114,19 +114,19 @@ func (p *CLIPublisher) handleActivity(event Event) {
 	// Only show significant activity changes
 	switch activity.Activity {
 	case "waiting_api":
-		fmt.Fprintf(p.out, "\n⏳ Waiting for Claude API...")
+		_, _ = fmt.Fprintf(p.out, "\n⏳ Waiting for Claude API...")
 	case "running_tool":
-		fmt.Fprintf(p.out, "\n🔧 Running tool...")
+		_, _ = fmt.Fprintf(p.out, "\n🔧 Running tool...")
 	}
 }
 
 // handleHeartbeat processes heartbeat events.
-func (p *CLIPublisher) handleHeartbeat(event Event) {
+func (p *CLIPublisher) handleHeartbeat(_ Event) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	// Print a dot to show progress
-	fmt.Fprint(p.out, ".")
+	_, _ = fmt.Fprint(p.out, ".")
 }
 
 // handleWarning processes warning events.
@@ -139,7 +139,7 @@ func (p *CLIPublisher) handleWarning(event Event) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	fmt.Fprintf(p.out, "\n⚠️  %s\n", warning.Message)
+	_, _ = fmt.Fprintf(p.out, "\n⚠️  %s\n", warning.Message)
 }
 
 // Subscribe delegates to inner publisher or returns closed channel.

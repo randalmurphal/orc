@@ -100,7 +100,7 @@ func (r *Registry) Save() error {
 
 	if err := os.Rename(tmpPath, path); err != nil {
 		// Clean up temp file on rename failure
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("rename registry: %w", err)
 	}
 

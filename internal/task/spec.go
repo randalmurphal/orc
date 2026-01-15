@@ -65,7 +65,7 @@ func LoadSpec(taskID string) (*Spec, error) {
 	metaPath := SpecMetadataPath(taskID)
 	metaData, err := os.ReadFile(metaPath)
 	if err == nil {
-		yaml.Unmarshal(metaData, &spec.Metadata)
+		_ = yaml.Unmarshal(metaData, &spec.Metadata)
 	}
 
 	return spec, nil
@@ -143,7 +143,7 @@ func LoadSpecFrom(taskDir string) (*Spec, error) {
 	metaPath := filepath.Join(taskDir, "spec_meta.yaml")
 	metaData, err := os.ReadFile(metaPath)
 	if err == nil {
-		yaml.Unmarshal(metaData, &spec.Metadata)
+		_ = yaml.Unmarshal(metaData, &spec.Metadata)
 	}
 
 	return spec, nil

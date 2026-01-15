@@ -580,7 +580,7 @@ func (e *FinalizeExecutor) resolveConflicts(
 	if err != nil {
 		return false, fmt.Errorf("create conflict resolution session: %w", err)
 	}
-	defer adapter.Close()
+	defer func() { _ = adapter.Close() }()
 
 	// Execute conflict resolution
 	turnResult, err := adapter.ExecuteTurn(ctx, prompt)
@@ -649,7 +649,7 @@ func (e *FinalizeExecutor) resolveRebaseConflicts(
 			resolved, err := e.resolveConflicts(ctx, t, p, s, remaining, cfg)
 			if err != nil || !resolved {
 				// Abort rebase
-				e.gitSvc.AbortRebase()
+				_ = e.gitSvc.AbortRebase()
 				return false, fmt.Errorf("failed to resolve rebase conflict at attempt %d: %w", attempt, err)
 			}
 		}
@@ -666,7 +666,7 @@ func (e *FinalizeExecutor) resolveRebaseConflicts(
 	}
 
 	// Max attempts reached
-	e.gitSvc.AbortRebase()
+	_ = e.gitSvc.AbortRebase()
 	return false, fmt.Errorf("rebase conflict resolution exceeded max attempts")
 }
 
@@ -744,7 +744,7 @@ func (e *FinalizeExecutor) tryFixTests(
 	if err != nil {
 		return false, fmt.Errorf("create test fix session: %w", err)
 	}
-	defer adapter.Close()
+	defer func() { _ = adapter.Close() }()
 
 	// Execute fix
 	turnResult, err := adapter.ExecuteTurn(ctx, prompt)

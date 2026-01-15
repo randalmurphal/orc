@@ -563,7 +563,7 @@ func scanActivityLogRows(rows *sql.Rows) (*ActivityLog, error) {
 // generateMemberID generates a unique ID for a team member.
 func generateMemberID() string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return "TM-" + hex.EncodeToString(b)[:8]
 }
 

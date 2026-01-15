@@ -22,15 +22,13 @@ func (v *Validator) Validate() []string {
 
 	// Check that CLAUDE.md exists or was created
 	claudeMDPath := filepath.Join(v.workDir, ".claude", "CLAUDE.md")
+	// Check for CLAUDE.md in .claude/ or project root
+	// Not finding it is fine - setup may have been skipped or minimal
 	if _, err := os.Stat(claudeMDPath); os.IsNotExist(err) {
-		// Not an error - CLAUDE.md may be in project root
 		rootClaudeMD := filepath.Join(v.workDir, "CLAUDE.md")
 		if _, err := os.Stat(rootClaudeMD); os.IsNotExist(err) {
-			// Still not found - check if .claude directory exists
 			claudeDir := filepath.Join(v.workDir, ".claude")
-			if _, err := os.Stat(claudeDir); os.IsNotExist(err) {
-				// This is fine - setup may have been skipped or minimal
-			}
+			_, _ = os.Stat(claudeDir) // Check if .claude exists but don't error either way
 		}
 	}
 

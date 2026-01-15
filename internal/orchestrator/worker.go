@@ -191,7 +191,7 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.S
 	if !mgr.Exists() {
 		// Phase completed
 		st.CompletePhase(currentPhase.ID, "")
-		st.Save()
+		_ = st.Save()
 
 		pool.publishEvent(events.Event{
 			Type:   events.EventPhase,
@@ -204,13 +204,13 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.S
 
 		// Check if more phases
 		pln.GetPhase(currentPhase.ID).Status = plan.PhaseCompleted
-		pln.Save(t.ID)
+		_ = pln.Save(t.ID)
 
 		nextPhase := pln.CurrentPhase()
 		if nextPhase == nil {
 			// Task complete
 			st.Complete()
-			st.Save()
+			_ = st.Save()
 			w.setStatus(WorkerStatusComplete)
 		} else {
 			// Continue with next phase (recursive)

@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -53,7 +54,7 @@ func (s *Server) handleUploadAttachment(w http.ResponseWriter, r *http.Request) 
 		s.jsonError(w, "file is required", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Get filename - use form field if provided, otherwise use uploaded filename
 	filename := r.FormValue("filename")
@@ -105,7 +106,7 @@ func (s *Server) handleGetAttachment(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	// Set response headers
 	w.Header().Set("Content-Type", attachment.ContentType)
@@ -119,7 +120,10 @@ func (s *Server) handleGetAttachment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Stream the file
-	io.Copy(w, reader)
+	if _, err := io.Copy(w, reader); err != nil {
+		// Client may have disconnected; just log and return
+		slog.Debug("error streaming attachment", "filename", attachment.Filename, "error", err)
+	}
 }
 
 // handleDeleteAttachment deletes an attachment from a task.

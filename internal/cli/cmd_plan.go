@@ -52,7 +52,6 @@ var (
 	planInclude          []string
 	planWeight           string
 	planCreateTasks      bool
-	planSkipValidation   bool
 	planShared           bool
 )
 
@@ -158,7 +157,7 @@ func runPlanInteractive(cmd *cobra.Command, args []string) error {
 }
 
 // runPlanBatch handles the batch mode - reading existing specs and generating tasks.
-func runPlanBatch(cmd *cobra.Command, args []string) error {
+func runPlanBatch(_ *cobra.Command, _ []string) error {
 	// Get working directory
 	wd, err := os.Getwd()
 	if err != nil {

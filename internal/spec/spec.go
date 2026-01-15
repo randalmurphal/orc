@@ -55,7 +55,7 @@ func Run(ctx context.Context, title string, opts Options) (*Result, error) {
 	var detection *db.Detection
 	pdb, err := db.OpenProject(opts.WorkDir)
 	if err == nil {
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 		detection, _ = pdb.LoadDetection()
 	}
 

@@ -84,7 +84,7 @@ func (s *Server) handleExportTask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to create storage backend: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create export service
 	exportSvc := storage.NewExportService(backend, &cfg.Storage)

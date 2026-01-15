@@ -111,7 +111,7 @@ func (p *ProjectDB) ListPendingKnowledge() ([]*KnowledgeEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list pending knowledge: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	return scanKnowledgeEntries(rows)
 }
@@ -129,7 +129,7 @@ func (p *ProjectDB) ListKnowledgeByType(ktype KnowledgeType, status KnowledgeSta
 	if err != nil {
 		return nil, fmt.Errorf("list knowledge by type: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	return scanKnowledgeEntries(rows)
 }
@@ -147,7 +147,7 @@ func (p *ProjectDB) ListKnowledgeByTask(taskID string) ([]*KnowledgeEntry, error
 	if err != nil {
 		return nil, fmt.Errorf("list knowledge by task: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	return scanKnowledgeEntries(rows)
 }
@@ -259,7 +259,7 @@ func (p *ProjectDB) ListStaleKnowledge(stalenessDays int) ([]*KnowledgeEntry, er
 	if err != nil {
 		return nil, fmt.Errorf("list stale knowledge: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	entries, err := scanKnowledgeEntries(rows)
 	if err != nil {

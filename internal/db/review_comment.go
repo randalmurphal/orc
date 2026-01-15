@@ -312,6 +312,6 @@ func formatNullableTime(t *time.Time) *string {
 // generateCommentID generates a unique ID for a review comment.
 func generateCommentID() string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return "RC-" + hex.EncodeToString(b)[:8]
 }

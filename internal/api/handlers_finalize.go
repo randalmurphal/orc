@@ -276,7 +276,7 @@ func (s *Server) handleGetFinalizeStatus(w http.ResponseWriter, r *http.Request)
 }
 
 // runFinalizeAsync runs the finalize operation asynchronously.
-func (s *Server) runFinalizeAsync(taskID string, t *task.Task, req FinalizeRequest, finState *FinalizeState) {
+func (s *Server) runFinalizeAsync(taskID string, t *task.Task, _ FinalizeRequest, finState *FinalizeState) {
 	ctx := context.Background()
 
 	// Update state to running
@@ -396,18 +396,19 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, req FinalizeReque
 	result, err := finalizeExec.Execute(ctx, t, finalizePhase, st)
 	if err != nil {
 		st.FailPhase("finalize", err)
-		st.SaveTo(task.TaskDirIn(s.workDir, taskID))
+		_ = st.SaveTo(task.TaskDirIn(s.workDir, taskID))
 		s.finalizeFailed(taskID, finState, err)
 		return
 	}
 
 	// Update state
-	if result.Status == plan.PhaseCompleted {
+	switch result.Status {
+	case plan.PhaseCompleted:
 		st.CompletePhase("finalize", result.CommitSHA)
-	} else if result.Status == plan.PhaseFailed {
+	case plan.PhaseFailed:
 		st.FailPhase("finalize", result.Error)
 	}
-	st.SaveTo(task.TaskDirIn(s.workDir, taskID))
+	_ = st.SaveTo(task.TaskDirIn(s.workDir, taskID))
 
 	// Build result from executor result
 	finResult := &FinalizeResult{

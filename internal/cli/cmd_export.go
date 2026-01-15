@@ -271,10 +271,6 @@ Examples:
 	return cmd
 }
 
-func importFile(path string, force bool) error {
-	return importFileWithMerge(path, force, false)
-}
-
 // importFileWithMerge imports a task with smart merge logic.
 // - force: always overwrite existing
 // - skipExisting: never overwrite existing

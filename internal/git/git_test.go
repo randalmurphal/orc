@@ -214,7 +214,9 @@ func TestGetCurrentBranch(t *testing.T) {
 
 func TestRewind(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	baseGit, _ := New(tmpDir, DefaultConfig())
+	// Use InWorktree to mark as worktree context (Rewind requires this)
+	g := baseGit.InWorktree(tmpDir)
 
 	g.CreateBranch("TASK-001")
 
@@ -695,7 +697,9 @@ func TestDetectConflicts_NoConflicts(t *testing.T) {
 // TestDetectConflicts_WithConflicts tests conflict detection when conflicts exist
 func TestDetectConflicts_WithConflicts(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	baseGit, _ := New(tmpDir, DefaultConfig())
+	// Use InWorktree to mark as worktree context (fallback conflict detection requires this)
+	g := baseGit.InWorktree(tmpDir)
 
 	baseBranch, _ := g.GetCurrentBranch()
 
@@ -752,7 +756,9 @@ func TestDetectConflicts_WithConflicts(t *testing.T) {
 // TestRebaseWithConflictCheck_Success tests successful rebase
 func TestRebaseWithConflictCheck_Success(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	baseGit, _ := New(tmpDir, DefaultConfig())
+	// Use InWorktree to mark as worktree context (rebase requires this)
+	g := baseGit.InWorktree(tmpDir)
 
 	baseBranch, _ := g.GetCurrentBranch()
 
@@ -785,7 +791,9 @@ func TestRebaseWithConflictCheck_Success(t *testing.T) {
 // TestRebaseWithConflictCheck_Conflict tests rebase with conflicts
 func TestRebaseWithConflictCheck_Conflict(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	baseGit, _ := New(tmpDir, DefaultConfig())
+	// Use InWorktree to mark as worktree context (rebase requires this)
+	g := baseGit.InWorktree(tmpDir)
 
 	baseBranch, _ := g.GetCurrentBranch()
 
