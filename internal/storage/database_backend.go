@@ -195,6 +195,24 @@ func (d *DatabaseBackend) SaveState(s *state.State) error {
 	dbTask.StateStatus = string(s.Status)
 	dbTask.CurrentPhase = s.CurrentPhase
 
+	// Persist execution info for orphan detection
+	if s.Execution != nil {
+		dbTask.ExecutorPID = s.Execution.PID
+		dbTask.ExecutorHostname = s.Execution.Hostname
+		if !s.Execution.StartedAt.IsZero() {
+			dbTask.ExecutorStartedAt = &s.Execution.StartedAt
+		}
+		if !s.Execution.LastHeartbeat.IsZero() {
+			dbTask.LastHeartbeat = &s.Execution.LastHeartbeat
+		}
+	} else {
+		// Clear execution info when not present
+		dbTask.ExecutorPID = 0
+		dbTask.ExecutorHostname = ""
+		dbTask.ExecutorStartedAt = nil
+		dbTask.LastHeartbeat = nil
+	}
+
 	// Serialize RetryContext if present
 	if s.RetryContext != nil {
 		retryContextJSON, err := json.Marshal(s.RetryContext)
@@ -352,6 +370,22 @@ func (d *DatabaseBackend) loadStateUnlocked(taskID string) (*state.State, error)
 			Reason:    dbGate.Reason,
 			Timestamp: dbGate.DecidedAt,
 		})
+	}
+
+	// Reconstruct ExecutionInfo for orphan detection
+	// Only create ExecutionInfo if there's meaningful execution data
+	if dbTask.ExecutorPID > 0 || dbTask.ExecutorHostname != "" ||
+		dbTask.ExecutorStartedAt != nil || dbTask.LastHeartbeat != nil {
+		s.Execution = &state.ExecutionInfo{
+			PID:      dbTask.ExecutorPID,
+			Hostname: dbTask.ExecutorHostname,
+		}
+		if dbTask.ExecutorStartedAt != nil {
+			s.Execution.StartedAt = *dbTask.ExecutorStartedAt
+		}
+		if dbTask.LastHeartbeat != nil {
+			s.Execution.LastHeartbeat = *dbTask.LastHeartbeat
+		}
 	}
 
 	return s, nil
