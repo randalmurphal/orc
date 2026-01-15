@@ -451,3 +451,13 @@ func (s *State) GetExecutorPID() int {
 	return 0
 }
 
+// Elapsed returns the duration since the task started, or 0 if StartedAt is not set.
+// This safely handles cases where StartedAt is the zero value (e.g., when loaded
+// from database without a start time), avoiding absurdly large durations.
+func (s *State) Elapsed() time.Duration {
+	if s.StartedAt.IsZero() {
+		return 0
+	}
+	return time.Since(s.StartedAt)
+}
+

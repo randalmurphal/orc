@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -166,7 +165,7 @@ Example:
 				fileStats = getFinalizeFileChangeStats(ctx, projectRoot, t.Branch, cfg)
 			}
 
-			disp.TaskComplete(s.Tokens.TotalTokens, time.Since(s.StartedAt), fileStats)
+			disp.TaskComplete(s.Tokens.TotalTokens, s.Elapsed(), fileStats)
 			return nil
 		},
 	}
