@@ -1,0 +1,77 @@
+id: TASK-207
+title: Migrate TaskCard and board components to Button primitive
+description: |-
+    ## Overview
+    Replace all raw <button> elements in board components with the Button primitive.
+
+    ## Files and Button Audit
+
+    ### TaskCard.tsx (12 buttons)
+    | Button | Current Class | Button Props |
+    |--------|---------------|--------------|
+    | Initiative badge | .initiative-badge | variant=ghost, size=sm |
+    | Run action | .action-btn.run | variant=success, size=sm, iconOnly |
+    | Pause action | .action-btn.pause | variant=secondary, size=sm, iconOnly |
+    | Resume action | .action-btn.resume | variant=primary, size=sm, iconOnly |
+    | Finalize action | .action-btn.finalize | variant=primary, size=sm, iconOnly |
+    | More menu trigger | .action-btn.more | variant=ghost, size=sm, iconOnly |
+    | Queue: Active | .menu-item | variant=ghost, size=sm |
+    | Queue: Backlog | .menu-item | variant=ghost, size=sm |
+    | Priority: Critical | .menu-item | variant=ghost, size=sm |
+    | Priority: High | .menu-item | variant=ghost, size=sm |
+    | Priority: Normal | .menu-item | variant=ghost, size=sm |
+    | Priority: Low | .menu-item | variant=ghost, size=sm |
+
+    ### Board.tsx (4 buttons)
+    - New Task button: variant=primary, size=md
+    - View mode toggle buttons: variant=ghost, size=sm
+
+    ### Column.tsx (1 button)
+    - Collapse toggle: variant=ghost, size=sm, iconOnly
+
+    ### QueuedColumn.tsx (1 button)
+    - Backlog toggle: variant=ghost, size=sm
+
+    ### Swimlane.tsx (1 button)
+    - Collapse toggle: variant=ghost, size=sm, iconOnly
+
+    ## Requirements
+    - E2E tests must pass WITHOUT selector changes
+    - Visual regression tests must match current appearance exactly
+    - Preserve data-testid attributes where present
+    - Icon-only buttons must have aria-label
+
+    ## CSS Class Preservation Strategy
+    Keep existing classes as additional className for backwards compatibility:
+    ```tsx
+    <Button variant="success" size="sm" iconOnly className="action-btn run">
+    ```
+
+    ## Definition of Done
+    - [ ] All 12 TaskCard buttons migrated
+    - [ ] All 4 Board.tsx buttons migrated
+    - [ ] Column.tsx collapse toggle migrated
+    - [ ] QueuedColumn.tsx backlog toggle migrated
+    - [ ] Swimlane.tsx collapse toggle migrated
+    - [ ] npm run test passes
+    - [ ] bunx playwright test board.spec.ts passes
+    - [ ] bunx playwright test --project=visual passes (board snapshots)
+    - [ ] No CSS selector changes in E2E tests
+
+    ## Success Criteria
+    All board buttons use Button component with visual parity to current implementation.
+weight: medium
+status: planned
+branch: orc/TASK-207
+queue: active
+priority: high
+category: refactor
+initiative_id: INIT-009
+blocked_by:
+    - TASK-203
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:04:33.675349932-06:00
+updated_at: 2026-01-14T23:19:39.084753651-06:00

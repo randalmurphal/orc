@@ -1,0 +1,95 @@
+id: TASK-210
+title: Install Radix UI packages and validate setup
+description: |-
+    ## Overview
+    Install Radix UI packages and set up the foundation for accessible component primitives.
+
+    ## Packages to Install
+    ```bash
+    npm install @radix-ui/react-dialog @radix-ui/react-dropdown-menu \
+      @radix-ui/react-select @radix-ui/react-tabs @radix-ui/react-tooltip
+    ```
+
+    ## Setup Requirements
+
+    ### 1. Verify TypeScript Types
+    - All packages include TypeScript definitions
+    - No @types/* packages needed
+    - Verify no type conflicts with React 19
+
+    ### 2. Verify React 19 Compatibility
+    - Radix 2.x supports React 19
+    - Test that components render without warnings
+    - Check for any deprecated prop usage
+
+    ### 3. Verify Tree-Shaking
+    - Build output should only include used components
+    - Check bundle size impact with `npm run build && ls -la dist/`
+
+    ### 4. Set Up Global CSS for Radix States
+    Add to web-react/src/index.css:
+    ```css
+    /* Radix UI data-state transitions */
+    [data-state='open'] {
+      animation: radix-enter var(--duration-fast) var(--ease-out);
+    }
+
+    [data-state='closed'] {
+      animation: radix-exit var(--duration-fast) var(--ease-in);
+    }
+
+    @keyframes radix-enter {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes radix-exit {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.96); }
+    }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      [data-state='open'],
+      [data-state='closed'] {
+        animation: none;
+      }
+    }
+    ```
+
+    ### 5. Document Portal Behavior
+    - Radix components portal to document.body by default
+    - This matches current Modal.tsx behavior
+    - Document in CLAUDE.md
+
+    ### 6. Create ADR
+    Create docs/adr/ADR-XXX-radix-adoption.md documenting:
+    - Decision: Adopt Radix UI for accessible primitives
+    - Context: Need focus management, keyboard nav, ARIA
+    - Options considered: Native HTML, Headless UI, React Aria
+    - Decision rationale: Unstyled, React 19 support, community
+
+    ## Success Criteria
+    - All 5 packages installed and importable
+    - TypeScript compiles without errors
+    - Build succeeds with reasonable bundle size increase
+    - Global CSS for data-state transitions in place
+    - ADR documented
+
+    ## Test Criteria
+    - npm run build succeeds
+    - npm run dev starts without errors
+    - Simple import test: each package can be imported
+    - No React 19 compatibility warnings in console
+weight: medium
+status: planned
+branch: orc/TASK-210
+queue: active
+priority: high
+category: chore
+initiative_id: INIT-009
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+created_at: 2026-01-14T23:04:55.644270748-06:00
+updated_at: 2026-01-14T23:20:45.524327997-06:00

@@ -1,0 +1,92 @@
+id: TASK-209
+title: Migrate dashboard and layout components to Button primitive
+description: |-
+    ## Overview
+    Replace all raw <button> elements in dashboard and layout components with the Button primitive.
+
+    ## Files and Button Audit
+
+    ### Dashboard Components
+
+    #### DashboardStats.tsx
+    - Stat card clicks (may be divs, audit needed)
+
+    #### DashboardQuickActions.tsx
+    | Button | Current Usage | Button Props |
+    |--------|---------------|--------------|
+    | New Task | Primary CTA | variant=primary, size=md |
+    | View All Tasks | Secondary | variant=secondary, size=md |
+    | View Board | Secondary | variant=secondary, size=md |
+
+    #### DashboardActiveTasks.tsx
+    - Task row clicks (may be links, audit needed)
+
+    #### DashboardRecentActivity.tsx
+    - Activity row clicks (may be links, audit needed)
+
+    #### DashboardInitiatives.tsx
+    | Button | Current Usage | Button Props |
+    |--------|---------------|--------------|
+    | View All link | Text link style | variant=ghost, size=sm |
+    | Initiative rows | Clickable rows | May be links, not buttons |
+
+    ### Layout Components
+
+    #### Header.tsx
+    | Button | Current Usage | Button Props |
+    |--------|---------------|--------------|
+    | New Task | Primary | variant=primary, size=sm |
+    | Command palette trigger | Ghost | variant=ghost, size=sm, iconOnly |
+    | Project selector trigger | Ghost | variant=ghost, size=sm |
+
+    #### Sidebar.tsx
+    | Button | Current Usage | Button Props |
+    |--------|---------------|--------------|
+    | Section toggles | Collapse/expand | variant=ghost, size=sm, iconOnly |
+    | Mobile menu toggle | Menu icon | variant=ghost, size=sm, iconOnly |
+
+    Note: Nav items should remain as NavLink components, not buttons
+
+    #### ProjectSwitcher.tsx
+    | Button | Current Usage | Button Props |
+    |--------|---------------|--------------|
+    | Close button | Modal close | variant=ghost, size=sm, iconOnly |
+    | Project items | Selection | May be radio-style, audit needed |
+    | Set as default | Action | variant=secondary, size=sm |
+
+    ## Button vs Link Distinction
+    - Navigation (go to page): Use NavLink or <a>
+    - Actions (do something): Use Button
+    - If clicking changes URL without side effects: Link
+    - If clicking triggers action (API call, modal, etc.): Button
+
+    ## Requirements
+    - E2E tests must pass WITHOUT selector changes
+    - Visual parity with current implementation
+    - Distinguish buttons from NavLinks
+
+    ## Definition of Done
+    - [ ] Button vs Link audit completed for all files
+    - [ ] All true buttons migrated
+    - [ ] NavLinks remain as NavLinks
+    - [ ] npm run test passes
+    - [ ] bunx playwright test dashboard.spec.ts passes
+    - [ ] bunx playwright test --project=visual passes
+
+    ## Success Criteria
+    All dashboard/layout action buttons use Button component.
+weight: medium
+status: planned
+branch: orc/TASK-209
+queue: active
+priority: normal
+category: refactor
+initiative_id: INIT-009
+blocked_by:
+    - TASK-203
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:04:47.524293752-06:00
+updated_at: 2026-01-14T23:20:14.789925453-06:00

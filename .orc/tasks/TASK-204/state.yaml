@@ -1,0 +1,47 @@
+task_id: TASK-204
+current_phase: implement
+current_iteration: 2
+status: interrupted
+started_at: 2026-01-14T23:04:06.946578881-06:00
+updated_at: 2026-01-14T23:07:29.139269116-06:00
+phases:
+    implement:
+        status: interrupted
+        started_at: 2026-01-14T23:05:32.922854516-06:00
+        interrupted_at: 2026-01-14T23:07:29.139267934-06:00
+        iterations: 0
+        tokens:
+            input_tokens: 0
+            output_tokens: 0
+            total_tokens: 0
+    spec:
+        status: completed
+        started_at: 2026-01-14T23:04:08.86534809-06:00
+        completed_at: 2026-01-14T23:05:32.905754713-06:00
+        iterations: 1
+        commit_sha: 91893021f50bfe04a8993f736fab89e61c27e345
+        tokens:
+            input_tokens: 897091
+            output_tokens: 3110
+            cache_creation_input_tokens: 79253
+            cache_read_input_tokens: 817825
+            total_tokens: 900201
+gates:
+    - phase: spec
+      gate_type: auto
+      approved: true
+      reason: auto-approved on success
+      timestamp: 2026-01-14T23:05:32.922852432-06:00
+tokens:
+    input_tokens: 897091
+    output_tokens: 3110
+    cache_creation_input_tokens: 79253
+    cache_read_input_tokens: 817825
+    total_tokens: 900201
+cost:
+    total_cost_usd: 0
+execution:
+    pid: 363035
+    hostname: Nexus
+    started_at: 2026-01-14T23:04:07.035794076-06:00
+    last_heartbeat: 2026-01-14T23:05:32.922857171-06:00

@@ -1,0 +1,108 @@
+id: TASK-203
+title: Create Button primitive component
+description: |-
+    ## Overview
+    Create a shared Button component in web-react/src/components/ui/Button.tsx with comprehensive variants, sizes, states, and accessibility support.
+
+    ## Design Specifications
+
+    ### Sizing
+    | Size | Height | Padding (x) | Font Size | Icon Size |
+    |------|--------|-------------|-----------|-----------|
+    | sm | 28px | var(--space-3) | var(--text-sm) | 14px |
+    | md | 36px | var(--space-4) | var(--text-base) | 16px |
+    | lg | 44px | var(--space-5) | var(--text-lg) | 20px |
+
+    ### Visual Properties
+    - Border radius: var(--radius-md) (6px)
+    - Font weight: var(--font-medium) (500)
+    - Transition: all var(--duration-normal) var(--ease-out) (150ms)
+    - Focus ring: box-shadow: 0 0 0 2px var(--accent-glow), 0 0 0 3px var(--border-focus)
+
+    ### Variant Colors
+    | Variant | Background | Text | Hover BG | Border |
+    |---------|------------|------|----------|--------|
+    | primary | --accent-primary | --text-inverse | --accent-hover | none |
+    | secondary | transparent | --text-primary | --bg-elevated | --border-default |
+    | danger | --status-danger | white | opacity 0.9 | none |
+    | ghost | transparent | --text-secondary | --bg-surface | none |
+    | success | --status-success | white | opacity 0.9 | none |
+
+    ### States
+    - **Hover**: Background color shift per variant table, scale(1.01)
+    - **Active**: scale(0.98), brightness(0.95)
+    - **Disabled**: opacity 0.5, cursor: not-allowed, pointer-events: none
+    - **Loading**: Spinner replaces content, pointer-events: none, aria-busy=true
+    - **Focus-visible**: Focus ring (not on :focus, only :focus-visible)
+
+    ### Loading Spinner
+    - Size: Match icon size for button size
+    - Animation: spin 1s linear infinite
+    - Color: currentColor
+
+    ### Props Interface
+    ```typescript
+    interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+      variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
+      size?: 'sm' | 'md' | 'lg';
+      loading?: boolean;
+      leftIcon?: React.ReactNode;
+      rightIcon?: React.ReactNode;
+      iconOnly?: boolean; // For icon-only buttons (action buttons)
+    }
+    ```
+
+    ## Accessibility Requirements
+    - Use :focus-visible for focus ring (not :focus)
+    - Loading state: aria-busy="true", aria-disabled="true"
+    - Disabled state: aria-disabled="true" (in addition to disabled attr)
+    - Keyboard: Enter and Space both trigger click
+    - Icon-only buttons: require aria-label prop
+
+    ## Success Criteria
+    - Single source of truth for all button styling
+    - All variants render with correct colors
+    - All sizes render with correct dimensions
+    - Loading state shows spinner and disables interaction
+    - Focus ring only appears on keyboard navigation
+
+    ## Test Criteria
+
+    ### Unit Tests (Vitest)
+    - Renders all 5 variants correctly
+    - Renders all 3 sizes correctly
+    - Renders with left icon, right icon, or both
+    - Loading state shows spinner, disables interaction
+    - Disabled state prevents interaction, shows correct styling
+    - Click handler is called when clicked
+    - onClick is NOT called when disabled or loading
+    - Forwards ref correctly
+    - Applies custom className
+
+    ### Visual Snapshot Tests
+    - All variants at md size
+    - All sizes with primary variant
+    - Loading state
+    - Disabled state
+    - With icons (left, right, both)
+    - Icon-only mode
+
+    ### E2E Tests
+    - Button interactions work in context (New Task button, etc.)
+weight: medium
+status: paused
+current_phase: implement
+branch: orc/TASK-203
+queue: active
+priority: high
+category: feature
+initiative_id: INIT-009
+blocked_by:
+    - TASK-219
+requires_ui_testing: true
+testing_requirements:
+    unit: true
+    visual: true
+created_at: 2026-01-14T23:03:57.457657649-06:00
+updated_at: 2026-01-14T23:18:07.168001869-06:00
+started_at: 2026-01-14T23:04:05.458538685-06:00
