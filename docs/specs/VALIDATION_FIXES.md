@@ -421,76 +421,72 @@ func DetectMode(projectPath string) string {
 
 ### Problem
 
-Specs are unclear about database vs YAML file roles.
+Specs were unclear about database vs YAML file roles.
 
-### Solution
+### Solution (Implemented)
 
-Clarify distinct purposes.
+**Pure SQL storage** - SQLite is the sole source of truth for all task data.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Storage Roles                             │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  YAML Files (git-tracked, human-editable)                        │
-│  ├── .orc/tasks/TASK-001/task.yaml    Task definition           │
-│  ├── .orc/tasks/TASK-001/plan.yaml    Phase sequence            │
-│  ├── .orc/tasks/TASK-001/state.yaml   Execution state           │
-│  ├── .orc/shared/config.yaml          Team configuration        │
-│  └── .orc/shared/prompts/*.md         Shared prompts            │
+│  SQLite Database (.orc/orc.db - SOURCE OF TRUTH)                │
+│  ├── tasks                    Task definitions, status, PR info │
+│  ├── phases                   Phase execution records           │
+│  ├── plans                    Phase sequences (JSON)            │
+│  ├── specs                    Task specifications               │
+│  ├── initiatives              Initiative groupings              │
+│  ├── transcripts              Claude session logs               │
+│  ├── task_attachments         File attachments (BLOB)           │
+│  └── cost_log                 Token usage tracking              │
 │                                                                  │
-│  SQLite Database (local index, NOT source of truth)             │
-│  ├── tasks table                      Index for search/list     │
-│  ├── cost_log table                   Token usage tracking      │
-│  ├── transcripts_fts                  Full-text search          │
-│  └── projects table                   Project registry          │
+│  Files (git-tracked, human-editable)                            │
+│  ├── .orc/config.yaml         Project configuration             │
+│  └── .orc/prompts/*.md        Prompt templates                  │
 │                                                                  │
-│  Postgres (team server, aggregation)                            │
-│  ├── organizations                    Org management            │
-│  ├── members                          User membership           │
-│  ├── task_visibility                  Read-only task mirror     │
-│  ├── cost_aggregation                 Team cost rollups         │
-│  └── audit_log                        Security audit trail      │
+│  Postgres (optional team mode - same schema)                    │
+│  ├── All SQLite tables        Full compatibility                │
+│  ├── organizations            Org management                    │
+│  └── members                  User membership                   │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 
-Key Principle: YAML files are the source of truth for task data.
-Database is derived/cached data for performance.
+Key Principle: SQLite is the source of truth for all task data.
+Configuration files remain human-editable.
 ```
 
-### Sync Pattern
+### Storage Pattern
 
 ```go
-// internal/task/repo.go
+// internal/storage/database_backend.go
 
-// Save writes to YAML and updates DB index
-func (r *Repo) Save(task *Task) error {
-    // 1. Write YAML (source of truth)
-    if err := r.writeYAML(task); err != nil {
-        return err
-    }
-
-    // 2. Update DB index (for search)
-    return r.updateIndex(task)
+// DatabaseBackend uses SQLite as source of truth
+type DatabaseBackend struct {
+    db  *db.ProjectDB
+    mu  sync.RWMutex
 }
 
-// Load reads from YAML, falls back to DB for list
-func (r *Repo) Get(id string) (*Task, error) {
-    return r.readYAML(id)
+// Save writes directly to database
+func (d *DatabaseBackend) SaveTask(t *task.Task) error {
+    d.mu.Lock()
+    defer d.mu.Unlock()
+    return d.db.SaveTask(t)
 }
 
-func (r *Repo) List() ([]*Task, error) {
-    // Use DB index for fast listing
-    return r.db.ListTasks()
+// Load reads directly from database
+func (d *DatabaseBackend) LoadTask(id string) (*task.Task, error) {
+    d.mu.RLock()
+    defer d.mu.RUnlock()
+    return d.db.LoadTask(id)
 }
 
-// Rebuild regenerates DB index from YAML files
-func (r *Repo) RebuildIndex() error {
-    tasks, err := r.scanYAMLFiles()
-    if err != nil {
-        return err
-    }
-    return r.db.ReplaceIndex(tasks)
+// List queries database
+func (d *DatabaseBackend) LoadAllTasks() ([]*task.Task, error) {
+    d.mu.RLock()
+    defer d.mu.RUnlock()
+    return d.db.LoadAllTasks()
 }
 ```
 

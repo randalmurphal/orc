@@ -989,7 +989,7 @@ function TaskCard({ task }: { task: Task }) {
 
 ### State Management (Zustand)
 
-Five Zustand stores mirror the Svelte store behavior. All use `subscribeWithSelector` middleware for efficient derived state.
+Five Zustand stores manage application state. All use `subscribeWithSelector` middleware for efficient derived state.
 
 #### Store Overview
 
@@ -2113,7 +2113,7 @@ Located in `components/task-detail/diff/`:
 - `react@19`, `react-dom@19` - Core framework
 - `react-router-dom@7` - Client-side routing
 - `zustand@5` - State management with subscribeWithSelector middleware
-- `@fontsource/inter`, `@fontsource/jetbrains-mono` - Typography (matching Svelte)
+- `@fontsource/inter`, `@fontsource/jetbrains-mono` - Typography
 - Radix UI primitives - Accessible component library (see below)
 
 ### Radix UI Component Library
