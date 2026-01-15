@@ -1628,6 +1628,7 @@ func TestGetIncompleteBlockers(t *testing.T) {
 		"TASK-001": {ID: "TASK-001", Title: "Completed task", Status: StatusCompleted},
 		"TASK-002": {ID: "TASK-002", Title: "Running task", Status: StatusRunning},
 		"TASK-003": {ID: "TASK-003", Title: "Planned task", Status: StatusPlanned},
+		"TASK-005": {ID: "TASK-005", Title: "Finished task", Status: StatusFinished},
 	}
 
 	tests := []struct {
@@ -1646,6 +1647,11 @@ func TestGetIncompleteBlockers(t *testing.T) {
 			wantBlockers: 0,
 		},
 		{
+			name:         "finished blocker (no blockers returned)",
+			task:         &Task{ID: "TASK-004", BlockedBy: []string{"TASK-005"}},
+			wantBlockers: 0,
+		},
+		{
 			name:         "running blocker",
 			task:         &Task{ID: "TASK-004", BlockedBy: []string{"TASK-002"}},
 			wantBlockers: 1,
@@ -1657,7 +1663,7 @@ func TestGetIncompleteBlockers(t *testing.T) {
 		},
 		{
 			name:         "mixed blockers (only incomplete returned)",
-			task:         &Task{ID: "TASK-004", BlockedBy: []string{"TASK-001", "TASK-002", "TASK-003"}},
+			task:         &Task{ID: "TASK-004", BlockedBy: []string{"TASK-001", "TASK-002", "TASK-003", "TASK-005"}},
 			wantBlockers: 2,
 		},
 		{
