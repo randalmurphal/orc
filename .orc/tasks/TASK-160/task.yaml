@@ -33,8 +33,7 @@ description: |-
     - All 12 tests pass
     - Tests verify actual navigation/modal behavior
 weight: medium
-status: running
-current_phase: implement
+status: planned
 branch: orc/TASK-160
 queue: active
 priority: normal
@@ -44,5 +43,4 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:18:53.180206985-06:00
-updated_at: 2026-01-14T21:38:16.227018997-06:00
-started_at: 2026-01-14T21:38:16.227018346-06:00
+updated_at: 2026-01-14T02:18:53.187557511-06:00
