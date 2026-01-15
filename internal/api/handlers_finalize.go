@@ -467,6 +467,15 @@ func (s *Server) runFinalizeAsync(taskID string, t *task.Task, _ FinalizeRequest
 	s.publishFinalizeEvent(taskID, finState)
 
 	s.logger.Info("finalize completed", "task", taskID, "commit", result.CommitSHA)
+
+	// Clean up worktree after successful finalize if cleanup is enabled
+	if s.orcConfig.Worktree.CleanupOnComplete {
+		if err := gitSvc.CleanupWorktree(taskID); err != nil {
+			s.logger.Warn("failed to cleanup worktree after finalize", "task", taskID, "error", err)
+		} else {
+			s.logger.Info("worktree cleaned up after finalize", "task", taskID)
+		}
+	}
 }
 
 // finalizeFailed updates the finalize state to failed.
