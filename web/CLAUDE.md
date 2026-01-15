@@ -2114,6 +2114,54 @@ Located in `components/task-detail/diff/`:
 - `react-router-dom@7` - Client-side routing
 - `zustand@5` - State management with subscribeWithSelector middleware
 - `@fontsource/inter`, `@fontsource/jetbrains-mono` - Typography (matching Svelte)
+- Radix UI primitives - Accessible component library (see below)
+
+### Radix UI Component Library
+
+Accessible, unstyled UI primitives for complex interactive components. See ADR-008 for adoption rationale.
+
+**Installed packages:**
+
+| Package | Purpose |
+|---------|---------|
+| `@radix-ui/react-dialog` | Modals, alerts, confirmations |
+| `@radix-ui/react-dropdown-menu` | Context menus, action menus |
+| `@radix-ui/react-select` | Custom select inputs |
+| `@radix-ui/react-tabs` | Tab panels |
+| `@radix-ui/react-tooltip` | Hover tooltips |
+| `@radix-ui/react-popover` | Generic popovers |
+| `@radix-ui/react-slot` | Component composition |
+| `@radix-ui/react-toast` | Toast notifications |
+
+**Key features:**
+- All components portal to `document.body` by default (prevents z-index issues)
+- Focus management and keyboard navigation handled automatically
+- Components are unstyled - style via CSS using `data-*` attributes
+- Full TypeScript support with React 19 compatibility
+
+**Styling with data attributes:**
+
+```css
+/* State-based styling */
+[data-state='open'] { /* open state */ }
+[data-state='closed'] { /* closed state */ }
+[data-highlighted] { /* keyboard/hover focus */ }
+[data-disabled] { /* disabled state */ }
+```
+
+**Global animations** (defined in `index.css`):
+
+```css
+[data-state='open'] {
+  animation: radix-enter var(--duration-fast) var(--ease-out);
+}
+
+[data-state='closed'] {
+  animation: radix-exit var(--duration-fast) var(--ease-in);
+}
+```
+
+These animations automatically apply to all Radix components and respect `prefers-reduced-motion`.
 
 ### Development
 - `vite`, `@vitejs/plugin-react` - Build tooling
