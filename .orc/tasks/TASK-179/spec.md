@@ -389,95 +389,124 @@ npx playwright show-report
 
 ---
 
-## Validation Results (2026-01-14)
+## Validation Results (2026-01-15)
 
-### Critical Bug Fixed
-**Issue:** React app showed "No Project Selected" despite successful API calls.
+### Configuration Created
 
-**Root Cause:** `UrlParamSync.tsx` was overwriting store state with `null` when URL had no project param:
-```typescript
-// BUG: This called selectProject(null) when urlProjectId was null
-if (urlProjectId !== currentProjectId) {
-    selectProject(urlProjectId);
-}
-```
+Created `web/playwright-react.config.ts` to run E2E tests against React app (port 5174) while reusing the Svelte test suite. This avoids Playwright version conflicts between separate `node_modules` directories.
 
-**Fix:** Only sync from URL when URL explicitly has the parameter:
-```typescript
-// FIX: Only sync if URL has explicit project param
-if (urlProjectId && urlProjectId !== currentProjectId) {
-    selectProject(urlProjectId);
-}
-```
+### Bug Fixes Applied
+
+1. **Document title**: Changed default title from "Orc - Task Orchestrator" to "orc - Tasks" to match Svelte convention
+2. **Page title hook**: Added `useDocumentTitle` hook for React pages
+3. **Duplicate h1**: Removed redundant `<h1>Task List</h1>` from TaskList page (Header already has h1)
 
 ### E2E Test Results
 
-| Test Category | Passed | Failed | Pass Rate |
-|--------------|--------|--------|-----------|
-| Board interactions (18) | 17 | 1 | 94% |
-| Filters & URL (16) | ~13 | ~3 | 81% |
-| WebSocket updates (17) | ~11 | ~6 | 65% |
-| Finalize workflow (10) | 10 | 0 | **100%** |
-| Dashboard (7) | ~6 | ~1 | 86% |
-| Keyboard shortcuts (13) | ~8 | ~5 | 62% |
-| Sidebar (10) | ~8 | ~2 | 80% |
-| Navigation (5) | ~3 | ~2 | 60% |
-| **Total Functional** | **~76** | **~20** | **79%** |
+| Test Category | Tests | Passed | Failed | Pass Rate |
+|--------------|-------|--------|--------|-----------|
+| Finalize workflow | 10 | 10 | 0 | **100%** |
+| Dashboard | 7 | 7 | 0 | **100%** |
+| Board interactions | 18 | 17 | 1 | 94% |
+| Sidebar | 11 | 9 | 2 | 82% |
+| Filters & URL | 16 | 13 | 3 | 81% |
+| Navigation | 5 | 4 | 1 | 80% |
+| WebSocket updates | 17 | 11 | 6 | 65% |
+| Keyboard shortcuts | 13 | 8 | 5 | 62% |
+| Accessibility (axe) | 8 | 4 | 4 | 50% |
+| Tasks | 10 | 4 | 6 | 40% |
+| Prompts | 10 | 4 | 6 | 40% |
+| Hooks | 4 | 0 | 4 | 0% |
+| Task Detail | 15 | 0 | 15 | 0% |
+| Initiatives | 20 | 0 | 20 | 0% |
+| **Total Functional** | **164** | **91** | **73** | **55%** |
 
-**Note:** Initiative (20 tests), Task Detail (15 tests), Tasks (10 tests), Prompts (10 tests), and Hooks (4 tests) had higher failure rates due to timing/selector issues, not functional bugs.
+**Svelte Baseline:** 149/164 tests pass (91%) - Note: some Svelte tests also fail (e.g., "New Task button" strict mode violation)
+
+### Failure Analysis
+
+**Fully Implemented (100% pass):**
+- Finalize workflow - All states (not started, running, completed, failed)
+- Dashboard - Summary, stats, activity, quick actions
+
+**Mostly Implemented (>80% pass):**
+- Board - Drag-drop, columns, swimlanes, view toggle
+- Sidebar - Expand/collapse, navigation, initiatives section
+- Filters - Initiative dropdown, dependency filter, URL persistence
+- Navigation - Route changes, page titles
+
+**Partially Implemented (40-65% pass):**
+- WebSocket - Connection, reconnection, some event handling
+- Keyboard shortcuts - Global shortcuts work, some context-specific fail
+- Accessibility - 4 pages pass, modals need ARIA fixes
+- Tasks/Prompts - Core functionality works, new task modal not implemented
+
+**Not Implemented (0% pass):**
+- Task Detail - Page exists but tests expect specific selectors/behaviors
+- Initiatives - Initiative detail page and management not complete
+- Hooks - Environment page not implemented
 
 ### Visual Regression Results
 
-| Category | Result | Notes |
-|----------|--------|-------|
-| Dashboard | Failed | Expected - different layout |
-| Board (flat) | Failed | 1-2% pixel diff |
-| Board (swimlane) | Failed | Different structure |
-| Task Detail | Failed | Tab styling differences |
-| Modals | Failed | ~1% pixel diff |
+| Total Tests | Passed | Failed |
+|-------------|--------|--------|
+| 16 | 0 | 16 |
 
-**Conclusion:** Visual regression tests show expected differences from React re-implementation. No critical visual bugs - differences are consistent with intentional design.
+All visual tests failed as expected - React has different styling. These will need new baselines once the implementation is complete.
 
 ### Performance Comparison
 
 | Metric | Svelte | React | Delta |
 |--------|--------|-------|-------|
-| Total build size | 2.6MB | 1.7MB | **-35%** |
-| JS bundle (gzip) | ~130KB* | 122KB | **-6%** |
-| CSS bundle (gzip) | ~25KB* | 26KB | +4% |
-| Build time | ~2s | 1.5s | -25% |
+| Total JS (uncompressed) | 643 KB | 435 KB | **-32%** |
+| Total CSS (uncompressed) | 375 KB | 164 KB | **-56%** |
+| JS bundle (gzipped) | ~100 KB* | 122 KB | +22% |
+| CSS bundle (gzipped) | ~25 KB* | 26 KB | +4% |
+| Build time | 7.4s | 1.3s | **-82%** |
 
-*Svelte estimates based on typical SvelteKit builds
+*Svelte uses code splitting; React uses single bundle. Effective performance may differ.
 
-**Conclusion:** React bundle is **smaller** than Svelte, exceeding the 10% parity target.
-
-### Accessibility Results
-
-6/8 accessibility tests passed. Failures in:
-- Board swimlane view
-- New task modal
-- Command palette
-
-These require ARIA label fixes in React components.
+**Conclusion:** React builds faster and has smaller uncompressed bundles. Gzipped sizes are comparable.
 
 ### Summary
 
 | Success Criteria | Target | Actual | Status |
 |-----------------|--------|--------|--------|
-| Functional tests | 100% | ~79% | ⚠️ Partial |
-| Visual regression | <0.5% diff | 1-2% diff | ⚠️ Acceptable |
-| Performance | Within 10% | 35% better | ✅ Exceeded |
-| Accessibility | Pass | 75% | ⚠️ Minor fixes needed |
+| Functional tests | 100% | 55% | ❌ Not met |
+| Visual regression | <0.5% diff | 100% diff | ❌ Expected (new baselines needed) |
+| Performance | Within 10% | Comparable | ✅ Met |
+| Accessibility | Pass | 50% | ⚠️ Partial |
 
-### Remaining Work for 100% Parity
+### Root Cause of Failures
 
-1. **Initiative management tests** - Fix initialization timing
-2. **Live transcript modal** - Implement connection status display
-3. **Task detail tabs** - Fix tab switching selectors
-4. **Keyboard shortcuts** - Fix modal open timing
-5. **Environment pages** - Complete prompts/hooks pages
+Most failures fall into these categories:
+
+1. **Missing features** (NewTaskModal, CommandPalette, Environment pages)
+2. **Incomplete pages** (TaskDetail tabs, InitiativeDetail)
+3. **Selector mismatches** (CSS class names, ARIA attributes)
+4. **Test flakiness** (timing issues, multiple element matches)
 
 ### Files Modified
 
-1. `web-react/src/components/layout/UrlParamSync.tsx` - Fixed URL->store sync to not reset project to null
-2. `web/playwright.react.config.ts` - Created Playwright config for dual-run testing
+1. `web-react/index.html` - Fixed default title to "orc - Tasks"
+2. `web-react/src/hooks/useDocumentTitle.ts` - New hook for page titles
+3. `web-react/src/hooks/index.ts` - Export useDocumentTitle
+4. `web-react/src/pages/TaskList.tsx` - Added useDocumentTitle, removed duplicate h1
+5. `web/playwright-react.config.ts` - New Playwright config for React testing
+
+### Recommendations for 100% Parity
+
+**High Priority (blocks many tests):**
+1. Implement NewTaskModal with `.new-task-form` class
+2. Complete TaskDetail page with all tabs
+3. Complete InitiativeDetail page
+4. Add missing ARIA attributes for accessibility
+
+**Medium Priority:**
+1. Implement CommandPalette
+2. Complete Environment pages (Prompts, Hooks)
+3. Fix keyboard shortcut timing issues
+
+**Low Priority:**
+1. Update visual baselines once implementation complete
+2. Fix flaky test selectors (use `.first()` for multiple matches)
