@@ -19,6 +19,7 @@ web/package-lock.json
 web-react/build/
 web-react/node_modules/
 web-react/package-lock.json
+web-react/tsconfig.tsbuildinfo
 
 # Test artifacts
 coverage.out
