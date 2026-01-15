@@ -23,6 +23,15 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 	// Set current task directory for saving files
 	e.currentTaskDir = e.taskDir(t.ID)
 
+	// Take process snapshot before task execution (for orphan detection)
+	if e.resourceTracker != nil {
+		if err := e.resourceTracker.SnapshotBefore(); err != nil {
+			e.logger.Warn("failed to take resource snapshot before task", "error", err)
+		}
+		// Schedule after-snapshot and analysis on task completion (success or failure)
+		defer e.runResourceAnalysis()
+	}
+
 	// Check spec requirements for non-trivial tasks
 	if err := e.checkSpecRequirements(t); err != nil {
 		return err
