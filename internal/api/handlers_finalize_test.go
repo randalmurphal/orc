@@ -818,7 +818,8 @@ func TestFinalizeTrackerSetCancelAndCancel(t *testing.T) {
 func TestServerContextOnShutdown(t *testing.T) {
 	// Create server with a context we control
 	ctx, cancel := context.WithCancel(context.Background())
-	serverCtx, _ := context.WithCancel(ctx)
+	serverCtx, serverCancel := context.WithCancel(ctx)
+	defer serverCancel()
 
 	taskID := "TASK-SHUTDOWN-TEST"
 
