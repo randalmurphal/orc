@@ -173,6 +173,7 @@ web/src/
 │   │   ├── Modal.tsx     # Base modal component
 │   │   └── KeyboardShortcutsHelp.tsx # Shortcuts help modal
 │   └── ui/               # UI primitives
+│       ├── Button.tsx    # Unified button with variants/sizes
 │       ├── Icon.tsx      # SVG icons (60+ built-in)
 │       ├── Input.tsx     # Form input with variants/sizes/icons
 │       ├── StatusIndicator.tsx # Status orb with animations
@@ -423,6 +424,70 @@ import { Breadcrumbs } from '@/components/ui';
 ```
 
 **Behavior:** Auto-generates from current route path, Category segments (claude, orchestrator) link to parent `/environment`, Last segment is non-clickable current page
+
+### Button
+
+Unified button component with variants, sizes, icons, and loading state.
+
+```tsx
+import { Button } from '@/components/ui';
+
+// Primary action
+<Button variant="primary">Submit</Button>
+
+// With icons
+<Button variant="secondary" leftIcon={<Icon name="plus" />}>
+  Add Item
+</Button>
+
+// Loading state
+<Button loading>Saving...</Button>
+
+// Icon-only (requires aria-label)
+<Button variant="ghost" iconOnly aria-label="Close">
+  <Icon name="x" />
+</Button>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `'primary' \| 'secondary' \| 'danger' \| 'ghost' \| 'success'` | `'secondary'` | Visual style variant |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Button size |
+| `loading` | `boolean` | `false` | Show spinner, disable interaction |
+| `leftIcon` | `ReactNode` | - | Icon before content |
+| `rightIcon` | `ReactNode` | - | Icon after content |
+| `iconOnly` | `boolean` | `false` | Icon-only mode (square button) |
+
+**Sizes:**
+
+| Size | Height | Padding | Font | Icon |
+|------|--------|---------|------|------|
+| `sm` | 28px | `--space-3` | `--text-sm` | 14px |
+| `md` | 36px | `--space-4` | `--text-base` | 16px |
+| `lg` | 44px | `--space-5` | `--text-lg` | 20px |
+
+**Variants:**
+
+| Variant | Background | Text | Use Case |
+|---------|------------|------|----------|
+| `primary` | `--accent-primary` | `--text-inverse` | Primary actions (Submit, Save) |
+| `secondary` | transparent + border | `--text-primary` | Default, secondary actions |
+| `danger` | `--status-danger` | white | Destructive actions (Delete) |
+| `ghost` | transparent | `--text-secondary` | Minimal UI, icon buttons |
+| `success` | `--status-success` | white | Positive confirmations |
+
+**States:**
+- **Hover**: `scale(1.01)` + background shift per variant
+- **Active**: `scale(0.98)` + `brightness(0.95)`
+- **Disabled**: `opacity: 0.5`, `pointer-events: none`
+- **Loading**: Spinner overlay, `aria-busy="true"`, `pointer-events: none`
+- **Focus-visible**: Focus ring (2px accent glow + 3px border)
+
+**Accessibility:**
+- Uses `:focus-visible` (not `:focus`) for keyboard-only focus ring
+- Loading state sets `aria-busy="true"` and `aria-disabled="true"`
+- Icon-only buttons require `aria-label` prop
+- Respects `prefers-reduced-motion` (disables scale/animations)
 
 ## Layout Components
 
