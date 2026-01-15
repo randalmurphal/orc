@@ -1465,6 +1465,72 @@ func TestMainRepoProtection_MainBranchUnchangedAfterWorktreeOperations(t *testin
 	}
 }
 
+// TestPushForce_TaskBranch tests that PushForce works for task branches
+func TestPushForce_TaskBranch(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// PushForce should NOT fail with protected branch error for task branches
+	// (it will fail because there's no remote, but that's a different error)
+	err := g.PushForce("origin", "orc/TASK-001", false)
+	if err != nil && strings.Contains(err.Error(), "protected branch") {
+		t.Error("PushForce() should not fail with protected branch error for task branches")
+	}
+}
+
+// TestPushForce_ProtectedBranch tests that PushForce blocks protected branches
+func TestPushForce_ProtectedBranch(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	tests := []struct {
+		branch    string
+		wantError bool
+	}{
+		{"main", true},
+		{"master", true},
+		{"develop", true},
+		{"release", true},
+		{"orc/TASK-001", false},
+		{"feature/foo", false},
+	}
+
+	for _, tt := range tests {
+		err := g.PushForce("origin", tt.branch, false)
+		if tt.wantError {
+			if err == nil {
+				t.Errorf("PushForce(%q) should return error for protected branch", tt.branch)
+			}
+			if !strings.Contains(err.Error(), "protected branch") {
+				t.Errorf("PushForce(%q) error should mention protected branch, got: %v", tt.branch, err)
+			}
+		} else {
+			// For non-protected branches, it will still fail (no remote)
+			// but NOT with protected branch error
+			if err != nil && strings.Contains(err.Error(), "protected branch") {
+				t.Errorf("PushForce(%q) should not fail with protected branch error", tt.branch)
+			}
+		}
+	}
+}
+
+// TestRemoteBranchExists tests the RemoteBranchExists method
+func TestRemoteBranchExists(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// For a local-only repo without a configured remote, ls-remote will fail
+	// This is expected behavior - we're testing the method exists and works correctly
+	_, err := g.RemoteBranchExists("origin", "main")
+	// The error should be about ls-remote failing (no remote), not a panic
+	if err != nil {
+		if !strings.Contains(err.Error(), "ls-remote failed") {
+			t.Errorf("RemoteBranchExists() unexpected error: %v", err)
+		}
+		// This is expected - no remote configured
+	}
+}
+
 // TestMainRepoProtection_ProtectedBranchRewindBlocked tests that Rewind is blocked on protected branches
 func TestMainRepoProtection_ProtectedBranchRewindBlocked(t *testing.T) {
 	tmpDir := setupTestRepo(t)
