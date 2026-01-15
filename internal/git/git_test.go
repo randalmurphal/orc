@@ -1650,3 +1650,173 @@ func TestMainRepoProtection_ProtectedBranchRewindBlocked(t *testing.T) {
 		t.Errorf("error should be ErrMainRepoModification, got: %v", err)
 	}
 }
+
+// TestIsRebaseInProgress_NoRebase tests that IsRebaseInProgress returns false when no rebase is in progress
+func TestIsRebaseInProgress_NoRebase(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	inProgress, err := g.IsRebaseInProgress()
+	if err != nil {
+		t.Fatalf("IsRebaseInProgress() failed: %v", err)
+	}
+	if inProgress {
+		t.Error("IsRebaseInProgress() = true, want false when no rebase is in progress")
+	}
+}
+
+// TestIsRebaseInProgress_InWorktree tests IsRebaseInProgress in a worktree context
+func TestIsRebaseInProgress_InWorktree(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+	worktreePath, err := g.CreateWorktree("TASK-REBASE-CHECK", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-REBASE-CHECK")
+
+	wtGit := g.InWorktree(worktreePath)
+
+	// No rebase in progress - should return false
+	inProgress, err := wtGit.IsRebaseInProgress()
+	if err != nil {
+		t.Fatalf("IsRebaseInProgress() failed: %v", err)
+	}
+	if inProgress {
+		t.Error("IsRebaseInProgress() = true, want false in clean worktree")
+	}
+}
+
+// TestIsMergeInProgress_NoMerge tests that IsMergeInProgress returns false when no merge is in progress
+func TestIsMergeInProgress_NoMerge(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	inProgress, err := g.IsMergeInProgress()
+	if err != nil {
+		t.Fatalf("IsMergeInProgress() failed: %v", err)
+	}
+	if inProgress {
+		t.Error("IsMergeInProgress() = true, want false when no merge is in progress")
+	}
+}
+
+// TestIsMergeInProgress_InWorktree tests IsMergeInProgress in a worktree context
+func TestIsMergeInProgress_InWorktree(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+	worktreePath, err := g.CreateWorktree("TASK-MERGE-CHECK", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-MERGE-CHECK")
+
+	wtGit := g.InWorktree(worktreePath)
+
+	// No merge in progress - should return false
+	inProgress, err := wtGit.IsMergeInProgress()
+	if err != nil {
+		t.Fatalf("IsMergeInProgress() failed: %v", err)
+	}
+	if inProgress {
+		t.Error("IsMergeInProgress() = true, want false in clean worktree")
+	}
+}
+
+// TestAbortMerge tests the AbortMerge method
+func TestAbortMerge(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// AbortMerge when no merge is in progress should not panic
+	// It may return an error but should not panic
+	_ = g.AbortMerge()
+}
+
+// TestDiscardChanges tests the DiscardChanges method
+func TestDiscardChanges(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// Create some uncommitted changes
+	testFile := filepath.Join(tmpDir, "dirty.txt")
+	os.WriteFile(testFile, []byte("dirty content"), 0644)
+
+	// Stage the file
+	cmd := exec.Command("git", "add", testFile)
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	// Create an untracked file
+	untrackedFile := filepath.Join(tmpDir, "untracked.txt")
+	os.WriteFile(untrackedFile, []byte("untracked content"), 0644)
+
+	// Verify working directory is dirty
+	clean, _ := g.IsClean()
+	if clean {
+		t.Fatal("working directory should be dirty before DiscardChanges")
+	}
+
+	// Discard all changes
+	err := g.DiscardChanges()
+	if err != nil {
+		t.Fatalf("DiscardChanges() failed: %v", err)
+	}
+
+	// Verify working directory is now clean
+	clean, _ = g.IsClean()
+	if !clean {
+		t.Error("working directory should be clean after DiscardChanges")
+	}
+
+	// Verify tracked file changes were reverted
+	if _, err := os.Stat(testFile); !os.IsNotExist(err) {
+		t.Error("dirty.txt should be removed after DiscardChanges")
+	}
+
+	// Verify untracked file was removed
+	if _, err := os.Stat(untrackedFile); !os.IsNotExist(err) {
+		t.Error("untracked.txt should be removed after DiscardChanges")
+	}
+}
+
+// TestDiscardChanges_InWorktree tests DiscardChanges in a worktree context
+func TestDiscardChanges_InWorktree(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+	worktreePath, err := g.CreateWorktree("TASK-DISCARD", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-DISCARD")
+
+	wtGit := g.InWorktree(worktreePath)
+
+	// Create dirty state in worktree
+	testFile := filepath.Join(worktreePath, "dirty.txt")
+	os.WriteFile(testFile, []byte("dirty"), 0644)
+
+	// Verify dirty
+	clean, _ := wtGit.IsClean()
+	if clean {
+		t.Fatal("worktree should be dirty")
+	}
+
+	// Discard changes
+	err = wtGit.DiscardChanges()
+	if err != nil {
+		t.Fatalf("DiscardChanges() failed: %v", err)
+	}
+
+	// Verify clean
+	clean, _ = wtGit.IsClean()
+	if !clean {
+		t.Error("worktree should be clean after DiscardChanges")
+	}
+}

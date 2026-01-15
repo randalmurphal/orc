@@ -65,6 +65,9 @@ func TestResolveCommand_Structure(t *testing.T) {
 	if cmd.Flag("message") == nil {
 		t.Error("missing --message flag")
 	}
+	if cmd.Flag("cleanup") == nil {
+		t.Error("missing --cleanup flag")
+	}
 
 	// Verify shorthand flags
 	if cmd.Flag("force").Shorthand != "f" {
@@ -281,5 +284,55 @@ func TestResolveCommand_PreservesExistingMetadata(t *testing.T) {
 	}
 	if reloaded.Metadata["resolution_message"] != "Test message" {
 		t.Errorf("resolution_message = %q, want 'Test message'", reloaded.Metadata["resolution_message"])
+	}
+}
+
+func TestCheckWorktreeStatus_NoGitOps(t *testing.T) {
+	// When gitOps is nil, should return empty status without error
+	status, err := checkWorktreeStatus("TASK-001", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if status.exists {
+		t.Error("expected exists to be false with nil gitOps")
+	}
+}
+
+func TestWorktreeStatus_Struct(t *testing.T) {
+	// Test the struct can hold all expected values
+	status := worktreeStatus{
+		exists:         true,
+		path:           "/tmp/worktree/orc-TASK-001",
+		isDirty:        true,
+		hasConflicts:   true,
+		conflictFiles:  []string{"file1.go", "file2.go"},
+		rebaseInProg:   false,
+		mergeInProg:    true,
+		uncommittedMsg: "3 uncommitted file(s)",
+	}
+
+	if !status.exists {
+		t.Error("expected exists to be true")
+	}
+	if status.path != "/tmp/worktree/orc-TASK-001" {
+		t.Errorf("path = %q, want '/tmp/worktree/orc-TASK-001'", status.path)
+	}
+	if !status.isDirty {
+		t.Error("expected isDirty to be true")
+	}
+	if !status.hasConflicts {
+		t.Error("expected hasConflicts to be true")
+	}
+	if len(status.conflictFiles) != 2 {
+		t.Errorf("conflictFiles length = %d, want 2", len(status.conflictFiles))
+	}
+	if status.rebaseInProg {
+		t.Error("expected rebaseInProg to be false")
+	}
+	if !status.mergeInProg {
+		t.Error("expected mergeInProg to be true")
+	}
+	if status.uncommittedMsg != "3 uncommitted file(s)" {
+		t.Errorf("uncommittedMsg = %q, want '3 uncommitted file(s)'", status.uncommittedMsg)
 	}
 }
