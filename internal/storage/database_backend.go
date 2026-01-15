@@ -62,8 +62,9 @@ func (d *DatabaseBackend) DB() *db.ProjectDB {
 }
 
 // SaveTask saves a task to the database.
-// Note: This preserves state fields (StateStatus, RetryContext) which are managed
-// by SaveState. When updating a task, we read existing state values and preserve them.
+// Note: This preserves state-managed fields (StateStatus, RetryContext, executor info)
+// which are managed by SaveState, not SaveTask. This prevents overwriting execution
+// state when updating task metadata.
 // All operations (task + dependencies) are wrapped in a transaction for atomicity.
 // This method uses context.Background(). Use SaveTaskCtx for cancellation support.
 func (d *DatabaseBackend) SaveTask(t *task.Task) error {
@@ -71,8 +72,9 @@ func (d *DatabaseBackend) SaveTask(t *task.Task) error {
 }
 
 // SaveTaskCtx saves a task to the database with context support.
-// Note: This preserves state fields (StateStatus, RetryContext) which are managed
-// by SaveState. When updating a task, we read existing state values and preserve them.
+// Note: This preserves state-managed fields (StateStatus, RetryContext, executor info)
+// which are managed by SaveState, not SaveTask. This prevents overwriting execution
+// state when updating task metadata (which would cause false orphan detection).
 // All operations (task + dependencies) are wrapped in a transaction for atomicity.
 func (d *DatabaseBackend) SaveTaskCtx(ctx context.Context, t *task.Task) error {
 	d.mu.Lock()
@@ -81,12 +83,17 @@ func (d *DatabaseBackend) SaveTaskCtx(ctx context.Context, t *task.Task) error {
 	// Convert to db.Task
 	dbTask := taskToDBTask(t)
 
-	// Preserve state fields (StateStatus, RetryContext) from existing task
-	// These fields are managed by SaveState, not SaveTask
+	// Preserve state fields from existing task - these are managed by SaveState, not SaveTask
+	// Includes: StateStatus, RetryContext, and executor fields for orphan detection
 	existingTask, err := d.db.GetTask(t.ID)
 	if err == nil && existingTask != nil {
 		dbTask.StateStatus = existingTask.StateStatus
 		dbTask.RetryContext = existingTask.RetryContext
+		// Preserve executor fields to avoid false orphan detection
+		dbTask.ExecutorPID = existingTask.ExecutorPID
+		dbTask.ExecutorHostname = existingTask.ExecutorHostname
+		dbTask.ExecutorStartedAt = existingTask.ExecutorStartedAt
+		dbTask.LastHeartbeat = existingTask.LastHeartbeat
 	}
 
 	// Wrap all operations in a transaction for atomicity
