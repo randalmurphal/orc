@@ -43,10 +43,16 @@ func (d *SQLiteDriver) Open(dsn string) error {
 }
 
 // Close closes the database connection.
+// In WAL mode, we checkpoint before closing to ensure all writes are
+// visible to new connections that open after this one closes.
 func (d *SQLiteDriver) Close() error {
 	if d.db == nil {
 		return nil
 	}
+	// Checkpoint WAL to ensure all writes are flushed to the main database.
+	// This prevents race conditions when multiple connections open/close rapidly.
+	// TRUNCATE mode checkpoints and then truncates the WAL file.
+	_, _ = d.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
 	return d.db.Close()
 }
 

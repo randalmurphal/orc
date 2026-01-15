@@ -2323,17 +2323,18 @@ func TestGetPromptDefaultEndpoint_NotFound(t *testing.T) {
 // === Project-scoped Task API Tests ===
 
 // setupProjectTestEnv creates a temporary project with task for testing
-func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, cleanup string) {
+func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectDir string) {
 	t.Helper()
 
 	// Create temp directory structure
 	tmpDir := t.TempDir()
-	projectDir := filepath.Join(tmpDir, "test-project")
+	projectDir = filepath.Join(tmpDir, "test-project")
 	os.MkdirAll(filepath.Join(projectDir, ".orc"), 0755)
 
-	// Point orc to the temp directory first so registry path resolves correctly
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
+	// Point orc to the temp directory so registry path resolves correctly
+	// t.Setenv automatically restores the original value AND marks this test
+	// as not parallel-safe, preventing race conditions with other tests.
+	t.Setenv("HOME", tmpDir)
 
 	// Create global .orc directory where project registry lives
 	globalOrcDir := filepath.Join(tmpDir, ".orc")
@@ -2392,12 +2393,7 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, cleanup 
 
 	srv = New(nil)
 
-	cleanup = origHome
-	return srv, projectID, taskID, cleanup
-}
-
-func cleanupProjectTestEnv(origHome string) {
-	os.Setenv("HOME", origHome)
+	return srv, projectID, taskID, projectDir
 }
 
 func TestProjectTaskRun_ReturnsTask(t *testing.T) {
@@ -2405,9 +2401,7 @@ func TestProjectTaskRun_ReturnsTask(t *testing.T) {
 	projectDir := filepath.Join(tmpDir, "test-project")
 	os.MkdirAll(projectDir, 0755)
 
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpDir)
 
 	// Create global .orc directory where project registry lives
 	globalOrcDir := filepath.Join(tmpDir, ".orc")
@@ -2485,8 +2479,7 @@ func TestProjectTaskRun_ReturnsTask(t *testing.T) {
 }
 
 func TestProjectTaskPause_Success(t *testing.T) {
-	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
-	defer cleanupProjectTestEnv(cleanup)
+	srv, projectID, taskID, _ := setupProjectTestEnv(t)
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/pause", projectID, taskID), nil)
 	w := httptest.NewRecorder()
@@ -2508,12 +2501,9 @@ func TestProjectTaskPause_Success(t *testing.T) {
 }
 
 func TestProjectTaskPause_NotRunning(t *testing.T) {
-	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
-	defer cleanupProjectTestEnv(cleanup)
+	srv, projectID, taskID, projectDir := setupProjectTestEnv(t)
 
 	// Modify task to be completed via backend
-	home := os.Getenv("HOME")
-	projectDir := filepath.Join(home, "test-project")
 	storageCfg := &config.StorageConfig{Mode: "database"}
 	backend, err := storage.NewDatabaseBackend(projectDir, storageCfg)
 	if err != nil {
@@ -2540,12 +2530,14 @@ func TestProjectTaskPause_NotRunning(t *testing.T) {
 }
 
 func TestProjectTaskResume_Success(t *testing.T) {
-	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
-	defer cleanupProjectTestEnv(cleanup)
+	srv, projectID, taskID, projectDir := setupProjectTestEnv(t)
+
+	// Cancel any background tasks before test cleanup to prevent file handle leaks
+	t.Cleanup(func() {
+		srv.CancelAllRunningTasks()
+	})
 
 	// Modify task to be paused via backend
-	home := os.Getenv("HOME")
-	projectDir := filepath.Join(home, "test-project")
 	storageCfg := &config.StorageConfig{Mode: "database"}
 	backend, err := storage.NewDatabaseBackend(projectDir, storageCfg)
 	if err != nil {
@@ -2581,8 +2573,7 @@ func TestProjectTaskResume_Success(t *testing.T) {
 }
 
 func TestProjectTaskResume_NotPaused(t *testing.T) {
-	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
-	defer cleanupProjectTestEnv(cleanup)
+	srv, projectID, taskID, _ := setupProjectTestEnv(t)
 
 	// Task is running, not paused
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/resume", projectID, taskID), nil)
@@ -2596,8 +2587,7 @@ func TestProjectTaskResume_NotPaused(t *testing.T) {
 }
 
 func TestProjectTaskRewind_Success(t *testing.T) {
-	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
-	defer cleanupProjectTestEnv(cleanup)
+	srv, projectID, taskID, _ := setupProjectTestEnv(t)
 
 	// Request body
 	body := bytes.NewBufferString(`{"phase": "implement"}`)
@@ -2626,8 +2616,7 @@ func TestProjectTaskRewind_Success(t *testing.T) {
 }
 
 func TestProjectTaskRewind_InvalidPhase(t *testing.T) {
-	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
-	defer cleanupProjectTestEnv(cleanup)
+	srv, projectID, taskID, _ := setupProjectTestEnv(t)
 
 	body := bytes.NewBufferString(`{"phase": "nonexistent"}`)
 
@@ -2643,8 +2632,7 @@ func TestProjectTaskRewind_InvalidPhase(t *testing.T) {
 }
 
 func TestProjectTaskRewind_MissingPhase(t *testing.T) {
-	srv, projectID, taskID, cleanup := setupProjectTestEnv(t)
-	defer cleanupProjectTestEnv(cleanup)
+	srv, projectID, taskID, _ := setupProjectTestEnv(t)
 
 	body := bytes.NewBufferString(`{}`)
 
@@ -2660,8 +2648,7 @@ func TestProjectTaskRewind_MissingPhase(t *testing.T) {
 }
 
 func TestProjectTaskNotFound(t *testing.T) {
-	srv, projectID, _, cleanup := setupProjectTestEnv(t)
-	defer cleanupProjectTestEnv(cleanup)
+	srv, projectID, _, _ := setupProjectTestEnv(t)
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/projects/%s/tasks/NONEXISTENT", projectID), nil)
 	w := httptest.NewRecorder()
@@ -3285,9 +3272,7 @@ func TestUpdateTaskEndpoint_PartialUpdate(t *testing.T) {
 
 func TestGetDefaultProjectEndpoint_Empty(t *testing.T) {
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpDir)
 
 	srv := New(nil)
 
@@ -3313,9 +3298,7 @@ func TestGetDefaultProjectEndpoint_Empty(t *testing.T) {
 
 func TestSetDefaultProjectEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpDir)
 
 	// Create a project
 	projectDir := filepath.Join(tmpDir, "test-project")
@@ -3373,9 +3356,7 @@ func TestSetDefaultProjectEndpoint_Success(t *testing.T) {
 
 func TestSetDefaultProjectEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpDir)
 
 	srv := New(nil)
 
@@ -3393,9 +3374,7 @@ func TestSetDefaultProjectEndpoint_NotFound(t *testing.T) {
 
 func TestSetDefaultProjectEndpoint_ClearDefault(t *testing.T) {
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpDir)
 
 	// Create global orc dir
 	globalOrcDir := filepath.Join(tmpDir, ".orc")

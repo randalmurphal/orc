@@ -487,6 +487,21 @@ func (s *Server) Backend() storage.Backend {
 	return s.backend
 }
 
+// CancelAllRunningTasks cancels all running tasks and waits briefly for cleanup.
+// Used in tests to ensure background goroutines release file handles before temp
+// directory cleanup.
+func (s *Server) CancelAllRunningTasks() {
+	s.runningTasksMu.Lock()
+	for taskID, cancel := range s.runningTasks {
+		s.logger.Debug("cancelling running task", "task", taskID)
+		cancel()
+	}
+	s.runningTasksMu.Unlock()
+
+	// Give goroutines time to clean up and close database connections
+	time.Sleep(50 * time.Millisecond)
+}
+
 // handleHealth returns server health status.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
