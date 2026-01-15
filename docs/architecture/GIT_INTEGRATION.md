@@ -110,6 +110,60 @@ func (g *Git) PruneWorktrees() error
 
 ---
 
+## Thread Safety
+
+The `Git` struct includes a mutex to protect compound operations that must be atomic. This enables safe concurrent use from multiple goroutines (e.g., parallel task execution, API handlers).
+
+### Mutex-Protected Operations
+
+| Method | Why Protected |
+|--------|---------------|
+| `tryCreateWorktree` | Prune + retry must be atomic |
+| `CreateCheckpoint` | Stage + commit must be atomic |
+| `detectConflictsViaMerge` | Merge + diff + abort + reset must be atomic |
+| `RebaseWithConflictCheck` | Rebase + diff + abort must be atomic |
+| `RestoreOrcDir` | Diff + checkout + add + commit must be atomic |
+| `RestoreClaudeSettings` | Diff + checkout + add + commit must be atomic |
+
+### Design Principles
+
+1. **Individual git commands don't need locking** - they're atomic at the process level
+2. **Compound operations need protection** - operations with cleanup/abort steps that must complete together
+3. **Each Git instance has its own mutex** - worktree instances don't contend with parent
+
+### Example: Checkpoint Race Condition (Fixed)
+
+Without mutex, parallel checkpoint creation could interleave:
+
+```
+Goroutine A: git add -A         (stages files)
+Goroutine B: git add -A         (stages different files)
+Goroutine A: git commit         (commits B's staged files too!)
+Goroutine B: git commit         (nothing to commit - error)
+```
+
+With mutex, each checkpoint operation completes atomically.
+
+### Worktree Instance Independence
+
+When using `InWorktree()`, the returned instance gets a new (unlocked) mutex:
+
+```go
+// Main repo Git instance
+mainGit := git.New(...)
+
+// Worktree instance - independent mutex
+worktreeGit := mainGit.InWorktree(".orc/worktrees/TASK-001")
+
+// These don't contend - different directories, different mutexes
+go mainGit.CreateCheckpoint(...)     // Uses mainGit.mu
+go worktreeGit.CreateCheckpoint(...) // Uses worktreeGit.mu
+```
+
+This is correct because worktrees operate on different directories and can safely run in parallel.
+
+---
+
 ## Operations
 
 ### Create Task Branch

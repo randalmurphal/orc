@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	devgit "github.com/randalmurphal/devflow/git"
@@ -23,7 +24,11 @@ type Checkpoint struct {
 }
 
 // Git provides git operations for orc tasks.
+// The mutex protects compound operations that must be atomic (e.g., rebase+abort,
+// worktree creation with cleanup). Individual git commands don't need locking
+// as they are atomic at the process level.
 type Git struct {
+	mu                sync.Mutex       // Protects compound operations that must be atomic
 	ctx               *devgit.Context
 	branchPrefix      string
 	commitPrefix      string
@@ -84,7 +89,13 @@ func (g *Git) BranchName(taskID string) string {
 // If the initial attempt fails, it prunes stale worktree entries and retries.
 // This handles the case where a worktree directory was deleted but git still has
 // a stale registration for it.
+//
+// This is a compound operation protected by mutex to prevent concurrent worktree
+// creation from interfering with each other (e.g., both pruning at the same time).
 func (g *Git) tryCreateWorktree(branchName, worktreePath, baseBranch string) (string, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	// First attempt: create worktree with new branch
 	output, err := g.ctx.RunGit("worktree", "add", "-b", branchName, worktreePath, baseBranch)
 	if err == nil {
@@ -214,8 +225,12 @@ func (g *Git) WorktreePath(taskID string) string {
 
 // InWorktree returns a Git instance operating in the specified worktree.
 // The returned instance is marked as being in worktree context.
+//
+// The new instance gets its own mutex (zero-value, unlocked) since it operates
+// on a different directory and should not contend with the parent instance.
 func (g *Git) InWorktree(worktreePath string) *Git {
 	return &Git{
+		// mu is intentionally not copied - each instance gets its own mutex
 		ctx:               g.ctx.InWorktree(worktreePath),
 		branchPrefix:      g.branchPrefix,
 		commitPrefix:      g.commitPrefix,
@@ -232,7 +247,13 @@ func (g *Git) IsInWorktreeContext() bool {
 }
 
 // CreateCheckpoint creates a checkpoint commit for a phase.
+//
+// This is a compound operation (stage + commit) protected by mutex to ensure
+// atomicity when multiple goroutines might be creating checkpoints.
 func (g *Git) CreateCheckpoint(taskID, phase, message string) (*Checkpoint, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	// Stage all changes
 	if err := g.ctx.StageAll(); err != nil {
 		return nil, fmt.Errorf("stage changes: %w", err)
@@ -542,6 +563,9 @@ func (g *Git) DetectConflicts(target string) (*SyncResult, error) {
 //
 // SAFETY: This function performs merge and reset operations. While it attempts to
 // restore the original state, it MUST only be called in worktree context.
+//
+// This is a compound operation (merge + diff + abort + reset) protected by mutex
+// to prevent concurrent conflict detection from interfering with each other.
 func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
 	// CRITICAL: This function does merge and reset - MUST be in worktree context
 	if err := g.RequireWorktreeContext("conflict detection via merge"); err != nil {
@@ -551,6 +575,9 @@ func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
 	if err := g.RequireNonProtectedBranch("conflict detection via merge"); err != nil {
 		return nil, err
 	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
 	result := &SyncResult{}
 
@@ -614,11 +641,17 @@ func (g *Git) GetCommitCounts(target string) (int, int, error) {
 //
 // SAFETY: This operation requires worktree context to prevent accidental modification
 // of the main repository.
+//
+// This is a compound operation (commit counts + rebase + diff + abort) protected by
+// mutex to prevent concurrent rebase operations from interfering with each other.
 func (g *Git) RebaseWithConflictCheck(target string) (*SyncResult, error) {
 	// CRITICAL: Prevent rebase operations on main repo
 	if err := g.RequireWorktreeContext("rebase with conflict check"); err != nil {
 		return nil, err
 	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
 	result := &SyncResult{}
 
@@ -789,7 +822,13 @@ func (g *Git) DiscardChanges() error {
 // 3. Commits the restoration if needed
 //
 // Returns true if restoration was performed, false if no changes were found.
+//
+// This is a compound operation (diff + rm + checkout + add + commit) protected by
+// mutex to ensure atomicity.
 func (g *Git) RestoreOrcDir(target string, taskID string) (bool, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	// Check if .orc/ directory exists
 	// Use WorkDir() not RepoPath() - in worktree context, WorkDir is the worktree path
 	orcDir := filepath.Join(g.ctx.WorkDir(), ".orc")
@@ -863,7 +902,13 @@ func (g *Git) RestoreOrcDir(target string, taskID string) (bool, error) {
 // should never be merged to shared branches.
 //
 // Returns true if restoration was performed, false if no changes were needed.
+//
+// This is a compound operation (diff + checkout/rm + add + commit) protected by
+// mutex to ensure atomicity.
 func (g *Git) RestoreClaudeSettings(target string, taskID string) (bool, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	settingsPath := filepath.Join(g.ctx.WorkDir(), ".claude", "settings.json")
 
 	// Check if settings.json exists
