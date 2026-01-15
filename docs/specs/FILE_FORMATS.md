@@ -1,6 +1,8 @@
 # File Format Specifications
 
-**Purpose**: Define all YAML file formats used by orc.
+**Purpose**: Define data structures and file formats used by orc.
+
+> **Note**: Task data (tasks, plans, states, specs, initiatives) is stored in **SQLite** (`.orc/orc.db`), not YAML files. This document describes the data schemas for reference. Configuration files (`config.yaml`, `prompts/`) remain as files. Use `orc show TASK-001 --format yaml` for human-readable task export.
 
 ---
 
