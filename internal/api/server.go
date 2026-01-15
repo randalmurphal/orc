@@ -51,6 +51,10 @@ type Server struct {
 
 	// PR status poller for periodic updates
 	prPoller *PRPoller
+
+	// Server context for graceful shutdown of background goroutines
+	serverCtx       context.Context
+	serverCtxCancel context.CancelFunc
 }
 
 // Event represents an SSE event.
@@ -112,17 +116,22 @@ func New(cfg *Config) *Server {
 		panic(fmt.Sprintf("failed to create storage backend: %v", err))
 	}
 
+	// Create a background context for the server - will be replaced by StartContext
+	serverCtx, serverCtxCancel := context.WithCancel(context.Background())
+
 	s := &Server{
-		addr:         cfg.Addr,
-		workDir:      workDir,
-		mux:          http.NewServeMux(),
-		logger:       logger,
-		orcConfig:    orcCfg,
-		publisher:    pub,
-		backend:      backend,
-		subscribers:  make(map[string][]chan Event),
-		runningTasks: make(map[string]context.CancelFunc),
-		diffCache:    diff.NewCache(100), // Cache up to 100 file diffs
+		addr:            cfg.Addr,
+		workDir:         workDir,
+		mux:             http.NewServeMux(),
+		logger:          logger,
+		orcConfig:       orcCfg,
+		publisher:       pub,
+		backend:         backend,
+		subscribers:     make(map[string][]chan Event),
+		runningTasks:    make(map[string]context.CancelFunc),
+		diffCache:       diff.NewCache(100), // Cache up to 100 file diffs
+		serverCtx:       serverCtx,
+		serverCtxCancel: serverCtxCancel,
 	}
 
 	// Create WebSocket handler
@@ -424,8 +433,12 @@ func (s *Server) StartContext(ctx context.Context) error {
 		Handler: s.mux,
 	}
 
+	// Cancel the default server context and replace with the provided one
+	s.serverCtxCancel()
+	s.serverCtx, s.serverCtxCancel = context.WithCancel(ctx)
+
 	// Start finalize tracker cleanup (5 min retention, 1 min interval)
-	finTracker.startCleanup(ctx, 1*time.Minute, 5*time.Minute)
+	finTracker.startCleanup(s.serverCtx, 1*time.Minute, 5*time.Minute)
 
 	// Create and start PR status poller
 	s.prPoller = NewPRPoller(PRPollerConfig{
@@ -454,10 +467,16 @@ func (s *Server) StartContext(ctx context.Context) error {
 			}
 		},
 	})
-	s.prPoller.Start(ctx)
+	s.prPoller.Start(s.serverCtx)
 
 	go func() {
 		<-ctx.Done()
+		// Cancel server context (stops finalize goroutines, cleanup goroutine, etc.)
+		s.serverCtxCancel()
+
+		// Cancel all running finalize operations
+		finTracker.cancelAll()
+
 		// Stop PR poller
 		if s.prPoller != nil {
 			s.prPoller.Stop()
