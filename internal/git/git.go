@@ -644,7 +644,12 @@ func (g *Git) RebaseWithConflictCheck(target string) (*SyncResult, error) {
 		// Abort the rebase
 		_, _ = g.ctx.RunGit("rebase", "--abort")
 
-		return result, fmt.Errorf("%w: %d files have conflicts", ErrMergeConflict, len(result.ConflictFiles))
+		// Only return ErrMergeConflict if we actually detected conflicts
+		if result.ConflictsDetected {
+			return result, fmt.Errorf("%w: %d files have conflicts", ErrMergeConflict, len(result.ConflictFiles))
+		}
+		// Rebase failed for another reason (dirty tree, uncommitted changes, etc.)
+		return result, fmt.Errorf("rebase failed: %w", rebaseErr)
 	}
 
 	result.Synced = true

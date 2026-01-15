@@ -852,6 +852,87 @@ func TestRebaseWithConflictCheck_Conflict(t *testing.T) {
 	}
 }
 
+// TestRebaseWithConflictCheck_FailWithoutConflicts tests rebase failure without conflicts.
+// This tests the bug fix for TASK-201: when rebase fails but there are no conflict files,
+// the error should NOT be ErrMergeConflict (previously returned "0 files in conflict").
+func TestRebaseWithConflictCheck_FailWithoutConflicts(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	baseGit, _ := New(tmpDir, DefaultConfig())
+	// Use InWorktree to mark as worktree context (rebase requires this)
+	g := baseGit.InWorktree(tmpDir)
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create a task branch
+	err := g.CreateBranch("TASK-REBASE-FAIL")
+	if err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	// Add a commit on task branch
+	testFile := filepath.Join(tmpDir, "feature.txt")
+	os.WriteFile(testFile, []byte("feature"), 0644)
+	_, _ = g.CreateCheckpoint("TASK-REBASE-FAIL", "implement", "add feature")
+
+	// Switch back to base branch and make a non-conflicting change
+	cmd := exec.Command("git", "checkout", baseBranch)
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to checkout base branch: %v", err)
+	}
+
+	otherFile := filepath.Join(tmpDir, "other.txt")
+	os.WriteFile(otherFile, []byte("other content"), 0644)
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	cmd = exec.Command("git", "commit", "-m", "add other file on base")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit on base: %v", err)
+	}
+
+	// Switch to task branch
+	err = g.SwitchBranch("TASK-REBASE-FAIL")
+	if err != nil {
+		t.Fatalf("SwitchBranch() failed: %v", err)
+	}
+
+	// Create uncommitted changes to trigger a rebase failure without conflicts
+	// (dirty working tree prevents rebase)
+	dirtyFile := filepath.Join(tmpDir, "dirty.txt")
+	os.WriteFile(dirtyFile, []byte("dirty"), 0644)
+	cmd = exec.Command("git", "add", dirtyFile)
+	cmd.Dir = tmpDir
+	cmd.Run()
+	// The staged but uncommitted file will cause rebase to fail
+
+	// Rebase should fail but NOT with ErrMergeConflict
+	result, err := g.RebaseWithConflictCheck(baseBranch)
+	if err == nil {
+		t.Fatal("RebaseWithConflictCheck() should fail with dirty working tree")
+	}
+
+	// The error should NOT be a merge conflict error
+	if errors.Is(err, ErrMergeConflict) {
+		t.Errorf("error should NOT be ErrMergeConflict when no conflicts detected, got: %v", err)
+	}
+
+	// Error should mention rebase failure
+	if !strings.Contains(err.Error(), "rebase failed") {
+		t.Errorf("error should mention 'rebase failed', got: %v", err)
+	}
+
+	// Result should NOT indicate conflicts
+	if result.ConflictsDetected {
+		t.Error("ConflictsDetected = true, want false (no actual conflicts)")
+	}
+	if len(result.ConflictFiles) != 0 {
+		t.Errorf("ConflictFiles = %v, want empty (no actual conflicts)", result.ConflictFiles)
+	}
+}
+
 // TestAbortRebase tests aborting an in-progress rebase
 func TestAbortRebase(t *testing.T) {
 	tmpDir := setupTestRepo(t)
