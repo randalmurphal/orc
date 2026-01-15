@@ -118,6 +118,7 @@ func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *plan.Pl
 }
 
 // run executes the task in the worktree.
+// Iterates through all phases until completion, failure, or cancellation.
 func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.State) {
 	defer func() {
 		w.mu.Lock()
@@ -131,104 +132,111 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.S
 		pool.RemoveWorker(w.TaskID)
 	}()
 
-	// Get current phase
-	currentPhase := pln.CurrentPhase()
-	if currentPhase == nil {
-		w.setStatus(WorkerStatusComplete)
-		return
-	}
-
-	// Get phase prompt
-	promptData, err := pool.promptSvc.Get(currentPhase.ID)
-	if err != nil {
-		w.setError(fmt.Errorf("load phase prompt: %w", err))
-		return
-	}
-	phasePrompt := promptData.Content
-
-	// Create ralph state file in worktree
-	mgr := executor.NewRalphStateManager(w.WorktreePath)
-	err = mgr.Create(t.ID, currentPhase.ID, phasePrompt,
-		executor.WithMaxIterations(30),
-		executor.WithCompletionPromise("PHASE_COMPLETE"),
-	)
-	if err != nil {
-		w.setError(fmt.Errorf("create ralph state: %w", err))
-		return
-	}
-
-	// Build claude command
-	args := []string{
-		"-p", phasePrompt,
-		"--dangerously-skip-permissions",
-	}
-
-	if pool.cfg != nil && pool.cfg.Model != "" {
-		args = append(args, "--model", pool.cfg.Model)
-	}
-
-	w.cmd = exec.CommandContext(w.ctx, "claude", args...)
-	w.cmd.Dir = w.WorktreePath
-	w.cmd.Stdout = os.Stdout
-	w.cmd.Stderr = os.Stderr
-
-	// Publish start event
-	pool.publishEvent(events.Event{
-		Type:   events.EventPhase,
-		TaskID: t.ID,
-		Data: map[string]any{
-			"phase":    currentPhase.ID,
-			"status":   "started",
-			"worktree": w.WorktreePath,
-		},
-	})
-
-	// Run claude
-	if err := w.cmd.Run(); err != nil {
-		// Check if context was cancelled
-		if w.ctx.Err() != nil {
-			w.setStatus(WorkerStatusPaused)
+	// Iterate through phases until done
+	for {
+		// Get current phase
+		currentPhase := pln.CurrentPhase()
+		if currentPhase == nil {
+			w.setStatus(WorkerStatusComplete)
 			return
 		}
-		w.setError(fmt.Errorf("claude execution: %w", err))
-		return
-	}
 
-	// Check if ralph state file was removed (completion)
-	if !mgr.Exists() {
-		// Phase completed
-		st.CompletePhase(currentPhase.ID, "")
-		if pool.backend != nil {
-			_ = pool.backend.SaveState(st)
+		// Get phase prompt
+		promptData, err := pool.promptSvc.Get(currentPhase.ID)
+		if err != nil {
+			w.setError(fmt.Errorf("load phase prompt: %w", err))
+			return
+		}
+		phasePrompt := promptData.Content
+
+		// Create ralph state file in worktree
+		mgr := executor.NewRalphStateManager(w.WorktreePath)
+		err = mgr.Create(t.ID, currentPhase.ID, phasePrompt,
+			executor.WithMaxIterations(30),
+			executor.WithCompletionPromise("PHASE_COMPLETE"),
+		)
+		if err != nil {
+			w.setError(fmt.Errorf("create ralph state: %w", err))
+			return
 		}
 
+		// Build claude command
+		args := []string{
+			"-p", phasePrompt,
+			"--dangerously-skip-permissions",
+		}
+
+		if pool.cfg != nil && pool.cfg.Model != "" {
+			args = append(args, "--model", pool.cfg.Model)
+		}
+
+		w.cmd = exec.CommandContext(w.ctx, "claude", args...)
+		w.cmd.Dir = w.WorktreePath
+		w.cmd.Stdout = os.Stdout
+		w.cmd.Stderr = os.Stderr
+
+		// Publish start event
 		pool.publishEvent(events.Event{
 			Type:   events.EventPhase,
 			TaskID: t.ID,
 			Data: map[string]any{
-				"phase":  currentPhase.ID,
-				"status": "completed",
+				"phase":    currentPhase.ID,
+				"status":   "started",
+				"worktree": w.WorktreePath,
 			},
 		})
 
-		// Check if more phases
-		pln.GetPhase(currentPhase.ID).Status = plan.PhaseCompleted
-		if pool.backend != nil {
-			_ = pool.backend.SavePlan(pln, t.ID)
+		// Run claude
+		if err := w.cmd.Run(); err != nil {
+			// Check if context was cancelled
+			if w.ctx.Err() != nil {
+				w.setStatus(WorkerStatusPaused)
+				return
+			}
+			w.setError(fmt.Errorf("claude execution: %w", err))
+			return
 		}
 
-		nextPhase := pln.CurrentPhase()
-		if nextPhase == nil {
-			// Task complete
-			st.Complete()
+		// Check if ralph state file was removed (completion)
+		if !mgr.Exists() {
+			// Phase completed
+			st.CompletePhase(currentPhase.ID, "")
 			if pool.backend != nil {
 				_ = pool.backend.SaveState(st)
 			}
-			w.setStatus(WorkerStatusComplete)
-		} else {
-			// Continue with next phase (recursive)
-			w.run(pool, t, pln, st)
+
+			pool.publishEvent(events.Event{
+				Type:   events.EventPhase,
+				TaskID: t.ID,
+				Data: map[string]any{
+					"phase":  currentPhase.ID,
+					"status": "completed",
+				},
+			})
+
+			// Mark phase as completed in plan
+			pln.GetPhase(currentPhase.ID).Status = plan.PhaseCompleted
+			if pool.backend != nil {
+				_ = pool.backend.SavePlan(pln, t.ID)
+			}
+
+			// Check if more phases - loop continues with next iteration
+			nextPhase := pln.CurrentPhase()
+			if nextPhase == nil {
+				// Task complete
+				st.Complete()
+				if pool.backend != nil {
+					_ = pool.backend.SaveState(st)
+				}
+				w.setStatus(WorkerStatusComplete)
+				return
+			}
+			// Next iteration will process nextPhase
+			continue
 		}
+
+		// Ralph state file still exists - phase not complete, wait for external completion
+		return
 	}
 }
 
