@@ -135,6 +135,7 @@
 /* Disabled state */
 .input-disabled {
 	background: var(--bg-tertiary);
+	border-color: var(--border-subtle);
 	opacity: 0.5;
 	cursor: not-allowed;
 }
