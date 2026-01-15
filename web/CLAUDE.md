@@ -369,7 +369,7 @@ import { StatusIndicator } from '@/components/ui';
 
 ### Modal
 
-Portal-based modal with focus trap, escape-to-close, and backdrop click handling.
+Accessible modal dialog built on Radix Dialog primitives.
 
 ```tsx
 import { Modal } from '@/components/overlays';
@@ -389,7 +389,9 @@ import { Modal } from '@/components/overlays';
 | `showClose` | `boolean` | `true` | Show close button |
 | `children` | `ReactNode` | required | Modal content |
 
-**Features:** Focus trap (Tab cycles within modal), Escape key closes, Click outside closes, Body scroll lock, Focus restoration on close, Portal renders to document.body
+**Features (via Radix Dialog):** Focus trap (Tab cycles within modal), Escape key closes, Click outside closes, Body scroll lock, Focus restoration on close, Portal renders to document.body, Proper ARIA attributes (`role="dialog"`, `aria-modal`, `aria-labelledby`)
+
+**Implementation:** Uses `@radix-ui/react-dialog` internally with preserved CSS classes (`.modal-backdrop`, `.modal-content`, `.modal-header`, `.modal-title`, `.modal-close`, `.modal-body`). Animations use `data-state="open/closed"` attributes.
 
 ### ToastContainer
 
