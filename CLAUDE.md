@@ -292,10 +292,21 @@ For local dev: `make setup` creates `go.work` for sibling directories.
 
 ## Web UI
 
+### Running the Server
+
+**Production/Built mode:**
 ```bash
-make serve      # API :8080
-make web-dev    # Frontend :5173
+make build      # Builds frontend + backend to bin/orc
+orc serve &     # Start server (port shown in output, default :8080)
 ```
+
+**Development mode** (hot reload):
+```bash
+make serve      # API only :8080
+make web-dev    # Frontend :5173 (separate terminal)
+```
+
+If port 8080 is in use, the frontend can run standalone with `make web-dev` while pointing to a different API port via environment variable.
 
 **Live refresh:** Task board auto-updates when tasks are created/modified/deleted via CLI or filesystem. File watcher monitors `.orc/tasks/` and broadcasts events over WebSocket.
 
