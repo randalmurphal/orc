@@ -389,6 +389,35 @@ func (g *Git) Push(remote, branch string, setUpstream bool) error {
 	return g.ctx.Push(remote, branch, setUpstream)
 }
 
+// PushForce pushes with --force-with-lease for safety.
+// This is safer than --force as it fails if the remote has unexpected commits
+// (i.e., commits that weren't fetched yet).
+// SAFETY: This will NOT push to protected branches.
+func (g *Git) PushForce(remote, branch string, setUpstream bool) error {
+	if IsProtectedBranch(branch, g.protectedBranches) {
+		return fmt.Errorf("%w: cannot force push to '%s'", ErrProtectedBranch, branch)
+	}
+	// Use --force-with-lease instead of --force for extra safety
+	args := []string{"push", "--force-with-lease"}
+	if setUpstream {
+		args = append(args, "-u")
+	}
+	args = append(args, remote, branch)
+	_, err := g.ctx.RunGit(args...)
+	return err
+}
+
+// RemoteBranchExists checks if a branch exists on the remote.
+func (g *Git) RemoteBranchExists(remote, branch string) (bool, error) {
+	// Use ls-remote to check if branch exists on remote
+	output, err := g.ctx.RunGit("ls-remote", "--heads", remote, "refs/heads/"+branch)
+	if err != nil {
+		return false, fmt.Errorf("ls-remote failed: %w", err)
+	}
+	// If output is non-empty, the branch exists
+	return strings.TrimSpace(output) != "", nil
+}
+
 // PushUnsafe pushes to remote without branch protection checks.
 // This should only be used by PR merge operations that have explicit user approval.
 // DANGER: Use with caution - this bypasses safety checks.

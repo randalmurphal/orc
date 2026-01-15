@@ -31,7 +31,7 @@ description: |-
     - axe-playwright integrated into test suite
     - CI runs accessibility checks
 weight: small
-status: planned
+status: completed
 branch: orc/TASK-162
 queue: active
 priority: normal
@@ -41,4 +41,4 @@ requires_ui_testing: true
 testing_requirements:
     unit: true
 created_at: 2026-01-14T02:19:20.663149124-06:00
-updated_at: 2026-01-14T02:19:20.670373757-06:00
+updated_at: 2026-01-14T22:07:06.956601215-06:00

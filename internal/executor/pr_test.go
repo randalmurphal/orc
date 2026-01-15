@@ -539,3 +539,81 @@ func TestParsePRChecks_UsesCorrectFields(t *testing.T) {
 		})
 	}
 }
+
+func TestIsNonFastForwardError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "non-fast-forward explicit",
+			err:      errors.New("error: failed to push some refs to 'origin'\nhint: Updates were rejected because the tip of your current branch is behind\n ! [rejected] orc/TASK-001 -> orc/TASK-001 (non-fast-forward)"),
+			expected: true,
+		},
+		{
+			name:     "non-fast-forward lowercase",
+			err:      errors.New("non-fast-forward"),
+			expected: true,
+		},
+		{
+			name:     "rejected with fetch first",
+			err:      errors.New("rejected: fetch first"),
+			expected: true,
+		},
+		{
+			name:     "failed to push behind",
+			err:      errors.New("error: failed to push some refs, your branch is behind"),
+			expected: true,
+		},
+		{
+			name:     "failed to push behind different format",
+			err:      errors.New("To github.com:user/repo.git\n ! [rejected]        orc/TASK-001 -> orc/TASK-001 (non-fast-forward)\nerror: failed to push some refs to 'github.com:user/repo.git'\nhint: Updates were rejected because the tip of your current branch is behind\nhint: its remote counterpart."),
+			expected: true,
+		},
+		{
+			name:     "unrelated network error",
+			err:      errors.New("network timeout"),
+			expected: false,
+		},
+		{
+			name:     "auth error is not fast-forward",
+			err:      errors.New("gh: not authenticated"),
+			expected: false,
+		},
+		{
+			name:     "remote not found",
+			err:      errors.New("remote origin not found"),
+			expected: false,
+		},
+		{
+			name:     "branch not found",
+			err:      errors.New("branch not found: orc/TASK-001"),
+			expected: false,
+		},
+		{
+			name:     "generic git error",
+			err:      errors.New("exit status 128"),
+			expected: false,
+		},
+		{
+			name:     "permission denied",
+			err:      errors.New("permission denied (publickey)"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isNonFastForwardError(tt.err)
+			if got != tt.expected {
+				t.Errorf("isNonFastForwardError(%v) = %v, want %v", tt.err, got, tt.expected)
+			}
+		})
+	}
+}
