@@ -9,30 +9,42 @@
  * in a web context.
  */
 
+export type Modifier = 'ctrl' | 'meta' | 'shift' | 'alt';
+export type ShortcutContext = 'global' | 'tasks' | 'editor';
+
 export interface Shortcut {
 	key: string;
-	modifiers?: readonly ('ctrl' | 'meta' | 'shift' | 'alt')[];
+	modifiers?: readonly Modifier[];
 	description: string;
 	action: () => void;
-	context?: 'global' | 'tasks' | 'editor';
+	context?: ShortcutContext;
 }
 
 export interface ShortcutSequence {
-	keys: string[];
+	keys: readonly string[];
 	description: string;
 	action: () => void;
-	context?: 'global' | 'tasks' | 'editor';
+	context?: ShortcutContext;
+}
+
+export interface ShortcutInfo {
+	key: string;
+	description: string;
+	context: string;
 }
 
 type ShortcutCallback = () => void;
 
-class ShortcutManager {
+/**
+ * Singleton manager for keyboard shortcuts
+ */
+export class ShortcutManager {
 	private shortcuts: Map<string, Shortcut> = new Map();
 	private sequences: ShortcutSequence[] = [];
 	private sequenceBuffer: string[] = [];
 	private sequenceTimeout: ReturnType<typeof setTimeout> | null = null;
 	private enabled = true;
-	private currentContext: 'global' | 'tasks' | 'editor' = 'global';
+	private currentContext: ShortcutContext = 'global';
 	private boundHandleKeydown: (e: KeyboardEvent) => void;
 
 	constructor() {
@@ -65,8 +77,15 @@ class ShortcutManager {
 	/**
 	 * Set current context (affects which shortcuts are active)
 	 */
-	setContext(context: 'global' | 'tasks' | 'editor'): void {
+	setContext(context: ShortcutContext): void {
 		this.currentContext = context;
+	}
+
+	/**
+	 * Get current context
+	 */
+	getContext(): ShortcutContext {
+		return this.currentContext;
 	}
 
 	/**
@@ -77,17 +96,24 @@ class ShortcutManager {
 	}
 
 	/**
+	 * Check if shortcuts are enabled
+	 */
+	isEnabled(): boolean {
+		return this.enabled;
+	}
+
+	/**
 	 * Get all registered shortcuts for display in help modal
 	 */
-	getShortcuts(): { key: string; description: string; context: string }[] {
-		const result: { key: string; description: string; context: string }[] = [];
+	getShortcuts(): ShortcutInfo[] {
+		const result: ShortcutInfo[] = [];
 
 		// Single key shortcuts
 		for (const [key, shortcut] of this.shortcuts) {
 			result.push({
 				key: this.formatKey(key),
 				description: shortcut.description,
-				context: shortcut.context || 'global'
+				context: shortcut.context || 'global',
 			});
 		}
 
@@ -96,7 +122,7 @@ class ShortcutManager {
 			result.push({
 				key: seq.keys.join(' '),
 				description: seq.description,
-				context: seq.context || 'global'
+				context: seq.context || 'global',
 			});
 		}
 
@@ -122,10 +148,7 @@ class ShortcutManager {
 		}
 
 		// Check for single shortcuts
-		const normalizedKey = this.normalizeKey(
-			e.key.toLowerCase(),
-			this.getModifiers(e)
-		);
+		const normalizedKey = this.normalizeKey(e.key.toLowerCase(), this.getModifiers(e));
 
 		const shortcut = this.shortcuts.get(normalizedKey);
 		if (shortcut && this.matchesContext(shortcut.context)) {
@@ -178,25 +201,21 @@ class ShortcutManager {
 		}
 	}
 
-	private matchesContext(context?: string): boolean {
+	private matchesContext(context?: ShortcutContext): boolean {
 		if (!context || context === 'global') return true;
 		return context === this.currentContext;
 	}
 
 	private isInputElement(el: HTMLElement): boolean {
-		return (
-			el.tagName === 'INPUT' ||
-			el.tagName === 'TEXTAREA' ||
-			el.isContentEditable
-		);
+		return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
 	}
 
 	private getKeyString(e: KeyboardEvent): string {
 		return e.key.toLowerCase();
 	}
 
-	private getModifiers(e: KeyboardEvent): ('ctrl' | 'meta' | 'shift' | 'alt')[] {
-		const mods: ('ctrl' | 'meta' | 'shift' | 'alt')[] = [];
+	private getModifiers(e: KeyboardEvent): Modifier[] {
+		const mods: Modifier[] = [];
 		if (e.ctrlKey) mods.push('ctrl');
 		if (e.metaKey) mods.push('meta');
 		// Don't include shift if the key is already a shifted character (like ? ! @ etc)
@@ -212,7 +231,7 @@ class ShortcutManager {
 		return shiftedChars.includes(key);
 	}
 
-	private normalizeKey(key: string, modifiers?: readonly ('ctrl' | 'meta' | 'shift' | 'alt')[]): string {
+	private normalizeKey(key: string, modifiers?: readonly Modifier[]): string {
 		const sortedMods = modifiers ? [...modifiers].sort() : [];
 		const parts = [...sortedMods, key.toLowerCase()];
 		return parts.join('+');
@@ -231,8 +250,7 @@ class ShortcutManager {
 						return '⇧';
 					case 'alt':
 						// Use ⌥ (Option) on Mac, Alt on other platforms
-						return typeof navigator !== 'undefined' &&
-							/Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
+						return typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
 							? '⌥'
 							: 'Alt';
 					default:
@@ -263,6 +281,16 @@ export function getShortcutManager(): ShortcutManager {
 }
 
 /**
+ * Reset singleton (for testing)
+ */
+export function resetShortcutManager(): void {
+	if (instance) {
+		instance.destroy();
+		instance = null;
+	}
+}
+
+/**
  * Pre-defined shortcut definitions
  *
  * Global shortcuts use Shift+Alt to avoid browser conflicts:
@@ -278,14 +306,22 @@ export const SHORTCUTS = {
 	COMMAND_PALETTE: {
 		key: 'k',
 		modifiers: ['shift', 'alt'] as const,
-		description: 'Open command palette'
+		description: 'Open command palette',
 	},
-	NEW_TASK: { key: 'n', modifiers: ['shift', 'alt'] as const, description: 'Create new task' },
-	TOGGLE_SIDEBAR: { key: 'b', modifiers: ['shift', 'alt'] as const, description: 'Toggle sidebar' },
+	NEW_TASK: {
+		key: 'n',
+		modifiers: ['shift', 'alt'] as const,
+		description: 'Create new task',
+	},
+	TOGGLE_SIDEBAR: {
+		key: 'b',
+		modifiers: ['shift', 'alt'] as const,
+		description: 'Toggle sidebar',
+	},
 	PROJECT_SWITCHER: {
 		key: 'p',
 		modifiers: ['shift', 'alt'] as const,
-		description: 'Switch project'
+		description: 'Switch project',
 	},
 	SEARCH: { key: '/', description: 'Focus search' },
 	HELP: { key: '?', description: 'Show keyboard shortcuts' },
@@ -306,8 +342,8 @@ export const SHORTCUTS = {
 	TASK_OPEN: { key: 'enter', context: 'tasks' as const, description: 'Open selected task' },
 	TASK_RUN: { key: 'r', context: 'tasks' as const, description: 'Run selected task' },
 	TASK_PAUSE: { key: 'p', context: 'tasks' as const, description: 'Pause selected task' },
-	TASK_DELETE: { key: 'd', context: 'tasks' as const, description: 'Delete selected task' }
-};
+	TASK_DELETE: { key: 'd', context: 'tasks' as const, description: 'Delete selected task' },
+} as const;
 
 /**
  * Helper to setup common shortcuts
@@ -336,7 +372,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.COMMAND_PALETTE,
-				action: callbacks.onCommandPalette
+				action: callbacks.onCommandPalette,
 			})
 		);
 	}
@@ -345,7 +381,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.NEW_TASK,
-				action: callbacks.onNewTask
+				action: callbacks.onNewTask,
 			})
 		);
 	}
@@ -354,7 +390,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.TOGGLE_SIDEBAR,
-				action: callbacks.onToggleSidebar
+				action: callbacks.onToggleSidebar,
 			})
 		);
 	}
@@ -363,7 +399,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.PROJECT_SWITCHER,
-				action: callbacks.onProjectSwitcher
+				action: callbacks.onProjectSwitcher,
 			})
 		);
 	}
@@ -372,7 +408,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.SEARCH,
-				action: callbacks.onSearch
+				action: callbacks.onSearch,
 			})
 		);
 	}
@@ -381,7 +417,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.HELP,
-				action: callbacks.onHelp
+				action: callbacks.onHelp,
 			})
 		);
 	}
@@ -390,7 +426,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.ESCAPE,
-				action: callbacks.onEscape
+				action: callbacks.onEscape,
 			})
 		);
 	}
@@ -400,7 +436,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.registerSequence({
 				...SHORTCUTS.GO_DASHBOARD,
-				action: callbacks.onGoDashboard
+				action: callbacks.onGoDashboard,
 			})
 		);
 	}
@@ -409,7 +445,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.registerSequence({
 				...SHORTCUTS.GO_TASKS,
-				action: callbacks.onGoTasks
+				action: callbacks.onGoTasks,
 			})
 		);
 	}
@@ -418,7 +454,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.registerSequence({
 				...SHORTCUTS.GO_ENVIRONMENT,
-				action: callbacks.onGoEnvironment
+				action: callbacks.onGoEnvironment,
 			})
 		);
 	}
@@ -427,7 +463,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.registerSequence({
 				...SHORTCUTS.GO_PREFERENCES,
-				action: callbacks.onGoPreferences
+				action: callbacks.onGoPreferences,
 			})
 		);
 	}
@@ -436,7 +472,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.registerSequence({
 				...SHORTCUTS.GO_PROMPTS,
-				action: callbacks.onGoPrompts
+				action: callbacks.onGoPrompts,
 			})
 		);
 	}
@@ -445,7 +481,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.registerSequence({
 				...SHORTCUTS.GO_HOOKS,
-				action: callbacks.onGoHooks
+				action: callbacks.onGoHooks,
 			})
 		);
 	}
@@ -454,7 +490,7 @@ export function setupGlobalShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.registerSequence({
 				...SHORTCUTS.GO_SKILLS,
-				action: callbacks.onGoSkills
+				action: callbacks.onGoSkills,
 			})
 		);
 	}
@@ -483,7 +519,7 @@ export function setupTaskListShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.TASK_NAV_DOWN,
-				action: callbacks.onNavDown
+				action: callbacks.onNavDown,
 			})
 		);
 	}
@@ -492,7 +528,7 @@ export function setupTaskListShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.TASK_NAV_UP,
-				action: callbacks.onNavUp
+				action: callbacks.onNavUp,
 			})
 		);
 	}
@@ -501,7 +537,7 @@ export function setupTaskListShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.TASK_OPEN,
-				action: callbacks.onOpen
+				action: callbacks.onOpen,
 			})
 		);
 	}
@@ -510,7 +546,7 @@ export function setupTaskListShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.TASK_RUN,
-				action: callbacks.onRun
+				action: callbacks.onRun,
 			})
 		);
 	}
@@ -519,7 +555,7 @@ export function setupTaskListShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.TASK_PAUSE,
-				action: callbacks.onPause
+				action: callbacks.onPause,
 			})
 		);
 	}
@@ -528,7 +564,7 @@ export function setupTaskListShortcuts(callbacks: {
 		unsubscribers.push(
 			manager.register({
 				...SHORTCUTS.TASK_DELETE,
-				action: callbacks.onDelete
+				action: callbacks.onDelete,
 			})
 		);
 	}
