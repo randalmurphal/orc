@@ -208,8 +208,21 @@ func (s *Server) handleGetTriggerHistory(w http.ResponseWriter, r *http.Request)
 	}
 	id := parts[0]
 
+	// Validate trigger ID format
+	if !isValidTriggerID(id) {
+		s.jsonError(w, "invalid trigger ID format", http.StatusBadRequest)
+		return
+	}
+
 	if s.automationSvc == nil {
 		s.jsonError(w, "automation service not enabled", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Verify trigger exists
+	trigger := s.findTrigger(id)
+	if trigger == nil {
+		s.jsonError(w, "trigger not found", http.StatusNotFound)
 		return
 	}
 
@@ -246,8 +259,21 @@ func (s *Server) handleResetTrigger(w http.ResponseWriter, r *http.Request) {
 	}
 	id := parts[0]
 
+	// Validate trigger ID format
+	if !isValidTriggerID(id) {
+		s.jsonError(w, "invalid trigger ID format", http.StatusBadRequest)
+		return
+	}
+
 	if s.automationSvc == nil {
 		s.jsonError(w, "automation service not enabled", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Verify trigger exists
+	trigger := s.findTrigger(id)
+	if trigger == nil {
+		s.jsonError(w, "trigger not found", http.StatusNotFound)
 		return
 	}
 
