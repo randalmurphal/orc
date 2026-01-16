@@ -148,9 +148,12 @@ Examples:
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			// Only allow resolving failed tasks
+			// Only allow resolving failed tasks. Blocked tasks get special guidance
+			// since users often confuse "resolve" with "resume" for blocked tasks.
+			// See TASK-288 for rationale.
 			if t.Status != task.StatusFailed {
 				if t.Status == task.StatusBlocked {
+					// Provide actionable guidance with task ID included for copy-paste
 					return fmt.Errorf(`task %s is blocked (status: blocked), not failed
 
 For blocked tasks, use one of these commands instead:
