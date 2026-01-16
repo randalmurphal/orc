@@ -34,6 +34,7 @@ const workItems: NavItem[] = [
 	{ label: 'Tasks', href: '/', icon: 'tasks' },
 	{ label: 'Board', href: '/board', icon: 'board' },
 	{ label: 'Branches', href: '/branches', icon: 'git-branch' },
+	{ label: 'Automation', href: '/automation', icon: 'zap' },
 ];
 
 const environmentOverview: NavItem = {

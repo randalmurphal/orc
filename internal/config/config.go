@@ -606,6 +606,160 @@ type MCPConfig struct {
 	Playwright PlaywrightConfig `yaml:"playwright"`
 }
 
+// AutomationMode defines how automation tasks are executed.
+type AutomationMode string
+
+const (
+	// AutomationModeAuto fires and executes without prompts
+	AutomationModeAuto AutomationMode = "auto"
+	// AutomationModeApproval creates in pending state, requires human approval
+	AutomationModeApproval AutomationMode = "approval"
+	// AutomationModeNotify only notifies, human creates task manually
+	AutomationModeNotify AutomationMode = "notify"
+)
+
+// TriggerType defines the type of automation trigger.
+type TriggerType string
+
+const (
+	// TriggerTypeCount fires after N tasks/phases complete
+	TriggerTypeCount TriggerType = "count"
+	// TriggerTypeInitiative fires on initiative events
+	TriggerTypeInitiative TriggerType = "initiative"
+	// TriggerTypeEvent fires on specific events (pr_merged, etc.)
+	TriggerTypeEvent TriggerType = "event"
+	// TriggerTypeThreshold fires when metric crosses value
+	TriggerTypeThreshold TriggerType = "threshold"
+	// TriggerTypeSchedule fires on cron schedule (team mode only)
+	TriggerTypeSchedule TriggerType = "schedule"
+)
+
+// TriggerConditionConfig defines when a trigger fires.
+type TriggerConditionConfig struct {
+	// Count-based
+	Metric     string   `yaml:"metric,omitempty"`     // tasks_completed, large_tasks_completed, phases_completed
+	Threshold  int      `yaml:"threshold,omitempty"`  // Number of items before triggering
+	Weights    []string `yaml:"weights,omitempty"`    // Filter by task weight
+	Categories []string `yaml:"categories,omitempty"` // Filter by task category
+
+	// Initiative-based / Event-based
+	Event  string            `yaml:"event,omitempty"`  // initiative_completed, pr_merged, task_completed, etc.
+	Filter map[string]string `yaml:"filter,omitempty"` // Additional filters
+
+	// Threshold-based
+	Operator string  `yaml:"operator,omitempty"` // lt, gt, eq
+	Value    float64 `yaml:"value,omitempty"`    // Threshold value
+
+	// Schedule-based (team mode only)
+	Schedule string `yaml:"schedule,omitempty"` // Cron expression
+}
+
+// TriggerActionConfig defines what happens when a trigger fires.
+type TriggerActionConfig struct {
+	Template string `yaml:"template"`            // Template name
+	Priority string `yaml:"priority,omitempty"`  // Task priority
+	Queue    string `yaml:"queue,omitempty"`     // Task queue
+}
+
+// TriggerCooldownConfig defines the cooldown period for a trigger.
+// Supports "N tasks" format for task-count based cooldowns
+// and duration format (e.g., "2h") for time-based cooldowns (team mode).
+type TriggerCooldownConfig struct {
+	Tasks    int           `yaml:"tasks,omitempty"`    // Number of tasks before retriggering
+	Duration time.Duration `yaml:"duration,omitempty"` // Time before retriggering (team mode)
+}
+
+// UnmarshalYAML handles parsing cooldown from various formats.
+func (c *TriggerCooldownConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try parsing as string first (e.g., "5 tasks" or "2h")
+	var s string
+	if err := unmarshal(&s); err == nil {
+		return c.parseString(s)
+	}
+
+	// Try parsing as struct
+	type rawCooldown TriggerCooldownConfig
+	var raw rawCooldown
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+	*c = TriggerCooldownConfig(raw)
+	return nil
+}
+
+func (c *TriggerCooldownConfig) parseString(s string) error {
+	// Parse "N tasks" format
+	var tasks int
+	if n, _ := fmt.Sscanf(s, "%d tasks", &tasks); n == 1 {
+		c.Tasks = tasks
+		return nil
+	}
+	if n, _ := fmt.Sscanf(s, "%d task", &tasks); n == 1 {
+		c.Tasks = tasks
+		return nil
+	}
+
+	// Parse duration format (e.g., "2h", "30m")
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return fmt.Errorf("invalid cooldown format %q: expected 'N tasks' or duration", s)
+	}
+	c.Duration = d
+	return nil
+}
+
+// TriggerConfig defines an automation trigger.
+type TriggerConfig struct {
+	ID          string                 `yaml:"id"`
+	Type        TriggerType            `yaml:"type"`
+	Description string                 `yaml:"description,omitempty"`
+	Enabled     bool                   `yaml:"enabled"`
+	Mode        AutomationMode         `yaml:"mode,omitempty"`
+	Condition   TriggerConditionConfig `yaml:"condition"`
+	Action      TriggerActionConfig    `yaml:"action"`
+	Cooldown    TriggerCooldownConfig  `yaml:"cooldown,omitempty"`
+}
+
+// TemplateScriptsConfig defines pre/post execution scripts for templates.
+type TemplateScriptsConfig struct {
+	Pre  []string `yaml:"pre,omitempty"`
+	Post []string `yaml:"post,omitempty"`
+}
+
+// AutomationTemplateConfig defines an automation task template.
+type AutomationTemplateConfig struct {
+	Title       string                `yaml:"title"`
+	Description string                `yaml:"description,omitempty"`
+	Weight      string                `yaml:"weight"`
+	Category    string                `yaml:"category"`
+	Phases      []string              `yaml:"phases"`
+	Prompt      string                `yaml:"prompt"` // Path to prompt template
+	Scripts     TemplateScriptsConfig `yaml:"scripts,omitempty"`
+}
+
+// AutomationConfig defines automation trigger settings.
+type AutomationConfig struct {
+	// Enabled enables the automation system (default: true)
+	Enabled bool `yaml:"enabled"`
+
+	// GlobalCooldown is the minimum time between any automation tasks (default: 30m)
+	// Prevents trigger storms
+	GlobalCooldown time.Duration `yaml:"global_cooldown"`
+
+	// MaxConcurrent is the max parallel automation tasks (default: 1)
+	MaxConcurrent int `yaml:"max_concurrent"`
+
+	// DefaultMode is the default execution mode for triggers (default: auto)
+	DefaultMode AutomationMode `yaml:"default_mode"`
+
+	// Triggers defines the automation triggers
+	Triggers []TriggerConfig `yaml:"triggers,omitempty"`
+
+	// Templates defines automation task templates
+	// Key is the template ID, value is the template definition
+	Templates map[string]AutomationTemplateConfig `yaml:"templates,omitempty"`
+}
+
 // PhaseModelSetting defines model and thinking configuration for a phase.
 type PhaseModelSetting struct {
 	// Model is the model to use for this phase.
@@ -845,6 +999,9 @@ type Config struct {
 
 	// Models configuration for per-weight, per-phase model selection
 	Models ModelsConfig `yaml:"models"`
+
+	// Automation configuration for triggers and templates
+	Automation AutomationConfig `yaml:"automation"`
 
 	// Model settings (legacy - used as fallback if Models.Default.Model is empty)
 	Model         string `yaml:"model"`
@@ -1190,6 +1347,14 @@ func Default() *Config {
 				Transcripts:    false, // Usually too large
 				ContextSummary: true,  // When enabled, export context.md
 			},
+		},
+		Automation: AutomationConfig{
+			Enabled:        true,                 // Automation enabled by default
+			GlobalCooldown: 30 * time.Minute,     // 30 minute global cooldown
+			MaxConcurrent:  1,                    // One automation task at a time
+			DefaultMode:    AutomationModeAuto,   // Auto mode by default
+			Triggers:       nil,                  // No triggers defined by default
+			Templates:      nil,                  // No templates defined by default
 		},
 		Models: ModelsConfig{
 			// Default: opus without thinking
@@ -1834,6 +1999,68 @@ func (c *Config) GetPreMergeGateType() string {
 		return "auto"
 	}
 	return gateType
+}
+
+// IsTeamMode returns true if orc is configured for team mode (shared database).
+// Team mode enables schedule-based triggers and time-based cooldowns.
+func (c *Config) IsTeamMode() bool {
+	return c.Database.Driver == "postgres" || c.Team.Mode == "shared_db"
+}
+
+// AutomationEnabled returns true if automation is enabled.
+func (c *Config) AutomationEnabled() bool {
+	return c.Automation.Enabled
+}
+
+// GetTriggerMode returns the effective execution mode for a trigger.
+// Uses the trigger's mode if set, otherwise falls back to default_mode.
+func (c *Config) GetTriggerMode(trigger TriggerConfig) AutomationMode {
+	if trigger.Mode != "" {
+		return trigger.Mode
+	}
+	if c.Automation.DefaultMode != "" {
+		return c.Automation.DefaultMode
+	}
+	return AutomationModeAuto
+}
+
+// GetAutomationTemplate returns a template by ID, or nil if not found.
+func (c *Config) GetAutomationTemplate(id string) *AutomationTemplateConfig {
+	if c.Automation.Templates == nil {
+		return nil
+	}
+	if tmpl, ok := c.Automation.Templates[id]; ok {
+		return &tmpl
+	}
+	return nil
+}
+
+// GetEnabledTriggers returns all enabled triggers.
+func (c *Config) GetEnabledTriggers() []TriggerConfig {
+	var enabled []TriggerConfig
+	for _, t := range c.Automation.Triggers {
+		if t.Enabled {
+			enabled = append(enabled, t)
+		}
+	}
+	return enabled
+}
+
+// GetTriggersByType returns all enabled triggers of a specific type.
+func (c *Config) GetTriggersByType(triggerType TriggerType) []TriggerConfig {
+	var triggers []TriggerConfig
+	for _, t := range c.Automation.Triggers {
+		if t.Enabled && t.Type == triggerType {
+			triggers = append(triggers, t)
+		}
+	}
+	return triggers
+}
+
+// SupportsScheduleTriggers returns true if schedule-based triggers are supported.
+// Schedule triggers require team mode with a persistent server.
+func (c *Config) SupportsScheduleTriggers() bool {
+	return c.IsTeamMode()
 }
 
 // DSN returns the database connection string based on current config.

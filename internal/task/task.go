@@ -384,6 +384,10 @@ type Task struct {
 	// This is computed (not stored) during PopulateComputedFields.
 	DependencyStatus DependencyStatus `yaml:"-" json:"dependency_status,omitempty"`
 
+	// IsAutomation indicates this is an automation task (AUTO-XXX prefix).
+	// Used for efficient querying via is_automation database column.
+	IsAutomation bool `yaml:"is_automation,omitempty" json:"is_automation,omitempty"`
+
 	// RequiresUITesting indicates if this task involves UI changes
 	// that should be validated with Playwright or similar tools
 	RequiresUITesting bool `yaml:"requires_ui_testing,omitempty" json:"requires_ui_testing,omitempty"`

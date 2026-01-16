@@ -11,6 +11,7 @@ import (
 
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/llmkit/claude/session"
+	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/plan"
@@ -189,6 +190,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		e.publishPhaseComplete(t.ID, phase.ID, result.CommitSHA)
 		e.publishTokens(t.ID, phase.ID, result.InputTokens, result.OutputTokens, 0, 0, result.InputTokens+result.OutputTokens)
 		e.publishState(t.ID, s)
+
+		// Trigger automation event for phase completion
+		e.triggerAutomationEvent(ctx, automation.EventPhaseCompleted, t, phase.ID)
 
 		// Evaluate gate if present (gate.Type != "" means gate is configured)
 		if phase.Gate.Type != "" {
@@ -393,6 +397,9 @@ func (e *Executor) failTask(t *task.Task, phase *plan.Phase, s *state.State, err
 	e.publishPhaseFailed(t.ID, phase.ID, err)
 	e.publishError(t.ID, phase.ID, err.Error(), true)
 	e.publishState(t.ID, s)
+
+	// Trigger automation event for task failure
+	e.triggerAutomationEvent(context.Background(), automation.EventTaskFailed, t, phase.ID)
 }
 
 // handleGateEvaluation evaluates a phase gate and handles potential retry.
@@ -481,6 +488,9 @@ func (e *Executor) completeTask(ctx context.Context, t *task.Task, s *state.Stat
 		Status: "completed",
 	}))
 	e.publishState(t.ID, s)
+
+	// Trigger automation events
+	e.triggerAutomationEvent(ctx, automation.EventTaskCompleted, t, "")
 
 	return nil
 }
@@ -804,6 +814,29 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 	}
 
 	return nil
+}
+
+// triggerAutomationEvent sends an event to the automation service if configured.
+// This is used to trigger automation tasks based on task/phase completion events.
+func (e *Executor) triggerAutomationEvent(ctx context.Context, eventType string, t *task.Task, phase string) {
+	if e.automationSvc == nil {
+		return
+	}
+
+	event := &automation.Event{
+		Type:     eventType,
+		TaskID:   t.ID,
+		Weight:   string(t.Weight),
+		Category: string(t.Category),
+		Phase:    phase,
+	}
+
+	if err := e.automationSvc.HandleEvent(ctx, event); err != nil {
+		e.logger.Warn("automation event handling failed",
+			"event", eventType,
+			"task", t.ID,
+			"error", err)
+	}
 }
 
 // findProjectRootFromDir finds the project root from a given directory.

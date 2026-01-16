@@ -564,6 +564,89 @@ import { Button } from '@/components/ui';
 - Icon-only buttons require `aria-label` prop
 - Respects `prefers-reduced-motion` (disables scale/animations)
 
+### Tooltip
+
+Accessible tooltip component built on Radix Tooltip primitives. Replaces native HTML `title` attributes with consistent styling and animations.
+
+```tsx
+import { Tooltip } from '@/components/ui';
+
+// Basic usage
+<Tooltip content="Helpful information">
+  <button>Hover me</button>
+</Tooltip>
+
+// With keyboard shortcut
+<Tooltip content={<>Press <kbd>Enter</kbd> to submit</>}>
+  <button>Submit</button>
+</Tooltip>
+
+// Custom placement
+<Tooltip content="Edit task" side="right" align="start">
+  <button><Icon name="edit" /></button>
+</Tooltip>
+
+// Controlled mode
+<Tooltip content="Info" open={isOpen} onOpenChange={setIsOpen}>
+  <button>Controlled</button>
+</Tooltip>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `content` | `ReactNode` | required | Tooltip content (text, JSX, or null to disable) |
+| `children` | `ReactNode` | required | Trigger element (must accept ref) |
+| `side` | `'top' \| 'right' \| 'bottom' \| 'left'` | `'top'` | Preferred placement |
+| `align` | `'start' \| 'center' \| 'end'` | `'center'` | Alignment along the side |
+| `sideOffset` | `number` | `6` | Distance from trigger in pixels |
+| `delayDuration` | `number` | Provider default (300ms) | Delay before showing |
+| `disabled` | `boolean` | `false` | Disable tooltip (renders children only) |
+| `showArrow` | `boolean` | `true` | Show pointing arrow |
+| `open` | `boolean` | - | Controlled open state |
+| `onOpenChange` | `(open: boolean) => void` | - | Controlled state callback |
+| `className` | `string` | `''` | Additional CSS classes on content |
+
+**TooltipProvider:**
+
+Wrap your app with `TooltipProvider` at the root level (already configured in `App.tsx`):
+
+```tsx
+import { TooltipProvider } from '@/components/ui';
+
+<TooltipProvider delayDuration={300}>
+  <App />
+</TooltipProvider>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `delayDuration` | `number` | `700` | Default delay for all tooltips |
+| `skipDelayDuration` | `number` | `300` | Delay when moving between tooltips |
+| `disableHoverableContent` | `boolean` | `false` | Disable hovering over tooltip content |
+
+**Features (via Radix Tooltip):**
+- Keyboard accessible (focus shows tooltip)
+- Touch device support (long-press)
+- Collision detection (auto-repositions to stay in viewport)
+- Portal rendering to `document.body` (avoids z-index issues)
+- Proper ARIA attributes (`role="tooltip"`)
+- Focus restoration when closed
+- Supports JSX content (including `<kbd>`, `<code>`)
+
+**Animations:**
+- Slide-in animation from the side opposite to placement
+- Respects `prefers-reduced-motion` (opacity only)
+- Uses `data-state="delayed-open"` and `data-side` for CSS targeting
+
+**CSS classes:**
+- `.tooltip-content` - Main tooltip container
+- `.tooltip-arrow` - Pointing arrow element
+
+**When to use Tooltip vs `title` attribute:**
+- Use Tooltip for interactive elements, keyboard shortcuts, important context
+- Native `title` has poor accessibility, inconsistent timing, no styling control
+- Tooltip provides consistent 300ms delay, animations, and keyboard support
+
 ## Layout Components
 
 Main layout components that wrap all pages.
@@ -1121,6 +1204,53 @@ npm run e2e:report       # Open HTML report
 **Configuration:** `playwright.config.ts` targets the React app on `:5173`.
 
 **Worker limit:** Playwright uses a maximum of 4 workers locally (1 in CI) to prevent OOM when multiple orc tasks run E2E tests in parallel. Each worker spawns browser processes, so unlimited workers on a 16-core machine could exhaust memory.
+
+#### UI Primitives & Radix Integration Tests
+
+Three test files validate the UI component library and Radix integration:
+
+| Test File | Purpose | Test Count |
+|-----------|---------|------------|
+| `ui-primitives.spec.ts` | Button, DropdownMenu, Select, Tabs, Tooltip behavior | 22 |
+| `radix-a11y.spec.ts` | Keyboard accessibility for Radix components | 17 |
+| `axe-audit.spec.ts` | WCAG 2.1 Level AA compliance via axe-core | 8 |
+
+**`ui-primitives.spec.ts` coverage:**
+- **Button Primitive** (4 tests): variants, icon modes, focus states, disabled state
+- **Dropdown Menu** (5 tests): open/close, keyboard navigation, item selection, Escape key, ARIA attributes
+- **Select** (5 tests): open/close, keyboard nav, ARIA attributes, typeahead support
+- **Tabs** (5 tests): click switch, arrow key navigation, Home/End keys, ARIA structure, URL sync
+- **Tooltip** (4 tests): hover show/hide, delay timing, focus triggers, ARIA role
+
+**`radix-a11y.spec.ts` coverage:**
+- **Dialog/Modal** (3 tests): Escape closes, focus trap, focus restoration
+- **Select/Filter Dropdowns** (3 tests): Enter opens, arrow navigation, Home/End keys
+- **Tabs** (2 tests): Arrow key navigation, Home/End navigation
+- **DropdownMenu** (3 tests): Enter opens, arrow navigation, Enter selects
+- **Tooltip** (2 tests): Focus shows tooltip, focus blur hides
+- **Integration** (2 tests): Multiple dropdowns coexist, click outside closes
+
+**`axe-audit.spec.ts` coverage:**
+- Dashboard, Board (flat/swimlane), Task list, Task detail, Initiative detail pages
+- New task modal, Command palette
+- Critical/serious violations fail tests; moderate/minor logged as warnings
+
+**Selector strategy (priority order):**
+1. `role`/`aria-label` - `getByRole()`, `locator('[role="..."]')`
+2. Semantic text - `getByText()`, `:has-text()`
+3. `data-state` attributes - Radix state indicators
+4. CSS classes - Structural elements only
+
+```bash
+# Run UI primitives tests
+npx playwright test ui-primitives.spec.ts
+
+# Run accessibility tests
+npx playwright test radix-a11y.spec.ts axe-audit.spec.ts
+
+# Run all component tests
+npx playwright test ui-primitives radix-a11y axe-audit
+```
 
 ### Integration Tests
 
@@ -1816,7 +1946,8 @@ import { TaskCard } from '@/components/board';
 **Display Elements:**
 - Task ID and priority badge (critical/high/low icons)
 - Status indicator (colored orb with animation)
-- Title and description preview
+- Title (truncated to 2 lines) and description preview (truncated to 3 lines with ellipsis)
+- Description hover tooltip shows full text; markdown formatting stripped for card display
 - Current phase (when running)
 - Weight badge with color coding
 - Blocked badge (when is_blocked)

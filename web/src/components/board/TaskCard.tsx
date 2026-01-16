@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { Button } from '@/components/ui/Button';
+import { Tooltip } from '@/components/ui/Tooltip';
 import type { Task, TaskPriority, TaskQueue } from '@/lib/types';
 import { PRIORITY_CONFIG } from '@/lib/types';
 import { updateTask, triggerFinalize, type FinalizeState } from '@/lib/api';
@@ -53,6 +54,31 @@ function formatDate(dateStr: string): string {
 	if (diffHours < 24) return `${diffHours}h ago`;
 	if (diffDays < 7) return `${diffDays}d ago`;
 	return date.toLocaleDateString();
+}
+
+/**
+ * Normalize markdown text for display in card preview.
+ * Strips markdown formatting and collapses whitespace.
+ */
+function normalizeDescription(text: string): string {
+	return (
+		text
+			// Strip heading markers (# ## ### etc.)
+			.replace(/^#{1,6}\s+/gm, '')
+			// Strip bold/italic markers (**, __, *, _)
+			.replace(/(\*\*|__)(.*?)\1/g, '$2')
+			.replace(/(\*|_)(.*?)\1/g, '$2')
+			// Strip inline code backticks
+			.replace(/`([^`]+)`/g, '$1')
+			// Strip list markers (-, *, numbered lists)
+			.replace(/^[\s]*[-*+]\s+/gm, '')
+			.replace(/^[\s]*\d+\.\s+/gm, '')
+			// Collapse multiple newlines into spaces
+			.replace(/\n+/g, ' ')
+			// Collapse multiple spaces
+			.replace(/\s{2,}/g, ' ')
+			.trim()
+	);
 }
 
 export function TaskCard({
@@ -258,59 +284,60 @@ export function TaskCard({
 				<div className="header-left">
 					<span className="task-id">{task.id}</span>
 					{showPriority && (
-						<span
-							className={`priority-badge ${priority}`}
-							style={{ color: priorityConfig.color }}
-							title={`${priorityConfig.label} priority`}
-						>
-							{priority === 'critical' && (
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="10"
-									height="10"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2.5"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<circle cx="12" cy="12" r="10" />
-									<line x1="12" y1="8" x2="12" y2="12" />
-									<line x1="12" y1="16" x2="12.01" y2="16" />
-								</svg>
-							)}
-							{priority === 'high' && (
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="10"
-									height="10"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2.5"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<polyline points="18 15 12 9 6 15" />
-								</svg>
-							)}
-							{priority === 'low' && (
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="10"
-									height="10"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2.5"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<polyline points="6 9 12 15 18 9" />
-								</svg>
-							)}
-						</span>
+						<Tooltip content={`${priorityConfig.label} priority`}>
+							<span
+								className={`priority-badge ${priority}`}
+								style={{ color: priorityConfig.color }}
+							>
+								{priority === 'critical' && (
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="10"
+										height="10"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.5"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									>
+										<circle cx="12" cy="12" r="10" />
+										<line x1="12" y1="8" x2="12" y2="12" />
+										<line x1="12" y1="16" x2="12.01" y2="16" />
+									</svg>
+								)}
+								{priority === 'high' && (
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="10"
+										height="10"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.5"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									>
+										<polyline points="18 15 12 9 6 15" />
+									</svg>
+								)}
+								{priority === 'low' && (
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="10"
+										height="10"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.5"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									>
+										<polyline points="6 9 12 15 18 9" />
+									</svg>
+								)}
+							</span>
+						</Tooltip>
 					)}
 				</div>
 				<StatusIndicator status={task.status} size="sm" />
@@ -318,7 +345,11 @@ export function TaskCard({
 
 			<h3 className="task-title">{task.title}</h3>
 
-			{task.description && <p className="task-description">{task.description}</p>}
+			{task.description && (
+				<Tooltip content={task.description}>
+					<p className="task-description">{normalizeDescription(task.description)}</p>
+				</Tooltip>
+			)}
 
 			{task.current_phase && (
 				<div className="task-phase">
@@ -376,152 +407,52 @@ export function TaskCard({
 						{task.weight}
 					</span>
 					{task.is_blocked && (
-						<span
-							className="blocked-badge"
-							title={`Blocked by ${task.unmet_blockers?.join(', ')}`}
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="10"
-								height="10"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2.5"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<circle cx="12" cy="12" r="10" />
-								<line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-							</svg>
-							Blocked
-						</span>
+						<Tooltip content={`Blocked by ${task.unmet_blockers?.join(', ')}`}>
+							<span className="blocked-badge">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="10"
+									height="10"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2.5"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
+									<circle cx="12" cy="12" r="10" />
+									<line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+								</svg>
+								Blocked
+							</span>
+						</Tooltip>
 					)}
 					{initiativeBadge && (
-						<Button
-							variant="ghost"
-							size="sm"
-							className="initiative-badge"
-							onClick={handleInitiativeClick}
-							title={initiativeBadge.full}
-						>
-							{initiativeBadge.display}
-						</Button>
+						<Tooltip content={initiativeBadge.full}>
+							<Button
+								variant="ghost"
+								size="sm"
+								className="initiative-badge"
+								onClick={handleInitiativeClick}
+							>
+								{initiativeBadge.display}
+							</Button>
+						</Tooltip>
 					)}
 					<span className="updated-time">{formatDate(task.updated_at)}</span>
 				</div>
 
 				<div className="actions">
 					{(task.status === 'created' || task.status === 'planned') && (
-						<Button
-							variant="ghost"
-							size="sm"
-							iconOnly
-							className="action-btn run"
-							onClick={(e) => handleAction('run', e)}
-							disabled={actionLoading}
-							title="Run task"
-							aria-label="Run task"
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="currentColor"
-								stroke="none"
-							>
-								<polygon points="5 3 19 12 5 21 5 3" />
-							</svg>
-						</Button>
-					)}
-					{task.status === 'running' && (
-						<Button
-							variant="ghost"
-							size="sm"
-							iconOnly
-							className="action-btn pause"
-							onClick={(e) => handleAction('pause', e)}
-							disabled={actionLoading}
-							title="Pause task"
-							aria-label="Pause task"
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="currentColor"
-								stroke="none"
-							>
-								<rect x="6" y="4" width="4" height="16" rx="1" />
-								<rect x="14" y="4" width="4" height="16" rx="1" />
-							</svg>
-						</Button>
-					)}
-					{task.status === 'paused' && (
-						<Button
-							variant="ghost"
-							size="sm"
-							iconOnly
-							className="action-btn resume"
-							onClick={(e) => handleAction('resume', e)}
-							disabled={actionLoading}
-							title="Resume task"
-							aria-label="Resume task"
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="currentColor"
-								stroke="none"
-							>
-								<polygon points="5 3 19 12 5 21 5 3" />
-							</svg>
-						</Button>
-					)}
-					{task.status === 'completed' && (
-						<Button
-							variant="ghost"
-							size="sm"
-							iconOnly
-							className="action-btn finalize"
-							onClick={handleFinalize}
-							disabled={finalizeLoading}
-							loading={finalizeLoading}
-							title="Finalize and merge"
-							aria-label="Finalize and merge"
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<circle cx="18" cy="18" r="3" />
-								<circle cx="6" cy="6" r="3" />
-								<path d="M6 21V9a9 9 0 0 0 9 9" />
-							</svg>
-						</Button>
-					)}
-
-					{/* Quick menu for queue/priority - Radix DropdownMenu */}
-					<DropdownMenu.Root open={quickMenuOpen} onOpenChange={setQuickMenuOpen}>
-						<DropdownMenu.Trigger asChild>
+						<Tooltip content="Run task">
 							<Button
 								variant="ghost"
 								size="sm"
 								iconOnly
-								className="action-btn more"
-								title="Quick actions"
-								aria-label="Quick actions"
+								className="action-btn run"
+								onClick={(e) => handleAction('run', e)}
+								disabled={actionLoading}
+								aria-label="Run task"
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
@@ -531,12 +462,117 @@ export function TaskCard({
 									fill="currentColor"
 									stroke="none"
 								>
-									<circle cx="12" cy="5" r="2" />
-									<circle cx="12" cy="12" r="2" />
-									<circle cx="12" cy="19" r="2" />
+									<polygon points="5 3 19 12 5 21 5 3" />
 								</svg>
 							</Button>
-						</DropdownMenu.Trigger>
+						</Tooltip>
+					)}
+					{task.status === 'running' && (
+						<Tooltip content="Pause task">
+							<Button
+								variant="ghost"
+								size="sm"
+								iconOnly
+								className="action-btn pause"
+								onClick={(e) => handleAction('pause', e)}
+								disabled={actionLoading}
+								aria-label="Pause task"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="currentColor"
+									stroke="none"
+								>
+									<rect x="6" y="4" width="4" height="16" rx="1" />
+									<rect x="14" y="4" width="4" height="16" rx="1" />
+								</svg>
+							</Button>
+						</Tooltip>
+					)}
+					{task.status === 'paused' && (
+						<Tooltip content="Resume task">
+							<Button
+								variant="ghost"
+								size="sm"
+								iconOnly
+								className="action-btn resume"
+								onClick={(e) => handleAction('resume', e)}
+								disabled={actionLoading}
+								aria-label="Resume task"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="currentColor"
+									stroke="none"
+								>
+									<polygon points="5 3 19 12 5 21 5 3" />
+								</svg>
+							</Button>
+						</Tooltip>
+					)}
+					{task.status === 'completed' && (
+						<Tooltip content="Finalize and merge">
+							<Button
+								variant="ghost"
+								size="sm"
+								iconOnly
+								className="action-btn finalize"
+								onClick={handleFinalize}
+								disabled={finalizeLoading}
+								loading={finalizeLoading}
+								aria-label="Finalize and merge"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
+									<circle cx="18" cy="18" r="3" />
+									<circle cx="6" cy="6" r="3" />
+									<path d="M6 21V9a9 9 0 0 0 9 9" />
+								</svg>
+							</Button>
+						</Tooltip>
+					)}
+
+					{/* Quick menu for queue/priority - Radix DropdownMenu */}
+					<DropdownMenu.Root open={quickMenuOpen} onOpenChange={setQuickMenuOpen}>
+						<Tooltip content="Quick actions">
+							<DropdownMenu.Trigger asChild>
+								<Button
+									variant="ghost"
+									size="sm"
+									iconOnly
+									className="action-btn more"
+									aria-label="Quick actions"
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="12"
+										height="12"
+										viewBox="0 0 24 24"
+										fill="currentColor"
+										stroke="none"
+									>
+										<circle cx="12" cy="5" r="2" />
+										<circle cx="12" cy="12" r="2" />
+										<circle cx="12" cy="19" r="2" />
+									</svg>
+								</Button>
+							</DropdownMenu.Trigger>
+						</Tooltip>
 
 						<DropdownMenu.Portal>
 							<DropdownMenu.Content

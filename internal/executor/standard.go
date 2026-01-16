@@ -189,6 +189,22 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		)
 	}
 
+	// Add automation context if this is an automation task (AUTO-XXX)
+	if t.IsAutomation {
+		projectRoot := "."
+		if e.workingDir != "" {
+			projectRoot = e.workingDir
+		}
+		if autoCtx := LoadAutomationContext(t, e.backend, projectRoot); autoCtx != nil {
+			vars = vars.WithAutomationContext(*autoCtx)
+			e.logger.Info("automation context injected",
+				"task", t.ID,
+				"has_recent_tasks", autoCtx.RecentCompletedTasks != "",
+				"has_changed_files", autoCtx.RecentChangedFiles != "",
+			)
+		}
+	}
+
 	promptText := RenderTemplate(tmpl, vars)
 
 	// Inject "ultrathink" for extended thinking mode

@@ -287,7 +287,7 @@ export function Branches() {
 										</td>
 										<td>
 											<span className="type-badge">
-												<Icon name={typeConfig.icon as 'flag' | 'git-branch' | 'check-square'} size={12} />
+												<Icon name={typeConfig.icon as 'layers' | 'git-branch' | 'check-circle'} size={12} />
 												{typeConfig.label}
 											</span>
 										</td>

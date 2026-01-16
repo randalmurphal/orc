@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { TaskList } from '@/pages/TaskList';
 import { Board } from '@/pages/Board';
 import { Dashboard } from '@/pages/Dashboard';
+import { AutomationPage } from '@/pages/AutomationPage';
 import { TaskDetail } from '@/pages/TaskDetail';
 import { InitiativeDetail } from '@/pages/InitiativeDetail';
 import { Branches } from '@/pages/Branches';
@@ -27,6 +28,7 @@ import { Agents } from '@/pages/environment/Agents';
  * | / | ?project, ?initiative, ?dependency_status |
  * | /board | ?project, ?initiative, ?dependency_status |
  * | /dashboard | ?project |
+ * | /automation | ?project |
  * | /tasks/:id | ?tab |
  * | /initiatives/:id | - |
  * | /preferences | - |
@@ -49,6 +51,10 @@ export const routes: RouteObject[] = [
 			{
 				path: 'dashboard',
 				element: <Dashboard />,
+			},
+			{
+				path: 'automation',
+				element: <AutomationPage />,
 			},
 			{
 				path: 'tasks/:id',

@@ -89,6 +89,8 @@
   --accent-hover: #c4b5fd;
   --accent-active: #8b5cf6;
   --accent-subtle: rgba(167, 139, 250, 0.1);
+  --accent-button: #7c3aed;            /* Darker violet for button bg - 4.6:1 contrast with white */
+  --accent-button-hover: #8b5cf6;      /* Hover state for button */
 
   /* React-specific aliases (compatibility with existing components) */
   --bg-hover: var(--bg-surface);

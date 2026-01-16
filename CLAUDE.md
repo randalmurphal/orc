@@ -340,17 +340,37 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 
 ### Component Library
 
-**Button Primitive**: Unified button component used across all pages. Features variants (primary, secondary, danger, ghost, success), sizes (sm, md, lg), icon support (leftIcon, rightIcon, iconOnly), and loading state. Provides consistent accessibility (focus-visible, aria-disabled, aria-busy).
+**Button Primitive**: Unified button component used across all pages. Features variants (primary, secondary, danger, ghost, success), sizes (sm, md, lg), icon support (leftIcon, rightIcon, iconOnly), and loading state. Provides consistent accessibility (focus-visible, aria-disabled, aria-busy). Icon-only buttons require `aria-label`.
 
-**Radix UI**: Accessible primitives for Dialog, Dropdown, Select, Tabs, Tooltip, Popover, Toast.
-- All Radix components portal to `document.body` by default
-- Modal.tsx uses Radix Dialog internally while preserving existing CSS classes and API
-- Components are unstyled - style via CSS using `data-*` attributes (`data-state`, `data-highlighted`, etc.)
-- Focus management and keyboard navigation handled automatically
-- Global `data-state` animations defined in `index.css` with `prefers-reduced-motion` support
-- See ADR-008 for adoption rationale
+**Radix UI Primitives**: Accessible components with automatic keyboard navigation and ARIA attributes.
 
-See `web/CLAUDE.md` for component architecture.
+| Component | Package | Usage |
+|-----------|---------|-------|
+| DropdownMenu | `@radix-ui/react-dropdown-menu` | TaskCard quick menu, ExportDropdown (action menus) |
+| Select | `@radix-ui/react-select` | InitiativeDropdown, ViewModeDropdown, DependencyDropdown |
+| Tabs | `@radix-ui/react-tabs` | TabNav in task detail |
+| Tooltip | `@radix-ui/react-tooltip` | Replace native `title` attributes |
+| Dialog | `@radix-ui/react-dialog` | Modal.tsx (focus trap, ESC close) |
+
+**Radix Patterns**:
+- Portal to `document.body` by default (avoids z-index issues)
+- Style via `data-*` attributes: `data-state="open|closed"`, `data-highlighted`, `data-disabled`
+- Trigger uses `asChild` to wrap existing Button components
+- Select requires string values (map `null` to internal constants like `'__all__'`)
+- Global animations in `index.css` respect `prefers-reduced-motion`
+
+**Keyboard Navigation** (automatic via Radix):
+
+| Component | Keys |
+|-----------|------|
+| DropdownMenu/Select | Arrow keys, Enter, Escape, Home/End, typeahead |
+| Tabs | Arrow left/right, Home/End, Tab to panel |
+| Dialog | Escape closes, Tab cycles within focus trap |
+| Tooltip | Focus shows, blur hides |
+
+**E2E Validation**: Three test files (`ui-primitives.spec.ts`, `radix-a11y.spec.ts`, `axe-audit.spec.ts`) validate behavior, keyboard accessibility, and WCAG 2.1 AA compliance.
+
+See `web/CLAUDE.md` for component architecture and full API documentation.
 
 ## Documentation Reference
 
@@ -365,6 +385,8 @@ See `web/CLAUDE.md` for component architecture.
 | CLI Spec | `docs/specs/CLI.md` |
 | File Formats | `docs/specs/FILE_FORMATS.md` |
 | Troubleshooting | `docs/guides/TROUBLESHOOTING.md` |
+| Radix UI Adoption | `docs/decisions/ADR-008-radix-adoption.md` |
+| Web UI Components | `web/CLAUDE.md` |
 
 ## Testing
 
@@ -527,6 +549,8 @@ Patterns, gotchas, and decisions learned during development.
 | Test worker limits for parallel tasks | Playwright (4 workers) and Vitest (4 threads) limit parallelism to prevent OOM when multiple orc tasks run tests concurrently; without limits, 3 parallel tasks on 16 cores could spawn 48 browser/test processes | TASK-253 |
 | Filter dropdown Radix migration | InitiativeDropdown, ViewModeDropdown, DependencyDropdown use Radix Select; ExportDropdown uses Radix DropdownMenu (action menu pattern); null values mapped to internal string constants since Radix Select requires strings; provides keyboard nav, typeahead, Home/End, ARIA | TASK-213 |
 | TabNav Radix Tabs migration | TabNav uses `@radix-ui/react-tabs` with render prop pattern for tab content; Tabs.Root wraps entire component, Tabs.List contains Tabs.Trigger elements, Tabs.Content wraps the children render prop result; provides arrow key navigation, Home/End, focus management, automatic ARIA; CSS uses `data-state='active'` for active tab styling | TASK-214 |
+| Radix Tooltip component | `Tooltip` wraps `@radix-ui/react-tooltip` with consistent styling; `TooltipProvider` at App.tsx root provides global delay config (300ms); supports rich content (JSX), controlled mode, placement, arrow; portals to `document.body`; use instead of native `title` for accessibility and consistent styling | TASK-215 |
+| UI primitives E2E testing | Three test files validate Radix integration: `ui-primitives.spec.ts` (22 tests: Button, DropdownMenu, Select, Tabs, Tooltip), `radix-a11y.spec.ts` (17 tests: keyboard navigation, focus trap, ARIA attributes), `axe-audit.spec.ts` (8 tests: WCAG 2.1 AA compliance via axe-core); selector strategy prioritizes role/aria-label over CSS classes | TASK-216 |
 | Branch resolution 5-level hierarchy | `ResolveTargetBranch()` resolves target branch with priority: task override → initiative branch → developer staging → project config → "main"; each level can override lower levels; source tracking via `ResolveBranchSource()` for debugging | branch-targeting |
 | Branch lazy creation | Target branches (initiative, staging) created on first task run via `EnsureTargetBranchExists()` in setup; default branches (main, master, develop) never auto-created; prevents orphan branches from unused initiatives | branch-targeting |
 | Branch registry tracking | All orc-managed branches tracked in `branches` table with type (initiative/staging/task), owner_id, status (active/merged/stale/orphaned), timestamps; enables `orc branches list/cleanup` for lifecycle management | branch-targeting |

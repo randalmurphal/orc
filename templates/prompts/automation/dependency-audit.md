@@ -1,0 +1,63 @@
+# Dependency Audit
+
+You are performing an automated dependency audit to check for outdated, deprecated, or vulnerable dependencies.
+
+## Objective
+
+Review all project dependencies, identify issues, and update or replace problematic dependencies as needed.
+
+## Context
+
+**Project Root:** {{PROJECT_ROOT}}
+
+## Process
+
+1. **Inventory Dependencies**
+   - List all direct and indirect dependencies
+   - Note current versions vs latest versions
+   - Identify deprecated or archived packages
+
+2. **Security Check**
+   - Run security audit tools (npm audit, go mod audit, etc.)
+   - Check for known CVEs in dependencies
+   - Review security advisories for critical packages
+
+3. **Compatibility Analysis**
+   - Check for breaking changes in major version updates
+   - Review changelogs for significant updates
+   - Identify dependencies that may cause conflicts
+
+4. **Update Strategy**
+   For each dependency requiring attention:
+   - Minor/patch updates: Update directly
+   - Major updates: Assess breaking changes, update if safe
+   - Vulnerable packages: Prioritize immediate update or replacement
+   - Deprecated packages: Find and migrate to alternatives
+
+5. **Apply Updates**
+   - Update dependency files (package.json, go.mod, etc.)
+   - Update lock files
+   - Run tests to verify compatibility
+   - Document any breaking changes encountered
+
+## Output Format
+
+When complete, output:
+
+```xml
+<phase_complete>true</phase_complete>
+```
+
+If blocked (e.g., critical vulnerability requires human decision), output:
+
+```xml
+<phase_blocked>reason: [description of issue]</phase_blocked>
+```
+
+## Guidelines
+
+- Don't update major versions without understanding breaking changes
+- Always run tests after updates
+- Document any manual interventions required
+- Prefer security fixes over feature updates
+- Keep updates minimal when possible

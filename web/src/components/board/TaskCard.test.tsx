@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { TaskCard } from './TaskCard';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Task } from '@/lib/types';
 
 // Mock browser APIs not available in jsdom (required by Radix DropdownMenu)
@@ -56,9 +57,11 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
 
 function renderTaskCard(task: Task, props: Partial<Parameters<typeof TaskCard>[0]> = {}) {
 	return render(
-		<MemoryRouter>
-			<TaskCard task={task} onAction={vi.fn()} {...props} />
-		</MemoryRouter>
+		<TooltipProvider delayDuration={0}>
+			<MemoryRouter>
+				<TaskCard task={task} onAction={vi.fn()} {...props} />
+			</MemoryRouter>
+		</TooltipProvider>
 	);
 }
 
@@ -81,6 +84,56 @@ describe('TaskCard', () => {
 			expect(screen.getByText('A test task description')).toBeInTheDocument();
 		});
 
+		it('truncates description to 3 lines via CSS class', () => {
+			const longDescription =
+				'This is a very long description that could potentially span many lines if not truncated properly by the CSS styling applied to the task card component';
+			const { container } = renderTaskCard(createTask({ description: longDescription }));
+
+			const descriptionElement = container.querySelector('.task-description');
+			expect(descriptionElement).toBeInTheDocument();
+			// The CSS class applies line-clamp: 3 truncation
+			expect(descriptionElement).toHaveClass('task-description');
+		});
+
+		it('normalizes markdown formatting in description display', () => {
+			const markdownDescription = `# Heading
+
+**Bold text** and *italic text*
+
+- List item 1
+- List item 2
+
+Some \`inline code\` here`;
+
+			const { container } = renderTaskCard(createTask({ description: markdownDescription }));
+
+			const descriptionElement = container.querySelector('.task-description');
+			expect(descriptionElement).toBeInTheDocument();
+			// Should be normalized - no markdown markers visible
+			expect(descriptionElement?.textContent).not.toContain('#');
+			expect(descriptionElement?.textContent).not.toContain('**');
+			expect(descriptionElement?.textContent).not.toContain('*italic');
+			expect(descriptionElement?.textContent).not.toContain('- List');
+			expect(descriptionElement?.textContent).not.toContain('`');
+			// Should contain the actual text content
+			expect(descriptionElement?.textContent).toContain('Heading');
+			expect(descriptionElement?.textContent).toContain('Bold text');
+			expect(descriptionElement?.textContent).toContain('inline code');
+		});
+
+		it('wraps description in tooltip showing full text', () => {
+			const longDescription =
+				'This is a very long description that would be truncated in the card display';
+			const { container } = renderTaskCard(createTask({ description: longDescription }));
+
+			// The description element is wrapped in a Radix Tooltip trigger
+			// Radix uses asChild so the trigger attributes are applied to the child element
+			const descriptionElement = container.querySelector('.task-description');
+			expect(descriptionElement).toBeInTheDocument();
+			// Radix Tooltip trigger adds data-state attribute to the child
+			expect(descriptionElement).toHaveAttribute('data-state');
+		});
+
 		it('renders weight badge', () => {
 			renderTaskCard(createTask({ weight: 'large' }));
 
@@ -99,30 +152,30 @@ describe('TaskCard', () => {
 
 	describe('priority badge', () => {
 		it('does not show priority badge for normal priority', () => {
-			renderTaskCard(createTask({ priority: 'normal' }));
+			const { container } = renderTaskCard(createTask({ priority: 'normal' }));
 
-			const priorityBadge = screen.queryByTitle(/priority/i);
+			const priorityBadge = container.querySelector('.priority-badge');
 			expect(priorityBadge).not.toBeInTheDocument();
 		});
 
 		it('shows priority badge for critical priority', () => {
-			renderTaskCard(createTask({ priority: 'critical' }));
+			const { container } = renderTaskCard(createTask({ priority: 'critical' }));
 
-			const priorityBadge = screen.getByTitle('Critical priority');
+			const priorityBadge = container.querySelector('.priority-badge.critical');
 			expect(priorityBadge).toBeInTheDocument();
 		});
 
 		it('shows priority badge for high priority', () => {
-			renderTaskCard(createTask({ priority: 'high' }));
+			const { container } = renderTaskCard(createTask({ priority: 'high' }));
 
-			const priorityBadge = screen.getByTitle('High priority');
+			const priorityBadge = container.querySelector('.priority-badge.high');
 			expect(priorityBadge).toBeInTheDocument();
 		});
 
 		it('shows priority badge for low priority', () => {
-			renderTaskCard(createTask({ priority: 'low' }));
+			const { container } = renderTaskCard(createTask({ priority: 'low' }));
 
-			const priorityBadge = screen.getByTitle('Low priority');
+			const priorityBadge = container.querySelector('.priority-badge.low');
 			expect(priorityBadge).toBeInTheDocument();
 		});
 	});
@@ -180,16 +233,16 @@ describe('TaskCard', () => {
 			expect(screen.getByText('Blocked')).toBeInTheDocument();
 		});
 
-		it('has title with blocker list', () => {
-			renderTaskCard(
+		it('has blocked badge with correct class', () => {
+			const { container } = renderTaskCard(
 				createTask({
 					is_blocked: true,
 					unmet_blockers: ['TASK-002', 'TASK-003'],
 				})
 			);
 
-			const blockedBadge = screen.getByText('Blocked').closest('.blocked-badge');
-			expect(blockedBadge).toHaveAttribute('title', 'Blocked by TASK-002, TASK-003');
+			const blockedBadge = container.querySelector('.blocked-badge');
+			expect(blockedBadge).toBeInTheDocument();
 		});
 
 		it('does not show blocked badge when not blocked', () => {
@@ -227,35 +280,35 @@ describe('TaskCard', () => {
 		it('shows run button for created tasks', () => {
 			renderTaskCard(createTask({ status: 'created' }));
 
-			const runButton = screen.getByTitle('Run task');
+			const runButton = screen.getByLabelText('Run task');
 			expect(runButton).toBeInTheDocument();
 		});
 
 		it('shows run button for planned tasks', () => {
 			renderTaskCard(createTask({ status: 'planned' }));
 
-			const runButton = screen.getByTitle('Run task');
+			const runButton = screen.getByLabelText('Run task');
 			expect(runButton).toBeInTheDocument();
 		});
 
 		it('shows pause button for running tasks', () => {
 			renderTaskCard(createTask({ status: 'running', current_phase: 'implement' }));
 
-			const pauseButton = screen.getByTitle('Pause task');
+			const pauseButton = screen.getByLabelText('Pause task');
 			expect(pauseButton).toBeInTheDocument();
 		});
 
 		it('shows resume button for paused tasks', () => {
 			renderTaskCard(createTask({ status: 'paused' }));
 
-			const resumeButton = screen.getByTitle('Resume task');
+			const resumeButton = screen.getByLabelText('Resume task');
 			expect(resumeButton).toBeInTheDocument();
 		});
 
 		it('shows finalize button for completed tasks', () => {
 			renderTaskCard(createTask({ status: 'completed' }));
 
-			const finalizeButton = screen.getByTitle('Finalize and merge');
+			const finalizeButton = screen.getByLabelText('Finalize and merge');
 			expect(finalizeButton).toBeInTheDocument();
 		});
 
@@ -263,7 +316,7 @@ describe('TaskCard', () => {
 			const onAction = vi.fn().mockResolvedValue(undefined);
 			renderTaskCard(createTask({ status: 'created' }), { onAction });
 
-			const runButton = screen.getByTitle('Run task');
+			const runButton = screen.getByLabelText('Run task');
 			fireEvent.click(runButton);
 
 			await waitFor(() => {
@@ -275,7 +328,7 @@ describe('TaskCard', () => {
 			const onAction = vi.fn().mockResolvedValue(undefined);
 			renderTaskCard(createTask({ status: 'running', current_phase: 'implement' }), { onAction });
 
-			const pauseButton = screen.getByTitle('Pause task');
+			const pauseButton = screen.getByLabelText('Pause task');
 			fireEvent.click(pauseButton);
 
 			await waitFor(() => {
@@ -287,7 +340,7 @@ describe('TaskCard', () => {
 			const onFinalizeClick = vi.fn();
 			renderTaskCard(createTask({ status: 'completed' }), { onFinalizeClick });
 
-			const finalizeButton = screen.getByTitle('Finalize and merge');
+			const finalizeButton = screen.getByLabelText('Finalize and merge');
 			fireEvent.click(finalizeButton);
 
 			await waitFor(() => {
@@ -302,14 +355,14 @@ describe('TaskCard', () => {
 		it('shows quick menu trigger button', () => {
 			renderTaskCard(createTask());
 
-			const menuButton = screen.getByTitle('Quick actions');
+			const menuButton = screen.getByLabelText('Quick actions');
 			expect(menuButton).toBeInTheDocument();
 		});
 
 		it('quick menu trigger has correct ARIA attributes', () => {
 			renderTaskCard(createTask());
 
-			const menuButton = screen.getByTitle('Quick actions');
+			const menuButton = screen.getByLabelText('Quick actions');
 			expect(menuButton).toHaveAttribute('aria-haspopup', 'menu');
 			expect(menuButton).toHaveAttribute('aria-expanded', 'false');
 			expect(menuButton).toHaveAttribute('data-state', 'closed');

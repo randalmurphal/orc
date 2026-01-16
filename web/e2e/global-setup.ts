@@ -92,118 +92,49 @@ export default async function globalSetup() {
 
 	console.log(`   Project ID: ${project.id}`);
 
-	// Create test tasks with various statuses
+	// Create test tasks using orc CLI (data goes to SQLite, not YAML files)
 	console.log('   Creating test tasks...');
 
-	const tasksDir = path.join(sandboxPath, '.orc', 'tasks');
+	// Helper to run orc commands in sandbox
+	const runOrc = (cmd: string) => {
+		execSync(`${ORC_BIN} ${cmd}`, { cwd: sandboxPath, stdio: 'pipe' });
+	};
 
-	// Task 1: Planned task in Queued column
-	createTestTask(tasksDir, 'TASK-001', {
-		id: 'TASK-001',
-		title: 'E2E Test: Planned Task',
-		description: 'A planned task for testing board rendering',
-		status: 'planned',
-		weight: 'medium',
-		queue: 'active',
-		priority: 'normal',
-		category: 'feature',
-	});
+	// Task 1: Planned task (normal priority, feature)
+	runOrc('new "E2E Test: Planned Task" -d "A planned task for testing board rendering" -w medium -p normal -c feature');
 
-	// Task 2: Another planned task with different priority
-	createTestTask(tasksDir, 'TASK-002', {
-		id: 'TASK-002',
-		title: 'E2E Test: High Priority Task',
-		description: 'A high priority task for testing sorting',
-		status: 'planned',
-		weight: 'small',
-		queue: 'active',
-		priority: 'high',
-		category: 'bug',
-	});
+	// Task 2: High priority bug
+	runOrc('new "E2E Test: High Priority Task" -d "A high priority task for testing sorting" -w small -p high -c bug');
 
-	// Task 3: Backlog task
-	createTestTask(tasksDir, 'TASK-003', {
-		id: 'TASK-003',
-		title: 'E2E Test: Backlog Task',
-		description: 'A task in the backlog queue',
-		status: 'planned',
-		weight: 'large',
-		queue: 'backlog',
-		priority: 'low',
-		category: 'refactor',
-	});
+	// Task 3: Low priority refactor task
+	runOrc('new "E2E Test: Refactor Task" -d "A refactoring task for testing different categories" -w large -p low -c refactor');
 
-	// Task 4: Completed task
-	createTestTask(tasksDir, 'TASK-004', {
-		id: 'TASK-004',
-		title: 'E2E Test: Completed Task',
-		description: 'A completed task for testing Done column',
-		status: 'completed',
-		weight: 'small',
-		queue: 'active',
-		priority: 'normal',
-		category: 'feature',
-	});
+	// Task 4: Task to mark as completed
+	runOrc('new "E2E Test: Completed Task" -d "A completed task for testing Done column" -w small -p normal -c feature');
+	// Mark task 4 as completed
+	runOrc('edit TASK-004 --status completed');
 
-	// Task 5: Paused task (for testing pause/resume)
-	createTestTask(tasksDir, 'TASK-005', {
-		id: 'TASK-005',
-		title: 'E2E Test: Paused Task',
-		description: 'A paused task for testing resume functionality',
-		status: 'paused',
-		weight: 'medium',
-		queue: 'active',
-		priority: 'normal',
-		category: 'feature',
-		current_phase: 'implement',
-	});
+	// Task 5: Task to mark as paused
+	runOrc('new "E2E Test: Paused Task" -d "A paused task for testing resume functionality" -w medium -p normal -c feature');
+	// Mark task 5 as paused
+	runOrc('edit TASK-005 --status paused');
 
-	// Task 6: Critical priority task
-	createTestTask(tasksDir, 'TASK-006', {
-		id: 'TASK-006',
-		title: 'E2E Test: Critical Task',
-		description: 'A critical priority task for testing priority display',
-		status: 'planned',
-		weight: 'medium',
-		queue: 'active',
-		priority: 'critical',
-		category: 'bug',
-	});
+	// Task 6: Critical priority bug
+	runOrc('new "E2E Test: Critical Task" -d "A critical priority task for testing priority display" -w medium -p critical -c bug');
 
-	// Create test initiatives
+	// Create test initiatives using orc CLI
 	console.log('   Creating test initiatives...');
-	const initiativesDir = path.join(sandboxPath, '.orc', 'initiatives');
-	fs.mkdirSync(initiativesDir, { recursive: true });
 
 	// Initiative 1: Active with some tasks
-	createTestInitiative(initiativesDir, 'INIT-001', {
-		id: 'INIT-001',
-		title: 'E2E Test Initiative',
-		description: 'An initiative for testing filtering',
-		status: 'active',
-		task_ids: ['TASK-001', 'TASK-002'],
-	});
-
-	// Link tasks to initiative
-	linkTaskToInitiative(tasksDir, 'TASK-001', 'INIT-001');
-	linkTaskToInitiative(tasksDir, 'TASK-002', 'INIT-001');
+	runOrc('initiative new "E2E Test Initiative" --vision "An initiative for testing filtering"');
 
 	// Initiative 2: Another active initiative
-	createTestInitiative(initiativesDir, 'INIT-002', {
-		id: 'INIT-002',
-		title: 'Second Test Initiative',
-		description: 'Another initiative for testing swimlanes',
-		status: 'active',
-		task_ids: ['TASK-003'],
-	});
+	runOrc('initiative new "Second Test Initiative" --vision "Another initiative for testing swimlanes"');
 
-	linkTaskToInitiative(tasksDir, 'TASK-003', 'INIT-002');
-
-	// Commit test data
-	execSync('git add . && git commit -m "Add E2E test data"', {
-		cwd: sandboxPath,
-		stdio: 'pipe',
-	});
+	// Link tasks to initiatives
+	runOrc('edit TASK-001 --initiative INIT-001');
+	runOrc('edit TASK-002 --initiative INIT-001');
+	runOrc('edit TASK-003 --initiative INIT-002');
 
 	// Save state for tests and teardown
 	const state: SandboxState = {
@@ -223,65 +154,5 @@ export default async function globalSetup() {
 	console.log('✅ E2E test sandbox ready\n');
 }
 
-function createTestTask(
-	tasksDir: string,
-	taskId: string,
-	task: Record<string, unknown>
-) {
-	const taskDir = path.join(tasksDir, taskId);
-	fs.mkdirSync(taskDir, { recursive: true });
-
-	// Add timestamps
-	const now = new Date().toISOString();
-	const fullTask = {
-		...task,
-		created_at: now,
-		updated_at: now,
-	};
-
-	// Write task.yaml
-	fs.writeFileSync(path.join(taskDir, 'task.yaml'), yaml.dump(fullTask));
-
-	// Write minimal plan.yaml
-	const plan = {
-		version: 1,
-		task_id: taskId,
-		weight: task.weight || 'medium',
-		description: 'Test plan',
-		phases: [
-			{ id: 'implement', name: 'implement', gate: { type: 'auto' }, status: 'pending' },
-			{ id: 'test', name: 'test', gate: { type: 'auto' }, status: 'pending' },
-		],
-	};
-	fs.writeFileSync(path.join(taskDir, 'plan.yaml'), yaml.dump(plan));
-}
-
-function createTestInitiative(
-	initiativesDir: string,
-	initId: string,
-	initiative: Record<string, unknown>
-) {
-	const now = new Date().toISOString();
-	const fullInit = {
-		...initiative,
-		created_at: now,
-		updated_at: now,
-	};
-
-	fs.writeFileSync(
-		path.join(initiativesDir, `${initId}.yaml`),
-		yaml.dump(fullInit)
-	);
-}
-
-function linkTaskToInitiative(
-	tasksDir: string,
-	taskId: string,
-	initiativeId: string
-) {
-	const taskPath = path.join(tasksDir, taskId, 'task.yaml');
-	const taskContent = fs.readFileSync(taskPath, 'utf-8');
-	const task = yaml.load(taskContent) as Record<string, unknown>;
-	task.initiative_id = initiativeId;
-	fs.writeFileSync(taskPath, yaml.dump(task));
-}
+// Note: Tasks and initiatives are created via orc CLI which stores data in SQLite.
+// The YAML helper functions were removed as they are no longer needed.

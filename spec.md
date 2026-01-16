@@ -1,151 +1,69 @@
-# Specification: Replace TabNav with Radix Tabs
+# Specification: Truncate task card descriptions on board to max 2-3 lines
 
 ## Problem Statement
-The custom TabNav component in TaskDetail uses manual ARIA attributes and lacks keyboard navigation (arrow keys between tabs, Home/End). Replacing it with Radix Tabs will provide full accessibility compliance including automatic ARIA management, focus handling, and keyboard navigation.
+Task cards on the Board page display full descriptions which can be excessively long, especially when containing markdown content with multiple paragraphs. The current CSS has `line-clamp: 2` but it's being undermined by `white-space: pre-wrap` which preserves newlines from markdown, causing cards to grow unbounded.
 
 ## Success Criteria
-- [ ] TabNav.tsx uses Radix Tabs.Root, Tabs.List, and Tabs.Trigger components
-- [ ] Tab panels in TaskDetail.tsx are wrapped with Tabs.Content components
-- [ ] Arrow left/right switches between tabs
-- [ ] Home/End keys jump to first/last tab
-- [ ] Tab key moves focus to panel content (when applicable)
-- [ ] URL persistence works (`?tab=xxx` updates on tab change)
-- [ ] Direct URL navigation loads correct tab (`/tasks/TASK-001?tab=changes`)
-- [ ] Visual appearance unchanged (same CSS classes applied)
-- [ ] aria-label on Tabs.List updated to "Task details tabs" (matching E2E test expectation)
-- [ ] Existing E2E tests pass without modification
+- [ ] Task card descriptions are truncated to exactly 3 lines maximum
+- [ ] Ellipsis (...) appears at truncation point
+- [ ] Full description is visible on hover via Tooltip component
+- [ ] Card heights are consistent within the same column (no tall cards breaking layout)
+- [ ] Markdown formatting (newlines, headers, lists) in descriptions is normalized to plain text for display
+- [ ] Existing non-markdown descriptions continue to work correctly
 
 ## Testing Requirements
-- [ ] E2E: `bunx playwright test task-detail.spec.ts` passes (15 tests)
-- [ ] E2E: Tab navigation tests (show all tabs, switching, URL updates, URL loading)
-- [ ] E2E: `[role="tablist"][aria-label="Task details tabs"]` selector works
-- [ ] Manual: Arrow key navigation between tabs works
-- [ ] Manual: Focus indicator visible on keyboard navigation
+- [ ] Unit test: TaskCard renders description with line-clamp when description exceeds 3 lines
+- [ ] Unit test: Tooltip shows full description text on hover
+- [ ] E2E test: Board page shows truncated descriptions with consistent card heights
+- [ ] E2E test: Hovering over description shows full content in tooltip
 
 ## Scope
+
 ### In Scope
-- Replace TabNav.tsx implementation with Radix Tabs
-- Wrap TaskDetail.tsx tab panels with Tabs.Content
-- Add CSS for `.tab-btn[data-state='active']` styling
-- Add CSS for `.tab-panel[data-state='active']` panel fade-in animation
-- Add focus-visible styling for keyboard navigation
-- Maintain URL persistence via onValueChange handler
+- Fix `white-space: pre-wrap` conflict with `line-clamp` in TaskCard.css
+- Increase line-clamp from 2 to 3 lines for better context
+- Add Tooltip component around description to show full text on hover
+- Normalize description text (strip markdown formatting) for card display
 
 ### Out of Scope
-- Changes to tab content components (TimelineTab, ChangesTab, etc.)
-- Changes to other pages using tabs (if any)
-- New tab additions or removals
-- Tab content refactoring
+- Changing task list page (it doesn't show descriptions)
+- Adding "expand" click functionality (tooltip on hover is sufficient)
+- Rendering markdown as rich text on cards (too complex for card preview)
+- Adding description preview to other components
 
 ## Technical Approach
 
-### Implementation Strategy: Full Radix Tabs
-Use Option A from the task description - wrap entire tab section in Tabs.Root with both Tabs.List (triggers) and Tabs.Content (panels). This provides:
-1. Automatic ARIA attributes (aria-selected, aria-controls, role)
-2. Built-in keyboard navigation
-3. Focus management between tabs and panels
-4. Consistent animation hooks via data-state
-
 ### Files to Modify
+- `web/src/components/board/TaskCard.tsx`: Wrap description in Tooltip, add text normalization utility
+- `web/src/components/board/TaskCard.css`: Fix white-space conflict, update line-clamp to 3
 
-1. **`web/src/components/task-detail/TabNav.tsx`**
-   - Import `@radix-ui/react-tabs` (already installed)
-   - Replace manual `<nav role="tablist">` with `<Tabs.List>`
-   - Replace `<button role="tab">` with `<Tabs.Trigger>`
-   - Export Tabs.Root and Tabs.Content for use in parent
-   - Keep TABS config array and TabId type
+### Implementation Details
 
-2. **`web/src/pages/TaskDetail.tsx`**
-   - Wrap entire tab section in `<Tabs.Root value={activeTab} onValueChange={handleTabChange}>`
-   - Replace conditional tab panel rendering with `<Tabs.Content>` wrappers
-   - Remove manual `id="panel-${tab.id}"` since Radix handles aria-controls
+1. **CSS Fix** (TaskCard.css):
+   - Change `white-space: pre-wrap` to `white-space: normal` to allow proper line-clamp
+   - Update `-webkit-line-clamp` from 2 to 3 lines
+   - Add `word-break: break-word` to handle long words
 
-3. **`web/src/components/task-detail/TabNav.css`**
-   - Add `.tab-btn[data-state='active']` selector (alongside existing `.tab-btn.active`)
-   - Add `.tab-btn:focus-visible` ring styling
-   - Add `.tab-panel[data-state='active']` fade-in animation
-   - Add `@keyframes tab-panel-in` animation
+2. **Tooltip Integration** (TaskCard.tsx):
+   - Import and use existing Tooltip component (already in project)
+   - Wrap `.task-description` paragraph in Tooltip
+   - Pass full description as tooltip content
 
-### Component Structure (After)
+3. **Text Normalization**:
+   - Create simple utility to strip markdown formatting:
+     - Replace multiple newlines with single space
+     - Strip heading markers (#, ##, etc.)
+     - Strip list markers (-, *, 1.)
+     - Strip bold/italic markers (**, __, *, _)
+   - Apply before displaying in card (not in tooltip)
 
-```tsx
-// TaskDetail.tsx
-<Tabs.Root value={activeTab} onValueChange={handleTabChange}>
-  <TabNav />  {/* Renders Tabs.List with Tabs.Triggers */}
-
-  <div className="tab-content">
-    <Tabs.Content value="timeline" className="tab-panel">
-      <TimelineTab ... />
-    </Tabs.Content>
-    <Tabs.Content value="changes" className="tab-panel">
-      <ChangesTab ... />
-    </Tabs.Content>
-    {/* ... other panels */}
-  </div>
-</Tabs.Root>
-```
-
-```tsx
-// TabNav.tsx (simplified)
-export function TabNav() {
-  return (
-    <Tabs.List className="tab-nav" aria-label="Task details tabs">
-      {TABS.map((tab) => (
-        <Tabs.Trigger key={tab.id} value={tab.id} className="tab-btn">
-          <Icon name={tab.icon} size={16} />
-          <span>{tab.label}</span>
-        </Tabs.Trigger>
-      ))}
-    </Tabs.List>
-  );
-}
-```
-
-### URL Persistence
-Radix Tabs is a controlled component - the value and onValueChange pattern works exactly like the current implementation. The handleTabChange function already updates URL via `setSearchParams({ tab: tabId }, { replace: true })`.
-
-### CSS Changes
-
-```css
-/* Active state - Radix uses data-state attribute */
-.tab-btn[data-state='active'] {
-  background: var(--accent-glow);
-  color: var(--accent-primary);
-}
-
-/* Focus ring for keyboard navigation */
-.tab-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--accent-glow);
-}
-
-/* Panel entrance animation */
-.tab-panel[data-state='active'] {
-  animation: tab-panel-in var(--duration-fast) var(--ease-out);
-}
-
-@keyframes tab-panel-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-```
-
-## Feature: Radix Tabs Migration
+## Feature Analysis
 
 ### User Story
-As a user navigating the task detail page, I want to use keyboard shortcuts (arrow keys, Home/End) to switch between tabs so that I can navigate efficiently without a mouse.
+As a user viewing the task board, I want task descriptions to be truncated to a consistent height so that the board layout is usable and I can quickly scan tasks without scrolling through long descriptions.
 
 ### Acceptance Criteria
-1. Pressing ArrowRight/ArrowLeft while a tab is focused switches to next/previous tab
-2. Pressing Home/End while a tab is focused jumps to first/last tab
-3. Tab key moves focus from tab list to panel content
-4. All existing mouse interactions continue to work
-5. URL updates correctly when switching tabs via keyboard
-6. Visual styling remains identical to current implementation
-7. All existing E2E tests pass without modification
-
-### Risk Assessment
-- **Low risk**: Radix Tabs is already a dependency (v1.1.13 installed)
-- **Low risk**: No API changes needed - just component structure
-- **Low risk**: CSS uses data-state selectors which Radix provides
-- **Minimal visual change**: Same CSS classes, just different state attribute
+- [ ] Cards with long descriptions (e.g., TASK-220, TASK-218 mentioned in bug report) show max 3 lines
+- [ ] Hovering over a truncated description reveals the full text
+- [ ] Board columns display cards in a consistent, scannable layout
+- [ ] Markdown in descriptions (headers, lists, bold) doesn't break the truncation

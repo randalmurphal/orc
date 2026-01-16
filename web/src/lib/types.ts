@@ -514,7 +514,7 @@ export const BRANCH_STATUS_CONFIG: Record<BranchStatus, { label: string; color: 
 
 // Branch type display config
 export const BRANCH_TYPE_CONFIG: Record<BranchType, { label: string; icon: string }> = {
-	initiative: { label: 'Initiative', icon: 'flag' },
+	initiative: { label: 'Initiative', icon: 'layers' },
 	staging: { label: 'Staging', icon: 'git-branch' },
-	task: { label: 'Task', icon: 'check-square' },
+	task: { label: 'Task', icon: 'check-circle' },
 };
