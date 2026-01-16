@@ -347,7 +347,7 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 | Component | Package | Usage |
 |-----------|---------|-------|
 | DropdownMenu | `@radix-ui/react-dropdown-menu` | TaskCard quick menu, ExportDropdown (action menus) |
-| Select | `@radix-ui/react-select` | InitiativeDropdown, ViewModeDropdown, DependencyDropdown, TaskEditModal initiative |
+| Select | `@radix-ui/react-select` | InitiativeDropdown, ViewModeDropdown, DependencyDropdown |
 | Tabs | `@radix-ui/react-tabs` | TabNav in task detail |
 | Tooltip | `@radix-ui/react-tooltip` | Replace native `title` attributes |
 | Dialog | `@radix-ui/react-dialog` | Modal.tsx (focus trap, ESC close) |
@@ -556,7 +556,6 @@ Patterns, gotchas, and decisions learned during development.
 | Branch registry tracking | All orc-managed branches tracked in `branches` table with type (initiative/staging/task), owner_id, status (active/merged/stale/orphaned), timestamps; enables `orc branches list/cleanup` for lifecycle management | branch-targeting |
 | Initiative branch auto-merge | When all initiative tasks complete and initiative has `BranchBase`, auto-merge to target branch; `auto`/`fast` profiles auto-merge after CI, `safe`/`strict` leave PR for human review; tracks `MergeStatus` (none/pending/merged/failed) | branch-targeting |
 | Developer staging workflow | Personal staging branches via `developer.staging_branch` + `staging_enabled` in personal config; `orc staging status/sync/enable/disable` commands; staging takes precedence over project default but yields to initiative branches | branch-targeting |
-| TaskEditModal initiative dropdown | TaskEditModal uses Radix Select for initiative assignment; `NO_INITIATIVE_VALUE` constant maps to "None" option since Radix requires strings; empty string sent to API to clear initiative; initiatives sorted active-first then alphabetically; non-active initiatives show status badge | TASK-274 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
@@ -582,7 +581,7 @@ Patterns, gotchas, and decisions learned during development.
 | Template variables not substituted in prompts | Fixed: Flowgraph executor's `renderTemplate()` now includes all variables from standard `RenderTemplate()`: `{{TASK_CATEGORY}}`, `{{INITIATIVE_CONTEXT}}`, `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}`, `{{COVERAGE_THRESHOLD}}`, `{{REVIEW_FINDINGS}}` | TASK-278 |
 | Date shows '12/31/1' instead of '12/31/2001' | Fixed: `toLocaleDateString()` without options can produce abbreviated years; use explicit options `{ year: 'numeric', month: 'numeric', day: 'numeric' }` to ensure 4-digit year display; also add null/invalid date guards | TASK-255 |
 | Dashboard initiative progress shows 0/0 | Fixed: `DashboardInitiatives` was calculating progress from `initiative.tasks` (unpopulated by API) while Sidebar used `getInitiativeProgress(tasks)` from task store; now both use task store for consistent counts | TASK-276 |
-| Project selector shows 'Select project' after refresh | Fixed: `useCurrentProject()` was calling `state.getCurrentProject()` method which Zustand couldn't track for dependencies; now computes directly in selector `state.projects.find(p => p.id === state.currentProjectId)` to properly track both `projects` and `currentProjectId` | TASK-266 |
+| View mode dropdown disabled on clean URL | Fixed: `swimlaneDisabled` was using store value `currentInitiativeId` which includes localStorage-persisted state; changed to use URL param `searchParams.get('initiative')` as source of truth; clean URL (`/board`) now enables dropdown even with stale localStorage filter | TASK-275 |
 
 ### Decisions
 | Decision | Rationale | Source |

@@ -80,8 +80,11 @@ export function Board() {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const [finalizeStates, _setFinalizeStates] = useState<Map<string, FinalizeState>>(new Map());
 
-	// Swimlane view disabled when initiative filter is active
-	const swimlaneDisabled = currentInitiativeId !== null;
+	// Swimlane view disabled when initiative filter is active in URL
+	// Use URL param as source of truth, not store value (which includes localStorage-persisted state)
+	// This ensures clean URL navigation (/board) has dropdown enabled
+	const urlInitiativeFilter = searchParams.get('initiative');
+	const swimlaneDisabled = urlInitiativeFilter !== null;
 
 	// Filter tasks by initiative and dependency status
 	const filteredTasks = useMemo(() => {
