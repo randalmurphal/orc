@@ -807,30 +807,25 @@ grep "Duration:" .orc/tasks/TASK-XXX/transcripts/*.md
 
 ## PR Creation Issues
 
-### Missing Labels Warning
+### Missing Labels (Silent Fallback)
 
-**Symptoms**:
-```
-WARN PR labels not found on repository, creating PR without labels
-```
-
-**Cause**: The configured `completion.pr.labels` reference labels that don't exist on the GitHub repository.
-
-**Behavior**: Orc gracefully handles this by:
+**Behavior**: When configured `completion.pr.labels` reference labels that don't exist on the GitHub repository, orc gracefully handles this by:
 1. Detecting the label error from GitHub CLI
-2. Logging a warning
+2. Logging at DEBUG level (silent in normal operation)
 3. Retrying PR creation without labels
 4. PR is created successfully without the missing labels
 
-**Solutions**:
+**To see this in logs**, use verbose mode: `orc -vv run TASK-XXX`
+
+**Solutions** (if you want labels to appear on PRs):
 
 | Approach | Action |
 |----------|--------|
 | Create missing labels | Go to GitHub repo → Issues → Labels → New label |
 | Remove from config | Edit `completion.pr.labels` in `.orc/config.yaml` |
-| Ignore warning | No action needed - PR creation succeeds without labels |
+| Leave as-is | No action needed - PR creation succeeds without labels |
 
-**Note**: This is informational only. The PR will be created successfully; labels are simply omitted when they don't exist on the repository.
+**Note**: This is normal behavior for repos without pre-configured labels. The PR will be created successfully; labels are simply omitted.
 
 ### GitHub CLI Not Authenticated
 
@@ -871,7 +866,11 @@ GitHub CLI not authenticated: ...
 orc resume TASK-XXX    # Continues from where it left off
 ```
 
-**Note**: Auto-merge enablement also requires authentication. If auto-merge fails with auth errors, orc logs a warning but doesn't fail the task - the PR is created successfully, just without auto-merge enabled.
+**Note**: Auto-merge enablement also requires authentication. If auto-merge fails:
+- **Auth errors**: Logged as WARN with hint to run `gh auth login` (actionable)
+- **Config errors** (repo doesn't support auto-merge): Logged at DEBUG level (silent in normal operation)
+
+In both cases, the PR is created successfully; only auto-merge is skipped.
 
 ---
 

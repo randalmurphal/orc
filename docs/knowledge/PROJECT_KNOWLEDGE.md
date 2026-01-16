@@ -80,12 +80,13 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Resolve blocked task guidance | `orc resolve` on blocked task provides actionable error with suggested commands (`orc approve` for gate approval, `orc resume` for resuming execution); distinguishes from generic "wrong status" errors; includes task ID in suggestions for copy-paste convenience | TASK-288 |
 | Spec phase progress indication | Spec phase has two distinct activity states: `spec_analyzing` (reading codebase, researching patterns) and `spec_writing` (generating specification); CLI shows "Analyzing codebase..." / "Writing specification..." messages; WebSocket broadcasts `activity` events with phase-specific states; TaskCard shows activity label under phase name; heartbeats continue during spec execution | TASK-244 |
 | Orphan detection prioritizes PID | `CheckOrphaned()` prioritizes PID check over heartbeat staleness - a live PID always indicates a healthy task regardless of heartbeat age; heartbeat staleness only provides additional context when PID is dead; `HeartbeatRunner` updates heartbeats every 2 minutes during phase execution for defense-in-depth | TASK-291 |
+| Log level classification for expected failures | PR label errors and auto-merge config errors (repo doesn't support auto-merge) log at DEBUG; auth errors log at WARN (actionable); missing spec warnings only for large/greenfield weights; keeps normal operation quiet while surfacing actionable issues | TASK-289 |
 
 ## Known Gotchas
 
 | Issue | Resolution | Source |
 |-------|------------|--------|
-| PR labels in config don't exist on repo | Orc warns and creates PR without labels (graceful degradation) | TASK-015 |
+| PR labels in config don't exist on repo | Orc logs at DEBUG level and creates PR without labels (graceful degradation, silent in normal operation) | TASK-015, TASK-289 |
 | `go:embed` fails without static dir | Run `make test` (creates placeholder) or `mkdir -p internal/api/static` | TASK-016 |
 | Tests fail with `go.work` | Use `GOWORK=off go test` or `make test` | TASK-016 |
 | Raw `InputTokens` appears misleadingly low | Use `EffectiveInputTokens()` which adds cached tokens to get actual context size | TASK-010 |
