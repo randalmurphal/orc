@@ -43,7 +43,7 @@ Weight changes will regenerate the task plan with phases appropriate
 for the new weight. This requires the task to not be running.
 
 Valid status values: created, classifying, planned, paused, blocked,
-  completed, finished, failed. Note: running tasks must be paused first.
+  completed, failed. Note: running tasks must be paused first.
 
 Example:
   orc edit TASK-001 --title "New title"
@@ -424,7 +424,7 @@ Example:
 	cmd.Flags().StringP("description", "d", "", "new task description")
 	cmd.Flags().StringP("weight", "w", "", "new task weight (trivial, small, medium, large, greenfield)")
 	cmd.Flags().StringP("priority", "p", "", "new task priority (critical, high, normal, low)")
-	cmd.Flags().StringP("status", "s", "", "new task status (created, classifying, planned, paused, blocked, completed, finished, failed)")
+	cmd.Flags().StringP("status", "s", "", "new task status (created, classifying, planned, paused, blocked, completed, failed)")
 	cmd.Flags().StringP("initiative", "i", "", "link/unlink task to initiative (use \"\" to unlink)")
 	cmd.Flags().String("target-branch", "", "override PR target branch for this task (use \"\" to clear)")
 

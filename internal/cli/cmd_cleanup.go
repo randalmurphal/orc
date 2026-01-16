@@ -33,9 +33,7 @@ func newCleanupCmd() *cobra.Command {
 		Short: "Clean up orphaned worktrees",
 		Long: `Clean up worktrees for tasks that are in terminal states.
 
-By default, cleans worktrees for tasks that are:
-  - completed (phases done)
-  - finished (merged)
+By default, cleans worktrees for tasks that are completed.
 
 Use --all to also clean worktrees for failed tasks.
 

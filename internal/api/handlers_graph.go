@@ -171,7 +171,7 @@ func buildGraphFromTasks(taskMap map[string]*task.Task, requestedIDs map[string]
 // Returns simplified status values for visualization: done, running, blocked, ready, pending
 func mapTaskStatus(status string) string {
 	switch status {
-	case "completed", "finished":
+	case "completed":
 		return "done"
 	case "running", "finalizing":
 		return "running"

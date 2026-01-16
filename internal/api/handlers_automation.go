@@ -379,7 +379,7 @@ func (s *Server) handleGetAutomationStats(w http.ResponseWriter, r *http.Request
 				stats.PendingTasks++
 			case "running":
 				stats.RunningTasks++
-			case "completed", "finished":
+			case "completed":
 				stats.CompletedTasks++
 			}
 		}

@@ -701,7 +701,7 @@ func (a *ProjectDBAdapter) LoadRecentCompletedTasks(ctx context.Context, limit i
 	query := `
 		SELECT id, title, weight, category, completed_at, metadata
 		FROM tasks
-		WHERE status IN ('completed', 'finished')
+		WHERE status = 'completed'
 	`
 	if automationOnly {
 		query += ` AND is_automation = 0` // Exclude automation tasks from context

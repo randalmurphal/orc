@@ -237,7 +237,7 @@ describe('TaskStore', () => {
 	});
 
 	describe('derived state: getRecentTasks', () => {
-		it('should return completed/failed/finished tasks sorted by updated_at', () => {
+		it('should return completed/failed tasks sorted by updated_at', () => {
 			const now = Date.now();
 			const tasks = [
 				createTask({

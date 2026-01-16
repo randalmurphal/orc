@@ -233,10 +233,10 @@ func (i *Initiative) GetReadyTasksWithLoader(loader TaskLoader) []TaskRef {
 		tasks = i.GetTasksWithStatus(loader)
 	}
 
-	// Build a map of completed tasks (both "completed" and "finished" count)
+	// Build a map of completed tasks
 	completed := make(map[string]bool)
 	for _, t := range tasks {
-		if t.Status == "completed" || t.Status == "finished" {
+		if t.Status == "completed" {
 			completed[t.ID] = true
 		}
 	}
@@ -652,7 +652,7 @@ func (i *Initiative) AllTasksCompleteWithLoader(loader TaskLoader) bool {
 
 // isDoneStatus returns true if the status indicates a task is done.
 func isDoneStatus(status string) bool {
-	return status == "completed" || status == "finished"
+	return status == "completed"
 }
 
 // HasBranchBase returns true if the initiative has a branch base configured.

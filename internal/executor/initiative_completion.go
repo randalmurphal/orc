@@ -309,7 +309,7 @@ func (c *InitiativeCompleter) buildInitiativePRBody(init *initiative.Initiative)
 		body += "### Tasks Completed\n"
 		for _, t := range init.Tasks {
 			status := t.Status
-			if status == "completed" || status == "finished" {
+			if status == "completed" {
 				status = "✅"
 			}
 			body += fmt.Sprintf("- %s %s: %s\n", status, t.ID, t.Title)
