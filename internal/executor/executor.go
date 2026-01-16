@@ -63,6 +63,23 @@ type PhaseState struct {
 	WorktreePath string
 	TaskBranch   string
 	TargetBranch string
+
+	// Task category (for template rendering)
+	TaskCategory string
+
+	// Initiative context (for template rendering)
+	InitiativeContext string
+
+	// UI Testing context (for template rendering)
+	RequiresUITesting string
+	ScreenshotDir     string
+	TestResults       string
+
+	// Testing configuration
+	CoverageThreshold int
+
+	// Review findings (for review round 2)
+	ReviewFindings string
 }
 
 // Config, DefaultConfig, and ConfigFromOrc are defined in config.go
