@@ -171,7 +171,9 @@ web/src/
 │   │   └── DependencyDropdown.tsx # Dependency status filter
 │   ├── overlays/         # Modal overlays
 │   │   ├── Modal.tsx     # Base modal component
-│   │   └── KeyboardShortcutsHelp.tsx # Shortcuts help modal
+│   │   ├── KeyboardShortcutsHelp.tsx # Shortcuts help modal
+│   │   ├── ProjectSwitcher.tsx # Project selection modal
+│   │   └── NewTaskModal.tsx # Task creation modal
 │   └── ui/               # UI primitives
 │       ├── Button.tsx    # Unified button with variants/sizes
 │       ├── Icon.tsx      # SVG icons (60+ built-in)
@@ -669,7 +671,7 @@ const routes = [
 
 **Structure:**
 - Handles global keyboard shortcuts
-- Manages modal states (shortcuts help, project switcher)
+- Manages modal states (shortcuts help, project switcher, new task)
 - Provides responsive layout with sidebar margin
 - Uses React Router's `<Outlet>` for page content
 
@@ -765,6 +767,48 @@ import { ProjectSwitcher } from '@/components/overlays';
 - Portal-rendered to document.body
 
 **Keyboard shortcuts:** ⇧⌥P opens project switcher (handled by AppLayout)
+
+### NewTaskModal
+
+Modal form for creating a new task. Opens via Header button or `Shift+Alt+N` keyboard shortcut.
+
+```tsx
+import { NewTaskModal } from '@/components/overlays';
+
+<NewTaskModal
+  open={showNewTaskModal}
+  onClose={() => setShowNewTaskModal(false)}
+  onCreate={(task) => console.log('Created:', task.id)}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `open` | `boolean` | Whether modal is visible |
+| `onClose` | `() => void` | Close handler |
+| `onCreate` | `(task: Task) => void` | Optional callback after successful creation |
+
+**Form Fields:**
+
+| Field | Type | Required | Default | Options |
+|-------|------|----------|---------|---------|
+| Title | text input | Yes | - | - |
+| Description | textarea | No | - | - |
+| Weight | select | No | `medium` | trivial, small, medium, large, greenfield |
+| Category | select | No | `feature` | feature, bug, refactor, chore, docs, test |
+
+**Features:**
+- Form resets when modal opens
+- Title validation (required, shows toast on empty)
+- Enter key submits form (when title is filled)
+- Loading state during API call
+- Toast notifications for success/error
+- Calls `createProjectTask` API on submit
+- Auto-focuses title input on open
+
+**Keyboard shortcuts:** ⇧⌥N opens new task modal (handled by AppLayout)
+
+**Styling:** Reuses `TaskEditModal.css` for consistent form appearance
 
 ### DataProvider
 
