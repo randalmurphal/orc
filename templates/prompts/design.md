@@ -59,14 +59,38 @@ For each component:
 - Input/output types
 - Error conditions
 
-### Step 4: Consider Trade-offs
+### Step 4: Document Design Decisions
 
-Document key decisions:
-- Alternatives considered
-- Why this approach was chosen
-- Trade-offs accepted
+For each significant choice, use structured format:
 
-### Step 5: Create Diagrams
+| ID | Decision Area | Options | Choice | Rationale |
+|----|---------------|---------|--------|-----------|
+| DD-1 | [Area] | [A, B, C] | [Chosen] | [Why] |
+
+**Decisions to document:**
+- Data structures and storage approach
+- Error handling strategy
+- API/interface design choices
+- State management approach
+- Testing strategy
+
+### Step 5: Assess Risks
+
+Identify what could go wrong during implementation:
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| [What] | Low/Med/High | Low/Med/High | [Strategy] |
+
+### Step 6: Define Implementation Order
+
+Plan the sequence for the implement phase:
+
+1. **[First component]** - [Why first]
+2. **[Second component]** - [Dependencies on first]
+3. ...
+
+### Step 7: Create Diagrams
 
 Use ASCII diagrams for:
 - System architecture
@@ -137,18 +161,25 @@ User Input
                 └─────────┘
 ```
 
-## Key Decisions
+## Design Decisions
 
-### Decision 1: [Topic]
-**Options Considered**:
-1. [Option A]: [pros/cons]
-2. [Option B]: [pros/cons]
+| ID | Decision Area | Options | Choice | Rationale |
+|----|---------------|---------|--------|-----------|
+| DD-1 | [Area] | [Options] | [Choice] | [Why] |
+| DD-2 | [Area] | [Options] | [Choice] | [Why] |
 
-**Decision**: [chosen option]
-**Rationale**: [why]
+## Risk Assessment
 
-### Decision 2: [Topic]
-[Same structure]
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| [Risk 1] | Low/Med/High | Low/Med/High | [Strategy] |
+| [Risk 2] | Low/Med/High | Low/Med/High | [Strategy] |
+
+## Implementation Order
+
+1. **[Component]**: [Reason for ordering]
+2. **[Component]**: [Dependencies on previous]
+3. ...
 
 ## Error Handling
 
@@ -182,8 +213,9 @@ Then output:
 ```
 ### Design Summary
 
-**Components**: [count]
-**Key Decisions**: [count]
+**Components**: [count] defined
+**Design Decisions**: [count] documented
+**Risks Identified**: [count]
 **Commit**: [commit SHA]
 
 <phase_complete>true</phase_complete>

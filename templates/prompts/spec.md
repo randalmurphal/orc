@@ -47,10 +47,23 @@ Break down the task into:
 
 ### Step 2: Define Success Criteria (REQUIRED)
 
-Create specific, testable criteria as checkboxes:
-- Each criterion should be verifiable (file exists, test passes, API returns X)
-- Use concrete conditions, not vague language ("works well", "is fast")
-- Include both functional criteria (what it does) and quality criteria (how well)
+Create specific, testable criteria with **explicit verification methods**:
+
+| ID | Criterion | Verification Method | Expected Result |
+|----|-----------|---------------------|-----------------|
+| SC-1 | [What must be true] | [How to verify] | [What success looks like] |
+
+**Verification method types:**
+- **Test**: `go test ./... -run TestName` or `npm test -- file.spec.ts`
+- **Command**: `curl -X GET /api/endpoint` or `ls -la path/to/file`
+- **File check**: Verify file exists, contains pattern, has correct structure
+- **E2E**: Browser action + assertion (click X, verify Y appears)
+- **Build**: `go build ./...` or `npm run build` succeeds
+
+**Rules:**
+- Each criterion MUST have a verification method (no vague criteria)
+- Verification methods must be executable (commands, not descriptions)
+- Expected results must be concrete (exit code 0, output contains X, file exists)
 
 ### Step 3: Define Testing Requirements (REQUIRED)
 
@@ -152,14 +165,20 @@ Create the spec and wrap it in artifact tags for automatic persistence:
 [1-2 sentences on what we're solving]
 
 ## Success Criteria
-- [ ] [Criterion 1 - specific and testable]
-- [ ] [Criterion 2 - specific and testable]
-- [ ] [Criterion 3 - specific and testable]
+
+| ID | Criterion | Verification Method | Expected Result |
+|----|-----------|---------------------|-----------------|
+| SC-1 | [Specific criterion] | [Executable command/test] | [Concrete result] |
+| SC-2 | [Specific criterion] | [Executable command/test] | [Concrete result] |
+| SC-3 | [Specific criterion] | [Executable command/test] | [Concrete result] |
 
 ## Testing Requirements
-- [ ] Unit test: [description]
-- [ ] Integration test: [description]
-- [ ] E2E test: [if applicable]
+
+| Test Type | Description | Command |
+|-----------|-------------|---------|
+| Unit | [What it tests] | [Test command] |
+| Integration | [What it tests] | [Test command] |
+| E2E | [What it tests] | [Test command or "N/A"] |
 
 ## Scope
 

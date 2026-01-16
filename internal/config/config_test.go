@@ -318,6 +318,144 @@ func TestResolveGateType(t *testing.T) {
 	}
 }
 
+func TestResolveModelSetting(t *testing.T) {
+	tests := []struct {
+		name         string
+		cfg          *Config
+		weight       string
+		phase        string
+		wantModel    string
+		wantThinking bool
+	}{
+		{
+			name:         "default model for unspecified weight/phase",
+			cfg:          Default(),
+			weight:       "unknown",
+			phase:        "unknown",
+			wantModel:    "opus",
+			wantThinking: false,
+		},
+		{
+			name:         "trivial implement uses sonnet",
+			cfg:          Default(),
+			weight:       "trivial",
+			phase:        "implement",
+			wantModel:    "sonnet",
+			wantThinking: false,
+		},
+		{
+			name:         "small implement uses sonnet",
+			cfg:          Default(),
+			weight:       "small",
+			phase:        "implement",
+			wantModel:    "sonnet",
+			wantThinking: false,
+		},
+		{
+			name:         "medium spec uses opus with thinking",
+			cfg:          Default(),
+			weight:       "medium",
+			phase:        "spec",
+			wantModel:    "opus",
+			wantThinking: true,
+		},
+		{
+			name:         "medium implement uses sonnet without thinking",
+			cfg:          Default(),
+			weight:       "medium",
+			phase:        "implement",
+			wantModel:    "sonnet",
+			wantThinking: false,
+		},
+		{
+			name:         "large review uses opus with thinking",
+			cfg:          Default(),
+			weight:       "large",
+			phase:        "review",
+			wantModel:    "opus",
+			wantThinking: true,
+		},
+		{
+			name:         "greenfield research uses opus with thinking",
+			cfg:          Default(),
+			weight:       "greenfield",
+			phase:        "research",
+			wantModel:    "opus",
+			wantThinking: true,
+		},
+		{
+			name: "custom config overrides defaults",
+			cfg: &Config{
+				Models: ModelsConfig{
+					Default: PhaseModelSetting{Model: "haiku", Thinking: false},
+					Small: WeightModelConfig{
+						"implement": {Model: "custom-model", Thinking: true},
+					},
+				},
+			},
+			weight:       "small",
+			phase:        "implement",
+			wantModel:    "custom-model",
+			wantThinking: true,
+		},
+		{
+			name: "falls back to default when phase not in weight config",
+			cfg: &Config{
+				Models: ModelsConfig{
+					Default: PhaseModelSetting{Model: "fallback", Thinking: false},
+					Small: WeightModelConfig{
+						"implement": {Model: "sonnet", Thinking: false},
+					},
+				},
+			},
+			weight:       "small",
+			phase:        "test", // not in Small config
+			wantModel:    "fallback",
+			wantThinking: false,
+		},
+		{
+			name: "fills missing model from default",
+			cfg: &Config{
+				Models: ModelsConfig{
+					Default: PhaseModelSetting{Model: "opus", Thinking: false},
+					Medium: WeightModelConfig{
+						"spec": {Thinking: true}, // Model empty, should use default
+					},
+				},
+			},
+			weight:       "medium",
+			phase:        "spec",
+			wantModel:    "opus",
+			wantThinking: true,
+		},
+		{
+			name: "falls back to legacy Model field",
+			cfg: &Config{
+				Model: "legacy-model",
+				Models: ModelsConfig{
+					// Default.Model empty
+				},
+			},
+			weight:       "small",
+			phase:        "implement",
+			wantModel:    "legacy-model",
+			wantThinking: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setting := tt.cfg.ResolveModelSetting(tt.weight, tt.phase)
+			if setting.Model != tt.wantModel {
+				t.Errorf("ResolveModelSetting().Model = %v, want %v", setting.Model, tt.wantModel)
+			}
+			if setting.Thinking != tt.wantThinking {
+				t.Errorf("ResolveModelSetting().Thinking = %v, want %v", setting.Thinking, tt.wantThinking)
+			}
+		})
+	}
+}
+
 func TestShouldRetryFrom(t *testing.T) {
 	cfg := &Config{
 		Retry: RetryConfig{

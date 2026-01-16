@@ -361,6 +361,10 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 		gitSvc = e.worktreeGit
 	}
 
+	// Create executor config with OrcConfig for model resolution
+	execCfg := DefaultConfigForWeight(weight)
+	execCfg.OrcConfig = e.orcConfig
+
 	switch execType {
 	case ExecutorTypeTrivial:
 		if e.trivialExecutor == nil {
@@ -368,7 +372,7 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				WithTrivialClient(e.client),
 				WithTrivialPublisher(e.publisher),
 				WithTrivialLogger(e.logger),
-				WithTrivialConfig(DefaultConfigForWeight(weight)),
+				WithTrivialConfig(execCfg),
 				WithTrivialBackend(e.backend),
 			)
 		}
@@ -381,7 +385,7 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				WithFullGitSvc(gitSvc),
 				WithFullPublisher(e.publisher),
 				WithFullLogger(e.logger),
-				WithFullConfig(DefaultConfigForWeight(weight)),
+				WithFullConfig(execCfg),
 				WithFullWorkingDir(workingDir),
 				WithTaskDir(e.currentTaskDir),
 				WithFullBackend(e.backend),
@@ -396,7 +400,7 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				WithGitSvc(gitSvc),
 				WithPublisher(e.publisher),
 				WithExecutorLogger(e.logger),
-				WithExecutorConfig(DefaultConfigForWeight(weight)),
+				WithExecutorConfig(execCfg),
 				WithWorkingDir(workingDir),
 				WithStandardBackend(e.backend),
 			)

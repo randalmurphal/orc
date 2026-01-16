@@ -62,3 +62,6 @@ internal/api/static/
 .orc/orc.db-shm
 .mcp.json
 .claude/settings.json
+
+
+/test-results/

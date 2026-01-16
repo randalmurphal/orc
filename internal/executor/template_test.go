@@ -891,6 +891,167 @@ func TestInitiativeContext_ZeroValue(t *testing.T) {
 	}
 }
 
+func TestExtractVerificationResults(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			name: "standard format with table",
+			content: `# Implementation Summary
+
+Some implementation details here.
+
+### Verification Results
+
+| ID | Criterion | Method | Result | Notes |
+|----|-----------|--------|--------|-------|
+| SC-1 | User can log out | npm test logout | ✅ PASS | 3 tests passed |
+| SC-2 | Session invalidated | curl check | ✅ PASS | Cookie cleared |
+
+### Next Steps
+
+More content here.`,
+			want: `| ID | Criterion | Method | Result | Notes |
+|----|-----------|--------|--------|-------|
+| SC-1 | User can log out | npm test logout | ✅ PASS | 3 tests passed |
+| SC-2 | Session invalidated | curl check | ✅ PASS | Cookie cleared |`,
+		},
+		{
+			name: "alternate format with ## header",
+			content: `# Implementation
+
+## Verification Results
+
+| ID | Criterion | Result |
+|----|-----------|--------|
+| SC-1 | Feature works | ✅ PASS |
+
+## Summary
+
+Done.`,
+			want: `| ID | Criterion | Result |
+|----|-----------|--------|
+| SC-1 | Feature works | ✅ PASS |`,
+		},
+		{
+			name: "section at end of document",
+			content: `# Summary
+
+Implementation complete.
+
+### Verification Results
+
+| ID | Result |
+|----|--------|
+| SC-1 | ✅ PASS |`,
+			want: `| ID | Result |
+|----|--------|
+| SC-1 | ✅ PASS |`,
+		},
+		{
+			name: "no table characters returns empty",
+			content: `### Verification Results
+
+All criteria verified manually.
+No issues found.
+
+### Done`,
+			want: "",
+		},
+		{
+			name: "missing section returns empty",
+			content: `# Implementation
+
+Did some work.
+
+### Summary
+
+All done.`,
+			want: "",
+		},
+		{
+			name: "empty content returns empty",
+			content: "",
+			want:    "",
+		},
+		{
+			name: "section with mixed content extracts table",
+			content: `### Verification Results
+
+All criteria have been verified:
+
+| ID | Criterion | Method | Result |
+|----|-----------|--------|--------|
+| SC-1 | API works | curl test | ✅ PASS |
+| SC-2 | UI renders | browser check | ✅ PASS |
+
+Summary: All passed.
+
+### Commit`,
+			want: `All criteria have been verified:
+
+| ID | Criterion | Method | Result |
+|----|-----------|--------|--------|
+| SC-1 | API works | curl test | ✅ PASS |
+| SC-2 | UI renders | browser check | ✅ PASS |
+
+Summary: All passed.`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractVerificationResults(tt.content)
+			if got != tt.want {
+				t.Errorf("extractVerificationResults() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRenderTemplate_VerificationResultsVariable(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		vars     TemplateVars
+		want     string
+	}{
+		{
+			name:     "verification results substitution",
+			template: "Previous results:\n{{VERIFICATION_RESULTS}}",
+			vars: TemplateVars{
+				VerificationResults: "| SC-1 | ✅ PASS |",
+			},
+			want: "Previous results:\n| SC-1 | ✅ PASS |",
+		},
+		{
+			name:     "empty verification results",
+			template: "[{{VERIFICATION_RESULTS}}]",
+			vars:     TemplateVars{},
+			want:     "[]",
+		},
+		{
+			name:     "multiline verification results",
+			template: "Results:\n{{VERIFICATION_RESULTS}}\nEnd.",
+			vars: TemplateVars{
+				VerificationResults: "| ID | Result |\n|----|--------|\n| SC-1 | PASS |",
+			},
+			want: "Results:\n| ID | Result |\n|----|--------|\n| SC-1 | PASS |\nEnd.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RenderTemplate(tt.template, tt.vars)
+			if got != tt.want {
+				t.Errorf("RenderTemplate() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRenderTemplate_InitiativeContextSection(t *testing.T) {
 	tests := []struct {
 		name         string

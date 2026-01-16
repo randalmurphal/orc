@@ -483,6 +483,18 @@ type ReviewConfig struct {
 	Rounds int `yaml:"rounds"`
 	// RequirePass requires review to pass before continuing (default: true)
 	RequirePass bool `yaml:"require_pass"`
+	// Parallel configures parallel reviewer agents
+	Parallel ParallelReviewConfig `yaml:"parallel,omitempty"`
+}
+
+// ParallelReviewConfig defines configuration for parallel reviewer agents.
+type ParallelReviewConfig struct {
+	// Enabled enables parallel reviewers for medium+ weight tasks (default: false)
+	Enabled bool `yaml:"enabled"`
+	// Perspectives defines which reviewer perspectives to use
+	// Valid values: correctness, architecture, security, performance
+	// Default: [correctness, architecture]
+	Perspectives []string `yaml:"perspectives,omitempty"`
 }
 
 // PlanConfig defines spec requirements and validation configuration.
@@ -545,6 +557,47 @@ type ResourceTrackingConfig struct {
 type DiagnosticsConfig struct {
 	// ResourceTracking contains settings for process/memory tracking
 	ResourceTracking ResourceTrackingConfig `yaml:"resource_tracking"`
+}
+
+// PhaseModelSetting defines model and thinking configuration for a phase.
+type PhaseModelSetting struct {
+	// Model is the model to use for this phase.
+	// Can be an alias (opus, sonnet, haiku) or full model ID.
+	// Empty string means use the default model.
+	Model string `yaml:"model,omitempty"`
+
+	// Thinking enables extended thinking mode for this phase.
+	// When true, "ultrathink" is injected into the prompt to activate
+	// maximum thinking budget (31,999 tokens).
+	Thinking bool `yaml:"thinking,omitempty"`
+}
+
+// WeightModelConfig maps phase names to model settings for a specific weight tier.
+// Phase names: research, spec, design, implement, test, review, docs, validate, finalize
+type WeightModelConfig map[string]PhaseModelSetting
+
+// ModelsConfig defines model selection and thinking mode per weight tier and phase.
+// This allows optimizing model usage: opus for decisions, sonnet for execution,
+// thinking mode for spec/design/review phases where deep reasoning helps.
+type ModelsConfig struct {
+	// Default is the fallback model setting when no specific config exists.
+	// Default: {Model: "opus", Thinking: false}
+	Default PhaseModelSetting `yaml:"default"`
+
+	// Trivial overrides for trivial weight tasks.
+	Trivial WeightModelConfig `yaml:"trivial,omitempty"`
+
+	// Small overrides for small weight tasks.
+	Small WeightModelConfig `yaml:"small,omitempty"`
+
+	// Medium overrides for medium weight tasks.
+	Medium WeightModelConfig `yaml:"medium,omitempty"`
+
+	// Large overrides for large weight tasks.
+	Large WeightModelConfig `yaml:"large,omitempty"`
+
+	// Greenfield overrides for greenfield weight tasks.
+	Greenfield WeightModelConfig `yaml:"greenfield,omitempty"`
 }
 
 // DatabaseConfig defines database connection settings.
@@ -737,7 +790,10 @@ type Config struct {
 	// Storage configuration
 	Storage StorageConfig `yaml:"storage"`
 
-	// Model settings
+	// Models configuration for per-weight, per-phase model selection
+	Models ModelsConfig `yaml:"models"`
+
+	// Model settings (legacy - used as fallback if Models.Default.Model is empty)
 	Model         string `yaml:"model"`
 	FallbackModel string `yaml:"fallback_model,omitempty"`
 
@@ -785,6 +841,54 @@ func (c *Config) ResolveGateType(phase string, weight string) string {
 	}
 
 	return "auto"
+}
+
+// ResolveModelSetting returns the effective model setting for a phase given task weight.
+// Priority: weight-specific phase setting > weight default > global default > legacy Model field
+func (c *Config) ResolveModelSetting(weight, phase string) PhaseModelSetting {
+	// Get the weight-specific config
+	var weightConfig WeightModelConfig
+	switch weight {
+	case "trivial":
+		weightConfig = c.Models.Trivial
+	case "small":
+		weightConfig = c.Models.Small
+	case "medium":
+		weightConfig = c.Models.Medium
+	case "large":
+		weightConfig = c.Models.Large
+	case "greenfield":
+		weightConfig = c.Models.Greenfield
+	}
+
+	// Check weight-specific phase setting
+	if weightConfig != nil {
+		if setting, ok := weightConfig[phase]; ok {
+			// Fill in missing model from default
+			if setting.Model == "" {
+				setting.Model = c.effectiveDefaultModel()
+			}
+			return setting
+		}
+	}
+
+	// Return default with effective model
+	result := c.Models.Default
+	if result.Model == "" {
+		result.Model = c.effectiveDefaultModel()
+	}
+	return result
+}
+
+// effectiveDefaultModel returns the default model, falling back to legacy Model field.
+func (c *Config) effectiveDefaultModel() string {
+	if c.Models.Default.Model != "" {
+		return c.Models.Default.Model
+	}
+	if c.Model != "" {
+		return c.Model
+	}
+	return "opus" // Ultimate fallback
 }
 
 // ShouldRetryFrom returns the phase to retry from if the given phase fails.
@@ -1022,6 +1126,47 @@ func Default() *Config {
 				FinalState:     true,  // When enabled, export state.yaml
 				Transcripts:    false, // Usually too large
 				ContextSummary: true,  // When enabled, export context.md
+			},
+		},
+		Models: ModelsConfig{
+			// Default: opus without thinking
+			Default: PhaseModelSetting{
+				Model:    "opus",
+				Thinking: false,
+			},
+			// Trivial: sonnet for implement (fast, cheap)
+			Trivial: WeightModelConfig{
+				"implement": {Model: "sonnet", Thinking: false},
+			},
+			// Small: sonnet for implement/test (execution phases)
+			Small: WeightModelConfig{
+				"implement": {Model: "sonnet", Thinking: false},
+				"test":      {Model: "sonnet", Thinking: false},
+			},
+			// Medium: thinking for spec/design/review (decision phases)
+			Medium: WeightModelConfig{
+				"spec":      {Model: "opus", Thinking: true},
+				"design":    {Model: "opus", Thinking: true},
+				"implement": {Model: "sonnet", Thinking: false},
+				"review":    {Model: "opus", Thinking: true},
+				"test":      {Model: "sonnet", Thinking: false},
+			},
+			// Large: thinking for decision phases, opus for all
+			Large: WeightModelConfig{
+				"spec":      {Model: "opus", Thinking: true},
+				"design":    {Model: "opus", Thinking: true},
+				"implement": {Model: "opus", Thinking: false},
+				"review":    {Model: "opus", Thinking: true},
+				"validate":  {Model: "opus", Thinking: true},
+			},
+			// Greenfield: thinking for research/spec/design/review
+			Greenfield: WeightModelConfig{
+				"research":  {Model: "opus", Thinking: true},
+				"spec":      {Model: "opus", Thinking: true},
+				"design":    {Model: "opus", Thinking: true},
+				"implement": {Model: "opus", Thinking: false},
+				"review":    {Model: "opus", Thinking: true},
+				"validate":  {Model: "opus", Thinking: true},
 			},
 		},
 		Model:                      "claude-opus-4-5-20251101",

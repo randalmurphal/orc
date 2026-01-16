@@ -54,6 +54,9 @@ type TemplateVars struct {
 	DesignContent    string
 	ImplementContent string
 
+	// Verification results from implement phase (extracted from artifact)
+	VerificationResults string
+
 	// Worktree context variables (for safety instructions)
 	WorktreePath string // Absolute path to the worktree directory
 	TaskBranch   string // The git branch for this task (e.g., orc/TASK-001)
@@ -183,6 +186,7 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{DESIGN_CONTENT}}":         vars.DesignContent,
 		"{{IMPLEMENT_CONTENT}}":      vars.ImplementContent,
 		"{{IMPLEMENTATION_SUMMARY}}": vars.ImplementContent, // Alias for template compatibility
+		"{{VERIFICATION_RESULTS}}":   vars.VerificationResults,
 
 		// Worktree context variables
 		"{{WORKTREE_PATH}}": vars.WorktreePath,
@@ -268,6 +272,11 @@ func BuildTemplateVars(
 	vars.SpecContent = loadPriorContent(taskDir, s, "spec")
 	vars.DesignContent = loadPriorContent(taskDir, s, "design")
 	vars.ImplementContent = loadPriorContent(taskDir, s, "implement")
+
+	// Extract verification results from implement content
+	if vars.ImplementContent != "" {
+		vars.VerificationResults = extractVerificationResults(vars.ImplementContent)
+	}
 
 	return vars
 }
@@ -438,5 +447,38 @@ func extractArtifact(content string) string {
 
 	// If no structured content found, return empty
 	// We don't want to return raw transcript content as it's too noisy
+	return ""
+}
+
+// extractVerificationResults extracts the verification results table from
+// implement phase output. This table contains the pass/fail status of each
+// success criterion.
+func extractVerificationResults(content string) string {
+	// Look for "### Verification Results" section with a table
+	// Pattern: ### Verification Results followed by table until next ### or end
+	verificationPattern := regexp.MustCompile(
+		`(?s)###\s*Verification Results\s*\n+(.*?)(?:\n###|\n##|$)`,
+	)
+	matches := verificationPattern.FindStringSubmatch(content)
+	if len(matches) >= 2 {
+		result := strings.TrimSpace(matches[1])
+		// Only return if it looks like a table (contains | characters)
+		if strings.Contains(result, "|") {
+			return result
+		}
+	}
+
+	// Try alternate format without ### prefix
+	altPattern := regexp.MustCompile(
+		`(?s)##\s*Verification Results\s*\n+(.*?)(?:\n##|$)`,
+	)
+	matches = altPattern.FindStringSubmatch(content)
+	if len(matches) >= 2 {
+		result := strings.TrimSpace(matches[1])
+		if strings.Contains(result, "|") {
+			return result
+		}
+	}
+
 	return ""
 }

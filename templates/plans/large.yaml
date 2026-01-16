@@ -1,6 +1,6 @@
 version: 1
 weight: large
-description: Large task - spec, implement, test, validate with E2E testing
+description: Large task - spec, design, implement, test, validate with E2E testing
 
 phases:
   - id: spec
@@ -38,10 +38,10 @@ phases:
       type: auto
     checkpoint: true
 
-  - id: implement
-    name: implement
+  - id: design
+    name: design
     prompt: |
-      Implement the large task according to the specification:
+      Create architecture and design for:
 
       **Task**: {{TASK_TITLE}}
 
@@ -50,14 +50,49 @@ phases:
       **Specification**:
       {{SPEC_CONTENT}}
 
+      Design requirements:
+      1. Define components and their responsibilities
+      2. Document design decisions with rationale
+      3. Assess implementation risks
+      4. Define implementation order
+
+      Output a design document with:
+      - Component architecture
+      - Design decisions table (DD-1, DD-2, etc.)
+      - Risk assessment
+      - Implementation order
+
+      When done, output:
+      <phase_complete>true</phase_complete>
+    depends_on: [spec]
+    gate:
+      type: auto
+    checkpoint: true
+
+  - id: implement
+    name: implement
+    prompt: |
+      Implement the large task according to the specification and design:
+
+      **Task**: {{TASK_TITLE}}
+
+      **Description**: {{TASK_DESCRIPTION}}
+
+      **Specification**:
+      {{SPEC_CONTENT}}
+
+      **Design**:
+      {{DESIGN_CONTENT}}
+
       {{RETRY_CONTEXT}}
 
       Implementation protocol:
-      1. Implement all components defined in the spec
-      2. Write unit tests alongside code
-      3. Run tests frequently: `go test ./... -v -race`
-      4. Fix failures before continuing
-      5. If frontend exists:
+      1. Follow the design's implementation order
+      2. Implement all components defined in the spec
+      3. Write unit tests alongside code
+      4. Run tests frequently: `go test ./... -v -race`
+      5. Fix failures before continuing
+      6. If frontend exists:
          - Implement all components
          - Add loading/error states
          - Integrate with API
@@ -69,7 +104,7 @@ phases:
 
       When done, output:
       <phase_complete>true</phase_complete>
-    depends_on: [spec]
+    depends_on: [design]
     gate:
       type: auto
     checkpoint: true

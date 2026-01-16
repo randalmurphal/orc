@@ -36,6 +36,9 @@ type Config struct {
 
 	// Storage backend (required)
 	Backend storage.Backend
+
+	// OrcConfig is a reference to the full orc config for model resolution
+	OrcConfig *config.Config
 }
 
 // DefaultConfig returns the default executor configuration.
@@ -67,5 +70,19 @@ func ConfigFromOrc(cfg *config.Config) *Config {
 		CommitPrefix:               cfg.CommitPrefix,
 		TemplatesDir:               cfg.TemplatesDir,
 		EnableCheckpoints:          cfg.EnableCheckpoints,
+		OrcConfig:                  cfg,
+	}
+}
+
+// ResolveModelSetting returns the model and thinking settings for a specific phase and weight.
+// Falls back to the default Model field if no orc config is set.
+func (c *Config) ResolveModelSetting(weight, phase string) config.PhaseModelSetting {
+	if c.OrcConfig != nil {
+		return c.OrcConfig.ResolveModelSetting(weight, phase)
+	}
+	// Fallback to legacy behavior
+	return config.PhaseModelSetting{
+		Model:    c.Model,
+		Thinking: false,
 	}
 }
