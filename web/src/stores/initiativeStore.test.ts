@@ -3,6 +3,7 @@ import {
 	useInitiativeStore,
 	UNASSIGNED_INITIATIVE,
 	truncateInitiativeTitle,
+	getInitiativeBadgeTitle,
 } from './initiativeStore';
 import { resetUrlMocks, setMockSearch } from '../test-setup';
 import type { Initiative, Task } from '@/lib/types';
@@ -412,5 +413,104 @@ describe('InitiativeStore', () => {
 describe('UNASSIGNED_INITIATIVE constant', () => {
 	it('should be a special string value', () => {
 		expect(UNASSIGNED_INITIATIVE).toBe('__unassigned__');
+	});
+});
+
+describe('getInitiativeBadgeTitle', () => {
+	beforeEach(() => {
+		useInitiativeStore.getState().reset();
+	});
+
+	describe('id-only format (default)', () => {
+		it('should show just the initiative ID', () => {
+			const initiatives = [
+				{
+					version: 1,
+					id: 'INIT-001',
+					title: 'Frontend Polish & UX Audit',
+					status: 'active' as const,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString(),
+				},
+			];
+			useInitiativeStore.getState().setInitiatives(initiatives);
+
+			const result = getInitiativeBadgeTitle('INIT-001');
+
+			expect(result.display).toBe('INIT-001');
+			expect(result.full).toBe('INIT-001: Frontend Polish & UX Audit');
+			expect(result.id).toBe('INIT-001');
+		});
+
+		it('should handle non-existent initiative gracefully', () => {
+			const result = getInitiativeBadgeTitle('INIT-999');
+
+			expect(result.display).toBe('INIT-999');
+			expect(result.full).toBe('INIT-999: INIT-999'); // Falls back to ID for title
+			expect(result.id).toBe('INIT-999');
+		});
+	});
+
+	describe('id-with-title format', () => {
+		it('should show initiative ID with truncated title', () => {
+			const initiatives = [
+				{
+					version: 1,
+					id: 'INIT-001',
+					title: 'Frontend Polish & UX Audit',
+					status: 'active' as const,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString(),
+				},
+			];
+			useInitiativeStore.getState().setInitiatives(initiatives);
+
+			const result = getInitiativeBadgeTitle('INIT-001', 'id-with-title', 25);
+
+			// "INIT-001: " = 10 chars, leaves 15 for title
+			expect(result.display).toContain('INIT-001: ');
+			expect(result.display.length).toBeLessThanOrEqual(25);
+			expect(result.full).toBe('INIT-001: Frontend Polish & UX Audit');
+		});
+
+		it('should handle short titles without truncation', () => {
+			const initiatives = [
+				{
+					version: 1,
+					id: 'INIT-002',
+					title: 'Tests',
+					status: 'active' as const,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString(),
+				},
+			];
+			useInitiativeStore.getState().setInitiatives(initiatives);
+
+			const result = getInitiativeBadgeTitle('INIT-002', 'id-with-title', 25);
+
+			expect(result.display).toBe('INIT-002: Tests');
+		});
+	});
+
+	describe('title-only format', () => {
+		it('should show just the truncated title (legacy behavior)', () => {
+			const initiatives = [
+				{
+					version: 1,
+					id: 'INIT-001',
+					title: 'Systems Reliability Improvements',
+					status: 'active' as const,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString(),
+				},
+			];
+			useInitiativeStore.getState().setInitiatives(initiatives);
+
+			const result = getInitiativeBadgeTitle('INIT-001', 'title-only', 20);
+
+			expect(result.display).toBe('Systems Reliability…');
+			expect(result.display.length).toBe(20);
+			expect(result.full).toBe('INIT-001: Systems Reliability Improvements');
+		});
 	});
 });
