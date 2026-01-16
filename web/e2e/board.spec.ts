@@ -322,74 +322,45 @@ test.describe('Board Page', () => {
 			await page.keyboard.press('Escape');
 		});
 
-		test('should disable swimlane toggle when initiative filter active', async ({ page }) => {
-			await page.goto('/board');
-			await clearBoardStorage(page);
-			await page.reload();
+		test('should disable swimlane toggle when initiative filter active in URL', async ({ page }) => {
+			// Navigate directly with initiative param in URL to test disabled state
+			// This is more reliable than clicking through UI since URL is the source of truth
+			// for the swimlaneDisabled flag (per TASK-275 fix)
+			await page.goto('/board?initiative=__unassigned__');
 			await waitForBoardLoad(page);
 
-			// First check if there are any initiatives to filter by
-			const initiativeDropdown = page.locator('.initiative-dropdown, [data-testid="initiative-dropdown"]');
+			// View mode dropdown should be disabled (wrapped in .view-mode-disabled)
+			const viewModeDisabled = page.locator('.view-mode-disabled');
+			await expect(viewModeDisabled).toBeVisible();
 
-			// Check if there are initiatives available
-			const hasInitiatives = await initiativeDropdown.isVisible().catch(() => false);
+			// The dropdown trigger should have data-disabled attribute (Radix Select)
+			const viewModeDropdown = page.locator('.view-mode-dropdown');
+			const trigger = viewModeDropdown.locator('.dropdown-trigger');
+			await expect(trigger).toHaveAttribute('data-disabled');
 
-			if (hasInitiatives) {
-				// Click to open initiative filter
-				await initiativeDropdown.click();
-				await page.waitForTimeout(100);
-
-				// Look for any initiative option (not "All initiatives")
-				const initiativeOptions = page.locator('.dropdown-item').filter({
-					hasNot: page.locator(':has-text("All initiatives")')
-				});
-
-				const optionCount = await initiativeOptions.count();
-
-				if (optionCount > 0) {
-					// Select an initiative
-					await initiativeOptions.first().click();
-					await page.waitForTimeout(200);
-
-					// View mode dropdown should be disabled (wrapped in .view-mode-disabled)
-					const viewModeDisabled = page.locator('.view-mode-disabled');
-					await expect(viewModeDisabled).toBeVisible();
-				}
-			}
+			// Clicking the trigger should NOT open the dropdown
+			await trigger.click({ force: true });
+			const dropdownMenu = page.locator('[role="listbox"]');
+			await expect(dropdownMenu).not.toBeVisible({ timeout: 500 });
 		});
 
 		test('should show initiative banner when filtering', async ({ page }) => {
-			await page.goto('/board');
-			await clearBoardStorage(page);
-			await page.reload();
+			// Navigate directly with initiative param in URL to test banner display
+			await page.goto('/board?initiative=__unassigned__');
 			await waitForBoardLoad(page);
 
-			// Find and click initiative filter
-			const initiativeDropdown = page.locator('.initiative-dropdown, [data-testid="initiative-dropdown"]');
-			const hasInitiatives = await initiativeDropdown.isVisible().catch(() => false);
+			// Initiative banner should appear showing "Unassigned" filter
+			const banner = page.locator('.initiative-banner');
+			await expect(banner).toBeVisible();
 
-			if (hasInitiatives) {
-				await initiativeDropdown.click();
-				await page.waitForTimeout(100);
+			// Banner should have clear filter button
+			const clearBtn = banner.locator('.banner-clear');
+			await expect(clearBtn).toBeVisible();
+			await expect(clearBtn).toContainText('Clear filter');
 
-				// Look for "Unassigned" option which should always exist
-				const unassignedOption = page.locator('.dropdown-item:has-text("Unassigned")');
-				const hasUnassigned = await unassignedOption.isVisible().catch(() => false);
-
-				if (hasUnassigned) {
-					await unassignedOption.click();
-					await page.waitForTimeout(200);
-
-					// Initiative banner should appear
-					const banner = page.locator('.initiative-banner');
-					await expect(banner).toBeVisible();
-
-					// Banner should have clear filter button
-					const clearBtn = banner.locator('.banner-clear');
-					await expect(clearBtn).toBeVisible();
-					await expect(clearBtn).toHaveText('Clear filter');
-				}
-			}
+			// Banner should show "Unassigned" in the label
+			const bannerLabel = banner.locator('.banner-label');
+			await expect(bannerLabel).toContainText('Unassigned');
 		});
 	});
 
