@@ -56,6 +56,7 @@ var (
 )
 
 func init() {
+	planCmd.GroupID = groupPlanning
 	rootCmd.AddCommand(planCmd)
 
 	// Interactive mode flags
