@@ -1,158 +1,228 @@
-# Specification: Add Radix Tooltip for consistent tooltips
+# Specification: Fix worktree cleanup after task completion - 27+ worktrees were left orphaned
 
 ## Problem Statement
-The web UI uses native HTML `title` attributes for tooltips, which have inconsistent appearance across browsers, limited styling options, and poor accessibility. Replace with Radix Tooltip primitive for consistent, accessible, and visually cohesive tooltips throughout the application.
+
+Worktrees are not being properly cleaned up after task completion, resulting in orphaned worktrees accumulating in `.orc/worktrees/`. Investigation revealed multiple failure paths where cleanup is skipped or fails silently, particularly for initiative-prefixed worktrees.
+
+## Project Context
+
+### Patterns to Follow
+
+| Pattern | Example Location | How to Apply |
+|---------|------------------|--------------|
+| Error wrapping | `internal/executor/worktree.go:96` | Wrap errors with context: `fmt.Errorf("cleanup worktree: %w", err)` |
+| Git ops abstraction | `internal/git/git.go:262-271` | Use git.Git methods, don't shell out directly |
+| Backend interface | `internal/storage/backend.go` | Use Backend for task lookups in cleanup |
+| Config-driven behavior | `internal/executor/worktree.go:248-261` | Check `cfg.Worktree.CleanupOnComplete` |
+
+### Affected Code
+
+| File | Current Behavior | After This Change |
+|------|------------------|-------------------|
+| `internal/executor/task_execution.go:297-314` | Uses `CleanupWorktree(t.ID)` ignoring initiative prefix | Uses stored worktree path directly |
+| `internal/git/git.go:262-271` | `CleanupWorktree` only takes taskID | Adds path-based cleanup method |
+| `internal/cli/cmd_cleanup.go:166-254` | Regex-based orphan detection misses initiative prefixes | Parses all worktree names regardless of prefix |
+| `internal/api/server.go` (or init) | No startup cleanup | Prunes stale worktrees on startup |
+
+### Breaking Changes
+
+- [x] Backward compatible - all changes are additive or fix existing bugs
 
 ## Success Criteria
-- [ ] Tooltip wrapper component created at `web/src/components/ui/Tooltip.tsx`
-- [ ] TooltipProvider wraps App in `main.tsx`
-- [ ] Tooltips use design system tokens (bg-elevated, text-primary, border-subtle, etc.)
-- [ ] Tooltip animations use existing Radix animation patterns from `index.css`
-- [ ] All `title` attributes in target components replaced with Tooltip component
-- [ ] Keyboard accessibility works (tooltip shows on focus, hides on blur)
-- [ ] Escape key dismisses tooltip
-- [ ] Tooltip respects `prefers-reduced-motion`
-- [ ] Arrow styling matches design spec
-- [ ] Max-width 300px prevents overflow
+
+| ID | Criterion | Verification Method | Expected Result | Error Path |
+|----|-----------|---------------------|-----------------|------------|
+| SC-1 | Worktrees for completed tasks with initiative prefix are cleaned up | `orc cleanup --dry-run` after completing initiative task | Reports 0 orphaned worktrees | If initiative lookup fails, fall back to worktreePath scan |
+| SC-2 | Executor uses stored worktree path for cleanup | Unit test: mock git ops, verify path passed to cleanup | Cleanup called with exact path from setup | Log warning if path missing, attempt ID-based fallback |
+| SC-3 | `orc cleanup` detects initiative-prefixed worktrees | `orc cleanup --dry-run` with initiative worktrees present | Lists all orphaned worktrees regardless of prefix | Gracefully handle parse errors |
+| SC-4 | Server startup prunes stale worktree entries | Start server, verify `git worktree prune` ran | Log message about pruning | Prune failure is non-fatal, logged as warning |
+| SC-5 | Blocked-to-completed transition triggers cleanup | Resolve blocked task, check worktree removed | Worktree directory deleted | Log warning on cleanup failure, don't fail transition |
 
 ## Testing Requirements
-- [ ] Unit test: Tooltip renders content on hover
-- [ ] Unit test: Tooltip shows on keyboard focus
-- [ ] Unit test: Tooltip hides on Escape
-- [ ] Unit test: Tooltip positions correctly (top, right, bottom, left)
-- [ ] Unit test: Tooltip with long content respects max-width
-- [ ] E2E test: Tooltip appears on hover over TaskCard action buttons
-- [ ] E2E test: Tooltip shows on Tab focus navigation
+
+| Test Type | Description | Command |
+|-----------|-------------|---------|
+| Unit | `CleanupWorktreeAtPath` correctly removes worktree by path | `go test ./internal/git -run TestCleanupWorktreeAtPath` |
+| Unit | `findOrphanedWorktrees` detects initiative-prefixed worktrees | `go test ./internal/cli -run TestFindOrphanedWorktrees_InitiativePrefix` |
+| Unit | `cleanupWorktreeForTask` uses stored path when available | `go test ./internal/executor -run TestCleanupWorktreeUsesStoredPath` |
+| Integration | Task completion with initiative cleans worktree | `go test ./tests/integration -run TestInitiativeTaskCleanup` |
+| Unit | Startup pruning runs without errors | `go test ./internal/api -run TestServerStartupPrunesWorktrees` |
 
 ## Scope
 
 ### In Scope
-- Create `Tooltip.tsx` component with TooltipProvider
-- Add tooltip CSS to `index.css` (global Radix styles section)
-- Update components with `title` attributes:
-  - `TaskCard.tsx` (priority badges, initiative badge, action buttons, quick menu)
-  - `TaskHeader.tsx` (action buttons, back button, edit/delete buttons)
-  - `Modal.tsx` (close button)
-  - `DependencySidebar.tsx` (toggle buttons, add/remove buttons)
-  - `Header.tsx` (project switcher, command palette buttons)
-  - `Sidebar.tsx` (nav items when collapsed, initiative links, environment link)
-  - `DependencyGraph.tsx` (toolbar buttons)
-  - `TranscriptTab.tsx` (expand/collapse, copy, export, auto-scroll buttons)
-  - `DashboardStats.tsx` (token card tooltip)
-  - `DashboardInitiatives.tsx` (progress bar tooltips)
+
+- Store actual worktree path in executor and use it for cleanup
+- Add `CleanupWorktreeAtPath` method to git.Git for path-based cleanup
+- Update `findOrphanedWorktrees` to detect worktrees regardless of naming convention
+- Add startup pruning to `orc serve` initialization
+- Add cleanup trigger on task state transitions to terminal states
+- Unit tests for all new functionality
 
 ### Out of Scope
-- Tooltips in pages (InitiativeDetail.tsx modals use `title` prop for modal titles, not HTML title attributes)
-- Custom tooltip delays per component (use global 300ms/150ms)
-- Tooltip theming/variants (single consistent style)
-- RTL layout support
+
+- Scheduled cleanup daemon (future enhancement)
+- Cleanup of worktrees from deleted tasks
+- Remote worktree cleanup
+- Changing default `cleanup_on_complete` configuration
+- GUI for worktree management
 
 ## Technical Approach
 
-### 1. Create Tooltip Component
-Create `web/src/components/ui/Tooltip.tsx`:
-```tsx
-import * as TooltipPrimitive from '@radix-ui/react-tooltip';
+The fix addresses three root causes:
 
-interface TooltipProps {
-  content: React.ReactNode;
-  children: React.ReactNode;
-  side?: 'top' | 'right' | 'bottom' | 'left';
-  align?: 'start' | 'center' | 'end';
-  delayDuration?: number;
-}
+### 1. Use Stored Worktree Path for Cleanup
 
-export function Tooltip({ content, children, side = 'top', align = 'center', delayDuration = 300 }) { ... }
-export function TooltipProvider({ children }) { ... }
-```
+Currently `cleanupWorktreeForTask` reconstructs the path using `gitOps.CleanupWorktree(t.ID)`, which doesn't account for initiative prefixes. The fix stores the actual path during `setupWorktreeForTask` and uses it directly.
 
-### 2. Add CSS to index.css
-Add tooltip styles to the existing RADIX UI TRANSITIONS section:
-```css
-/* Tooltip */
-.tooltip-content {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
-  box-shadow: var(--shadow-md);
-  font-size: var(--text-sm);
-  max-width: 300px;
-  z-index: var(--z-tooltip);
-}
-
-.tooltip-content[data-state='delayed-open'] {
-  animation: tooltip-enter var(--duration-fast) var(--ease-out);
-}
-
-.tooltip-content[data-state='closed'] {
-  animation: tooltip-exit var(--duration-fast) var(--ease-in);
-}
-
-.tooltip-arrow {
-  fill: var(--bg-elevated);
+```go
+// In cleanupWorktreeForTask
+if e.worktreePath != "" {
+    // Use stored path directly - handles all naming conventions
+    if err := e.gitOps.CleanupWorktreeAtPath(e.worktreePath); err != nil {
+        e.logger.Warn("failed to cleanup worktree", "error", err)
+    }
 }
 ```
 
-### 3. Wrap App in TooltipProvider
-Update `main.tsx` to wrap BrowserRouter content with TooltipProvider.
+### 2. Add Path-Based Cleanup to git.Git
 
-### 4. Migrate Components
-Replace `title="..."` with `<Tooltip content="...">` wrapper pattern.
+Add a new method that takes an explicit path instead of computing it from taskID:
+
+```go
+func (g *Git) CleanupWorktreeAtPath(worktreePath string) error {
+    return g.ctx.CleanupWorktree(worktreePath)
+}
+```
+
+### 3. Fix Orphan Detection in `orc cleanup`
+
+Update the regex pattern to extract task IDs from any worktree naming convention:
+
+```go
+// Match TASK-XXX anywhere in the directory name
+taskIDPattern := regexp.MustCompile(`(TASK-\d+)`)
+```
 
 ### Files to Modify
-| File | Changes |
-|------|---------|
-| `web/src/components/ui/Tooltip.tsx` | Create new component |
-| `web/src/components/ui/Tooltip.test.tsx` | Create unit tests |
-| `web/src/index.css` | Add tooltip CSS |
-| `web/src/main.tsx` | Add TooltipProvider |
-| `web/src/components/board/TaskCard.tsx` | Replace 7 title attrs |
-| `web/src/components/task-detail/TaskHeader.tsx` | Replace 5 title attrs |
-| `web/src/components/overlays/Modal.tsx` | Replace 1 title attr |
-| `web/src/components/task-detail/DependencySidebar.tsx` | Replace 4 title attrs |
-| `web/src/components/layout/Header.tsx` | Replace 2 title attrs |
-| `web/src/components/layout/Sidebar.tsx` | Replace 5 title attrs |
-| `web/src/components/initiative/DependencyGraph.tsx` | Replace 4 title attrs |
-| `web/src/components/task-detail/TranscriptTab.tsx` | Replace 6 title attrs |
-| `web/src/components/dashboard/DashboardStats.tsx` | Replace 1 title attr |
-| `web/src/components/dashboard/DashboardInitiatives.tsx` | Replace 1 title attr |
-| `web/e2e/tooltip.spec.ts` | Create E2E tests |
 
-## Feature Analysis
+- `internal/executor/task_execution.go`:
+  - Modify `cleanupWorktreeForTask` to use `e.worktreePath` instead of reconstructing path
+  - Add fallback to ID-based cleanup if path is empty (for resume scenarios)
 
-### User Story
-As a user, I want consistent, accessible tooltips so that I can understand UI element purposes without inconsistent browser-native styling.
+- `internal/git/git.go`:
+  - Add `CleanupWorktreeAtPath(path string) error` method
+  - Keep existing `CleanupWorktree(taskID string)` for backward compatibility
 
-### Acceptance Criteria
-1. Tooltips appear after 300ms hover delay
-2. Moving between tooltip triggers reduces delay to 150ms
-3. Tooltips disappear instantly on mouse leave
-4. Tooltips show on keyboard focus (Tab navigation)
-5. Escape dismisses tooltip
-6. Tooltips have consistent dark theme styling matching app design
-7. Tooltips include arrow pointing to trigger element
-8. Long tooltip content wraps at 300px max-width
-9. Tooltips respect reduced motion preference (no animation)
-10. Tooltips are announced to screen readers via aria-describedby
+- `internal/cli/cmd_cleanup.go`:
+  - Update `findOrphanedWorktrees` regex to match TASK-XXX anywhere in path
+  - Add logic to detect initiative-prefixed directories
 
-## Migration Pattern
+- `internal/api/server.go` (or appropriate startup location):
+  - Call `gitOps.PruneWorktrees()` during server initialization
+  - Log the result (info level)
 
-**Before:**
-```tsx
-<button title="Run task" onClick={handleRun}>
-  <Icon name="play" />
-</button>
+### New Files
+
+None - all changes are to existing files.
+
+## Bug Analysis
+
+### Reproduction Steps
+
+1. Create a task belonging to an initiative with `branch_prefix: "feature/auth-"`
+2. Run `orc run TASK-XXX` until completion
+3. Check `.orc/worktrees/` - worktree `feature-auth-TASK-XXX` still exists
+4. Run `orc cleanup --dry-run` - may not detect it as orphaned
+5. Repeat with multiple tasks - worktrees accumulate
+
+### Current Behavior
+
+- `cleanupWorktreeForTask` calls `gitOps.CleanupWorktree(t.ID)`
+- `CleanupWorktree` computes path as `orc-TASK-XXX` (without initiative prefix)
+- Actual worktree is at `feature-auth-TASK-XXX`
+- Cleanup silently "succeeds" because `orc-TASK-XXX` doesn't exist
+- Worktree `feature-auth-TASK-XXX` remains orphaned
+
+### Expected Behavior
+
+- `cleanupWorktreeForTask` uses the stored `e.worktreePath`
+- Cleanup removes the actual worktree at `feature-auth-TASK-XXX`
+- `orc cleanup` detects and lists worktrees regardless of naming prefix
+
+### Root Cause
+
+The worktree path is computed during setup with initiative prefix but reconstructed without it during cleanup. The `e.worktreePath` field is set correctly in `setupWorktreeForTask` but ignored in `cleanupWorktreeForTask`.
+
+Location: `internal/executor/task_execution.go:297-314`
+
+```go
+// BUG: This reconstructs path without initiative prefix
+if err := e.gitOps.CleanupWorktree(t.ID); err != nil {
 ```
 
-**After:**
-```tsx
-<Tooltip content="Run task">
-  <button onClick={handleRun}>
-    <Icon name="play" />
-  </button>
-</Tooltip>
+Should be:
+
+```go
+// FIX: Use stored path that was set during setup
+if err := e.gitOps.CleanupWorktreeAtPath(e.worktreePath); err != nil {
 ```
 
-**Note:** Radix Tooltip requires trigger to be a single element that can receive refs. For components using `asChild` pattern (like Button), the trigger works directly. For raw elements, wrap as shown.
+### Verification
+
+After the fix:
+
+1. Create task with initiative prefix
+2. Complete task execution
+3. Verify worktree is removed: `ls .orc/worktrees/` should not show the task
+4. Run `orc cleanup --dry-run` - should report 0 orphaned worktrees
+5. Run `git worktree list` - should only show main repo and active tasks
+
+## Failure Modes
+
+| Failure Scenario | Expected Behavior | User Feedback | Test |
+|------------------|-------------------|---------------|------|
+| Stored worktree path is empty | Fall back to ID-based cleanup | Warning in logs | `TestCleanupFallbackToIDPath` |
+| Git worktree remove fails | Log error, continue | Warning in logs | `TestCleanupWorktreeError` |
+| Initiative lookup fails | Use default path calculation | Warning in logs | `TestCleanupWithoutInitiative` |
+| Startup prune fails | Log error, continue server startup | Warning in logs | `TestStartupPruneError` |
+| Worktree doesn't exist | No-op, return success | No message | `TestCleanupNonexistentWorktree` |
+
+## Edge Cases
+
+| Input/State | Expected Behavior | Test |
+|-------------|-------------------|------|
+| Task has no worktree (e.g., trivial task) | Skip cleanup, no error | `TestCleanupNoWorktree` |
+| Worktree already deleted manually | `CleanupWorktree` succeeds (idempotent) | `TestCleanupAlreadyDeleted` |
+| Task in worktree being cleaned (concurrent) | Cleanup waits for or skips active | `TestConcurrentCleanup` |
+| e.gitOps is nil | Skip cleanup, no panic | `TestCleanupNilGitOps` |
+| Task completed but e.worktreePath empty (resume) | Fall back to ID-based lookup | `TestCleanupResumedTask` |
+| Multiple worktrees for same task ID | Clean all matching (shouldn't happen) | `TestCleanupDuplicateWorktrees` |
+
+## Review Checklist
+
+### Code Quality
+
+- [ ] Linting passes (`golangci-lint run ./...` returns 0 errors)
+- [ ] Type checking passes (`go vet ./...` returns 0 errors)
+- [ ] No TODOs or debug statements in new code
+- [ ] Error messages include context for debugging
+
+### Test Coverage
+
+- [ ] Coverage >= 85% on new code
+- [ ] All success criteria have tests
+- [ ] All edge cases tested
+- [ ] All failure modes tested
+- [ ] Existing tests still pass
+
+### Integration
+
+- [ ] No merge conflicts with main
+- [ ] Build succeeds (`make build`)
+- [ ] `make test` passes
+- [ ] Manual verification: complete a task with initiative, verify cleanup
+
+## Open Questions
+
+None - the root cause and fix are well understood. Implementation is straightforward.
