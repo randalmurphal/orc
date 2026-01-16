@@ -274,6 +274,54 @@ test.describe('Board Page', () => {
 			await expect(triggerText).toHaveText('By Initiative');
 		});
 
+		test('should enable view mode dropdown on clean URL (ignoring localStorage initiative filter)', async ({ page }) => {
+			// This test validates fix for TASK-275: dropdown was disabled due to stale
+			// localStorage initiative filter value being restored on clean URL navigation.
+			// The fix uses URL param as source of truth for swimlaneDisabled, not store value.
+
+			// Set a stale initiative filter in localStorage (simulating previous session)
+			await page.goto('/board');
+			await page.evaluate(() => {
+				localStorage.setItem('orc_current_initiative_id', 'INIT-012');
+			});
+
+			// Clear view mode storage to ensure clean test state
+			await page.evaluate(() => {
+				localStorage.removeItem('orc-board-view-mode');
+			});
+
+			// Navigate to /board with clean URL (no initiative param)
+			await page.goto('/board');
+			await waitForBoardLoad(page);
+
+			// The view mode dropdown should be ENABLED because URL has no initiative param
+			// Even though localStorage had a stale value, URL is the source of truth
+			const viewModeDropdown = page.locator('.view-mode-dropdown');
+			await expect(viewModeDropdown).toBeVisible();
+
+			// Check that the dropdown trigger is NOT disabled
+			const trigger = viewModeDropdown.locator('.dropdown-trigger');
+			await expect(trigger).not.toHaveAttribute('data-disabled');
+			await expect(trigger).not.toHaveAttribute('disabled');
+
+			// The wrapper should NOT have the disabled class
+			await expect(viewModeDropdown).not.toHaveClass(/disabled/);
+
+			// Verify we can actually click and open the dropdown
+			await trigger.click();
+			const dropdownMenu = page.locator('[role="listbox"]');
+			await expect(dropdownMenu).toBeVisible({ timeout: 3000 });
+
+			// Should see both options
+			const flatOption = page.locator('[role="option"]:has-text("Flat")');
+			const swimlaneOption = page.locator('[role="option"]:has-text("By Initiative")');
+			await expect(flatOption).toBeVisible();
+			await expect(swimlaneOption).toBeVisible();
+
+			// Close the dropdown
+			await page.keyboard.press('Escape');
+		});
+
 		test('should disable swimlane toggle when initiative filter active', async ({ page }) => {
 			await page.goto('/board');
 			await clearBoardStorage(page);
