@@ -176,6 +176,7 @@ web/src/
 │       ├── Button.tsx    # Unified button with variants/sizes
 │       ├── Icon.tsx      # SVG icons (60+ built-in)
 │       ├── Input.tsx     # Form input with variants/sizes/icons
+│       ├── Textarea.tsx  # Multi-line text input with auto-resize
 │       ├── StatusIndicator.tsx # Status orb with animations
 │       ├── ToastContainer.tsx  # Toast notification queue
 │       └── Breadcrumbs.tsx     # Route-based breadcrumbs
@@ -347,6 +348,76 @@ import { Input } from '@/components/ui';
 - All standard HTML input attributes supported
 - Error prop automatically sets error variant
 - Icons positioned absolutely, don't affect input text
+
+### Textarea
+
+Reusable multi-line text input with variants, sizes, resize control, and proper accessibility.
+
+```tsx
+import { Textarea } from '@/components/ui';
+
+<Textarea placeholder="Enter description..." />
+<Textarea size="lg" rows={5} />
+<Textarea variant="error" error="This field is required" />
+<Textarea autoResize maxHeight={200} />
+<Textarea showCount maxLength={500} />
+<Textarea disabled value="Cannot edit" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `'default' \| 'error'` | `'default'` | Visual variant |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Textarea size |
+| `resize` | `'none' \| 'vertical' \| 'horizontal' \| 'both'` | `'vertical'` | Resize behavior |
+| `error` | `string` | - | Error message (sets variant to error) |
+| `autoResize` | `boolean` | `false` | Enable auto-resize with content |
+| `maxHeight` | `number` | `300` | Max height in px when auto-resize enabled |
+| `showCount` | `boolean` | `false` | Show character count (requires maxLength) |
+
+**Sizing:**
+
+| Size | Min Height | Padding | Font Size |
+|------|------------|---------|-----------|
+| `sm` | 60px | `--space-2` / `--space-3` | `--text-sm` |
+| `md` | 80px | `--space-3` / `--space-4` | `--text-base` |
+| `lg` | 120px | `--space-4` / `--space-5` | `--text-lg` |
+
+**State styles:**
+
+| State | Border | Ring |
+|-------|--------|------|
+| default | `--border-default` | none |
+| hover | `--border-strong` | none |
+| focus | `--accent-primary` | `0 0 0 2px var(--accent-glow)` |
+| error | `--status-danger` | none |
+| error:focus | `--status-danger` | `0 0 0 2px rgba(248,113,113,0.3)` |
+| disabled | `--border-subtle` | none (opacity 0.5) |
+
+**Auto-Resize Behavior:**
+- Textarea grows with content up to `maxHeight`
+- Manual resize is disabled when `autoResize` is enabled
+- Overflow switches to `auto` when content exceeds `maxHeight`
+- Height adjusts on initial render and value changes
+
+**Character Count:**
+- Displays `current/max` when `showCount` and `maxLength` are both set
+- Warning style (red) applied at 90% capacity
+- Linked via `aria-describedby` for screen readers
+
+**Accessibility:**
+- Focus ring only on keyboard navigation (`:focus-within`)
+- Error state sets `aria-invalid="true"`
+- Error message linked via `aria-describedby` with `role="alert"`
+- Character count linked via `aria-describedby`
+- Required textareas set `aria-required="true"`
+- Forwards ref to underlying `<textarea>` element
+- Multiple `aria-describedby` values combined when error, count, and custom describedby present
+
+**Features:**
+- Controlled component pattern (`value` + `onChange`)
+- All standard HTML textarea attributes supported (rows, cols, maxLength, etc.)
+- Error prop automatically sets error variant
+- Auto-resize adjusts height dynamically with content
 
 ### StatusIndicator
 
