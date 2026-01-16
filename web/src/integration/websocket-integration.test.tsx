@@ -519,10 +519,10 @@ describe('WebSocket Integration', () => {
 				});
 			});
 
-			// Verify task status changed to finished
+			// Verify task status changed to completed
 			const tasks = useTaskStore.getState().tasks;
 			const task = tasks.find((t) => t.id === 'TASK-001');
-			expect(task?.status).toBe('finished');
+			expect(task?.status).toBe('completed');
 		});
 
 		it('handles finalize event with failed status', async () => {

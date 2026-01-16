@@ -68,7 +68,6 @@ describe('StatusIndicator', () => {
 			blocked: 'Blocked',
 			finalizing: 'Finalizing',
 			completed: 'Completed',
-			finished: 'Finished',
 			failed: 'Failed',
 		};
 

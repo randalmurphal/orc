@@ -270,12 +270,6 @@ func TestValidateFinalizeState(t *testing.T) {
 			errSubstr: "already completed",
 		},
 		{
-			name:      "finished task not allowed",
-			status:    task.StatusFinished,
-			wantErr:   true,
-			errSubstr: "already completed",
-		},
-		{
 			name:      "running task not allowed",
 			status:    task.StatusRunning,
 			wantErr:   true,

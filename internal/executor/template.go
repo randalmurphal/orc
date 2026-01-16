@@ -568,7 +568,7 @@ func LoadAutomationContext(t *task.Task, backend storage.Backend, projectRoot st
 func formatRecentCompletedTasks(tasks []*task.Task, limit int) string {
 	var completed []*task.Task
 	for _, t := range tasks {
-		if t.Status == task.StatusCompleted || t.Status == task.StatusFinished {
+		if t.Status == task.StatusCompleted {
 			completed = append(completed, t)
 		}
 	}
@@ -609,7 +609,7 @@ func collectRecentChangedFiles(tasks []*task.Task, limit int) string {
 	// Get recent completed tasks
 	var recent []*task.Task
 	for _, t := range tasks {
-		if t.Status == task.StatusCompleted || t.Status == task.StatusFinished {
+		if t.Status == task.StatusCompleted {
 			recent = append(recent, t)
 		}
 	}

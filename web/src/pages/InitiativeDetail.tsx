@@ -82,9 +82,7 @@ export function InitiativeDetail() {
 		if (!initiative?.tasks || initiative.tasks.length === 0) {
 			return { completed: 0, total: 0, percentage: 0 };
 		}
-		const completed = initiative.tasks.filter(
-			(t) => t.status === 'completed' || t.status === 'finished'
-		).length;
+		const completed = initiative.tasks.filter((t) => t.status === 'completed').length;
 		const total = initiative.tasks.length;
 		return { completed, total, percentage: Math.round((completed / total) * 100) };
 	}, [initiative?.tasks]);
@@ -285,7 +283,6 @@ export function InitiativeDetail() {
 	const getStatusIcon = useCallback((status: string) => {
 		switch (status) {
 			case 'completed':
-			case 'finished':
 				return 'check-circle';
 			case 'running':
 				return 'play-circle';
@@ -303,7 +300,6 @@ export function InitiativeDetail() {
 	const getStatusClass = useCallback((status: string) => {
 		switch (status) {
 			case 'completed':
-			case 'finished':
 				return 'status-success';
 			case 'running':
 				return 'status-running';

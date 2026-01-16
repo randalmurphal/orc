@@ -175,6 +175,9 @@ func (e *Executor) detectConflictsOnly(gitOps *git.Git, target, taskID string, s
 }
 
 // handleSyncConflict handles merge conflicts according to config.
+// If conflict resolution is enabled, it attempts to resolve conflicts using:
+// 1. Auto-resolution for known patterns (CLAUDE.md knowledge tables)
+// 2. Claude-assisted resolution for remaining conflicts
 func (e *Executor) handleSyncConflict(result *git.SyncResult, taskID string, syncCfg config.SyncConfig) error {
 	conflictCount := len(result.ConflictFiles)
 
@@ -189,7 +192,53 @@ func (e *Executor) handleSyncConflict(result *git.SyncResult, taskID string, syn
 			ErrSyncConflict, conflictCount, syncCfg.MaxConflictFiles, result.ConflictFiles)
 	}
 
-	// Fail on conflict if configured
+	// Try to resolve conflicts if configured
+	if e.orcConfig.Completion.Finalize.ConflictResolution.Enabled {
+		e.logger.Info("attempting conflict resolution",
+			"task", taskID,
+			"conflict_files", result.ConflictFiles)
+
+		// Use worktree git if available
+		gitOps := e.gitOps
+		if e.worktreeGit != nil {
+			gitOps = e.worktreeGit
+		}
+
+		// Create conflict resolver
+		resolver := NewConflictResolver(
+			WithResolverGitSvc(gitOps),
+			WithResolverSessionManager(e.sessionMgr),
+			WithResolverLogger(e.logger),
+			WithResolverConfig(e.orcConfig.Completion.Finalize),
+			WithResolverWorkingDir(e.worktreePath),
+		)
+
+		// Load task for resolution context
+		t, loadErr := e.backend.LoadTask(taskID)
+		if loadErr != nil {
+			e.logger.Warn("could not load task for conflict resolution", "error", loadErr)
+			// Fall through to fail on conflict check
+		} else {
+			// Try to resolve conflicts
+			resolveResult, resolveErr := resolver.Resolve(context.Background(), t, result.ConflictFiles)
+			if resolveErr == nil && resolveResult.Resolved {
+				e.logger.Info("conflicts resolved successfully",
+					"task", taskID,
+					"auto_resolved", resolveResult.AutoResolved,
+					"claude_resolved", resolveResult.ClaudeResolved)
+				return nil // Conflicts resolved, continue with completion
+			}
+
+			if resolveErr != nil {
+				e.logger.Warn("conflict resolution failed", "error", resolveErr)
+			} else if len(resolveResult.Unresolved) > 0 {
+				e.logger.Warn("some conflicts could not be resolved",
+					"unresolved", resolveResult.Unresolved)
+			}
+		}
+	}
+
+	// Fail on conflict if configured (or resolution failed)
 	if syncCfg.FailOnConflict {
 		return fmt.Errorf("%w: %d files have conflicts with target branch: %v\n"+
 			"  Resolution options:\n"+
@@ -559,11 +608,9 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 			e.logger.Warn("CI wait and merge failed", "task", t.ID, "error", mergeErr)
 			// Don't fail the task - PR is created, can be merged manually
 		} else {
-			// Update task status to finished after successful merge
-			t.Status = task.StatusFinished
-			if saveErr := e.backend.SaveTask(t); saveErr != nil {
-				e.logger.Error("failed to save task after merge", "error", saveErr)
-			}
+			// Task already completed - merge success is logged but status unchanged
+			// (completeTask already set StatusCompleted before we got here)
+			e.logger.Info("PR merged successfully", "task", t.ID)
 		}
 	}
 

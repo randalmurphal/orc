@@ -145,7 +145,7 @@ func showDepsHuman(t *task.Task, taskMap map[string]*task.Task) error {
 			if exists {
 				title = truncate(blocker.Title, 35)
 				status = string(blocker.Status)
-				if blocker.Status == task.StatusCompleted || blocker.Status == task.StatusFinished {
+				if blocker.Status == task.StatusCompleted {
 					icon = "●" // completed
 				}
 			}
@@ -164,7 +164,7 @@ func showDepsHuman(t *task.Task, taskMap map[string]*task.Task) error {
 			if exists {
 				title = truncate(blocked.Title, 35)
 				status = string(blocked.Status)
-				if blocked.Status == task.StatusCompleted || blocked.Status == task.StatusFinished {
+				if blocked.Status == task.StatusCompleted {
 					icon = "●"
 				}
 			}
@@ -324,7 +324,7 @@ func printTree(t *task.Task, taskMap map[string]*task.Task, prefix string, _ boo
 		}
 		if alreadySeen {
 			suffix = " ← already shown"
-		} else if exists && (blocker.Status == task.StatusCompleted || blocker.Status == task.StatusFinished) {
+		} else if exists && blocker.Status == task.StatusCompleted {
 			suffix = " ✓"
 		} else if exists && len(blocker.BlockedBy) == 0 {
 			suffix = " ← start here"
@@ -447,7 +447,7 @@ func printGraphNode(t *task.Task, taskMap map[string]*task.Task, filteredIDs map
 	// Print this node
 	var status string
 	switch t.Status {
-	case task.StatusCompleted, task.StatusFinished:
+	case task.StatusCompleted:
 		status = " ✓"
 	case task.StatusRunning:
 		status = " ◐"
@@ -486,7 +486,7 @@ func printGraphNode(t *task.Task, taskMap map[string]*task.Task, filteredIDs map
 			for _, c := range chain {
 				s := c.ID
 				switch c.Status {
-				case task.StatusCompleted, task.StatusFinished:
+				case task.StatusCompleted:
 					s += " ✓"
 				case task.StatusRunning:
 					s += " ◐"

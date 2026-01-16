@@ -114,8 +114,8 @@ export function TaskCard({
 
 	const isRunning = task.status === 'running';
 	const isFinalizing = task.status === 'finalizing';
-	const isFinished = task.status === 'finished';
 	const isCompleted = task.status === 'completed';
+	const isBlocked = task.status === 'blocked';
 
 	// Initiative badge
 	const initiativeBadge = task.initiative_id ? getInitiativeBadgeTitle(task.initiative_id) : null;
@@ -255,8 +255,8 @@ export function TaskCard({
 		'task-card',
 		isRunning && 'running',
 		isFinalizing && 'finalizing',
-		isFinished && 'finished',
 		isCompleted && 'completed',
+		isBlocked && 'blocked',
 	]
 		.filter(Boolean)
 		.join(' ');
@@ -361,8 +361,8 @@ export function TaskCard({
 				</div>
 			)}
 
-			{/* Finished commit info */}
-			{isFinished && finalizeState?.result?.commit_sha && (
+			{/* Merged commit info (shown when finalize has completed) */}
+			{isCompleted && finalizeState?.result?.commit_sha && (
 				<div className="finished-info">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"

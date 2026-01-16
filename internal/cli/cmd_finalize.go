@@ -181,7 +181,7 @@ Example:
 // validateFinalizeState checks if the task is in a valid state for finalize.
 func validateFinalizeState(t *task.Task) error {
 	switch t.Status {
-	case task.StatusCompleted, task.StatusFinished:
+	case task.StatusCompleted:
 		return fmt.Errorf("task %s is already completed", t.ID)
 	case task.StatusRunning:
 		return fmt.Errorf("task %s is currently running - pause it first if you want to run finalize manually", t.ID)

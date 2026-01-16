@@ -247,7 +247,7 @@ function handleWSEvent(event: WSEvent): void {
 			if (finalizeData.status === 'running') {
 				taskStore.updateTaskStatus(task_id, 'finalizing');
 			} else if (finalizeData.status === 'completed') {
-				taskStore.updateTaskStatus(task_id, 'finished');
+				taskStore.updateTaskStatus(task_id, 'completed');
 			} else if (finalizeData.status === 'failed') {
 				taskStore.updateTaskStatus(task_id, 'failed');
 			}

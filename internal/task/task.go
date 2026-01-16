@@ -77,8 +77,7 @@ const (
 	StatusPaused      Status = "paused"
 	StatusBlocked     Status = "blocked"
 	StatusFinalizing  Status = "finalizing" // Post-completion: cleanup, PR creation, branch sync
-	StatusCompleted   Status = "completed"
-	StatusFinished    Status = "finished" // Terminal: work is done and archived
+	StatusCompleted   Status = "completed"  // Terminal: all phases AND sync/PR/merge succeeded
 	StatusFailed      Status = "failed"
 )
 
@@ -87,7 +86,7 @@ func ValidStatuses() []Status {
 	return []Status{
 		StatusCreated, StatusClassifying, StatusPlanned, StatusRunning,
 		StatusPaused, StatusBlocked, StatusFinalizing, StatusCompleted,
-		StatusFinished, StatusFailed,
+		StatusFailed,
 	}
 }
 
@@ -96,7 +95,7 @@ func IsValidStatus(s Status) bool {
 	switch s {
 	case StatusCreated, StatusClassifying, StatusPlanned, StatusRunning,
 		StatusPaused, StatusBlocked, StatusFinalizing, StatusCompleted,
-		StatusFinished, StatusFailed:
+		StatusFailed:
 		return true
 	default:
 		return false
@@ -550,7 +549,7 @@ func (t *Task) UpdatePRStatus(status PRStatus, checksStatus string, mergeable bo
 
 // IsTerminal returns true if the task is in a terminal state.
 func (t *Task) IsTerminal() bool {
-	return t.Status == StatusCompleted || t.Status == StatusFinished || t.Status == StatusFailed
+	return t.Status == StatusCompleted || t.Status == StatusFailed
 }
 
 // CanRun returns true if the task can be executed.
@@ -963,9 +962,8 @@ func (t *Task) ComputeDependencyStatus() DependencyStatus {
 }
 
 // isDone returns true if the status indicates the task has completed its work.
-// This includes both completed and finished (archived) statuses.
 func isDone(s Status) bool {
-	return s == StatusCompleted || s == StatusFinished
+	return s == StatusCompleted
 }
 
 // HasUnmetDependencies returns true if any task in BlockedBy is not completed.
