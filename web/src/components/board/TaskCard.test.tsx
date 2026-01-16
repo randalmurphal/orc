@@ -78,6 +78,13 @@ describe('TaskCard', () => {
 			expect(screen.getByText('Test Task')).toBeInTheDocument();
 		});
 
+		it('renders without draggable attribute', () => {
+			const { container } = renderTaskCard(createTask());
+
+			const card = container.querySelector('.task-card');
+			expect(card).not.toHaveAttribute('draggable');
+		});
+
 		it('renders task description', () => {
 			renderTaskCard(createTask());
 
