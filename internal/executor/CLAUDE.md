@@ -25,7 +25,8 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | File | Responsibility |
 |------|----------------|
 | `config.go` | `ExecutorConfig` defaults per weight |
-| `template.go` | Prompt variable substitution, `BuildTemplateVars()` |
+| `template.go` | Prompt variable substitution, `BuildTemplateVars()`, `RenderTemplate()` |
+| `flowgraph_nodes.go` | Flowgraph nodes, `renderTemplate()` (must stay in sync with template.go) |
 | `session_adapter.go` | LLM session wrapper, `StreamTurnWithProgress()` |
 | `completion.go` | `CheckPhaseCompletion()` - detects `<phase_complete>` |
 | `retry.go` | Cross-phase retry context |
@@ -119,16 +120,57 @@ models:
 
 ## Key Components
 
-### Template Variables (`template.go:40-120`)
+### Template Variables
+
+**Locations:** `template.go:RenderTemplate()`, `flowgraph_nodes.go:renderTemplate()`
+
+⚠️ **CRITICAL**: Two template rendering paths exist and MUST stay in sync:
+- `template.go:RenderTemplate()` - Used by session-based executors (standard, full, finalize)
+- `flowgraph_nodes.go:renderTemplate()` - Used by legacy flowgraph execution
+
+Both must support identical variables. When adding a new variable, update BOTH files.
 
 | Variable | Description |
 |----------|-------------|
 | `{{TASK_ID}}`, `{{TASK_TITLE}}` | Task identifiers |
+| `{{TASK_DESCRIPTION}}` | Full task description |
+| `{{TASK_CATEGORY}}` | Task category (feature/bug/refactor/etc) |
+| `{{PHASE}}`, `{{WEIGHT}}`, `{{ITERATION}}` | Execution context |
 | `{{SPEC_CONTENT}}` | Specification from spec phase |
 | `{{DESIGN_CONTENT}}` | Design artifact (large/greenfield) |
+| `{{IMPLEMENT_CONTENT}}` | Implementation summary |
+| `{{RESEARCH_CONTENT}}` | Research findings (greenfield) |
 | `{{RETRY_CONTEXT}}` | Failure info on retry |
-| `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}` | Git worktree context |
+| `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}`, `{{TARGET_BRANCH}}` | Git worktree context |
 | `{{INITIATIVE_CONTEXT}}` | Initiative details if linked |
+| `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}` | UI testing context |
+| `{{COVERAGE_THRESHOLD}}` | Min coverage % (default: 85) |
+| `{{REVIEW_ROUND}}` | Current review round (1 or 2) |
+| `{{REVIEW_FINDINGS}}` | Previous round's findings (Round 2) |
+| `{{VERIFICATION_RESULTS}}` | Verification results from implement |
+
+### Review Round Initialization (`phase.go`)
+
+For review phase, `ReviewRound` defaults to 1 in flowgraph execution:
+```go
+reviewRound := 0
+if p.ID == "review" {
+    reviewRound = 1
+}
+```
+
+### Review Conditionals (`template.go:processReviewConditionals`)
+
+Templates can use conditional blocks:
+```markdown
+{{#if REVIEW_ROUND_1}}
+Content shown only in Round 1
+{{/if}}
+
+{{#if REVIEW_ROUND_2}}
+Content shown only in Round 2
+{{/if}}
+```
 
 ### Token Usage (`session_adapter.go:118-135`)
 
@@ -152,6 +194,28 @@ Cross-phase retry when tests fail:
 ctx := buildRetryContext(failedPhase, output, attempt)
 // Phase receives {{RETRY_CONTEXT}} with failure details
 ```
+
+### Session Configuration (`executor.go`, `task_execution.go`)
+
+Session managers are configured with `WithSettingSources` to load user-defined agents:
+
+```go
+sessionMgr := session.NewManager(
+    session.WithDefaultSessionOptions(
+        session.WithModel(cfg.Model),
+        session.WithWorkdir(cfg.WorkDir),
+        session.WithPermissions(cfg.DangerouslySkipPermissions),
+        session.WithSettingSources([]string{"project", "local", "user"}),
+    ),
+)
+```
+
+**Setting sources:**
+- `project` - `.claude/` in project directory
+- `local` - `.claude/` in current directory (worktree)
+- `user` - `~/.claude/` (user's global config)
+
+The `user` source is required for user-defined agents (e.g., `~/.claude/agents/Reviewer.md`) to be available in headless sessions.
 
 ## FinalizeExecutor
 
@@ -239,3 +303,5 @@ go test ./internal/executor/... -run TestTemplate -v  # Template vars
 2. **Ultrathink in system prompt** - Doesn't work; must be in user message
 3. **FinalizeExecutor OrcConfig** - `WithFinalizeOrcConfig()` must set both `e.orcConfig` and `e.config.OrcConfig`
 4. **Model not resolved in trivial** - Fixed: now uses `ResolveModelSetting()` like other executors
+5. **Template variable not substituted** - Check BOTH `template.go:RenderTemplate()` AND `flowgraph_nodes.go:renderTemplate()` have the variable
+6. **User agents not available in headless** - Session needs `WithSettingSources([]string{"project", "local", "user"})` to load `~/.claude/agents/`
