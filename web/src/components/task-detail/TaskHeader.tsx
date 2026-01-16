@@ -2,10 +2,12 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '@/components/ui/Icon';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { TaskEditModal } from '@/components/task-detail/TaskEditModal';
 import { ExportDropdown } from '@/components/task-detail/ExportDropdown';
 import { deleteTask, runTask, pauseTask, resumeTask } from '@/lib/api';
 import { toast } from '@/stores/uiStore';
+import { getInitiativeBadgeTitle } from '@/stores';
 import type { Task } from '@/lib/types';
 import { CATEGORY_CONFIG, PRIORITY_CONFIG } from '@/lib/types';
 import './TaskHeader.css';
@@ -117,7 +119,9 @@ export function TaskHeader({ task, onTaskUpdate, onTaskDelete }: TaskHeaderProps
 	};
 
 	const categoryConfig = task.category ? CATEGORY_CONFIG[task.category] : null;
-	const priorityConfig = task.priority ? PRIORITY_CONFIG[task.priority] : null;
+	const priority = task.priority || 'normal';
+	const priorityConfig = PRIORITY_CONFIG[priority];
+	const initiativeBadge = task.initiative_id ? getInitiativeBadgeTitle(task.initiative_id) : null;
 
 	return (
 		<header className="task-header">
@@ -141,13 +145,24 @@ export function TaskHeader({ task, onTaskUpdate, onTaskDelete }: TaskHeaderProps
 							{categoryConfig.label}
 						</span>
 					)}
-					{task.priority && task.priority !== 'normal' && priorityConfig && (
+					<Tooltip content={`${priorityConfig.label} priority`}>
 						<span
-							className="priority-badge"
+							className={`priority-badge priority-${priority}`}
 							style={{ '--priority-color': priorityConfig.color } as React.CSSProperties}
 						>
 							{priorityConfig.label}
 						</span>
+					</Tooltip>
+					{initiativeBadge && (
+						<Tooltip content={initiativeBadge.full}>
+							<button
+								className="initiative-badge"
+								onClick={() => navigate(`/initiatives/${task.initiative_id}`)}
+							>
+								<Icon name="layers" size={12} />
+								{initiativeBadge.display}
+							</button>
+						</Tooltip>
 					)}
 				</div>
 

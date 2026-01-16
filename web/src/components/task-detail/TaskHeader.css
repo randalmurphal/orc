@@ -91,6 +91,56 @@
 	color: var(--priority-color);
 }
 
+/* Normal priority is more subtle */
+.priority-badge.priority-normal {
+	background: var(--bg-tertiary);
+	border-color: var(--border-default);
+	font-weight: var(--font-medium);
+}
+
+/* Critical priority pulsing animation */
+.priority-badge.priority-critical {
+	animation: priority-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes priority-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.6;
+	}
+}
+
+.initiative-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--text-xs);
+	font-weight: var(--font-medium);
+	padding: var(--space-0-5) var(--space-2);
+	background: var(--accent-subtle);
+	border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
+	border-radius: var(--radius-full);
+	color: var(--accent-primary);
+	max-width: 180px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	cursor: pointer;
+	transition: all var(--duration-fast) var(--ease-out);
+}
+
+.initiative-badge:hover {
+	background: color-mix(in srgb, var(--accent-primary) 25%, transparent);
+	border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent);
+}
+
+.initiative-badge svg {
+	flex-shrink: 0;
+}
+
 .task-actions {
 	display: flex;
 	align-items: center;

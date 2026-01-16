@@ -2138,49 +2138,58 @@ import { TaskDetail } from '@/pages/TaskDetail';
 
 ### TaskHeader
 
-Header component with task metadata, status, and action buttons.
+Header component with task metadata, status, and action buttons. Self-contained component that handles its own actions.
 
 ```tsx
 import { TaskHeader } from '@/components/task-detail';
 
 <TaskHeader
   task={task}
-  taskState={taskState}
-  plan={plan}
-  onRun={handleRun}
-  onPause={handlePause}
-  onResume={handleResume}
-  onDelete={handleDelete}
-  onEdit={() => setShowEditModal(true)}
+  onTaskUpdate={handleTaskUpdate}
+  onTaskDelete={handleTaskDelete}
 />
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `task` | `Task` | Task data |
-| `taskState` | `TaskState \| undefined` | Execution state |
-| `plan` | `Plan \| undefined` | Phase plan |
-| `onRun` | `() => void` | Run task handler |
-| `onPause` | `() => void` | Pause handler |
-| `onResume` | `() => void` | Resume handler |
-| `onDelete` | `() => void` | Delete handler |
-| `onEdit` | `() => void` | Open edit modal |
+| `onTaskUpdate` | `(task: Task) => void` | Callback when task is updated (run/pause/resume) |
+| `onTaskDelete` | `() => void` | Callback after task deletion |
 
-**Display elements:**
-- Back navigation link
-- Task ID and status indicator
-- Weight badge with color coding
-- Category and priority badges
-- Initiative badge (if assigned)
-- Branch name display
-- Phase progress (e.g., "3/6")
+**Display elements (in `.task-identity` section):**
+- Back navigation button
+- Task ID
+- Status indicator (colored orb)
+- Weight badge (trivial/small/medium/large/greenfield)
+- Category badge with icon (feature/bug/refactor/chore/docs/test)
+- Priority badge with tooltip (critical/high/normal/low)
+- Initiative badge (if assigned) - clickable, navigates to initiative detail
+
+**Badge ordering:** Task ID → Status → Weight → Category → Priority → Initiative
+
+**Initiative badge:**
+- Uses `getInitiativeBadgeTitle()` from initiative store
+- Truncates title with full text in tooltip
+- Layers icon + display text
+- Click navigates to `/initiatives/:id`
+
+**Priority badge:**
+- Always visible (shows for all priority levels)
+- Color-coded via `--priority-color` CSS variable
+- Wrapped in Tooltip showing "{priority} priority"
 
 **Action buttons (contextual):**
-- **Run**: For created/planned tasks
-- **Pause**: For running tasks
-- **Resume**: For paused tasks
-- **Edit**: Opens TaskEditModal
-- **Delete**: With confirmation dialog
+- **Run** (play icon): For created/planned/failed tasks
+- **Pause** (pause icon): For running tasks
+- **Resume** (play icon): For paused tasks
+- **Export**: Dropdown menu for task export options
+- **Edit** (pencil icon): Opens TaskEditModal
+- **Delete** (trash icon): With confirmation dialog
+
+**Other elements:**
+- Task title (h1)
+- Description (if present)
+- Branch name with icon (if present)
 
 ### TabNav
 

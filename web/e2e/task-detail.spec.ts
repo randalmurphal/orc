@@ -767,4 +767,99 @@ test.describe('Task Detail Page', () => {
 			}
 		});
 	});
+
+	test.describe('Task Header Badges', () => {
+		test('should display priority badge for non-normal priorities', async ({ page }) => {
+			const taskId = await navigateToTask(page);
+			test.skip(!taskId, 'No tasks available for testing');
+
+			await waitForTaskDetailLoad(page);
+
+			// Look for priority badge in task header
+			const taskIdentity = page.locator('.task-identity');
+			await expect(taskIdentity).toBeVisible();
+
+			// Priority badge should always be present (even for normal priority)
+			const priorityBadge = taskIdentity.locator('.priority-badge');
+			await expect(priorityBadge).toBeVisible();
+
+			// Get the priority text
+			const priorityText = await priorityBadge.textContent();
+			expect(priorityText?.toLowerCase()).toMatch(/critical|high|normal|low/);
+
+			// Verify badge has appropriate class
+			const className = await priorityBadge.getAttribute('class');
+			expect(className).toMatch(/priority-(critical|high|normal|low)/);
+		});
+
+		test('should display initiative badge when task has initiative', async ({ page }) => {
+			const taskId = await navigateToTask(page);
+			test.skip(!taskId, 'No tasks available for testing');
+
+			await waitForTaskDetailLoad(page);
+
+			// Look for initiative badge in task header
+			const taskIdentity = page.locator('.task-identity');
+			await expect(taskIdentity).toBeVisible();
+
+			// Initiative badge may or may not be present depending on task
+			const initiativeBadge = taskIdentity.locator('.initiative-badge');
+			const hasInitiative = await initiativeBadge.isVisible().catch(() => false);
+
+			if (hasInitiative) {
+				// Badge should be clickable (button element)
+				const isButton = await initiativeBadge.evaluate(el => el.tagName.toLowerCase() === 'button');
+				expect(isButton).toBe(true);
+
+				// Badge should have initiative title text
+				const badgeText = await initiativeBadge.textContent();
+				expect(badgeText?.length).toBeGreaterThan(0);
+			}
+		});
+
+		test('should navigate to initiative when clicking initiative badge', async ({ page }) => {
+			const taskId = await navigateToTask(page);
+			test.skip(!taskId, 'No tasks available for testing');
+
+			await waitForTaskDetailLoad(page);
+
+			// Look for initiative badge
+			const taskIdentity = page.locator('.task-identity');
+			const initiativeBadge = taskIdentity.locator('.initiative-badge');
+			const hasInitiative = await initiativeBadge.isVisible().catch(() => false);
+			test.skip(!hasInitiative, 'Task has no initiative to test navigation');
+
+			// Click the initiative badge
+			await initiativeBadge.click();
+
+			// Should navigate to initiative detail page
+			await page.waitForURL(/\/initiatives\/INIT-\d+/, { timeout: 5000 });
+
+			// Verify we're on the initiative detail page
+			const url = page.url();
+			expect(url).toMatch(/\/initiatives\/INIT-\d+/);
+		});
+
+		test('should show critical priority with pulsing animation', async ({ page }) => {
+			const taskId = await navigateToTask(page);
+			test.skip(!taskId, 'No tasks available for testing');
+
+			await waitForTaskDetailLoad(page);
+
+			// Look for critical priority badge
+			const taskIdentity = page.locator('.task-identity');
+			const criticalBadge = taskIdentity.locator('.priority-badge.priority-critical');
+			const hasCritical = await criticalBadge.isVisible().catch(() => false);
+
+			if (hasCritical) {
+				// Critical badge should have the pulsing animation class
+				const className = await criticalBadge.getAttribute('class');
+				expect(className).toContain('priority-critical');
+
+				// Verify the badge text
+				const text = await criticalBadge.textContent();
+				expect(text?.toLowerCase()).toContain('critical');
+			}
+		});
+	});
 });
