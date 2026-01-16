@@ -50,11 +50,18 @@ func (e *Executor) renderTemplate(tmpl string, s PhaseState) string {
 		specContent = s.TaskDescription
 	}
 
+	// Default coverage threshold if not set
+	coverageThreshold := s.CoverageThreshold
+	if coverageThreshold == 0 {
+		coverageThreshold = 85 // Default value
+	}
+
 	// Simple variable replacement
 	replacements := map[string]string{
 		"{{TASK_ID}}":                s.TaskID,
 		"{{TASK_TITLE}}":             s.TaskTitle,
 		"{{TASK_DESCRIPTION}}":       s.TaskDescription,
+		"{{TASK_CATEGORY}}":          s.TaskCategory,
 		"{{PHASE}}":                  s.Phase,
 		"{{WEIGHT}}":                 s.Weight,
 		"{{ITERATION}}":              fmt.Sprintf("%d", s.Iteration),
@@ -69,6 +76,20 @@ func (e *Executor) renderTemplate(tmpl string, s PhaseState) string {
 		"{{WORKTREE_PATH}}": s.WorktreePath,
 		"{{TASK_BRANCH}}":   s.TaskBranch,
 		"{{TARGET_BRANCH}}": s.TargetBranch,
+
+		// Initiative context (formatted section)
+		"{{INITIATIVE_CONTEXT}}": s.InitiativeContext,
+
+		// UI Testing context variables
+		"{{REQUIRES_UI_TESTING}}": s.RequiresUITesting,
+		"{{SCREENSHOT_DIR}}":      s.ScreenshotDir,
+		"{{TEST_RESULTS}}":        s.TestResults,
+
+		// Testing configuration
+		"{{COVERAGE_THRESHOLD}}": fmt.Sprintf("%d", coverageThreshold),
+
+		// Review findings (for review round 2)
+		"{{REVIEW_FINDINGS}}": s.ReviewFindings,
 	}
 
 	result := tmpl

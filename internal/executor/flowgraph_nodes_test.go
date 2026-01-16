@@ -559,6 +559,146 @@ func TestRenderTemplate_EmptyValues(t *testing.T) {
 	}
 }
 
+func TestRenderTemplate_NewVariables(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
+
+	ps := PhaseState{
+		TaskID:            "TASK-NEW-001",
+		TaskTitle:         "New feature",
+		TaskDescription:   "A new feature description",
+		TaskCategory:      "feature",
+		Phase:             "spec",
+		Weight:            "medium",
+		Iteration:         1,
+		WorktreePath:      "/tmp/worktree",
+		TaskBranch:        "orc/TASK-NEW-001",
+		TargetBranch:      "main",
+		InitiativeContext: "## Initiative Context\n\nThis is part of INIT-001.",
+		RequiresUITesting: "true",
+		ScreenshotDir:     "/path/to/screenshots",
+		TestResults:       "All tests passed",
+		CoverageThreshold: 90,
+		ReviewFindings:    "Code review findings here",
+	}
+
+	// Test all new template variables
+	tests := []struct {
+		name     string
+		tmpl     string
+		expected string
+	}{
+		{
+			name:     "task category",
+			tmpl:     "Category: {{TASK_CATEGORY}}",
+			expected: "Category: feature",
+		},
+		{
+			name:     "initiative context",
+			tmpl:     "{{INITIATIVE_CONTEXT}}",
+			expected: "## Initiative Context\n\nThis is part of INIT-001.",
+		},
+		{
+			name:     "requires UI testing",
+			tmpl:     "UI Testing: {{REQUIRES_UI_TESTING}}",
+			expected: "UI Testing: true",
+		},
+		{
+			name:     "screenshot dir",
+			tmpl:     "Screenshots: {{SCREENSHOT_DIR}}",
+			expected: "Screenshots: /path/to/screenshots",
+		},
+		{
+			name:     "test results",
+			tmpl:     "Tests: {{TEST_RESULTS}}",
+			expected: "Tests: All tests passed",
+		},
+		{
+			name:     "coverage threshold",
+			tmpl:     "Coverage: {{COVERAGE_THRESHOLD}}%",
+			expected: "Coverage: 90%",
+		},
+		{
+			name:     "review findings",
+			tmpl:     "Review: {{REVIEW_FINDINGS}}",
+			expected: "Review: Code review findings here",
+		},
+		{
+			name:     "worktree path",
+			tmpl:     "Worktree: {{WORKTREE_PATH}}",
+			expected: "Worktree: /tmp/worktree",
+		},
+		{
+			name:     "task branch",
+			tmpl:     "Branch: {{TASK_BRANCH}}",
+			expected: "Branch: orc/TASK-NEW-001",
+		},
+		{
+			name:     "target branch",
+			tmpl:     "Target: {{TARGET_BRANCH}}",
+			expected: "Target: main",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := e.renderTemplate(tc.tmpl, ps)
+			if result != tc.expected {
+				t.Errorf("renderTemplate(%q):\ngot:  %q\nwant: %q", tc.tmpl, result, tc.expected)
+			}
+		})
+	}
+}
+
+func TestRenderTemplate_CoverageThresholdDefault(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
+
+	ps := PhaseState{
+		TaskID:            "TASK-COV-001",
+		TaskTitle:         "Test",
+		Phase:             "test",
+		Weight:            "small",
+		CoverageThreshold: 0, // Not set, should default to 85
+	}
+
+	tmpl := "Threshold: {{COVERAGE_THRESHOLD}}%"
+	result := e.renderTemplate(tmpl, ps)
+
+	expected := "Threshold: 85%"
+	if result != expected {
+		t.Errorf("renderTemplate should default coverage threshold to 85:\ngot:  %q\nwant: %q", result, expected)
+	}
+}
+
+func TestRenderTemplate_ImplementationSummaryAlias(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
+
+	ps := PhaseState{
+		TaskID:           "TASK-ALIAS-001",
+		TaskTitle:        "Test",
+		Phase:            "finalize",
+		Weight:           "small",
+		ImplementContent: "Implementation summary content here",
+	}
+
+	// Both {{IMPLEMENT_CONTENT}} and {{IMPLEMENTATION_SUMMARY}} should work
+	result1 := e.renderTemplate("{{IMPLEMENT_CONTENT}}", ps)
+	result2 := e.renderTemplate("{{IMPLEMENTATION_SUMMARY}}", ps)
+
+	expected := "Implementation summary content here"
+	if result1 != expected {
+		t.Errorf("IMPLEMENT_CONTENT: got %q, want %q", result1, expected)
+	}
+	if result2 != expected {
+		t.Errorf("IMPLEMENTATION_SUMMARY: got %q, want %q", result2, expected)
+	}
+}
+
 func TestCommitCheckpointNode_NoGitOps(t *testing.T) {
 	// Create executor with nil gitOps
 	cfg := DefaultConfig()

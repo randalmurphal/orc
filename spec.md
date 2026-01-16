@@ -1,69 +1,140 @@
-# Specification: Truncate task card descriptions on board to max 2-3 lines
+# Specification: Flowgraph executor renderTemplate missing template variables
 
 ## Problem Statement
-Task cards on the Board page display full descriptions which can be excessively long, especially when containing markdown content with multiple paragraphs. The current CSS has `line-clamp: 2` but it's being undermined by `white-space: pre-wrap` which preserves newlines from markdown, causing cards to grow unbounded.
+
+The flowgraph executor's `renderTemplate()` method in `flowgraph_nodes.go` is missing 12 template variables that exist in `template.go:RenderTemplate()`. This causes prompts sent to Claude to contain literal `{{TASK_CATEGORY}}`, `{{INITIATIVE_CONTEXT}}`, etc. instead of substituted values, degrading task execution quality.
 
 ## Success Criteria
-- [ ] Task card descriptions are truncated to exactly 3 lines maximum
-- [ ] Ellipsis (...) appears at truncation point
-- [ ] Full description is visible on hover via Tooltip component
-- [ ] Card heights are consistent within the same column (no tall cards breaking layout)
-- [ ] Markdown formatting (newlines, headers, lists) in descriptions is normalized to plain text for display
-- [ ] Existing non-markdown descriptions continue to work correctly
+
+- [ ] All template variables from `RenderTemplate()` in `template.go` are also handled in `Executor.renderTemplate()` in `flowgraph_nodes.go`
+- [ ] `PhaseState` struct includes fields for all template variables (task category, initiative context, UI testing context, coverage threshold, verification results)
+- [ ] `PhaseState` initialization in `phase.go` populates all new fields from `templateVars`
+- [ ] Templates using `{{TASK_CATEGORY}}` receive the actual category value (bug, feature, etc.)
+- [ ] Templates using `{{INITIATIVE_CONTEXT}}` receive formatted initiative context when task belongs to an initiative
+- [ ] Tests pass: `make test` succeeds with no new failures
+- [ ] Existing template rendering behavior is preserved (no regressions)
 
 ## Testing Requirements
-- [ ] Unit test: TaskCard renders description with line-clamp when description exceeds 3 lines
-- [ ] Unit test: Tooltip shows full description text on hover
-- [ ] E2E test: Board page shows truncated descriptions with consistent card heights
-- [ ] E2E test: Hovering over description shows full content in tooltip
+
+- [ ] Unit test: `TestRenderTemplateWithCategory` - verify `{{TASK_CATEGORY}}` substitution
+- [ ] Unit test: `TestRenderTemplateWithInitiativeContext` - verify all 5 initiative variables
+- [ ] Unit test: `TestRenderTemplateWithUITestingContext` - verify `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}`
+- [ ] Unit test: `TestRenderTemplateWithCoverageThreshold` - verify `{{COVERAGE_THRESHOLD}}`
+- [ ] Unit test: `TestRenderTemplateWithVerificationResults` - verify `{{VERIFICATION_RESULTS}}`
+- [ ] Regression test: Existing `TestRenderTemplate*` tests continue to pass
 
 ## Scope
 
 ### In Scope
-- Fix `white-space: pre-wrap` conflict with `line-clamp` in TaskCard.css
-- Increase line-clamp from 2 to 3 lines for better context
-- Add Tooltip component around description to show full text on hover
-- Normalize description text (strip markdown formatting) for card display
+
+- Add missing fields to `PhaseState` struct to match `TemplateVars`
+- Sync `Executor.renderTemplate()` variable map with `RenderTemplate()`
+- Update `PhaseState` initialization in `phase.go` to populate new fields
+- Add unit tests for new template variables
+- Include helper function for `{{INITIATIVE_CONTEXT}}` (the formatted section)
 
 ### Out of Scope
-- Changing task list page (it doesn't show descriptions)
-- Adding "expand" click functionality (tooltip on hover is sufficient)
-- Rendering markdown as rich text on cards (too complex for card preview)
-- Adding description preview to other components
+
+- Refactoring to use a single shared implementation (future improvement)
+- Automation context variables (`{{RECENT_COMPLETED_TASKS}}`, `{{RECENT_CHANGED_FILES}}`, `{{CHANGELOG_CONTENT}}`, `{{CLAUDEMD_CONTENT}}`) - only used by automation tasks which use different executor path
+- Changes to `template.go` or how standard executors work
+- Changes to prompt templates themselves
 
 ## Technical Approach
 
+### Strategy: Sync the Two Implementations
+
+Rather than refactoring to a single implementation (higher risk, larger change), sync the missing variables to `renderTemplate()`. This is the minimal fix for the immediate problem.
+
+### Missing Variables Analysis
+
+| Variable | In template.go | In flowgraph_nodes.go | Action |
+|----------|---------------|----------------------|--------|
+| `{{TASK_CATEGORY}}` | Yes | **No** | Add |
+| `{{INITIATIVE_ID}}` | Yes | **No** | Add |
+| `{{INITIATIVE_TITLE}}` | Yes | **No** | Add |
+| `{{INITIATIVE_VISION}}` | Yes | **No** | Add |
+| `{{INITIATIVE_DECISIONS}}` | Yes | **No** | Add |
+| `{{INITIATIVE_CONTEXT}}` | Yes | **No** | Add (uses helper) |
+| `{{COVERAGE_THRESHOLD}}` | Yes | **No** | Add |
+| `{{REQUIRES_UI_TESTING}}` | Yes | **No** | Add |
+| `{{SCREENSHOT_DIR}}` | Yes | **No** | Add |
+| `{{TEST_RESULTS}}` | Yes | **No** | Add |
+| `{{VERIFICATION_RESULTS}}` | Yes | **No** | Add |
+
 ### Files to Modify
-- `web/src/components/board/TaskCard.tsx`: Wrap description in Tooltip, add text normalization utility
-- `web/src/components/board/TaskCard.css`: Fix white-space conflict, update line-clamp to 3
 
-### Implementation Details
+1. **`internal/executor/executor.go`** (lines 28-66):
+   - Add new fields to `PhaseState` struct:
+     - `TaskCategory string`
+     - `InitiativeID string`
+     - `InitiativeTitle string`
+     - `InitiativeVision string`
+     - `InitiativeDecisions string`
+     - `CoverageThreshold int`
+     - `RequiresUITesting bool`
+     - `ScreenshotDir string`
+     - `TestResults string`
+     - `VerificationResults string`
 
-1. **CSS Fix** (TaskCard.css):
-   - Change `white-space: pre-wrap` to `white-space: normal` to allow proper line-clamp
-   - Update `-webkit-line-clamp` from 2 to 3 lines
-   - Add `word-break: break-word` to handle long words
+2. **`internal/executor/flowgraph_nodes.go`** (lines 46-79):
+   - Add all missing variables to the `replacements` map in `renderTemplate()`
+   - Add local helper function or import for `{{INITIATIVE_CONTEXT}}` formatting (reuse logic from `formatInitiativeContextSection`)
 
-2. **Tooltip Integration** (TaskCard.tsx):
-   - Import and use existing Tooltip component (already in project)
-   - Wrap `.task-description` paragraph in Tooltip
-   - Pass full description as tooltip content
+3. **`internal/executor/phase.go`** (lines 112-127):
+   - Update `PhaseState` initialization to populate new fields from `templateVars`:
+     - `TaskCategory: string(t.Category)`
+     - `InitiativeID: templateVars.InitiativeID`
+     - etc.
+   - Load initiative context if task has `InitiativeID`
+   - Load UI testing context if task has `RequiresUITesting`
 
-3. **Text Normalization**:
-   - Create simple utility to strip markdown formatting:
-     - Replace multiple newlines with single space
-     - Strip heading markers (#, ##, etc.)
-     - Strip list markers (-, *, 1.)
-     - Strip bold/italic markers (**, __, *, _)
-   - Apply before displaying in card (not in tooltip)
+4. **`internal/executor/executor_test.go`**:
+   - Add new test functions for category, initiative context, UI testing, coverage threshold, and verification results
 
-## Feature Analysis
+## Bug Analysis
 
-### User Story
-As a user viewing the task board, I want task descriptions to be truncated to a consistent height so that the board layout is usable and I can quickly scan tasks without scrolling through long descriptions.
+### Reproduction Steps
+1. Create a task with category `bug`: `orc new "Fix template issue" -c bug`
+2. Add the task to an initiative: `orc edit TASK-XXX --initiative INIT-001`
+3. Run the task: `orc run TASK-XXX`
+4. Examine transcript in `.orc/tasks/TASK-XXX/transcripts/`
+5. Observe literal `{{TASK_CATEGORY}}` and `{{INITIATIVE_CONTEXT}}` in prompts
 
-### Acceptance Criteria
-- [ ] Cards with long descriptions (e.g., TASK-220, TASK-218 mentioned in bug report) show max 3 lines
-- [ ] Hovering over a truncated description reveals the full text
-- [ ] Board columns display cards in a consistent, scannable layout
-- [ ] Markdown in descriptions (headers, lists, bold) doesn't break the truncation
+### Current Behavior
+
+Prompts contain unsubstituted placeholders:
+```
+**Category**: {{TASK_CATEGORY}}
+
+{{INITIATIVE_CONTEXT}}
+```
+
+### Expected Behavior
+
+Prompts contain substituted values:
+```
+**Category**: bug
+
+## Initiative Context
+
+This task is part of **React Migration** (INIT-001).
+
+### Vision
+Migrate frontend from Svelte to React 19...
+```
+
+### Root Cause
+
+Two parallel implementations:
+- `template.go:RenderTemplate()` - complete, used by session-based executors
+- `flowgraph_nodes.go:renderTemplate()` - incomplete, used by flowgraph executor
+
+The flowgraph executor was created earlier and never updated when new variables were added to the template system.
+
+### Verification
+
+After fix:
+1. Run a task with category set
+2. Run a task belonging to an initiative
+3. Verify transcripts show substituted values, not literal placeholders

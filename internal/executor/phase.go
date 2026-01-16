@@ -103,16 +103,50 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 	// Build template vars to get prior phase content
 	templateVars := BuildTemplateVars(t, p, s, 0, "")
 
+	// Load and apply initiative context if task belongs to an initiative
+	if initCtx := LoadInitiativeContext(t, e.backend); initCtx != nil {
+		templateVars = templateVars.WithInitiativeContext(*initCtx)
+		e.logger.Info("initiative context injected (flowgraph)",
+			"task", t.ID,
+			"initiative", initCtx.ID,
+		)
+	}
+
+	// Apply UI testing context if task requires it
+	if t.RequiresUITesting {
+		projectDir := e.config.WorkDir
+		if e.worktreePath != "" {
+			projectDir = e.worktreePath
+		}
+		screenshotDir := task.ScreenshotsPath(projectDir, t.ID)
+		templateVars = templateVars.WithUITestingContext(UITestingContext{
+			RequiresUITesting: true,
+			ScreenshotDir:     screenshotDir,
+			TestResults:       loadPriorContent(task.TaskDir(t.ID), s, "test"),
+		})
+		e.logger.Info("UI testing context injected (flowgraph)",
+			"task", t.ID,
+			"screenshot_dir", screenshotDir,
+		)
+	}
+
 	// Build worktree context
 	worktreePath := e.worktreePath
 	taskBranch := t.Branch
 	targetBranch := ResolveTargetBranchForTask(t, e.backend, e.orcConfig)
+
+	// Format requires UI testing as a string (empty string for false, "true" for true)
+	requiresUITesting := ""
+	if templateVars.RequiresUITesting {
+		requiresUITesting = "true"
+	}
 
 	// Initial state with retry context if applicable
 	initialState := PhaseState{
 		TaskID:           t.ID,
 		TaskTitle:        t.Title,
 		TaskDescription:  t.Description,
+		TaskCategory:     string(t.Category),
 		Phase:            p.ID,
 		Weight:           string(t.Weight),
 		Iteration:        0,
@@ -124,6 +158,17 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 		WorktreePath:     worktreePath,
 		TaskBranch:       taskBranch,
 		TargetBranch:     targetBranch,
+
+		// Initiative context (formatted section for {{INITIATIVE_CONTEXT}})
+		InitiativeContext: formatInitiativeContextSection(templateVars),
+
+		// UI Testing context
+		RequiresUITesting: requiresUITesting,
+		ScreenshotDir:     templateVars.ScreenshotDir,
+		TestResults:       templateVars.TestResults,
+
+		// Testing configuration
+		CoverageThreshold: templateVars.CoverageThreshold,
 	}
 
 	// Run with checkpointing if enabled
