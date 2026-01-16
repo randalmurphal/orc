@@ -328,6 +328,13 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 				e.logger.Info("saved phase artifact", "path", artifactPath)
 			}
 
+			// Save spec content to database for spec phase
+			if saved, err := SaveSpecToDatabase(e.backend, t.ID, p.ID, result.Output); err != nil {
+				e.logger.Warn("failed to save spec to database", "error", err)
+			} else if saved {
+				e.logger.Info("saved spec to database", "task", t.ID)
+			}
+
 			// Create git checkpoint on completion
 			if e.gitSvc != nil {
 				checkpoint, err := e.gitSvc.CreateCheckpoint(t.ID, p.ID, "completed")

@@ -157,6 +157,16 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		phase.Status = plan.PhaseCompleted
 		phase.CommitSHA = result.CommitSHA
 
+		// Save spec content to database for spec phase (belt-and-suspenders: executors also save,
+		// but this ensures all execution paths are covered)
+		if result.Output != "" {
+			if saved, err := SaveSpecToDatabase(e.backend, t.ID, phase.ID, result.Output); err != nil {
+				e.logger.Warn("failed to save spec to database", "error", err)
+			} else if saved {
+				e.logger.Info("saved spec to database", "task", t.ID)
+			}
+		}
+
 		// Clear retry context on successful completion
 		if s.HasRetryContext() {
 			s.ClearRetryContext()

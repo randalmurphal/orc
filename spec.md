@@ -1,79 +1,114 @@
-# Specification: Limit Playwright/Vitest workers to prevent OOM when running parallel tasks
+# Specification: Bug: Spec phase completes but spec content not saved to database
 
 ## Problem Statement
 
-When orc runs multiple tasks in parallel, each task may spawn Playwright MCP servers and run Vitest/Playwright tests with their own worker pools. Without explicit limits, the number of workers scales multiplicatively (N tasks × M workers each), leading to out-of-memory (OOM) conditions on machines with limited RAM.
+When spec phase completes successfully, the spec content is only saved to a file (`{taskDir}/artifacts/spec.md`) but never persisted to the database `specs` table. This causes downstream code that expects spec content in the database to fail, resulting in implement phase receiving template placeholders instead of actual requirements.
+
+## Root Cause
+
+In `internal/executor/standard.go:296-302` and `internal/executor/full.go:323-329`, after spec phase completion:
+1. `SavePhaseArtifact()` is called → writes to `{taskDir}/artifacts/spec.md` file
+2. `backend.SaveSpec()` is **never called** → database `specs` table remains empty
+
+Meanwhile, `internal/executor/task_execution.go:537` calls `backend.LoadSpec()` expecting spec content to be in the database, which returns empty string.
 
 ## Success Criteria
 
-- [ ] Playwright config sets explicit `workers` limit in local (non-CI) mode instead of `undefined`
-- [ ] Vitest config includes `pool` and `poolOptions.threads.maxThreads` worker limit
-- [ ] Default worker count is sensible for parallel task execution (2 workers per test runner)
-- [ ] Worker limits can be overridden via environment variables for CI or user customization
-- [ ] Existing E2E tests continue to pass with new worker limits
-- [ ] Existing Vitest unit tests continue to pass with new worker limits
+- [ ] Spec content is saved to database (`specs` table) when spec phase completes successfully
+- [ ] All three executor types (standard, full, trivial) save spec to database on completion
+- [ ] `backend.LoadSpec(taskID)` returns the spec content after spec phase completes
+- [ ] Implement phase receives actual spec content instead of template placeholders
+- [ ] Existing artifact file saving is preserved (dual-write: file + database)
+- [ ] Unit tests verify spec database persistence after phase completion
 
 ## Testing Requirements
 
-- [ ] Integration test: Verify `npm run test` works with new Vitest limits
-- [ ] Integration test: Verify `npm run e2e` works with new Playwright limits
-- [ ] E2E test: Existing E2E suite passes (`make e2e`)
-- [ ] Manual verification: Run `make web-test` to confirm unit tests pass
+- [ ] Unit test: StandardExecutor saves spec to database on spec phase completion
+- [ ] Unit test: FullExecutor saves spec to database on spec phase completion
+- [ ] Unit test: TrivialExecutor saves spec to database on spec phase completion
+- [ ] Unit test: Non-spec phases do not call SaveSpec
+- [ ] Integration test: Full task execution with spec phase saves spec to database
+- [ ] Integration test: Implement phase can load spec from database after spec phase
 
 ## Scope
 
 ### In Scope
-- Modify `web/playwright.config.ts` to set explicit worker limit
-- Modify `web/vitest.config.ts` to set worker pool configuration
-- Add environment variable support for worker count customization
-- Document the changes in comments
+- Adding `backend.SaveSpec()` call after spec phase completion in all executors
+- Extracting artifact content from phase output for database storage
+- Adding backend parameter to executors that don't have it
+- Unit tests for new behavior
 
 ### Out of Scope
-- Changes to orc's WorkerPool (orchestrator-level parallelism) - that's a different layer
-- Memory profiling or monitoring infrastructure
-- Dynamic worker scaling based on available memory
-- Changes to web-svelte-archive configs (archived, not maintained)
+- Changing artifact detection logic (file-based detection continues to work)
+- Migrating existing file-based specs to database
+- Changing spec validation logic
+- Adding API endpoints for spec management
 
 ## Technical Approach
 
-The fix involves setting sensible default worker limits that work well when multiple orc tasks run in parallel, while still allowing single-task runs to utilize more resources via environment variables.
-
 ### Files to Modify
 
-1. **`web/playwright.config.ts`**:
-   - Change `workers: process.env.CI ? 1 : undefined` to `workers: process.env.CI ? 1 : parseInt(process.env.PLAYWRIGHT_WORKERS || '2', 10)`
-   - Add comment explaining rationale for the limit
+1. **`internal/executor/standard.go`**:
+   - Already has `backend storage.Backend` via `WithStandardBackend`
+   - After `SavePhaseArtifact()` for spec phase, call `backend.SaveSpec()`
+   - Extract artifact content using `ExtractArtifactContent()` function
 
-2. **`web/vitest.config.ts`**:
-   - Add `pool: 'threads'` to explicitly use thread pool
-   - Add `poolOptions.threads.maxThreads` configuration (default 2)
-   - Support `VITEST_MAX_THREADS` environment variable override
+2. **`internal/executor/full.go`**:
+   - Already has `backend storage.Backend` via `WithFullBackend`
+   - After `SavePhaseArtifact()` for spec phase, call `backend.SaveSpec()`
 
-## Bug Fix Analysis
+3. **`internal/executor/trivial.go`**:
+   - Add `backend storage.Backend` field and option function
+   - After `SavePhaseArtifact()` for spec phase, call `backend.SaveSpec()`
+
+4. **`internal/executor/worker.go`** (or wherever executors are instantiated):
+   - Ensure backend is passed to all executor constructors
+
+5. **`internal/executor/artifact.go`** or new helper:
+   - Add helper function to save spec to database: `SaveSpecToDatabase(backend, taskID, output)`
+
+### Implementation Pattern
+
+```go
+// After SavePhaseArtifact in all executors, for spec phase:
+if result.Status == plan.PhaseCompleted && p.ID == "spec" {
+    if e.backend != nil {
+        specContent := ExtractArtifactContent(result.Output)
+        if specContent != "" {
+            if err := e.backend.SaveSpec(t.ID, specContent, "executor"); err != nil {
+                e.logger.Warn("failed to save spec to database", "error", err)
+                // Don't fail phase - file artifact was saved successfully
+            }
+        }
+    }
+}
+```
+
+## Bug Analysis
 
 ### Reproduction Steps
-1. Start orc orchestrator with multiple parallel tasks that involve UI testing
-2. Each task runs UI tests via Playwright MCP
-3. Playwright spawns `undefined` (unlimited) workers locally
-4. Vitest spawns default thread count (typically based on CPU cores)
-5. With N parallel tasks, total workers = N × (Playwright workers + Vitest workers)
-6. System runs out of memory
+1. Create a task with weight `large` (requires spec phase)
+2. Run `orc run TASK-XXX` - spec phase completes with commit SHA
+3. Query database: `SELECT * FROM specs WHERE task_id = 'TASK-XXX'` → empty
+4. Run implement phase - receives template placeholders like `[1-2 sentences]`
 
 ### Current Behavior
-- Playwright: `workers: process.env.CI ? 1 : undefined` - unlimited in local development
-- Vitest: No explicit limit - defaults to CPU-based calculation (often 8+ threads)
-- Result: OOM when running 3+ parallel tasks with UI testing on 64GB RAM system
+- Spec phase runs and generates valid specification
+- `SavePhaseArtifact()` writes spec to `{taskDir}/artifacts/spec.md`
+- Git commit created with spec changes
+- Phase marked as completed in `phases` table
+- **BUT** `specs` table remains empty for task
 
 ### Expected Behavior
-- Playwright: 2 workers by default locally (configurable via `PLAYWRIGHT_WORKERS` env var)
-- Vitest: 2 max threads (configurable via `VITEST_MAX_THREADS` env var)
-- Result: Bounded memory usage even with parallel orc tasks
-
-### Root Cause
-Configuration files assume single-user development context, not orc's parallel task execution model where multiple test runners compete for resources.
+- All of the above, PLUS:
+- `specs` table contains spec content with source='executor'
+- `backend.LoadSpec(taskID)` returns the spec content
+- Implement phase template receives actual spec via `{{SPEC_CONTENT}}`
 
 ### Verification
-1. Run `make e2e` - tests should pass
-2. Run `make web-test` - tests should pass
-3. Test env var override: `PLAYWRIGHT_WORKERS=4 npm run e2e` should use 4 workers
-4. Test env var override: `VITEST_MAX_THREADS=4 npm run test` should use 4 threads
+```sql
+-- After fix, this query should return spec content:
+SELECT task_id, substr(content, 1, 100) as preview
+FROM specs
+WHERE task_id = 'TASK-XXX';
+```

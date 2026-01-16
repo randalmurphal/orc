@@ -4,6 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 func TestSavePhaseArtifact(t *testing.T) {
@@ -232,6 +235,172 @@ func TestLoadFromTranscript(t *testing.T) {
 				t.Errorf("loadFromTranscript() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+// newArtifactTestBackend creates a test backend for artifact tests.
+func newArtifactTestBackend(t *testing.T) *storage.DatabaseBackend {
+	t.Helper()
+	tmpDir := t.TempDir()
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	t.Cleanup(func() {
+		backend.Close()
+	})
+	return backend
+}
+
+// createTestTask creates a task in the backend for testing spec operations.
+func createTestTask(t *testing.T, backend *storage.DatabaseBackend, taskID string) {
+	t.Helper()
+	testTask := &task.Task{
+		ID:     taskID,
+		Title:  "Test task",
+		Status: task.StatusCreated,
+		Weight: task.WeightSmall,
+	}
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("create test task: %v", err)
+	}
+}
+
+func TestSaveSpecToDatabase(t *testing.T) {
+	tests := []struct {
+		name        string
+		phaseID     string
+		output      string
+		wantSaved   bool
+		wantContent string
+	}{
+		{
+			name:    "saves spec content from artifact tags",
+			phaseID: "spec",
+			output: `Some preamble
+
+<artifact>
+# Specification
+
+## Intent
+Build a feature.
+
+## Success Criteria
+- Works correctly
+</artifact>
+
+<phase_complete>true</phase_complete>`,
+			wantSaved: true,
+			wantContent: `# Specification
+
+## Intent
+Build a feature.
+
+## Success Criteria
+- Works correctly`,
+		},
+		{
+			name:        "saves raw output when no artifact tags",
+			phaseID:     "spec",
+			output:      "Raw spec content without artifact tags",
+			wantSaved:   true,
+			wantContent: "Raw spec content without artifact tags",
+		},
+		{
+			name:      "skips non-spec phase",
+			phaseID:   "implement",
+			output:    "<artifact>Some content</artifact>",
+			wantSaved: false,
+		},
+		{
+			name:      "skips empty output",
+			phaseID:   "spec",
+			output:    "",
+			wantSaved: false,
+		},
+		{
+			name:      "skips research phase",
+			phaseID:   "research",
+			output:    "<artifact>Research results</artifact>",
+			wantSaved: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backend := newArtifactTestBackend(t)
+			taskID := "TASK-SPEC-001"
+
+			// Create task first (required for foreign key constraint)
+			createTestTask(t, backend, taskID)
+
+			saved, err := SaveSpecToDatabase(backend, taskID, tt.phaseID, tt.output)
+			if err != nil {
+				t.Fatalf("SaveSpecToDatabase() error = %v", err)
+			}
+
+			if saved != tt.wantSaved {
+				t.Errorf("SaveSpecToDatabase() saved = %v, want %v", saved, tt.wantSaved)
+			}
+
+			if tt.wantSaved {
+				// Verify content was saved to database
+				specContent, err := backend.LoadSpec(taskID)
+				if err != nil {
+					t.Fatalf("LoadSpec() error = %v", err)
+				}
+				if specContent == "" {
+					t.Fatal("LoadSpec() returned empty, expected spec")
+				}
+				if specContent != tt.wantContent {
+					t.Errorf("spec content = %q, want %q", specContent, tt.wantContent)
+				}
+			}
+		})
+	}
+}
+
+func TestSaveSpecToDatabase_NilBackend(t *testing.T) {
+	saved, err := SaveSpecToDatabase(nil, "TASK-001", "spec", "Some content")
+	if err != nil {
+		t.Fatalf("SaveSpecToDatabase() with nil backend should not error, got %v", err)
+	}
+	if saved {
+		t.Error("SaveSpecToDatabase() with nil backend should return false")
+	}
+}
+
+func TestSaveSpecToDatabase_ArtifactTagsPrecedence(t *testing.T) {
+	backend := newArtifactTestBackend(t)
+	taskID := "TASK-SPEC-002"
+
+	// Create task first (required for foreign key constraint)
+	createTestTask(t, backend, taskID)
+
+	// Output with both artifact tags and other content
+	output := `Some preamble that should be ignored.
+
+<artifact>
+The real spec content
+</artifact>
+
+And some trailing text.`
+
+	saved, err := SaveSpecToDatabase(backend, taskID, "spec", output)
+	if err != nil {
+		t.Fatalf("SaveSpecToDatabase() error = %v", err)
+	}
+	if !saved {
+		t.Error("SaveSpecToDatabase() should have saved spec")
+	}
+
+	// Verify only artifact content was saved
+	specContent, err := backend.LoadSpec(taskID)
+	if err != nil {
+		t.Fatalf("LoadSpec() error = %v", err)
+	}
+	if specContent != "The real spec content" {
+		t.Errorf("spec content = %q, want 'The real spec content'", specContent)
 	}
 }
 
