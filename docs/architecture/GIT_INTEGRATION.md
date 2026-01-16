@@ -108,6 +108,49 @@ This means users can safely delete worktree directories manually without breakin
 func (g *Git) PruneWorktrees() error
 ```
 
+### Worktree State Cleanup on Resume
+
+When a task fails during execution, the worktree may be left in a problematic git state:
+- Rebase in progress (interrupted sync operation)
+- Merge in progress (interrupted conflict detection)
+- Uncommitted changes or conflict markers
+
+If the user then tries to resume the task, these states would block execution with errors like "rebase already in progress" or "you have unstaged changes".
+
+**Orc handles this automatically** via `cleanWorktreeState()`:
+
+1. **Check for rebase**: If `.git/rebase-merge/` or `.git/rebase-apply/` exists, abort it
+2. **Check for merge**: If `.git/MERGE_HEAD` exists, abort it
+3. **Check for dirty state**: If working directory is not clean, discard all changes
+
+```go
+// SetupWorktree automatically cleans up when reusing an existing worktree
+func SetupWorktree(taskID string, cfg *config.Config, gitOps *git.Git) (*WorktreeSetup, error) {
+    worktreePath := gitOps.WorktreePath(taskID)
+    if _, err := os.Stat(worktreePath); err == nil {
+        // Worktree exists - clean up any problematic state
+        if err := cleanWorktreeState(worktreePath, gitOps); err != nil {
+            return nil, err
+        }
+        return &WorktreeSetup{Path: worktreePath, Reused: true}, nil
+    }
+    // ... create new worktree
+}
+```
+
+**Available git methods for state detection**:
+
+| Method | Purpose |
+|--------|---------|
+| `IsRebaseInProgress()` | Check for rebase-merge or rebase-apply directories |
+| `IsMergeInProgress()` | Check for MERGE_HEAD file |
+| `IsClean()` | Check for uncommitted changes |
+| `AbortRebase()` | Run `git rebase --abort` |
+| `AbortMerge()` | Run `git merge --abort` |
+| `DiscardChanges()` | Reset staged, checkout tracked, clean untracked |
+
+This ensures users can safely resume failed tasks without manual worktree cleanup.
+
 ---
 
 ## Thread Safety
