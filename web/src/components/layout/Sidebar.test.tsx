@@ -173,6 +173,41 @@ describe('Sidebar', () => {
 
 			expect(useInitiativeStore.getState().currentInitiativeId).toBeNull();
 		});
+
+		it('should display long initiative names with proper styling', () => {
+			const longTitle = 'This is a very long initiative name that would be severely truncated in the old layout';
+			act(() => {
+				useInitiativeStore.setState({
+					initiatives: new Map([
+						['INIT-LONG', { version: 1, id: 'INIT-LONG', title: longTitle, status: 'active', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }],
+					]),
+				});
+			});
+			renderWithRouter(<Sidebar />);
+
+			// The initiative should be visible
+			const initiativeElement = screen.getByText(longTitle);
+			expect(initiativeElement).toBeInTheDocument();
+
+			// Check that it has the initiative-title class for multi-line support
+			expect(initiativeElement).toHaveClass('initiative-title');
+		});
+
+		it('should show tooltip with full title for initiatives', () => {
+			const longTitle = 'Long Initiative Name For Testing Tooltip Attribute';
+			act(() => {
+				useInitiativeStore.setState({
+					initiatives: new Map([
+						['INIT-TIP', { version: 1, id: 'INIT-TIP', title: longTitle, status: 'active', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }],
+					]),
+				});
+			});
+			renderWithRouter(<Sidebar />);
+
+			// Find the initiative link element
+			const initiativeLink = screen.getByText(longTitle).closest('a');
+			expect(initiativeLink).toHaveAttribute('title', longTitle);
+		});
 	});
 
 	describe('collapsible sections', () => {

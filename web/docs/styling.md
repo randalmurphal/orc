@@ -53,7 +53,7 @@ Font faces: Inter (400/500/600/700) and JetBrains Mono (400/500/600) via @fontso
 |-------|-------|-------|
 | `--space-0` to `--space-32` | 0 to 8rem | Spacing scale (21 values) |
 | `--radius-sm` to `--radius-full` | 4px to 9999px | Border radius scale |
-| `--sidebar-width-collapsed/expanded` | 60px/220px | Sidebar dimensions |
+| `--sidebar-width-collapsed/expanded` | 60px/260px | Sidebar dimensions |
 | `--header-height` | 56px | Header height |
 
 ## Effects & Animation
