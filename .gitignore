@@ -13,13 +13,10 @@ bin/
 node_modules/
 package-lock.json
 
-# Web build artifacts (Svelte)
+# Web build artifacts
 web/.svelte-kit/
 web/build/
-
-# Web build artifacts (React)
-web-react/build/
-web-react/tsconfig.tsbuildinfo
+web/tsconfig.tsbuildinfo
 
 # Test artifacts
 coverage.out
