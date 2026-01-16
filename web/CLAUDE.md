@@ -564,6 +564,89 @@ import { Button } from '@/components/ui';
 - Icon-only buttons require `aria-label` prop
 - Respects `prefers-reduced-motion` (disables scale/animations)
 
+### Tooltip
+
+Accessible tooltip component built on Radix Tooltip primitives. Replaces native HTML `title` attributes with consistent styling and animations.
+
+```tsx
+import { Tooltip } from '@/components/ui';
+
+// Basic usage
+<Tooltip content="Helpful information">
+  <button>Hover me</button>
+</Tooltip>
+
+// With keyboard shortcut
+<Tooltip content={<>Press <kbd>Enter</kbd> to submit</>}>
+  <button>Submit</button>
+</Tooltip>
+
+// Custom placement
+<Tooltip content="Edit task" side="right" align="start">
+  <button><Icon name="edit" /></button>
+</Tooltip>
+
+// Controlled mode
+<Tooltip content="Info" open={isOpen} onOpenChange={setIsOpen}>
+  <button>Controlled</button>
+</Tooltip>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `content` | `ReactNode` | required | Tooltip content (text, JSX, or null to disable) |
+| `children` | `ReactNode` | required | Trigger element (must accept ref) |
+| `side` | `'top' \| 'right' \| 'bottom' \| 'left'` | `'top'` | Preferred placement |
+| `align` | `'start' \| 'center' \| 'end'` | `'center'` | Alignment along the side |
+| `sideOffset` | `number` | `6` | Distance from trigger in pixels |
+| `delayDuration` | `number` | Provider default (300ms) | Delay before showing |
+| `disabled` | `boolean` | `false` | Disable tooltip (renders children only) |
+| `showArrow` | `boolean` | `true` | Show pointing arrow |
+| `open` | `boolean` | - | Controlled open state |
+| `onOpenChange` | `(open: boolean) => void` | - | Controlled state callback |
+| `className` | `string` | `''` | Additional CSS classes on content |
+
+**TooltipProvider:**
+
+Wrap your app with `TooltipProvider` at the root level (already configured in `App.tsx`):
+
+```tsx
+import { TooltipProvider } from '@/components/ui';
+
+<TooltipProvider delayDuration={300}>
+  <App />
+</TooltipProvider>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `delayDuration` | `number` | `700` | Default delay for all tooltips |
+| `skipDelayDuration` | `number` | `300` | Delay when moving between tooltips |
+| `disableHoverableContent` | `boolean` | `false` | Disable hovering over tooltip content |
+
+**Features (via Radix Tooltip):**
+- Keyboard accessible (focus shows tooltip)
+- Touch device support (long-press)
+- Collision detection (auto-repositions to stay in viewport)
+- Portal rendering to `document.body` (avoids z-index issues)
+- Proper ARIA attributes (`role="tooltip"`)
+- Focus restoration when closed
+- Supports JSX content (including `<kbd>`, `<code>`)
+
+**Animations:**
+- Slide-in animation from the side opposite to placement
+- Respects `prefers-reduced-motion` (opacity only)
+- Uses `data-state="delayed-open"` and `data-side` for CSS targeting
+
+**CSS classes:**
+- `.tooltip-content` - Main tooltip container
+- `.tooltip-arrow` - Pointing arrow element
+
+**When to use Tooltip vs `title` attribute:**
+- Use Tooltip for interactive elements, keyboard shortcuts, important context
+- Native `title` has poor accessibility, inconsistent timing, no styling control
+- Tooltip provides consistent 300ms delay, animations, and keyboard support
+
 ## Layout Components
 
 Main layout components that wrap all pages.
