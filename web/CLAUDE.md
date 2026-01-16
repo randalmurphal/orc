@@ -171,6 +171,7 @@ web/src/
 │   │   └── DependencyDropdown.tsx # Dependency status filter
 │   ├── overlays/         # Modal overlays
 │   │   ├── Modal.tsx     # Base modal component
+│   │   ├── CommandPalette.tsx # Quick navigation command palette
 │   │   ├── KeyboardShortcutsHelp.tsx # Shortcuts help modal
 │   │   ├── ProjectSwitcher.tsx # Project selection modal
 │   │   └── NewTaskModal.tsx # Task creation modal
@@ -796,6 +797,56 @@ import { ProjectSwitcher } from '@/components/overlays';
 - Portal-rendered to document.body
 
 **Keyboard shortcuts:** ⇧⌥P opens project switcher (handled by AppLayout)
+
+### CommandPalette
+
+Quick navigation overlay for searching and executing commands. Opens via Header button or `Shift+Alt+K` keyboard shortcut.
+
+```tsx
+import { CommandPalette } from '@/components/overlays';
+
+<CommandPalette
+  open={showCommandPalette}
+  onClose={() => setShowCommandPalette(false)}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `open` | `boolean` | Whether palette is visible |
+| `onClose` | `() => void` | Close handler |
+
+**Features:**
+- Search/filter commands by label, description, or category
+- Keyboard navigation (↑/↓ arrows, Enter to select, Esc to close)
+- Commands grouped by category (Tasks, Navigation, Environment, Projects, View, Settings)
+- Search match highlighting
+- Keyboard shortcut hints for commands that have them
+- Portal-rendered to document.body
+
+**Command categories:**
+
+| Category | Commands |
+|----------|----------|
+| Tasks | New Task (⇧⌥N) |
+| Navigation | Go to Tasks, Board, Dashboard |
+| Environment | Environment, Skills, Hooks, Agents, Tools, MCP Servers, Prompts, Automation |
+| Projects | Switch Project (⇧⌥P) |
+| View | Toggle Sidebar (⇧⌥B) |
+| Settings | Go to Preferences |
+
+**Keyboard shortcuts:** ⇧⌥K opens command palette (handled by AppLayout)
+
+**Footer navigation hints:** Uses actual Unicode characters (↑ ↓ ↵) instead of escape sequences for proper display
+
+**CSS classes:**
+- `.palette-backdrop` - Full-screen backdrop
+- `.palette-content` - Main container
+- `.palette-search` - Search input wrapper
+- `.palette-results` - Scrollable results area
+- `.result-group` / `.group-label` - Category grouping
+- `.result-item` / `.result-item.selected` - Individual command
+- `.palette-footer` - Keyboard hints footer
 
 ### NewTaskModal
 
