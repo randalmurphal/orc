@@ -954,7 +954,7 @@ Reusable filter dropdowns for task filtering.
 
 ### DependencyDropdown
 
-Dropdown to filter tasks by dependency status.
+Dropdown to filter tasks by dependency status. Uses Radix Select for accessibility.
 
 ```tsx
 import { DependencyDropdown } from '@/components/filters';
@@ -972,11 +972,13 @@ import { DependencyDropdown } from '@/components/filters';
 - **Blocked**: Tasks with `dependency_status: 'blocked'`
 - **No dependencies**: Tasks with `dependency_status: 'none'`
 
-**Features:**
+**Features (via Radix Select):**
 - Task count badges for each option
 - Active filter visual indication
-- Click outside to close
-- Escape key closes dropdown
+- Arrow key navigation
+- Typeahead to jump to matching option
+- Home/End navigation
+- Escape closes dropdown
 - Syncs with `dependencyStore`
 
 **CSS classes:**
@@ -1853,7 +1855,7 @@ Uses `@radix-ui/react-dropdown-menu` for accessible menu with keyboard navigatio
 
 ### ViewModeDropdown
 
-Dropdown to toggle between flat and swimlane views.
+Dropdown to toggle between flat and swimlane views. Uses Radix Select for accessibility.
 
 ```tsx
 import { ViewModeDropdown } from '@/components/board';
@@ -1872,15 +1874,21 @@ import { ViewModeDropdown } from '@/components/board';
 | `disabled` | `boolean` | Disable dropdown |
 
 **Implementation:**
-Uses `Button` primitive for trigger (`variant="ghost" size="sm"` with `leftIcon` and `rightIcon`) and menu items.
+Uses `@radix-ui/react-select` with custom trigger styling. Trigger displays layout icon, current label, and chevron.
 
 **Options:**
 - **Flat**: All tasks in columns
 - **By Initiative**: Grouped by initiative (swimlane)
 
+**Features (via Radix Select):**
+- Arrow key navigation
+- Typeahead support
+- Home/End navigation
+- Escape closes dropdown
+
 ### InitiativeDropdown
 
-Dropdown to filter tasks by initiative.
+Dropdown to filter tasks by initiative. Uses Radix Select for accessibility.
 
 ```tsx
 import { InitiativeDropdown } from '@/components/board';
@@ -1903,11 +1911,18 @@ import { InitiativeDropdown } from '@/components/board';
 - **Unassigned**: Tasks without initiative (UNASSIGNED_INITIATIVE constant)
 - **Initiative list**: Sorted (active first, then alphabetical) with task counts
 
-**Features:**
+**Implementation notes:**
+- Uses internal `ALL_INITIATIVES_VALUE` constant since Radix Select requires string values (null → `'__all__'`)
+- Converts back to null in `onValueChange` callback
+
+**Features (via Radix Select):**
 - Task counts per initiative
 - Title truncation with tooltip
 - Active filter visual indication
-- Click outside to close
+- Arrow key navigation
+- Typeahead to jump to matching initiative
+- Home/End navigation
+- Escape closes dropdown
 
 ## Task Detail Components
 
@@ -2261,21 +2276,34 @@ import { TaskEditModal } from '@/components/task-detail';
 
 ### ExportDropdown
 
-Export options for task data.
+Action menu for exporting task data. Uses Radix DropdownMenu for accessibility.
 
 ```tsx
 import { ExportDropdown } from '@/components/task-detail';
 
-<ExportDropdown
-  taskId={taskId}
-  onExport={handleExport}
-/>
+<ExportDropdown taskId={taskId} />
 ```
 
-**Export formats:**
-- JSON (task data)
-- Markdown (formatted report)
-- Transcript (raw transcript files)
+| Prop | Type | Description |
+|------|------|-------------|
+| `taskId` | `string` | Task ID to export |
+
+**Export options:**
+- **Task Definition**: Export task metadata
+- **Final State**: Export execution state
+- **Transcripts**: Export transcript files
+- **Context Summary**: Export context summary
+- **Export All**: Export everything
+- **Commit to Branch**: Commit exports to git branch
+
+**Implementation:**
+Uses `@radix-ui/react-dropdown-menu` (not Select) because this is an action menu that triggers operations rather than selecting a persistent value.
+
+**Features (via Radix DropdownMenu):**
+- Arrow key navigation
+- Escape closes menu
+- Loading state while exporting
+- Toast notifications for success/failure
 
 ### Diff Sub-components
 

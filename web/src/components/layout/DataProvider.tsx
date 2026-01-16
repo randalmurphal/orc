@@ -13,6 +13,7 @@ import {
 	useProjectStore,
 	useTaskStore,
 	useInitiativeStore,
+	useDependencyStore,
 } from '@/stores';
 import { listProjects, listProjectTasks, listInitiatives } from '@/lib/api';
 
@@ -44,6 +45,9 @@ export function DataProvider({ children }: DataProviderProps) {
 	const initializeInitiativeFromUrl = useInitiativeStore((state) => state.initializeFromUrl);
 	const handleInitiativePopState = useInitiativeStore((state) => state.handlePopState);
 	const initiativeReset = useInitiativeStore((state) => state.reset);
+
+	const initializeDependencyFromUrl = useDependencyStore((state) => state.initializeFromUrl);
+	const handleDependencyPopState = useDependencyStore((state) => state.handlePopState);
 
 	// Track previous project ID to detect changes
 	const prevProjectIdRef = useRef<string | null>(null);
@@ -108,6 +112,7 @@ export function DataProvider({ children }: DataProviderProps) {
 		// Initialize from URL params first
 		initializeProjectFromUrl();
 		initializeInitiativeFromUrl();
+		initializeDependencyFromUrl();
 
 		// Load all data
 		const init = async () => {
@@ -120,7 +125,7 @@ export function DataProvider({ children }: DataProviderProps) {
 			}
 		};
 		init();
-	}, [loadProjects, loadInitiatives, loadTasks, initializeProjectFromUrl, initializeInitiativeFromUrl]);
+	}, [loadProjects, loadInitiatives, loadTasks, initializeProjectFromUrl, initializeInitiativeFromUrl, initializeDependencyFromUrl]);
 
 	// Reload tasks and initiatives when project changes
 	useEffect(() => {
@@ -149,11 +154,12 @@ export function DataProvider({ children }: DataProviderProps) {
 		const handlePopState = (e: PopStateEvent) => {
 			handleProjectPopState(e);
 			handleInitiativePopState(e);
+			handleDependencyPopState(e);
 		};
 
 		window.addEventListener('popstate', handlePopState);
 		return () => window.removeEventListener('popstate', handlePopState);
-	}, [handleProjectPopState, handleInitiativePopState]);
+	}, [handleProjectPopState, handleInitiativePopState, handleDependencyPopState]);
 
 	return <>{children}</>;
 }

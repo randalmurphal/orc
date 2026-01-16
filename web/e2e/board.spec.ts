@@ -59,8 +59,10 @@ async function switchToSwimlaneView(page: Page) {
 	const trigger = viewModeDropdown.locator('.dropdown-trigger');
 	await expect(trigger).toBeVisible({ timeout: 5000 });
 
-	const dropdownMenu = viewModeDropdown.locator('.dropdown-menu[role="listbox"]');
-	const swimlaneOption = viewModeDropdown.locator('.dropdown-item:has-text("By Initiative")');
+	// Radix Select portals the content to document.body, so look globally
+	// Use role="listbox" which is the accessible role Radix adds
+	const dropdownMenu = page.locator('[role="listbox"]');
+	const swimlaneOption = page.locator('[role="option"]:has-text("By Initiative")');
 
 	// Retry loop for flaky dropdown - sometimes first click doesn't register
 	for (let attempt = 0; attempt < 3; attempt++) {
@@ -218,13 +220,14 @@ test.describe('Board Page', () => {
 			const trigger = viewModeDropdown.locator('.dropdown-trigger');
 			await expect(trigger).toBeVisible();
 
-			// Click and wait for dropdown to open (with retry for flaky dropdown)
+			// Click and wait for dropdown to open
+			// Radix Select portals content to document.body, use role="listbox"
 			await trigger.click();
-			const dropdownMenu = viewModeDropdown.locator('.dropdown-menu[role="listbox"]');
+			const dropdownMenu = page.locator('[role="listbox"]');
 			await expect(dropdownMenu).toBeVisible({ timeout: 3000 });
 
-			// Click on "By Initiative" option (inside the view mode dropdown)
-			const swimlaneOption = viewModeDropdown.locator('.dropdown-item:has-text("By Initiative")');
+			// Click on "By Initiative" option (Radix uses role="option")
+			const swimlaneOption = page.locator('[role="option"]:has-text("By Initiative")');
 			await expect(swimlaneOption).toBeVisible();
 			await swimlaneOption.click();
 

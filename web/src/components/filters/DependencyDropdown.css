@@ -1,7 +1,10 @@
+/* DependencyDropdown styles - Radix Select */
+
 .dependency-dropdown {
 	position: relative;
 }
 
+/* Radix Select Trigger */
 .dependency-dropdown .dropdown-trigger {
 	display: flex;
 	align-items: center;
@@ -21,7 +24,7 @@
 	border-color: var(--border-strong);
 }
 
-.dependency-dropdown .dropdown-trigger:focus {
+.dependency-dropdown .dropdown-trigger:focus-visible {
 	outline: none;
 	border-color: var(--accent-primary);
 	box-shadow: 0 0 0 3px var(--accent-glow);
@@ -41,23 +44,36 @@
 	text-overflow: ellipsis;
 }
 
+/* Chevron icon rotation */
+.dependency-dropdown .chevron {
+	transition: transform var(--duration-fast) var(--ease-out);
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+}
+
+.dependency-dropdown .dropdown-trigger[data-state='open'] .chevron {
+	transform: rotate(180deg);
+}
+
+/* Dropdown Menu (Content) */
 .dependency-dropdown .dropdown-menu {
-	position: absolute;
-	top: calc(100% + var(--space-1));
-	left: 0;
 	min-width: 180px;
-	max-height: 300px;
-	overflow-y: auto;
+	max-height: var(--radix-select-content-available-height);
+	overflow: hidden;
 	background: var(--bg-primary);
 	border: 1px solid var(--border-default);
 	border-radius: var(--radius-lg);
 	box-shadow: var(--shadow-lg);
 	z-index: var(--z-dropdown);
-	padding: var(--space-1);
-	animation: dropdown-enter var(--duration-fast) var(--ease-out);
+	animation: dependency-select-enter var(--duration-fast) var(--ease-out);
 }
 
-@keyframes dropdown-enter {
+.dependency-dropdown .dropdown-menu[data-state='closed'] {
+	animation: dependency-select-exit var(--duration-fast) var(--ease-in);
+}
+
+@keyframes dependency-select-enter {
 	from {
 		opacity: 0;
 		transform: translateY(-4px);
@@ -68,6 +84,23 @@
 	}
 }
 
+@keyframes dependency-select-exit {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+}
+
+/* Viewport */
+.dependency-dropdown .dropdown-viewport {
+	padding: var(--space-1);
+}
+
+/* Dropdown Item */
 .dependency-dropdown .dropdown-item {
 	display: flex;
 	align-items: center;
@@ -82,14 +115,17 @@
 	cursor: pointer;
 	transition: all var(--duration-fast) var(--ease-out);
 	text-align: left;
+	outline: none;
 }
 
-.dependency-dropdown .dropdown-item:hover {
+/* Highlighted state (keyboard focus or hover) */
+.dependency-dropdown .dropdown-item[data-highlighted] {
 	background: var(--bg-tertiary);
 	color: var(--text-primary);
 }
 
-.dependency-dropdown .dropdown-item.selected {
+/* Selected state */
+.dependency-dropdown .dropdown-item[data-state='checked'] {
 	background: var(--accent-subtle);
 	color: var(--accent-primary);
 }
@@ -112,16 +148,12 @@
 	transition: all var(--duration-fast) var(--ease-out);
 }
 
-.dependency-dropdown .indicator-dot.filled {
-	background: var(--accent-primary);
-	border-color: var(--accent-primary);
-}
-
-.dependency-dropdown .dropdown-item:hover .indicator-dot {
+.dependency-dropdown .dropdown-item[data-highlighted] .indicator-dot {
 	border-color: var(--text-secondary);
 }
 
-.dependency-dropdown .dropdown-item.selected .indicator-dot {
+.dependency-dropdown .dropdown-item[data-state='checked'] .indicator-dot {
+	background: var(--accent-primary);
 	border-color: var(--accent-primary);
 }
 
@@ -142,7 +174,15 @@
 	flex-shrink: 0;
 }
 
-.dependency-dropdown .dropdown-item.selected .item-count {
+.dependency-dropdown .dropdown-item[data-state='checked'] .item-count {
 	background: var(--accent-primary);
 	color: var(--text-inverse);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+	.dependency-dropdown .dropdown-menu,
+	.dependency-dropdown .dropdown-menu[data-state='closed'] {
+		animation: none;
+	}
 }

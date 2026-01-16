@@ -52,47 +52,58 @@ async function clearFilterStorage(page: Page) {
 }
 
 // Helper to open initiative dropdown with retry (flaky dropdown handling)
+// Works with Radix Select which portals content to document.body
 async function openInitiativeDropdown(page: Page) {
 	const dropdown = page.locator('.initiative-dropdown');
 	const trigger = dropdown.locator('.dropdown-trigger');
 	await expect(trigger).toBeVisible({ timeout: 5000 });
 
-	const menu = dropdown.locator('.dropdown-menu[role="listbox"]');
+	// Radix Select portals content to body, so find the menu globally
+	// Look for the dropdown-menu that appears when trigger has data-state="open"
+	const menu = page.locator('.initiative-dropdown .dropdown-menu, [data-radix-select-content].dropdown-menu').first();
 
 	// Retry loop for flaky dropdown - sometimes first clicks don't register
 	for (let attempt = 0; attempt < 5; attempt++) {
 		await trigger.click();
 		await page.waitForTimeout(200);
-		const isOpen = await menu.isVisible().catch(() => false);
+		// Check trigger state (Radix uses data-state="open")
+		const isOpen = await trigger.getAttribute('data-state') === 'open' || await menu.isVisible().catch(() => false);
 		if (isOpen) break;
 		// Wait a bit more before next attempt
 		await page.waitForTimeout(100);
 	}
 
-	await expect(menu).toBeVisible({ timeout: 5000 });
-	return { dropdown, trigger, menu };
+	// Wait for the menu to be visible (Radix portals to body)
+	const visibleMenu = page.locator('.dropdown-menu').first();
+	await expect(visibleMenu).toBeVisible({ timeout: 5000 });
+	return { dropdown, trigger, menu: visibleMenu };
 }
 
 // Helper to open dependency dropdown with retry
+// Works with Radix Select which portals content to document.body
 async function openDependencyDropdown(page: Page) {
 	const dropdown = page.locator('.dependency-dropdown');
 	const trigger = dropdown.locator('.dropdown-trigger');
 	await expect(trigger).toBeVisible({ timeout: 5000 });
 
-	const menu = dropdown.locator('.dropdown-menu[role="listbox"]');
+	// Radix Select portals content to body, so find the menu globally
+	const menu = page.locator('.dependency-dropdown .dropdown-menu, [data-radix-select-content].dropdown-menu').first();
 
 	// Retry loop for flaky dropdown - sometimes first clicks don't register
 	for (let attempt = 0; attempt < 5; attempt++) {
 		await trigger.click();
 		await page.waitForTimeout(200);
-		const isOpen = await menu.isVisible().catch(() => false);
+		// Check trigger state (Radix uses data-state="open")
+		const isOpen = await trigger.getAttribute('data-state') === 'open' || await menu.isVisible().catch(() => false);
 		if (isOpen) break;
 		// Wait a bit more before next attempt
 		await page.waitForTimeout(100);
 	}
 
-	await expect(menu).toBeVisible({ timeout: 5000 });
-	return { dropdown, trigger, menu };
+	// Wait for the menu to be visible (Radix portals to body)
+	const visibleMenu = page.locator('.dropdown-menu').first();
+	await expect(visibleMenu).toBeVisible({ timeout: 5000 });
+	return { dropdown, trigger, menu: visibleMenu };
 }
 
 test.describe('Filters and URL Persistence', () => {
