@@ -302,9 +302,10 @@ func New(cfg *Config) *Executor {
 
 	// Create resource tracker with config from orcCfg.Diagnostics
 	rtConfig := ResourceTrackerConfig{
-		Enabled:            orcCfg.Diagnostics.ResourceTracking.Enabled,
-		MemoryThresholdMB:  orcCfg.Diagnostics.ResourceTracking.MemoryThresholdMB,
-		LogOrphanedMCPOnly: orcCfg.Diagnostics.ResourceTracking.LogOrphanedMCPOnly,
+		Enabled:               orcCfg.Diagnostics.ResourceTracking.Enabled,
+		MemoryThresholdMB:     orcCfg.Diagnostics.ResourceTracking.MemoryThresholdMB,
+		LogOrphanedMCPOnly:    orcCfg.Diagnostics.ResourceTracking.LogOrphanedMCPOnly,
+		FilterSystemProcesses: orcCfg.Diagnostics.ResourceTracking.FilterSystemProcesses,
 	}
 	resourceTracker := NewResourceTracker(rtConfig, slog.Default())
 
