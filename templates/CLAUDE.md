@@ -85,6 +85,7 @@ The `{{TASK_DESCRIPTION}}` variable includes the full description provided when 
 | `{{REQUIRES_UI_TESTING}}` | Boolean flag if task requires UI testing |
 | `{{SCREENSHOT_DIR}}` | Path to save screenshots (`.orc/tasks/{id}/test-results/screenshots/`) |
 | `{{TEST_RESULTS}}` | Previous test results (for validate phase) |
+| `{{COVERAGE_THRESHOLD}}` | Minimum test coverage percentage (default: 85%) |
 | `{{INITIATIVE_CONTEXT}}` | Initiative details if task is linked to one |
 | `{{VERIFICATION_RESULTS}}` | Verification results from implement phase |
 

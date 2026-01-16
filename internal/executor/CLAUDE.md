@@ -30,6 +30,7 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | `completion.go` | `CheckPhaseCompletion()` - detects `<phase_complete>` |
 | `retry.go` | Cross-phase retry context |
 | `worktree.go` | Git worktree setup/cleanup |
+| `mcp.go` | Per-worktree MCP config for isolated Playwright |
 | `publish.go` | Nil-safe `EventPublisher` |
 | `ci_merge.go` | CI polling and auto-merge |
 | `resource_tracker.go` | Process/memory tracking for orphan detection |
@@ -39,6 +40,7 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 ```
 Executor.ExecuteTask()
 ├── setupWorktree()           # Isolate in git worktree
+│   └── GenerateWorktreeMCPConfig()  # Per-task MCP isolation
 ├── loadPlan()                # Get phase sequence for weight
 └── for each phase:
     ├── evaluateGate()        # Check gate conditions

@@ -175,6 +175,11 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 	}
 	vars := BuildTemplateVars(t, p, s, startIteration, LoadRetryContextForPhase(s))
 
+	// Add testing configuration (coverage threshold)
+	if e.config.OrcConfig != nil {
+		vars.CoverageThreshold = e.config.OrcConfig.Testing.CoverageThreshold
+	}
+
 	// Add worktree context for template rendering
 	if e.workingDir != "" {
 		vars.WorktreePath = e.workingDir

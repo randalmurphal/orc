@@ -217,6 +217,16 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 	e.worktreeGit = e.gitOps.InWorktree(worktreePath)
 	e.logger.Info("created worktree", "task", t.ID, "path", worktreePath)
 
+	// Generate per-worktree MCP config for isolated Playwright sessions
+	if ShouldGenerateMCPConfig(t, e.orcConfig) {
+		if err := GenerateWorktreeMCPConfig(worktreePath, t.ID, t, e.orcConfig); err != nil {
+			e.logger.Warn("failed to generate MCP config", "task", t.ID, "error", err)
+			// Non-fatal: continue without MCP config
+		} else {
+			e.logger.Info("generated MCP config", "task", t.ID, "path", worktreePath+"/.mcp.json")
+		}
+	}
+
 	// Create a new Claude client for the worktree context
 	// This ensures all Claude work happens in the isolated worktree
 	worktreeClientOpts := []claude.ClaudeOption{
@@ -276,6 +286,11 @@ func (e *Executor) cleanupWorktreeForTask(t *task.Task) {
 		shouldCleanup := (t.Status == task.StatusCompleted && e.orcConfig.Worktree.CleanupOnComplete) ||
 			(t.Status == task.StatusFailed && e.orcConfig.Worktree.CleanupOnFail)
 		if shouldCleanup {
+			// Cleanup Playwright user data directory (task-specific browser profile)
+			if err := CleanupPlaywrightUserData(t.ID); err != nil {
+				e.logger.Warn("failed to cleanup playwright user data", "task", t.ID, "error", err)
+			}
+
 			if err := e.gitOps.CleanupWorktree(t.ID); err != nil {
 				e.logger.Warn("failed to cleanup worktree", "error", err)
 			} else {

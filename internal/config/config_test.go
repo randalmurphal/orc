@@ -44,9 +44,9 @@ func TestDefault_TestingConfig(t *testing.T) {
 		t.Error("Testing.Required should default to true")
 	}
 
-	// CoverageThreshold should be 0 (no threshold)
-	if cfg.Testing.CoverageThreshold != 0 {
-		t.Errorf("Testing.CoverageThreshold = %d, want 0", cfg.Testing.CoverageThreshold)
+	// CoverageThreshold should default to 85%
+	if cfg.Testing.CoverageThreshold != 85 {
+		t.Errorf("Testing.CoverageThreshold = %d, want 85", cfg.Testing.CoverageThreshold)
 	}
 
 	// Types should include "unit"

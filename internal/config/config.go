@@ -559,6 +559,31 @@ type DiagnosticsConfig struct {
 	ResourceTracking ResourceTrackingConfig `yaml:"resource_tracking"`
 }
 
+// PlaywrightConfig defines Playwright MCP server settings for UI testing.
+type PlaywrightConfig struct {
+	// Enabled enables auto-configuration of Playwright MCP for UI tasks (default: true)
+	Enabled bool `yaml:"enabled"`
+
+	// Headless runs browser in headless mode (default: true)
+	// Set to false for debugging to see the browser
+	Headless bool `yaml:"headless"`
+
+	// Browser is the browser to use: chromium, firefox, webkit (default: chromium)
+	Browser string `yaml:"browser"`
+
+	// TimeoutAction is the action timeout in milliseconds (default: 5000)
+	TimeoutAction int `yaml:"timeout_action"`
+
+	// TimeoutNavigation is the navigation timeout in milliseconds (default: 60000)
+	TimeoutNavigation int `yaml:"timeout_navigation"`
+}
+
+// MCPConfig defines MCP (Model Context Protocol) server configuration.
+type MCPConfig struct {
+	// Playwright settings for UI testing tasks
+	Playwright PlaywrightConfig `yaml:"playwright"`
+}
+
 // PhaseModelSetting defines model and thinking configuration for a phase.
 type PhaseModelSetting struct {
 	// Model is the model to use for this phase.
@@ -783,6 +808,9 @@ type Config struct {
 
 	// Diagnostics configuration
 	Diagnostics DiagnosticsConfig `yaml:"diagnostics"`
+
+	// MCP (Model Context Protocol) server configuration
+	MCP MCPConfig `yaml:"mcp"`
 
 	// Database configuration
 	Database DatabaseConfig `yaml:"database"`
@@ -1034,7 +1062,7 @@ func Default() *Config {
 		},
 		Testing: TestingConfig{
 			Required:          true,
-			CoverageThreshold: 0, // No threshold by default
+			CoverageThreshold: 85, // Default: 85% coverage required
 			Types:             []string{"unit"},
 			SkipForWeights:    []string{"trivial"},
 			Commands: TestCommands{
@@ -1094,6 +1122,15 @@ func Default() *Config {
 				Enabled:            true,  // Enabled by default to detect orphaned processes
 				MemoryThresholdMB:  100,   // Warn if memory grows by >100MB
 				LogOrphanedMCPOnly: false, // Log all orphans, not just MCP
+			},
+		},
+		MCP: MCPConfig{
+			Playwright: PlaywrightConfig{
+				Enabled:           true,       // Auto-configure for UI tasks
+				Headless:          true,       // Headless for CI, override for debugging
+				Browser:           "chromium", // Default browser
+				TimeoutAction:     5000,       // 5s action timeout
+				TimeoutNavigation: 60000,      // 60s navigation timeout
 			},
 		},
 		Database: DatabaseConfig{
