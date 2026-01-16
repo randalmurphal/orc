@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { useRoutes } from 'react-router-dom';
 import { routes } from './routes';
 import { WebSocketProvider } from '@/hooks';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 import { useProjectStore, useInitiativeStore, useUIStore, useTaskStore } from '@/stores';
 
 // Mock WebSocket to prevent actual connections
@@ -86,7 +87,11 @@ vi.mock('@/lib/api', () => ({
 // Test wrapper component
 function TestApp() {
 	const routeElements = useRoutes(routes);
-	return <WebSocketProvider autoConnect={false}>{routeElements}</WebSocketProvider>;
+	return (
+		<TooltipProvider delayDuration={0}>
+			<WebSocketProvider autoConnect={false}>{routeElements}</WebSocketProvider>
+		</TooltipProvider>
+	);
 }
 
 function renderWithRouter(initialPath: string = '/') {
