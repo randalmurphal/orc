@@ -274,6 +274,7 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 	e.logger.Info("claude client configured for worktree", "path", result.Path)
 
 	// Create new session manager for worktree context
+	// Include "user" setting source to load agents from ~/.claude/agents/
 	e.sessionMgr = session.NewManager(
 		session.WithDefaultSessionOptions(
 			session.WithModel(e.config.Model),
@@ -282,6 +283,7 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 			session.WithPermissions(e.config.DangerouslySkipPermissions),
 			// Disable go.work in sessions (same reason as above)
 			session.WithEnv(map[string]string{"GOWORK": "off"}),
+			session.WithSettingSources([]string{"project", "local", "user"}),
 		),
 	)
 

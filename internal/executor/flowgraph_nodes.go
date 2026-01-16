@@ -88,14 +88,19 @@ func (e *Executor) renderTemplate(tmpl string, s PhaseState) string {
 		// Testing configuration
 		"{{COVERAGE_THRESHOLD}}": fmt.Sprintf("%d", coverageThreshold),
 
-		// Review findings (for review round 2)
-		"{{REVIEW_FINDINGS}}": s.ReviewFindings,
+		// Review phase context variables
+		"{{REVIEW_ROUND}}":       fmt.Sprintf("%d", s.ReviewRound),
+		"{{REVIEW_FINDINGS}}":    s.ReviewFindings,
+		"{{VERIFICATION_RESULTS}}": s.VerificationResults,
 	}
 
 	result := tmpl
 	for k, v := range replacements {
 		result = strings.ReplaceAll(result, k, v)
 	}
+
+	// Process conditional blocks for review rounds
+	result = processReviewConditionals(result, s.ReviewRound)
 
 	return result
 }
