@@ -52,23 +52,63 @@ func TestCheckOrphaned_DeadPID(t *testing.T) {
 	}
 }
 
-func TestCheckOrphaned_StaleHeartbeat(t *testing.T) {
+func TestCheckOrphaned_AlivePIDStaleHeartbeat(t *testing.T) {
 	// Use current PID which is definitely alive
+	// Even with a stale heartbeat, a live PID means the task is NOT orphaned
 	s := &State{
 		Status: StatusRunning,
 		Execution: &ExecutionInfo{
 			PID:           os.Getpid(),
 			Hostname:      "test-host",
 			StartedAt:     time.Now().Add(-time.Hour),
-			LastHeartbeat: time.Now().Add(-10 * time.Minute), // 10 minutes ago (>5 min threshold)
+			LastHeartbeat: time.Now().Add(-30 * time.Minute), // 30 minutes ago (way past threshold)
+		},
+	}
+
+	isOrphaned, reason := s.CheckOrphaned()
+	if isOrphaned {
+		t.Errorf("expected task with alive PID and stale heartbeat to NOT be orphaned, got reason: %s", reason)
+	}
+}
+
+func TestCheckOrphaned_DeadPIDStaleHeartbeat(t *testing.T) {
+	// Dead PID with stale heartbeat should be orphaned with context about staleness
+	s := &State{
+		Status: StatusRunning,
+		Execution: &ExecutionInfo{
+			PID:           999999999, // Very high PID unlikely to exist
+			Hostname:      "test-host",
+			StartedAt:     time.Now().Add(-time.Hour),
+			LastHeartbeat: time.Now().Add(-30 * time.Minute), // 30 minutes ago (>15 min threshold)
 		},
 	}
 
 	isOrphaned, reason := s.CheckOrphaned()
 	if !isOrphaned {
-		t.Error("expected task with stale heartbeat to be orphaned")
+		t.Error("expected task with dead PID and stale heartbeat to be orphaned")
 	}
-	if reason != "heartbeat stale (>5 minutes)" {
+	if reason != "executor process not running (heartbeat stale)" {
+		t.Errorf("unexpected reason: %s", reason)
+	}
+}
+
+func TestCheckOrphaned_DeadPIDRecentHeartbeat(t *testing.T) {
+	// Dead PID with recent heartbeat should still be orphaned (PID takes precedence)
+	s := &State{
+		Status: StatusRunning,
+		Execution: &ExecutionInfo{
+			PID:           999999999, // Very high PID unlikely to exist
+			Hostname:      "test-host",
+			StartedAt:     time.Now().Add(-time.Hour),
+			LastHeartbeat: time.Now().Add(-1 * time.Minute), // Very recent heartbeat
+		},
+	}
+
+	isOrphaned, reason := s.CheckOrphaned()
+	if !isOrphaned {
+		t.Error("expected task with dead PID to be orphaned even with recent heartbeat")
+	}
+	if reason != "executor process not running" {
 		t.Errorf("unexpected reason: %s", reason)
 	}
 }

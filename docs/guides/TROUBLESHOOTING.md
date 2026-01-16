@@ -167,12 +167,13 @@ cat .orc/tasks/TASK-XXX/state.yaml | grep -A5 "execution:"
 Orc tracks executor process information in `state.yaml`:
 - **PID**: Process ID of the executor
 - **Hostname**: Machine running the executor
-- **Heartbeat**: Last time executor updated state
+- **Heartbeat**: Last time executor updated state (updated every 2 minutes during execution)
 
 A task is considered orphaned when:
 1. Status is "running" but no execution info exists (legacy state)
 2. Status is "running" but executor PID is no longer alive
-3. Status is "running" but heartbeat is stale (>5 minutes)
+
+**Note**: A live PID always indicates a healthy task, regardless of heartbeat age. Heartbeat staleness is only used as additional context when the PID check indicates the executor is dead. This prevents false positives during long-running phases (which can take hours).
 
 **Solutions**:
 
