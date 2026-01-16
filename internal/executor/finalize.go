@@ -74,8 +74,12 @@ func WithFinalizeConfig(cfg ExecutorConfig) FinalizeExecutorOption {
 }
 
 // WithFinalizeOrcConfig sets the orc configuration.
+// Also connects to ExecutorConfig for model resolution.
 func WithFinalizeOrcConfig(cfg *config.Config) FinalizeExecutorOption {
-	return func(e *FinalizeExecutor) { e.orcConfig = cfg }
+	return func(e *FinalizeExecutor) {
+		e.orcConfig = cfg
+		e.config.OrcConfig = cfg // Connect for model resolution
+	}
 }
 
 // WithFinalizeWorkingDir sets the working directory.
@@ -573,6 +577,7 @@ func (e *FinalizeExecutor) resolveConflicts(
 	// Inject "ultrathink" for extended thinking mode
 	if modelSetting.Thinking {
 		prompt = "ultrathink\n\n" + prompt
+		e.logger.Debug("extended thinking enabled for conflict resolution", "task", t.ID, "phase", p.ID)
 	}
 
 	// Create session for conflict resolution
@@ -745,6 +750,7 @@ func (e *FinalizeExecutor) tryFixTests(
 	// Inject "ultrathink" for extended thinking mode
 	if modelSetting.Thinking {
 		prompt = "ultrathink\n\n" + prompt
+		e.logger.Debug("extended thinking enabled for test fix", "task", t.ID, "phase", p.ID)
 	}
 
 	// Create session for test fixing
