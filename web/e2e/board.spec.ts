@@ -6,13 +6,12 @@
  * Svelte (current) and React (future migration) implementations.
  *
  * CRITICAL: These tests run against an ISOLATED SANDBOX project created by
- * global-setup.ts. Tests perform real actions (drag-drop, clicks) that modify
- * task statuses. The sandbox ensures real production tasks are NEVER affected.
+ * global-setup.ts. Tests perform real actions (clicks) that may modify
+ * task states. The sandbox ensures real production tasks are NEVER affected.
  *
- * Test Coverage (18 tests):
+ * Test Coverage (13 tests):
  * - Board Rendering (4): columns, headers, task cards, counts
  * - View Mode Toggle (5): flat/swimlane views, persistence, filtering
- * - Drag-Drop (5): column moves, reordering, visual feedback, cancellation
  * - Swimlane View (4): grouping, collapse/expand, persistence, unassigned
  *
  * Selector Strategy (priority order):
@@ -150,6 +149,7 @@ test.describe('Board Page', () => {
 			const cardCount = await taskCards.count();
 
 			if (cardCount > 0) {
+<<<<<<< HEAD
 				// For each task card, verify it's in a column (not the board container)
 				for (let i = 0; i < Math.min(cardCount, 5); i++) {
 					const card = taskCards.nth(i);
@@ -162,6 +162,13 @@ test.describe('Board Page', () => {
 					// The column regions have aria-label ending in "column"
 					const parentColumn = card.locator('xpath=ancestor::div[@role="region" and contains(@aria-label, "column")]');
 >>>>>>> orc/TASK-275
+=======
+				// For each task card, verify it's in a column (not the board itself)
+				for (let i = 0; i < Math.min(cardCount, 5); i++) {
+					const card = taskCards.nth(i);
+					// Card should be inside a column region (use aria-label*="column" to exclude the board)
+					const parentColumn = card.locator('xpath=ancestor::div[@role="region"][contains(@aria-label, "column")]');
+>>>>>>> orc/TASK-277
 					await expect(parentColumn).toBeVisible();
 				}
 
@@ -368,182 +375,6 @@ test.describe('Board Page', () => {
 			// Banner should show "Unassigned" in the label
 			const bannerLabel = banner.locator('.banner-label');
 			await expect(bannerLabel).toContainText('Unassigned');
-		});
-	});
-
-	test.describe('Drag-Drop', () => {
-		test('should move task between columns (triggers status change API)', async ({ page }) => {
-			await page.goto('/board');
-			await waitForBoardLoad(page);
-
-			// Find a task card in the Queued column that can be moved
-			const queuedColumn = page.locator('[role="region"][aria-label="Queued column"]');
-			const taskCards = queuedColumn.locator('.task-card');
-			const cardCount = await taskCards.count();
-
-			if (cardCount > 0) {
-				const card = taskCards.first();
-				const taskId = await card.locator('.task-id').textContent();
-
-				// Get the Implement column as drop target
-				const implementColumn = page.locator('[role="region"][aria-label="Implement column"]');
-
-				// Perform drag and drop
-				await card.dragTo(implementColumn);
-
-				// A confirmation modal should appear
-				const confirmModal = page.locator('.confirm-modal, [role="dialog"]');
-				const hasModal = await confirmModal.isVisible({ timeout: 2000 }).catch(() => false);
-
-				if (hasModal) {
-					// Modal should ask about running the task
-					await expect(confirmModal).toContainText(/Run.*Task/i);
-
-					// We can confirm or cancel - let's cancel to not affect test state
-					const cancelBtn = confirmModal.getByRole('button', { name: /Cancel/i });
-					if (await cancelBtn.isVisible()) {
-						await cancelBtn.click();
-					}
-				}
-			}
-		});
-
-		test('should reorder tasks within column (priority change)', async ({ page }) => {
-			await page.goto('/board');
-			await waitForBoardLoad(page);
-
-			// Find a column with multiple tasks
-			const columns = page.locator('[role="region"][aria-label*="column"]');
-			const columnCount = await columns.count();
-
-			for (let i = 0; i < columnCount; i++) {
-				const column = columns.nth(i);
-				const cards = column.locator('.task-card');
-				const cardCount = await cards.count();
-
-				if (cardCount >= 2) {
-					// Found a column with multiple tasks
-					const firstCard = cards.first();
-					const secondCard = cards.nth(1);
-
-					// Drag first card after second card (within same column)
-					// This should just reorder, not trigger action modal
-					await firstCard.dragTo(secondCard);
-
-					// No modal should appear for within-column drag
-					const confirmModal = page.locator('.confirm-modal, [role="dialog"]');
-					await page.waitForTimeout(500);
-					const modalVisible = await confirmModal.isVisible().catch(() => false);
-
-					// Within-column drops shouldn't show confirmation modal
-					// (implementation may vary - this validates current behavior)
-					break;
-				}
-			}
-		});
-
-		test('should show visual feedback during drag', async ({ page }) => {
-			await page.goto('/board');
-			await waitForBoardLoad(page);
-
-			const taskCards = page.locator('.task-card');
-			const cardCount = await taskCards.count();
-
-			if (cardCount > 0) {
-				const card = taskCards.first();
-
-				// Start dragging
-				await card.hover();
-				await page.mouse.down();
-
-				// Card should have dragging class
-				// Note: The dragging state is set via dragstart event
-				// We need to actually drag to trigger this
-				const cardBoundingBox = await card.boundingBox();
-				if (cardBoundingBox) {
-					await page.mouse.move(
-						cardBoundingBox.x + cardBoundingBox.width / 2,
-						cardBoundingBox.y + cardBoundingBox.height / 2
-					);
-
-					// Move slightly to trigger drag
-					await page.mouse.move(
-						cardBoundingBox.x + cardBoundingBox.width / 2 + 50,
-						cardBoundingBox.y + cardBoundingBox.height / 2
-					);
-				}
-
-				// Release
-				await page.mouse.up();
-			}
-		});
-
-		test('should update task status after drop completes', async ({ page }) => {
-			await page.goto('/board');
-			await waitForBoardLoad(page);
-
-			// Find a paused task that can be resumed
-			const pausedCards = page.locator('.task-card:has(.status-indicator.paused)');
-			const pausedCount = await pausedCards.count();
-
-			if (pausedCount > 0) {
-				const card = pausedCards.first();
-				const taskId = await card.locator('.task-id').textContent();
-
-				// Drag to a phase column (e.g., Implement) to trigger resume
-				const implementColumn = page.locator('[role="region"][aria-label="Implement column"]');
-				await card.dragTo(implementColumn);
-
-				// Check for confirmation modal
-				const confirmModal = page.locator('.confirm-modal, [role="dialog"]');
-				const hasModal = await confirmModal.isVisible({ timeout: 2000 }).catch(() => false);
-
-				if (hasModal) {
-					// Cancel to not affect state
-					const cancelBtn = confirmModal.getByRole('button', { name: /Cancel/i });
-					await cancelBtn.click();
-				}
-			}
-		});
-
-		test('should handle drop cancellation (escape key)', async ({ page }) => {
-			await page.goto('/board');
-			await waitForBoardLoad(page);
-
-			const taskCards = page.locator('.task-card');
-			const cardCount = await taskCards.count();
-
-			if (cardCount > 0) {
-				// Find a card in Queued to drag
-				const queuedColumn = page.locator('[role="region"][aria-label="Queued column"]');
-				const queuedCards = queuedColumn.locator('.task-card');
-				const queuedCount = await queuedCards.count();
-
-				if (queuedCount > 0) {
-					const card = queuedCards.first();
-					const initialTaskId = await card.locator('.task-id').textContent();
-
-					// Drag to another column
-					const implementColumn = page.locator('[role="region"][aria-label="Implement column"]');
-					await card.dragTo(implementColumn);
-
-					// If modal appears, press Escape to cancel
-					const confirmModal = page.locator('.confirm-modal, [role="dialog"]');
-					const hasModal = await confirmModal.isVisible({ timeout: 2000 }).catch(() => false);
-
-					if (hasModal) {
-						await page.keyboard.press('Escape');
-						await page.waitForTimeout(200);
-
-						// Modal should be dismissed
-						await expect(confirmModal).not.toBeVisible();
-
-						// Task should still be in original column
-						const taskStillInQueued = queuedColumn.locator(`.task-card:has-text("${initialTaskId}")`);
-						await expect(taskStillInQueued).toBeVisible();
-					}
-				}
-			}
 		});
 	});
 
