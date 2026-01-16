@@ -9,6 +9,16 @@
 	padding-bottom: var(--space-4);
 }
 
+.board:focus {
+	outline: none;
+}
+
+.board:focus-visible {
+	outline: 2px solid var(--accent-primary);
+	outline-offset: 2px;
+	border-radius: var(--radius-lg);
+}
+
 /* Flat view - horizontal columns */
 .board.flat-view {
 	flex-direction: row;
@@ -153,12 +163,12 @@
 }
 
 .btn-primary {
-	background: var(--accent-primary);
+	background: var(--accent-button);
 	color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-	background: var(--accent-hover);
+	background: var(--accent-button-hover);
 }
 
 .btn-secondary {

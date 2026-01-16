@@ -552,12 +552,12 @@
 }
 
 .btn-primary {
-	background: var(--accent-primary);
+	background: var(--accent-button);
 	color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-	background: var(--accent-primary-hover);
+	background: var(--accent-button-hover);
 }
 
 .btn-secondary {

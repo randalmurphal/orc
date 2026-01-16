@@ -527,6 +527,7 @@ Patterns, gotchas, and decisions learned during development.
 | Filter dropdown Radix migration | InitiativeDropdown, ViewModeDropdown, DependencyDropdown use Radix Select; ExportDropdown uses Radix DropdownMenu (action menu pattern); null values mapped to internal string constants since Radix Select requires strings; provides keyboard nav, typeahead, Home/End, ARIA | TASK-213 |
 | TabNav Radix Tabs migration | TabNav uses `@radix-ui/react-tabs` with render prop pattern for tab content; Tabs.Root wraps entire component, Tabs.List contains Tabs.Trigger elements, Tabs.Content wraps the children render prop result; provides arrow key navigation, Home/End, focus management, automatic ARIA; CSS uses `data-state='active'` for active tab styling | TASK-214 |
 | Radix Tooltip component | `Tooltip` wraps `@radix-ui/react-tooltip` with consistent styling; `TooltipProvider` at App.tsx root provides global delay config (300ms); supports rich content (JSX), controlled mode, placement, arrow; portals to `document.body`; use instead of native `title` for accessibility and consistent styling | TASK-215 |
+| UI primitives E2E testing | Three test files validate Radix integration: `ui-primitives.spec.ts` (22 tests: Button, DropdownMenu, Select, Tabs, Tooltip), `radix-a11y.spec.ts` (17 tests: keyboard navigation, focus trap, ARIA attributes), `axe-audit.spec.ts` (8 tests: WCAG 2.1 AA compliance via axe-core); selector strategy prioritizes role/aria-label over CSS classes | TASK-216 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
