@@ -361,5 +361,14 @@ describe('InitiativeDetail', () => {
 				expect(screen.getByText('Back to Tasks')).toBeInTheDocument();
 			});
 		});
+
+		it('links to board filtered by initiative', async () => {
+			renderInitiativeDetail();
+
+			await waitFor(() => {
+				const backLink = screen.getByRole('link', { name: /back to tasks/i });
+				expect(backLink).toHaveAttribute('href', '/board?initiative=INIT-001');
+			});
+		});
 	});
 });

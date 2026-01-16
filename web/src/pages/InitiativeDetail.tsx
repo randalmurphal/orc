@@ -348,8 +348,8 @@ export function InitiativeDetail() {
 			<div className="error-state">
 				<div className="error-icon">!</div>
 				<p>Initiative not found</p>
-				<Link to="/" className="btn btn-primary">
-					Back to Tasks
+				<Link to="/board" className="btn btn-primary">
+					Back to Board
 				</Link>
 			</div>
 		);
@@ -358,8 +358,8 @@ export function InitiativeDetail() {
 	return (
 		<div className="page initiative-detail-page">
 			<div className="initiative-detail">
-				{/* Back Link */}
-				<Link to="/" className="back-link">
+				{/* Back Link - navigates to board filtered by this initiative */}
+				<Link to={`/board?initiative=${initiative.id}`} className="back-link">
 					<Icon name="arrow-left" size={16} />
 					<span>Back to Tasks</span>
 				</Link>
