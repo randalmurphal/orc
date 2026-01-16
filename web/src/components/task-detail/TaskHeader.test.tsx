@@ -31,6 +31,10 @@ vi.mock('@/stores', () => ({
 		}
 		return null;
 	},
+	// useInitiatives is used by TaskEditModal (imported by TaskHeader)
+	useInitiatives: () => [
+		{ id: 'INIT-001', title: 'Test Initiative', status: 'active' },
+	],
 }));
 
 vi.mock('@/stores/uiStore', () => ({

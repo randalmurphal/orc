@@ -1,7 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import * as Select from '@radix-ui/react-select';
 import { Modal } from '@/components/overlays/Modal';
+import { Icon } from '@/components/ui/Icon';
 import { updateTask } from '@/lib/api';
 import { toast } from '@/stores/uiStore';
+import { useInitiatives } from '@/stores';
 import type { Task, TaskWeight, TaskPriority, TaskCategory, TaskQueue } from '@/lib/types';
 import './TaskEditModal.css';
 
@@ -9,6 +12,9 @@ const WEIGHTS: TaskWeight[] = ['trivial', 'small', 'medium', 'large', 'greenfiel
 const PRIORITIES: TaskPriority[] = ['critical', 'high', 'normal', 'low'];
 const CATEGORIES: TaskCategory[] = ['feature', 'bug', 'refactor', 'chore', 'docs', 'test'];
 const QUEUES: TaskQueue[] = ['active', 'backlog'];
+
+// Internal value for "no initiative" since Radix Select requires string values
+const NO_INITIATIVE_VALUE = '__none__';
 
 interface TaskEditModalProps {
 	open: boolean;
@@ -24,8 +30,34 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 	const [priority, setPriority] = useState<TaskPriority>(task.priority ?? 'normal');
 	const [category, setCategory] = useState<TaskCategory>(task.category ?? 'feature');
 	const [queue, setQueue] = useState<TaskQueue>(task.queue ?? 'active');
+	const [initiativeId, setInitiativeId] = useState<string | undefined>(task.initiative_id);
 	const [targetBranch, setTargetBranch] = useState(task.target_branch ?? '');
 	const [saving, setSaving] = useState(false);
+
+	const initiatives = useInitiatives();
+
+	// Sort initiatives: active first, then by title
+	const sortedInitiatives = useMemo(() => {
+		return [...initiatives].sort((a, b) => {
+			// Active first
+			if (a.status === 'active' && b.status !== 'active') return -1;
+			if (b.status === 'active' && a.status !== 'active') return 1;
+			// Then by title
+			return a.title.localeCompare(b.title);
+		});
+	}, [initiatives]);
+
+	// Convert external value (undefined for none) to internal Select value
+	const selectInitiativeValue = initiativeId ?? NO_INITIATIVE_VALUE;
+
+	// Handle initiative selection change
+	const handleInitiativeChange = (value: string) => {
+		if (value === NO_INITIATIVE_VALUE) {
+			setInitiativeId(undefined);
+		} else {
+			setInitiativeId(value);
+		}
+	};
 
 	const handleSave = useCallback(async () => {
 		if (!title.trim()) {
@@ -42,6 +74,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 				priority,
 				category,
 				queue,
+				initiative_id: initiativeId || '', // Empty string to clear initiative
 				target_branch: targetBranch.trim() || undefined,
 			});
 			toast.success('Task updated');
@@ -52,7 +85,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 		} finally {
 			setSaving(false);
 		}
-	}, [task.id, title, description, weight, priority, category, queue, targetBranch, onUpdate, onClose]);
+	}, [task.id, title, description, weight, priority, category, queue, initiativeId, targetBranch, onUpdate, onClose]);
 
 	return (
 		<Modal open={open} title="Edit Task" onClose={onClose}>
@@ -146,6 +179,59 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 							))}
 						</select>
 					</div>
+				</div>
+
+				{/* Initiative */}
+				<div className="form-group">
+					<label htmlFor="task-initiative">Initiative</label>
+					<Select.Root value={selectInitiativeValue} onValueChange={handleInitiativeChange}>
+						<Select.Trigger
+							id="task-initiative"
+							className="initiative-select-trigger"
+							aria-label="Select initiative"
+						>
+							<Select.Value placeholder="None" />
+							<Select.Icon className="initiative-select-icon">
+								<Icon name="chevron-down" size={14} />
+							</Select.Icon>
+						</Select.Trigger>
+
+						<Select.Portal>
+							<Select.Content
+								className="initiative-select-content"
+								position="popper"
+								sideOffset={4}
+							>
+								<Select.Viewport className="initiative-select-viewport">
+									{/* No initiative option */}
+									<Select.Item value={NO_INITIATIVE_VALUE} className="initiative-select-item">
+										<Select.ItemText>None</Select.ItemText>
+									</Select.Item>
+
+									{sortedInitiatives.length > 0 && (
+										<Select.Separator className="initiative-select-separator" />
+									)}
+
+									{/* Initiative list */}
+									{sortedInitiatives.map((init) => (
+										<Select.Item
+											key={init.id}
+											value={init.id}
+											className="initiative-select-item"
+										>
+											<Select.ItemText>{init.title}</Select.ItemText>
+											{init.status !== 'active' && (
+												<span className="initiative-status-badge">{init.status}</span>
+											)}
+										</Select.Item>
+									))}
+								</Select.Viewport>
+							</Select.Content>
+						</Select.Portal>
+					</Select.Root>
+					<span className="form-hint">
+						Assign task to an initiative for grouping and branch targeting
+					</span>
 				</div>
 
 				{/* Target Branch */}
