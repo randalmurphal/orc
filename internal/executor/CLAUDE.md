@@ -1,156 +1,172 @@
 # Executor Package
 
-Phase execution engine implementing Ralph-style iteration loops with multiple executor strategies.
+Phase execution engine with Ralph-style iteration loops and weight-based executor strategies.
 
 ## File Structure
 
-### Core Files
-
-| File | Purpose | Lines |
-|------|---------|-------|
-| `executor.go` | Main Executor orchestrator, task lifecycle | ~320 |
-| `task_execution.go` | ExecuteTask, ResumeFromPhase, gate evaluation | ~400 |
-| `phase.go` | ExecutePhase, session/flowgraph dispatch | ~150 |
+| File | Purpose |
+|------|---------|
+| `executor.go` | Main orchestrator, task lifecycle, `getPhaseExecutor()` |
+| `task_execution.go` | `ExecuteTask()`, `ResumeFromPhase()`, gate evaluation |
+| `phase.go` | `ExecutePhase()`, session/flowgraph dispatch |
+| `phase_executor.go` | `PhaseExecutor` interface, `ExecutorConfig`, `ResolveModelSetting()` |
 
 ### Executor Types
 
-| File | Strategy | Use Case |
-|------|----------|----------|
-| `trivial.go` | Fire-and-forget, no session | Quick single-prompt tasks |
-| `standard.go` | Session per phase, iteration loop | Small/medium tasks |
-| `full.go` | Persistent session, per-iteration checkpointing | Large/greenfield tasks |
+| File | Strategy | Weight |
+|------|----------|--------|
+| `trivial.go` | Fire-and-forget, no session | trivial |
+| `standard.go` | Session per phase, iteration loop | small/medium |
+| `full.go` | Persistent session, per-iteration checkpointing | large/greenfield |
+| `finalize.go` | Branch sync, conflict resolution, risk assessment | large/greenfield |
 
 ### Support Modules
 
 | File | Responsibility |
 |------|----------------|
-| `executor.go` | Auto-commit helpers (`commitTaskState`, `commitTaskStatus`) |
-| `publish.go` | EventPublisher with nil-safety |
-| `template.go` | Prompt template rendering |
-| `retry.go` | Cross-phase retry context management |
+| `config.go` | `ExecutorConfig` defaults per weight |
+| `template.go` | Prompt variable substitution, `BuildTemplateVars()` |
+| `session_adapter.go` | LLM session wrapper, `StreamTurnWithProgress()` |
+| `completion.go` | `CheckPhaseCompletion()` - detects `<phase_complete>` |
+| `retry.go` | Cross-phase retry context |
 | `worktree.go` | Git worktree setup/cleanup |
-| `flowgraph_nodes.go` | Flowgraph node builders (uses worktree git for commits) |
-| `session_adapter.go` | LLM session abstraction |
-| `completion.go` | Phase completion detection |
-| `config.go` | ExecutorConfig struct and defaults |
-| `context.go` | Execution context management |
-| `permissions.go` | Tool permission management |
-| `recovery.go` | Error recovery strategies |
-| `phase_executor.go` | PhaseExecutor interface |
-| `pr.go` | PR creation and auto-merge |
-| `test_parser.go` | Test output parsing (Go, Jest, Pytest) |
-| `review.go` | Multi-round review session parsing |
-| `qa.go` | QA session result parsing |
-| `knowledge.go` | Post-phase knowledge extraction (fallback) |
-| `activity.go` | Activity tracking for long-running API calls |
-| `finalize.go` | Finalize executor: branch sync, conflicts, risk |
-| `finalize_test.go` | Tests for finalize executor |
-| `ci_merge.go` | CI polling and auto-merge after finalize |
-| `ci_merge_test.go` | Tests for CI merger |
+| `publish.go` | Nil-safe `EventPublisher` |
+| `ci_merge.go` | CI polling and auto-merge |
 | `resource_tracker.go` | Process/memory tracking for orphan detection |
-| `resource_tracker_test.go` | Tests for resource tracker |
 
 ## Architecture
 
 ```
-Executor
-├── ExecuteTask()           # Main entry point
-│   ├── setupWorktree()     # Isolate in git worktree
-│   ├── loadPlan()          # Get phase sequence
-│   └── for each phase:
-│       ├── evaluateGate()  # Check gate conditions
-│       ├── ExecutePhase()  # Run phase
-│       │   ├── TrivialExecutor  # Weight: trivial
-│       │   ├── StandardExecutor # Weight: small/medium
-│       │   └── FullExecutor     # Weight: large/greenfield
-│       └── checkpoint()    # Git commit
-└── cleanup()               # Remove worktree if configured
+Executor.ExecuteTask()
+├── setupWorktree()           # Isolate in git worktree
+├── loadPlan()                # Get phase sequence for weight
+└── for each phase:
+    ├── evaluateGate()        # Check gate conditions
+    ├── getPhaseExecutor()    # Select by weight → executor.go:351
+    │   └── ResolveModelSetting()  # Get model + thinking for phase
+    ├── ExecutePhase()        # Run with selected executor
+    └── checkpoint()          # Git commit on completion
 ```
 
 ## Executor Strategies
 
-### TrivialExecutor
-- **Session**: None (stateless completions)
-- **Checkpointing**: None
-- **Max iterations**: 5
-- **Best for**: Single-prompt tasks, quick fixes
+| Executor | Session | Checkpoints | Max Iters | Best For |
+|----------|---------|-------------|-----------|----------|
+| Trivial | None | None | 5 | Single-prompt fixes |
+| Standard | Per-phase | On complete | 20 | Small/medium tasks |
+| Full | Persistent | Per-iteration | 30-50 | Large/greenfield |
+| Finalize | Per-phase | On complete | 10 | Branch sync, merge prep |
 
-### StandardExecutor
-- **Session**: Per-phase (maintains context within phase)
-- **Checkpointing**: On phase completion
-- **Max iterations**: 20
-- **Best for**: Small/medium tasks
+## Model Configuration
 
-### FullExecutor
-- **Session**: Persistent, resumable
-- **Checkpointing**: Every iteration
-- **Max iterations**: 30-50
-- **Best for**: Large/greenfield, crash recovery needed
+**Location:** `config.go:70-85`, `phase_executor.go:70-85`
 
-### FinalizeExecutor
-- **Session**: Per-phase (for conflict resolution)
-- **Checkpointing**: On phase completion
-- **Max iterations**: 10 (mostly git operations)
-- **Best for**: Branch sync and merge preparation
-- **Specialized for**: `finalize` phase only
+Per-phase, per-weight model selection with thinking mode support.
 
-## FinalizeExecutor (finalize.go)
+### Resolution Hierarchy
 
-Dedicated executor for the finalize phase, handling branch synchronization and merge preparation.
-
-### Execution Flow
-
-```go
-FinalizeExecutor.Execute(ctx, task, phase, state)
-├── getFinalizeConfig()           # Get config with defaults
-├── fetchTarget()                 # Fetch origin/main
-├── checkDivergence()             # Commits ahead/behind
-├── syncWithTarget()              # Merge or rebase
-│   ├── syncViaMerge()            # Merge target into branch
-│   └── syncViaRebase()           # Rebase onto target
-├── resolveConflicts()            # AI-assisted resolution
-│   └── resolveRebaseConflicts()  # Handle rebase conflicts
-├── runTests()                    # Verify tests pass
-├── tryFixTests()                 # AI fixes failing tests
-├── assessRisk()                  # Classify merge risk
-└── createFinalizeCommit()        # Document finalization
+```
+ExecutorConfig.ResolveModelSetting(weight, phase)
+├── Check config.OrcConfig.Models[weight][phase]  # Phase-specific
+├── Fallback to config.OrcConfig.Models.Default   # Global default
+└── Fallback to config.Model                      # Legacy field
 ```
 
-### Key Types
+### Default Model Matrix
 
+| Weight | Decision Phases | Execution Phases |
+|--------|-----------------|------------------|
+| trivial | opus | sonnet |
+| small | opus | sonnet |
+| medium | opus + thinking | sonnet |
+| large | opus + thinking | sonnet |
+| greenfield | opus + thinking | sonnet |
+
+**Decision phases** (thinking enabled): spec, design, review, validate, research
+**Execution phases** (no thinking): implement, test, docs, finalize
+
+### Extended Thinking (Ultrathink)
+
+**Location:** `standard.go:189-194`, `full.go:224-229`, `trivial.go:125-129`, `finalize.go:577-581`
+
+When `modelSetting.Thinking == true`, inject trigger at prompt start:
 ```go
-type FinalizeResult struct {
-    Synced            bool          // Branch synced with target
-    ConflictsResolved int           // Number of conflicts resolved
-    ConflictFiles     []string      // Files that had conflicts
-    TestsPassed       bool          // Tests passed after sync
-    TestFailures      []TestFailure // Test failure details
-    RiskLevel         string        // low|medium|high|critical
-    FilesChanged      int           // Files changed vs target
-    LinesChanged      int           // Total lines changed
-    NeedsReview       bool          // Requires additional review
-    CommitSHA         string        // Final commit SHA
+if modelSetting.Thinking {
+    promptText = "ultrathink\n\n" + promptText
 }
 ```
 
-### Conflict Resolution
+**Why user message?** Claude Code thinking triggers only work in user messages, not system prompts. See `session_adapter.go:76-78` for explanation.
 
-Uses Claude session for AI-assisted resolution:
-```go
-resolved, err := e.resolveConflicts(ctx, task, phase, state, conflictFiles, cfg)
+### Configuration
+
+```yaml
+# .orc/config.yaml
+models:
+  default:
+    model: opus
+    thinking: false
+  medium:
+    spec:
+      model: opus
+      thinking: true
+    implement:
+      model: sonnet
+      thinking: false
 ```
 
-Conflict resolution prompt includes strict rules:
-- Never remove features (both sides preserved)
-- Merge intentions, not text
-- Prefer additive resolutions
-- Test after each file resolution
+## Key Components
 
-### Risk Assessment
+### Template Variables (`template.go:40-120`)
+
+| Variable | Description |
+|----------|-------------|
+| `{{TASK_ID}}`, `{{TASK_TITLE}}` | Task identifiers |
+| `{{SPEC_CONTENT}}` | Specification from spec phase |
+| `{{DESIGN_CONTENT}}` | Design artifact (large/greenfield) |
+| `{{RETRY_CONTEXT}}` | Failure info on retry |
+| `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}` | Git worktree context |
+| `{{INITIATIVE_CONTEXT}}` | Initiative details if linked |
+
+### Token Usage (`session_adapter.go:118-135`)
 
 ```go
-func classifyRisk(files, lines, conflicts int) string
+// Raw InputTokens is misleadingly low when cached
+// Always use EffectiveInputTokens() for actual context size
+effective := usage.InputTokens + usage.CacheCreationInputTokens + usage.CacheReadInputTokens
 ```
+
+### Completion Detection (`completion.go`)
+
+```xml
+<phase_complete>true</phase_complete>   <!-- Success -->
+<phase_blocked>reason: ...</phase_blocked>  <!-- Needs help -->
+```
+
+### Retry Context (`retry.go`)
+
+Cross-phase retry when tests fail:
+```go
+ctx := buildRetryContext(failedPhase, output, attempt)
+// Phase receives {{RETRY_CONTEXT}} with failure details
+```
+
+## FinalizeExecutor
+
+**Location:** `finalize.go`
+
+Dedicated executor for large/greenfield finalize phase.
+
+| Step | Method | Purpose |
+|------|--------|---------|
+| 1 | `fetchTarget()` | Fetch origin/main |
+| 2 | `checkDivergence()` | Count commits ahead/behind |
+| 3 | `syncWithTarget()` | Merge or rebase per config |
+| 4 | `resolveConflicts()` | AI-assisted conflict resolution |
+| 5 | `runTests()` | Verify tests pass |
+| 6 | `assessRisk()` | Classify: low/medium/high/critical |
+
+**Risk Thresholds:**
 
 | Metric | Low | Medium | High | Critical |
 |--------|-----|--------|------|----------|
@@ -158,573 +174,66 @@ func classifyRisk(files, lines, conflicts int) string
 | Lines | <100 | 100-500 | 500-1000 | >1000 |
 | Conflicts | 0 | 1-3 | 4-10 | >10 |
 
-### Escalation
+**Escalation:** >10 unresolved conflicts or >5 test failures → retry from implement phase
 
-When finalize fails beyond thresholds:
-```go
-func (e *FinalizeExecutor) shouldEscalate(result *FinalizeResult, cfg config.FinalizeConfig) bool
-```
+See `docs/FINALIZE.md` for detailed flow.
 
-Escalates to implement phase when:
-- >10 conflicts couldn't be resolved
-- >5 tests fail after fix attempts
+## CI Merger
 
-### Configuration Options
+**Location:** `ci_merge.go`
+
+Handles CI polling and auto-merge after finalize.
 
 ```go
-type FinalizeConfig struct {
-    Enabled               bool                      // Enable finalize
-    AutoTrigger           bool                      // Run after validate
-    AutoTriggerOnApproval bool                      // Run when PR approved (auto profile)
-    Sync                  FinalizeSyncConfig        // merge|rebase
-    ConflictResolution    ConflictResolutionConfig  // AI resolution
-    RiskAssessment        RiskAssessmentConfig      // Risk thresholds
-    Gates                 FinalizeGatesConfig       // Pre-merge gates
-}
+merger.WaitForCIAndMerge(ctx, task)
+├── WaitForCI()      // Poll gh pr checks (30s interval, 10m timeout)
+└── MergePR()        // gh pr merge --squash
 ```
 
-### Auto-Trigger on PR Approval
+**Profile Behavior:**
+- `auto`/`fast`: Wait for CI, auto-merge on pass
+- `safe`/`strict`: No auto-merge (human approval required)
 
-When `AutoTriggerOnApproval` is enabled (default for `auto` profile):
-1. PR status poller detects approval via `OnStatusChange` callback
-2. Server calls `TriggerFinalizeOnApproval(taskID)` in `handlers_finalize.go`
-3. Conditions checked: task weight supports finalize, finalize not already done
-4. Finalize runs asynchronously with WebSocket progress events
+See `docs/CI_MERGE.md` for configuration options.
 
-## Key Components
+## Resource Tracker
 
-### EventPublisher (publish.go)
+**Location:** `resource_tracker.go`
 
-Nil-safe event publishing:
-```go
-publisher := NewEventPublisher(nil)  // Safe with nil
-publisher.PhaseStart(taskID, phaseID)
-publisher.PhaseComplete(taskID, phaseID, result)
-publisher.Transcript(taskID, phaseID, iteration, "response", content)
-```
-
-### Template Rendering (template.go)
-
-Variable substitution in prompts:
-```go
-vars := BuildTemplateVars(task, phase, iteration, retryContext)
-vars = vars.WithUITestingContext(uiCtx)  // Add UI testing context if needed
-rendered := RenderTemplate(template, vars)
-```
-
-**Standard Variables:** `{{TASK_ID}}`, `{{TASK_TITLE}}`, `{{TASK_DESCRIPTION}}`, `{{PHASE}}`, `{{WEIGHT}}`, `{{ITERATION}}`, `{{RETRY_CONTEXT}}`
-
-**UI Testing Variables (when `requires_ui_testing: true`):**
-- `{{REQUIRES_UI_TESTING}}` - Boolean flag indicating UI testing is needed
-- `{{SCREENSHOT_DIR}}` - Path to save screenshots (`.orc/tasks/{id}/test-results/screenshots/`)
-- `{{TEST_RESULTS}}` - Previous test results (for validate phase)
-
-**UITestingContext:**
-```go
-type UITestingContext struct {
-    RequiresUITesting bool
-    ScreenshotDir     string
-    TestResults       string
-}
-```
-
-### Retry Context (retry.go)
-
-Cross-phase retry when tests fail:
-```go
-ctx := buildRetryContext(failedPhase, output, attempt)
-saveRetryContextFile(taskDir, ctx)
-// On retry, phase receives {{RETRY_CONTEXT}} with failure info
-```
-
-### Fresh Session Retry
-
-Retries use fresh Claude sessions with comprehensive context injection:
+Detects orphaned processes (MCP servers, browsers) after task execution.
 
 ```go
-type RetryContext struct {
-    FailedPhase     string          // Which phase failed
-    FailureReason   string          // Why it failed
-    FailureOutput   string          // Last 1000 chars of output
-    ReviewComments  []ReviewComment // Comments from code review UI
-    PRComments      []PRComment     // Comments from GitHub PR
-    Instructions    string          // User-provided guidance
-    PreviousContext string          // Summary from previous session
-}
-
-func BuildRetryContextForFreshSession(opts RetryOptions) string
+tracker.SnapshotBefore()   // Before task
+// ... task runs ...
+tracker.SnapshotAfter()    // After task
+tracker.DetectOrphans()    // Find orphaned processes
+tracker.CheckMemoryGrowth() // Check memory delta
 ```
 
-Context injection includes:
-- **Failure output**: Last 1500 chars of what went wrong
-- **Review comments**: Grouped by file with line numbers and severity
-- **PR comments**: GitHub PR review feedback
-- **User instructions**: Additional guidance from retry UI
+**Orphan criteria:** New PID + (parent is PID 1 OR parent doesn't exist)
 
-### Auto-Commit Helpers (executor.go)
-
-Task state changes are automatically committed to git:
-```go
-// Commit after status changes (running, completed, failed)
-e.commitTaskStatus(t, "running")
-
-// Commit after state changes (phase transitions, etc.)
-e.commitTaskState(t, "implement phase completed")
-```
-
-These helpers call `task.CommitAndSync()` and `task.CommitStatusChange()` respectively. Commits are skipped if `tasks.disable_auto_commit` is set in config. Failed commits log a warning but don't fail the operation.
-
-### Worktree Isolation (worktree.go)
-
-Tasks run in isolated git worktrees:
-```go
-worktreePath, cleanup, err := setupWorktree(gitSvc, taskID, config)
-defer cleanup()
-```
-
-### Setup Failure Handling (task_execution.go)
-
-When setup fails (e.g., worktree creation), `failSetup()` ensures proper error handling:
-- Sets task status to `failed`
-- Stores error in `state.yaml`
-- Publishes error event (phase: "setup")
-- Displays error to user (always shown, even in quiet mode)
-
-This ensures setup errors are never silently swallowed.
-
-## Completion Detection
-
-Phases signal completion via XML tags:
-```xml
-<phase_complete>true</phase_complete>
-```
-
-Or blocking:
-```xml
-<phase_blocked>reason: missing dependencies</phase_blocked>
-```
-
-Parsed by `CheckPhaseCompletion()` in `completion.go`.
-
-## Test Output Parsing (test_parser.go)
-
-Auto-detects and parses test output from multiple frameworks:
-
-```go
-result, err := ParseTestOutput(output)  // Auto-detect framework
-result, err := ParseGoTestOutput(output) // Go-specific
-result, err := ParseJestOutput(output)   // Jest-specific
-result, err := ParsePytestOutput(output) // Pytest-specific
-```
-
-Returns `ParsedTestResult`:
-- `Passed`, `Failed`, `Skipped` counts
-- `Coverage` percentage
-- `Failures` with file:line references
-- `Duration` of test run
-- `Framework` detected
-
-Coverage validation:
-```go
-valid := ValidateTestResults(result, thresholdPercent, required)
-pass, reason := CheckCoverageThreshold(75.5, 80)
-```
-
-Retry context generation:
-```go
-context := BuildTestRetryContext("test", result)
-context := BuildCoverageRetryContext(65.0, 80, result)
-```
-
-## Review Session (review.go)
-
-Multi-round code review with structured output parsing.
-
-**Types:**
-- `ReviewFindings` - Round 1 exploratory findings (issues, questions, positives)
-- `ReviewDecision` - Round 2 validation decision (pass/fail/needs_user_input)
-- `ReviewResult` - Complete multi-round review result
-
-**Parsing:**
-```go
-findings, err := ParseReviewFindings(response)  // Round 1
-decision, err := ParseReviewDecision(response)  // Round 2
-
-// Check for high-severity issues
-if findings.HasHighSeverityIssues() { ... }
-
-// Count by severity
-counts := findings.CountBySeverity()  // map[string]int
-
-// Format for Round 2 injection
-formatted := FormatFindingsForRound2(findings)
-```
-
-**Configuration helpers:**
-```go
-shouldRun := ShouldRunReview(cfg, weight)
-rounds := GetReviewRounds(cfg)
-```
-
-## QA Session (qa.go)
-
-QA session result parsing for tests, coverage, and documentation.
-
-**Types:**
-- `QAResult` - Complete QA session result
-- `QATest` - Test written (file, description, type)
-- `QATestRun` - Test execution counts (total, passed, failed, skipped)
-- `QACoverage` - Coverage percentage and uncovered areas
-- `QADoc` - Documentation created (file, type)
-- `QAIssue` - Issue found (severity, description, reproduction)
-
-**Parsing:**
-```go
-result, err := ParseQAResult(response)
-
-// Check results
-if result.HasHighSeverityIssues() { ... }
-if result.AllTestsPassed() { ... }
-
-// Format for display
-summary := FormatQAResultSummary(result)
-```
-
-**Configuration helpers:**
-```go
-shouldRun := ShouldRunQA(cfg, weight)
-```
-
-## Session Adapter (session_adapter.go)
-
-LLM session abstraction with token tracking.
-
-**Types:**
-- `SessionAdapter` - Wraps Claude session for headless execution
-- `TurnResult` - Single turn result with content and completion flags
-- `TokenUsage` - Token counts from Claude response
-
-**Token Usage:**
-
-Claude reports tokens in multiple fields that must be combined to get the actual context size:
-
-```go
-type TokenUsage struct {
-    InputTokens              int  // Raw input tokens (uncached portion)
-    OutputTokens             int  // Output tokens generated
-    CacheCreationInputTokens int  // Tokens written to cache
-    CacheReadInputTokens     int  // Tokens read from cache
-}
-
-// EffectiveInputTokens returns actual context size (input + cached)
-func (u TokenUsage) EffectiveInputTokens() int {
-    return u.InputTokens + u.CacheCreationInputTokens + u.CacheReadInputTokens
-}
-
-// EffectiveTotalTokens returns total tokens including cached inputs
-func (u TokenUsage) EffectiveTotalTokens() int {
-    return u.EffectiveInputTokens() + u.OutputTokens
-}
-```
-
-**Important:** Raw `InputTokens` can appear misleadingly low (e.g., 56 tokens) when most of the prompt is served from cache. Always use `EffectiveInputTokens()` when displaying or tracking context size.
-
-**UI Display:** The web UI shows cached tokens in multiple locations:
-- Dashboard stats: Total with cached count in parentheses
-- Task detail: Input/Output/Cached/Total breakdown
-- Transcript: Per-iteration with tooltip breakdown
-
-See `web/CLAUDE.md` for component details.
-
-**Turn Execution:**
-```go
-adapter := NewSessionAdapter(client, opts)
-result, err := adapter.ExecuteTurn(ctx, prompt)
-
-// Use effective tokens for accurate tracking
-effectiveInput := result.Usage.EffectiveInputTokens()
-totalTokens := result.Usage.EffectiveTotalTokens()
-```
-
-## Activity Tracking (activity.go)
-
-Tracks execution state and provides progress indication for long-running API calls.
-
-**Activity States:**
-- `ActivityIdle` - No activity
-- `ActivityWaitingAPI` - Waiting for Claude API response
-- `ActivityStreaming` - Receiving streaming response
-- `ActivityRunningTool` - Claude is running a tool
-- `ActivityProcessing` - Processing response
-
-**ActivityTracker:**
-```go
-tracker := NewActivityTracker(
-    WithHeartbeatInterval(30 * time.Second),
-    WithIdleTimeout(2 * time.Minute),
-    WithTurnTimeout(10 * time.Minute),
-    WithStateChangeCallback(func(state ActivityState) { ... }),
-    WithHeartbeatCallback(func() { fmt.Print(".") }),
-    WithIdleWarningCallback(func(d time.Duration) { ... }),
-    WithTurnTimeoutCallback(func() { ... }),
-)
-
-tracker.Start(ctx)
-defer tracker.Stop()
-
-// During execution
-tracker.SetState(ActivityWaitingAPI)
-tracker.RecordChunk()  // On streaming chunk
-tracker.SetIteration(5)
-
-// Query state
-duration := tracker.TurnDuration()
-idle := tracker.IdleDuration()
-chunks := tracker.ChunksReceived()
-```
-
-**Used by:** StandardExecutor, FullExecutor for progress indication during API calls.
-
-## CI Merger (ci_merge.go)
-
-Handles CI polling and auto-merge after finalize phase completes. Bypasses GitHub's auto-merge feature (which requires branch protection).
-
-**Types:**
-
-```go
-type CIStatus string
-
-const (
-    CIStatusPending  CIStatus = "pending"
-    CIStatusPassed   CIStatus = "passed"
-    CIStatusFailed   CIStatus = "failed"
-    CIStatusNoChecks CIStatus = "no_checks"
-)
-
-type CICheckResult struct {
-    Status       CIStatus  // Overall status
-    TotalChecks  int       // Number of CI checks
-    PassedChecks int       // Passed count
-    FailedChecks int       // Failed count
-    PendingChecks int      // Pending count
-    FailedNames  []string  // Failed check names
-    PendingNames []string  // Pending check names
-    Details      string    // Status message
-}
-```
-
-**CIMerger:**
-
-```go
-merger := NewCIMerger(cfg,
-    WithCIMergerPublisher(publisher),
-    WithCIMergerLogger(logger),
-    WithCIMergerWorkDir(worktreePath),
-)
-
-// Main entry point - waits for CI then merges
-err := merger.WaitForCIAndMerge(ctx, task)
-
-// Or use individual methods
-result, err := merger.WaitForCI(ctx, prURL, taskID)
-result, err := merger.CheckCIStatus(ctx, prURL)
-err := merger.MergePR(ctx, prURL, task)
-```
-
-**Flow:**
-
-```
-WaitForCIAndMerge
-├── Check config (ShouldWaitForCI)
-├── Get PR URL from task
-├── WaitForCI(ctx, prURL, taskID)
-│   ├── CheckCIStatus()  # Initial check
-│   └── Poll loop (30s interval, 10m timeout)
-│       └── CheckCIStatus() → passed|failed|pending
-├── Check config (ShouldMergeOnCIPass)
-└── MergePR(ctx, prURL, task)
-    ├── gh pr merge --squash (or --merge/--rebase)
-    ├── --delete-branch (if configured)
-    └── Update task with merge info
-```
-
-**Configuration:**
-
-```go
-// Methods on *config.Config
-cfg.ShouldWaitForCI()      // true for auto/fast profiles
-cfg.ShouldMergeOnCIPass()  // true for auto/fast profiles
-cfg.CITimeout()            // Default: 10m
-cfg.CIPollInterval()       // Default: 30s
-cfg.MergeMethod()          // Default: "squash"
-```
-
-**CI Check Buckets:**
-
-| Bucket | Treatment |
-|--------|-----------|
-| `pass` | Passed |
-| `skipping` | Passed (treated as success) |
-| `fail` | Failed |
-| `cancel` | Failed (treated as failure) |
-| `pending` | Pending |
-
-**WebSocket Events:**
-
-Progress is broadcast via `Transcript()` with phase="ci_merge":
-- "Waiting for CI checks to pass..."
-- "Waiting for CI... 3/5 passed, 2 pending"
-- "CI checks passed. Merging PR..."
-- "PR merged successfully!"
-
-**Error Handling:**
-
-- CI timeout → Log warning, return `ErrCITimeout`, PR remains open
-- CI failed → Log error with check names, return `ErrCIFailed`, PR remains open
-- Merge fails → Return wrapped error, PR remains open
-
-Errors don't fail the task - finalize succeeded and PR exists. User can merge manually.
-
----
+See `docs/RESOURCE_TRACKER.md` for platform-specific details.
 
 ## Testing
 
 ```bash
-# Run all executor tests
-go test ./internal/executor/... -v
-
-# Run specific module tests
-go test ./internal/executor/... -run TestPublish -v
-go test ./internal/executor/... -run TestTemplate -v
-go test ./internal/executor/... -run TestRetry -v
-go test ./internal/executor/... -run TestWorktree -v
+go test ./internal/executor/... -v                    # All tests
+go test ./internal/executor/... -run TestResolve -v   # Model resolution
+go test ./internal/executor/... -run TestTemplate -v  # Template vars
 ```
 
-Test coverage for each module:
-- `publish_test.go` - Nil safety, event types
-- `template_test.go` - Variable substitution
-- `retry_test.go` - Context file I/O
-- `worktree_test.go` - Setup/cleanup
-- `flowgraph_nodes_test.go` - Node builders
-- `executor_test.go` - Integration tests
-- `test_parser_test.go` - Framework detection, parsing, coverage validation
-- `review_test.go` - Review findings/decision parsing, edge cases
-- `qa_test.go` - QA result parsing, status validation
-- `session_adapter_test.go` - Token usage calculations, effective token methods
-- `activity_test.go` - Activity state transitions, heartbeat timing, timeout callbacks
-- `finalize_test.go` - Finalize executor, sync strategies, risk assessment, conflict handling
-- `ci_merge_test.go` - CI status checking, polling, merge methods, profile restrictions
-- `resource_tracker_test.go` - Process snapshots, orphan detection, memory growth
+| Test File | Coverage |
+|-----------|----------|
+| `executor_test.go` | Integration tests |
+| `template_test.go` | Variable substitution, initiative context |
+| `session_adapter_test.go` | Token usage, effective tokens |
+| `finalize_test.go` | Sync strategies, risk assessment |
+| `ci_merge_test.go` | CI status, polling, merge methods |
+| `resource_tracker_test.go` | Orphan detection, memory growth |
 
-## Resource Tracker (resource_tracker.go)
+## Common Gotchas
 
-Tracks process and memory state before/after task execution to detect orphaned processes (MCP servers, browsers) that survive beyond Claude sessions.
-
-### Problem Being Solved
-
-When orc runs tasks with MCP servers (Playwright, etc.):
-```
-orc (Go process)
-└── Claude CLI (spawned by llmkit)
-    └── MCP servers (Playwright, etc)
-        └── Chromium browsers
-```
-
-When Claude CLI session ends, llmkit kills the direct child but not the entire process group. MCP servers and browsers become orphaned and accumulate over multiple tasks, eventually causing system freezes.
-
-### Types
-
-```go
-type ProcessInfo struct {
-    PID      int      // Process ID
-    PPID     int      // Parent process ID
-    Command  string   // Process command (truncated to 100 chars)
-    MemoryMB float64  // RSS memory in MB
-    IsMCP    bool     // True if matches MCP patterns (playwright, chromium, firefox, webkit)
-}
-
-type ProcessSnapshot struct {
-    Timestamp     time.Time
-    Processes     []ProcessInfo
-    TotalMemoryMB float64
-    ProcessCount  int
-}
-
-type ResourceTrackerConfig struct {
-    Enabled            bool  // Enable tracking (default: true)
-    MemoryThresholdMB  int   // Warn if growth > threshold (default: 100)
-    LogOrphanedMCPOnly bool  // Only log MCP-related orphans (default: false)
-}
-```
-
-### Usage Flow
-
-```go
-// Create tracker from config
-rtConfig := ResourceTrackerConfig{
-    Enabled:           cfg.Diagnostics.ResourceTracking.Enabled,
-    MemoryThresholdMB: cfg.Diagnostics.ResourceTracking.MemoryThresholdMB,
-}
-tracker := NewResourceTracker(rtConfig, logger)
-
-// Before task execution (in task_execution.go)
-tracker.SnapshotBefore()
-
-// Task runs...
-
-// After task execution (in executor.go runResourceAnalysis)
-tracker.SnapshotAfter()
-tracker.DetectOrphans()      // Returns orphaned processes, logs warning
-tracker.CheckMemoryGrowth()  // Returns delta, logs warning if > threshold
-tracker.Reset()              // Clear for next task
-```
-
-### Orphan Detection Logic
-
-A process is considered orphaned if:
-1. It didn't exist before task started (new PID)
-2. AND one of:
-   - Its parent is init (PID 1) - reparented after parent died
-   - Its parent process no longer exists
-
-### MCP Process Detection
-
-```go
-var mcpProcessPattern = regexp.MustCompile(
-    `(?i)(playwright|chromium|chrome|firefox|webkit|puppeteer|selenium)`)
-
-func IsMCPProcess(command string) bool
-```
-
-### Platform Support
-
-| Platform | Method |
-|----------|--------|
-| Linux | `/proc/[pid]/stat`, `/proc/[pid]/status`, `/proc/[pid]/cmdline` |
-| macOS | `ps -axo pid,ppid,rss,comm` |
-| Windows | `wmic process get ...` or `tasklist /fo csv` |
-
-### Configuration
-
-```yaml
-# config.yaml
-diagnostics:
-  resource_tracking:
-    enabled: true            # Enable process/memory tracking
-    memory_threshold_mb: 100 # Warn if memory grows by >100MB
-    log_orphaned_mcp_only: false  # Log all orphans, not just MCP
-```
-
-### Log Output
-
-```
-INFO resource snapshot taken (before) processes=145 memory_mb=2456.3
-INFO resource snapshot taken (after) processes=148 memory_mb=2892.1
-WARN orphaned processes detected count=3 processes="chromium (PID=12345) [MCP], playwright-server (PID=12346) [MCP], webkit (PID=12347) [MCP]"
-WARN memory growth exceeded threshold delta_mb=435.8 threshold_mb=100 before_mb=2456.3 after_mb=2892.1
-```
-
-### Integration Points
-
-- `task_execution.go:ExecuteTask()` - Calls `SnapshotBefore()` at start
-- `executor.go:runResourceAnalysis()` - Calls `SnapshotAfter()`, `DetectOrphans()`, `CheckMemoryGrowth()`, `Reset()` after task
+1. **Raw InputTokens misleading** - Use `EffectiveInputTokens()` for actual context size
+2. **Ultrathink in system prompt** - Doesn't work; must be in user message
+3. **FinalizeExecutor OrcConfig** - `WithFinalizeOrcConfig()` must set both `e.orcConfig` and `e.config.OrcConfig`
+4. **Model not resolved in trivial** - Fixed: now uses `ResolveModelSetting()` like other executors
