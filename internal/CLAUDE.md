@@ -158,5 +158,6 @@ See package-specific CLAUDE.md files:
 - `cli/CLAUDE.md` - CLI commands
 - `db/CLAUDE.md` - SQLite persistence layer
 - `executor/CLAUDE.md` - Execution engine modules
+- `orchestrator/CLAUDE.md` - Multi-task coordination with process group cleanup
 - `setup/CLAUDE.md` - Claude-powered setup
 - `storage/CLAUDE.md` - Storage backend abstraction

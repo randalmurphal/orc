@@ -621,9 +621,19 @@ diagnostics:
     enabled: false
 ```
 
-**Long-term Fix**:
+**Process Group Cleanup (Orchestrator Workers)**:
 
-The root cause is that llmkit kills the Claude CLI process but not its entire process tree. A future llmkit fix will use process groups (Setpgid/SIGTERM to process group) to properly clean up all descendants. For now, the resource tracker provides visibility into the problem.
+For orchestrator workers (`orc run --orchestrate`), process group handling is implemented:
+- Workers create commands with `Setpgid: true` to put child processes in their own process group
+- `Worker.Stop()` kills the entire process group via `syscall.Kill(-pid, SIGKILL)`
+- This ensures MCP servers spawned by Claude are properly terminated
+
+**Limitations**:
+- Only applies to orchestrator workers (parallel execution mode)
+- Single-task CLI runs (`orc run TASK-XXX`) still use llmkit's default behavior
+- Windows does not support POSIX process groups (stub implementation)
+
+**Note**: For single-task execution, the resource tracker still provides visibility. A future llmkit update may add process group support for all Claude invocations.
 
 ---
 
