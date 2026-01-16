@@ -4,6 +4,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -462,9 +463,56 @@ func (e *Executor) handleGateEvaluation(ctx context.Context, phase *plan.Phase, 
 }
 
 // completeTask finalizes the task after all phases are done.
+// Completion flow:
+// 1. Try completion actions (sync, PR/merge) FIRST
+// 2. If sync fails with conflicts, try auto/Claude resolution
+// 3. If resolution fails, set status to blocked (not completed)
+// 4. Only mark completed if everything succeeds
 func (e *Executor) completeTask(ctx context.Context, t *task.Task, s *state.State) error {
+	// Run completion action (sync, PR) FIRST - before marking complete
+	completionErr := e.runCompletion(ctx, t)
+
+	if completionErr != nil {
+		// Check if it's a conflict error that we couldn't resolve
+		if errors.Is(completionErr, ErrSyncConflict) {
+			e.logger.Error("completion failed due to unresolved conflicts",
+				"task", t.ID,
+				"error", completionErr)
+
+			// Mark task as blocked, not completed
+			t.Status = task.StatusBlocked
+			if t.Metadata == nil {
+				t.Metadata = make(map[string]string)
+			}
+			t.Metadata["blocked_reason"] = "sync_conflict"
+			t.Metadata["blocked_error"] = completionErr.Error()
+
+			s.ClearExecution()
+			if saveErr := e.backend.SaveState(s); saveErr != nil {
+				e.logger.Error("failed to save state on conflict block", "error", saveErr)
+			}
+			if saveErr := e.backend.SaveTask(t); saveErr != nil {
+				e.logger.Error("failed to save task on conflict block", "error", saveErr)
+			}
+
+			// Publish blocked event
+			e.publish(events.NewEvent(events.EventComplete, t.ID, events.CompleteData{
+				Status: "blocked",
+			}))
+			e.publishState(t.ID, s)
+
+			// Don't return error - task execution itself was successful,
+			// just the post-execution sync/PR failed
+			return nil
+		}
+
+		// Other completion errors (non-conflict) - log warning but continue to complete
+		e.logger.Warn("completion action failed", "error", completionErr)
+	}
+
+	// Completion succeeded (or had non-blocking errors) - mark as completed
 	s.Complete()
-	s.ClearExecution() // Clear execution tracking on completion
+	s.ClearExecution()
 	if saveErr := e.backend.SaveState(s); saveErr != nil {
 		e.logger.Error("failed to save state on completion", "error", saveErr)
 	}
@@ -474,12 +522,6 @@ func (e *Executor) completeTask(ctx context.Context, t *task.Task, s *state.Stat
 	t.CompletedAt = &completedAt
 	if saveErr := e.backend.SaveTask(t); saveErr != nil {
 		e.logger.Error("failed to save task on completion", "error", saveErr)
-	}
-
-	// Run completion action (merge/PR)
-	if err := e.runCompletion(ctx, t); err != nil {
-		e.logger.Warn("completion action failed", "error", err)
-		// Don't fail the task for completion errors
 	}
 
 	// Publish completion event
@@ -802,12 +844,8 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 			// Publish CI/merge error but don't fail the finalize phase itself
 			e.publishError(t.ID, "ci_merge", mergeErr.Error(), false)
 		} else {
-			// Update task status to finished if merge succeeded
-			t.Status = task.StatusFinished
-			if saveErr := e.backend.SaveTask(t); saveErr != nil {
-				e.logger.Error("failed to save task after merge", "error", saveErr)
-			}
-
+			// Task already completed - just log the successful merge
+			e.logger.Info("PR merged successfully via finalize", "task", t.ID)
 			e.publishState(t.ID, s)
 		}
 	}

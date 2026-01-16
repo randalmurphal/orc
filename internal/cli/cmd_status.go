@@ -121,7 +121,7 @@ func showStatus(showAll bool) error {
 			}
 		case task.StatusPaused:
 			paused = append(paused, t)
-		case task.StatusFinalizing, task.StatusCompleted, task.StatusFinished, task.StatusFailed:
+		case task.StatusFinalizing, task.StatusCompleted, task.StatusFailed:
 			if t.UpdatedAt.After(dayAgo) {
 				recent = append(recent, t)
 			} else if showAll {
@@ -288,7 +288,7 @@ func showStatus(showAll bool) error {
 	total := len(tasks)
 	completed := 0
 	for _, t := range tasks {
-		if t.Status == task.StatusCompleted || t.Status == task.StatusFinished {
+		if t.Status == task.StatusCompleted {
 			completed++
 		}
 	}

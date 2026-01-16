@@ -55,11 +55,6 @@ const statusConfig: Record<TaskStatus, StatusConfig> = {
 		glow: 'transparent',
 		label: 'Completed',
 	},
-	finished: {
-		color: 'var(--status-success)',
-		glow: 'transparent',
-		label: 'Finished',
-	},
 	failed: {
 		color: 'var(--status-danger)',
 		glow: 'transparent',

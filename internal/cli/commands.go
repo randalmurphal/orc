@@ -52,8 +52,6 @@ func statusIcon(status task.Status) string {
 		return "🏁"
 	case task.StatusCompleted:
 		return "✅"
-	case task.StatusFinished:
-		return "📦"
 	case task.StatusFailed:
 		return "❌"
 	default:
@@ -80,8 +78,6 @@ func statusText(status task.Status) string {
 		return "[FIN]"
 	case task.StatusCompleted:
 		return "[OK]"
-	case task.StatusFinished:
-		return "[END]"
 	case task.StatusFailed:
 		return "[ERR]"
 	default:

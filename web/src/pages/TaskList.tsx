@@ -49,8 +49,8 @@ type StatusFilter = 'all' | 'active' | 'completed' | 'failed';
 type SortBy = 'recent' | 'oldest' | 'status';
 
 // Terminal statuses (not active anymore)
-const TERMINAL_STATUSES = ['finalizing', 'completed', 'finished', 'failed'];
-const DONE_STATUSES = ['completed', 'finished'];
+const TERMINAL_STATUSES = ['finalizing', 'completed', 'failed'];
+const DONE_STATUSES = ['completed'];
 
 // Status order for sorting
 const STATUS_ORDER = [
@@ -61,7 +61,6 @@ const STATUS_ORDER = [
 	'created',
 	'finalizing',
 	'completed',
-	'finished',
 	'failed',
 ];
 

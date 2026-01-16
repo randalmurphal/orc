@@ -289,7 +289,7 @@ describe('InitiativeStore', () => {
 			const tasks = [
 				createTask({ id: 'TASK-001', initiative_id: 'INIT-001', status: 'completed' }),
 				createTask({ id: 'TASK-002', initiative_id: 'INIT-001', status: 'running' }),
-				createTask({ id: 'TASK-003', initiative_id: 'INIT-001', status: 'finished' }),
+				createTask({ id: 'TASK-003', initiative_id: 'INIT-001', status: 'completed' }),
 				createTask({ id: 'TASK-004', initiative_id: 'INIT-002', status: 'completed' }),
 			];
 
@@ -297,7 +297,7 @@ describe('InitiativeStore', () => {
 
 			expect(progress.get('INIT-001')).toEqual({
 				id: 'INIT-001',
-				completed: 2, // completed + finished
+				completed: 2,
 				total: 3,
 			});
 			expect(progress.get('INIT-002')).toEqual({

@@ -93,6 +93,7 @@ func init() {
 	addCmd(newPauseCmd(), groupTaskMgmt)
 	addCmd(newResumeCmd(), groupTaskMgmt)
 	addCmd(newStopCmd(), groupTaskMgmt)
+	addCmd(newCleanupCmd(), groupTaskMgmt)
 
 	// Inspection
 	addCmd(newLogCmd(), groupInspection)

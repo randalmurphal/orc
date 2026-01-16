@@ -252,7 +252,7 @@ describe('TaskStore', () => {
 				}),
 				createTask({
 					id: 'TASK-003',
-					status: 'finished',
+					status: 'completed',
 					updated_at: new Date(now).toISOString(),
 				}),
 				createTask({ id: 'TASK-004', status: 'running' }),
@@ -308,7 +308,7 @@ describe('TaskStore', () => {
 				createTask({ status: 'running' }),
 				createTask({ status: 'blocked' }),
 				createTask({ status: 'completed' }),
-				createTask({ status: 'finished' }),
+				createTask({ status: 'completed' }),
 				createTask({ status: 'failed' }),
 				createTask({ status: 'paused' }),
 			];
@@ -319,9 +319,9 @@ describe('TaskStore', () => {
 			expect(counts.all).toBe(7);
 			expect(counts.running).toBe(2);
 			expect(counts.blocked).toBe(1);
-			expect(counts.completed).toBe(2); // completed + finished
+			expect(counts.completed).toBe(2);
 			expect(counts.failed).toBe(1);
-			// Active = not terminal (running + blocked + paused = not completed/failed/finished)
+			// Active = not terminal (running + blocked + paused)
 			expect(counts.active).toBe(4); // running(2) + blocked(1) + paused(1) = 4
 		});
 

@@ -42,9 +42,7 @@ export function Swimlane({
 	getFinalizeState,
 }: SwimlaneProps) {
 	// Calculate progress
-	const completedCount = tasks.filter(
-		(t) => t.status === 'completed' || t.status === 'finished'
-	).length;
+	const completedCount = tasks.filter((t) => t.status === 'completed').length;
 	const totalCount = tasks.length;
 	const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 

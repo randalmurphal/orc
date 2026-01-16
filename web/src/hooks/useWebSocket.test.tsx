@@ -633,7 +633,7 @@ describe('WebSocket hooks', () => {
 			});
 
 			const task = useTaskStore.getState().getTask('TASK-001');
-			expect(task?.status).toBe('finished');
+			expect(task?.status).toBe('completed');
 		});
 
 		it('should show toast on error event', async () => {

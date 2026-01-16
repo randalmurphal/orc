@@ -130,7 +130,7 @@ export const useInitiativeStore = create<InitiativeStore>()(
 				if (!task.initiative_id) continue;
 
 				const existing = progress.get(task.initiative_id);
-				const isCompleted = task.status === 'completed' || task.status === 'finished';
+				const isCompleted = task.status === 'completed';
 
 				if (existing) {
 					existing.total++;

@@ -29,7 +29,7 @@ export const BOARD_COLUMNS: ColumnConfig[] = [
 ];
 
 // Terminal statuses that go to Done column
-const TERMINAL_STATUSES = ['finalizing', 'completed', 'finished', 'failed'];
+const TERMINAL_STATUSES = ['finalizing', 'completed', 'failed'];
 
 interface BoardProps {
 	tasks: Task[];

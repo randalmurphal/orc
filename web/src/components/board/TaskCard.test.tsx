@@ -199,16 +199,16 @@ Some \`inline code\` here`;
 			expect(container.querySelector('.task-card')).toHaveClass('finalizing');
 		});
 
-		it('has finished class when task is finished', () => {
-			const { container } = renderTaskCard(createTask({ status: 'finished' }));
-
-			expect(container.querySelector('.task-card')).toHaveClass('finished');
-		});
-
 		it('has completed class when task is completed', () => {
 			const { container } = renderTaskCard(createTask({ status: 'completed' }));
 
 			expect(container.querySelector('.task-card')).toHaveClass('completed');
+		});
+
+		it('has blocked class when task status is blocked', () => {
+			const { container } = renderTaskCard(createTask({ status: 'blocked' }));
+
+			expect(container.querySelector('.task-card')).toHaveClass('blocked');
 		});
 	});
 
@@ -488,9 +488,9 @@ Some \`inline code\` here`;
 			expect(screen.getByText('Syncing branch')).toBeInTheDocument();
 		});
 
-		it('shows commit info when finished', () => {
+		it('shows commit info when completed with finalize result', () => {
 			renderTaskCard(
-				createTask({ status: 'finished' }),
+				createTask({ status: 'completed' }),
 				{
 					finalizeState: {
 						task_id: 'TASK-001',

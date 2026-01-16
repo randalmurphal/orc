@@ -295,7 +295,7 @@ export function AutomationPage() {
 
 	const pendingTasks = autoTasks.filter((t: Task) => t.status === 'created' || t.status === 'planned');
 	const runningTasks = autoTasks.filter((t: Task) => t.status === 'running');
-	const completedTasks = autoTasks.filter((t: Task) => t.status === 'completed' || t.status === 'finished');
+	const completedTasks = autoTasks.filter((t: Task) => t.status === 'completed');
 	const failedTasks = autoTasks.filter((t: Task) => t.status === 'failed');
 
 	// Loading state
