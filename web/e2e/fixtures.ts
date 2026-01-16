@@ -70,13 +70,29 @@ export const test = base.extend<{
 		await use(state);
 	},
 
-	// Override page fixture to auto-select sandbox project
+	// Override page fixture to auto-select sandbox project and disable animations
 	page: async ({ page, sandbox }, use) => {
 		// Set localStorage BEFORE navigating to any page
 		// This ensures the project is selected on first load
 		await page.addInitScript((projectId: string) => {
 			localStorage.setItem('orc_current_project_id', projectId);
 		}, sandbox.projectId);
+
+		// Disable animations for E2E stability
+		// Animations cause Playwright "element not stable" timeouts
+		// because elements are continuously moving during transitions
+		await page.addStyleTag({
+			content: `
+				*,
+				*::before,
+				*::after {
+					animation-duration: 0.01ms !important;
+					animation-iteration-count: 1 !important;
+					transition-duration: 0.01ms !important;
+					scroll-behavior: auto !important;
+				}
+			`,
+		});
 
 		await use(page);
 	},
