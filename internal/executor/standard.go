@@ -221,6 +221,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		e.publisher.Transcript(t.ID, p.ID, iteration, "prompt", promptText)
 
 		// Execute turn with streaming and progress tracking
+		isSpecPhase := p.ID == "spec"
 		progressOpts := StreamProgressOptions{
 			TurnTimeout:       e.config.TurnTimeout,
 			HeartbeatInterval: e.config.HeartbeatInterval,
@@ -230,6 +231,15 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 				e.publisher.TranscriptChunk(t.ID, p.ID, iteration, chunk)
 			},
 			OnActivityChange: func(state ActivityState) {
+				// For spec phase, translate generic states to spec-specific states
+				if isSpecPhase {
+					switch state {
+					case ActivityWaitingAPI:
+						state = ActivitySpecAnalyzing
+					case ActivityStreaming:
+						state = ActivitySpecWriting
+					}
+				}
 				e.publisher.Activity(t.ID, p.ID, string(state))
 			},
 			OnHeartbeat: func() {

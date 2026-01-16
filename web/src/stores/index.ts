@@ -7,6 +7,8 @@ export {
 	useStatusCounts,
 	useTask,
 	useTaskState,
+	useTaskActivity,
+	type TaskActivity,
 } from './taskStore';
 
 // Project store

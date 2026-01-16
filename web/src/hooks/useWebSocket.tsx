@@ -24,6 +24,8 @@ import type {
 	Task,
 	TaskState,
 	Initiative,
+	ActivityUpdate,
+	ActivityState,
 } from '@/lib/types';
 import { useUIStore, useTaskStore, useInitiativeStore, toast } from '@/stores';
 
@@ -311,6 +313,19 @@ function handleWSEvent(event: WSEvent): void {
 		case 'transcript':
 			// Transcript events are handled by useTaskSubscription, not here
 			// They're task-specific and streamed to components that subscribe
+			break;
+
+		case 'activity': {
+			// Activity state update (spec_analyzing, spec_writing, etc.)
+			const activityData = data as ActivityUpdate;
+			taskStore.updateTaskActivity(task_id, activityData.phase, activityData.activity as ActivityState);
+			break;
+		}
+
+		case 'heartbeat':
+		case 'warning':
+			// These events are informational; no state update needed
+			// Could be used for UI indicators if desired
 			break;
 
 		default:

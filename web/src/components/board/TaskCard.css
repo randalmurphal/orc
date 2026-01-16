@@ -142,6 +142,12 @@
 	font-weight: var(--font-medium);
 }
 
+.task-card .spec-activity-label {
+	color: var(--status-info);
+	font-style: italic;
+	margin-left: var(--space-1);
+}
+
 /* Card Footer */
 .task-card .card-footer {
 	display: flex;

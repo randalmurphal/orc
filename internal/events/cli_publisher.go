@@ -111,12 +111,16 @@ func (p *CLIPublisher) handleActivity(event Event) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Only show significant activity changes
+	// Handle activity state changes with appropriate messages
 	switch activity.Activity {
 	case "waiting_api":
 		_, _ = fmt.Fprintf(p.out, "\n⏳ Waiting for Claude API...")
 	case "running_tool":
 		_, _ = fmt.Fprintf(p.out, "\n🔧 Running tool...")
+	case "spec_analyzing":
+		_, _ = fmt.Fprintf(p.out, "\n🔍 Analyzing codebase...")
+	case "spec_writing":
+		_, _ = fmt.Fprintf(p.out, "\n📝 Writing specification...")
 	}
 }
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { Task, TaskState, TaskStatus, StatusCounts } from '@/lib/types';
+import type { Task, TaskState, TaskStatus, StatusCounts, ActivityState } from '@/lib/types';
 
 // Active statuses for filtering (running/blocked/paused for getActiveTasks)
 const ACTIVE_STATUSES: TaskStatus[] = ['running', 'blocked', 'paused'];
@@ -8,10 +8,18 @@ const RECENT_STATUSES: TaskStatus[] = ['completed', 'failed'];
 // Terminal statuses (not active anymore)
 const TERMINAL_STATUSES: TaskStatus[] = ['completed', 'failed'];
 
+// Activity state for a task (ephemeral, from WebSocket events)
+export interface TaskActivity {
+	phase: string;
+	activity: ActivityState;
+	timestamp: number;
+}
+
 interface TaskStore {
 	// State
 	tasks: Task[];
 	taskStates: Map<string, TaskState>;
+	taskActivities: Map<string, TaskActivity>;
 	loading: boolean;
 	error: string | null;
 
@@ -31,6 +39,9 @@ interface TaskStore {
 	removeTaskState: (taskId: string) => void;
 	getTask: (taskId: string) => Task | undefined;
 	getTaskState: (taskId: string) => TaskState | undefined;
+	updateTaskActivity: (taskId: string, phase: string, activity: ActivityState) => void;
+	clearTaskActivity: (taskId: string) => void;
+	getTaskActivity: (taskId: string) => TaskActivity | undefined;
 	setLoading: (loading: boolean) => void;
 	setError: (error: string | null) => void;
 	reset: () => void;
@@ -39,6 +50,7 @@ interface TaskStore {
 const initialState = {
 	tasks: [] as Task[],
 	taskStates: new Map<string, TaskState>(),
+	taskActivities: new Map<string, TaskActivity>(),
 	loading: false,
 	error: null as string | null,
 };
@@ -152,6 +164,22 @@ export const useTaskStore = create<TaskStore>()(
 
 		getTaskState: (taskId) => get().taskStates.get(taskId),
 
+		updateTaskActivity: (taskId, phase, activity) =>
+			set((state) => {
+				const newActivities = new Map(state.taskActivities);
+				newActivities.set(taskId, { phase, activity, timestamp: Date.now() });
+				return { taskActivities: newActivities };
+			}),
+
+		clearTaskActivity: (taskId) =>
+			set((state) => {
+				const newActivities = new Map(state.taskActivities);
+				newActivities.delete(taskId);
+				return { taskActivities: newActivities };
+			}),
+
+		getTaskActivity: (taskId) => get().taskActivities.get(taskId),
+
 		setLoading: (loading) => set({ loading }),
 
 		setError: (error) => set({ error }),
@@ -173,3 +201,7 @@ export const useTask = (taskId: string) =>
 // Individual task state selector
 export const useTaskState = (taskId: string) =>
 	useTaskStore((state) => state.taskStates.get(taskId));
+
+// Individual task activity selector
+export const useTaskActivity = (taskId: string) =>
+	useTaskStore((state) => state.taskActivities.get(taskId));

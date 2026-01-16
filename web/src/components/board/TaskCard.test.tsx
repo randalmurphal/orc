@@ -35,6 +35,7 @@ vi.mock('@/stores', () => ({
 		full: `${id}: Test Initiative`,
 		id,
 	})),
+	useTaskActivity: vi.fn(() => undefined), // No activity by default
 }));
 
 // Mock API

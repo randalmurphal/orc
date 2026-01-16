@@ -18,9 +18,9 @@ import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import type { Task, TaskPriority, TaskQueue } from '@/lib/types';
-import { PRIORITY_CONFIG } from '@/lib/types';
+import { PRIORITY_CONFIG, ACTIVITY_CONFIG, isSpecPhaseActivity } from '@/lib/types';
 import { updateTask, triggerFinalize, type FinalizeState } from '@/lib/api';
-import { useTaskStore, getInitiativeBadgeTitle } from '@/stores';
+import { useTaskStore, getInitiativeBadgeTitle, useTaskActivity } from '@/stores';
 import './TaskCard.css';
 
 interface TaskCardProps {
@@ -99,6 +99,7 @@ export function TaskCard({
 }: TaskCardProps) {
 	const navigate = useNavigate();
 	const updateTaskInStore = useTaskStore((state) => state.updateTask);
+	const taskActivity = useTaskActivity(task.id);
 
 	const [actionLoading, setActionLoading] = useState(false);
 	const [quickMenuOpen, setQuickMenuOpen] = useState(false);
@@ -119,6 +120,11 @@ export function TaskCard({
 
 	// Initiative badge
 	const initiativeBadge = task.initiative_id ? getInitiativeBadgeTitle(task.initiative_id) : null;
+
+	// Spec phase activity indicator (only shown when running spec phase with spec-specific activity)
+	const specActivityLabel = isRunning && taskActivity && isSpecPhaseActivity(taskActivity.activity)
+		? ACTIVITY_CONFIG[taskActivity.activity]?.label
+		: null;
 
 	// Finalize progress
 	const finalizeProgress =
@@ -345,6 +351,9 @@ export function TaskCard({
 				<div className="task-phase">
 					<span className="phase-label">Phase:</span>
 					<span className="phase-value">{task.current_phase}</span>
+					{specActivityLabel && (
+						<span className="spec-activity-label">{specActivityLabel}</span>
+					)}
 				</div>
 			)}
 

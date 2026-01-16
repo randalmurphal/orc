@@ -17,6 +17,8 @@ func TestActivityState_String(t *testing.T) {
 		{ActivityStreaming, "Receiving response"},
 		{ActivityRunningTool, "Running tool"},
 		{ActivityProcessing, "Processing"},
+		{ActivitySpecAnalyzing, "Analyzing codebase"},
+		{ActivitySpecWriting, "Writing specification"},
 		{ActivityState("unknown"), "unknown"},
 	}
 
@@ -24,6 +26,30 @@ func TestActivityState_String(t *testing.T) {
 		t.Run(string(tt.state), func(t *testing.T) {
 			if got := tt.state.String(); got != tt.expected {
 				t.Errorf("ActivityState.String() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestActivityState_IsSpecPhaseActivity(t *testing.T) {
+	tests := []struct {
+		state    ActivityState
+		expected bool
+	}{
+		{ActivityIdle, false},
+		{ActivityWaitingAPI, false},
+		{ActivityStreaming, false},
+		{ActivityRunningTool, false},
+		{ActivityProcessing, false},
+		{ActivitySpecAnalyzing, true},
+		{ActivitySpecWriting, true},
+		{ActivityState("unknown"), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.state), func(t *testing.T) {
+			if got := tt.state.IsSpecPhaseActivity(); got != tt.expected {
+				t.Errorf("ActivityState.IsSpecPhaseActivity() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
