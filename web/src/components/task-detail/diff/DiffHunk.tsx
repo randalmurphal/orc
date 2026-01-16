@@ -103,8 +103,8 @@ function SplitView({
 		right: typeof hunk.lines[0] | null;
 	}> = [];
 
-	let leftQueue: typeof hunk.lines = [];
-	let rightQueue: typeof hunk.lines = [];
+	const leftQueue: typeof hunk.lines = [];
+	const rightQueue: typeof hunk.lines = [];
 
 	for (const line of hunk.lines) {
 		if (line.type === 'context') {

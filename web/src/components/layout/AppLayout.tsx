@@ -28,7 +28,7 @@ export function AppLayout() {
 	const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 	const [showProjectSwitcher, setShowProjectSwitcher] = useState(false);
 	const [showNewTaskModal, setShowNewTaskModal] = useState(false);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	 
 	const [_showCommandPalette, setShowCommandPalette] = useState(false);
 
 	// Sidebar state for layout margin

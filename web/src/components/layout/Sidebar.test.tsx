@@ -27,10 +27,10 @@ function renderWithRouter(ui: React.ReactElement, { route = '/' } = {}) {
 	return render(<MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>);
 }
 
-// Test helper to verify navigation (can be used if needed)
-// @ts-expect-error - intentionally unused, kept for debugging
+// Test helper to verify navigation (can be used if needed for debugging)
+// @ts-expect-error - Intentionally unused, kept for test debugging
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function _LocationDisplay() {
+function LocationDisplay() {
 	const location = useLocation();
 	return <div data-testid="location">{location.pathname}</div>;
 }

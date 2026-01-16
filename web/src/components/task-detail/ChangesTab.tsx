@@ -186,7 +186,7 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 			const updated = await updateReviewComment(taskId, id, { status: 'resolved' });
 			setComments((prev) => prev.map((c) => (c.id === id ? updated : c)));
 			toast.success('Comment resolved');
-		} catch (e) {
+		} catch (_e) {
 			toast.error('Failed to resolve comment');
 		}
 	}, [taskId]);
@@ -196,7 +196,7 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 			const updated = await updateReviewComment(taskId, id, { status: 'wont_fix' });
 			setComments((prev) => prev.map((c) => (c.id === id ? updated : c)));
 			toast.success("Marked as won't fix");
-		} catch (e) {
+		} catch (_e) {
 			toast.error('Failed to update comment');
 		}
 	}, [taskId]);
@@ -206,7 +206,7 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 			await deleteReviewComment(taskId, id);
 			setComments((prev) => prev.filter((c) => c.id !== id));
 			toast.success('Comment deleted');
-		} catch (e) {
+		} catch (_e) {
 			toast.error('Failed to delete comment');
 		}
 	}, [taskId]);
@@ -225,7 +225,7 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 			setGeneralCommentSeverity('issue');
 			setShowGeneralCommentForm(false);
 			toast.success('Comment added');
-		} catch (e) {
+		} catch (_e) {
 			toast.error('Failed to add comment');
 		} finally {
 			setAddingGeneralComment(false);
@@ -239,7 +239,7 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 		try {
 			await triggerReviewRetry(taskId);
 			toast.success('Comments sent to agent for review');
-		} catch (e) {
+		} catch (_e) {
 			toast.error('Failed to send comments to agent');
 		} finally {
 			setSendingToAgent(false);

@@ -474,8 +474,11 @@ Static analysis and linting are **mandatory** quality gates for phase completion
 |----------|----------------|-----------------|
 | **Go** | `golangci-lint run ./...` | errcheck, unused, vet, staticcheck, ineffassign |
 | Go (minimal) | `go vet ./...` | Type errors, suspicious constructs |
-| **Node/TS** | `npm run lint` | ESLint rules, TypeScript errors |
+| **Node/TS** | `npm run typecheck && npm run lint` | Type errors, ESLint rules |
+| TS (typecheck) | `tsc --noEmit` or `npm run typecheck` | Type errors only |
+| TS (lint) | `npm run lint` | ESLint code quality rules |
 | **Python** | `ruff check .` | PEP 8, common bugs, type issues |
+| Python (types) | `pyright .` | Type checking |
 | Python (alt) | `pylint`, `flake8`, `mypy` | Various rule sets |
 
 ### Go Errcheck Requirements
@@ -492,6 +495,21 @@ The `errcheck` linter is particularly important for Go code quality. Common patt
 - Silent failures lead to hard-to-debug production issues
 - Unchecked error returns are a code smell
 - Explicit `_ =` documents intentional ignoring
+
+### TypeScript/Node Linting Requirements
+
+TypeScript projects need BOTH type checking AND linting:
+
+| Issue | Wrong Pattern | Correct Pattern |
+|-------|---------------|-----------------|
+| Unused variable | `const foo = 1;` | Remove or rename to `_foo` |
+| Unused catch error | `catch (e) { ... }` | `catch (_e) { ... }` if `e` unused |
+| Explicit any | `data: any` | Use proper type or `unknown` |
+| React hooks violation | Hook in non-component function | Follow Rules of Hooks |
+
+**Why both checks matter:**
+- `tsc`/`typecheck`: Catches type mismatches, missing properties, incorrect function signatures
+- ESLint: Catches code quality issues, React patterns, unused code, potential bugs
 
 ### Phase Completion Blocking
 

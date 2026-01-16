@@ -159,11 +159,13 @@ golangci-lint run ./...
 # If golangci-lint not available, at minimum:
 go vet ./...
 
-# For Node projects
-npm run lint
+# For Node/TypeScript projects - run BOTH type checking and linting
+npm run typecheck  # Type checking (tsc --noEmit)
+npm run lint       # ESLint for code quality
 
 # For Python projects
 ruff check .
+pyright .  # Optional but recommended for type checking
 # or: pylint $(find . -name "*.py" -not -path "./.venv/*")
 ```
 
@@ -173,11 +175,19 @@ ruff check .
 - Ineffective assignments
 - Deferred calls in loops
 
+**Common TypeScript/Node linting issues to watch for:**
+- Unused variables: rename to `_varName` or remove
+- Unused catch errors: rename `catch (e)` to `catch (_e)` if error is not used
+- Type errors: fix types, avoid `any` where possible
+- React hooks violations: follow Rules of Hooks
+- Missing return types on exported functions
+
 If linting fails:
 1. Fix all linting errors (not just warnings)
-2. For errcheck issues: use `_ = functionCall()` to explicitly ignore errors only when truly safe
-3. For deferred Close(): wrap as `defer func() { _ = x.Close() }()`
-4. Re-run linter until clean
+2. For Go errcheck issues: use `_ = functionCall()` to explicitly ignore errors only when truly safe
+3. For Go deferred Close(): wrap as `defer func() { _ = x.Close() }()`
+4. For TypeScript unused vars: rename with underscore prefix (e.g., `_unusedVar`)
+5. Re-run linter until clean
 
 Do NOT mark the phase complete until linting passes.
 
