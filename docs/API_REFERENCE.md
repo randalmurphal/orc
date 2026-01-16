@@ -1268,6 +1268,9 @@ Connect to `/api/ws` for real-time updates.
 | `tokens` | `TokenUpdate` | Token usage (includes cached tokens) |
 | `complete` | `{status, duration}` | Task finished |
 | `error` | `{message, fatal}` | Error occurred |
+| `activity` | `ActivityUpdate` | Activity state changed (see below) |
+| `heartbeat` | `HeartbeatData` | Progress heartbeat during API wait |
+| `warning` | `{phase, message}` | Non-fatal warning |
 | `finalize` | `FinalizeUpdate` | Finalize phase progress (see below) |
 | `task_created` | `{task: Task}` | Task created via CLI/filesystem |
 | `task_updated` | `{task: Task}` | Task modified via CLI/filesystem |
@@ -1297,6 +1300,59 @@ Connect to `/api/ws` for real-time updates.
 | `step_percent` | Progress percentage (0-100) |
 | `error` | Error message (only present on failure) |
 | `result` | Finalize result (only present on completion) |
+
+### Activity Event Data
+
+Activity events provide real-time feedback about executor activity during phase execution.
+
+```json
+{
+  "phase": "spec",
+  "activity": "spec_analyzing"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `phase` | Current phase name |
+| `activity` | Activity state (see below) |
+
+**Activity states:**
+
+| State | Description | CLI Display |
+|-------|-------------|-------------|
+| `idle` | No activity | - |
+| `waiting_api` | Waiting for Claude API response | "Waiting for Claude API..." |
+| `streaming` | Actively receiving streaming response | - |
+| `running_tool` | Claude is running a tool | "Running tool..." |
+| `processing` | Processing response | - |
+| `spec_analyzing` | Analyzing codebase during spec phase | "Analyzing codebase..." |
+| `spec_writing` | Writing specification document | "Writing specification..." |
+
+**Spec phase progress:**
+
+The `spec_analyzing` and `spec_writing` states are specific to the spec phase and provide granular feedback during long-running specification generation. The spec phase has two distinct stages:
+
+1. **Analyzing** (`spec_analyzing`): Claude reads the codebase, researches patterns, identifies affected files
+2. **Writing** (`spec_writing`): Claude writes the specification document
+
+**Web UI handling:**
+
+TaskCard shows the activity state as subtext under the phase name for running tasks. The `ACTIVITY_CONFIG` map in `web/src/lib/types.ts` provides display labels.
+
+### Heartbeat Event Data
+
+Heartbeat events indicate continued activity during long-running API calls.
+
+```json
+{
+  "phase": "spec",
+  "iteration": 1,
+  "timestamp": "2026-01-10T10:31:00Z"
+}
+```
+
+Heartbeats are emitted every 30 seconds during API wait states. The CLI displays these as dots to show continued progress.
 
 ### Transcript Event Types
 
