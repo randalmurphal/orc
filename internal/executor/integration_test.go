@@ -599,3 +599,91 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 		t.Error("Expected complete event")
 	}
 }
+
+// TestMock_ExecuteTask_SetsStartedAt verifies the fix for TASK-284:
+// ExecuteTask must set state.StartedAt when execution begins, ensuring
+// Elapsed() returns a valid duration instead of 0.
+func TestMock_ExecuteTask_SetsStartedAt(t *testing.T) {
+	if useRealClaude() {
+		t.Skip("Skipping mock test when ORC_REAL_CLAUDE=1")
+	}
+
+	tmpDir := t.TempDir()
+
+	// Create backend for storage
+	backend, err := storage.NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	cfg := DefaultConfig()
+	cfg.WorkDir = tmpDir
+	e := New(cfg)
+	e.SetBackend(backend)
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>")
+	e.SetClient(mockClient)
+
+	testTask := task.New("MOCK-ELAPSED", "Elapsed time test")
+	testTask.Weight = task.WeightSmall
+	testTask.Status = task.StatusPlanned
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	testPlan := &plan.Plan{
+		Version: 1,
+		Phases: []plan.Phase{
+			{ID: "implement", Prompt: "Test"},
+		},
+	}
+	if err := backend.SavePlan(testPlan, "MOCK-ELAPSED"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
+
+	// CRITICAL: Create a state with zero StartedAt to simulate a loaded state
+	// from the database. This is the bug scenario - states loaded from DB
+	// may have zero StartedAt if the task hasn't started yet.
+	testState := &state.State{
+		TaskID: "MOCK-ELAPSED",
+		Status: state.StatusPending,
+		Phases: make(map[string]*state.PhaseState),
+		// StartedAt is intentionally zero (default)
+	}
+
+	// Verify pre-condition: StartedAt should be zero
+	if !testState.StartedAt.IsZero() {
+		t.Fatal("Pre-condition failed: StartedAt should be zero before ExecuteTask")
+	}
+
+	beforeExec := time.Now()
+	ctx := context.Background()
+	err = e.ExecuteTask(ctx, testTask, testPlan, testState)
+	afterExec := time.Now()
+
+	if err != nil {
+		t.Fatalf("ExecuteTask failed: %v", err)
+	}
+
+	// VERIFY FIX: StartedAt should now be set
+	if testState.StartedAt.IsZero() {
+		t.Fatal("BUG: StartedAt is still zero after ExecuteTask - Elapsed() would return 0")
+	}
+
+	// Verify StartedAt is within expected range
+	if testState.StartedAt.Before(beforeExec) || testState.StartedAt.After(afterExec) {
+		t.Errorf("StartedAt = %v, want between %v and %v", testState.StartedAt, beforeExec, afterExec)
+	}
+
+	// Verify Elapsed() returns a sensible value
+	elapsed := testState.Elapsed()
+	if elapsed < 0 {
+		t.Errorf("Elapsed() = %v, want non-negative", elapsed)
+	}
+	// Should be a small positive value (test runs in milliseconds)
+	if elapsed > 5*time.Second {
+		t.Errorf("Elapsed() = %v, unexpectedly large", elapsed)
+	}
+
+	t.Logf("ExecuteTask properly set StartedAt; Elapsed() = %v", elapsed)
+}
