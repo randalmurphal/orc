@@ -39,6 +39,24 @@ describe('Header', () => {
 			expect(screen.getByText('Select project')).toBeInTheDocument();
 		});
 
+		it('should show "Loading..." when projects are loading', () => {
+			useProjectStore.setState({ loading: true });
+			renderWithRouter(<Header />);
+			expect(screen.getByText('Loading...')).toBeInTheDocument();
+		});
+
+		it('should show "Loading..." when project ID is set but project not found yet', () => {
+			// This happens during initial load: currentProjectId is set from URL/localStorage
+			// but projects array hasn't been populated yet
+			useProjectStore.setState({
+				projects: [],
+				currentProjectId: 'proj-001',
+				loading: false,
+			});
+			renderWithRouter(<Header />);
+			expect(screen.getByText('Loading...')).toBeInTheDocument();
+		});
+
 		it('should show commands button', () => {
 			renderWithRouter(<Header />);
 			expect(screen.getByText('Commands')).toBeInTheDocument();

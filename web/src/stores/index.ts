@@ -15,6 +15,7 @@ export {
 	useCurrentProject,
 	useProjects,
 	useCurrentProjectId,
+	useProjectLoading,
 } from './projectStore';
 
 // Initiative store

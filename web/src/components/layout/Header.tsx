@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
-import { useCurrentProject } from '@/stores';
+import { useCurrentProject, useCurrentProjectId, useProjectLoading } from '@/stores';
 import { getModifierKey, formatShortcut } from '@/lib/platform';
 import './Header.css';
 
@@ -23,7 +23,21 @@ interface HeaderProps {
 export function Header({ onProjectClick, onNewTask, onCommandPalette }: HeaderProps) {
 	const location = useLocation();
 	const currentProject = useCurrentProject();
+	const currentProjectId = useCurrentProjectId();
+	const projectLoading = useProjectLoading();
 	const modKey = getModifierKey();
+
+	// Determine project button label:
+	// - If loading: show "Loading..."
+	// - If project selected and found: show project name
+	// - If project ID set but not found yet (projects loading): show "Loading..."
+	// - If no project selected: show "Select project"
+	const getProjectLabel = () => {
+		if (projectLoading) return 'Loading...';
+		if (currentProject) return currentProject.name;
+		if (currentProjectId) return 'Loading...'; // ID set but project not found yet
+		return 'Select project';
+	};
 
 	// Derive page title from route
 	const pageTitle = getPageTitle(location.pathname);
@@ -40,7 +54,7 @@ export function Header({ onProjectClick, onNewTask, onCommandPalette }: HeaderPr
 					<span className="project-icon">
 						<Icon name="folder" size={16} />
 					</span>
-					<span className="project-name">{currentProject?.name || 'Select project'}</span>
+					<span className="project-name">{getProjectLabel()}</span>
 					<span className="project-chevron">
 						<Icon name="chevron-down" size={12} />
 					</span>
