@@ -9,16 +9,16 @@ bin/
 *.swp
 *.swo
 
+# Node modules and lockfiles (any location)
+node_modules/
+package-lock.json
+
 # Web build artifacts (Svelte)
 web/.svelte-kit/
 web/build/
-web/node_modules/
-web/package-lock.json
 
 # Web build artifacts (React)
 web-react/build/
-web-react/node_modules/
-web-react/package-lock.json
 web-react/tsconfig.tsbuildinfo
 
 # Test artifacts
