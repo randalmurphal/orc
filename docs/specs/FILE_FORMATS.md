@@ -388,8 +388,7 @@ phases:
     iterations: 2
     duration: 13m
     checkpoint: def456ghi
-    artifacts:
-      - .orc/tasks/TASK-001/artifacts/spec.md
+    # Note: spec content stored in database (specs table), not as file artifact
 
   # Example of a skipped phase (artifact already existed)
   research:
@@ -614,7 +613,6 @@ Attachments are stored in `.orc/tasks/TASK-XXX/attachments/` directory. Files ar
 ```
 .orc/tasks/TASK-001/
 ├── task.yaml
-├── spec.md
 ├── plan.yaml
 ├── state.yaml
 ├── transcripts/
@@ -664,8 +662,22 @@ Uploaded filenames are sanitized to prevent path traversal and filesystem issues
 
 ## Artifact Formats
 
-### spec.md
+### Spec Content (Database)
 
+Spec content is stored in the SQLite database (`specs` table), not as file artifacts. This avoids merge conflicts when running parallel tasks in worktrees.
+
+**Schema:**
+```sql
+CREATE TABLE specs (
+    task_id TEXT PRIMARY KEY,    -- References tasks.id
+    content TEXT NOT NULL,       -- Markdown spec content
+    source TEXT NOT NULL,        -- Source identifier (e.g., "spec-phase")
+    created_at TEXT NOT NULL,    -- RFC3339 timestamp
+    updated_at TEXT NOT NULL     -- RFC3339 timestamp
+);
+```
+
+**Example content format:**
 ```markdown
 # Specification: Add User Authentication
 
@@ -690,6 +702,12 @@ Users cannot authenticate; we need OAuth2 support.
 ## Technical Approach
 Use oauth2 library with provider-specific configs.
 ```
+
+**API access:** `GET /api/tasks/:id/spec` returns spec content; `PUT /api/tasks/:id/spec` saves spec to database.
+
+**Template variable:** `{{SPEC_CONTENT}}` is populated via `WithSpecFromDatabase()` in executor templates.
+
+**Legacy fallback:** For backward compatibility, `ArtifactDetector` checks the database first (via `NewArtifactDetectorWithBackend`), then falls back to legacy `spec.md` files if they exist.
 
 ### review.md
 

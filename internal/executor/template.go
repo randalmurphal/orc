@@ -411,6 +411,28 @@ func (v TemplateVars) WithAutomationContext(ctx AutomationContext) TemplateVars 
 	return v
 }
 
+// WithSpecFromDatabase returns a copy of the vars with spec content loaded from the database.
+// This is the preferred method for loading spec content, as specs are stored exclusively
+// in the database (not as file artifacts) to avoid merge conflicts in worktrees.
+// If the backend is nil or loading fails, the original SpecContent is preserved.
+func (v TemplateVars) WithSpecFromDatabase(backend storage.Backend, taskID string) TemplateVars {
+	if backend == nil {
+		return v
+	}
+	specContent, err := backend.LoadSpec(taskID)
+	if err != nil {
+		slog.Debug("failed to load spec from database",
+			"task_id", taskID,
+			"error", err,
+		)
+		return v
+	}
+	if specContent != "" {
+		v.SpecContent = specContent
+	}
+	return v
+}
+
 // LoadInitiativeContext loads initiative context for a task if it belongs to an initiative.
 // Returns nil if the task doesn't belong to an initiative or if the initiative can't be loaded.
 func LoadInitiativeContext(t *task.Task, backend storage.Backend) *InitiativeContext {

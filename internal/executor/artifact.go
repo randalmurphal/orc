@@ -11,7 +11,16 @@ import (
 
 // SavePhaseArtifact extracts and saves artifact content from phase output.
 // Returns the path to the saved artifact file, or empty string if no artifact found.
+//
+// NOTE: For the "spec" phase, this function returns early without writing to the
+// filesystem. Spec content is saved exclusively to the database via SaveSpecToDatabase
+// to avoid merge conflicts in worktrees. Use SaveSpecToDatabase for spec phase output.
 func SavePhaseArtifact(taskID, phaseID, output string) (string, error) {
+	// Skip file writing for spec phase - use database only via SaveSpecToDatabase
+	if phaseID == "spec" {
+		return "", nil
+	}
+
 	artifact := extractArtifact(output)
 	if artifact == "" {
 		return "", nil // No artifact to save
@@ -38,10 +47,10 @@ func ExtractArtifactContent(output string) string {
 }
 
 // SaveSpecToDatabase saves spec content to the database for the spec phase.
-// This implements the dual-write pattern: spec content is saved to both the file artifact
-// (via SavePhaseArtifact) AND the database (via this function). The database copy is
-// required for template variable substitution - implement phase loads spec via LoadSpec()
-// to populate {{SPEC_CONTENT}}.
+// This is the SOLE mechanism for saving spec content - no file artifacts are created
+// for the spec phase to avoid merge conflicts in worktrees. The database is the source
+// of truth for spec content, which is loaded via backend.LoadSpec() to populate
+// {{SPEC_CONTENT}} in subsequent phase templates.
 //
 // This should be called after a successful spec phase completion.
 // Returns true if the spec was saved, false if the phase is not "spec" or no content found.

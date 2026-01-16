@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -22,23 +23,38 @@ const (
 // ArtifactDetector checks for existing phase artifacts.
 type ArtifactDetector struct {
 	taskDir string
+	taskID  string
 	weight  task.Weight
+	backend storage.Backend // Optional: used for spec detection from database
 }
 
 // NewArtifactDetector creates a detector for a task.
 func NewArtifactDetector(taskID string, weight task.Weight) *ArtifactDetector {
 	return &ArtifactDetector{
 		taskDir: task.TaskDir(taskID),
+		taskID:  taskID,
 		weight:  weight,
 	}
 }
 
 // NewArtifactDetectorWithDir creates a detector for a task in a specific directory.
-// The taskID parameter is kept for API compatibility but not stored.
-func NewArtifactDetectorWithDir(taskDir, _ string, weight task.Weight) *ArtifactDetector {
+func NewArtifactDetectorWithDir(taskDir, taskID string, weight task.Weight) *ArtifactDetector {
 	return &ArtifactDetector{
 		taskDir: taskDir,
+		taskID:  taskID,
 		weight:  weight,
+	}
+}
+
+// NewArtifactDetectorWithBackend creates a detector with database backend for spec detection.
+// This is the preferred constructor as it enables spec detection from the database
+// (specs are not stored as file artifacts to avoid merge conflicts).
+func NewArtifactDetectorWithBackend(taskDir, taskID string, weight task.Weight, backend storage.Backend) *ArtifactDetector {
+	return &ArtifactDetector{
+		taskDir: taskDir,
+		taskID:  taskID,
+		weight:  weight,
+		backend: backend,
 	}
 }
 
@@ -106,19 +122,48 @@ func (d *ArtifactDetector) DetectPhaseArtifacts(phaseID string) *ArtifactStatus 
 	}
 }
 
-// detectSpecArtifacts checks if spec.md exists with valid content.
+// detectSpecArtifacts checks if spec exists in the database.
+// Spec content is stored exclusively in the database (not as file artifacts)
+// to avoid merge conflicts in worktrees.
 func (d *ArtifactDetector) detectSpecArtifacts() *ArtifactStatus {
 	status := &ArtifactStatus{
 		PhaseID: "spec",
 	}
 
-	specPath := filepath.Join(d.taskDir, "spec.md")
+	// Try to load spec from database (preferred source)
+	if d.backend != nil && d.taskID != "" {
+		specContent, err := d.backend.LoadSpec(d.taskID)
+		if err == nil && specContent != "" {
+			// Check if spec has meaningful content
+			if len(strings.TrimSpace(specContent)) < minMeaningfulContent {
+				status.Description = "spec exists in database but appears empty or minimal"
+				return status
+			}
 
-	// Read and validate spec content (readFileLimited handles file-not-found)
+			// Validate spec content based on weight
+			validation := task.ValidateSpec(specContent, d.weight)
+			if !validation.Valid {
+				status.HasArtifacts = true
+				status.Artifacts = []string{"database:spec"}
+				status.Description = "spec exists in database but incomplete: " + strings.Join(validation.Issues, ", ")
+				status.CanAutoSkip = false // Don't auto-skip invalid specs
+				return status
+			}
+
+			status.HasArtifacts = true
+			status.Artifacts = []string{"database:spec"}
+			status.Description = "spec exists in database with valid content"
+			status.CanAutoSkip = true
+			return status
+		}
+	}
+
+	// Fallback: check for legacy spec.md file (for backward compatibility)
+	specPath := filepath.Join(d.taskDir, "spec.md")
 	content, err := readFileLimited(specPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			status.Description = "no spec.md file"
+			status.Description = "no spec found (checked database and spec.md)"
 		} else {
 			status.Description = "spec.md exists but unreadable"
 		}
@@ -144,7 +189,7 @@ func (d *ArtifactDetector) detectSpecArtifacts() *ArtifactStatus {
 
 	status.HasArtifacts = true
 	status.Artifacts = []string{"spec.md"}
-	status.Description = "spec.md exists with valid content"
+	status.Description = "spec.md exists with valid content (legacy file)"
 	status.CanAutoSkip = true
 	return status
 }
