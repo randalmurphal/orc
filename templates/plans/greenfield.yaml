@@ -1,6 +1,6 @@
 version: 1
 weight: greenfield
-description: Greenfield project - full lifecycle with comprehensive E2E testing
+description: Greenfield project - research, spec, design, implement, test, validate with comprehensive E2E testing
 
 phases:
   - id: research
@@ -66,6 +66,41 @@ phases:
       type: auto
     checkpoint: true
 
+  - id: design
+    name: design
+    prompt: |
+      Create architecture and design for greenfield project:
+
+      **Task**: {{TASK_TITLE}}
+
+      **Description**: {{TASK_DESCRIPTION}}
+
+      **Research findings**:
+      {{RESEARCH_CONTENT}}
+
+      **Specification**:
+      {{SPEC_CONTENT}}
+
+      Design requirements:
+      1. Define system architecture and components
+      2. Document design decisions with rationale
+      3. Assess implementation risks
+      4. Define implementation order
+
+      Output a design document with:
+      - System architecture diagram
+      - Component responsibilities
+      - Design decisions table (DD-1, DD-2, etc.)
+      - Risk assessment
+      - Implementation order
+
+      When done, output:
+      <phase_complete>true</phase_complete>
+    depends_on: [spec]
+    gate:
+      type: auto
+    checkpoint: true
+
   - id: implement
     name: implement
     prompt: |
@@ -78,22 +113,26 @@ phases:
       **Specification**:
       {{SPEC_CONTENT}}
 
+      **Design**:
+      {{DESIGN_CONTENT}}
+
       {{RETRY_CONTEXT}}
 
       Implementation protocol:
-      1. Create project structure
-      2. Implement backend:
+      1. Follow the design's implementation order
+      2. Create project structure
+      3. Implement backend:
          - All API endpoints
          - Business logic
          - Error handling
          - Unit tests alongside code
-      3. Implement frontend:
+      4. Implement frontend:
          - All pages/routes
          - All components
          - API integration
          - Loading/error states
-      4. Run tests frequently: `go test ./... -v -race`
-      5. Fix failures before continuing
+      5. Run tests frequently: `go test ./... -v -race`
+      6. Fix failures before continuing
 
       Keep iterating until:
       - All backend code complete
@@ -103,7 +142,7 @@ phases:
 
       When done, output:
       <phase_complete>true</phase_complete>
-    depends_on: [spec]
+    depends_on: [design]
     gate:
       type: auto
     checkpoint: true

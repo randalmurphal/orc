@@ -90,16 +90,42 @@ This phase is complete when:
 
 | Situation | Action |
 |-----------|--------|
-| Spec unclear on detail | Make reasonable choice, document it |
+| Spec unclear on detail | Make reasonable choice, document as amendment |
 | Pattern doesn't fit | Follow existing patterns, note deviation |
 | Scope creep temptation | **Stop. Stick to spec.** |
 | Tests failing | Fix implementation, not tests |
+| Spec assumption wrong | Document as amendment, continue with correct approach |
+
+## Spec Amendments
+
+If you discover the spec doesn't match reality (deprecated components, wrong assumptions, missing constraints), **do not silently adapt**. Instead, document amendments:
+
+```markdown
+## Amendments
+
+### AMEND-001 (implement phase)
+**Original:** [What spec said]
+**Actual:** [What you're doing instead]
+**Reason:** [Why the change is necessary]
+```
+
+Amendments preserve the original spec for audit while capturing what actually happened. Add amendments to your implementation artifact.
 
 ## Phase Completion
 
-When all success criteria are met:
+### Step 7: Verify All Criteria (REQUIRED)
 
-### Step 7: Commit Changes
+**Before claiming completion, you MUST verify each success criterion.**
+
+For each criterion in the spec's Success Criteria table:
+1. Run the verification method
+2. Record the result (PASS/FAIL)
+3. If FAIL: fix the issue and re-verify
+4. Only proceed when ALL criteria pass
+
+**Do NOT mark phase complete until all verifications pass.**
+
+### Step 8: Commit Changes
 
 **IMPORTANT**: Before marking the phase complete, commit all changes:
 
@@ -115,7 +141,7 @@ Files changed: [count]
 
 This checkpoint enables rollback if later phases fail.
 
-### Step 8: Output Completion
+### Step 9: Output Completion
 
 Wrap your implementation summary in artifact tags for automatic persistence:
 
@@ -128,23 +154,37 @@ Wrap your implementation summary in artifact tags for automatic persistence:
 - [file1]: [description]
 - [file2]: [description]
 
-### Success Criteria Met
-- [x] [Criterion 1]
-- [x] [Criterion 2]
+### Verification Results
 
-### Notes
-[Any deviations or decisions made]
+| ID | Criterion | Method | Result | Notes |
+|----|-----------|--------|--------|-------|
+| SC-1 | [From spec] | [Command run] | ✅ PASS | [Output summary] |
+| SC-2 | [From spec] | [Command run] | ✅ PASS | [Output summary] |
+
+### Amendments (if any)
+[List any AMEND-XXX entries, or "None"]
+
+### Key Decisions
+- [Decision 1]: [Why]
+- [Decision 2]: [Why]
 </artifact>
 
 Then output the completion marker:
 
 ```
 **Commit**: [commit SHA]
+**All criteria verified**: Yes
 
 <phase_complete>true</phase_complete>
 ```
 
-If blocked:
+**If any verification fails**, do NOT output `<phase_complete>`. Instead:
+1. Note which criterion failed
+2. Fix the implementation
+3. Re-run verification
+4. Repeat until all pass
+
+If blocked (cannot proceed):
 ```
 <phase_blocked>
 reason: [why blocked]

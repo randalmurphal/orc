@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
@@ -34,6 +35,7 @@ type ExecutorConfig struct {
 	SessionPersistence bool
 
 	// Model specifies which model to use (empty = default).
+	// This is the fallback model if OrcConfig is not set.
 	Model string
 
 	// TargetBranch is the target branch for merging (used in prompt templates).
@@ -51,6 +53,10 @@ type ExecutorConfig struct {
 	// IdleTimeout is how long without activity before warning.
 	// 0 means no idle warnings.
 	IdleTimeout time.Duration
+
+	// OrcConfig is a reference to the full orc config for model resolution.
+	// When set, ResolveModelSetting uses this to get phase-specific model settings.
+	OrcConfig *config.Config
 }
 
 // GetTargetBranch returns the target branch, defaulting to "main" if not set.
@@ -59,6 +65,23 @@ func (c ExecutorConfig) GetTargetBranch() string {
 		return "main"
 	}
 	return c.TargetBranch
+}
+
+// ResolveModelSetting returns the model and thinking settings for a specific phase and weight.
+// Falls back to the default Model field if no orc config is set.
+func (c ExecutorConfig) ResolveModelSetting(weight, phase string) config.PhaseModelSetting {
+	if c.OrcConfig != nil {
+		return c.OrcConfig.ResolveModelSetting(weight, phase)
+	}
+	// Fallback to legacy behavior
+	model := c.Model
+	if model == "" {
+		model = "opus"
+	}
+	return config.PhaseModelSetting{
+		Model:    model,
+		Thinking: false,
+	}
 }
 
 // DefaultConfigForWeight returns the recommended configuration for a task weight.

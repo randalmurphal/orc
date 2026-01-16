@@ -107,10 +107,13 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	// Generate session ID: {task_id}-{phase_id}
 	sessionID := fmt.Sprintf("%s-%s", t.ID, p.ID)
 
+	// Resolve model settings for this phase and weight
+	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
+
 	// Create session adapter
 	adapter, err := NewSessionAdapter(ctx, e.manager, SessionAdapterOptions{
 		SessionID:   sessionID,
-		Model:       e.config.Model,
+		Model:       modelSetting.Model,
 		Workdir:     e.workingDir,
 		MaxTurns:    e.config.MaxIterations,
 		Persistence: e.config.SessionPersistence,
@@ -182,6 +185,13 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	}
 
 	promptText := RenderTemplate(tmpl, vars)
+
+	// Inject "ultrathink" for extended thinking mode
+	// This triggers maximum thinking budget (31,999 tokens) in Claude Code
+	if modelSetting.Thinking {
+		promptText = "ultrathink\n\n" + promptText
+		e.logger.Debug("extended thinking enabled", "task", t.ID, "phase", p.ID)
+	}
 
 	// Iteration loop
 	var lastResponse string

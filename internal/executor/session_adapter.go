@@ -73,6 +73,10 @@ func NewSessionAdapter(ctx context.Context, mgr session.SessionManager, opts Ses
 		sessionOpts = append(sessionOpts, session.WithNoSessionPersistence())
 	}
 
+	// Note: Thinking mode is NOT enabled via --append-system-prompt because
+	// Claude Code's thinking triggers (ultrathink) only work in user messages.
+	// Instead, inject "ultrathink" into the prompt text in the executor.
+
 	// Create session
 	s, err := mgr.Create(ctx, sessionOpts...)
 	if err != nil {

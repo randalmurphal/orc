@@ -567,10 +567,18 @@ func (e *FinalizeExecutor) resolveConflicts(
 	// Build conflict resolution prompt
 	prompt := buildConflictResolutionPrompt(t, conflictFiles, cfg)
 
+	// Resolve model settings for finalize phase
+	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
+
+	// Inject "ultrathink" for extended thinking mode
+	if modelSetting.Thinking {
+		prompt = "ultrathink\n\n" + prompt
+	}
+
 	// Create session for conflict resolution
 	adapterOpts := SessionAdapterOptions{
 		SessionID:   fmt.Sprintf("%s-conflict-resolution", t.ID),
-		Model:       e.config.Model,
+		Model:       modelSetting.Model,
 		Workdir:     e.workingDir,
 		MaxTurns:    5, // Limited turns for conflict resolution
 		Persistence: false,
@@ -731,10 +739,18 @@ func (e *FinalizeExecutor) tryFixTests(
 	// Build fix prompt
 	prompt := buildTestFixPrompt(t, testResult)
 
+	// Resolve model settings for finalize phase
+	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
+
+	// Inject "ultrathink" for extended thinking mode
+	if modelSetting.Thinking {
+		prompt = "ultrathink\n\n" + prompt
+	}
+
 	// Create session for test fixing
 	adapterOpts := SessionAdapterOptions{
 		SessionID:   fmt.Sprintf("%s-test-fix", t.ID),
-		Model:       e.config.Model,
+		Model:       modelSetting.Model,
 		Workdir:     e.workingDir,
 		MaxTurns:    5,
 		Persistence: false,
