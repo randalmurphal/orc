@@ -1,10 +1,184 @@
 package git
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestValidateBranchName(t *testing.T) {
+	tests := []struct {
+		name    string
+		branch  string
+		wantErr bool
+		errMsg  string
+	}{
+		// Valid branch names
+		{
+			name:    "simple branch name",
+			branch:  "main",
+			wantErr: false,
+		},
+		{
+			name:    "branch with slash",
+			branch:  "feature/auth",
+			wantErr: false,
+		},
+		{
+			name:    "branch with hyphen",
+			branch:  "feature-auth",
+			wantErr: false,
+		},
+		{
+			name:    "branch with underscore",
+			branch:  "feature_auth",
+			wantErr: false,
+		},
+		{
+			name:    "branch with dot",
+			branch:  "v1.0.0",
+			wantErr: false,
+		},
+		{
+			name:    "orc task branch",
+			branch:  "orc/TASK-001",
+			wantErr: false,
+		},
+		{
+			name:    "initiative prefix branch",
+			branch:  "feature/auth-TASK-001",
+			wantErr: false,
+		},
+		{
+			name:    "developer staging branch",
+			branch:  "dev/randy",
+			wantErr: false,
+		},
+		{
+			name:    "deep nested branch",
+			branch:  "team/project/feature/auth",
+			wantErr: false,
+		},
+		// Invalid branch names - security issues
+		{
+			name:    "empty branch name",
+			branch:  "",
+			wantErr: true,
+			errMsg:  "cannot be empty",
+		},
+		{
+			name:    "path traversal",
+			branch:  "../../../etc/passwd",
+			wantErr: true,
+			errMsg:  "cannot contain '..'",
+		},
+		{
+			name:    "path traversal in middle",
+			branch:  "feature/../../../etc/passwd",
+			wantErr: true,
+			errMsg:  "cannot contain '..'",
+		},
+		{
+			name:    "shell metacharacter semicolon",
+			branch:  "main;rm",
+			wantErr: true,
+			errMsg:  "contains invalid characters",
+		},
+		{
+			name:    "shell metacharacter pipe",
+			branch:  "main|cat",
+			wantErr: true,
+			errMsg:  "contains invalid characters",
+		},
+		{
+			name:    "shell metacharacter ampersand",
+			branch:  "main&&rm",
+			wantErr: true,
+			errMsg:  "contains invalid characters",
+		},
+		{
+			name:    "shell metacharacter backtick",
+			branch:  "main`rm`",
+			wantErr: true,
+			errMsg:  "contains invalid characters",
+		},
+		{
+			name:    "shell metacharacter dollar",
+			branch:  "main$(rm)",
+			wantErr: true,
+			errMsg:  "contains invalid characters",
+		},
+		{
+			name:    "newline injection",
+			branch:  "main\nrm",
+			wantErr: true,
+			errMsg:  "contains invalid characters",
+		},
+		{
+			name:    "space in branch name",
+			branch:  "my branch",
+			wantErr: true,
+			errMsg:  "contains invalid characters",
+		},
+		// Invalid branch names - git restrictions
+		{
+			name:    "ends with .lock",
+			branch:  "branch.lock",
+			wantErr: true,
+			errMsg:  "cannot end with '.lock'",
+		},
+		{
+			name:    "ends with slash",
+			branch:  "feature/",
+			wantErr: true,
+			errMsg:  "cannot end with '/'",
+		},
+		{
+			name:    "double slash",
+			branch:  "feature//auth",
+			wantErr: true,
+			errMsg:  "cannot contain '//'",
+		},
+		{
+			name:    "starts with hyphen",
+			branch:  "-feature",
+			wantErr: true,
+			errMsg:  "contains invalid characters",
+		},
+		{
+			name:    "starts with dot",
+			branch:  ".hidden",
+			wantErr: true,
+			errMsg:  "contains invalid characters",
+		},
+		{
+			name:    "exceeds max length",
+			branch:  strings.Repeat("a", 257),
+			wantErr: true,
+			errMsg:  "exceeds maximum length",
+		},
+		{
+			name:    "at max length",
+			branch:  strings.Repeat("a", 256),
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateBranchName(tt.branch)
+			if tt.wantErr {
+				assert.Error(t, err, "expected error for branch: %s", tt.branch)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg, "error message mismatch")
+				}
+			} else {
+				assert.NoError(t, err, "unexpected error for branch: %s", tt.branch)
+			}
+		})
+	}
+}
 
 func TestNaming_BranchName(t *testing.T) {
 	tests := []struct {
