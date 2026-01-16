@@ -35,7 +35,7 @@ type ProcessSnapshot struct {
 
 type ResourceTrackerConfig struct {
     Enabled            bool  // Enable tracking (default: true)
-    MemoryThresholdMB  int   // Warn if growth > threshold (default: 100)
+    MemoryThresholdMB  int   // Warn if growth > threshold (default: 500)
     LogOrphanedMCPOnly bool  // Only log MCP-related orphans (default: false)
 }
 ```
@@ -94,7 +94,7 @@ func IsMCPProcess(command string) bool
 diagnostics:
   resource_tracking:
     enabled: true            # Enable process/memory tracking
-    memory_threshold_mb: 100 # Warn if memory grows by >100MB
+    memory_threshold_mb: 500 # Warn if memory grows by >500MB
     log_orphaned_mcp_only: false  # Log all orphans, not just MCP
 ```
 
@@ -104,7 +104,7 @@ diagnostics:
 INFO resource snapshot taken (before) processes=145 memory_mb=2456.3
 INFO resource snapshot taken (after) processes=148 memory_mb=2892.1
 WARN orphaned processes detected count=3 processes="chromium (PID=12345) [MCP], playwright-server (PID=12346) [MCP], webkit (PID=12347) [MCP]"
-WARN memory growth exceeded threshold delta_mb=435.8 threshold_mb=100 before_mb=2456.3 after_mb=2892.1
+WARN memory growth exceeded threshold delta_mb=535.8 threshold_mb=500 before_mb=2456.3 after_mb=2992.1
 ```
 
 ## Integration Points
