@@ -19,6 +19,12 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// ErrTaskBlocked is returned when a task completes all phases but is blocked
+// due to external issues (e.g., sync conflicts with target branch).
+// The task execution succeeded, but the completion action failed.
+// Callers should display a blocked message, not a completion message.
+var ErrTaskBlocked = errors.New("task blocked")
+
 // ExecuteTask runs all phases of a task with gate evaluation and cross-phase retry.
 func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, s *state.State) error {
 	// Set current task directory for saving files
@@ -510,9 +516,11 @@ func (e *Executor) completeTask(ctx context.Context, t *task.Task, s *state.Stat
 			}))
 			e.publishState(t.ID, s)
 
-			// Don't return error - task execution itself was successful,
-			// just the post-execution sync/PR failed
-			return nil
+			// Return ErrTaskBlocked so CLI can display the correct message.
+			// This is NOT a fatal error - the task phases completed successfully,
+			// but the post-completion sync failed. CLI should show a blocked message
+			// instead of a completion celebration.
+			return fmt.Errorf("%w: sync conflict - resolve conflicts then run 'orc resume %s'", ErrTaskBlocked, t.ID)
 		}
 
 		// Other completion errors (non-conflict) - log warning but continue to complete
