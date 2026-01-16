@@ -79,6 +79,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Session ID only with persistence | Custom session IDs (e.g., `orc-TASK-001-implement`) only passed to Claude CLI when `Persistence: true`; Claude CLI expects UUIDs it generates, so ephemeral sessions skip `WithSessionID()` to avoid "Invalid session ID" errors | TASK-286 |
 | Resolve blocked task guidance | `orc resolve` on blocked task provides actionable error with suggested commands (`orc approve` for gate approval, `orc resume` for resuming execution); distinguishes from generic "wrong status" errors; includes task ID in suggestions for copy-paste convenience | TASK-288 |
 | Spec phase progress indication | Spec phase has two distinct activity states: `spec_analyzing` (reading codebase, researching patterns) and `spec_writing` (generating specification); CLI shows "Analyzing codebase..." / "Writing specification..." messages; WebSocket broadcasts `activity` events with phase-specific states; TaskCard shows activity label under phase name; heartbeats continue during spec execution | TASK-244 |
+| Orphan detection prioritizes PID | `CheckOrphaned()` prioritizes PID check over heartbeat staleness - a live PID always indicates a healthy task regardless of heartbeat age; heartbeat staleness only provides additional context when PID is dead; `HeartbeatRunner` updates heartbeats every 2 minutes during phase execution for defense-in-depth | TASK-291 |
 
 ## Known Gotchas
 

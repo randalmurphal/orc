@@ -30,6 +30,7 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | `completion.go` | `<phase_complete>` detection |
 | `ci_merge.go` | CI polling and auto-merge |
 | `resource_tracker.go` | Orphan process detection |
+| `heartbeat.go` | Periodic heartbeat updates during execution |
 
 ## Architecture
 
@@ -119,6 +120,25 @@ See `docs/architecture/FINALIZE.md` for detailed flow.
 
 `resource_tracker.go` detects orphaned MCP processes after task execution.
 
+## Heartbeat Runner
+
+`heartbeat.go` provides periodic heartbeat updates during phase execution to support orphan detection.
+
+**Purpose:** Long-running phases (especially `implement`) can take hours. Without periodic heartbeats, the heartbeat would become stale even though the task is healthy.
+
+**Key constants:**
+- `DefaultHeartbeatInterval`: 2 minutes between heartbeat updates
+
+**Integration:**
+```go
+// In ExecuteTask, heartbeat runner starts before phases
+heartbeatRunner := NewHeartbeatRunner(e.Backend, state, e.Logger)
+heartbeatRunner.Start(ctx)
+defer heartbeatRunner.Stop()
+```
+
+**Orphan detection priority:** The state package's `CheckOrphaned()` prioritizes PID check over heartbeat staleness. A live PID always indicates a healthy task - heartbeat staleness is only used as additional context when PID is dead. This prevents false positives during long-running phases.
+
 ## Testing
 
 ```bash
@@ -131,6 +151,7 @@ go test ./internal/executor/... -v
 | `template_test.go` | Variable substitution |
 | `finalize_test.go` | Sync, risk assessment |
 | `ci_merge_test.go` | CI polling, merge |
+| `heartbeat_test.go` | Heartbeat updates, stop/cancel |
 
 ## Artifact Storage
 
