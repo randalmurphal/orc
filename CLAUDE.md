@@ -340,17 +340,37 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 
 ### Component Library
 
-**Button Primitive**: Unified button component used across all pages. Features variants (primary, secondary, danger, ghost, success), sizes (sm, md, lg), icon support (leftIcon, rightIcon, iconOnly), and loading state. Provides consistent accessibility (focus-visible, aria-disabled, aria-busy).
+**Button Primitive**: Unified button component used across all pages. Features variants (primary, secondary, danger, ghost, success), sizes (sm, md, lg), icon support (leftIcon, rightIcon, iconOnly), and loading state. Provides consistent accessibility (focus-visible, aria-disabled, aria-busy). Icon-only buttons require `aria-label`.
 
-**Radix UI**: Accessible primitives for Dialog, Dropdown, Select, Tabs, Tooltip, Popover, Toast.
-- All Radix components portal to `document.body` by default
-- Modal.tsx uses Radix Dialog internally while preserving existing CSS classes and API
-- Components are unstyled - style via CSS using `data-*` attributes (`data-state`, `data-highlighted`, etc.)
-- Focus management and keyboard navigation handled automatically
-- Global `data-state` animations defined in `index.css` with `prefers-reduced-motion` support
-- See ADR-008 for adoption rationale
+**Radix UI Primitives**: Accessible components with automatic keyboard navigation and ARIA attributes.
 
-See `web/CLAUDE.md` for component architecture.
+| Component | Package | Usage |
+|-----------|---------|-------|
+| DropdownMenu | `@radix-ui/react-dropdown-menu` | TaskCard quick menu, ExportDropdown (action menus) |
+| Select | `@radix-ui/react-select` | InitiativeDropdown, ViewModeDropdown, DependencyDropdown |
+| Tabs | `@radix-ui/react-tabs` | TabNav in task detail |
+| Tooltip | `@radix-ui/react-tooltip` | Replace native `title` attributes |
+| Dialog | `@radix-ui/react-dialog` | Modal.tsx (focus trap, ESC close) |
+
+**Radix Patterns**:
+- Portal to `document.body` by default (avoids z-index issues)
+- Style via `data-*` attributes: `data-state="open|closed"`, `data-highlighted`, `data-disabled`
+- Trigger uses `asChild` to wrap existing Button components
+- Select requires string values (map `null` to internal constants like `'__all__'`)
+- Global animations in `index.css` respect `prefers-reduced-motion`
+
+**Keyboard Navigation** (automatic via Radix):
+
+| Component | Keys |
+|-----------|------|
+| DropdownMenu/Select | Arrow keys, Enter, Escape, Home/End, typeahead |
+| Tabs | Arrow left/right, Home/End, Tab to panel |
+| Dialog | Escape closes, Tab cycles within focus trap |
+| Tooltip | Focus shows, blur hides |
+
+**E2E Validation**: Three test files (`ui-primitives.spec.ts`, `radix-a11y.spec.ts`, `axe-audit.spec.ts`) validate behavior, keyboard accessibility, and WCAG 2.1 AA compliance.
+
+See `web/CLAUDE.md` for component architecture and full API documentation.
 
 ## Documentation Reference
 
@@ -364,6 +384,8 @@ See `web/CLAUDE.md` for component architecture.
 | CLI Spec | `docs/specs/CLI.md` |
 | File Formats | `docs/specs/FILE_FORMATS.md` |
 | Troubleshooting | `docs/guides/TROUBLESHOOTING.md` |
+| Radix UI Adoption | `docs/decisions/ADR-008-radix-adoption.md` |
+| Web UI Components | `web/CLAUDE.md` |
 
 ## Testing
 
