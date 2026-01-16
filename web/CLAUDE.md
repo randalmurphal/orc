@@ -72,6 +72,8 @@ web/src/
 | `task_created/updated/deleted` | Task or `{ id }` |
 | `state_updated` | TaskState |
 | `transcript` | `{ task_id, content, tokens }` |
+| `activity` | `{ phase, activity }` - see `ActivityState` in types.ts |
+| `heartbeat` | `{ phase, iteration, timestamp }` |
 | `finalize` | `{ task_id, status, step }` |
 
 ### Keyboard Shortcuts

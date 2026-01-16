@@ -10,6 +10,7 @@ vi.mock('@/stores', () => ({
 	useTaskStore: vi.fn(() => ({
 		updateTask: vi.fn(),
 	})),
+	useTaskActivity: vi.fn(() => undefined),
 	getInitiativeBadgeTitle: vi.fn((id: string) => ({
 		display: id, // Now shows full initiative ID like "INIT-001"
 		full: `${id}: Test Initiative`,

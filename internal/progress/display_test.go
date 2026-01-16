@@ -334,6 +334,8 @@ func TestActivityState_String(t *testing.T) {
 		{ActivityStreaming, "Receiving response"},
 		{ActivityRunningTool, "Running tool"},
 		{ActivityProcessing, "Processing"},
+		{ActivitySpecAnalyzing, "Analyzing codebase"},
+		{ActivitySpecWriting, "Writing specification"},
 		{ActivityState("unknown"), "unknown"},
 	}
 
@@ -363,6 +365,38 @@ func TestSetActivity_NonQuiet(t *testing.T) {
 	d.SetActivity(ActivityRunningTool)
 }
 
+func TestSetActivity_SpecPhase_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Should not panic and should print spec-specific messages
+	d.SetActivity(ActivitySpecAnalyzing)
+	d.SetActivity(ActivitySpecWriting)
+}
+
+func TestActivityState_IsSpecPhaseActivity(t *testing.T) {
+	tests := []struct {
+		state    ActivityState
+		expected bool
+	}{
+		{ActivityIdle, false},
+		{ActivityWaitingAPI, false},
+		{ActivityStreaming, false},
+		{ActivityRunningTool, false},
+		{ActivityProcessing, false},
+		{ActivitySpecAnalyzing, true},
+		{ActivitySpecWriting, true},
+		{ActivityState("unknown"), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.state), func(t *testing.T) {
+			if got := tt.state.IsSpecPhaseActivity(); got != tt.expected {
+				t.Errorf("ActivityState.IsSpecPhaseActivity() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestHeartbeat_Quiet(t *testing.T) {
 	d := New("TASK-001", true) // quiet mode
 
@@ -375,6 +409,17 @@ func TestHeartbeat_NonQuiet(t *testing.T) {
 
 	d.SetActivity(ActivityWaitingAPI)
 	// Should print a dot
+	d.Heartbeat()
+}
+
+func TestHeartbeat_SpecPhase_NonQuiet(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// Spec phase activities should also emit heartbeat dots
+	d.SetActivity(ActivitySpecAnalyzing)
+	d.Heartbeat()
+
+	d.SetActivity(ActivitySpecWriting)
 	d.Heartbeat()
 }
 

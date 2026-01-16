@@ -173,3 +173,66 @@ func TestCLIPublisher_HandlesError(t *testing.T) {
 		t.Errorf("Expected error content, got: %s", output)
 	}
 }
+
+func TestCLIPublisher_SpecActivityAnalyzing(t *testing.T) {
+	var buf bytes.Buffer
+	pub := NewCLIPublisher(&buf, WithStreamMode(true))
+
+	pub.Publish(Event{
+		Type:   EventActivity,
+		TaskID: "TASK-001",
+		Data: ActivityUpdate{
+			Phase:    "spec",
+			Activity: "spec_analyzing",
+		},
+	})
+
+	output := buf.String()
+	if !strings.Contains(output, "Analyzing codebase") {
+		t.Errorf("Expected spec analyzing message, got: %s", output)
+	}
+}
+
+func TestCLIPublisher_SpecActivityWriting(t *testing.T) {
+	var buf bytes.Buffer
+	pub := NewCLIPublisher(&buf, WithStreamMode(true))
+
+	pub.Publish(Event{
+		Type:   EventActivity,
+		TaskID: "TASK-001",
+		Data: ActivityUpdate{
+			Phase:    "spec",
+			Activity: "spec_writing",
+		},
+	})
+
+	output := buf.String()
+	if !strings.Contains(output, "Writing specification") {
+		t.Errorf("Expected spec writing message, got: %s", output)
+	}
+}
+
+func TestActivityUpdate_IsSpecPhaseActivity(t *testing.T) {
+	tests := []struct {
+		activity string
+		expected bool
+	}{
+		{"idle", false},
+		{"waiting_api", false},
+		{"streaming", false},
+		{"running_tool", false},
+		{"processing", false},
+		{"spec_analyzing", true},
+		{"spec_writing", true},
+		{"unknown", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.activity, func(t *testing.T) {
+			update := ActivityUpdate{Phase: "spec", Activity: tt.activity}
+			if got := update.IsSpecPhaseActivity(); got != tt.expected {
+				t.Errorf("ActivityUpdate.IsSpecPhaseActivity() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
