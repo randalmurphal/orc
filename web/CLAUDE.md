@@ -2597,6 +2597,186 @@ Located in `components/task-detail/diff/`:
 - `issue` - Orange, should fix
 - `suggestion` - Blue, optional improvement
 
+## Environment Pages
+
+Configuration pages for Claude Code and orc settings (`/environment/*`).
+
+### Shared Patterns
+
+All environment pages follow consistent patterns:
+
+**State management:**
+- `loading`, `error` states for API calls
+- `hasChanges` flag for dirty tracking
+- `saving` state for form submissions
+
+**Common components:**
+- Radix Tabs for scope selection (project/global)
+- Modal for editing complex content
+- Toast notifications for success/error feedback
+- Loading/error/empty state displays
+
+**CSS classes (in `environment.css`):**
+- `.env-page-header` - Page header with title and actions
+- `.env-loading`, `.env-error`, `.env-empty` - State displays
+- `.env-scope-tabs`, `.env-scope-tab` - Scope selector tabs
+- `.env-card-grid`, `.env-card` - Card-based layouts
+
+### Settings
+
+Claude Code settings editor (`/environment/settings`).
+
+**Features:**
+- Tabs for project vs global scope
+- Environment variables (key-value pairs) with add/remove
+- Status line configuration (none or custom command)
+- Shows file path for current scope
+- Save/Reset buttons with change detection
+
+**API calls:**
+- `getSettingsHierarchy()` - Load merged settings
+- `updateSettings()` - Save project settings
+- `updateGlobalSettings()` - Save global settings
+
+### Config
+
+Orc configuration editor (`/environment/config`).
+
+**Features:**
+- Radix Accordion for collapsible sections
+- Profile dropdown (auto, fast, safe, strict)
+- Automation settings (gates, retry)
+- Execution settings (model, iterations, timeout)
+- Git settings (branch prefix, commit prefix)
+- Worktree settings (enabled, directory, cleanup)
+- Completion settings (action, target branch, delete)
+- Timeouts settings (phase, turn, idle, heartbeat)
+
+**API calls:**
+- `getConfig()` - Load configuration
+- `updateConfig()` - Save configuration
+
+### Prompts
+
+Phase prompt editor (`/environment/prompts`).
+
+**Features:**
+- List of all phases with override indicators
+- Preview modal shows full prompt content
+- Editor modal for creating/editing overrides
+- Template variable hints (TASK_ID, TASK_TITLE, etc.)
+- Reset to default option
+- Delete override to restore default
+
+**Phase icons:** research (search), spec (file-text), implement (code), test (check), docs (book), validate (target), finalize (check-circle)
+
+**API calls:**
+- `listPrompts()` - Get all prompts with metadata
+- `getPrompt(phase)` - Get prompt content
+- `getPromptDefault(phase)` - Get default content
+- `savePrompt(phase, content)` - Save override
+- `deletePrompt(phase)` - Delete override
+
+### Hooks
+
+Claude Code hooks editor (`/environment/hooks`).
+
+**Features:**
+- Tabs for project vs global scope
+- Groups by event type (PreToolUse, PostToolUse, PreCompact, PrePrompt, Stop)
+- Each hook has matcher pattern and one or more commands
+- Editor modal for adding/editing hooks
+- Hook count badges per event
+
+**API calls:**
+- `listHooks(scope)` - Get all hooks
+- `getHookTypes()` - Get available event types
+- `updateHook(event, hooks, scope)` - Save hooks
+
+### Skills
+
+Skills browser (`/environment/skills`).
+
+**Features:**
+- Read-only display of SKILL.md files
+- Tabs for project vs global scope
+- Card grid layout with name and description
+- Preview modal with full content
+- Shows allowed tools, references, scripts, assets flags
+
+**API calls:**
+- `listSkills(scope)` - Get skill list
+- `getSkill(name, scope)` - Get skill content
+
+### Mcp
+
+MCP server configuration (`/environment/mcp`).
+
+**Features:**
+- Card grid of configured servers
+- Add/edit/delete servers
+- Enable/disable toggle per server
+- Server types: stdio (command) or sse (URL)
+- Arguments and environment variables
+- Shows command/URL, arg count, env var count
+
+**API calls:**
+- `listMCPServers()` - Get all servers
+- `getMCPServer(name)` - Get server details
+- `createMCPServer(config)` - Create server
+- `updateMCPServer(name, config)` - Update server
+- `deleteMCPServer(name)` - Delete server
+
+### ClaudeMd
+
+CLAUDE.md viewer (`/environment/claudemd`).
+
+**Features:**
+- Tabs for project vs global scope
+- Read-only markdown display
+- Shows file path
+- Preformatted content display
+
+**API calls:**
+- `getClaudeMd(scope)` - Get CLAUDE.md content
+
+### Tools
+
+Tools list (`/environment/tools`).
+
+**Features:**
+- Read-only display of available tools
+- Category icons (file, code, search, etc.)
+- Shows tool name and description
+
+**API calls:**
+- `listTools()` - Get available tools
+
+### Agents
+
+Sub-agents browser (`/environment/agents`).
+
+**Features:**
+- Read-only card grid
+- Shows agent name, description, tools
+- Preview modal with full configuration
+
+**API calls:**
+- `listAgents()` - Get agent list
+
+### Scripts
+
+Scripts registry (`/environment/scripts`).
+
+**Features:**
+- Read-only table of registered scripts
+- Shows name, description, command
+- Discover button to scan for scripts
+
+**API calls:**
+- `listScripts()` - Get script list
+- `discoverScripts()` - Scan for new scripts
+
 ## Known Differences from Svelte
 
 | Aspect | Svelte 5 | React 19 |
