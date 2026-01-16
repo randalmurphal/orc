@@ -399,6 +399,7 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 		exec := executor.NewWithConfig(execCfg, s.orcConfig)
 		exec.SetBackend(s.backend)
 		exec.SetPublisher(s.publisher)
+		exec.SetAutomationService(s.automationSvc)
 
 		// Resume from implement phase with retry context
 		err := exec.ResumeFromPhase(ctx, t, p, st, "implement")

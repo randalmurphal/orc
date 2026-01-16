@@ -122,6 +122,18 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		)
 	}
 
+	// Add automation context if this is an automation task (AUTO-XXX)
+	if t.IsAutomation {
+		if autoCtx := LoadAutomationContext(t, e.backend, "."); autoCtx != nil {
+			vars = vars.WithAutomationContext(*autoCtx)
+			e.logger.Info("automation context injected (trivial)",
+				"task", t.ID,
+				"has_recent_tasks", autoCtx.RecentCompletedTasks != "",
+				"has_changed_files", autoCtx.RecentChangedFiles != "",
+			)
+		}
+	}
+
 	promptText := RenderTemplate(tmpl, vars)
 
 	// Resolve model settings for this phase and weight

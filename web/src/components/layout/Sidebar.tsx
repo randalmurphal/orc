@@ -33,6 +33,7 @@ const workItems: NavItem[] = [
 	{ label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
 	{ label: 'Tasks', href: '/', icon: 'tasks' },
 	{ label: 'Board', href: '/board', icon: 'board' },
+	{ label: 'Automation', href: '/automation', icon: 'zap' },
 ];
 
 const environmentOverview: NavItem = {
