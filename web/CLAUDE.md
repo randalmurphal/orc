@@ -2040,7 +2040,7 @@ import { ViewModeDropdown } from '@/components/board';
 <ViewModeDropdown
   value={viewMode}
   onChange={setViewMode}
-  disabled={initiativeFilterActive}  // Swimlane disabled when filtered
+  disabled={initiativeFilterActive}  // Swimlane disabled when URL has initiative param
 />
 ```
 
@@ -2056,6 +2056,9 @@ Uses `@radix-ui/react-select` with custom trigger styling. Trigger displays layo
 **Options:**
 - **Flat**: All tasks in columns
 - **By Initiative**: Grouped by initiative (swimlane)
+
+**Disabled State:**
+The dropdown is disabled when an initiative filter is active in the URL (i.e., `?initiative=...` param is present). The URL param is used as the source of truth, not the store value which may include localStorage-persisted state. This ensures navigating to `/board` (clean URL) always enables the dropdown, even if a previous filter was stored in localStorage.
 
 **Features (via Radix Select):**
 - Arrow key navigation
