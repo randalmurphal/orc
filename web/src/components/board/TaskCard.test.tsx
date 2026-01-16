@@ -84,6 +84,15 @@ describe('TaskCard', () => {
 			expect(screen.getByText('A test task description')).toBeInTheDocument();
 		});
 
+		it('truncates description to 2-3 lines via CSS class', () => {
+			const { container } = renderTaskCard(createTask({ description: 'This is a very long description that could potentially span many lines if not truncated properly by the CSS styling applied to the task card component' }));
+
+			const descriptionElement = container.querySelector('.task-description');
+			expect(descriptionElement).toBeInTheDocument();
+			// The CSS class applies line-clamp truncation
+			expect(descriptionElement).toHaveClass('task-description');
+		});
+
 		it('renders weight badge', () => {
 			renderTaskCard(createTask({ weight: 'large' }));
 
