@@ -27,6 +27,7 @@ func DefaultRetryMap() map[string]string {
 		"test_unit": "implement",
 		"test_e2e":  "implement",
 		"validate":  "implement",
+		"review":    "implement",
 	}
 }
 

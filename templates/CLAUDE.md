@@ -19,6 +19,7 @@ templates/
 │   ├── spec.md
 │   ├── design.md
 │   ├── implement.md
+│   ├── review.md
 │   ├── test.md
 │   ├── docs.md
 │   ├── validate.md
@@ -35,11 +36,13 @@ Plans define phase sequences based on task weight:
 |--------|--------|
 | `trivial` | implement |
 | `small` | implement → test |
-| `medium` | implement → test → docs |
-| `large` | spec → design → implement → test → docs → validate → finalize |
-| `greenfield` | research → spec → design → implement → test → docs → validate → finalize |
+| `medium` | spec → implement → **review** → test → docs |
+| `large` | spec → design → implement → **review** → test → docs → validate → finalize |
+| `greenfield` | research → spec → design → implement → **review** → test → docs → validate → finalize |
 
 **Design phase** (large/greenfield only): Architecture decisions, component relationships, key patterns. Output becomes `{{DESIGN_CONTENT}}` for implement phase.
+
+**Review phase** (medium/large/greenfield): Multi-agent code review using 5 specialized reviewers. Catches bugs, security issues, performance problems, and merge conflicts before test phase.
 
 ### Plan Format (YAML)
 
@@ -88,6 +91,8 @@ The `{{TASK_DESCRIPTION}}` variable includes the full description provided when 
 | `{{COVERAGE_THRESHOLD}}` | Minimum test coverage percentage (default: 85%) |
 | `{{INITIATIVE_CONTEXT}}` | Initiative details if task is linked to one |
 | `{{VERIFICATION_RESULTS}}` | Verification results from implement phase |
+| `{{REVIEW_ROUND}}` | Current review round (1 or 2) |
+| `{{REVIEW_FINDINGS}}` | Previous round's findings (for Round 2) |
 
 ### Worktree Safety Variables
 
@@ -149,6 +154,7 @@ If blocked, output:
 | `spec.md` | Create technical specification with verification criteria |
 | `design.md` | Design architecture/approach (large/greenfield) |
 | `implement.md` | Write the implementation, verify all criteria |
+| `review.md` | Multi-agent code review (medium/large/greenfield) |
 | `test.md` | Write and run tests (includes Playwright E2E for UI tasks) |
 | `docs.md` | Update documentation |
 | `validate.md` | E2E validation with Playwright MCP |

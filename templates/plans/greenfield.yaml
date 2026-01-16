@@ -1,6 +1,6 @@
 version: 1
 weight: greenfield
-description: Greenfield project - research, spec, design, implement, test, validate with comprehensive E2E testing
+description: Greenfield project - research, spec, design, implement, review, test, docs, validate with multi-agent code review
 
 phases:
   - id: research
@@ -147,6 +147,15 @@ phases:
       type: auto
     checkpoint: true
 
+  - id: review
+    name: review
+    prompt_file: review.md
+    depends_on: [implement]
+    gate:
+      type: auto
+    checkpoint: true
+    max_iterations: 3
+
   - id: test
     name: test
     prompt: |
@@ -198,7 +207,7 @@ phases:
 
       When done, output:
       <phase_complete>true</phase_complete>
-    depends_on: [implement]
+    depends_on: [review]
     gate:
       type: auto
     checkpoint: true

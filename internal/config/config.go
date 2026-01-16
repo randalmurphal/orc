@@ -1387,21 +1387,23 @@ func Default() *Config {
 				"review":    {Model: "opus", Thinking: true},
 				"test":      {Model: "sonnet", Thinking: false},
 			},
-			// Large: thinking for decision phases, opus for all
+			// Large: thinking for decision phases, sonnet for test
 			Large: WeightModelConfig{
 				"spec":      {Model: "opus", Thinking: true},
 				"design":    {Model: "opus", Thinking: true},
 				"implement": {Model: "opus", Thinking: false},
 				"review":    {Model: "opus", Thinking: true},
+				"test":      {Model: "sonnet", Thinking: false},
 				"validate":  {Model: "opus", Thinking: true},
 			},
-			// Greenfield: thinking for research/spec/design/review
+			// Greenfield: thinking for research/spec/design/review, sonnet for test
 			Greenfield: WeightModelConfig{
 				"research":  {Model: "opus", Thinking: true},
 				"spec":      {Model: "opus", Thinking: true},
 				"design":    {Model: "opus", Thinking: true},
 				"implement": {Model: "opus", Thinking: false},
 				"review":    {Model: "opus", Thinking: true},
+				"test":      {Model: "sonnet", Thinking: false},
 				"validate":  {Model: "opus", Thinking: true},
 			},
 		},
