@@ -45,3 +45,19 @@ export {
 	DEPENDENCY_OPTIONS,
 	type DependencyStatusFilter,
 } from './dependencyStore';
+
+// Preferences store
+export {
+	usePreferencesStore,
+	useTheme,
+	useSidebarDefault,
+	useBoardViewMode,
+	useDateFormat,
+	STORAGE_KEYS,
+	defaultPreferences,
+	type Theme,
+	type SidebarDefault,
+	type BoardViewMode,
+	type DateFormat,
+	type Preferences,
+} from './preferencesStore';
