@@ -1,111 +1,69 @@
-# Specification: Update visual regression baselines
+# Specification: Truncate task card descriptions on board to max 2-3 lines
 
 ## Problem Statement
-The visual regression test baselines need to be updated after completing UI primitive migrations (Button, Radix components) in the React frontend. This ensures baselines reflect intentional styling changes while catching any unexpected regressions.
+Task cards on the Board page display full descriptions which can be excessively long, especially when containing markdown content with multiple paragraphs. The current CSS has `line-clamp: 2` but it's being undermined by `white-space: pre-wrap` which preserves newlines from markdown, causing cards to grow unbounded.
 
 ## Success Criteria
-- [ ] All 16 visual regression tests pass with updated baselines
-- [ ] Each failing diff reviewed and categorized (intentional vs regression)
-- [ ] No unexpected regressions remain unfixed
-- [ ] Intentional changes documented in commit message
-- [ ] Updated baselines committed to repository
+- [ ] Task card descriptions are truncated to exactly 3 lines maximum
+- [ ] Ellipsis (...) appears at truncation point
+- [ ] Full description is visible on hover via Tooltip component
+- [ ] Card heights are consistent within the same column (no tall cards breaking layout)
+- [ ] Markdown formatting (newlines, headers, lists) in descriptions is normalized to plain text for display
+- [ ] Existing non-markdown descriptions continue to work correctly
 
 ## Testing Requirements
-- [ ] Visual test: `bunx playwright test --project=visual` passes (all 16 tests)
-- [ ] HTML report reviewed for all diffs via `bunx playwright show-report`
-- [ ] Existing E2E tests still pass: `bunx playwright test --project=chromium`
+- [ ] Unit test: TaskCard renders description with line-clamp when description exceeds 3 lines
+- [ ] Unit test: Tooltip shows full description text on hover
+- [ ] E2E test: Board page shows truncated descriptions with consistent card heights
+- [ ] E2E test: Hovering over description shows full content in tooltip
 
 ## Scope
 
 ### In Scope
-- Run visual regression tests to identify diffs
-- Review each diff against expected UI changes from this initiative
-- Update baselines for intentional changes:
-  - Button primitive styling (focus rings, variants)
-  - Radix component states (`data-state` classes)
-  - Modal styling (Radix Dialog)
-  - Dropdown styling (Radix Select/DropdownMenu)
-  - TabNav styling (Radix Tabs)
-  - Tooltip styling (Radix Tooltip)
-- Document all baseline changes in commit message
-- Create bug tasks for any regressions found
+- Fix `white-space: pre-wrap` conflict with `line-clamp` in TaskCard.css
+- Increase line-clamp from 2 to 3 lines for better context
+- Add Tooltip component around description to show full text on hover
+- Normalize description text (strip markdown formatting) for card display
 
 ### Out of Scope
-- Modifying test logic or adding new tests
-- Fixing regressions (those get separate bug tasks)
-- Changing screenshot configuration or viewport
+- Changing task list page (it doesn't show descriptions)
+- Adding "expand" click functionality (tooltip on hover is sufficient)
+- Rendering markdown as rich text on cards (too complex for card preview)
+- Adding description preview to other components
 
 ## Technical Approach
 
-### Phase 1: Initial Test Run
-```bash
-cd web && bunx playwright test --project=visual
-```
-Capture which tests fail and review Playwright HTML report.
-
-### Phase 2: Diff Analysis
-For each failing screenshot:
-1. Open HTML report (`bunx playwright show-report`)
-2. Compare expected vs actual side-by-side
-3. Check if diff relates to known UI changes:
-   - Button: focus-visible ring, variant colors, padding
-   - Badge: font-size, padding adjustments
-   - Modal: Radix overlay/content styling
-   - Dropdown/Select: open state animations, highlight styles
-   - Tabs: active state indicator, focus styling
-   - Tooltip: arrow, positioning, fade animation
-
-### Phase 3: Categorize and Act
-| Diff Type | Action |
-|-----------|--------|
-| Intentional (matches UI primitive changes) | Update baseline |
-| Regression (unexpected visual change) | Create bug task, block this task |
-| Flaky (animation timing, etc.) | Review masking in visual.spec.ts |
-
-### Phase 4: Update Baselines
-```bash
-bunx playwright test --project=visual --update-snapshots
-```
-
-### Phase 5: Verify
-```bash
-bunx playwright test --project=visual  # All should pass now
-bunx playwright test --project=chromium  # Ensure no breakage
-```
-
 ### Files to Modify
-- `web/e2e/__snapshots__/visual.spec.ts-snapshots/*.png`: Updated baseline images
+- `web/src/components/board/TaskCard.tsx`: Wrap description in Tooltip, add text normalization utility
+- `web/src/components/board/TaskCard.css`: Fix white-space conflict, update line-clamp to 3
 
-### Files to Review (Not Modify)
-- `web/e2e/visual.spec.ts`: Understand masking and test setup
-- `web/playwright.config.ts`: Understand tolerance thresholds
+### Implementation Details
 
-## Expected Intentional Changes
+1. **CSS Fix** (TaskCard.css):
+   - Change `white-space: pre-wrap` to `white-space: normal` to allow proper line-clamp
+   - Update `-webkit-line-clamp` from 2 to 3 lines
+   - Add `word-break: break-word` to handle long words
 
-Based on the UI primitives initiative tasks (TASK-207, TASK-209, TASK-212, TASK-213, TASK-214, TASK-215, TASK-216):
+2. **Tooltip Integration** (TaskCard.tsx):
+   - Import and use existing Tooltip component (already in project)
+   - Wrap `.task-description` paragraph in Tooltip
+   - Pass full description as tooltip content
 
-| Component | Expected Visual Changes |
-|-----------|------------------------|
-| Button | Unified focus ring (`focus-visible` outline), consistent padding across variants |
-| TaskCard | Radix DropdownMenu for quick menu (may have slight position/animation diff) |
-| TabNav | Radix Tabs active state (`data-state='active'`), focus indicator |
-| Dropdowns | Radix Select styling, typeahead highlight, keyboard focus states |
-| Modal | Radix Dialog overlay opacity, focus trap behavior |
-| Tooltip | Radix Tooltip arrow, delay behavior (masked by animation disable) |
+3. **Text Normalization**:
+   - Create simple utility to strip markdown formatting:
+     - Replace multiple newlines with single space
+     - Strip heading markers (#, ##, etc.)
+     - Strip list markers (-, *, 1.)
+     - Strip bold/italic markers (**, __, *, _)
+   - Apply before displaying in card (not in tooltip)
 
-## Regression Indicators
+## Feature Analysis
 
-Watch for these signs of regression (NOT intentional):
-- Layout shifts (elements moved significantly)
-- Missing content (text, icons disappeared)
-- Color changes unrelated to Button/Radix work
-- Broken alignment or spacing
-- Z-index issues (overlapping elements incorrectly)
-
-## Category-Specific Section: Test/Chore
+### User Story
+As a user viewing the task board, I want task descriptions to be truncated to a consistent height so that the board layout is usable and I can quickly scan tasks without scrolling through long descriptions.
 
 ### Acceptance Criteria
-1. Visual regression tests pass cleanly
-2. Baseline updates reflect only intentional UI changes
-3. No regressions shipped
-4. Changes documented for future reference
+- [ ] Cards with long descriptions (e.g., TASK-220, TASK-218 mentioned in bug report) show max 3 lines
+- [ ] Hovering over a truncated description reveals the full text
+- [ ] Board columns display cards in a consistent, scannable layout
+- [ ] Markdown in descriptions (headers, lists, bold) doesn't break the truncation

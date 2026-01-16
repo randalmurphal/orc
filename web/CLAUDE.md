@@ -1946,7 +1946,8 @@ import { TaskCard } from '@/components/board';
 **Display Elements:**
 - Task ID and priority badge (critical/high/low icons)
 - Status indicator (colored orb with animation)
-- Title and description preview
+- Title (truncated to 2 lines) and description preview (truncated to 3 lines with ellipsis)
+- Description hover tooltip shows full text; markdown formatting stripped for card display
 - Current phase (when running)
 - Weight badge with color coding
 - Blocked badge (when is_blocked)
