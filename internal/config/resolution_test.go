@@ -13,10 +13,10 @@ func TestLoader_GetResolutionChain(t *testing.T) {
 	userDir := filepath.Join(tmpDir, "user")
 
 	// Create directory structure
-	os.MkdirAll(filepath.Join(projectDir, OrcDir), 0755)
-	os.MkdirAll(filepath.Join(projectDir, OrcDir, "shared"), 0755)
-	os.MkdirAll(filepath.Join(projectDir, OrcDir, "local"), 0755)
-	os.MkdirAll(userDir, 0755)
+	_ = os.MkdirAll(filepath.Join(projectDir, OrcDir), 0755)
+	_ = os.MkdirAll(filepath.Join(projectDir, OrcDir, "shared"), 0755)
+	_ = os.MkdirAll(filepath.Join(projectDir, OrcDir, "local"), 0755)
+	_ = os.MkdirAll(userDir, 0755)
 
 	// Write shared config with custom model
 	sharedConfig := `model: shared-model
@@ -84,13 +84,13 @@ func TestLoader_GetResolutionChain_EnvOverride(t *testing.T) {
 	projectDir := filepath.Join(tmpDir, "project")
 	userDir := filepath.Join(tmpDir, "user")
 
-	os.MkdirAll(filepath.Join(projectDir, OrcDir), 0755)
-	os.MkdirAll(userDir, 0755)
+	_ = os.MkdirAll(filepath.Join(projectDir, OrcDir), 0755)
+	_ = os.MkdirAll(userDir, 0755)
 
 	// Write config with model
 	config := `model: file-model
 `
-	os.WriteFile(filepath.Join(projectDir, OrcDir, ConfigFileName), []byte(config), 0644)
+	_ = os.WriteFile(filepath.Join(projectDir, OrcDir, ConfigFileName), []byte(config), 0644)
 
 	// Set env var override
 	t.Setenv("ORC_MODEL", "env-model")

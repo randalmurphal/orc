@@ -593,7 +593,9 @@ func (s *Server) StartContext(ctx context.Context) error {
 		}
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		server.Shutdown(shutdownCtx)
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			s.logger.Error("server shutdown error", "error", err)
+		}
 	}()
 
 	s.logger.Info("starting API server", "addr", ln.Addr().String())
@@ -636,27 +638,27 @@ func (s *Server) CancelAllRunningTasks() {
 
 // handleHealth returns server health status.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 // jsonResponse writes a JSON response.
 func (s *Server) jsonResponse(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // jsonError writes a JSON error response.
 func (s *Server) jsonError(w http.ResponseWriter, message string, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
 // handleOrcError writes a structured JSON error response for OrcErrors.
 func (s *Server) handleOrcError(w http.ResponseWriter, err *orcerrors.OrcError) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.HTTPStatus())
-	json.NewEncoder(w).Encode(err.ToAPIError())
+	_ = json.NewEncoder(w).Encode(err.ToAPIError())
 }
 
 // pauseTask pauses a running task (called by WebSocket handler).

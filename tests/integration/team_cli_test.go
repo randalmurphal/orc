@@ -345,7 +345,10 @@ func TestInitialsValidation(t *testing.T) {
 			valid := len(tt.initials) >= 2 && len(tt.initials) <= 4
 			if valid {
 				for _, c := range tt.initials {
-					if !((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+					isUpper := c >= 'A' && c <= 'Z'
+					isLower := c >= 'a' && c <= 'z'
+					isDigit := c >= '0' && c <= '9'
+					if !isUpper && !isLower && !isDigit {
 						valid = false
 						break
 					}

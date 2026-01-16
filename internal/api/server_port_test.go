@@ -43,7 +43,7 @@ func TestFindAvailablePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("findAvailablePort failed: %v", err)
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 
 	if port < 18080 || port >= 18090 {
 		t.Errorf("port = %d, want in range [18080, 18090)", port)
@@ -62,14 +62,14 @@ func TestFindAvailablePort_SkipsBusy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to occupy port: %v", err)
 	}
-	defer ln1.Close()
+	defer func() { _ = ln1.Close() }()
 
 	// Should skip to next port
 	ln2, port, err := findAvailablePort("", 19080, 10)
 	if err != nil {
 		t.Fatalf("findAvailablePort failed: %v", err)
 	}
-	defer ln2.Close()
+	defer func() { _ = ln2.Close() }()
 
 	if port != 19081 {
 		t.Errorf("port = %d, want 19081 (should skip busy 19080)", port)
@@ -88,7 +88,7 @@ func TestFindAvailablePort_AllBusy(t *testing.T) {
 			t.Skipf("could not occupy port %d for test: %v", basePort+i, err)
 		}
 		listeners[i] = ln
-		defer ln.Close()
+		defer func(l net.Listener) { _ = l.Close() }(ln)
 	}
 
 	// Now try to find a port with max attempts in that occupied range

@@ -406,7 +406,7 @@ func TestFormatDecisions_PreservesOrder(t *testing.T) {
 		t.Fatal("formatDecisions() missing expected decisions")
 	}
 
-	if !(firstIdx < secondIdx && secondIdx < thirdIdx) {
+	if firstIdx >= secondIdx || secondIdx >= thirdIdx {
 		t.Error("formatDecisions() did not preserve order")
 	}
 }

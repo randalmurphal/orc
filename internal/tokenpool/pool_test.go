@@ -834,7 +834,7 @@ func TestState_Save_EmptyPath(t *testing.T) {
 func TestLoadPoolConfig_InvalidYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "pool.yaml")
-	os.WriteFile(path, []byte("invalid: yaml: content: [[["), 0600)
+	_ = os.WriteFile(path, []byte("invalid: yaml: content: [[["), 0600)
 
 	_, err := LoadPoolConfig(path)
 	if err == nil {
@@ -845,7 +845,7 @@ func TestLoadPoolConfig_InvalidYAML(t *testing.T) {
 func TestLoadState_InvalidYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "state.yaml")
-	os.WriteFile(path, []byte("invalid: yaml: content: [[["), 0600)
+	_ = os.WriteFile(path, []byte("invalid: yaml: content: [[["), 0600)
 
 	_, err := LoadState(path)
 	if err == nil {

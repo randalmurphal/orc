@@ -28,7 +28,7 @@ func TestWSHandler_Connect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	// Should be able to send a message
 	msg := WSMessage{Type: "ping"}
@@ -54,7 +54,7 @@ func TestWSHandler_Subscribe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	// Subscribe to task
 	msg := WSMessage{Type: "subscribe", TaskID: "TASK-001"}
@@ -63,7 +63,7 @@ func TestWSHandler_Subscribe(t *testing.T) {
 	}
 
 	// Read response
-	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err := ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read response: %v", err)
@@ -95,7 +95,7 @@ func TestWSHandler_ReceiveEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	// Subscribe to task
 	msg := WSMessage{Type: "subscribe", TaskID: "TASK-001"}
@@ -104,7 +104,7 @@ func TestWSHandler_ReceiveEvents(t *testing.T) {
 	}
 
 	// Read subscription confirmation
-	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, _, err = ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read subscription response: %v", err)
@@ -117,7 +117,7 @@ func TestWSHandler_ReceiveEvents(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Read event
-	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err := ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read event: %v", err)
@@ -149,7 +149,7 @@ func TestWSHandler_InvalidMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	// Send invalid JSON
 	if err := ws.WriteMessage(websocket.TextMessage, []byte("not json")); err != nil {
@@ -157,7 +157,7 @@ func TestWSHandler_InvalidMessage(t *testing.T) {
 	}
 
 	// Should receive error response
-	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err := ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read response: %v", err)
@@ -186,7 +186,7 @@ func TestWSHandler_SubscribeWithoutTaskID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	// Subscribe without task ID
 	msg := WSMessage{Type: "subscribe"}
@@ -195,7 +195,7 @@ func TestWSHandler_SubscribeWithoutTaskID(t *testing.T) {
 	}
 
 	// Should receive error
-	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err := ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read response: %v", err)
@@ -224,7 +224,7 @@ func TestWSHandler_UnknownMessageType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	// Send unknown message type
 	msg := WSMessage{Type: "unknown_type"}
@@ -233,7 +233,7 @@ func TestWSHandler_UnknownMessageType(t *testing.T) {
 	}
 
 	// Should receive error
-	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err := ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read response: %v", err)
@@ -271,7 +271,7 @@ func TestWSHandler_MultipleConnections(t *testing.T) {
 
 	defer func() {
 		for _, ws := range conns {
-			ws.Close()
+			_ = ws.Close()
 		}
 	}()
 
@@ -283,7 +283,7 @@ func TestWSHandler_MultipleConnections(t *testing.T) {
 	}
 
 	// Close one connection
-	conns[0].Close()
+	_ = conns[0].Close()
 	time.Sleep(100 * time.Millisecond)
 
 	if handler.ConnectionCount() != 2 {
@@ -306,7 +306,7 @@ func TestWSHandler_Broadcast(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	msg := WSMessage{Type: "subscribe", TaskID: "TASK-001"}
 	if err := ws.WriteJSON(msg); err != nil {
@@ -314,7 +314,7 @@ func TestWSHandler_Broadcast(t *testing.T) {
 	}
 
 	// Read subscription confirmation
-	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, _, _ = ws.ReadMessage()
 
 	// Broadcast event
@@ -325,7 +325,7 @@ func TestWSHandler_Broadcast(t *testing.T) {
 	handler.Broadcast("TASK-001", event)
 
 	// Should receive broadcast
-	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err := ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read broadcast: %v", err)
@@ -356,7 +356,7 @@ func TestWSHandler_Close(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	// Allow connection to register
 	time.Sleep(50 * time.Millisecond)
@@ -394,7 +394,7 @@ func TestWSHandler_CORSUpgrader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect with different origin: %v", err)
 	}
-	ws.Close()
+	_ = ws.Close()
 }
 
 func TestWSHandler_GlobalSubscription(t *testing.T) {
@@ -410,7 +410,7 @@ func TestWSHandler_GlobalSubscription(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	// Subscribe globally (using "*")
 	msg := WSMessage{Type: "subscribe", TaskID: events.GlobalTaskID}
@@ -419,7 +419,7 @@ func TestWSHandler_GlobalSubscription(t *testing.T) {
 	}
 
 	// Read subscription confirmation
-	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err := ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read subscription response: %v", err)
@@ -451,7 +451,7 @@ func TestWSHandler_GlobalSubscription_ReceivesAllTaskEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	// Subscribe globally
 	msg := WSMessage{Type: "subscribe", TaskID: events.GlobalTaskID}
@@ -460,7 +460,7 @@ func TestWSHandler_GlobalSubscription_ReceivesAllTaskEvents(t *testing.T) {
 	}
 
 	// Read subscription confirmation
-	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, _, err = ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read subscription response: %v", err)
@@ -476,7 +476,7 @@ func TestWSHandler_GlobalSubscription_ReceivesAllTaskEvents(t *testing.T) {
 	// Should receive both events
 	receivedTasks := make(map[string]bool)
 	for i := 0; i < 2; i++ {
-		ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 		_, data, err := ws.ReadMessage()
 		if err != nil {
 			t.Fatalf("failed to read event %d: %v", i+1, err)
@@ -515,7 +515,7 @@ func TestWSHandler_GlobalSubscription_FileWatcherEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	// Subscribe globally
 	msg := WSMessage{Type: "subscribe", TaskID: events.GlobalTaskID}
@@ -524,7 +524,7 @@ func TestWSHandler_GlobalSubscription_FileWatcherEvents(t *testing.T) {
 	}
 
 	// Read subscription confirmation
-	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, _, err = ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read subscription response: %v", err)
@@ -563,7 +563,7 @@ func TestWSHandler_GlobalSubscription_FileWatcherEvents(t *testing.T) {
 
 	// Should receive all file watcher events
 	for i, tc := range testCases {
-		ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 		_, data, err := ws.ReadMessage()
 		if err != nil {
 			t.Fatalf("failed to read event %d (%s): %v", i+1, tc.eventType, err)

@@ -114,12 +114,12 @@ func TestFollowFilePollingCancellation(t *testing.T) {
 	}
 
 	// Restore stdout
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	// Read captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
 	if !strings.Contains(output, "Following") {
@@ -154,20 +154,20 @@ func TestFollowFilePollingNewContent(t *testing.T) {
 	// Write new content after a short delay
 	time.Sleep(50 * time.Millisecond)
 	f, _ := os.OpenFile(tmpFile, os.O_APPEND|os.O_WRONLY, 0o644)
-	f.WriteString("new line 1\n")
-	f.WriteString("new line 2\n")
-	f.Close()
+	_, _ = f.WriteString("new line 1\n")
+	_, _ = f.WriteString("new line 2\n")
+	_ = f.Close()
 
 	// Wait for completion
 	<-done
 
 	// Restore stdout
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	// Read captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
 	// Should see the new lines (not the initial content since we seek to end)
@@ -213,7 +213,7 @@ func TestFollowFileTruncation(t *testing.T) {
 
 	// Wait for it to start, then truncate
 	time.Sleep(50 * time.Millisecond)
-	os.WriteFile(tmpFile, []byte("new\n"), 0o644) // This truncates
+	_ = os.WriteFile(tmpFile, []byte("new\n"), 0o644) // This truncates
 
 	// Give it time to detect
 	time.Sleep(200 * time.Millisecond)
@@ -221,11 +221,11 @@ func TestFollowFileTruncation(t *testing.T) {
 	cancel()
 	<-done
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
 	// Should see truncation message
@@ -252,7 +252,7 @@ func TestFollowFileWithWatcherNewContent(t *testing.T) {
 	if err != nil {
 		t.Skipf("fsnotify not available: %v", err)
 	}
-	defer watcher.Close()
+	defer func() { _ = watcher.Close() }()
 
 	// Watch the directory
 	if err := watcher.Add(tmpDir); err != nil {
@@ -273,10 +273,10 @@ func TestFollowFileWithWatcherNewContent(t *testing.T) {
 	// Write new content after a short delay
 	time.Sleep(100 * time.Millisecond)
 	f, _ := os.OpenFile(tmpFile, os.O_APPEND|os.O_WRONLY, 0o644)
-	f.WriteString("watched line 1\n")
-	f.WriteString("watched line 2\n")
-	f.Sync()
-	f.Close()
+	_, _ = f.WriteString("watched line 1\n")
+	_, _ = f.WriteString("watched line 2\n")
+	_ = f.Sync()
+	_ = f.Close()
 
 	// Wait for watcher to process (fsnotify can have some delay)
 	time.Sleep(300 * time.Millisecond)
@@ -284,12 +284,12 @@ func TestFollowFileWithWatcherNewContent(t *testing.T) {
 	<-done
 
 	// Restore stdout
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	// Read captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
 	// Should see the new lines

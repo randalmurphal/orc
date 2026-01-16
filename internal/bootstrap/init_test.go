@@ -12,7 +12,7 @@ func TestRun_CreatesStructure(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a fake go.mod so detection works
-	os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test"), 0644)
 
 	result, err := Run(Options{WorkDir: tmpDir})
 	if err != nil {
@@ -57,6 +57,10 @@ func TestRun_CreatesStructure(t *testing.T) {
 }
 
 func TestRun_Performance(t *testing.T) {
+	if raceEnabled {
+		t.Skip("performance test skipped with race detector (adds ~3x overhead)")
+	}
+
 	tmpDir := t.TempDir()
 
 	start := time.Now()
@@ -144,7 +148,7 @@ func TestUpdateGitignore_Existing(t *testing.T) {
 
 	// Create existing .gitignore
 	existing := "node_modules/\n.env\n"
-	os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte(existing), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte(existing), 0644)
 
 	err := updateGitignore(tmpDir)
 	if err != nil {
@@ -174,8 +178,8 @@ func TestUpdateGitignore_Idempotent(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Run twice
-	updateGitignore(tmpDir)
-	updateGitignore(tmpDir)
+	_ = updateGitignore(tmpDir)
+	_ = updateGitignore(tmpDir)
 
 	content, err := os.ReadFile(filepath.Join(tmpDir, ".gitignore"))
 	if err != nil {

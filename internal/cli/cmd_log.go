@@ -169,7 +169,7 @@ func showFileContent(filePath string, tailLines int) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if tailLines == 0 {
 		// Show all lines
@@ -227,12 +227,12 @@ func followFile(filePath string) error {
 	if err != nil {
 		return followFilePolling(ctx, filePath)
 	}
-	defer watcher.Close()
+	defer func() { _ = watcher.Close() }()
 
 	// Watch the directory (more reliable than watching file directly)
 	dir := filepath.Dir(filePath)
 	if err := watcher.Add(dir); err != nil {
-		watcher.Close()
+		_ = watcher.Close()
 		return followFilePolling(ctx, filePath)
 	}
 
@@ -245,7 +245,7 @@ func followFileWithWatcher(ctx context.Context, filePath string, watcher *fsnoti
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Seek to end to only show new content
 	offset, err := file.Seek(0, io.SeekEnd)
@@ -288,7 +288,7 @@ func followFileWithWatcher(ctx context.Context, filePath string, watcher *fsnoti
 			}
 			if info.Size() < offset {
 				// File was truncated, reset to beginning
-				file.Seek(0, io.SeekStart)
+				_, _ = file.Seek(0, io.SeekStart)
 				offset = 0
 				reader.Reset(file)
 				partialLine.Reset()
@@ -314,7 +314,7 @@ func followFilePolling(ctx context.Context, filePath string) error {
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Seek to end
 	offset, err := file.Seek(0, io.SeekEnd)
@@ -345,7 +345,7 @@ func followFilePolling(ctx context.Context, filePath string) error {
 				continue
 			}
 			if info.Size() < offset {
-				file.Seek(0, io.SeekStart)
+				_, _ = file.Seek(0, io.SeekStart)
 				offset = 0
 				reader.Reset(file)
 				partialLine.Reset()

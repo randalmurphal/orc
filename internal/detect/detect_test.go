@@ -8,7 +8,7 @@ import (
 
 func TestDetectLanguage_Go(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n\ngo 1.22\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n\ngo 1.22\n"), 0644)
 
 	lang := detectLanguage(dir)
 	if lang != ProjectTypeGo {
@@ -18,7 +18,7 @@ func TestDetectLanguage_Go(t *testing.T) {
 
 func TestDetectLanguage_Python(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "pyproject.toml"), []byte("[tool.poetry]\nname = \"test\"\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "pyproject.toml"), []byte("[tool.poetry]\nname = \"test\"\n"), 0644)
 
 	lang := detectLanguage(dir)
 	if lang != ProjectTypePython {
@@ -28,7 +28,7 @@ func TestDetectLanguage_Python(t *testing.T) {
 
 func TestDetectLanguage_TypeScript(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte("{}"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte("{}"), 0644)
 
 	lang := detectLanguage(dir)
 	if lang != ProjectTypeTypeScript {
@@ -38,7 +38,7 @@ func TestDetectLanguage_TypeScript(t *testing.T) {
 
 func TestDetectLanguage_JavaScript(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte("{}"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte("{}"), 0644)
 
 	lang := detectLanguage(dir)
 	if lang != ProjectTypeJavaScript {
@@ -48,7 +48,7 @@ func TestDetectLanguage_JavaScript(t *testing.T) {
 
 func TestDetectLanguage_Rust(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "Cargo.toml"), []byte("[package]\nname = \"test\"\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "Cargo.toml"), []byte("[package]\nname = \"test\"\n"), 0644)
 
 	lang := detectLanguage(dir)
 	if lang != ProjectTypeRust {
@@ -64,7 +64,7 @@ go 1.22
 
 require github.com/gin-gonic/gin v1.9.0
 `
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0644)
 
 	frameworks := detectFrameworks(dir, ProjectTypeGo)
 	if len(frameworks) != 1 || frameworks[0] != FrameworkGin {
@@ -80,7 +80,7 @@ go 1.22
 
 require github.com/spf13/cobra v1.8.0
 `
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0644)
 
 	frameworks := detectFrameworks(dir, ProjectTypeGo)
 	if len(frameworks) != 1 || frameworks[0] != FrameworkCobra {
@@ -91,7 +91,7 @@ require github.com/spf13/cobra v1.8.0
 func TestDetectJSFramework_React(t *testing.T) {
 	dir := t.TempDir()
 	pkg := `{"dependencies": {"react": "^18.0.0"}}`
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
 
 	frameworks := detectFrameworks(dir, ProjectTypeJavaScript)
 	if len(frameworks) != 1 || frameworks[0] != FrameworkReact {
@@ -102,7 +102,7 @@ func TestDetectJSFramework_React(t *testing.T) {
 func TestDetectJSFramework_NextJS(t *testing.T) {
 	dir := t.TempDir()
 	pkg := `{"dependencies": {"next": "^14.0.0", "react": "^18.0.0"}}`
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
 
 	frameworks := detectFrameworks(dir, ProjectTypeTypeScript)
 	if len(frameworks) != 2 {
@@ -112,8 +112,8 @@ func TestDetectJSFramework_NextJS(t *testing.T) {
 
 func TestDetectBuildTools_Bun(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte("{}"), 0644)
-	os.WriteFile(filepath.Join(dir, "bun.lockb"), []byte(""), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte("{}"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "bun.lockb"), []byte(""), 0644)
 
 	tools := detectBuildTools(dir)
 	found := false
@@ -130,8 +130,8 @@ func TestDetectBuildTools_Bun(t *testing.T) {
 
 func TestDetectBuildTools_NPM(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte("{}"), 0644)
-	os.WriteFile(filepath.Join(dir, "package-lock.json"), []byte("{}"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte("{}"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package-lock.json"), []byte("{}"), 0644)
 
 	tools := detectBuildTools(dir)
 	found := false
@@ -256,9 +256,9 @@ require (
 	github.com/spf13/cobra v1.8.0
 )
 `
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0644)
-	os.WriteFile(filepath.Join(dir, "Makefile"), []byte("all:\n\tgo build\n"), 0644)
-	os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM golang:1.22\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "Makefile"), []byte("all:\n\tgo build\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM golang:1.22\n"), 0644)
 
 	d, err := Detect(dir)
 	if err != nil {
@@ -279,8 +279,8 @@ require (
 func TestDetectJSFramework_Angular(t *testing.T) {
 	dir := t.TempDir()
 	pkg := `{"dependencies": {"@angular/core": "^17.0.0"}}`
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
-	os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte("{}"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte("{}"), 0644)
 
 	frameworks := detectFrameworks(dir, ProjectTypeTypeScript)
 	if len(frameworks) != 1 || frameworks[0] != FrameworkAngular {
@@ -338,9 +338,9 @@ func TestDetectFrontend_WithDirectory(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			subdir := filepath.Join(dir, tt.dir)
-			os.MkdirAll(subdir, 0755)
+			_ = os.MkdirAll(subdir, 0755)
 			if tt.file != "" {
-				os.WriteFile(filepath.Join(subdir, tt.file), []byte("// frontend code"), 0644)
+				_ = os.WriteFile(filepath.Join(subdir, tt.file), []byte("// frontend code"), 0644)
 			}
 
 			got := detectFrontend(dir, nil)
@@ -355,8 +355,8 @@ func TestDetect_HasFrontend(t *testing.T) {
 	// Test with React project
 	dir := t.TempDir()
 	pkg := `{"dependencies": {"react": "^18.0.0"}}`
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
-	os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte("{}"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte("{}"), 0644)
 
 	d, err := Detect(dir)
 	if err != nil {
@@ -372,7 +372,7 @@ func TestDetect_HasFrontend(t *testing.T) {
 go 1.22
 require github.com/gin-gonic/gin v1.9.0
 `
-	os.WriteFile(filepath.Join(dir2, "go.mod"), []byte(gomod), 0644)
+	_ = os.WriteFile(filepath.Join(dir2, "go.mod"), []byte(gomod), 0644)
 
 	d2, err := Detect(dir2)
 	if err != nil {
@@ -403,7 +403,7 @@ func TestIsFrontendDir(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			for _, f := range tt.files {
-				os.WriteFile(filepath.Join(dir, f), []byte("// code"), 0644)
+				_ = os.WriteFile(filepath.Join(dir, f), []byte("// code"), 0644)
 			}
 
 			got := isFrontendDir(dir)

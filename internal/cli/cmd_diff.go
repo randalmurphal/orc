@@ -34,7 +34,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			taskID := args[0]
 			stat, _ := cmd.Flags().GetBool("stat")

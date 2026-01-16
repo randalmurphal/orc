@@ -109,7 +109,7 @@ func runMigrateYAMLToDB(dryRun, deleteAfter bool) error {
 		if err != nil {
 			return fmt.Errorf("create backend: %w", err)
 		}
-		defer backend.Close()
+		defer func() { _ = backend.Close() }()
 	}
 
 	// Track migration stats
@@ -283,7 +283,7 @@ func runMigrateDBToYAML(outputDir string) error {
 	if err != nil {
 		return fmt.Errorf("get backend: %w", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create output directories
 	tasksOutputDir := filepath.Join(outputDir, "tasks")

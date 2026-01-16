@@ -365,14 +365,6 @@ func (e *Executor) SetUseSessionExecution(use bool) {
 	e.useSessionExecution = use
 }
 
-// getTargetBranch returns the target branch from orc config, defaulting to "main".
-func (e *Executor) getTargetBranch() string {
-	if e.orcConfig != nil && e.orcConfig.Completion.TargetBranch != "" {
-		return e.orcConfig.Completion.TargetBranch
-	}
-	return "main"
-}
-
 // getPhaseExecutor returns the appropriate phase executor for the given weight.
 // Executors are created lazily and cached for reuse.
 func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {

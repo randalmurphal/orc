@@ -109,7 +109,7 @@ func TestResolveCommand_FailedTask(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Run resolve with --force to skip confirmation
 	cmd := newResolveCmd()
@@ -120,7 +120,7 @@ func TestResolveCommand_FailedTask(t *testing.T) {
 
 	// Reload task and verify status
 	backend = createResolveTestBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-001")
 	if err != nil {
@@ -165,7 +165,7 @@ func TestResolveCommand_WithMessage(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Run resolve with message
 	cmd := newResolveCmd()
@@ -176,7 +176,7 @@ func TestResolveCommand_WithMessage(t *testing.T) {
 
 	// Reload task and verify message
 	backend = createResolveTestBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-001")
 	if err != nil {
@@ -212,7 +212,7 @@ func TestResolveCommand_OnlyFailedTasks(t *testing.T) {
 			if err := backend.SaveTask(tk); err != nil {
 				t.Fatalf("failed to save task: %v", err)
 			}
-			backend.Close()
+			_ = backend.Close()
 
 			// Run resolve - should fail
 			cmd := newResolveCmd()
@@ -254,7 +254,7 @@ func TestResolveCommand_PreservesExistingMetadata(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Run resolve
 	cmd := newResolveCmd()
@@ -265,7 +265,7 @@ func TestResolveCommand_PreservesExistingMetadata(t *testing.T) {
 
 	// Reload task and verify all metadata
 	backend = createResolveTestBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-001")
 	if err != nil {
@@ -418,11 +418,11 @@ func setupTestRepoForResolve(t *testing.T) string {
 	// Configure git user for commits
 	cmd = exec.Command("git", "config", "user.email", "test@test.com")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	cmd = exec.Command("git", "config", "user.name", "Test User")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	// Create initial commit
 	testFile := filepath.Join(tmpDir, "README.md")
@@ -432,7 +432,7 @@ func setupTestRepoForResolve(t *testing.T) string {
 
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	cmd = exec.Command("git", "commit", "-m", "Initial commit")
 	cmd.Dir = tmpDir
@@ -459,7 +459,7 @@ func TestCheckWorktreeStatus_WorktreeWithInjectedHooks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}
-	defer gitOps.CleanupWorktree("TASK-001")
+	defer func() { _ = gitOps.CleanupWorktree("TASK-001") }()
 
 	// Check worktree status
 	status, err := checkWorktreeStatus("TASK-001", gitOps)
@@ -510,13 +510,13 @@ func TestCheckWorktreeStatus_CleanWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}
-	defer gitOps.CleanupWorktree("TASK-CLEAN")
+	defer func() { _ = gitOps.CleanupWorktree("TASK-CLEAN") }()
 
 	// Commit the injected .claude/ directory to make the worktree "clean"
 	wtGit := gitOps.InWorktree(worktreePath)
 	ctx := wtGit.Context()
-	ctx.RunGit("add", ".claude/")
-	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+	_, _ = ctx.RunGit("add", ".claude/")
+	_, _ = ctx.RunGit("commit", "-m", "Add Claude Code hooks")
 
 	// Check worktree status - should be clean now
 	status, err := checkWorktreeStatus("TASK-CLEAN", gitOps)
@@ -560,7 +560,7 @@ func TestCheckWorktreeStatus_DirtyWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}
-	defer gitOps.CleanupWorktree("TASK-002")
+	defer func() { _ = gitOps.CleanupWorktree("TASK-002") }()
 
 	// Create uncommitted changes
 	dirtyFile := filepath.Join(worktreePath, "dirty.txt")
@@ -631,13 +631,13 @@ func TestResolveCommand_DetectsDirtyWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}
-	defer gitOps.CleanupWorktree("TASK-DIRTY")
+	defer func() { _ = gitOps.CleanupWorktree("TASK-DIRTY") }()
 
 	// Commit the injected .claude/ directory to start clean
 	wtGit := gitOps.InWorktree(worktreePath)
 	ctx := wtGit.Context()
-	ctx.RunGit("add", ".claude/")
-	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+	_, _ = ctx.RunGit("add", ".claude/")
+	_, _ = ctx.RunGit("commit", "-m", "Add Claude Code hooks")
 
 	// Create uncommitted changes
 	dirtyFile := filepath.Join(worktreePath, "dirty.txt")
@@ -682,21 +682,21 @@ func TestResolveCommand_DetectsRebaseInProgress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}
-	defer gitOps.CleanupWorktree("TASK-REBASE")
+	defer func() { _ = gitOps.CleanupWorktree("TASK-REBASE") }()
 
 	// Commit the injected .claude/ directory first
 	wtGit := gitOps.InWorktree(worktreePath)
 	ctx := wtGit.Context()
-	ctx.RunGit("add", ".claude/")
-	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+	_, _ = ctx.RunGit("add", ".claude/")
+	_, _ = ctx.RunGit("commit", "-m", "Add Claude Code hooks")
 
 	// Modify README on task branch
 	readmeFile := filepath.Join(worktreePath, "README.md")
 	if err := os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644); err != nil {
 		t.Fatalf("failed to modify README: %v", err)
 	}
-	ctx.RunGit("add", "README.md")
-	ctx.RunGit("commit", "-m", "modify readme on task")
+	_, _ = ctx.RunGit("add", "README.md")
+	_, _ = ctx.RunGit("commit", "-m", "modify readme on task")
 
 	// Switch back to base branch and make conflicting change
 	cmd := exec.Command("git", "checkout", baseBranch)
@@ -710,7 +710,7 @@ func TestResolveCommand_DetectsRebaseInProgress(t *testing.T) {
 	}
 	cmd = exec.Command("git", "add", "README.md")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	cmd = exec.Command("git", "commit", "-m", "modify readme on base")
 	cmd.Dir = tmpDir
@@ -719,7 +719,7 @@ func TestResolveCommand_DetectsRebaseInProgress(t *testing.T) {
 	}
 
 	// Start a rebase that will conflict
-	ctx.RunGit("rebase", baseBranch)
+	_, _ = ctx.RunGit("rebase", baseBranch)
 	// This should leave us in a conflicted rebase state
 
 	// Check status - should detect rebase in progress
@@ -739,7 +739,7 @@ func TestResolveCommand_DetectsRebaseInProgress(t *testing.T) {
 	}
 
 	// Cleanup: abort the rebase
-	ctx.RunGit("rebase", "--abort")
+	_, _ = ctx.RunGit("rebase", "--abort")
 }
 
 // TestResolveCommand_DetectsMergeInProgress verifies that orc resolve detects
@@ -759,39 +759,39 @@ func TestResolveCommand_DetectsMergeInProgress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}
-	defer gitOps.CleanupWorktree("TASK-MERGE")
+	defer func() { _ = gitOps.CleanupWorktree("TASK-MERGE") }()
 
 	// Commit the injected .claude/ directory first
 	wtGit := gitOps.InWorktree(worktreePath)
 	ctx := wtGit.Context()
-	ctx.RunGit("add", ".claude/")
-	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+	_, _ = ctx.RunGit("add", ".claude/")
+	_, _ = ctx.RunGit("commit", "-m", "Add Claude Code hooks")
 
 	// Create a branch from task branch to merge
-	ctx.RunGit("branch", "feature-to-merge")
+	_, _ = ctx.RunGit("branch", "feature-to-merge")
 
 	// Modify README on task branch
 	readmeFile := filepath.Join(worktreePath, "README.md")
 	if err := os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644); err != nil {
 		t.Fatalf("failed to modify README: %v", err)
 	}
-	ctx.RunGit("add", "README.md")
-	ctx.RunGit("commit", "-m", "modify readme on task")
+	_, _ = ctx.RunGit("add", "README.md")
+	_, _ = ctx.RunGit("commit", "-m", "modify readme on task")
 
 	// Switch to feature branch and make conflicting change
-	ctx.RunGit("checkout", "feature-to-merge")
+	_, _ = ctx.RunGit("checkout", "feature-to-merge")
 
 	if err := os.WriteFile(readmeFile, []byte("# Feature branch changes\n"), 0644); err != nil {
 		t.Fatalf("failed to modify README on feature: %v", err)
 	}
-	ctx.RunGit("add", "README.md")
-	ctx.RunGit("commit", "-m", "modify readme on feature")
+	_, _ = ctx.RunGit("add", "README.md")
+	_, _ = ctx.RunGit("commit", "-m", "modify readme on feature")
 
 	// Switch back to task branch
-	ctx.RunGit("checkout", "orc/TASK-MERGE")
+	_, _ = ctx.RunGit("checkout", "orc/TASK-MERGE")
 
 	// Start a merge that will conflict
-	ctx.RunGit("merge", "feature-to-merge")
+	_, _ = ctx.RunGit("merge", "feature-to-merge")
 	// This should leave us in a conflicted merge state
 
 	// Check status - should detect merge in progress
@@ -811,7 +811,7 @@ func TestResolveCommand_DetectsMergeInProgress(t *testing.T) {
 	}
 
 	// Cleanup: abort the merge
-	ctx.RunGit("merge", "--abort")
+	_, _ = ctx.RunGit("merge", "--abort")
 }
 
 // TestResolveCommand_CleanupFlag verifies that --cleanup aborts in-progress
@@ -837,13 +837,13 @@ func TestResolveCommand_CleanupFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}
-	defer gitOps.CleanupWorktree("TASK-CLEANUP")
+	defer func() { _ = gitOps.CleanupWorktree("TASK-CLEANUP") }()
 
 	// Commit the injected .claude/ directory first
 	wtGit := gitOps.InWorktree(worktreePath)
 	ctx := wtGit.Context()
-	ctx.RunGit("add", ".claude/")
-	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+	_, _ = ctx.RunGit("add", ".claude/")
+	_, _ = ctx.RunGit("commit", "-m", "Add Claude Code hooks")
 
 	// Create uncommitted changes
 	dirtyFile := filepath.Join(worktreePath, "dirty.txt")
@@ -868,12 +868,12 @@ func TestResolveCommand_CleanupFlag(t *testing.T) {
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Change to project dir and run resolve with --cleanup
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	cmd := newResolveCmd()
 	cmd.SetArgs([]string{"TASK-CLEANUP", "--force", "--cleanup"})
@@ -911,7 +911,7 @@ func TestResolveCommand_NoWorktree(t *testing.T) {
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Run resolve - should succeed without worktree
 	cmd := newResolveCmd()
@@ -922,7 +922,7 @@ func TestResolveCommand_NoWorktree(t *testing.T) {
 
 	// Verify task was resolved
 	backend = createResolveTestBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-NO-WT")
 	if err != nil {
@@ -960,13 +960,13 @@ func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}
-	defer gitOps.CleanupWorktree("TASK-FORCE")
+	defer func() { _ = gitOps.CleanupWorktree("TASK-FORCE") }()
 
 	// Commit the injected .claude/ directory first
 	wtGit := gitOps.InWorktree(worktreePath)
 	ctx := wtGit.Context()
-	ctx.RunGit("add", ".claude/")
-	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+	_, _ = ctx.RunGit("add", ".claude/")
+	_, _ = ctx.RunGit("commit", "-m", "Add Claude Code hooks")
 
 	// Create uncommitted changes
 	dirtyFile := filepath.Join(worktreePath, "dirty.txt")
@@ -985,12 +985,12 @@ func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Change to project dir and run resolve with --force
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	cmd := newResolveCmd()
 	cmd.SetArgs([]string{"TASK-FORCE", "--force"})
@@ -1000,7 +1000,7 @@ func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 
 	// Verify task was resolved (even though worktree is dirty)
 	backend, _ = storage.NewDatabaseBackend(tmpDir, nil)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-FORCE")
 	if err != nil {
@@ -1045,13 +1045,13 @@ func TestResolveCommand_CleanWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}
-	defer gitOps.CleanupWorktree("TASK-CLEAN-WT")
+	defer func() { _ = gitOps.CleanupWorktree("TASK-CLEAN-WT") }()
 
 	// Commit the injected .claude/ directory to make worktree clean
 	wtGit := gitOps.InWorktree(worktreePath)
 	ctx := wtGit.Context()
-	ctx.RunGit("add", ".claude/")
-	ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+	_, _ = ctx.RunGit("add", ".claude/")
+	_, _ = ctx.RunGit("commit", "-m", "Add Claude Code hooks")
 
 	// Verify worktree is clean
 	status, _ := checkWorktreeStatus("TASK-CLEAN-WT", gitOps)
@@ -1070,12 +1070,12 @@ func TestResolveCommand_CleanWorktree(t *testing.T) {
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Change to project dir and run resolve
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	cmd := newResolveCmd()
 	cmd.SetArgs([]string{"TASK-CLEAN-WT", "--force"})
@@ -1085,7 +1085,7 @@ func TestResolveCommand_CleanWorktree(t *testing.T) {
 
 	// Verify task was resolved
 	backend, _ = storage.NewDatabaseBackend(tmpDir, nil)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-CLEAN-WT")
 	if err != nil {

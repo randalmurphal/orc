@@ -14,7 +14,7 @@ func TestProjectDB_TaskComments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -87,7 +87,7 @@ func TestProjectDB_TaskComments_AuthorTypes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -97,7 +97,7 @@ func TestProjectDB_TaskComments_AuthorTypes(t *testing.T) {
 
 	// Create task
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	_ = pdb.SaveTask(task)
 
 	// Add comments with different author types
 	comments := []TaskComment{
@@ -146,7 +146,7 @@ func TestProjectDB_TaskComments_ByPhase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -156,7 +156,7 @@ func TestProjectDB_TaskComments_ByPhase(t *testing.T) {
 
 	// Create task
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	_ = pdb.SaveTask(task)
 
 	// Add comments for different phases
 	comments := []TaskComment{
@@ -167,7 +167,7 @@ func TestProjectDB_TaskComments_ByPhase(t *testing.T) {
 	}
 
 	for i := range comments {
-		pdb.CreateTaskComment(&comments[i])
+		_ = pdb.CreateTaskComment(&comments[i])
 	}
 
 	// List by phase
@@ -196,7 +196,7 @@ func TestProjectDB_TaskComments_Update(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -206,7 +206,7 @@ func TestProjectDB_TaskComments_Update(t *testing.T) {
 
 	// Create task
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	_ = pdb.SaveTask(task)
 
 	// Create comment
 	comment := &TaskComment{
@@ -214,7 +214,7 @@ func TestProjectDB_TaskComments_Update(t *testing.T) {
 		AuthorType: AuthorTypeHuman,
 		Content:    "Original content",
 	}
-	pdb.CreateTaskComment(comment)
+	_ = pdb.CreateTaskComment(comment)
 
 	// Update comment
 	comment.Content = "Updated content"
@@ -241,7 +241,7 @@ func TestProjectDB_TaskComments_Delete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -251,7 +251,7 @@ func TestProjectDB_TaskComments_Delete(t *testing.T) {
 
 	// Create task
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	_ = pdb.SaveTask(task)
 
 	// Create comment
 	comment := &TaskComment{
@@ -259,7 +259,7 @@ func TestProjectDB_TaskComments_Delete(t *testing.T) {
 		AuthorType: AuthorTypeHuman,
 		Content:    "To be deleted",
 	}
-	pdb.CreateTaskComment(comment)
+	_ = pdb.CreateTaskComment(comment)
 
 	// Delete comment
 	if err := pdb.DeleteTaskComment(comment.ID); err != nil {
@@ -281,7 +281,7 @@ func TestProjectDB_TaskComments_DeleteAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -291,7 +291,7 @@ func TestProjectDB_TaskComments_DeleteAll(t *testing.T) {
 
 	// Create task
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	_ = pdb.SaveTask(task)
 
 	// Create multiple comments
 	for i := 0; i < 5; i++ {
@@ -300,7 +300,7 @@ func TestProjectDB_TaskComments_DeleteAll(t *testing.T) {
 			AuthorType: AuthorTypeHuman,
 			Content:    "Comment",
 		}
-		pdb.CreateTaskComment(comment)
+		_ = pdb.CreateTaskComment(comment)
 	}
 
 	// Delete all
@@ -323,7 +323,7 @@ func TestProjectDB_TaskComments_Count(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -333,7 +333,7 @@ func TestProjectDB_TaskComments_Count(t *testing.T) {
 
 	// Create task
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	_ = pdb.SaveTask(task)
 
 	// Initial count
 	count, err := pdb.CountTaskComments("TASK-001")
@@ -351,7 +351,7 @@ func TestProjectDB_TaskComments_Count(t *testing.T) {
 			AuthorType: AuthorTypeHuman,
 			Content:    "Comment",
 		}
-		pdb.CreateTaskComment(comment)
+		_ = pdb.CreateTaskComment(comment)
 	}
 
 	// Count again
@@ -369,7 +369,7 @@ func TestProjectDB_TaskComments_CascadeDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -379,7 +379,7 @@ func TestProjectDB_TaskComments_CascadeDelete(t *testing.T) {
 
 	// Create task
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	_ = pdb.SaveTask(task)
 
 	// Create comments
 	for i := 0; i < 3; i++ {
@@ -388,7 +388,7 @@ func TestProjectDB_TaskComments_CascadeDelete(t *testing.T) {
 			AuthorType: AuthorTypeHuman,
 			Content:    "Comment",
 		}
-		pdb.CreateTaskComment(comment)
+		_ = pdb.CreateTaskComment(comment)
 	}
 
 	// Delete task - comments should cascade
@@ -411,7 +411,7 @@ func TestProjectDB_TaskComments_DefaultAuthor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -421,14 +421,14 @@ func TestProjectDB_TaskComments_DefaultAuthor(t *testing.T) {
 
 	// Create task
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	_ = pdb.SaveTask(task)
 
 	// Create comment without author - should default
 	comment := &TaskComment{
 		TaskID:  "TASK-001",
 		Content: "Comment without author",
 	}
-	pdb.CreateTaskComment(comment)
+	_ = pdb.CreateTaskComment(comment)
 
 	// Verify defaults
 	got, _ := pdb.GetTaskComment(comment.ID)

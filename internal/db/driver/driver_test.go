@@ -81,7 +81,7 @@ func TestSQLiteDriver(t *testing.T) {
 	if err := drv.Open(dbPath); err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer drv.Close()
+	defer func() { _ = drv.Close() }()
 
 	// Test Dialect
 	if drv.Dialect() != DialectSQLite {
@@ -125,7 +125,7 @@ func TestSQLiteDriver(t *testing.T) {
 	if err != nil {
 		t.Errorf("Query failed: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		t.Error("expected row, got none")
@@ -176,13 +176,15 @@ func TestSQLiteDriver(t *testing.T) {
 
 	// Test Rollback
 	tx2, _ := drv.BeginTx(ctx, nil)
-	tx2.Exec(ctx, "INSERT INTO test (name) VALUES (?)", "rollback")
+	_, _ = tx2.Exec(ctx, "INSERT INTO test (name) VALUES (?)", "rollback")
 	if err := tx2.Rollback(); err != nil {
 		t.Errorf("tx.Rollback failed: %v", err)
 	}
 
 	row = drv.QueryRow(ctx, "SELECT COUNT(*) FROM test")
-	row.Scan(&count)
+	if err := row.Scan(&count); err != nil {
+		t.Errorf("count scan failed: %v", err)
+	}
 	if count != 2 {
 		t.Errorf("count after rollback = %d, want 2", count)
 	}
@@ -247,7 +249,7 @@ func TestSQLiteMigrate(t *testing.T) {
 	if err := drv.Open(dbPath); err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer drv.Close()
+	defer func() { _ = drv.Close() }()
 
 	// Create a mock schema FS
 	schemaDir := filepath.Join(tmpDir, "schema")

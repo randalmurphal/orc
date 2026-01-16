@@ -29,11 +29,11 @@ func setupRetryTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) (
 
 	// Create .orc directory with config that disables worktrees
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	_ = os.MkdirAll(orcDir, 0755)
 	configYAML := `worktree:
   enabled: false
 `
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
 
 	taskID = "TASK-RETRY-001"
 	startTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -89,7 +89,7 @@ func setupRetryTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) (
 	}
 
 	// Close backend before applying opts and creating server
-	backend.Close()
+	_ = backend.Close()
 
 	// Apply optional setup functions
 	for _, opt := range opts {
@@ -114,7 +114,7 @@ func withRetryReviewComments(comments []db.ReviewComment) func(*testing.T, strin
 		if err != nil {
 			t.Fatalf("failed to open database: %v", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		// Task is already created by setupRetryTestEnv, just add the review comments
 		for _, c := range comments {
@@ -137,7 +137,7 @@ func withRetryContext(attempt int) func(*testing.T, string, string) {
 		if err != nil {
 			t.Fatalf("failed to create backend: %v", err)
 		}
-		defer backend.Close()
+		defer func() { _ = backend.Close() }()
 
 		st, err := backend.LoadState(taskID)
 		if err != nil {
@@ -709,7 +709,7 @@ func TestHandleRetryTask_LogsWarningOnCommentFetchError(t *testing.T) {
 	defer cleanup()
 
 	// Remove the database to simulate an error condition
-	os.RemoveAll(filepath.Join(srv.workDir, ".orc", "orc.db"))
+	_ = os.RemoveAll(filepath.Join(srv.workDir, ".orc", "orc.db"))
 
 	body := bytes.NewBufferString(`{"include_review_comments": true}`)
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/retry", taskID), body)
@@ -828,7 +828,7 @@ func TestHandleRetryTask_NoState(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create task without state via backend
 	taskID := "TASK-NOSTATE"
@@ -845,7 +845,7 @@ func TestHandleRetryTask_NoState(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	// Note: Not saving state - that's the point of this test
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 

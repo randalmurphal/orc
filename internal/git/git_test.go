@@ -24,11 +24,11 @@ func setupTestRepo(t *testing.T) string {
 	// Configure git user for commits
 	cmd = exec.Command("git", "config", "user.email", "test@test.com")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	cmd = exec.Command("git", "config", "user.name", "Test User")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	// Create initial commit
 	testFile := filepath.Join(tmpDir, "README.md")
@@ -38,7 +38,7 @@ func setupTestRepo(t *testing.T) string {
 
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	cmd = exec.Command("git", "commit", "-m", "Initial commit")
 	cmd.Dir = tmpDir
@@ -107,7 +107,7 @@ func TestSwitchBranch(t *testing.T) {
 	// Switch back to main/master
 	cmd := exec.Command("git", "checkout", "-")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	// Now switch to the task branch
 	err = g.SwitchBranch("TASK-001")
@@ -125,11 +125,13 @@ func TestCreateCheckpoint(t *testing.T) {
 	tmpDir := setupTestRepo(t)
 	g, _ := New(tmpDir, DefaultConfig())
 
-	g.CreateBranch("TASK-001")
+	if err := g.CreateBranch("TASK-001"); err != nil {
+		t.Fatalf("CreateBranch failed: %v", err)
+	}
 
 	// Add a change
 	testFile := filepath.Join(tmpDir, "test.go")
-	os.WriteFile(testFile, []byte("package main\n"), 0644)
+	_ = os.WriteFile(testFile, []byte("package main\n"), 0644)
 
 	checkpoint, err := g.CreateCheckpoint("TASK-001", "implement", "completed")
 	if err != nil {
@@ -157,7 +159,9 @@ func TestCreateCheckpointEmpty(t *testing.T) {
 	tmpDir := setupTestRepo(t)
 	g, _ := New(tmpDir, DefaultConfig())
 
-	g.CreateBranch("TASK-001")
+	if err := g.CreateBranch("TASK-001"); err != nil {
+		t.Fatalf("CreateBranch failed: %v", err)
+	}
 
 	// Create checkpoint without changes (should use --allow-empty)
 	checkpoint, err := g.CreateCheckpoint("TASK-001", "implement", "checkpoint")
@@ -186,7 +190,7 @@ func TestIsClean(t *testing.T) {
 
 	// Add uncommitted change
 	testFile := filepath.Join(tmpDir, "dirty.txt")
-	os.WriteFile(testFile, []byte("dirty"), 0644)
+	_ = os.WriteFile(testFile, []byte("dirty"), 0644)
 
 	clean, err = g.IsClean()
 	if err != nil {
@@ -219,17 +223,23 @@ func TestRewind(t *testing.T) {
 	// Use InWorktree to mark as worktree context (Rewind requires this)
 	g := baseGit.InWorktree(tmpDir)
 
-	g.CreateBranch("TASK-001")
+	if err := g.CreateBranch("TASK-001"); err != nil {
+		t.Fatalf("CreateBranch failed: %v", err)
+	}
 
 	// Create first checkpoint
 	testFile := filepath.Join(tmpDir, "first.txt")
-	os.WriteFile(testFile, []byte("first"), 0644)
+	if err := os.WriteFile(testFile, []byte("first"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 	checkpoint1, _ := g.CreateCheckpoint("TASK-001", "spec", "first")
 
 	// Create second checkpoint
 	testFile2 := filepath.Join(tmpDir, "second.txt")
-	os.WriteFile(testFile2, []byte("second"), 0644)
-	g.CreateCheckpoint("TASK-001", "implement", "second")
+	if err := os.WriteFile(testFile2, []byte("second"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	_, _ = g.CreateCheckpoint("TASK-001", "implement", "second")
 
 	// second.txt should exist
 	if _, err := os.Stat(testFile2); os.IsNotExist(err) {
@@ -311,7 +321,7 @@ func TestInWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-001")
+	defer func() { _ = g.CleanupWorktree("TASK-001") }()
 
 	// Get git instance for worktree
 	wtGit := g.InWorktree(worktreePath)
@@ -328,7 +338,7 @@ func TestInWorktree(t *testing.T) {
 
 	// Create a file in worktree
 	testFile := filepath.Join(worktreePath, "worktree-test.txt")
-	os.WriteFile(testFile, []byte("test"), 0644)
+	_ = os.WriteFile(testFile, []byte("test"), 0644)
 
 	clean, _ := wtGit.IsClean()
 	if clean {
@@ -415,7 +425,7 @@ func TestIsInWorktreeContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-001")
+	defer func() { _ = g.CleanupWorktree("TASK-001") }()
 
 	// Worktree git instance should be in worktree context
 	wtGit := g.InWorktree(worktreePath)
@@ -468,7 +478,7 @@ func TestInjectWorktreeHooks_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-002")
+	defer func() { _ = g.CleanupWorktree("TASK-002") }()
 
 	// Check that hooks were created in worktree's git directory
 	// The .git file in worktree points to the actual git directory
@@ -575,7 +585,7 @@ func TestRemoveWorktreeHooks_Integration(t *testing.T) {
 	}
 
 	// Cleanup worktree
-	g.CleanupWorktree("TASK-003")
+	_ = g.CleanupWorktree("TASK-003")
 }
 
 // TestCreateWorktree_HooksContainProtectedBranches tests hooks contain all protected branches
@@ -588,7 +598,7 @@ func TestCreateWorktree_HooksContainProtectedBranches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-004")
+	defer func() { _ = g.CleanupWorktree("TASK-004") }()
 
 	// Read pre-push hook content
 	gitFile := filepath.Join(worktreePath, ".git")
@@ -646,7 +656,7 @@ func TestGetCommitCounts(t *testing.T) {
 
 	// Add commits to task branch
 	testFile := filepath.Join(tmpDir, "feature.txt")
-	os.WriteFile(testFile, []byte("feature"), 0644)
+	_ = os.WriteFile(testFile, []byte("feature"), 0644)
 	_, _ = g.CreateCheckpoint("TASK-005", "implement", "add feature")
 
 	// Get commit counts relative to base
@@ -680,7 +690,7 @@ func TestDetectConflicts_NoConflicts(t *testing.T) {
 
 	// Add a commit that doesn't conflict
 	testFile := filepath.Join(tmpDir, "new-feature.txt")
-	os.WriteFile(testFile, []byte("new feature"), 0644)
+	_ = os.WriteFile(testFile, []byte("new feature"), 0644)
 	_, _ = g.CreateCheckpoint("TASK-006", "implement", "add new feature")
 
 	// Detect conflicts - should find none
@@ -712,7 +722,7 @@ func TestDetectConflicts_WithConflicts(t *testing.T) {
 
 	// Modify README on task branch
 	readmeFile := filepath.Join(tmpDir, "README.md")
-	os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644)
+	_ = os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644)
 	_, _ = g.CreateCheckpoint("TASK-007", "implement", "modify readme on task")
 
 	// Switch back to base branch and make conflicting change
@@ -722,10 +732,10 @@ func TestDetectConflicts_WithConflicts(t *testing.T) {
 		t.Fatalf("failed to checkout base branch: %v", err)
 	}
 
-	os.WriteFile(readmeFile, []byte("# Base branch changes\n"), 0644)
+	_ = os.WriteFile(readmeFile, []byte("# Base branch changes\n"), 0644)
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	cmd = exec.Command("git", "commit", "-m", "modify readme on base")
 	cmd.Dir = tmpDir
@@ -772,7 +782,7 @@ func TestDetectConflictsViaMerge_CleanupOnSuccess(t *testing.T) {
 
 	// Modify README on task branch
 	readmeFile := filepath.Join(tmpDir, "README.md")
-	os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644)
+	_ = os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644)
 	_, _ = g.CreateCheckpoint("TASK-CLEANUP-001", "implement", "modify readme on task")
 
 	// Switch back to base branch and make conflicting change
@@ -782,10 +792,10 @@ func TestDetectConflictsViaMerge_CleanupOnSuccess(t *testing.T) {
 		t.Fatalf("failed to checkout base branch: %v", err)
 	}
 
-	os.WriteFile(readmeFile, []byte("# Base branch changes\n"), 0644)
+	_ = os.WriteFile(readmeFile, []byte("# Base branch changes\n"), 0644)
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	cmd = exec.Command("git", "commit", "-m", "modify readme on base")
 	cmd.Dir = tmpDir
@@ -844,7 +854,7 @@ func TestDetectConflictsViaMerge_CleanupEvenWithoutConflicts(t *testing.T) {
 
 	// Add a non-conflicting commit
 	testFile := filepath.Join(tmpDir, "new-feature.txt")
-	os.WriteFile(testFile, []byte("new feature"), 0644)
+	_ = os.WriteFile(testFile, []byte("new feature"), 0644)
 	_, _ = g.CreateCheckpoint("TASK-CLEANUP-002", "implement", "add new feature")
 
 	// Switch back to base branch and add a different file (no conflict)
@@ -855,10 +865,10 @@ func TestDetectConflictsViaMerge_CleanupEvenWithoutConflicts(t *testing.T) {
 	}
 
 	otherFile := filepath.Join(tmpDir, "other.txt")
-	os.WriteFile(otherFile, []byte("other content"), 0644)
+	_ = os.WriteFile(otherFile, []byte("other content"), 0644)
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	cmd = exec.Command("git", "commit", "-m", "add other file on base")
 	cmd.Dir = tmpDir
@@ -916,7 +926,7 @@ func TestRebaseWithConflictCheck_Success(t *testing.T) {
 
 	// Add a non-conflicting commit
 	testFile := filepath.Join(tmpDir, "feature.txt")
-	os.WriteFile(testFile, []byte("feature"), 0644)
+	_ = os.WriteFile(testFile, []byte("feature"), 0644)
 	_, _ = g.CreateCheckpoint("TASK-008", "implement", "add feature")
 
 	// Rebase should succeed with no conflicts
@@ -951,7 +961,7 @@ func TestRebaseWithConflictCheck_Conflict(t *testing.T) {
 
 	// Modify README on task branch
 	readmeFile := filepath.Join(tmpDir, "README.md")
-	os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644)
+	_ = os.WriteFile(readmeFile, []byte("# Task branch changes\n"), 0644)
 	_, _ = g.CreateCheckpoint("TASK-009", "implement", "modify readme on task")
 
 	// Switch back to base branch and make conflicting change
@@ -961,10 +971,10 @@ func TestRebaseWithConflictCheck_Conflict(t *testing.T) {
 		t.Fatalf("failed to checkout base branch: %v", err)
 	}
 
-	os.WriteFile(readmeFile, []byte("# Base branch changes\n"), 0644)
+	_ = os.WriteFile(readmeFile, []byte("# Base branch changes\n"), 0644)
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	cmd = exec.Command("git", "commit", "-m", "modify readme on base")
 	cmd.Dir = tmpDir
@@ -1017,7 +1027,7 @@ func TestRebaseWithConflictCheck_FailWithoutConflicts(t *testing.T) {
 
 	// Add a commit on task branch
 	testFile := filepath.Join(tmpDir, "feature.txt")
-	os.WriteFile(testFile, []byte("feature"), 0644)
+	_ = os.WriteFile(testFile, []byte("feature"), 0644)
 	_, _ = g.CreateCheckpoint("TASK-REBASE-FAIL", "implement", "add feature")
 
 	// Switch back to base branch and make a non-conflicting change
@@ -1028,10 +1038,10 @@ func TestRebaseWithConflictCheck_FailWithoutConflicts(t *testing.T) {
 	}
 
 	otherFile := filepath.Join(tmpDir, "other.txt")
-	os.WriteFile(otherFile, []byte("other content"), 0644)
+	_ = os.WriteFile(otherFile, []byte("other content"), 0644)
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	cmd = exec.Command("git", "commit", "-m", "add other file on base")
 	cmd.Dir = tmpDir
@@ -1048,10 +1058,10 @@ func TestRebaseWithConflictCheck_FailWithoutConflicts(t *testing.T) {
 	// Create uncommitted changes to trigger a rebase failure without conflicts
 	// (dirty working tree prevents rebase)
 	dirtyFile := filepath.Join(tmpDir, "dirty.txt")
-	os.WriteFile(dirtyFile, []byte("dirty"), 0644)
+	_ = os.WriteFile(dirtyFile, []byte("dirty"), 0644)
 	cmd = exec.Command("git", "add", dirtyFile)
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 	// The staged but uncommitted file will cause rebase to fail
 
 	// Rebase should fail but NOT with ErrMergeConflict
@@ -1145,7 +1155,7 @@ func TestCreateWorktree_StaleWorktree(t *testing.T) {
 	}
 
 	// Cleanup
-	g.CleanupWorktree("TASK-STALE")
+	_ = g.CleanupWorktree("TASK-STALE")
 }
 
 // TestCreateWorktree_StaleWorktree_ExistingBranch tests stale worktree with existing branch
@@ -1164,7 +1174,7 @@ func TestCreateWorktree_StaleWorktree_ExistingBranch(t *testing.T) {
 	// Make a commit in the worktree so the branch has content
 	wtGit := g.InWorktree(worktreePath)
 	testFile := filepath.Join(worktreePath, "stale-test.txt")
-	os.WriteFile(testFile, []byte("test"), 0644)
+	_ = os.WriteFile(testFile, []byte("test"), 0644)
 	_, _ = wtGit.CreateCheckpoint("TASK-STALE2", "implement", "test commit")
 
 	// Manually delete the worktree directory (simulating stale registration)
@@ -1192,7 +1202,7 @@ func TestCreateWorktree_StaleWorktree_ExistingBranch(t *testing.T) {
 	}
 
 	// Cleanup
-	g.CleanupWorktree("TASK-STALE2")
+	_ = g.CleanupWorktree("TASK-STALE2")
 }
 
 // TestRestoreOrcDir_NoOrcDir tests RestoreOrcDir when .orc/ doesn't exist
@@ -1238,7 +1248,7 @@ func TestRestoreOrcDir_NoChanges(t *testing.T) {
 	// Commit .orc/ on base branch
 	cmd := exec.Command("git", "add", ".orc/")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 	cmd = exec.Command("git", "commit", "-m", "Add .orc/")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
@@ -1282,7 +1292,7 @@ func TestRestoreOrcDir_WithChanges(t *testing.T) {
 	// Commit .orc/ on base branch
 	cmd := exec.Command("git", "add", ".orc/")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 	cmd = exec.Command("git", "commit", "-m", "Add .orc/")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
@@ -1346,7 +1356,7 @@ func TestRestoreOrcDir_NewFilesInOrc(t *testing.T) {
 	// Commit .orc/ on base branch
 	cmd := exec.Command("git", "add", ".orc/")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 	cmd = exec.Command("git", "commit", "-m", "Add .orc/")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
@@ -1412,7 +1422,7 @@ func TestRestoreOrcDir_InitiativeModification(t *testing.T) {
 	// Commit on base branch
 	cmd := exec.Command("git", "add", ".orc/")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 	cmd = exec.Command("git", "commit", "-m", "Add initiative")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
@@ -1470,17 +1480,19 @@ func TestRestoreOrcDir_CommitMessage(t *testing.T) {
 	// Commit on base branch
 	cmd := exec.Command("git", "add", ".orc/")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 	cmd = exec.Command("git", "commit", "-m", "Add .orc/")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	// Create a task branch
-	g.CreateBranch("TASK-ORC-006")
+	_ = g.CreateBranch("TASK-ORC-006")
 
 	// Modify .orc/
-	os.WriteFile(configFile, []byte("version: 2\n"), 0644)
-	g.CreateCheckpoint("TASK-ORC-006", "implement", "modify .orc/")
+	if err := os.WriteFile(configFile, []byte("version: 2\n"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	_, _ = g.CreateCheckpoint("TASK-ORC-006", "implement", "modify .orc/")
 
 	// Restore .orc/
 	restored, err := g.RestoreOrcDir(baseBranch, "TASK-ORC-006")
@@ -1629,7 +1641,7 @@ func TestMainRepoProtection_WorktreeContextAllowed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-TEST")
+	defer func() { _ = g.CleanupWorktree("TASK-TEST") }()
 
 	// Get worktree Git instance
 	wg := g.InWorktree(worktreePath)
@@ -1664,15 +1676,17 @@ func TestMainRepoProtection_MainBranchUnchangedAfterWorktreeOperations(t *testin
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-INTEGRITY")
+	defer func() { _ = g.CleanupWorktree("TASK-INTEGRITY") }()
 
 	// Get worktree Git instance
 	wg := g.InWorktree(worktreePath)
 
 	// Make changes in worktree
 	testFile := filepath.Join(worktreePath, "test-file.txt")
-	os.WriteFile(testFile, []byte("test content"), 0644)
-	wg.CreateCheckpoint("TASK-INTEGRITY", "implement", "test change")
+	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	_, _ = wg.CreateCheckpoint("TASK-INTEGRITY", "implement", "test change")
 
 	// Verify main repo is unchanged
 	finalHead, _ := g.ctx.HeadCommit()
@@ -1771,14 +1785,14 @@ func TestMainRepoProtection_ProtectedBranchRewindBlocked(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-MAIN")
+	defer func() { _ = g.CleanupWorktree("TASK-MAIN") }()
 
 	// Get worktree Git instance
 	wg := g.InWorktree(worktreePath)
 
 	// Switch to main branch (protected)
 	// This shouldn't happen normally but we test the safety anyway
-	wg.ctx.Checkout("main")
+	_ = wg.ctx.Checkout("main")
 
 	// Verify current branch is main
 	branch, _ := wg.GetCurrentBranch()
@@ -1821,7 +1835,7 @@ func TestIsRebaseInProgress_InWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-REBASE-CHECK")
+	defer func() { _ = g.CleanupWorktree("TASK-REBASE-CHECK") }()
 
 	wtGit := g.InWorktree(worktreePath)
 
@@ -1859,7 +1873,7 @@ func TestIsMergeInProgress_InWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-MERGE-CHECK")
+	defer func() { _ = g.CleanupWorktree("TASK-MERGE-CHECK") }()
 
 	wtGit := g.InWorktree(worktreePath)
 
@@ -1890,16 +1904,16 @@ func TestDiscardChanges(t *testing.T) {
 
 	// Create some uncommitted changes
 	testFile := filepath.Join(tmpDir, "dirty.txt")
-	os.WriteFile(testFile, []byte("dirty content"), 0644)
+	_ = os.WriteFile(testFile, []byte("dirty content"), 0644)
 
 	// Stage the file
 	cmd := exec.Command("git", "add", testFile)
 	cmd.Dir = tmpDir
-	cmd.Run()
+	_ = cmd.Run()
 
 	// Create an untracked file
 	untrackedFile := filepath.Join(tmpDir, "untracked.txt")
-	os.WriteFile(untrackedFile, []byte("untracked content"), 0644)
+	_ = os.WriteFile(untrackedFile, []byte("untracked content"), 0644)
 
 	// Verify working directory is dirty
 	clean, _ := g.IsClean()
@@ -1940,13 +1954,13 @@ func TestDiscardChanges_InWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-DISCARD")
+	defer func() { _ = g.CleanupWorktree("TASK-DISCARD") }()
 
 	wtGit := g.InWorktree(worktreePath)
 
 	// Create dirty state in worktree
 	testFile := filepath.Join(worktreePath, "dirty.txt")
-	os.WriteFile(testFile, []byte("dirty"), 0644)
+	_ = os.WriteFile(testFile, []byte("dirty"), 0644)
 
 	// Verify dirty
 	clean, _ := wtGit.IsClean()
@@ -1973,7 +1987,7 @@ func TestConcurrentCheckpoints(t *testing.T) {
 	tmpDir := setupTestRepo(t)
 	g, _ := New(tmpDir, DefaultConfig())
 
-	g.CreateBranch("TASK-CONCURRENT")
+	_ = g.CreateBranch("TASK-CONCURRENT")
 
 	// Create multiple files for concurrent commits
 	const numGoroutines = 5
@@ -1983,7 +1997,7 @@ func TestConcurrentCheckpoints(t *testing.T) {
 		go func(idx int) {
 			// Create a unique file for this goroutine
 			testFile := filepath.Join(tmpDir, fmt.Sprintf("concurrent-%d.txt", idx))
-			os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", idx)), 0644)
+			_ = os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", idx)), 0644)
 
 			// Create checkpoint - mutex should ensure atomicity
 			_, err := g.CreateCheckpoint("TASK-CONCURRENT", "implement", fmt.Sprintf("change %d", idx))
@@ -2017,14 +2031,14 @@ func TestInWorktree_IndependentMutex(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-MUTEX")
+	defer func() { _ = g.CleanupWorktree("TASK-MUTEX") }()
 
 	// Get worktree Git instance
 	wtGit := g.InWorktree(worktreePath)
 
 	// Create file in worktree
 	testFile := filepath.Join(worktreePath, "mutex-test.txt")
-	os.WriteFile(testFile, []byte("test"), 0644)
+	_ = os.WriteFile(testFile, []byte("test"), 0644)
 
 	// Both instances should be able to work independently
 	// (they have separate mutexes)
@@ -2034,7 +2048,7 @@ func TestInWorktree_IndependentMutex(t *testing.T) {
 	go func() {
 		// Create a file in main repo
 		mainFile := filepath.Join(tmpDir, "main-test.txt")
-		os.WriteFile(mainFile, []byte("main content"), 0644)
+		_ = os.WriteFile(mainFile, []byte("main content"), 0644)
 		_, err := g.CreateCheckpoint("TASK-MUTEX-MAIN", "implement", "main change")
 		done <- err
 	}()
@@ -2047,12 +2061,10 @@ func TestInWorktree_IndependentMutex(t *testing.T) {
 
 	// Both should complete without deadlock
 	for i := 0; i < 2; i++ {
-		select {
-		case err := <-done:
-			if err != nil {
-				// Errors are expected (different directories), just verify no deadlock
-				t.Logf("Expected error (different contexts): %v", err)
-			}
+		err := <-done
+		if err != nil {
+			// Errors are expected (different directories), just verify no deadlock
+			t.Logf("Expected error (different contexts): %v", err)
 		}
 	}
 }
@@ -2075,7 +2087,7 @@ func TestMutex_CompoundOperationAtomicity(t *testing.T) {
 
 	// Add a commit
 	testFile := filepath.Join(tmpDir, "atomic-test.txt")
-	os.WriteFile(testFile, []byte("test content"), 0644)
+	_ = os.WriteFile(testFile, []byte("test content"), 0644)
 	_, _ = g.CreateCheckpoint("TASK-ATOMIC", "implement", "add file")
 
 	// Create concurrent conflict checks - they should not interfere
@@ -2152,7 +2164,7 @@ func TestHasRemote_InWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorktree() failed: %v", err)
 	}
-	defer g.CleanupWorktree("TASK-REMOTE")
+	defer func() { _ = g.CleanupWorktree("TASK-REMOTE") }()
 
 	wtGit := g.InWorktree(worktreePath)
 

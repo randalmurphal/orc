@@ -46,7 +46,7 @@ This task implements a new feature for artifact detection.
 - Unit tests for artifact detection
 - Integration tests for CLI
 `
-				os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
+				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
 			},
 			weight:       task.WeightMedium,
 			wantArtifact: true,
@@ -56,7 +56,7 @@ This task implements a new feature for artifact detection.
 		{
 			name: "empty spec file",
 			setup: func(taskDir string) {
-				os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(""), 0644)
+				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(""), 0644)
 			},
 			weight:       task.WeightMedium,
 			wantArtifact: false,
@@ -65,7 +65,7 @@ This task implements a new feature for artifact detection.
 		{
 			name: "minimal spec file - too short",
 			setup: func(taskDir string) {
-				os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte("# Title"), 0644)
+				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte("# Title"), 0644)
 			},
 			weight:       task.WeightMedium,
 			wantArtifact: false,
@@ -81,7 +81,7 @@ This task does something.
 
 But it's missing Success Criteria and Testing sections.
 `
-				os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
+				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
 			},
 			weight:       task.WeightMedium,
 			wantArtifact: true,
@@ -98,7 +98,7 @@ But it's missing Success Criteria and Testing sections.
 This is a trivial task to fix a small typo in the documentation.
 The fix is straightforward and doesn't need detailed specification.
 `
-				os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
+				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
 			},
 			weight:       task.WeightTrivial,
 			wantArtifact: true,
@@ -111,7 +111,7 @@ The fix is straightforward and doesn't need detailed specification.
 		t.Run(tt.name, func(t *testing.T) {
 			// Create fresh task dir for each test
 			taskDir := filepath.Join(tmpDir, tt.name)
-			os.MkdirAll(taskDir, 0755)
+			_ = os.MkdirAll(taskDir, 0755)
 
 			// Run setup
 			tt.setup(taskDir)
@@ -154,12 +154,12 @@ func TestArtifactDetector_DetectResearchArtifacts(t *testing.T) {
 			name: "research.md in artifacts dir",
 			setup: func(taskDir string) {
 				artifactDir := filepath.Join(taskDir, "artifacts")
-				os.MkdirAll(artifactDir, 0755)
+				_ = os.MkdirAll(artifactDir, 0755)
 				content := `# Research Findings
 
 This is the research content with sufficient detail to be meaningful.
 `
-				os.WriteFile(filepath.Join(artifactDir, "research.md"), []byte(content), 0644)
+				_ = os.WriteFile(filepath.Join(artifactDir, "research.md"), []byte(content), 0644)
 			},
 			wantArtifact: true,
 			wantAutoSkip: true,
@@ -175,7 +175,7 @@ Do something.
 ## Research
 Detailed research findings go here with lots of information.
 `
-				os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
+				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
 			},
 			wantArtifact: true,
 			wantAutoSkip: true,
@@ -185,7 +185,7 @@ Detailed research findings go here with lots of information.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			taskDir := filepath.Join(tmpDir, tt.name)
-			os.MkdirAll(taskDir, 0755)
+			_ = os.MkdirAll(taskDir, 0755)
 			tt.setup(taskDir)
 
 			detector := NewArtifactDetectorWithDir(taskDir, taskID, task.WeightMedium)
@@ -206,7 +206,7 @@ func TestArtifactDetector_ImplementTestValidateNotAutoSkippable(t *testing.T) {
 	tmpDir := t.TempDir()
 	taskID := "TEST-003"
 	taskDir := filepath.Join(tmpDir, "task")
-	os.MkdirAll(taskDir, 0755)
+	_ = os.MkdirAll(taskDir, 0755)
 
 	detector := NewArtifactDetectorWithDir(taskDir, taskID, task.WeightMedium)
 
@@ -239,8 +239,8 @@ func TestArtifactDetector_DetectDocsArtifacts(t *testing.T) {
 			name: "docs.md in artifacts dir",
 			setup: func(taskDir string) {
 				artifactDir := filepath.Join(taskDir, "artifacts")
-				os.MkdirAll(artifactDir, 0755)
-				os.WriteFile(filepath.Join(artifactDir, "docs.md"), []byte("# Documentation"), 0644)
+				_ = os.MkdirAll(artifactDir, 0755)
+				_ = os.WriteFile(filepath.Join(artifactDir, "docs.md"), []byte("# Documentation"), 0644)
 			},
 			wantArtifact: true,
 			wantAutoSkip: true,
@@ -250,7 +250,7 @@ func TestArtifactDetector_DetectDocsArtifacts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			taskDir := filepath.Join(tmpDir, tt.name)
-			os.MkdirAll(taskDir, 0755)
+			_ = os.MkdirAll(taskDir, 0755)
 			tt.setup(taskDir)
 
 			detector := NewArtifactDetectorWithDir(taskDir, taskID, task.WeightMedium)
@@ -271,7 +271,7 @@ func TestArtifactDetector_SuggestSkippablePhases(t *testing.T) {
 	tmpDir := t.TempDir()
 	taskID := "TEST-005"
 	taskDir := filepath.Join(tmpDir, "task")
-	os.MkdirAll(taskDir, 0755)
+	_ = os.MkdirAll(taskDir, 0755)
 
 	// Create a valid spec
 	specContent := `# Specification
@@ -285,17 +285,17 @@ Implement artifact detection.
 ## Testing
 - Unit tests pass.
 `
-	os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(specContent), 0644)
+	_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(specContent), 0644)
 
 	// Create research artifact (needs to be >50 chars)
 	artifactDir := filepath.Join(taskDir, "artifacts")
-	os.MkdirAll(artifactDir, 0755)
+	_ = os.MkdirAll(artifactDir, 0755)
 	researchContent := `# Research Findings
 
 This research document contains detailed analysis of the codebase
 and architectural decisions that will inform the implementation.
 `
-	os.WriteFile(filepath.Join(artifactDir, "research.md"), []byte(researchContent), 0644)
+	_ = os.WriteFile(filepath.Join(artifactDir, "research.md"), []byte(researchContent), 0644)
 
 	detector := NewArtifactDetectorWithDir(taskDir, taskID, task.WeightMedium)
 
@@ -319,7 +319,7 @@ and architectural decisions that will inform the implementation.
 func TestArtifactDetector_UnknownPhase(t *testing.T) {
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, "task")
-	os.MkdirAll(taskDir, 0755)
+	_ = os.MkdirAll(taskDir, 0755)
 
 	detector := NewArtifactDetectorWithDir(taskDir, "TEST-006", task.WeightMedium)
 	status := detector.DetectPhaseArtifacts("unknown_phase")

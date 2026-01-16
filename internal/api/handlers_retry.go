@@ -62,7 +62,7 @@ func (s *Server) handleRetryTask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Load state to get attempt number from retry context
 	st, _ := s.backend.LoadState(taskID)
@@ -141,7 +141,7 @@ func (s *Server) handleGetRetryPreview(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Get open review comments
 	comments, err := pdb.ListReviewComments(taskID, "open")
@@ -212,7 +212,7 @@ func (s *Server) handleRetryWithFeedback(w http.ResponseWriter, r *http.Request)
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Get review comments
 	reviewComments, err := pdb.ListReviewComments(taskID, "open")

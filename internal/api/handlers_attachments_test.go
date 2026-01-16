@@ -21,7 +21,7 @@ import (
 func TestListAttachmentsEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -51,7 +51,7 @@ func TestListAttachmentsEndpoint_EmptyList(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -99,7 +99,7 @@ func TestListAttachmentsEndpoint_WithAttachments(t *testing.T) {
 		t.Fatalf("failed to save attachment: %v", err)
 	}
 
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -125,7 +125,7 @@ func TestListAttachmentsEndpoint_WithAttachments(t *testing.T) {
 func TestUploadAttachmentEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -133,8 +133,8 @@ func TestUploadAttachmentEndpoint_TaskNotFound(t *testing.T) {
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
 	part, _ := writer.CreateFormFile("file", "test.png")
-	part.Write([]byte("test content"))
-	writer.Close()
+	_, _ = part.Write([]byte("test content"))
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/attachments", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -163,14 +163,14 @@ func TestUploadAttachmentEndpoint_NoFile(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
 	// Request without file
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	writer.Close()
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks/TASK-ATT-003/attachments", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -199,7 +199,7 @@ func TestUploadAttachmentEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -210,8 +210,8 @@ func TestUploadAttachmentEndpoint_Success(t *testing.T) {
 	h.Set("Content-Disposition", `form-data; name="file"; filename="screenshot.png"`)
 	h.Set("Content-Type", "image/png")
 	part, _ := writer.CreatePart(h)
-	part.Write([]byte("PNG test content"))
-	writer.Close()
+	_, _ = part.Write([]byte("PNG test content"))
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks/TASK-ATT-004/attachments", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -266,17 +266,17 @@ func TestUploadAttachmentEndpoint_WithCustomFilename(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
 	// Create multipart form with custom filename
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	writer.WriteField("filename", "custom-name.png")
+	_ = writer.WriteField("filename", "custom-name.png")
 	part, _ := writer.CreateFormFile("file", "original.png")
-	part.Write([]byte("PNG test content"))
-	writer.Close()
+	_, _ = part.Write([]byte("PNG test content"))
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks/TASK-ATT-005/attachments", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -289,7 +289,7 @@ func TestUploadAttachmentEndpoint_WithCustomFilename(t *testing.T) {
 	}
 
 	var attachment task.Attachment
-	json.NewDecoder(w.Body).Decode(&attachment)
+	_ = json.NewDecoder(w.Body).Decode(&attachment)
 
 	if attachment.Filename != "custom-name.png" {
 		t.Errorf("expected filename 'custom-name.png', got %q", attachment.Filename)
@@ -299,7 +299,7 @@ func TestUploadAttachmentEndpoint_WithCustomFilename(t *testing.T) {
 func TestGetAttachmentEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -330,7 +330,7 @@ func TestGetAttachmentEndpoint_AttachmentNotFound(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	// No attachments saved - testing 404 response
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -367,7 +367,7 @@ func TestGetAttachmentEndpoint_Success(t *testing.T) {
 		t.Fatalf("failed to save attachment: %v", err)
 	}
 
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -418,7 +418,7 @@ func TestGetAttachmentEndpoint_NonImageAttachment(t *testing.T) {
 		t.Fatalf("failed to save attachment: %v", err)
 	}
 
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -440,7 +440,7 @@ func TestGetAttachmentEndpoint_NonImageAttachment(t *testing.T) {
 func TestDeleteAttachmentEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -471,7 +471,7 @@ func TestDeleteAttachmentEndpoint_AttachmentNotFound(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	// No attachments saved - testing 404 response
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -507,7 +507,7 @@ func TestDeleteAttachmentEndpoint_Success(t *testing.T) {
 		t.Fatalf("failed to save attachment: %v", err)
 	}
 
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -554,7 +554,7 @@ func TestGetAttachmentEndpoint_PathTraversal(t *testing.T) {
 		t.Fatalf("failed to save attachment: %v", err)
 	}
 
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -597,7 +597,7 @@ func TestUploadAttachmentEndpoint_PathTraversalInFilename(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -610,10 +610,10 @@ func TestUploadAttachmentEndpoint_PathTraversalInFilename(t *testing.T) {
 	for _, maliciousName := range maliciousFilenames {
 		body := new(bytes.Buffer)
 		writer := multipart.NewWriter(body)
-		writer.WriteField("filename", maliciousName)
+		_ = writer.WriteField("filename", maliciousName)
 		part, _ := writer.CreateFormFile("file", "innocent.txt")
-		part.Write([]byte("Malicious content"))
-		writer.Close()
+		_, _ = part.Write([]byte("Malicious content"))
+		_ = writer.Close()
 
 		req := httptest.NewRequest("POST", "/api/tasks/TASK-SEC-002/attachments", body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -625,7 +625,7 @@ func TestUploadAttachmentEndpoint_PathTraversalInFilename(t *testing.T) {
 		// So it should succeed but write to a safe location
 		if w.Code == http.StatusCreated {
 			var attachment task.Attachment
-			json.NewDecoder(w.Body).Decode(&attachment)
+			_ = json.NewDecoder(w.Body).Decode(&attachment)
 
 			// Filename should be sanitized (no path components)
 			if attachment.Filename != filepath.Base(maliciousName) {
@@ -667,7 +667,7 @@ func TestDeleteAttachmentEndpoint_PathTraversal(t *testing.T) {
 		t.Fatalf("failed to save attachment: %v", err)
 	}
 
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -719,17 +719,17 @@ func TestUploadAttachmentEndpoint_EmptyFilename(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
 	// Create multipart form with empty filename override
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	writer.WriteField("filename", "")
+	_ = writer.WriteField("filename", "")
 	part, _ := writer.CreateFormFile("file", "") // Empty original filename too
-	part.Write([]byte("content"))
-	writer.Close()
+	_, _ = part.Write([]byte("content"))
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks/TASK-SEC-004/attachments", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -759,17 +759,17 @@ func TestUploadAttachmentEndpoint_DotFilename(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
 	// Create multipart form with "." as filename
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	writer.WriteField("filename", ".")
+	_ = writer.WriteField("filename", ".")
 	part, _ := writer.CreateFormFile("file", "original.txt")
-	part.Write([]byte("content"))
-	writer.Close()
+	_, _ = part.Write([]byte("content"))
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks/TASK-SEC-005/attachments", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -793,16 +793,16 @@ func TestCreateTaskEndpoint_WithAttachments(t *testing.T) {
 	// Create multipart form with task data and attachments
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	writer.WriteField("title", "Test Task with Attachments")
-	writer.WriteField("description", "Task description")
-	writer.WriteField("category", "bug")
+	_ = writer.WriteField("title", "Test Task with Attachments")
+	_ = writer.WriteField("description", "Task description")
+	_ = writer.WriteField("category", "bug")
 
 	// Add two attachments
 	part1, _ := writer.CreateFormFile("attachments", "screenshot1.png")
-	part1.Write([]byte("PNG content 1"))
+	_, _ = part1.Write([]byte("PNG content 1"))
 	part2, _ := writer.CreateFormFile("attachments", "screenshot2.png")
-	part2.Write([]byte("PNG content 2"))
-	writer.Close()
+	_, _ = part2.Write([]byte("PNG content 2"))
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -861,16 +861,16 @@ func TestCreateTaskEndpoint_WithAttachments(t *testing.T) {
 
 func TestCreateTaskEndpoint_MultipartWithoutAttachments(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
 	// Create multipart form without attachments (just task data)
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	writer.WriteField("title", "Task Without Attachments")
-	writer.WriteField("description", "Just a regular task")
-	writer.Close()
+	_ = writer.WriteField("title", "Task Without Attachments")
+	_ = writer.WriteField("description", "Just a regular task")
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -894,7 +894,7 @@ func TestCreateTaskEndpoint_MultipartWithoutAttachments(t *testing.T) {
 
 func TestCreateTaskEndpoint_JSONStillWorks(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -926,17 +926,17 @@ func TestCreateTaskEndpoint_JSONStillWorks(t *testing.T) {
 
 func TestCreateTaskEndpoint_MultipartMissingTitle(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
 	// Create multipart form without title
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	writer.WriteField("description", "Task without title")
+	_ = writer.WriteField("description", "Task without title")
 	part, _ := writer.CreateFormFile("attachments", "screenshot.png")
-	part.Write([]byte("PNG content"))
-	writer.Close()
+	_, _ = part.Write([]byte("PNG content"))
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())

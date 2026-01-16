@@ -37,14 +37,14 @@ func TestLoadWithSources_SharedConfig(t *testing.T) {
 
 	// Create shared config (.orc/config.yaml)
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	_ = os.MkdirAll(orcDir, 0755)
 	sharedConfig := `
 profile: strict
 model: claude-sonnet
 gates:
   default_type: human
 `
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(sharedConfig), 0644)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(sharedConfig), 0644)
 
 	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
@@ -88,11 +88,11 @@ func TestLoadWithSources_SharedDirConfig(t *testing.T) {
 	// Create .orc/config.yaml with one value
 	orcDir := filepath.Join(tmpDir, ".orc")
 	sharedDir := filepath.Join(orcDir, "shared")
-	os.MkdirAll(sharedDir, 0755)
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("profile: safe\nmodel: model-a"), 0644)
+	_ = os.MkdirAll(sharedDir, 0755)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("profile: safe\nmodel: model-a"), 0644)
 
 	// Create .orc/shared/config.yaml that overrides
-	os.WriteFile(filepath.Join(sharedDir, "config.yaml"), []byte("model: model-b"), 0644)
+	_ = os.WriteFile(filepath.Join(sharedDir, "config.yaml"), []byte("model: model-b"), 0644)
 
 	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
@@ -123,7 +123,7 @@ func TestLoadWithSources_PersonalConfig(t *testing.T) {
 
 	// Create a fake home directory
 	fakeHome := filepath.Join(tmpDir, "home")
-	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
 
 	// Set HOME temporarily
 	t.Setenv("HOME", fakeHome)
@@ -134,7 +134,7 @@ profile: safe
 retry:
   enabled: false
 `
-	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"), []byte(userConfig), 0644)
+	_ = os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"), []byte(userConfig), 0644)
 
 	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
@@ -163,15 +163,15 @@ func TestLoadWithSources_LocalConfig(t *testing.T) {
 
 	// Create fake home with global personal config
 	fakeHome := filepath.Join(tmpDir, "home")
-	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
 	t.Setenv("HOME", fakeHome)
-	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
+	_ = os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
 		[]byte("profile: safe\nmodel: global-model"), 0644)
 
 	// Create local personal config (.orc/local/config.yaml)
 	localDir := filepath.Join(tmpDir, ".orc", "local")
-	os.MkdirAll(localDir, 0755)
-	os.WriteFile(filepath.Join(localDir, "config.yaml"), []byte("model: local-model"), 0644)
+	_ = os.MkdirAll(localDir, 0755)
+	_ = os.WriteFile(filepath.Join(localDir, "config.yaml"), []byte("model: local-model"), 0644)
 
 	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
@@ -205,8 +205,8 @@ func TestLoadWithSources_EnvOverrides(t *testing.T) {
 
 	// Create shared config
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("profile: auto"), 0644)
+	_ = os.MkdirAll(orcDir, 0755)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("profile: auto"), 0644)
 
 	// Set env var
 	t.Setenv("ORC_PROFILE", "strict")
@@ -248,17 +248,17 @@ func TestLoadWithSources_PersonalBeatsShared(t *testing.T) {
 
 	// Create fake home
 	fakeHome := filepath.Join(tmpDir, "home")
-	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
 	t.Setenv("HOME", fakeHome)
 
 	// Personal config sets profile to safe (user's preference)
-	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
+	_ = os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
 		[]byte("profile: safe"), 0644)
 
 	// Shared config sets profile to strict (team default)
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"),
+	_ = os.MkdirAll(orcDir, 0755)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"),
 		[]byte("profile: strict"), 0644)
 
 	tc, err := LoadWithSourcesFrom(tmpDir)
@@ -281,11 +281,11 @@ func TestLoadWithSources_RuntimeBeatsPersonal(t *testing.T) {
 
 	// Create fake home
 	fakeHome := filepath.Join(tmpDir, "home")
-	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
 	t.Setenv("HOME", fakeHome)
 
 	// Personal config sets profile
-	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
+	_ = os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
 		[]byte("profile: safe"), 0644)
 
 	// Runtime (env) should win
@@ -311,13 +311,13 @@ func TestLoadWithSources_FullHierarchy(t *testing.T) {
 
 	// Create fake home
 	fakeHome := filepath.Join(tmpDir, "home")
-	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
 	t.Setenv("HOME", fakeHome)
 
 	// Level 3 (Shared): team defaults
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(`
+	_ = os.MkdirAll(orcDir, 0755)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(`
 profile: auto
 model: shared-model
 max_iterations: 10
@@ -325,7 +325,7 @@ branch_prefix: team/
 `), 0644)
 
 	// Level 2 (Personal): user preferences
-	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"), []byte(`
+	_ = os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"), []byte(`
 profile: safe
 model: personal-model
 `), 0644)
@@ -381,14 +381,14 @@ func TestLoadWithSources_SourcePathTracking(t *testing.T) {
 
 	// Create fake home
 	fakeHome := filepath.Join(tmpDir, "home")
-	os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
 	t.Setenv("HOME", fakeHome)
 
 	// Create configs
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("profile: strict"), 0644)
-	os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
+	_ = os.MkdirAll(orcDir, 0755)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("profile: strict"), 0644)
+	_ = os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
 		[]byte("model: my-model"), 0644)
 
 	tc, err := LoadWithSourcesFrom(tmpDir)
@@ -531,7 +531,7 @@ func TestApplyEnvVars(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear all ORC env vars first
 			for envVar := range EnvVarMapping {
-				os.Unsetenv(envVar)
+				_ = os.Unsetenv(envVar)
 			}
 
 			t.Setenv(tt.envVar, tt.value)
@@ -733,7 +733,7 @@ func TestApplyEnvVars_Database(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear all ORC env vars first
 			for envVar := range EnvVarMapping {
-				os.Unsetenv(envVar)
+				_ = os.Unsetenv(envVar)
 			}
 
 			t.Setenv(tt.envVar, tt.value)
@@ -771,7 +771,7 @@ func TestLoadWithSources_DatabaseConfig(t *testing.T) {
 
 	// Create shared config with database settings
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	_ = os.MkdirAll(orcDir, 0755)
 	dbConfig := `
 database:
   driver: postgres
@@ -782,7 +782,7 @@ database:
     user: team_user
     ssl_mode: require
 `
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(dbConfig), 0644)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(dbConfig), 0644)
 
 	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
@@ -820,14 +820,14 @@ func TestLoadWithSources_PRAutoApprove(t *testing.T) {
 
 	// Create config that disables auto_approve
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	_ = os.MkdirAll(orcDir, 0755)
 	configYAML := `
 profile: auto
 completion:
   pr:
     auto_approve: false
 `
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
 
 	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {

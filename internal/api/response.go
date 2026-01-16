@@ -19,14 +19,14 @@ type APIError struct {
 // JSONResponse writes a successful JSON response.
 func JSONResponse(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // JSONError writes a simple error response.
 func JSONError(w http.ResponseWriter, message string, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(APIError{Error: message})
+	_ = json.NewEncoder(w).Encode(APIError{Error: message})
 }
 
 // HandleError inspects error type and writes appropriate response.
@@ -36,7 +36,7 @@ func HandleError(w http.ResponseWriter, err error) {
 	if errors.As(err, &orcErr) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(orcErr.HTTPStatus())
-		json.NewEncoder(w).Encode(APIError{
+		_ = json.NewEncoder(w).Encode(APIError{
 			Error: orcErr.What,
 			Code:  string(orcErr.Code),
 		})
@@ -50,7 +50,7 @@ func HandleError(w http.ResponseWriter, err error) {
 func HandleOrcError(w http.ResponseWriter, err *orcerrors.OrcError) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.HTTPStatus())
-	json.NewEncoder(w).Encode(APIError{
+	_ = json.NewEncoder(w).Encode(APIError{
 		Error: err.What,
 		Code:  string(err.Code),
 	})
@@ -60,7 +60,7 @@ func HandleOrcError(w http.ResponseWriter, err *orcerrors.OrcError) {
 func JSONResponseStatus(w http.ResponseWriter, data any, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // NoContent writes a 204 No Content response.

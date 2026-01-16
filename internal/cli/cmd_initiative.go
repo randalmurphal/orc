@@ -80,7 +80,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			title := args[0]
 			vision, _ := cmd.Flags().GetString("vision")
@@ -199,7 +199,7 @@ func newInitiativeListCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			statusFilter, _ := cmd.Flags().GetString("status")
 
@@ -236,8 +236,8 @@ func newInitiativeListCmd() *cobra.Command {
 			}
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tTASKS\tOWNER")
-			fmt.Fprintln(w, "--\t-----\t------\t-----\t-----")
+			_, _ = fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tTASKS\tOWNER")
+			_, _ = fmt.Fprintln(w, "--\t-----\t------\t-----\t-----")
 
 			for _, init := range initiatives {
 				owner := "-"
@@ -248,10 +248,10 @@ func newInitiativeListCmd() *cobra.Command {
 				if init.IsBlocked(initMap) {
 					statusStr = statusStr + " [BLOCKED]"
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
 					init.ID, truncate(init.Title, 30), statusStr, len(init.Tasks), owner)
 			}
-			w.Flush()
+			_ = w.Flush()
 
 			return nil
 		},
@@ -286,7 +286,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			id := args[0]
 
@@ -429,7 +429,7 @@ func newInitiativeShowCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			id := args[0]
 
@@ -536,9 +536,9 @@ func newInitiativeShowCmd() *cobra.Command {
 					if len(t.DependsOn) > 0 {
 						deps = strings.Join(t.DependsOn, ", ")
 					}
-					fmt.Fprintf(w, "  %s\t%s\t%s\tdeps: %s\n", t.ID, t.Title, t.Status, deps)
+					_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\tdeps: %s\n", t.ID, t.Title, t.Status, deps)
 				}
-				w.Flush()
+				_ = w.Flush()
 
 				// Show ready tasks (using loader for accurate status)
 				ready := init.GetReadyTasksWithLoader(taskLoader)
@@ -577,7 +577,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			initID := args[0]
 			taskID := args[1]
@@ -637,7 +637,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			initID := args[0]
 			taskIDs := args[1:]
@@ -778,7 +778,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			initID := args[0]
 			taskIDs := args[1:]
@@ -883,7 +883,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			initID := args[0]
 			decision := args[1]
@@ -935,7 +935,7 @@ func newInitiativeActivateCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			id := args[0]
 
@@ -972,7 +972,7 @@ func newInitiativeCompleteCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			id := args[0]
 
@@ -1019,7 +1019,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			id := args[0]
 			execute, _ := cmd.Flags().GetBool("execute")
@@ -1168,7 +1168,7 @@ func newInitiativeDeleteCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
@@ -1185,7 +1185,7 @@ func newInitiativeDeleteCmd() *cobra.Command {
 			if !force {
 				fmt.Printf("Delete initiative %s? This cannot be undone. [y/N]: ", id)
 				var response string
-				fmt.Scanln(&response)
+				_, _ = fmt.Scanln(&response)
 				if response != "y" && response != "Y" {
 					fmt.Println("Cancelled")
 					return nil

@@ -60,7 +60,7 @@ func showStatus(showAll bool) error {
 	if err != nil {
 		return fmt.Errorf("get backend: %w", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	tasks, err := backend.LoadAllTasks()
 	if err != nil {
@@ -171,9 +171,9 @@ func showStatus(showAll bool) error {
 			if reason == "" {
 				reason = "unknown"
 			}
-			fmt.Fprintf(w, "  %s\t%s\t(%s)\n", t.ID, truncate(t.Title, 35), reason)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t(%s)\n", t.ID, truncate(t.Title, 35), reason)
 		}
-		w.Flush()
+		_ = w.Flush()
 		fmt.Println("  Use 'orc resume <task-id>' to continue these tasks")
 		fmt.Println()
 	}
@@ -187,9 +187,9 @@ func showStatus(showAll bool) error {
 		}
 		fmt.Println()
 		for _, t := range systemBlocked {
-			fmt.Fprintf(w, "  %s\t%s\t%s\n", t.ID, truncate(t.Title, 40), "(blocked - needs input)")
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", t.ID, truncate(t.Title, 40), "(blocked - needs input)")
 		}
-		w.Flush()
+		_ = w.Flush()
 		fmt.Println()
 	}
 
@@ -206,9 +206,9 @@ func showStatus(showAll bool) error {
 			if phase == "" {
 				phase = "starting"
 			}
-			fmt.Fprintf(w, "  %s\t%s\t[%s]\n", t.ID, truncate(t.Title, 40), phase)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t[%s]\n", t.ID, truncate(t.Title, 40), phase)
 		}
-		w.Flush()
+		_ = w.Flush()
 		fmt.Println()
 	}
 
@@ -223,9 +223,9 @@ func showStatus(showAll bool) error {
 		for _, t := range depBlocked {
 			unmet := t.GetUnmetDependencies(taskMap)
 			blockerStr := formatBlockerList(unmet)
-			fmt.Fprintf(w, "  %s\t%s\t(by %s)\n", t.ID, truncate(t.Title, 35), blockerStr)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t(by %s)\n", t.ID, truncate(t.Title, 35), blockerStr)
 		}
-		w.Flush()
+		_ = w.Flush()
 		fmt.Println()
 	}
 
@@ -238,9 +238,9 @@ func showStatus(showAll bool) error {
 		}
 		fmt.Println()
 		for _, t := range ready {
-			fmt.Fprintf(w, "  %s\t%s\n", t.ID, truncate(t.Title, 45))
+			_, _ = fmt.Fprintf(w, "  %s\t%s\n", t.ID, truncate(t.Title, 45))
 		}
-		w.Flush()
+		_ = w.Flush()
 		fmt.Println()
 	}
 
@@ -253,9 +253,9 @@ func showStatus(showAll bool) error {
 		}
 		fmt.Println()
 		for _, t := range paused {
-			fmt.Fprintf(w, "  %s\t%s\t→ orc resume %s\n", t.ID, truncate(t.Title, 40), t.ID)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t→ orc resume %s\n", t.ID, truncate(t.Title, 40), t.ID)
 		}
-		w.Flush()
+		_ = w.Flush()
 		fmt.Println()
 	}
 
@@ -266,9 +266,9 @@ func showStatus(showAll bool) error {
 		for _, t := range recent {
 			icon := statusIcon(t.Status)
 			ago := formatTimeAgo(t.UpdatedAt)
-			fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", icon, t.ID, truncate(t.Title, 35), ago)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", icon, t.ID, truncate(t.Title, 35), ago)
 		}
-		w.Flush()
+		_ = w.Flush()
 		fmt.Println()
 	}
 
@@ -278,9 +278,9 @@ func showStatus(showAll bool) error {
 		fmt.Println()
 		for _, t := range other {
 			icon := statusIcon(t.Status)
-			fmt.Fprintf(w, "  %s\t%s\t%s\n", icon, t.ID, truncate(t.Title, 40))
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", icon, t.ID, truncate(t.Title, 40))
 		}
-		w.Flush()
+		_ = w.Flush()
 		fmt.Println()
 	}
 

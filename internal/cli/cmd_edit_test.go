@@ -23,7 +23,7 @@ func createEditTestBackend(t *testing.T) (storage.Backend, string) {
 		t.Fatalf("create backend: %v", err)
 	}
 	t.Cleanup(func() {
-		backend.Close()
+		_ = backend.Close()
 	})
 	return backend, tmpDir
 }
@@ -218,7 +218,7 @@ func TestEditCommand_StatusValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusPlanned
@@ -256,7 +256,7 @@ func TestEditCommand_StatusChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusPlanned
@@ -294,7 +294,7 @@ func TestEditCommand_StatusNoChangeIfSame(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusCompleted
@@ -332,7 +332,7 @@ func TestEditCommand_CannotEditRunningTask(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusRunning

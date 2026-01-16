@@ -26,11 +26,6 @@ func PrintError(err error) {
 	fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 }
 
-// wrapTaskNotFound returns a task not found error.
-func wrapTaskNotFound(id string) error {
-	return orcerrors.ErrTaskNotFound(id)
-}
-
 // wrapNotInitialized returns a not initialized error.
 func wrapNotInitialized() error {
 	return orcerrors.ErrNotInitialized()

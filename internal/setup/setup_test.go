@@ -14,7 +14,7 @@ func TestGeneratePrompt(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create some source files to affect size estimation
-	os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main"), 0644)
 
 	detection := &db.Detection{
 		Language:    "go",
@@ -64,8 +64,8 @@ func TestGeneratePrompt_WithExistingClaudeMD(t *testing.T) {
 
 	// Create .claude/CLAUDE.md
 	claudeDir := filepath.Join(tmpDir, ".claude")
-	os.MkdirAll(claudeDir, 0755)
-	os.WriteFile(filepath.Join(claudeDir, "CLAUDE.md"), []byte("# Existing Content\n\nSome instructions."), 0644)
+	_ = os.MkdirAll(claudeDir, 0755)
+	_ = os.WriteFile(filepath.Join(claudeDir, "CLAUDE.md"), []byte("# Existing Content\n\nSome instructions."), 0644)
 
 	prompt, err := GeneratePrompt(tmpDir, nil)
 	if err != nil {
@@ -99,7 +99,7 @@ func TestEstimateProjectSize(t *testing.T) {
 			// Create source files with unique names
 			for i := 0; i < tt.fileCount; i++ {
 				fname := filepath.Join(tmpDir, "file"+fmt.Sprintf("%04d", i)+".go")
-				os.WriteFile(fname, []byte("package x"), 0644)
+				_ = os.WriteFile(fname, []byte("package x"), 0644)
 			}
 
 			got := estimateProjectSize(tmpDir)
@@ -126,8 +126,8 @@ func TestValidator_Validate(t *testing.T) {
 
 	// Create .orc/config.yaml
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("version: 1\nprofile: auto"), 0644)
+	_ = os.MkdirAll(orcDir, 0755)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("version: 1\nprofile: auto"), 0644)
 
 	validator := NewValidator(tmpDir)
 	errors := validator.Validate()
@@ -141,7 +141,7 @@ func TestValidator_Validate_MissingConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create empty .orc directory (no config)
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	validator := NewValidator(tmpDir)
 	errors := validator.Validate()
@@ -156,8 +156,8 @@ func TestValidator_Validate_EmptyConfig(t *testing.T) {
 
 	// Create empty config.yaml
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(""), 0644)
+	_ = os.MkdirAll(orcDir, 0755)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(""), 0644)
 
 	validator := NewValidator(tmpDir)
 	errors := validator.Validate()
@@ -189,7 +189,7 @@ description: A test skill
 Instructions here.
 `
 	skillPath := filepath.Join(tmpDir, "SKILL.md")
-	os.WriteFile(skillPath, []byte(validSkill), 0644)
+	_ = os.WriteFile(skillPath, []byte(validSkill), 0644)
 
 	validator := NewValidator(tmpDir)
 	errors := validator.ValidateSkillFile(skillPath)
@@ -208,7 +208,7 @@ func TestValidator_ValidateSkillFile_Invalid(t *testing.T) {
 No frontmatter here.
 `
 	skillPath := filepath.Join(tmpDir, "SKILL.md")
-	os.WriteFile(skillPath, []byte(invalidSkill), 0644)
+	_ = os.WriteFile(skillPath, []byte(invalidSkill), 0644)
 
 	validator := NewValidator(tmpDir)
 	errors := validator.ValidateSkillFile(skillPath)

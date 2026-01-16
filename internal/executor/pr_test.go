@@ -352,7 +352,7 @@ func TestReviewAndApprove_FailsOnCheckFailure(t *testing.T) {
 		Title: "Test task",
 	}
 
-	result, err := e.reviewAndApprove(nil, tsk, "", false, "Tests failed: 5 failures")
+	result, err := e.reviewAndApprove(context.Background(), tsk, "", false, "Tests failed: 5 failures")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -372,7 +372,7 @@ func TestReviewAndApprove_ApprovesOnCheckSuccess(t *testing.T) {
 		Title: "Test task that should pass",
 	}
 
-	result, err := e.reviewAndApprove(nil, tsk, "diff content here", true, "All checks passed")
+	result, err := e.reviewAndApprove(context.Background(), tsk, "diff content here", true, "All checks passed")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -395,7 +395,7 @@ func TestReviewAndApprove_IncludesTaskTitle(t *testing.T) {
 		Title: "My awesome feature",
 	}
 
-	result, err := e.reviewAndApprove(nil, tsk, "diff", true, "Success")
+	result, err := e.reviewAndApprove(context.Background(), tsk, "diff", true, "Success")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -413,7 +413,7 @@ func TestReviewAndApprove_ApprovesWithPendingChecks(t *testing.T) {
 	}
 
 	// When checksOK is true but some are pending, should still approve
-	result, err := e.reviewAndApprove(nil, tsk, "diff", true, "Some checks still pending")
+	result, err := e.reviewAndApprove(context.Background(), tsk, "diff", true, "Some checks still pending")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

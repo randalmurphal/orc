@@ -54,7 +54,7 @@ Examples:
 				}
 				return fmt.Errorf("open project database: %w", err)
 			}
-			defer pdb.Close()
+			defer func() { _ = pdb.Close() }()
 
 			// Perform search
 			matches, err := pdb.SearchTranscripts(query)
@@ -91,16 +91,16 @@ Examples:
 			fmt.Printf("Found %d match(es) for: %s\n\n", len(matches), query)
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "TASK\tPHASE\tSNIPPET")
-			fmt.Fprintln(w, "────\t─────\t───────")
+			_, _ = fmt.Fprintln(w, "TASK\tPHASE\tSNIPPET")
+			_, _ = fmt.Fprintln(w, "────\t─────\t───────")
 
 			for _, m := range matches {
 				// Clean up snippet - remove newlines and truncate
 				snippet := cleanSnippet(m.Snippet, 60)
-				fmt.Fprintf(w, "%s\t%s\t%s\n", m.TaskID, m.Phase, snippet)
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", m.TaskID, m.Phase, snippet)
 			}
 
-			w.Flush()
+			_ = w.Flush()
 			return nil
 		},
 	}

@@ -129,7 +129,7 @@ func TestKnowledgeQueueCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenProject() error = %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Test QueueKnowledge
 	entry, err := pdb.QueueKnowledge(KnowledgePattern, "Test Pattern", "A reusable pattern", "TASK-001", "test-user")
@@ -225,7 +225,7 @@ func TestKnowledgeQueueReject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenProject() error = %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	entry, _ := pdb.QueueKnowledge(KnowledgeGotcha, "Test Gotcha", "A gotcha", "TASK-002", "test-user")
 
@@ -250,11 +250,11 @@ func TestListStaleKnowledge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenProject() error = %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Create and approve an entry
 	entry, _ := pdb.QueueKnowledge(KnowledgeDecision, "Test Decision", "A decision", "TASK-003", "test-user")
-	pdb.ApproveKnowledge(entry.ID, "approver")
+	_, _ = pdb.ApproveKnowledge(entry.ID, "approver")
 
 	// With a small staleness threshold (0 days), it should be stale immediately
 	stale, err := pdb.ListStaleKnowledge(0)
@@ -268,7 +268,7 @@ func TestListStaleKnowledge(t *testing.T) {
 	}
 
 	// Validate the entry
-	pdb.ValidateKnowledge(entry.ID, "validator")
+	_, _ = pdb.ValidateKnowledge(entry.ID, "validator")
 
 	// With a large threshold (365 days), should not be stale
 	stale, err = pdb.ListStaleKnowledge(365)
@@ -287,12 +287,12 @@ func TestApproveAllPending(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenProject() error = %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Create multiple pending entries
-	pdb.QueueKnowledge(KnowledgePattern, "Pattern 1", "Desc 1", "TASK-001", "user")
-	pdb.QueueKnowledge(KnowledgeGotcha, "Gotcha 1", "Desc 2", "TASK-001", "user")
-	pdb.QueueKnowledge(KnowledgeDecision, "Decision 1", "Desc 3", "TASK-001", "user")
+	_, _ = pdb.QueueKnowledge(KnowledgePattern, "Pattern 1", "Desc 1", "TASK-001", "user")
+	_, _ = pdb.QueueKnowledge(KnowledgeGotcha, "Gotcha 1", "Desc 2", "TASK-001", "user")
+	_, _ = pdb.QueueKnowledge(KnowledgeDecision, "Decision 1", "Desc 3", "TASK-001", "user")
 
 	count, err := pdb.ApproveAllPending("bulk-approver")
 	if err != nil {

@@ -60,7 +60,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			taskID := args[0]
 			content := strings.Join(args[1:], " ")
@@ -141,7 +141,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			taskID := args[0]
 
@@ -191,8 +191,8 @@ Examples:
 			}
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tAUTHOR\tTYPE\tPHASE\tCREATED\tCONTENT")
-			fmt.Fprintln(w, "--\t------\t----\t-----\t-------\t-------")
+			_, _ = fmt.Fprintln(w, "ID\tAUTHOR\tTYPE\tPHASE\tCREATED\tCONTENT")
+			_, _ = fmt.Fprintln(w, "--\t------\t----\t-----\t-------\t-------")
 
 			for _, c := range comments {
 				author := c.Author
@@ -212,7 +212,7 @@ Examples:
 				// Remove newlines for table display
 				content = strings.ReplaceAll(content, "\n", " ")
 
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 					c.ID,
 					truncate(author, 15),
 					c.AuthorType,
@@ -221,7 +221,7 @@ Examples:
 					content,
 				)
 			}
-			w.Flush()
+			_ = w.Flush()
 
 			return nil
 		},

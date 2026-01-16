@@ -75,7 +75,7 @@ func OpenProject(projectPath string) (*ProjectDB, error) {
 	}
 
 	if err := db.Migrate("project"); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("migrate project db: %w", err)
 	}
 
@@ -91,7 +91,7 @@ func OpenProjectWithDialect(dsn string, dialect driver.Dialect) (*ProjectDB, err
 	}
 
 	if err := db.Migrate("project"); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("migrate project db: %w", err)
 	}
 
@@ -2555,7 +2555,7 @@ func (p *ProjectDB) ListBranches(opts BranchListOpts) ([]*Branch, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list branches: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var branches []*Branch
 	for rows.Next() {
@@ -2633,7 +2633,7 @@ func (p *ProjectDB) GetStaleBranches(since time.Time) ([]*Branch, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get stale branches: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var branches []*Branch
 	for rows.Next() {

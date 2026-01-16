@@ -30,7 +30,7 @@ func setupTestDB(t *testing.T) (*DatabaseBackend, string) {
 
 	backend, err := NewDatabaseBackend(tmpDir, &config.StorageConfig{})
 	if err != nil {
-		os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir)
 		t.Fatalf("create backend: %v", err)
 	}
 
@@ -688,7 +688,7 @@ func TestSaveState_ExecutionInfo_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create .orc directory
 	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
@@ -744,7 +744,7 @@ func TestSaveState_ExecutionInfo_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create backend2: %v", err)
 	}
-	defer backend2.Close()
+	defer func() { _ = backend2.Close() }()
 
 	// Load state from new backend and verify ExecutionInfo was persisted
 	loaded, err := backend2.LoadState("TASK-001")

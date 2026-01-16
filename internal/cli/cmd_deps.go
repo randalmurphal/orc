@@ -68,7 +68,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			treeView, _ := cmd.Flags().GetBool("tree")
 			graphView, _ := cmd.Flags().GetBool("graph")
@@ -568,9 +568,9 @@ func showDependencyOverview(allTasks []*task.Task, taskMap map[string]*task.Task
 			if len(t.Blocks) > 3 {
 				blocksStr += fmt.Sprintf(" +%d more", len(t.Blocks)-3)
 			}
-			fmt.Fprintf(w, "  %s\t%s\t→ blocks: %s\n", t.ID, truncate(t.Title, 30), blocksStr)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t→ blocks: %s\n", t.ID, truncate(t.Title, 30), blocksStr)
 		}
-		w.Flush()
+		_ = w.Flush()
 		fmt.Println()
 	}
 
@@ -588,9 +588,9 @@ func showDependencyOverview(allTasks []*task.Task, taskMap map[string]*task.Task
 			if len(unmet) > 3 {
 				waitingStr += fmt.Sprintf(" +%d more", len(unmet)-3)
 			}
-			fmt.Fprintf(w, "  %s\t%s\t← waiting on: %s\n", t.ID, truncate(t.Title, 30), waitingStr)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t← waiting on: %s\n", t.ID, truncate(t.Title, 30), waitingStr)
 		}
-		w.Flush()
+		_ = w.Flush()
 		fmt.Println()
 	}
 
