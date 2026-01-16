@@ -19,7 +19,6 @@ func TestMapTaskStatus(t *testing.T) {
 		expected string
 	}{
 		{"completed", "done"},
-		{"finished", "done"},
 		{"running", "running"},
 		{"finalizing", "running"},
 		{"blocked", "blocked"},

@@ -214,7 +214,7 @@ func (d *DatabaseBackend) SaveStateCtx(ctx context.Context, s *state.State) erro
 	// Update task fields from state
 	// Note: state.Status and task.Status have different value sets
 	// state.Status: pending, running, completed, failed, paused, interrupted, skipped
-	// task.Status: created, classifying, planned, running, paused, blocked, finalizing, completed, finished, failed
+	// task.Status: created, classifying, planned, running, paused, blocked, finalizing, completed, failed
 	// We store state status in a separate field (StateStatus)
 	dbTask.StateStatus = string(s.Status)
 	dbTask.CurrentPhase = s.CurrentPhase

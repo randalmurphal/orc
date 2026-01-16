@@ -605,7 +605,7 @@ describe('WebSocket hooks', () => {
 			expect(task?.status).toBe('finalizing');
 		});
 
-		it('should update task status to finished on finalize completed', async () => {
+		it('should update task status to completed on finalize completed', async () => {
 			useTaskStore.getState().addTask({
 				id: 'TASK-001',
 				title: 'Test Task',

@@ -923,17 +923,17 @@ func TestGetReadyTasksWithLoaderNilLoader(t *testing.T) {
 	}
 }
 
-func TestGetReadyTasksWithLoaderFinishedCounts(t *testing.T) {
-	init := New("INIT-001", "Finished Counts Test")
+func TestGetReadyTasksWithLoaderCompletedUnblocksDependents(t *testing.T) {
+	init := New("INIT-001", "Completed Unblocks Test")
 
-	// Add tasks where dep is "finished" (not just completed)
+	// Add tasks where dep is "completed"
 	init.AddTask("TASK-001", "First", nil)
 	init.AddTask("TASK-002", "Second", []string{"TASK-001"})
 
 	loader := func(taskID string) (status string, title string, err error) {
 		switch taskID {
 		case "TASK-001":
-			return "finished", "", nil // Terminal state should count as completed
+			return "completed", "", nil // Terminal state should unblock dependents
 		case "TASK-002":
 			return "created", "", nil
 		}

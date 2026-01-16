@@ -56,7 +56,7 @@ func TestInitiativeCompleter_buildInitiativePRBody(t *testing.T) {
 				Title: "User Authentication",
 				Tasks: []initiative.TaskRef{
 					{ID: "TASK-001", Title: "Login page", Status: "completed"},
-					{ID: "TASK-002", Title: "Password reset", Status: "finished"},
+					{ID: "TASK-002", Title: "Password reset", Status: "completed"},
 					{ID: "TASK-003", Title: "Session mgmt", Status: "in_progress"},
 				},
 			},

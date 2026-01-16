@@ -452,7 +452,7 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 type AutomationTaskStats struct {
 	Pending   int // created, planned
 	Running   int
-	Completed int // completed, finished
+	Completed int // completed
 }
 
 // GetAutomationTaskStats returns counts of automation tasks by status.
@@ -462,7 +462,7 @@ func (p *ProjectDB) GetAutomationTaskStats() (*AutomationTaskStats, error) {
 		SELECT
 			SUM(CASE WHEN status IN ('created', 'planned') THEN 1 ELSE 0 END) as pending,
 			SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running,
-			SUM(CASE WHEN status IN ('completed', 'finished') THEN 1 ELSE 0 END) as completed
+			SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
 		FROM tasks
 		WHERE is_automation = 1
 	`
