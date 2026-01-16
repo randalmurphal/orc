@@ -2,309 +2,114 @@
 
 REST API server with WebSocket support for real-time updates.
 
-## File Structure
-
-| File | Purpose | Lines |
-|------|---------|-------|
-| `server.go` | Server setup, routing, core methods | ~400 |
-| `websocket.go` | WebSocket connection handling | ~280 |
-| `middleware.go` | CORS middleware | ~50 |
-| `response.go` | JSON response helpers, error handling | ~80 |
-
-### Handler Files (19 total)
-
-| File | Endpoints | Description |
-|------|-----------|-------------|
-| `handlers_tasks.go` | `/api/tasks/*` | Task CRUD operations |
-| `handlers_attachments.go` | `attachments` | Task file attachments (upload, download, delete) |
-| `handlers_tasks_control.go` | `run`, `pause`, `resume` | Task execution control |
-| `handlers_tasks_state.go` | `state`, `plan`, `transcripts`, `stream` | Task state and streaming |
-| `handlers_finalize.go` | `finalize`, `finalize/status` | Finalize operations with cancellation support |
-| `handlers_projects.go` | `/api/projects/*` | Project-scoped task operations |
-| `handlers_prompts.go` | `/api/prompts/*` | Prompt template management |
-| `handlers_hooks.go` | `/api/hooks/*` | Hook configuration |
-| `handlers_skills.go` | `/api/skills/*` | Skill management (SKILL.md format) |
-| `handlers_settings.go` | `/api/settings/*` | Settings management |
-| `handlers_tools.go` | `/api/tools/*` | Tool permissions |
-| `handlers_agents.go` | `/api/agents/*` | Sub-agent management |
-| `handlers_scripts.go` | `/api/scripts/*` | Script registry |
-| `handlers_claudemd.go` | `/api/claudemd/*` | CLAUDE.md hierarchy |
-| `handlers_mcp.go` | `/api/mcp/*` | MCP server configuration |
-| `handlers_templates.go` | `/api/templates/*` | Template management |
-| `handlers_config.go` | `/api/config/*` | Orc configuration |
-| `handlers_dashboard.go` | `/api/dashboard/*` | Dashboard statistics |
-| `handlers_diff.go` | `/api/tasks/:id/diff/*` | Git diff visualization for task changes |
-| `handlers_github.go` | `/api/tasks/:id/github/*` | GitHub PR operations and status |
-| `handlers_initiatives.go` | `/api/initiatives/*` | Initiative management |
-
-### Background Services
-
-| File | Purpose |
-|------|---------|
-| `pr_poller.go` | Background PR status polling (see [PR Status Polling](#pr-status-polling)) |
-
-## Server Architecture
+## Architecture
 
 ```
 Server
-├── Routes (chi router)
-│   ├── /api/tasks/* → handlers_tasks*.go, handlers_attachments.go, handlers_diff.go, handlers_github.go
-│   ├── /api/initiatives/* → handlers_initiatives.go
-│   ├── /api/projects/* → handlers_projects.go
-│   ├── /api/prompts/* → handlers_prompts.go
-│   ├── /api/hooks/* → handlers_hooks.go
-│   ├── /api/skills/* → handlers_skills.go
-│   ├── /api/settings/* → handlers_settings.go
-│   ├── /api/tools/* → handlers_tools.go
-│   ├── /api/agents/* → handlers_agents.go
-│   ├── /api/scripts/* → handlers_scripts.go
-│   ├── /api/claudemd/* → handlers_claudemd.go
-│   ├── /api/mcp/* → handlers_mcp.go
-│   ├── /api/templates/* → handlers_templates.go
-│   ├── /api/config/* → handlers_config.go
-│   ├── /api/dashboard/* → handlers_dashboard.go
-│   └── /api/ws → websocket.go
-├── WebSocket Hub
-│   └── Client connections, subscriptions
-├── PR Poller
-│   └── Background PR status updates
-├── Finalize Tracker
-│   └── In-memory finalize state + cancellation
-└── Event Publisher
-    └── Real-time task updates
+├── Routes (chi router) → handlers_*.go (19 handler files)
+├── WebSocket Hub → Client connections, subscriptions
+├── PR Poller → Background PR status updates
+├── Finalize Tracker → In-memory state + cancellation
+└── Event Publisher → Real-time task updates
 ```
-
-### Graceful Shutdown
-
-The server manages background goroutines through `serverCtx`:
-
-```go
-type Server struct {
-    serverCtx       context.Context
-    serverCtxCancel context.CancelFunc
-}
-```
-
-**Shutdown sequence** (triggered when `StartContext` context is cancelled):
-
-1. `serverCtxCancel()` - Signals all background work to stop
-2. `finTracker.cancelAll()` - Terminates running finalize goroutines
-3. `prPoller.Stop()` - Stops PR status polling
-
-**Background services using serverCtx:**
-- `finTracker.startCleanup()` - Periodic stale entry cleanup
-- `prPoller.Start()` - PR status polling
-- `runFinalizeAsync()` - Each finalize operation
-
-**Adding new background goroutines:** Derive context from `s.serverCtx` and check `ctx.Err()` at blocking points to support cancellation.
 
 ## Key Patterns
 
-### Response Helpers (response.go)
+### Response Helpers
 
 ```go
-// Success response
-s.jsonResponse(w, data)
-
-// Error response with proper status code
-s.handleOrcError(w, err)  // Inspects error type for status
-s.jsonError(w, "message", http.StatusBadRequest)
+s.jsonResponse(w, data)              // Success
+s.handleOrcError(w, err)             // Error with status
+s.jsonError(w, "msg", http.StatusBadRequest)
 ```
 
 ### Handler Methods
 
-All handlers are methods on `*Server`:
 ```go
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
-    // Handler implementation
+    // All handlers are Server methods
 }
 ```
 
-### CWD-Based Task Operations
+### Auto-Commit
 
-The `/api/tasks/*` endpoints operate on the server's working directory. If the server is started from a non-orc directory:
-- `GET /api/tasks` returns an empty list (not an error)
-- Create/modify operations will fail
+API handlers auto-commit .orc/ mutations:
 
-**Recommendation:** Use project-scoped endpoints (`/api/projects/:id/tasks/*`) for explicit project targeting.
+| Helper | Used By |
+|--------|---------|
+| `autoCommitTask(t, action)` | Task CRUD |
+| `autoCommitConfig(desc)` | Config handlers |
+| `autoCommitPrompt(phase, action)` | Prompt handlers |
+| `autoCommitInitiative(init, action)` | Initiative handlers |
 
-### Project-Scoped Operations
-
-Project handlers resolve project path and delegate to task handlers:
-```go
-func (s *Server) handleProjectListTasks(w http.ResponseWriter, r *http.Request) {
-    projectID := chi.URLParam(r, "id")
-    project, err := s.projectRegistry.Get(projectID)
-    // Use project.Path for task operations
-}
-```
-
-### Auto-Commit Helpers
-
-API handlers automatically commit .orc/ file mutations to git:
-
-| Helper | Used By | Commits |
-|--------|---------|---------|
-| `autoCommitTask(t, action)` | task create/update/delete/control | Task directory |
-| `autoCommitTaskDeletion(taskID)` | task delete | `.orc/tasks/` deletion |
-| `autoCommitTaskState(taskID, action)` | finalize handlers | Task directory |
-| `autoCommitInitiative(init, action)` | initiative handlers | Initiative files |
-| `autoCommitConfig(description)` | config handlers | `.orc/config.yaml` |
-| `autoCommitPrompt(phase, action)` | prompt handlers | `.orc/prompts/` |
-| `autoCommitProjectTask(path, t, action)` | project handlers | Project-scoped tasks |
-
-All helpers respect `tasks.disable_auto_commit` config. Failed commits log warnings but don't fail the operation.
-
-### Safe Type Assertions
-
-ResponseWriter flushing uses safe assertions:
-```go
-if f, ok := w.(http.Flusher); ok {
-    f.Flush()
-}
-```
+Respects `tasks.disable_auto_commit` config.
 
 ### Scope Parameter
 
-Claude Code endpoints support `?scope=global` for user-level config (`~/.claude/`):
-- `/api/skills?scope=global` - Global skills from `~/.claude/skills/`
-- `/api/hooks?scope=global` - Global hooks from `~/.claude/settings.json`
-- `/api/agents?scope=global` - Global agents from `~/.claude/agents/*.md`
-- `/api/mcp?scope=global` - Global MCP from `~/.claude/.mcp.json`
-- `/api/claudemd?scope=global` - Global CLAUDE.md
+Claude Code endpoints support `?scope=global` for `~/.claude/`:
 
-Without scope parameter, endpoints return project-level config (`.claude/`).
+```
+/api/skills?scope=global
+/api/hooks?scope=global
+/api/agents?scope=global
+```
 
 ## WebSocket Protocol
 
 ### Client Messages
+
 ```json
 {"type": "subscribe", "task_id": "TASK-001"}
-{"type": "subscribe", "task_id": "*"}              // Global subscription (all tasks)
+{"type": "subscribe", "task_id": "*"}
 {"type": "unsubscribe"}
-{"type": "command", "task_id": "TASK-001", "action": "pause"}
 {"type": "ping"}
 ```
 
 ### Server Messages
+
 ```json
 {"type": "subscribed", "task_id": "TASK-001"}
-{"type": "event", "event_type": "state", "data": {...}}
+{"type": "event", "event_type": "task_updated", "data": {...}}
 {"type": "event", "event_type": "transcript", "data": {...}}
-{"type": "event", "event_type": "task_created", "data": {"task": {...}}}
-{"type": "event", "event_type": "task_updated", "data": {"task": {...}}}
-{"type": "event", "event_type": "task_deleted", "data": {"task_id": "TASK-001"}}
 {"type": "pong"}
 ```
 
-### Database Events
+### Events
 
-The API server publishes events to WebSocket clients subscribed to `"*"` when tasks/initiatives are modified:
-
-| Event | Trigger | Data |
-|-------|---------|------|
-| `task_created` | New task saved to database | `{task: Task}` |
-| `task_updated` | Task modified in database | `{task: Task}` |
-| `task_deleted` | Task deleted from database | `{task_id: string}` |
-| `state` | Task state updated | `{raw: string}` |
-
-**Flow:** CLI/API operation → database write → event publish → WebSocket broadcast
+| Event | Data |
+|-------|------|
+| `task_created` | `{task: Task}` |
+| `task_updated` | `{task: Task}` |
+| `task_deleted` | `{task_id: string}` |
+| `state` | `{raw: string}` |
+| `finalize` | `{task_id, status, step}` |
 
 ## PR Status Polling
 
-The server runs a background poller that monitors PR status for tasks with open PRs.
+Background poller (60s interval, 30s rate limit per task):
+1. Find tasks with open PRs
+2. Get PR reviews and CI status
+3. Update task with derived status
+4. Trigger finalize on approval (auto profile)
 
-### How It Works
+**Status derivation:** MERGED > CLOSED > Draft > changes_requested > approved > pending_review
 
-```
-PRPoller (60s interval)
-├── Load all tasks
-├── Filter tasks with open PRs (not merged/closed)
-├── For each task:
-│   ├── Find PR by branch name
-│   ├── Get reviews (track latest per author)
-│   ├── Get CI check runs
-│   └── Update task.yaml with status
-└── Trigger callback on status change
-```
+## Graceful Shutdown
 
-**Lifecycle:** Call `Start(ctx)` to begin polling, `Stop()` to gracefully shutdown. `Stop()` is idempotent - safe to call multiple times from concurrent shutdown paths (uses `sync.Once` internally).
-
-### Configuration
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Poll interval | 60s | Time between polling cycles |
-| Rate limit | 30s | Minimum time between polls for same task |
-
-### Status Derivation
-
-PR status is derived from GitHub PR state and reviews:
-
-```go
-DeterminePRStatus(pr, summary):
-  if pr.State == "MERGED"     → PRStatusMerged
-  if pr.State == "CLOSED"     → PRStatusClosed
-  if pr.Draft                 → PRStatusDraft
-  if summary has changes_requested → PRStatusChangesRequested
-  if summary has approvals    → PRStatusApproved
-  else                        → PRStatusPendingReview
-```
-
-### Manual Refresh
-
-Trigger immediate refresh via `POST /api/tasks/:id/github/pr/refresh`.
-
-### Status Change Callback
-
-When PR status changes, the poller triggers `onStatusChange(taskID, prInfo)` which:
-1. Publishes `task_updated` WebSocket event with PR info
-2. If status is `approved` and automation profile is `auto`:
-   - Calls `TriggerFinalizeOnApproval(taskID)`
-   - Auto-runs finalize phase asynchronously
-   - WebSocket broadcasts finalize progress events
-
-### Auto-Trigger Finalize on Approval
-
-Located in `handlers_finalize.go`, `TriggerFinalizeOnApproval()` is called when PR becomes approved:
-
-```go
-func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error)
-```
-
-**Returns:**
-- `(true, nil)` - Finalize was triggered
-- `(false, nil)` - Finalize not triggered (disabled, wrong weight, already done)
-- `(false, err)` - Error occurred
-
-**Conditions checked:**
-1. `ShouldAutoTriggerFinalizeOnApproval()` returns true
-2. Task weight supports finalize (not `trivial`)
-3. Task status is `completed` (has PR)
-4. Finalize phase not already completed
+Server manages background goroutines via `serverCtx`:
+1. `serverCtxCancel()` - Signal stop
+2. `finTracker.cancelAll()` - Cancel finalize ops
+3. `prPoller.Stop()` - Stop polling (idempotent via sync.Once)
 
 ## Testing
 
-**Prerequisite**: The API package uses `go:embed` for static files. Before running tests directly:
 ```bash
-mkdir -p internal/api/static
-echo "# Placeholder for go:embed" > internal/api/static/.gitkeep
-```
-
-Or use `make test` which handles this automatically.
-
-```bash
-# Run API tests
+mkdir -p internal/api/static  # Required for go:embed
 go test ./internal/api/... -v
-
-# Test specific handler
-go test ./internal/api/... -run TestHandlerName -v
 ```
 
-Test files:
-- `server_test.go` - Integration tests for endpoints
-- `middleware_test.go` - CORS middleware tests
-- `response_test.go` - Response helper tests
-- `websocket_test.go` - WebSocket protocol tests
-- `pr_poller_test.go` - PR poller lifecycle and double-stop safety tests
-- `handlers_finalize_test.go` - Finalize tracker and goroutine cancellation tests
+Or use `make test` which handles prerequisites.
+
+## Reference
+
+See [ENDPOINTS.md](ENDPOINTS.md) for full endpoint documentation.
