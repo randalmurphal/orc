@@ -223,7 +223,6 @@ orc config profile strict
 | `timeouts.heartbeat_interval` | Progress dots interval | `docs/architecture/EXECUTOR.md` |
 | `diagnostics.resource_tracking.enabled` | Enable process/memory tracking | `docs/guides/TROUBLESHOOTING.md` |
 | `diagnostics.resource_tracking.memory_threshold_mb` | Memory growth warning threshold | `docs/guides/TROUBLESHOOTING.md` |
-| `diagnostics.resource_tracking.filter_system_processes` | Only flag orc-related orphans (default: true) | `docs/guides/TROUBLESHOOTING.md` |
 
 **All config:** `orc config docs` or `docs/specs/CONFIG_HIERARCHY.md`
 
@@ -327,11 +326,8 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 **Keyboard shortcuts:** Uses `Shift+Alt` modifier (⇧⌥ on Mac) to avoid browser conflicts. `Shift+Alt+K` (palette), `Shift+Alt+N` (new task), `g t` (tasks), `j/k` (navigate). Press `?` for full list.
 
 **Settings management:** All settings are editable through the UI:
-- Claude Code settings (global `~/.claude/settings.json` + project `.claude/settings.json`) via `/environment/settings`
-- Orc config (`.orc/config.yaml`) via `/environment/config`
-- Phase prompts via `/environment/prompts`
-- Claude Code hooks via `/environment/hooks`
-- MCP servers via `/environment/mcp`
+- Claude Code settings (global `~/.claude/settings.json` + project `.claude/settings.json`) via `/preferences`
+- Orc config (`.orc/config.yaml`) via `/environment/orchestrator/automation`
 
 **Task dependencies:** Task detail page shows a collapsible Dependencies sidebar displaying blocked_by, blocks, related_to, and referenced_by relationships with status indicators. Add/remove blockers and related tasks inline.
 
@@ -351,7 +347,7 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 | Component | Package | Usage |
 |-----------|---------|-------|
 | DropdownMenu | `@radix-ui/react-dropdown-menu` | TaskCard quick menu, ExportDropdown (action menus) |
-| Select | `@radix-ui/react-select` | InitiativeDropdown, ViewModeDropdown, DependencyDropdown |
+| Select | `@radix-ui/react-select` | InitiativeDropdown, ViewModeDropdown, DependencyDropdown, TaskEditModal initiative |
 | Tabs | `@radix-ui/react-tabs` | TabNav in task detail |
 | Tooltip | `@radix-ui/react-tooltip` | Replace native `title` attributes |
 | Dialog | `@radix-ui/react-dialog` | Modal.tsx (focus trap, ESC close) |
@@ -516,7 +512,6 @@ Patterns, gotchas, and decisions learned during development.
 | Finalize phase with escalation | Finalize phase syncs branch with target, resolves conflicts via AI, runs tests, and assesses risk; escalates to implement phase if >10 conflicts or >5 test failures persist | TASK-089 |
 | Initiative-to-initiative dependencies | Initiatives support `blocked_by` field for ordering; `blocks` computed on load; `orc initiative list/show` displays blocked status; `orc initiative run --force` overrides blocking | TASK-075 |
 | Initiative detail page | `/initiatives/:id` route manages tasks and decisions within an initiative; supports task linking/unlinking, decision recording with rationale, status management (draft/active/completed/archived), and progress tracking | TASK-066 |
-| Initiative detail back navigation | "Back to Tasks" link in initiative detail navigates to `/board?initiative=INIT-XXX` to show board filtered by that initiative; provides contextual navigation back to the initiative's tasks rather than the unfiltered board | TASK-268 |
 | Initiative dependency graph | Graph tab in initiative detail shows visual DAG of task dependencies; uses Kahn's algorithm for topological layout; interactive zoom/pan, click-to-navigate, PNG export; API: `GET /api/initiatives/:id/dependency-graph` | TASK-076 |
 | PR status polling | Background poller (60s interval, 30s rate limit) tracks PR status via GitHub API; status derived from PR state + reviews (changes_requested > approved > pending_review); stores in task.yaml `pr` field | TASK-090 |
 | Board swimlane view | Optional "By Initiative" view groups tasks into horizontal swimlanes; toggle persists in localStorage; disabled when initiative filter active; cross-swimlane drag-drop changes task initiative with confirmation | TASK-065 |
@@ -535,7 +530,6 @@ Patterns, gotchas, and decisions learned during development.
 | Sync on start for stale worktrees | Before execution starts, sync task branch with target to catch conflicts from parallel tasks; `sync_on_start: true` (default) rebases onto latest target so implement phase sees current code; disable if you need isolation from concurrent changes | TASK-194 |
 | Resource tracking for orphan detection | Executor snapshots processes before/after task; compares to detect orphaned MCP processes (playwright, chromium); logs warnings with process details and memory growth; configure via `diagnostics.resource_tracking` in config | TASK-197 |
 | E2E sandbox isolation | E2E tests MUST run against isolated sandbox project in `/tmp`, not production; `global-setup.ts` creates sandbox with test tasks/initiatives, `global-teardown.ts` removes it; test files import from `./fixtures` (not `@playwright/test`) to auto-select sandbox; tests that bypass fixtures will corrupt real task data | TASK-201 |
-| Git sync skipped for remoteless repos | `syncWithTarget` and `syncOnTaskStart` check `git.HasRemote("origin")` before attempting fetch/sync; repos without remotes (E2E sandboxes, local-only projects) skip sync silently at DEBUG level instead of emitting WARN messages; enables clean E2E test output | TASK-281 |
 | React migration complete | Frontend migrated from Svelte 5 to React 19; archived Svelte codebase at `web-svelte-archive/`, moved React to `web/`; E2E tests use framework-agnostic selectors (role, text, CSS classes) | TASK-180 |
 | Resolve with worktree cleanup | `orc resolve` detects worktree state (dirty, rebase/merge in progress, conflicts) and offers `--cleanup` to abort git ops and discard changes; `--force` skips checks; worktree state recorded in task metadata for audit | TASK-221 |
 | Multi-table DB transactions | Operations spanning multiple tables (task+dependencies, state+phases, initiative+decisions+tasks) wrapped in `RunInTx()` for atomicity; transaction-aware functions (`SaveTaskTx`, `SavePhaseTx`, etc.) use `TxOps` context; rollback on any error ensures consistency | TASK-223 |
@@ -562,7 +556,7 @@ Patterns, gotchas, and decisions learned during development.
 | Branch registry tracking | All orc-managed branches tracked in `branches` table with type (initiative/staging/task), owner_id, status (active/merged/stale/orphaned), timestamps; enables `orc branches list/cleanup` for lifecycle management | branch-targeting |
 | Initiative branch auto-merge | When all initiative tasks complete and initiative has `BranchBase`, auto-merge to target branch; `auto`/`fast` profiles auto-merge after CI, `safe`/`strict` leave PR for human review; tracks `MergeStatus` (none/pending/merged/failed) | branch-targeting |
 | Developer staging workflow | Personal staging branches via `developer.staging_branch` + `staging_enabled` in personal config; `orc staging status/sync/enable/disable` commands; staging takes precedence over project default but yields to initiative branches | branch-targeting |
-| Environment configuration pages | All `/environment/*` pages follow consistent pattern: Radix Tabs for scope (project/global), loading/error/empty states, Modal for editors, toast feedback; CSS in `environment.css`; editable: Settings, Config, Prompts, Hooks, MCP; read-only: Skills, ClaudeMd, Tools, Agents, Scripts | TASK-265 |
+| TaskEditModal initiative dropdown | TaskEditModal uses Radix Select for initiative assignment; `NO_INITIATIVE_VALUE` constant maps to "None" option since Radix requires strings; empty string sent to API to clear initiative; initiatives sorted active-first then alphabetically; non-active initiatives show status badge | TASK-274 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
@@ -589,8 +583,6 @@ Patterns, gotchas, and decisions learned during development.
 | Date shows '12/31/1' instead of '12/31/2001' | Fixed: `toLocaleDateString()` without options can produce abbreviated years; use explicit options `{ year: 'numeric', month: 'numeric', day: 'numeric' }` to ensure 4-digit year display; also add null/invalid date guards | TASK-255 |
 | Dashboard initiative progress shows 0/0 | Fixed: `DashboardInitiatives` was calculating progress from `initiative.tasks` (unpopulated by API) while Sidebar used `getInitiativeProgress(tasks)` from task store; now both use task store for consistent counts | TASK-276 |
 | Project selector shows 'Select project' after refresh | Fixed: `useCurrentProject()` was calling `state.getCurrentProject()` method which Zustand couldn't track for dependencies; now computes directly in selector `state.projects.find(p => p.id === state.currentProjectId)` to properly track both `projects` and `currentProjectId` | TASK-266 |
-| Orphan detection flags system processes as false positives | Fixed: Added `filter_system_processes` config (default: true) and `orcRelatedProcessPattern` regex to only flag orc-spawned processes (claude, node, playwright, chromium, mcp) as orphans; system processes (systemd-timedated, snapper, etc.) that start during task execution are now ignored | TASK-279 |
-| Memory growth warnings trigger too frequently | Fixed: Increased default `memory_threshold_mb` from 100 to 500; 100MB was too sensitive for normal operation where browser processes legitimately grow during task execution | TASK-280 |
 
 ### Decisions
 | Decision | Rationale | Source |
