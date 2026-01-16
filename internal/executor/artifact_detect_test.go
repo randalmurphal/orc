@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -28,7 +29,7 @@ func TestArtifactDetector_DetectSpecArtifacts(t *testing.T) {
 			setup:        func(taskDir string) {},
 			weight:       task.WeightMedium,
 			wantArtifact: false,
-			wantDescSub:  "no spec.md file",
+			wantDescSub:  "no spec found",
 		},
 		{
 			name: "valid spec file",
@@ -332,5 +333,190 @@ func TestArtifactDetector_UnknownPhase(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(status.Description), "unknown") {
 		t.Errorf("Expected description to mention unknown, got: %s", status.Description)
+	}
+}
+
+// TestArtifactDetector_DetectSpecFromDatabase verifies that spec detection
+// prioritizes database over file-based storage.
+func TestArtifactDetector_DetectSpecFromDatabase(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, "task")
+	_ = os.MkdirAll(taskDir, 0755)
+
+	// Create database backend
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	taskID := "TEST-DB-001"
+
+	// Create task in database
+	testTask := &task.Task{
+		ID:     taskID,
+		Title:  "Test task",
+		Status: task.StatusCreated,
+		Weight: task.WeightMedium,
+	}
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Save spec to database
+	specContent := `# Specification
+
+## Intent
+Test spec stored in database, not as file.
+
+## Success Criteria
+- Spec loaded from database
+- No file artifact needed
+
+## Testing
+- Unit test verifies database loading
+`
+	if err := backend.SaveSpec(taskID, specContent, "test"); err != nil {
+		t.Fatalf("save spec: %v", err)
+	}
+
+	// Create detector with backend
+	detector := NewArtifactDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
+	status := detector.DetectPhaseArtifacts("spec")
+
+	// Should detect spec from database
+	if !status.HasArtifacts {
+		t.Error("HasArtifacts should be true when spec exists in database")
+	}
+	if !status.CanAutoSkip {
+		t.Error("CanAutoSkip should be true for valid spec in database")
+	}
+	if !strings.Contains(status.Description, "database") {
+		t.Errorf("Description should mention database, got: %s", status.Description)
+	}
+	if len(status.Artifacts) != 1 || status.Artifacts[0] != "database:spec" {
+		t.Errorf("Artifacts should be ['database:spec'], got: %v", status.Artifacts)
+	}
+
+	// Verify no spec.md file exists (spec should only be in DB)
+	specPath := filepath.Join(taskDir, "spec.md")
+	if _, err := os.Stat(specPath); err == nil {
+		t.Error("spec.md file should not exist - spec is in database only")
+	}
+}
+
+// TestArtifactDetector_PrefersDatabaseOverFile verifies that when both
+// database and file spec exist, database is preferred.
+func TestArtifactDetector_PrefersDatabaseOverFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, "task")
+	_ = os.MkdirAll(taskDir, 0755)
+
+	// Create database backend
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	taskID := "TEST-DB-002"
+
+	// Create task in database
+	testTask := &task.Task{
+		ID:     taskID,
+		Title:  "Test task",
+		Status: task.StatusCreated,
+		Weight: task.WeightMedium,
+	}
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Save spec to database
+	dbSpecContent := `# Database Spec
+
+## Intent
+This is the spec from the database.
+
+## Success Criteria
+- Database takes precedence
+
+## Testing
+- Verify database spec is used
+`
+	if err := backend.SaveSpec(taskID, dbSpecContent, "test"); err != nil {
+		t.Fatalf("save spec: %v", err)
+	}
+
+	// Also create a legacy file-based spec
+	fileSpecContent := `# File Spec
+
+## Intent
+This is the legacy file-based spec.
+
+## Success Criteria
+- Should NOT be used
+
+## Testing
+- This should be ignored
+`
+	if err := os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(fileSpecContent), 0644); err != nil {
+		t.Fatalf("write spec file: %v", err)
+	}
+
+	// Create detector with backend
+	detector := NewArtifactDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
+	status := detector.DetectPhaseArtifacts("spec")
+
+	// Should detect spec from database (not file)
+	if !status.HasArtifacts {
+		t.Error("HasArtifacts should be true")
+	}
+	if !strings.Contains(status.Description, "database") {
+		t.Errorf("Description should mention database (not legacy file), got: %s", status.Description)
+	}
+	if len(status.Artifacts) != 1 || status.Artifacts[0] != "database:spec" {
+		t.Errorf("Artifacts should be ['database:spec'], got: %v", status.Artifacts)
+	}
+}
+
+// TestArtifactDetector_FallsBackToFile verifies that when no database backend
+// is available, the detector falls back to file-based detection.
+func TestArtifactDetector_FallsBackToFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, "task")
+	_ = os.MkdirAll(taskDir, 0755)
+
+	taskID := "TEST-FILE-001"
+
+	// Create legacy file-based spec (no database)
+	fileSpecContent := `# File Spec
+
+## Intent
+This is a legacy file-based spec.
+
+## Success Criteria
+- Used when no database
+
+## Testing
+- Verify file fallback works
+`
+	if err := os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(fileSpecContent), 0644); err != nil {
+		t.Fatalf("write spec file: %v", err)
+	}
+
+	// Create detector WITHOUT backend (nil)
+	detector := NewArtifactDetectorWithDir(taskDir, taskID, task.WeightMedium)
+	status := detector.DetectPhaseArtifacts("spec")
+
+	// Should detect spec from file (fallback)
+	if !status.HasArtifacts {
+		t.Error("HasArtifacts should be true when spec file exists")
+	}
+	if !strings.Contains(status.Description, "legacy") {
+		t.Errorf("Description should mention legacy file, got: %s", status.Description)
+	}
+	if len(status.Artifacts) != 1 || status.Artifacts[0] != "spec.md" {
+		t.Errorf("Artifacts should be ['spec.md'], got: %v", status.Artifacts)
 	}
 }

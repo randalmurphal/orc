@@ -103,6 +103,9 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 	// Build template vars to get prior phase content
 	templateVars := BuildTemplateVars(t, p, s, 0, "")
 
+	// Load spec content from database (specs are not stored as file artifacts)
+	templateVars = templateVars.WithSpecFromDatabase(e.backend, t.ID)
+
 	// Load and apply initiative context if task belongs to an initiative
 	if initCtx := LoadInitiativeContext(t, e.backend); initCtx != nil {
 		templateVars = templateVars.WithInitiativeContext(*initCtx)

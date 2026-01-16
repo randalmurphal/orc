@@ -45,7 +45,7 @@ All three methods produce identical results.
 |-------|---------|----------|--------|
 | `classify` | Determine task weight | weight assignment | Optional |
 | `research` | Investigate codebase | research.md | Yes |
-| `spec` | Define requirements | spec.md | Yes |
+| `spec` | Define requirements | spec content (database) | Yes |
 | `design` | Architecture decisions | design.md | Yes |
 | `implement` | Write code | code changes | **Yes** |
 | `review` | Code review | review findings + fixes | Yes |
@@ -362,19 +362,21 @@ Before running a task, orc checks if artifacts from previous runs exist. This al
 
 | Phase | Artifacts Checked | Auto-Skippable | Why |
 |-------|------------------|----------------|-----|
-| `spec` | `spec.md` with 50+ chars of valid content | Yes | Spec content is reusable |
-| `research` | `artifacts/research.md` OR research section in spec.md | Yes | Research findings persist |
+| `spec` | Spec content in database (50+ chars) | Yes | Spec content is reusable |
+| `research` | `artifacts/research.md` OR research section in spec | Yes | Research findings persist |
 | `docs` | `artifacts/docs.md` | Yes | Documentation is reusable |
 | `implement` | Never detected | No | Code state too complex to validate |
 | `test` | `test-results/report.json` | No | Tests must re-run against current code |
 | `validate` | `artifacts/validate.md` | No | Validation must verify current state |
 | `finalize` | Never detected | No | Must sync with latest target branch |
 
+**Note**: Spec content is stored in the database (not as `spec.md` file) to avoid merge conflicts in worktrees. Legacy `spec.md` files are still detected for backward compatibility.
+
 ### Behavior
 
 **Default (interactive)**: Prompts user for each detected artifact:
 ```
-📄 spec.md already exists. Skip spec phase? [Y/n]:
+📄 Spec content already exists. Skip spec phase? [Y/n]:
 ```
 
 **With `--auto-skip` flag**: Automatically skips phases with existing artifacts.
@@ -406,7 +408,7 @@ phases:
     status: skipped
     completed_at: 2026-01-10T10:31:30Z
     iterations: 0
-    error: "skipped: artifact exists: spec.md exists with valid content"
+    error: "skipped: artifact exists: spec content found in database"
 ```
 
 ### Weight-Specific Validation

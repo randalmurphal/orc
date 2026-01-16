@@ -82,6 +82,8 @@ Both call `processReviewConditionals()` for `{{#if REVIEW_ROUND_N}}` blocks.
 
 Key variables: `{{TASK_ID}}`, `{{TASK_TITLE}}`, `{{TASK_DESCRIPTION}}`, `{{TASK_CATEGORY}}`, `{{SPEC_CONTENT}}`, `{{DESIGN_CONTENT}}`, `{{RETRY_CONTEXT}}`, `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}`, `{{TARGET_BRANCH}}`, `{{INITIATIVE_CONTEXT}}`, `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{REVIEW_ROUND}}`, `{{REVIEW_FINDINGS}}`, `{{VERIFICATION_RESULTS}}`
 
+**Spec content loading:** `{{SPEC_CONTENT}}` is populated via `WithSpecFromDatabase()` from the storage backend. Specs are stored exclusively in the database (not as file artifacts) to avoid merge conflicts in worktrees.
+
 ## Session Configuration
 
 Sessions need user source for agents in headless mode:
@@ -130,6 +132,18 @@ go test ./internal/executor/... -v
 | `finalize_test.go` | Sync, risk assessment |
 | `ci_merge_test.go` | CI polling, merge |
 
+## Artifact Storage
+
+| Phase | Storage | Reason |
+|-------|---------|--------|
+| spec | Database only | Avoids merge conflicts in worktrees |
+| research, design, implement, test, docs, validate | File artifacts | Traditional file-based storage |
+
+**Spec handling:**
+- `SavePhaseArtifact()` skips file writes for spec phase
+- `SaveSpecToDatabase()` saves spec content to database with source tag
+- `ArtifactDetector` checks database first (via `NewArtifactDetectorWithBackend`), falls back to legacy `spec.md` file
+
 ## Common Gotchas
 
 1. **Raw InputTokens misleading** - Use `EffectiveInputTokens()`
@@ -137,3 +151,4 @@ go test ./internal/executor/... -v
 3. **Template not substituted** - Check BOTH `template.go` AND `flowgraph_nodes.go`
 4. **User agents unavailable** - Need `WithSettingSources` with "user"
 5. **Worktree cleanup by path** - Use `CleanupWorktreeAtPath(e.worktreePath)` not `CleanupWorktree(taskID)` to handle initiative-prefixed worktrees correctly
+6. **Spec not found in templates** - Use `WithSpecFromDatabase()` to load spec content; file-based specs are legacy

@@ -75,6 +75,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Dual template rendering paths | Two template paths must stay in sync: `template.go:RenderTemplate()` (session-based) and `flowgraph_nodes.go:renderTemplate()` (flowgraph); when adding variables, update BOTH files; `processReviewConditionals()` must be called in both for `{{#if REVIEW_ROUND_N}}` blocks | review-phase |
 | Worktree cleanup by path | Executor stores actual worktree path and uses `CleanupWorktreeAtPath()` instead of reconstructing from task ID; handles initiative-prefixed worktrees (e.g., `feature-auth-TASK-001`) that don't match default naming | TASK-282 |
 | Stale worktree pruning on startup | Server calls `gitOps.PruneWorktrees()` on startup to clean git's internal worktree tracking for directories deleted without `git worktree remove` (crashed processes, manual deletion) | TASK-282 |
+| Spec database-only storage | Spec content stored exclusively in database (not filesystem) to avoid merge conflicts in worktrees; `SavePhaseArtifact()` skips spec phase, `SaveSpecToDatabase()` is sole save mechanism; `WithSpecFromDatabase()` loads spec for templates; `ArtifactDetector` uses `NewArtifactDetectorWithBackend` to check database first | TASK-283 |
 
 ## Known Gotchas
 

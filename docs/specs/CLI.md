@@ -246,22 +246,24 @@ Run anyway? [y/N]:
 
 **Artifact Detection**:
 
-When running a task, orc detects if artifacts from previous runs exist (e.g., `spec.md` for spec phase). By default, it prompts:
+When running a task, orc detects if artifacts from previous runs exist. By default, it prompts:
 
 ```
-📄 spec.md already exists. Skip spec phase? [Y/n]:
+📄 Spec content already exists. Skip spec phase? [Y/n]:
 ```
 
 With `--auto-skip`, phases with existing artifacts are skipped automatically without prompting.
 
 | Phase | Detected Artifacts | Auto-Skippable |
 |-------|-------------------|----------------|
-| `spec` | `spec.md` with valid content (50+ chars) | Yes |
-| `research` | `artifacts/research.md` or research section in spec.md | Yes |
+| `spec` | Spec content in database (50+ chars) | Yes |
+| `research` | `artifacts/research.md` or research section in spec | Yes |
 | `docs` | `artifacts/docs.md` | Yes |
 | `implement` | Never detected (too complex to validate) | No |
 | `test` | `test-results/report.json` (detected but requires re-run) | No |
 | `validate` | `artifacts/validate.md` (detected but requires re-run) | No |
+
+**Note**: Spec content is stored in the database (not as `spec.md` file) to avoid merge conflicts in worktrees. Legacy `spec.md` files are still detected for backward compatibility.
 
 Skip reasons are recorded in `state.yaml` for audit purposes.
 
