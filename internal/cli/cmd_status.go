@@ -187,7 +187,28 @@ func showStatus(showAll bool) error {
 		}
 		fmt.Println()
 		for _, t := range systemBlocked {
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", t.ID, truncate(t.Title, 40), "(blocked - needs input)")
+			// Show detailed info for blocked tasks with conflict metadata
+			blockedReason := "(blocked - needs input)"
+			worktreePath := ""
+			if t.Metadata != nil {
+				if reason, ok := t.Metadata["blocked_reason"]; ok && reason == "sync_conflict" {
+					blockedReason = "(sync conflict)"
+					// Construct worktree path
+					cfg, _ := config.Load()
+					if cfg != nil && cfg.Worktree.Enabled {
+						worktreeDir := cfg.Worktree.Dir
+						if worktreeDir == "" {
+							worktreeDir = ".orc/worktrees"
+						}
+						worktreePath = worktreeDir + "/orc-" + t.ID
+					}
+				}
+			}
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", t.ID, truncate(t.Title, 40), blockedReason)
+			if worktreePath != "" {
+				fmt.Printf("      Worktree: %s\n", worktreePath)
+				fmt.Printf("      → orc resume %s (after resolving conflicts)\n", t.ID)
+			}
 		}
 		_ = w.Flush()
 		fmt.Println()

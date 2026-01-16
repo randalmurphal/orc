@@ -159,7 +159,10 @@ Example:
 
 				// Check if task is blocked (phases succeeded but completion failed)
 				if errors.Is(err, executor.ErrTaskBlocked) {
-					disp.TaskBlocked(s.Tokens.TotalTokens, s.Elapsed(), "sync conflict")
+					// Reload task to get updated metadata with conflict info
+					t, _ = backend.LoadTask(id)
+					blockedCtx := buildBlockedContext(t, cfg)
+					disp.TaskBlockedWithContext(s.Tokens.TotalTokens, s.Elapsed(), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
 				}
 
