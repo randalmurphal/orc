@@ -21,6 +21,8 @@ Initiatives group multiple related tasks under a shared vision, decisions, and c
 | `Identity` | Owner information (initials, name, email) |
 | `Store` | Database storage manager |
 | `CommitConfig` | Git commit configuration |
+| `Manifest` | Bulk task creation from YAML file |
+| `ManifestTask` | Task definition within a manifest |
 
 ## Database Storage
 
@@ -100,6 +102,34 @@ init, err := initiative.LoadShared("INIT-001")
 init.SaveShared()
 initiatives, err := initiative.List(true) // shared
 ```
+
+## Bulk Task Creation (Manifest)
+
+Create multiple tasks from a YAML manifest file with inline specs:
+
+```go
+// Parse manifest
+manifest, err := initiative.ParseManifest("tasks.yaml")
+
+// Validate
+if errs := initiative.ValidateManifest(manifest); len(errs) > 0 {
+    // Handle validation errors
+}
+
+// Get topological order for creation
+order, err := initiative.TopologicalSort(manifest.Tasks)
+```
+
+See `docs/specs/FILE_FORMATS.md` for the manifest YAML format.
+
+### Key Functions
+
+| Function | Purpose |
+|----------|---------|
+| `ParseManifest(path)` | Read and parse manifest YAML file |
+| `ParseManifestBytes(data)` | Parse manifest from byte slice |
+| `ValidateManifest(m)` | Validate manifest, returns all errors |
+| `TopologicalSort(tasks)` | Sort tasks by dependency order |
 
 ## Testing
 

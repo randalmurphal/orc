@@ -36,6 +36,7 @@ Commands:
   add-task   Link a task to an initiative
   link       Batch link multiple tasks to an initiative
   unlink     Remove tasks from an initiative
+  plan       Create tasks from a manifest file
   decide     Record a decision
   activate   Set initiative status to active
   complete   Mark initiative as completed
@@ -55,6 +56,7 @@ Commands:
 	cmd.AddCommand(newInitiativeCompleteCmd())
 	cmd.AddCommand(newInitiativeRunCmd())
 	cmd.AddCommand(newInitiativeDeleteCmd())
+	cmd.AddCommand(newInitiativePlanCmd())
 
 	return cmd
 }

@@ -135,6 +135,7 @@ make e2e        # E2E (Playwright)
 | Architecture | `docs/architecture/OVERVIEW.md` |
 | Phase Model | `docs/architecture/PHASE_MODEL.md` |
 | Config | `docs/specs/CONFIG_HIERARCHY.md` |
+| File Formats | `docs/specs/FILE_FORMATS.md` |
 | Web Components | `web/CLAUDE.md` |
 
 <!-- orc:begin -->

@@ -33,6 +33,7 @@ Full command reference for the orc CLI.
 | `cmd_projects.go` | `orc projects` | List registered projects |
 | `cmd_export.go` | `orc export/import` | Export/import tasks |
 | `cmd_initiative.go` | `orc initiative` | Manage initiatives |
+| `cmd_initiative_plan.go` | `orc initiative plan` | Bulk-create tasks from manifest |
 | `cmd_knowledge.go` | `orc knowledge` | Manage project knowledge |
 | `cmd_comment.go` | `orc comment` | Manage task comments |
 
@@ -142,6 +143,18 @@ Use `--force` when a task is stuck in 'running' status but its PR was already me
 | `--blocked-by` | Set blocked_by (replaces) |
 | `--add-blocker` | Add to blocked_by |
 | `--remove-blocker` | Remove from blocked_by |
+
+### `orc initiative plan <manifest.yaml>`
+
+Bulk-create tasks from a YAML manifest file. Supports inline specs that skip the spec phase during execution.
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Preview tasks without creating them |
+| `--yes, -y` | Skip confirmation prompt |
+| `--create-initiative` | Create initiative if it doesn't exist |
+
+See `docs/specs/FILE_FORMATS.md` for the manifest format reference.
 
 ### `orc initiative run ID`
 

@@ -6,6 +6,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/initiative"
@@ -584,5 +585,464 @@ func TestInitiativeLinkPatternFixesPartialLink(t *testing.T) {
 	}
 	if !reloadedInit.HasTask("TASK-001") {
 		t.Error("initiative should have TASK-001 in task list")
+	}
+}
+
+// Tests for initiative plan command
+
+func TestInitiativePlanCommand_Structure(t *testing.T) {
+	cmd := newInitiativePlanCmd()
+
+	// Verify command structure
+	if cmd.Use != "plan <manifest.yaml>" {
+		t.Errorf("command Use = %q, want %q", cmd.Use, "plan <manifest.yaml>")
+	}
+
+	// Verify flags exist
+	if cmd.Flag("dry-run") == nil {
+		t.Error("missing --dry-run flag")
+	}
+	if cmd.Flag("yes") == nil {
+		t.Error("missing --yes flag")
+	}
+	if cmd.Flag("create-initiative") == nil {
+		t.Error("missing --create-initiative flag")
+	}
+}
+
+func TestInitiativePlanCommand_RequiresArg(t *testing.T) {
+	cmd := newInitiativePlanCmd()
+
+	// Should require exactly one argument
+	if err := cmd.Args(cmd, []string{}); err == nil {
+		t.Error("expected error for zero args")
+	}
+	if err := cmd.Args(cmd, []string{"manifest.yaml"}); err != nil {
+		t.Errorf("unexpected error for one arg: %v", err)
+	}
+	if err := cmd.Args(cmd, []string{"one.yaml", "two.yaml"}); err == nil {
+		t.Error("expected error for two args")
+	}
+}
+
+func TestInitiativePlanWithExistingInitiative(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative
+	init := initiative.New("INIT-001", "Test Initiative")
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create manifest file
+	manifest := `version: 1
+initiative: INIT-001
+tasks:
+  - id: 1
+    title: "First task"
+    weight: small
+  - id: 2
+    title: "Second task"
+    weight: medium
+    depends_on: [1]
+`
+	manifestPath := filepath.Join(tmpDir, "tasks.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run plan command with --yes to skip confirmation
+	cmd := newInitiativePlanCmd()
+	cmd.SetArgs([]string{manifestPath, "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("plan command failed: %v", err)
+	}
+
+	// Re-open backend to verify
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Verify tasks were created
+	allTasks, err := backend.LoadAllTasks()
+	if err != nil {
+		t.Fatalf("load tasks: %v", err)
+	}
+	if len(allTasks) != 2 {
+		t.Errorf("expected 2 tasks, got %d", len(allTasks))
+	}
+
+	// Verify initiative has tasks
+	reloadedInit, err := backend.LoadInitiative("INIT-001")
+	if err != nil {
+		t.Fatalf("reload initiative: %v", err)
+	}
+	if len(reloadedInit.Tasks) != 2 {
+		t.Errorf("initiative should have 2 tasks, got %d", len(reloadedInit.Tasks))
+	}
+
+	// Verify dependencies
+	var secondTask *task.Task
+	for _, tk := range allTasks {
+		if tk.Title == "Second task" {
+			secondTask = tk
+			break
+		}
+	}
+	if secondTask == nil {
+		t.Fatal("could not find second task")
+	}
+	if len(secondTask.BlockedBy) != 1 {
+		t.Errorf("second task should have 1 blocker, got %d", len(secondTask.BlockedBy))
+	}
+}
+
+func TestInitiativePlanWithCreateInitiative(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create manifest file with create_initiative
+	manifest := `version: 1
+create_initiative:
+  title: "New Auth System"
+  vision: "OAuth2 support for Google and GitHub"
+tasks:
+  - id: 1
+    title: "Add OAuth config"
+    weight: small
+    spec: |
+      # Specification
+      Add OAuth configuration structure.
+`
+	manifestPath := filepath.Join(tmpDir, "tasks.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run plan command
+	cmd := newInitiativePlanCmd()
+	cmd.SetArgs([]string{manifestPath, "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("plan command failed: %v", err)
+	}
+
+	// Re-open backend to verify
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Verify initiative was created
+	initiatives, err := backend.LoadAllInitiatives()
+	if err != nil {
+		t.Fatalf("load initiatives: %v", err)
+	}
+	if len(initiatives) != 1 {
+		t.Fatalf("expected 1 initiative, got %d", len(initiatives))
+	}
+
+	createdInit := initiatives[0]
+	if createdInit.Title != "New Auth System" {
+		t.Errorf("initiative title = %q, want %q", createdInit.Title, "New Auth System")
+	}
+	if createdInit.Vision != "OAuth2 support for Google and GitHub" {
+		t.Errorf("initiative vision = %q, want %q", createdInit.Vision, "OAuth2 support for Google and GitHub")
+	}
+
+	// Verify task was created
+	tasks, err := backend.LoadAllTasks()
+	if err != nil {
+		t.Fatalf("load tasks: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(tasks))
+	}
+
+	// Verify spec was stored
+	spec, err := backend.LoadSpec(tasks[0].ID)
+	if err != nil {
+		t.Fatalf("load spec: %v", err)
+	}
+	if spec == "" {
+		t.Error("spec should not be empty")
+	}
+	if !strings.Contains(spec, "Add OAuth configuration") {
+		t.Errorf("spec should contain 'Add OAuth configuration', got %q", spec)
+	}
+}
+
+func TestInitiativePlanDryRun(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative
+	init := initiative.New("INIT-001", "Test Initiative")
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create manifest file
+	manifest := `version: 1
+initiative: INIT-001
+tasks:
+  - id: 1
+    title: "Task that should not be created"
+    weight: small
+`
+	manifestPath := filepath.Join(tmpDir, "tasks.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run plan command with --dry-run
+	cmd := newInitiativePlanCmd()
+	cmd.SetArgs([]string{manifestPath, "--dry-run"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("plan command failed: %v", err)
+	}
+
+	// Re-open backend to verify
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Verify NO tasks were created
+	tasks, err := backend.LoadAllTasks()
+	if err != nil {
+		t.Fatalf("load tasks: %v", err)
+	}
+	if len(tasks) != 0 {
+		t.Errorf("dry run should not create tasks, got %d", len(tasks))
+	}
+}
+
+func TestInitiativePlanMissingInitiative(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create manifest file referencing non-existent initiative
+	manifest := `version: 1
+initiative: INIT-999
+tasks:
+  - id: 1
+    title: "Task"
+    weight: small
+`
+	manifestPath := filepath.Join(tmpDir, "tasks.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run plan command - should fail
+	cmd := newInitiativePlanCmd()
+	cmd.SetArgs([]string{manifestPath, "--yes"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for missing initiative")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention 'not found', got: %v", err)
+	}
+}
+
+func TestInitiativePlanCreateInitiativeFlag(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create manifest file referencing non-existent initiative
+	manifest := `version: 1
+initiative: INIT-001
+tasks:
+  - id: 1
+    title: "Task"
+    weight: small
+`
+	manifestPath := filepath.Join(tmpDir, "tasks.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run plan command with --create-initiative
+	cmd := newInitiativePlanCmd()
+	cmd.SetArgs([]string{manifestPath, "--yes", "--create-initiative"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("plan command failed: %v", err)
+	}
+
+	// Re-open backend to verify
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Verify initiative was created
+	exists, err := backend.InitiativeExists("INIT-001")
+	if err != nil {
+		t.Fatalf("check initiative: %v", err)
+	}
+	if !exists {
+		t.Error("initiative should have been created")
+	}
+
+	// Verify task was created
+	tasks, err := backend.LoadAllTasks()
+	if err != nil {
+		t.Fatalf("load tasks: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Errorf("expected 1 task, got %d", len(tasks))
+	}
+}
+
+func TestInitiativePlanDependencyOrder(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative
+	init := initiative.New("INIT-001", "Test Initiative")
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create manifest with dependencies that require proper ordering
+	// Task 3 depends on 1 and 2, Task 2 depends on 1
+	manifest := `version: 1
+initiative: INIT-001
+tasks:
+  - id: 3
+    title: "Third task"
+    depends_on: [1, 2]
+  - id: 1
+    title: "First task"
+  - id: 2
+    title: "Second task"
+    depends_on: [1]
+`
+	manifestPath := filepath.Join(tmpDir, "tasks.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run plan command
+	cmd := newInitiativePlanCmd()
+	cmd.SetArgs([]string{manifestPath, "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("plan command failed: %v", err)
+	}
+
+	// Re-open backend to verify
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Verify all tasks were created
+	tasks, err := backend.LoadAllTasks()
+	if err != nil {
+		t.Fatalf("load tasks: %v", err)
+	}
+	if len(tasks) != 3 {
+		t.Errorf("expected 3 tasks, got %d", len(tasks))
+	}
+
+	// Verify dependencies reference correct task IDs
+	taskByTitle := make(map[string]*task.Task)
+	for _, tk := range tasks {
+		taskByTitle[tk.Title] = tk
+	}
+
+	// Third task should depend on First and Second
+	thirdTask := taskByTitle["Third task"]
+	if thirdTask == nil {
+		t.Fatal("could not find third task")
+	}
+	if len(thirdTask.BlockedBy) != 2 {
+		t.Errorf("third task should have 2 blockers, got %d", len(thirdTask.BlockedBy))
+	}
+
+	// Second task should depend on First
+	secondTask := taskByTitle["Second task"]
+	if secondTask == nil {
+		t.Fatal("could not find second task")
+	}
+	if len(secondTask.BlockedBy) != 1 {
+		t.Errorf("second task should have 1 blocker, got %d", len(secondTask.BlockedBy))
+	}
+
+	// The blocker IDs should be the real task IDs
+	firstTask := taskByTitle["First task"]
+	if firstTask == nil {
+		t.Fatal("could not find first task")
+	}
+	if secondTask.BlockedBy[0] != firstTask.ID {
+		t.Errorf("second task blocker = %q, want %q", secondTask.BlockedBy[0], firstTask.ID)
+	}
+}
+
+func TestInitiativePlanTasksHaveCorrectInitiative(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative
+	init := initiative.New("INIT-001", "Test Initiative")
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create manifest file
+	manifest := `version: 1
+initiative: INIT-001
+tasks:
+  - id: 1
+    title: "Task One"
+  - id: 2
+    title: "Task Two"
+`
+	manifestPath := filepath.Join(tmpDir, "tasks.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run plan command
+	cmd := newInitiativePlanCmd()
+	cmd.SetArgs([]string{manifestPath, "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("plan command failed: %v", err)
+	}
+
+	// Re-open backend to verify
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Verify all tasks are linked to initiative
+	tasks, err := backend.LoadAllTasks()
+	if err != nil {
+		t.Fatalf("load tasks: %v", err)
+	}
+	for _, tk := range tasks {
+		if tk.InitiativeID != "INIT-001" {
+			t.Errorf("task %s InitiativeID = %q, want INIT-001", tk.ID, tk.InitiativeID)
+		}
 	}
 }

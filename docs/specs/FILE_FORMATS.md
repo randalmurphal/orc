@@ -958,3 +958,140 @@ When `requires_ui_testing: true`, the executor:
 1. Configures Playwright MCP server in `.mcp.json`
 2. Sets `SCREENSHOT_DIR` to `.orc/tasks/{id}/test-results/screenshots/`
 3. Provides UI testing context to prompt templates
+
+---
+
+## Initiative Task Manifest
+
+The manifest format allows bulk creation of tasks for an initiative from a single YAML file. Tasks with inline specs skip the spec phase during execution.
+
+### Command
+
+```bash
+orc initiative plan <manifest.yaml>           # Create tasks, prompt for confirm
+orc initiative plan <manifest.yaml> --dry-run # Preview without creating
+orc initiative plan <manifest.yaml> --yes     # Skip confirmation prompt
+orc initiative plan <manifest.yaml> --create-initiative  # Create initiative if missing
+```
+
+### Manifest Format
+
+```yaml
+# initiative-tasks.yaml
+version: 1                        # Required: manifest format version
+
+# Target initiative (use one of these)
+initiative: INIT-001              # Existing initiative ID
+# OR
+create_initiative:                # Create new initiative
+  title: "User Authentication"    # Required
+  vision: "OAuth2 support"        # Optional
+
+# Task definitions
+tasks:
+  - id: 1                         # Local ID for dependency references
+    title: "Add OAuth2 config"    # Required
+    description: |                # Optional
+      Add configuration structure for OAuth2 providers.
+    weight: small                 # Optional: trivial/small/medium/large/greenfield
+    category: feature             # Optional: feature/bug/refactor/chore/docs/test
+    priority: normal              # Optional: critical/high/normal/low
+    depends_on: []                # Optional: local IDs of prerequisite tasks
+    spec: |                       # Optional: inline specification
+      # Specification: Add OAuth2 configuration
+
+      ## Success Criteria
+      - [ ] Config struct for OAuth2 settings
+      - [ ] Environment variable support
+
+  - id: 2
+    title: "Implement Google OAuth2"
+    weight: medium
+    depends_on: [1]               # Depends on task with local ID 1
+    spec: |
+      # Specification: Google OAuth2
+      ...
+
+  - id: 3
+    title: "Implement GitHub OAuth2"
+    weight: medium
+    depends_on: [1]
+
+  - id: 4
+    title: "Add auth middleware"
+    weight: small
+    depends_on: [2, 3]            # Can depend on multiple tasks
+    # No spec = will run spec phase during execution
+```
+
+### Field Reference
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `version` | Yes | - | Manifest format version (currently 1) |
+| `initiative` | One of these | - | ID of existing initiative |
+| `create_initiative` | One of these | - | Details for creating new initiative |
+| `tasks` | Yes | - | List of task definitions |
+| `tasks[].id` | Yes | - | Local ID for dependency references |
+| `tasks[].title` | Yes | - | Task title |
+| `tasks[].description` | No | - | Task description |
+| `tasks[].weight` | No | medium | Task complexity |
+| `tasks[].category` | No | feature | Task category |
+| `tasks[].priority` | No | normal | Task priority |
+| `tasks[].depends_on` | No | [] | Local IDs of prerequisite tasks |
+| `tasks[].spec` | No | - | Inline spec (skips spec phase) |
+
+### Validation Rules
+
+1. **Version**: Must be `1` (current version)
+2. **Initiative**: Either `initiative` or `create_initiative` must be specified (not both)
+3. **Tasks**: At least one task required
+4. **Local IDs**: Must be unique positive integers
+5. **Dependencies**: Must reference valid local IDs, no circular dependencies
+6. **Enum values**: weight/category/priority must be valid values
+
+### Dependency Resolution
+
+Tasks are created in topological order (dependencies first), ensuring:
+- Local IDs map to actual TASK-IDs as tasks are created
+- Dependencies in the manifest become proper `blocked_by` relationships
+- Tasks with satisfied dependencies can run immediately
+
+### Inline Specs
+
+When a task includes the `spec` field:
+- The spec content is stored in the database
+- The task skips the spec phase during execution
+- The task starts directly with the implement phase (or next applicable phase)
+
+### Example Workflow
+
+```bash
+# Create manifest file
+cat > auth-tasks.yaml << 'EOF'
+version: 1
+create_initiative:
+  title: "User Authentication"
+  vision: "OAuth2 support for Google and GitHub"
+tasks:
+  - id: 1
+    title: "Add OAuth config"
+    weight: small
+    spec: |
+      # Specification: Add OAuth config
+      ## Success Criteria
+      - [ ] Config struct exists
+EOF
+
+# Preview
+orc initiative plan auth-tasks.yaml --dry-run
+
+# Create tasks
+orc initiative plan auth-tasks.yaml --yes
+
+# Output:
+# Created initiative: INIT-003
+# Created task: TASK-045 - Add OAuth config [small] (spec stored)
+#
+# Summary: 1 task(s) created in INIT-003
+```
