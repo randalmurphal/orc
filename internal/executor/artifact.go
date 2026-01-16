@@ -38,6 +38,11 @@ func ExtractArtifactContent(output string) string {
 }
 
 // SaveSpecToDatabase saves spec content to the database for the spec phase.
+// This implements the dual-write pattern: spec content is saved to both the file artifact
+// (via SavePhaseArtifact) AND the database (via this function). The database copy is
+// required for template variable substitution - implement phase loads spec via LoadSpec()
+// to populate {{SPEC_CONTENT}}.
+//
 // This should be called after a successful spec phase completion.
 // Returns true if the spec was saved, false if the phase is not "spec" or no content found.
 func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string) (bool, error) {
