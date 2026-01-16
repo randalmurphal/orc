@@ -67,6 +67,9 @@ type TemplateVars struct {
 	ScreenshotDir     string // Directory for saving screenshots (task attachments)
 	TestResults       string // Test results from previous test phase (for validate)
 
+	// Testing configuration
+	CoverageThreshold int // Minimum test coverage percentage required (default: 85)
+
 	// Initiative context variables (inherited from parent initiative)
 	InitiativeID        string // Initiative ID (e.g., INIT-001)
 	InitiativeTitle     string // Initiative title
@@ -197,6 +200,9 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{REQUIRES_UI_TESTING}}": requiresUITesting,
 		"{{SCREENSHOT_DIR}}":      vars.ScreenshotDir,
 		"{{TEST_RESULTS}}":        vars.TestResults,
+
+		// Testing configuration
+		"{{COVERAGE_THRESHOLD}}": fmt.Sprintf("%d", vars.CoverageThreshold),
 
 		// Initiative context variables
 		"{{INITIATIVE_ID}}":        vars.InitiativeID,

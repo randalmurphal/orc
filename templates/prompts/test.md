@@ -136,12 +136,17 @@ pytest -v --cov
 
 ### Step 5: Verify Coverage
 
-Target: >80% coverage on new code
+**REQUIRED**: Minimum {{COVERAGE_THRESHOLD}}% coverage on new code
 
-If coverage is low:
-- Identify untested paths
-- Add tests for uncovered code
-- Focus on error paths (often missed)
+Coverage is **mandatory** - the phase cannot complete until this threshold is met.
+
+If coverage is below {{COVERAGE_THRESHOLD}}%:
+1. Run coverage report to identify untested paths
+2. Add tests for uncovered functions and branches
+3. Focus on error handling paths (often missed)
+4. Re-run coverage until threshold is met
+
+Do NOT mark the phase complete until coverage reaches {{COVERAGE_THRESHOLD}}%.
 
 ## Test Patterns
 
@@ -162,7 +167,7 @@ If coverage is low:
 **Total Tests**: [count]
 **Passed**: [count]
 **Failed**: [count]
-**Coverage**: [percent]%
+**Coverage**: [percent]% (threshold: {{COVERAGE_THRESHOLD}}%)
 
 ### Tests Written
 - [test_file1]: [count] tests
@@ -182,6 +187,12 @@ If coverage is low:
 
 ## Phase Completion
 
+### Prerequisites
+
+Before marking the phase complete, verify:
+1. All tests pass (0 failures)
+2. Coverage ≥ {{COVERAGE_THRESHOLD}}%
+
 ### Commit Tests
 
 ```bash
@@ -191,17 +202,21 @@ git commit -m "[orc] {{TASK_ID}}: test - completed
 Phase: test
 Status: completed
 Tests: [count] passed
-Coverage: [percent]%
+Coverage: [percent]% (threshold: {{COVERAGE_THRESHOLD}}%)
 "
 ```
 
 ### Output Completion
 
+Only output `<phase_complete>true</phase_complete>` when BOTH conditions are met:
+- All tests pass
+- Coverage ≥ {{COVERAGE_THRESHOLD}}%
+
 ```
 ### Test Summary
 
 **Tests**: [passed]/[total] passing
-**Coverage**: [percent]%
+**Coverage**: [percent]% ✅ (meets {{COVERAGE_THRESHOLD}}% threshold)
 **Commit**: [commit SHA]
 
 <phase_complete>true</phase_complete>
@@ -212,5 +227,13 @@ If tests fail:
 <phase_blocked>
 reason: [count] tests failing
 needs: [specific failures to fix]
+</phase_blocked>
+```
+
+If coverage is below threshold:
+```
+<phase_blocked>
+reason: coverage [percent]% is below {{COVERAGE_THRESHOLD}}% threshold
+needs: add tests for uncovered code paths
 </phase_blocked>
 ```

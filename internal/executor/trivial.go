@@ -106,6 +106,11 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 	}
 	vars := BuildTemplateVars(t, p, s, 0, "")
 
+	// Add testing configuration (coverage threshold)
+	if e.config.OrcConfig != nil {
+		vars.CoverageThreshold = e.config.OrcConfig.Testing.CoverageThreshold
+	}
+
 	// Add initiative context if task belongs to an initiative
 	if initCtx := LoadInitiativeContext(t, e.backend); initCtx != nil {
 		vars = vars.WithInitiativeContext(*initCtx)
