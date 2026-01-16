@@ -11,6 +11,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/detect"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/template"
@@ -54,6 +55,9 @@ Use --priority to set task priority:
   orc new "Urgent fix" --priority critical
   orc new "Important feature" -p high
 
+Use --target-branch to override the default PR target branch:
+  orc new "Hotfix" --target-branch hotfix/v2.1
+
 Example:
   orc new "Fix authentication timeout bug"
   orc new "Implement user dashboard" --weight large
@@ -87,6 +91,14 @@ Example:
 			initiativeID, _ := cmd.Flags().GetString("initiative")
 			blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")
 			relatedTo, _ := cmd.Flags().GetStringSlice("related-to")
+			targetBranch, _ := cmd.Flags().GetString("target-branch")
+
+			// Validate target branch if specified
+			if targetBranch != "" {
+				if err := git.ValidateBranchName(targetBranch); err != nil {
+					return fmt.Errorf("invalid target branch: %w", err)
+				}
+			}
 
 			// Parse variable flags
 			vars := make(map[string]string)
@@ -172,6 +184,11 @@ Example:
 					return fmt.Errorf("initiative %s not found", initiativeID)
 				}
 				t.SetInitiative(initiativeID)
+			}
+
+			// Set target branch if provided
+			if targetBranch != "" {
+				t.TargetBranch = targetBranch
 			}
 
 			// Detect project characteristics for testing requirements
@@ -287,6 +304,9 @@ Example:
 			if t.HasInitiative() {
 				fmt.Printf("   Initiative: %s\n", t.InitiativeID)
 			}
+			if t.TargetBranch != "" {
+				fmt.Printf("   Target Branch: %s\n", t.TargetBranch)
+			}
 			if t.RequiresUITesting {
 				fmt.Printf("   UI Testing: required (detected from task description)\n")
 			}
@@ -366,5 +386,6 @@ Example:
 	cmd.Flags().StringP("initiative", "i", "", "link task to initiative (e.g., INIT-001)")
 	cmd.Flags().StringSlice("blocked-by", nil, "task IDs that must complete before this task")
 	cmd.Flags().StringSlice("related-to", nil, "task IDs related to this task")
+	cmd.Flags().String("target-branch", "", "override target branch for PR (instead of project default)")
 	return cmd
 }

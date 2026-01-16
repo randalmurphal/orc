@@ -6,6 +6,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { AutomationPage } from '@/pages/AutomationPage';
 import { TaskDetail } from '@/pages/TaskDetail';
 import { InitiativeDetail } from '@/pages/InitiativeDetail';
+import { Branches } from '@/pages/Branches';
 import { Preferences } from '@/pages/Preferences';
 import { EnvironmentLayout } from '@/pages/environment/EnvironmentLayout';
 import { Settings } from '@/pages/environment/Settings';
@@ -62,6 +63,10 @@ export const routes: RouteObject[] = [
 			{
 				path: 'initiatives/:id',
 				element: <InitiativeDetail />,
+			},
+			{
+				path: 'branches',
+				element: <Branches />,
 			},
 			{
 				path: 'preferences',

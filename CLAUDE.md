@@ -380,6 +380,7 @@ See `web/CLAUDE.md` for component architecture and full API documentation.
 | Architecture | `docs/architecture/OVERVIEW.md` |
 | Phase Model | `docs/architecture/PHASE_MODEL.md` |
 | Executor | `docs/architecture/EXECUTOR.md` |
+| Branch Targeting | `docs/architecture/BRANCH_TARGETING.md` |
 | Config | `docs/specs/CONFIG_HIERARCHY.md` |
 | CLI Spec | `docs/specs/CLI.md` |
 | File Formats | `docs/specs/FILE_FORMATS.md` |
@@ -550,6 +551,11 @@ Patterns, gotchas, and decisions learned during development.
 | TabNav Radix Tabs migration | TabNav uses `@radix-ui/react-tabs` with render prop pattern for tab content; Tabs.Root wraps entire component, Tabs.List contains Tabs.Trigger elements, Tabs.Content wraps the children render prop result; provides arrow key navigation, Home/End, focus management, automatic ARIA; CSS uses `data-state='active'` for active tab styling | TASK-214 |
 | Radix Tooltip component | `Tooltip` wraps `@radix-ui/react-tooltip` with consistent styling; `TooltipProvider` at App.tsx root provides global delay config (300ms); supports rich content (JSX), controlled mode, placement, arrow; portals to `document.body`; use instead of native `title` for accessibility and consistent styling | TASK-215 |
 | UI primitives E2E testing | Three test files validate Radix integration: `ui-primitives.spec.ts` (22 tests: Button, DropdownMenu, Select, Tabs, Tooltip), `radix-a11y.spec.ts` (17 tests: keyboard navigation, focus trap, ARIA attributes), `axe-audit.spec.ts` (8 tests: WCAG 2.1 AA compliance via axe-core); selector strategy prioritizes role/aria-label over CSS classes | TASK-216 |
+| Branch resolution 5-level hierarchy | `ResolveTargetBranch()` resolves target branch with priority: task override → initiative branch → developer staging → project config → "main"; each level can override lower levels; source tracking via `ResolveBranchSource()` for debugging | branch-targeting |
+| Branch lazy creation | Target branches (initiative, staging) created on first task run via `EnsureTargetBranchExists()` in setup; default branches (main, master, develop) never auto-created; prevents orphan branches from unused initiatives | branch-targeting |
+| Branch registry tracking | All orc-managed branches tracked in `branches` table with type (initiative/staging/task), owner_id, status (active/merged/stale/orphaned), timestamps; enables `orc branches list/cleanup` for lifecycle management | branch-targeting |
+| Initiative branch auto-merge | When all initiative tasks complete and initiative has `BranchBase`, auto-merge to target branch; `auto`/`fast` profiles auto-merge after CI, `safe`/`strict` leave PR for human review; tracks `MergeStatus` (none/pending/merged/failed) | branch-targeting |
+| Developer staging workflow | Personal staging branches via `developer.staging_branch` + `staging_enabled` in personal config; `orc staging status/sync/enable/disable` commands; staging takes precedence over project default but yields to initiative branches | branch-targeting |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

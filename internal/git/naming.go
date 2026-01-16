@@ -2,35 +2,128 @@
 package git
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+// MaxBranchNameLength is the maximum allowed length for branch names.
+const MaxBranchNameLength = 256
+
+// ErrInvalidBranchName indicates a branch name failed validation.
+var ErrInvalidBranchName = errors.New("invalid branch name")
+
+// branchNamePattern validates branch names: alphanumeric, slash, hyphen, underscore, dot.
+// Must start with alphanumeric.
+var branchNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`)
+
+// ValidateBranchName validates a branch name for security and git compatibility.
+// Returns an error describing the validation failure, or nil if valid.
+//
+// Validation rules:
+//   - Must not be empty
+//   - Must not exceed MaxBranchNameLength characters
+//   - Must start with alphanumeric character
+//   - May only contain: a-z, A-Z, 0-9, /, -, _, .
+//   - Must not contain: spaces, shell metacharacters ($`|;&()<>!?*[]{}\)
+//   - Must not contain path traversal (..)
+//   - Must not start with - or .
+//   - Must not end with .lock
+func ValidateBranchName(name string) error {
+	if name == "" {
+		return fmt.Errorf("%w: cannot be empty", ErrInvalidBranchName)
+	}
+	if len(name) > MaxBranchNameLength {
+		return fmt.Errorf("%w: exceeds maximum length of %d characters", ErrInvalidBranchName, MaxBranchNameLength)
+	}
+	if strings.Contains(name, "..") {
+		return fmt.Errorf("%w: cannot contain '..'", ErrInvalidBranchName)
+	}
+	if strings.HasSuffix(name, ".lock") {
+		return fmt.Errorf("%w: cannot end with '.lock'", ErrInvalidBranchName)
+	}
+	if strings.HasSuffix(name, "/") {
+		return fmt.Errorf("%w: cannot end with '/'", ErrInvalidBranchName)
+	}
+	if strings.Contains(name, "//") {
+		return fmt.Errorf("%w: cannot contain '//'", ErrInvalidBranchName)
+	}
+	if !branchNamePattern.MatchString(name) {
+		return fmt.Errorf("%w: contains invalid characters (allowed: a-z, A-Z, 0-9, /, -, _, .)", ErrInvalidBranchName)
+	}
+	return nil
+}
+
+// DefaultBranchPrefix is the default prefix for task branches when no initiative is set.
+const DefaultBranchPrefix = "orc/"
 
 // BranchName returns the full branch name for a task with optional executor prefix.
 // Solo mode: orc/TASK-001
 // P2P/Team mode: orc/TASK-001-am (where "am" is executor's initials)
 func BranchName(taskID, executorPrefix string) string {
-	if executorPrefix == "" {
-		return fmt.Sprintf("orc/%s", taskID)
+	return BranchNameWithPrefix(taskID, executorPrefix, "")
+}
+
+// BranchNameWithPrefix returns the full branch name for a task with an optional
+// initiative prefix and executor prefix.
+//
+// When initiativePrefix is empty, uses the default "orc/" prefix:
+//   - Solo mode: orc/TASK-001
+//   - P2P/Team mode: orc/TASK-001-am (where "am" is executor's initials)
+//
+// When initiativePrefix is set (e.g., "feature/auth-"), it replaces the default prefix:
+//   - Solo mode: feature/auth-TASK-001
+//   - P2P/Team mode: feature/auth-TASK-001-am
+//
+// This allows tasks belonging to an initiative to be grouped under a custom branch namespace.
+func BranchNameWithPrefix(taskID, executorPrefix, initiativePrefix string) string {
+	prefix := DefaultBranchPrefix
+	if initiativePrefix != "" {
+		prefix = initiativePrefix
 	}
-	return fmt.Sprintf("orc/%s-%s", taskID, strings.ToLower(executorPrefix))
+
+	if executorPrefix == "" {
+		return fmt.Sprintf("%s%s", prefix, taskID)
+	}
+	return fmt.Sprintf("%s%s-%s", prefix, taskID, strings.ToLower(executorPrefix))
 }
 
 // WorktreeDirName returns the directory name for a task's worktree.
 // Solo mode: orc-TASK-001
 // P2P/Team mode: orc-TASK-001-am
 func WorktreeDirName(taskID, executorPrefix string) string {
-	if executorPrefix == "" {
-		return fmt.Sprintf("orc-%s", taskID)
-	}
-	return fmt.Sprintf("orc-%s-%s", taskID, strings.ToLower(executorPrefix))
+	return WorktreeDirNameWithPrefix(taskID, executorPrefix, "")
+}
+
+// WorktreeDirNameWithPrefix returns the directory name for a task's worktree
+// with an optional initiative prefix.
+//
+// The directory name is derived from the branch name with slashes replaced by hyphens
+// to create a valid directory name.
+//
+// Examples:
+//   - Default (no initiative): orc-TASK-001 or orc-TASK-001-am
+//   - With initiative prefix "feature/auth-": feature-auth-TASK-001 or feature-auth-TASK-001-am
+func WorktreeDirNameWithPrefix(taskID, executorPrefix, initiativePrefix string) string {
+	// Get the branch name, then convert slashes to hyphens for directory safety
+	branchName := BranchNameWithPrefix(taskID, executorPrefix, initiativePrefix)
+	// Replace / with - to make it a valid directory name
+	return strings.ReplaceAll(branchName, "/", "-")
 }
 
 // WorktreePath returns the full path to a task's worktree.
 // worktreeDir is the base directory for worktrees (e.g., ".orc/worktrees")
 func WorktreePath(worktreeDir, taskID, executorPrefix string) string {
-	return filepath.Join(worktreeDir, WorktreeDirName(taskID, executorPrefix))
+	return WorktreePathWithPrefix(worktreeDir, taskID, executorPrefix, "")
+}
+
+// WorktreePathWithPrefix returns the full path to a task's worktree with initiative prefix support.
+// worktreeDir is the base directory for worktrees (e.g., ".orc/worktrees")
+// initiativePrefix is the branch prefix from the initiative (e.g., "feature/auth-")
+func WorktreePathWithPrefix(worktreeDir, taskID, executorPrefix, initiativePrefix string) string {
+	return filepath.Join(worktreeDir, WorktreeDirNameWithPrefix(taskID, executorPrefix, initiativePrefix))
 }
 
 // ParseBranchName extracts the task ID and executor prefix from a branch name.

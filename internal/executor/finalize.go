@@ -20,6 +20,7 @@ import (
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -48,6 +49,7 @@ type FinalizeExecutor struct {
 	workingDir   string
 	taskDir      string
 	stateUpdater func(*state.State)
+	backend      storage.Backend
 }
 
 // FinalizeExecutorOption configures a FinalizeExecutor.
@@ -95,6 +97,11 @@ func WithFinalizeTaskDir(dir string) FinalizeExecutorOption {
 // WithFinalizeStateUpdater sets the state updater callback.
 func WithFinalizeStateUpdater(fn func(*state.State)) FinalizeExecutorOption {
 	return func(e *FinalizeExecutor) { e.stateUpdater = fn }
+}
+
+// WithFinalizeBackend sets the storage backend for initiative loading.
+func WithFinalizeBackend(b storage.Backend) FinalizeExecutorOption {
+	return func(e *FinalizeExecutor) { e.backend = b }
 }
 
 // NewFinalizeExecutor creates a new finalize executor.
@@ -174,7 +181,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		return result, nil
 	}
 
-	targetBranch := e.getTargetBranch()
+	targetBranch := ResolveTargetBranchForTask(t, e.backend, e.orcConfig)
 
 	e.logger.Info("starting finalize phase",
 		"task", t.ID,

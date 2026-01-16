@@ -1,8 +1,57 @@
--- Automation triggers and notifications system
--- Enables automated maintenance tasks based on configurable conditions
+-- Branch targeting: Add target branch fields to tasks and initiatives
+-- Enables per-task and per-initiative branch targeting for feature branches,
+-- hotfix branches, and initiative-based isolation.
 
 -- ============================================================================
--- AUTOMATION TRIGGERS
+-- TASK TABLE: Add target_branch column
+-- ============================================================================
+
+-- target_branch overrides where this task's PR targets
+-- Takes precedence over initiative branch and project config
+ALTER TABLE tasks ADD COLUMN target_branch TEXT;
+
+-- ============================================================================
+-- INITIATIVES TABLE: Add branch configuration columns
+-- ============================================================================
+
+-- branch_base is the target branch for tasks in this initiative
+-- When set, tasks in this initiative target this branch instead of project default
+ALTER TABLE initiatives ADD COLUMN branch_base TEXT;
+
+-- branch_prefix overrides task branch naming for tasks in this initiative
+-- Example: "feature/auth-" creates branches like "feature/auth-TASK-001"
+ALTER TABLE initiatives ADD COLUMN branch_prefix TEXT;
+
+-- ============================================================================
+-- BRANCHES TABLE: Track orc-managed branches for lifecycle management
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS branches (
+    name TEXT PRIMARY KEY,
+    -- Type: 'initiative' (feature branch), 'staging' (personal dev), 'task' (work branch)
+    type TEXT NOT NULL,
+    -- Owner: initiative ID, developer name, or task ID depending on type
+    owner_id TEXT,
+    -- Base branch this was created from (e.g., 'main')
+    base_branch TEXT,
+    -- Status: 'active', 'merged', 'stale', 'orphaned'
+    status TEXT DEFAULT 'active',
+    -- Tracking timestamps
+    created_at TEXT DEFAULT (datetime('now')),
+    last_activity TEXT DEFAULT (datetime('now')),
+    -- Merge info (when merged)
+    merged_at TEXT,
+    merged_to TEXT,
+    merge_commit_sha TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_branches_type ON branches(type);
+CREATE INDEX IF NOT EXISTS idx_branches_status ON branches(status);
+CREATE INDEX IF NOT EXISTS idx_branches_owner ON branches(owner_id);
+
+-- ============================================================================
+-- AUTOMATION TRIGGERS AND NOTIFICATIONS SYSTEM
+-- Enables automated maintenance tasks based on configurable conditions
 -- ============================================================================
 
 -- Trigger definitions (loaded from config, but state persisted in DB)
@@ -91,9 +140,6 @@ ALTER TABLE tasks ADD COLUMN is_automation INTEGER DEFAULT 0;
 
 -- Add trigger reference to tasks (which trigger created this task)
 ALTER TABLE tasks ADD COLUMN trigger_id TEXT;
-
--- Add target branch for automation tasks (can run on any branch)
-ALTER TABLE tasks ADD COLUMN target_branch TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_tasks_automation ON tasks(is_automation);
 CREATE INDEX IF NOT EXISTS idx_tasks_trigger ON tasks(trigger_id);

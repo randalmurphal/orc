@@ -482,6 +482,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 		executor.WithFinalizeOrcConfig(s.orcConfig),
 		executor.WithFinalizeWorkingDir(s.workDir),
 		executor.WithFinalizeTaskDir(task.TaskDirIn(s.workDir, taskID)),
+		executor.WithFinalizeBackend(s.backend),
 		executor.WithFinalizeStateUpdater(func(updatedState *state.State) {
 			// Update progress based on state changes
 			finState.mu.Lock()
