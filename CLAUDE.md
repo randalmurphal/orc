@@ -581,6 +581,7 @@ Patterns, gotchas, and decisions learned during development.
 | Template variables not substituted in prompts | Fixed: Flowgraph executor's `renderTemplate()` now includes all variables from standard `RenderTemplate()`: `{{TASK_CATEGORY}}`, `{{INITIATIVE_CONTEXT}}`, `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}`, `{{COVERAGE_THRESHOLD}}`, `{{REVIEW_FINDINGS}}` | TASK-278 |
 | Date shows '12/31/1' instead of '12/31/2001' | Fixed: `toLocaleDateString()` without options can produce abbreviated years; use explicit options `{ year: 'numeric', month: 'numeric', day: 'numeric' }` to ensure 4-digit year display; also add null/invalid date guards | TASK-255 |
 | Dashboard initiative progress shows 0/0 | Fixed: `DashboardInitiatives` was calculating progress from `initiative.tasks` (unpopulated by API) while Sidebar used `getInitiativeProgress(tasks)` from task store; now both use task store for consistent counts | TASK-276 |
+| Project selector shows 'Select project' after refresh | Fixed: `useCurrentProject()` was calling `state.getCurrentProject()` method which Zustand couldn't track for dependencies; now computes directly in selector `state.projects.find(p => p.id === state.currentProjectId)` to properly track both `projects` and `currentProjectId` | TASK-266 |
 
 ### Decisions
 | Decision | Rationale | Source |

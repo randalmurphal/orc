@@ -1424,8 +1424,9 @@ Project selection with URL and localStorage sync.
 | Hook | Description |
 |------|-------------|
 | `useProjects()` | All projects |
-| `useCurrentProject()` | Current project object |
+| `useCurrentProject()` | Current project object (computed inline in selector) |
 | `useCurrentProjectId()` | Current project ID |
+| `useProjectLoading()` | Loading state |
 
 | Action | Purpose |
 |--------|---------|
@@ -1569,6 +1570,8 @@ toast.clear();
 3. **Derived state as getters:** Computed values (activeTasks, statusCounts) are methods on the store rather than stored state, ensuring fresh calculations
 
 4. **Map vs Array:** InitiativeStore uses `Map<string, Initiative>` for O(1) lookups; `getInitiativesList()` converts to array when needed
+
+5. **Zustand selector dependency tracking:** When deriving state that depends on multiple store fields, compute directly in the selector rather than calling store methods. Store methods like `getCurrentProject()` don't track dependencies correctly - Zustand can't see inside method calls. Instead of `state => state.getCurrentProject()`, use `state => state.projects.find(p => p.id === state.currentProjectId)` to properly track both `projects` and `currentProjectId` arrays.
 
 ### WebSocket Hooks
 
