@@ -1,169 +1,79 @@
-# Specification: Create Textarea primitive component
+# Specification: Limit Playwright/Vitest workers to prevent OOM when running parallel tasks
 
 ## Problem Statement
 
-The codebase has inconsistent textarea styling across components (TaskEditModal, CommentsTab, InlineCommentThread, InitiativeDetail). Each uses slightly different backgrounds (`--bg-tertiary` vs `--bg-secondary`), focus styles (some with ring, some without), and lacks shared features like auto-resize and character count. A unified Textarea primitive will provide consistent styling and behavior.
+When orc runs multiple tasks in parallel, each task may spawn Playwright MCP servers and run Vitest/Playwright tests with their own worker pools. Without explicit limits, the number of workers scales multiplicatively (N tasks × M workers each), leading to out-of-memory (OOM) conditions on machines with limited RAM.
 
 ## Success Criteria
 
-- [ ] `Textarea.tsx` exists at `web/src/components/ui/Textarea.tsx`
-- [ ] `Textarea.css` exists at `web/src/components/ui/Textarea.css`
-- [ ] Component exported from `web/src/components/ui/index.ts`
-- [ ] Default styling matches spec: `--bg-secondary` background, `--border-default` border, `--radius-md` radius
-- [ ] Focus state shows accent border with glow ring (`0 0 0 2px var(--accent-glow)`)
-- [ ] Hover state shows `--border-strong` border
-- [ ] Error variant shows `--status-danger` border
-- [ ] Disabled state shows `opacity: 0.5` and `cursor: not-allowed`
-- [ ] Auto-resize grows textarea height up to `maxHeight` (default 300px)
-- [ ] Auto-resize triggers scrollbar when content exceeds `maxHeight`
-- [ ] Character count displays below textarea when `showCount={true}` and `maxLength` set
-- [ ] Character count shows warning color at >= 90% capacity
-- [ ] Error message displays below textarea when `error` prop provided
-- [ ] Component uses `forwardRef` for ref forwarding
-- [ ] Accessibility: `aria-invalid` set when error state
-- [ ] Accessibility: `aria-describedby` links error message and character count
+- [ ] Playwright config sets explicit `workers` limit in local (non-CI) mode instead of `undefined`
+- [ ] Vitest config includes `pool` and `poolOptions.threads.maxThreads` worker limit
+- [ ] Default worker count is sensible for parallel task execution (2 workers per test runner)
+- [ ] Worker limits can be overridden via environment variables for CI or user customization
+- [ ] Existing E2E tests continue to pass with new worker limits
+- [ ] Existing Vitest unit tests continue to pass with new worker limits
 
 ## Testing Requirements
 
-- [ ] Unit test: Renders with default props
-- [ ] Unit test: Calls onChange when text entered
-- [ ] Unit test: Respects disabled state (does not call onChange)
-- [ ] Unit test: Auto-resize increases textarea height with content
-- [ ] Unit test: Auto-resize respects maxHeight limit
-- [ ] Unit test: Character count displays "X/Y" format
-- [ ] Unit test: Character count shows warning class at >= 90% capacity
-- [ ] Unit test: Error state displays error message
-- [ ] Unit test: Error state applies error class to textarea
-- [ ] Visual snapshot: Default state
-- [ ] Visual snapshot: Focus state
-- [ ] Visual snapshot: Error state with message
-- [ ] Visual snapshot: With character count (normal)
-- [ ] Visual snapshot: With character count (warning)
-- [ ] Visual snapshot: Auto-resize expanded
+- [ ] Integration test: Verify `npm run test` works with new Vitest limits
+- [ ] Integration test: Verify `npm run e2e` works with new Playwright limits
+- [ ] E2E test: Existing E2E suite passes (`make e2e`)
+- [ ] Manual verification: Run `make web-test` to confirm unit tests pass
 
 ## Scope
 
 ### In Scope
-
-- Textarea primitive component with consistent styling
-- Auto-resize functionality via scrollHeight calculation
-- Character count display with warning state
-- Error state styling and message display
-- Unit tests in `Textarea.test.tsx`
-- Visual snapshot tests
-- CSS following Button.css patterns (CSS variables, state variants)
+- Modify `web/playwright.config.ts` to set explicit worker limit
+- Modify `web/vitest.config.ts` to set worker pool configuration
+- Add environment variable support for worker count customization
+- Document the changes in comments
 
 ### Out of Scope
-
-- Migration of existing textareas to use new component (separate task)
-- Markdown preview or rich text support
-- File attachment or drag-drop support
-- Emoji picker integration
+- Changes to orc's WorkerPool (orchestrator-level parallelism) - that's a different layer
+- Memory profiling or monitoring infrastructure
+- Dynamic worker scaling based on available memory
+- Changes to web-svelte-archive configs (archived, not maintained)
 
 ## Technical Approach
 
-### Component Architecture
-
-Follow Button.tsx patterns:
-- `forwardRef` for ref forwarding
-- Props interface extending `React.TextareaHTMLAttributes<HTMLTextAreaElement>`
-- Class composition via array filter/join
-- Separate CSS file with design token usage
-
-### Auto-Resize Implementation
-
-```typescript
-const adjustHeight = useCallback(() => {
-  if (!textareaRef.current || !autoResize) return;
-  textareaRef.current.style.height = 'auto';
-  const scrollHeight = textareaRef.current.scrollHeight;
-  textareaRef.current.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
-}, [autoResize, maxHeight]);
-
-useEffect(() => {
-  adjustHeight();
-}, [value, adjustHeight]);
-```
-
-### Character Count Implementation
-
-- Use internal `useId()` for unique description IDs
-- Combine IDs for `aria-describedby`: error message + character count
-- Calculate percentage: `(value.length / maxLength) * 100`
-- Apply warning class when percentage >= 90
+The fix involves setting sensible default worker limits that work well when multiple orc tasks run in parallel, while still allowing single-task runs to utilize more resources via environment variables.
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `web/src/components/ui/Textarea.tsx` | Create component |
-| `web/src/components/ui/Textarea.css` | Create styles |
-| `web/src/components/ui/index.ts` | Add export |
-| `web/src/components/ui/Textarea.test.tsx` | Create unit tests |
-| `web/e2e/visual.spec.ts` | Add visual snapshots |
+1. **`web/playwright.config.ts`**:
+   - Change `workers: process.env.CI ? 1 : undefined` to `workers: process.env.CI ? 1 : parseInt(process.env.PLAYWRIGHT_WORKERS || '2', 10)`
+   - Add comment explaining rationale for the limit
 
-## Feature Details
+2. **`web/vitest.config.ts`**:
+   - Add `pool: 'threads'` to explicitly use thread pool
+   - Add `poolOptions.threads.maxThreads` configuration (default 2)
+   - Support `VITEST_MAX_THREADS` environment variable override
 
-### User Story
+## Bug Fix Analysis
 
-As a developer, I want a consistent Textarea component so that all text input areas have uniform styling, behavior, and accessibility features without duplicating CSS.
+### Reproduction Steps
+1. Start orc orchestrator with multiple parallel tasks that involve UI testing
+2. Each task runs UI tests via Playwright MCP
+3. Playwright spawns `undefined` (unlimited) workers locally
+4. Vitest spawns default thread count (typically based on CPU cores)
+5. With N parallel tasks, total workers = N × (Playwright workers + Vitest workers)
+6. System runs out of memory
 
-### Acceptance Criteria
+### Current Behavior
+- Playwright: `workers: process.env.CI ? 1 : undefined` - unlimited in local development
+- Vitest: No explicit limit - defaults to CPU-based calculation (often 8+ threads)
+- Result: OOM when running 3+ parallel tasks with UI testing on 64GB RAM system
 
-1. Textarea renders with default 3-row height (min-height: 80px)
-2. When `autoResize` is true, height grows with content
-3. When content exceeds `maxHeight`, scrollbar appears
-4. When `showCount` and `maxLength` set, character count shows below
-5. When characters >= 90% of max, count turns red
-6. When `error` prop set, border turns red and message appears below
-7. Component is keyboard accessible (Tab focus, standard textarea interactions)
-8. Screen readers announce character count and error messages
+### Expected Behavior
+- Playwright: 2 workers by default locally (configurable via `PLAYWRIGHT_WORKERS` env var)
+- Vitest: 2 max threads (configurable via `VITEST_MAX_THREADS` env var)
+- Result: Bounded memory usage even with parallel orc tasks
 
-### Props Interface
+### Root Cause
+Configuration files assume single-user development context, not orc's parallel task execution model where multiple test runners compete for resources.
 
-```typescript
-interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  /** Visual variant - default or error state */
-  variant?: 'default' | 'error';
-  /** Enable auto-resize based on content */
-  autoResize?: boolean;
-  /** Maximum height in pixels when auto-resize enabled (default: 300) */
-  maxHeight?: number;
-  /** Show character count when maxLength is set */
-  showCount?: boolean;
-  /** Error message to display below textarea */
-  error?: string;
-}
-```
-
-### CSS Class Structure
-
-```css
-.textarea                  /* Base styles */
-.textarea--error           /* Error variant border */
-.textarea--disabled        /* Disabled opacity */
-.textarea-wrapper          /* Container for textarea + count + error */
-.textarea-count            /* Character count */
-.textarea-count--warning   /* Warning state (>=90%) */
-.textarea-error            /* Error message text */
-```
-
-## Design Tokens Used
-
-| Token | Usage |
-|-------|-------|
-| `--font-body` | Font family |
-| `--text-sm` | Font size |
-| `--bg-secondary` | Background |
-| `--border-default` | Default border |
-| `--border-strong` | Hover border |
-| `--accent-primary` | Focus border |
-| `--accent-glow` | Focus ring |
-| `--status-danger` | Error border/text |
-| `--text-primary` | Input text |
-| `--text-muted` | Placeholder, count |
-| `--text-xs` | Count, error font size |
-| `--radius-md` | Border radius |
-| `--space-2`, `--space-3` | Padding |
-| `--duration-fast` | Transition duration |
-| `--ease-out` | Transition easing |
+### Verification
+1. Run `make e2e` - tests should pass
+2. Run `make web-test` - tests should pass
+3. Test env var override: `PLAYWRIGHT_WORKERS=4 npm run e2e` should use 4 workers
+4. Test env var override: `VITEST_MAX_THREADS=4 npm run test` should use 4 threads

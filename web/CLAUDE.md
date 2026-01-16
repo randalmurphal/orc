@@ -1100,6 +1100,8 @@ Test files use `*.test.tsx` convention. Setup in `src/test-setup.ts` includes:
 - `@testing-library/jest-dom` for DOM matchers
 - jsdom environment
 
+**Worker limit:** Vitest uses a maximum of 4 threads to prevent OOM when multiple orc tasks run tests in parallel. Without this limit, 3 parallel orc tasks on a 16-core machine could spawn 48 test workers.
+
 ### E2E Tests (Playwright)
 
 E2E tests in `e2e/` use framework-agnostic selectors:
@@ -1115,6 +1117,8 @@ npm run e2e:report       # Open HTML report
 ```
 
 **Configuration:** `playwright.config.ts` targets the React app on `:5173`.
+
+**Worker limit:** Playwright uses a maximum of 4 workers locally (1 in CI) to prevent OOM when multiple orc tasks run E2E tests in parallel. Each worker spawns browser processes, so unlimited workers on a 16-core machine could exhaust memory.
 
 ### Integration Tests
 
