@@ -116,6 +116,22 @@
 }
 
 /* =============================================================================
+   Character Count
+   ============================================================================= */
+
+.textarea-char-count {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	line-height: var(--leading-tight);
+	text-align: right;
+	align-self: flex-end;
+}
+
+.textarea-char-count-warning {
+	color: var(--status-danger);
+}
+
+/* =============================================================================
    Error Message
    ============================================================================= */
 
@@ -123,4 +139,13 @@
 	font-size: var(--text-sm);
 	color: var(--status-danger);
 	line-height: var(--leading-tight);
+}
+
+/* =============================================================================
+   Auto-Resize
+   ============================================================================= */
+
+.textarea-auto-resize .textarea-field {
+	min-height: 80px;
+	overflow-y: hidden;
 }

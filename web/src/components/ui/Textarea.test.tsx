@@ -225,4 +225,178 @@ describe('Textarea', () => {
 			expect(wrapper).toHaveClass('custom-class');
 		});
 	});
+
+	describe('character count', () => {
+		it('displays character count when showCount and maxLength are provided', () => {
+			render(<Textarea showCount maxLength={100} />);
+			expect(screen.getByText('0/100')).toBeInTheDocument();
+		});
+
+		it('does not display character count without showCount', () => {
+			render(<Textarea maxLength={100} />);
+			expect(screen.queryByText('0/100')).not.toBeInTheDocument();
+		});
+
+		it('does not display character count without maxLength', () => {
+			const { container } = render(<Textarea showCount />);
+			expect(container.querySelector('.textarea-char-count')).not.toBeInTheDocument();
+		});
+
+		it('updates character count on input', () => {
+			render(<Textarea showCount maxLength={100} value="hello" onChange={() => {}} />);
+			expect(screen.getByText('5/100')).toBeInTheDocument();
+		});
+
+		it('applies warning class at 90% capacity', () => {
+			const { container } = render(
+				<Textarea showCount maxLength={10} value="123456789" onChange={() => {}} />
+			);
+			const countElement = container.querySelector('.textarea-char-count');
+			expect(countElement).toHaveClass('textarea-char-count-warning');
+		});
+
+		it('does not apply warning class below 90% capacity', () => {
+			const { container } = render(
+				<Textarea showCount maxLength={10} value="12345678" onChange={() => {}} />
+			);
+			const countElement = container.querySelector('.textarea-char-count');
+			expect(countElement).not.toHaveClass('textarea-char-count-warning');
+		});
+
+		it('applies warning class at exactly 90% capacity', () => {
+			const { container } = render(
+				<Textarea showCount maxLength={100} value={'a'.repeat(90)} onChange={() => {}} />
+			);
+			const countElement = container.querySelector('.textarea-char-count');
+			expect(countElement).toHaveClass('textarea-char-count-warning');
+		});
+
+		it('links character count via aria-describedby', () => {
+			render(<Textarea id="test-textarea" showCount maxLength={100} />);
+			const textarea = screen.getByRole('textbox');
+			expect(textarea.getAttribute('aria-describedby')).toContain('test-textarea-count');
+		});
+	});
+
+	describe('auto-resize', () => {
+		it('applies auto-resize class when enabled', () => {
+			const { container } = render(<Textarea autoResize />);
+			const wrapper = container.querySelector('.textarea-wrapper');
+			expect(wrapper).toHaveClass('textarea-auto-resize');
+		});
+
+		it('disables manual resize when autoResize is enabled', () => {
+			const { container } = render(<Textarea autoResize resize="both" />);
+			const wrapper = container.querySelector('.textarea-wrapper');
+			expect(wrapper).toHaveClass('textarea-resize-none');
+		});
+
+		it('calls onChange when text is entered with autoResize', () => {
+			const handleChange = vi.fn();
+			render(<Textarea autoResize onChange={handleChange} />);
+			const textarea = screen.getByRole('textbox');
+			fireEvent.change(textarea, { target: { value: 'new value' } });
+			expect(handleChange).toHaveBeenCalledTimes(1);
+		});
+
+		it('adjusts textarea height on value change', () => {
+			const { rerender } = render(<Textarea autoResize value="" onChange={() => {}} />);
+			const textarea = screen.getByRole('textbox');
+
+			// Mock scrollHeight to simulate content height
+			Object.defineProperty(textarea, 'scrollHeight', { value: 100, configurable: true });
+
+			rerender(<Textarea autoResize value="Some longer text" onChange={() => {}} />);
+
+			// Check that height style was set
+			expect(textarea.style.height).toBeTruthy();
+		});
+
+		it('respects maxHeight prop', () => {
+			render(<Textarea autoResize maxHeight={150} value="" onChange={() => {}} />);
+			const textarea = screen.getByRole('textbox');
+
+			// Mock scrollHeight larger than maxHeight
+			Object.defineProperty(textarea, 'scrollHeight', { value: 200, configurable: true });
+
+			fireEvent.change(textarea, { target: { value: 'lots of text' } });
+
+			// Height should be capped at maxHeight
+			const height = parseInt(textarea.style.height || '0', 10);
+			expect(height).toBeLessThanOrEqual(150);
+		});
+
+		it('sets overflow-y to auto when content exceeds maxHeight', () => {
+			render(<Textarea autoResize maxHeight={100} value="" onChange={() => {}} />);
+			const textarea = screen.getByRole('textbox');
+
+			// Mock scrollHeight larger than maxHeight
+			Object.defineProperty(textarea, 'scrollHeight', { value: 200, configurable: true });
+
+			fireEvent.change(textarea, { target: { value: 'lots of text' } });
+
+			expect(textarea.style.overflowY).toBe('auto');
+		});
+
+		it('sets overflow-y to hidden when content is within maxHeight', () => {
+			render(<Textarea autoResize maxHeight={300} value="" onChange={() => {}} />);
+			const textarea = screen.getByRole('textbox');
+
+			// Mock scrollHeight smaller than maxHeight
+			Object.defineProperty(textarea, 'scrollHeight', { value: 100, configurable: true });
+
+			fireEvent.change(textarea, { target: { value: 'short text' } });
+
+			expect(textarea.style.overflowY).toBe('hidden');
+		});
+	});
+
+	describe('combined features', () => {
+		it('can have both error message and character count', () => {
+			render(
+				<Textarea
+					id="test-textarea"
+					showCount
+					maxLength={100}
+					error="Error message"
+					value="hello"
+					onChange={() => {}}
+				/>
+			);
+			expect(screen.getByText('5/100')).toBeInTheDocument();
+			expect(screen.getByText('Error message')).toBeInTheDocument();
+		});
+
+		it('links both error and count via aria-describedby', () => {
+			render(
+				<Textarea
+					id="test-textarea"
+					showCount
+					maxLength={100}
+					error="Error message"
+				/>
+			);
+			const textarea = screen.getByRole('textbox');
+			const describedBy = textarea.getAttribute('aria-describedby') || '';
+			expect(describedBy).toContain('test-textarea-error');
+			expect(describedBy).toContain('test-textarea-count');
+		});
+
+		it('preserves existing aria-describedby with error and count', () => {
+			render(
+				<Textarea
+					id="test-textarea"
+					aria-describedby="help-text"
+					showCount
+					maxLength={100}
+					error="Error message"
+				/>
+			);
+			const textarea = screen.getByRole('textbox');
+			const describedBy = textarea.getAttribute('aria-describedby') || '';
+			expect(describedBy).toContain('help-text');
+			expect(describedBy).toContain('test-textarea-error');
+			expect(describedBy).toContain('test-textarea-count');
+		});
+	});
 });
