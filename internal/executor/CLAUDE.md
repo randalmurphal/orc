@@ -37,12 +37,13 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 Executor.ExecuteTask()
 ├── setupWorktree()           # Isolate in git worktree
 ├── loadPlan()                # Get phases for weight
-└── for each phase:
-    ├── evaluateGate()        # Check conditions
-    ├── getPhaseExecutor()    # Select by weight
-    │   └── ResolveModelSetting()  # Get model + thinking
-    ├── ExecutePhase()        # Run
-    └── checkpoint()          # Git commit
+├── for each phase:
+│   ├── evaluateGate()        # Check conditions
+│   ├── getPhaseExecutor()    # Select by weight
+│   │   └── ResolveModelSetting()  # Get model + thinking
+│   ├── ExecutePhase()        # Run
+│   └── checkpoint()          # Git commit
+└── cleanupWorktreeForTask()  # Remove worktree (if configured)
 ```
 
 ## Executor Strategies
@@ -135,3 +136,4 @@ go test ./internal/executor/... -v
 2. **Ultrathink in system prompt** - Doesn't work; must be user message
 3. **Template not substituted** - Check BOTH `template.go` AND `flowgraph_nodes.go`
 4. **User agents unavailable** - Need `WithSettingSources` with "user"
+5. **Worktree cleanup by path** - Use `CleanupWorktreeAtPath(e.worktreePath)` not `CleanupWorktree(taskID)` to handle initiative-prefixed worktrees correctly

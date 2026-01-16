@@ -94,6 +94,11 @@ Background poller (60s interval, 30s rate limit per task):
 
 **Status derivation:** MERGED > CLOSED > Draft > changes_requested > approved > pending_review
 
+## Startup Tasks
+
+Server performs housekeeping on startup:
+1. `pruneStaleWorktrees()` - Remove stale git worktree entries (directories deleted without `git worktree remove`)
+
 ## Graceful Shutdown
 
 Server manages background goroutines via `serverCtx`:
