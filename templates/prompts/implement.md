@@ -31,6 +31,10 @@ You are working in an **isolated git worktree**. This ensures your changes don't
 
 {{SPEC_CONTENT}}
 
+## Design (if available)
+
+{{DESIGN_CONTENT}}
+
 {{RETRY_CONTEXT}}
 
 ## Instructions

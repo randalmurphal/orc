@@ -119,6 +119,15 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 
 	promptText := RenderTemplate(tmpl, vars)
 
+	// Resolve model settings for this phase and weight
+	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
+
+	// Inject "ultrathink" for extended thinking mode (rare for trivial, but consistent)
+	if modelSetting.Thinking {
+		promptText = "ultrathink\n\n" + promptText
+		e.logger.Debug("extended thinking enabled", "task", t.ID, "phase", p.ID)
+	}
+
 	// Simple iteration loop - no session, just repeated completions
 	var lastResponse string
 	for iteration := 1; iteration <= e.config.MaxIterations; iteration++ {
@@ -129,7 +138,7 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 			Messages: []claude.Message{
 				{Role: claude.RoleUser, Content: promptText},
 			},
-			Model: e.config.Model,
+			Model: modelSetting.Model,
 		})
 
 		if err != nil {
