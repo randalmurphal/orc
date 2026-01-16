@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Icon } from '@/components/ui/Icon';
 import { toast } from '@/stores';
+import { useDocumentTitle } from '@/hooks';
 import {
 	getSettingsHierarchy,
 	updateSettings,
@@ -26,6 +27,7 @@ interface EnvVar {
 }
 
 export function Settings() {
+	useDocumentTitle('Settings');
 	const [hierarchy, setHierarchy] = useState<SettingsHierarchy | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);

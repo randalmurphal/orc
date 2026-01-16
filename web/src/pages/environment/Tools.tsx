@@ -6,10 +6,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { useDocumentTitle } from '@/hooks';
 import { listToolsByCategory, getToolPermissions, type ToolsByCategory, type ToolPermissions } from '@/lib/api';
 import './environment.css';
 
 export function Tools() {
+	useDocumentTitle('Tools');
 	const [tools, setTools] = useState<ToolsByCategory>({});
 	const [permissions, setPermissions] = useState<ToolPermissions | null>(null);
 	const [loading, setLoading] = useState(true);

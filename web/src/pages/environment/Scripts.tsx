@@ -7,10 +7,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { toast } from '@/stores';
+import { useDocumentTitle } from '@/hooks';
 import { listScripts, discoverScripts, type ProjectScript } from '@/lib/api';
 import './environment.css';
 
 export function Scripts() {
+	useDocumentTitle('Scripts');
 	const [scripts, setScripts] = useState<ProjectScript[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
