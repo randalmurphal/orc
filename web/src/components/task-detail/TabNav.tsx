@@ -1,3 +1,4 @@
+import * as Tabs from '@radix-ui/react-tabs';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import './TabNav.css';
 
@@ -21,24 +22,50 @@ const TABS: TabConfig[] = [
 interface TabNavProps {
 	activeTab: TabId;
 	onTabChange: (tabId: TabId) => void;
+	children: (tabId: TabId) => React.ReactNode;
 }
 
-export function TabNav({ activeTab, onTabChange }: TabNavProps) {
+/**
+ * Tab navigation using Radix Tabs for accessible tab behavior.
+ *
+ * Uses render prop pattern for tab content:
+ * ```tsx
+ * <TabNav activeTab={activeTab} onTabChange={setTab}>
+ *   {(tabId) => {
+ *     switch (tabId) {
+ *       case 'timeline': return <TimelineTab />;
+ *       // ...
+ *     }
+ *   }}
+ * </TabNav>
+ * ```
+ */
+export function TabNav({ activeTab, onTabChange, children }: TabNavProps) {
 	return (
-		<nav className="tab-nav" role="tablist" aria-label="Task detail tabs">
-			{TABS.map((tab) => (
-				<button
-					key={tab.id}
-					role="tab"
-					aria-selected={activeTab === tab.id}
-					aria-controls={`panel-${tab.id}`}
-					className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-					onClick={() => onTabChange(tab.id)}
-				>
-					<Icon name={tab.icon} size={16} />
-					<span>{tab.label}</span>
-				</button>
-			))}
-		</nav>
+		<Tabs.Root
+			value={activeTab}
+			onValueChange={(value) => onTabChange(value as TabId)}
+			className="tab-nav-root"
+		>
+			<Tabs.List className="tab-nav" aria-label="Task details tabs">
+				{TABS.map((tab) => (
+					<Tabs.Trigger
+						key={tab.id}
+						value={tab.id}
+						className="tab-btn"
+					>
+						<Icon name={tab.icon} size={16} />
+						<span>{tab.label}</span>
+					</Tabs.Trigger>
+				))}
+			</Tabs.List>
+
+			<Tabs.Content
+				value={activeTab}
+				className="tab-content"
+			>
+				{children(activeTab)}
+			</Tabs.Content>
+		</Tabs.Root>
 	);
 }

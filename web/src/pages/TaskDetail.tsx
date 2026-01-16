@@ -140,32 +140,32 @@ export function TaskDetail() {
 					<TabNav
 						activeTab={activeTab}
 						onTabChange={handleTabChange}
-					/>
-
-					<div className="tab-content">
-						{activeTab === 'timeline' && (
-							<TimelineTab
-								task={task}
-								taskState={taskState ?? null}
-								plan={plan}
-							/>
-						)}
-						{activeTab === 'changes' && (
-							<ChangesTab taskId={task.id} />
-						)}
-						{activeTab === 'transcript' && (
-							<TranscriptTab taskId={task.id} />
-						)}
-						{activeTab === 'test-results' && (
-							<TestResultsTab taskId={task.id} />
-						)}
-						{activeTab === 'attachments' && (
-							<AttachmentsTab taskId={task.id} />
-						)}
-						{activeTab === 'comments' && (
-							<CommentsTab taskId={task.id} phases={phases} />
-						)}
-					</div>
+					>
+						{(tabId) => {
+							switch (tabId) {
+								case 'timeline':
+									return (
+										<TimelineTab
+											task={task}
+											taskState={taskState ?? null}
+											plan={plan}
+										/>
+									);
+								case 'changes':
+									return <ChangesTab taskId={task.id} />;
+								case 'transcript':
+									return <TranscriptTab taskId={task.id} />;
+								case 'test-results':
+									return <TestResultsTab taskId={task.id} />;
+								case 'attachments':
+									return <AttachmentsTab taskId={task.id} />;
+								case 'comments':
+									return <CommentsTab taskId={task.id} phases={phases} />;
+								default:
+									return null;
+							}
+						}}
+					</TabNav>
 				</div>
 			</div>
 		</div>

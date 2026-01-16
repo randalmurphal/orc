@@ -1,4 +1,11 @@
-/* Tab Navigation */
+/* Tab Navigation - Radix Tabs */
+.tab-nav-root {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
 .tab-nav {
 	display: flex;
 	gap: var(--space-1);
@@ -30,11 +37,27 @@
 	color: var(--text-primary);
 }
 
-.tab-btn.active {
+/* Radix active state via data-state attribute */
+.tab-btn[data-state='active'] {
 	background: var(--accent-glow);
 	color: var(--accent-primary);
 }
 
 .tab-btn svg {
 	flex-shrink: 0;
+}
+
+/* Tab content styling */
+.tab-nav-root > .tab-content {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	padding: var(--space-4);
+	background: var(--bg-primary);
+}
+
+/* Focus styles for keyboard navigation */
+.tab-btn:focus-visible {
+	outline: 2px solid var(--accent-primary);
+	outline-offset: 2px;
 }

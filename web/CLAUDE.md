@@ -2004,21 +2004,30 @@ import { TaskHeader } from '@/components/task-detail';
 
 ### TabNav
 
-Tab navigation component with 6 tabs.
+Tab navigation using Radix Tabs for accessible keyboard navigation. Uses render prop pattern for tab content.
 
 ```tsx
 import { TabNav, type TabId } from '@/components/task-detail';
 
-<TabNav
-  activeTab={activeTab}
-  onTabChange={handleTabChange}
-/>
+<TabNav activeTab={activeTab} onTabChange={handleTabChange}>
+  {(tabId) => {
+    switch (tabId) {
+      case 'timeline': return <TimelineTab />;
+      case 'changes': return <ChangesTab />;
+      case 'transcript': return <TranscriptTab />;
+      case 'test-results': return <TestResultsTab />;
+      case 'attachments': return <AttachmentsTab />;
+      case 'comments': return <CommentsTab />;
+    }
+  }}
+</TabNav>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `activeTab` | `TabId` | Current active tab |
 | `onTabChange` | `(tab: TabId) => void` | Tab change handler |
+| `children` | `(tabId: TabId) => ReactNode` | Render prop for tab content |
 
 **Tab configuration:**
 
@@ -2030,6 +2039,23 @@ import { TabNav, type TabId } from '@/components/task-detail';
 | `test-results` | Test Results | check-circle |
 | `attachments` | Attachments | folder |
 | `comments` | Comments | message-circle |
+
+**Features (via Radix Tabs):**
+- Arrow left/right switches between tabs
+- Home/End keys jump to first/last tab
+- Tab key moves focus to panel content
+- Automatic ARIA attributes (`role="tablist"`, `aria-selected`, `aria-controls`)
+- Focus ring on keyboard navigation
+
+**Implementation:**
+Uses `@radix-ui/react-tabs` internally. The component wraps `Tabs.Root`, `Tabs.List`, `Tabs.Trigger`, and `Tabs.Content`. CSS uses `data-state="active"` for active tab styling.
+
+**CSS classes:**
+- `.tab-nav-root` - Root container (Tabs.Root)
+- `.tab-nav` - Tab list (Tabs.List)
+- `.tab-btn` - Individual tab trigger (Tabs.Trigger)
+- `.tab-btn[data-state='active']` - Active tab styling
+- `.tab-content` - Tab panel container (Tabs.Content)
 
 ### DependencySidebar
 
