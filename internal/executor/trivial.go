@@ -186,6 +186,13 @@ done:
 			result.Artifacts = append(result.Artifacts, artifactPath)
 			e.logger.Info("saved phase artifact", "path", artifactPath)
 		}
+
+		// Save spec content to database for spec phase
+		if saved, err := SaveSpecToDatabase(e.backend, t.ID, p.ID, result.Output); err != nil {
+			e.logger.Warn("failed to save spec to database", "error", err)
+		} else if saved {
+			e.logger.Info("saved spec to database", "task", t.ID)
+		}
 	}
 
 	return result, result.Error
