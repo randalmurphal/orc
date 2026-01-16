@@ -580,6 +580,7 @@ Patterns, gotchas, and decisions learned during development.
 | Resume blocked by dirty worktree state | Fixed: `SetupWorktree` now calls `cleanWorktreeState` when reusing existing worktree; aborts in-progress rebase/merge and discards uncommitted changes; enables resume after task failure without manual cleanup | TASK-247 |
 | Template variables not substituted in prompts | Fixed: Flowgraph executor's `renderTemplate()` now includes all variables from standard `RenderTemplate()`: `{{TASK_CATEGORY}}`, `{{INITIATIVE_CONTEXT}}`, `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}`, `{{COVERAGE_THRESHOLD}}`, `{{REVIEW_FINDINGS}}` | TASK-278 |
 | Date shows '12/31/1' instead of '12/31/2001' | Fixed: `toLocaleDateString()` without options can produce abbreviated years; use explicit options `{ year: 'numeric', month: 'numeric', day: 'numeric' }` to ensure 4-digit year display; also add null/invalid date guards | TASK-255 |
+| Dashboard initiative progress shows 0/0 | Fixed: `DashboardInitiatives` was calculating progress from `initiative.tasks` (unpopulated by API) while Sidebar used `getInitiativeProgress(tasks)` from task store; now both use task store for consistent counts | TASK-276 |
 
 ### Decisions
 | Decision | Rationale | Source |

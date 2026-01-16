@@ -1,93 +1,111 @@
-# Specification: Fix: Date format shows '12/31/1' instead of proper date on board cards
+# Specification: Fix: Dashboard initiative progress shows 0/0 while sidebar shows 16/17
 
 ## Problem Statement
 
-Board task cards display dates in a malformed format like "12/31/1" instead of a proper date format like "Dec 31, 2025". This occurs when the relative time formatting falls through to `toLocaleDateString()` without explicit format options, causing inconsistent and sometimes broken date display across the app.
+Dashboard's "Active Initiatives" section shows incorrect progress (0/0) while the Sidebar shows correct progress (16/17). The two components calculate progress using different data sources, causing inconsistent counts.
+
+## Root Cause Analysis
+
+| Component | Data Source | Calculation Method |
+|-----------|-------------|-------------------|
+| **Sidebar** | Task store (all tasks) | `getInitiativeProgress(tasks)` - counts tasks where `task.initiative_id === initiative.id` |
+| **Dashboard** | Initiative API response | `getProgress(initiative)` - counts `initiative.tasks[]` array embedded in initiative object |
+
+The discrepancy occurs because:
+1. **Sidebar** correctly counts tasks by checking each task's `initiative_id` field
+2. **Dashboard** relies on the `initiative.tasks[]` array, which may be empty if:
+   - Tasks were linked via `initiative_id` but never added to `initiative_tasks` join table
+   - Legacy tasks created before bidirectional sync was implemented
+   - Data inconsistency between `tasks.initiative_id` and `initiative_tasks` table
 
 ## Success Criteria
 
-- [ ] TaskCard displays dates older than 7 days using `month short, day, year` format (e.g., "Jan 15, 2026")
-- [ ] DashboardRecentActivity displays dates older than 7 days using the same format for consistency
-- [ ] Date formatting matches the working pattern in TimelineTab.tsx
-- [ ] All relative time formatting (just now, Xm ago, Xh ago, Xd ago) continues to work unchanged
-- [ ] No hardcoded locale - uses `undefined` to respect user's browser locale
-- [ ] Visual regression: dates appear correctly on Board page task cards
+- [ ] Dashboard "Active Initiatives" shows same progress counts as Sidebar for all initiatives
+- [ ] Progress calculation uses task store (canonical source) not embedded initiative.tasks array
+- [ ] Existing tests pass (`make web-test`)
+- [ ] No visual regression in Dashboard layout
 
 ## Testing Requirements
 
-- [ ] Unit test: Create a shared date formatting utility with tests covering:
-  - Dates within 1 minute show "just now"
-  - Dates within 1 hour show "Xm ago"
-  - Dates within 24 hours show "Xh ago"
-  - Dates within 7 days show "Xd ago"
-  - Dates older than 7 days show formatted date with year
-  - Invalid date strings handle gracefully (don't crash)
-- [ ] E2E test: Board page displays proper date format on task cards
-- [ ] Verify TaskCard and DashboardRecentActivity both produce consistent output
+- [ ] Unit test: `DashboardInitiatives` renders correct progress from task store
+- [ ] Unit test: Progress shows 0/0 when initiative has no tasks in task store
+- [ ] Unit test: Component handles initiatives with tasks in both sources consistently
+- [ ] E2E test: Verify Dashboard and Sidebar show matching progress counts
 
 ## Scope
 
 ### In Scope
-- Fix `formatDate()` in `TaskCard.tsx` to use explicit date format options
-- Fix `formatRelativeTime()` in `DashboardRecentActivity.tsx` to use same format
-- Extract shared date formatting utility to `web/src/lib/date.ts`
-- Unit tests for the shared utility
+- Modify `DashboardInitiatives` to use same progress calculation method as Sidebar
+- Pass tasks from task store to `DashboardInitiatives` component
+- Update Dashboard page to provide tasks to the component
 
 ### Out of Scope
-- Changing other components' date formats (TimelineTab, InitiativeDetail, etc. already work correctly)
-- Adding date picker or date input components
-- Timezone handling beyond browser default
-- Date internationalization beyond locale-aware formatting
+- Fixing data consistency between `tasks.initiative_id` and `initiative_tasks` table (separate issue)
+- Modifying backend API response format
+- Changing Sidebar implementation
+- Adding new backend endpoints
 
 ## Technical Approach
 
-Create a centralized date formatting utility that matches the working pattern in TimelineTab.tsx. Both TaskCard and DashboardRecentActivity have nearly identical relative time logic that should be consolidated.
-
-### Files to Create
-- `web/src/lib/date.ts`: Shared date formatting utilities
-- `web/src/lib/date.test.ts`: Unit tests for date formatting
+The fix aligns Dashboard with Sidebar by using the same progress calculation method: counting tasks from the task store by `initiative_id` rather than relying on the embedded `initiative.tasks[]` array.
 
 ### Files to Modify
-- `web/src/components/board/TaskCard.tsx`: Import and use shared `formatRelativeDate()` function
-- `web/src/components/dashboard/DashboardRecentActivity.tsx`: Import and use shared `formatRelativeDate()` function
 
-## Bug-Specific Analysis
+1. **`web/src/components/dashboard/DashboardInitiatives.tsx`**
+   - Add `tasks` prop to receive tasks from task store
+   - Change `getProgress()` to calculate progress using task store data (count tasks where `task.initiative_id === initiative.id`)
+   - Match the logic used in Sidebar's `getInitiativeProgress()`
+
+2. **`web/src/pages/Dashboard.tsx`**
+   - Pass `tasks` from task store to `DashboardInitiatives` component
+   - Tasks are already available via `useTaskStore((state) => state.tasks)`
+
+### Implementation Details
+
+**Current Dashboard getProgress (problematic):**
+```typescript
+function getProgress(initiative: Initiative): ProgressInfo {
+  const tasks = initiative.tasks || [];  // Uses embedded array - may be empty/stale
+  const total = tasks.length;
+  // ...
+}
+```
+
+**Fixed Dashboard getProgress:**
+```typescript
+function getProgress(initiativeId: string, tasks: Task[]): ProgressInfo {
+  const initiativeTasks = tasks.filter(t => t.initiative_id === initiativeId);
+  const total = initiativeTasks.length;
+  const completed = initiativeTasks.filter(
+    t => t.status === 'completed' || t.status === 'finished'
+  ).length;
+  // ...
+}
+```
+
+This matches the Sidebar's `getInitiativeProgress()` logic in `initiativeStore.ts:125-148`.
+
+## Bug Analysis
 
 ### Reproduction Steps
-1. Open the Board page (`/board`)
-2. Look at task cards in any column
-3. Find a task with `updated_at` older than 7 days
-4. Observe the date shows "12/31/1" instead of "Dec 31, 2025"
+1. Navigate to Dashboard (`/dashboard`)
+2. Observe "Active Initiatives" section showing initiative with "0/0" progress
+3. Check Sidebar showing same initiative with correct progress (e.g., "16/17")
 
 ### Current Behavior
-- Relative dates (within 7 days) work: "just now", "5m ago", "2h ago", "3d ago"
-- Dates older than 7 days show malformed format: "12/31/1"
-- The truncated year suggests `toLocaleDateString()` without options produces locale-dependent output that omits or truncates the year
+Dashboard shows "0/0" because `initiative.tasks` array is empty/not populated even though tasks exist with matching `initiative_id`.
 
 ### Expected Behavior
-- Relative dates continue working unchanged
-- Dates older than 7 days show: "Dec 31, 2025" (or locale equivalent with full year)
-- Consistent formatting across TaskCard and DashboardRecentActivity
-- Match the format used in TimelineTab which correctly shows "Jan 15, 2026"
+Dashboard shows same count as Sidebar (e.g., "16/17") by counting tasks from task store.
 
 ### Root Cause
-In `TaskCard.tsx:56` and `DashboardRecentActivity.tsx:27`:
-```typescript
-return date.toLocaleDateString();
-```
-
-This call uses no format options. The browser's locale settings determine the output, which can vary and may truncate the year. The working implementations in `TimelineTab.tsx:269-273` use explicit options:
-```typescript
-return new Date(dateStr).toLocaleDateString(undefined, {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-});
-```
+Two different progress calculation methods:
+- Sidebar uses task store (correct, canonical source)
+- Dashboard uses embedded `initiative.tasks[]` (may be inconsistent)
 
 ### Verification
-1. Open Board page after fix
-2. Task cards with old dates display format like "Dec 31, 2025"
-3. Relative dates still show "Xm/Xh/Xd ago" for recent tasks
-4. Dashboard Recent Activity section shows consistent formatting
-5. Unit tests pass for all date formatting scenarios
+After fix:
+1. Navigate to Dashboard
+2. Compare initiative progress counts with Sidebar
+3. Both should show identical progress for all initiatives
+4. Run `make web-test` - all tests pass
