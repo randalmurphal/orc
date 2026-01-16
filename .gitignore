@@ -60,5 +60,9 @@ internal/api/static/
 .mcp.json
 .claude/settings.json
 
-
 /test-results/
+
+# Stray spec files created by Claude Code during spec phase
+# (specs are stored in the database, not as files)
+spec.md
+/artifacts/spec.md

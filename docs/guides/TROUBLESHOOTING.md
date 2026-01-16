@@ -412,6 +412,54 @@ fatal: 'path/to/worktree' is already a worktree
 
 ---
 
+## Stray spec.md Files
+
+### spec.md at Repo Root or in Worktrees
+
+**Symptoms**:
+- `spec.md` file appears at repository root
+- `artifacts/spec.md` or similar paths contain spec content
+- Merge conflicts in worktrees involving spec.md files
+- `git status` shows untracked spec.md
+
+**Cause**: In older versions of orc, Claude Code sometimes wrote spec.md files directly to the filesystem instead of outputting them via `<artifact>` tags for database storage. This has been fixed (TASK-292), but you may encounter leftover files from previous runs.
+
+**Why This Happens**:
+
+Specs are designed to be:
+1. Output in `<artifact>` tags by Claude
+2. Extracted by orc and saved to the database via `SaveSpecToDatabase()`
+3. Never written to the filesystem
+
+When Claude incorrectly uses the Write tool to create spec.md, it bypasses the database and creates merge conflicts when multiple worktrees exist.
+
+**Solutions**:
+
+| Situation | Action |
+|-----------|--------|
+| Untracked spec.md | `rm spec.md` (safe to delete, spec is in database) |
+| Committed spec.md | Remove and commit: `git rm spec.md && git commit -m "Remove stray spec.md"` |
+| In .gitignore | Already handled - file is ignored by git |
+| Merge conflict | Delete the file, resolve conflict, spec content is in database |
+
+**Verification**:
+
+Check that the spec is in the database:
+```bash
+orc show TASK-XXX --spec  # Displays spec from database
+```
+
+If the spec displays correctly, any filesystem spec.md is redundant and can be deleted.
+
+**Prevention**:
+
+As of TASK-292:
+- `spec.md` and `artifacts/spec.md` are in `.gitignore`
+- The spec prompt explicitly instructs Claude not to write spec files
+- The prompt emphasizes using `<artifact>` tags for database persistence
+
+---
+
 ## Claude Code Errors
 
 ### Claude Not Found

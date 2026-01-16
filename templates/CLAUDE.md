@@ -48,7 +48,7 @@ templates/
 |-------|---------|
 | `classify.md` | Weight classification |
 | `research.md` | Pattern research |
-| `spec.md` | Technical specification with verification criteria |
+| `spec.md` | Technical specification with verification criteria (database-only, not written to filesystem) |
 | `design.md` | Architecture (large/greenfield) |
 | `implement.md` | Implementation with criterion verification |
 | `review.md` | Multi-agent code review |
