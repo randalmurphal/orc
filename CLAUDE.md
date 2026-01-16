@@ -525,6 +525,9 @@ Patterns, gotchas, and decisions learned during development.
 | TaskCard Radix DropdownMenu | TaskCard quick menu uses `@radix-ui/react-dropdown-menu` for accessible menu; trigger wraps Button with `DropdownMenu.Trigger asChild`; content portals via `DropdownMenu.Portal`; uses `data-highlighted` for keyboard focus, `onCloseAutoFocus` prevents refocus; CSS class `.quick-menu-dropdown` for styling | TASK-212 |
 | Test worker limits for parallel tasks | Playwright (4 workers) and Vitest (4 threads) limit parallelism to prevent OOM when multiple orc tasks run tests concurrently; without limits, 3 parallel tasks on 16 cores could spawn 48 browser/test processes | TASK-253 |
 | Spec phase dual-write | Spec phase saves content to both file artifact (`artifacts/spec.md`) AND database (`specs` table); `SaveSpecToDatabase()` extracts artifact content and calls `backend.SaveSpec()`; implement phase loads spec from database via `backend.LoadSpec()` | TASK-251 |
+| Model config per phase/weight | `ExecutorConfig.ResolveModelSetting(weight, phase)` returns model + thinking setting; hierarchy: phase-specific → weight default → global default → legacy field; config in `.orc/config.yaml` `models:` section | manual |
+| Extended thinking (ultrathink) | Inject "ultrathink\n\n" at start of user message to trigger 31,999 token thinking budget; must be in user message NOT system prompt; all executors check `modelSetting.Thinking` before injection | manual |
+| Design phase for large/greenfield | New phase between spec and implement captures architecture decisions, component relationships, key patterns; output becomes `{{DESIGN_CONTENT}}` variable for implement phase | manual |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
@@ -548,6 +551,7 @@ Patterns, gotchas, and decisions learned during development.
 | detectConflictsViaMerge left worktree in merge state | Fixed: Cleanup (`merge --abort` + `reset --hard`) now uses `defer` to guarantee execution even on error/panic; idempotent cleanup is safe even if merge wasn't started | TASK-229 |
 | Resume blocked by dirty worktree state | Fixed: `SetupWorktree` now calls `cleanWorktreeState` when reusing existing worktree; aborts in-progress rebase/merge and discards uncommitted changes; enables resume after task failure without manual cleanup | TASK-247 |
 | Spec content not saved to database | Fixed: Spec phase now calls `SaveSpecToDatabase()` after `SavePhaseArtifact()` to persist spec content to `specs` table; implement phase receives actual requirements via `{{SPEC_CONTENT}}` instead of template placeholders | TASK-251 |
+| Ultrathink in system prompt doesn't work | Claude Code thinking triggers (ultrathink) only work in user messages; `--append-system-prompt` doesn't trigger thinking mode; inject directly into promptText in executor | manual |
 
 ### Decisions
 | Decision | Rationale | Source |

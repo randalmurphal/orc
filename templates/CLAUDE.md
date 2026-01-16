@@ -36,8 +36,10 @@ Plans define phase sequences based on task weight:
 | `trivial` | implement |
 | `small` | implement → test |
 | `medium` | implement → test → docs |
-| `large` | spec → implement → test → docs → validate |
-| `greenfield` | research → spec → implement → test → docs → validate |
+| `large` | spec → design → implement → test → docs → validate → finalize |
+| `greenfield` | research → spec → design → implement → test → docs → validate → finalize |
+
+**Design phase** (large/greenfield only): Architecture decisions, component relationships, key patterns. Output becomes `{{DESIGN_CONTENT}}` for implement phase.
 
 ### Plan Format (YAML)
 
@@ -74,6 +76,8 @@ The `{{TASK_DESCRIPTION}}` variable includes the full description provided when 
 | `{{PHASE}}` | Current phase ID |
 | `{{WEIGHT}}` | Task weight (trivial/small/medium/large/greenfield) |
 | `{{ITERATION}}` | Current iteration number |
+| `{{SPEC_CONTENT}}` | Specification from spec phase |
+| `{{DESIGN_CONTENT}}` | Design artifact (large/greenfield only) |
 | `{{RETRY_CONTEXT}}` | Retry information (if retrying after failure) |
 | `{{WORKTREE_PATH}}` | Absolute path to isolated worktree (if worktree enabled) |
 | `{{TASK_BRANCH}}` | Git branch for this task (e.g., orc/TASK-001) |
@@ -81,6 +85,8 @@ The `{{TASK_DESCRIPTION}}` variable includes the full description provided when 
 | `{{REQUIRES_UI_TESTING}}` | Boolean flag if task requires UI testing |
 | `{{SCREENSHOT_DIR}}` | Path to save screenshots (`.orc/tasks/{id}/test-results/screenshots/`) |
 | `{{TEST_RESULTS}}` | Previous test results (for validate phase) |
+| `{{INITIATIVE_CONTEXT}}` | Initiative details if task is linked to one |
+| `{{VERIFICATION_RESULTS}}` | Verification results from implement phase |
 
 ### Worktree Safety Variables
 
@@ -139,13 +145,46 @@ If blocked, output:
 |-------|---------|
 | `classify.md` | Classify task weight based on description |
 | `research.md` | Research existing patterns, dependencies |
-| `spec.md` | Create technical specification |
-| `design.md` | Design architecture/approach |
-| `implement.md` | Write the implementation |
+| `spec.md` | Create technical specification with verification criteria |
+| `design.md` | Design architecture/approach (large/greenfield) |
+| `implement.md` | Write the implementation, verify all criteria |
 | `test.md` | Write and run tests (includes Playwright E2E for UI tasks) |
 | `docs.md` | Update documentation |
 | `validate.md` | E2E validation with Playwright MCP |
 | `finalize.md` | Sync with target branch, resolve conflicts, risk assessment (large/greenfield only) |
+
+### Design Phase (large/greenfield)
+
+The `design.md` prompt is used for large and greenfield tasks after spec:
+
+1. **Architecture decisions** - Component relationships, data flow
+2. **Key patterns** - Design patterns to use, rationale
+3. **Risk areas** - Potential issues, mitigation strategies
+4. **File structure** - What to create/modify
+
+Output becomes `{{DESIGN_CONTENT}}` for implement phase.
+
+### Verification Criteria
+
+Spec and implement phases use a structured verification format:
+
+**Spec phase** defines success criteria with verification methods:
+```markdown
+| ID | Criterion | Verification Method | Expected Result |
+|----|-----------|---------------------|-----------------|
+| SC-1 | User can log out | `npm test -- logout.spec.ts` | Tests pass |
+| SC-2 | Session invalidated | `curl -X POST /logout` | Returns 200 |
+```
+
+**Implement phase** must verify all criteria before completion:
+```markdown
+| ID | Criterion | Method | Result | Notes |
+|----|-----------|--------|--------|-------|
+| SC-1 | User can log out | `npm test` | ✅ PASS | 3 tests passed |
+| SC-2 | Session invalidated | `curl` | ✅ PASS | 200, cookie cleared |
+```
+
+Completion is blocked until all criteria pass.
 
 ### UI Testing in Prompts
 
