@@ -57,6 +57,10 @@ type TemplateVars struct {
 	// Verification results from implement phase (extracted from artifact)
 	VerificationResults string
 
+	// Review phase context variables
+	ReviewRound    int    // Current review round (1 or 2)
+	ReviewFindings string // Previous round's findings (for Round 2)
+
 	// Worktree context variables (for safety instructions)
 	WorktreePath string // Absolute path to the worktree directory
 	TaskBranch   string // The git branch for this task (e.g., orc/TASK-001)
@@ -243,13 +247,47 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{RECENT_CHANGED_FILES}}":   vars.RecentChangedFiles,
 		"{{CHANGELOG_CONTENT}}":      vars.ChangelogContent,
 		"{{CLAUDEMD_CONTENT}}":       vars.ClaudeMDContent,
+
+		// Review phase context variables
+		"{{REVIEW_ROUND}}":    fmt.Sprintf("%d", vars.ReviewRound),
+		"{{REVIEW_FINDINGS}}": vars.ReviewFindings,
 	}
 
 	result := tmpl
 	for k, v := range replacements {
 		result = strings.ReplaceAll(result, k, v)
 	}
+
+	// Process conditional blocks for review rounds
+	result = processReviewConditionals(result, vars.ReviewRound)
+
 	return result
+}
+
+// processReviewConditionals handles {{#if REVIEW_ROUND_1}} and {{#if REVIEW_ROUND_2}} blocks.
+// If the condition is true, the block content is kept; otherwise it's removed.
+func processReviewConditionals(content string, reviewRound int) string {
+	// Process REVIEW_ROUND_1 blocks
+	round1Pattern := regexp.MustCompile(`(?s)\{\{#if REVIEW_ROUND_1\}\}(.*?)\{\{/if\}\}`)
+	if reviewRound == 1 {
+		// Keep the content inside the block
+		content = round1Pattern.ReplaceAllString(content, "$1")
+	} else {
+		// Remove the entire block
+		content = round1Pattern.ReplaceAllString(content, "")
+	}
+
+	// Process REVIEW_ROUND_2 blocks
+	round2Pattern := regexp.MustCompile(`(?s)\{\{#if REVIEW_ROUND_2\}\}(.*?)\{\{/if\}\}`)
+	if reviewRound == 2 {
+		// Keep the content inside the block
+		content = round2Pattern.ReplaceAllString(content, "$1")
+	} else {
+		// Remove the entire block
+		content = round2Pattern.ReplaceAllString(content, "")
+	}
+
+	return content
 }
 
 // LoadPromptTemplate loads a prompt template for a phase.
