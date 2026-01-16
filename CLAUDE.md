@@ -384,6 +384,8 @@ See `web/CLAUDE.md` for component architecture and full API documentation.
 | CLI Spec | `docs/specs/CLI.md` |
 | File Formats | `docs/specs/FILE_FORMATS.md` |
 | Troubleshooting | `docs/guides/TROUBLESHOOTING.md` |
+| Radix UI Adoption | `docs/decisions/ADR-008-radix-adoption.md` |
+| Web UI Components | `web/CLAUDE.md` |
 
 ## Testing
 
