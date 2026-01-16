@@ -2,10 +2,10 @@
  * ViewModeDropdown component
  *
  * Dropdown to toggle between flat and swimlane board views.
+ * Uses Radix Select for accessibility (keyboard navigation, typeahead, ARIA).
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/Button';
+import * as Select from '@radix-ui/react-select';
 import { Icon } from '@/components/ui/Icon';
 import type { BoardViewMode } from './Board';
 import './ViewModeDropdown.css';
@@ -28,89 +28,43 @@ interface ViewModeDropdownProps {
 }
 
 export function ViewModeDropdown({ value, onChange, disabled }: ViewModeDropdownProps) {
-	const [isOpen, setIsOpen] = useState(false);
-	const dropdownRef = useRef<HTMLDivElement>(null);
-
 	const currentOption = VIEW_OPTIONS.find((opt) => opt.id === value) ?? VIEW_OPTIONS[0];
 
-	const handleToggle = useCallback(() => {
-		if (!disabled) {
-			setIsOpen((prev) => !prev);
-		}
-	}, [disabled]);
-
-	const handleSelect = useCallback(
-		(mode: BoardViewMode) => {
-			onChange(mode);
-			setIsOpen(false);
-		},
-		[onChange]
-	);
-
-	const handleKeydown = useCallback(
-		(e: React.KeyboardEvent) => {
-			if (e.key === 'Escape') {
-				setIsOpen(false);
-			}
-		},
-		[]
-	);
-
-	// Close on click outside
-	useEffect(() => {
-		if (!isOpen) return;
-
-		const handleClickOutside = (e: MouseEvent) => {
-			if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-				setIsOpen(false);
-			}
-		};
-
-		document.addEventListener('mousedown', handleClickOutside);
-		return () => document.removeEventListener('mousedown', handleClickOutside);
-	}, [isOpen]);
+	const handleValueChange = (newValue: string) => {
+		onChange(newValue as BoardViewMode);
+	};
 
 	return (
-		<div
-			className={`view-mode-dropdown ${disabled ? 'disabled' : ''}`}
-			ref={dropdownRef}
-			onKeyDown={handleKeydown}
-		>
-			<Button
-				variant="ghost"
-				size="sm"
-				className="dropdown-trigger"
-				onClick={handleToggle}
-				aria-expanded={isOpen}
-				aria-haspopup="listbox"
-				disabled={disabled}
-				leftIcon={<Icon name="layout" size={16} />}
-				rightIcon={<Icon name="chevron-down" size={14} className={`chevron ${isOpen ? 'open' : ''}`} />}
-			>
-				<span className="trigger-text">{currentOption.label}</span>
-			</Button>
+		<div className={`view-mode-dropdown ${disabled ? 'disabled' : ''}`}>
+			<Select.Root value={value} onValueChange={handleValueChange} disabled={disabled}>
+				<Select.Trigger className="dropdown-trigger" aria-label="Select view mode">
+					<Icon name="layout" size={16} />
+					<span className="trigger-text">{currentOption.label}</span>
+					<Select.Icon className="chevron">
+						<Icon name="chevron-down" size={14} />
+					</Select.Icon>
+				</Select.Trigger>
 
-			{isOpen && (
-				<div className="dropdown-menu" role="listbox">
-					{VIEW_OPTIONS.map((option) => (
-						<Button
-							key={option.id}
-							variant="ghost"
-							size="sm"
-							className={`dropdown-item ${option.id === value ? 'selected' : ''}`}
-							onClick={() => handleSelect(option.id)}
-							role="option"
-							aria-selected={option.id === value}
-						>
-							<span className="indicator-dot" />
-							<div className="item-content">
-								<span className="item-label">{option.label}</span>
-								<span className="item-description">{option.description}</span>
-							</div>
-						</Button>
-					))}
-				</div>
-			)}
+				<Select.Portal>
+					<Select.Content className="dropdown-menu" position="popper" sideOffset={4}>
+						<Select.Viewport className="dropdown-viewport">
+							{VIEW_OPTIONS.map((option) => (
+								<Select.Item
+									key={option.id}
+									value={option.id}
+									className="dropdown-item"
+								>
+									<span className="indicator-dot" />
+									<div className="item-content">
+										<Select.ItemText>{option.label}</Select.ItemText>
+										<span className="item-description">{option.description}</span>
+									</div>
+								</Select.Item>
+							))}
+						</Select.Viewport>
+					</Select.Content>
+				</Select.Portal>
+			</Select.Root>
 		</div>
 	);
 }

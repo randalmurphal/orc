@@ -3,9 +3,11 @@
  *
  * Dropdown to filter tasks by dependency status.
  * Options: All tasks, Ready, Blocked, No dependencies
+ * Uses Radix Select for accessibility (keyboard navigation, typeahead, ARIA).
  */
 
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
+import * as Select from '@radix-ui/react-select';
 import { Icon } from '@/components/ui/Icon';
 import {
 	useCurrentDependencyStatus,
@@ -21,8 +23,6 @@ interface DependencyDropdownProps {
 }
 
 export function DependencyDropdown({ tasks }: DependencyDropdownProps) {
-	const [isOpen, setIsOpen] = useState(false);
-	const dropdownRef = useRef<HTMLDivElement>(null);
 	const selectedStatus = useCurrentDependencyStatus();
 	const selectDependencyStatus = useDependencyStore((state) => state.selectDependencyStatus);
 
@@ -48,13 +48,10 @@ export function DependencyDropdown({ tasks }: DependencyDropdownProps) {
 	};
 
 	// Handle selection
-	const handleSelect = useCallback(
-		(value: DependencyStatusFilter) => {
-			selectDependencyStatus(value === 'all' ? null : value);
-			setIsOpen(false);
-		},
-		[selectDependencyStatus]
-	);
+	const handleValueChange = (value: string) => {
+		const filter = value as DependencyStatusFilter;
+		selectDependencyStatus(filter === 'all' ? null : filter);
+	};
 
 	// Get display text for current selection
 	const displayText = useMemo(() => {
@@ -62,76 +59,48 @@ export function DependencyDropdown({ tasks }: DependencyDropdownProps) {
 		return option?.label ?? 'All tasks';
 	}, [selectedStatus]);
 
-	// Toggle dropdown
-	const handleToggle = useCallback(() => {
-		setIsOpen((prev) => !prev);
-	}, []);
-
-	// Keyboard handler
-	const handleKeydown = useCallback((e: React.KeyboardEvent) => {
-		if (e.key === 'Escape') {
-			setIsOpen(false);
-		}
-	}, []);
-
-	// Close on click outside
-	useEffect(() => {
-		if (!isOpen) return;
-
-		const handleClickOutside = (e: MouseEvent) => {
-			if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-				setIsOpen(false);
-			}
-		};
-
-		document.addEventListener('mousedown', handleClickOutside);
-		return () => document.removeEventListener('mousedown', handleClickOutside);
-	}, [isOpen]);
-
 	const isActive = selectedStatus !== 'all';
 
 	return (
-		<div className="dependency-dropdown" ref={dropdownRef} onKeyDown={handleKeydown}>
-			<button
-				type="button"
-				className={`dropdown-trigger ${isActive ? 'active' : ''}`}
-				onClick={handleToggle}
-				aria-haspopup="listbox"
-				aria-expanded={isOpen}
-			>
-				<span className="trigger-text">{displayText}</span>
-				<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} size={14} />
-			</button>
+		<div className="dependency-dropdown">
+			<Select.Root value={selectedStatus} onValueChange={handleValueChange}>
+				<Select.Trigger
+					className={`dropdown-trigger ${isActive ? 'active' : ''}`}
+					aria-label="Filter by dependency status"
+				>
+					<span className="trigger-text">{displayText}</span>
+					<Select.Icon className="chevron">
+						<Icon name="chevron-down" size={14} />
+					</Select.Icon>
+				</Select.Trigger>
 
-			{isOpen && (
-				<div className="dropdown-menu" role="listbox">
-					{DEPENDENCY_OPTIONS.map((option) => {
-						const count = getCount(option.value);
-						return (
-							<button
-								key={option.value}
-								type="button"
-								className={`dropdown-item ${selectedStatus === option.value ? 'selected' : ''}`}
-								onClick={() => handleSelect(option.value)}
-								role="option"
-								aria-selected={selectedStatus === option.value}
-							>
-								<span className="item-indicator">
-									{selectedStatus === option.value ? (
-										<span className="indicator-dot filled" />
-									) : (
-										<span className="indicator-dot" />
-									)}
-								</span>
-								<span className="item-label">{option.label}</span>
-								{option.value !== 'all' && (
-									<span className="item-count">{count}</span>
-								)}
-							</button>
-						);
-					})}
-				</div>
-			)}
+				<Select.Portal>
+					<Select.Content className="dropdown-menu" position="popper" sideOffset={4}>
+						<Select.Viewport className="dropdown-viewport">
+							{DEPENDENCY_OPTIONS.map((option) => {
+								const count = getCount(option.value);
+								return (
+									<Select.Item
+										key={option.value}
+										value={option.value}
+										className="dropdown-item"
+									>
+										<span className="item-indicator">
+											<span className="indicator-dot" />
+										</span>
+										<Select.ItemText>
+											<span className="item-label">{option.label}</span>
+										</Select.ItemText>
+										{option.value !== 'all' && (
+											<span className="item-count">{count}</span>
+										)}
+									</Select.Item>
+								);
+							})}
+						</Select.Viewport>
+					</Select.Content>
+				</Select.Portal>
+			</Select.Root>
 		</div>
 	);
 }

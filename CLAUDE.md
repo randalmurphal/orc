@@ -223,10 +223,6 @@ orc config profile strict
 | `timeouts.heartbeat_interval` | Progress dots interval | `docs/architecture/EXECUTOR.md` |
 | `diagnostics.resource_tracking.enabled` | Enable process/memory tracking | `docs/guides/TROUBLESHOOTING.md` |
 | `diagnostics.resource_tracking.memory_threshold_mb` | Memory growth warning threshold | `docs/guides/TROUBLESHOOTING.md` |
-| `mcp.playwright.enabled` | Auto-configure Playwright MCP for UI tasks (default: true) | - |
-| `mcp.playwright.headless` | Run browser in headless mode (default: true) | - |
-| `mcp.playwright.browser` | Browser to use: chromium/firefox/webkit (default: chromium) | - |
-| `testing.coverage_threshold` | Minimum test coverage percentage (default: 85%) | - |
 
 **All config:** `orc config docs` or `docs/specs/CONFIG_HIERARCHY.md`
 
@@ -297,20 +293,64 @@ For local dev: `make setup` creates `go.work` for sibling directories.
 
 ## Web UI
 
+### Running the Server
+
+**Production/Built mode:**
 ```bash
-make dev-full    # API (:8080) + Frontend (:5173) with hot reload
-make build       # Production build to bin/orc
-orc serve        # Start server (default :8080)
+make build      # Builds frontend + backend to bin/orc
+orc serve &     # Start server (port shown in output, default :8080)
 ```
 
-| Feature | Key Info |
-|---------|----------|
-| Live updates | WebSocket-based auto-refresh on task changes |
-| Project selection | `Shift+Alt+P` to switch, persists in URL and localStorage |
-| Keyboard shortcuts | `Shift+Alt` modifier, press `?` for help |
-| Board view modes | Flat (default) or By Initiative swimlanes |
+**Development mode** (hot reload):
+```bash
+make serve      # API only :8080
+make web-dev    # Frontend :5173 (separate terminal)
+```
 
-See `web/CLAUDE.md` for component architecture, routing, and development details.
+If port 8080 is in use, the frontend can run standalone with `make web-dev` while pointing to a different API port via environment variable.
+
+**Live refresh:** Task board auto-updates when tasks are created/modified/deleted via CLI or API. Database operations publish events over WebSocket.
+
+**Project selection:** The server can run from any directory. Project selection persists in URL (`?project=xxx`) and localStorage, surviving page refresh. Use `Shift+Alt+P` to switch projects.
+
+**Initiative filtering:** Tasks can be filtered by initiative using either:
+- **Sidebar**: Collapsible Initiatives section with initiative list and progress counts
+- **Filter bar**: Initiative dropdown in the Tasks and Board page headers
+
+Both sync to the same state. Options include "All initiatives" (no filter), "Unassigned" (tasks without an initiative), and specific initiatives with task counts. Selection persists in URL (`?initiative=INIT-001`) and localStorage. Click "All initiatives" to clear the filter.
+
+**Board view modes:** The board supports two view modes via dropdown toggle:
+- **Flat** (default): Traditional kanban with all tasks in columns
+- **By Initiative**: Swimlane view grouping tasks by initiative with collapsible rows, progress bars, and cross-swimlane drag-drop for reassigning tasks
+
+**Keyboard shortcuts:** Uses `Shift+Alt` modifier (⇧⌥ on Mac) to avoid browser conflicts. `Shift+Alt+K` (palette), `Shift+Alt+N` (new task), `g t` (tasks), `j/k` (navigate). Press `?` for full list.
+
+**Settings management:** All settings are editable through the UI:
+- Claude Code settings (global `~/.claude/settings.json` + project `.claude/settings.json`) via `/preferences`
+- Orc config (`.orc/config.yaml`) via `/environment/orchestrator/automation`
+
+**Task dependencies:** Task detail page shows a collapsible Dependencies sidebar displaying blocked_by, blocks, related_to, and referenced_by relationships with status indicators. Add/remove blockers and related tasks inline.
+
+**Task finalize workflow:** Done column shows different visual states for completed/finalizing/finished tasks:
+- **Completed**: Shows finalize button - click to open FinalizeModal and start branch sync
+- **Finalizing**: Shows progress bar with step label, pulsing border animation
+- **Finished**: Shows merged commit SHA and target branch in green section
+
+**Initiative detail:** Click an initiative in the sidebar or navigate to `/initiatives/:id` to view/manage initiative tasks and decisions. Features include progress tracking, task linking, decision recording, and status management.
+
+### Component Library
+
+**Button Primitive**: Unified button component used across all pages. Features variants (primary, secondary, danger, ghost, success), sizes (sm, md, lg), icon support (leftIcon, rightIcon, iconOnly), and loading state. Provides consistent accessibility (focus-visible, aria-disabled, aria-busy).
+
+**Radix UI**: Accessible primitives for Dialog, Dropdown, Select, Tabs, Tooltip, Popover, Toast.
+- All Radix components portal to `document.body` by default
+- Modal.tsx uses Radix Dialog internally while preserving existing CSS classes and API
+- Components are unstyled - style via CSS using `data-*` attributes (`data-state`, `data-highlighted`, etc.)
+- Focus management and keyboard navigation handled automatically
+- Global `data-state` animations defined in `index.css` with `prefers-reduced-motion` support
+- See ADR-008 for adoption rationale
+
+See `web/CLAUDE.md` for component architecture.
 
 ## Documentation Reference
 
@@ -347,9 +387,37 @@ Test files MUST import from `./fixtures` (not `@playwright/test`) to get automat
 
 ## UI Testing with Playwright MCP
 
-Tasks with UI-related keywords (`button`, `form`, `modal`, etc.) automatically get Playwright MCP tools configured. Orc sets `requires_ui_testing: true`, creates `.mcp.json`, and provisions screenshot directories.
+Tasks involving UI changes automatically get Playwright MCP tools for E2E testing.
 
-Results stored in `.orc/tasks/{id}/test-results/` (screenshots, traces, reports). See `docs/specs/FILE_FORMATS.md` for format details and `templates/prompts/test.md` for the full tool reference.
+### Auto-Detection
+
+When a task's title or description contains UI-related keywords (`button`, `form`, `page`, `modal`, `component`, etc.), orc:
+1. Sets `requires_ui_testing: true` in task.yaml
+2. Configures Playwright MCP server in `.mcp.json`
+3. Creates screenshot directory at `.orc/tasks/{id}/test-results/screenshots/`
+
+### Playwright MCP Tools
+
+| Tool | Purpose |
+|------|---------|
+| `browser_navigate` | Load pages/routes |
+| `browser_snapshot` | Capture accessibility tree (preferred for state verification) |
+| `browser_click` | Click elements by ref from snapshot |
+| `browser_type` | Type text into inputs |
+| `browser_fill_form` | Fill multiple form fields |
+| `browser_take_screenshot` | Visual verification |
+| `browser_console_messages` | Check for JavaScript errors |
+| `browser_network_requests` | Verify API calls |
+
+### Test Results
+
+Results are stored in `.orc/tasks/{id}/test-results/`:
+- `report.json` - Structured test report
+- `screenshots/` - Test screenshots
+- `traces/` - Playwright traces
+- `index.html` - HTML report (if generated)
+
+See `docs/specs/FILE_FORMATS.md` for full format specification.
 
 <!-- orc:begin -->
 ## Orc Orchestration
@@ -456,12 +524,8 @@ Patterns, gotchas, and decisions learned during development.
 | Worker process group cleanup | Workers set `Setpgid: true` on commands to create process groups; `Stop()` kills entire process group via negative PID (`syscall.Kill(-pid, SIGKILL)`); prevents orphaned MCP processes (playwright, chromium) after worker shutdown; platform-specific files: `worker_unix.go` (real), `worker_windows.go` (no-op) | TASK-222 |
 | TaskCard Radix DropdownMenu | TaskCard quick menu uses `@radix-ui/react-dropdown-menu` for accessible menu; trigger wraps Button with `DropdownMenu.Trigger asChild`; content portals via `DropdownMenu.Portal`; uses `data-highlighted` for keyboard focus, `onCloseAutoFocus` prevents refocus; CSS class `.quick-menu-dropdown` for styling | TASK-212 |
 | Test worker limits for parallel tasks | Playwright (4 workers) and Vitest (4 threads) limit parallelism to prevent OOM when multiple orc tasks run tests concurrently; without limits, 3 parallel tasks on 16 cores could spawn 48 browser/test processes | TASK-253 |
-| Spec phase dual-write | Spec phase saves content to both file artifact (`artifacts/spec.md`) AND database (`specs` table); `SaveSpecToDatabase()` extracts artifact content and calls `backend.SaveSpec()`; implement phase loads spec from database via `backend.LoadSpec()` | TASK-251 |
-| Model config per phase/weight | `ExecutorConfig.ResolveModelSetting(weight, phase)` returns model + thinking setting; hierarchy: phase-specific → weight default → global default → legacy field; config in `.orc/config.yaml` `models:` section | manual |
-| Extended thinking (ultrathink) | Inject "ultrathink\n\n" at start of user message to trigger 31,999 token thinking budget; must be in user message NOT system prompt; all executors check `modelSetting.Thinking` before injection | manual |
-| Design phase for large/greenfield | New phase between spec and implement captures architecture decisions, component relationships, key patterns; output becomes `{{DESIGN_CONTENT}}` variable for implement phase | manual |
-| Per-worktree Playwright MCP isolation | Each task's worktree gets its own `.mcp.json` with isolated Playwright config (`--isolated --user-data-dir /tmp/playwright-{taskID}`); prevents browser conflicts when parallel tasks use Playwright MCP; cleanup removes `/tmp/playwright-{taskID}` on task completion | manual |
-| Test coverage threshold enforcement | Test phase requires `{{COVERAGE_THRESHOLD}}%` coverage (default: 85%); phase blocked if coverage below threshold; configure via `testing.coverage_threshold` in config; threshold injected via `TemplateVars.CoverageThreshold` | manual |
+| Filter dropdown Radix migration | InitiativeDropdown, ViewModeDropdown, DependencyDropdown use Radix Select; ExportDropdown uses Radix DropdownMenu (action menu pattern); null values mapped to internal string constants since Radix Select requires strings; provides keyboard nav, typeahead, Home/End, ARIA | TASK-213 |
+| TabNav Radix Tabs migration | TabNav uses `@radix-ui/react-tabs` with render prop pattern for tab content; Tabs.Root wraps entire component, Tabs.List contains Tabs.Trigger elements, Tabs.Content wraps the children render prop result; provides arrow key navigation, Home/End, focus management, automatic ARIA; CSS uses `data-state='active'` for active tab styling | TASK-214 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
@@ -484,8 +548,6 @@ Patterns, gotchas, and decisions learned during development.
 | SaveTask overwrites executor fields | Fixed: `SaveTask()` now preserves executor fields (PID, hostname, heartbeat) when updating task metadata; prevents false orphan detection when CLI/API updates a running task | TASK-249 |
 | detectConflictsViaMerge left worktree in merge state | Fixed: Cleanup (`merge --abort` + `reset --hard`) now uses `defer` to guarantee execution even on error/panic; idempotent cleanup is safe even if merge wasn't started | TASK-229 |
 | Resume blocked by dirty worktree state | Fixed: `SetupWorktree` now calls `cleanWorktreeState` when reusing existing worktree; aborts in-progress rebase/merge and discards uncommitted changes; enables resume after task failure without manual cleanup | TASK-247 |
-| Spec content not saved to database | Fixed: Spec phase now calls `SaveSpecToDatabase()` after `SavePhaseArtifact()` to persist spec content to `specs` table; implement phase receives actual requirements via `{{SPEC_CONTENT}}` instead of template placeholders | TASK-251 |
-| Ultrathink in system prompt doesn't work | Claude Code thinking triggers (ultrathink) only work in user messages; `--append-system-prompt` doesn't trigger thinking mode; inject directly into promptText in executor | manual |
 
 ### Decisions
 | Decision | Rationale | Source |

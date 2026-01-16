@@ -1,9 +1,10 @@
-/* InitiativeDropdown styles */
+/* InitiativeDropdown styles - Radix Select */
 
 .initiative-dropdown {
 	position: relative;
 }
 
+/* Radix Select Trigger */
 .initiative-dropdown .dropdown-trigger {
 	display: flex;
 	align-items: center;
@@ -35,16 +36,19 @@
 	color: var(--accent-primary);
 }
 
-.initiative-dropdown .trigger-label {
+.initiative-dropdown .trigger-text {
 	font-weight: var(--font-medium);
 }
 
+/* Chevron icon rotation - Radix uses data-state on trigger */
 .initiative-dropdown .chevron {
+	display: flex;
+	align-items: center;
 	transition: transform var(--duration-fast) var(--ease-out);
 	color: var(--text-muted);
 }
 
-.initiative-dropdown .chevron.open {
+.initiative-dropdown .dropdown-trigger[data-state='open'] .chevron {
 	transform: rotate(180deg);
 }
 
@@ -52,54 +56,92 @@
 	color: var(--accent-primary);
 }
 
-/* Dropdown Menu */
+/* Dropdown Menu - Radix Select.Content (portaled to body) */
 .initiative-dropdown .dropdown-menu {
-	position: absolute;
-	top: 100%;
-	left: 0;
-	margin-top: var(--space-1);
 	min-width: 220px;
-	max-height: 300px;
-	overflow-y: auto;
+	max-height: var(--radix-select-content-available-height);
+	overflow: hidden;
 	background: var(--bg-primary);
 	border: 1px solid var(--border-default);
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-lg);
-	z-index: 50;
+	z-index: var(--z-dropdown, 50);
+	animation: initiative-select-enter var(--duration-fast) var(--ease-out);
 }
 
-.initiative-dropdown .dropdown-option {
+.initiative-dropdown .dropdown-menu[data-state='closed'] {
+	animation: initiative-select-exit var(--duration-fast) var(--ease-in);
+}
+
+@keyframes initiative-select-enter {
+	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes initiative-select-exit {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+}
+
+/* Viewport for scrolling */
+.initiative-dropdown .dropdown-viewport {
+	max-height: 300px;
+	overflow-y: auto;
+	padding: var(--space-1);
+}
+
+/* Dropdown Item - Radix Select.Item */
+.initiative-dropdown .dropdown-item {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: var(--space-2);
-	width: 100%;
 	padding: var(--space-2) var(--space-3);
-	background: transparent;
-	border: none;
+	border-radius: var(--radius-sm);
 	cursor: pointer;
-	text-align: left;
+	user-select: none;
+	outline: none;
+	font-size: var(--text-sm);
+	color: var(--text-primary);
 	transition: background var(--duration-fast) var(--ease-out);
 }
 
-.initiative-dropdown .dropdown-option:hover {
+/* Highlighted state (keyboard focus or hover) */
+.initiative-dropdown .dropdown-item[data-highlighted] {
 	background: var(--bg-tertiary);
 }
 
-.initiative-dropdown .dropdown-option.selected {
+/* Selected state */
+.initiative-dropdown .dropdown-item[data-state='checked'] {
 	background: var(--accent-subtle);
 	color: var(--accent-primary);
 }
 
-.initiative-dropdown .option-label {
-	font-size: var(--text-sm);
-	color: inherit;
+/* Disabled state */
+.initiative-dropdown .dropdown-item[data-disabled] {
+	color: var(--text-muted);
+	pointer-events: none;
+}
+
+.initiative-dropdown .item-label {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.initiative-dropdown .option-count {
+.initiative-dropdown .item-count {
 	font-size: var(--text-xs);
 	font-weight: var(--font-medium);
 	color: var(--text-muted);
@@ -109,13 +151,22 @@
 	flex-shrink: 0;
 }
 
-.initiative-dropdown .dropdown-option.selected .option-count {
+.initiative-dropdown .dropdown-item[data-state='checked'] .item-count {
 	background: var(--accent-primary);
 	color: white;
 }
 
+/* Separator - Radix Select.Separator */
 .initiative-dropdown .dropdown-divider {
 	height: 1px;
 	background: var(--border-subtle);
 	margin: var(--space-1) 0;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+	.initiative-dropdown .dropdown-menu,
+	.initiative-dropdown .dropdown-menu[data-state='closed'] {
+		animation: none;
+	}
 }
