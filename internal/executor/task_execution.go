@@ -295,21 +295,28 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 
 // cleanupWorktreeForTask removes the worktree based on config and task status.
 func (e *Executor) cleanupWorktreeForTask(t *task.Task) {
-	if e.worktreePath != "" {
-		shouldCleanup := (t.Status == task.StatusCompleted && e.orcConfig.Worktree.CleanupOnComplete) ||
-			(t.Status == task.StatusFailed && e.orcConfig.Worktree.CleanupOnFail)
-		if shouldCleanup {
-			// Cleanup Playwright user data directory (task-specific browser profile)
-			if err := CleanupPlaywrightUserData(t.ID); err != nil {
-				e.logger.Warn("failed to cleanup playwright user data", "task", t.ID, "error", err)
-			}
+	if e.worktreePath == "" {
+		return
+	}
 
-			if err := e.gitOps.CleanupWorktree(t.ID); err != nil {
-				e.logger.Warn("failed to cleanup worktree", "error", err)
-			} else {
-				e.logger.Info("cleaned up worktree", "task", t.ID)
-			}
-		}
+	shouldCleanup := (t.Status == task.StatusCompleted && e.orcConfig.Worktree.CleanupOnComplete) ||
+		(t.Status == task.StatusFailed && e.orcConfig.Worktree.CleanupOnFail)
+	if !shouldCleanup {
+		return
+	}
+
+	// Cleanup Playwright user data directory (task-specific browser profile)
+	if err := CleanupPlaywrightUserData(t.ID); err != nil {
+		e.logger.Warn("failed to cleanup playwright user data", "task", t.ID, "error", err)
+	}
+
+	// Use stored worktree path directly instead of reconstructing from task ID.
+	// This handles initiative-prefixed worktrees correctly (e.g., feature-auth-TASK-001
+	// instead of orc-TASK-001).
+	if err := e.gitOps.CleanupWorktreeAtPath(e.worktreePath); err != nil {
+		e.logger.Warn("failed to cleanup worktree", "path", e.worktreePath, "error", err)
+	} else {
+		e.logger.Info("cleaned up worktree", "task", t.ID, "path", e.worktreePath)
 	}
 }
 

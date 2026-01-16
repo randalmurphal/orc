@@ -21,6 +21,7 @@ import (
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -550,6 +551,11 @@ func (s *Server) StartContext(ctx context.Context) error {
 	// Start finalize tracker cleanup (5 min retention, 1 min interval)
 	finTracker.startCleanup(s.serverCtx, 1*time.Minute, 5*time.Minute)
 
+	// Prune stale worktree entries on startup
+	// This cleans up git's internal worktree tracking for directories that were
+	// deleted without proper cleanup (e.g., crashed processes, manual deletion).
+	s.pruneStaleWorktrees()
+
 	// Create and start PR status poller
 	s.prPoller = NewPRPoller(PRPollerConfig{
 		WorkDir:   s.workDir,
@@ -785,4 +791,29 @@ func (s *Server) getProjectRoot() string {
 		return "."
 	}
 	return wd
+}
+
+// pruneStaleWorktrees removes stale worktree entries from git's tracking.
+// Stale entries occur when a worktree directory is deleted without using
+// `git worktree remove` (e.g., crashed processes, manual deletion).
+// This runs on server startup to ensure git's worktree list stays clean.
+func (s *Server) pruneStaleWorktrees() {
+	// Initialize git operations
+	gitCfg := git.Config{
+		BranchPrefix:   s.orcConfig.BranchPrefix,
+		CommitPrefix:   s.orcConfig.CommitPrefix,
+		WorktreeDir:    s.orcConfig.Worktree.Dir,
+		ExecutorPrefix: s.orcConfig.ExecutorPrefix(),
+	}
+	gitOps, err := git.New(s.workDir, gitCfg)
+	if err != nil {
+		s.logger.Warn("failed to init git for worktree pruning", "error", err)
+		return
+	}
+
+	if err := gitOps.PruneWorktrees(); err != nil {
+		s.logger.Warn("failed to prune stale worktrees", "error", err)
+	} else {
+		s.logger.Debug("pruned stale worktree entries")
+	}
 }

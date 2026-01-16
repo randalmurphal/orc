@@ -73,6 +73,8 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Clickable task cards | TaskCard removed drag-and-drop; clicking anywhere (except action buttons) navigates to task detail; running tasks open LiveTranscriptModal; uses `cursor: pointer` and `role="button"` for accessibility | TASK-277 |
 | User agent loading in headless sessions | Session managers configured with `WithSettingSources([]string{"project", "local", "user"})` to load user-defined agents from `~/.claude/agents/`; without "user" source, agents like Reviewer and Security-Auditor aren't available in headless execution | review-phase |
 | Dual template rendering paths | Two template paths must stay in sync: `template.go:RenderTemplate()` (session-based) and `flowgraph_nodes.go:renderTemplate()` (flowgraph); when adding variables, update BOTH files; `processReviewConditionals()` must be called in both for `{{#if REVIEW_ROUND_N}}` blocks | review-phase |
+| Worktree cleanup by path | Executor stores actual worktree path and uses `CleanupWorktreeAtPath()` instead of reconstructing from task ID; handles initiative-prefixed worktrees (e.g., `feature-auth-TASK-001`) that don't match default naming | TASK-282 |
+| Stale worktree pruning on startup | Server calls `gitOps.PruneWorktrees()` on startup to clean git's internal worktree tracking for directories deleted without `git worktree remove` (crashed processes, manual deletion) | TASK-282 |
 
 ## Known Gotchas
 
@@ -101,6 +103,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Date shows '12/31/1' instead of '12/31/2001' | Fixed: `toLocaleDateString()` without options can produce abbreviated years; use explicit options `{ year: 'numeric', month: 'numeric', day: 'numeric' }` to ensure 4-digit year display; also add null/invalid date guards | TASK-255 |
 | Dashboard initiative progress shows 0/0 | Fixed: `DashboardInitiatives` was calculating progress from `initiative.tasks` (unpopulated by API) while Sidebar used `getInitiativeProgress(tasks)` from task store; now both use task store for consistent counts | TASK-276 |
 | View mode dropdown disabled on clean URL | Fixed: `swimlaneDisabled` was using store value `currentInitiativeId` which includes localStorage-persisted state; changed to use URL param `searchParams.get('initiative')` as source of truth; clean URL (`/board`) now enables dropdown even with stale localStorage filter | TASK-275 |
+| Worktrees orphaned after task completion | Fixed: `CleanupWorktree(taskID)` reconstructed paths assuming default naming, but initiative-prefixed worktrees use different names; `CleanupWorktreeAtPath(path)` now used with stored executor worktree path; `orc cleanup --orphaned` regex updated to match `TASK-XXX` anywhere in directory name | TASK-282 |
 
 ## Decisions
 
