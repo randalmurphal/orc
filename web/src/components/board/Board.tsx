@@ -353,7 +353,12 @@ export function Board({
 	);
 
 	return (
-		<div className={`board ${viewMode === 'swimlane' ? 'swimlane-view' : 'flat-view'}`}>
+		<div
+			className={`board ${viewMode === 'swimlane' ? 'swimlane-view' : 'flat-view'}`}
+			tabIndex={0}
+			role="region"
+			aria-label="Task board"
+		>
 			{viewMode === 'flat' ? (
 				// Flat view: columns side by side
 				<>
