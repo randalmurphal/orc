@@ -278,36 +278,18 @@
 	transform: none;
 }
 
-/* Quick menu */
-.task-card .quick-menu {
-	position: relative;
-}
-
-.task-card .quick-menu-backdrop {
-	position: fixed;
-	inset: 0;
-	z-index: 100;
-}
-
-.task-card .quick-menu-dropdown {
-	position: absolute;
-	right: 0;
-	top: 100%;
-	margin-top: var(--space-1);
+/* Quick menu - Radix DropdownMenu */
+.quick-menu-dropdown {
 	min-width: 140px;
+	padding: var(--space-1);
 	background: var(--bg-primary);
 	border: 1px solid var(--border-default);
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-lg);
-	z-index: 101;
-	overflow: hidden;
+	z-index: 50;
 }
 
-.task-card .menu-section {
-	padding: var(--space-1);
-}
-
-.task-card .menu-label {
+.quick-menu-dropdown .menu-label {
 	padding: var(--space-1) var(--space-2);
 	font-size: var(--text-2xs);
 	font-weight: var(--font-semibold);
@@ -316,63 +298,64 @@
 	color: var(--text-muted);
 }
 
-/* Menu items - override Button primitive styles */
-.task-card .menu-item.btn {
-	width: 100%;
-	height: auto;
+.quick-menu-dropdown .menu-item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
 	padding: var(--space-1-5) var(--space-2);
-	justify-content: flex-start;
-	background: transparent;
-	border: none;
 	border-radius: var(--radius-sm);
 	font-size: var(--text-sm);
 	color: var(--text-primary);
+	cursor: pointer;
+	outline: none;
+	user-select: none;
 }
 
-.task-card .menu-item.btn:hover:not(:disabled) {
+.quick-menu-dropdown .menu-item:hover,
+.quick-menu-dropdown .menu-item[data-highlighted] {
 	background: var(--bg-tertiary);
-	transform: none;
 }
 
-.task-card .menu-item.btn.selected {
+.quick-menu-dropdown .menu-item.selected {
 	background: var(--accent-subtle);
 	color: var(--accent-primary);
 }
 
-.task-card .menu-item.btn.selected:hover:not(:disabled) {
+.quick-menu-dropdown .menu-item.selected:hover,
+.quick-menu-dropdown .menu-item.selected[data-highlighted] {
 	background: var(--accent-subtle);
 }
 
-.task-card .menu-icon {
+.quick-menu-dropdown .menu-icon {
 	width: 8px;
 	height: 8px;
 	border-radius: var(--radius-full);
 	flex-shrink: 0;
 }
 
-.task-card .menu-icon.active-icon {
+.quick-menu-dropdown .menu-icon.active-icon {
 	background: var(--accent-primary);
 }
 
-.task-card .menu-icon.backlog-icon {
+.quick-menu-dropdown .menu-icon.backlog-icon {
 	background: var(--text-muted);
 	border: 1px dashed var(--border-default);
 }
 
-.task-card .menu-divider {
+.quick-menu-dropdown .menu-divider {
 	height: 1px;
 	background: var(--border-subtle);
 	margin: var(--space-1) 0;
 }
 
-.task-card .menu-loading {
+.quick-menu-dropdown .menu-loading {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	padding: var(--space-4);
 }
 
-.task-card .menu-loading .spinner {
+.quick-menu-dropdown .menu-loading .spinner {
 	width: 16px;
 	height: 16px;
 	border: 2px solid var(--border-default);
