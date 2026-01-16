@@ -523,6 +523,7 @@ Patterns, gotchas, and decisions learned during development.
 | Finalize tracker atomic tryStart | `finalizeTracker.tryStart()` atomically checks and sets finalize state to prevent TOCTOU race; returns existing state if pending/running, allows replacement if completed/failed (retry); eliminates race where concurrent requests both pass the check and both start finalize | TASK-236 |
 | Worker process group cleanup | Workers set `Setpgid: true` on commands to create process groups; `Stop()` kills entire process group via negative PID (`syscall.Kill(-pid, SIGKILL)`); prevents orphaned MCP processes (playwright, chromium) after worker shutdown; platform-specific files: `worker_unix.go` (real), `worker_windows.go` (no-op) | TASK-222 |
 | TaskCard Radix DropdownMenu | TaskCard quick menu uses `@radix-ui/react-dropdown-menu` for accessible menu; trigger wraps Button with `DropdownMenu.Trigger asChild`; content portals via `DropdownMenu.Portal`; uses `data-highlighted` for keyboard focus, `onCloseAutoFocus` prevents refocus; CSS class `.quick-menu-dropdown` for styling | TASK-212 |
+| Test worker limits for parallel tasks | Playwright (4 workers) and Vitest (4 threads) limit parallelism to prevent OOM when multiple orc tasks run tests concurrently; without limits, 3 parallel tasks on 16 cores could spawn 48 browser/test processes | TASK-253 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
