@@ -11,6 +11,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/overlays/Modal';
 import type { IconName } from '@/components/ui/Icon';
 import { toast } from '@/stores';
+import { useDocumentTitle } from '@/hooks';
 import {
 	listHooks,
 	getHookTypes,
@@ -48,6 +49,7 @@ const HOOK_EVENT_INFO: Record<string, { icon: IconName; description: string }> =
 };
 
 export function Hooks() {
+	useDocumentTitle('Hooks');
 	const [scope, setScope] = useState<Scope>('project');
 	const [hooks, setHooks] = useState<HooksMap>({});
 	const [hookTypes, setHookTypes] = useState<HookEvent[]>([]);

@@ -8,12 +8,14 @@ import * as Tabs from '@radix-ui/react-tabs';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/overlays/Modal';
+import { useDocumentTitle } from '@/hooks';
 import { listAgents, getAgent, type SubAgent } from '@/lib/api';
 import './environment.css';
 
 type Scope = 'project' | 'global';
 
 export function Agents() {
+	useDocumentTitle('Agents');
 	const [scope, setScope] = useState<Scope>('project');
 	const [agents, setAgents] = useState<SubAgent[]>([]);
 	const [loading, setLoading] = useState(true);

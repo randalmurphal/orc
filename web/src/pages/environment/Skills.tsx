@@ -9,12 +9,14 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/overlays/Modal';
 import { toast } from '@/stores';
+import { useDocumentTitle } from '@/hooks';
 import { listSkills, getSkill, type SkillInfo, type Skill } from '@/lib/api';
 import './environment.css';
 
 type Scope = 'project' | 'global';
 
 export function Skills() {
+	useDocumentTitle('Skills');
 	const [scope, setScope] = useState<Scope>('project');
 	const [skills, setSkills] = useState<SkillInfo[]>([]);
 	const [loading, setLoading] = useState(true);

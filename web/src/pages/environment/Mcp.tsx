@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/overlays/Modal';
 import { toast } from '@/stores';
+import { useDocumentTitle } from '@/hooks';
 import {
 	listMCPServers,
 	getMCPServer,
@@ -26,6 +27,7 @@ interface EnvVar {
 }
 
 export function Mcp() {
+	useDocumentTitle('MCP Servers');
 	const [servers, setServers] = useState<MCPServerInfo[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);

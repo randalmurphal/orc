@@ -10,6 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/overlays/Modal';
 import type { IconName } from '@/components/ui/Icon';
 import { toast } from '@/stores';
+import { useDocumentTitle } from '@/hooks';
 import {
 	listPrompts,
 	getPrompt,
@@ -33,6 +34,7 @@ const PHASE_INFO: Record<string, { icon: IconName; description: string }> = {
 };
 
 export function Prompts() {
+	useDocumentTitle('Prompts');
 	const [prompts, setPrompts] = useState<PromptInfo[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);

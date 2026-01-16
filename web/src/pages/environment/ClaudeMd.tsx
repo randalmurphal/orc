@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { useDocumentTitle } from '@/hooks';
 import { getClaudeMDHierarchy, type ClaudeMDHierarchy, type ClaudeMD } from '@/lib/api';
 import './environment.css';
 
@@ -33,6 +34,7 @@ const SCOPE_INFO: Record<Scope, { label: string; icon: IconName; description: st
 };
 
 export function ClaudeMd() {
+	useDocumentTitle('CLAUDE.md');
 	const [hierarchy, setHierarchy] = useState<ClaudeMDHierarchy | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
