@@ -150,12 +150,18 @@ test.describe('Board Page', () => {
 			const cardCount = await taskCards.count();
 
 			if (cardCount > 0) {
-				// For each task card, verify it's in a column
+				// For each task card, verify it's in a column (not the board container)
 				for (let i = 0; i < Math.min(cardCount, 5); i++) {
 					const card = taskCards.nth(i);
+<<<<<<< HEAD
 					// Card should be inside a column region (not the board region)
 					// Use a more specific XPath to find the closest ancestor with "column" in aria-label
 					const parentColumn = card.locator('xpath=ancestor::div[@role="region"][contains(@aria-label, "column")]');
+=======
+					// Card should be inside a column region (use .first() since board also has role="region")
+					// The column regions have aria-label ending in "column"
+					const parentColumn = card.locator('xpath=ancestor::div[@role="region" and contains(@aria-label, "column")]');
+>>>>>>> orc/TASK-275
 					await expect(parentColumn).toBeVisible();
 				}
 
@@ -275,74 +281,93 @@ test.describe('Board Page', () => {
 			await expect(triggerText).toHaveText('By Initiative');
 		});
 
-		test('should disable swimlane toggle when initiative filter active', async ({ page }) => {
+		test('should enable view mode dropdown on clean URL (ignoring localStorage initiative filter)', async ({ page }) => {
+			// This test validates fix for TASK-275: dropdown was disabled due to stale
+			// localStorage initiative filter value being restored on clean URL navigation.
+			// The fix uses URL param as source of truth for swimlaneDisabled, not store value.
+
+			// Set a stale initiative filter in localStorage (simulating previous session)
 			await page.goto('/board');
-			await clearBoardStorage(page);
-			await page.reload();
+			await page.evaluate(() => {
+				localStorage.setItem('orc_current_initiative_id', 'INIT-012');
+			});
+
+			// Clear view mode storage to ensure clean test state
+			await page.evaluate(() => {
+				localStorage.removeItem('orc-board-view-mode');
+			});
+
+			// Navigate to /board with clean URL (no initiative param)
+			await page.goto('/board');
 			await waitForBoardLoad(page);
 
-			// First check if there are any initiatives to filter by
-			const initiativeDropdown = page.locator('.initiative-dropdown, [data-testid="initiative-dropdown"]');
+			// The view mode dropdown should be ENABLED because URL has no initiative param
+			// Even though localStorage had a stale value, URL is the source of truth
+			const viewModeDropdown = page.locator('.view-mode-dropdown');
+			await expect(viewModeDropdown).toBeVisible();
 
-			// Check if there are initiatives available
-			const hasInitiatives = await initiativeDropdown.isVisible().catch(() => false);
+			// Check that the dropdown trigger is NOT disabled
+			const trigger = viewModeDropdown.locator('.dropdown-trigger');
+			await expect(trigger).not.toHaveAttribute('data-disabled');
+			await expect(trigger).not.toHaveAttribute('disabled');
 
-			if (hasInitiatives) {
-				// Click to open initiative filter
-				await initiativeDropdown.click();
-				await page.waitForTimeout(100);
+			// The wrapper should NOT have the disabled class
+			await expect(viewModeDropdown).not.toHaveClass(/disabled/);
 
-				// Look for any initiative option (not "All initiatives")
-				const initiativeOptions = page.locator('.dropdown-item').filter({
-					hasNot: page.locator(':has-text("All initiatives")')
-				});
+			// Verify we can actually click and open the dropdown
+			await trigger.click();
+			const dropdownMenu = page.locator('[role="listbox"]');
+			await expect(dropdownMenu).toBeVisible({ timeout: 3000 });
 
-				const optionCount = await initiativeOptions.count();
+			// Should see both options
+			const flatOption = page.locator('[role="option"]:has-text("Flat")');
+			const swimlaneOption = page.locator('[role="option"]:has-text("By Initiative")');
+			await expect(flatOption).toBeVisible();
+			await expect(swimlaneOption).toBeVisible();
 
-				if (optionCount > 0) {
-					// Select an initiative
-					await initiativeOptions.first().click();
-					await page.waitForTimeout(200);
+			// Close the dropdown
+			await page.keyboard.press('Escape');
+		});
 
-					// View mode dropdown should be disabled (wrapped in .view-mode-disabled)
-					const viewModeDisabled = page.locator('.view-mode-disabled');
-					await expect(viewModeDisabled).toBeVisible();
-				}
-			}
+		test('should disable swimlane toggle when initiative filter active in URL', async ({ page }) => {
+			// Navigate directly with initiative param in URL to test disabled state
+			// This is more reliable than clicking through UI since URL is the source of truth
+			// for the swimlaneDisabled flag (per TASK-275 fix)
+			await page.goto('/board?initiative=__unassigned__');
+			await waitForBoardLoad(page);
+
+			// View mode dropdown should be disabled (wrapped in .view-mode-disabled)
+			const viewModeDisabled = page.locator('.view-mode-disabled');
+			await expect(viewModeDisabled).toBeVisible();
+
+			// The dropdown trigger should have data-disabled attribute (Radix Select)
+			const viewModeDropdown = page.locator('.view-mode-dropdown');
+			const trigger = viewModeDropdown.locator('.dropdown-trigger');
+			await expect(trigger).toHaveAttribute('data-disabled');
+
+			// Clicking the trigger should NOT open the dropdown
+			await trigger.click({ force: true });
+			const dropdownMenu = page.locator('[role="listbox"]');
+			await expect(dropdownMenu).not.toBeVisible({ timeout: 500 });
 		});
 
 		test('should show initiative banner when filtering', async ({ page }) => {
-			await page.goto('/board');
-			await clearBoardStorage(page);
-			await page.reload();
+			// Navigate directly with initiative param in URL to test banner display
+			await page.goto('/board?initiative=__unassigned__');
 			await waitForBoardLoad(page);
 
-			// Find and click initiative filter
-			const initiativeDropdown = page.locator('.initiative-dropdown, [data-testid="initiative-dropdown"]');
-			const hasInitiatives = await initiativeDropdown.isVisible().catch(() => false);
+			// Initiative banner should appear showing "Unassigned" filter
+			const banner = page.locator('.initiative-banner');
+			await expect(banner).toBeVisible();
 
-			if (hasInitiatives) {
-				await initiativeDropdown.click();
-				await page.waitForTimeout(100);
+			// Banner should have clear filter button
+			const clearBtn = banner.locator('.banner-clear');
+			await expect(clearBtn).toBeVisible();
+			await expect(clearBtn).toContainText('Clear filter');
 
-				// Look for "Unassigned" option which should always exist
-				const unassignedOption = page.locator('.dropdown-item:has-text("Unassigned")');
-				const hasUnassigned = await unassignedOption.isVisible().catch(() => false);
-
-				if (hasUnassigned) {
-					await unassignedOption.click();
-					await page.waitForTimeout(200);
-
-					// Initiative banner should appear
-					const banner = page.locator('.initiative-banner');
-					await expect(banner).toBeVisible();
-
-					// Banner should have clear filter button
-					const clearBtn = banner.locator('.banner-clear');
-					await expect(clearBtn).toBeVisible();
-					await expect(clearBtn).toHaveText('Clear filter');
-				}
-			}
+			// Banner should show "Unassigned" in the label
+			const bannerLabel = banner.locator('.banner-label');
+			await expect(bannerLabel).toContainText('Unassigned');
 		});
 	});
 
