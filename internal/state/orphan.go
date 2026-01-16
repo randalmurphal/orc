@@ -21,11 +21,19 @@ type OrphanInfo struct {
 	Reason       string
 }
 
+// StaleHeartbeatThreshold is the duration after which a heartbeat is considered stale.
+// This threshold is only used as a fallback when PID check is inconclusive.
+// A live PID always indicates a healthy task, regardless of heartbeat staleness.
+const StaleHeartbeatThreshold = 15 * time.Minute
+
 // CheckOrphaned checks if a state represents an orphaned task.
 // A task is orphaned if:
 // 1. Its status is "running" but no executor PID is tracked
 // 2. Its status is "running" with a PID that no longer exists
-// 3. Its status is "running" but the heartbeat is stale (>5 minutes)
+//
+// Note: Heartbeat staleness is only used for additional context when the PID is dead.
+// A live PID always indicates a healthy task - this prevents false positives during
+// long-running phases where heartbeats may not be updated frequently.
 //
 // Returns (isOrphaned, reason) where reason explains why.
 func (s *State) CheckOrphaned() (bool, string) {
@@ -39,17 +47,19 @@ func (s *State) CheckOrphaned() (bool, string) {
 		return true, "no execution info (legacy state or incomplete)"
 	}
 
-	// Check if the PID is still alive
+	// Primary check: Is the executor process alive?
 	if !IsPIDAlive(s.Execution.PID) {
+		// PID is dead - task is definitely orphaned
+		// Use heartbeat to provide additional context in the reason
+		if time.Since(s.Execution.LastHeartbeat) > StaleHeartbeatThreshold {
+			return true, "executor process not running (heartbeat stale)"
+		}
 		return true, "executor process not running"
 	}
 
-	// Check for stale heartbeat (>5 minutes without update)
-	const staleThreshold = 5 * time.Minute
-	if time.Since(s.Execution.LastHeartbeat) > staleThreshold {
-		return true, "heartbeat stale (>5 minutes)"
-	}
-
+	// PID is alive - task is NOT orphaned, regardless of heartbeat
+	// The heartbeat staleness check only applies when PID check is inconclusive
+	// (e.g., cross-machine coordination where we can't check PID)
 	return false, ""
 }
 
