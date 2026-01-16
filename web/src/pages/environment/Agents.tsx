@@ -49,7 +49,7 @@ export function Agents() {
 		try {
 			const agent = await getAgent(agentName);
 			setPreviewContent(agent);
-		} catch (err) {
+		} catch (_err) {
 			setPreviewingAgent(null);
 		} finally {
 			setPreviewLoading(false);

@@ -64,17 +64,17 @@ export function Board() {
 	});
 
 	// Modal states - setters used, getters for when modals are implemented
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	 
 	const [_transcriptModalOpen, setTranscriptModalOpen] = useState(false);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	 
 	const [_selectedTask, setSelectedTask] = useState<Task | null>(null);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	 
 	const [_finalizeModalOpen, setFinalizeModalOpen] = useState(false);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	 
 	const [_finalizeTask, setFinalizeTask] = useState<Task | null>(null);
 
 	// Finalize states map - getter used by Board component via getFinalizeState
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	 
 	const [finalizeStates, _setFinalizeStates] = useState<Map<string, FinalizeState>>(new Map());
 
 	// Swimlane view disabled when initiative filter is active in URL

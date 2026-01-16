@@ -112,13 +112,15 @@ golangci-lint run ./...
 # If golangci-lint not available, at minimum:
 go vet ./...
 
-# For Node projects
-npm run build
-npm run lint
+# For Node/TypeScript projects - run type checking AND linting
+npm run build       # Includes tsc for type checking
+npm run typecheck   # Explicit type check (tsc --noEmit)
+npm run lint        # ESLint for code quality
 
 # For Python projects
 python -m py_compile $(find . -name "*.py" -not -path "./.venv/*")
 ruff check .
+pyright .  # Optional but recommended for type checking
 ```
 
 **IMPORTANT**: Both build AND linting must pass before proceeding.
@@ -126,8 +128,9 @@ ruff check .
 If linting fails:
 1. Fix all linting errors
 2. For Go errcheck issues: use `_ = functionCall()` to explicitly ignore when safe
-3. For deferred Close(): wrap as `defer func() { _ = x.Close() }()`
-4. Re-run linter until clean
+3. For Go deferred Close(): wrap as `defer func() { _ = x.Close() }()`
+4. For TypeScript unused vars: rename with underscore prefix (e.g., `_unusedVar`)
+5. Re-run linter until clean
 
 ### Step 5: Sync with Target Branch
 

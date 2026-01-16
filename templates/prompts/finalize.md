@@ -148,21 +148,24 @@ go build ./...
 go vet ./...
 golangci-lint run ./...  # REQUIRED: Full linter suite including errcheck
 
-# For Node projects
-npm run build
-npm run lint
+# For Node/TypeScript projects - run type checking AND linting
+npm run build       # Includes tsc for type checking
+npm run typecheck   # Explicit type check (tsc --noEmit)
+npm run lint        # ESLint for code quality
 
 # For Python projects
 python -m py_compile $(find . -name "*.py" -not -path "./.venv/*")
 ruff check .
+pyright .  # Optional but recommended for type checking
 ```
 
 **IMPORTANT**: Both build AND linting must pass. This is the last gate before merge.
 
 If linting fails after conflict resolution:
 1. Fix all linting errors introduced during merge
-2. Particularly watch for errcheck issues in new/modified code
-3. Re-run linter until clean
+2. For Go: watch for errcheck issues in new/modified code
+3. For TypeScript: watch for unused variables and type errors
+4. Re-run linter until clean
 
 ### Step 7: Risk Assessment
 

@@ -139,8 +139,9 @@ go vet ./...
 # Or full linting if available:
 golangci-lint run ./...
 
-# For Node projects
-npm run lint
+# For Node/TypeScript projects
+npm run typecheck   # Type check (tsc --noEmit)
+npm run lint        # ESLint
 
 # For Python projects
 ruff check .
@@ -151,6 +152,7 @@ ruff check .
 Common issues to watch for:
 - Unchecked error returns (Go errcheck)
 - Unused imports/variables
+- Type errors (TypeScript)
 - Formatting issues
 
 ### Step 9: Commit Changes
