@@ -40,20 +40,43 @@ vi.mock('@/stores/uiStore', () => ({
 	},
 }));
 
+// Type for overrides that only allows optional fields from Task (not required ones)
+type TaskOverrides = Omit<Partial<Task>, 'id' | 'title' | 'weight' | 'status' | 'branch' | 'created_at' | 'updated_at'> & {
+	id?: string;
+	title?: string;
+	weight?: Task['weight'];
+	status?: Task['status'];
+	branch?: string;
+	created_at?: string;
+	updated_at?: string;
+};
+
 describe('TaskHeader', () => {
-	const createTask = (overrides: Partial<Task> = {}): Task => ({
-		id: 'TASK-001',
-		title: 'Test Task',
-		description: 'Test description',
-		status: 'created',
-		weight: 'small',
-		branch: 'orc/TASK-001',
-		priority: 'normal',
-		category: 'feature',
-		queue: 'active',
-		created_at: '2024-01-01T00:00:00Z',
-		updated_at: '2024-01-01T00:00:00Z',
-		...overrides,
+	const createTask = (overrides: TaskOverrides = {}): Task => ({
+		id: overrides.id ?? 'TASK-001',
+		title: overrides.title ?? 'Test Task',
+		description: overrides.description ?? 'Test description',
+		status: overrides.status ?? 'created',
+		weight: overrides.weight ?? 'small',
+		branch: overrides.branch ?? 'orc/TASK-001',
+		priority: overrides.priority ?? 'normal',
+		category: overrides.category ?? 'feature',
+		queue: overrides.queue ?? 'active',
+		created_at: overrides.created_at ?? '2024-01-01T00:00:00Z',
+		updated_at: overrides.updated_at ?? '2024-01-01T00:00:00Z',
+		initiative_id: overrides.initiative_id,
+		target_branch: overrides.target_branch,
+		blocked_by: overrides.blocked_by,
+		blocks: overrides.blocks,
+		related_to: overrides.related_to,
+		referenced_by: overrides.referenced_by,
+		is_blocked: overrides.is_blocked,
+		unmet_blockers: overrides.unmet_blockers,
+		dependency_status: overrides.dependency_status,
+		started_at: overrides.started_at,
+		completed_at: overrides.completed_at,
+		current_phase: overrides.current_phase,
+		metadata: overrides.metadata,
 	});
 
 	const defaultProps = {
