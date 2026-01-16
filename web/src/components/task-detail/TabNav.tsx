@@ -47,7 +47,7 @@ export function TabNav({ activeTab, onTabChange, children }: TabNavProps) {
 			onValueChange={(value) => onTabChange(value as TabId)}
 			className="tab-nav-root"
 		>
-			<Tabs.List className="tab-nav" aria-label="Task detail tabs">
+			<Tabs.List className="tab-nav" aria-label="Task details tabs">
 				{TABS.map((tab) => (
 					<Tabs.Trigger
 						key={tab.id}
