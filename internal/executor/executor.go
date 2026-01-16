@@ -369,6 +369,7 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				WithTrivialPublisher(e.publisher),
 				WithTrivialLogger(e.logger),
 				WithTrivialConfig(DefaultConfigForWeight(weight)),
+				WithTrivialBackend(e.backend),
 			)
 		}
 		return e.trivialExecutor
@@ -383,6 +384,7 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				WithFullConfig(DefaultConfigForWeight(weight)),
 				WithFullWorkingDir(workingDir),
 				WithTaskDir(e.currentTaskDir),
+				WithFullBackend(e.backend),
 			)
 		}
 		return e.fullExecutor
@@ -396,6 +398,7 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				WithExecutorLogger(e.logger),
 				WithExecutorConfig(DefaultConfigForWeight(weight)),
 				WithWorkingDir(workingDir),
+				WithStandardBackend(e.backend),
 			)
 		}
 		return e.standardExecutor
