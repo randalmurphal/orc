@@ -52,9 +52,15 @@ func NewSessionAdapter(ctx context.Context, mgr session.SessionManager, opts Ses
 	if opts.SessionID != "" {
 		if opts.Resume {
 			sessionOpts = append(sessionOpts, session.WithResume(opts.SessionID))
-		} else {
+		} else if opts.Persistence {
+			// Only use custom session ID when persistence is enabled.
+			// Claude CLI expects session IDs to be UUIDs it generates.
+			// For ephemeral sessions (Persistence: false), we skip the custom ID
+			// to let Claude generate a valid UUID, avoiding "Invalid session ID" errors.
 			sessionOpts = append(sessionOpts, session.WithSessionID(opts.SessionID))
 		}
+		// When Persistence is false and Resume is false, skip WithSessionID entirely.
+		// The session is ephemeral and won't be persisted or resumed anyway.
 	}
 
 	if opts.Model != "" {
