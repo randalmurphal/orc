@@ -105,7 +105,7 @@ func Run(opts Options) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create project database: %w", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// 4. Run detection and store in SQLite
 	detection, err := detect.Detect(opts.WorkDir)
@@ -138,7 +138,7 @@ func Run(opts Options) (*Result, error) {
 		// Non-fatal - YAML registry is the fallback
 		fmt.Fprintf(os.Stderr, "Warning: could not open global database: %v\n", err)
 	} else {
-		defer gdb.Close()
+		defer func() { _ = gdb.Close() }()
 		if err := gdb.SyncProject(db.Project{
 			ID:        proj.ID,
 			Name:      proj.Name,

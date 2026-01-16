@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude"
@@ -839,28 +838,3 @@ func (e *Executor) triggerAutomationEvent(ctx context.Context, eventType string,
 	}
 }
 
-// findProjectRootFromDir finds the project root from a given directory.
-func findProjectRootFromDir(dir string) (string, error) {
-	// First try to find from config
-	if root, err := findOrcRoot(dir); err == nil {
-		return root, nil
-	}
-	// Fall back to current directory
-	return dir, nil
-}
-
-// findOrcRoot searches for .orc directory to find project root.
-func findOrcRoot(startDir string) (string, error) {
-	dir := startDir
-	for {
-		orcDir := filepath.Join(dir, ".orc")
-		if info, err := os.Stat(orcDir); err == nil && info.IsDir() {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("no .orc directory found")
-		}
-		dir = parent
-	}
-}

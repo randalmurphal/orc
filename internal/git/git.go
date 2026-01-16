@@ -938,10 +938,8 @@ func (g *Git) IsMergeInProgress() (bool, error) {
 // This includes both staged and unstaged changes.
 // SAFETY: This operation is destructive and should only be used when explicitly requested.
 func (g *Git) DiscardChanges() error {
-	// Reset staged changes
-	if _, err := g.ctx.RunGit("reset", "HEAD"); err != nil {
-		// Ignore errors - might fail if no HEAD exists yet
-	}
+	// Reset staged changes (ignore error - might fail if no HEAD exists yet)
+	_, _ = g.ctx.RunGit("reset", "HEAD")
 
 	// Discard unstaged changes to tracked files
 	if _, err := g.ctx.RunGit("checkout", "--", "."); err != nil {

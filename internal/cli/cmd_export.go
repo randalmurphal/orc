@@ -349,9 +349,9 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 		wd, _ := os.Getwd()
 		pdb, err := db.OpenProject(wd)
 		if err == nil {
-			defer pdb.Close()
+			defer func() { _ = pdb.Close() }()
 			for i := range export.Transcripts {
-				pdb.AddTranscript(&export.Transcripts[i])
+				_ = pdb.AddTranscript(&export.Transcripts[i])
 			}
 		}
 	}
@@ -370,7 +370,7 @@ func importZip(zipPath string, force, skipExisting bool) error {
 	if err != nil {
 		return fmt.Errorf("open zip: %w", err)
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	var imported, skipped int
 	for _, f := range r.File {

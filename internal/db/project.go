@@ -431,7 +431,7 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 	if err != nil {
 		return nil, 0, fmt.Errorf("list tasks: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var tasks []Task
 	for rows.Next() {
@@ -733,7 +733,7 @@ func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get phases: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var phases []Phase
 	for rows.Next() {
@@ -814,7 +814,7 @@ func (p *ProjectDB) GetTranscripts(taskID string) ([]Transcript, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get transcripts: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var transcripts []Transcript
 	for rows.Next() {
@@ -886,7 +886,7 @@ func (p *ProjectDB) SearchTranscripts(query string) ([]TranscriptMatch, error) {
 	if err != nil {
 		return nil, fmt.Errorf("search transcripts: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var matches []TranscriptMatch
 	for rows.Next() {
@@ -1029,7 +1029,7 @@ func (p *ProjectDB) ListInitiatives(opts ListOpts) ([]Initiative, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list initiatives: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var initiatives []Initiative
 	for rows.Next() {
@@ -1103,7 +1103,7 @@ func (p *ProjectDB) GetInitiativeDecisions(initiativeID string) ([]InitiativeDec
 	if err != nil {
 		return nil, fmt.Errorf("get initiative decisions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var decisions []InitiativeDecision
 	for rows.Next() {
@@ -1169,7 +1169,7 @@ func (p *ProjectDB) GetInitiativeTasks(initiativeID string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get initiative tasks: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var taskIDs []string
 	for rows.Next() {
@@ -1216,7 +1216,7 @@ func (p *ProjectDB) GetTaskDependencies(taskID string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get task dependencies: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var deps []string
 	for rows.Next() {
@@ -1240,7 +1240,7 @@ func (p *ProjectDB) GetAllTaskDependencies() (map[string][]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get all task dependencies: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	deps := make(map[string][]string)
 	for rows.Next() {
@@ -1263,7 +1263,7 @@ func (p *ProjectDB) GetTaskDependents(taskID string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get task dependents: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var deps []string
 	for rows.Next() {
@@ -1319,7 +1319,7 @@ func (p *ProjectDB) GetInitiativeDependencies(initiativeID string) ([]string, er
 	if err != nil {
 		return nil, fmt.Errorf("get initiative dependencies: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var deps []string
 	for rows.Next() {
@@ -1342,7 +1342,7 @@ func (p *ProjectDB) GetInitiativeDependents(initiativeID string) ([]string, erro
 	if err != nil {
 		return nil, fmt.Errorf("get initiative dependents: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var deps []string
 	for rows.Next() {
@@ -1576,7 +1576,7 @@ func (p *ProjectDB) SearchSpecs(query string) ([]TranscriptMatch, error) {
 	if err != nil {
 		return nil, fmt.Errorf("search specs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var matches []TranscriptMatch
 	for rows.Next() {
@@ -1640,7 +1640,7 @@ func (p *ProjectDB) GetGateDecisions(taskID string) ([]GateDecision, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get gate decisions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var decisions []GateDecision
 	for rows.Next() {
@@ -1791,7 +1791,7 @@ func (p *ProjectDB) ListAttachments(taskID string) ([]Attachment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list attachments: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var attachments []Attachment
 	for rows.Next() {
@@ -2295,7 +2295,7 @@ func (p *ProjectDB) GetAllInitiativeDecisions() (map[string][]InitiativeDecision
 	if err != nil {
 		return nil, fmt.Errorf("get all initiative decisions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	decisions := make(map[string][]InitiativeDecision)
 	for rows.Next() {
@@ -2349,7 +2349,7 @@ func (p *ProjectDB) GetAllInitiativeTaskRefs() (map[string][]InitiativeTaskRef, 
 	if err != nil {
 		return nil, fmt.Errorf("get all initiative task refs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	refs := make(map[string][]InitiativeTaskRef)
 	for rows.Next() {
@@ -2373,7 +2373,7 @@ func (p *ProjectDB) GetAllInitiativeDependencies() (map[string][]string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("get all initiative dependencies: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	deps := make(map[string][]string)
 	for rows.Next() {
@@ -2397,7 +2397,7 @@ func (p *ProjectDB) GetAllInitiativeDependents() (map[string][]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get all initiative dependents: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	dependents := make(map[string][]string)
 	for rows.Next() {
