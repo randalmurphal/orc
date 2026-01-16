@@ -51,6 +51,35 @@ describe('UIStore', () => {
 		});
 	});
 
+	describe('mobile menu state', () => {
+		it('should default to closed', () => {
+			expect(useUIStore.getState().mobileMenuOpen).toBe(false);
+		});
+
+		it('should open mobile menu', () => {
+			useUIStore.getState().openMobileMenu();
+			expect(useUIStore.getState().mobileMenuOpen).toBe(true);
+		});
+
+		it('should close mobile menu', () => {
+			useUIStore.getState().openMobileMenu();
+			expect(useUIStore.getState().mobileMenuOpen).toBe(true);
+
+			useUIStore.getState().closeMobileMenu();
+			expect(useUIStore.getState().mobileMenuOpen).toBe(false);
+		});
+
+		it('should toggle mobile menu', () => {
+			expect(useUIStore.getState().mobileMenuOpen).toBe(false);
+
+			useUIStore.getState().toggleMobileMenu();
+			expect(useUIStore.getState().mobileMenuOpen).toBe(true);
+
+			useUIStore.getState().toggleMobileMenu();
+			expect(useUIStore.getState().mobileMenuOpen).toBe(false);
+		});
+	});
+
 	describe('WebSocket status', () => {
 		it('should default to disconnected', () => {
 			expect(useUIStore.getState().wsStatus).toBe('disconnected');
@@ -303,6 +332,7 @@ describe('UIStore', () => {
 	describe('reset', () => {
 		it('should reset store to initial state', () => {
 			useUIStore.getState().setSidebarExpanded(false);
+			useUIStore.getState().openMobileMenu();
 			useUIStore.getState().setWsStatus('connected');
 			useUIStore.getState().addToast({ type: 'success', message: 'Test', duration: 0 });
 
@@ -311,6 +341,7 @@ describe('UIStore', () => {
 			// Note: sidebarExpanded uses localStorage for initial value
 			// After reset, it goes back to the initial state (true by default)
 			expect(useUIStore.getState().sidebarExpanded).toBe(true);
+			expect(useUIStore.getState().mobileMenuOpen).toBe(false);
 			expect(useUIStore.getState().wsStatus).toBe('disconnected');
 			expect(useUIStore.getState().toasts).toHaveLength(0);
 		});

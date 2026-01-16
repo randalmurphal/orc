@@ -29,3 +29,57 @@
 	padding: var(--space-6, 24px);
 	overflow-y: auto;
 }
+
+/* =============================================================================
+   MOBILE RESPONSIVE STYLES
+   ============================================================================= */
+
+/* Mobile backdrop - only visible on mobile */
+.mobile-backdrop {
+	display: none;
+}
+
+/* Mobile breakpoint (max-width: 767px) */
+@media (max-width: 767px) {
+	/* Remove sidebar margin on mobile - sidebar is overlay */
+	.app-layout.sidebar-expanded .app-main,
+	.app-layout.sidebar-collapsed .app-main {
+		margin-left: 0;
+	}
+
+	/* Reduce content padding on mobile */
+	.app-content {
+		padding: var(--space-4, 16px);
+	}
+
+	/* Mobile backdrop overlay */
+	.mobile-backdrop {
+		display: block;
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.5);
+		z-index: calc(var(--z-sidebar, 300) - 1);
+		animation: backdrop-fade-in var(--duration-fast, 100ms) var(--ease-out, ease-out);
+	}
+}
+
+/* Tablet breakpoint (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+	/* Slightly reduce content padding on tablet */
+	.app-content {
+		padding: var(--space-5, 20px);
+	}
+}
+
+/* Backdrop animation */
+@keyframes backdrop-fade-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
