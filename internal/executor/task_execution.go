@@ -649,18 +649,14 @@ func (e *Executor) checkSpecRequirements(t *task.Task) error {
 			return fmt.Errorf("task %s has an incomplete spec - run 'orc plan %s' to update it", t.ID, t.ID)
 		}
 	} else if e.orcConfig.Plan.WarnOnMissingSpec {
-		// Check if this weight should skip the warning (trivial/small don't need specs)
-		shouldWarn := true
-		for _, skipWeight := range e.orcConfig.Plan.SkipValidationWeights {
-			if string(t.Weight) == skipWeight {
-				shouldWarn = false
-				break
-			}
-		}
+		// Only warn for weights that semantically require specs (large, greenfield)
+		// Trivial/small/medium tasks don't benefit from spec warnings - they're simple enough
+		// to implement directly without upfront planning
+		requiresSpec := t.Weight == task.WeightLarge || t.Weight == task.WeightGreenfield
 
 		// Just warn, don't block
 		specExists, _ := e.backend.SpecExists(t.ID)
-		if shouldWarn && !specExists {
+		if requiresSpec && !specExists {
 			e.logger.Warn("task has no spec (execution will continue)",
 				"task", t.ID,
 				"weight", t.Weight,

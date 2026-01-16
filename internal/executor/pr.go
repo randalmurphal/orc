@@ -513,7 +513,8 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 	output, err := e.runGH(ctx, args...)
 	if err != nil && len(labels) > 0 && isLabelError(err) {
 		// Labels failed - retry without labels
-		e.logger.Warn("PR labels not found on repository, creating PR without labels",
+		// This is expected behavior for repos without pre-configured labels, so use Debug
+		e.logger.Debug("PR labels not found on repository, creating PR without labels",
 			"labels", labels,
 			"error", err)
 
@@ -574,10 +575,18 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 	if cfg.PR.AutoMerge && prURL != "" {
 		if _, err := e.runGH(ctx, "pr", "merge", prURL, "--auto", "--squash"); err != nil {
 			if isAuthError(err) {
+				// Auth errors are actionable - user needs to fix their token
 				e.logger.Warn("failed to enable auto-merge due to auth issue",
 					"error", err,
 					"hint", "run 'gh auth login' to fix")
+			} else if isAutoMergeConfigError(err) {
+				// Config errors are expected for repos without auto-merge enabled
+				// This is common for repos without branch protection rules
+				e.logger.Debug("auto-merge not available for repository",
+					"error", err,
+					"hint", "enable auto-merge in repository settings or set up branch protection")
 			} else {
+				// Other errors (network, API issues) warrant a warning
 				e.logger.Warn("failed to enable auto-merge", "error", err)
 			}
 		} else {
@@ -868,6 +877,30 @@ func isNonFastForwardError(err error) bool {
 	return strings.Contains(errStr, "non-fast-forward") ||
 		(strings.Contains(errStr, "rejected") && strings.Contains(errStr, "fetch first")) ||
 		(strings.Contains(errStr, "failed to push") && strings.Contains(errStr, "behind"))
+}
+
+// isAutoMergeConfigError checks if an error is due to auto-merge not being available
+// on the repository. This is expected behavior for repos without auto-merge enabled
+// (requires branch protection rules or explicit repo settings).
+// Common patterns from GitHub CLI:
+// - "auto-merge is not allowed" (repo doesn't allow auto-merge)
+// - "pull request is not mergeable" (missing required reviews/checks)
+// - "auto-merge can not be enabled" (branch protection prevents it)
+// - "auto merge is not allowed" (alternative phrasing)
+// - "not eligible for auto-merge" (various eligibility issues)
+func isAutoMergeConfigError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	return strings.Contains(errStr, "auto-merge is not allowed") ||
+		strings.Contains(errStr, "auto merge is not allowed") ||
+		strings.Contains(errStr, "auto-merge can not be enabled") ||
+		strings.Contains(errStr, "auto merge can not be enabled") ||
+		strings.Contains(errStr, "not eligible for auto-merge") ||
+		strings.Contains(errStr, "not eligible for auto merge") ||
+		strings.Contains(errStr, "pull request is not mergeable") ||
+		strings.Contains(errStr, "is in clean status") // PR is already clean/merged
 }
 
 // runGH executes a gh CLI command.

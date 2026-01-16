@@ -651,3 +651,101 @@ func TestIsNonFastForwardError(t *testing.T) {
 		})
 	}
 }
+
+func TestIsAutoMergeConfigError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "auto-merge is not allowed",
+			err:      errors.New("auto-merge is not allowed for this repository"),
+			expected: true,
+		},
+		{
+			name:     "auto merge is not allowed (space variant)",
+			err:      errors.New("auto merge is not allowed for this repository"),
+			expected: true,
+		},
+		{
+			name:     "auto-merge can not be enabled",
+			err:      errors.New("auto-merge can not be enabled: no branch protection rules"),
+			expected: true,
+		},
+		{
+			name:     "auto merge can not be enabled (space variant)",
+			err:      errors.New("auto merge can not be enabled"),
+			expected: true,
+		},
+		{
+			name:     "not eligible for auto-merge",
+			err:      errors.New("pull request is not eligible for auto-merge"),
+			expected: true,
+		},
+		{
+			name:     "not eligible for auto merge (space variant)",
+			err:      errors.New("not eligible for auto merge"),
+			expected: true,
+		},
+		{
+			name:     "pull request is not mergeable",
+			err:      errors.New("pull request is not mergeable"),
+			expected: true,
+		},
+		{
+			name:     "is in clean status (already merged)",
+			err:      errors.New("Pull request #123 is in clean status"),
+			expected: true,
+		},
+		{
+			name:     "uppercase variant",
+			err:      errors.New("AUTO-MERGE IS NOT ALLOWED"),
+			expected: true,
+		},
+		{
+			name:     "auth error is not config error",
+			err:      errors.New("gh: not authenticated"),
+			expected: false,
+		},
+		{
+			name:     "network timeout is not config error",
+			err:      errors.New("network timeout"),
+			expected: false,
+		},
+		{
+			name:     "generic error",
+			err:      errors.New("exit status 1"),
+			expected: false,
+		},
+		{
+			name:     "permission denied",
+			err:      errors.New("permission denied"),
+			expected: false,
+		},
+		{
+			name:     "branch protection unrelated",
+			err:      errors.New("branch protection rule requires review"),
+			expected: false,
+		},
+		{
+			name:     "label error is not auto-merge error",
+			err:      errors.New("could not add label: automated not found"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isAutoMergeConfigError(tt.err)
+			if got != tt.expected {
+				t.Errorf("isAutoMergeConfigError(%v) = %v, want %v", tt.err, got, tt.expected)
+			}
+		})
+	}
+}
