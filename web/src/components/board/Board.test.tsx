@@ -11,8 +11,9 @@ vi.mock('@/stores', () => ({
 		updateTask: vi.fn(),
 	})),
 	getInitiativeBadgeTitle: vi.fn((id: string) => ({
-		display: id.slice(0, 6),
-		full: `Initiative ${id}`,
+		display: id, // Now shows full initiative ID like "INIT-001"
+		full: `${id}: Test Initiative`,
+		id,
 	})),
 }));
 

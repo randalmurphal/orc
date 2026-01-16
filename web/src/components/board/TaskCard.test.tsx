@@ -31,8 +31,9 @@ vi.mock('@/stores', () => ({
 		updateTask: vi.fn(),
 	})),
 	getInitiativeBadgeTitle: vi.fn((id: string) => ({
-		display: id.slice(0, 6),
-		full: `Initiative ${id}`,
+		display: id, // Now shows full initiative ID like "INIT-001"
+		full: `${id}: Test Initiative`,
+		id,
 	})),
 }));
 
@@ -253,17 +254,18 @@ Some \`inline code\` here`;
 	});
 
 	describe('initiative badge', () => {
-		it('shows initiative badge when task has initiative', () => {
+		it('shows initiative badge with initiative ID when task has initiative', () => {
 			renderTaskCard(createTask({ initiative_id: 'INIT-001' }));
 
-			expect(screen.getByRole('button', { name: /init-0/i })).toBeInTheDocument();
+			// Badge should display the initiative ID (INIT-001)
+			expect(screen.getByRole('button', { name: /INIT-001/i })).toBeInTheDocument();
 		});
 
 		it('calls onInitiativeClick when initiative badge is clicked', () => {
 			const onInitiativeClick = vi.fn();
 			renderTaskCard(createTask({ initiative_id: 'INIT-001' }), { onInitiativeClick });
 
-			const initiativeBadge = screen.getByRole('button', { name: /init-0/i });
+			const initiativeBadge = screen.getByRole('button', { name: /INIT-001/i });
 			fireEvent.click(initiativeBadge);
 
 			expect(onInitiativeClick).toHaveBeenCalledWith('INIT-001');
@@ -273,6 +275,13 @@ Some \`inline code\` here`;
 			renderTaskCard(createTask({ initiative_id: undefined }));
 
 			expect(screen.queryByRole('button', { name: /init/i })).not.toBeInTheDocument();
+		});
+
+		it('initiative badge has correct styling class', () => {
+			const { container } = renderTaskCard(createTask({ initiative_id: 'INIT-001' }));
+
+			const initiativeBadge = container.querySelector('.initiative-badge');
+			expect(initiativeBadge).toBeInTheDocument();
 		});
 	});
 
