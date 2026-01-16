@@ -155,10 +155,13 @@ export function TaskHeader({ task, onTaskUpdate, onTaskDelete }: TaskHeaderProps
 					</Tooltip>
 					{initiativeBadge && (
 						<Tooltip content={initiativeBadge.full}>
-							<span className="initiative-badge">
+							<button
+								className="initiative-badge"
+								onClick={() => navigate(`/initiatives/${task.initiative_id}`)}
+							>
 								<Icon name="layers" size={12} />
 								{initiativeBadge.display}
-							</span>
+							</button>
 						</Tooltip>
 					)}
 				</div>
