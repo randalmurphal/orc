@@ -525,6 +525,7 @@ Patterns, gotchas, and decisions learned during development.
 | TaskCard Radix DropdownMenu | TaskCard quick menu uses `@radix-ui/react-dropdown-menu` for accessible menu; trigger wraps Button with `DropdownMenu.Trigger asChild`; content portals via `DropdownMenu.Portal`; uses `data-highlighted` for keyboard focus, `onCloseAutoFocus` prevents refocus; CSS class `.quick-menu-dropdown` for styling | TASK-212 |
 | Test worker limits for parallel tasks | Playwright (4 workers) and Vitest (4 threads) limit parallelism to prevent OOM when multiple orc tasks run tests concurrently; without limits, 3 parallel tasks on 16 cores could spawn 48 browser/test processes | TASK-253 |
 | Filter dropdown Radix migration | InitiativeDropdown, ViewModeDropdown, DependencyDropdown use Radix Select; ExportDropdown uses Radix DropdownMenu (action menu pattern); null values mapped to internal string constants since Radix Select requires strings; provides keyboard nav, typeahead, Home/End, ARIA | TASK-213 |
+| TabNav Radix Tabs migration | TabNav uses `@radix-ui/react-tabs` with render prop pattern for tab content; Tabs.Root wraps entire component, Tabs.List contains Tabs.Trigger elements, Tabs.Content wraps the children render prop result; provides arrow key navigation, Home/End, focus management, automatic ARIA; CSS uses `data-state='active'` for active tab styling | TASK-214 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
