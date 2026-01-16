@@ -17,11 +17,12 @@ import (
 
 // ProcessInfo represents information about a running process.
 type ProcessInfo struct {
-	PID      int
-	PPID     int
-	Command  string
-	MemoryMB float64
-	IsMCP    bool // true if command matches MCP-related patterns
+	PID          int
+	PPID         int
+	Command      string
+	MemoryMB     float64
+	IsMCP        bool // true if command matches MCP-related patterns (browsers)
+	IsOrcRelated bool // true if command matches orc-spawned process patterns
 }
 
 // ProcessSnapshot captures the state of system processes at a point in time.
@@ -36,7 +37,13 @@ type ProcessSnapshot struct {
 type ResourceTrackerConfig struct {
 	Enabled            bool
 	MemoryThresholdMB  int
-	LogOrphanedMCPOnly bool // if true, only log orphans that are MCP-related
+	LogOrphanedMCPOnly bool // deprecated: use FilterSystemProcesses instead
+	// FilterSystemProcesses controls whether to filter out system processes from orphan detection.
+	// When true (default), only processes that match orc-related patterns (claude, node, playwright,
+	// chromium, etc.) are flagged as potential orphans. System processes like systemd-timedated,
+	// snapper, etc. are ignored even if they started during task execution.
+	// When false, all new orphaned processes are flagged (original behavior, prone to false positives).
+	FilterSystemProcesses bool
 }
 
 // ResourceTracker tracks process and memory state to detect orphaned processes.
@@ -47,8 +54,16 @@ type ResourceTracker struct {
 	afterSnapshot  *ProcessSnapshot
 }
 
-// mcpProcessPattern matches MCP-related process names.
+// mcpProcessPattern matches MCP-related process names (browsers).
 var mcpProcessPattern = regexp.MustCompile(`(?i)(playwright|chromium|chrome|firefox|webkit|puppeteer|selenium)`)
+
+// orcRelatedProcessPattern matches processes that orc might spawn.
+// This includes:
+// - Browser automation: playwright, chromium, chrome, firefox, webkit, puppeteer, selenium
+// - Claude Code and Node.js: claude, node, npx, npm
+// - MCP servers: mcp-server, mcp
+// System processes (systemd, snapper, etc.) should NOT match this pattern.
+var orcRelatedProcessPattern = regexp.MustCompile(`(?i)(playwright|chromium|chrome|firefox|webkit|puppeteer|selenium|claude|node(?:$|[^a-z])|npx|npm|mcp)`)
 
 // NewResourceTracker creates a new resource tracker.
 func NewResourceTracker(config ResourceTrackerConfig, logger *slog.Logger) *ResourceTracker {
@@ -132,10 +147,21 @@ func (rt *ResourceTracker) DetectOrphans() []ProcessInfo {
 		isOrphan := p.PPID == 1 || !afterPIDSet[p.PPID]
 
 		if isOrphan {
-			// Filter by MCP-only if configured
-			if rt.config.LogOrphanedMCPOnly && !p.IsMCP {
-				continue
+			// Filter based on configuration
+			// Priority: FilterSystemProcesses (new) > LogOrphanedMCPOnly (deprecated)
+			if rt.config.FilterSystemProcesses {
+				// Only flag orc-related processes (claude, node, playwright, etc.)
+				// This filters out system processes like systemd-timedated, snapper, etc.
+				if !p.IsOrcRelated {
+					continue
+				}
+			} else if rt.config.LogOrphanedMCPOnly {
+				// Deprecated: only flag MCP browser processes
+				if !p.IsMCP {
+					continue
+				}
 			}
+			// If neither filter is enabled, all orphans are flagged (original behavior)
 			orphans = append(orphans, p)
 		}
 	}
@@ -144,11 +170,13 @@ func (rt *ResourceTracker) DetectOrphans() []ProcessInfo {
 		// Build process list for logging
 		var procList []string
 		for _, p := range orphans {
-			mcpTag := ""
+			tag := ""
 			if p.IsMCP {
-				mcpTag = " [MCP]"
+				tag = " [MCP]"
+			} else if p.IsOrcRelated {
+				tag = " [orc]"
 			}
-			procList = append(procList, fmt.Sprintf("%s (PID=%d)%s", p.Command, p.PID, mcpTag))
+			procList = append(procList, fmt.Sprintf("%s (PID=%d)%s", p.Command, p.PID, tag))
 		}
 
 		rt.logger.Warn("orphaned processes detected",
@@ -324,8 +352,10 @@ func (rt *ResourceTracker) readLinuxProcess(pid int) (ProcessInfo, error) {
 		}
 	}
 
-	// Check if MCP-related
+	// Check if MCP-related (browsers)
 	info.IsMCP = mcpProcessPattern.MatchString(info.Command)
+	// Check if orc-related (any process orc might spawn)
+	info.IsOrcRelated = orcRelatedProcessPattern.MatchString(info.Command)
 
 	return info, nil
 }
@@ -362,11 +392,12 @@ func (rt *ResourceTracker) enumerateDarwin() ([]ProcessInfo, error) {
 		}
 
 		info := ProcessInfo{
-			PID:      pid,
-			PPID:     ppid,
-			Command:  command,
-			MemoryMB: rssKB / 1024,
-			IsMCP:    mcpProcessPattern.MatchString(command),
+			PID:          pid,
+			PPID:         ppid,
+			Command:      command,
+			MemoryMB:     rssKB / 1024,
+			IsMCP:        mcpProcessPattern.MatchString(command),
+			IsOrcRelated: orcRelatedProcessPattern.MatchString(command),
 		}
 
 		processes = append(processes, info)
@@ -416,11 +447,12 @@ func (rt *ResourceTracker) parseWMICOutput(output string) ([]ProcessInfo, error)
 		wsBytes, _ := strconv.ParseFloat(strings.TrimSpace(fields[4]), 64)
 
 		info := ProcessInfo{
-			PID:      pid,
-			PPID:     ppid,
-			Command:  name,
-			MemoryMB: wsBytes / (1024 * 1024),
-			IsMCP:    mcpProcessPattern.MatchString(name),
+			PID:          pid,
+			PPID:         ppid,
+			Command:      name,
+			MemoryMB:     wsBytes / (1024 * 1024),
+			IsMCP:        mcpProcessPattern.MatchString(name),
+			IsOrcRelated: orcRelatedProcessPattern.MatchString(name),
 		}
 
 		processes = append(processes, info)
@@ -476,11 +508,12 @@ func (rt *ResourceTracker) parseTasklistOutput(output string) ([]ProcessInfo, er
 		memKB, _ := strconv.ParseFloat(strings.TrimSpace(memStr), 64)
 
 		info := ProcessInfo{
-			PID:      pid,
-			PPID:     0, // tasklist doesn't provide PPID
-			Command:  name,
-			MemoryMB: memKB / 1024,
-			IsMCP:    mcpProcessPattern.MatchString(name),
+			PID:          pid,
+			PPID:         0, // tasklist doesn't provide PPID
+			Command:      name,
+			MemoryMB:     memKB / 1024,
+			IsMCP:        mcpProcessPattern.MatchString(name),
+			IsOrcRelated: orcRelatedProcessPattern.MatchString(name),
 		}
 
 		processes = append(processes, info)
@@ -492,4 +525,9 @@ func (rt *ResourceTracker) parseTasklistOutput(output string) ([]ProcessInfo, er
 // IsMCPProcess checks if a command string matches MCP-related patterns.
 func IsMCPProcess(command string) bool {
 	return mcpProcessPattern.MatchString(command)
+}
+
+// IsOrcRelatedProcess checks if a command string matches processes that orc might spawn.
+func IsOrcRelatedProcess(command string) bool {
+	return orcRelatedProcessPattern.MatchString(command)
 }
