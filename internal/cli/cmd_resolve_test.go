@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -222,6 +223,56 @@ func TestResolveCommand_OnlyFailedTasks(t *testing.T) {
 				t.Errorf("expected error for status %s, got nil", status)
 			}
 		})
+	}
+}
+
+// TestResolveCommand_BlockedTask_GuidesToCorrectCommand verifies that running
+// orc resolve on a blocked task provides helpful guidance to the correct command.
+func TestResolveCommand_BlockedTask_GuidesToCorrectCommand(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create backend and save a blocked task
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.New("TASK-BLOCKED", "Test blocked task")
+	tk.Status = task.StatusBlocked
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve - should fail with helpful guidance
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-BLOCKED", "--force"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for blocked task, got nil")
+	}
+
+	errMsg := err.Error()
+
+	// Verify error message contains the task ID
+	if !strings.Contains(errMsg, "TASK-BLOCKED") {
+		t.Errorf("error message should contain task ID, got: %s", errMsg)
+	}
+
+	// Verify error message indicates task is blocked, not failed
+	if !strings.Contains(errMsg, "blocked") {
+		t.Errorf("error message should mention 'blocked', got: %s", errMsg)
+	}
+
+	// Verify error message suggests orc approve with task ID
+	if !strings.Contains(errMsg, "orc approve TASK-BLOCKED") {
+		t.Errorf("error message should suggest 'orc approve TASK-BLOCKED', got: %s", errMsg)
+	}
+
+	// Verify error message suggests orc resume with task ID
+	if !strings.Contains(errMsg, "orc resume TASK-BLOCKED") {
+		t.Errorf("error message should suggest 'orc resume TASK-BLOCKED', got: %s", errMsg)
+	}
+
+	// Verify error message explains what resolve is for
+	if !strings.Contains(errMsg, "marking failed tasks") {
+		t.Errorf("error message should explain resolve is for failed tasks, got: %s", errMsg)
 	}
 }
 

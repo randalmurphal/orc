@@ -77,6 +77,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Stale worktree pruning on startup | Server calls `gitOps.PruneWorktrees()` on startup to clean git's internal worktree tracking for directories deleted without `git worktree remove` (crashed processes, manual deletion) | TASK-282 |
 | Spec database-only storage | Spec content stored exclusively in database (not filesystem) to avoid merge conflicts in worktrees; `SavePhaseArtifact()` skips spec phase, `SaveSpecToDatabase()` is sole save mechanism; `WithSpecFromDatabase()` loads spec for templates; `ArtifactDetector` uses `NewArtifactDetectorWithBackend` to check database first | TASK-283 |
 | Session ID only with persistence | Custom session IDs (e.g., `orc-TASK-001-implement`) only passed to Claude CLI when `Persistence: true`; Claude CLI expects UUIDs it generates, so ephemeral sessions skip `WithSessionID()` to avoid "Invalid session ID" errors | TASK-286 |
+| Resolve blocked task guidance | `orc resolve` on blocked task provides actionable error with suggested commands (`orc approve` for gate approval, `orc resume` for resuming execution); distinguishes from generic "wrong status" errors; includes task ID in suggestions for copy-paste convenience | TASK-288 |
 
 ## Known Gotchas
 

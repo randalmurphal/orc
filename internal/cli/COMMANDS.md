@@ -106,6 +106,10 @@ Full command reference for the orc CLI.
 
 ### `orc resolve TASK-ID`
 
+Mark a failed task as resolved without re-running it. Useful when an issue was fixed manually, the failure is no longer relevant, or you want to acknowledge and close a failed task.
+
+**Note:** Only works on tasks with `status=failed`. For blocked tasks, use `orc approve` (for gate approval) or `orc resume` (to resume execution). Running `orc resolve` on a blocked task will show guidance to the correct command.
+
 | Flag | Description |
 |------|-------------|
 | `--message, -m` | Resolution message |
