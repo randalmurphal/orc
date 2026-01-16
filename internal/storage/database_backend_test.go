@@ -779,7 +779,9 @@ func TestSaveState_ExecutionInfo_RoundTrip(t *testing.T) {
 }
 
 // TestSaveState_HeartbeatUpdate verifies that heartbeat updates are persisted to database.
-// This is critical for preventing stale heartbeat false positives in orphan detection.
+// This is important for future cross-machine orphan detection where PID checks may be unreliable.
+// Note: With the TASK-291 fix, PID checks take precedence over heartbeat checks. A task with
+// a live PID is NOT orphaned regardless of heartbeat staleness.
 func TestSaveState_HeartbeatUpdate(t *testing.T) {
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
@@ -796,8 +798,8 @@ func TestSaveState_HeartbeatUpdate(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	// Initial save with old heartbeat (6 minutes ago - would be stale)
-	initialTime := time.Now().Add(-6 * time.Minute)
+	// Initial save with old heartbeat (30 minutes ago - definitely stale)
+	initialTime := time.Now().Add(-30 * time.Minute)
 	s := &state.State{
 		TaskID:       "TASK-001",
 		CurrentPhase: "implement",
@@ -805,27 +807,25 @@ func TestSaveState_HeartbeatUpdate(t *testing.T) {
 		StartedAt:    initialTime,
 		Phases:       make(map[string]*state.PhaseState),
 		Execution: &state.ExecutionInfo{
-			PID:           os.Getpid(),
+			PID:           os.Getpid(), // Alive PID - this is the key point
 			Hostname:      "test-host",
 			StartedAt:     initialTime,
-			LastHeartbeat: initialTime, // 6 min ago - stale
+			LastHeartbeat: initialTime, // 30 min ago - would be stale
 		},
 	}
 	if err := backend.SaveState(s); err != nil {
 		t.Fatalf("save initial state: %v", err)
 	}
 
-	// Verify initial heartbeat was stale
+	// TASK-291 FIX: With alive PID, task should NOT be orphaned even with stale heartbeat
+	// This was a false positive that caused running tasks to be flagged as orphaned
 	loaded, err := backend.LoadState("TASK-001")
 	if err != nil {
 		t.Fatalf("load state: %v", err)
 	}
 	isOrphaned, reason := loaded.CheckOrphaned()
-	if !isOrphaned {
-		t.Error("expected task with 6-minute-old heartbeat to be flagged as orphaned")
-	}
-	if reason != "heartbeat stale (>5 minutes)" {
-		t.Errorf("expected stale heartbeat reason, got: %s", reason)
+	if isOrphaned {
+		t.Errorf("TASK-291 regression: task with alive PID should NOT be orphaned, got: %s", reason)
 	}
 
 	// Now update the heartbeat (simulates UpdateHeartbeat() call + SaveState)
@@ -840,7 +840,7 @@ func TestSaveState_HeartbeatUpdate(t *testing.T) {
 		t.Fatalf("load state after heartbeat update: %v", err)
 	}
 
-	// Task should no longer be orphaned after heartbeat update
+	// Task should still not be orphaned
 	isOrphaned, reason = loaded.CheckOrphaned()
 	if isOrphaned {
 		t.Errorf("expected task to NOT be orphaned after heartbeat update, got: %s", reason)
