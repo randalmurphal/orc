@@ -5,7 +5,7 @@ import { Header } from './Header';
 import { NotificationBar } from './NotificationBar';
 import { UrlParamSync } from './UrlParamSync';
 import { useGlobalShortcuts } from '@/hooks';
-import { KeyboardShortcutsHelp, ProjectSwitcher } from '@/components/overlays';
+import { KeyboardShortcutsHelp, ProjectSwitcher, NewTaskModal } from '@/components/overlays';
 import { useUIStore } from '@/stores';
 import './AppLayout.css';
 
@@ -27,8 +27,7 @@ export function AppLayout() {
 	// Modal states
 	const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 	const [showProjectSwitcher, setShowProjectSwitcher] = useState(false);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const [_showNewTaskModal, setShowNewTaskModal] = useState(false);
+	const [showNewTaskModal, setShowNewTaskModal] = useState(false);
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const [_showCommandPalette, setShowCommandPalette] = useState(false);
 
@@ -80,7 +79,10 @@ export function AppLayout() {
 				open={showProjectSwitcher}
 				onClose={() => setShowProjectSwitcher(false)}
 			/>
-			{/* TODO: NewTaskModal will be implemented in a future task */}
+			<NewTaskModal
+				open={showNewTaskModal}
+				onClose={() => setShowNewTaskModal(false)}
+			/>
 			{/* TODO: CommandPalette will be implemented in a future task */}
 		</div>
 	);
