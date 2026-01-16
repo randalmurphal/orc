@@ -619,14 +619,14 @@ System processes (systemd, snapper, etc.) are filtered out by default and don't 
 diagnostics:
   resource_tracking:
     enabled: true                 # Enable tracking (default: true)
-    memory_threshold_mb: 100      # Warn threshold (default: 100)
+    memory_threshold_mb: 500      # Warn threshold (default: 500)
     filter_system_processes: true # Filter out system processes (default: true)
 ```
 
 | Option | Default | Purpose |
 |--------|---------|---------|
 | `enabled` | `true` | Enable/disable resource tracking entirely |
-| `memory_threshold_mb` | `100` | Warn if memory grows by more than this |
+| `memory_threshold_mb` | `500` | Warn if memory grows by more than this |
 | `filter_system_processes` | `true` | Only flag orc-related processes as orphans |
 
 **Filter System Processes (New in TASK-279)**:

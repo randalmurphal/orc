@@ -1,123 +1,81 @@
-# Specification: Orphan detection flags system processes as false positives
+# Specification: Memory growth threshold (100MB) triggers too frequently
 
 ## Problem Statement
-The resource tracker's orphan detection incorrectly flags system processes (systemd-timedated, snapper, snapperd) as orphans because they legitimately have PPID=1 (systemd is their parent). The current logic assumes any new process with PPID=1 is an orc-spawned process that was reparented after its parent died, but this assumption is false for system services that start coincidentally during task execution.
+
+The memory growth warning threshold of 100MB for resource tracking triggers constantly during normal task execution, generating excessive noise in logs. Observed deltas of 452MB to 6GB are common during tasks that launch Claude sessions and browser processes for UI testing.
 
 ## Success Criteria
-- [ ] System processes (systemd-*, snapper*, dbus-daemon, cron jobs, etc.) are not flagged as orphans
-- [ ] MCP-related processes (playwright, chromium, firefox, webkit, puppeteer, selenium, node MCP servers) that are reparented to init are still detected
-- [ ] Claude Code processes (claude-code, npx, npm related to claude) are still detected if orphaned
-- [ ] Filter list is configurable via regex patterns in ResourceTrackerConfig
-- [ ] Existing behavior is preserved when `LogOrphanedMCPOnly: true` (only MCP orphans logged)
-- [ ] False positives from evidence logs no longer appear:
-  - `/usr/lib/systemd/systemd-timedated` excluded
-  - `/usr/lib/snapper/systemd-helper --cleanup` excluded
-  - `/usr/sbin/snapperd` excluded
+
+- [ ] Default memory threshold increased from 100MB to 500MB
+- [ ] Warning logs no longer appear for typical task execution (under ~500MB growth)
+- [ ] Tasks with genuine memory issues (multi-GB sustained growth) still trigger warnings
+- [ ] Configuration remains backward-compatible (existing `memory_threshold_mb` settings honored)
+- [ ] Unit tests verify the new default value
+- [ ] Documentation updated to reflect the new default
 
 ## Testing Requirements
-- [ ] Unit test: `TestOrphanDetectionFiltersSystemProcesses` - verifies systemd/snapper processes excluded
-- [ ] Unit test: `TestOrphanDetectionAllowsOrcProcesses` - verifies orc-related processes (claude, playwright, node MCP) still detected
-- [ ] Unit test: `TestOrphanDetectionCustomExcludePatterns` - verifies custom exclude patterns work
-- [ ] Unit test: `TestIsSystemProcess` - verifies system process detection helper function
-- [ ] Existing tests continue to pass (TestOrphanDetection, TestOrphanDetectionMCPOnly, etc.)
+
+- [ ] Unit test: Verify `Default()` returns `MemoryThresholdMB: 500`
+- [ ] Unit test: Verify `CheckMemoryGrowth()` only logs warnings when delta exceeds threshold
+- [ ] Unit test: Verify custom threshold from config is respected (backward compatibility)
 
 ## Scope
+
 ### In Scope
-- Add system process exclusion patterns to filter known false positives
-- Add `orcProcessPattern` to identify orc-spawned processes we care about
-- Modify `DetectOrphans()` to filter out system processes
-- Add configurable exclude patterns to `ResourceTrackerConfig`
-- Add helper function `IsSystemProcess()` for testing/debugging
+- Increase default `memory_threshold_mb` from 100 to 500
+- Update default value in `internal/config/config.go`
+- Update documentation in:
+  - `docs/specs/CONFIG_HIERARCHY.md`
+  - `internal/executor/docs/RESOURCE_TRACKER.md`
+  - Project `CLAUDE.md` files
 
 ### Out of Scope
-- Process group tracking (requires significant executor changes)
-- Tracking orc process tree ancestry (complex, platform-specific)
-- Windows-specific system process filtering (Windows already has limited functionality)
-- Kernel thread filtering (already filtered by empty command)
+- Per-weight memory thresholds (Option 2 from task description)
+- Sustained growth detection across multiple snapshots (Option 3)
+- Log level changes (Option 4 - would hide useful warnings)
+- Changing the memory tracking mechanism itself
+- Any changes to orphan process detection
 
 ## Technical Approach
 
-### Strategy: Allowlist + Blocklist Filtering
+The fix is straightforward: increase the default threshold to a value that reflects normal task memory usage while still catching genuine problems.
 
-The fix uses a two-pronged approach:
-1. **Blocklist**: Exclude known system process patterns from orphan detection
-2. **Allowlist**: Only flag new processes that match orc-related patterns (MCP browsers, node/npx, claude)
-
-This dual approach ensures we:
-- Don't miss actual orphaned orc processes (allowlist catches them)
-- Don't flag unrelated system activity (blocklist excludes them)
-
-### Implementation Details
-
-1. **Add system process exclusion pattern**:
-   ```go
-   var systemProcessPattern = regexp.MustCompile(`(?i)(^/usr/(lib|sbin)/systemd|systemd-|^/usr/(lib|sbin)/snapper|snapperd|dbus-daemon|dbus-broker|polkitd|udisksd|upowerd|packagekitd|fwupd|thermald|irqbalance|crond?$|atd$|anacron)`)
-   ```
-
-2. **Add orc process pattern** (processes we want to track):
-   ```go
-   var orcProcessPattern = regexp.MustCompile(`(?i)(playwright|chromium|chrome|firefox|webkit|puppeteer|selenium|claude|node.*mcp|npx.*mcp|npm.*mcp)`)
-   ```
-
-3. **Modify `DetectOrphans()` logic**:
-   - Skip processes matching `systemProcessPattern`
-   - When `LogOrphanedMCPOnly: false`, only flag processes matching `orcProcessPattern` OR with suspicious characteristics (very recent start, high memory)
-   - When `LogOrphanedMCPOnly: true`, existing behavior (only MCP pattern)
-
-4. **Add `ExcludePatterns` to config** for user customization:
-   ```go
-   type ResourceTrackerConfig struct {
-       Enabled            bool
-       MemoryThresholdMB  int
-       LogOrphanedMCPOnly bool
-       ExcludePatterns    []string // Additional patterns to exclude
-   }
-   ```
+**Rationale for 500MB:**
+- Normal Claude sessions + Node.js processes: ~200-400MB
+- Browser processes for UI testing: ~200-500MB additional
+- 500MB provides headroom for normal operation while still catching multi-GB leaks
+- Conservative enough to flag issues without being noisy
 
 ### Files to Modify
-- `internal/executor/resource_tracker.go`:
-  - Add `systemProcessPattern` regex constant
-  - Add `orcProcessPattern` regex constant
-  - Add `ExcludePatterns` field to `ResourceTrackerConfig`
-  - Add `IsSystemProcess(command string) bool` helper function
-  - Add `IsOrcProcess(command string) bool` helper function
-  - Modify `DetectOrphans()` to filter system processes and only flag orc-related processes
-  - Update `ProcessInfo` struct to add `IsOrc` field (parallel to `IsMCP`)
-- `internal/executor/resource_tracker_test.go`:
-  - Add `TestOrphanDetectionFiltersSystemProcesses`
-  - Add `TestOrphanDetectionAllowsOrcProcesses`
-  - Add `TestOrphanDetectionCustomExcludePatterns`
-  - Add `TestIsSystemProcess`
-  - Update existing tests to account for new filtering
+
+1. `internal/config/config.go:774`: Change `MemoryThresholdMB: 100` to `MemoryThresholdMB: 500`
+2. `docs/specs/CONFIG_HIERARCHY.md:294`: Update comment from 100 to 500
+3. `internal/executor/docs/RESOURCE_TRACKER.md:97`: Update example from 100 to 500
+4. `CLAUDE.md` (both root and worktree): Update config docs table
 
 ## Bug Analysis
 
 ### Reproduction Steps
-1. Enable resource tracking in orc config: `diagnostics.resource_tracking.enabled: true`
-2. Run any orc task: `orc run TASK-XXX`
-3. During task execution, if any systemd timer or service activates (e.g., snapper cleanup, time sync), it gets captured in the "after" snapshot
-4. These processes have PPID=1 (systemd is their parent) and are flagged as orphans
+1. Run any orc task with UI testing (`requires_ui_testing: true`)
+2. Or run any task that takes >30 seconds (normal Claude session duration)
+3. Observe resource tracking logs at task completion
 
 ### Current Behavior
+Warning logs appear constantly with messages like:
 ```
-WARN orphaned processes detected count=3 processes="/usr/lib/systemd/systemd-timedated (PID=1063943), /usr/lib/snapper/systemd-helper --cleanup (PID=1074076), /usr/sbin/snapperd (PID=1074078)"
+WARN memory growth exceeded threshold delta_mb=452.0 threshold_mb=100
+WARN memory growth exceeded threshold delta_mb=748.1 threshold_mb=100
+WARN memory growth exceeded threshold delta_mb=2601.5 threshold_mb=100
 ```
 
 ### Expected Behavior
-- System processes should be silently ignored
-- Only actual orc-spawned processes (playwright, chromium, node MCP servers, claude processes) should be flagged if orphaned
-- Warning should only appear when genuine orphaned processes are detected
+Warnings should only appear for genuinely concerning memory growth (500MB+), not for normal task operation.
 
 ### Root Cause
-Line 132 in `resource_tracker.go`:
-```go
-isOrphan := p.PPID == 1 || !afterPIDSet[p.PPID]
-```
-
-This assumes any process with PPID=1 is reparented (orphaned), but system services legitimately have PPID=1 because systemd (PID 1) is their actual parent process manager.
+The default threshold of 100MB was set too low for typical task execution. Claude sessions, Node.js processes, and browser instances for Playwright testing regularly consume several hundred megabytes combined.
 
 ### Verification
-1. Run `orc run` with resource tracking enabled on a system with active systemd timers
-2. Observe no warnings for systemd-*, snapper*, or other system processes
-3. Manually spawn an orphaned playwright process and verify it IS detected
-4. Run existing test suite to confirm no regressions
+After fix:
+1. Run `orc run` on a UI task - no memory warnings for normal execution
+2. Manually set `memory_threshold_mb: 50` - verify warnings appear (backward compat)
+3. Verify config default shows 500 via `orc config show`

@@ -586,6 +586,7 @@ Patterns, gotchas, and decisions learned during development.
 | Dashboard initiative progress shows 0/0 | Fixed: `DashboardInitiatives` was calculating progress from `initiative.tasks` (unpopulated by API) while Sidebar used `getInitiativeProgress(tasks)` from task store; now both use task store for consistent counts | TASK-276 |
 | Project selector shows 'Select project' after refresh | Fixed: `useCurrentProject()` was calling `state.getCurrentProject()` method which Zustand couldn't track for dependencies; now computes directly in selector `state.projects.find(p => p.id === state.currentProjectId)` to properly track both `projects` and `currentProjectId` | TASK-266 |
 | Orphan detection flags system processes as false positives | Fixed: Added `filter_system_processes` config (default: true) and `orcRelatedProcessPattern` regex to only flag orc-spawned processes (claude, node, playwright, chromium, mcp) as orphans; system processes (systemd-timedated, snapper, etc.) that start during task execution are now ignored | TASK-279 |
+| Memory growth warnings trigger too frequently | Fixed: Increased default `memory_threshold_mb` from 100 to 500; 100MB was too sensitive for normal operation where browser processes legitimately grow during task execution | TASK-280 |
 
 ### Decisions
 | Decision | Rationale | Source |

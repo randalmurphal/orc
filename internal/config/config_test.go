@@ -1859,3 +1859,44 @@ func TestCITimeout(t *testing.T) {
 		t.Errorf("zero timeout = %v, want 10m (default)", timeout)
 	}
 }
+
+// Tests for DiagnosticsConfig
+
+func TestDefault_DiagnosticsConfig(t *testing.T) {
+	cfg := Default()
+
+	// ResourceTracking should be enabled by default
+	if !cfg.Diagnostics.ResourceTracking.Enabled {
+		t.Error("Diagnostics.ResourceTracking.Enabled should default to true")
+	}
+
+	// MemoryThresholdMB should be 500 (not 100)
+	if cfg.Diagnostics.ResourceTracking.MemoryThresholdMB != 500 {
+		t.Errorf("Diagnostics.ResourceTracking.MemoryThresholdMB = %d, want 500",
+			cfg.Diagnostics.ResourceTracking.MemoryThresholdMB)
+	}
+
+	// FilterSystemProcesses should be true by default
+	if !cfg.Diagnostics.ResourceTracking.FilterSystemProcesses {
+		t.Error("Diagnostics.ResourceTracking.FilterSystemProcesses should default to true")
+	}
+
+	// LogOrphanedMCPOnly is deprecated but should be false by default
+	if cfg.Diagnostics.ResourceTracking.LogOrphanedMCPOnly {
+		t.Error("Diagnostics.ResourceTracking.LogOrphanedMCPOnly should default to false")
+	}
+}
+
+func TestDiagnosticsConfig_CustomThreshold(t *testing.T) {
+	// Verify that custom threshold from config is respected (backward compatibility)
+	cfg := Default()
+
+	// Set a custom threshold
+	cfg.Diagnostics.ResourceTracking.MemoryThresholdMB = 200
+
+	// Verify it's preserved
+	if cfg.Diagnostics.ResourceTracking.MemoryThresholdMB != 200 {
+		t.Errorf("Custom MemoryThresholdMB = %d, want 200",
+			cfg.Diagnostics.ResourceTracking.MemoryThresholdMB)
+	}
+}

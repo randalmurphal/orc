@@ -291,7 +291,7 @@ tasks:
 diagnostics:
   resource_tracking:
     enabled: true                      # Enable process/memory tracking (default: true)
-    memory_threshold_mb: 100           # Warn if memory grows by > threshold (default: 100)
+    memory_threshold_mb: 500           # Warn if memory grows by > threshold (default: 500)
     filter_system_processes: true      # Only flag orc-related processes as orphans (default: true)
 
 # Task ID configuration (team mode)

@@ -549,7 +549,7 @@ type ResourceTrackingConfig struct {
 	// Enabled enables process/memory tracking before and after task execution (default: true)
 	Enabled bool `yaml:"enabled"`
 
-	// MemoryThresholdMB is the memory growth threshold that triggers warnings (default: 100)
+	// MemoryThresholdMB is the memory growth threshold that triggers warnings (default: 500)
 	MemoryThresholdMB int `yaml:"memory_threshold_mb"`
 
 	// LogOrphanedMCPOnly limits orphan logging to MCP-related processes (playwright, browsers)
@@ -1310,7 +1310,7 @@ func Default() *Config {
 		Diagnostics: DiagnosticsConfig{
 			ResourceTracking: ResourceTrackingConfig{
 				Enabled:               true,  // Enabled by default to detect orphaned processes
-				MemoryThresholdMB:     100,   // Warn if memory grows by >100MB
+				MemoryThresholdMB:     500,   // Warn if memory grows by >500MB
 				LogOrphanedMCPOnly:    false, // Deprecated: use FilterSystemProcesses instead
 				FilterSystemProcesses: true,  // Filter system processes to avoid false positives
 			},
