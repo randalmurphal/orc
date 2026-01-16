@@ -2333,13 +2333,15 @@ import { TimelineTab } from '@/components/task-detail';
 ```
 
 **Features:**
-- Horizontal phase flow visualization
+- Vertical phase flow visualization with connector lines
+- Phase position labels ("1 of 5", "2 of 5", etc.)
+- Phase status labels with color-coded badges (Completed, Running, Failed, Skipped, Pending)
 - Phase status icons (pending/running/completed/failed/skipped)
-- Phase connector lines
-- Duration display per phase
-- Iteration/retry counts
+- Duration display per phase (started/completed timestamps)
+- Iteration/retry counts (when >1)
 - Error messages for failed phases
 - Commit SHA links for completed phases
+- Current phase highlighting with accent glow background
 
 **Token Stats Panel:**
 - Total input/output tokens
