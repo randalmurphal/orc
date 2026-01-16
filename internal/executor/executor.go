@@ -78,8 +78,12 @@ type PhaseState struct {
 	// Testing configuration
 	CoverageThreshold int
 
-	// Review findings (for review round 2)
-	ReviewFindings string
+	// Review context (for review phase)
+	ReviewRound    int    // Current review round (1 or 2)
+	ReviewFindings string // Previous round's findings (for Round 2)
+
+	// Verification results from implement phase
+	VerificationResults string
 }
 
 // Config, DefaultConfig, and ConfigFromOrc are defined in config.go
@@ -256,11 +260,13 @@ func New(cfg *Config) *Executor {
 
 	// Create session manager for session-based execution
 	// Sessions will use the same model and workdir settings
+	// Include "user" setting source to load agents from ~/.claude/agents/
 	sessionMgr := session.NewManager(
 		session.WithDefaultSessionOptions(
 			session.WithModel(cfg.Model),
 			session.WithWorkdir(cfg.WorkDir),
 			session.WithPermissions(cfg.DangerouslySkipPermissions),
+			session.WithSettingSources([]string{"project", "local", "user"}),
 		),
 	)
 

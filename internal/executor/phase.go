@@ -141,6 +141,12 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 		requiresUITesting = "true"
 	}
 
+	// Determine review round - default to 1 for review phase
+	reviewRound := 0
+	if p.ID == "review" {
+		reviewRound = 1
+	}
+
 	// Initial state with retry context if applicable
 	initialState := PhaseState{
 		TaskID:           t.ID,
@@ -169,6 +175,10 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 
 		// Testing configuration
 		CoverageThreshold: templateVars.CoverageThreshold,
+
+		// Review phase context
+		ReviewRound:         reviewRound,
+		VerificationResults: templateVars.VerificationResults,
 	}
 
 	// Run with checkpointing if enabled
