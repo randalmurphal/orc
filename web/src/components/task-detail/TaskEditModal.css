@@ -103,3 +103,104 @@
 	opacity: 0.6;
 	cursor: not-allowed;
 }
+
+/* Initiative Select (Radix UI) */
+.initiative-select-trigger {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	padding: var(--space-2) var(--space-3);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	color: var(--text-primary);
+	font-size: var(--text-sm);
+	font-family: var(--font-body);
+	cursor: pointer;
+	transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.initiative-select-trigger:focus {
+	outline: none;
+	border-color: var(--accent-primary);
+}
+
+.initiative-select-trigger:hover {
+	border-color: var(--border-hover);
+}
+
+.initiative-select-trigger[data-placeholder] {
+	color: var(--text-muted);
+}
+
+.initiative-select-icon {
+	display: flex;
+	align-items: center;
+	color: var(--text-muted);
+}
+
+.initiative-select-content {
+	background: var(--bg-surface);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
+	z-index: var(--z-dropdown);
+	min-width: var(--radix-select-trigger-width);
+	max-height: 300px;
+	overflow: hidden;
+	animation: slideDownAndFade 150ms var(--ease-out);
+}
+
+.initiative-select-viewport {
+	padding: var(--space-1);
+}
+
+.initiative-select-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-sm);
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	cursor: pointer;
+	user-select: none;
+	transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.initiative-select-item[data-highlighted] {
+	background: var(--bg-tertiary);
+	outline: none;
+}
+
+.initiative-select-item[data-state="checked"] {
+	background: var(--accent-surface);
+}
+
+.initiative-select-separator {
+	height: 1px;
+	margin: var(--space-1) var(--space-2);
+	background: var(--border-subtle);
+}
+
+.initiative-status-badge {
+	font-size: var(--text-xs);
+	padding: var(--space-0-5) var(--space-1-5);
+	border-radius: var(--radius-sm);
+	background: var(--bg-tertiary);
+	color: var(--text-muted);
+	text-transform: capitalize;
+}
+
+@keyframes slideDownAndFade {
+	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}

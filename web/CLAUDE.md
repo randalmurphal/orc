@@ -2574,7 +2574,7 @@ import { CommentsTab } from '@/components/task-detail';
 
 ### TaskEditModal
 
-Modal form for editing task metadata.
+Modal form for editing task metadata. Includes Initiative dropdown using Radix Select.
 
 ```tsx
 import { TaskEditModal } from '@/components/task-detail';
@@ -2583,18 +2583,60 @@ import { TaskEditModal } from '@/components/task-detail';
   task={task}
   open={showEditModal}
   onClose={() => setShowEditModal(false)}
-  onSave={handleSave}
+  onUpdate={handleTaskUpdate}
 />
 ```
 
+| Prop | Type | Description |
+|------|------|-------------|
+| `task` | `Task` | Task to edit |
+| `open` | `boolean` | Whether modal is visible |
+| `onClose` | `() => void` | Close handler |
+| `onUpdate` | `(task: Task) => void` | Callback after successful update |
+
 **Editable fields:**
-- Title
-- Description
-- Weight (trivial, small, medium, large, greenfield)
-- Priority (critical, high, normal, low)
-- Category (feature, bug, refactor, chore, docs, test)
-- Queue (active, backlog)
-- Initiative (dropdown with search)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Title | text input | Required task title |
+| Description | textarea | Optional task description |
+| Weight | native select | trivial, small, medium, large, greenfield |
+| Priority | native select | critical, high, normal, low |
+| Category | native select | feature, bug, refactor, chore, docs, test |
+| Queue | native select | active, backlog |
+| Initiative | Radix Select | Dropdown to assign task to initiative |
+| Target Branch | text input | Optional PR target branch override |
+
+**Initiative dropdown (Radix Select):**
+- Uses `@radix-ui/react-select` for accessibility
+- "None" option to clear initiative assignment
+- Initiatives sorted: active first, then alphabetically
+- Non-active initiatives show status badge
+- Uses `NO_INITIATIVE_VALUE` constant internally since Radix Select requires string values
+- Empty string sent to API to clear initiative
+
+**Target Branch field:**
+- Optional override for PR target branch
+- Hint explains inheritance: initiative branch → project default
+- Leave empty to use default resolution
+
+**Features:**
+- Form state resets when modal opens or task changes
+- Title validation (required)
+- Loading state during save
+- Toast notifications for success/error
+- Updates via `updateTask()` API call
+
+**CSS classes:**
+- `.task-edit-form` - Form container
+- `.form-group` - Field wrapper with label
+- `.form-row` - Horizontal field layout (2 columns)
+- `.form-hint` - Help text below fields
+- `.form-actions` - Button container
+- `.initiative-select-trigger` - Radix Select trigger
+- `.initiative-select-content` - Radix Select dropdown
+- `.initiative-select-item` - Dropdown item
+- `.initiative-status-badge` - Status badge for non-active initiatives
 
 ### ExportDropdown
 
