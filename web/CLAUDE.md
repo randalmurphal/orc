@@ -1249,6 +1249,14 @@ npm run e2e:report       # Open HTML report
 
 **Configuration:** `playwright.config.ts` targets the React app on `:5173`.
 
+**Sandbox isolation:** E2E tests run against an isolated sandbox project in `/tmp`, NOT the real orc project. The sandbox:
+- Has no git remote configured (created with `git init`)
+- Contains test tasks and initiatives (created in `global-setup.ts`)
+- Is cleaned up after tests (in `global-teardown.ts`)
+- Skips git sync operations automatically (no WARN messages for missing remote)
+
+Test files MUST import from `./fixtures` (not `@playwright/test`) to get automatic sandbox project selection.
+
 **Worker limit:** Playwright uses a maximum of 4 workers locally (1 in CI) to prevent OOM when multiple orc tasks run E2E tests in parallel. Each worker spawns browser processes, so unlimited workers on a 16-core machine could exhaust memory.
 
 #### UI Primitives & Radix Integration Tests
