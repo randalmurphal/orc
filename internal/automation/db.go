@@ -72,21 +72,23 @@ func (a *ProjectDBAdapter) LoadTrigger(ctx context.Context, id string) (*Trigger
 
 	row := a.pdb.Driver().QueryRow(ctx, query, id)
 
-	var trigger Trigger
+	var triggerID string
 	var typeStr string
+	var description string
 	var enabled int
 	var configJSON string
 	var lastTriggeredAt sql.NullString
+	var triggerCount int
 	var createdAt, updatedAt string
 
 	err := row.Scan(
-		&trigger.ID,
+		&triggerID,
 		&typeStr,
-		&trigger.Description,
+		&description,
 		&enabled,
 		&configJSON,
 		&lastTriggeredAt,
-		&trigger.TriggerCount,
+		&triggerCount,
 		&createdAt,
 		&updatedAt,
 	)
@@ -97,24 +99,42 @@ func (a *ProjectDBAdapter) LoadTrigger(ctx context.Context, id string) (*Trigger
 		return nil, fmt.Errorf("load trigger: %w", err)
 	}
 
-	trigger.Type = TriggerType(typeStr)
-	trigger.Enabled = enabled == 1
-
-	// Parse config JSON to get full trigger details
+	// Parse config JSON to get full trigger details (Condition, Action, Cooldown, Mode)
+	var trigger Trigger
 	if err := json.Unmarshal([]byte(configJSON), &trigger); err != nil {
 		return nil, fmt.Errorf("unmarshal trigger config: %w", err)
 	}
 
+	// Apply scanned values from database (these are the source of truth, not the JSON)
+	trigger.ID = triggerID
+	trigger.Type = TriggerType(typeStr)
+	trigger.Description = description
+	trigger.Enabled = enabled == 1
+	trigger.TriggerCount = triggerCount
+
 	// Parse timestamps
 	if lastTriggeredAt.Valid {
-		t, err := time.Parse(time.RFC3339, lastTriggeredAt.String)
-		if err == nil {
+		t, parseErr := time.Parse(time.RFC3339, lastTriggeredAt.String)
+		if parseErr != nil {
+			// Try SQLite datetime format
+			t, parseErr = time.Parse("2006-01-02 15:04:05", lastTriggeredAt.String)
+		}
+		if parseErr == nil {
 			trigger.LastTriggeredAt = &t
 		}
 	}
 
-	trigger.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	trigger.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
+	if t, parseErr := time.Parse(time.RFC3339, createdAt); parseErr == nil {
+		trigger.CreatedAt = t
+	} else if t, parseErr := time.Parse("2006-01-02 15:04:05", createdAt); parseErr == nil {
+		trigger.CreatedAt = t
+	}
+
+	if t, parseErr := time.Parse(time.RFC3339, updatedAt); parseErr == nil {
+		trigger.UpdatedAt = t
+	} else if t, parseErr := time.Parse("2006-01-02 15:04:05", updatedAt); parseErr == nil {
+		trigger.UpdatedAt = t
+	}
 
 	return &trigger, nil
 }
@@ -135,21 +155,23 @@ func (a *ProjectDBAdapter) LoadAllTriggers(ctx context.Context) ([]*Trigger, err
 
 	var triggers []*Trigger
 	for rows.Next() {
-		var trigger Trigger
+		var triggerID string
 		var typeStr string
+		var description string
 		var enabled int
 		var configJSON string
 		var lastTriggeredAt sql.NullString
+		var triggerCount int
 		var createdAt, updatedAt string
 
 		err := rows.Scan(
-			&trigger.ID,
+			&triggerID,
 			&typeStr,
-			&trigger.Description,
+			&description,
 			&enabled,
 			&configJSON,
 			&lastTriggeredAt,
-			&trigger.TriggerCount,
+			&triggerCount,
 			&createdAt,
 			&updatedAt,
 		)
@@ -157,24 +179,42 @@ func (a *ProjectDBAdapter) LoadAllTriggers(ctx context.Context) ([]*Trigger, err
 			return nil, fmt.Errorf("scan trigger: %w", err)
 		}
 
-		trigger.Type = TriggerType(typeStr)
-		trigger.Enabled = enabled == 1
-
-		// Parse config JSON
+		// Parse config JSON to get full trigger details (Condition, Action, Cooldown, Mode)
+		var trigger Trigger
 		if err := json.Unmarshal([]byte(configJSON), &trigger); err != nil {
 			return nil, fmt.Errorf("unmarshal trigger config: %w", err)
 		}
 
+		// Apply scanned values from database (these are the source of truth, not the JSON)
+		trigger.ID = triggerID
+		trigger.Type = TriggerType(typeStr)
+		trigger.Description = description
+		trigger.Enabled = enabled == 1
+		trigger.TriggerCount = triggerCount
+
 		// Parse timestamps
 		if lastTriggeredAt.Valid {
-			t, err := time.Parse(time.RFC3339, lastTriggeredAt.String)
-			if err == nil {
+			t, parseErr := time.Parse(time.RFC3339, lastTriggeredAt.String)
+			if parseErr != nil {
+				// Try SQLite datetime format
+				t, parseErr = time.Parse("2006-01-02 15:04:05", lastTriggeredAt.String)
+			}
+			if parseErr == nil {
 				trigger.LastTriggeredAt = &t
 			}
 		}
 
-		trigger.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		trigger.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
+		if t, parseErr := time.Parse(time.RFC3339, createdAt); parseErr == nil {
+			trigger.CreatedAt = t
+		} else if t, parseErr := time.Parse("2006-01-02 15:04:05", createdAt); parseErr == nil {
+			trigger.CreatedAt = t
+		}
+
+		if t, parseErr := time.Parse(time.RFC3339, updatedAt); parseErr == nil {
+			trigger.UpdatedAt = t
+		} else if t, parseErr := time.Parse("2006-01-02 15:04:05", updatedAt); parseErr == nil {
+			trigger.UpdatedAt = t
+		}
 
 		triggers = append(triggers, &trigger)
 	}
@@ -238,6 +278,26 @@ func (a *ProjectDBAdapter) IncrementCounter(ctx context.Context, triggerID, metr
 	}
 
 	return nil
+}
+
+// IncrementAndGetCounter atomically increments a counter and returns its new value.
+// This prevents race conditions between increment and threshold check.
+func (a *ProjectDBAdapter) IncrementAndGetCounter(ctx context.Context, triggerID, metric string) (int, error) {
+	query := `
+		INSERT INTO trigger_counters (trigger_id, metric, count, last_reset_at)
+		VALUES (?, ?, 1, datetime('now'))
+		ON CONFLICT(trigger_id, metric) DO UPDATE SET
+			count = count + 1
+		RETURNING count
+	`
+
+	var count int
+	err := a.pdb.Driver().QueryRow(ctx, query, triggerID, metric).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("increment and get counter: %w", err)
+	}
+
+	return count, nil
 }
 
 // ResetCounter resets a counter to zero.

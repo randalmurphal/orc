@@ -247,6 +247,9 @@ type Task struct {
 	ExecutorHostname  string     // Hostname running the executor
 	ExecutorStartedAt *time.Time // When execution started
 	LastHeartbeat     *time.Time // Last heartbeat update
+
+	// Automation task flag (for efficient querying)
+	IsAutomation bool // true for AUTO-XXX tasks
 }
 
 // SaveTask creates or updates a task.
@@ -292,9 +295,15 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 		lastHeartbeat = &s
 	}
 
+	// Convert bool to int for SQLite
+	isAutomation := 0
+	if t.IsAutomation {
+		isAutomation = 1
+	}
+
 	_, err := p.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
@@ -316,10 +325,11 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 			executor_pid = excluded.executor_pid,
 			executor_hostname = excluded.executor_hostname,
 			executor_started_at = excluded.executor_started_at,
-			last_heartbeat = excluded.last_heartbeat
+			last_heartbeat = excluded.last_heartbeat,
+			is_automation = excluded.is_automation
 	`, t.ID, t.Title, t.Description, t.Weight, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
 		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext,
-		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat)
+		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat, isAutomation)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
@@ -329,7 +339,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 // GetTask retrieves a task by ID.
 func (p *ProjectDB) GetTask(id string) (*Task, error) {
 	row := p.QueryRow(`
-		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat
+		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation
 		FROM tasks WHERE id = ?
 	`, id)
 
@@ -354,11 +364,12 @@ func (p *ProjectDB) DeleteTask(id string) error {
 
 // ListOpts provides filtering and pagination options.
 type ListOpts struct {
-	Status   string
-	Queue    string // "active", "backlog", or empty for all
-	Priority string // "critical", "high", "normal", "low", or empty for all
-	Limit    int
-	Offset   int
+	Status       string
+	Queue        string // "active", "backlog", or empty for all
+	Priority     string // "critical", "high", "normal", "low", or empty for all
+	IsAutomation *bool  // true = only automation tasks, false = only non-automation, nil = all
+	Limit        int
+	Offset       int
 }
 
 // ListTasks returns tasks matching the given options.
@@ -378,6 +389,13 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 		whereClauses = append(whereClauses, "priority = ?")
 		countArgs = append(countArgs, opts.Priority)
 	}
+	if opts.IsAutomation != nil {
+		if *opts.IsAutomation {
+			whereClauses = append(whereClauses, "is_automation = 1")
+		} else {
+			whereClauses = append(whereClauses, "(is_automation = 0 OR is_automation IS NULL)")
+		}
+	}
 
 	whereClause := ""
 	if len(whereClauses) > 0 {
@@ -392,7 +410,7 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 
 	// Query tasks
 	query := `
-		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat
+		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation
 		FROM tasks
 	` + whereClause + " ORDER BY created_at DESC"
 
@@ -429,6 +447,36 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 	return tasks, total, nil
 }
 
+// AutomationTaskStats holds counts of automation tasks by status.
+type AutomationTaskStats struct {
+	Pending   int // created, planned
+	Running   int
+	Completed int // completed, finished
+}
+
+// GetAutomationTaskStats returns counts of automation tasks by status.
+// Uses a single aggregated query for efficiency.
+func (p *ProjectDB) GetAutomationTaskStats() (*AutomationTaskStats, error) {
+	query := `
+		SELECT
+			SUM(CASE WHEN status IN ('created', 'planned') THEN 1 ELSE 0 END) as pending,
+			SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running,
+			SUM(CASE WHEN status IN ('completed', 'finished') THEN 1 ELSE 0 END) as completed
+		FROM tasks
+		WHERE is_automation = 1
+	`
+	var pending, running, completed sql.NullInt64
+	if err := p.QueryRow(query).Scan(&pending, &running, &completed); err != nil {
+		return nil, fmt.Errorf("get automation task stats: %w", err)
+	}
+
+	return &AutomationTaskStats{
+		Pending:   int(pending.Int64),
+		Running:   int(running.Int64),
+		Completed: int(completed.Int64),
+	}, nil
+}
+
 // scanTask scans a single task from a Row.
 func scanTask(row *sql.Row) (*Task, error) {
 	var t Task
@@ -437,10 +485,11 @@ func scanTask(row *sql.Row) (*Task, error) {
 	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext sql.NullString
 	var executorPID sql.NullInt64
 	var executorHostname, executorStartedAt, lastHeartbeat sql.NullString
+	var isAutomation sql.NullInt64
 
 	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
 		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext,
-		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat); err != nil {
+		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat, &isAutomation); err != nil {
 		return nil, err
 	}
 
@@ -516,6 +565,11 @@ func scanTask(row *sql.Row) (*Task, error) {
 		if ts, err := time.Parse(time.RFC3339, lastHeartbeat.String); err == nil {
 			t.LastHeartbeat = &ts
 		}
+	}
+
+	// Automation flag
+	if isAutomation.Valid && isAutomation.Int64 == 1 {
+		t.IsAutomation = true
 	}
 
 	return &t, nil
@@ -529,10 +583,11 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext sql.NullString
 	var executorPID sql.NullInt64
 	var executorHostname, executorStartedAt, lastHeartbeat sql.NullString
+	var isAutomation sql.NullInt64
 
 	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
 		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext,
-		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat); err != nil {
+		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat, &isAutomation); err != nil {
 		return nil, err
 	}
 
@@ -608,6 +663,11 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 		if ts, err := time.Parse(time.RFC3339, lastHeartbeat.String); err == nil {
 			t.LastHeartbeat = &ts
 		}
+	}
+
+	// Automation flag
+	if isAutomation.Valid && isAutomation.Int64 == 1 {
+		t.IsAutomation = true
 	}
 
 	return &t, nil
@@ -2001,9 +2061,15 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 		lastHeartbeat = &s
 	}
 
+	// Convert bool to int for SQLite
+	isAutomation := 0
+	if t.IsAutomation {
+		isAutomation = 1
+	}
+
 	_, err := tx.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
@@ -2025,10 +2091,11 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 			executor_pid = excluded.executor_pid,
 			executor_hostname = excluded.executor_hostname,
 			executor_started_at = excluded.executor_started_at,
-			last_heartbeat = excluded.last_heartbeat
+			last_heartbeat = excluded.last_heartbeat,
+			is_automation = excluded.is_automation
 	`, t.ID, t.Title, t.Description, t.Weight, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
 		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext,
-		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat)
+		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat, isAutomation)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}

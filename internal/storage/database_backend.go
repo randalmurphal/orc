@@ -754,6 +754,7 @@ func taskToDBTask(t *task.Task) *db.Task {
 		StartedAt:    t.StartedAt,
 		CompletedAt:  t.CompletedAt,
 		Metadata:     metadataJSON,
+		IsAutomation: t.IsAutomation,
 	}
 }
 
@@ -781,6 +782,7 @@ func dbTaskToTask(dbTask *db.Task) *task.Task {
 		StartedAt:    dbTask.StartedAt,
 		CompletedAt:  dbTask.CompletedAt,
 		Metadata:     metadata,
+		IsAutomation: dbTask.IsAutomation,
 	}
 }
 
@@ -804,6 +806,46 @@ func (d *DatabaseBackend) TaskExists(id string) (bool, error) {
 		return false, err
 	}
 	return dbTask != nil, nil
+}
+
+// LoadAutomationTasks loads only automation tasks (is_automation = 1).
+// More efficient than LoadAllTasks followed by filtering.
+func (d *DatabaseBackend) LoadAutomationTasks() ([]*task.Task, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	isAutomation := true
+	dbTasks, _, err := d.db.ListTasks(db.ListOpts{IsAutomation: &isAutomation})
+	if err != nil {
+		return nil, fmt.Errorf("list automation tasks: %w", err)
+	}
+
+	// Batch load dependencies for automation tasks
+	allDeps, err := d.db.GetAllTaskDependencies()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load dependencies: %v", err)
+		allDeps = make(map[string][]string)
+	}
+
+	tasks := make([]*task.Task, 0, len(dbTasks))
+	for _, dbTask := range dbTasks {
+		t := dbTaskToTask(&dbTask)
+		if deps, ok := allDeps[t.ID]; ok {
+			t.BlockedBy = deps
+		}
+		tasks = append(tasks, t)
+	}
+
+	return tasks, nil
+}
+
+// GetAutomationTaskStats returns counts of automation tasks by status.
+// Uses a single aggregated query for efficiency.
+func (d *DatabaseBackend) GetAutomationTaskStats() (*db.AutomationTaskStats, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetAutomationTaskStats()
 }
 
 // ============================================================================

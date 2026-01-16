@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
@@ -26,6 +27,9 @@ type AutoTaskCreator struct {
 	// onTaskStart is called when a task should be started (auto mode)
 	// This allows decoupling from the executor
 	onTaskStart func(ctx context.Context, taskID string) error
+
+	// mu protects concurrent task ID generation
+	mu sync.Mutex
 }
 
 // AutoTaskCreatorOption configures an AutoTaskCreator.
@@ -87,6 +91,8 @@ func (c *AutoTaskCreator) CreateAutomationTask(ctx context.Context, templateID s
 	t.Queue = task.QueueActive
 	// Priority can be set via trigger action, default to normal
 	t.Priority = task.PriorityNormal
+	// Mark as automation task for efficient database querying
+	t.IsAutomation = true
 
 	// Mark as automation task with metadata
 	if t.Metadata == nil {
@@ -151,7 +157,11 @@ func (c *AutoTaskCreator) StartAutomationTask(ctx context.Context, taskID string
 }
 
 // nextAutoTaskID generates the next AUTO-XXX task ID.
+// The mutex prevents race conditions when multiple automation tasks are created concurrently.
 func (c *AutoTaskCreator) nextAutoTaskID() (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	// Get all tasks and find the highest AUTO-XXX number
 	tasks, err := c.backend.LoadAllTasks()
 	if err != nil {

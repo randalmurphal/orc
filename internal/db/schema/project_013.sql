@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);
 CREATE INDEX IF NOT EXISTS idx_notifications_dismissed ON notifications(dismissed);
 CREATE INDEX IF NOT EXISTS idx_notifications_source ON notifications(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_expires ON notifications(expires_at);
 
 -- ============================================================================
 -- AUTOMATION TASK TRACKING

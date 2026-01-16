@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
 )
@@ -388,6 +389,10 @@ Example:
 				return fmt.Errorf("load config: %w", err)
 			}
 
+			if !cfg.Automation.Enabled {
+				return fmt.Errorf("automation is disabled in config (automation.enabled: false)")
+			}
+
 			// Find trigger in config
 			var trigger *config.TriggerConfig
 			for _, t := range cfg.Automation.Triggers {
@@ -401,7 +406,7 @@ Example:
 				return fmt.Errorf("trigger %q not found", triggerID)
 			}
 
-			if !trigger.Enabled {
+			if !trigger.Enabled && !quiet {
 				fmt.Printf("Warning: Trigger %q is disabled, running anyway\n", triggerID)
 			}
 
@@ -411,17 +416,43 @@ Example:
 				return fmt.Errorf("template %q not found", trigger.Action.Template)
 			}
 
-			fmt.Printf("Running trigger: %s\n", triggerID)
-			fmt.Printf("  Template: %s\n", trigger.Action.Template)
-			fmt.Printf("  Title:    %s\n", tmpl.Title)
-			if branch != "" {
-				fmt.Printf("  Branch:   %s\n", branch)
+			if !quiet {
+				fmt.Printf("Running trigger: %s\n", triggerID)
+				fmt.Printf("  Template: %s\n", trigger.Action.Template)
+				fmt.Printf("  Title:    %s\n", tmpl.Title)
+				if branch != "" {
+					fmt.Printf("  Branch:   %s\n", branch)
+				}
 			}
 
-			// TODO: Actually run the trigger using the automation service
-			// For now, show what would happen
-			fmt.Println("\nNote: Trigger execution not yet implemented.")
-			fmt.Println("This would create an AUTO-XXX task and start execution.")
+			// Get backend and create automation service
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer func() { _ = backend.Close() }()
+
+			dbBackend, ok := backend.(*storage.DatabaseBackend)
+			if !ok {
+				return fmt.Errorf("database backend required for automation")
+			}
+
+			// Create automation service
+			adapter := automation.NewProjectDBAdapter(dbBackend.DB())
+			svc := automation.NewService(cfg, adapter, nil)
+
+			// Create task creator if we need to create tasks
+			taskCreator := automation.NewAutoTaskCreator(cfg, backend, nil)
+			svc.SetTaskCreator(taskCreator)
+
+			// Run the trigger
+			if err := svc.RunTrigger(cmd.Context(), triggerID); err != nil {
+				return fmt.Errorf("run trigger: %w", err)
+			}
+
+			if !quiet {
+				fmt.Println("\nTrigger executed successfully.")
+			}
 
 			return nil
 		},

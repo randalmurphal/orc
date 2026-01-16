@@ -75,6 +75,12 @@ type TemplateVars struct {
 	InitiativeTitle     string // Initiative title
 	InitiativeVision    string // Initiative vision/goals
 	InitiativeDecisions string // Formatted initiative decisions
+
+	// Automation task context variables
+	RecentCompletedTasks string // Formatted list of recently completed tasks
+	RecentChangedFiles   string // List of files changed in recent tasks
+	ChangelogContent     string // Current CHANGELOG.md content
+	ClaudeMDContent      string // Current CLAUDE.md content
 }
 
 // UITestingContext holds UI testing-specific context for template rendering.
@@ -110,6 +116,27 @@ type InitiativeContext struct {
 
 	// Decisions is a list of decisions made within the initiative.
 	Decisions []InitiativeDecision
+}
+
+// AutomationContext holds automation task-specific context for template rendering.
+// This provides information about recent tasks, changed files, and project state
+// for automation templates like changelog generation, style normalization, etc.
+type AutomationContext struct {
+	// RecentCompletedTasks is a formatted list of recently completed tasks.
+	// Used by templates like changelog-generation.md and knowledge-sync.md.
+	RecentCompletedTasks string
+
+	// RecentChangedFiles is a list of files changed in recent tasks.
+	// Used by templates like style-normalization.md.
+	RecentChangedFiles string
+
+	// ChangelogContent is the current CHANGELOG.md content.
+	// Used by changelog-generation.md template.
+	ChangelogContent string
+
+	// ClaudeMDContent is the current CLAUDE.md content.
+	// Used by knowledge-sync.md template.
+	ClaudeMDContent string
 }
 
 // FormatDecisions formats the decisions as a markdown string for template injection.
@@ -210,6 +237,12 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{INITIATIVE_VISION}}":    vars.InitiativeVision,
 		"{{INITIATIVE_DECISIONS}}": vars.InitiativeDecisions,
 		"{{INITIATIVE_CONTEXT}}":   formatInitiativeContextSection(vars),
+
+		// Automation task context variables
+		"{{RECENT_COMPLETED_TASKS}}": vars.RecentCompletedTasks,
+		"{{RECENT_CHANGED_FILES}}":   vars.RecentChangedFiles,
+		"{{CHANGELOG_CONTENT}}":      vars.ChangelogContent,
+		"{{CLAUDEMD_CONTENT}}":       vars.ClaudeMDContent,
 	}
 
 	result := tmpl
@@ -327,6 +360,16 @@ func (v TemplateVars) WithInitiativeContext(ctx InitiativeContext) TemplateVars 
 	v.InitiativeTitle = ctx.Title
 	v.InitiativeVision = ctx.Vision
 	v.InitiativeDecisions = ctx.FormatDecisions()
+	return v
+}
+
+// WithAutomationContext returns a copy of the vars with automation context applied.
+// This injects recent tasks, changed files, and project file content for automation templates.
+func (v TemplateVars) WithAutomationContext(ctx AutomationContext) TemplateVars {
+	v.RecentCompletedTasks = ctx.RecentCompletedTasks
+	v.RecentChangedFiles = ctx.RecentChangedFiles
+	v.ChangelogContent = ctx.ChangelogContent
+	v.ClaudeMDContent = ctx.ClaudeMDContent
 	return v
 }
 
@@ -487,4 +530,122 @@ func extractVerificationResults(content string) string {
 	}
 
 	return ""
+}
+
+// LoadAutomationContext loads automation context for an automation task.
+// This populates recent completed tasks, changed files, and project file content
+// for automation templates like changelog generation and style normalization.
+func LoadAutomationContext(t *task.Task, backend storage.Backend, projectRoot string) *AutomationContext {
+	if t == nil || !t.IsAutomation || backend == nil {
+		return nil
+	}
+
+	ctx := &AutomationContext{}
+
+	// Load recent completed tasks (last 20)
+	tasks, err := backend.LoadAllTasks()
+	if err == nil {
+		ctx.RecentCompletedTasks = formatRecentCompletedTasks(tasks, 20)
+		ctx.RecentChangedFiles = collectRecentChangedFiles(tasks, 10)
+	}
+
+	// Load CHANGELOG.md content
+	changelogPath := filepath.Join(projectRoot, "CHANGELOG.md")
+	if content, err := os.ReadFile(changelogPath); err == nil {
+		ctx.ChangelogContent = string(content)
+	}
+
+	// Load CLAUDE.md content
+	claudeMDPath := filepath.Join(projectRoot, "CLAUDE.md")
+	if content, err := os.ReadFile(claudeMDPath); err == nil {
+		ctx.ClaudeMDContent = string(content)
+	}
+
+	return ctx
+}
+
+// formatRecentCompletedTasks formats recent completed tasks as a markdown list.
+func formatRecentCompletedTasks(tasks []*task.Task, limit int) string {
+	var completed []*task.Task
+	for _, t := range tasks {
+		if t.Status == task.StatusCompleted || t.Status == task.StatusFinished {
+			completed = append(completed, t)
+		}
+	}
+
+	// Sort by completion time (most recent first)
+	sort.Slice(completed, func(i, j int) bool {
+		if completed[i].CompletedAt == nil {
+			return false
+		}
+		if completed[j].CompletedAt == nil {
+			return true
+		}
+		return completed[i].CompletedAt.After(*completed[j].CompletedAt)
+	})
+
+	// Limit to requested number
+	if len(completed) > limit {
+		completed = completed[:limit]
+	}
+
+	var sb strings.Builder
+	for _, t := range completed {
+		fmt.Fprintf(&sb, "- **%s**: %s", t.ID, t.Title)
+		if t.Category != "" {
+			fmt.Fprintf(&sb, " [%s]", t.Category)
+		}
+		if t.Weight != "" {
+			fmt.Fprintf(&sb, " (%s)", t.Weight)
+		}
+		sb.WriteString("\n")
+	}
+	return strings.TrimSuffix(sb.String(), "\n")
+}
+
+// collectRecentChangedFiles collects files changed in recent tasks.
+// This extracts file paths from task descriptions and metadata.
+func collectRecentChangedFiles(tasks []*task.Task, limit int) string {
+	// Get recent completed tasks
+	var recent []*task.Task
+	for _, t := range tasks {
+		if t.Status == task.StatusCompleted || t.Status == task.StatusFinished {
+			recent = append(recent, t)
+		}
+	}
+
+	// Sort by completion time (most recent first)
+	sort.Slice(recent, func(i, j int) bool {
+		if recent[i].CompletedAt == nil {
+			return false
+		}
+		if recent[j].CompletedAt == nil {
+			return true
+		}
+		return recent[i].CompletedAt.After(*recent[j].CompletedAt)
+	})
+
+	// Limit tasks to check
+	if len(recent) > limit {
+		recent = recent[:limit]
+	}
+
+	// Collect unique file paths from task metadata
+	seen := make(map[string]bool)
+	var files []string
+
+	for _, t := range recent {
+		// Check metadata for changed_files key
+		if changedFiles, ok := t.Metadata["changed_files"]; ok {
+			for f := range strings.SplitSeq(changedFiles, ",") {
+				f = strings.TrimSpace(f)
+				if f != "" && !seen[f] {
+					seen[f] = true
+					files = append(files, f)
+				}
+			}
+		}
+	}
+
+	return strings.Join(files, "\n")
 }

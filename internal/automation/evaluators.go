@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 )
 
 // CountEvaluator evaluates count-based triggers.
@@ -57,15 +58,11 @@ func (e *CountEvaluator) Evaluate(ctx context.Context, trigger *Trigger, event *
 		return false, "", nil
 	}
 
-	// Increment counter
-	if err := svc.db.IncrementCounter(ctx, trigger.ID, metric); err != nil {
-		return false, "", fmt.Errorf("increment counter: %w", err)
-	}
-
-	// Check if threshold reached
-	count, err := svc.db.GetCounter(ctx, trigger.ID, metric)
+	// Atomically increment counter and get new value
+	// This prevents race conditions between increment and threshold check
+	count, err := svc.db.IncrementAndGetCounter(ctx, trigger.ID, metric)
 	if err != nil {
-		return false, "", fmt.Errorf("get counter: %w", err)
+		return false, "", fmt.Errorf("increment and get counter: %w", err)
 	}
 
 	if count >= trigger.Condition.Threshold {
@@ -174,16 +171,12 @@ func (e *EventEvaluator) Evaluate(ctx context.Context, trigger *Trigger, event *
 
 // containsWeight checks if a comma-separated weights string contains a weight.
 func containsWeight(weights, weight string) bool {
-	// Simple check - could be made more robust with proper parsing
-	return len(weights) > 0 && (weights == weight ||
-		len(weights) > len(weight) && (weights[:len(weight)+1] == weight+"," ||
-			weights[len(weights)-len(weight)-1:] == ","+weight ||
-			containsSubstring(weights, ","+weight+",")))
-}
-
-func containsSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
+	if weights == "" || weight == "" {
+		return false
+	}
+	parts := strings.Split(weights, ",")
+	for _, p := range parts {
+		if strings.TrimSpace(p) == weight {
 			return true
 		}
 	}

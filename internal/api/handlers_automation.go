@@ -133,6 +133,12 @@ func (s *Server) handleRunTrigger(w http.ResponseWriter, r *http.Request) {
 	}
 	id := parts[0]
 
+	// Validate trigger ID format (alphanumeric, dashes, underscores only)
+	if !isValidTriggerID(id) {
+		s.jsonError(w, "invalid trigger ID format", http.StatusBadRequest)
+		return
+	}
+
 	if s.automationSvc == nil {
 		s.jsonError(w, "automation service not enabled", http.StatusServiceUnavailable)
 		return
@@ -144,16 +150,8 @@ func (s *Server) handleRunTrigger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create a manual trigger event
-	event := &automation.Event{
-		Type: "manual",
-		Metadata: map[string]string{
-			"trigger_id": id,
-			"source":     "api",
-		},
-	}
-
-	if err := s.automationSvc.HandleEvent(r.Context(), event); err != nil {
+	// Run the trigger directly (bypasses condition evaluation)
+	if err := s.automationSvc.RunTrigger(r.Context(), id); err != nil {
 		s.logger.Error("failed to run trigger", "trigger", id, "error", err)
 		s.jsonError(w, "failed to run trigger: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -163,6 +161,20 @@ func (s *Server) handleRunTrigger(w http.ResponseWriter, r *http.Request) {
 		"status":  "triggered",
 		"trigger": id,
 	})
+}
+
+// isValidTriggerID validates that a trigger ID contains only safe characters.
+func isValidTriggerID(id string) bool {
+	if len(id) == 0 || len(id) > 100 {
+		return false
+	}
+	for _, c := range id {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || c == '-' || c == '_') {
+			return false
+		}
+	}
+	return true
 }
 
 // handleGetTriggerHistory returns execution history for a trigger.
@@ -242,19 +254,32 @@ func (s *Server) handleResetTrigger(w http.ResponseWriter, r *http.Request) {
 // handleListAutomationTasks returns all AUTO-* tasks.
 // GET /api/automation/tasks
 func (s *Server) handleListAutomationTasks(w http.ResponseWriter, r *http.Request) {
-	tasks, err := s.backend.LoadAllTasks()
-	if err != nil {
-		s.logger.Error("failed to load tasks", "error", err)
-		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
+	// Use efficient database query via is_automation filter
+	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
+	if !ok {
+		// Fallback for non-database backends: load all and filter
+		tasks, err := s.backend.LoadAllTasks()
+		if err != nil {
+			s.logger.Error("failed to load tasks", "error", err)
+			s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
+			return
+		}
+		autoTasks := make([]*task.Task, 0)
+		for _, t := range tasks {
+			if strings.HasPrefix(t.ID, "AUTO-") {
+				autoTasks = append(autoTasks, t)
+			}
+		}
+		s.jsonResponse(w, autoTasks)
 		return
 	}
 
-	// Filter for AUTO-* tasks
-	autoTasks := make([]*task.Task, 0)
-	for _, t := range tasks {
-		if strings.HasPrefix(t.ID, "AUTO-") {
-			autoTasks = append(autoTasks, t)
-		}
+	// Efficient path: query only automation tasks
+	autoTasks, err := dbBackend.LoadAutomationTasks()
+	if err != nil {
+		s.logger.Error("failed to load automation tasks", "error", err)
+		s.jsonError(w, "failed to load automation tasks", http.StatusInternalServerError)
+		return
 	}
 
 	s.jsonResponse(w, autoTasks)
@@ -268,15 +293,8 @@ func (s *Server) handleGetAutomationStats(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	tasks, err := s.backend.LoadAllTasks()
-	if err != nil {
-		s.logger.Error("failed to load tasks", "error", err)
-		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
-		return
-	}
-
 	stats := AutomationStatsResponse{
-		TotalTriggers:   len(s.orcConfig.Automation.Triggers),
+		TotalTriggers: len(s.orcConfig.Automation.Triggers),
 	}
 
 	for _, t := range s.orcConfig.Automation.Triggers {
@@ -285,18 +303,39 @@ func (s *Server) handleGetAutomationStats(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	// Count automation tasks by status
-	for _, t := range tasks {
-		if !strings.HasPrefix(t.ID, "AUTO-") {
-			continue
+	// Use efficient database query via is_automation filter
+	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
+	if ok {
+		// Efficient path: single aggregated query
+		taskStats, err := dbBackend.GetAutomationTaskStats()
+		if err != nil {
+			s.logger.Error("failed to get automation task stats", "error", err)
+			s.jsonError(w, "failed to get automation task stats", http.StatusInternalServerError)
+			return
 		}
-		switch t.Status {
-		case "created", "planned":
-			stats.PendingTasks++
-		case "running":
-			stats.RunningTasks++
-		case "completed", "finished":
-			stats.CompletedTasks++
+		stats.PendingTasks = taskStats.Pending
+		stats.RunningTasks = taskStats.Running
+		stats.CompletedTasks = taskStats.Completed
+	} else {
+		// Fallback for non-database backends: load all and filter
+		tasks, err := s.backend.LoadAllTasks()
+		if err != nil {
+			s.logger.Error("failed to load tasks", "error", err)
+			s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
+			return
+		}
+		for _, t := range tasks {
+			if !strings.HasPrefix(t.ID, "AUTO-") {
+				continue
+			}
+			switch t.Status {
+			case "created", "planned":
+				stats.PendingTasks++
+			case "running":
+				stats.RunningTasks++
+			case "completed", "finished":
+				stats.CompletedTasks++
+			}
 		}
 	}
 

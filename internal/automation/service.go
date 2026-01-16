@@ -81,6 +81,9 @@ type Database interface {
 	// Counters
 	GetCounter(ctx context.Context, triggerID, metric string) (int, error)
 	IncrementCounter(ctx context.Context, triggerID, metric string) error
+	// IncrementAndGetCounter atomically increments counter and returns new value.
+	// This prevents race conditions between increment and threshold check.
+	IncrementAndGetCounter(ctx context.Context, triggerID, metric string) (int, error)
 	ResetCounter(ctx context.Context, triggerID, metric string) error
 
 	// Executions
@@ -162,6 +165,13 @@ func (s *Service) HandleEvent(ctx context.Context, event *Event) error {
 	triggers := s.cfg.GetEnabledTriggers()
 
 	for _, triggerCfg := range triggers {
+		// Check for context cancellation between trigger evaluations
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		trigger := s.configToTrigger(&triggerCfg)
 
 		// Get evaluator for this trigger type
@@ -470,4 +480,24 @@ func (s *Service) GetStats(ctx context.Context) (*Stats, error) {
 
 	// TODO: Get execution stats from database
 	return stats, nil
+}
+
+// RunTrigger manually fires a specific trigger, bypassing condition evaluation.
+// This is used by the CLI "orc automation run" and the API endpoint.
+func (s *Service) RunTrigger(ctx context.Context, triggerID string) error {
+	// Find trigger in config
+	var triggerCfg *config.TriggerConfig
+	for i := range s.cfg.Automation.Triggers {
+		if s.cfg.Automation.Triggers[i].ID == triggerID {
+			triggerCfg = &s.cfg.Automation.Triggers[i]
+			break
+		}
+	}
+
+	if triggerCfg == nil {
+		return fmt.Errorf("trigger %q not found", triggerID)
+	}
+
+	trigger := s.configToTrigger(triggerCfg)
+	return s.fireTrigger(ctx, trigger, "manual execution via CLI/API")
 }

@@ -33,22 +33,29 @@ export function NotificationBar(): ReactElement | null {
 
 	// Fetch notifications on mount and periodically
 	useEffect(() => {
+		let isMounted = true;
+
 		const fetchNotifications = async () => {
 			try {
 				const res = await fetch('/api/notifications');
-				if (res.ok) {
+				if (res.ok && isMounted) {
 					const data: NotificationResponse = await res.json();
 					setNotifications(data.notifications || []);
 				}
 			} catch (error) {
-				console.error('Failed to fetch notifications:', error);
+				if (isMounted) {
+					console.error('Failed to fetch notifications:', error);
+				}
 			}
 		};
 
 		fetchNotifications();
 		const interval = setInterval(fetchNotifications, 30000); // Refresh every 30s
 
-		return () => clearInterval(interval);
+		return () => {
+			isMounted = false;
+			clearInterval(interval);
+		};
 	}, []);
 
 	const dismissNotification = async (id: string) => {
