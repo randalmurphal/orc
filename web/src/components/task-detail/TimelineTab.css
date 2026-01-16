@@ -411,6 +411,15 @@
 	color: var(--text-secondary);
 }
 
+/* Blocked by indicator */
+.info-blocked-by {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	color: var(--status-warning);
+	font-weight: var(--font-medium);
+}
+
 /* Retries badge */
 .info-retries {
 	color: var(--status-warning);

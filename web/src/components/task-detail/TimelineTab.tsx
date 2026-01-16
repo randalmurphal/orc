@@ -296,6 +296,17 @@ function TaskInfoList({ task, taskState }: TaskInfoListProps) {
 				</div>
 			)}
 
+			{/* Blocked By */}
+			{task.blocked_by && task.blocked_by.length > 0 && (
+				<div className="info-item">
+					<dt>Blocked By</dt>
+					<dd className="info-blocked-by">
+						<Icon name="alert-circle" size={12} />
+						{task.blocked_by.length} {task.blocked_by.length === 1 ? 'task' : 'tasks'}
+					</dd>
+				</div>
+			)}
+
 			{/* Git Info */}
 			{task.branch && (
 				<div className="info-item">
