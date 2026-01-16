@@ -292,7 +292,7 @@ diagnostics:
   resource_tracking:
     enabled: true                      # Enable process/memory tracking (default: true)
     memory_threshold_mb: 100           # Warn if memory grows by > threshold (default: 100)
-    log_orphaned_mcp_only: false       # Only log MCP-related orphans (default: false)
+    filter_system_processes: true      # Only flag orc-related processes as orphans (default: true)
 
 # Task ID configuration (team mode)
 task_id:

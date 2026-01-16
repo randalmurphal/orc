@@ -223,6 +223,7 @@ orc config profile strict
 | `timeouts.heartbeat_interval` | Progress dots interval | `docs/architecture/EXECUTOR.md` |
 | `diagnostics.resource_tracking.enabled` | Enable process/memory tracking | `docs/guides/TROUBLESHOOTING.md` |
 | `diagnostics.resource_tracking.memory_threshold_mb` | Memory growth warning threshold | `docs/guides/TROUBLESHOOTING.md` |
+| `diagnostics.resource_tracking.filter_system_processes` | Only flag orc-related orphans (default: true) | `docs/guides/TROUBLESHOOTING.md` |
 
 **All config:** `orc config docs` or `docs/specs/CONFIG_HIERARCHY.md`
 
@@ -583,6 +584,7 @@ Patterns, gotchas, and decisions learned during development.
 | Date shows '12/31/1' instead of '12/31/2001' | Fixed: `toLocaleDateString()` without options can produce abbreviated years; use explicit options `{ year: 'numeric', month: 'numeric', day: 'numeric' }` to ensure 4-digit year display; also add null/invalid date guards | TASK-255 |
 | Dashboard initiative progress shows 0/0 | Fixed: `DashboardInitiatives` was calculating progress from `initiative.tasks` (unpopulated by API) while Sidebar used `getInitiativeProgress(tasks)` from task store; now both use task store for consistent counts | TASK-276 |
 | Project selector shows 'Select project' after refresh | Fixed: `useCurrentProject()` was calling `state.getCurrentProject()` method which Zustand couldn't track for dependencies; now computes directly in selector `state.projects.find(p => p.id === state.currentProjectId)` to properly track both `projects` and `currentProjectId` | TASK-266 |
+| Orphan detection flags system processes as false positives | Fixed: Added `filter_system_processes` config (default: true) and `orcRelatedProcessPattern` regex to only flag orc-spawned processes (claude, node, playwright, chromium, mcp) as orphans; system processes (systemd-timedated, snapper, etc.) that start during task execution are now ignored | TASK-279 |
 
 ### Decisions
 | Decision | Rationale | Source |

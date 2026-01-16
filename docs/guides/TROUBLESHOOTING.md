@@ -601,16 +601,44 @@ WARN memory growth exceeded threshold delta_mb=435.8 threshold_mb=100
 - **[MCP] tag**: Indicates MCP-related process (Playwright, browser)
 - **memory growth**: Delta between before/after (warning if > threshold)
 
+**Understanding the Tags**:
+
+```
+WARN orphaned processes detected count=2 processes="chromium (PID=12345) [MCP], node (PID=12346) [orc]..."
+```
+
+- **[MCP]**: Browser/Playwright processes (chromium, chrome, firefox, webkit, puppeteer, selenium)
+- **[orc]**: Other orc-related processes (claude, node, npx, npm, mcp-server)
+
+System processes (systemd, snapper, etc.) are filtered out by default and don't appear in orphan warnings.
+
 **Configuration**:
 
 ```yaml
 # config.yaml
 diagnostics:
   resource_tracking:
-    enabled: true            # Enable tracking (default: true)
-    memory_threshold_mb: 100 # Warn threshold (default: 100)
-    log_orphaned_mcp_only: false  # Only log MCP orphans (default: false)
+    enabled: true                 # Enable tracking (default: true)
+    memory_threshold_mb: 100      # Warn threshold (default: 100)
+    filter_system_processes: true # Filter out system processes (default: true)
 ```
+
+| Option | Default | Purpose |
+|--------|---------|---------|
+| `enabled` | `true` | Enable/disable resource tracking entirely |
+| `memory_threshold_mb` | `100` | Warn if memory grows by more than this |
+| `filter_system_processes` | `true` | Only flag orc-related processes as orphans |
+
+**Filter System Processes (New in TASK-279)**:
+
+When `filter_system_processes: true` (default), only processes matching orc-related patterns are flagged as potential orphans:
+- Browser automation: playwright, chromium, chrome, firefox, webkit, puppeteer, selenium
+- Claude Code and Node.js: claude, node, npx, npm
+- MCP servers: mcp-server, mcp
+
+System processes that happen to start during task execution (like `systemd-timedated`, `snapper`, `updatedb`, etc.) are ignored. This eliminates false positives where unrelated system activity was incorrectly flagged as orphaned.
+
+Set to `false` to use the original behavior where all new orphaned processes are flagged (prone to false positives on active systems).
 
 **Disabling Resource Tracking**:
 
