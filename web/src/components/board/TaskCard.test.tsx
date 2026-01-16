@@ -143,10 +143,8 @@ Some \`inline code\` here`;
 		it('has correct aria-label', () => {
 			renderTaskCard(createTask());
 
-			expect(screen.getByRole('article')).toHaveAttribute(
-				'aria-label',
-				'Task TASK-001: Test Task'
-			);
+			const card = screen.getByLabelText('Task TASK-001: Test Task');
+			expect(card).toBeInTheDocument();
 		});
 	});
 
@@ -182,27 +180,27 @@ Some \`inline code\` here`;
 
 	describe('status classes', () => {
 		it('has running class when task is running', () => {
-			renderTaskCard(createTask({ status: 'running', current_phase: 'implement' }));
+			const { container } = renderTaskCard(createTask({ status: 'running', current_phase: 'implement' }));
 
-			expect(screen.getByRole('article')).toHaveClass('running');
+			expect(container.querySelector('.task-card')).toHaveClass('running');
 		});
 
 		it('has finalizing class when task is finalizing', () => {
-			renderTaskCard(createTask({ status: 'finalizing' }));
+			const { container } = renderTaskCard(createTask({ status: 'finalizing' }));
 
-			expect(screen.getByRole('article')).toHaveClass('finalizing');
+			expect(container.querySelector('.task-card')).toHaveClass('finalizing');
 		});
 
 		it('has finished class when task is finished', () => {
-			renderTaskCard(createTask({ status: 'finished' }));
+			const { container } = renderTaskCard(createTask({ status: 'finished' }));
 
-			expect(screen.getByRole('article')).toHaveClass('finished');
+			expect(container.querySelector('.task-card')).toHaveClass('finished');
 		});
 
 		it('has completed class when task is completed', () => {
-			renderTaskCard(createTask({ status: 'completed' }));
+			const { container } = renderTaskCard(createTask({ status: 'completed' }));
 
-			expect(screen.getByRole('article')).toHaveClass('completed');
+			expect(container.querySelector('.task-card')).toHaveClass('completed');
 		});
 	});
 
@@ -374,55 +372,11 @@ Some \`inline code\` here`;
 		// is properly wired up to Radix DropdownMenu.
 	});
 
-	describe('drag and drop', () => {
-		it('is draggable', () => {
-			renderTaskCard(createTask());
-
-			expect(screen.getByRole('article')).toHaveAttribute('draggable', 'true');
-		});
-
-		it('adds dragging class on drag start', () => {
-			renderTaskCard(createTask());
-
-			const card = screen.getByRole('article');
-			fireEvent.dragStart(card, {
-				dataTransfer: { setData: vi.fn(), effectAllowed: '' },
-			});
-
-			expect(card).toHaveClass('dragging');
-		});
-
-		it('removes dragging class on drag end', () => {
-			renderTaskCard(createTask());
-
-			const card = screen.getByRole('article');
-			fireEvent.dragStart(card, {
-				dataTransfer: { setData: vi.fn(), effectAllowed: '' },
-			});
-			fireEvent.dragEnd(card);
-
-			expect(card).not.toHaveClass('dragging');
-		});
-
-		it('sets task data on drag start', () => {
-			const task = createTask();
-			renderTaskCard(task);
-
-			const setData = vi.fn();
-			const card = screen.getByRole('article');
-			fireEvent.dragStart(card, {
-				dataTransfer: { setData, effectAllowed: '' },
-			});
-
-			expect(setData).toHaveBeenCalledWith('application/json', JSON.stringify(task));
-		});
-	});
-
 	describe('navigation', () => {
 		it('navigates to task detail on click', () => {
-			renderTaskCard(createTask({ status: 'created' }));
+			const { container } = renderTaskCard(createTask({ status: 'created' }));
 
-			const card = screen.getByRole('article');
+			const card = container.querySelector('.task-card')!;
 			fireEvent.click(card);
 
 			expect(mockNavigate).toHaveBeenCalledWith('/tasks/TASK-001');
@@ -430,11 +384,11 @@ Some \`inline code\` here`;
 
 		it('calls onTaskClick for running tasks instead of navigating', () => {
 			const onTaskClick = vi.fn();
-			renderTaskCard(createTask({ status: 'running', current_phase: 'implement' }), {
+			const { container } = renderTaskCard(createTask({ status: 'running', current_phase: 'implement' }), {
 				onTaskClick,
 			});
 
-			const card = screen.getByRole('article');
+			const card = container.querySelector('.task-card')!;
 			fireEvent.click(card);
 
 			expect(onTaskClick).toHaveBeenCalled();
@@ -442,18 +396,18 @@ Some \`inline code\` here`;
 		});
 
 		it('navigates on Enter key', () => {
-			renderTaskCard(createTask());
+			const { container } = renderTaskCard(createTask());
 
-			const card = screen.getByRole('article');
+			const card = container.querySelector('.task-card')!;
 			fireEvent.keyDown(card, { key: 'Enter' });
 
 			expect(mockNavigate).toHaveBeenCalledWith('/tasks/TASK-001');
 		});
 
 		it('navigates on Space key', () => {
-			renderTaskCard(createTask());
+			const { container } = renderTaskCard(createTask());
 
-			const card = screen.getByRole('article');
+			const card = container.querySelector('.task-card')!;
 			fireEvent.keyDown(card, { key: ' ' });
 
 			expect(mockNavigate).toHaveBeenCalledWith('/tasks/TASK-001');

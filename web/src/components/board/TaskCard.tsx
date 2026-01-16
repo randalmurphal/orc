@@ -8,7 +8,7 @@
  * - Weight badge, blocked indicator, initiative badge
  * - Action buttons (run/pause/resume/finalize)
  * - Quick menu for queue/priority changes (Radix DropdownMenu)
- * - Drag-and-drop support
+ * - Clickable to navigate to task detail
  */
 
 import { useState, useCallback } from 'react';
@@ -101,7 +101,6 @@ export function TaskCard({
 	const updateTaskInStore = useTaskStore((state) => state.updateTask);
 
 	const [actionLoading, setActionLoading] = useState(false);
-	const [isDragging, setIsDragging] = useState(false);
 	const [quickMenuOpen, setQuickMenuOpen] = useState(false);
 	const [quickMenuLoading, setQuickMenuLoading] = useState(false);
 	const [finalizeLoading, setFinalizeLoading] = useState(false);
@@ -130,20 +129,6 @@ export function TaskCard({
 					percent: finalizeState.step_percent || 0,
 				}
 			: null;
-
-	// Drag handlers
-	const handleDragStart = useCallback(
-		(e: React.DragEvent) => {
-			e.dataTransfer.setData('application/json', JSON.stringify(task));
-			e.dataTransfer.effectAllowed = 'move';
-			setIsDragging(true);
-		},
-		[task]
-	);
-
-	const handleDragEnd = useCallback(() => {
-		setIsDragging(false);
-	}, []);
 
 	// Action handler
 	const handleAction = useCallback(
@@ -268,7 +253,6 @@ export function TaskCard({
 	// Build class names
 	const cardClasses = [
 		'task-card',
-		isDragging && 'dragging',
 		isRunning && 'running',
 		isFinalizing && 'finalizing',
 		isFinished && 'finished',
@@ -280,12 +264,10 @@ export function TaskCard({
 	return (
 		<article
 			className={cardClasses}
-			draggable="true"
-			onDragStart={handleDragStart}
-			onDragEnd={handleDragEnd}
 			onClick={openTask}
 			onKeyDown={handleKeydown}
 			tabIndex={0}
+			role="button"
 			aria-label={`Task ${task.id}: ${task.title}`}
 		>
 			<div className="card-header">

@@ -4,7 +4,6 @@
  * Groups tasks by initiative in horizontal rows with:
  * - Collapsible header with progress bar
  * - Columns for each phase within the swimlane
- * - Support for drag-drop between swimlanes
  */
 
 import { useCallback } from 'react';
@@ -22,7 +21,6 @@ interface SwimlaneProps {
 	tasksByColumn: Record<string, Task[]>;
 	collapsed: boolean;
 	onToggleCollapse: () => void;
-	onDrop: (columnId: string, task: Task, targetInitiativeId: string | null) => void;
 	onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 	onTaskClick?: (task: Task) => void;
 	onFinalizeClick?: (task: Task) => void;
@@ -37,7 +35,6 @@ export function Swimlane({
 	tasksByColumn,
 	collapsed,
 	onToggleCollapse,
-	onDrop,
 	onAction,
 	onTaskClick,
 	onFinalizeClick,
@@ -51,8 +48,7 @@ export function Swimlane({
 	const totalCount = tasks.length;
 	const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-	// Swimlane ID for drag-drop
-	const swimlaneId = initiative?.id ?? null;
+	const swimlaneId = initiative?.id ?? 'unassigned';
 	const swimlaneTitle = initiative?.title ?? 'Unassigned';
 
 	// Handle keyboard for toggle
@@ -65,30 +61,6 @@ export function Swimlane({
 		},
 		[onToggleCollapse]
 	);
-
-	// Column drag handlers
-	const createColumnDropHandler = useCallback(
-		(columnId: string) => {
-			return (e: React.DragEvent) => {
-				e.preventDefault();
-				try {
-					const taskData = e.dataTransfer.getData('application/json');
-					if (taskData) {
-						const task = JSON.parse(taskData) as Task;
-						onDrop(columnId, task, swimlaneId);
-					}
-				} catch (err) {
-					console.error('Failed to parse dropped task:', err);
-				}
-			};
-		},
-		[onDrop, swimlaneId]
-	);
-
-	const handleDragOver = useCallback((e: React.DragEvent) => {
-		e.preventDefault();
-		e.dataTransfer.dropEffect = 'move';
-	}, []);
 
 	const swimlaneClasses = ['swimlane', collapsed && 'collapsed'].filter(Boolean).join(' ');
 
@@ -131,7 +103,7 @@ export function Swimlane({
 
 			{!collapsed && (
 				<div
-					id={`swimlane-content-${swimlaneId ?? 'unassigned'}`}
+					id={`swimlane-content-${swimlaneId}`}
 					className="swimlane-content"
 				>
 					{columns.map((column) => {
@@ -140,8 +112,6 @@ export function Swimlane({
 							<div
 								key={column.id}
 								className="swimlane-column"
-								onDragOver={handleDragOver}
-								onDrop={createColumnDropHandler(column.id)}
 							>
 								{columnTasks.length === 0 ? (
 									<div className="empty-column" />

@@ -7,7 +7,7 @@
  * Backlog tasks have dashed border styling.
  */
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { TaskCard } from './TaskCard';
 import { Button } from '@/components/ui/Button';
 import type { Task } from '@/lib/types';
@@ -21,7 +21,6 @@ interface QueuedColumnProps {
 	backlogTasks: Task[];
 	showBacklog: boolean;
 	onToggleBacklog: () => void;
-	onDrop: (task: Task) => void;
 	onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 	onTaskClick?: (task: Task) => void;
 	onFinalizeClick?: (task: Task) => void;
@@ -35,61 +34,12 @@ export function QueuedColumn({
 	backlogTasks,
 	showBacklog,
 	onToggleBacklog,
-	onDrop,
 	onAction,
 	onTaskClick,
 	onFinalizeClick,
 	onInitiativeClick,
 	getFinalizeState,
 }: QueuedColumnProps) {
-	const [dragOver, setDragOver] = useState(false);
-	// Counter used via updater function, not read directly
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const [_dragCounter, setDragCounter] = useState(0);
-
-	// Drag handlers
-	const handleDragEnter = useCallback((e: React.DragEvent) => {
-		e.preventDefault();
-		setDragCounter((prev) => {
-			const next = prev + 1;
-			if (next > 0) setDragOver(true);
-			return next;
-		});
-	}, []);
-
-	const handleDragLeave = useCallback((e: React.DragEvent) => {
-		e.preventDefault();
-		setDragCounter((prev) => {
-			const next = prev - 1;
-			if (next === 0) setDragOver(false);
-			return next;
-		});
-	}, []);
-
-	const handleDragOver = useCallback((e: React.DragEvent) => {
-		e.preventDefault();
-		e.dataTransfer.dropEffect = 'move';
-	}, []);
-
-	const handleDrop = useCallback(
-		(e: React.DragEvent) => {
-			e.preventDefault();
-			setDragOver(false);
-			setDragCounter(0);
-
-			try {
-				const taskData = e.dataTransfer.getData('application/json');
-				if (taskData) {
-					const task = JSON.parse(taskData) as Task;
-					onDrop(task);
-				}
-			} catch (err) {
-				console.error('Failed to parse dropped task:', err);
-			}
-		},
-		[onDrop]
-	);
-
 	const handleToggleKeydown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (e.key === 'Enter' || e.key === ' ') {
@@ -100,19 +50,13 @@ export function QueuedColumn({
 		[onToggleBacklog]
 	);
 
-	const columnClasses = ['queued-column', dragOver && 'drag-over'].filter(Boolean).join(' ');
-
 	const totalCount = activeTasks.length + backlogTasks.length;
 
 	return (
 		<div
-			className={columnClasses}
+			className="queued-column"
 			role="region"
 			aria-label={`${column.title} column`}
-			onDragEnter={handleDragEnter}
-			onDragLeave={handleDragLeave}
-			onDragOver={handleDragOver}
-			onDrop={handleDrop}
 		>
 			<div className="column-header">
 				<h2>{column.title}</h2>

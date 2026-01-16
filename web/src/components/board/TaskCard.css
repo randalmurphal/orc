@@ -5,12 +5,11 @@
 	border: 1px solid var(--border-subtle);
 	border-radius: var(--radius-lg);
 	padding: var(--space-3);
-	cursor: grab;
+	cursor: pointer;
 	transition:
 		border-color var(--duration-fast) var(--ease-out),
 		box-shadow var(--duration-fast) var(--ease-out),
-		transform var(--duration-fast) var(--ease-out),
-		opacity var(--duration-fast) var(--ease-out);
+		transform var(--duration-fast) var(--ease-out);
 }
 
 .task-card:hover {
@@ -25,13 +24,7 @@
 }
 
 .task-card:active {
-	cursor: grabbing;
-}
-
-.task-card.dragging {
-	opacity: 0.5;
-	transform: rotate(2deg) scale(1.02);
-	box-shadow: var(--shadow-lg);
+	transform: scale(0.98);
 }
 
 .task-card.running {
