@@ -100,7 +100,12 @@ export type IconName =
 	| 'zap'
 	| 'target'
 	| 'activity'
-	| 'refresh';
+	| 'refresh'
+	// Category icons
+	| 'sparkles'
+	| 'bug'
+	| 'recycle'
+	| 'beaker';
 
 // Icon paths organized by category
 // All icons use viewBox="0 0 24 24" with stroke-based rendering
@@ -220,6 +225,12 @@ const icons: Record<IconName, string> = {
 	target: `<circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />`,
 	activity: `<polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />`,
 	refresh: `<polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />`,
+
+	// Category icons
+	sparkles: `<path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" /><path d="M19 13l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z" /><path d="M5 17l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5L3 19.5l1.5-.5.5-1.5z" />`,
+	bug: `<path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" /><path d="M12 20c-3.3 0-6-2.7-6-6v-3a6 6 0 0 1 12 0v3c0 3.3-2.7 6-6 6" /><path d="M12 20v-9" /><path d="M6.53 9C4.6 8.8 3 7.1 3 5" /><path d="M6 13H2" /><path d="M3 21c0-2.1 1.7-3.9 3.8-4" /><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4" /><path d="M22 13h-4" /><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4" />`,
+	recycle: `<path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5" /><path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12" /><path d="m14 16-3 3 3 3" /><path d="M8.293 13.596L4.069 6.635a1.784 1.784 0 0 1 .004-1.784A1.83 1.83 0 0 1 5.644 4h4.192" /><path d="m14.5 7.5 4.207-7.282a1.78 1.78 0 0 1 1.564-.898h.208" /><path d="M5.7 7 9 4 5.7 1" /><path d="m12.5 3.5 2.496 4.324" /><path d="m18.3 17-3.3 3 3.3 3" />`,
+	beaker: `<path d="M4.5 3h15" /><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3" /><path d="M6 14h12" />`,
 };
 
 interface IconProps {
