@@ -53,6 +53,7 @@ var (
 )
 
 func init() {
+	orchestrateCmd.GroupID = groupPlanning
 	rootCmd.AddCommand(orchestrateCmd)
 
 	orchestrateCmd.Flags().IntVar(&orchestrateMaxConcurrent, "max-concurrent", 4, "Maximum parallel tasks")

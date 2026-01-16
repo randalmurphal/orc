@@ -17,6 +17,19 @@ var (
 	plain   bool // Disable emoji/unicode for terminal compatibility
 )
 
+// Command group IDs
+const (
+	groupCore          = "core"
+	groupTaskMgmt      = "task"
+	groupInspection    = "inspect"
+	groupPhaseControl  = "phase"
+	groupPlanning      = "planning"
+	groupConfig        = "config"
+	groupGit           = "git"
+	groupImportExport  = "io"
+	groupAdvanced      = "advanced"
+)
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "orc",
@@ -53,52 +66,82 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "output as JSON")
 	rootCmd.PersistentFlags().BoolVar(&plain, "plain", false, "plain output without emoji (for terminal compatibility)")
 
-	// Add subcommands
-	rootCmd.AddCommand(newInitCmd())
-	rootCmd.AddCommand(newSetupCmd())
-	rootCmd.AddCommand(newNewCmd())
-	rootCmd.AddCommand(newListCmd())
-	rootCmd.AddCommand(newSearchCmd())
-	rootCmd.AddCommand(newShowCmd())
-	rootCmd.AddCommand(newRunCmd())
-	rootCmd.AddCommand(newPauseCmd())
-	rootCmd.AddCommand(newStopCmd())
-	rootCmd.AddCommand(newResumeCmd())
-	rootCmd.AddCommand(newRewindCmd())
-	rootCmd.AddCommand(newResetCmd())
-	rootCmd.AddCommand(newResolveCmd())
-	rootCmd.AddCommand(newStatusCmd())
-	rootCmd.AddCommand(newLogCmd())
-	rootCmd.AddCommand(newDiffCmd())
-	rootCmd.AddCommand(newApproveCmd())
-	rootCmd.AddCommand(newRejectCmd())
-	rootCmd.AddCommand(newExportCmd())
-	rootCmd.AddCommand(newImportCmd())
-	rootCmd.AddCommand(newConfigCmd())
-	rootCmd.AddCommand(newVersionCmd())
-	rootCmd.AddCommand(newServeCmd())
-	rootCmd.AddCommand(newSkipCmd())
-	rootCmd.AddCommand(newCleanupCmd())
-	rootCmd.AddCommand(newDeleteCmd())
-	rootCmd.AddCommand(newEditCmd())
-	rootCmd.AddCommand(newPoolCmd())
-	rootCmd.AddCommand(newProjectsCmd())
-	rootCmd.AddCommand(newTeamCmd())
-	rootCmd.AddCommand(newSessionCmd())
-	rootCmd.AddCommand(newCostCmd())
-	rootCmd.AddCommand(newTemplateCmd())
-	rootCmd.AddCommand(newInitiativeCmd())
-	rootCmd.AddCommand(newStagingCmd())
-	rootCmd.AddCommand(newBranchesCmd())
-	rootCmd.AddCommand(newSpecCmd())
-	rootCmd.AddCommand(newFeatureCmd())
-	rootCmd.AddCommand(newGoCmd())
-	rootCmd.AddCommand(newKnowledgeCmd())
-	rootCmd.AddCommand(newCommentCmd())
-	rootCmd.AddCommand(newDepsCmd())
-	rootCmd.AddCommand(newFinalizeCmd())
-	rootCmd.AddCommand(newMigrateCmd())
-	rootCmd.AddCommand(newAutomationCmd())
+	// Add command groups
+	rootCmd.AddGroup(
+		&cobra.Group{ID: groupCore, Title: "Core Commands:"},
+		&cobra.Group{ID: groupTaskMgmt, Title: "Task Management:"},
+		&cobra.Group{ID: groupInspection, Title: "Inspection:"},
+		&cobra.Group{ID: groupPhaseControl, Title: "Phase Control:"},
+		&cobra.Group{ID: groupPlanning, Title: "Planning & Orchestration:"},
+		&cobra.Group{ID: groupConfig, Title: "Configuration:"},
+		&cobra.Group{ID: groupGit, Title: "Git & Branches:"},
+		&cobra.Group{ID: groupImportExport, Title: "Import/Export:"},
+		&cobra.Group{ID: groupAdvanced, Title: "Team & Advanced:"},
+	)
+
+	// Core Commands
+	addCmd(newInitCmd(), groupCore)
+	addCmd(newNewCmd(), groupCore)
+	addCmd(newRunCmd(), groupCore)
+	addCmd(newStatusCmd(), groupCore)
+	addCmd(newListCmd(), groupCore)
+
+	// Task Management
+	addCmd(newShowCmd(), groupTaskMgmt)
+	addCmd(newEditCmd(), groupTaskMgmt)
+	addCmd(newDeleteCmd(), groupTaskMgmt)
+	addCmd(newPauseCmd(), groupTaskMgmt)
+	addCmd(newResumeCmd(), groupTaskMgmt)
+	addCmd(newStopCmd(), groupTaskMgmt)
+
+	// Inspection
+	addCmd(newLogCmd(), groupInspection)
+	addCmd(newDiffCmd(), groupInspection)
+	addCmd(newDepsCmd(), groupInspection)
+	addCmd(newSearchCmd(), groupInspection)
+
+	// Phase Control
+	addCmd(newRewindCmd(), groupPhaseControl)
+	addCmd(newResetCmd(), groupPhaseControl)
+	addCmd(newResolveCmd(), groupPhaseControl)
+	addCmd(newFinalizeCmd(), groupPhaseControl)
+	addCmd(newSkipCmd(), groupPhaseControl)
+	addCmd(newApproveCmd(), groupPhaseControl)
+	addCmd(newRejectCmd(), groupPhaseControl)
+
+	// Planning & Orchestration
+	addCmd(newGoCmd(), groupPlanning)
+	addCmd(newSetupCmd(), groupPlanning)
+	addCmd(newInitiativeCmd(), groupPlanning)
+
+	// Configuration
+	addCmd(newConfigCmd(), groupConfig)
+	addCmd(newTemplateCmd(), groupConfig)
+	addCmd(newServeCmd(), groupConfig)
+
+	// Git & Branches
+	addCmd(newStagingCmd(), groupGit)
+	addCmd(newBranchesCmd(), groupGit)
+
+	// Import/Export
+	addCmd(newExportCmd(), groupImportExport)
+	addCmd(newImportCmd(), groupImportExport)
+	addCmd(newMigrateCmd(), groupImportExport)
+
+	// Team & Advanced
+	addCmd(newTeamCmd(), groupAdvanced)
+	addCmd(newPoolCmd(), groupAdvanced)
+	addCmd(newAutomationCmd(), groupAdvanced)
+	addCmd(newKnowledgeCmd(), groupAdvanced)
+	addCmd(newCommentCmd(), groupAdvanced)
+	addCmd(newProjectsCmd(), groupAdvanced)
+	addCmd(newVersionCmd(), groupAdvanced)
+}
+
+// addCmd adds a command to root with the specified group
+func addCmd(cmd *cobra.Command, groupID string) {
+	cmd.GroupID = groupID
+	rootCmd.AddCommand(cmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
