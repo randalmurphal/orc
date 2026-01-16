@@ -135,6 +135,9 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	}
 	vars := BuildTemplateVars(t, p, s, 0, LoadRetryContextForPhase(s))
 
+	// Load spec content from database (specs are not stored as file artifacts)
+	vars = vars.WithSpecFromDatabase(e.backend, t.ID)
+
 	// Add testing configuration (coverage threshold)
 	if e.config.OrcConfig != nil {
 		vars.CoverageThreshold = e.config.OrcConfig.Testing.CoverageThreshold
