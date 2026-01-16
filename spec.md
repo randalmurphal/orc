@@ -1,78 +1,111 @@
-# Specification: Add initiative and priority to task detail header
+# Specification: Remove drag-and-drop from board and make task cards clickable
 
 ## Problem Statement
-The task detail page header is missing key context information: initiative assignment and priority level are not displayed even though these fields exist on the task object. This makes it harder for users to understand task context when viewing details.
+
+Task cards on the Board have drag-and-drop functionality that doesn't work properly - it shows a drag cursor but prevents intuitive click-to-navigate behavior. The drag-and-drop implementation adds complexity without providing value, as task status changes are better handled through explicit action buttons.
 
 ## Success Criteria
-- [ ] Initiative badge displays in TaskHeader when `task.initiative_id` is set
-- [ ] Initiative badge is clickable and navigates to `/initiatives/:id`
-- [ ] Initiative badge shows truncated title (max 20 chars) with full title in tooltip
-- [ ] Priority badge displays for non-normal priorities (critical, high, low)
-- [ ] Priority badge uses consistent styling from `PRIORITY_CONFIG` (same as TaskCard)
-- [ ] Critical priority shows pulsing animation (same as TaskCard)
-- [ ] Initiative and priority badges appear in `.task-identity` section after existing badges
-- [ ] No visual regression on existing header elements
+
+- [ ] TaskCard no longer has `draggable="true"` attribute
+- [ ] TaskCard shows `cursor: pointer` instead of `cursor: grab/grabbing`
+- [ ] Clicking anywhere on TaskCard (except action buttons) navigates to `/tasks/:id`
+- [ ] Column components no longer have drag event handlers (onDragEnter, onDragLeave, onDragOver, onDrop)
+- [ ] QueuedColumn no longer has drag event handlers
+- [ ] Swimlane no longer has drag-related handlers for columns
+- [ ] Board component no longer has `handleFlatDrop` or `handleSwimlaneDrop` functions
+- [ ] All drag-related CSS classes removed (`.dragging`, `.drag-over`)
+- [ ] Escalate modal removed (only triggered by drag-drop)
+- [ ] Initiative change modal removed (only triggered by cross-swimlane drag)
+- [ ] Unit tests updated - drag-related tests removed
+- [ ] E2E tests updated - drag-related tests removed or modified
+- [ ] Build passes with no errors
+- [ ] All remaining tests pass
 
 ## Testing Requirements
-- [ ] Unit test: TaskHeader renders initiative badge when `task.initiative_id` is set
-- [ ] Unit test: TaskHeader hides initiative badge when `task.initiative_id` is null/undefined
-- [ ] Unit test: TaskHeader renders priority badge only for non-normal priorities
-- [ ] Unit test: Initiative badge click navigates to initiative detail page
-- [ ] E2E test: Verify initiative badge visibility and navigation on task detail page
-- [ ] E2E test: Verify priority badge visibility for critical/high/low tasks
+
+- [ ] Unit test: TaskCard renders without draggable attribute
+- [ ] Unit test: TaskCard click navigates to task detail for non-running tasks
+- [ ] Unit test: TaskCard click calls onTaskClick for running tasks (transcript modal)
+- [ ] Unit test: Action buttons still work and stop propagation
+- [ ] E2E test: Clicking task card navigates to task detail page
+- [ ] E2E test: Board renders without drag-over styling
+- [ ] E2E test: Swimlane view works without drag functionality
 
 ## Scope
+
 ### In Scope
-- Add initiative badge to TaskHeader component
-- Add priority badge to TaskHeader component (reuse existing styling, currently in wrong position)
-- Update TaskHeader.css with initiative badge styles
-- Tooltip support for both badges
+
+- Remove `draggable` attribute and drag handlers from TaskCard
+- Remove drag event handlers from Column, QueuedColumn, Swimlane
+- Remove drop handling logic from Board component
+- Remove escalate modal (only used for drag-back scenario)
+- Remove initiative change modal (only used for cross-swimlane drag)
+- Update CSS to use pointer cursor instead of grab cursor
+- Remove drag-related CSS classes (`.dragging`, `.drag-over`)
+- Update/remove affected unit tests
+- Update/remove affected E2E tests
 
 ### Out of Scope
-- Modifying Task Info panel (separate enhancement)
-- Adding editable initiative/priority from header (use edit modal)
-- Showing target branch or blocking dependencies in header
+
+- Re-implementing drag-and-drop with a library (future task)
+- Adding any new functionality
+- Changing task action button behavior
+- Changing quick menu behavior
+- Modifying other pages or components
 
 ## Technical Approach
 
 ### Files to Modify
-- `web/src/components/task-detail/TaskHeader.tsx`: Add initiative badge with click handler and navigation; fix priority badge positioning in task-identity section
-- `web/src/components/task-detail/TaskHeader.css`: Add `.initiative-badge` styles matching TaskCard pattern
-- `web/src/components/task-detail/TaskHeader.test.tsx`: Add unit tests for new badges (create if doesn't exist)
-- `web/e2e/task-detail.spec.ts`: Add E2E tests for badge visibility and navigation
 
-### Implementation Details
+| File | Changes |
+|------|---------|
+| `web/src/components/board/TaskCard.tsx` | Remove `isDragging` state, `handleDragStart`, `handleDragEnd`, `draggable` attribute, `onDragStart`, `onDragEnd` props |
+| `web/src/components/board/TaskCard.css` | Change `cursor: grab` to `cursor: pointer`, remove `.dragging` class, remove `:active { cursor: grabbing }` |
+| `web/src/components/board/Column.tsx` | Remove `dragOver` state, `dragCounter` state, all drag handlers (handleDragEnter, handleDragLeave, handleDragOver, handleDrop), `onDrop` prop |
+| `web/src/components/board/Column.css` | Remove `.drag-over` class |
+| `web/src/components/board/QueuedColumn.tsx` | Remove `dragOver` state, `dragCounter` state, all drag handlers, `onDrop` prop |
+| `web/src/components/board/QueuedColumn.css` | Remove `.drag-over` class |
+| `web/src/components/board/Swimlane.tsx` | Remove `createColumnDropHandler`, `handleDragOver`, `onDrop` prop, drag event attributes from columns |
+| `web/src/components/board/Board.tsx` | Remove `handleFlatDrop`, `handleSwimlaneDrop`, escalate modal state/handlers, initiative change modal state/handlers, `onDrop` props from child components, `onEscalate` prop |
+| `web/src/components/board/TaskCard.test.tsx` | Remove "drag and drop" describe block (4 tests) |
+| `web/e2e/board.spec.ts` | Remove/update drag-related tests (~6 tests) |
 
-1. **Initiative Badge** (in `task-identity` section):
-   - Use `getInitiativeBadgeTitle()` from initiativeStore (same as TaskCard)
-   - Wrap with `Tooltip` component showing full title
-   - Use `Button` component with `variant="ghost"` (same pattern as TaskCard)
-   - Navigate to `/initiatives/${task.initiative_id}` on click
-   - Style with CSS class `.initiative-badge` (adapt from TaskCard)
+### Key Changes Summary
 
-2. **Priority Badge** (already implemented but verify position):
-   - Priority badge code exists at lines 144-151 but need to verify visual ordering
-   - Should appear after category badge, before initiative badge
-   - Uses inline style with `--priority-color` CSS variable
-   - Critical priority needs pulsing animation
+1. **TaskCard**: Remove drag capability, keep click navigation
+2. **Column/QueuedColumn**: Remove drop zone functionality, keep rendering
+3. **Swimlane**: Remove column drop handlers, keep collapse/expand
+4. **Board**: Remove drag state management and modals, keep view mode switching
+5. **Tests**: Remove drag-related test coverage
 
-3. **Visual Order in `.task-identity`**:
-   - Task ID
-   - Status indicator
-   - Weight badge
-   - Category badge
-   - Priority badge (non-normal only)
-   - Initiative badge (if assigned)
+## Bug-Specific Analysis
 
-## Feature-Specific Analysis
+### Reproduction Steps
+1. Navigate to Board page (`/board`)
+2. Hover over any task card
+3. Observe cursor shows grab icon instead of pointer
+4. Try to click card to navigate - may initiate drag instead
+5. Drag card to another column - nothing meaningful happens
 
-### User Story
-As a user viewing a task detail page, I want to see which initiative the task belongs to and its priority level so that I understand the task's context and urgency without having to scroll or open additional panels.
+### Current Behavior
+- Task cards have `cursor: grab` and `draggable="true"`
+- Clicking can accidentally start drag operation
+- Dragging between columns shows modals but doesn't reliably update state
+- Users expect click = navigate, not drag = action
 
-### Acceptance Criteria
-- Initiative badge appears between priority badge and branch info when task has `initiative_id`
-- Initiative badge shows truncated title with tooltip for full title
-- Clicking initiative badge navigates to initiative detail page
-- Priority badge appears for critical/high/low tasks with appropriate color coding
-- Critical priority has pulsing animation matching TaskCard behavior
-- Header maintains visual balance and doesn't become cluttered
+### Expected Behavior
+- Task cards have `cursor: pointer`
+- Clicking navigates to task detail page
+- No drag operations on the board
+- Explicit action buttons (run/pause/resume/finalize) handle status changes
+
+### Root Cause
+The drag-and-drop was implemented partially - the visual feedback exists but the actual status change logic through drag is unreliable and conflicts with expected click behavior.
+
+### Verification
+1. Open Board page
+2. Hover over task card - cursor should be pointer
+3. Click task card - should navigate to `/tasks/{id}`
+4. Running tasks should show transcript modal on click
+5. Action buttons should still work correctly
+6. No drag-related visual feedback should appear
