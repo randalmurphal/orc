@@ -365,11 +365,6 @@ export function TaskList() {
 		};
 	}, []);
 
-	// Open new task modal
-	const openNewTaskModal = useCallback(() => {
-		window.dispatchEvent(new CustomEvent('orc:new-task'));
-	}, []);
-
 	// Clear filters
 	const clearFilters = useCallback(() => {
 		setSearchQuery('');
@@ -510,12 +505,6 @@ export function TaskList() {
 						<option value="oldest">Oldest first</option>
 						<option value="status">By status</option>
 					</select>
-
-					{/* New Task Button */}
-					<button type="button" className="primary new-task-btn" onClick={openNewTaskModal}>
-						<Icon name="plus" size={14} />
-						New Task
-					</button>
 				</div>
 			</div>
 
@@ -577,7 +566,11 @@ export function TaskList() {
 							</div>
 							<h3>No tasks yet</h3>
 							<p>Create your first task to get started with orc</p>
-							<button type="button" className="primary" onClick={openNewTaskModal}>
+							<button
+								type="button"
+								className="primary"
+								onClick={() => window.dispatchEvent(new CustomEvent('orc:new-task'))}
+							>
 								<Icon name="plus" size={14} />
 								Create Task
 							</button>
