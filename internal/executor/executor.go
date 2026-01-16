@@ -12,6 +12,7 @@ import (
 	"github.com/randalmurphal/flowgraph/pkg/flowgraph/checkpoint"
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/llmkit/claude/session"
+	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
@@ -189,6 +190,9 @@ type Executor struct {
 
 	// Resource tracker for process/memory diagnostics
 	resourceTracker *ResourceTracker
+
+	// Automation service for trigger-based automation
+	automationSvc *automation.Service
 }
 
 // New creates a new executor with the given configuration.
@@ -320,6 +324,11 @@ func (e *Executor) SetPublisher(p events.Publisher) {
 // SetBackend sets the storage backend for task/state persistence.
 func (e *Executor) SetBackend(b storage.Backend) {
 	e.backend = b
+}
+
+// SetAutomationService sets the automation service for trigger-based automation.
+func (e *Executor) SetAutomationService(svc *automation.Service) {
+	e.automationSvc = svc
 }
 
 // taskDir returns the directory for a task's files.

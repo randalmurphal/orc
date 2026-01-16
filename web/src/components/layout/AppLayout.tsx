@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { NotificationBar } from './NotificationBar';
 import { UrlParamSync } from './UrlParamSync';
 import { useGlobalShortcuts } from '@/hooks';
 import { KeyboardShortcutsHelp, ProjectSwitcher } from '@/components/overlays';
@@ -59,6 +60,7 @@ export function AppLayout() {
 
 			<Sidebar />
 			<div className="app-main">
+				<NotificationBar />
 				<Header
 					onProjectClick={() => setShowProjectSwitcher(true)}
 					onNewTask={() => setShowNewTaskModal(true)}

@@ -463,6 +463,7 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 		exec := executor.NewWithConfig(cfg, s.orcConfig)
 		exec.SetBackend(execBackend)
 		exec.SetPublisher(s.publisher)
+		exec.SetAutomationService(s.automationSvc)
 
 		if err := exec.ExecuteTask(ctx, t, p, st); err != nil {
 			s.logger.Error("task execution failed", "task", taskID, "error", err)
@@ -635,6 +636,7 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 		exec := executor.NewWithConfig(cfg, s.orcConfig)
 		exec.SetBackend(execBackend)
 		exec.SetPublisher(s.publisher)
+		exec.SetAutomationService(s.automationSvc)
 
 		if err := exec.ExecuteTask(ctx, t, p, st); err != nil {
 			s.logger.Error("task execution failed", "task", taskID, "error", err)
