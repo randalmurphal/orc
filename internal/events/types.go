@@ -112,7 +112,12 @@ type CompleteData struct {
 // ActivityUpdate represents activity state change information.
 type ActivityUpdate struct {
 	Phase    string `json:"phase"`
-	Activity string `json:"activity"` // idle, waiting_api, streaming, running_tool, processing
+	Activity string `json:"activity"` // idle, waiting_api, streaming, running_tool, processing, spec_analyzing, spec_writing
+}
+
+// IsSpecPhaseActivity returns true if this is a spec-phase-specific activity state.
+func (a ActivityUpdate) IsSpecPhaseActivity() bool {
+	return a.Activity == "spec_analyzing" || a.Activity == "spec_writing"
 }
 
 // HeartbeatData represents a progress heartbeat.

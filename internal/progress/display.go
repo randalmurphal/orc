@@ -55,6 +55,10 @@ const (
 	ActivityRunningTool ActivityState = "running_tool"
 	// ActivityProcessing indicates processing response.
 	ActivityProcessing ActivityState = "processing"
+	// ActivitySpecAnalyzing indicates analyzing codebase during spec phase.
+	ActivitySpecAnalyzing ActivityState = "spec_analyzing"
+	// ActivitySpecWriting indicates writing specification during spec phase.
+	ActivitySpecWriting ActivityState = "spec_writing"
 )
 
 // String returns a human-readable description of the activity state.
@@ -70,9 +74,18 @@ func (s ActivityState) String() string {
 		return "Running tool"
 	case ActivityProcessing:
 		return "Processing"
+	case ActivitySpecAnalyzing:
+		return "Analyzing codebase"
+	case ActivitySpecWriting:
+		return "Writing specification"
 	default:
 		return string(s)
 	}
+}
+
+// IsSpecPhaseActivity returns true if this is a spec-phase-specific activity state.
+func (s ActivityState) IsSpecPhaseActivity() bool {
+	return s == ActivitySpecAnalyzing || s == ActivitySpecWriting
 }
 
 // Display shows progress to user.
@@ -370,6 +383,10 @@ func (d *Display) SetActivity(state ActivityState) {
 		fmt.Printf("\n⏳ Waiting for Claude API...")
 	case ActivityRunningTool:
 		fmt.Printf("\n🔧 Running tool...")
+	case ActivitySpecAnalyzing:
+		fmt.Printf("\n🔍 Analyzing codebase...")
+	case ActivitySpecWriting:
+		fmt.Printf("\n📝 Writing specification...")
 	}
 }
 
@@ -384,8 +401,13 @@ func (d *Display) Heartbeat() {
 	elapsed := time.Since(d.activityStart)
 	d.mu.Unlock()
 
-	// Only show heartbeat dots when waiting for API
-	if state == ActivityWaitingAPI || state == ActivityStreaming {
+	// Show heartbeat dots for API wait states and spec phase activities
+	showHeartbeat := state == ActivityWaitingAPI ||
+		state == ActivityStreaming ||
+		state == ActivitySpecAnalyzing ||
+		state == ActivitySpecWriting
+
+	if showHeartbeat {
 		fmt.Printf(".")
 		// After 5 dots (2.5 min with 30s interval), add elapsed time
 		if elapsed > 2*time.Minute {

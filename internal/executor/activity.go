@@ -21,6 +21,10 @@ const (
 	ActivityRunningTool ActivityState = "running_tool"
 	// ActivityProcessing indicates processing response.
 	ActivityProcessing ActivityState = "processing"
+	// ActivitySpecAnalyzing indicates Claude is analyzing the codebase during spec phase.
+	ActivitySpecAnalyzing ActivityState = "spec_analyzing"
+	// ActivitySpecWriting indicates Claude is writing the specification document.
+	ActivitySpecWriting ActivityState = "spec_writing"
 )
 
 // String returns a human-readable description of the activity state.
@@ -36,9 +40,18 @@ func (s ActivityState) String() string {
 		return "Running tool"
 	case ActivityProcessing:
 		return "Processing"
+	case ActivitySpecAnalyzing:
+		return "Analyzing codebase"
+	case ActivitySpecWriting:
+		return "Writing specification"
 	default:
 		return string(s)
 	}
+}
+
+// IsSpecPhaseActivity returns true if the activity state is specific to the spec phase.
+func (s ActivityState) IsSpecPhaseActivity() bool {
+	return s == ActivitySpecAnalyzing || s == ActivitySpecWriting
 }
 
 // ActivityTracker tracks the current activity state and provides

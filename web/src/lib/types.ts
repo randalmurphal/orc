@@ -419,6 +419,32 @@ export interface Initiative {
 	updated_at: string;
 }
 
+// Activity states for task execution progress
+export type ActivityState =
+	| 'idle'
+	| 'waiting_api'
+	| 'streaming'
+	| 'running_tool'
+	| 'processing'
+	| 'spec_analyzing'
+	| 'spec_writing';
+
+// Activity state display configuration
+export const ACTIVITY_CONFIG: Record<ActivityState, { label: string; icon: string }> = {
+	idle: { label: 'Idle', icon: '' },
+	waiting_api: { label: 'Waiting for API', icon: '' },
+	streaming: { label: 'Receiving response', icon: '' },
+	running_tool: { label: 'Running tool', icon: '' },
+	processing: { label: 'Processing', icon: '' },
+	spec_analyzing: { label: 'Analyzing codebase', icon: '' },
+	spec_writing: { label: 'Writing specification', icon: '' },
+};
+
+// Helper to check if activity is spec-phase specific
+export function isSpecPhaseActivity(activity: ActivityState): boolean {
+	return activity === 'spec_analyzing' || activity === 'spec_writing';
+}
+
 // WebSocket connection status
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
 
@@ -431,6 +457,10 @@ export type WSEventType =
 	| 'error'
 	| 'complete'
 	| 'finalize'
+	// Progress events
+	| 'activity'
+	| 'heartbeat'
+	| 'warning'
 	// File watcher events (triggered by external file changes)
 	| 'task_created'
 	| 'task_updated'
@@ -439,6 +469,12 @@ export type WSEventType =
 	| 'initiative_created'
 	| 'initiative_updated'
 	| 'initiative_deleted';
+
+// Activity update event data (from EventActivity events)
+export interface ActivityUpdate {
+	phase: string;
+	activity: ActivityState;
+}
 
 // Special task ID for subscribing to all task events
 export const GLOBAL_TASK_ID = '*';
