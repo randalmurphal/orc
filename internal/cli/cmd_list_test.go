@@ -5,6 +5,7 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -75,6 +76,9 @@ func TestListCommand_Flags(t *testing.T) {
 	if cmd.Flag("weight") == nil {
 		t.Error("missing --weight flag")
 	}
+	if cmd.Flag("limit") == nil {
+		t.Error("missing --limit flag")
+	}
 
 	// Verify shorthand flags
 	if cmd.Flag("initiative").Shorthand != "i" {
@@ -85,6 +89,9 @@ func TestListCommand_Flags(t *testing.T) {
 	}
 	if cmd.Flag("weight").Shorthand != "w" {
 		t.Errorf("weight shorthand = %q, want 'w'", cmd.Flag("weight").Shorthand)
+	}
+	if cmd.Flag("limit").Shorthand != "n" {
+		t.Errorf("limit shorthand = %q, want 'n'", cmd.Flag("limit").Shorthand)
 	}
 }
 
@@ -461,5 +468,228 @@ func TestCompleteInitiativeIDs_Filtering(t *testing.T) {
 	}
 	if foundInit2 {
 		t.Error("completions should NOT include INIT-002 when filtering by INIT-001")
+	}
+}
+
+func TestListCommand_LimitFlag(t *testing.T) {
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
+
+	// Create 5 tasks
+	for i := 1; i <= 5; i++ {
+		tk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		if err := backend.SaveTask(tk); err != nil {
+			t.Fatalf("save task %d: %v", i, err)
+		}
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Test: Limit to 3 tasks
+	cmd := newListCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"--limit", "3"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute command: %v", err)
+	}
+
+	output := out.String()
+
+	// Should show the last 3 tasks (most recent: TASK-003, TASK-004, TASK-005)
+	if strings.Contains(output, "TASK-001") {
+		t.Error("output should NOT contain TASK-001 (excluded by limit)")
+	}
+	if strings.Contains(output, "TASK-002") {
+		t.Error("output should NOT contain TASK-002 (excluded by limit)")
+	}
+	if !strings.Contains(output, "TASK-003") {
+		t.Error("output should contain TASK-003")
+	}
+	if !strings.Contains(output, "TASK-004") {
+		t.Error("output should contain TASK-004")
+	}
+	if !strings.Contains(output, "TASK-005") {
+		t.Error("output should contain TASK-005")
+	}
+}
+
+func TestListCommand_LimitZero(t *testing.T) {
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
+
+	// Create 3 tasks
+	for i := 1; i <= 3; i++ {
+		tk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		if err := backend.SaveTask(tk); err != nil {
+			t.Fatalf("save task %d: %v", i, err)
+		}
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Test: Limit 0 should show all tasks
+	cmd := newListCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"--limit", "0"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute command: %v", err)
+	}
+
+	output := out.String()
+
+	// Should show all 3 tasks
+	if !strings.Contains(output, "TASK-001") {
+		t.Error("output should contain TASK-001")
+	}
+	if !strings.Contains(output, "TASK-002") {
+		t.Error("output should contain TASK-002")
+	}
+	if !strings.Contains(output, "TASK-003") {
+		t.Error("output should contain TASK-003")
+	}
+}
+
+func TestListCommand_LimitWithFilters(t *testing.T) {
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
+
+	// Create tasks with different statuses
+	for i := 1; i <= 5; i++ {
+		tk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		if i <= 3 {
+			tk.Status = task.StatusCreated
+		} else {
+			tk.Status = task.StatusCompleted
+		}
+		if err := backend.SaveTask(tk); err != nil {
+			t.Fatalf("save task %d: %v", i, err)
+		}
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Test: Filter by created status AND limit to 2
+	cmd := newListCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"--status", "created", "--limit", "2"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute command: %v", err)
+	}
+
+	output := out.String()
+
+	// Should show the last 2 created tasks (TASK-002, TASK-003)
+	if strings.Contains(output, "TASK-001") {
+		t.Error("output should NOT contain TASK-001 (excluded by limit)")
+	}
+	if !strings.Contains(output, "TASK-002") {
+		t.Error("output should contain TASK-002")
+	}
+	if !strings.Contains(output, "TASK-003") {
+		t.Error("output should contain TASK-003")
+	}
+	if strings.Contains(output, "TASK-004") {
+		t.Error("output should NOT contain TASK-004 (completed)")
+	}
+	if strings.Contains(output, "TASK-005") {
+		t.Error("output should NOT contain TASK-005 (completed)")
+	}
+}
+
+func TestListCommand_LimitExceedsTotal(t *testing.T) {
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
+
+	// Create only 3 tasks
+	for i := 1; i <= 3; i++ {
+		tk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		if err := backend.SaveTask(tk); err != nil {
+			t.Fatalf("save task %d: %v", i, err)
+		}
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Test: Limit 100 (exceeds total of 3)
+	cmd := newListCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"--limit", "100"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute command: %v", err)
+	}
+
+	output := out.String()
+
+	// Should show all 3 tasks
+	if !strings.Contains(output, "TASK-001") {
+		t.Error("output should contain TASK-001")
+	}
+	if !strings.Contains(output, "TASK-002") {
+		t.Error("output should contain TASK-002")
+	}
+	if !strings.Contains(output, "TASK-003") {
+		t.Error("output should contain TASK-003")
+	}
+}
+
+func TestListCommand_LimitShorthand(t *testing.T) {
+	tmpDir := withListTestDir(t)
+
+	// Create backend and save test data
+	backend := createListTestBackend(t, tmpDir)
+
+	// Create 5 tasks
+	for i := 1; i <= 5; i++ {
+		tk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		if err := backend.SaveTask(tk); err != nil {
+			t.Fatalf("save task %d: %v", i, err)
+		}
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Test: Use shorthand -n
+	cmd := newListCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"-n", "2"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute command: %v", err)
+	}
+
+	output := out.String()
+
+	// Should show the last 2 tasks (TASK-004, TASK-005)
+	if strings.Contains(output, "TASK-001") {
+		t.Error("output should NOT contain TASK-001")
+	}
+	if strings.Contains(output, "TASK-002") {
+		t.Error("output should NOT contain TASK-002")
+	}
+	if strings.Contains(output, "TASK-003") {
+		t.Error("output should NOT contain TASK-003")
+	}
+	if !strings.Contains(output, "TASK-004") {
+		t.Error("output should contain TASK-004")
+	}
+	if !strings.Contains(output, "TASK-005") {
+		t.Error("output should contain TASK-005")
 	}
 }

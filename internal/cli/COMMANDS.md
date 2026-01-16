@@ -10,7 +10,7 @@ Full command reference for the orc CLI.
 | `cmd_init.go` | `orc init` | Initialize .orc/ in project (<500ms) |
 | `cmd_setup.go` | `orc setup` | Claude-powered interactive setup |
 | `cmd_new.go` | `orc new "title"` | Create new task |
-| `cmd_list.go` | `orc list` | List all tasks |
+| `cmd_list.go` | `orc list` | List all tasks (filterable, limitable) |
 | `cmd_show.go` | `orc show TASK-ID` | Show task details |
 | `cmd_edit.go` | `orc edit TASK-ID` | Edit task properties |
 | `cmd_run.go` | `orc run TASK-ID` | Execute task phases |
@@ -48,6 +48,15 @@ Full command reference for the orc CLI.
 | `--template, -t` | Template (bugfix, feature, refactor, migration, spike) |
 | `--blocked-by` | Comma-separated task IDs this task is blocked by |
 | `--initiative` | Initiative ID to assign task to |
+
+### `orc list`
+
+| Flag | Description |
+|------|-------------|
+| `--initiative, -i` | Filter by initiative ID (use 'unassigned' for tasks without initiative) |
+| `--status, -s` | Filter by status (pending, running, completed, etc.) |
+| `--weight, -w` | Filter by weight (trivial, small, medium, large, greenfield) |
+| `--limit, -n` | Limit output to N most recent tasks (0 for all) |
 
 ### `orc run TASK-ID`
 

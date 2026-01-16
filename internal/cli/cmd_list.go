@@ -30,7 +30,9 @@ Example:
   orc list --status running
   orc list --weight large
   orc list --initiative INIT-001
-  orc list --initiative unassigned`,
+  orc list --initiative unassigned
+  orc list -n 5                      # Show 5 most recent tasks
+  orc list --status pending -n 10    # Show 10 most recent pending tasks`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
 				return err
@@ -46,6 +48,7 @@ Example:
 			initiativeFilter, _ := cmd.Flags().GetString("initiative")
 			statusFilter, _ := cmd.Flags().GetString("status")
 			weightFilter, _ := cmd.Flags().GetString("weight")
+			limit, _ := cmd.Flags().GetInt("limit")
 
 			// Validate initiative filter if provided (unless it's "unassigned" or empty)
 			initiativeFilterActive := cmd.Flags().Changed("initiative")
@@ -124,6 +127,11 @@ Example:
 				return nil
 			}
 
+			// Apply limit after filtering (take the last N tasks for most recent)
+			if limit > 0 && len(filtered) > limit {
+				filtered = filtered[len(filtered)-limit:]
+			}
+
 			// Print tasks in table format
 			w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 			_, _ = fmt.Fprintln(w, "ID\tSTATUS\tWEIGHT\tPHASE\tTITLE")
@@ -148,6 +156,7 @@ Example:
 	cmd.Flags().StringP("initiative", "i", "", "filter by initiative ID (use 'unassigned' or '' for tasks without initiative)")
 	cmd.Flags().StringP("status", "s", "", "filter by status (pending, running, completed, etc.)")
 	cmd.Flags().StringP("weight", "w", "", "filter by weight (trivial, small, medium, large, greenfield)")
+	cmd.Flags().IntP("limit", "n", 0, "limit output to N most recent tasks (0 for all)")
 
 	// Register completion function for initiative flag
 	_ = cmd.RegisterFlagCompletionFunc("initiative", completeInitiativeIDs)
