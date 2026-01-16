@@ -149,11 +149,11 @@ test.describe('Board Page', () => {
 			const cardCount = await taskCards.count();
 
 			if (cardCount > 0) {
-				// For each task card, verify it's in a column
+				// For each task card, verify it's in a column (not the board itself)
 				for (let i = 0; i < Math.min(cardCount, 5); i++) {
 					const card = taskCards.nth(i);
-					// Card should be inside a column region
-					const parentColumn = card.locator('xpath=ancestor::div[@role="region"]');
+					// Card should be inside a column region (use aria-label*="column" to exclude the board)
+					const parentColumn = card.locator('xpath=ancestor::div[@role="region"][contains(@aria-label, "column")]');
 					await expect(parentColumn).toBeVisible();
 				}
 
