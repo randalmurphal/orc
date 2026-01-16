@@ -188,20 +188,21 @@
 /* Initiative badge - override Button primitive styles */
 .task-card .initiative-badge.btn {
 	height: auto;
+	font-family: var(--font-mono);
 	font-size: var(--text-2xs);
 	font-weight: var(--font-medium);
 	letter-spacing: var(--tracking-wide);
 	padding: var(--space-0-5) var(--space-1-5);
 	border-radius: var(--radius-sm);
-	background: var(--bg-tertiary);
-	color: var(--text-secondary);
-	border: 1px solid var(--border-subtle);
+	background: var(--accent-subtle);
+	color: var(--accent-primary);
+	border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
 }
 
 .task-card .initiative-badge.btn:hover:not(:disabled) {
-	background: var(--bg-surface);
-	border-color: var(--border-default);
-	color: var(--text-primary);
+	background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+	border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+	color: var(--accent-primary);
 	transform: none;
 }
 

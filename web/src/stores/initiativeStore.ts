@@ -279,14 +279,47 @@ export function truncateInitiativeTitle(title: string, maxLength: number = 20): 
 	return title.slice(0, maxLength - 1) + '…';
 }
 
-// Helper to get badge title with full title for tooltip
+// Badge display format options
+export type InitiativeBadgeFormat = 'id-only' | 'id-with-title' | 'title-only';
+
+/**
+ * Helper to get badge title with full title for tooltip.
+ *
+ * Display format:
+ * - 'id-only': Shows just "INIT-012" (default, most compact)
+ * - 'id-with-title': Shows "INIT-012: Systems..." (ID + truncated title)
+ * - 'title-only': Shows "Systems Reliability..." (legacy behavior)
+ *
+ * Full title is always available for tooltip display.
+ */
 export function getInitiativeBadgeTitle(
 	id: string,
+	format: InitiativeBadgeFormat = 'id-only',
 	maxLength: number = 20
-): { display: string; full: string } {
+): { display: string; full: string; id: string } {
 	const title = useInitiativeStore.getState().getInitiativeTitle(id);
+
+	let display: string;
+	switch (format) {
+		case 'id-only':
+			display = id;
+			break;
+		case 'id-with-title': {
+			// Show "INIT-012: Title..." with truncation
+			const prefixLength = id.length + 2; // id + ": "
+			const titleMaxLength = Math.max(maxLength - prefixLength, 8);
+			const truncatedTitle = truncateInitiativeTitle(title, titleMaxLength);
+			display = `${id}: ${truncatedTitle}`;
+			break;
+		}
+		case 'title-only':
+			display = truncateInitiativeTitle(title, maxLength);
+			break;
+	}
+
 	return {
-		display: truncateInitiativeTitle(title, maxLength),
-		full: title,
+		display,
+		full: `${id}: ${title}`,
+		id,
 	};
 }
