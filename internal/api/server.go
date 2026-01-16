@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/diff"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
@@ -55,6 +56,9 @@ type Server struct {
 
 	// PR status poller for periodic updates
 	prPoller *PRPoller
+
+	// Automation service for trigger-based automation
+	automationSvc *automation.Service
 
 	// Server context for graceful shutdown of background goroutines
 	serverCtx       context.Context
@@ -131,6 +135,19 @@ func New(cfg *Config) *Server {
 		maxPortAttempts = 10
 	}
 
+	// Create automation service if enabled
+	var automationSvc *automation.Service
+	if orcCfg.AutomationEnabled() {
+		adapter := automation.NewProjectDBAdapter(backend.DB())
+		automationSvc = automation.NewService(orcCfg, adapter, logger)
+
+		// Create task creator for automation
+		taskCreator := automation.NewAutoTaskCreator(orcCfg, backend, logger)
+		automationSvc.SetTaskCreator(taskCreator)
+
+		logger.Info("automation service enabled")
+	}
+
 	s := &Server{
 		addr:            cfg.Addr,
 		workDir:         workDir,
@@ -143,6 +160,7 @@ func New(cfg *Config) *Server {
 		subscribers:     make(map[string][]chan Event),
 		runningTasks:    make(map[string]context.CancelFunc),
 		diffCache:       diff.NewCache(100), // Cache up to 100 file diffs
+		automationSvc:   automationSvc,
 		serverCtx:       serverCtx,
 		serverCtxCancel: serverCtxCancel,
 	}
@@ -417,6 +435,21 @@ func (s *Server) registerRoutes() {
 	// Dashboard
 	s.mux.HandleFunc("GET /api/dashboard/stats", cors(s.handleGetDashboardStats))
 
+	// Automation (triggers and automation tasks)
+	s.mux.HandleFunc("GET /api/automation/triggers", cors(s.handleListTriggers))
+	s.mux.HandleFunc("GET /api/automation/triggers/{id}", cors(s.handleGetTrigger))
+	s.mux.HandleFunc("PUT /api/automation/triggers/{id}", cors(s.handleUpdateTrigger))
+	s.mux.HandleFunc("POST /api/automation/triggers/{id}/run", cors(s.handleRunTrigger))
+	s.mux.HandleFunc("GET /api/automation/triggers/{id}/history", cors(s.handleGetTriggerHistory))
+	s.mux.HandleFunc("POST /api/automation/triggers/{id}/reset", cors(s.handleResetTrigger))
+	s.mux.HandleFunc("GET /api/automation/tasks", cors(s.handleListAutomationTasks))
+	s.mux.HandleFunc("GET /api/automation/stats", cors(s.handleGetAutomationStats))
+
+	// Notifications
+	s.mux.HandleFunc("GET /api/notifications", cors(s.handleListNotifications))
+	s.mux.HandleFunc("PUT /api/notifications/{id}/dismiss", cors(s.handleDismissNotification))
+	s.mux.HandleFunc("PUT /api/notifications/dismiss-all", cors(s.handleDismissAllNotifications))
+
 	// Team (team mode infrastructure)
 	s.mux.HandleFunc("GET /api/team/members", cors(s.handleListTeamMembers))
 	s.mux.HandleFunc("POST /api/team/members", cors(s.handleCreateTeamMember))
@@ -687,6 +720,7 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 			exec := executor.NewWithConfig(execCfg, s.orcConfig)
 			exec.SetBackend(s.backend)
 			exec.SetPublisher(s.publisher)
+			exec.SetAutomationService(s.automationSvc)
 			err := exec.ResumeFromPhase(ctx, t, p, st, resumePhase)
 			if err != nil {
 				s.logger.Error("task resume failed", "task", id, "error", err)

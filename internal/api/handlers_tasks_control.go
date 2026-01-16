@@ -128,6 +128,7 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		exec := executor.NewWithConfig(execCfg, s.orcConfig)
 		exec.SetBackend(s.backend)
 		exec.SetPublisher(s.publisher)
+		exec.SetAutomationService(s.automationSvc)
 
 		// Execute with event publishing
 		err := exec.ExecuteTask(ctx, t, p, st)
