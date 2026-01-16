@@ -56,6 +56,31 @@ function formatDate(dateStr: string): string {
 	return date.toLocaleDateString();
 }
 
+/**
+ * Normalize markdown text for display in card preview.
+ * Strips markdown formatting and collapses whitespace.
+ */
+function normalizeDescription(text: string): string {
+	return (
+		text
+			// Strip heading markers (# ## ### etc.)
+			.replace(/^#{1,6}\s+/gm, '')
+			// Strip bold/italic markers (**, __, *, _)
+			.replace(/(\*\*|__)(.*?)\1/g, '$2')
+			.replace(/(\*|_)(.*?)\1/g, '$2')
+			// Strip inline code backticks
+			.replace(/`([^`]+)`/g, '$1')
+			// Strip list markers (-, *, numbered lists)
+			.replace(/^[\s]*[-*+]\s+/gm, '')
+			.replace(/^[\s]*\d+\.\s+/gm, '')
+			// Collapse multiple newlines into spaces
+			.replace(/\n+/g, ' ')
+			// Collapse multiple spaces
+			.replace(/\s{2,}/g, ' ')
+			.trim()
+	);
+}
+
 export function TaskCard({
 	task,
 	onAction,
@@ -320,7 +345,11 @@ export function TaskCard({
 
 			<h3 className="task-title">{task.title}</h3>
 
-			{task.description && <p className="task-description">{task.description}</p>}
+			{task.description && (
+				<Tooltip content={task.description}>
+					<p className="task-description">{normalizeDescription(task.description)}</p>
+				</Tooltip>
+			)}
 
 			{task.current_phase && (
 				<div className="task-phase">
