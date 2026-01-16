@@ -43,6 +43,15 @@ const (
 	StatusArchived  Status = "archived"
 )
 
+// MergeStatus constants for tracking initiative branch merge state.
+const (
+	MergeStatusNone       = ""            // No branch merge configured (no BranchBase)
+	MergeStatusPending    = "pending"     // All tasks complete, ready to merge
+	MergeStatusInProgress = "in_progress" // Merge/PR in progress
+	MergeStatusMerged     = "merged"      // Successfully merged
+	MergeStatusFailed     = "failed"      // Merge failed
+)
+
 // Identity represents the owner of an initiative.
 type Identity struct {
 	Initials    string `yaml:"initials" json:"initials"`
@@ -81,7 +90,26 @@ type Initiative struct {
 	// BlockedBy lists initiative IDs that must complete before this initiative can start
 	BlockedBy []string `yaml:"blocked_by,omitempty" json:"blocked_by,omitempty"`
 	// Blocks lists initiative IDs waiting on this (computed, not persisted)
-	Blocks    []string  `yaml:"-" json:"blocks,omitempty"`
+	Blocks []string `yaml:"-" json:"blocks,omitempty"`
+
+	// BranchBase is the target branch for tasks in this initiative.
+	// When set, tasks in this initiative will target this branch instead of the project default.
+	// Example: "feature/user-auth" for a feature branch that collects all auth-related tasks.
+	BranchBase string `yaml:"branch_base,omitempty" json:"branch_base,omitempty"`
+
+	// BranchPrefix overrides the task branch naming pattern for tasks in this initiative.
+	// Example: "feature/auth-" would create branches like "feature/auth-TASK-001".
+	// If empty, uses the default "orc/" prefix.
+	BranchPrefix string `yaml:"branch_prefix,omitempty" json:"branch_prefix,omitempty"`
+
+	// MergeStatus tracks the status of merging the initiative branch to the target.
+	// Only relevant when BranchBase is set. Values: pending, in_progress, merged, failed
+	MergeStatus string `yaml:"merge_status,omitempty" json:"merge_status,omitempty"`
+
+	// MergeCommit is the commit SHA after the initiative branch was merged.
+	// Only set when MergeStatus is "merged".
+	MergeCommit string `yaml:"merge_commit,omitempty" json:"merge_commit,omitempty"`
+
 	CreatedAt time.Time `yaml:"created_at" json:"created_at"`
 	UpdatedAt time.Time `yaml:"updated_at" json:"updated_at"`
 }
@@ -587,6 +615,55 @@ func (i *Initiative) RemoveBlocker(blockerID string) bool {
 		}
 	}
 	return false
+}
+
+// AllTasksComplete returns true if all tasks in the initiative have a done status.
+// A task is considered done if its status is "completed" or "finished".
+// Returns true if there are no tasks (empty initiative is trivially complete).
+func (i *Initiative) AllTasksComplete() bool {
+	for _, t := range i.Tasks {
+		if !isDoneStatus(t.Status) {
+			return false
+		}
+	}
+	return true
+}
+
+// AllTasksCompleteWithLoader checks if all tasks are done using actual status from loader.
+// This is more accurate than AllTasksComplete() as it fetches live status from task.yaml.
+func (i *Initiative) AllTasksCompleteWithLoader(loader TaskLoader) bool {
+	if len(i.Tasks) == 0 {
+		return true
+	}
+
+	for _, t := range i.Tasks {
+		status := t.Status
+		if loader != nil {
+			if actualStatus, _, err := loader(t.ID); err == nil && actualStatus != "" {
+				status = actualStatus
+			}
+		}
+		if !isDoneStatus(status) {
+			return false
+		}
+	}
+	return true
+}
+
+// isDoneStatus returns true if the status indicates a task is done.
+func isDoneStatus(status string) bool {
+	return status == "completed" || status == "finished"
+}
+
+// HasBranchBase returns true if the initiative has a branch base configured.
+func (i *Initiative) HasBranchBase() bool {
+	return i.BranchBase != ""
+}
+
+// IsReadyForMerge returns true if the initiative is ready for branch merge.
+// This means all tasks are complete and the initiative has a branch base configured.
+func (i *Initiative) IsReadyForMerge() bool {
+	return i.HasBranchBase() && i.AllTasksComplete() && i.MergeStatus != MergeStatusMerged
 }
 
 // SetBlockedBy replaces the entire BlockedBy list with validation.

@@ -23,6 +23,7 @@ import type {
 	InitiativeIdentity,
 	InitiativeTaskRef,
 	InitiativeDecision,
+	Branch,
 } from './types';
 
 const API_BASE = '/api';
@@ -116,6 +117,7 @@ export interface UpdateTaskRequest {
 	priority?: string;
 	category?: string;
 	initiative_id?: string;
+	target_branch?: string;
 	blocked_by?: string[];
 	related_to?: string[];
 	metadata?: Record<string, string>;
@@ -1721,6 +1723,8 @@ export interface CreateInitiativeRequest {
 	title: string;
 	vision?: string;
 	owner?: InitiativeIdentity;
+	branch_base?: string;
+	branch_prefix?: string;
 	shared?: boolean;
 }
 
@@ -1729,6 +1733,8 @@ export interface UpdateInitiativeRequest {
 	vision?: string;
 	status?: InitiativeStatus;
 	owner?: InitiativeIdentity;
+	branch_base?: string;
+	branch_prefix?: string;
 }
 
 export async function listInitiatives(options?: {
@@ -1924,4 +1930,47 @@ export async function getInitiativeDependencyGraph(
 export async function getTasksDependencyGraph(taskIds: string[]): Promise<DependencyGraphData> {
 	const ids = taskIds.join(',');
 	return fetchJSON<DependencyGraphData>(`/tasks/dependency-graph?ids=${encodeURIComponent(ids)}`);
+}
+
+// Branch Registry Operations
+export interface BranchListOptions {
+	type?: 'initiative' | 'staging' | 'task';
+	status?: 'active' | 'merged' | 'stale' | 'orphaned';
+}
+
+export async function listBranches(options?: BranchListOptions): Promise<Branch[]> {
+	const params = new URLSearchParams();
+	if (options?.type) params.set('type', options.type);
+	if (options?.status) params.set('status', options.status);
+	const query = params.toString() ? `?${params.toString()}` : '';
+	return fetchJSON<Branch[]>(`/branches${query}`);
+}
+
+export async function getBranch(name: string): Promise<Branch> {
+	return fetchJSON<Branch>(`/branches/${encodeURIComponent(name)}`);
+}
+
+export async function updateBranchStatus(
+	name: string,
+	status: 'active' | 'merged' | 'stale' | 'orphaned'
+): Promise<void> {
+	const res = await fetch(`${API_BASE}/branches/${encodeURIComponent(name)}/status`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ status }),
+	});
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to update branch status');
+	}
+}
+
+export async function deleteBranch(name: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/branches/${encodeURIComponent(name)}`, {
+		method: 'DELETE',
+	});
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to delete branch');
+	}
 }

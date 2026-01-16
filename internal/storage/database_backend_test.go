@@ -1180,3 +1180,378 @@ func TestSaveTask_PreservesStateStatus(t *testing.T) {
 		t.Errorf("StateStatus not preserved: expected 'failed', got %s", loaded.Status)
 	}
 }
+
+// =============================================================================
+// Branch Registry Tests
+// =============================================================================
+
+// TestBranch_SaveAndLoad verifies basic branch save/load operations.
+func TestBranch_SaveAndLoad(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create branch
+	now := time.Now()
+	branch := &Branch{
+		Name:         "feature/user-auth",
+		Type:         BranchTypeInitiative,
+		OwnerID:      "INIT-001",
+		CreatedAt:    now,
+		LastActivity: now,
+		Status:       BranchStatusActive,
+	}
+
+	// Save
+	if err := backend.SaveBranch(branch); err != nil {
+		t.Fatalf("save branch: %v", err)
+	}
+
+	// Load
+	loaded, err := backend.LoadBranch("feature/user-auth")
+	if err != nil {
+		t.Fatalf("load branch: %v", err)
+	}
+
+	if loaded.Name != "feature/user-auth" {
+		t.Errorf("expected name 'feature/user-auth', got %s", loaded.Name)
+	}
+	if loaded.Type != BranchTypeInitiative {
+		t.Errorf("expected type 'initiative', got %s", loaded.Type)
+	}
+	if loaded.OwnerID != "INIT-001" {
+		t.Errorf("expected owner 'INIT-001', got %s", loaded.OwnerID)
+	}
+	if loaded.Status != BranchStatusActive {
+		t.Errorf("expected status 'active', got %s", loaded.Status)
+	}
+}
+
+// TestBranch_Update verifies branch update operations.
+func TestBranch_Update(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create branch
+	now := time.Now()
+	branch := &Branch{
+		Name:         "dev/randy",
+		Type:         BranchTypeStaging,
+		OwnerID:      "randy",
+		CreatedAt:    now,
+		LastActivity: now,
+		Status:       BranchStatusActive,
+	}
+	if err := backend.SaveBranch(branch); err != nil {
+		t.Fatalf("save branch: %v", err)
+	}
+
+	// Update status
+	if err := backend.UpdateBranchStatus("dev/randy", BranchStatusMerged); err != nil {
+		t.Fatalf("update status: %v", err)
+	}
+
+	// Verify
+	loaded, err := backend.LoadBranch("dev/randy")
+	if err != nil {
+		t.Fatalf("load branch: %v", err)
+	}
+	if loaded.Status != BranchStatusMerged {
+		t.Errorf("expected status 'merged', got %s", loaded.Status)
+	}
+}
+
+// TestBranch_UpdateActivity verifies last activity timestamp updates.
+func TestBranch_UpdateActivity(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create branch with old activity
+	oldTime := time.Now().Add(-24 * time.Hour)
+	branch := &Branch{
+		Name:         "orc/TASK-001",
+		Type:         BranchTypeTask,
+		OwnerID:      "TASK-001",
+		CreatedAt:    oldTime,
+		LastActivity: oldTime,
+		Status:       BranchStatusActive,
+	}
+	if err := backend.SaveBranch(branch); err != nil {
+		t.Fatalf("save branch: %v", err)
+	}
+
+	// Update activity
+	if err := backend.UpdateBranchActivity("orc/TASK-001"); err != nil {
+		t.Fatalf("update activity: %v", err)
+	}
+
+	// Verify activity was updated
+	loaded, err := backend.LoadBranch("orc/TASK-001")
+	if err != nil {
+		t.Fatalf("load branch: %v", err)
+	}
+
+	// Activity should be recent (within last second)
+	if time.Since(loaded.LastActivity) > time.Second {
+		t.Errorf("activity not updated: %v", loaded.LastActivity)
+	}
+}
+
+// TestBranch_Delete verifies branch deletion.
+func TestBranch_Delete(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create branch
+	branch := &Branch{
+		Name:         "feature/temp",
+		Type:         BranchTypeInitiative,
+		OwnerID:      "INIT-002",
+		CreatedAt:    time.Now(),
+		LastActivity: time.Now(),
+		Status:       BranchStatusActive,
+	}
+	if err := backend.SaveBranch(branch); err != nil {
+		t.Fatalf("save branch: %v", err)
+	}
+
+	// Delete
+	if err := backend.DeleteBranch("feature/temp"); err != nil {
+		t.Fatalf("delete branch: %v", err)
+	}
+
+	// Verify deleted
+	loaded, err := backend.LoadBranch("feature/temp")
+	if err != nil {
+		t.Fatalf("load should not error for missing branch: %v", err)
+	}
+	if loaded != nil {
+		t.Error("expected nil for deleted branch")
+	}
+}
+
+// TestBranch_ListAll verifies listing all branches.
+func TestBranch_ListAll(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create multiple branches
+	branches := []*Branch{
+		{Name: "feature/auth", Type: BranchTypeInitiative, OwnerID: "INIT-001", Status: BranchStatusActive},
+		{Name: "dev/randy", Type: BranchTypeStaging, OwnerID: "randy", Status: BranchStatusActive},
+		{Name: "orc/TASK-001", Type: BranchTypeTask, OwnerID: "TASK-001", Status: BranchStatusMerged},
+	}
+	now := time.Now()
+	for _, b := range branches {
+		b.CreatedAt = now
+		b.LastActivity = now
+		if err := backend.SaveBranch(b); err != nil {
+			t.Fatalf("save branch %s: %v", b.Name, err)
+		}
+	}
+
+	// List all
+	list, err := backend.ListBranches(BranchListOpts{})
+	if err != nil {
+		t.Fatalf("list branches: %v", err)
+	}
+	if len(list) != 3 {
+		t.Errorf("expected 3 branches, got %d", len(list))
+	}
+}
+
+// TestBranch_ListByType verifies filtering by type.
+func TestBranch_ListByType(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create branches of different types
+	now := time.Now()
+	branches := []*Branch{
+		{Name: "feature/a", Type: BranchTypeInitiative, CreatedAt: now, LastActivity: now, Status: BranchStatusActive},
+		{Name: "feature/b", Type: BranchTypeInitiative, CreatedAt: now, LastActivity: now, Status: BranchStatusActive},
+		{Name: "dev/user", Type: BranchTypeStaging, CreatedAt: now, LastActivity: now, Status: BranchStatusActive},
+		{Name: "orc/TASK-001", Type: BranchTypeTask, CreatedAt: now, LastActivity: now, Status: BranchStatusActive},
+	}
+	for _, b := range branches {
+		if err := backend.SaveBranch(b); err != nil {
+			t.Fatalf("save branch %s: %v", b.Name, err)
+		}
+	}
+
+	// List initiatives only
+	list, err := backend.ListBranches(BranchListOpts{Type: BranchTypeInitiative})
+	if err != nil {
+		t.Fatalf("list branches: %v", err)
+	}
+	if len(list) != 2 {
+		t.Errorf("expected 2 initiative branches, got %d", len(list))
+	}
+	for _, b := range list {
+		if b.Type != BranchTypeInitiative {
+			t.Errorf("expected initiative type, got %s", b.Type)
+		}
+	}
+}
+
+// TestBranch_ListByStatus verifies filtering by status.
+func TestBranch_ListByStatus(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create branches with different statuses
+	now := time.Now()
+	branches := []*Branch{
+		{Name: "b1", Type: BranchTypeTask, CreatedAt: now, LastActivity: now, Status: BranchStatusActive},
+		{Name: "b2", Type: BranchTypeTask, CreatedAt: now, LastActivity: now, Status: BranchStatusActive},
+		{Name: "b3", Type: BranchTypeTask, CreatedAt: now, LastActivity: now, Status: BranchStatusMerged},
+		{Name: "b4", Type: BranchTypeTask, CreatedAt: now, LastActivity: now, Status: BranchStatusOrphaned},
+	}
+	for _, b := range branches {
+		if err := backend.SaveBranch(b); err != nil {
+			t.Fatalf("save branch %s: %v", b.Name, err)
+		}
+	}
+
+	// List active only
+	list, err := backend.ListBranches(BranchListOpts{Status: BranchStatusActive})
+	if err != nil {
+		t.Fatalf("list branches: %v", err)
+	}
+	if len(list) != 2 {
+		t.Errorf("expected 2 active branches, got %d", len(list))
+	}
+
+	// List merged only
+	list, err = backend.ListBranches(BranchListOpts{Status: BranchStatusMerged})
+	if err != nil {
+		t.Fatalf("list branches: %v", err)
+	}
+	if len(list) != 1 {
+		t.Errorf("expected 1 merged branch, got %d", len(list))
+	}
+}
+
+// TestBranch_ListByTypeAndStatus verifies combined filtering.
+func TestBranch_ListByTypeAndStatus(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	now := time.Now()
+	branches := []*Branch{
+		{Name: "f1", Type: BranchTypeInitiative, CreatedAt: now, LastActivity: now, Status: BranchStatusActive},
+		{Name: "f2", Type: BranchTypeInitiative, CreatedAt: now, LastActivity: now, Status: BranchStatusMerged},
+		{Name: "d1", Type: BranchTypeStaging, CreatedAt: now, LastActivity: now, Status: BranchStatusActive},
+		{Name: "t1", Type: BranchTypeTask, CreatedAt: now, LastActivity: now, Status: BranchStatusMerged},
+	}
+	for _, b := range branches {
+		if err := backend.SaveBranch(b); err != nil {
+			t.Fatalf("save branch %s: %v", b.Name, err)
+		}
+	}
+
+	// List merged initiatives
+	list, err := backend.ListBranches(BranchListOpts{
+		Type:   BranchTypeInitiative,
+		Status: BranchStatusMerged,
+	})
+	if err != nil {
+		t.Fatalf("list branches: %v", err)
+	}
+	if len(list) != 1 {
+		t.Errorf("expected 1 merged initiative, got %d", len(list))
+	}
+	if list[0].Name != "f2" {
+		t.Errorf("expected branch 'f2', got %s", list[0].Name)
+	}
+}
+
+// TestBranch_GetStaleBranches verifies stale branch detection.
+func TestBranch_GetStaleBranches(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	now := time.Now()
+	oldTime := now.Add(-35 * 24 * time.Hour) // 35 days ago
+
+	branches := []*Branch{
+		{Name: "old1", Type: BranchTypeTask, CreatedAt: oldTime, LastActivity: oldTime, Status: BranchStatusActive},
+		{Name: "old2", Type: BranchTypeTask, CreatedAt: oldTime, LastActivity: oldTime, Status: BranchStatusActive},
+		{Name: "new1", Type: BranchTypeTask, CreatedAt: now, LastActivity: now, Status: BranchStatusActive},
+	}
+	for _, b := range branches {
+		if err := backend.SaveBranch(b); err != nil {
+			t.Fatalf("save branch %s: %v", b.Name, err)
+		}
+	}
+
+	// Get branches stale for more than 30 days
+	staleThreshold := now.Add(-30 * 24 * time.Hour)
+	stale, err := backend.GetStaleBranches(staleThreshold)
+	if err != nil {
+		t.Fatalf("get stale branches: %v", err)
+	}
+
+	if len(stale) != 2 {
+		t.Errorf("expected 2 stale branches, got %d", len(stale))
+	}
+
+	// Verify correct branches returned
+	names := make(map[string]bool)
+	for _, b := range stale {
+		names[b.Name] = true
+	}
+	if !names["old1"] || !names["old2"] {
+		t.Errorf("expected old1 and old2, got %v", names)
+	}
+}
+
+// TestBranch_LoadNonExistent verifies loading non-existent branch returns nil.
+func TestBranch_LoadNonExistent(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	loaded, err := backend.LoadBranch("does-not-exist")
+	if err != nil {
+		t.Fatalf("load should not error: %v", err)
+	}
+	if loaded != nil {
+		t.Error("expected nil for non-existent branch")
+	}
+}
+
+// TestBranch_Upsert verifies that SaveBranch can update existing branches.
+func TestBranch_Upsert(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	now := time.Now()
+	branch := &Branch{
+		Name:         "feature/test",
+		Type:         BranchTypeInitiative,
+		OwnerID:      "INIT-001",
+		CreatedAt:    now,
+		LastActivity: now,
+		Status:       BranchStatusActive,
+	}
+
+	// Initial save
+	if err := backend.SaveBranch(branch); err != nil {
+		t.Fatalf("initial save: %v", err)
+	}
+
+	// Update via save (upsert)
+	branch.Status = BranchStatusMerged
+	branch.LastActivity = now.Add(time.Hour)
+	if err := backend.SaveBranch(branch); err != nil {
+		t.Fatalf("upsert save: %v", err)
+	}
+
+	// Verify update
+	loaded, err := backend.LoadBranch("feature/test")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if loaded.Status != BranchStatusMerged {
+		t.Errorf("expected status 'merged', got %s", loaded.Status)
+	}
+}

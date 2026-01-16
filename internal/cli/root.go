@@ -88,6 +88,8 @@ func init() {
 	rootCmd.AddCommand(newCostCmd())
 	rootCmd.AddCommand(newTemplateCmd())
 	rootCmd.AddCommand(newInitiativeCmd())
+	rootCmd.AddCommand(newStagingCmd())
+	rootCmd.AddCommand(newBranchesCmd())
 	rootCmd.AddCommand(newSpecCmd())
 	rootCmd.AddCommand(newFeatureCmd())
 	rootCmd.AddCommand(newGoCmd())

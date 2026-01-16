@@ -90,8 +90,8 @@ func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *plan.Pl
 		return nil, fmt.Errorf("worker pool at capacity (%d)", p.maxWorkers)
 	}
 
-	// Setup worktree
-	setup, err := executor.SetupWorktree(t.ID, p.cfg, p.gitOps)
+	// Setup worktree using full branch resolution hierarchy
+	setup, err := executor.SetupWorktreeForTask(t, p.cfg, p.gitOps, p.backend)
 	if err != nil {
 		return nil, fmt.Errorf("setup worktree: %w", err)
 	}

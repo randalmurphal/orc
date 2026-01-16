@@ -211,23 +211,30 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 }
 
 // setupWorktreeForTask creates or reuses an isolated worktree for the task.
+// Uses the full 5-level branch resolution hierarchy to determine the target branch,
+// and auto-creates initiative/staging branches if they don't exist.
 func (e *Executor) setupWorktreeForTask(t *task.Task) error {
-	worktreePath, err := e.setupWorktree(t.ID)
+	result, err := SetupWorktreeForTask(t, e.orcConfig, e.gitOps, e.backend)
 	if err != nil {
 		return fmt.Errorf("setup worktree: %w", err)
 	}
 
-	e.worktreePath = worktreePath
-	e.worktreeGit = e.gitOps.InWorktree(worktreePath)
-	e.logger.Info("created worktree", "task", t.ID, "path", worktreePath)
+	e.worktreePath = result.Path
+	e.worktreeGit = e.gitOps.InWorktree(result.Path)
+
+	logMsg := "created worktree"
+	if result.Reused {
+		logMsg = "reusing existing worktree"
+	}
+	e.logger.Info(logMsg, "task", t.ID, "path", result.Path, "target_branch", result.TargetBranch)
 
 	// Generate per-worktree MCP config for isolated Playwright sessions
 	if ShouldGenerateMCPConfig(t, e.orcConfig) {
-		if err := GenerateWorktreeMCPConfig(worktreePath, t.ID, t, e.orcConfig); err != nil {
+		if err := GenerateWorktreeMCPConfig(result.Path, t.ID, t, e.orcConfig); err != nil {
 			e.logger.Warn("failed to generate MCP config", "task", t.ID, "error", err)
 			// Non-fatal: continue without MCP config
 		} else {
-			e.logger.Info("generated MCP config", "task", t.ID, "path", worktreePath+"/.mcp.json")
+			e.logger.Info("generated MCP config", "task", t.ID, "path", result.Path+"/.mcp.json")
 		}
 	}
 
@@ -235,7 +242,7 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 	// This ensures all Claude work happens in the isolated worktree
 	worktreeClientOpts := []claude.ClaudeOption{
 		claude.WithModel(e.config.Model),
-		claude.WithWorkdir(worktreePath),
+		claude.WithWorkdir(result.Path),
 		claude.WithTimeout(e.config.Timeout),
 		// Disable go.work to avoid "directory prefix does not contain modules listed in go.work"
 		// error when running go commands in worktrees. The parent repo's go.work has relative
@@ -264,13 +271,13 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 		}
 	}
 	e.client = claude.NewClaudeCLI(worktreeClientOpts...)
-	e.logger.Info("claude client configured for worktree", "path", worktreePath)
+	e.logger.Info("claude client configured for worktree", "path", result.Path)
 
 	// Create new session manager for worktree context
 	e.sessionMgr = session.NewManager(
 		session.WithDefaultSessionOptions(
 			session.WithModel(e.config.Model),
-			session.WithWorkdir(worktreePath),
+			session.WithWorkdir(result.Path),
 			session.WithClaudePath(claudePath),
 			session.WithPermissions(e.config.DangerouslySkipPermissions),
 			// Disable go.work in sessions (same reason as above)
@@ -668,6 +675,7 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 		WithFinalizeOrcConfig(e.orcConfig),
 		WithFinalizeWorkingDir(workingDir),
 		WithFinalizeTaskDir(e.currentTaskDir),
+		WithFinalizeBackend(e.backend),
 		WithFinalizeStateUpdater(func(st *state.State) {
 			if saveErr := e.backend.SaveState(st); saveErr != nil {
 				e.logger.Error("failed to save state during finalize", "error", saveErr)

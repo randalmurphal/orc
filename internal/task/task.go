@@ -349,6 +349,12 @@ type Task struct {
 	// Empty/null means the task is standalone and not part of any initiative.
 	InitiativeID string `yaml:"initiative_id,omitempty" json:"initiative_id,omitempty"`
 
+	// TargetBranch overrides where this task's PR targets.
+	// When set, takes precedence over initiative branch and project config.
+	// Use for hotfixes or tasks that need to target a specific branch.
+	// Example: "hotfix/v2.1" or "release/v3.0"
+	TargetBranch string `yaml:"target_branch,omitempty" json:"target_branch,omitempty"`
+
 	// BlockedBy lists task IDs that must complete before this task can run.
 	// These are user-editable and stored in task.yaml.
 	BlockedBy []string `yaml:"blocked_by,omitempty" json:"blocked_by,omitempty"`

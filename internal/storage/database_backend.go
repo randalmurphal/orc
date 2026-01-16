@@ -11,6 +11,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
@@ -746,6 +747,7 @@ func taskToDBTask(t *task.Task) *db.Task {
 		Status:       string(t.Status),
 		CurrentPhase: t.CurrentPhase,
 		Branch:       t.Branch,
+		TargetBranch: t.TargetBranch,
 		Queue:        string(t.GetQueue()),
 		Priority:     string(t.GetPriority()),
 		Category:     string(t.GetCategory()),
@@ -774,6 +776,7 @@ func dbTaskToTask(dbTask *db.Task) *task.Task {
 		Status:       task.Status(dbTask.Status),
 		CurrentPhase: dbTask.CurrentPhase,
 		Branch:       dbTask.Branch,
+		TargetBranch: dbTask.TargetBranch,
 		Queue:        task.Queue(dbTask.Queue),
 		Priority:     task.Priority(dbTask.Priority),
 		Category:     task.Category(dbTask.Category),
@@ -1121,6 +1124,10 @@ func initiativeToDBInitiative(i *initiative.Initiative) *db.Initiative {
 		OwnerDisplayName: i.Owner.DisplayName,
 		OwnerEmail:       i.Owner.Email,
 		Vision:           i.Vision,
+		BranchBase:       i.BranchBase,
+		BranchPrefix:     i.BranchPrefix,
+		MergeStatus:      i.MergeStatus,
+		MergeCommit:      i.MergeCommit,
 		CreatedAt:        i.CreatedAt,
 		UpdatedAt:        i.UpdatedAt,
 	}
@@ -1137,10 +1144,142 @@ func dbInitiativeToInitiative(dbInit *db.Initiative) *initiative.Initiative {
 			DisplayName: dbInit.OwnerDisplayName,
 			Email:       dbInit.OwnerEmail,
 		},
-		Vision:    dbInit.Vision,
-		CreatedAt: dbInit.CreatedAt,
-		UpdatedAt: dbInit.UpdatedAt,
+		Vision:       dbInit.Vision,
+		BranchBase:   dbInit.BranchBase,
+		BranchPrefix: dbInit.BranchPrefix,
+		MergeStatus:  dbInit.MergeStatus,
+		MergeCommit:  dbInit.MergeCommit,
+		CreatedAt:    dbInit.CreatedAt,
+		UpdatedAt:    dbInit.UpdatedAt,
 	}
+}
+
+// =============================================================================
+// Branch Registry Operations
+// =============================================================================
+
+// SaveBranch creates or updates a branch in the registry.
+func (d *DatabaseBackend) SaveBranch(b *Branch) error {
+	// Validate branch name for security
+	if err := git.ValidateBranchName(b.Name); err != nil {
+		return fmt.Errorf("save branch: %w", err)
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	dbBranch := &db.Branch{
+		Name:         b.Name,
+		Type:         db.BranchType(b.Type),
+		OwnerID:      b.OwnerID,
+		CreatedAt:    b.CreatedAt,
+		LastActivity: b.LastActivity,
+		Status:       db.BranchStatus(b.Status),
+	}
+
+	return d.db.SaveBranch(dbBranch)
+}
+
+// LoadBranch retrieves a branch by name.
+func (d *DatabaseBackend) LoadBranch(name string) (*Branch, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbBranch, err := d.db.GetBranch(name)
+	if err != nil {
+		return nil, err
+	}
+	if dbBranch == nil {
+		return nil, nil
+	}
+
+	return &Branch{
+		Name:         dbBranch.Name,
+		Type:         BranchType(dbBranch.Type),
+		OwnerID:      dbBranch.OwnerID,
+		CreatedAt:    dbBranch.CreatedAt,
+		LastActivity: dbBranch.LastActivity,
+		Status:       BranchStatus(dbBranch.Status),
+	}, nil
+}
+
+// ListBranches returns all tracked branches, optionally filtered.
+func (d *DatabaseBackend) ListBranches(opts BranchListOpts) ([]*Branch, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbOpts := db.BranchListOpts{
+		Type:   db.BranchType(opts.Type),
+		Status: db.BranchStatus(opts.Status),
+	}
+
+	dbBranches, err := d.db.ListBranches(dbOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	branches := make([]*Branch, len(dbBranches))
+	for i, dbBranch := range dbBranches {
+		branches[i] = &Branch{
+			Name:         dbBranch.Name,
+			Type:         BranchType(dbBranch.Type),
+			OwnerID:      dbBranch.OwnerID,
+			CreatedAt:    dbBranch.CreatedAt,
+			LastActivity: dbBranch.LastActivity,
+			Status:       BranchStatus(dbBranch.Status),
+		}
+	}
+
+	return branches, nil
+}
+
+// UpdateBranchStatus updates a branch's status.
+func (d *DatabaseBackend) UpdateBranchStatus(name string, status BranchStatus) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.UpdateBranchStatus(name, db.BranchStatus(status))
+}
+
+// UpdateBranchActivity updates a branch's last_activity timestamp.
+func (d *DatabaseBackend) UpdateBranchActivity(name string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.UpdateBranchActivity(name)
+}
+
+// DeleteBranch removes a branch from the registry.
+func (d *DatabaseBackend) DeleteBranch(name string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeleteBranch(name)
+}
+
+// GetStaleBranches returns branches that haven't had activity since the given time.
+func (d *DatabaseBackend) GetStaleBranches(since time.Time) ([]*Branch, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbBranches, err := d.db.GetStaleBranches(since)
+	if err != nil {
+		return nil, err
+	}
+
+	branches := make([]*Branch, len(dbBranches))
+	for i, dbBranch := range dbBranches {
+		branches[i] = &Branch{
+			Name:         dbBranch.Name,
+			Type:         BranchType(dbBranch.Type),
+			OwnerID:      dbBranch.OwnerID,
+			CreatedAt:    dbBranch.CreatedAt,
+			LastActivity: dbBranch.LastActivity,
+			Status:       BranchStatus(dbBranch.Status),
+		}
+	}
+
+	return branches, nil
 }
 
 // Ensure DatabaseBackend implements Backend

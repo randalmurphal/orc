@@ -106,7 +106,7 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 	// Build worktree context
 	worktreePath := e.worktreePath
 	taskBranch := t.Branch
-	targetBranch := e.getTargetBranch()
+	targetBranch := ResolveTargetBranchForTask(t, e.backend, e.orcConfig)
 
 	// Initial state with retry context if applicable
 	initialState := PhaseState{

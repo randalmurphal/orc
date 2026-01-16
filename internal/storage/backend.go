@@ -3,6 +3,8 @@
 package storage
 
 import (
+	"time"
+
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
@@ -24,6 +26,41 @@ type TranscriptMatch struct {
 	Phase   string
 	Snippet string
 	Rank    float64
+}
+
+// BranchType represents the type of branch being tracked.
+type BranchType string
+
+const (
+	BranchTypeInitiative BranchType = "initiative"
+	BranchTypeStaging    BranchType = "staging"
+	BranchTypeTask       BranchType = "task"
+)
+
+// BranchStatus represents the lifecycle status of a branch.
+type BranchStatus string
+
+const (
+	BranchStatusActive   BranchStatus = "active"
+	BranchStatusMerged   BranchStatus = "merged"
+	BranchStatusStale    BranchStatus = "stale"
+	BranchStatusOrphaned BranchStatus = "orphaned"
+)
+
+// Branch represents a tracked branch in the registry.
+type Branch struct {
+	Name         string       // Branch name (primary key)
+	Type         BranchType   // 'initiative' | 'staging' | 'task'
+	OwnerID      string       // INIT-001, TASK-XXX, or developer name
+	CreatedAt    time.Time    // When branch was registered
+	LastActivity time.Time    // Last activity timestamp
+	Status       BranchStatus // 'active' | 'merged' | 'stale' | 'orphaned'
+}
+
+// BranchListOpts provides filtering options for listing branches.
+type BranchListOpts struct {
+	Type   BranchType   // Filter by type (empty = all)
+	Status BranchStatus // Filter by status (empty = all)
 }
 
 // Backend defines the storage operations for orc.
@@ -77,6 +114,15 @@ type Backend interface {
 	// NeedsMaterialization returns true if this backend needs context
 	// materialization (e.g., database-primary mode)
 	NeedsMaterialization() bool
+
+	// Branch registry operations
+	SaveBranch(b *Branch) error
+	LoadBranch(name string) (*Branch, error)
+	ListBranches(opts BranchListOpts) ([]*Branch, error)
+	UpdateBranchStatus(name string, status BranchStatus) error
+	UpdateBranchActivity(name string) error
+	DeleteBranch(name string) error
+	GetStaleBranches(since time.Time) ([]*Branch, error)
 
 	// Lifecycle
 	Sync() error    // Flush caches to disk

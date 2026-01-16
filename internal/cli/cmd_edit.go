@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -22,12 +23,13 @@ func newEditCmd() *cobra.Command {
 		Long: `Edit task properties after creation.
 
 Modifiable properties:
-  --title       Update the task title
-  --description Update the task description (or -d)
-  --weight      Change task weight (triggers plan regeneration)
-  --priority    Change task priority (critical, high, normal, low)
-  --status      Change task status (for administrative corrections)
-  --initiative  Link/unlink task to initiative (use "" to unlink)
+  --title         Update the task title
+  --description   Update the task description (or -d)
+  --weight        Change task weight (triggers plan regeneration)
+  --priority      Change task priority (critical, high, normal, low)
+  --status        Change task status (for administrative corrections)
+  --initiative    Link/unlink task to initiative (use "" to unlink)
+  --target-branch Override PR target branch for this task
 
 Dependency management:
   --blocked-by      Set tasks that must complete first (replaces existing)
@@ -53,7 +55,8 @@ Example:
   orc edit TASK-001 --initiative ""         # unlink from initiative
   orc edit TASK-001 --blocked-by TASK-002,TASK-003
   orc edit TASK-001 --add-blocker TASK-004
-  orc edit TASK-001 --remove-blocker TASK-002`,
+  orc edit TASK-001 --remove-blocker TASK-002
+  orc edit TASK-001 --target-branch hotfix/v2.1`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -74,6 +77,15 @@ Example:
 			newStatus, _ := cmd.Flags().GetString("status")
 			newInitiative, _ := cmd.Flags().GetString("initiative")
 			initiativeChanged := cmd.Flags().Changed("initiative")
+			newTargetBranch, _ := cmd.Flags().GetString("target-branch")
+			targetBranchChanged := cmd.Flags().Changed("target-branch")
+
+			// Validate target branch if specified (empty string clears it)
+			if targetBranchChanged && newTargetBranch != "" {
+				if err := git.ValidateBranchName(newTargetBranch); err != nil {
+					return fmt.Errorf("invalid target branch: %w", err)
+				}
+			}
 
 			// Dependency flags
 			blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")
@@ -174,6 +186,15 @@ Example:
 				if t.InitiativeID != newInitiative {
 					t.SetInitiative(newInitiative)
 					changes = append(changes, "initiative")
+				}
+			}
+
+			// Update target branch if flag was provided (even if empty, to allow clearing)
+			oldTargetBranch := t.TargetBranch
+			if targetBranchChanged {
+				if t.TargetBranch != newTargetBranch {
+					t.TargetBranch = newTargetBranch
+					changes = append(changes, "target_branch")
 				}
 			}
 
@@ -381,6 +402,16 @@ Example:
 						} else {
 							fmt.Printf("   Related to: (none)\n")
 						}
+					case "target_branch":
+						if t.TargetBranch != "" {
+							if oldTargetBranch == "" {
+								fmt.Printf("   Target Branch: set to %s\n", t.TargetBranch)
+							} else {
+								fmt.Printf("   Target Branch: %s -> %s\n", oldTargetBranch, t.TargetBranch)
+							}
+						} else {
+							fmt.Printf("   Target Branch: cleared (was %s)\n", oldTargetBranch)
+						}
 					}
 				}
 			}
@@ -395,6 +426,7 @@ Example:
 	cmd.Flags().StringP("priority", "p", "", "new task priority (critical, high, normal, low)")
 	cmd.Flags().StringP("status", "s", "", "new task status (created, classifying, planned, paused, blocked, completed, finished, failed)")
 	cmd.Flags().StringP("initiative", "i", "", "link/unlink task to initiative (use \"\" to unlink)")
+	cmd.Flags().String("target-branch", "", "override PR target branch for this task (use \"\" to clear)")
 
 	// Dependency flags
 	cmd.Flags().StringSlice("blocked-by", nil, "set blocked_by list (replaces existing)")

@@ -472,20 +472,6 @@ func (e *Executor) publishState(taskID string, s *state.State) {
 // Task execution methods (ExecuteTask, ResumeFromPhase, evaluateGate, etc.)
 // are defined in task_execution.go
 
-// setupWorktree creates or reuses an isolated worktree for the task.
-func (e *Executor) setupWorktree(taskID string) (string, error) {
-	result, err := SetupWorktree(taskID, e.orcConfig, e.gitOps)
-	if err != nil {
-		return "", err
-	}
-
-	if result.Reused {
-		e.logger.Info("reusing existing worktree", "task", taskID, "path", result.Path)
-	}
-
-	return result.Path, nil
-}
-
 // PR and completion methods (runCompletion, syncWithTarget, directMerge, createPR, buildPRBody, runGH)
 // are defined in pr.go
 

@@ -85,6 +85,13 @@ func (g *Git) BranchName(taskID string) string {
 	return BranchName(taskID, g.executorPrefix)
 }
 
+// BranchNameWithInitiativePrefix returns the full branch name for a task with an initiative prefix.
+// When initiativePrefix is non-empty, it replaces the default "orc/" prefix.
+// Uses executor prefix in p2p/team mode for isolated branches.
+func (g *Git) BranchNameWithInitiativePrefix(taskID, initiativePrefix string) string {
+	return BranchNameWithPrefix(taskID, g.executorPrefix, initiativePrefix)
+}
+
 // tryCreateWorktree attempts to create a worktree, handling stale registrations.
 // If the initial attempt fails, it prunes stale worktree entries and retries.
 // This handles the case where a worktree directory was deleted but git still has
@@ -195,6 +202,63 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 	return worktreePath, nil
 }
 
+// CreateWorktreeWithInitiativePrefix creates an isolated worktree for a task with initiative branch prefix support.
+// Returns the absolute path to the worktree.
+//
+// When initiativePrefix is non-empty (e.g., "feature/auth-"), it replaces the default "orc/" prefix:
+//   - Branch name: feature/auth-TASK-001 instead of orc/TASK-001
+//   - Worktree dir: feature-auth-TASK-001 instead of orc-TASK-001
+//
+// This allows tasks belonging to an initiative to be grouped under a custom branch namespace.
+func (g *Git) CreateWorktreeWithInitiativePrefix(taskID, baseBranch, initiativePrefix string) (string, error) {
+	branchName := g.BranchNameWithInitiativePrefix(taskID, initiativePrefix)
+	worktreePath := WorktreePathWithPrefix(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix, initiativePrefix)
+
+	// Ensure worktrees directory exists
+	worktreesDir := filepath.Join(g.ctx.RepoPath(), g.worktreeDir)
+	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
+		return "", fmt.Errorf("create worktrees dir: %w", err)
+	}
+
+	// Try to create worktree, handling stale registrations
+	_, err := g.tryCreateWorktree(branchName, worktreePath, baseBranch)
+	if err != nil {
+		return "", fmt.Errorf("create worktree for %s: %w", taskID, err)
+	}
+
+	// Inject safety hooks into the worktree
+	hookCfg := HookConfig{
+		ProtectedBranches: g.protectedBranches,
+		TaskBranch:        branchName,
+		TaskID:            taskID,
+	}
+	if err := g.InjectWorktreeHooks(worktreePath, hookCfg); err != nil {
+		// Log warning but don't fail - hooks are defense in depth
+		fmt.Fprintf(os.Stderr, "\n⚠️  WARNING: Failed to inject worktree safety hooks: %v\n", err)
+		fmt.Fprintf(os.Stderr, "   Branch protection is still active at the code level.\n")
+		fmt.Fprintf(os.Stderr, "   Manual 'git push' to protected branches may not be blocked.\n\n")
+	}
+
+	// Ensure .claude/settings.json is untracked before injecting hooks.
+	if err := EnsureClaudeSettingsUntracked(worktreePath); err != nil {
+		fmt.Fprintf(os.Stderr, "\n⚠️  WARNING: Failed to untrack .claude/settings.json: %v\n", err)
+		fmt.Fprintf(os.Stderr, "   Git operations like rebase may fail if the file was previously committed.\n\n")
+	}
+
+	// Inject Claude Code hooks for worktree isolation
+	claudeHookCfg := ClaudeCodeHookConfig{
+		WorktreePath: worktreePath,
+		MainRepoPath: g.ctx.RepoPath(),
+		TaskID:       taskID,
+	}
+	if err := InjectClaudeCodeHooks(claudeHookCfg); err != nil {
+		fmt.Fprintf(os.Stderr, "\n⚠️  WARNING: Failed to inject Claude Code isolation hooks: %v\n", err)
+		fmt.Fprintf(os.Stderr, "   File operations may not be restricted to the worktree.\n\n")
+	}
+
+	return worktreePath, nil
+}
+
 // CleanupWorktree removes a task's worktree.
 func (g *Git) CleanupWorktree(taskID string) error {
 	worktreePath := WorktreePath(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix)
@@ -221,6 +285,12 @@ func (g *Git) PruneWorktrees() error {
 // Uses executor prefix in p2p/team mode for isolated worktrees.
 func (g *Git) WorktreePath(taskID string) string {
 	return WorktreePath(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix)
+}
+
+// WorktreePathWithInitiativePrefix returns the path to a task's worktree with initiative prefix support.
+// When initiativePrefix is non-empty, it's used in the worktree directory name.
+func (g *Git) WorktreePathWithInitiativePrefix(taskID, initiativePrefix string) string {
+	return WorktreePathWithPrefix(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix, initiativePrefix)
 }
 
 // InWorktree returns a Git instance operating in the specified worktree.
@@ -303,6 +373,80 @@ func (g *Git) CreateBranch(taskID string) error {
 func (g *Git) SwitchBranch(taskID string) error {
 	branchName := g.BranchName(taskID)
 	return g.ctx.Checkout(branchName)
+}
+
+// BranchExists checks if a branch exists locally.
+func (g *Git) BranchExists(branch string) (bool, error) {
+	// Use git show-ref to check if branch exists
+	_, err := g.ctx.RunGit("show-ref", "--verify", "--quiet", "refs/heads/"+branch)
+	if err != nil {
+		// Exit code 1 means branch doesn't exist
+		// Other errors should be returned
+		if strings.Contains(err.Error(), "exit status 1") {
+			return false, nil
+		}
+		return false, fmt.Errorf("check branch %s: %w", branch, err)
+	}
+	return true, nil
+}
+
+// CreateBranchFromBase creates a new branch from the specified base branch.
+// Unlike CreateBranch, this allows specifying any base branch (not just current HEAD).
+func (g *Git) CreateBranchFromBase(branch, baseBranch string) error {
+	// First, make sure base branch is available (might need to fetch)
+	if _, err := g.ctx.RunGit("rev-parse", "--verify", baseBranch); err != nil {
+		// Try fetching the branch from origin
+		_, fetchErr := g.ctx.RunGit("fetch", "origin", baseBranch+":"+baseBranch)
+		if fetchErr != nil {
+			// Also try with origin/ prefix in case it's a remote tracking branch
+			_, fetchErr = g.ctx.RunGit("fetch", "origin", baseBranch)
+			if fetchErr != nil {
+				return fmt.Errorf("base branch %s not found locally or on remote: %w", baseBranch, err)
+			}
+		}
+	}
+
+	// Create the new branch from the base
+	_, err := g.ctx.RunGit("branch", branch, baseBranch)
+	if err != nil {
+		return fmt.Errorf("create branch %s from %s: %w", branch, baseBranch, err)
+	}
+	return nil
+}
+
+// EnsureBranchExists creates a branch from base if it doesn't exist.
+// This is useful for ensuring initiative or staging branches exist before
+// creating task worktrees that target them.
+//
+// If the branch already exists locally, this is a no-op.
+// If the branch exists on remote but not locally, it creates a local tracking branch.
+// If the branch doesn't exist anywhere, it creates it from the base branch.
+func (g *Git) EnsureBranchExists(branch, baseBranch string) error {
+	// Check if branch exists locally
+	exists, err := g.BranchExists(branch)
+	if err != nil {
+		return fmt.Errorf("check branch exists: %w", err)
+	}
+	if exists {
+		return nil // Already exists, nothing to do
+	}
+
+	// Check if branch exists on remote
+	remoteExists, err := g.RemoteBranchExists("origin", branch)
+	if err != nil {
+		// Log but don't fail - remote might not be accessible
+		// We'll try to create from base anyway
+	} else if remoteExists {
+		// Create local tracking branch from remote
+		_, err = g.ctx.RunGit("branch", "--track", branch, "origin/"+branch)
+		if err != nil {
+			return fmt.Errorf("create tracking branch %s: %w", branch, err)
+		}
+		return nil
+	}
+
+	// Branch doesn't exist anywhere - create from base
+	return g.CreateBranchFromBase(branch, baseBranch)
 }
 
 // ErrMainRepoModification is returned when a destructive operation is attempted

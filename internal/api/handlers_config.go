@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/git"
 )
 
 // ConfigSourceInfo represents source information for a config value.
@@ -192,6 +193,12 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 	// Apply git settings
 	if req.Git != nil {
 		if req.Git.BranchPrefix != "" {
+			// Validate branch prefix by testing with a sample task ID
+			testBranch := req.Git.BranchPrefix + "TASK-001"
+			if err := git.ValidateBranchName(testBranch); err != nil {
+				s.jsonError(w, "invalid branch_prefix", http.StatusBadRequest)
+				return
+			}
 			cfg.BranchPrefix = req.Git.BranchPrefix
 		}
 		if req.Git.CommitPrefix != "" {
@@ -221,6 +228,11 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 			cfg.Completion.Action = req.Completion.Action
 		}
 		if req.Completion.TargetBranch != "" {
+			// Validate target branch name for security
+			if err := git.ValidateBranchName(req.Completion.TargetBranch); err != nil {
+				s.jsonError(w, "invalid target_branch", http.StatusBadRequest)
+				return
+			}
 			cfg.Completion.TargetBranch = req.Completion.TargetBranch
 		}
 		if req.Completion.DeleteBranch != nil {

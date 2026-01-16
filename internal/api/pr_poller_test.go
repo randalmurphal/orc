@@ -241,11 +241,24 @@ func (b *emptyBackend) GetAttachment(string, string) (*task.Attachment, []byte, 
 }
 func (b *emptyBackend) ListAttachments(string) ([]*task.Attachment, error) { return nil, nil }
 func (b *emptyBackend) DeleteAttachment(string, string) error              { return nil }
-func (b *emptyBackend) MaterializeContext(string, string) error            { return nil }
-func (b *emptyBackend) NeedsMaterialization() bool                         { return false }
-func (b *emptyBackend) Sync() error                                        { return nil }
-func (b *emptyBackend) Cleanup() error                                     { return nil }
-func (b *emptyBackend) Close() error                                       { return nil }
+func (b *emptyBackend) MaterializeContext(string, string) error { return nil }
+func (b *emptyBackend) NeedsMaterialization() bool              { return false }
+func (b *emptyBackend) Sync() error                             { return nil }
+func (b *emptyBackend) Cleanup() error                          { return nil }
+func (b *emptyBackend) Close() error                            { return nil }
+func (b *emptyBackend) SaveBranch(*storage.Branch) error        { return nil }
+func (b *emptyBackend) LoadBranch(string) (*storage.Branch, error) {
+	return nil, nil
+}
+func (b *emptyBackend) ListBranches(storage.BranchListOpts) ([]*storage.Branch, error) {
+	return nil, nil
+}
+func (b *emptyBackend) UpdateBranchStatus(string, storage.BranchStatus) error { return nil }
+func (b *emptyBackend) UpdateBranchActivity(string) error                     { return nil }
+func (b *emptyBackend) DeleteBranch(string) error                             { return nil }
+func (b *emptyBackend) GetStaleBranches(time.Time) ([]*storage.Branch, error) {
+	return nil, nil
+}
 
 func TestPRPoller_StopTwice(t *testing.T) {
 	// Create a poller with a backend that returns no tasks
