@@ -326,6 +326,196 @@ func TestIsMCPProcess(t *testing.T) {
 	}
 }
 
+// TestIsOrcRelatedProcess verifies orc-related process detection.
+func TestIsOrcRelatedProcess(t *testing.T) {
+	tests := []struct {
+		command      string
+		isOrcRelated bool
+	}{
+		// Browser processes (also orc-related)
+		{"playwright-server", true},
+		{"chromium --headless", true},
+		{"/usr/bin/chrome", true},
+		{"firefox --headless", true},
+
+		// Claude Code and Node.js processes
+		{"claude --task=TASK-001", true},
+		{"~/.claude/local/claude --dangerously-skip-permissions", true},
+		{"node server.js", true},
+		{"node --version", true},
+		{"/usr/bin/node", true},
+		{"npx playwright test", true},
+		{"npm install", true},
+
+		// MCP server processes
+		{"mcp-server-playwright", true},
+		{"playwright-mcp-server", true},
+		{"/path/to/mcp", true},
+
+		// System processes (should NOT match)
+		{"systemd-timedated", false},
+		{"/usr/lib/systemd/systemd-timedated", false},
+		{"/usr/lib/snapper/systemd-helper --cleanup", false},
+		{"/usr/sbin/snapperd", false},
+		{"snapper", false},
+		{"bash", false},
+		{"vim", false},
+		{"python script.py", false},
+		{"go test", false},
+		{"init", false},
+		{"/usr/bin/dbus-daemon", false},
+		{"kworker/0:0", false},
+		{"[kthreadd]", false},
+
+		// Edge cases - these don't contain "node" as a standalone word
+		{"nodemon", false}, // Not "node" - nodemon is a different program
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.command, func(t *testing.T) {
+			result := IsOrcRelatedProcess(tt.command)
+			if result != tt.isOrcRelated {
+				t.Errorf("IsOrcRelatedProcess(%q) = %v, want %v", tt.command, result, tt.isOrcRelated)
+			}
+		})
+	}
+}
+
+// TestOrphanDetectionFilterSystemProcesses verifies system process filtering.
+func TestOrphanDetectionFilterSystemProcesses(t *testing.T) {
+	config := ResourceTrackerConfig{
+		Enabled:               true,
+		MemoryThresholdMB:     100,
+		FilterSystemProcesses: true, // Enable filtering (the new default)
+	}
+	tracker := NewResourceTracker(config, slog.Default())
+
+	tracker.beforeSnapshot = &ProcessSnapshot{
+		Processes:    []ProcessInfo{},
+		ProcessCount: 0,
+	}
+
+	tracker.afterSnapshot = &ProcessSnapshot{
+		Processes: []ProcessInfo{
+			// System processes - should be filtered out
+			{PID: 100, PPID: 1, Command: "systemd-timedated", IsMCP: false, IsOrcRelated: false},
+			{PID: 101, PPID: 1, Command: "/usr/lib/snapper/systemd-helper --cleanup", IsMCP: false, IsOrcRelated: false},
+			{PID: 102, PPID: 1, Command: "/usr/sbin/snapperd", IsMCP: false, IsOrcRelated: false},
+			// Orc-related processes - should be detected
+			{PID: 200, PPID: 1, Command: "chromium --headless", IsMCP: true, IsOrcRelated: true},
+			{PID: 201, PPID: 1, Command: "node playwright-server.js", IsMCP: false, IsOrcRelated: true},
+			{PID: 202, PPID: 1, Command: "claude --task=TASK-001", IsMCP: false, IsOrcRelated: true},
+		},
+		ProcessCount: 6,
+	}
+
+	orphans := tracker.DetectOrphans()
+
+	// Should only find orc-related orphans (chromium, node, claude), NOT system processes
+	if len(orphans) != 3 {
+		t.Errorf("expected 3 orc-related orphans, got %d", len(orphans))
+		for _, o := range orphans {
+			t.Logf("  orphan: PID=%d Command=%s IsOrcRelated=%v", o.PID, o.Command, o.IsOrcRelated)
+		}
+	}
+
+	// Verify all orphans are orc-related
+	for _, o := range orphans {
+		if !o.IsOrcRelated {
+			t.Errorf("expected only orc-related orphans, got: %s", o.Command)
+		}
+	}
+
+	// Verify system processes were NOT flagged
+	for _, o := range orphans {
+		if strings.Contains(o.Command, "systemd") || strings.Contains(o.Command, "snapper") {
+			t.Errorf("system process should not be flagged as orphan: %s", o.Command)
+		}
+	}
+}
+
+// TestOrphanDetectionFilterSystemProcessesDisabled verifies original behavior when filtering is disabled.
+func TestOrphanDetectionFilterSystemProcessesDisabled(t *testing.T) {
+	config := ResourceTrackerConfig{
+		Enabled:               true,
+		MemoryThresholdMB:     100,
+		FilterSystemProcesses: false, // Disabled - original behavior
+		LogOrphanedMCPOnly:    false,
+	}
+	tracker := NewResourceTracker(config, slog.Default())
+
+	tracker.beforeSnapshot = &ProcessSnapshot{
+		Processes:    []ProcessInfo{},
+		ProcessCount: 0,
+	}
+
+	tracker.afterSnapshot = &ProcessSnapshot{
+		Processes: []ProcessInfo{
+			// System processes
+			{PID: 100, PPID: 1, Command: "systemd-timedated", IsMCP: false, IsOrcRelated: false},
+			{PID: 101, PPID: 1, Command: "/usr/lib/snapper/systemd-helper", IsMCP: false, IsOrcRelated: false},
+			// Orc-related processes
+			{PID: 200, PPID: 1, Command: "chromium --headless", IsMCP: true, IsOrcRelated: true},
+		},
+		ProcessCount: 3,
+	}
+
+	orphans := tracker.DetectOrphans()
+
+	// Should find ALL orphans since filtering is disabled
+	if len(orphans) != 3 {
+		t.Errorf("expected 3 orphans (all processes), got %d", len(orphans))
+	}
+}
+
+// TestOrphanDetectionPriorityFilterSystemOverMCPOnly verifies FilterSystemProcesses takes priority over LogOrphanedMCPOnly.
+func TestOrphanDetectionPriorityFilterSystemOverMCPOnly(t *testing.T) {
+	// When both are set, FilterSystemProcesses should take priority
+	config := ResourceTrackerConfig{
+		Enabled:               true,
+		MemoryThresholdMB:     100,
+		LogOrphanedMCPOnly:    true,  // Old option (would only show MCP)
+		FilterSystemProcesses: true,  // New option takes priority (shows all orc-related)
+	}
+	tracker := NewResourceTracker(config, slog.Default())
+
+	tracker.beforeSnapshot = &ProcessSnapshot{
+		Processes:    []ProcessInfo{},
+		ProcessCount: 0,
+	}
+
+	tracker.afterSnapshot = &ProcessSnapshot{
+		Processes: []ProcessInfo{
+			// System process
+			{PID: 100, PPID: 1, Command: "systemd-timedated", IsMCP: false, IsOrcRelated: false},
+			// MCP process
+			{PID: 200, PPID: 1, Command: "chromium --headless", IsMCP: true, IsOrcRelated: true},
+			// Orc-related but not MCP (node)
+			{PID: 300, PPID: 1, Command: "node server.js", IsMCP: false, IsOrcRelated: true},
+		},
+		ProcessCount: 3,
+	}
+
+	orphans := tracker.DetectOrphans()
+
+	// FilterSystemProcesses should show both chromium AND node (not just MCP)
+	// System process should be filtered out
+	if len(orphans) != 2 {
+		t.Errorf("expected 2 orc-related orphans, got %d", len(orphans))
+	}
+
+	// Verify node was included (would be excluded if LogOrphanedMCPOnly had priority)
+	foundNode := false
+	for _, o := range orphans {
+		if strings.Contains(o.Command, "node") {
+			foundNode = true
+		}
+	}
+	if !foundNode {
+		t.Error("expected node to be included when FilterSystemProcesses takes priority over LogOrphanedMCPOnly")
+	}
+}
+
 // TestDetectOrphansNoSnapshots verifies detection handles missing snapshots.
 func TestDetectOrphansNoSnapshots(t *testing.T) {
 	config := ResourceTrackerConfig{

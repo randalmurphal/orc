@@ -1,121 +1,123 @@
-# Specification: Expand Task Info panel with more metadata
+# Specification: Orphan detection flags system processes as false positives
 
 ## Problem Statement
-
-The Task Info panel in TimelineTab shows only basic information (weight, status, created date, timestamps), missing important task metadata that users need for context: priority, category, queue, initiative, last updated, blocked_by count, and branch name.
+The resource tracker's orphan detection incorrectly flags system processes (systemd-timedated, snapper, snapperd) as orphans because they legitimately have PPID=1 (systemd is their parent). The current logic assumes any new process with PPID=1 is an orc-spawned process that was reparented after its parent died, but this assumption is false for system services that start coincidentally during task execution.
 
 ## Success Criteria
-
-- [ ] Priority field displayed with appropriate styling (critical/high/normal/low)
-- [ ] Category field displayed with icon matching TaskHeader pattern
-- [ ] Queue field displayed (active/backlog)
-- [ ] Initiative field displayed as clickable link to initiative page (when set)
-- [ ] Updated timestamp displayed showing last modification time
-- [ ] Blocked by count displayed when task has blockers (e.g., "2 tasks")
-- [ ] Branch name displayed with code formatting (currently shown elsewhere but fits here)
-- [ ] All new fields match existing dt/dd pair formatting
-- [ ] All new fields conditionally render (skip if value is undefined/null)
-- [ ] Styling consistent with existing info-item pattern
+- [ ] System processes (systemd-*, snapper*, dbus-daemon, cron jobs, etc.) are not flagged as orphans
+- [ ] MCP-related processes (playwright, chromium, firefox, webkit, puppeteer, selenium, node MCP servers) that are reparented to init are still detected
+- [ ] Claude Code processes (claude-code, npx, npm related to claude) are still detected if orphaned
+- [ ] Filter list is configurable via regex patterns in ResourceTrackerConfig
+- [ ] Existing behavior is preserved when `LogOrphanedMCPOnly: true` (only MCP orphans logged)
+- [ ] False positives from evidence logs no longer appear:
+  - `/usr/lib/systemd/systemd-timedated` excluded
+  - `/usr/lib/snapper/systemd-helper --cleanup` excluded
+  - `/usr/sbin/snapperd` excluded
 
 ## Testing Requirements
-
-- [ ] Unit test: TimelineTab renders priority field with correct styling class
-- [ ] Unit test: TimelineTab renders category field with correct icon
-- [ ] Unit test: TimelineTab renders initiative as clickable link
-- [ ] Unit test: TimelineTab renders blocked_by count when blockers exist
-- [ ] Unit test: TimelineTab hides optional fields when not set
-- [ ] E2E test: Task detail page displays all metadata fields correctly
+- [ ] Unit test: `TestOrphanDetectionFiltersSystemProcesses` - verifies systemd/snapper processes excluded
+- [ ] Unit test: `TestOrphanDetectionAllowsOrcProcesses` - verifies orc-related processes (claude, playwright, node MCP) still detected
+- [ ] Unit test: `TestOrphanDetectionCustomExcludePatterns` - verifies custom exclude patterns work
+- [ ] Unit test: `TestIsSystemProcess` - verifies system process detection helper function
+- [ ] Existing tests continue to pass (TestOrphanDetection, TestOrphanDetectionMCPOnly, etc.)
 
 ## Scope
-
 ### In Scope
-- Adding priority, category, queue, initiative, updated_at, blocked_by count, and branch to Task Info section
-- Matching existing styling patterns (dt/dd pairs, status colors)
-- Making initiative a clickable link to `/initiatives/:id`
-- Conditional rendering for optional fields
+- Add system process exclusion patterns to filter known false positives
+- Add `orcProcessPattern` to identify orc-spawned processes we care about
+- Modify `DetectOrphans()` to filter out system processes
+- Add configurable exclude patterns to `ResourceTrackerConfig`
+- Add helper function `IsSystemProcess()` for testing/debugging
 
 ### Out of Scope
-- Modifying the info-item CSS styling (use existing)
-- Adding edit functionality within Task Info panel (TaskEditModal handles edits)
-- Adding dependency management UI (DependencySidebar handles this)
-- Changing the layout or position of Task Info panel
+- Process group tracking (requires significant executor changes)
+- Tracking orc process tree ancestry (complex, platform-specific)
+- Windows-specific system process filtering (Windows already has limited functionality)
+- Kernel thread filtering (already filtered by empty command)
 
 ## Technical Approach
 
-The Task Info section in TimelineTab.tsx needs additional fields. All required data is already available on the `task` prop. The initiative link requires importing `Link` from react-router-dom and `getInitiativeBadgeTitle` from stores (following TaskHeader.tsx pattern).
+### Strategy: Allowlist + Blocklist Filtering
+
+The fix uses a two-pronged approach:
+1. **Blocklist**: Exclude known system process patterns from orphan detection
+2. **Allowlist**: Only flag new processes that match orc-related patterns (MCP browsers, node/npx, claude)
+
+This dual approach ensures we:
+- Don't miss actual orphaned orc processes (allowlist catches them)
+- Don't flag unrelated system activity (blocklist excludes them)
+
+### Implementation Details
+
+1. **Add system process exclusion pattern**:
+   ```go
+   var systemProcessPattern = regexp.MustCompile(`(?i)(^/usr/(lib|sbin)/systemd|systemd-|^/usr/(lib|sbin)/snapper|snapperd|dbus-daemon|dbus-broker|polkitd|udisksd|upowerd|packagekitd|fwupd|thermald|irqbalance|crond?$|atd$|anacron)`)
+   ```
+
+2. **Add orc process pattern** (processes we want to track):
+   ```go
+   var orcProcessPattern = regexp.MustCompile(`(?i)(playwright|chromium|chrome|firefox|webkit|puppeteer|selenium|claude|node.*mcp|npx.*mcp|npm.*mcp)`)
+   ```
+
+3. **Modify `DetectOrphans()` logic**:
+   - Skip processes matching `systemProcessPattern`
+   - When `LogOrphanedMCPOnly: false`, only flag processes matching `orcProcessPattern` OR with suspicious characteristics (very recent start, high memory)
+   - When `LogOrphanedMCPOnly: true`, existing behavior (only MCP pattern)
+
+4. **Add `ExcludePatterns` to config** for user customization:
+   ```go
+   type ResourceTrackerConfig struct {
+       Enabled            bool
+       MemoryThresholdMB  int
+       LogOrphanedMCPOnly bool
+       ExcludePatterns    []string // Additional patterns to exclude
+   }
+   ```
 
 ### Files to Modify
+- `internal/executor/resource_tracker.go`:
+  - Add `systemProcessPattern` regex constant
+  - Add `orcProcessPattern` regex constant
+  - Add `ExcludePatterns` field to `ResourceTrackerConfig`
+  - Add `IsSystemProcess(command string) bool` helper function
+  - Add `IsOrcProcess(command string) bool` helper function
+  - Modify `DetectOrphans()` to filter system processes and only flag orc-related processes
+  - Update `ProcessInfo` struct to add `IsOrc` field (parallel to `IsMCP`)
+- `internal/executor/resource_tracker_test.go`:
+  - Add `TestOrphanDetectionFiltersSystemProcesses`
+  - Add `TestOrphanDetectionAllowsOrcProcesses`
+  - Add `TestOrphanDetectionCustomExcludePatterns`
+  - Add `TestIsSystemProcess`
+  - Update existing tests to account for new filtering
 
-1. **web/src/components/task-detail/TimelineTab.tsx**
-   - Import `Link` from react-router-dom
-   - Import `Icon` (already imported)
-   - Import `getInitiativeBadgeTitle` from `@/stores`
-   - Import `CATEGORY_CONFIG`, `PRIORITY_CONFIG` from `@/lib/types`
-   - Add priority field with priority-specific class
-   - Add category field with icon
-   - Add queue field
-   - Add initiative field as Link
-   - Add updated_at field (using existing `formatDate` helper)
-   - Add blocked_by count field
-   - Add branch field with code tag
+## Bug Analysis
 
-2. **web/src/components/task-detail/TimelineTab.css**
-   - Add priority-specific color classes (matching TaskHeader pattern)
-   - Add category-color styling
-   - Add initiative link styling (clickable, underline on hover)
-   - Add branch code styling
+### Reproduction Steps
+1. Enable resource tracking in orc config: `diagnostics.resource_tracking.enabled: true`
+2. Run any orc task: `orc run TASK-XXX`
+3. During task execution, if any systemd timer or service activates (e.g., snapper cleanup, time sync), it gets captured in the "after" snapshot
+4. These processes have PPID=1 (systemd is their parent) and are flagged as orphans
 
-3. **web/src/components/task-detail/TimelineTab.test.tsx** (new file)
-   - Unit tests for new metadata fields
-   - Mock store for initiative badge lookup
+### Current Behavior
+```
+WARN orphaned processes detected count=3 processes="/usr/lib/systemd/systemd-timedated (PID=1063943), /usr/lib/snapper/systemd-helper --cleanup (PID=1074076), /usr/sbin/snapperd (PID=1074078)"
+```
 
-## Feature Details
+### Expected Behavior
+- System processes should be silently ignored
+- Only actual orc-spawned processes (playwright, chromium, node MCP servers, claude processes) should be flagged if orphaned
+- Warning should only appear when genuine orphaned processes are detected
 
-### User Story
-As a user viewing a task's timeline, I want to see comprehensive task metadata in the Task Info panel so that I have full context without navigating to other views.
+### Root Cause
+Line 132 in `resource_tracker.go`:
+```go
+isOrphan := p.PPID == 1 || !afterPIDSet[p.PPID]
+```
 
-### Acceptance Criteria
+This assumes any process with PPID=1 is reparented (orphaned), but system services legitimately have PPID=1 because systemd (PID 1) is their actual parent process manager.
 
-1. **Priority** - Displays the task priority with color coding:
-   - critical: red/error color
-   - high: orange/warning color
-   - normal: muted text
-   - low: muted text
-
-2. **Category** - Displays task category with matching icon:
-   - feature: sparkles icon, green
-   - bug: bug icon, red
-   - refactor: recycle icon, blue
-   - chore: tools icon, muted
-   - docs: file-text icon, orange
-   - test: beaker icon, accent color
-
-3. **Queue** - Displays "active" or "backlog"
-
-4. **Initiative** - When task has `initiative_id`:
-   - Displays initiative badge (from `getInitiativeBadgeTitle`)
-   - Clickable link navigating to `/initiatives/:id`
-   - Shows layers icon
-
-5. **Updated** - Displays `updated_at` timestamp in same format as created_at
-
-6. **Blocked By** - When `blocked_by` array has items:
-   - Shows count: "N task(s)"
-   - Links to DependencySidebar (or just informational)
-
-7. **Branch** - Displays branch name in `<code>` tags matching phase-commit styling
-
-### Field Order
-1. Weight (existing)
-2. Status (existing)
-3. Priority (new)
-4. Category (new)
-5. Queue (new)
-6. Initiative (new)
-7. Blocked By (new, conditional)
-8. Branch (new)
-9. Retries (existing, conditional)
-10. Created (existing)
-11. Updated (new)
-12. Started (existing, conditional)
-13. Completed (existing, conditional)
+### Verification
+1. Run `orc run` with resource tracking enabled on a system with active systemd timers
+2. Observe no warnings for systemd-*, snapper*, or other system processes
+3. Manually spawn an orphaned playwright process and verify it IS detected
+4. Run existing test suite to confirm no regressions

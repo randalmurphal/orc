@@ -553,8 +553,15 @@ type ResourceTrackingConfig struct {
 	MemoryThresholdMB int `yaml:"memory_threshold_mb"`
 
 	// LogOrphanedMCPOnly limits orphan logging to MCP-related processes (playwright, browsers)
-	// When true, only MCP processes are logged. When false, all orphaned processes are logged.
+	// Deprecated: use FilterSystemProcesses instead. When true, only MCP processes are logged.
 	LogOrphanedMCPOnly bool `yaml:"log_orphaned_mcp_only"`
+
+	// FilterSystemProcesses controls whether to filter out system processes from orphan detection.
+	// When true (default), only processes that match orc-related patterns (claude, node, playwright,
+	// chromium, etc.) are flagged as potential orphans. System processes like systemd-timedated,
+	// snapper, etc. are ignored even if they started during task execution.
+	// When false, all new orphaned processes are flagged (original behavior, prone to false positives).
+	FilterSystemProcesses bool `yaml:"filter_system_processes"`
 }
 
 // DiagnosticsConfig defines diagnostic feature configuration.
@@ -1302,9 +1309,10 @@ func Default() *Config {
 		},
 		Diagnostics: DiagnosticsConfig{
 			ResourceTracking: ResourceTrackingConfig{
-				Enabled:            true,  // Enabled by default to detect orphaned processes
-				MemoryThresholdMB:  100,   // Warn if memory grows by >100MB
-				LogOrphanedMCPOnly: false, // Log all orphans, not just MCP
+				Enabled:               true,  // Enabled by default to detect orphaned processes
+				MemoryThresholdMB:     100,   // Warn if memory grows by >100MB
+				LogOrphanedMCPOnly:    false, // Deprecated: use FilterSystemProcesses instead
+				FilterSystemProcesses: true,  // Filter system processes to avoid false positives
 			},
 		},
 		MCP: MCPConfig{
