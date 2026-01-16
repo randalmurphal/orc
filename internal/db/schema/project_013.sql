@@ -97,3 +97,5 @@ ALTER TABLE tasks ADD COLUMN target_branch TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_tasks_automation ON tasks(is_automation);
 CREATE INDEX IF NOT EXISTS idx_tasks_trigger ON tasks(trigger_id);
+-- Composite index for efficient automation task queries by status
+CREATE INDEX IF NOT EXISTS idx_tasks_automation_status ON tasks(is_automation, status);

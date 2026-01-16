@@ -636,6 +636,10 @@ func collectRecentChangedFiles(tasks []*task.Task, limit int) string {
 
 	for _, t := range recent {
 		// Check metadata for changed_files key
+		// Skip tasks with nil metadata to avoid nil pointer dereference
+		if t.Metadata == nil {
+			continue
+		}
 		if changedFiles, ok := t.Metadata["changed_files"]; ok {
 			for f := range strings.SplitSeq(changedFiles, ",") {
 				f = strings.TrimSpace(f)

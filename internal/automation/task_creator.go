@@ -28,6 +28,9 @@ type AutoTaskCreator struct {
 	// This allows decoupling from the executor
 	onTaskStart func(ctx context.Context, taskID string) error
 
+	// dbAdapter provides direct database access for efficient queries
+	dbAdapter *ProjectDBAdapter
+
 	// mu protects concurrent task ID generation
 	mu sync.Mutex
 }
@@ -46,6 +49,13 @@ func WithTaskStartFunc(fn func(ctx context.Context, taskID string) error) AutoTa
 func WithPlanGenerator(g *plan.Generator) AutoTaskCreatorOption {
 	return func(c *AutoTaskCreator) {
 		c.planGenerator = g
+	}
+}
+
+// WithDBAdapter sets the database adapter for efficient queries.
+func WithDBAdapter(adapter *ProjectDBAdapter) AutoTaskCreatorOption {
+	return func(c *AutoTaskCreator) {
+		c.dbAdapter = adapter
 	}
 }
 
@@ -78,7 +88,7 @@ func (c *AutoTaskCreator) CreateAutomationTask(ctx context.Context, templateID s
 	}
 
 	// Generate automation task ID (AUTO-XXX)
-	taskID, err := c.nextAutoTaskID()
+	taskID, err := c.nextAutoTaskID(ctx)
 	if err != nil {
 		return "", fmt.Errorf("generate automation task ID: %w", err)
 	}
@@ -158,11 +168,21 @@ func (c *AutoTaskCreator) StartAutomationTask(ctx context.Context, taskID string
 
 // nextAutoTaskID generates the next AUTO-XXX task ID.
 // The mutex prevents race conditions when multiple automation tasks are created concurrently.
-func (c *AutoTaskCreator) nextAutoTaskID() (string, error) {
+func (c *AutoTaskCreator) nextAutoTaskID(ctx context.Context) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Get all tasks and find the highest AUTO-XXX number
+	// Use efficient database query if adapter is available
+	if c.dbAdapter != nil {
+		maxNum, err := c.dbAdapter.GetMaxAutoTaskNumber(ctx)
+		if err != nil {
+			return "", fmt.Errorf("get max auto task number: %w", err)
+		}
+		return fmt.Sprintf("AUTO-%03d", maxNum+1), nil
+	}
+
+	// Fallback: Get all tasks and find the highest AUTO-XXX number
+	// This is less efficient but ensures backward compatibility
 	tasks, err := c.backend.LoadAllTasks()
 	if err != nil {
 		return "", fmt.Errorf("load tasks: %w", err)

@@ -223,6 +223,7 @@ func (a *ProjectDBAdapter) LoadAllTriggers(ctx context.Context) ([]*Trigger, err
 }
 
 // UpdateTriggerState updates trigger state after firing.
+// Deprecated: Use IncrementTriggerCount for atomic increments.
 func (a *ProjectDBAdapter) UpdateTriggerState(ctx context.Context, id string, lastTriggered time.Time, count int) error {
 	query := `
 		UPDATE automation_triggers
@@ -239,6 +240,69 @@ func (a *ProjectDBAdapter) UpdateTriggerState(ctx context.Context, id string, la
 	)
 	if err != nil {
 		return fmt.Errorf("update trigger state: %w", err)
+	}
+
+	return nil
+}
+
+// IncrementTriggerCount atomically increments trigger count and updates last_triggered_at.
+// Returns the new count. This avoids race conditions from read-modify-write patterns.
+func (a *ProjectDBAdapter) IncrementTriggerCount(ctx context.Context, id string, triggeredAt time.Time) (int, error) {
+	query := `
+		UPDATE automation_triggers
+		SET last_triggered_at = ?,
+			trigger_count = trigger_count + 1,
+			updated_at = datetime('now')
+		WHERE id = ?
+	`
+
+	_, err := a.pdb.Driver().Exec(ctx, query,
+		triggeredAt.Format(time.RFC3339),
+		id,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("increment trigger count: %w", err)
+	}
+
+	// Get the new count
+	var newCount int
+	err = a.pdb.Driver().QueryRow(ctx,
+		"SELECT trigger_count FROM automation_triggers WHERE id = ?",
+		id,
+	).Scan(&newCount)
+	if err != nil {
+		return 0, fmt.Errorf("get trigger count: %w", err)
+	}
+
+	return newCount, nil
+}
+
+// SetTriggerEnabled updates the enabled state of a trigger.
+// This persists the change to the database.
+func (a *ProjectDBAdapter) SetTriggerEnabled(ctx context.Context, id string, enabled bool) error {
+	enabledInt := 0
+	if enabled {
+		enabledInt = 1
+	}
+
+	query := `
+		UPDATE automation_triggers
+		SET enabled = ?,
+			updated_at = datetime('now')
+		WHERE id = ?
+	`
+
+	result, err := a.pdb.Driver().Exec(ctx, query, enabledInt, id)
+	if err != nil {
+		return fmt.Errorf("set trigger enabled: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("get rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("trigger not found: %s", id)
 	}
 
 	return nil
@@ -609,4 +673,87 @@ func (a *ProjectDBAdapter) DeleteExpiredNotifications(ctx context.Context) (int6
 	}
 
 	return result.RowsAffected()
+}
+
+// GetMaxAutoTaskNumber returns the highest AUTO-XXX task number.
+// This is more efficient than loading all tasks when generating new automation task IDs.
+func (a *ProjectDBAdapter) GetMaxAutoTaskNumber(ctx context.Context) (int, error) {
+	// Use CAST and SUBSTR to extract the numeric portion of AUTO-XXX IDs
+	// Tasks with ID format "AUTO-NNN" will have their number extracted
+	query := `
+		SELECT COALESCE(MAX(CAST(SUBSTR(id, 6) AS INTEGER)), 0)
+		FROM tasks
+		WHERE id LIKE 'AUTO-%' AND is_automation = 1
+	`
+
+	var maxNum int
+	err := a.pdb.Driver().QueryRow(ctx, query).Scan(&maxNum)
+	if err != nil {
+		return 0, fmt.Errorf("get max auto task number: %w", err)
+	}
+
+	return maxNum, nil
+}
+
+// LoadRecentCompletedTasks loads the N most recently completed tasks.
+// This is more efficient than loading all tasks for automation context.
+func (a *ProjectDBAdapter) LoadRecentCompletedTasks(ctx context.Context, limit int, automationOnly bool) ([]*TaskSummary, error) {
+	query := `
+		SELECT id, title, weight, category, completed_at, metadata
+		FROM tasks
+		WHERE status IN ('completed', 'finished')
+	`
+	if automationOnly {
+		query += ` AND is_automation = 0` // Exclude automation tasks from context
+	}
+	query += `
+		ORDER BY completed_at DESC
+		LIMIT ?
+	`
+
+	rows, err := a.pdb.Driver().Query(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query recent completed tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []*TaskSummary
+	for rows.Next() {
+		var t TaskSummary
+		var completedAt, metadata sql.NullString
+
+		err := rows.Scan(&t.ID, &t.Title, &t.Weight, &t.Category, &completedAt, &metadata)
+		if err != nil {
+			return nil, fmt.Errorf("scan task: %w", err)
+		}
+
+		if completedAt.Valid {
+			if parsed, parseErr := time.Parse(time.RFC3339, completedAt.String); parseErr == nil {
+				t.CompletedAt = &parsed
+			} else if parsed, parseErr := time.Parse("2006-01-02 15:04:05", completedAt.String); parseErr == nil {
+				t.CompletedAt = &parsed
+			}
+		}
+
+		if metadata.Valid && metadata.String != "" {
+			if err := json.Unmarshal([]byte(metadata.String), &t.Metadata); err != nil {
+				// Log but don't fail on metadata parse errors
+				t.Metadata = nil
+			}
+		}
+
+		tasks = append(tasks, &t)
+	}
+
+	return tasks, rows.Err()
+}
+
+// TaskSummary is a lightweight task representation for automation context.
+type TaskSummary struct {
+	ID          string
+	Title       string
+	Weight      string
+	Category    string
+	CompletedAt *time.Time
+	Metadata    map[string]string
 }

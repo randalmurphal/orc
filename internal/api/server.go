@@ -141,8 +141,9 @@ func New(cfg *Config) *Server {
 		adapter := automation.NewProjectDBAdapter(backend.DB())
 		automationSvc = automation.NewService(orcCfg, adapter, logger)
 
-		// Create task creator for automation
-		taskCreator := automation.NewAutoTaskCreator(orcCfg, backend, logger)
+		// Create task creator for automation with efficient DB adapter
+		taskCreator := automation.NewAutoTaskCreator(orcCfg, backend, logger,
+			automation.WithDBAdapter(adapter))
 		automationSvc.SetTaskCreator(taskCreator)
 
 		logger.Info("automation service enabled")

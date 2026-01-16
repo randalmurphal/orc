@@ -441,8 +441,9 @@ Example:
 			adapter := automation.NewProjectDBAdapter(dbBackend.DB())
 			svc := automation.NewService(cfg, adapter, nil)
 
-			// Create task creator if we need to create tasks
-			taskCreator := automation.NewAutoTaskCreator(cfg, backend, nil)
+			// Create task creator with efficient DB adapter
+			taskCreator := automation.NewAutoTaskCreator(cfg, backend, nil,
+				automation.WithDBAdapter(adapter))
 			svc.SetTaskCreator(taskCreator)
 
 			// Run the trigger

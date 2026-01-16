@@ -77,6 +77,11 @@ type Database interface {
 	LoadTrigger(ctx context.Context, id string) (*Trigger, error)
 	LoadAllTriggers(ctx context.Context) ([]*Trigger, error)
 	UpdateTriggerState(ctx context.Context, id string, lastTriggered time.Time, count int) error
+	// IncrementTriggerCount atomically increments trigger count and updates last_triggered_at.
+	// Returns the new count. This avoids race conditions from read-modify-write patterns.
+	IncrementTriggerCount(ctx context.Context, id string, triggeredAt time.Time) (int, error)
+	// SetTriggerEnabled updates the enabled state of a trigger.
+	SetTriggerEnabled(ctx context.Context, id string, enabled bool) error
 
 	// Counters
 	GetCounter(ctx context.Context, triggerID, metric string) (int, error)
@@ -141,6 +146,11 @@ func (s *Service) SetTaskCreator(tc TaskCreator) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.taskCreator = tc
+}
+
+// SetTriggerEnabled updates the enabled state of a trigger, persisting to the database.
+func (s *Service) SetTriggerEnabled(ctx context.Context, id string, enabled bool) error {
+	return s.db.SetTriggerEnabled(ctx, id, enabled)
 }
 
 // HandleEvent processes an event and fires matching triggers.
@@ -270,19 +280,24 @@ func (s *Service) fireTrigger(ctx context.Context, trigger *Trigger, reason stri
 		return fmt.Errorf("create execution record: %w", err)
 	}
 
-	// Update trigger state
-	trigger.TriggerCount++
-	trigger.LastTriggeredAt = &now
-	if err := s.db.UpdateTriggerState(ctx, trigger.ID, now, trigger.TriggerCount); err != nil {
+	// Update trigger state atomically (prevents race condition in concurrent updates)
+	newCount, err := s.db.IncrementTriggerCount(ctx, trigger.ID, now)
+	if err != nil {
 		s.logger.Warn("error updating trigger state",
 			"trigger", trigger.ID,
 			"error", err)
+	} else {
+		// Update in-memory state for logging/debugging purposes only
+		trigger.TriggerCount = newCount
+		trigger.LastTriggeredAt = &now
 	}
 
-	// Reset cooldown counter
+	// Reset cooldown counter (critical for preventing trigger storms)
 	if trigger.Cooldown.Tasks > 0 {
 		if err := s.db.ResetCounter(ctx, trigger.ID, "cooldown"); err != nil {
-			s.logger.Warn("error resetting cooldown counter",
+			// Counter reset failure is critical - log as error, not warning
+			// The trigger will still fire, but cooldown tracking may be incorrect
+			s.logger.Error("failed to reset cooldown counter - trigger may fire again prematurely",
 				"trigger", trigger.ID,
 				"error", err)
 		}

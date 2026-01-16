@@ -105,21 +105,40 @@ func (s *Server) handleUpdateTrigger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find and update the trigger in config
+	// Find the trigger in config
+	var trigger *config.TriggerConfig
+	var triggerIndex int
 	for i := range s.orcConfig.Automation.Triggers {
 		if s.orcConfig.Automation.Triggers[i].ID == id {
-			if req.Enabled != nil {
-				s.orcConfig.Automation.Triggers[i].Enabled = *req.Enabled
-				s.logger.Info("trigger enabled state changed",
-					"trigger", id,
-					"enabled", *req.Enabled)
-			}
-			s.jsonResponse(w, triggerConfigToResponse(&s.orcConfig.Automation.Triggers[i]))
-			return
+			trigger = &s.orcConfig.Automation.Triggers[i]
+			triggerIndex = i
+			break
 		}
 	}
 
-	s.jsonError(w, "trigger not found", http.StatusNotFound)
+	if trigger == nil {
+		s.jsonError(w, "trigger not found", http.StatusNotFound)
+		return
+	}
+
+	if req.Enabled != nil {
+		// Persist to database first
+		if s.automationSvc != nil {
+			if err := s.automationSvc.SetTriggerEnabled(r.Context(), id, *req.Enabled); err != nil {
+				s.logger.Error("failed to persist trigger enabled state", "trigger", id, "error", err)
+				s.jsonError(w, "failed to update trigger", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		// Update in-memory config after successful DB write
+		s.orcConfig.Automation.Triggers[triggerIndex].Enabled = *req.Enabled
+		s.logger.Info("trigger enabled state changed",
+			"trigger", id,
+			"enabled", *req.Enabled)
+	}
+
+	s.jsonResponse(w, triggerConfigToResponse(&s.orcConfig.Automation.Triggers[triggerIndex]))
 }
 
 // handleRunTrigger manually fires a trigger.
@@ -153,7 +172,8 @@ func (s *Server) handleRunTrigger(w http.ResponseWriter, r *http.Request) {
 	// Run the trigger directly (bypasses condition evaluation)
 	if err := s.automationSvc.RunTrigger(r.Context(), id); err != nil {
 		s.logger.Error("failed to run trigger", "trigger", id, "error", err)
-		s.jsonError(w, "failed to run trigger: "+err.Error(), http.StatusInternalServerError)
+		// Return generic error message to avoid information disclosure
+		s.jsonError(w, "failed to run trigger", http.StatusInternalServerError)
 		return
 	}
 
