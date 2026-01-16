@@ -29,7 +29,7 @@ func createTestResultsBackend(t *testing.T, tmpDir string) *storage.DatabaseBack
 func TestGetTestResultsEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -54,7 +54,7 @@ func TestGetTestResultsEndpoint_NoResults(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -91,12 +91,12 @@ func TestGetTestResultsEndpoint_WithReport(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Create test results directory and report (file system artifacts)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-002")
 	testResultsDir := filepath.Join(taskDir, "test-results")
-	os.MkdirAll(testResultsDir, 0755)
+	_ = os.MkdirAll(testResultsDir, 0755)
 
 	report := task.TestReport{
 		Version:   1,
@@ -110,7 +110,7 @@ func TestGetTestResultsEndpoint_WithReport(t *testing.T) {
 		},
 	}
 	reportBytes, _ := json.Marshal(report)
-	os.WriteFile(filepath.Join(testResultsDir, "report.json"), reportBytes, 0644)
+	_ = os.WriteFile(filepath.Join(testResultsDir, "report.json"), reportBytes, 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -145,7 +145,7 @@ func TestGetTestResultsEndpoint_WithReport(t *testing.T) {
 func TestListScreenshotsEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -170,7 +170,7 @@ func TestListScreenshotsEndpoint_EmptyList(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -204,14 +204,14 @@ func TestListScreenshotsEndpoint_WithScreenshots(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Create screenshots directory and files (file system artifacts)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-004")
 	screenshotsDir := filepath.Join(taskDir, "test-results", "screenshots")
-	os.MkdirAll(screenshotsDir, 0755)
-	os.WriteFile(filepath.Join(screenshotsDir, "login-page.png"), []byte("PNG content"), 0644)
-	os.WriteFile(filepath.Join(screenshotsDir, "dashboard.png"), []byte("PNG content 2"), 0644)
+	_ = os.MkdirAll(screenshotsDir, 0755)
+	_ = os.WriteFile(filepath.Join(screenshotsDir, "login-page.png"), []byte("PNG content"), 0644)
+	_ = os.WriteFile(filepath.Join(screenshotsDir, "dashboard.png"), []byte("PNG content 2"), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -245,14 +245,14 @@ func TestGetScreenshotEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Create screenshot (file system artifact)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-005")
 	screenshotsDir := filepath.Join(taskDir, "test-results", "screenshots")
-	os.MkdirAll(screenshotsDir, 0755)
+	_ = os.MkdirAll(screenshotsDir, 0755)
 	content := []byte("PNG content")
-	os.WriteFile(filepath.Join(screenshotsDir, "test.png"), content, 0644)
+	_ = os.WriteFile(filepath.Join(screenshotsDir, "test.png"), content, 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -285,7 +285,7 @@ func TestGetScreenshotEndpoint_NotFound(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -310,7 +310,7 @@ func TestGetScreenshotEndpoint_PathTraversal(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -337,7 +337,7 @@ func TestUploadScreenshotEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -346,8 +346,8 @@ func TestUploadScreenshotEndpoint_Success(t *testing.T) {
 	writer := multipart.NewWriter(&buf)
 
 	part, _ := writer.CreateFormFile("file", "screenshot.png")
-	part.Write([]byte("fake PNG content"))
-	writer.Close()
+	_, _ = part.Write([]byte("fake PNG content"))
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks/TASK-TR-008/test-results/screenshots", &buf)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -372,15 +372,15 @@ func TestUploadScreenshotEndpoint_Success(t *testing.T) {
 func TestUploadScreenshotEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 	part, _ := writer.CreateFormFile("file", "test.png")
-	part.Write([]byte("content"))
-	writer.Close()
+	_, _ = part.Write([]byte("content"))
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/test-results/screenshots", &buf)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -404,13 +404,13 @@ func TestUploadScreenshotEndpoint_NoFile(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	writer.Close()
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/tasks/TASK-TR-009/test-results/screenshots", &buf)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -434,7 +434,7 @@ func TestSaveTestReportEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -472,7 +472,7 @@ func TestSaveTestReportEndpoint_Success(t *testing.T) {
 func TestSaveTestReportEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -501,7 +501,7 @@ func TestSaveTestReportEndpoint_InvalidBody(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -527,7 +527,7 @@ func TestInitTestResultsEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -565,7 +565,7 @@ func TestInitTestResultsEndpoint_Success(t *testing.T) {
 func TestInitTestResultsEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -590,14 +590,14 @@ func TestGetHTMLReportEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Create HTML report (file system artifact)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-013")
 	testResultsDir := filepath.Join(taskDir, "test-results")
-	os.MkdirAll(testResultsDir, 0755)
+	_ = os.MkdirAll(testResultsDir, 0755)
 	htmlContent := "<html><body>Test Report</body></html>"
-	os.WriteFile(filepath.Join(testResultsDir, "index.html"), []byte(htmlContent), 0644)
+	_ = os.WriteFile(filepath.Join(testResultsDir, "index.html"), []byte(htmlContent), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -630,7 +630,7 @@ func TestGetHTMLReportEndpoint_NotFound(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -655,14 +655,14 @@ func TestGetTraceEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Create trace file (file system artifact)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-015")
 	tracesDir := filepath.Join(taskDir, "test-results", "traces")
-	os.MkdirAll(tracesDir, 0755)
+	_ = os.MkdirAll(tracesDir, 0755)
 	traceContent := []byte("fake zip content")
-	os.WriteFile(filepath.Join(tracesDir, "trace.zip"), traceContent, 0644)
+	_ = os.WriteFile(filepath.Join(tracesDir, "trace.zip"), traceContent, 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -695,7 +695,7 @@ func TestGetTraceEndpoint_NotFound(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -720,7 +720,7 @@ func TestGetTraceEndpoint_PathTraversal(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -747,15 +747,15 @@ func TestGetTestResultsEndpoint_WithScreenshotsAndTraces(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Create full test results (file system artifacts)
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TR-018")
 	testResultsDir := filepath.Join(taskDir, "test-results")
 	screenshotsDir := filepath.Join(testResultsDir, "screenshots")
 	tracesDir := filepath.Join(testResultsDir, "traces")
-	os.MkdirAll(screenshotsDir, 0755)
-	os.MkdirAll(tracesDir, 0755)
+	_ = os.MkdirAll(screenshotsDir, 0755)
+	_ = os.MkdirAll(tracesDir, 0755)
 
 	// Create test report
 	report := task.TestReport{
@@ -769,17 +769,17 @@ func TestGetTestResultsEndpoint_WithScreenshotsAndTraces(t *testing.T) {
 		},
 	}
 	reportBytes, _ := json.Marshal(report)
-	os.WriteFile(filepath.Join(testResultsDir, "report.json"), reportBytes, 0644)
+	_ = os.WriteFile(filepath.Join(testResultsDir, "report.json"), reportBytes, 0644)
 
 	// Create screenshots
-	os.WriteFile(filepath.Join(screenshotsDir, "failure-1.png"), []byte("PNG"), 0644)
-	os.WriteFile(filepath.Join(screenshotsDir, "failure-2.png"), []byte("PNG"), 0644)
+	_ = os.WriteFile(filepath.Join(screenshotsDir, "failure-1.png"), []byte("PNG"), 0644)
+	_ = os.WriteFile(filepath.Join(screenshotsDir, "failure-2.png"), []byte("PNG"), 0644)
 
 	// Create traces
-	os.WriteFile(filepath.Join(tracesDir, "trace-1.zip"), []byte("ZIP"), 0644)
+	_ = os.WriteFile(filepath.Join(tracesDir, "trace-1.zip"), []byte("ZIP"), 0644)
 
 	// Create HTML report
-	os.WriteFile(filepath.Join(testResultsDir, "index.html"), []byte("<html></html>"), 0644)
+	_ = os.WriteFile(filepath.Join(testResultsDir, "index.html"), []byte("<html></html>"), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 

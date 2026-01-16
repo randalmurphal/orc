@@ -117,7 +117,7 @@ func exportToYAML(taskID, outputFile string, withState, withTranscripts bool) er
 	if err != nil {
 		return fmt.Errorf("get backend: %w", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Load task
 	t, err := backend.LoadTask(taskID)
@@ -155,7 +155,7 @@ func exportToYAML(taskID, outputFile string, withState, withTranscripts bool) er
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: could not open database for transcripts: %v\n", err)
 			} else {
-				defer pdb.Close()
+				defer func() { _ = pdb.Close() }()
 				transcripts, err := pdb.GetTranscripts(taskID)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Warning: could not load transcripts: %v\n", err)
@@ -204,7 +204,7 @@ func exportToBranchDir(taskID string, withState, withTranscripts, withContext bo
 	if err != nil {
 		return fmt.Errorf("create storage backend: %w", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create export service
 	exportSvc := storage.NewExportService(backend, &cfg.Storage)
@@ -296,7 +296,7 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	if err != nil {
 		return fmt.Errorf("get backend: %w", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	var export ExportData
 	if err := yaml.Unmarshal(data, &export); err != nil {
@@ -391,7 +391,7 @@ func importZip(zipPath string, force, skipExisting bool) error {
 		}
 
 		data, err := io.ReadAll(rc)
-		rc.Close()
+		_ = rc.Close()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: read error: %v\n", f.Name, err)
 			continue
@@ -470,7 +470,7 @@ func exportAllTasks(outputPath string, withState, withTranscripts bool) error {
 	if err != nil {
 		return fmt.Errorf("get backend: %w", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Load all tasks
 	tasks, err := backend.LoadAllTasks()
@@ -528,10 +528,10 @@ func exportAllTasksToZipWithBackend(backend storage.Backend, tasks []*task.Task,
 	if err != nil {
 		return fmt.Errorf("create zip: %w", err)
 	}
-	defer zipFile.Close()
+	defer func() { _ = zipFile.Close() }()
 
 	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
+	defer func() { _ = zipWriter.Close() }()
 
 	var exported int
 	for _, t := range tasks {
@@ -584,7 +584,7 @@ func buildExportDataWithBackend(backend storage.Backend, t *task.Task, withState
 		wd, _ := os.Getwd()
 		pdb, err := db.OpenProject(wd)
 		if err == nil {
-			defer pdb.Close()
+			defer func() { _ = pdb.Close() }()
 			transcripts, err := pdb.GetTranscripts(t.ID)
 			if err == nil {
 				export.Transcripts = transcripts

@@ -53,7 +53,7 @@ func createTaskWithStatus(t *testing.T, tmpDir, id string, status task.Status) *
 	t.Helper()
 
 	backend := createResumeTestBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	tk := task.New(id, "Test task")
 	tk.Status = status
@@ -272,7 +272,7 @@ func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 		t.Fatalf("failed to save state: %v", err)
 	}
 
-	backend.Close()
+	_ = backend.Close()
 
 	// Create a "worktree-like" subdirectory (simulating worktree context)
 	// In a real worktree, this would be .orc/worktrees/orc-TASK-001/

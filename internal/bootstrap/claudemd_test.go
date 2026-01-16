@@ -14,7 +14,7 @@ func TestInjectOrcSection(t *testing.T) {
 
 	t.Run("new CLAUDE.md", func(t *testing.T) {
 		projectDir := filepath.Join(tmpDir, "new-project")
-		os.MkdirAll(projectDir, 0755)
+		_ = os.MkdirAll(projectDir, 0755)
 
 		err := InjectOrcSection(projectDir)
 		if err != nil {
@@ -39,10 +39,10 @@ func TestInjectOrcSection(t *testing.T) {
 
 	t.Run("existing CLAUDE.md without orc section", func(t *testing.T) {
 		projectDir := filepath.Join(tmpDir, "existing-project")
-		os.MkdirAll(projectDir, 0755)
+		_ = os.MkdirAll(projectDir, 0755)
 
 		existingContent := "# My Project\n\nExisting content here.\n"
-		os.WriteFile(filepath.Join(projectDir, "CLAUDE.md"), []byte(existingContent), 0644)
+		_ = os.WriteFile(filepath.Join(projectDir, "CLAUDE.md"), []byte(existingContent), 0644)
 
 		err := InjectOrcSection(projectDir)
 		if err != nil {
@@ -64,7 +64,7 @@ func TestInjectOrcSection(t *testing.T) {
 
 	t.Run("existing CLAUDE.md with orc section", func(t *testing.T) {
 		projectDir := filepath.Join(tmpDir, "update-project")
-		os.MkdirAll(projectDir, 0755)
+		_ = os.MkdirAll(projectDir, 0755)
 
 		oldContent := `# My Project
 
@@ -74,7 +74,7 @@ Old orc content
 
 Other content
 `
-		os.WriteFile(filepath.Join(projectDir, "CLAUDE.md"), []byte(oldContent), 0644)
+		_ = os.WriteFile(filepath.Join(projectDir, "CLAUDE.md"), []byte(oldContent), 0644)
 
 		err := InjectOrcSection(projectDir)
 		if err != nil {
@@ -103,7 +103,7 @@ func TestRemoveOrcSection(t *testing.T) {
 
 	t.Run("remove orc section", func(t *testing.T) {
 		projectDir := filepath.Join(tmpDir, "remove-project")
-		os.MkdirAll(projectDir, 0755)
+		_ = os.MkdirAll(projectDir, 0755)
 
 		content := `# My Project
 
@@ -113,7 +113,7 @@ Orc content
 
 Other content
 `
-		os.WriteFile(filepath.Join(projectDir, "CLAUDE.md"), []byte(content), 0644)
+		_ = os.WriteFile(filepath.Join(projectDir, "CLAUDE.md"), []byte(content), 0644)
 
 		err := RemoveOrcSection(projectDir)
 		if err != nil {
@@ -136,7 +136,7 @@ Other content
 
 	t.Run("no CLAUDE.md exists", func(t *testing.T) {
 		projectDir := filepath.Join(tmpDir, "no-claude-md")
-		os.MkdirAll(projectDir, 0755)
+		_ = os.MkdirAll(projectDir, 0755)
 
 		err := RemoveOrcSection(projectDir)
 		if err != nil {
@@ -150,8 +150,8 @@ func TestHasOrcSection(t *testing.T) {
 
 	t.Run("has orc section", func(t *testing.T) {
 		projectDir := filepath.Join(tmpDir, "has-orc")
-		os.MkdirAll(projectDir, 0755)
-		os.WriteFile(filepath.Join(projectDir, "CLAUDE.md"), []byte("<!-- orc:begin -->\ncontent\n<!-- orc:end -->"), 0644)
+		_ = os.MkdirAll(projectDir, 0755)
+		_ = os.WriteFile(filepath.Join(projectDir, "CLAUDE.md"), []byte("<!-- orc:begin -->\ncontent\n<!-- orc:end -->"), 0644)
 
 		if !HasOrcSection(projectDir) {
 			t.Error("HasOrcSection() returned false for file with orc section")
@@ -160,8 +160,8 @@ func TestHasOrcSection(t *testing.T) {
 
 	t.Run("no orc section", func(t *testing.T) {
 		projectDir := filepath.Join(tmpDir, "no-orc")
-		os.MkdirAll(projectDir, 0755)
-		os.WriteFile(filepath.Join(projectDir, "CLAUDE.md"), []byte("# No orc here"), 0644)
+		_ = os.MkdirAll(projectDir, 0755)
+		_ = os.WriteFile(filepath.Join(projectDir, "CLAUDE.md"), []byte("# No orc here"), 0644)
 
 		if HasOrcSection(projectDir) {
 			t.Error("HasOrcSection() returned true for file without orc section")
@@ -170,7 +170,7 @@ func TestHasOrcSection(t *testing.T) {
 
 	t.Run("no file", func(t *testing.T) {
 		projectDir := filepath.Join(tmpDir, "no-file")
-		os.MkdirAll(projectDir, 0755)
+		_ = os.MkdirAll(projectDir, 0755)
 
 		if HasOrcSection(projectDir) {
 			t.Error("HasOrcSection() returned true for non-existent file")
@@ -181,10 +181,10 @@ func TestHasOrcSection(t *testing.T) {
 func TestUpdateTaskContext(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectDir := filepath.Join(tmpDir, "context-test")
-	os.MkdirAll(projectDir, 0755)
+	_ = os.MkdirAll(projectDir, 0755)
 
 	// Create CLAUDE.md with orc section
-	InjectOrcSection(projectDir)
+	_ = InjectOrcSection(projectDir)
 
 	activeTask := &task.Task{
 		ID:           "TASK-001",
@@ -215,11 +215,11 @@ func TestUpdateTaskContext(t *testing.T) {
 func TestClearTaskContext(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectDir := filepath.Join(tmpDir, "clear-context-test")
-	os.MkdirAll(projectDir, 0755)
+	_ = os.MkdirAll(projectDir, 0755)
 
 	// Create CLAUDE.md with orc section and context
-	InjectOrcSection(projectDir)
-	UpdateTaskContext(projectDir, &task.Task{
+	_ = InjectOrcSection(projectDir)
+	_ = UpdateTaskContext(projectDir, &task.Task{
 		ID:           "TASK-001",
 		Title:        "Test",
 		CurrentPhase: "test",

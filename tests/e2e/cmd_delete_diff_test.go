@@ -153,10 +153,10 @@ func TestDiffCommandNameOnly(t *testing.T) {
 	// Commit
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = repo.RootDir
-	cmd.CombinedOutput()
+	_, _ = cmd.CombinedOutput()
 	cmd = exec.Command("git", "commit", "-m", "Add files")
 	cmd.Dir = repo.RootDir
-	cmd.CombinedOutput()
+	_, _ = cmd.CombinedOutput()
 
 	// Get name-only diff
 	cmd = exec.Command("git", "diff", "--name-only", "main..."+branchName)

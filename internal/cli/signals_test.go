@@ -60,14 +60,14 @@ func TestInterruptHandler(t *testing.T) {
 	}
 
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
+	_ = os.Chdir(tmpDir)
 	t.Cleanup(func() {
-		os.Chdir(origDir)
+		_ = os.Chdir(origDir)
 	})
 
 	// Create backend
 	backend := createSignalsTestBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	tsk := task.New("TASK-001", "Test task")
 	st := state.New("TASK-001")
@@ -129,14 +129,14 @@ func TestGracefulShutdown(t *testing.T) {
 	}
 
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
+	_ = os.Chdir(tmpDir)
 	t.Cleanup(func() {
-		os.Chdir(origDir)
+		_ = os.Chdir(origDir)
 	})
 
 	// Create backend
 	backend := createSignalsTestBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	tsk := &task.Task{ID: "TASK-001", Title: "Test task", Weight: task.WeightSmall}
 	// Save task to backend first (required for SaveState to work)

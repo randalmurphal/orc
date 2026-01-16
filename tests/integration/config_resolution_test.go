@@ -174,7 +174,7 @@ func TestConfigResolutionDefaults(t *testing.T) {
 
 	// Don't set any config values - use all defaults
 	// Remove the project config to ensure defaults are used
-	os.Remove(filepath.Join(repo.OrcDir, "config.yaml"))
+	_ = os.Remove(filepath.Join(repo.OrcDir, "config.yaml"))
 
 	loader := config.NewLoader(repo.RootDir)
 

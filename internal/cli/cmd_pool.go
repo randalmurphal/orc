@@ -97,7 +97,7 @@ func newPoolAddCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("create temp dir: %w", err)
 			}
-			defer os.RemoveAll(tempDir)
+			defer func() { _ = os.RemoveAll(tempDir) }()
 
 			claudeDir := filepath.Join(tempDir, ".claude")
 			if err := os.MkdirAll(claudeDir, 0700); err != nil {
@@ -196,8 +196,8 @@ func newPoolListCmd() *cobra.Command {
 			}
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tNAME\tENABLED")
-			fmt.Fprintln(w, "--\t----\t-------")
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tENABLED")
+			_, _ = fmt.Fprintln(w, "--\t----\t-------")
 
 			current := pool.Current()
 			for _, acc := range accounts {
@@ -205,9 +205,9 @@ func newPoolListCmd() *cobra.Command {
 				if current != nil && acc.ID == current.ID {
 					marker = "*"
 				}
-				fmt.Fprintf(w, "%s%s\t%s\t%v\n", marker, acc.ID, acc.Name, acc.Enabled)
+				_, _ = fmt.Fprintf(w, "%s%s\t%s\t%v\n", marker, acc.ID, acc.Name, acc.Enabled)
 			}
-			w.Flush()
+			_ = w.Flush()
 
 			if current != nil {
 				fmt.Printf("\n* = current account\n")
@@ -240,8 +240,8 @@ func newPoolStatusCmd() *cobra.Command {
 			}
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tSTATUS\tEXHAUSTED\tLAST ERROR")
-			fmt.Fprintln(w, "--\t------\t---------\t----------")
+			_, _ = fmt.Fprintln(w, "ID\tSTATUS\tEXHAUSTED\tLAST ERROR")
+			_, _ = fmt.Fprintln(w, "--\t------\t---------\t----------")
 
 			for _, s := range statuses {
 				status := "ready"
@@ -265,9 +265,9 @@ func newPoolStatusCmd() *cobra.Command {
 					lastError = truncate(s.State.LastError, 40)
 				}
 
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Account.ID, status, exhausted, lastError)
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Account.ID, status, exhausted, lastError)
 			}
-			w.Flush()
+			_ = w.Flush()
 
 			fmt.Printf("\nStrategy: %s\n", pool.Strategy())
 			fmt.Printf("Auto-switch on rate limit: %v\n", pool.SwitchOnRateLimit())

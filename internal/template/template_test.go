@@ -202,7 +202,7 @@ func TestTemplateSaveAndLoad(t *testing.T) {
 	templatesDir := filepath.Join(tmpDir, ".orc", "templates")
 
 	// Create templates directory
-	os.MkdirAll(templatesDir, 0755)
+	_ = os.MkdirAll(templatesDir, 0755)
 
 	template := &Template{
 		Name:        "test-template",
@@ -247,7 +247,7 @@ func TestTemplateDelete(t *testing.T) {
 	tmpDir := t.TempDir()
 	templatesDir := filepath.Join(tmpDir, ".orc", "templates")
 
-	os.MkdirAll(templatesDir, 0755)
+	_ = os.MkdirAll(templatesDir, 0755)
 
 	template := &Template{
 		Name:   "delete-me",
@@ -294,7 +294,7 @@ func TestList(t *testing.T) {
 	tmpDir := t.TempDir()
 	templatesDir := filepath.Join(tmpDir, ".orc", "templates")
 
-	os.MkdirAll(templatesDir, 0755)
+	_ = os.MkdirAll(templatesDir, 0755)
 
 	// Create a project template
 	template := &Template{
@@ -303,7 +303,7 @@ func TestList(t *testing.T) {
 		Weight:      "medium",
 		Phases:      []string{"implement"},
 	}
-	template.SaveTo(templatesDir)
+	_ = template.SaveTo(templatesDir)
 
 	// List templates using ListFrom
 	templates, err := ListFrom(templatesDir)
@@ -333,7 +333,7 @@ func TestLoad_ResolutionOrder(t *testing.T) {
 	tmpDir := t.TempDir()
 	templatesDir := filepath.Join(tmpDir, ".orc", "templates")
 
-	os.MkdirAll(templatesDir, 0755)
+	_ = os.MkdirAll(templatesDir, 0755)
 
 	// Create a project template that shadows a builtin
 	template := &Template{
@@ -342,7 +342,7 @@ func TestLoad_ResolutionOrder(t *testing.T) {
 		Weight:      "large", // Different from builtin
 		Phases:      []string{"spec", "implement", "test", "validate"},
 	}
-	template.SaveTo(templatesDir)
+	_ = template.SaveTo(templatesDir)
 
 	// Load from project directory - should return project template
 	loaded, err := LoadFrom("bugfix", templatesDir)

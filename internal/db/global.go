@@ -28,7 +28,7 @@ func OpenGlobal() (*GlobalDB, error) {
 	}
 
 	if err := db.Migrate("global"); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("migrate global db: %w", err)
 	}
 
@@ -44,7 +44,7 @@ func OpenGlobalWithDialect(dsn string, dialect driver.Dialect) (*GlobalDB, error
 	}
 
 	if err := db.Migrate("global"); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("migrate global db: %w", err)
 	}
 

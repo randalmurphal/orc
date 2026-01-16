@@ -35,7 +35,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			id := args[0]
 			toPhase, _ := cmd.Flags().GetString("to")
@@ -75,7 +75,7 @@ Examples:
 				fmt.Print("   Continue? [y/N]: ")
 
 				var input string
-				fmt.Scanln(&input)
+				_, _ = fmt.Scanln(&input)
 				if input != "y" && input != "Y" {
 					fmt.Println("Aborted")
 					return nil
@@ -122,6 +122,6 @@ Examples:
 	}
 	cmd.Flags().String("to", "", "phase to rewind to (required)")
 	cmd.Flags().BoolP("force", "f", false, "skip confirmation prompt (for scripts/automation)")
-	cmd.MarkFlagRequired("to")
+	_ = cmd.MarkFlagRequired("to")
 	return cmd
 }

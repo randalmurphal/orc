@@ -11,6 +11,7 @@
 
 import type { ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Icon } from '@/components/ui/Icon';
 import './Modal.css';
 
@@ -21,6 +22,8 @@ interface ModalProps {
 	onClose: () => void;
 	size?: ModalSize;
 	title?: ReactNode;
+	/** Accessible title for screen readers when no visible title is provided */
+	ariaLabel?: string;
 	showClose?: boolean;
 	children: ReactNode;
 }
@@ -37,6 +40,7 @@ export function Modal({
 	onClose,
 	size = 'md',
 	title,
+	ariaLabel = 'Dialog',
 	showClose = true,
 	children,
 }: ModalProps) {
@@ -48,15 +52,34 @@ export function Modal({
 					className={`modal-content ${sizeClasses[size]}`}
 					aria-describedby={undefined}
 				>
-					{(title || showClose) && (
-						<div className="modal-header">
-							{title && <Dialog.Title className="modal-title">{title}</Dialog.Title>}
-							{showClose && (
-								<Dialog.Close className="modal-close" aria-label="Close modal" title="Close (Esc)">
-									<Icon name="close" size={18} />
-								</Dialog.Close>
+					{/* Always provide a title for screen readers */}
+					{title ? (
+						<>
+							{(title || showClose) && (
+								<div className="modal-header">
+									<Dialog.Title className="modal-title">{title}</Dialog.Title>
+									{showClose && (
+										<Dialog.Close className="modal-close" aria-label="Close modal" title="Close (Esc)">
+											<Icon name="close" size={18} />
+										</Dialog.Close>
+									)}
+								</div>
 							)}
-						</div>
+						</>
+					) : (
+						<>
+							{/* Visually hidden title for accessibility when no visible title */}
+							<VisuallyHidden.Root asChild>
+								<Dialog.Title>{ariaLabel}</Dialog.Title>
+							</VisuallyHidden.Root>
+							{showClose && (
+								<div className="modal-header modal-header--close-only">
+									<Dialog.Close className="modal-close" aria-label="Close modal" title="Close (Esc)">
+										<Icon name="close" size={18} />
+									</Dialog.Close>
+								</div>
+							)}
+						</>
 					)}
 					<div className="modal-body">{children}</div>
 				</Dialog.Content>

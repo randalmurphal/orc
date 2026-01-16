@@ -86,8 +86,8 @@ Use filters to show only specific types.`,
 			}
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "NAME\tWEIGHT\tPHASES\tSCOPE\tDESCRIPTION")
-			fmt.Fprintln(w, "────\t──────\t──────\t─────\t───────────")
+			_, _ = fmt.Fprintln(w, "NAME\tWEIGHT\tPHASES\tSCOPE\tDESCRIPTION")
+			_, _ = fmt.Fprintln(w, "────\t──────\t──────\t─────\t───────────")
 
 			for _, t := range templates {
 				phases := strings.Join(t.Phases, ",")
@@ -98,10 +98,10 @@ Use filters to show only specific types.`,
 				if len(desc) > 40 {
 					desc = desc[:37] + "..."
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 					t.Name, t.Weight, phases, t.Scope, desc)
 			}
-			w.Flush()
+			_ = w.Flush()
 
 			return nil
 		},
@@ -231,7 +231,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			t, err := template.SaveFromTask(taskID, name, description, global, backend)
 			if err != nil {
@@ -262,7 +262,7 @@ Example:
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Template name (required)")
 	cmd.Flags().StringVar(&description, "description", "", "Template description")
 	cmd.Flags().BoolVarP(&global, "global", "g", false, "Save to global templates (~/.orc/templates/)")
-	cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("name")
 
 	return cmd
 }

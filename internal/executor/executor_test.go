@@ -27,7 +27,7 @@ func newTestBackend(t *testing.T) storage.Backend {
 		t.Fatalf("create backend: %v", err)
 	}
 	t.Cleanup(func() {
-		backend.Close()
+		_ = backend.Close()
 	})
 	return backend
 }
@@ -126,7 +126,7 @@ func TestFindClaudeInCommonLocations_HomeExpansion(t *testing.T) {
 	if err := os.MkdirAll(testDir, 0755); err != nil {
 		t.Fatalf("failed to create test dir: %v", err)
 	}
-	defer os.RemoveAll(testDir)
+	defer func() { _ = os.RemoveAll(testDir) }()
 
 	fakeClaude := filepath.Join(testDir, "claude")
 	if err := os.WriteFile(fakeClaude, []byte("#!/bin/sh\necho fake"), 0755); err != nil {
@@ -220,8 +220,8 @@ func TestResolveClaudePath_WithCommonLocations(t *testing.T) {
 
 	// Modify PATH to not include claude (use a temp dir)
 	originalPath := os.Getenv("PATH")
-	os.Setenv("PATH", t.TempDir())
-	defer os.Setenv("PATH", originalPath)
+	_ = os.Setenv("PATH", t.TempDir())
+	defer func() { _ = os.Setenv("PATH", originalPath) }()
 
 	result := resolveClaudePath("claude")
 	if result != fakeClaude {

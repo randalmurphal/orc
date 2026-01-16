@@ -40,7 +40,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			// Get filter flags
 			initiativeFilter, _ := cmd.Flags().GetString("initiative")
@@ -67,7 +67,7 @@ Example:
 			out := cmd.OutOrStdout()
 
 			if len(tasks) == 0 {
-				fmt.Fprintln(out, "No tasks found. Create one with: orc new \"Your task\"")
+				_, _ = fmt.Fprintln(out, "No tasks found. Create one with: orc new \"Your task\"")
 				return nil
 			}
 
@@ -120,14 +120,14 @@ Example:
 				if weightFilter != "" {
 					filterDesc = append(filterDesc, fmt.Sprintf("weight %s", weightFilter))
 				}
-				fmt.Fprintf(out, "No tasks found matching: %s\n", strings.Join(filterDesc, ", "))
+				_, _ = fmt.Fprintf(out, "No tasks found matching: %s\n", strings.Join(filterDesc, ", "))
 				return nil
 			}
 
 			// Print tasks in table format
 			w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tSTATUS\tWEIGHT\tPHASE\tTITLE")
-			fmt.Fprintln(w, "──\t──────\t──────\t─────\t─────")
+			_, _ = fmt.Fprintln(w, "ID\tSTATUS\tWEIGHT\tPHASE\tTITLE")
+			_, _ = fmt.Fprintln(w, "──\t──────\t──────\t─────\t─────")
 
 			for _, t := range filtered {
 				status := statusIcon(t.Status)
@@ -136,10 +136,10 @@ Example:
 					phase = "-"
 				}
 				title := truncate(t.Title, 40)
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", t.ID, status, t.Weight, phase, title)
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", t.ID, status, t.Weight, phase, title)
 			}
 
-			w.Flush()
+			_ = w.Flush()
 			return nil
 		},
 	}
@@ -162,7 +162,7 @@ func completeInitiativeIDs(cmd *cobra.Command, args []string, toComplete string)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	inits, err := backend.LoadAllInitiatives()
 	if err != nil {

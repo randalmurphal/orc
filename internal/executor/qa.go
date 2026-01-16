@@ -156,7 +156,7 @@ func ParseQAResult(response string) (*QAResult, error) {
 		result.Coverage = &QACoverage{}
 		covContent := m[1]
 		if pm := regexp.MustCompile(`<percentage>([0-9.]+)%?</percentage>`).FindStringSubmatch(covContent); pm != nil {
-			fmt.Sscanf(pm[1], "%f", &result.Coverage.Percentage)
+			_, _ = fmt.Sscanf(pm[1], "%f", &result.Coverage.Percentage)
 		}
 		if um := regexp.MustCompile(`<uncovered_areas>(.*?)</uncovered_areas>`).FindStringSubmatch(covContent); um != nil {
 			result.Coverage.UncoveredAreas = strings.TrimSpace(um[1])

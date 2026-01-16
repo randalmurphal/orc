@@ -66,11 +66,6 @@ func WithStandardBackend(b storage.Backend) StandardExecutorOption {
 	return func(e *StandardExecutor) { e.backend = b }
 }
 
-// getTargetBranch returns the target branch from config, defaulting to "main".
-func (e *StandardExecutor) getTargetBranch() string {
-	return e.config.GetTargetBranch()
-}
-
 // NewStandardExecutor creates a new standard executor.
 func NewStandardExecutor(mgr session.SessionManager, opts ...StandardExecutorOption) *StandardExecutor {
 	e := &StandardExecutor{

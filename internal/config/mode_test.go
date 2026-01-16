@@ -208,8 +208,8 @@ func TestDetectMode_UserConfig(t *testing.T) {
 
 	// Override home directory for this test
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", homeDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", homeDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	// Create user config with team.server_url
 	userOrcDir := filepath.Join(homeDir, ".orc")

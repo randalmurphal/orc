@@ -217,7 +217,7 @@ func TestGenerateWorktreeMCPConfig(t *testing.T) {
 		mcpPath := filepath.Join(worktreePath, ".mcp.json")
 		data, _ := os.ReadFile(mcpPath)
 		var mcpConfig MCPConfig
-		json.Unmarshal(data, &mcpConfig)
+		_ = json.Unmarshal(data, &mcpConfig)
 
 		playwright := mcpConfig.MCPServers["playwright"]
 		for _, arg := range playwright.Args {
@@ -288,7 +288,7 @@ func TestCleanupPlaywrightUserData(t *testing.T) {
 		}
 		// Create a file inside
 		testFile := filepath.Join(userDataDir, "test.txt")
-		os.WriteFile(testFile, []byte("test"), 0644)
+		_ = os.WriteFile(testFile, []byte("test"), 0644)
 
 		err := CleanupPlaywrightUserData(taskID)
 		if err != nil {

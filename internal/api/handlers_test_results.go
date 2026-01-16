@@ -78,7 +78,7 @@ func (s *Server) handleGetScreenshot(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	// Detect content type from filename
 	contentType := "image/png"
@@ -99,7 +99,7 @@ func (s *Server) handleGetScreenshot(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
 
 	// Stream the file
-	io.Copy(w, reader)
+	_, _ = io.Copy(w, reader)
 }
 
 // handleUploadScreenshot uploads a screenshot for a task.
@@ -124,7 +124,7 @@ func (s *Server) handleUploadScreenshot(w http.ResponseWriter, r *http.Request) 
 		s.jsonError(w, "file is required", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Get filename - use form field if provided, otherwise use uploaded filename
 	filename := r.FormValue("filename")
@@ -170,10 +170,10 @@ func (s *Server) handleGetHTMLReport(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	io.Copy(w, reader)
+	_, _ = io.Copy(w, reader)
 }
 
 // handleGetTrace returns a trace file if available.
@@ -202,13 +202,13 @@ func (s *Server) handleGetTrace(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	// Traces are typically zip files
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 
-	io.Copy(w, reader)
+	_, _ = io.Copy(w, reader)
 }
 
 // handleSaveTestReport saves a test report for a task.

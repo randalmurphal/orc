@@ -49,7 +49,7 @@ func (s *Server) handleListKnowledge(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	var entries []*db.KnowledgeEntry
 
@@ -96,7 +96,7 @@ func (s *Server) handleListStaleKnowledge(w http.ResponseWriter, r *http.Request
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	entries, err := pdb.ListStaleKnowledge(stalenessDays)
 	if err != nil {
@@ -120,7 +120,7 @@ func (s *Server) handleGetKnowledgeStatus(w http.ResponseWriter, r *http.Request
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	pendingCount, _ := pdb.CountPendingKnowledge()
 	staleCount, _ := pdb.CountStaleKnowledge(stalenessDays)
@@ -165,7 +165,7 @@ func (s *Server) handleCreateKnowledge(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	entry, err := pdb.QueueKnowledge(req.Type, req.Name, req.Description, req.SourceTask, req.ProposedBy)
 	if err != nil {
@@ -186,7 +186,7 @@ func (s *Server) handleGetKnowledge(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	entry, err := pdb.GetKnowledgeEntry(id)
 	if err != nil {
@@ -218,7 +218,7 @@ func (s *Server) handleApproveKnowledge(w http.ResponseWriter, r *http.Request) 
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	entry, err := pdb.ApproveKnowledge(id, req.ApprovedBy)
 	if err != nil {
@@ -244,7 +244,7 @@ func (s *Server) handleApproveAllKnowledge(w http.ResponseWriter, r *http.Reques
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	count, err := pdb.ApproveAllPending(req.ApprovedBy)
 	if err != nil {
@@ -272,7 +272,7 @@ func (s *Server) handleValidateKnowledge(w http.ResponseWriter, r *http.Request)
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	entry, err := pdb.ValidateKnowledge(id, req.ValidatedBy)
 	if err != nil {
@@ -297,7 +297,7 @@ func (s *Server) handleRejectKnowledge(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	if err := pdb.RejectKnowledge(id, req.Reason); err != nil {
 		s.jsonError(w, "failed to reject knowledge: "+err.Error(), http.StatusBadRequest)
@@ -316,7 +316,7 @@ func (s *Server) handleDeleteKnowledge(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	if err := pdb.DeleteKnowledge(id); err != nil {
 		s.jsonError(w, "failed to delete knowledge: "+err.Error(), http.StatusInternalServerError)

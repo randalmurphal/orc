@@ -337,7 +337,7 @@ func (rt *ResourceTracker) readLinuxProcess(pid int) (ProcessInfo, error) {
 	statusPath := filepath.Join("/proc", strconv.Itoa(pid), "status")
 	statusFile, err := os.Open(statusPath)
 	if err == nil {
-		defer statusFile.Close()
+		defer func() { _ = statusFile.Close() }()
 		scanner := bufio.NewScanner(statusFile)
 		for scanner.Scan() {
 			line := scanner.Text()

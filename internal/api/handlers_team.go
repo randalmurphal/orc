@@ -47,7 +47,7 @@ func (s *Server) handleListTeamMembers(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	members, err := pdb.ListTeamMembers()
 	if err != nil {
@@ -98,7 +98,7 @@ func (s *Server) handleCreateTeamMember(w http.ResponseWriter, r *http.Request) 
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Check if member with email already exists
 	existing, err := pdb.GetTeamMemberByEmail(req.Email)
@@ -140,7 +140,7 @@ func (s *Server) handleGetTeamMember(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	member, err := pdb.GetTeamMember(memberID)
 	if err != nil {
@@ -168,7 +168,7 @@ func (s *Server) handleUpdateTeamMember(w http.ResponseWriter, r *http.Request) 
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	member, err := pdb.GetTeamMember(memberID)
 	if err != nil {
@@ -235,7 +235,7 @@ func (s *Server) handleDeleteTeamMember(w http.ResponseWriter, r *http.Request) 
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Check if member exists
 	member, err := pdb.GetTeamMember(memberID)
@@ -280,7 +280,7 @@ func (s *Server) handleClaimTask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Verify task exists
 	task, err := pdb.GetTask(taskID)
@@ -351,7 +351,7 @@ func (s *Server) handleReleaseTask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Verify the claim exists and belongs to this member
 	claim, err := pdb.GetActiveTaskClaim(taskID)
@@ -393,7 +393,7 @@ func (s *Server) handleGetTaskClaim(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	claim, err := pdb.GetActiveTaskClaim(taskID)
 	if err != nil {
@@ -460,7 +460,7 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	activities, err := pdb.ListActivity(opts)
 	if err != nil {
@@ -492,7 +492,7 @@ func (s *Server) handleGetMemberClaims(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	claims, err := pdb.GetMemberClaims(memberID)
 	if err != nil {

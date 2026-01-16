@@ -55,7 +55,7 @@ func (s *Server) handleListReviewComments(w http.ResponseWriter, r *http.Request
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	comments, err := pdb.ListReviewComments(taskID, status)
 	if err != nil {
@@ -104,7 +104,7 @@ func (s *Server) handleCreateReviewComment(w http.ResponseWriter, r *http.Reques
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Ensure task exists in database for foreign key constraint
 	if err := s.syncTaskToDB(pdb, taskID); err != nil {
@@ -157,7 +157,7 @@ func (s *Server) handleGetReviewComment(w http.ResponseWriter, r *http.Request) 
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	comment, err := pdb.GetReviewComment(commentID)
 	if err != nil {
@@ -185,7 +185,7 @@ func (s *Server) handleUpdateReviewComment(w http.ResponseWriter, r *http.Reques
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	comment, err := pdb.GetReviewComment(commentID)
 	if err != nil {
@@ -251,7 +251,7 @@ func (s *Server) handleDeleteReviewComment(w http.ResponseWriter, r *http.Reques
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	if err := pdb.DeleteReviewComment(commentID); err != nil {
 		s.jsonError(w, "failed to delete review comment: "+err.Error(), http.StatusInternalServerError)
@@ -274,7 +274,7 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Get all open comments
 	comments, err := pdb.ListReviewComments(taskID, "open")
@@ -388,7 +388,7 @@ func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
 
 			// Auto-resolve all open comments that were sent to the agent
 			if pdb, dbErr := db.OpenProject(s.getProjectRoot()); dbErr == nil {
-				defer pdb.Close()
+				defer func() { _ = pdb.Close() }()
 				for _, comment := range comments {
 					if updateErr := pdb.ResolveReviewComment(comment.ID, "agent", db.CommentStatusResolved); updateErr != nil {
 						s.logger.Warn("failed to auto-resolve comment", "comment_id", comment.ID, "error", updateErr)
@@ -428,7 +428,7 @@ func (s *Server) handleGetReviewStats(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	openCount, err := pdb.CountOpenComments(taskID)
 	if err != nil {

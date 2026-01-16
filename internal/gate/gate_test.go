@@ -175,8 +175,9 @@ func TestTruncateOutput(t *testing.T) {
 	// Long output
 	long := "a very long string that needs truncation"
 	result = truncateOutput(long, 10)
+	// Result should be longer than 10 due to truncation message
 	if len(result) <= 10 {
-		// Should have truncation message
+		t.Error("truncateOutput() should add truncation message for long strings")
 	}
 	if result[:10] != long[:10] {
 		t.Error("truncateOutput() should keep beginning of string")

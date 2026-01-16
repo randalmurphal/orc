@@ -83,19 +83,19 @@ func newKnowledgeStatusCmd() *cobra.Command {
 
 			// Display stats
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "Knowledge Statistics")
-			fmt.Fprintln(w, "--------------------")
-			fmt.Fprintf(w, "CLAUDE.md total lines:\t%d\n", totalLines)
-			fmt.Fprintf(w, "Knowledge section lines:\t%d\n", knowledgeLines)
-			fmt.Fprintf(w, "Patterns learned:\t%d\n", patterns)
-			fmt.Fprintf(w, "Known gotchas:\t%d\n", gotchas)
-			fmt.Fprintf(w, "Decisions:\t%d\n", decisions)
-			w.Flush()
+			_, _ = fmt.Fprintln(w, "Knowledge Statistics")
+			_, _ = fmt.Fprintln(w, "--------------------")
+			_, _ = fmt.Fprintf(w, "CLAUDE.md total lines:\t%d\n", totalLines)
+			_, _ = fmt.Fprintf(w, "Knowledge section lines:\t%d\n", knowledgeLines)
+			_, _ = fmt.Fprintf(w, "Patterns learned:\t%d\n", patterns)
+			_, _ = fmt.Fprintf(w, "Known gotchas:\t%d\n", gotchas)
+			_, _ = fmt.Fprintf(w, "Decisions:\t%d\n", decisions)
+			_ = w.Flush()
 
 			// Check stale entries in queue
 			pdb, err := db.OpenProject(wd)
 			if err == nil {
-				defer pdb.Close()
+				defer func() { _ = pdb.Close() }()
 				staleCount, _ := pdb.CountStaleKnowledge(stalenessDays)
 				pendingCount, _ := pdb.CountPendingKnowledge()
 
@@ -521,7 +521,7 @@ By default, shows only pending entries. Use --all to see all entries.`,
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer pdb.Close()
+			defer func() { _ = pdb.Close() }()
 
 			var entries []*db.KnowledgeEntry
 			if showAll {
@@ -552,18 +552,18 @@ By default, shows only pending entries. Use --all to see all entries.`,
 			}
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tTYPE\tNAME\tSOURCE\tSTATUS")
-			fmt.Fprintln(w, "--\t----\t----\t------\t------")
+			_, _ = fmt.Fprintln(w, "ID\tTYPE\tNAME\tSOURCE\tSTATUS")
+			_, _ = fmt.Fprintln(w, "--\t----\t----\t------\t------")
 
 			for _, e := range entries {
 				name := e.Name
 				if len(name) > 30 {
 					name = name[:27] + "..."
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 					e.ID, e.Type, name, e.SourceTask, e.Status)
 			}
-			w.Flush()
+			_ = w.Flush()
 
 			return nil
 		},
@@ -598,7 +598,7 @@ Use --all to approve all pending entries at once.`,
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer pdb.Close()
+			defer func() { _ = pdb.Close() }()
 
 			if approveAll {
 				count, err := pdb.ApproveAllPending("cli")
@@ -655,7 +655,7 @@ func newKnowledgeRejectCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer pdb.Close()
+			defer func() { _ = pdb.Close() }()
 
 			if err := pdb.RejectKnowledge(id, reason); err != nil {
 				return fmt.Errorf("reject %s: %w", id, err)
@@ -692,7 +692,7 @@ Use --list to see all stale entries that need validation.`,
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer pdb.Close()
+			defer func() { _ = pdb.Close() }()
 
 			// List stale entries mode
 			if listStale {
@@ -708,8 +708,8 @@ Use --list to see all stale entries that need validation.`,
 
 				fmt.Printf("Stale entries (>%d days since validation):\n\n", stalenessDays)
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				fmt.Fprintln(w, "ID\tTYPE\tNAME\tLAST VALIDATED")
-				fmt.Fprintln(w, "--\t----\t----\t--------------")
+				_, _ = fmt.Fprintln(w, "ID\tTYPE\tNAME\tLAST VALIDATED")
+				_, _ = fmt.Fprintln(w, "--\t----\t----\t--------------")
 
 				for _, e := range entries {
 					lastValidated := "never"
@@ -723,9 +723,9 @@ Use --list to see all stale entries that need validation.`,
 					if len(name) > 30 {
 						name = name[:27] + "..."
 					}
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.ID, e.Type, name, lastValidated)
+					_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.ID, e.Type, name, lastValidated)
 				}
-				w.Flush()
+				_ = w.Flush()
 
 				fmt.Printf("\nRun 'orc knowledge validate <id>' to mark as still relevant.\n")
 				return nil

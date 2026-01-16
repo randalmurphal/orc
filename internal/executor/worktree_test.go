@@ -23,7 +23,7 @@ func TestSetupWorktree_CreatesDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Initialize git repo
 	if err := initTestRepo(tmpDir); err != nil {
@@ -62,7 +62,7 @@ func TestSetupWorktree_ReturnsPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	if err := initTestRepo(tmpDir); err != nil {
 		t.Fatalf("failed to init test repo: %v", err)
@@ -98,7 +98,7 @@ func TestSetupWorktree_ReusesExisting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	if err := initTestRepo(tmpDir); err != nil {
 		t.Fatalf("failed to init test repo: %v", err)
@@ -139,7 +139,7 @@ func TestCleanupWorktree_RemovesDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	if err := initTestRepo(tmpDir); err != nil {
 		t.Fatalf("failed to init test repo: %v", err)
@@ -177,7 +177,7 @@ func TestCleanupWorktree_NonexistentPath_NoError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	if err := initTestRepo(tmpDir); err != nil {
 		t.Fatalf("failed to init test repo: %v", err)
@@ -222,7 +222,7 @@ func TestWorktreeExists_ReturnsTrueWhenExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	if err := initTestRepo(tmpDir); err != nil {
 		t.Fatalf("failed to init test repo: %v", err)
@@ -344,7 +344,7 @@ func TestSetupWorktree_StaleWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	if err := initTestRepo(tmpDir); err != nil {
 		t.Fatalf("failed to init test repo: %v", err)
@@ -398,7 +398,7 @@ func TestSetupWorktree_CleansDirtyWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	if err := initTestRepo(tmpDir); err != nil {
 		t.Fatalf("failed to init test repo: %v", err)
@@ -467,7 +467,7 @@ func TestSetupWorktree_AbortsRebaseInProgress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	if err := initTestRepo(tmpDir); err != nil {
 		t.Fatalf("failed to init test repo: %v", err)
@@ -547,7 +547,7 @@ func TestSetupWorktree_AbortsMergeInProgress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	if err := initTestRepo(tmpDir); err != nil {
 		t.Fatalf("failed to init test repo: %v", err)

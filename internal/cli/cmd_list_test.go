@@ -119,7 +119,7 @@ func TestListCommand_InitiativeFilter(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Test: Filter by initiative ID
 	cmd := newListCmd()
@@ -167,7 +167,7 @@ func TestListCommand_UnassignedFilter(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Test: Filter by "unassigned"
 	cmd := newListCmd()
@@ -206,7 +206,7 @@ func TestListCommand_EmptyInitiativeFilter(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Test: Filter by empty string (same as unassigned)
 	cmd := newListCmd()
@@ -239,7 +239,7 @@ func TestListCommand_InvalidInitiative(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Test: Filter by non-existent initiative
 	cmd := newListCmd()
@@ -294,7 +294,7 @@ func TestListCommand_CombinedFilters(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Test: Filter by initiative AND status
 	cmd := newListCmd()
@@ -336,7 +336,7 @@ func TestListCommand_NoMatchingTasks(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Test: Filter by initiative with no matching tasks
 	cmd := newListCmd()
@@ -374,7 +374,7 @@ func TestCompleteInitiativeIDs(t *testing.T) {
 	}
 
 	// Close backend before running completion
-	backend.Close()
+	_ = backend.Close()
 
 	// Test completion function
 	cmd := newListCmd()
@@ -439,7 +439,7 @@ func TestCompleteInitiativeIDs_Filtering(t *testing.T) {
 	}
 
 	// Close backend before running completion
-	backend.Close()
+	_ = backend.Close()
 
 	// Test completion with prefix filter
 	cmd := newListCmd()

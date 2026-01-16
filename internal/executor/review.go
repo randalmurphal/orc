@@ -132,7 +132,7 @@ func ParseReviewFindings(response string) (*ReviewFindings, error) {
 	// Parse round
 	roundRe := regexp.MustCompile(`<round>(\d+)</round>`)
 	if m := roundRe.FindStringSubmatch(content); m != nil {
-		fmt.Sscanf(m[1], "%d", &findings.Round)
+		_, _ = fmt.Sscanf(m[1], "%d", &findings.Round)
 	}
 
 	// Parse summary (use (?s) to handle multiline content)
@@ -156,7 +156,7 @@ func ParseReviewFindings(response string) (*ReviewFindings, error) {
 		}
 		// Parse line
 		if lm := regexp.MustCompile(`<line>(\d+)</line>`).FindStringSubmatch(issueContent); lm != nil {
-			fmt.Sscanf(lm[1], "%d", &issue.Line)
+			_, _ = fmt.Sscanf(lm[1], "%d", &issue.Line)
 		}
 		// Parse description
 		if dm := regexp.MustCompile(`<description>(.*?)</description>`).FindStringSubmatch(issueContent); dm != nil {

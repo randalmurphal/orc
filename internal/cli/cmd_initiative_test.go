@@ -121,7 +121,7 @@ func TestInitiativeUnlinkCommand_RequiresArg(t *testing.T) {
 func TestInitiativeLinkMultipleTasks(t *testing.T) {
 	tmpDir := withInitiativeTestDir(t)
 	backend := createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create initiative
 	init := initiative.New("INIT-001", "Test Initiative")
@@ -144,7 +144,7 @@ func TestInitiativeLinkMultipleTasks(t *testing.T) {
 	}
 
 	// Close backend before running command (command creates its own)
-	backend.Close()
+	_ = backend.Close()
 
 	// Run link command
 	cmd := newInitiativeLinkCmd()
@@ -155,7 +155,7 @@ func TestInitiativeLinkMultipleTasks(t *testing.T) {
 
 	// Re-open backend to verify
 	backend = createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Verify tasks are linked
 	reloadedTask1, _ := backend.LoadTask("TASK-001")
@@ -183,7 +183,7 @@ func TestInitiativeLinkMultipleTasks(t *testing.T) {
 func TestInitiativeLinkWithPattern(t *testing.T) {
 	tmpDir := withInitiativeTestDir(t)
 	backend := createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create initiative
 	init := initiative.New("INIT-001", "Test Initiative")
@@ -206,7 +206,7 @@ func TestInitiativeLinkWithPattern(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Run link command with --all-matching
 	cmd := newInitiativeLinkCmd()
@@ -217,7 +217,7 @@ func TestInitiativeLinkWithPattern(t *testing.T) {
 
 	// Re-open backend to verify
 	backend = createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Verify only auth tasks are linked
 	reloadedTask1, _ := backend.LoadTask("TASK-001")
@@ -245,7 +245,7 @@ func TestInitiativeLinkWithPattern(t *testing.T) {
 func TestInitiativeUnlinkMultipleTasks(t *testing.T) {
 	tmpDir := withInitiativeTestDir(t)
 	backend := createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create initiative with tasks
 	init := initiative.New("INIT-001", "Test Initiative")
@@ -277,7 +277,7 @@ func TestInitiativeUnlinkMultipleTasks(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Run unlink command for 2 tasks
 	cmd := newInitiativeUnlinkCmd()
@@ -288,7 +288,7 @@ func TestInitiativeUnlinkMultipleTasks(t *testing.T) {
 
 	// Re-open backend to verify
 	backend = createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Verify tasks 1 and 2 are unlinked
 	reloadedTask1, _ := backend.LoadTask("TASK-001")
@@ -317,7 +317,7 @@ func TestInitiativeUnlinkMultipleTasks(t *testing.T) {
 func TestInitiativeUnlinkAll(t *testing.T) {
 	tmpDir := withInitiativeTestDir(t)
 	backend := createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create initiative with tasks
 	init := initiative.New("INIT-001", "Test Initiative")
@@ -342,7 +342,7 @@ func TestInitiativeUnlinkAll(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Run unlink command with --all
 	cmd := newInitiativeUnlinkCmd()
@@ -353,7 +353,7 @@ func TestInitiativeUnlinkAll(t *testing.T) {
 
 	// Re-open backend to verify
 	backend = createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Verify all tasks are unlinked
 	reloadedTask1, _ := backend.LoadTask("TASK-001")
@@ -376,7 +376,7 @@ func TestInitiativeUnlinkAll(t *testing.T) {
 func TestInitiativeLinkSkipsAlreadyLinkedToOther(t *testing.T) {
 	tmpDir := withInitiativeTestDir(t)
 	backend := createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create two initiatives
 	init1 := initiative.New("INIT-001", "First Initiative")
@@ -403,7 +403,7 @@ func TestInitiativeLinkSkipsAlreadyLinkedToOther(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Run link command to link both tasks to INIT-001
 	cmd := newInitiativeLinkCmd()
@@ -414,7 +414,7 @@ func TestInitiativeLinkSkipsAlreadyLinkedToOther(t *testing.T) {
 
 	// Re-open backend to verify
 	backend = createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// TASK-001 should still be linked to INIT-002 (skipped)
 	reloadedTask1, _ := backend.LoadTask("TASK-001")
@@ -434,7 +434,7 @@ func TestInitiativeLinkFixesPartialLink(t *testing.T) {
 	// the initiative's task list. The link command should add it to the list.
 	tmpDir := withInitiativeTestDir(t)
 	backend := createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create initiative WITHOUT any tasks
 	init := initiative.New("INIT-001", "Test Initiative")
@@ -458,7 +458,7 @@ func TestInitiativeLinkFixesPartialLink(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Run link command - should add task to initiative despite having initiative_id
 	cmd := newInitiativeLinkCmd()
@@ -469,7 +469,7 @@ func TestInitiativeLinkFixesPartialLink(t *testing.T) {
 
 	// Re-open backend to verify
 	backend = createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Verify task is now in the initiative's task list
 	reloadedInit, err := backend.LoadInitiative("INIT-001")
@@ -489,7 +489,7 @@ func TestInitiativeLinkSkipsFullyLinkedTask(t *testing.T) {
 	// AND in the initiative's task list) is correctly skipped.
 	tmpDir := withInitiativeTestDir(t)
 	backend := createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create initiative with TASK-001 already in the list
 	init := initiative.New("INIT-001", "Test Initiative")
@@ -512,7 +512,7 @@ func TestInitiativeLinkSkipsFullyLinkedTask(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Run link command - should skip TASK-001 and link TASK-002
 	cmd := newInitiativeLinkCmd()
@@ -523,7 +523,7 @@ func TestInitiativeLinkSkipsFullyLinkedTask(t *testing.T) {
 
 	// Re-open backend to verify
 	backend = createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Verify initiative has 2 tasks now
 	reloadedInit, err := backend.LoadInitiative("INIT-001")
@@ -545,7 +545,7 @@ func TestInitiativeLinkPatternFixesPartialLink(t *testing.T) {
 	// Tests that --all-matching also fixes partial links
 	tmpDir := withInitiativeTestDir(t)
 	backend := createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create initiative WITHOUT any tasks
 	init := initiative.New("INIT-001", "Test Initiative")
@@ -561,7 +561,7 @@ func TestInitiativeLinkPatternFixesPartialLink(t *testing.T) {
 	}
 
 	// Close backend before running command
-	backend.Close()
+	_ = backend.Close()
 
 	// Run link command with pattern matching
 	cmd := newInitiativeLinkCmd()
@@ -572,7 +572,7 @@ func TestInitiativeLinkPatternFixesPartialLink(t *testing.T) {
 
 	// Re-open backend to verify
 	backend = createTestBackendInDir(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Verify task is now in the initiative's task list
 	reloadedInit, err := backend.LoadInitiative("INIT-001")

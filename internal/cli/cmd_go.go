@@ -70,7 +70,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			// Load config
 			cfg, err := config.Load()

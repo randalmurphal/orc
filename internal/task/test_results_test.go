@@ -282,7 +282,7 @@ func TestGetScreenshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetScreenshot() error = %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	if screenshot.Filename != "test.png" {
 		t.Errorf("Filename = %q, want %q", screenshot.Filename, "test.png")
@@ -294,7 +294,7 @@ func TestGetScreenshot(t *testing.T) {
 
 	// Read and verify content
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(reader)
+	_, _ = buf.ReadFrom(reader)
 	if !bytes.Equal(buf.Bytes(), content) {
 		t.Error("Read content does not match")
 	}
@@ -458,10 +458,10 @@ func TestGetHTMLReport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetHTMLReport() error = %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(reader)
+	_, _ = buf.ReadFrom(reader)
 	if !bytes.Equal(buf.Bytes(), content) {
 		t.Error("Read content does not match")
 	}
@@ -502,10 +502,10 @@ func TestGetTrace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetTrace() error = %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(reader)
+	_, _ = buf.ReadFrom(reader)
 	if !bytes.Equal(buf.Bytes(), content) {
 		t.Error("Read content does not match")
 	}

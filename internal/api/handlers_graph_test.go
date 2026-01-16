@@ -200,7 +200,7 @@ func TestHandleGetInitiativeDependencyGraph(t *testing.T) {
 	}
 
 	// Close backend before creating server
-	backend.Close()
+	_ = backend.Close()
 
 	// Create server
 	cfg := &Config{
@@ -272,7 +272,7 @@ func TestHandleGetTasksDependencyGraph(t *testing.T) {
 	}
 
 	// Close backend before creating server
-	backend.Close()
+	_ = backend.Close()
 
 	// Create server
 	cfg := &Config{

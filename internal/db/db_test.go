@@ -14,7 +14,7 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if db.Path() != dbPath {
 		t.Errorf("Path() = %q, want %q", db.Path(), dbPath)
@@ -38,7 +38,7 @@ func TestOpen_CreatesParentDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	db.Close()
+	_ = db.Close()
 }
 
 func TestMigrate(t *testing.T) {
@@ -49,7 +49,7 @@ func TestMigrate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Migrate global schema
 	if err := db.Migrate("global"); err != nil {
@@ -76,7 +76,7 @@ func TestMigrate_Project(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate project failed: %v", err)
@@ -101,7 +101,7 @@ func TestGlobalDB_Projects(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("global"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -182,7 +182,7 @@ func TestGlobalDB_CostTracking(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("global"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -234,7 +234,7 @@ func TestProjectDB_Detection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -281,7 +281,7 @@ func TestProjectDB_Tasks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -344,8 +344,12 @@ func TestProjectDB_Tasks(t *testing.T) {
 	// Add more tasks and test filtering
 	task2 := &Task{ID: "TASK-002", Title: "Task 2", Status: "completed", CreatedAt: now}
 	task3 := &Task{ID: "TASK-003", Title: "Task 3", Status: "running", CreatedAt: now}
-	pdb.SaveTask(task2)
-	pdb.SaveTask(task3)
+	if err := pdb.SaveTask(task2); err != nil {
+		t.Fatalf("SaveTask(task2) failed: %v", err)
+	}
+	if err := pdb.SaveTask(task3); err != nil {
+		t.Fatalf("SaveTask(task3) failed: %v", err)
+	}
 
 	// Filter by status
 	running, _, _ := pdb.ListTasks(ListOpts{Status: "running"})
@@ -378,7 +382,7 @@ func TestProjectDB_Phases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -388,7 +392,9 @@ func TestProjectDB_Phases(t *testing.T) {
 
 	// Create task first
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	if err := pdb.SaveTask(task); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
 
 	// Save phases
 	now := time.Now()
@@ -435,7 +441,7 @@ func TestProjectDB_Transcripts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -445,7 +451,9 @@ func TestProjectDB_Transcripts(t *testing.T) {
 
 	// Create task
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	if err := pdb.SaveTask(task); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
 
 	// Add transcripts
 	transcripts := []Transcript{
@@ -481,7 +489,7 @@ func TestProjectDB_TranscriptSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -491,7 +499,9 @@ func TestProjectDB_TranscriptSearch(t *testing.T) {
 
 	// Create task and transcripts
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	if err := pdb.SaveTask(task); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
 
 	transcripts := []Transcript{
 		{TaskID: "TASK-001", Phase: "implement", Iteration: 1, Role: "assistant", Content: "Fixed the authentication bug in login handler"},
@@ -500,7 +510,9 @@ func TestProjectDB_TranscriptSearch(t *testing.T) {
 	}
 
 	for i := range transcripts {
-		pdb.AddTranscript(&transcripts[i])
+		if err := pdb.AddTranscript(&transcripts[i]); err != nil {
+			t.Fatalf("AddTranscript failed: %v", err)
+		}
 	}
 
 	// Search for "authentication"
@@ -530,7 +542,7 @@ func TestProjectDB_CascadeDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -540,11 +552,17 @@ func TestProjectDB_CascadeDelete(t *testing.T) {
 
 	// Create task with phases and transcripts
 	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
-	pdb.SaveTask(task)
+	if err := pdb.SaveTask(task); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
 
 	now := time.Now()
-	pdb.SavePhase(&Phase{TaskID: "TASK-001", PhaseID: "implement", Status: "completed", StartedAt: &now})
-	pdb.AddTranscript(&Transcript{TaskID: "TASK-001", Phase: "implement", Content: "Test content"})
+	if err := pdb.SavePhase(&Phase{TaskID: "TASK-001", PhaseID: "implement", Status: "completed", StartedAt: &now}); err != nil {
+		t.Fatalf("SavePhase failed: %v", err)
+	}
+	if err := pdb.AddTranscript(&Transcript{TaskID: "TASK-001", Phase: "implement", Content: "Test content"}); err != nil {
+		t.Fatalf("AddTranscript failed: %v", err)
+	}
 
 	// Delete task - should cascade
 	if err := pdb.DeleteTask("TASK-001"); err != nil {
@@ -572,7 +590,7 @@ func TestProjectDB_Initiatives(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -622,7 +640,9 @@ func TestProjectDB_Initiatives(t *testing.T) {
 
 	// List initiatives
 	init2 := &Initiative{ID: "INIT-002", Title: "API Refactor", Status: "draft"}
-	pdb.SaveInitiative(init2)
+	if err := pdb.SaveInitiative(init2); err != nil {
+		t.Fatalf("SaveInitiative failed: %v", err)
+	}
 
 	initiatives, err := pdb.ListInitiatives(ListOpts{})
 	if err != nil {
@@ -657,7 +677,7 @@ func TestProjectDB_InitiativeDecisions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -667,7 +687,9 @@ func TestProjectDB_InitiativeDecisions(t *testing.T) {
 
 	// Create initiative first
 	init := &Initiative{ID: "INIT-001", Title: "Test", Status: "draft"}
-	pdb.SaveInitiative(init)
+	if err := pdb.SaveInitiative(init); err != nil {
+		t.Fatalf("SaveInitiative failed: %v", err)
+	}
 
 	// Add decisions
 	dec1 := &InitiativeDecision{
@@ -690,7 +712,9 @@ func TestProjectDB_InitiativeDecisions(t *testing.T) {
 		DecidedBy:    "RM",
 		DecidedAt:    time.Now(),
 	}
-	pdb.AddInitiativeDecision(dec2)
+	if err := pdb.AddInitiativeDecision(dec2); err != nil {
+		t.Fatalf("AddInitiativeDecision failed: %v", err)
+	}
 
 	// Get decisions
 	decisions, err := pdb.GetInitiativeDecisions("INIT-001")
@@ -713,7 +737,7 @@ func TestProjectDB_InitiativeTasks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -723,19 +747,31 @@ func TestProjectDB_InitiativeTasks(t *testing.T) {
 
 	// Create initiative
 	init := &Initiative{ID: "INIT-001", Title: "Test", Status: "draft"}
-	pdb.SaveInitiative(init)
+	if err := pdb.SaveInitiative(init); err != nil {
+		t.Fatalf("SaveInitiative failed: %v", err)
+	}
 
 	// Create tasks
-	pdb.SaveTask(&Task{ID: "TASK-001", Title: "Task 1", Status: "pending", CreatedAt: time.Now()})
-	pdb.SaveTask(&Task{ID: "TASK-002", Title: "Task 2", Status: "pending", CreatedAt: time.Now()})
-	pdb.SaveTask(&Task{ID: "TASK-003", Title: "Task 3", Status: "pending", CreatedAt: time.Now()})
+	if err := pdb.SaveTask(&Task{ID: "TASK-001", Title: "Task 1", Status: "pending", CreatedAt: time.Now()}); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
+	if err := pdb.SaveTask(&Task{ID: "TASK-002", Title: "Task 2", Status: "pending", CreatedAt: time.Now()}); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
+	if err := pdb.SaveTask(&Task{ID: "TASK-003", Title: "Task 3", Status: "pending", CreatedAt: time.Now()}); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
 
 	// Link tasks to initiative
 	if err := pdb.AddTaskToInitiative("INIT-001", "TASK-001", 1); err != nil {
 		t.Fatalf("AddTaskToInitiative failed: %v", err)
 	}
-	pdb.AddTaskToInitiative("INIT-001", "TASK-003", 2)
-	pdb.AddTaskToInitiative("INIT-001", "TASK-002", 3)
+	if err := pdb.AddTaskToInitiative("INIT-001", "TASK-003", 2); err != nil {
+		t.Fatalf("AddTaskToInitiative failed: %v", err)
+	}
+	if err := pdb.AddTaskToInitiative("INIT-001", "TASK-002", 3); err != nil {
+		t.Fatalf("AddTaskToInitiative failed: %v", err)
+	}
 
 	// Get tasks in order
 	taskIDs, err := pdb.GetInitiativeTasks("INIT-001")
@@ -750,7 +786,7 @@ func TestProjectDB_InitiativeTasks(t *testing.T) {
 	}
 
 	// Update sequence
-	pdb.AddTaskToInitiative("INIT-001", "TASK-002", 0) // Move to first
+	_ = pdb.AddTaskToInitiative("INIT-001", "TASK-002", 0) // Move to first
 	taskIDs2, _ := pdb.GetInitiativeTasks("INIT-001")
 	if taskIDs2[0] != "TASK-002" {
 		t.Errorf("first task after reorder = %s, want TASK-002", taskIDs2[0])
@@ -774,7 +810,7 @@ func TestProjectDB_TaskDependencies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -783,16 +819,16 @@ func TestProjectDB_TaskDependencies(t *testing.T) {
 	pdb := &ProjectDB{DB: db}
 
 	// Create tasks
-	pdb.SaveTask(&Task{ID: "TASK-001", Title: "Task 1", Status: "pending", CreatedAt: time.Now()})
-	pdb.SaveTask(&Task{ID: "TASK-002", Title: "Task 2", Status: "pending", CreatedAt: time.Now()})
-	pdb.SaveTask(&Task{ID: "TASK-003", Title: "Task 3", Status: "pending", CreatedAt: time.Now()})
+	_ = pdb.SaveTask(&Task{ID: "TASK-001", Title: "Task 1", Status: "pending", CreatedAt: time.Now()})
+	_ = pdb.SaveTask(&Task{ID: "TASK-002", Title: "Task 2", Status: "pending", CreatedAt: time.Now()})
+	_ = pdb.SaveTask(&Task{ID: "TASK-003", Title: "Task 3", Status: "pending", CreatedAt: time.Now()})
 
 	// Add dependencies: TASK-002 depends on TASK-001, TASK-003 depends on TASK-001 and TASK-002
 	if err := pdb.AddTaskDependency("TASK-002", "TASK-001"); err != nil {
 		t.Fatalf("AddTaskDependency failed: %v", err)
 	}
-	pdb.AddTaskDependency("TASK-003", "TASK-001")
-	pdb.AddTaskDependency("TASK-003", "TASK-002")
+	_ = pdb.AddTaskDependency("TASK-003", "TASK-001")
+	_ = pdb.AddTaskDependency("TASK-003", "TASK-002")
 
 	// Get dependencies for TASK-003
 	deps, err := pdb.GetTaskDependencies("TASK-003")
@@ -831,7 +867,7 @@ func TestProjectDB_TaskDependencies(t *testing.T) {
 	}
 
 	// Test duplicate dependency is ignored
-	pdb.AddTaskDependency("TASK-002", "TASK-001") // Already exists
+	_ = pdb.AddTaskDependency("TASK-002", "TASK-001") // Already exists
 	deps4, _ := pdb.GetTaskDependencies("TASK-002")
 	if len(deps4) != 1 {
 		t.Errorf("len(deps) after duplicate = %d, want 1", len(deps4))
@@ -846,7 +882,7 @@ func TestProjectDB_InitiativeDependencies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -855,16 +891,16 @@ func TestProjectDB_InitiativeDependencies(t *testing.T) {
 	pdb := &ProjectDB{DB: db}
 
 	// Create initiatives
-	pdb.SaveInitiative(&Initiative{ID: "INIT-001", Title: "Build System", Status: "draft"})
-	pdb.SaveInitiative(&Initiative{ID: "INIT-002", Title: "React Migration", Status: "draft"})
-	pdb.SaveInitiative(&Initiative{ID: "INIT-003", Title: "Component Library", Status: "draft"})
+	_ = pdb.SaveInitiative(&Initiative{ID: "INIT-001", Title: "Build System", Status: "draft"})
+	_ = pdb.SaveInitiative(&Initiative{ID: "INIT-002", Title: "React Migration", Status: "draft"})
+	_ = pdb.SaveInitiative(&Initiative{ID: "INIT-003", Title: "Component Library", Status: "draft"})
 
 	// Add dependencies: INIT-002 depends on INIT-001, INIT-003 depends on INIT-001 and INIT-002
 	if err := pdb.AddInitiativeDependency("INIT-002", "INIT-001"); err != nil {
 		t.Fatalf("AddInitiativeDependency failed: %v", err)
 	}
-	pdb.AddInitiativeDependency("INIT-003", "INIT-001")
-	pdb.AddInitiativeDependency("INIT-003", "INIT-002")
+	_ = pdb.AddInitiativeDependency("INIT-003", "INIT-001")
+	_ = pdb.AddInitiativeDependency("INIT-003", "INIT-002")
 
 	// Get dependencies for INIT-003
 	deps, err := pdb.GetInitiativeDependencies("INIT-003")
@@ -903,7 +939,7 @@ func TestProjectDB_InitiativeDependencies(t *testing.T) {
 	}
 
 	// Test duplicate dependency is ignored
-	pdb.AddInitiativeDependency("INIT-002", "INIT-001") // Already exists
+	_ = pdb.AddInitiativeDependency("INIT-002", "INIT-001") // Already exists
 	deps4, _ := pdb.GetInitiativeDependencies("INIT-002")
 	if len(deps4) != 1 {
 		t.Errorf("len(deps) after duplicate = %d, want 1", len(deps4))
@@ -918,7 +954,7 @@ func TestProjectDB_InitiativeBatchLoading(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
@@ -927,21 +963,21 @@ func TestProjectDB_InitiativeBatchLoading(t *testing.T) {
 	pdb := &ProjectDB{DB: db}
 
 	// Create initiatives
-	pdb.SaveInitiative(&Initiative{ID: "INIT-001", Title: "Auth System", Status: "draft"})
-	pdb.SaveInitiative(&Initiative{ID: "INIT-002", Title: "API Gateway", Status: "active"})
+	_ = pdb.SaveInitiative(&Initiative{ID: "INIT-001", Title: "Auth System", Status: "draft"})
+	_ = pdb.SaveInitiative(&Initiative{ID: "INIT-002", Title: "API Gateway", Status: "active"})
 
 	// Create tasks
-	pdb.SaveTask(&Task{ID: "TASK-001", Title: "Task 1", Status: "running", CreatedAt: time.Now()})
-	pdb.SaveTask(&Task{ID: "TASK-002", Title: "Task 2", Status: "completed", CreatedAt: time.Now()})
-	pdb.SaveTask(&Task{ID: "TASK-003", Title: "Task 3", Status: "pending", CreatedAt: time.Now()})
+	_ = pdb.SaveTask(&Task{ID: "TASK-001", Title: "Task 1", Status: "running", CreatedAt: time.Now()})
+	_ = pdb.SaveTask(&Task{ID: "TASK-002", Title: "Task 2", Status: "completed", CreatedAt: time.Now()})
+	_ = pdb.SaveTask(&Task{ID: "TASK-003", Title: "Task 3", Status: "pending", CreatedAt: time.Now()})
 
 	// Link tasks to initiatives
-	pdb.AddTaskToInitiative("INIT-001", "TASK-001", 1)
-	pdb.AddTaskToInitiative("INIT-001", "TASK-002", 2)
-	pdb.AddTaskToInitiative("INIT-002", "TASK-003", 1)
+	_ = pdb.AddTaskToInitiative("INIT-001", "TASK-001", 1)
+	_ = pdb.AddTaskToInitiative("INIT-001", "TASK-002", 2)
+	_ = pdb.AddTaskToInitiative("INIT-002", "TASK-003", 1)
 
 	// Add decisions
-	pdb.AddInitiativeDecision(&InitiativeDecision{
+	_ = pdb.AddInitiativeDecision(&InitiativeDecision{
 		ID:           "DEC-001",
 		InitiativeID: "INIT-001",
 		Decision:     "Use JWT",
@@ -949,7 +985,7 @@ func TestProjectDB_InitiativeBatchLoading(t *testing.T) {
 		DecidedBy:    "RM",
 		DecidedAt:    time.Now(),
 	})
-	pdb.AddInitiativeDecision(&InitiativeDecision{
+	_ = pdb.AddInitiativeDecision(&InitiativeDecision{
 		ID:           "DEC-002",
 		InitiativeID: "INIT-001",
 		Decision:     "RSA256",
@@ -957,7 +993,7 @@ func TestProjectDB_InitiativeBatchLoading(t *testing.T) {
 		DecidedBy:    "RM",
 		DecidedAt:    time.Now(),
 	})
-	pdb.AddInitiativeDecision(&InitiativeDecision{
+	_ = pdb.AddInitiativeDecision(&InitiativeDecision{
 		ID:           "DEC-003",
 		InitiativeID: "INIT-002",
 		Decision:     "Kong Gateway",
@@ -967,7 +1003,7 @@ func TestProjectDB_InitiativeBatchLoading(t *testing.T) {
 	})
 
 	// Add dependencies
-	pdb.AddInitiativeDependency("INIT-002", "INIT-001") // INIT-002 depends on INIT-001
+	_ = pdb.AddInitiativeDependency("INIT-002", "INIT-001") // INIT-002 depends on INIT-001
 
 	// Test GetAllInitiativeDecisions
 	t.Run("GetAllInitiativeDecisions", func(t *testing.T) {
@@ -1048,7 +1084,7 @@ func TestProjectDB_InitiativeBatchLoading_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Migrate("project"); err != nil {
 		t.Fatalf("Migrate failed: %v", err)

@@ -34,7 +34,7 @@ func (s *Server) handleListTaskComments(w http.ResponseWriter, r *http.Request) 
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Filter by author_type if provided
 	authorType := r.URL.Query().Get("author_type")
@@ -96,7 +96,7 @@ func (s *Server) handleCreateTaskComment(w http.ResponseWriter, r *http.Request)
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Ensure task exists in database for foreign key constraint
 	if err := s.syncTaskToDB(pdb, taskID); err != nil {
@@ -134,7 +134,7 @@ func (s *Server) handleGetTaskComment(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	comment, err := pdb.GetTaskComment(commentID)
 	if err != nil {
@@ -162,7 +162,7 @@ func (s *Server) handleUpdateTaskComment(w http.ResponseWriter, r *http.Request)
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	comment, err := pdb.GetTaskComment(commentID)
 	if err != nil {
@@ -207,7 +207,7 @@ func (s *Server) handleDeleteTaskComment(w http.ResponseWriter, r *http.Request)
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	if err := pdb.DeleteTaskComment(commentID); err != nil {
 		s.jsonError(w, "failed to delete task comment: "+err.Error(), http.StatusInternalServerError)
@@ -230,7 +230,7 @@ func (s *Server) handleGetTaskCommentStats(w http.ResponseWriter, r *http.Reques
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	stats, err := pdb.GetTaskCommentStats(taskID)
 	if err != nil {

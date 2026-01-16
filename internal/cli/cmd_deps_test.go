@@ -29,7 +29,7 @@ func withDepsTestDir(t *testing.T) (string, storage.Backend) {
 		t.Fatalf("create backend: %v", err)
 	}
 	t.Cleanup(func() {
-		backend.Close()
+		_ = backend.Close()
 	})
 
 	origDir, err := os.Getwd()

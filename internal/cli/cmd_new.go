@@ -78,7 +78,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			title := args[0]
 			weight, _ := cmd.Flags().GetString("weight")

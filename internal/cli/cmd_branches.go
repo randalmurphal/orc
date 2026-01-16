@@ -66,7 +66,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			opts := storage.BranchListOpts{
 				Type:   storage.BranchType(branchType),
@@ -79,13 +79,13 @@ Example:
 			}
 
 			if len(branches) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No tracked branches found.")
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No tracked branches found.")
 				return nil
 			}
 
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "BRANCH\tTYPE\tOWNER\tSTATUS\tLAST ACTIVITY")
-			fmt.Fprintln(w, "------\t----\t-----\t------\t-------------")
+			_, _ = fmt.Fprintln(w, "BRANCH\tTYPE\tOWNER\tSTATUS\tLAST ACTIVITY")
+			_, _ = fmt.Fprintln(w, "------\t----\t-----\t------\t-------------")
 
 			for _, b := range branches {
 				lastActivity := formatTimeAgo(b.LastActivity)
@@ -93,10 +93,10 @@ Example:
 				if owner == "" {
 					owner = "-"
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 					b.Name, b.Type, owner, b.Status, lastActivity)
 			}
-			w.Flush()
+			_ = w.Flush()
 
 			return nil
 		},
@@ -135,7 +135,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			projectRoot, err := config.FindProjectRoot()
 			if err != nil {
@@ -161,24 +161,24 @@ Example:
 
 			toClean := append(merged, orphaned...)
 			if len(toClean) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No branches to clean up.")
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No branches to clean up.")
 				return nil
 			}
 
 			// Show what will be deleted
-			fmt.Fprintln(cmd.OutOrStdout(), "Branches to clean up:")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Branches to clean up:")
 			for _, b := range toClean {
-				fmt.Fprintf(cmd.OutOrStdout(), "  %s (%s)\n", b.Name, b.Status)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %s (%s)\n", b.Name, b.Status)
 			}
-			fmt.Fprintln(cmd.OutOrStdout())
+			_, _ = fmt.Fprintln(cmd.OutOrStdout())
 
 			// Confirm unless --force
 			if !force && !quiet {
-				fmt.Fprint(cmd.OutOrStdout(), "Delete these branches? [y/N]: ")
+				_, _ = fmt.Fprint(cmd.OutOrStdout(), "Delete these branches? [y/N]: ")
 				var response string
-				fmt.Scanln(&response)
+				_, _ = fmt.Scanln(&response)
 				if !strings.HasPrefix(strings.ToLower(response), "y") {
-					fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
 					return nil
 				}
 			}
@@ -190,21 +190,21 @@ Example:
 				exists, _ := gitOps.BranchExists(b.Name)
 				if exists {
 					if err := gitOps.DeleteBranch(b.Name, false); err != nil {
-						fmt.Fprintf(cmd.OutOrStdout(), "Warning: failed to delete git branch %s: %v\n", b.Name, err)
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Warning: failed to delete git branch %s: %v\n", b.Name, err)
 						// Continue to remove from registry anyway
 					} else {
-						fmt.Fprintf(cmd.OutOrStdout(), "Deleted git branch: %s\n", b.Name)
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Deleted git branch: %s\n", b.Name)
 					}
 				}
 
 				// Remove from registry
 				if err := backend.DeleteBranch(b.Name); err != nil {
-					fmt.Fprintf(cmd.OutOrStdout(), "Warning: failed to remove %s from registry: %v\n", b.Name, err)
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Warning: failed to remove %s from registry: %v\n", b.Name, err)
 				}
 				deleted++
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "\nCleaned up %d branch(es).\n", deleted)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nCleaned up %d branch(es).\n", deleted)
 			return nil
 		},
 	}
@@ -240,7 +240,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			projectRoot, err := config.FindProjectRoot()
 			if err != nil {
@@ -267,9 +267,9 @@ Example:
 				exists, _ := gitOps.BranchExists(b.Name)
 				if !exists {
 					// Remove from registry
-					fmt.Fprintf(cmd.OutOrStdout(), "Removing invalid entry: %s (branch no longer exists)\n", b.Name)
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Removing invalid entry: %s (branch no longer exists)\n", b.Name)
 					if err := backend.DeleteBranch(b.Name); err != nil {
-						fmt.Fprintf(cmd.OutOrStdout(), "Warning: failed to remove %s: %v\n", b.Name, err)
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Warning: failed to remove %s: %v\n", b.Name, err)
 					}
 					removedCount++
 					continue
@@ -277,16 +277,16 @@ Example:
 
 				// Check for staleness
 				if b.LastActivity.Before(staleThreshold) {
-					fmt.Fprintf(cmd.OutOrStdout(), "Marking stale: %s (inactive since %s)\n",
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Marking stale: %s (inactive since %s)\n",
 						b.Name, b.LastActivity.Format("2006-01-02"))
 					if err := backend.UpdateBranchStatus(b.Name, storage.BranchStatusStale); err != nil {
-						fmt.Fprintf(cmd.OutOrStdout(), "Warning: failed to mark %s as stale: %v\n", b.Name, err)
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Warning: failed to mark %s as stale: %v\n", b.Name, err)
 					}
 					staleCount++
 				}
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "\nPruned: %d stale, %d removed.\n", staleCount, removedCount)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nPruned: %d stale, %d removed.\n", staleCount, removedCount)
 			return nil
 		},
 	}

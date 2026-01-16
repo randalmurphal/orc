@@ -44,7 +44,7 @@ func createFinalizeTestTask(t *testing.T, tmpDir, id string, status task.Status)
 	if err != nil {
 		t.Fatalf("failed to create backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	tk := task.New(id, "Test task for finalize")
 	tk.Status = status

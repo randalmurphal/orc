@@ -39,7 +39,7 @@ func (s *Server) handleListSubtasks(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	subtasks, err := pdb.ListAllSubtasks(taskID)
 	if err != nil {
@@ -68,7 +68,7 @@ func (s *Server) handleListPendingSubtasks(w http.ResponseWriter, r *http.Reques
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	subtasks, err := pdb.ListPendingSubtasks(taskID)
 	if err != nil {
@@ -106,7 +106,7 @@ func (s *Server) handleCreateSubtask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Check pending count against config limit
 	cfg, _ := config.Load()
@@ -141,7 +141,7 @@ func (s *Server) handleGetSubtask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	subtask, err := pdb.GetSubtask(id)
 	if err != nil {
@@ -171,7 +171,7 @@ func (s *Server) handleApproveSubtask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	subtask, err := pdb.ApproveSubtask(id, req.ApprovedBy)
 	if err != nil {
@@ -197,7 +197,7 @@ func (s *Server) handleRejectSubtask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	if err := pdb.RejectSubtask(id, req.Reason); err != nil {
 		s.jsonError(w, "failed to reject subtask: "+err.Error(), http.StatusBadRequest)
@@ -216,7 +216,7 @@ func (s *Server) handleDeleteSubtask(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	if err := pdb.DeleteSubtask(id); err != nil {
 		s.jsonError(w, "failed to delete subtask: "+err.Error(), http.StatusInternalServerError)

@@ -46,7 +46,7 @@ Use --force to resume a task even if it appears to still be running.`,
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			id := args[0]
 

@@ -104,9 +104,9 @@ func (h *WSHandler) readPump(c *wsConnection) {
 	}()
 
 	c.conn.SetReadLimit(maxMessageSize)
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error {
-		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
 
@@ -128,7 +128,7 @@ func (h *WSHandler) writePump(c *wsConnection) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.conn.Close()
+		_ = c.conn.Close()
 	}()
 
 	for {
@@ -136,15 +136,15 @@ func (h *WSHandler) writePump(c *wsConnection) {
 		case <-c.done:
 			return
 		case message, ok := <-c.send:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// Channel closed
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
 			// Send message as individual WebSocket frame (not batched to avoid invalid JSON)
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				return
 			}
@@ -152,13 +152,13 @@ func (h *WSHandler) writePump(c *wsConnection) {
 			// Send any queued messages as separate frames
 			n := len(c.send)
 			for i := 0; i < n; i++ {
-				c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+				_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 				if err := c.conn.WriteMessage(websocket.TextMessage, <-c.send); err != nil {
 					return
 				}
 			}
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -329,7 +329,7 @@ func (h *WSHandler) closeConnection(c *wsConnection) {
 		close(c.done)
 	}
 
-	c.conn.Close()
+	_ = c.conn.Close()
 }
 
 // sendJSON sends a JSON message to a connection.

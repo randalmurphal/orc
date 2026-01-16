@@ -158,7 +158,7 @@ func TestSequenceStore_SetSequence_SoloMode(t *testing.T) {
 func TestTaskIDGenerator_SoloMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
-	os.MkdirAll(tasksDir, 0755)
+	_ = os.MkdirAll(tasksDir, 0755)
 
 	gen := NewTaskIDGenerator(ModeSolo, "", WithTasksDir(tasksDir))
 
@@ -171,7 +171,7 @@ func TestTaskIDGenerator_SoloMode(t *testing.T) {
 	}
 
 	// Create task directory to simulate task creation
-	os.MkdirAll(filepath.Join(tasksDir, "TASK-001"), 0755)
+	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-001"), 0755)
 
 	id2, err := gen.Next()
 	if err != nil {
@@ -186,7 +186,7 @@ func TestTaskIDGenerator_P2PMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
 	seqPath := filepath.Join(tmpDir, ".orc", "local", "sequences.yaml")
-	os.MkdirAll(tasksDir, 0755)
+	_ = os.MkdirAll(tasksDir, 0755)
 
 	store := NewSequenceStore(seqPath)
 	gen := NewTaskIDGenerator(ModeP2P, "AM", WithSequenceStore(store), WithTasksDir(tasksDir))
@@ -250,11 +250,11 @@ func TestTaskIDGenerator_MultiplePrefixes(t *testing.T) {
 func TestTaskIDGenerator_FallbackToDirectoryScan(t *testing.T) {
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
-	os.MkdirAll(tasksDir, 0755)
+	_ = os.MkdirAll(tasksDir, 0755)
 
 	// Create existing task directories
-	os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-001"), 0755)
-	os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-005"), 0755)
+	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-001"), 0755)
+	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-005"), 0755)
 
 	// Generator without sequence store falls back to directory scan
 	gen := NewTaskIDGenerator(ModeP2P, "AM", WithTasksDir(tasksDir))
@@ -272,11 +272,11 @@ func TestTaskIDGenerator_ScanExisting(t *testing.T) {
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
 	seqPath := filepath.Join(tmpDir, "sequences.yaml")
-	os.MkdirAll(tasksDir, 0755)
+	_ = os.MkdirAll(tasksDir, 0755)
 
 	// Create existing task directories that are ahead of sequence store
-	os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-001"), 0755)
-	os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-010"), 0755)
+	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-001"), 0755)
+	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-010"), 0755)
 
 	store := NewSequenceStore(seqPath)
 	gen := NewTaskIDGenerator(ModeP2P, "AM",
@@ -298,10 +298,10 @@ func TestTaskIDGenerator_ScanExisting_EfficientCatchUp(t *testing.T) {
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
 	seqPath := filepath.Join(tmpDir, "sequences.yaml")
-	os.MkdirAll(tasksDir, 0755)
+	_ = os.MkdirAll(tasksDir, 0755)
 
 	// Create existing task far ahead (e.g., TASK-AM-100)
-	os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-100"), 0755)
+	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-100"), 0755)
 
 	store := NewSequenceStore(seqPath)
 	gen := NewTaskIDGenerator(ModeP2P, "AM",
@@ -326,7 +326,7 @@ func TestTaskIDGenerator_ScanExisting_EfficientCatchUp(t *testing.T) {
 	}
 
 	// Simulate task creation by adding the directory
-	os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-101"), 0755)
+	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-101"), 0755)
 
 	// Next call should return 102 (101 from NextSequence, but 101 exists, so catches up)
 	id2, err := gen.Next()

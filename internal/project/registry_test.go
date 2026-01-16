@@ -143,15 +143,17 @@ func TestGenerateID(t *testing.T) {
 
 func TestRegistrySave(t *testing.T) {
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpDir)
 
 	projectDir := filepath.Join(tmpDir, "test-project")
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
 
 	reg := &Registry{Projects: []Project{}}
-	reg.Register(projectDir)
+	if _, err := reg.Register(projectDir); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
 
 	err := reg.Save()
 	if err != nil {
@@ -166,16 +168,20 @@ func TestRegistrySave(t *testing.T) {
 
 func TestLoadRegistry(t *testing.T) {
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpDir)
 
 	projectDir := filepath.Join(tmpDir, "test-project")
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
 
 	reg := &Registry{Projects: []Project{}}
-	reg.Register(projectDir)
-	reg.Save()
+	if _, err := reg.Register(projectDir); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+	if err := reg.Save(); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
 
 	loadedReg, err := LoadRegistry()
 	if err != nil {
@@ -190,8 +196,8 @@ func TestLoadRegistry(t *testing.T) {
 func TestLoadRegistry_Empty(t *testing.T) {
 	tmpDir := t.TempDir()
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	reg, err := LoadRegistry()
 	if err != nil {
@@ -205,13 +211,15 @@ func TestLoadRegistry_Empty(t *testing.T) {
 
 func TestLoadRegistry_Invalid(t *testing.T) {
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpDir)
 
 	orcDir := filepath.Join(tmpDir, GlobalDir)
-	os.MkdirAll(orcDir, 0755)
-	os.WriteFile(filepath.Join(orcDir, RegistryFile), []byte("invalid: yaml: [broken"), 0644)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(orcDir, RegistryFile), []byte("invalid: yaml: [broken"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	_, err := LoadRegistry()
 	if err == nil {
@@ -222,8 +230,8 @@ func TestLoadRegistry_Invalid(t *testing.T) {
 func TestGlobalPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	path, err := GlobalPath()
 	if err != nil {
@@ -239,8 +247,8 @@ func TestGlobalPath(t *testing.T) {
 func TestRegistryPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	path, err := RegistryPath()
 	if err != nil {
@@ -255,12 +263,12 @@ func TestRegistryPath(t *testing.T) {
 
 func TestRegisterProject(t *testing.T) {
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpDir)
 
 	projectDir := filepath.Join(tmpDir, "my-project")
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
 
 	proj, err := RegisterProject(projectDir)
 	if err != nil {
@@ -279,17 +287,23 @@ func TestRegisterProject(t *testing.T) {
 
 func TestListProjects(t *testing.T) {
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpDir)
 
 	proj1Dir := filepath.Join(tmpDir, "project1")
 	proj2Dir := filepath.Join(tmpDir, "project2")
-	os.MkdirAll(proj1Dir, 0755)
-	os.MkdirAll(proj2Dir, 0755)
+	if err := os.MkdirAll(proj1Dir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.MkdirAll(proj2Dir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
 
-	RegisterProject(proj1Dir)
-	RegisterProject(proj2Dir)
+	if _, err := RegisterProject(proj1Dir); err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
+	if _, err := RegisterProject(proj2Dir); err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
 
 	projects, err := ListProjects()
 	if err != nil {
@@ -305,7 +319,9 @@ func TestRegister_File(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	filePath := filepath.Join(tmpDir, "not-a-dir")
-	os.WriteFile(filePath, []byte("content"), 0644)
+	if err := os.WriteFile(filePath, []byte("content"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	reg := &Registry{Projects: []Project{}}
 	_, err := reg.Register(filePath)
@@ -317,10 +333,10 @@ func TestRegister_File(t *testing.T) {
 func TestUnregister_ByPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectDir := filepath.Join(tmpDir, "test-project")
-	os.MkdirAll(projectDir, 0755)
+	_ = os.MkdirAll(projectDir, 0755)
 
 	reg := &Registry{Projects: []Project{}}
-	reg.Register(projectDir)
+	_, _ = reg.Register(projectDir)
 
 	err := reg.Unregister(projectDir)
 	if err != nil {
@@ -394,11 +410,11 @@ func TestDefaultProject_NotFound(t *testing.T) {
 func TestDefaultProject_Persistence(t *testing.T) {
 	tmpDir := t.TempDir()
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	projectDir := filepath.Join(tmpDir, "my-project")
-	os.MkdirAll(projectDir, 0755)
+	_ = os.MkdirAll(projectDir, 0755)
 
 	// Register and set default
 	proj, err := RegisterProject(projectDir)
@@ -425,8 +441,8 @@ func TestDefaultProject_Persistence(t *testing.T) {
 func TestDefaultProject_SetNonexistent(t *testing.T) {
 	tmpDir := t.TempDir()
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	err := SetDefaultProject("nonexistent-id")
 	if err == nil {

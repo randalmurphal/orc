@@ -34,7 +34,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("get backend: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			id := args[0]
 			phaseID, _ := cmd.Flags().GetString("phase")
@@ -71,12 +71,12 @@ Example:
 			s, err := backend.LoadState(id)
 			if err == nil && s != nil {
 				s.SkipPhase(phaseID, reason)
-				backend.SaveState(s)
+				_ = backend.SaveState(s)
 			} else {
 				// State might not exist, create new one
 				s = state.New(id)
 				s.SkipPhase(phaseID, reason)
-				backend.SaveState(s)
+				_ = backend.SaveState(s)
 			}
 
 			fmt.Printf("⊘ Phase %s skipped", phaseID)
@@ -90,6 +90,6 @@ Example:
 	}
 	cmd.Flags().String("phase", "", "phase to skip (required)")
 	cmd.Flags().StringP("reason", "r", "", "reason for skipping")
-	cmd.MarkFlagRequired("phase")
+	_ = cmd.MarkFlagRequired("phase")
 	return cmd
 }

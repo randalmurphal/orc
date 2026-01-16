@@ -29,11 +29,11 @@ func setupGitHubTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) 
 
 	// Create .orc directory with config that disables worktrees
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	_ = os.MkdirAll(orcDir, 0755)
 	configYAML := `worktree:
   enabled: false
 `
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
 
 	taskID = "TASK-GH-001"
 	startTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -89,7 +89,7 @@ func setupGitHubTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) 
 	}
 
 	// Close backend before applying opts and creating server
-	backend.Close()
+	_ = backend.Close()
 
 	// Apply optional setup functions
 	for _, opt := range opts {
@@ -114,7 +114,7 @@ func withReviewComments(comments []db.ReviewComment) func(*testing.T, string, st
 		if err != nil {
 			t.Fatalf("failed to open database: %v", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		// Task is already created by setupGitHubTestEnv, just add the review comments
 		for _, c := range comments {
@@ -222,7 +222,7 @@ func TestHandleAutoFixComment_StoresMetadata(t *testing.T) {
 
 	// Cancel any running tasks before test ends to avoid cleanup race
 	defer func() {
-		srv.cancelTask(taskID)
+		_, _ = srv.cancelTask(taskID)
 		time.Sleep(50 * time.Millisecond)
 	}()
 
@@ -271,14 +271,14 @@ func TestHandleAutoFixComment_UpdatesCompletedTaskStatus(t *testing.T) {
 
 	// Cancel any running tasks before test ends to avoid cleanup race
 	defer func() {
-		srv.cancelTask(taskID)
+		_, _ = srv.cancelTask(taskID)
 		time.Sleep(50 * time.Millisecond)
 	}()
 
 	// Set task to completed status first
 	tsk, _ := srv.Backend().LoadTask(taskID)
 	tsk.Status = task.StatusCompleted
-	srv.Backend().SaveTask(tsk)
+	_ = srv.Backend().SaveTask(tsk)
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/github/pr/comments/RC-status1/autofix", taskID), nil)
 	w := httptest.NewRecorder()
@@ -317,7 +317,7 @@ func TestHandleReplyToPRComment_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create task without branch via backend
 	taskID := "TASK-NOBRANCH"
@@ -333,7 +333,7 @@ func TestHandleReplyToPRComment_NoBranch(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -366,7 +366,7 @@ func TestHandleReplyToPRComment_EmptyBody(t *testing.T) {
 
 	// Verify error message mentions body
 	var errResp map[string]string
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp["error"] != "body is required" {
 		t.Errorf("expected error 'body is required', got %s", errResp["error"])
 	}
@@ -428,7 +428,7 @@ func TestHandleImportPRComments_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create task without branch via backend
 	taskID := "TASK-NOBRANCH2"
@@ -444,7 +444,7 @@ func TestHandleImportPRComments_NoBranch(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -477,7 +477,7 @@ func TestHandleListPRChecks_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create task without branch via backend
 	taskID := "TASK-NOBRANCH3"
@@ -493,7 +493,7 @@ func TestHandleListPRChecks_NoBranch(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -582,7 +582,7 @@ func TestHandleCreatePR_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create task without branch via backend
 	taskID := "TASK-NOBRANCH4"
@@ -598,7 +598,7 @@ func TestHandleCreatePR_NoBranch(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -658,7 +658,7 @@ func TestHandleGetPR_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create task without branch via backend
 	taskID := "TASK-NOBRANCH5"
@@ -674,7 +674,7 @@ func TestHandleGetPR_NoBranch(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -707,7 +707,7 @@ func TestHandleMergePR_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create task without branch via backend
 	taskID := "TASK-NOBRANCH6"
@@ -723,7 +723,7 @@ func TestHandleMergePR_NoBranch(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -756,7 +756,7 @@ func TestHandleSyncPRComments_NoBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create task without branch via backend
 	taskID := "TASK-NOBRANCH7"
@@ -772,7 +772,7 @@ func TestHandleSyncPRComments_NoBranch(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -950,7 +950,7 @@ func TestHandleAutoFixComment_LoadsPlanAndState(t *testing.T) {
 
 	// Cancel any running tasks before test ends to avoid cleanup race
 	defer func() {
-		srv.cancelTask(taskID)
+		_, _ = srv.cancelTask(taskID)
 		// Give goroutine time to exit
 		time.Sleep(50 * time.Millisecond)
 	}()
@@ -982,15 +982,6 @@ func TestHandleAutoFixComment_LoadsPlanAndState(t *testing.T) {
 }
 
 // === Integration Tests (require GitHub CLI) ===
-
-// Note: These tests require the `gh` CLI to be installed and authenticated.
-// They are skipped if gh auth fails.
-
-func skipIfNoGH(t *testing.T) {
-	t.Helper()
-	// This is a helper that would check for gh auth
-	// For now, we skip these tests by not including them
-}
 
 // === Response Type Tests ===
 
@@ -1166,7 +1157,7 @@ func TestHandleAutoFixComment_RegistersRunningTask(t *testing.T) {
 	// The task might have already completed (execution failed due to no Claude)
 	// so we just verify the response was correct
 	var resp autoFixResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.TaskID != taskID {
 		t.Errorf("expected task ID %s, got %s", taskID, resp.TaskID)
 	}

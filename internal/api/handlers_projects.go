@@ -456,7 +456,7 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
 			return
 		}
-		defer execBackend.Close()
+		defer func() { _ = execBackend.Close() }()
 
 		cfg := executor.ConfigFromOrc(s.orcConfig)
 		cfg.WorkDir = projectPath
@@ -629,7 +629,7 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
 			return
 		}
-		defer execBackend.Close()
+		defer func() { _ = execBackend.Close() }()
 
 		cfg := executor.ConfigFromOrc(s.orcConfig)
 		cfg.WorkDir = projectPath

@@ -29,7 +29,7 @@ func TestApplyDetectedSettings(t *testing.T) {
 worktree:
   enabled: true
 `
-	os.WriteFile(configPath, []byte(initial), 0644)
+	_ = os.WriteFile(configPath, []byte(initial), 0644)
 
 	detection := &detect.Detection{
 		Language:    detect.ProjectTypeGo,
@@ -168,7 +168,7 @@ func TestUpdateClaudeMD_Idempotent(t *testing.T) {
 
 Existing content.
 `
-	os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte(existing), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte(existing), 0644)
 
 	detection := &detect.Detection{Language: detect.ProjectTypeGo}
 
@@ -195,7 +195,7 @@ func TestUpdateClaudeMD_AppendToExisting(t *testing.T) {
 
 Content here.
 `
-	os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte(existing), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte(existing), 0644)
 
 	detection := &detect.Detection{Language: detect.ProjectTypeGo}
 

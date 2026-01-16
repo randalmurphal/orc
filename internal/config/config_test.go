@@ -218,7 +218,9 @@ func TestIsInitialized(t *testing.T) {
 	}
 
 	// Initialize
-	InitAt(tmpDir, false)
+	if err := InitAt(tmpDir, false); err != nil {
+		t.Fatalf("InitAt() failed: %v", err)
+	}
 
 	// Now initialized
 	if !IsInitializedAt(tmpDir) {
@@ -236,7 +238,7 @@ func TestRequireInit(t *testing.T) {
 	}
 
 	// Initialize
-	InitAt(tmpDir, false)
+	_ = InitAt(tmpDir, false)
 
 	// Should succeed after init
 	err = RequireInitAt(tmpDir)

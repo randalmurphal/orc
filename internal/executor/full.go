@@ -79,11 +79,6 @@ func WithFullBackend(b storage.Backend) FullExecutorOption {
 	return func(e *FullExecutor) { e.backend = b }
 }
 
-// getTargetBranch returns the target branch from config, defaulting to "main".
-func (e *FullExecutor) getTargetBranch() string {
-	return e.config.GetTargetBranch()
-}
-
 // NewFullExecutor creates a new full executor.
 func NewFullExecutor(mgr session.SessionManager, opts ...FullExecutorOption) *FullExecutor {
 	e := &FullExecutor{

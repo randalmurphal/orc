@@ -18,7 +18,7 @@ func setupTestRepo(t *testing.T) (string, func()) {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 
-	cleanup := func() { os.RemoveAll(dir) }
+	cleanup := func() { _ = os.RemoveAll(dir) }
 
 	// Initialize git repo
 	cmd := exec.Command("git", "init")

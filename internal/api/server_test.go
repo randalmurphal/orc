@@ -210,7 +210,7 @@ func TestListHooksEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .claude directory
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -261,8 +261,8 @@ func TestGetHookEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create empty settings
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, ".claude", "settings.json"), []byte(`{}`), 0644)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.WriteFile(filepath.Join(tmpDir, ".claude", "settings.json"), []byte(`{}`), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -295,7 +295,7 @@ func TestCreateHookEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .claude directory
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -316,8 +316,8 @@ func TestDeleteHookEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create empty settings
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, ".claude", "settings.json"), []byte(`{}`), 0644)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.WriteFile(filepath.Join(tmpDir, ".claude", "settings.json"), []byte(`{}`), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -337,7 +337,7 @@ func TestListSkillsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .claude/skills directory
-	os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -364,7 +364,7 @@ func TestListSkillsEndpoint(t *testing.T) {
 func TestGetSkillEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -412,7 +412,7 @@ func TestCreateSkillEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .claude/skills directory
-	os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -437,7 +437,7 @@ func TestCreateSkillEndpoint_Success(t *testing.T) {
 func TestDeleteSkillEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -456,14 +456,14 @@ func TestDeleteSkillEndpoint_Success(t *testing.T) {
 
 	// Create skill directory with SKILL.md
 	skillDir := filepath.Join(tmpDir, ".claude", "skills", "delete-skill")
-	os.MkdirAll(skillDir, 0755)
+	_ = os.MkdirAll(skillDir, 0755)
 	skillMD := `---
 name: delete-skill
 description: To be deleted
 ---
 Some content
 `
-	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillMD), 0644)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillMD), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -487,7 +487,7 @@ Some content
 func TestGetSettingsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -504,7 +504,7 @@ func TestGetSettingsEndpoint(t *testing.T) {
 func TestUpdateSettingsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -569,7 +569,7 @@ func TestListToolsByCategory(t *testing.T) {
 func TestGetToolPermissionsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -586,7 +586,7 @@ func TestGetToolPermissionsEndpoint(t *testing.T) {
 func TestUpdateToolPermissionsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -607,7 +607,7 @@ func TestUpdateToolPermissionsEndpoint(t *testing.T) {
 func TestListAgentsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -624,7 +624,7 @@ func TestListAgentsEndpoint(t *testing.T) {
 func TestCreateAgentEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -643,7 +643,7 @@ func TestCreateAgentEndpoint(t *testing.T) {
 func TestGetAgentEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -662,7 +662,7 @@ func TestGetAgentEndpoint_NotFound(t *testing.T) {
 func TestListScriptsEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -681,8 +681,8 @@ func TestDiscoverScriptsEndpoint(t *testing.T) {
 
 	// Create scripts directory with a test script
 	scriptsDir := filepath.Join(tmpDir, ".claude", "scripts")
-	os.MkdirAll(scriptsDir, 0755)
-	os.WriteFile(filepath.Join(scriptsDir, "test.sh"), []byte("#!/bin/bash\n# Test script\necho hello"), 0755)
+	_ = os.MkdirAll(scriptsDir, 0755)
+	_ = os.WriteFile(filepath.Join(scriptsDir, "test.sh"), []byte("#!/bin/bash\n# Test script\necho hello"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -711,7 +711,7 @@ func TestGetClaudeMDEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create CLAUDE.md
-	os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte("# Project CLAUDE.md\n\nTest content"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte("# Project CLAUDE.md\n\nTest content"), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -795,7 +795,7 @@ func TestGetClaudeMDHierarchyEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create project CLAUDE.md
-	os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte("# Project"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte("# Project"), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -825,7 +825,7 @@ func TestListTasksEndpoint_EmptyDir(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create minimal .orc structure
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -895,7 +895,7 @@ func TestListTasksEndpoint_WithTasks(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -941,7 +941,7 @@ func TestListTasksEndpoint_Pagination(t *testing.T) {
 			t.Fatalf("failed to save task %d: %v", i, err)
 		}
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -997,7 +997,7 @@ func TestGetTaskEndpoint(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1027,7 +1027,7 @@ func TestGetTaskEndpoint(t *testing.T) {
 func TestGetTaskEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1044,7 +1044,7 @@ func TestGetTaskEndpoint_NotFound(t *testing.T) {
 func TestCreateTaskEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1076,7 +1076,7 @@ func TestCreateTaskEndpoint(t *testing.T) {
 func TestCreateTaskEndpoint_MissingTitle(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1111,7 +1111,7 @@ func TestDeleteTaskEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create a task to delete via backend
 	storageCfg := &config.StorageConfig{Mode: "database"}
@@ -1126,7 +1126,7 @@ func TestDeleteTaskEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1149,7 +1149,7 @@ func TestDeleteTaskEndpoint_Success(t *testing.T) {
 func TestDeleteTaskEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1167,7 +1167,7 @@ func TestDeleteTaskEndpoint_RunningTask(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create a running task via backend
 	storageCfg := &config.StorageConfig{Mode: "database"}
@@ -1182,7 +1182,7 @@ func TestDeleteTaskEndpoint_RunningTask(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1235,13 +1235,13 @@ func TestGetConfigEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create config directory and file
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 	configYAML := `version: 1
 model: claude-sonnet-4-20250514
 max_iterations: 30
 timeout: 10m
 `
-	os.WriteFile(filepath.Join(tmpDir, ".orc", "config.yaml"), []byte(configYAML), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, ".orc", "config.yaml"), []byte(configYAML), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1276,7 +1276,7 @@ func TestUpdateConfigEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create config directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1338,11 +1338,11 @@ func TestGetConfigWithSourcesEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory and config
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 	configContent := `profile: safe
 model: claude-sonnet
 `
-	os.WriteFile(filepath.Join(tmpDir, ".orc", "config.yaml"), []byte(configContent), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, ".orc", "config.yaml"), []byte(configContent), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1382,11 +1382,11 @@ func TestGetSettingsHierarchyEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .claude directory
-	os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
 
 	// Create project settings
 	projectSettings := `{"env": {"PROJECT_VAR": "project_value"}}`
-	os.WriteFile(filepath.Join(tmpDir, ".claude", "settings.json"), []byte(projectSettings), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, ".claude", "settings.json"), []byte(projectSettings), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1504,7 +1504,7 @@ func TestSavePromptEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc/prompts directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "prompts"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "prompts"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1533,8 +1533,8 @@ func TestDeletePromptEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc/prompts directory with a prompt
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "prompts"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, ".orc", "prompts", "test.md"), []byte("test content"), 0644)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "prompts"), 0755)
+	_ = os.WriteFile(filepath.Join(tmpDir, ".orc", "prompts", "test.md"), []byte("test content"), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1583,7 +1583,7 @@ func TestGetPlanEndpoint_Success(t *testing.T) {
 	if err := backend.SavePlan(p, "TASK-010"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1603,7 +1603,7 @@ func TestRunTaskEndpoint_Success_UpdatesStatusAndReturnsTask(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create task with planned status (can be run) via backend
 	storageCfg := &config.StorageConfig{Mode: "database"}
@@ -1628,7 +1628,7 @@ func TestRunTaskEndpoint_Success_UpdatesStatusAndReturnsTask(t *testing.T) {
 	if err := backend.SavePlan(p, "TASK-RUN"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1682,7 +1682,7 @@ func TestRunTaskEndpoint_SetsCurrentPhase(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
-	os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 
 	// Create task with planned status (can be run) via backend
 	storageCfg := &config.StorageConfig{Mode: "database"}
@@ -1709,7 +1709,7 @@ func TestRunTaskEndpoint_SetsCurrentPhase(t *testing.T) {
 	if err := backend.SavePlan(p, "TASK-PHASE"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1764,7 +1764,7 @@ func TestRunTaskEndpoint_TaskCannotRun(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1794,7 +1794,7 @@ func TestRunTaskEndpoint_NoPlan(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1846,7 +1846,7 @@ func TestRunTaskEndpoint_BlockedByIncompleteTasks(t *testing.T) {
 	if err := backend.SavePlan(p, "TASK-BLOCKED"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1927,7 +1927,7 @@ func TestRunTaskEndpoint_BlockedByCompletedTask_CanRun(t *testing.T) {
 	if err := backend.SavePlan(p, "TASK-READY"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -1978,7 +1978,7 @@ func TestRunTaskEndpoint_BlockedWithForce(t *testing.T) {
 	if err := backend.SavePlan(p, "TASK-FORCE"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2020,7 +2020,7 @@ func TestRunTaskEndpoint_NoBlockers_CanRun(t *testing.T) {
 	if err := backend.SavePlan(p, "TASK-FREE"); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2053,7 +2053,7 @@ func TestPauseTaskEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2068,7 +2068,7 @@ func TestPauseTaskEndpoint_Success(t *testing.T) {
 
 	// Verify response
 	var resp map[string]string
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["status"] != "paused" {
 		t.Errorf("expected status 'paused', got %q", resp["status"])
 	}
@@ -2077,7 +2077,7 @@ func TestPauseTaskEndpoint_Success(t *testing.T) {
 func TestPauseTaskEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2107,7 +2107,7 @@ func TestResumeTaskEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2122,7 +2122,7 @@ func TestResumeTaskEndpoint_Success(t *testing.T) {
 
 	// Verify response
 	var resp map[string]string
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["status"] != "resumed" {
 		t.Errorf("expected status 'resumed', got %q", resp["status"])
 	}
@@ -2131,7 +2131,7 @@ func TestResumeTaskEndpoint_Success(t *testing.T) {
 func TestResumeTaskEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2150,7 +2150,7 @@ func TestResumeTaskEndpoint_NotFound(t *testing.T) {
 func TestStreamEndpoint_TaskNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2182,11 +2182,11 @@ func TestGetTranscriptsEndpoint_Empty(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Create empty transcripts directory
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TRANS-001")
-	os.MkdirAll(filepath.Join(taskDir, "transcripts"), 0755)
+	_ = os.MkdirAll(filepath.Join(taskDir, "transcripts"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2201,7 +2201,7 @@ func TestGetTranscriptsEndpoint_Empty(t *testing.T) {
 
 	// Verify we get an empty array
 	var transcripts []interface{}
-	json.NewDecoder(w.Body).Decode(&transcripts)
+	_ = json.NewDecoder(w.Body).Decode(&transcripts)
 	if len(transcripts) != 0 {
 		t.Errorf("expected empty transcripts, got %d", len(transcripts))
 	}
@@ -2223,17 +2223,17 @@ func TestGetTranscriptsEndpoint_WithTranscripts(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	// Create a transcript file
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TRANS-002")
 	transcriptsDir := filepath.Join(taskDir, "transcripts")
-	os.MkdirAll(transcriptsDir, 0755)
+	_ = os.MkdirAll(transcriptsDir, 0755)
 	transcriptContent := `# Phase: implement
 ## Iteration 1
 Implementation done!
 `
-	os.WriteFile(filepath.Join(transcriptsDir, "implement-001.md"), []byte(transcriptContent), 0644)
+	_ = os.WriteFile(filepath.Join(transcriptsDir, "implement-001.md"), []byte(transcriptContent), 0644)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2247,7 +2247,7 @@ Implementation done!
 	}
 
 	var transcripts []map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&transcripts)
+	_ = json.NewDecoder(w.Body).Decode(&transcripts)
 	if len(transcripts) == 0 {
 		t.Error("expected at least one transcript")
 	}
@@ -2258,7 +2258,7 @@ Implementation done!
 func TestCreateTaskEndpoint_WithWeight(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2274,7 +2274,7 @@ func TestCreateTaskEndpoint_WithWeight(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["weight"] != "large" {
 		t.Errorf("weight = %v, want large", resp["weight"])
 	}
@@ -2283,7 +2283,7 @@ func TestCreateTaskEndpoint_WithWeight(t *testing.T) {
 func TestCreateTaskEndpoint_WithDescription(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2299,7 +2299,7 @@ func TestCreateTaskEndpoint_WithDescription(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["description"] != "Detailed description here" {
 		t.Errorf("description = %v, want 'Detailed description here'", resp["description"])
 	}
@@ -2329,7 +2329,7 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectD
 	// Create temp directory structure
 	tmpDir := t.TempDir()
 	projectDir = filepath.Join(tmpDir, "test-project")
-	os.MkdirAll(filepath.Join(projectDir, ".orc"), 0755)
+	_ = os.MkdirAll(filepath.Join(projectDir, ".orc"), 0755)
 
 	// Point orc to the temp directory so registry path resolves correctly
 	// t.Setenv automatically restores the original value AND marks this test
@@ -2338,7 +2338,7 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectD
 
 	// Create global .orc directory where project registry lives
 	globalOrcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(globalOrcDir, 0755)
+	_ = os.MkdirAll(globalOrcDir, 0755)
 	projectID = "test-proj-123"
 
 	// Create projects.yaml in the correct location ($HOME/.orc/projects.yaml)
@@ -2348,7 +2348,7 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectD
     path: %s
     created_at: 2025-01-01T00:00:00Z
 `, projectID, projectDir)
-	os.WriteFile(filepath.Join(globalOrcDir, "projects.yaml"), []byte(projectsYAML), 0644)
+	_ = os.WriteFile(filepath.Join(globalOrcDir, "projects.yaml"), []byte(projectsYAML), 0644)
 
 	// Create backend and task in project directory
 	taskID = "TASK-001"
@@ -2389,7 +2389,7 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectD
 		t.Fatalf("failed to save state: %v", err)
 	}
 
-	backend.Close()
+	_ = backend.Close()
 
 	srv = New(nil)
 
@@ -2399,13 +2399,13 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectD
 func TestProjectTaskRun_ReturnsTask(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectDir := filepath.Join(tmpDir, "test-project")
-	os.MkdirAll(projectDir, 0755)
+	_ = os.MkdirAll(projectDir, 0755)
 
 	t.Setenv("HOME", tmpDir)
 
 	// Create global .orc directory where project registry lives
 	globalOrcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(globalOrcDir, 0755)
+	_ = os.MkdirAll(globalOrcDir, 0755)
 	projectID := "test-proj-run"
 
 	// Create projects.yaml in the correct location ($HOME/.orc/projects.yaml)
@@ -2415,7 +2415,7 @@ func TestProjectTaskRun_ReturnsTask(t *testing.T) {
     path: %s
     created_at: 2025-01-01T00:00:00Z
 `, projectID, projectDir)
-	os.WriteFile(filepath.Join(globalOrcDir, "projects.yaml"), []byte(projectsYAML), 0644)
+	_ = os.WriteFile(filepath.Join(globalOrcDir, "projects.yaml"), []byte(projectsYAML), 0644)
 
 	// Create backend and task with planned status (can be run)
 	taskID := "TASK-PROJRUN"
@@ -2441,7 +2441,7 @@ func TestProjectTaskRun_ReturnsTask(t *testing.T) {
 	if err := backend.SavePlan(p, taskID); err != nil {
 		t.Fatalf("failed to save plan: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(nil)
 
@@ -2517,7 +2517,7 @@ func TestProjectTaskPause_NotRunning(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/pause", projectID, taskID), nil)
 	w := httptest.NewRecorder()
@@ -2551,7 +2551,7 @@ func TestProjectTaskResume_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/resume", projectID, taskID), nil)
 	w := httptest.NewRecorder()
@@ -2679,7 +2679,7 @@ func TestGetCostSummaryEndpoint_Empty(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create minimal .orc structure with no tasks
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2748,7 +2748,7 @@ func TestGetCostSummaryEndpoint_WithTasks(t *testing.T) {
 	if err := backend.SaveState(st); err != nil {
 		t.Fatalf("failed to save state: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2848,7 +2848,7 @@ func TestGetCostSummaryEndpoint_PeriodFiltering(t *testing.T) {
 	if err := backend.SaveState(recentState); err != nil {
 		t.Fatalf("failed to save recent state: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2890,7 +2890,7 @@ func TestGetCostSummaryEndpoint_PeriodFiltering(t *testing.T) {
 func TestGetCostSummaryEndpoint_InvalidPeriod(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2909,7 +2909,7 @@ func TestGetCostSummaryEndpoint_InvalidPeriod(t *testing.T) {
 func TestGetCostSummaryEndpoint_InvalidSinceParameter(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2944,7 +2944,7 @@ func TestUpdateTaskEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2991,7 +2991,7 @@ func TestUpdateTaskEndpoint_UpdateWeight(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -3034,7 +3034,7 @@ func TestUpdateTaskEndpoint_InvalidWeight(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -3068,7 +3068,7 @@ func TestUpdateTaskEndpoint_EmptyTitle(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -3088,7 +3088,7 @@ func TestUpdateTaskEndpoint_EmptyTitle(t *testing.T) {
 func TestUpdateTaskEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -3121,7 +3121,7 @@ func TestUpdateTaskEndpoint_RunningTask(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -3155,7 +3155,7 @@ func TestUpdateTaskEndpoint_InvalidJSON(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -3188,7 +3188,7 @@ func TestUpdateTaskEndpoint_Metadata(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -3235,7 +3235,7 @@ func TestUpdateTaskEndpoint_PartialUpdate(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	backend.Close()
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -3302,11 +3302,11 @@ func TestSetDefaultProjectEndpoint_Success(t *testing.T) {
 
 	// Create a project
 	projectDir := filepath.Join(tmpDir, "test-project")
-	os.MkdirAll(projectDir, 0755)
+	_ = os.MkdirAll(projectDir, 0755)
 
 	// Register the project
 	globalOrcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(globalOrcDir, 0755)
+	_ = os.MkdirAll(globalOrcDir, 0755)
 
 	projectsYAML := `projects:
   - id: test-proj-123
@@ -3314,7 +3314,7 @@ func TestSetDefaultProjectEndpoint_Success(t *testing.T) {
     path: ` + projectDir + `
     created_at: 2025-01-01T00:00:00Z
 `
-	os.WriteFile(filepath.Join(globalOrcDir, "projects.yaml"), []byte(projectsYAML), 0644)
+	_ = os.WriteFile(filepath.Join(globalOrcDir, "projects.yaml"), []byte(projectsYAML), 0644)
 
 	srv := New(nil)
 
@@ -3378,7 +3378,7 @@ func TestSetDefaultProjectEndpoint_ClearDefault(t *testing.T) {
 
 	// Create global orc dir
 	globalOrcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(globalOrcDir, 0755)
+	_ = os.MkdirAll(globalOrcDir, 0755)
 
 	srv := New(nil)
 

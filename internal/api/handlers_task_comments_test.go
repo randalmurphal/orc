@@ -21,16 +21,16 @@ func setupTaskCommentsTestEnv(t *testing.T, opts ...func(*testing.T, string, str
 
 	// Create .orc directory with config
 	orcDir := filepath.Join(tmpDir, ".orc")
-	os.MkdirAll(orcDir, 0755)
+	_ = os.MkdirAll(orcDir, 0755)
 	configYAML := `worktree:
   enabled: false
 `
-	os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(configYAML), 0644)
 
 	// Create task directory
 	taskID = "TASK-COMMENTS-001"
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	os.MkdirAll(taskDir, 0755)
+	_ = os.MkdirAll(taskDir, 0755)
 
 	// Create task.yaml
 	taskYAML := fmt.Sprintf(`id: %s
@@ -41,7 +41,7 @@ weight: medium
 created_at: 2025-01-01T00:00:00Z
 updated_at: 2025-01-01T00:00:00Z
 `, taskID)
-	os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
+	_ = os.WriteFile(filepath.Join(taskDir, "task.yaml"), []byte(taskYAML), 0644)
 
 	// Initialize database with task
 	pdb, err := db.OpenProject(tmpDir)
@@ -55,7 +55,7 @@ updated_at: 2025-01-01T00:00:00Z
 	if err != nil {
 		t.Fatalf("failed to create task in database: %v", err)
 	}
-	pdb.Close()
+	_ = pdb.Close()
 
 	// Apply optional setup functions
 	for _, opt := range opts {
@@ -78,7 +78,7 @@ func withTaskComments(comments []db.TaskComment) func(*testing.T, string, string
 		if err != nil {
 			t.Fatalf("failed to open database: %v", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		for _, c := range comments {
 			c.TaskID = taskID
@@ -276,7 +276,7 @@ func TestHandleGetTaskComment(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to open database: %v", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		for i := range testComments {
 			testComments[i].TaskID = taskID
@@ -336,7 +336,7 @@ func TestHandleUpdateTaskComment(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to open database: %v", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		comment := &db.TaskComment{
 			TaskID:     taskID,
@@ -390,7 +390,7 @@ func TestHandleDeleteTaskComment(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to open database: %v", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		comment := &db.TaskComment{
 			TaskID:     taskID,

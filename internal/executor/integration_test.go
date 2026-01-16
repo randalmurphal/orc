@@ -199,7 +199,7 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir
@@ -295,7 +295,7 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	cfg := DefaultConfig()
 	cfg.MaxIterations = 5
@@ -378,7 +378,7 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir
@@ -520,7 +520,7 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir

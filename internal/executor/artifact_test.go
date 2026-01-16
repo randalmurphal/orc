@@ -247,7 +247,7 @@ func newArtifactTestBackend(t *testing.T) *storage.DatabaseBackend {
 		t.Fatalf("create backend: %v", err)
 	}
 	t.Cleanup(func() {
-		backend.Close()
+		_ = backend.Close()
 	})
 	return backend
 }

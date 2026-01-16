@@ -89,7 +89,7 @@ func (h *InterruptHandler) SetCurrentPhase(phase string) {
 // Cleanup saves state if interrupted
 func (h *InterruptHandler) Cleanup() {
 	if h.ctx.Err() != nil && h.lastPhase != "" {
-		GracefulShutdown(h.backend, h.task, h.state, h.lastPhase)
+		_ = GracefulShutdown(h.backend, h.task, h.state, h.lastPhase)
 	}
 	h.cancel()
 }
