@@ -7,6 +7,8 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
+	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // WorktreeSetup contains the result of setting up a worktree.
@@ -15,6 +17,90 @@ type WorktreeSetup struct {
 	Path string
 	// Reused indicates if an existing worktree was reused rather than created.
 	Reused bool
+	// TargetBranch is the resolved target branch for this task's PR.
+	TargetBranch string
+}
+
+// SetupWorktreeForTask creates or reuses an isolated worktree for the given task,
+// using the full 5-level branch resolution hierarchy:
+//
+//  1. Task.TargetBranch (explicit override)
+//  2. Initiative.BranchBase (inherited from initiative)
+//  3. Developer.StagingBranch (personal staging area)
+//  4. Config.Completion.TargetBranch (project default)
+//  5. "main" (hardcoded fallback)
+//
+// If the resolved target branch doesn't exist locally and is not a default branch
+// (main/master/develop), it will be auto-created from the configured base branch.
+//
+// When the task belongs to an initiative with a BranchPrefix, the task branch will
+// use that prefix instead of the default "orc/" prefix. For example, an initiative
+// with BranchPrefix "feature/auth-" will create branches like "feature/auth-TASK-001".
+//
+// This is the preferred function for task execution as it supports initiative-level
+// and developer staging branches.
+func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, backend storage.Backend) (*WorktreeSetup, error) {
+	if gitOps == nil {
+		return nil, fmt.Errorf("git operations not available")
+	}
+	if t == nil {
+		return nil, fmt.Errorf("task is required")
+	}
+
+	// Resolve target branch using 5-level hierarchy
+	targetBranch := ResolveTargetBranchForTask(t, backend, cfg)
+
+	// Get initiative prefix if task belongs to an initiative
+	var initiativePrefix string
+	if t.InitiativeID != "" && backend != nil {
+		init, err := backend.LoadInitiative(t.InitiativeID)
+		if err == nil && init != nil {
+			initiativePrefix = init.BranchPrefix
+		}
+		// Ignore errors - just use default prefix if initiative can't be loaded
+	}
+
+	// For non-default branches (initiative/staging), ensure they exist
+	// Default branches (main, master, develop) should already exist
+	if !IsDefaultBranch(targetBranch) {
+		// Determine base branch for creating new branches
+		baseBranch := "main"
+		if cfg != nil && cfg.Completion.TargetBranch != "" {
+			baseBranch = cfg.Completion.TargetBranch
+		}
+
+		// Auto-create the branch if it doesn't exist
+		if err := gitOps.EnsureBranchExists(targetBranch, baseBranch); err != nil {
+			return nil, fmt.Errorf("ensure target branch %s exists: %w", targetBranch, err)
+		}
+	}
+
+	// Check if worktree already exists
+	// Use initiative prefix for consistent path resolution
+	worktreePath := gitOps.WorktreePathWithInitiativePrefix(t.ID, initiativePrefix)
+	if _, err := os.Stat(worktreePath); err == nil {
+		// Worktree exists - clean up any problematic state before reusing
+		if err := cleanWorktreeState(worktreePath, gitOps); err != nil {
+			return nil, fmt.Errorf("clean worktree state for %s: %w", t.ID, err)
+		}
+		return &WorktreeSetup{
+			Path:         worktreePath,
+			Reused:       true,
+			TargetBranch: targetBranch,
+		}, nil
+	}
+
+	// Create new worktree with initiative prefix
+	path, err := gitOps.CreateWorktreeWithInitiativePrefix(t.ID, targetBranch, initiativePrefix)
+	if err != nil {
+		return nil, fmt.Errorf("create worktree for %s: %w", t.ID, err)
+	}
+
+	return &WorktreeSetup{
+		Path:         path,
+		Reused:       false,
+		TargetBranch: targetBranch,
+	}, nil
 }
 
 // SetupWorktree creates or reuses an isolated worktree for the given task.
@@ -27,6 +113,10 @@ type WorktreeSetup struct {
 //
 // If cfg is nil, default worktree configuration is used.
 // If gitOps is nil, returns an error.
+//
+// Deprecated: Use SetupWorktreeForTask for task execution as it supports
+// the full 5-level branch resolution hierarchy including initiative and
+// developer staging branches.
 func SetupWorktree(taskID string, cfg *config.Config, gitOps *git.Git) (*WorktreeSetup, error) {
 	if gitOps == nil {
 		return nil, fmt.Errorf("git operations not available")
@@ -48,8 +138,9 @@ func SetupWorktree(taskID string, cfg *config.Config, gitOps *git.Git) (*Worktre
 			return nil, fmt.Errorf("clean worktree state for %s: %w", taskID, err)
 		}
 		return &WorktreeSetup{
-			Path:   worktreePath,
-			Reused: true,
+			Path:         worktreePath,
+			Reused:       true,
+			TargetBranch: targetBranch,
 		}, nil
 	}
 
@@ -60,8 +151,9 @@ func SetupWorktree(taskID string, cfg *config.Config, gitOps *git.Git) (*Worktre
 	}
 
 	return &WorktreeSetup{
-		Path:   path,
-		Reused: false,
+		Path:         path,
+		Reused:       false,
+		TargetBranch: targetBranch,
 	}, nil
 }
 

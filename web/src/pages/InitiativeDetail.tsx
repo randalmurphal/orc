@@ -60,6 +60,8 @@ export function InitiativeDetail() {
 	const [editTitle, setEditTitle] = useState('');
 	const [editVision, setEditVision] = useState('');
 	const [editStatus, setEditStatus] = useState<InitiativeStatus>('draft');
+	const [editBranchBase, setEditBranchBase] = useState('');
+	const [editBranchPrefix, setEditBranchPrefix] = useState('');
 
 	// Link task state
 	const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
@@ -160,6 +162,8 @@ export function InitiativeDetail() {
 			setEditTitle(initiative.title);
 			setEditVision(initiative.vision || '');
 			setEditStatus(initiative.status);
+			setEditBranchBase(initiative.branch_base || '');
+			setEditBranchPrefix(initiative.branch_prefix || '');
 		}
 		setEditModalOpen(true);
 	}, [initiative]);
@@ -171,6 +175,8 @@ export function InitiativeDetail() {
 				title: editTitle,
 				vision: editVision,
 				status: editStatus,
+				branch_base: editBranchBase.trim() || undefined,
+				branch_prefix: editBranchPrefix.trim() || undefined,
 			});
 			setInitiative(updated);
 			updateInitiativeInStore(updated.id, updated);
@@ -178,7 +184,7 @@ export function InitiativeDetail() {
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to update initiative');
 		}
-	}, [initiative, editTitle, editVision, editStatus, updateInitiativeInStore]);
+	}, [initiative, editTitle, editVision, editStatus, editBranchBase, editBranchPrefix, updateInitiativeInStore]);
 
 	const handleStatusChange = useCallback(
 		async (newStatus: InitiativeStatus) => {
@@ -745,6 +751,38 @@ export function InitiativeDetail() {
 							<option value="completed">Completed</option>
 							<option value="archived">Archived</option>
 						</select>
+					</div>
+
+					<div className="form-section-divider">
+						<span className="divider-label">Branch Configuration</span>
+					</div>
+
+					<div className="form-group">
+						<label htmlFor="edit-branch-base">Target Branch</label>
+						<input
+							id="edit-branch-base"
+							type="text"
+							value={editBranchBase}
+							onChange={(e) => setEditBranchBase(e.target.value)}
+							placeholder="e.g., feature/user-auth"
+						/>
+						<span className="form-hint">
+							Tasks in this initiative will target this branch instead of main
+						</span>
+					</div>
+
+					<div className="form-group">
+						<label htmlFor="edit-branch-prefix">Task Branch Prefix</label>
+						<input
+							id="edit-branch-prefix"
+							type="text"
+							value={editBranchPrefix}
+							onChange={(e) => setEditBranchPrefix(e.target.value)}
+							placeholder="e.g., feature/auth-"
+						/>
+						<span className="form-hint">
+							Task branches will be named: {editBranchPrefix || 'feature/auth-'}TASK-XXX
+						</span>
 					</div>
 
 					<div className="modal-actions">

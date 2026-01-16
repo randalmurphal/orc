@@ -149,7 +149,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	if e.workingDir != "" {
 		vars.WorktreePath = e.workingDir
 		vars.TaskBranch = t.Branch
-		vars.TargetBranch = e.getTargetBranch()
+		vars.TargetBranch = ResolveTargetBranchForTask(t, e.backend, e.config.OrcConfig)
 	}
 
 	// Add UI testing context if task requires it

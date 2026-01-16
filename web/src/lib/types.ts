@@ -19,6 +19,7 @@ export interface Task {
 	priority?: TaskPriority;
 	category?: TaskCategory;
 	initiative_id?: string;
+	target_branch?: string;
 	blocked_by?: string[];
 	blocks?: string[];
 	related_to?: string[];
@@ -404,6 +405,8 @@ export interface Initiative {
 	status: InitiativeStatus;
 	owner?: InitiativeIdentity;
 	vision?: string;
+	branch_base?: string;
+	branch_prefix?: string;
 	decisions?: InitiativeDecision[];
 	context_files?: string[];
 	tasks?: InitiativeTaskRef[];
@@ -487,3 +490,31 @@ export interface StatusCounts {
 	running: number;
 	blocked: number;
 }
+
+// Branch types for branch registry
+export type BranchType = 'initiative' | 'staging' | 'task';
+export type BranchStatus = 'active' | 'merged' | 'stale' | 'orphaned';
+
+export interface Branch {
+	name: string;
+	type: BranchType;
+	owner_id?: string;
+	created_at: string;
+	last_activity: string;
+	status: BranchStatus;
+}
+
+// Branch status display config
+export const BRANCH_STATUS_CONFIG: Record<BranchStatus, { label: string; color: string }> = {
+	active: { label: 'Active', color: 'var(--status-success)' },
+	merged: { label: 'Merged', color: 'var(--status-info)' },
+	stale: { label: 'Stale', color: 'var(--status-warning)' },
+	orphaned: { label: 'Orphaned', color: 'var(--status-error)' },
+};
+
+// Branch type display config
+export const BRANCH_TYPE_CONFIG: Record<BranchType, { label: string; icon: string }> = {
+	initiative: { label: 'Initiative', icon: 'flag' },
+	staging: { label: 'Staging', icon: 'git-branch' },
+	task: { label: 'Task', icon: 'check-square' },
+};

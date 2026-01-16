@@ -360,6 +360,7 @@ See `web/CLAUDE.md` for component architecture.
 | Architecture | `docs/architecture/OVERVIEW.md` |
 | Phase Model | `docs/architecture/PHASE_MODEL.md` |
 | Executor | `docs/architecture/EXECUTOR.md` |
+| Branch Targeting | `docs/architecture/BRANCH_TARGETING.md` |
 | Config | `docs/specs/CONFIG_HIERARCHY.md` |
 | CLI Spec | `docs/specs/CLI.md` |
 | File Formats | `docs/specs/FILE_FORMATS.md` |
@@ -526,6 +527,11 @@ Patterns, gotchas, and decisions learned during development.
 | Test worker limits for parallel tasks | Playwright (4 workers) and Vitest (4 threads) limit parallelism to prevent OOM when multiple orc tasks run tests concurrently; without limits, 3 parallel tasks on 16 cores could spawn 48 browser/test processes | TASK-253 |
 | Filter dropdown Radix migration | InitiativeDropdown, ViewModeDropdown, DependencyDropdown use Radix Select; ExportDropdown uses Radix DropdownMenu (action menu pattern); null values mapped to internal string constants since Radix Select requires strings; provides keyboard nav, typeahead, Home/End, ARIA | TASK-213 |
 | TabNav Radix Tabs migration | TabNav uses `@radix-ui/react-tabs` with render prop pattern for tab content; Tabs.Root wraps entire component, Tabs.List contains Tabs.Trigger elements, Tabs.Content wraps the children render prop result; provides arrow key navigation, Home/End, focus management, automatic ARIA; CSS uses `data-state='active'` for active tab styling | TASK-214 |
+| Branch resolution 5-level hierarchy | `ResolveTargetBranch()` resolves target branch with priority: task override → initiative branch → developer staging → project config → "main"; each level can override lower levels; source tracking via `ResolveBranchSource()` for debugging | branch-targeting |
+| Branch lazy creation | Target branches (initiative, staging) created on first task run via `EnsureTargetBranchExists()` in setup; default branches (main, master, develop) never auto-created; prevents orphan branches from unused initiatives | branch-targeting |
+| Branch registry tracking | All orc-managed branches tracked in `branches` table with type (initiative/staging/task), owner_id, status (active/merged/stale/orphaned), timestamps; enables `orc branches list/cleanup` for lifecycle management | branch-targeting |
+| Initiative branch auto-merge | When all initiative tasks complete and initiative has `BranchBase`, auto-merge to target branch; `auto`/`fast` profiles auto-merge after CI, `safe`/`strict` leave PR for human review; tracks `MergeStatus` (none/pending/merged/failed) | branch-targeting |
+| Developer staging workflow | Personal staging branches via `developer.staging_branch` + `staging_enabled` in personal config; `orc staging status/sync/enable/disable` commands; staging takes precedence over project default but yields to initiative branches | branch-targeting |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

@@ -67,7 +67,8 @@ func newInitiativeNewCmd() *cobra.Command {
 Example:
   orc initiative new "User Authentication System"
   orc initiative new "API Refactor" --vision "Modern REST API with OpenAPI spec"
-  orc initiative new "React Migration" --blocked-by INIT-001  # Depends on another initiative`,
+  orc initiative new "React Migration" --blocked-by INIT-001  # Depends on another initiative
+  orc initiative new "Auth Feature" --branch-base feature/auth --branch-prefix feature/auth-`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -84,6 +85,8 @@ Example:
 			vision, _ := cmd.Flags().GetString("vision")
 			ownerInitials, _ := cmd.Flags().GetString("owner")
 			blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")
+			branchBase, _ := cmd.Flags().GetString("branch-base")
+			branchPrefix, _ := cmd.Flags().GetString("branch-prefix")
 
 			// Generate next initiative ID
 			id, err := backend.GetNextInitiativeID()
@@ -120,6 +123,12 @@ Example:
 			if len(blockedBy) > 0 {
 				init.BlockedBy = blockedBy
 			}
+			if branchBase != "" {
+				init.BranchBase = branchBase
+			}
+			if branchPrefix != "" {
+				init.BranchPrefix = branchPrefix
+			}
 
 			// Save
 			if err := backend.SaveInitiative(init); err != nil {
@@ -136,6 +145,12 @@ Example:
 				if len(blockedBy) > 0 {
 					fmt.Printf("   Blocked by: %s\n", strings.Join(blockedBy, ", "))
 				}
+				if branchBase != "" {
+					fmt.Printf("   Branch base: %s\n", branchBase)
+				}
+				if branchPrefix != "" {
+					fmt.Printf("   Branch prefix: %s\n", branchPrefix)
+				}
 				fmt.Println("\nNext steps:")
 				fmt.Printf("  orc initiative add-task %s TASK-XXX  - Link tasks\n", id)
 				fmt.Printf("  orc initiative decide %s \"...\"       - Record decisions\n", id)
@@ -149,6 +164,8 @@ Example:
 	cmd.Flags().StringP("vision", "V", "", "initiative vision statement")
 	cmd.Flags().StringP("owner", "o", "", "owner initials")
 	cmd.Flags().StringSlice("blocked-by", nil, "initiative IDs that must complete before this initiative")
+	cmd.Flags().String("branch-base", "", "target branch for tasks in this initiative (e.g., feature/auth)")
+	cmd.Flags().String("branch-prefix", "", "prefix for task branches (e.g., feature/auth-)")
 
 	return cmd
 }
@@ -240,7 +257,9 @@ Example:
   orc initiative edit INIT-001 --vision "Updated vision statement"
   orc initiative edit INIT-001 --blocked-by INIT-002,INIT-003  # Replace blockers
   orc initiative edit INIT-001 --add-blocker INIT-004          # Add blocker
-  orc initiative edit INIT-001 --remove-blocker INIT-002       # Remove blocker`,
+  orc initiative edit INIT-001 --remove-blocker INIT-002       # Remove blocker
+  orc initiative edit INIT-001 --branch-base feature/auth      # Set target branch
+  orc initiative edit INIT-001 --branch-prefix feature/auth-   # Set branch prefix`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -326,6 +345,20 @@ Example:
 				changed = true
 			}
 
+			// Handle branch-base
+			if cmd.Flags().Changed("branch-base") {
+				branchBase, _ := cmd.Flags().GetString("branch-base")
+				init.BranchBase = branchBase
+				changed = true
+			}
+
+			// Handle branch-prefix
+			if cmd.Flags().Changed("branch-prefix") {
+				branchPrefix, _ := cmd.Flags().GetString("branch-prefix")
+				init.BranchPrefix = branchPrefix
+				changed = true
+			}
+
 			if !changed {
 				fmt.Println("No changes specified.")
 				return nil
@@ -347,6 +380,8 @@ Example:
 	cmd.Flags().StringSlice("blocked-by", nil, "set blocked_by list (replaces existing)")
 	cmd.Flags().StringSlice("add-blocker", nil, "add initiative(s) to blocked_by list")
 	cmd.Flags().StringSlice("remove-blocker", nil, "remove initiative(s) from blocked_by list")
+	cmd.Flags().String("branch-base", "", "set target branch for tasks in this initiative")
+	cmd.Flags().String("branch-prefix", "", "set prefix for task branch names")
 
 	return cmd
 }

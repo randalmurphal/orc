@@ -235,6 +235,7 @@ type Task struct {
 	Priority     string // "critical", "high", "normal", "low"
 	Category     string // "feature", "bug", "refactor", "chore", "docs", "test"
 	InitiativeID string // Links this task to an initiative (e.g., INIT-001)
+	TargetBranch string // Override target branch for PR (e.g., "hotfix/v2.1")
 	CreatedAt    time.Time
 	StartedAt    *time.Time
 	CompletedAt  *time.Time
@@ -293,8 +294,8 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 	}
 
 	_, err := p.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
@@ -308,6 +309,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 			priority = excluded.priority,
 			category = excluded.category,
 			initiative_id = excluded.initiative_id,
+			target_branch = excluded.target_branch,
 			started_at = excluded.started_at,
 			completed_at = excluded.completed_at,
 			total_cost_usd = excluded.total_cost_usd,
@@ -318,7 +320,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 			executor_started_at = excluded.executor_started_at,
 			last_heartbeat = excluded.last_heartbeat
 	`, t.ID, t.Title, t.Description, t.Weight, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
-		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext,
+		queue, priority, category, t.InitiativeID, t.TargetBranch, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext,
 		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)
@@ -329,7 +331,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 // GetTask retrieves a task by ID.
 func (p *ProjectDB) GetTask(id string) (*Task, error) {
 	row := p.QueryRow(`
-		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat
+		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat
 		FROM tasks WHERE id = ?
 	`, id)
 
@@ -392,7 +394,7 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 
 	// Query tasks
 	query := `
-		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat
+		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat
 		FROM tasks
 	` + whereClause + " ORDER BY created_at DESC"
 
@@ -434,12 +436,12 @@ func scanTask(row *sql.Row) (*Task, error) {
 	var t Task
 	var createdAt string
 	var startedAt, completedAt sql.NullString
-	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext sql.NullString
+	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, targetBranch, metadata, retryContext sql.NullString
 	var executorPID sql.NullInt64
 	var executorHostname, executorStartedAt, lastHeartbeat sql.NullString
 
 	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
-		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext,
+		&queue, &priority, &category, &initiativeID, &targetBranch, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext,
 		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat); err != nil {
 		return nil, err
 	}
@@ -478,6 +480,9 @@ func scanTask(row *sql.Row) (*Task, error) {
 	}
 	if initiativeID.Valid {
 		t.InitiativeID = initiativeID.String
+	}
+	if targetBranch.Valid {
+		t.TargetBranch = targetBranch.String
 	}
 	if metadata.Valid {
 		t.Metadata = metadata.String
@@ -526,12 +531,12 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	var t Task
 	var createdAt string
 	var startedAt, completedAt sql.NullString
-	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext sql.NullString
+	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, targetBranch, metadata, retryContext sql.NullString
 	var executorPID sql.NullInt64
 	var executorHostname, executorStartedAt, lastHeartbeat sql.NullString
 
 	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
-		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext,
+		&queue, &priority, &category, &initiativeID, &targetBranch, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext,
 		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat); err != nil {
 		return nil, err
 	}
@@ -570,6 +575,9 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	}
 	if initiativeID.Valid {
 		t.InitiativeID = initiativeID.String
+	}
+	if targetBranch.Valid {
+		t.TargetBranch = targetBranch.String
 	}
 	if metadata.Valid {
 		t.Metadata = metadata.String
@@ -856,6 +864,10 @@ type Initiative struct {
 	OwnerDisplayName string
 	OwnerEmail       string
 	Vision           string
+	BranchBase       string // Target branch for tasks in this initiative
+	BranchPrefix     string // Prefix for task branch names (e.g., "feature/auth-")
+	MergeStatus      string // Status of merging initiative branch: '', 'pending', 'in_progress', 'merged', 'failed'
+	MergeCommit      string // SHA of merge commit when MergeStatus is 'merged'
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -878,8 +890,8 @@ func (p *ProjectDB) SaveInitiative(i *Initiative) error {
 	}
 
 	_, err := p.Exec(`
-		INSERT INTO initiatives (id, title, status, owner_initials, owner_display_name, owner_email, vision, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO initiatives (id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			status = excluded.status,
@@ -887,8 +899,12 @@ func (p *ProjectDB) SaveInitiative(i *Initiative) error {
 			owner_display_name = excluded.owner_display_name,
 			owner_email = excluded.owner_email,
 			vision = excluded.vision,
+			branch_base = excluded.branch_base,
+			branch_prefix = excluded.branch_prefix,
+			merge_status = excluded.merge_status,
+			merge_commit = excluded.merge_commit,
 			updated_at = excluded.updated_at
-	`, i.ID, i.Title, i.Status, i.OwnerInitials, i.OwnerDisplayName, i.OwnerEmail, i.Vision,
+	`, i.ID, i.Title, i.Status, i.OwnerInitials, i.OwnerDisplayName, i.OwnerEmail, i.Vision, i.BranchBase, i.BranchPrefix, i.MergeStatus, i.MergeCommit,
 		i.CreatedAt.Format(time.RFC3339), now)
 	if err != nil {
 		return fmt.Errorf("save initiative: %w", err)
@@ -899,15 +915,15 @@ func (p *ProjectDB) SaveInitiative(i *Initiative) error {
 // GetInitiative retrieves an initiative by ID.
 func (p *ProjectDB) GetInitiative(id string) (*Initiative, error) {
 	row := p.QueryRow(`
-		SELECT id, title, status, owner_initials, owner_display_name, owner_email, vision, created_at, updated_at
+		SELECT id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at
 		FROM initiatives WHERE id = ?
 	`, id)
 
 	var i Initiative
-	var ownerInitials, ownerDisplayName, ownerEmail, vision sql.NullString
+	var ownerInitials, ownerDisplayName, ownerEmail, vision, branchBase, branchPrefix, mergeStatus, mergeCommit sql.NullString
 	var createdAt, updatedAt string
 
-	if err := row.Scan(&i.ID, &i.Title, &i.Status, &ownerInitials, &ownerDisplayName, &ownerEmail, &vision, &createdAt, &updatedAt); err != nil {
+	if err := row.Scan(&i.ID, &i.Title, &i.Status, &ownerInitials, &ownerDisplayName, &ownerEmail, &vision, &branchBase, &branchPrefix, &mergeStatus, &mergeCommit, &createdAt, &updatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -926,6 +942,18 @@ func (p *ProjectDB) GetInitiative(id string) (*Initiative, error) {
 	if vision.Valid {
 		i.Vision = vision.String
 	}
+	if branchBase.Valid {
+		i.BranchBase = branchBase.String
+	}
+	if branchPrefix.Valid {
+		i.BranchPrefix = branchPrefix.String
+	}
+	if mergeStatus.Valid {
+		i.MergeStatus = mergeStatus.String
+	}
+	if mergeCommit.Valid {
+		i.MergeCommit = mergeCommit.String
+	}
 	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
 		i.CreatedAt = ts
 	} else if ts, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
@@ -942,7 +970,7 @@ func (p *ProjectDB) GetInitiative(id string) (*Initiative, error) {
 
 // ListInitiatives returns initiatives matching the given options.
 func (p *ProjectDB) ListInitiatives(opts ListOpts) ([]Initiative, error) {
-	query := `SELECT id, title, status, owner_initials, owner_display_name, owner_email, vision, created_at, updated_at FROM initiatives`
+	query := `SELECT id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at FROM initiatives`
 	args := []any{}
 
 	if opts.Status != "" {
@@ -969,10 +997,10 @@ func (p *ProjectDB) ListInitiatives(opts ListOpts) ([]Initiative, error) {
 	var initiatives []Initiative
 	for rows.Next() {
 		var i Initiative
-		var ownerInitials, ownerDisplayName, ownerEmail, vision sql.NullString
+		var ownerInitials, ownerDisplayName, ownerEmail, vision, branchBase, branchPrefix, mergeStatus, mergeCommit sql.NullString
 		var createdAt, updatedAt string
 
-		if err := rows.Scan(&i.ID, &i.Title, &i.Status, &ownerInitials, &ownerDisplayName, &ownerEmail, &vision, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&i.ID, &i.Title, &i.Status, &ownerInitials, &ownerDisplayName, &ownerEmail, &vision, &branchBase, &branchPrefix, &mergeStatus, &mergeCommit, &createdAt, &updatedAt); err != nil {
 			return nil, fmt.Errorf("scan initiative: %w", err)
 		}
 
@@ -987,6 +1015,18 @@ func (p *ProjectDB) ListInitiatives(opts ListOpts) ([]Initiative, error) {
 		}
 		if vision.Valid {
 			i.Vision = vision.String
+		}
+		if branchBase.Valid {
+			i.BranchBase = branchBase.String
+		}
+		if branchPrefix.Valid {
+			i.BranchPrefix = branchPrefix.String
+		}
+		if mergeStatus.Valid {
+			i.MergeStatus = mergeStatus.String
+		}
+		if mergeCommit.Valid {
+			i.MergeCommit = mergeCommit.String
 		}
 		if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
 			i.CreatedAt = ts
@@ -2002,8 +2042,8 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 	}
 
 	_, err := tx.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
@@ -2017,6 +2057,7 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 			priority = excluded.priority,
 			category = excluded.category,
 			initiative_id = excluded.initiative_id,
+			target_branch = excluded.target_branch,
 			started_at = excluded.started_at,
 			completed_at = excluded.completed_at,
 			total_cost_usd = excluded.total_cost_usd,
@@ -2027,7 +2068,7 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 			executor_started_at = excluded.executor_started_at,
 			last_heartbeat = excluded.last_heartbeat
 	`, t.ID, t.Title, t.Description, t.Weight, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
-		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext,
+		queue, priority, category, t.InitiativeID, t.TargetBranch, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext,
 		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)
@@ -2132,8 +2173,8 @@ func SaveInitiativeTx(tx *TxOps, i *Initiative) error {
 	}
 
 	_, err := tx.Exec(`
-		INSERT INTO initiatives (id, title, status, owner_initials, owner_display_name, owner_email, vision, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO initiatives (id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			status = excluded.status,
@@ -2141,8 +2182,12 @@ func SaveInitiativeTx(tx *TxOps, i *Initiative) error {
 			owner_display_name = excluded.owner_display_name,
 			owner_email = excluded.owner_email,
 			vision = excluded.vision,
+			branch_base = excluded.branch_base,
+			branch_prefix = excluded.branch_prefix,
+			merge_status = excluded.merge_status,
+			merge_commit = excluded.merge_commit,
 			updated_at = excluded.updated_at
-	`, i.ID, i.Title, i.Status, i.OwnerInitials, i.OwnerDisplayName, i.OwnerEmail, i.Vision,
+	`, i.ID, i.Title, i.Status, i.OwnerInitials, i.OwnerDisplayName, i.OwnerEmail, i.Vision, i.BranchBase, i.BranchPrefix, i.MergeStatus, i.MergeCommit,
 		i.CreatedAt.Format(time.RFC3339), now)
 	if err != nil {
 		return fmt.Errorf("save initiative: %w", err)
@@ -2340,4 +2385,223 @@ func (p *ProjectDB) GetAllInitiativeDependents() (map[string][]string, error) {
 	}
 
 	return dependents, nil
+}
+
+// =============================================================================
+// Branch Registry
+// =============================================================================
+
+// BranchType represents the type of branch being tracked.
+type BranchType string
+
+const (
+	BranchTypeInitiative BranchType = "initiative"
+	BranchTypeStaging    BranchType = "staging"
+	BranchTypeTask       BranchType = "task"
+)
+
+// BranchStatus represents the lifecycle status of a branch.
+type BranchStatus string
+
+const (
+	BranchStatusActive   BranchStatus = "active"
+	BranchStatusMerged   BranchStatus = "merged"
+	BranchStatusStale    BranchStatus = "stale"
+	BranchStatusOrphaned BranchStatus = "orphaned"
+)
+
+// Branch represents a tracked branch in the registry.
+type Branch struct {
+	Name         string       // Branch name (primary key)
+	Type         BranchType   // 'initiative' | 'staging' | 'task'
+	OwnerID      string       // INIT-001, TASK-XXX, or developer name
+	CreatedAt    time.Time    // When branch was registered
+	LastActivity time.Time    // Last activity timestamp
+	Status       BranchStatus // 'active' | 'merged' | 'stale' | 'orphaned'
+}
+
+// SaveBranch creates or updates a branch in the registry.
+func (p *ProjectDB) SaveBranch(b *Branch) error {
+	if b.CreatedAt.IsZero() {
+		b.CreatedAt = time.Now()
+	}
+	if b.LastActivity.IsZero() {
+		b.LastActivity = time.Now()
+	}
+	if b.Status == "" {
+		b.Status = BranchStatusActive
+	}
+
+	_, err := p.Exec(`
+		INSERT INTO branches (name, type, owner_id, created_at, last_activity, status)
+		VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(name) DO UPDATE SET
+			type = excluded.type,
+			owner_id = excluded.owner_id,
+			last_activity = excluded.last_activity,
+			status = excluded.status
+	`, b.Name, string(b.Type), b.OwnerID, b.CreatedAt.Format(time.RFC3339), b.LastActivity.Format(time.RFC3339), string(b.Status))
+	if err != nil {
+		return fmt.Errorf("save branch: %w", err)
+	}
+	return nil
+}
+
+// GetBranch retrieves a branch by name.
+func (p *ProjectDB) GetBranch(name string) (*Branch, error) {
+	row := p.QueryRow(`
+		SELECT name, type, owner_id, created_at, last_activity, status
+		FROM branches WHERE name = ?
+	`, name)
+
+	var b Branch
+	var ownerID sql.NullString
+	var createdAt, lastActivity string
+
+	if err := row.Scan(&b.Name, &b.Type, &ownerID, &createdAt, &lastActivity, &b.Status); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get branch %s: %w", name, err)
+	}
+
+	if ownerID.Valid {
+		b.OwnerID = ownerID.String
+	}
+
+	if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
+		b.CreatedAt = t
+	}
+	if t, err := time.Parse(time.RFC3339, lastActivity); err == nil {
+		b.LastActivity = t
+	}
+
+	return &b, nil
+}
+
+// ListBranches returns all tracked branches, optionally filtered.
+type BranchListOpts struct {
+	Type   BranchType   // Filter by type (empty = all)
+	Status BranchStatus // Filter by status (empty = all)
+}
+
+func (p *ProjectDB) ListBranches(opts BranchListOpts) ([]Branch, error) {
+	query := `SELECT name, type, owner_id, created_at, last_activity, status FROM branches WHERE 1=1`
+	args := []any{}
+
+	if opts.Type != "" {
+		query += " AND type = ?"
+		args = append(args, string(opts.Type))
+	}
+	if opts.Status != "" {
+		query += " AND status = ?"
+		args = append(args, string(opts.Status))
+	}
+	query += " ORDER BY last_activity DESC"
+
+	rows, err := p.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list branches: %w", err)
+	}
+	defer rows.Close()
+
+	var branches []Branch
+	for rows.Next() {
+		var b Branch
+		var ownerID sql.NullString
+		var createdAt, lastActivity string
+
+		if err := rows.Scan(&b.Name, &b.Type, &ownerID, &createdAt, &lastActivity, &b.Status); err != nil {
+			return nil, fmt.Errorf("scan branch: %w", err)
+		}
+
+		if ownerID.Valid {
+			b.OwnerID = ownerID.String
+		}
+		if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
+			b.CreatedAt = t
+		}
+		if t, err := time.Parse(time.RFC3339, lastActivity); err == nil {
+			b.LastActivity = t
+		}
+
+		branches = append(branches, b)
+	}
+
+	return branches, rows.Err()
+}
+
+// UpdateBranchStatus updates a branch's status.
+func (p *ProjectDB) UpdateBranchStatus(name string, status BranchStatus) error {
+	now := time.Now().Format(time.RFC3339)
+	result, err := p.Exec(`
+		UPDATE branches SET status = ?, last_activity = ? WHERE name = ?
+	`, string(status), now, name)
+	if err != nil {
+		return fmt.Errorf("update branch status: %w", err)
+	}
+
+	affected, _ := result.RowsAffected()
+	if affected == 0 {
+		return fmt.Errorf("branch %s not found", name)
+	}
+	return nil
+}
+
+// UpdateBranchActivity updates a branch's last_activity timestamp.
+func (p *ProjectDB) UpdateBranchActivity(name string) error {
+	now := time.Now().Format(time.RFC3339)
+	_, err := p.Exec(`UPDATE branches SET last_activity = ? WHERE name = ?`, now, name)
+	if err != nil {
+		return fmt.Errorf("update branch activity: %w", err)
+	}
+	return nil
+}
+
+// DeleteBranch removes a branch from the registry.
+func (p *ProjectDB) DeleteBranch(name string) error {
+	_, err := p.Exec(`DELETE FROM branches WHERE name = ?`, name)
+	if err != nil {
+		return fmt.Errorf("delete branch: %w", err)
+	}
+	return nil
+}
+
+// GetStaleBranches returns branches that haven't had activity since the given time.
+func (p *ProjectDB) GetStaleBranches(since time.Time) ([]Branch, error) {
+	rows, err := p.Query(`
+		SELECT name, type, owner_id, created_at, last_activity, status
+		FROM branches
+		WHERE status = 'active' AND last_activity < ?
+		ORDER BY last_activity ASC
+	`, since.Format(time.RFC3339))
+	if err != nil {
+		return nil, fmt.Errorf("get stale branches: %w", err)
+	}
+	defer rows.Close()
+
+	var branches []Branch
+	for rows.Next() {
+		var b Branch
+		var ownerID sql.NullString
+		var createdAt, lastActivity string
+
+		if err := rows.Scan(&b.Name, &b.Type, &ownerID, &createdAt, &lastActivity, &b.Status); err != nil {
+			return nil, fmt.Errorf("scan stale branch: %w", err)
+		}
+
+		if ownerID.Valid {
+			b.OwnerID = ownerID.String
+		}
+		if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
+			b.CreatedAt = t
+		}
+		if t, err := time.Parse(time.RFC3339, lastActivity); err == nil {
+			b.LastActivity = t
+		}
+
+		branches = append(branches, b)
+	}
+
+	return branches, rows.Err()
 }

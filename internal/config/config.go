@@ -563,6 +563,24 @@ type DiagnosticsConfig struct {
 	ResourceTracking ResourceTrackingConfig `yaml:"resource_tracking"`
 }
 
+// DeveloperConfig defines personal developer settings for branch targeting.
+// These settings live in personal config (~/.orc/config.yaml or .orc/local/config.yaml)
+// and are not committed to the repository.
+type DeveloperConfig struct {
+	// StagingBranch is the personal staging branch for accumulating work.
+	// When set and enabled, all tasks (not in an initiative) target this branch.
+	// Example: "dev/randy" or "personal/alice"
+	StagingBranch string `yaml:"staging_branch,omitempty"`
+
+	// StagingEnabled toggles whether staging branch is active.
+	// Allows disabling staging without removing the configuration.
+	StagingEnabled bool `yaml:"staging_enabled,omitempty"`
+
+	// AutoSyncAfter creates a PR from staging to main after N tasks merged.
+	// 0 = disabled (manual sync via `orc staging sync`).
+	AutoSyncAfter int `yaml:"auto_sync_after,omitempty"`
+}
+
 // PlaywrightConfig defines Playwright MCP server settings for UI testing.
 type PlaywrightConfig struct {
 	// Enabled enables auto-configuration of Playwright MCP for UI tasks (default: true)
@@ -812,6 +830,9 @@ type Config struct {
 
 	// Diagnostics configuration
 	Diagnostics DiagnosticsConfig `yaml:"diagnostics"`
+
+	// Developer settings for personal branch targeting (staging branches)
+	Developer DeveloperConfig `yaml:"developer,omitempty"`
 
 	// MCP (Model Context Protocol) server configuration
 	MCP MCPConfig `yaml:"mcp"`

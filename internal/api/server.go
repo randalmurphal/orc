@@ -429,6 +429,12 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/tasks/{id}/claim", cors(s.handleGetTaskClaim))
 	s.mux.HandleFunc("GET /api/team/activity", cors(s.handleListActivity))
 
+	// Branches (branch registry and lifecycle)
+	s.mux.HandleFunc("GET /api/branches", cors(s.handleListBranches))
+	s.mux.HandleFunc("GET /api/branches/{name}", cors(s.handleGetBranch))
+	s.mux.HandleFunc("PATCH /api/branches/{name}/status", cors(s.handleUpdateBranchStatus))
+	s.mux.HandleFunc("DELETE /api/branches/{name}", cors(s.handleDeleteBranch))
+
 	// Static files (embedded frontend) - catch-all for non-API routes
 	s.mux.Handle("/", staticHandler())
 }

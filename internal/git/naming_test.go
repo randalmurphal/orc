@@ -191,3 +191,152 @@ func TestParseBranchName(t *testing.T) {
 		})
 	}
 }
+
+func TestBranchNameWithPrefix(t *testing.T) {
+	tests := []struct {
+		name             string
+		taskID           string
+		executorPrefix   string
+		initiativePrefix string
+		want             string
+	}{
+		{
+			name:             "no initiative prefix - solo mode",
+			taskID:           "TASK-001",
+			executorPrefix:   "",
+			initiativePrefix: "",
+			want:             "orc/TASK-001",
+		},
+		{
+			name:             "no initiative prefix - with executor",
+			taskID:           "TASK-001",
+			executorPrefix:   "am",
+			initiativePrefix: "",
+			want:             "orc/TASK-001-am",
+		},
+		{
+			name:             "initiative prefix with slash - solo mode",
+			taskID:           "TASK-001",
+			executorPrefix:   "",
+			initiativePrefix: "feature/auth-",
+			want:             "feature/auth-TASK-001",
+		},
+		{
+			name:             "initiative prefix with slash - with executor",
+			taskID:           "TASK-001",
+			executorPrefix:   "am",
+			initiativePrefix: "feature/auth-",
+			want:             "feature/auth-TASK-001-am",
+		},
+		{
+			name:             "initiative prefix no trailing separator",
+			taskID:           "TASK-001",
+			executorPrefix:   "",
+			initiativePrefix: "feature/payments",
+			want:             "feature/paymentsTASK-001",
+		},
+		{
+			name:             "simple initiative prefix",
+			taskID:           "TASK-001",
+			executorPrefix:   "",
+			initiativePrefix: "auth-",
+			want:             "auth-TASK-001",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BranchNameWithPrefix(tt.taskID, tt.executorPrefix, tt.initiativePrefix)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestWorktreeDirNameWithPrefix(t *testing.T) {
+	tests := []struct {
+		name             string
+		taskID           string
+		executorPrefix   string
+		initiativePrefix string
+		want             string
+	}{
+		{
+			name:             "no initiative prefix",
+			taskID:           "TASK-001",
+			executorPrefix:   "",
+			initiativePrefix: "",
+			want:             "orc-TASK-001",
+		},
+		{
+			name:             "initiative prefix with slash converted to hyphen",
+			taskID:           "TASK-001",
+			executorPrefix:   "",
+			initiativePrefix: "feature/auth-",
+			want:             "feature-auth-TASK-001",
+		},
+		{
+			name:             "initiative prefix with slash and executor",
+			taskID:           "TASK-001",
+			executorPrefix:   "am",
+			initiativePrefix: "feature/auth-",
+			want:             "feature-auth-TASK-001-am",
+		},
+		{
+			name:             "deep nested initiative prefix",
+			taskID:           "TASK-001",
+			executorPrefix:   "",
+			initiativePrefix: "team/project/feature-",
+			want:             "team-project-feature-TASK-001",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := WorktreeDirNameWithPrefix(tt.taskID, tt.executorPrefix, tt.initiativePrefix)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestWorkTreePathWithPrefix(t *testing.T) {
+	tests := []struct {
+		name             string
+		worktreeDir      string
+		taskID           string
+		executorPrefix   string
+		initiativePrefix string
+		want             string
+	}{
+		{
+			name:             "no initiative prefix",
+			worktreeDir:      ".orc/worktrees",
+			taskID:           "TASK-001",
+			executorPrefix:   "",
+			initiativePrefix: "",
+			want:             ".orc/worktrees/orc-TASK-001",
+		},
+		{
+			name:             "initiative prefix converted for path",
+			worktreeDir:      ".orc/worktrees",
+			taskID:           "TASK-001",
+			executorPrefix:   "",
+			initiativePrefix: "feature/auth-",
+			want:             ".orc/worktrees/feature-auth-TASK-001",
+		},
+		{
+			name:             "absolute path with initiative prefix",
+			worktreeDir:      "/home/user/project/.orc/worktrees",
+			taskID:           "TASK-001",
+			executorPrefix:   "am",
+			initiativePrefix: "feature/auth-",
+			want:             "/home/user/project/.orc/worktrees/feature-auth-TASK-001-am",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := WorktreePathWithPrefix(tt.worktreeDir, tt.taskID, tt.executorPrefix, tt.initiativePrefix)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

@@ -24,6 +24,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 	const [priority, setPriority] = useState<TaskPriority>(task.priority ?? 'normal');
 	const [category, setCategory] = useState<TaskCategory>(task.category ?? 'feature');
 	const [queue, setQueue] = useState<TaskQueue>(task.queue ?? 'active');
+	const [targetBranch, setTargetBranch] = useState(task.target_branch ?? '');
 	const [saving, setSaving] = useState(false);
 
 	const handleSave = useCallback(async () => {
@@ -41,6 +42,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 				priority,
 				category,
 				queue,
+				target_branch: targetBranch.trim() || undefined,
 			});
 			toast.success('Task updated');
 			onUpdate(updated);
@@ -50,7 +52,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 		} finally {
 			setSaving(false);
 		}
-	}, [task.id, title, description, weight, priority, category, queue, onUpdate, onClose]);
+	}, [task.id, title, description, weight, priority, category, queue, targetBranch, onUpdate, onClose]);
 
 	return (
 		<Modal open={open} title="Edit Task" onClose={onClose}>
@@ -144,6 +146,21 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 							))}
 						</select>
 					</div>
+				</div>
+
+				{/* Target Branch */}
+				<div className="form-group">
+					<label htmlFor="task-target-branch">Target Branch</label>
+					<input
+						id="task-target-branch"
+						type="text"
+						value={targetBranch}
+						onChange={(e) => setTargetBranch(e.target.value)}
+						placeholder="Override PR target branch (e.g., hotfix/v2.1)"
+					/>
+					<span className="form-hint">
+						Leave empty to use initiative branch or project default
+					</span>
 				</div>
 
 				{/* Actions */}
