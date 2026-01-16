@@ -92,6 +92,23 @@ All colors meet WCAG AA contrast requirements (4.5:1 on dark backgrounds):
 - Status colors adjusted for accessibility
 - Accent color uses #a78bfa (not darker purple) for readability
 
+### Light Theme
+
+Full light theme support via `data-theme="light"` attribute on `<html>`. Toggle via Preferences page (`/preferences`).
+
+**Implementation:** CSS uses `:root[data-theme="light"]` selector to override all color tokens including:
+- Background colors (white/slate scale instead of deep space)
+- Text colors (dark text for light backgrounds)
+- Accent colors (darker violet for contrast)
+- Status colors (adjusted for light mode)
+- Shadows (softer opacity)
+- Borders (darker for visibility)
+
+**Switching:** Handled by `preferencesStore.setTheme()` which:
+1. Updates localStorage (`orc-theme`)
+2. Sets/removes `data-theme` attribute on document
+3. Updates store state for reactive components
+
 ### Usage in Components
 
 ```css
@@ -243,7 +260,7 @@ npm run build
 
 ### State Management (Zustand)
 
-Five Zustand stores manage application state. All use `subscribeWithSelector` middleware for efficient derived state.
+Six Zustand stores manage application state. All use `subscribeWithSelector` middleware for efficient derived state.
 
 | Store | State | Persistence | Purpose |
 |-------|-------|-------------|---------|
@@ -252,6 +269,7 @@ Five Zustand stores manage application state. All use `subscribeWithSelector` mi
 | `initiativeStore.ts` | initiatives, currentInitiativeId | URL + localStorage | Initiative filter |
 | `dependencyStore.ts` | currentDependencyStatus | URL + localStorage | Dependency status filter |
 | `uiStore.ts` | sidebarExpanded, wsStatus, toasts | localStorage (sidebar) | UI state |
+| `preferencesStore.ts` | theme, sidebarDefault, boardViewMode, dateFormat | localStorage | User preferences (theme, layout, date format) |
 
 ### WebSocket Integration
 
@@ -1373,7 +1391,7 @@ function TaskCard({ task }: { task: Task }) {
 
 ### State Management (Zustand)
 
-Five Zustand stores manage application state. All use `subscribeWithSelector` middleware for efficient derived state.
+Six Zustand stores manage application state. All use `subscribeWithSelector` middleware for efficient derived state.
 
 #### Store Overview
 
@@ -1384,6 +1402,7 @@ Five Zustand stores manage application state. All use `subscribeWithSelector` mi
 | `useInitiativeStore` | initiatives, currentInitiativeId | URL + localStorage | Initiative filter |
 | `useDependencyStore` | currentDependencyStatus | URL + localStorage | Dependency status filter |
 | `useUIStore` | sidebarExpanded, wsStatus, toasts | localStorage (sidebar) | UI state |
+| `usePreferencesStore` | theme, sidebarDefault, boardViewMode, dateFormat | localStorage | User preferences |
 
 **URL/localStorage priority:** URL param > localStorage > default
 
@@ -1527,6 +1546,45 @@ Dependency status filter with URL and localStorage sync.
 **URL param:** `?dependency_status=blocked|ready|none`
 
 **localStorage key:** `orc_dependency_status_filter`
+
+#### PreferencesStore
+
+User preferences for theme, layout, and date formatting. All preferences persist to localStorage and apply immediately.
+
+| State | Type | Description |
+|-------|------|-------------|
+| `theme` | `'dark' \| 'light'` | Color theme (default: dark) |
+| `sidebarDefault` | `'expanded' \| 'collapsed'` | Default sidebar state for new sessions |
+| `boardViewMode` | `'flat' \| 'swimlane'` | Default board view mode |
+| `dateFormat` | `'relative' \| 'absolute' \| 'absolute24'` | Date display format |
+
+| Hook | Description |
+|------|-------------|
+| `useTheme()` | Current theme |
+| `useSidebarDefault()` | Sidebar default state |
+| `useBoardViewMode()` | Board view mode preference |
+| `useDateFormat()` | Date format preference |
+
+| Action | Purpose |
+|--------|---------|
+| `setTheme(theme)` | Set theme and apply to DOM |
+| `setSidebarDefault(state)` | Set sidebar default |
+| `setBoardViewMode(mode)` | Set board view default |
+| `setDateFormat(format)` | Set date format |
+| `resetToDefaults()` | Clear all preferences |
+
+**Theme implementation:** Sets `data-theme="light"` attribute on `<html>`. CSS uses `:root[data-theme="light"]` selector to override color tokens.
+
+**localStorage keys:**
+- `orc-theme` - Theme preference
+- `orc-sidebar-default` - Sidebar default state
+- `orc-board-view-mode` - Board view mode
+- `orc-date-format` - Date format preference
+
+**Date format options:**
+- `relative` - "3h ago", "5 days ago" (default)
+- `absolute` - "Jan 16, 3:45 PM" (12-hour)
+- `absolute24` - "Jan 16, 15:45" (24-hour)
 
 #### Usage Examples
 
