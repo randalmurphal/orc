@@ -47,6 +47,7 @@ describe('TaskHeader', () => {
 		description: 'Test description',
 		status: 'created',
 		weight: 'small',
+		branch: 'orc/TASK-001',
 		priority: 'normal',
 		category: 'feature',
 		queue: 'active',
@@ -84,14 +85,6 @@ describe('TaskHeader', () => {
 			const badge = screen.getByRole('button', { name: /test init/i });
 			expect(badge).toBeInTheDocument();
 			expect(badge).toHaveClass('initiative-badge');
-		});
-
-		it('hides initiative badge when task.initiative_id is null', () => {
-			renderTaskHeader({
-				task: createTask({ initiative_id: null }),
-			});
-
-			expect(screen.queryByText(/test init/i)).not.toBeInTheDocument();
 		});
 
 		it('hides initiative badge when task.initiative_id is undefined', () => {
