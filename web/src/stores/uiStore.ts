@@ -3,13 +3,19 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import type { Toast, ToastType, ConnectionStatus } from '@/lib/types';
 
 const SIDEBAR_STORAGE_KEY = 'orc-sidebar-expanded';
+const SIDEBAR_DEFAULT_KEY = 'orc-sidebar-default';
 
 // localStorage helpers for sidebar
 function getStoredSidebarExpanded(): boolean {
 	if (typeof window === 'undefined') return true;
 	try {
 		const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-		return stored === null ? true : stored === 'true';
+		// If no stored state, check the user's default preference
+		if (stored === null) {
+			const defaultPref = localStorage.getItem(SIDEBAR_DEFAULT_KEY);
+			return defaultPref === null ? true : defaultPref === 'expanded';
+		}
+		return stored === 'true';
 	} catch {
 		return true;
 	}

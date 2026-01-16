@@ -287,3 +287,96 @@
   --z-tooltip: 900;
   --z-max: 9999;
 }
+
+/* =============================================================================
+   LIGHT THEME OVERRIDES
+   Applied when [data-theme="light"] is set on :root
+   ============================================================================= */
+
+:root[data-theme="light"] {
+  /* Background Colors - Clean Light Theme */
+  --bg-void: #f8fafc;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f1f5f9;
+  --bg-tertiary: #e2e8f0;
+  --bg-surface: #cbd5e1;
+  --bg-elevated: #94a3b8;
+
+  /* Electric Violet Accent - Adjusted for light backgrounds */
+  --accent-primary: #7c3aed;
+  --accent-secondary: #6d28d9;
+  --accent-glow: rgba(124, 58, 237, 0.15);
+  --accent-glow-strong: rgba(124, 58, 237, 0.25);
+  --accent-muted: rgba(124, 58, 237, 0.6);
+  --accent-hover: #6d28d9;
+  --accent-active: #5b21b6;
+  --accent-subtle: rgba(124, 58, 237, 0.08);
+  --accent-button: #7c3aed;
+  --accent-button-hover: #6d28d9;
+
+  /* React-specific aliases */
+  --bg-hover: var(--bg-tertiary);
+  --accent-primary-hover: var(--accent-hover);
+  --accent-primary-transparent: var(--accent-subtle);
+
+  /* Status Colors - Darker for light mode contrast */
+  --status-success: #059669;
+  --status-success-glow: rgba(5, 150, 105, 0.2);
+  --status-success-bg: rgba(5, 150, 105, 0.1);
+
+  --status-warning: #d97706;
+  --status-warning-glow: rgba(217, 119, 6, 0.2);
+  --status-warning-bg: rgba(217, 119, 6, 0.1);
+
+  --status-danger: #dc2626;
+  --status-danger-glow: rgba(220, 38, 38, 0.2);
+  --status-danger-bg: rgba(220, 38, 38, 0.1);
+
+  --status-info: #2563eb;
+  --status-info-glow: rgba(37, 99, 235, 0.2);
+  --status-info-bg: rgba(37, 99, 235, 0.1);
+
+  --status-running: #7c3aed;
+  --status-running-glow: rgba(124, 58, 237, 0.2);
+  --status-running-bg: rgba(124, 58, 237, 0.1);
+
+  --status-error: var(--status-danger);
+
+  /* Weight Colors - Adjusted for light backgrounds */
+  --weight-trivial: #64748b;
+  --weight-small: #059669;
+  --weight-medium: #2563eb;
+  --weight-large: #d97706;
+  --weight-greenfield: #7c3aed;
+
+  /* Text Colors - Dark text for light backgrounds */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-disabled: #94a3b8;
+  --text-inverse: #f8fafc;
+  --text-accent: var(--accent-primary);
+
+  /* Border Colors - Darker for light mode */
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.1);
+  --border-strong: rgba(0, 0, 0, 0.15);
+  --border-focus: var(--accent-primary);
+  --border-glow: var(--accent-glow);
+
+  /* Shadows - Softer for light mode */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.12);
+  --shadow-2xl: 0 24px 48px rgba(0, 0, 0, 0.15);
+
+  /* Glow Effects - Adjusted for light mode */
+  --shadow-glow-sm: 0 0 10px var(--accent-glow);
+  --shadow-glow: 0 0 20px var(--accent-glow);
+  --shadow-glow-lg: 0 0 40px var(--accent-glow-strong);
+  --shadow-glow-success: 0 0 20px var(--status-success-glow);
+  --shadow-glow-warning: 0 0 20px var(--status-warning-glow);
+  --shadow-glow-danger: 0 0 20px var(--status-danger-glow);
+}
