@@ -15,6 +15,32 @@ type FileChangeStats struct {
 	Deletions    int
 }
 
+// SyncStrategy represents the sync strategy used (for contextual help).
+type SyncStrategy string
+
+const (
+	// SyncStrategyRebase indicates rebase-based sync.
+	SyncStrategyRebase SyncStrategy = "rebase"
+	// SyncStrategyMerge indicates merge-based sync.
+	SyncStrategyMerge SyncStrategy = "merge"
+)
+
+// BlockedContext provides context for blocked task display.
+// This enables better guidance for manual conflict resolution.
+type BlockedContext struct {
+	// WorktreePath is the path to the task's worktree (relative to project root).
+	WorktreePath string
+
+	// ConflictFiles is the list of files with conflicts.
+	ConflictFiles []string
+
+	// SyncStrategy is the sync strategy being used (rebase or merge).
+	SyncStrategy SyncStrategy
+
+	// TargetBranch is the branch being synced with.
+	TargetBranch string
+}
+
 // ActivityState represents what the executor is currently doing.
 type ActivityState string
 
@@ -224,10 +250,72 @@ func (d *Display) TaskFailed(err error) {
 // This is shown when all phases succeed but completion actions fail (e.g., sync conflicts).
 // Always shown even in quiet mode since it requires user action.
 func (d *Display) TaskBlocked(totalTokens int, totalDuration time.Duration, reason string) {
+	d.TaskBlockedWithContext(totalTokens, totalDuration, reason, nil)
+}
+
+// TaskBlockedWithContext announces that task phases completed but the task is blocked,
+// with additional context for better guidance on manual conflict resolution.
+func (d *Display) TaskBlockedWithContext(totalTokens int, totalDuration time.Duration, reason string, ctx *BlockedContext) {
 	// Always show blocked status - requires user action
 	fmt.Printf("\n⚠️  Task %s blocked: %s\n", d.taskID, reason)
 	fmt.Printf("   All phases completed, but sync with target branch failed.\n")
-	fmt.Printf("   To resolve: manually resolve conflicts then run 'orc resume %s'\n", d.taskID)
+
+	// Show enhanced guidance if context is available
+	if ctx != nil && ctx.WorktreePath != "" {
+		fmt.Println()
+		fmt.Printf("   Worktree: %s\n", ctx.WorktreePath)
+
+		// Show conflicted files if available
+		if len(ctx.ConflictFiles) > 0 {
+			fmt.Println("   Conflicted files:")
+			for _, f := range ctx.ConflictFiles {
+				fmt.Printf("     - %s\n", f)
+			}
+		}
+
+		// Provide step-by-step resolution commands
+		fmt.Println()
+		fmt.Println("   To resolve manually:")
+		fmt.Println("   " + strings.Repeat("─", 44))
+		fmt.Printf("   cd %s\n", ctx.WorktreePath)
+		fmt.Println("   git fetch origin")
+
+		// Contextual commands based on sync strategy
+		targetBranch := ctx.TargetBranch
+		if targetBranch == "" {
+			targetBranch = "main"
+		}
+
+		if ctx.SyncStrategy == SyncStrategyMerge {
+			fmt.Printf("   git merge origin/%s\n", targetBranch)
+			fmt.Println()
+			fmt.Println("   # For each conflicted file:")
+			fmt.Println("   #   1. Edit the file to resolve conflict markers")
+			fmt.Println("   #   2. git add <file>")
+			fmt.Println()
+			fmt.Println("   git commit -m \"Resolve merge conflicts\"")
+		} else {
+			// Default to rebase instructions (most common)
+			fmt.Printf("   git rebase origin/%s\n", targetBranch)
+			fmt.Println()
+			fmt.Println("   # For each conflicted file:")
+			fmt.Println("   #   1. Edit the file to resolve conflict markers")
+			fmt.Println("   #   2. git add <file>")
+			fmt.Println()
+			fmt.Println("   git rebase --continue")
+		}
+		fmt.Println("   " + strings.Repeat("─", 44))
+
+		// Show verification command
+		fmt.Println()
+		fmt.Println("   Verify resolution:")
+		fmt.Println("     git diff --name-only --diff-filter=U  # Should show no files")
+		fmt.Println()
+	}
+
+	fmt.Printf("   Then resume:\n")
+	fmt.Printf("     orc resume %s\n", d.taskID)
+	fmt.Println()
 	fmt.Printf("   Total tokens: %d\n", totalTokens)
 	fmt.Printf("   Total time: %s\n", formatDuration(totalDuration))
 }

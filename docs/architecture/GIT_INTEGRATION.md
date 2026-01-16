@@ -322,13 +322,17 @@ Timeline:
 
 When conflicts are detected:
 
-1. **fail_on_conflict: true** (default) — Task fails with clear error message listing conflicting files and resolution options
+1. **fail_on_conflict: true** (default) — Task is marked as blocked with detailed resolution guidance
 2. **fail_on_conflict: false** — Warning logged, PR created (may have merge conflicts)
 
-Resolution options on conflict:
-- Manually resolve conflicts and retry task
-- Rebase your changes onto latest target branch
-- Set `fail_on_conflict: false` to allow PR with conflicts
+**Enhanced Blocked Task Output**: When a task is blocked by sync conflicts, orc provides:
+- Worktree path for quick navigation
+- List of conflicted files
+- Step-by-step resolution commands (contextual for rebase vs merge strategy)
+- Verification command to confirm resolution
+- Exact resume command
+
+See [Troubleshooting: Task Blocked After Sync Conflict](../guides/TROUBLESHOOTING.md#task-blocked-after-sync-conflict) for example output and resolution workflow.
 
 ### Sync Process
 

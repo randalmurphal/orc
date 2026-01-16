@@ -1,117 +1,125 @@
-# Specification: Bug: Task prints 'completed!' message when sync fails with conflicts
+# Specification: UX: Better guidance for manual conflict resolution in worktrees
 
 ## Problem Statement
 
-When a task completes all phases but the post-completion sync with the target branch fails due to merge conflicts, orc incorrectly prints the "Task TASK-XXX completed!" message even though the task status is set to `blocked`. This confuses users because the CLI message suggests success while the task actually requires manual intervention.
+When task execution fails with sync conflicts requiring manual resolution, users receive minimal guidance. The current `TaskBlocked` message ("manually resolve conflicts then run 'orc resume'") doesn't explain how to navigate to the worktree, what git commands to run, or how to verify resolution before resuming.
 
 ## Success Criteria
 
-- [ ] When sync fails with conflicts during completion, CLI displays a blocked/warning message instead of "completed!"
-- [ ] The message clearly indicates the task is blocked due to sync conflicts
-- [ ] The message provides guidance on how to resolve the conflict (e.g., "run orc resume TASK-XXX after resolving conflicts")
-- [ ] Existing behavior preserved: task execution success is still separate from sync/PR success
-- [ ] Unit test covers the blocked-on-sync-conflict scenario
-- [ ] Integration test verifies correct CLI output on sync conflict
+- [ ] `TaskBlocked` output includes worktree path for quick navigation
+- [ ] Output shows specific conflicted files list when available
+- [ ] Output provides step-by-step resolution commands (cd, git fetch, git rebase/merge, conflict resolution, git add, continue)
+- [ ] Output shows verification command to check conflicts are resolved before resuming
+- [ ] `orc status` shows worktree conflict state for blocked tasks
+- [ ] Help text is contextual - shows rebase vs merge commands based on sync strategy
+- [ ] Output is formatted for easy copy-paste of commands
 
 ## Testing Requirements
 
-- [ ] Unit test: `TestTaskComplete_DoesNotPrintWhenBlocked` - verifies `TaskComplete()` is not called when task status is blocked
-- [ ] Unit test: `TestExecuteTask_ReturnsBlockedOnSyncConflict` - verifies `ExecuteTask` returns a distinguishable result when blocked by sync conflict
-- [ ] Integration test: E2E test that triggers a sync conflict and verifies the CLI output shows blocked message
+- [ ] Unit test: `TaskBlocked` displays worktree path when provided
+- [ ] Unit test: `TaskBlocked` displays conflicted files list when available
+- [ ] Unit test: Resolution instructions include correct worktree path
+- [ ] Unit test: Commands are formatted for copy-paste (no extraneous characters in command strings)
+- [ ] Integration test: `orc status` shows conflict state for blocked tasks with worktrees
 
 ## Scope
 
 ### In Scope
-- Modify `completeTask()` to communicate the blocked-on-conflict status to callers
-- Update CLI layer (`cmd_run.go`, `cmd_resume.go`, `cmd_finalize.go`, `cmd_go.go`) to handle blocked completion
-- Add a display method for blocked-on-sync-conflict scenario in progress display
-- Add appropriate tests
+- Enhanced `TaskBlocked` display with worktree path and file list
+- Step-by-step resolution instructions with copy-pasteable commands
+- `orc status` enhancement to show worktree conflict state
+- Contextual help based on sync strategy (merge vs rebase)
 
 ### Out of Scope
-- Automatic conflict resolution improvements (already exists, this bug is about the message when resolution fails)
-- Changes to how conflicts are detected or resolved
-- Web UI changes (already shows correct status via WebSocket events)
+- Automated conflict resolution improvements (separate task)
+- Interactive conflict resolution TUI
+- Web UI changes for conflict display
+- Changes to the conflict resolver itself (ConflictResolver)
+- `orc resolve` command changes (already handles worktree state)
 
 ## Technical Approach
 
-The root cause is in `internal/executor/task_execution.go:completeTask()`. When sync fails with `ErrSyncConflict`:
-1. The function correctly sets `t.Status = task.StatusBlocked` (line 492)
-2. The function returns `nil` to indicate "task execution was successful" (line 515)
-3. CLI interprets `nil` error as full success and calls `disp.TaskComplete()`
-
-**Solution**: Return a sentinel error or result type that distinguishes "completed" from "blocked due to sync conflict" so CLI can display the appropriate message.
+The core change is enhancing the `progress.Display.TaskBlocked` method to accept additional context (worktree path, conflict files, sync strategy) and produce actionable output. The `orc status` command should also detect and display worktree conflict state.
 
 ### Files to Modify
 
-1. `internal/executor/task_execution.go`:
-   - Create a new sentinel error `ErrTaskBlocked` that wraps the underlying sync conflict
-   - Return `ErrTaskBlocked` when sync conflict blocks completion instead of `nil`
-   - Add an `errors.Is(err, ErrTaskBlocked)` check for callers
+1. `internal/progress/display.go`:
+   - Add `BlockedContext` struct with `WorktreePath`, `ConflictFiles`, `SyncStrategy` fields
+   - Update `TaskBlocked` signature to accept `BlockedContext`
+   - Add helper to format step-by-step resolution commands
 
 2. `internal/cli/cmd_run.go`:
-   - Check for `ErrTaskBlocked` after `ExecuteTask`
-   - Call `disp.TaskBlocked()` instead of `disp.TaskComplete()` when blocked
-   - Return `nil` (not an error) since the task itself executed correctly
+   - Pass worktree context to `TaskBlocked` when sync fails
+   - Include conflict files from executor result
 
-3. `internal/cli/cmd_resume.go`:
-   - Same changes as `cmd_run.go`
+3. `internal/cli/cmd_go.go`:
+   - Same changes as cmd_run.go for `orc go` command
 
-4. `internal/cli/cmd_finalize.go`:
-   - Same changes as `cmd_run.go`
+4. `internal/cli/cmd_resume.go`:
+   - Same changes for consistency
 
-5. `internal/cli/cmd_go.go`:
-   - Same changes as `cmd_run.go`
+5. `internal/cli/cmd_status.go`:
+   - Add worktree conflict detection for blocked/running tasks
+   - Display conflict files if present
 
-6. `internal/progress/display.go`:
-   - Add `TaskBlocked(reason string)` method to display:
-     ```
-     ⚠️  Task TASK-XXX blocked: sync conflict
-        To resolve: orc resume TASK-XXX after manually resolving conflicts
-     ```
+6. `internal/executor/errors.go`:
+   - Add `ConflictFiles` field to `ErrTaskBlocked` if not present
+   - Ensure worktree path is propagated with the error
 
-7. `internal/executor/task_execution_test.go`:
-   - Add test for `ErrTaskBlocked` being returned on sync conflict
+### Example Output (After)
 
-## Bug Analysis
-
-### Reproduction Steps
-1. Create two tasks that modify the same file
-2. Run both tasks in parallel (or sequentially before merging)
-3. First task completes and merges successfully
-4. Second task completes all phases
-5. Second task's completion sync detects conflicts
-6. Observe: CLI prints "Task TASK-XXX completed!" even though task is blocked
-
-### Current Behavior
 ```
-🎉 Task TASK-002 completed!
-   Total tokens: 5000
-   Total time: 2m30s
-   Files changed: 3 (+150, -20)
-```
+Task TASK-042 blocked: sync conflict
 
-### Expected Behavior
-```
-⚠️  Task TASK-002 blocked: sync conflict
-   All phases completed, but sync with main failed due to conflicts.
-   To resolve: manually resolve conflicts then run 'orc resume TASK-002'
-   Total tokens: 5000
-   Total time: 2m30s
-```
+   Worktree: .orc/worktrees/orc-TASK-042
+   Conflicted files:
+     - internal/api/handler.go
+     - CLAUDE.md
 
-### Root Cause
-In `internal/executor/task_execution.go:515`:
-```go
-// Don't return error - task execution itself was successful,
-// just the post-execution sync/PR failed
-return nil
+   To resolve manually:
+   ────────────────────────────────────────
+   cd .orc/worktrees/orc-TASK-042
+   git fetch origin
+   git rebase origin/main
+
+   # For each conflicted file:
+   #   1. Edit the file to resolve conflict markers
+   #   2. git add <file>
+
+   git rebase --continue
+   ────────────────────────────────────────
+
+   Verify resolution:
+     git diff --name-only --diff-filter=U  # Should show no files
+
+   Then resume:
+     orc resume TASK-042
+
+   Total tokens: 45,231
+   Total time: 12m34s
 ```
 
-This design intentionally returns `nil` to separate "task execution success" from "sync/PR success", but it prevents the CLI from knowing the task is actually blocked. The comment even acknowledges the decision, but the CLI layer wasn't updated to handle this case.
+## Feature Analysis
 
-### Verification
-After fix:
-1. Blocked tasks show warning message with resolution guidance
-2. Completed tasks still show celebration message
-3. `orc status` shows the task as blocked (this already works correctly)
-4. Web UI shows blocked status (this already works via events)
+### User Story
+
+As an orc user whose task failed with sync conflicts, I want clear instructions on how to manually resolve the conflicts so that I can complete the task without searching documentation.
+
+### Acceptance Criteria
+
+1. When a task is blocked due to sync conflicts:
+   - User sees the exact worktree path they need to navigate to
+   - User sees which files have conflicts
+   - User sees step-by-step git commands to resolve
+   - User sees how to verify conflicts are resolved
+   - User sees the exact resume command
+
+2. When running `orc status`:
+   - Blocked tasks show worktree path
+   - Blocked tasks with conflicts show conflict file count
+   - Running tasks with worktree issues show warnings
+
+3. Command formatting:
+   - Commands are copy-pasteable (no emoji/decorators in command strings)
+   - Commands use relative paths when possible for portability
+   - Commands are contextual (rebase for rebase strategy, merge for merge)

@@ -432,3 +432,126 @@ func TestCancelled(t *testing.T) {
 	// Should always print
 	d.Cancelled()
 }
+
+// === TaskBlocked Tests ===
+
+func TestTaskBlocked_Basic(t *testing.T) {
+	d := New("TASK-001", false) // non-quiet mode
+
+	// TaskBlocked always prints since it requires user action
+	d.TaskBlocked(5000, 10*time.Minute, "sync conflict")
+}
+
+func TestTaskBlocked_Quiet(t *testing.T) {
+	d := New("TASK-001", true) // quiet mode
+
+	// TaskBlocked should still print even in quiet mode since it requires action
+	d.TaskBlocked(5000, 10*time.Minute, "sync conflict")
+}
+
+func TestTaskBlockedWithContext_NoContext(t *testing.T) {
+	d := New("TASK-001", false)
+
+	// Should not panic with nil context
+	d.TaskBlockedWithContext(5000, 10*time.Minute, "sync conflict", nil)
+}
+
+func TestTaskBlockedWithContext_WithWorktreePath(t *testing.T) {
+	d := New("TASK-001", false)
+
+	ctx := &BlockedContext{
+		WorktreePath: ".orc/worktrees/orc-TASK-001",
+	}
+
+	// Should display worktree path
+	d.TaskBlockedWithContext(5000, 10*time.Minute, "sync conflict", ctx)
+}
+
+func TestTaskBlockedWithContext_WithConflictFiles(t *testing.T) {
+	d := New("TASK-001", false)
+
+	ctx := &BlockedContext{
+		WorktreePath:  ".orc/worktrees/orc-TASK-001",
+		ConflictFiles: []string{"internal/foo.go", "internal/bar.go"},
+	}
+
+	// Should list conflicted files
+	d.TaskBlockedWithContext(5000, 10*time.Minute, "sync conflict", ctx)
+}
+
+func TestTaskBlockedWithContext_RebaseStrategy(t *testing.T) {
+	d := New("TASK-001", false)
+
+	ctx := &BlockedContext{
+		WorktreePath: ".orc/worktrees/orc-TASK-001",
+		SyncStrategy: SyncStrategyRebase,
+		TargetBranch: "main",
+	}
+
+	// Should show rebase instructions (git rebase, git rebase --continue)
+	d.TaskBlockedWithContext(5000, 10*time.Minute, "sync conflict", ctx)
+}
+
+func TestTaskBlockedWithContext_MergeStrategy(t *testing.T) {
+	d := New("TASK-001", false)
+
+	ctx := &BlockedContext{
+		WorktreePath: ".orc/worktrees/orc-TASK-001",
+		SyncStrategy: SyncStrategyMerge,
+		TargetBranch: "develop",
+	}
+
+	// Should show merge instructions (git merge, git commit)
+	d.TaskBlockedWithContext(5000, 10*time.Minute, "sync conflict", ctx)
+}
+
+func TestTaskBlockedWithContext_DefaultTargetBranch(t *testing.T) {
+	d := New("TASK-001", false)
+
+	ctx := &BlockedContext{
+		WorktreePath: ".orc/worktrees/orc-TASK-001",
+		SyncStrategy: SyncStrategyRebase,
+		TargetBranch: "", // Empty should default to "main"
+	}
+
+	// Should default to "main" for target branch in commands
+	d.TaskBlockedWithContext(5000, 10*time.Minute, "sync conflict", ctx)
+}
+
+func TestTaskBlockedWithContext_EmptyWorktreePath(t *testing.T) {
+	d := New("TASK-001", false)
+
+	ctx := &BlockedContext{
+		WorktreePath: "", // Empty worktree path
+		SyncStrategy: SyncStrategyRebase,
+	}
+
+	// Should skip enhanced guidance when worktree path is empty
+	d.TaskBlockedWithContext(5000, 10*time.Minute, "sync conflict", ctx)
+}
+
+func TestTaskBlockedWithContext_FullContext(t *testing.T) {
+	d := New("TASK-001", false)
+
+	ctx := &BlockedContext{
+		WorktreePath:  ".orc/worktrees/orc-TASK-001",
+		ConflictFiles: []string{"file1.go", "file2.go", "file3.go"},
+		SyncStrategy:  SyncStrategyRebase,
+		TargetBranch:  "main",
+	}
+
+	// Full context with all fields populated
+	d.TaskBlockedWithContext(5000, 10*time.Minute, "sync conflict", ctx)
+}
+
+// === SyncStrategy Tests ===
+
+func TestSyncStrategy_Constants(t *testing.T) {
+	// Verify constant values are as expected
+	if SyncStrategyRebase != "rebase" {
+		t.Errorf("SyncStrategyRebase = %q, want %q", SyncStrategyRebase, "rebase")
+	}
+	if SyncStrategyMerge != "merge" {
+		t.Errorf("SyncStrategyMerge = %q, want %q", SyncStrategyMerge, "merge")
+	}
+}
