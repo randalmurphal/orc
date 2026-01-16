@@ -51,13 +51,16 @@ export const PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: strin
 };
 
 // Category display labels and colors
-export const CATEGORY_CONFIG: Record<TaskCategory, { label: string; color: string; icon: string }> = {
-	feature: { label: 'Feature', color: 'var(--status-success)', icon: '✨' },
-	bug: { label: 'Bug', color: 'var(--status-error)', icon: '🐛' },
-	refactor: { label: 'Refactor', color: 'var(--status-info)', icon: '♻️' },
-	chore: { label: 'Chore', color: 'var(--text-muted)', icon: '🔧' },
-	docs: { label: 'Docs', color: 'var(--status-warning)', icon: '📝' },
-	test: { label: 'Test', color: 'var(--accent-secondary)', icon: '🧪' }
+// Icon names correspond to IconName type in @/components/ui/Icon
+export type CategoryIconName = 'sparkles' | 'bug' | 'recycle' | 'tools' | 'file-text' | 'beaker';
+
+export const CATEGORY_CONFIG: Record<TaskCategory, { label: string; color: string; icon: CategoryIconName }> = {
+	feature: { label: 'Feature', color: 'var(--status-success)', icon: 'sparkles' },
+	bug: { label: 'Bug', color: 'var(--status-error)', icon: 'bug' },
+	refactor: { label: 'Refactor', color: 'var(--status-info)', icon: 'recycle' },
+	chore: { label: 'Chore', color: 'var(--text-muted)', icon: 'tools' },
+	docs: { label: 'Docs', color: 'var(--status-warning)', icon: 'file-text' },
+	test: { label: 'Test', color: 'var(--accent-secondary)', icon: 'beaker' }
 };
 
 export interface Phase {

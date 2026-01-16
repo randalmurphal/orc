@@ -141,7 +141,7 @@ export function TaskHeader({ task, onTaskUpdate, onTaskDelete }: TaskHeaderProps
 							className="category-badge"
 							style={{ '--category-color': categoryConfig.color } as React.CSSProperties}
 						>
-							<span className="category-icon">{categoryConfig.icon}</span>
+							<Icon name={categoryConfig.icon} size={12} className="category-icon" />
 							{categoryConfig.label}
 						</span>
 					)}

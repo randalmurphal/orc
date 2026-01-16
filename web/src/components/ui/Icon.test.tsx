@@ -91,4 +91,15 @@ describe('Icon', () => {
 			unmount();
 		});
 	});
+
+	it('renders category icons', () => {
+		const categoryIcons: IconName[] = ['sparkles', 'bug', 'recycle', 'beaker'];
+
+		categoryIcons.forEach((name) => {
+			const { container, unmount } = render(<Icon name={name} />);
+			const svg = container.querySelector('svg');
+			expect(svg).toBeInTheDocument();
+			unmount();
+		});
+	});
 });

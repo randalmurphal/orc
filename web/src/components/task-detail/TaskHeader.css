@@ -77,7 +77,7 @@
 }
 
 .category-icon {
-	font-size: var(--text-xs);
+	flex-shrink: 0;
 }
 
 .priority-badge {
