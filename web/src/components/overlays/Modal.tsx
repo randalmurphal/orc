@@ -43,7 +43,7 @@ export function Modal({
 	return (
 		<Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
 			<Dialog.Portal>
-				<Dialog.Overlay className="modal-backdrop" onClick={onClose} />
+				<Dialog.Overlay className="modal-backdrop" />
 				<Dialog.Content
 					className={`modal-content ${sizeClasses[size]}`}
 					aria-describedby={undefined}
