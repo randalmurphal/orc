@@ -84,6 +84,56 @@ describe('TaskCard', () => {
 			expect(screen.getByText('A test task description')).toBeInTheDocument();
 		});
 
+		it('truncates description to 3 lines via CSS class', () => {
+			const longDescription =
+				'This is a very long description that could potentially span many lines if not truncated properly by the CSS styling applied to the task card component';
+			const { container } = renderTaskCard(createTask({ description: longDescription }));
+
+			const descriptionElement = container.querySelector('.task-description');
+			expect(descriptionElement).toBeInTheDocument();
+			// The CSS class applies line-clamp: 3 truncation
+			expect(descriptionElement).toHaveClass('task-description');
+		});
+
+		it('normalizes markdown formatting in description display', () => {
+			const markdownDescription = `# Heading
+
+**Bold text** and *italic text*
+
+- List item 1
+- List item 2
+
+Some \`inline code\` here`;
+
+			const { container } = renderTaskCard(createTask({ description: markdownDescription }));
+
+			const descriptionElement = container.querySelector('.task-description');
+			expect(descriptionElement).toBeInTheDocument();
+			// Should be normalized - no markdown markers visible
+			expect(descriptionElement?.textContent).not.toContain('#');
+			expect(descriptionElement?.textContent).not.toContain('**');
+			expect(descriptionElement?.textContent).not.toContain('*italic');
+			expect(descriptionElement?.textContent).not.toContain('- List');
+			expect(descriptionElement?.textContent).not.toContain('`');
+			// Should contain the actual text content
+			expect(descriptionElement?.textContent).toContain('Heading');
+			expect(descriptionElement?.textContent).toContain('Bold text');
+			expect(descriptionElement?.textContent).toContain('inline code');
+		});
+
+		it('wraps description in tooltip showing full text', () => {
+			const longDescription =
+				'This is a very long description that would be truncated in the card display';
+			const { container } = renderTaskCard(createTask({ description: longDescription }));
+
+			// The description element is wrapped in a Radix Tooltip trigger
+			// Radix uses asChild so the trigger attributes are applied to the child element
+			const descriptionElement = container.querySelector('.task-description');
+			expect(descriptionElement).toBeInTheDocument();
+			// Radix Tooltip trigger adds data-state attribute to the child
+			expect(descriptionElement).toHaveAttribute('data-state');
+		});
+
 		it('renders weight badge', () => {
 			renderTaskCard(createTask({ weight: 'large' }));
 
