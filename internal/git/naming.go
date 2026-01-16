@@ -2,10 +2,59 @@
 package git
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+// MaxBranchNameLength is the maximum allowed length for branch names.
+const MaxBranchNameLength = 256
+
+// ErrInvalidBranchName indicates a branch name failed validation.
+var ErrInvalidBranchName = errors.New("invalid branch name")
+
+// branchNamePattern validates branch names: alphanumeric, slash, hyphen, underscore, dot.
+// Must start with alphanumeric.
+var branchNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`)
+
+// ValidateBranchName validates a branch name for security and git compatibility.
+// Returns an error describing the validation failure, or nil if valid.
+//
+// Validation rules:
+//   - Must not be empty
+//   - Must not exceed MaxBranchNameLength characters
+//   - Must start with alphanumeric character
+//   - May only contain: a-z, A-Z, 0-9, /, -, _, .
+//   - Must not contain: spaces, shell metacharacters ($`|;&()<>!?*[]{}\)
+//   - Must not contain path traversal (..)
+//   - Must not start with - or .
+//   - Must not end with .lock
+func ValidateBranchName(name string) error {
+	if name == "" {
+		return fmt.Errorf("%w: cannot be empty", ErrInvalidBranchName)
+	}
+	if len(name) > MaxBranchNameLength {
+		return fmt.Errorf("%w: exceeds maximum length of %d characters", ErrInvalidBranchName, MaxBranchNameLength)
+	}
+	if strings.Contains(name, "..") {
+		return fmt.Errorf("%w: cannot contain '..'", ErrInvalidBranchName)
+	}
+	if strings.HasSuffix(name, ".lock") {
+		return fmt.Errorf("%w: cannot end with '.lock'", ErrInvalidBranchName)
+	}
+	if strings.HasSuffix(name, "/") {
+		return fmt.Errorf("%w: cannot end with '/'", ErrInvalidBranchName)
+	}
+	if strings.Contains(name, "//") {
+		return fmt.Errorf("%w: cannot contain '//'", ErrInvalidBranchName)
+	}
+	if !branchNamePattern.MatchString(name) {
+		return fmt.Errorf("%w: contains invalid characters (allowed: a-z, A-Z, 0-9, /, -, _, .)", ErrInvalidBranchName)
+	}
+	return nil
+}
 
 // DefaultBranchPrefix is the default prefix for task branches when no initiative is set.
 const DefaultBranchPrefix = "orc/"

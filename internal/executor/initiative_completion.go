@@ -116,9 +116,7 @@ func (c *InitiativeCompleter) CheckAndCompleteInitiative(ctx context.Context, in
 	init.MergeStatus = initiative.MergeStatusPending
 	init.UpdatedAt = time.Now()
 	if err := c.backend.SaveInitiative(init); err != nil {
-		c.logger.Error("failed to update initiative merge status",
-			"initiative", initiativeID,
-			"error", err)
+		return nil, fmt.Errorf("update initiative %s merge status to pending: %w", initiativeID, err)
 	}
 
 	// Check automation profile to determine action
@@ -171,7 +169,8 @@ func (c *InitiativeCompleter) autoMergeInitiative(ctx context.Context, init *ini
 	init.MergeStatus = initiative.MergeStatusInProgress
 	init.UpdatedAt = time.Now()
 	if err := c.backend.SaveInitiative(init); err != nil {
-		c.logger.Error("failed to update initiative merge status",
+		// Log but continue - the merge operation will proceed regardless
+		c.logger.Warn("failed to record in-progress status, continuing with merge",
 			"initiative", init.ID,
 			"error", err)
 	}
@@ -190,7 +189,11 @@ func (c *InitiativeCompleter) autoMergeInitiative(ctx context.Context, init *ini
 			"initiative", init.ID)
 		init.MergeStatus = initiative.MergeStatusFailed
 		init.UpdatedAt = time.Now()
-		c.backend.SaveInitiative(init)
+		if saveErr := c.backend.SaveInitiative(init); saveErr != nil {
+			c.logger.Error("failed to record failed status after GitHub client error",
+				"initiative", init.ID,
+				"error", saveErr)
+		}
 		result.Error = fmt.Errorf("no GitHub client configured")
 		return result, nil
 	}
@@ -215,7 +218,11 @@ func (c *InitiativeCompleter) autoMergeInitiative(ctx context.Context, init *ini
 			"error", err)
 		init.MergeStatus = initiative.MergeStatusFailed
 		init.UpdatedAt = time.Now()
-		c.backend.SaveInitiative(init)
+		if saveErr := c.backend.SaveInitiative(init); saveErr != nil {
+			c.logger.Error("failed to record failed status after PR creation error",
+				"initiative", init.ID,
+				"error", saveErr)
+		}
 		result.Error = fmt.Errorf("create PR: %w", err)
 		return result, nil
 	}
@@ -237,7 +244,11 @@ func (c *InitiativeCompleter) autoMergeInitiative(ctx context.Context, init *ini
 				"error", err)
 			init.MergeStatus = initiative.MergeStatusFailed
 			init.UpdatedAt = time.Now()
-			c.backend.SaveInitiative(init)
+			if saveErr := c.backend.SaveInitiative(init); saveErr != nil {
+				c.logger.Error("failed to record failed status after merge error",
+					"initiative", init.ID,
+					"error", saveErr)
+			}
 			result.Error = err
 			return result, nil
 		}

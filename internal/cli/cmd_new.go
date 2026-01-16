@@ -11,6 +11,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/detect"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/template"
@@ -91,6 +92,13 @@ Example:
 			blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")
 			relatedTo, _ := cmd.Flags().GetStringSlice("related-to")
 			targetBranch, _ := cmd.Flags().GetString("target-branch")
+
+			// Validate target branch if specified
+			if targetBranch != "" {
+				if err := git.ValidateBranchName(targetBranch); err != nil {
+					return fmt.Errorf("invalid target branch: %w", err)
+				}
+			}
 
 			// Parse variable flags
 			vars := make(map[string]string)

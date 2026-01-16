@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/initiative"
 )
 
@@ -87,6 +88,21 @@ Example:
 			blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")
 			branchBase, _ := cmd.Flags().GetString("branch-base")
 			branchPrefix, _ := cmd.Flags().GetString("branch-prefix")
+
+			// Validate branch names if specified
+			if branchBase != "" {
+				if err := git.ValidateBranchName(branchBase); err != nil {
+					return fmt.Errorf("invalid branch-base: %w", err)
+				}
+			}
+			if branchPrefix != "" {
+				// Branch prefix can have trailing chars that become part of branch name
+				// Validate by appending a test task ID
+				testName := branchPrefix + "TASK-001"
+				if err := git.ValidateBranchName(testName); err != nil {
+					return fmt.Errorf("invalid branch-prefix: %w", err)
+				}
+			}
 
 			// Generate next initiative ID
 			id, err := backend.GetNextInitiativeID()
@@ -348,6 +364,12 @@ Example:
 			// Handle branch-base
 			if cmd.Flags().Changed("branch-base") {
 				branchBase, _ := cmd.Flags().GetString("branch-base")
+				// Validate if not clearing
+				if branchBase != "" {
+					if err := git.ValidateBranchName(branchBase); err != nil {
+						return fmt.Errorf("invalid branch-base: %w", err)
+					}
+				}
 				init.BranchBase = branchBase
 				changed = true
 			}
@@ -355,6 +377,13 @@ Example:
 			// Handle branch-prefix
 			if cmd.Flags().Changed("branch-prefix") {
 				branchPrefix, _ := cmd.Flags().GetString("branch-prefix")
+				// Validate if not clearing
+				if branchPrefix != "" {
+					testName := branchPrefix + "TASK-001"
+					if err := git.ValidateBranchName(testName); err != nil {
+						return fmt.Errorf("invalid branch-prefix: %w", err)
+					}
+				}
 				init.BranchPrefix = branchPrefix
 				changed = true
 			}

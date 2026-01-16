@@ -11,6 +11,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
@@ -1117,6 +1118,11 @@ func dbInitiativeToInitiative(dbInit *db.Initiative) *initiative.Initiative {
 
 // SaveBranch creates or updates a branch in the registry.
 func (d *DatabaseBackend) SaveBranch(b *Branch) error {
+	// Validate branch name for security
+	if err := git.ValidateBranchName(b.Name); err != nil {
+		return fmt.Errorf("save branch: %w", err)
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

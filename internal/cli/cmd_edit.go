@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -78,6 +79,13 @@ Example:
 			initiativeChanged := cmd.Flags().Changed("initiative")
 			newTargetBranch, _ := cmd.Flags().GetString("target-branch")
 			targetBranchChanged := cmd.Flags().Changed("target-branch")
+
+			// Validate target branch if specified (empty string clears it)
+			if targetBranchChanged && newTargetBranch != "" {
+				if err := git.ValidateBranchName(newTargetBranch); err != nil {
+					return fmt.Errorf("invalid target branch: %w", err)
+				}
+			}
 
 			// Dependency flags
 			blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")

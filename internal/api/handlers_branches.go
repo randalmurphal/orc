@@ -4,7 +4,9 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -20,7 +22,11 @@ type branchResponse struct {
 
 // handleListBranches returns all tracked branches.
 // GET /api/branches
-// Query params: type (initiative|staging|task), status (active|merged|stale|orphaned)
+// Query params:
+//   - type: filter by branch type (initiative|staging|task)
+//   - status: filter by status (active|merged|stale|orphaned)
+//   - page: page number for pagination (default: 1)
+//   - limit: items per page (default: 20, max: 100)
 func (s *Server) handleListBranches(w http.ResponseWriter, r *http.Request) {
 	// Parse filter params
 	branchType := r.URL.Query().Get("type")
@@ -33,7 +39,8 @@ func (s *Server) handleListBranches(w http.ResponseWriter, r *http.Request) {
 
 	branches, err := s.backend.ListBranches(opts)
 	if err != nil {
-		s.jsonError(w, "failed to list branches: "+err.Error(), http.StatusInternalServerError)
+		s.logger.Error("failed to list branches", "error", err)
+		s.jsonError(w, "failed to list branches", http.StatusInternalServerError)
 		return
 	}
 
@@ -50,7 +57,54 @@ func (s *Server) handleListBranches(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s.jsonResponse(w, result)
+	// Check for pagination params
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	// If no pagination requested, return all branches (backward compatible)
+	if pageStr == "" && limitStr == "" {
+		s.jsonResponse(w, result)
+		return
+	}
+
+	// Parse pagination params
+	page := 1
+	limit := 20 // default limit
+	if pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	// Calculate pagination
+	total := len(result)
+	totalPages := (total + limit - 1) / limit
+	start := (page - 1) * limit
+	end := start + limit
+
+	// Bounds checking
+	if start >= total {
+		start = total
+		end = total
+	}
+	if end > total {
+		end = total
+	}
+
+	pagedBranches := result[start:end]
+
+	s.jsonResponse(w, map[string]any{
+		"branches":    pagedBranches,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": totalPages,
+	})
 }
 
 // handleGetBranch returns a single branch by name.
@@ -62,9 +116,16 @@ func (s *Server) handleGetBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate branch name to prevent injection attacks
+	if err := git.ValidateBranchName(name); err != nil {
+		s.jsonError(w, "invalid branch name", http.StatusBadRequest)
+		return
+	}
+
 	branch, err := s.backend.LoadBranch(name)
 	if err != nil {
-		s.jsonError(w, "failed to load branch: "+err.Error(), http.StatusInternalServerError)
+		s.logger.Error("failed to load branch", "name", name, "error", err)
+		s.jsonError(w, "failed to load branch", http.StatusInternalServerError)
 		return
 	}
 	if branch == nil {
@@ -98,9 +159,15 @@ func (s *Server) handleUpdateBranchStatus(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Validate branch name to prevent injection attacks
+	if err := git.ValidateBranchName(name); err != nil {
+		s.jsonError(w, "invalid branch name", http.StatusBadRequest)
+		return
+	}
+
 	var req updateBranchStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.jsonError(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -117,7 +184,8 @@ func (s *Server) handleUpdateBranchStatus(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := s.backend.UpdateBranchStatus(name, storage.BranchStatus(req.Status)); err != nil {
-		s.jsonError(w, "failed to update branch status: "+err.Error(), http.StatusInternalServerError)
+		s.logger.Error("failed to update branch status", "name", name, "error", err)
+		s.jsonError(w, "failed to update branch status", http.StatusInternalServerError)
 		return
 	}
 
@@ -133,8 +201,15 @@ func (s *Server) handleDeleteBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate branch name to prevent injection attacks
+	if err := git.ValidateBranchName(name); err != nil {
+		s.jsonError(w, "invalid branch name", http.StatusBadRequest)
+		return
+	}
+
 	if err := s.backend.DeleteBranch(name); err != nil {
-		s.jsonError(w, "failed to delete branch: "+err.Error(), http.StatusInternalServerError)
+		s.logger.Error("failed to delete branch", "name", name, "error", err)
+		s.jsonError(w, "failed to delete branch", http.StatusInternalServerError)
 		return
 	}
 

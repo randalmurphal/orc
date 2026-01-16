@@ -282,9 +282,9 @@ Example:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			branchName := args[0]
 
-			// Validate branch name
-			if strings.ContainsAny(branchName, " \t\n") {
-				return fmt.Errorf("branch name cannot contain whitespace")
+			// Validate branch name for security and git compatibility
+			if err := git.ValidateBranchName(branchName); err != nil {
+				return fmt.Errorf("invalid staging branch: %w", err)
 			}
 			if branchName == "main" || branchName == "master" {
 				return fmt.Errorf("cannot use %s as staging branch", branchName)
