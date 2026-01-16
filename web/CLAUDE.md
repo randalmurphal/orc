@@ -130,10 +130,10 @@ web/src/
 ├── components/           # UI components
 │   ├── board/            # Kanban board components
 │   │   ├── Board.tsx     # Main board (flat/swimlane views)
-│   │   ├── Column.tsx    # Board column with drop zone
+│   │   ├── Column.tsx    # Board column with task cards
 │   │   ├── QueuedColumn.tsx # Queued column (active/backlog)
 │   │   ├── Swimlane.tsx  # Initiative swimlane row
-│   │   ├── TaskCard.tsx  # Task card for board
+│   │   ├── TaskCard.tsx  # Clickable task card for board
 │   │   ├── ViewModeDropdown.tsx # Flat/swimlane toggle
 │   │   └── InitiativeDropdown.tsx # Initiative filter
 │   ├── dashboard/        # Dashboard components
@@ -1834,7 +1834,7 @@ import { Board } from '@/pages/Board';
 - View mode persistence (localStorage)
 - Initiative filtering (URL + store sync)
 - Task actions (run/pause/resume/escalate)
-- Drag-drop handling for status/initiative changes
+- Click-to-navigate task cards
 - Loading/error/empty states
 
 **URL params:**
@@ -1858,7 +1858,6 @@ import { Board, BOARD_COLUMNS, type BoardViewMode } from '@/components/board';
   onTaskClick={handleTaskClick} // for running tasks modal
   onFinalizeClick={handleFinalize}
   onInitiativeClick={handleInitiativeClick}
-  onInitiativeChange={handleInitiativeChange} // drag-drop initiative change
   getFinalizeState={getFinalizeState}
 />
 ```
@@ -1873,7 +1872,6 @@ import { Board, BOARD_COLUMNS, type BoardViewMode } from '@/components/board';
 | `onTaskClick` | `(task) => void` | Task click handler |
 | `onFinalizeClick` | `(task) => void` | Finalize button handler |
 | `onInitiativeClick` | `(id) => void` | Initiative badge click |
-| `onInitiativeChange` | `(taskId, initId) => Promise` | Initiative change via drag |
 | `getFinalizeState` | `(id) => FinalizeState` | Get finalize state for task |
 
 **Column Configuration (`BOARD_COLUMNS`):**
@@ -1903,7 +1901,6 @@ import { Column, type ColumnConfig } from '@/components/board';
 <Column
   column={{ id: 'implement', title: 'Implement', phases: ['implement'] }}
   tasks={tasks}
-  onDrop={handleDrop}
   onAction={handleAction}
   onTaskClick={handleTaskClick}
 />
@@ -1911,7 +1908,7 @@ import { Column, type ColumnConfig } from '@/components/board';
 
 **Features:**
 - Column-specific accent colors
-- Drag-over visual feedback (counter-based for nested elements)
+- Task count badge
 - Empty state when no tasks
 
 **Column Styles:**
@@ -1938,8 +1935,8 @@ import { QueuedColumn } from '@/components/board';
   backlogTasks={backlogTasks}  // queue === 'backlog'
   showBacklog={showBacklog}
   onToggleBacklog={toggleBacklog}
-  onDrop={handleDrop}
   onAction={handleAction}
+  onTaskClick={handleTaskClick}
 />
 ```
 
@@ -1963,8 +1960,8 @@ import { Swimlane } from '@/components/board';
   tasksByColumn={tasksByColumn}
   collapsed={isCollapsed}
   onToggleCollapse={toggle}
-  onDrop={handleSwimlaneDrop}   // receives targetInitiativeId
   onAction={handleAction}
+  onTaskClick={handleTaskClick}
 />
 ```
 
@@ -2015,7 +2012,11 @@ All action buttons use the `Button` primitive (`variant="ghost" size="sm" iconOn
 - **Running**: Pulsing border animation
 - **Finalizing**: Progress bar with step label
 - **Finished**: Merge info (commit SHA + target branch)
-- **Dragging**: Reduced opacity
+
+**Click Behavior:**
+- Click anywhere on card (except action buttons/quick menu) navigates to task detail page
+- Running tasks open the live transcript modal on click
+- Card uses `cursor: pointer` and `role="button"` for accessibility
 
 **Quick Menu (Radix DropdownMenu):**
 Uses `@radix-ui/react-dropdown-menu` for accessible menu with keyboard navigation:
@@ -2027,11 +2028,6 @@ Uses `@radix-ui/react-dropdown-menu` for accessible menu with keyboard navigatio
 - `data-highlighted` attribute for keyboard/hover focus
 - Escape key and click-outside close automatically
 - Updates via API and store
-
-**Drag-Drop:**
-- Native HTML5 drag-drop
-- Sets `application/json` data with task object
-- Visual feedback on drag start/end
 
 ### ViewModeDropdown
 
