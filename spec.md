@@ -1,121 +1,159 @@
-# Specification: Expand Task Info panel with more metadata
+# Specification: Investigate Click Actions Timing Out on Some Elements
 
 ## Problem Statement
 
-The Task Info panel in TimelineTab shows only basic information (weight, status, created date, timestamps), missing important task metadata that users need for context: priority, category, queue, initiative, last updated, blocked_by count, and branch name.
+Click actions on navigation elements (Dashboard link in sidebar, Prompts link in Environment nav) time out during E2E testing. Elements resolve but the click action times out waiting for elements to become "visible, enabled and stable." This indicates CSS transitions/animations are preventing Playwright from determining element stability.
+
+## Bug Analysis
+
+### Reproduction Steps
+1. Run E2E tests with Playwright MCP tools
+2. Navigate to the web UI
+3. Attempt to click the Dashboard link in the sidebar
+4. Attempt to click the Prompts link in the Environment navigation
+5. Observe timeout errors waiting for element stability
+
+### Current Behavior
+- Click actions on nav elements timeout after default Playwright timeout
+- Error message: element not stable (waiting for "visible, enabled and stable")
+- Elements are visible and enabled but fail stability check
+
+### Expected Behavior
+- Click actions should complete successfully within reasonable time
+- Navigation should work consistently in both manual testing and E2E tests
+
+### Root Cause Analysis
+
+Based on code inspection, multiple factors contribute to element instability:
+
+1. **CSS Transitions on Layout Elements**
+   - `.sidebar`: `transition: width 200ms` (Sidebar.css:13)
+   - `.app-main`: `transition: margin-left 200ms` (AppLayout.css:13)
+   - `.nav-item`: `transition: all 150ms` (Sidebar.css:139)
+   - When sidebar state changes, all these transitions fire simultaneously
+
+2. **Entrance Animations on Nav Labels**
+   - `.nav-label`: `animation: fade-in 150ms` (Sidebar.css:186)
+   - `.keyboard-hint`: `animation: fade-in 150ms` (Sidebar.css:366)
+   - These play every time elements mount (sidebar expansion/collapse)
+
+3. **Conditional DOM Rendering**
+   - Initiatives section only renders when `expanded && expandedSections.has('initiatives')` (Sidebar.tsx:295)
+   - Environment sub-nav only renders when `expanded && expandedSections.has('environment')` (Sidebar.tsx:389)
+   - DOM additions cause reflow, compounded by animations
+
+4. **Transform-based Animations**
+   - Radix components use `transform: scale()` animations (index.css:218-238)
+   - Dropdown menus use `transform: translateY()` animations
+   - Transforms can affect bounding box calculations during stability checks
+
+5. **E2E Tests Already Compensate**
+   - `sidebar.spec.ts` uses `waitForTimeout(300)` after toggle operations
+   - This workaround masks the underlying issue
+
+### Verification
+The fix is verified when:
+- E2E tests pass without explicit `waitForTimeout()` delays after navigation
+- Click actions complete within Playwright's actionability timeout (30s default)
+- No "element not stable" errors in test logs
 
 ## Success Criteria
 
-- [ ] Priority field displayed with appropriate styling (critical/high/normal/low)
-- [ ] Category field displayed with icon matching TaskHeader pattern
-- [ ] Queue field displayed (active/backlog)
-- [ ] Initiative field displayed as clickable link to initiative page (when set)
-- [ ] Updated timestamp displayed showing last modification time
-- [ ] Blocked by count displayed when task has blockers (e.g., "2 tasks")
-- [ ] Branch name displayed with code formatting (currently shown elsewhere but fits here)
-- [ ] All new fields match existing dt/dd pair formatting
-- [ ] All new fields conditionally render (skip if value is undefined/null)
-- [ ] Styling consistent with existing info-item pattern
+- [ ] Identify specific CSS properties causing instability (transitions, animations, transforms)
+- [ ] Document which elements are affected and their animation timings
+- [ ] Propose solution(s) with tradeoffs:
+  - Option A: Reduce animation durations for test reliability
+  - Option B: Add `will-change` hints for transform stability
+  - Option C: Use `data-testid` with forced stability in E2E
+  - Option D: Implement CSS `prefers-reduced-motion` for E2E
+- [ ] Create reproducible test case demonstrating the issue
+- [ ] Verify solution works with existing E2E test suite
 
 ## Testing Requirements
 
-- [ ] Unit test: TimelineTab renders priority field with correct styling class
-- [ ] Unit test: TimelineTab renders category field with correct icon
-- [ ] Unit test: TimelineTab renders initiative as clickable link
-- [ ] Unit test: TimelineTab renders blocked_by count when blockers exist
-- [ ] Unit test: TimelineTab hides optional fields when not set
-- [ ] E2E test: Task detail page displays all metadata fields correctly
+- [ ] E2E test: Sidebar navigation links respond to clicks without waitForTimeout workarounds
+- [ ] E2E test: Environment nav links (Prompts, etc.) clickable immediately after section expansion
+- [ ] E2E test: Dashboard link clickable on first attempt
+- [ ] Visual regression: Animations still work in normal usage (non-reduced-motion)
+- [ ] Manual verification: UX unchanged for end users
 
 ## Scope
 
 ### In Scope
-- Adding priority, category, queue, initiative, updated_at, blocked_by count, and branch to Task Info section
-- Matching existing styling patterns (dt/dd pairs, status colors)
-- Making initiative a clickable link to `/initiatives/:id`
-- Conditional rendering for optional fields
+- CSS transitions/animations on sidebar elements (Sidebar.css)
+- CSS transitions on layout elements (AppLayout.css)
+- Radix UI animation globals (index.css)
+- Navigation elements affected by the issue
 
 ### Out of Scope
-- Modifying the info-item CSS styling (use existing)
-- Adding edit functionality within Task Info panel (TaskEditModal handles edits)
-- Adding dependency management UI (DependencySidebar handles this)
-- Changing the layout or position of Task Info panel
+- Board drag-drop functionality (separate interaction pattern)
+- Modal animations (not reported as problematic)
+- Toast animations (not navigation-related)
+- Complete animation system refactor
 
 ## Technical Approach
 
-The Task Info section in TimelineTab.tsx needs additional fields. All required data is already available on the `task` prop. The initiative link requires importing `Link` from react-router-dom and `getInitiativeBadgeTitle` from stores (following TaskHeader.tsx pattern).
+The fix should balance test reliability with user experience. Primary approaches:
+
+### Recommended: CSS `prefers-reduced-motion` Enhancement
+
+Enhance the existing `prefers-reduced-motion` media query (index.css:195-203) to also apply during E2E testing via a CSS class toggle:
+
+```css
+/* Already exists in index.css */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Add: E2E testing mode class */
+html.e2e-testing *,
+html.e2e-testing *::before,
+html.e2e-testing *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+```
+
+E2E setup would add the class:
+```typescript
+// In fixtures.ts or beforeEach
+await page.addStyleTag({ content: 'html { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }' });
+```
+
+### Alternative: Stabilize Critical Nav Elements
+
+Add `transition: none` override for nav-items when targeted by automation:
+
+```css
+.nav-item[data-testid] {
+  transition: background-color 150ms, color 150ms;
+  /* Exclude layout-affecting properties */
+}
+```
 
 ### Files to Modify
 
-1. **web/src/components/task-detail/TimelineTab.tsx**
-   - Import `Link` from react-router-dom
-   - Import `Icon` (already imported)
-   - Import `getInitiativeBadgeTitle` from `@/stores`
-   - Import `CATEGORY_CONFIG`, `PRIORITY_CONFIG` from `@/lib/types`
-   - Add priority field with priority-specific class
-   - Add category field with icon
-   - Add queue field
-   - Add initiative field as Link
-   - Add updated_at field (using existing `formatDate` helper)
-   - Add blocked_by count field
-   - Add branch field with code tag
+| File | Change |
+|------|--------|
+| `web/src/index.css` | Add `.e2e-testing` class rules |
+| `web/e2e/fixtures.ts` | Inject e2e class or disable animations |
+| `web/src/components/layout/Sidebar.css` | Audit animation properties (no changes if using global fix) |
+| `web/e2e/sidebar.spec.ts` | Remove `waitForTimeout(300)` workarounds after fix verified |
+| `web/e2e/navigation.spec.ts` | Add explicit nav click tests |
 
-2. **web/src/components/task-detail/TimelineTab.css**
-   - Add priority-specific color classes (matching TaskHeader pattern)
-   - Add category-color styling
-   - Add initiative link styling (clickable, underline on hover)
-   - Add branch code styling
+## Investigation Checklist
 
-3. **web/src/components/task-detail/TimelineTab.test.tsx** (new file)
-   - Unit tests for new metadata fields
-   - Mock store for initiative badge lookup
-
-## Feature Details
-
-### User Story
-As a user viewing a task's timeline, I want to see comprehensive task metadata in the Task Info panel so that I have full context without navigating to other views.
-
-### Acceptance Criteria
-
-1. **Priority** - Displays the task priority with color coding:
-   - critical: red/error color
-   - high: orange/warning color
-   - normal: muted text
-   - low: muted text
-
-2. **Category** - Displays task category with matching icon:
-   - feature: sparkles icon, green
-   - bug: bug icon, red
-   - refactor: recycle icon, blue
-   - chore: tools icon, muted
-   - docs: file-text icon, orange
-   - test: beaker icon, accent color
-
-3. **Queue** - Displays "active" or "backlog"
-
-4. **Initiative** - When task has `initiative_id`:
-   - Displays initiative badge (from `getInitiativeBadgeTitle`)
-   - Clickable link navigating to `/initiatives/:id`
-   - Shows layers icon
-
-5. **Updated** - Displays `updated_at` timestamp in same format as created_at
-
-6. **Blocked By** - When `blocked_by` array has items:
-   - Shows count: "N task(s)"
-   - Links to DependencySidebar (or just informational)
-
-7. **Branch** - Displays branch name in `<code>` tags matching phase-commit styling
-
-### Field Order
-1. Weight (existing)
-2. Status (existing)
-3. Priority (new)
-4. Category (new)
-5. Queue (new)
-6. Initiative (new)
-7. Blocked By (new, conditional)
-8. Branch (new)
-9. Retries (existing, conditional)
-10. Created (existing)
-11. Updated (new)
-12. Started (existing, conditional)
-13. Completed (existing, conditional)
+- [x] Read Sidebar.tsx and identify conditional rendering
+- [x] Read Sidebar.css and identify transitions/animations
+- [x] Read AppLayout.css and identify layout transitions
+- [x] Read index.css and identify Radix animations
+- [x] Check existing E2E tests for workarounds
+- [x] Document animation timing values
+- [ ] Create minimal reproduction test
+- [ ] Test proposed solutions
