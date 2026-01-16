@@ -148,6 +148,39 @@ If coverage is below {{COVERAGE_THRESHOLD}}%:
 
 Do NOT mark the phase complete until coverage reaches {{COVERAGE_THRESHOLD}}%.
 
+### Step 6: Run Linters
+
+**REQUIRED**: Code must pass linting before phase completion.
+
+```bash
+# For Go projects - run full linter suite
+golangci-lint run ./...
+
+# If golangci-lint not available, at minimum:
+go vet ./...
+
+# For Node projects
+npm run lint
+
+# For Python projects
+ruff check .
+# or: pylint $(find . -name "*.py" -not -path "./.venv/*")
+```
+
+**Common Go linting issues to watch for:**
+- Unchecked error returns (errcheck)
+- Unused variables and imports
+- Ineffective assignments
+- Deferred calls in loops
+
+If linting fails:
+1. Fix all linting errors (not just warnings)
+2. For errcheck issues: use `_ = functionCall()` to explicitly ignore errors only when truly safe
+3. For deferred Close(): wrap as `defer func() { _ = x.Close() }()`
+4. Re-run linter until clean
+
+Do NOT mark the phase complete until linting passes.
+
 ## Test Patterns
 
 | Pattern | Use Case |
@@ -192,6 +225,7 @@ Do NOT mark the phase complete until coverage reaches {{COVERAGE_THRESHOLD}}%.
 Before marking the phase complete, verify:
 1. All tests pass (0 failures)
 2. Coverage ≥ {{COVERAGE_THRESHOLD}}%
+3. Linting passes (0 errors from golangci-lint/go vet/npm lint/ruff)
 
 ### Commit Tests
 
@@ -208,15 +242,17 @@ Coverage: [percent]% (threshold: {{COVERAGE_THRESHOLD}}%)
 
 ### Output Completion
 
-Only output `<phase_complete>true</phase_complete>` when BOTH conditions are met:
+Only output `<phase_complete>true</phase_complete>` when ALL THREE conditions are met:
 - All tests pass
 - Coverage ≥ {{COVERAGE_THRESHOLD}}%
+- Linting passes (0 errors)
 
 ```
 ### Test Summary
 
 **Tests**: [passed]/[total] passing
 **Coverage**: [percent]% ✅ (meets {{COVERAGE_THRESHOLD}}% threshold)
+**Linting**: ✅ passed
 **Commit**: [commit SHA]
 
 <phase_complete>true</phase_complete>
@@ -235,5 +271,13 @@ If coverage is below threshold:
 <phase_blocked>
 reason: coverage [percent]% is below {{COVERAGE_THRESHOLD}}% threshold
 needs: add tests for uncovered code paths
+</phase_blocked>
+```
+
+If linting fails:
+```
+<phase_blocked>
+reason: linting errors found
+needs: [list specific linting issues to fix]
 </phase_blocked>
 ```

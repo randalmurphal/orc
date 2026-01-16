@@ -433,25 +433,104 @@ phases:
   - name: implement
     type: implement
     prompt_template: prompts/implement.md
-    
+
     # Iteration control
     max_iterations: 10
     timeout: 600s
-    
+
     # Completion criteria
     completion_criteria:
       - all_tests_pass
       - no_lint_errors
-      
+
     # Checkpointing
     checkpoint: true
     checkpoint_frequency: 3
-    
+
     # Gate
     gate: auto
     gate_criteria:
       - tests_pass
 ```
+
+---
+
+## Linting Requirements
+
+Static analysis and linting are **mandatory** quality gates for phase completion. Linting errors are blocking issues that must be fixed before proceeding.
+
+### Linting by Phase
+
+| Phase | Linting Requirement | Blocking? |
+|-------|---------------------|-----------|
+| `implement` | Recommended (quick check before commit) | No |
+| `test` | **REQUIRED** (full linter suite) | **Yes** |
+| `validate` | **REQUIRED** (verify after sync) | **Yes** |
+| `finalize` | **REQUIRED** (final gate before merge) | **Yes** |
+
+### Linter Commands by Language
+
+| Language | Linter Command | What It Catches |
+|----------|----------------|-----------------|
+| **Go** | `golangci-lint run ./...` | errcheck, unused, vet, staticcheck, ineffassign |
+| Go (minimal) | `go vet ./...` | Type errors, suspicious constructs |
+| **Node/TS** | `npm run lint` | ESLint rules, TypeScript errors |
+| **Python** | `ruff check .` | PEP 8, common bugs, type issues |
+| Python (alt) | `pylint`, `flake8`, `mypy` | Various rule sets |
+
+### Go Errcheck Requirements
+
+The `errcheck` linter is particularly important for Go code quality. Common patterns:
+
+| Issue | Wrong Pattern | Correct Pattern |
+|-------|---------------|-----------------|
+| Ignored error return | `functionCall()` | `_ = functionCall()` |
+| Deferred close | `defer f.Close()` | `defer func() { _ = f.Close() }()` |
+| Multi-return ignore | `val := fn()` | `val, _ := fn()` or `_, _ = fn()` |
+
+**Why errcheck matters:**
+- Silent failures lead to hard-to-debug production issues
+- Unchecked error returns are a code smell
+- Explicit `_ =` documents intentional ignoring
+
+### Phase Completion Blocking
+
+Linting errors **block phase completion**. If linting fails:
+
+```xml
+<phase_blocked>
+reason: linting errors found
+needs: [list specific linting issues to fix]
+</phase_blocked>
+```
+
+The phase cannot output `<phase_complete>true</phase_complete>` until linting passes.
+
+### Configuration
+
+Configure linting behavior in `config.yaml`:
+
+```yaml
+# Project linting configuration
+linting:
+  enabled: true              # Enable linting checks (default: true)
+  strict: true               # Treat warnings as errors (default: false)
+
+  # Language-specific commands
+  commands:
+    go: "golangci-lint run ./..."
+    typescript: "npm run lint"
+    python: "ruff check ."
+```
+
+### Integration with CI
+
+Linting in orc phases should match CI requirements:
+- Same linter version
+- Same configuration file (`.golangci.yml`, `.eslintrc`, `ruff.toml`)
+- Same enabled rules
+
+This ensures tasks that pass locally also pass CI after PR creation.
 
 ---
 

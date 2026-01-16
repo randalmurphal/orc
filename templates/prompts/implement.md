@@ -129,7 +129,31 @@ For each criterion in the spec's Success Criteria table:
 
 **Do NOT mark phase complete until all verifications pass.**
 
-### Step 8: Commit Changes
+### Step 8: Quick Lint Check (Recommended)
+
+Before committing, run a quick lint check to catch obvious issues:
+
+```bash
+# For Go projects
+go vet ./...
+# Or full linting if available:
+golangci-lint run ./...
+
+# For Node projects
+npm run lint
+
+# For Python projects
+ruff check .
+```
+
+**Note**: Full linting validation happens in the test phase, but catching issues early saves time.
+
+Common issues to watch for:
+- Unchecked error returns (Go errcheck)
+- Unused imports/variables
+- Formatting issues
+
+### Step 9: Commit Changes
 
 **IMPORTANT**: Before marking the phase complete, commit all changes:
 
@@ -145,7 +169,7 @@ Files changed: [count]
 
 This checkpoint enables rollback if later phases fail.
 
-### Step 9: Output Completion
+### Step 10: Output Completion
 
 Wrap your implementation summary in artifact tags for automatic persistence:
 
