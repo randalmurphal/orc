@@ -84,6 +84,15 @@ func (e *Executor) syncWithTargetPhase(ctx context.Context, t *task.Task, phase 
 		gitOps = e.worktreeGit
 	}
 
+	// Skip sync if no remote is configured (e.g., E2E sandbox projects)
+	// This avoids noisy warnings for test repositories without remotes
+	if !gitOps.HasRemote("origin") {
+		e.logger.Debug("skipping sync: no remote configured",
+			"task", t.ID,
+			"reason", "repository has no 'origin' remote")
+		return nil
+	}
+
 	e.logger.Info("syncing with target branch",
 		"target", targetBranch,
 		"phase", phase,
@@ -238,6 +247,15 @@ func (e *Executor) syncOnTaskStart(ctx context.Context, t *task.Task) error {
 
 	if gitOps == nil {
 		e.logger.Debug("skipping sync-on-start: git ops not available")
+		return nil
+	}
+
+	// Skip sync if no remote is configured (e.g., E2E sandbox projects)
+	// This avoids noisy warnings for test repositories without remotes
+	if !gitOps.HasRemote("origin") {
+		e.logger.Debug("skipping sync-on-start: no remote configured",
+			"task", t.ID,
+			"reason", "repository has no 'origin' remote")
 		return nil
 	}
 

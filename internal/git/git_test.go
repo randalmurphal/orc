@@ -2097,3 +2097,68 @@ func TestMutex_CompoundOperationAtomicity(t *testing.T) {
 		}
 	}
 }
+
+// TestHasRemote_NoRemote tests HasRemote when no remote is configured
+func TestHasRemote_NoRemote(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// A freshly created local repo has no remotes
+	hasRemote := g.HasRemote("origin")
+	if hasRemote {
+		t.Error("HasRemote('origin') = true, want false for repo with no remotes")
+	}
+}
+
+// TestHasRemote_WithRemote tests HasRemote when a remote is configured
+func TestHasRemote_WithRemote(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// Add a remote
+	cmd := exec.Command("git", "remote", "add", "origin", "https://github.com/test/test.git")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to add remote: %v", err)
+	}
+
+	// Now HasRemote should return true
+	hasRemote := g.HasRemote("origin")
+	if !hasRemote {
+		t.Error("HasRemote('origin') = false, want true for repo with origin remote")
+	}
+
+	// Non-existent remote should return false
+	hasRemote = g.HasRemote("nonexistent")
+	if hasRemote {
+		t.Error("HasRemote('nonexistent') = true, want false")
+	}
+}
+
+// TestHasRemote_InWorktree tests HasRemote in worktree context
+func TestHasRemote_InWorktree(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// Add a remote to main repo
+	cmd := exec.Command("git", "remote", "add", "origin", "https://github.com/test/test.git")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to add remote: %v", err)
+	}
+
+	baseBranch, _ := g.GetCurrentBranch()
+	worktreePath, err := g.CreateWorktree("TASK-REMOTE", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+	defer g.CleanupWorktree("TASK-REMOTE")
+
+	wtGit := g.InWorktree(worktreePath)
+
+	// Worktree should inherit remote configuration from main repo
+	hasRemote := wtGit.HasRemote("origin")
+	if !hasRemote {
+		t.Error("HasRemote('origin') in worktree = false, want true")
+	}
+}

@@ -863,6 +863,21 @@ orc config completion.sync.sync_on_start false
 
 **Warning**: Disabling sync increases the chance of conflicts at completion time.
 
+### Local Repos Without Remotes
+
+**Behavior**: For git repositories without a remote (e.g., `git init` only, E2E test sandboxes), orc automatically skips sync operations:
+
+- `syncOnTaskStart` and `syncWithTarget` check `git.HasRemote("origin")` first
+- If no remote exists, sync is silently skipped (DEBUG log, not WARN)
+- No fetch, rebase, or push operations are attempted
+
+This is by design for:
+- **E2E test sandboxes**: Created in `/tmp` with no push target
+- **Local-only projects**: Git for version control without remote collaboration
+- **Offline development**: Working without network connectivity
+
+No configuration needed - orc detects the absence of remotes automatically.
+
 ---
 
 ## CLAUDE.md Merge Conflicts

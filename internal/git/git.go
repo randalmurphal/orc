@@ -623,6 +623,14 @@ func (g *Git) GetRemoteURL() (string, error) {
 	return g.ctx.GetRemoteURL("origin")
 }
 
+// HasRemote checks if a remote exists in the repository.
+// Returns true if the remote is configured, false otherwise.
+// This is useful for detecting sandbox/test repositories that don't have remotes.
+func (g *Git) HasRemote(remote string) bool {
+	_, err := g.ctx.GetRemoteURL(remote)
+	return err == nil
+}
+
 // Context returns the underlying devflow git context.
 func (g *Git) Context() *devgit.Context {
 	return g.ctx
