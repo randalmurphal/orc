@@ -70,7 +70,7 @@ func (p *ProjectDB) ListPendingSubtasks(parentID string) ([]*Subtask, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list pending subtasks: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	return scanSubtasks(rows)
 }
@@ -87,7 +87,7 @@ func (p *ProjectDB) ListAllSubtasks(parentID string) ([]*Subtask, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list subtasks: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	return scanSubtasks(rows)
 }

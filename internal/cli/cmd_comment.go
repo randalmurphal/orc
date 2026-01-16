@@ -92,7 +92,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer pdb.Close()
+			defer func() { _ = pdb.Close() }()
 
 			comment := &db.TaskComment{
 				TaskID:     taskID,
@@ -163,7 +163,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer pdb.Close()
+			defer func() { _ = pdb.Close() }()
 
 			var comments []db.TaskComment
 
@@ -253,7 +253,7 @@ func newCommentDeleteCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer pdb.Close()
+			defer func() { _ = pdb.Close() }()
 
 			// Check if comment exists
 			comment, err := pdb.GetTaskComment(commentID)

@@ -94,8 +94,8 @@ Example:
 			}
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tTYPE\tENABLED\tMODE\tDESCRIPTION")
-			fmt.Fprintln(w, "──\t────\t───────\t────\t───────────")
+			_, _ = fmt.Fprintln(w, "ID\tTYPE\tENABLED\tMODE\tDESCRIPTION")
+			_, _ = fmt.Fprintln(w, "──\t────\t───────\t────\t───────────")
 
 			count := 0
 			for _, t := range triggers {
@@ -114,7 +114,7 @@ Example:
 					desc = desc[:47] + "..."
 				}
 
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 					t.ID,
 					string(t.Type),
 					enabledStr,
@@ -124,7 +124,7 @@ Example:
 				count++
 			}
 
-			w.Flush()
+			_ = w.Flush()
 
 			if count == 0 && !showDisabled {
 				fmt.Println("\nNo enabled triggers. Use --all to show disabled triggers.")
@@ -347,19 +347,6 @@ func setTriggerEnabled(triggerID string, enabled bool) error {
 	return nil
 }
 
-// formatDuration formats a duration in a human-readable way
-func formatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%dm", int(d.Minutes()))
-	}
-	if d < 24*time.Hour {
-		return fmt.Sprintf("%dh", int(d.Hours()))
-	}
-	return fmt.Sprintf("%dd", int(d.Hours()/24))
-}
 
 func newAutomationRunCmd() *cobra.Command {
 	var branch string
@@ -521,11 +508,11 @@ Example:
 			if err != nil {
 				return fmt.Errorf("query executions: %w", err)
 			}
-			defer rows.Close()
+			defer func() { _ = rows.Close() }()
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "TRIGGER\tSTATUS\tTASK\tTRIGGERED\tREASON")
-			fmt.Fprintln(w, "───────\t──────\t────\t─────────\t──────")
+			_, _ = fmt.Fprintln(w, "TRIGGER\tSTATUS\tTASK\tTRIGGERED\tREASON")
+			_, _ = fmt.Fprintln(w, "───────\t──────\t────\t─────────\t──────")
 
 			count := 0
 			for rows.Next() {
@@ -547,7 +534,7 @@ Example:
 					reason = reason[:37] + "..."
 				}
 
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 					trigger,
 					status,
 					taskID,
@@ -557,7 +544,7 @@ Example:
 				count++
 			}
 
-			w.Flush()
+			_ = w.Flush()
 
 			if count == 0 {
 				if triggerID != "" {
@@ -677,8 +664,8 @@ Example:
 			}
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tSTATUS\tTITLE\tCREATED")
-			fmt.Fprintln(w, "──\t──────\t─────\t───────")
+			_, _ = fmt.Fprintln(w, "ID\tSTATUS\tTITLE\tCREATED")
+			_, _ = fmt.Fprintln(w, "──\t──────\t─────\t───────")
 
 			count := 0
 			for _, t := range tasks {
@@ -699,7 +686,7 @@ Example:
 
 				createdAt := formatTimeAgo(t.CreatedAt)
 
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
 					t.ID,
 					string(t.Status),
 					title,
@@ -708,7 +695,7 @@ Example:
 				count++
 			}
 
-			w.Flush()
+			_ = w.Flush()
 
 			if count == 0 {
 				if showPending {

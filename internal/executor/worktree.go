@@ -192,14 +192,12 @@ func cleanWorktreeState(worktreePath string, gitOps *git.Git) error {
 	}
 
 	// Check if working directory has uncommitted changes or conflicts
-	// and discard them to ensure clean state for execution
+	// and discard them to ensure clean state for execution.
+	// If IsClean fails, we still try DiscardChanges as a fallback.
 	clean, err := worktreeGit.IsClean()
-	if err != nil {
-		// Non-fatal: continue - DiscardChanges handles both cases
-	}
-	if !clean {
-		if err := worktreeGit.DiscardChanges(); err != nil {
-			return fmt.Errorf("discard changes: %w", err)
+	if err != nil || !clean {
+		if discardErr := worktreeGit.DiscardChanges(); discardErr != nil {
+			return fmt.Errorf("discard changes: %w", discardErr)
 		}
 	}
 

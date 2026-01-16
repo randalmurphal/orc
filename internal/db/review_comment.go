@@ -100,7 +100,7 @@ func (p *ProjectDB) ListReviewComments(taskID string, status string) ([]ReviewCo
 	if err != nil {
 		return nil, fmt.Errorf("list review comments: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var comments []ReviewComment
 	for rows.Next() {
@@ -128,7 +128,7 @@ func (p *ProjectDB) ListReviewCommentsByRound(taskID string, round int) ([]Revie
 	if err != nil {
 		return nil, fmt.Errorf("list review comments by round: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var comments []ReviewComment
 	for rows.Next() {

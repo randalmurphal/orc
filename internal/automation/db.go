@@ -151,7 +151,7 @@ func (a *ProjectDBAdapter) LoadAllTriggers(ctx context.Context) ([]*Trigger, err
 	if err != nil {
 		return nil, fmt.Errorf("query triggers: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var triggers []*Trigger
 	for rows.Next() {
@@ -436,7 +436,7 @@ func (a *ProjectDBAdapter) GetRecentExecutions(ctx context.Context, triggerID st
 	if err != nil {
 		return nil, fmt.Errorf("query executions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var executions []*Execution
 	for rows.Next() {
@@ -584,7 +584,7 @@ func (a *ProjectDBAdapter) GetActiveNotifications(ctx context.Context) ([]*Notif
 	if err != nil {
 		return nil, fmt.Errorf("query notifications: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var notifications []*Notification
 	for rows.Next() {
@@ -715,7 +715,7 @@ func (a *ProjectDBAdapter) LoadRecentCompletedTasks(ctx context.Context, limit i
 	if err != nil {
 		return nil, fmt.Errorf("query recent completed tasks: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var tasks []*TaskSummary
 	for rows.Next() {

@@ -125,7 +125,7 @@ func (p *ProjectDB) ListTeamMembers() ([]TeamMember, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list team members: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var members []TeamMember
 	for rows.Next() {
@@ -281,7 +281,7 @@ func (p *ProjectDB) GetMemberClaims(memberID string) ([]TaskClaim, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get member claims: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var claims []TaskClaim
 	for rows.Next() {
@@ -320,7 +320,7 @@ func (p *ProjectDB) GetTaskClaimHistory(taskID string) ([]TaskClaim, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get task claim history: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var claims []TaskClaim
 	for rows.Next() {
@@ -468,7 +468,7 @@ func (p *ProjectDB) ListActivity(opts ListActivityOpts) ([]ActivityLog, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list activity: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var activities []ActivityLog
 	for rows.Next() {

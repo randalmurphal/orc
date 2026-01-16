@@ -79,7 +79,7 @@ func (p *ProjectDB) ListTaskComments(taskID string) ([]TaskComment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list task comments: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var comments []TaskComment
 	for rows.Next() {
@@ -107,7 +107,7 @@ func (p *ProjectDB) ListTaskCommentsByAuthorType(taskID string, authorType Autho
 	if err != nil {
 		return nil, fmt.Errorf("list task comments by author type: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var comments []TaskComment
 	for rows.Next() {
@@ -135,7 +135,7 @@ func (p *ProjectDB) ListTaskCommentsByPhase(taskID, phase string) ([]TaskComment
 	if err != nil {
 		return nil, fmt.Errorf("list task comments by phase: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var comments []TaskComment
 	for rows.Next() {
@@ -218,7 +218,7 @@ func (p *ProjectDB) GetTaskCommentStats(taskID string) (*TaskCommentStats, error
 	if err != nil {
 		return nil, fmt.Errorf("get task comment stats: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var authorType string

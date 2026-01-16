@@ -33,10 +33,10 @@ func updateGitignore(workDir string) error {
 			existing[strings.TrimSpace(scanner.Text())] = true
 		}
 		if err := scanner.Err(); err != nil {
-			file.Close()
+			_ = file.Close()
 			return fmt.Errorf("read .gitignore: %w", err)
 		}
-		file.Close()
+		_ = file.Close()
 	}
 
 	// Check if any orc entries are missing
@@ -57,7 +57,7 @@ func updateGitignore(workDir string) error {
 	if err != nil {
 		return fmt.Errorf("open .gitignore: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Add blank line before our entries if file isn't empty
 	info, err := file.Stat()
