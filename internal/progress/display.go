@@ -220,6 +220,18 @@ func (d *Display) TaskFailed(err error) {
 	fmt.Printf("\n💥 Task %s failed: %s\n", d.taskID, err)
 }
 
+// TaskBlocked announces that task phases completed but the task is blocked.
+// This is shown when all phases succeed but completion actions fail (e.g., sync conflicts).
+// Always shown even in quiet mode since it requires user action.
+func (d *Display) TaskBlocked(totalTokens int, totalDuration time.Duration, reason string) {
+	// Always show blocked status - requires user action
+	fmt.Printf("\n⚠️  Task %s blocked: %s\n", d.taskID, reason)
+	fmt.Printf("   All phases completed, but sync with target branch failed.\n")
+	fmt.Printf("   To resolve: manually resolve conflicts then run 'orc resume %s'\n", d.taskID)
+	fmt.Printf("   Total tokens: %d\n", totalTokens)
+	fmt.Printf("   Total time: %s\n", formatDuration(totalDuration))
+}
+
 // TaskInterrupted announces task interruption.
 func (d *Display) TaskInterrupted() {
 	if d.quiet {

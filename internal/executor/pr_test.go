@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -537,6 +538,39 @@ func TestParsePRChecks_UsesCorrectFields(t *testing.T) {
 				t.Errorf("details = %q, want %q", details, tt.expectDetails)
 			}
 		})
+	}
+}
+
+func TestErrTaskBlocked(t *testing.T) {
+	// ErrTaskBlocked should be defined and usable
+	if ErrTaskBlocked == nil {
+		t.Error("ErrTaskBlocked should not be nil")
+	}
+	if ErrTaskBlocked.Error() != "task blocked" {
+		t.Errorf("ErrTaskBlocked.Error() = %s, want 'task blocked'", ErrTaskBlocked.Error())
+	}
+}
+
+func TestErrTaskBlocked_WrappingWithFmtErrorf(t *testing.T) {
+	// Test that ErrTaskBlocked can be properly wrapped using fmt.Errorf
+	// This matches the pattern used in completeTask:
+	//   return fmt.Errorf("%w: sync conflict - resolve conflicts then run 'orc resume %s'", ErrTaskBlocked, t.ID)
+	taskID := "TASK-123"
+	wrapped := fmt.Errorf("%w: sync conflict - resolve conflicts then run 'orc resume %s'", ErrTaskBlocked, taskID)
+
+	// errors.Is should work with wrapped errors
+	if !errors.Is(wrapped, ErrTaskBlocked) {
+		t.Error("errors.Is(wrapped, ErrTaskBlocked) should return true")
+	}
+
+	// The error message should include the task ID
+	if !strings.Contains(wrapped.Error(), taskID) {
+		t.Errorf("wrapped error should contain task ID, got: %s", wrapped.Error())
+	}
+
+	// The error message should include the original sentinel error message
+	if !strings.Contains(wrapped.Error(), ErrTaskBlocked.Error()) {
+		t.Errorf("wrapped error should contain sentinel error message, got: %s", wrapped.Error())
 	}
 }
 

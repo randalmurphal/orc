@@ -3,6 +3,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -337,6 +338,13 @@ func executeTaskWithBackend(ctx context.Context, backend storage.Backend, cfg *c
 			disp.TaskInterrupted()
 			return nil
 		}
+
+		// Check if task is blocked (phases succeeded but completion failed)
+		if errors.Is(err, executor.ErrTaskBlocked) {
+			disp.TaskBlocked(s.Tokens.TotalTokens, s.Elapsed(), "sync conflict")
+			return nil // Not a fatal error - task execution succeeded
+		}
+
 		disp.TaskFailed(err)
 		return err
 	}

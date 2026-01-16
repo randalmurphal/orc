@@ -4,6 +4,7 @@ package cli
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -285,6 +286,13 @@ Example:
 					disp.TaskInterrupted()
 					return nil // Clean interrupt
 				}
+
+				// Check if task is blocked (phases succeeded but completion failed)
+				if errors.Is(err, executor.ErrTaskBlocked) {
+					disp.TaskBlocked(s.Tokens.TotalTokens, s.Elapsed(), "sync conflict")
+					return nil // Not a fatal error - task execution succeeded
+				}
+
 				disp.TaskFailed(err)
 				return err
 			}
