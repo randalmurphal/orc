@@ -971,17 +971,20 @@ import { DashboardInitiatives } from '@/components/dashboard';
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `initiatives` | `Initiative[]` | Active initiatives with embedded tasks |
+| `initiatives` | `Initiative[]` | Active initiatives to display |
 
 **Features:**
 - Click to filter board by initiative (`/board?initiative=XXX`)
 - Progress bar shows completed/total tasks
+- Progress calculated from task store (same as Sidebar) for consistency
 - Progress color: green (75%+), yellow (25-74%), red (<25%)
 - Non-active initiatives show status badge instead of progress
 - Sorted by updated_at, limited to 5
 - "View All" link when >5 initiatives
 - Vision text shown in tooltip
 - Hidden when no initiatives
+
+**Note:** Progress counts are derived from `getInitiativeProgress(tasks)` in the initiative store, ensuring Dashboard and Sidebar display identical progress counts.
 
 ### DashboardSummary
 
