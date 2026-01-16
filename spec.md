@@ -1,176 +1,151 @@
-# Specification: Replace filter dropdowns with Radix Select
+# Specification: Replace TabNav with Radix Tabs
 
 ## Problem Statement
-
-Custom filter dropdowns (InitiativeDropdown, ViewModeDropdown, DependencyDropdown) lack proper keyboard accessibility - no arrow key navigation, typeahead search, or Home/End support. ExportDropdown is an action menu requiring DropdownMenu rather than Select.
+The custom TabNav component in TaskDetail uses manual ARIA attributes and lacks keyboard navigation (arrow keys between tabs, Home/End). Replacing it with Radix Tabs will provide full accessibility compliance including automatic ARIA management, focus handling, and keyboard navigation.
 
 ## Success Criteria
-
-- [ ] InitiativeDropdown uses Radix Select with controlled mode
-- [ ] ViewModeDropdown uses Radix Select with controlled mode
-- [ ] DependencyDropdown uses Radix Select with controlled mode
-- [ ] ExportDropdown uses Radix DropdownMenu (action menu, not selection)
-- [ ] Arrow key navigation works in all dropdowns
-- [ ] Typeahead filtering works (type to jump to matching option)
-- [ ] Home/End keys navigate to first/last option
-- [ ] Escape closes dropdown without changing selection
-- [ ] Visual appearance unchanged (CSS class compatibility maintained)
-- [ ] Store integration works correctly (filter state persists)
-- [ ] E2E tests pass: `bunx playwright test filters.spec.ts`
+- [ ] TabNav.tsx uses Radix Tabs.Root, Tabs.List, and Tabs.Trigger components
+- [ ] Tab panels in TaskDetail.tsx are wrapped with Tabs.Content components
+- [ ] Arrow left/right switches between tabs
+- [ ] Home/End keys jump to first/last tab
+- [ ] Tab key moves focus to panel content (when applicable)
+- [ ] URL persistence works (`?tab=xxx` updates on tab change)
+- [ ] Direct URL navigation loads correct tab (`/tasks/TASK-001?tab=changes`)
+- [ ] Visual appearance unchanged (same CSS classes applied)
+- [ ] aria-label on Tabs.List updated to "Task details tabs" (matching E2E test expectation)
+- [ ] Existing E2E tests pass without modification
 
 ## Testing Requirements
-
-- [ ] E2E: `filters.spec.ts` - Initiative filter dropdown visibility and selection
-- [ ] E2E: `filters.spec.ts` - Dependency filter dropdown visibility and filtering
-- [ ] E2E: `filters.spec.ts` - URL persistence for both filters
-- [ ] E2E: `filters.spec.ts` - Combined filter behavior
-- [ ] Manual: Arrow down opens and focuses first option
-- [ ] Manual: Arrow up/down navigates options
-- [ ] Manual: Enter selects and closes
-- [ ] Manual: Typeahead jumps to matching option (type "Un" in Initiative -> "Unassigned")
-- [ ] Manual: Home/End jump to first/last option
+- [ ] E2E: `bunx playwright test task-detail.spec.ts` passes (15 tests)
+- [ ] E2E: Tab navigation tests (show all tabs, switching, URL updates, URL loading)
+- [ ] E2E: `[role="tablist"][aria-label="Task details tabs"]` selector works
+- [ ] Manual: Arrow key navigation between tabs works
+- [ ] Manual: Focus indicator visible on keyboard navigation
 
 ## Scope
-
 ### In Scope
-- Migrate InitiativeDropdown to Radix Select
-- Migrate ViewModeDropdown to Radix Select
-- Migrate DependencyDropdown to Radix Select
-- Migrate ExportDropdown to Radix DropdownMenu
-- Preserve existing CSS class names for styling compatibility
-- Maintain controlled mode with current store integration
-- Update E2E test selectors if needed (Radix uses different DOM structure)
+- Replace TabNav.tsx implementation with Radix Tabs
+- Wrap TaskDetail.tsx tab panels with Tabs.Content
+- Add CSS for `.tab-btn[data-state='active']` styling
+- Add CSS for `.tab-panel[data-state='active']` panel fade-in animation
+- Add focus-visible styling for keyboard navigation
+- Maintain URL persistence via onValueChange handler
 
 ### Out of Scope
-- Adding new filter functionality
-- Changing filter store logic
-- Modifying filter behavior or options
-- Visual redesign of dropdowns
+- Changes to tab content components (TimelineTab, ChangesTab, etc.)
+- Changes to other pages using tabs (if any)
+- New tab additions or removals
+- Tab content refactoring
 
 ## Technical Approach
 
-### Component Selection
-
-| Current Component | Target Radix Component | Rationale |
-|-------------------|------------------------|-----------|
-| InitiativeDropdown | Select | Single-value selection from list |
-| ViewModeDropdown | Select | Single-value selection from list |
-| DependencyDropdown | Select | Single-value selection from list |
-| ExportDropdown | DropdownMenu | Action menu (triggers actions, no selection state) |
-
-### Radix Select Pattern
-
-```tsx
-<Select.Root value={value} onValueChange={onChange}>
-  <Select.Trigger className="dropdown-trigger">
-    <Select.Value placeholder="Select..." />
-    <Select.Icon><Icon name="chevron-down" /></Select.Icon>
-  </Select.Trigger>
-  <Select.Portal>
-    <Select.Content className="dropdown-menu" position="popper" sideOffset={4}>
-      <Select.Viewport>
-        <Select.Item value="option1" className="dropdown-item">
-          <Select.ItemText>Option 1</Select.ItemText>
-        </Select.Item>
-      </Select.Viewport>
-    </Select.Content>
-  </Select.Portal>
-</Select.Root>
-```
-
-### Radix DropdownMenu Pattern (for ExportDropdown)
-
-```tsx
-<DropdownMenu.Root>
-  <DropdownMenu.Trigger asChild>
-    <button className="export-trigger">...</button>
-  </DropdownMenu.Trigger>
-  <DropdownMenu.Portal>
-    <DropdownMenu.Content className="export-menu" sideOffset={4} align="end">
-      <DropdownMenu.Label className="export-menu-header">Export Options</DropdownMenu.Label>
-      <DropdownMenu.Item className="export-option" onSelect={handleExport}>
-        Task Definition
-      </DropdownMenu.Item>
-      <DropdownMenu.Separator className="export-menu-divider" />
-      ...
-    </DropdownMenu.Content>
-  </DropdownMenu.Portal>
-</DropdownMenu.Root>
-```
-
-### Key Implementation Details
-
-1. **Null value handling**: InitiativeDropdown uses `null` for "All initiatives" - Radix Select requires string values, use empty string `""` internally and convert in callbacks
-
-2. **CSS class preservation**: Keep existing class names (`.dropdown-trigger`, `.dropdown-menu`, `.dropdown-item`) for styling compatibility
-
-3. **Data attributes for state**: Radix uses `data-state="open|closed"` and `data-highlighted` - update CSS to use these instead of custom `.open`, `.selected` classes where needed
-
-4. **Portal usage**: All Radix Content components portal to document.body by default - already configured per CLAUDE.md
-
-5. **Animations**: Use existing CSS animations with `data-state` selectors:
-   ```css
-   .dropdown-menu[data-state='open'] {
-     animation: dropdown-enter var(--duration-fast) var(--ease-out);
-   }
-   ```
+### Implementation Strategy: Full Radix Tabs
+Use Option A from the task description - wrap entire tab section in Tabs.Root with both Tabs.List (triggers) and Tabs.Content (panels). This provides:
+1. Automatic ARIA attributes (aria-selected, aria-controls, role)
+2. Built-in keyboard navigation
+3. Focus management between tabs and panels
+4. Consistent animation hooks via data-state
 
 ### Files to Modify
 
-- `web/src/components/board/InitiativeDropdown.tsx`: Replace custom dropdown with Radix Select
-- `web/src/components/board/InitiativeDropdown.css`: Update selectors for Radix data attributes
-- `web/src/components/board/ViewModeDropdown.tsx`: Replace custom dropdown with Radix Select
-- `web/src/components/board/ViewModeDropdown.css`: Update selectors for Radix data attributes
-- `web/src/components/filters/DependencyDropdown.tsx`: Replace custom dropdown with Radix Select
-- `web/src/components/filters/DependencyDropdown.css`: Update selectors for Radix data attributes
-- `web/src/components/task-detail/ExportDropdown.tsx`: Replace custom dropdown with Radix DropdownMenu
-- `web/src/components/task-detail/ExportDropdown.css`: Update selectors for Radix data attributes
-- `web/e2e/filters.spec.ts`: Update selectors if Radix changes DOM structure (e.g., `[role="listbox"]` might become `[role="combobox"]`)
+1. **`web/src/components/task-detail/TabNav.tsx`**
+   - Import `@radix-ui/react-tabs` (already installed)
+   - Replace manual `<nav role="tablist">` with `<Tabs.List>`
+   - Replace `<button role="tab">` with `<Tabs.Trigger>`
+   - Export Tabs.Root and Tabs.Content for use in parent
+   - Keep TABS config array and TabId type
 
-### E2E Test Selector Updates
+2. **`web/src/pages/TaskDetail.tsx`**
+   - Wrap entire tab section in `<Tabs.Root value={activeTab} onValueChange={handleTabChange}>`
+   - Replace conditional tab panel rendering with `<Tabs.Content>` wrappers
+   - Remove manual `id="panel-${tab.id}"` since Radix handles aria-controls
 
-Radix Select uses different roles than custom implementation:
+3. **`web/src/components/task-detail/TabNav.css`**
+   - Add `.tab-btn[data-state='active']` selector (alongside existing `.tab-btn.active`)
+   - Add `.tab-btn:focus-visible` ring styling
+   - Add `.tab-panel[data-state='active']` fade-in animation
+   - Add `@keyframes tab-panel-in` animation
 
-| Current Selector | Radix Equivalent |
-|------------------|------------------|
-| `.dropdown-menu[role="listbox"]` | `[role="listbox"]` (Radix Content) |
-| `.dropdown-item[role="option"]` | `[role="option"]` (Radix Item) |
-| `aria-expanded` on trigger | Same (Radix preserves) |
-| `aria-selected` on option | Same (Radix preserves) |
+### Component Structure (After)
 
-The E2E tests should mostly work unchanged since they use semantic selectors. May need minor adjustments for DOM structure differences.
+```tsx
+// TaskDetail.tsx
+<Tabs.Root value={activeTab} onValueChange={handleTabChange}>
+  <TabNav />  {/* Renders Tabs.List with Tabs.Triggers */}
 
-## Refactor Analysis
+  <div className="tab-content">
+    <Tabs.Content value="timeline" className="tab-panel">
+      <TimelineTab ... />
+    </Tabs.Content>
+    <Tabs.Content value="changes" className="tab-panel">
+      <ChangesTab ... />
+    </Tabs.Content>
+    {/* ... other panels */}
+  </div>
+</Tabs.Root>
+```
 
-### Before Pattern
-Custom dropdown with:
-- Manual `useState` for open/closed state
-- Manual `useEffect` for click-outside handling
-- Manual `onKeyDown` for Escape handling
-- Manual ARIA attributes (`role="listbox"`, `aria-expanded`, `aria-selected`)
-- Custom focus management
+```tsx
+// TabNav.tsx (simplified)
+export function TabNav() {
+  return (
+    <Tabs.List className="tab-nav" aria-label="Task details tabs">
+      {TABS.map((tab) => (
+        <Tabs.Trigger key={tab.id} value={tab.id} className="tab-btn">
+          <Icon name={tab.icon} size={16} />
+          <span>{tab.label}</span>
+        </Tabs.Trigger>
+      ))}
+    </Tabs.List>
+  );
+}
+```
 
-### After Pattern
-Radix primitives with:
-- Built-in open/closed state management
-- Built-in click-outside handling
-- Built-in keyboard navigation (Arrow keys, Home/End, Escape, Enter, Typeahead)
-- Automatic ARIA attributes and focus management
-- Consistent with TaskCard's DropdownMenu pattern (TASK-212)
+### URL Persistence
+Radix Tabs is a controlled component - the value and onValueChange pattern works exactly like the current implementation. The handleTabChange function already updates URL via `setSearchParams({ tab: tabId }, { replace: true })`.
+
+### CSS Changes
+
+```css
+/* Active state - Radix uses data-state attribute */
+.tab-btn[data-state='active'] {
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}
+
+/* Focus ring for keyboard navigation */
+.tab-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+/* Panel entrance animation */
+.tab-panel[data-state='active'] {
+  animation: tab-panel-in var(--duration-fast) var(--ease-out);
+}
+
+@keyframes tab-panel-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+```
+
+## Feature: Radix Tabs Migration
+
+### User Story
+As a user navigating the task detail page, I want to use keyboard shortcuts (arrow keys, Home/End) to switch between tabs so that I can navigate efficiently without a mouse.
+
+### Acceptance Criteria
+1. Pressing ArrowRight/ArrowLeft while a tab is focused switches to next/previous tab
+2. Pressing Home/End while a tab is focused jumps to first/last tab
+3. Tab key moves focus from tab list to panel content
+4. All existing mouse interactions continue to work
+5. URL updates correctly when switching tabs via keyboard
+6. Visual styling remains identical to current implementation
+7. All existing E2E tests pass without modification
 
 ### Risk Assessment
-
-**Low Risk:**
-- Radix Select/DropdownMenu are stable, well-tested components
-- `@radix-ui/react-select` already installed in package.json
-- Similar migration done for TaskCard quick menu (TASK-212)
-- CSS class preservation minimizes visual regressions
-
-**Medium Risk:**
-- E2E tests may need selector updates for changed DOM structure
-- Null value handling for "All initiatives" requires careful mapping
-
-**Mitigations:**
-- Run E2E tests after each dropdown migration
-- Test typeahead with real initiative names
-- Verify URL persistence still works with value conversions
+- **Low risk**: Radix Tabs is already a dependency (v1.1.13 installed)
+- **Low risk**: No API changes needed - just component structure
+- **Low risk**: CSS uses data-state selectors which Radix provides
+- **Minimal visual change**: Same CSS classes, just different state attribute
