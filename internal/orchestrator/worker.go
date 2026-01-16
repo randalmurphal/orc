@@ -174,6 +174,7 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.S
 		w.cmd.Dir = w.WorktreePath
 		w.cmd.Stdout = os.Stdout
 		w.cmd.Stderr = os.Stderr
+		setProcAttr(w.cmd) // Enable process group for child process cleanup
 
 		// Publish start event
 		pool.publishEvent(events.Event{
@@ -190,6 +191,9 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.S
 		if err := w.cmd.Run(); err != nil {
 			// Check if context was cancelled
 			if w.ctx.Err() != nil {
+				// Kill the entire process group to terminate child processes
+				// (MCP servers, Playwright, chromium, etc.)
+				w.killProcessGroup()
 				w.setStatus(WorkerStatusPaused)
 				return
 			}
@@ -269,9 +273,30 @@ func (w *Worker) GetError() error {
 	return w.Error
 }
 
-// Stop stops the worker.
+// Stop stops the worker by cancelling its context and killing the process group.
+// This ensures both the main claude process and any child processes (MCP servers,
+// Playwright, chromium, etc.) are terminated.
 func (w *Worker) Stop() {
 	w.cancel()
+	w.killProcessGroup()
+}
+
+// killProcessGroup terminates the entire process group for this worker.
+// Safe to call multiple times (idempotent).
+func (w *Worker) killProcessGroup() {
+	w.mu.Lock()
+	cmd := w.cmd
+	w.mu.Unlock()
+
+	if cmd == nil || cmd.Process == nil {
+		return
+	}
+
+	pid := cmd.Process.Pid
+	if pid > 0 {
+		// killProcessGroup is platform-specific (unix vs windows)
+		_ = killProcessGroup(pid)
+	}
 }
 
 // publishEvent publishes an event if publisher is available.

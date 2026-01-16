@@ -22,6 +22,8 @@ The orchestrator manages multiple Claude sessions running in parallel, each in i
 | `orchestrator.go` | Main orchestrator logic |
 | `scheduler.go` | Priority queue with dependencies |
 | `worker.go` | Worker pool and task execution |
+| `worker_unix.go` | Unix process group handling |
+| `worker_windows.go` | Windows stub (no-op) |
 
 ## Architecture
 
@@ -99,6 +101,23 @@ Workers remove themselves from the `WorkerPool.workers` map immediately when the
 - `RemoveWorker()` is idempotent - safe to call multiple times
 - Orchestrator handlers check `GetWorker()` first (worker may have self-cleaned)
 - `ActiveCount()` only counts workers with `running` status
+
+### Process Group Handling
+
+Workers create child processes (MCP servers like Playwright, chromium) that must be terminated when the worker stops. Process groups ensure clean termination of all descendant processes.
+
+**Implementation:**
+- `setProcAttr(cmd)` sets `SysProcAttr.Setpgid = true` on command creation
+- `Worker.Stop()` calls `cancel()` AND `killProcessGroup()`
+- `killProcessGroup()` sends SIGKILL to negative PID (entire process group)
+- Context cancellation also triggers process group cleanup
+
+**Platform-specific:**
+- **Unix (Linux/macOS)**: Uses `syscall.Kill(-pid, SIGKILL)` to terminate process group
+- **Windows**: No-op (Windows uses job objects differently; context cancellation sufficient)
+
+**Why this matters:**
+Without process groups, `exec.CommandContext` only kills the direct child process on cancellation. Child processes spawned by Claude (MCP servers) are reparented to init (PID 1) and continue running, causing resource leaks.
 
 ## Events
 
