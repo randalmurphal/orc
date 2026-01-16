@@ -31,6 +31,10 @@ vi.mock('@/stores', () => ({
 		}
 		return null;
 	},
+	// useInitiatives is used by TaskEditModal (imported by TaskHeader)
+	useInitiatives: () => [
+		{ id: 'INIT-001', title: 'Test Initiative', status: 'active' },
+	],
 }));
 
 vi.mock('@/stores/uiStore', () => ({
@@ -52,6 +56,7 @@ type TaskOverrides = Omit<Partial<Task>, 'id' | 'title' | 'weight' | 'status' | 
 };
 
 describe('TaskHeader', () => {
+<<<<<<< HEAD
 	const createTask = (overrides: TaskOverrides = {}): Task => ({
 		id: overrides.id ?? 'TASK-001',
 		title: overrides.title ?? 'Test Task',
@@ -77,6 +82,22 @@ describe('TaskHeader', () => {
 		completed_at: overrides.completed_at,
 		current_phase: overrides.current_phase,
 		metadata: overrides.metadata,
+=======
+	const createTask = (overrides: Partial<Task> = {}): Task => ({
+		id: 'TASK-001',
+		title: 'Test Task',
+		description: 'Test description',
+		status: 'created',
+		weight: 'small',
+		branch: 'orc/TASK-001',
+		priority: 'normal',
+		category: 'feature',
+		queue: 'active',
+		branch: 'orc/TASK-001',
+		created_at: '2024-01-01T00:00:00Z',
+		updated_at: '2024-01-01T00:00:00Z',
+		...overrides,
+>>>>>>> orc/TASK-274
 	});
 
 	const defaultProps = {
