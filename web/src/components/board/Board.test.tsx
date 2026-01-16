@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Board, BOARD_COLUMNS } from './Board';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Task, Initiative } from '@/lib/types';
 
 // Mock stores
@@ -21,9 +22,13 @@ vi.mock('@/lib/api', () => ({
 	triggerFinalize: vi.fn().mockResolvedValue({}),
 }));
 
-// Wrapper component for router context
+// Wrapper component for router and tooltip context
 function renderWithRouter(ui: React.ReactElement) {
-	return render(<MemoryRouter>{ui}</MemoryRouter>);
+	return render(
+		<TooltipProvider delayDuration={0}>
+			<MemoryRouter>{ui}</MemoryRouter>
+		</TooltipProvider>
+	);
 }
 
 // Mock localStorage

@@ -1,0 +1,173 @@
+/**
+ * Tooltip Component Styles
+ *
+ * Uses Radix UI data attributes for state-based styling.
+ * Respects prefers-reduced-motion for animations.
+ */
+
+/* =============================================================================
+   TOOLTIP CONTENT
+   ============================================================================= */
+
+.tooltip-content {
+  /* Layout */
+  z-index: var(--z-tooltip);
+  max-width: 300px;
+  padding: var(--space-2) var(--space-3);
+
+  /* Typography */
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--text-primary);
+
+  /* Visual */
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+
+  /* Animation */
+  animation-duration: var(--duration-fast);
+  animation-timing-function: var(--ease-out);
+
+  /* Prevent text selection during hover */
+  user-select: none;
+}
+
+/* Entry animation by side */
+.tooltip-content[data-state='delayed-open'][data-side='top'],
+.tooltip-content[data-state='instant-open'][data-side='top'] {
+  animation-name: tooltip-slide-up;
+}
+
+.tooltip-content[data-state='delayed-open'][data-side='bottom'],
+.tooltip-content[data-state='instant-open'][data-side='bottom'] {
+  animation-name: tooltip-slide-down;
+}
+
+.tooltip-content[data-state='delayed-open'][data-side='left'],
+.tooltip-content[data-state='instant-open'][data-side='left'] {
+  animation-name: tooltip-slide-left;
+}
+
+.tooltip-content[data-state='delayed-open'][data-side='right'],
+.tooltip-content[data-state='instant-open'][data-side='right'] {
+  animation-name: tooltip-slide-right;
+}
+
+/* Exit animation */
+.tooltip-content[data-state='closed'] {
+  animation-name: tooltip-hide;
+}
+
+/* =============================================================================
+   TOOLTIP ARROW
+   ============================================================================= */
+
+.tooltip-arrow {
+  fill: var(--bg-elevated);
+}
+
+/* =============================================================================
+   TOOLTIP CONTENT STYLING
+   ============================================================================= */
+
+/* Support for kbd elements in tooltips */
+.tooltip-content kbd {
+  display: inline-block;
+  padding: var(--space-0-5) var(--space-1-5);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin: 0 var(--space-0-5);
+}
+
+/* Code in tooltips */
+.tooltip-content code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background-color: var(--bg-secondary);
+  padding: var(--space-0-5) var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+/* =============================================================================
+   ANIMATIONS
+   ============================================================================= */
+
+@keyframes tooltip-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tooltip-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tooltip-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tooltip-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tooltip-hide {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* =============================================================================
+   REDUCED MOTION
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltip-content {
+    animation: none;
+  }
+
+  .tooltip-content[data-state='delayed-open'],
+  .tooltip-content[data-state='instant-open'] {
+    animation: none;
+  }
+
+  .tooltip-content[data-state='closed'] {
+    animation: none;
+  }
+}

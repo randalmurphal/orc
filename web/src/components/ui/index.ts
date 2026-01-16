@@ -15,3 +15,11 @@ export {
 export { StatusIndicator, type StatusIndicatorSize } from './StatusIndicator';
 export { ToastContainer } from './ToastContainer';
 export { Breadcrumbs } from './Breadcrumbs';
+export {
+	Tooltip,
+	TooltipProvider,
+	type TooltipProps,
+	type TooltipProviderProps,
+	type TooltipSide,
+	type TooltipAlign,
+} from './Tooltip';
