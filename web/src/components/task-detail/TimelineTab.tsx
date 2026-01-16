@@ -52,6 +52,8 @@ export function TimelineTab({ task, taskState, plan }: TimelineTabProps) {
 									commitSha={phaseState?.commit_sha ?? phase.commit_sha}
 									error={phaseState?.error ?? phase.error}
 									isLast={index === plan.phases.length - 1}
+									position={index + 1}
+									totalPhases={plan.phases.length}
 								/>
 							);
 						})}
@@ -111,6 +113,8 @@ interface TimelinePhaseProps {
 	commitSha?: string;
 	error?: string;
 	isLast: boolean;
+	position: number;
+	totalPhases: number;
 }
 
 function TimelinePhase({
@@ -123,6 +127,8 @@ function TimelinePhase({
 	commitSha,
 	error,
 	isLast,
+	position,
+	totalPhases,
 }: TimelinePhaseProps) {
 	const getStatusIcon = (): IconName => {
 		switch (status) {
@@ -139,6 +145,21 @@ function TimelinePhase({
 		}
 	};
 
+	const getStatusLabel = (): string => {
+		switch (status) {
+			case 'completed':
+				return 'Completed';
+			case 'running':
+				return 'Running';
+			case 'failed':
+				return 'Failed';
+			case 'skipped':
+				return 'Skipped';
+			default:
+				return 'Pending';
+		}
+	};
+
 	const getStatusClass = () => {
 		if (isCurrent && status === 'running') return 'running';
 		return status;
@@ -152,7 +173,9 @@ function TimelinePhase({
 			</div>
 			<div className="phase-content">
 				<div className="phase-header">
+					<span className="phase-position">{position} of {totalPhases}</span>
 					<span className="phase-name">{name}</span>
+					<span className={`phase-status-label ${status}`}>{getStatusLabel()}</span>
 					{iterations > 1 && (
 						<span className="phase-iterations">{iterations} iterations</span>
 					)}
