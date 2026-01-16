@@ -16,6 +16,9 @@ const (
 	// Knowledge section markers
 	knowledgeSectionStart = "<!-- orc:knowledge:begin -->"
 	knowledgeSectionEnd   = "<!-- orc:knowledge:end -->"
+	// Target directive for external knowledge file
+	knowledgeTargetPrefix = "<!-- orc:knowledge:target:"
+	knowledgeTargetSuffix = " -->"
 )
 
 // KnowledgeCapture holds extracted knowledge from transcripts.
@@ -32,12 +35,47 @@ type KnowledgeEntry struct {
 	Source      string // Task ID
 }
 
-// HashKnowledgeSection computes a hash of the knowledge section in CLAUDE.md.
-// Returns empty string if no knowledge section exists.
-func HashKnowledgeSection(projectDir string) string {
+// findKnowledgeTarget locates the file containing the knowledge section.
+// Checks CLAUDE.md for a target directive (<!-- orc:knowledge:target:path -->).
+// Returns the target path if found, otherwise returns CLAUDE.md.
+func findKnowledgeTarget(projectDir string) string {
 	claudeMDPath := filepath.Join(projectDir, "CLAUDE.md")
 
 	data, err := os.ReadFile(claudeMDPath)
+	if err != nil {
+		return claudeMDPath
+	}
+
+	content := string(data)
+
+	// Look for target directive
+	startIdx := strings.Index(content, knowledgeTargetPrefix)
+	if startIdx == -1 {
+		return claudeMDPath
+	}
+
+	// Extract the target path
+	afterPrefix := content[startIdx+len(knowledgeTargetPrefix):]
+	endIdx := strings.Index(afterPrefix, knowledgeTargetSuffix)
+	if endIdx == -1 {
+		return claudeMDPath
+	}
+
+	targetPath := strings.TrimSpace(afterPrefix[:endIdx])
+	if targetPath == "" {
+		return claudeMDPath
+	}
+
+	return filepath.Join(projectDir, targetPath)
+}
+
+// HashKnowledgeSection computes a hash of the knowledge section.
+// Checks for target directive in CLAUDE.md to find the knowledge file.
+// Returns empty string if no knowledge section exists.
+func HashKnowledgeSection(projectDir string) string {
+	knowledgePath := findKnowledgeTarget(projectDir)
+
+	data, err := os.ReadFile(knowledgePath)
 	if err != nil {
 		return ""
 	}
@@ -152,18 +190,19 @@ func (c *KnowledgeCapture) HasEntries() bool {
 	return len(c.Patterns) > 0 || len(c.Gotchas) > 0 || len(c.Decisions) > 0
 }
 
-// AppendKnowledgeToClaudeMD adds extracted knowledge entries to the CLAUDE.md knowledge section.
+// AppendKnowledgeToClaudeMD adds extracted knowledge entries to the knowledge section.
+// Checks for target directive in CLAUDE.md to find the knowledge file.
 // Returns nil if no changes were made.
 func AppendKnowledgeToClaudeMD(projectDir string, capture *KnowledgeCapture) error {
 	if capture == nil || !capture.HasEntries() {
 		return nil
 	}
 
-	claudeMDPath := filepath.Join(projectDir, "CLAUDE.md")
+	knowledgePath := findKnowledgeTarget(projectDir)
 
-	data, err := os.ReadFile(claudeMDPath)
+	data, err := os.ReadFile(knowledgePath)
 	if err != nil {
-		return fmt.Errorf("read CLAUDE.md: %w", err)
+		return fmt.Errorf("read knowledge file %s: %w", knowledgePath, err)
 	}
 
 	content := string(data)
@@ -172,7 +211,7 @@ func AppendKnowledgeToClaudeMD(projectDir string, capture *KnowledgeCapture) err
 	re := regexp.MustCompile(`(?s)(` + regexp.QuoteMeta(knowledgeSectionStart) + `)(.*?)(` + regexp.QuoteMeta(knowledgeSectionEnd) + `)`)
 	matches := re.FindStringSubmatchIndex(content)
 	if matches == nil {
-		return fmt.Errorf("no knowledge section found in CLAUDE.md")
+		return fmt.Errorf("no knowledge section found in %s", knowledgePath)
 	}
 
 	// Extract the section content
@@ -199,8 +238,8 @@ func AppendKnowledgeToClaudeMD(projectDir string, capture *KnowledgeCapture) err
 	// Rebuild content
 	newContent := content[:matches[4]] + sectionContent + content[matches[5]:]
 
-	if err := os.WriteFile(claudeMDPath, []byte(newContent), 0644); err != nil {
-		return fmt.Errorf("write CLAUDE.md: %w", err)
+	if err := os.WriteFile(knowledgePath, []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("write knowledge file %s: %w", knowledgePath, err)
 	}
 
 	return nil

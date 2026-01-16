@@ -18,7 +18,7 @@
 #
 # =============================================================================
 
-.PHONY: all setup build test lint clean dev docker-build docker-test docker-shell help
+.PHONY: all setup build test lint doc-lint clean dev docker-build docker-test docker-shell help
 
 # Configuration
 BINARY := orc
@@ -97,6 +97,10 @@ test-short:
 ## lint: Run linters locally
 lint:
 	golangci-lint run ./...
+
+## doc-lint: Check CLAUDE.md files against line thresholds
+doc-lint:
+	@./scripts/doc-lint.sh
 
 ## vet: Run go vet
 vet:

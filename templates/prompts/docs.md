@@ -231,7 +231,27 @@ If duplicates found, review each case:
 
 ---
 
+## Pre-Completion Validation (REQUIRED)
+
+Before marking phase complete, run the doc-lint check:
+
+```bash
+./scripts/doc-lint.sh
+```
+
+If any file exceeds threshold + tolerance (BLOCK status):
+1. Extract detailed content to reference docs (SCHEMA.md, ENDPOINTS.md, etc.)
+2. Add pointer in CLAUDE.md: `See [file.md](file.md) for details`
+3. Re-run lint until passing
+
+**Do NOT use `<phase_complete>true</phase_complete>` until lint passes.**
+
+---
+
 ## Validation Checklist (Run Before Completing)
+
+### Doc Lint
+- [ ] `./scripts/doc-lint.sh` passes (no BLOCK status)
 
 ### Staleness
 - [ ] No references to deprecated storage patterns (YAML source of truth, hybrid storage)

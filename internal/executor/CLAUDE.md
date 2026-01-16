@@ -6,302 +6,132 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 
 | File | Purpose |
 |------|---------|
-| `executor.go` | Main orchestrator, task lifecycle, `getPhaseExecutor()` |
-| `task_execution.go` | `ExecuteTask()`, `ResumeFromPhase()`, gate evaluation |
+| `executor.go` | Main orchestrator, `getPhaseExecutor()` |
+| `task_execution.go` | `ExecuteTask()`, `ResumeFromPhase()` |
 | `phase.go` | `ExecutePhase()`, session/flowgraph dispatch |
-| `phase_executor.go` | `PhaseExecutor` interface, `ExecutorConfig`, `ResolveModelSetting()` |
+| `phase_executor.go` | `PhaseExecutor` interface, `ResolveModelSetting()` |
 
 ### Executor Types
 
 | File | Strategy | Weight |
 |------|----------|--------|
-| `trivial.go` | Fire-and-forget, no session | trivial |
-| `standard.go` | Session per phase, iteration loop | small/medium |
-| `full.go` | Persistent session, per-iteration checkpointing | large/greenfield |
-| `finalize.go` | Branch sync, conflict resolution, risk assessment | large/greenfield |
+| `trivial.go` | Fire-and-forget | trivial |
+| `standard.go` | Session per phase | small/medium |
+| `full.go` | Persistent session | large/greenfield |
+| `finalize.go` | Branch sync, conflict resolution | large/greenfield |
 
 ### Support Modules
 
-| File | Responsibility |
-|------|----------------|
-| `config.go` | `ExecutorConfig` defaults per weight |
-| `template.go` | Prompt variable substitution, `BuildTemplateVars()`, `RenderTemplate()` |
-| `flowgraph_nodes.go` | Flowgraph nodes, `renderTemplate()` (must stay in sync with template.go) |
-| `session_adapter.go` | LLM session wrapper, `StreamTurnWithProgress()` |
-| `completion.go` | `CheckPhaseCompletion()` - detects `<phase_complete>` |
-| `retry.go` | Cross-phase retry context |
-| `worktree.go` | Git worktree setup/cleanup |
-| `mcp.go` | Per-worktree MCP config for isolated Playwright |
-| `publish.go` | Nil-safe `EventPublisher` |
+| File | Purpose |
+|------|---------|
+| `template.go` | `BuildTemplateVars()`, `RenderTemplate()` |
+| `flowgraph_nodes.go` | Flowgraph nodes, `renderTemplate()` |
+| `session_adapter.go` | LLM session wrapper |
+| `completion.go` | `<phase_complete>` detection |
 | `ci_merge.go` | CI polling and auto-merge |
-| `resource_tracker.go` | Process/memory tracking for orphan detection |
+| `resource_tracker.go` | Orphan process detection |
 
 ## Architecture
 
 ```
 Executor.ExecuteTask()
 ├── setupWorktree()           # Isolate in git worktree
-│   └── GenerateWorktreeMCPConfig()  # Per-task MCP isolation
-├── loadPlan()                # Get phase sequence for weight
+├── loadPlan()                # Get phases for weight
 └── for each phase:
-    ├── evaluateGate()        # Check gate conditions
-    ├── getPhaseExecutor()    # Select by weight → executor.go:351
-    │   └── ResolveModelSetting()  # Get model + thinking for phase
-    ├── ExecutePhase()        # Run with selected executor
-    └── checkpoint()          # Git commit on completion
+    ├── evaluateGate()        # Check conditions
+    ├── getPhaseExecutor()    # Select by weight
+    │   └── ResolveModelSetting()  # Get model + thinking
+    ├── ExecutePhase()        # Run
+    └── checkpoint()          # Git commit
 ```
 
 ## Executor Strategies
 
-| Executor | Session | Checkpoints | Max Iters | Best For |
-|----------|---------|-------------|-----------|----------|
-| Trivial | None | None | 5 | Single-prompt fixes |
-| Standard | Per-phase | On complete | 20 | Small/medium tasks |
-| Full | Persistent | Per-iteration | 30-50 | Large/greenfield |
-| Finalize | Per-phase | On complete | 10 | Branch sync, merge prep |
+| Executor | Session | Checkpoints | Max Iters |
+|----------|---------|-------------|-----------|
+| Trivial | None | None | 5 |
+| Standard | Per-phase | On complete | 20 |
+| Full | Persistent | Per-iteration | 30-50 |
+| Finalize | Per-phase | On complete | 10 |
 
 ## Model Configuration
 
-**Location:** `config.go:70-85`, `phase_executor.go:70-85`
-
-Per-phase, per-weight model selection with thinking mode support.
-
-### Resolution Hierarchy
+Per-phase, per-weight model selection (`config.go`, `phase_executor.go`):
 
 ```
-ExecutorConfig.ResolveModelSetting(weight, phase)
-├── Check config.OrcConfig.Models[weight][phase]  # Phase-specific
-├── Fallback to config.OrcConfig.Models.Default   # Global default
-└── Fallback to config.Model                      # Legacy field
+ResolveModelSetting(weight, phase)
+├── config.OrcConfig.Models[weight][phase]  # Phase-specific
+├── config.OrcConfig.Models.Default         # Global default
+└── config.Model                            # Legacy fallback
 ```
 
-### Default Model Matrix
+**Default matrix:**
+- Decision phases (spec, review, validate): opus + thinking
+- Execution phases (implement, test, docs): sonnet
 
-| Weight | Decision Phases | Execution Phases |
-|--------|-----------------|------------------|
-| trivial | opus | sonnet |
-| small | opus | sonnet |
-| medium | opus + thinking | sonnet |
-| large | opus + thinking | sonnet |
-| greenfield | opus + thinking | sonnet |
+**Extended thinking:** When `modelSetting.Thinking == true`, prepend `ultrathink\n\n` to prompt text.
 
-**Decision phases** (thinking enabled): spec, design, review, validate, research
-**Execution phases** (no thinking): implement, test, docs, finalize
+## Template Variables
 
-### Extended Thinking (Ultrathink)
+⚠️ **CRITICAL**: Two rendering paths MUST stay in sync:
+- `template.go:RenderTemplate()` - Session-based executors
+- `flowgraph_nodes.go:renderTemplate()` - Flowgraph execution
 
-**Location:** `standard.go:189-194`, `full.go:224-229`, `trivial.go:125-129`, `finalize.go:577-581`
+Both call `processReviewConditionals()` for `{{#if REVIEW_ROUND_N}}` blocks.
 
-When `modelSetting.Thinking == true`, inject trigger at prompt start:
-```go
-if modelSetting.Thinking {
-    promptText = "ultrathink\n\n" + promptText
-}
-```
+Key variables: `{{TASK_ID}}`, `{{TASK_TITLE}}`, `{{TASK_DESCRIPTION}}`, `{{TASK_CATEGORY}}`, `{{SPEC_CONTENT}}`, `{{DESIGN_CONTENT}}`, `{{RETRY_CONTEXT}}`, `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}`, `{{TARGET_BRANCH}}`, `{{INITIATIVE_CONTEXT}}`, `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{REVIEW_ROUND}}`, `{{REVIEW_FINDINGS}}`, `{{VERIFICATION_RESULTS}}`
 
-**Why user message?** Claude Code thinking triggers only work in user messages, not system prompts. See `session_adapter.go:76-78` for explanation.
+## Session Configuration
 
-### Configuration
-
-```yaml
-# .orc/config.yaml
-models:
-  default:
-    model: opus
-    thinking: false
-  medium:
-    spec:
-      model: opus
-      thinking: true
-    implement:
-      model: sonnet
-      thinking: false
-```
-
-## Key Components
-
-### Template Variables
-
-**Locations:** `template.go:RenderTemplate()`, `flowgraph_nodes.go:renderTemplate()`
-
-⚠️ **CRITICAL**: Two template rendering paths exist and MUST stay in sync:
-- `template.go:RenderTemplate()` - Used by session-based executors (standard, full, finalize)
-- `flowgraph_nodes.go:renderTemplate()` - Used by legacy flowgraph execution
-
-Both must support identical variables. When adding a new variable, update BOTH files.
-
-| Variable | Description |
-|----------|-------------|
-| `{{TASK_ID}}`, `{{TASK_TITLE}}` | Task identifiers |
-| `{{TASK_DESCRIPTION}}` | Full task description |
-| `{{TASK_CATEGORY}}` | Task category (feature/bug/refactor/etc) |
-| `{{PHASE}}`, `{{WEIGHT}}`, `{{ITERATION}}` | Execution context |
-| `{{SPEC_CONTENT}}` | Specification from spec phase |
-| `{{DESIGN_CONTENT}}` | Design artifact (large/greenfield) |
-| `{{IMPLEMENT_CONTENT}}` | Implementation summary |
-| `{{RESEARCH_CONTENT}}` | Research findings (greenfield) |
-| `{{RETRY_CONTEXT}}` | Failure info on retry |
-| `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}`, `{{TARGET_BRANCH}}` | Git worktree context |
-| `{{INITIATIVE_CONTEXT}}` | Initiative details if linked |
-| `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}` | UI testing context |
-| `{{COVERAGE_THRESHOLD}}` | Min coverage % (default: 85) |
-| `{{REVIEW_ROUND}}` | Current review round (1 or 2) |
-| `{{REVIEW_FINDINGS}}` | Previous round's findings (Round 2) |
-| `{{VERIFICATION_RESULTS}}` | Verification results from implement |
-
-### Review Round Initialization (`phase.go`)
-
-For review phase, `ReviewRound` defaults to 1 in flowgraph execution:
-```go
-reviewRound := 0
-if p.ID == "review" {
-    reviewRound = 1
-}
-```
-
-### Review Conditionals (`template.go:processReviewConditionals`)
-
-Templates can use conditional blocks:
-```markdown
-{{#if REVIEW_ROUND_1}}
-Content shown only in Round 1
-{{/if}}
-
-{{#if REVIEW_ROUND_2}}
-Content shown only in Round 2
-{{/if}}
-```
-
-### Token Usage (`session_adapter.go:118-135`)
+Sessions need user source for agents in headless mode:
 
 ```go
-// Raw InputTokens is misleadingly low when cached
-// Always use EffectiveInputTokens() for actual context size
-effective := usage.InputTokens + usage.CacheCreationInputTokens + usage.CacheReadInputTokens
+session.WithSettingSources([]string{"project", "local", "user"})
 ```
 
-### Completion Detection (`completion.go`)
+Sources: `project` (.claude/), `local` (worktree .claude/), `user` (~/.claude/)
+
+## Completion Detection
 
 ```xml
 <phase_complete>true</phase_complete>   <!-- Success -->
 <phase_blocked>reason: ...</phase_blocked>  <!-- Needs help -->
 ```
 
-### Retry Context (`retry.go`)
-
-Cross-phase retry when tests fail:
-```go
-ctx := buildRetryContext(failedPhase, output, attempt)
-// Phase receives {{RETRY_CONTEXT}} with failure details
-```
-
-### Session Configuration (`executor.go`, `task_execution.go`)
-
-Session managers are configured with `WithSettingSources` to load user-defined agents:
-
-```go
-sessionMgr := session.NewManager(
-    session.WithDefaultSessionOptions(
-        session.WithModel(cfg.Model),
-        session.WithWorkdir(cfg.WorkDir),
-        session.WithPermissions(cfg.DangerouslySkipPermissions),
-        session.WithSettingSources([]string{"project", "local", "user"}),
-    ),
-)
-```
-
-**Setting sources:**
-- `project` - `.claude/` in project directory
-- `local` - `.claude/` in current directory (worktree)
-- `user` - `~/.claude/` (user's global config)
-
-The `user` source is required for user-defined agents (e.g., `~/.claude/agents/Reviewer.md`) to be available in headless sessions.
-
 ## FinalizeExecutor
 
-**Location:** `finalize.go`
+Steps: fetchTarget → checkDivergence → syncWithTarget → resolveConflicts → runTests → assessRisk
 
-Dedicated executor for large/greenfield finalize phase.
+**Escalation:** >10 conflicts or >5 test failures → retry from implement phase
 
-| Step | Method | Purpose |
-|------|--------|---------|
-| 1 | `fetchTarget()` | Fetch origin/main |
-| 2 | `checkDivergence()` | Count commits ahead/behind |
-| 3 | `syncWithTarget()` | Merge or rebase per config |
-| 4 | `resolveConflicts()` | AI-assisted conflict resolution |
-| 5 | `runTests()` | Verify tests pass |
-| 6 | `assessRisk()` | Classify: low/medium/high/critical |
-
-**Risk Thresholds:**
-
-| Metric | Low | Medium | High | Critical |
-|--------|-----|--------|------|----------|
-| Files | 1-5 | 6-15 | 16-30 | >30 |
-| Lines | <100 | 100-500 | 500-1000 | >1000 |
-| Conflicts | 0 | 1-3 | 4-10 | >10 |
-
-**Escalation:** >10 unresolved conflicts or >5 test failures → retry from implement phase
-
-See `docs/FINALIZE.md` for detailed flow.
+See `docs/architecture/FINALIZE.md` for detailed flow.
 
 ## CI Merger
 
-**Location:** `ci_merge.go`
+`ci_merge.go` handles CI polling and auto-merge after finalize.
 
-Handles CI polling and auto-merge after finalize.
-
-```go
-merger.WaitForCIAndMerge(ctx, task)
-├── WaitForCI()      // Poll gh pr checks (30s interval, 10m timeout)
-└── MergePR()        // gh pr merge --squash
-```
-
-**Profile Behavior:**
-- `auto`/`fast`: Wait for CI, auto-merge on pass
-- `safe`/`strict`: No auto-merge (human approval required)
-
-See `docs/CI_MERGE.md` for configuration options.
+**Profiles:** `auto`/`fast` auto-merge on CI pass; `safe`/`strict` require human approval.
 
 ## Resource Tracker
 
-**Location:** `resource_tracker.go`
-
-Detects orphaned processes (MCP servers, browsers) after task execution.
-
-```go
-tracker.SnapshotBefore()   // Before task
-// ... task runs ...
-tracker.SnapshotAfter()    // After task
-tracker.DetectOrphans()    // Find orphaned processes
-tracker.CheckMemoryGrowth() // Check memory delta
-```
-
-**Orphan criteria:** New PID + (parent is PID 1 OR parent doesn't exist)
-
-See `docs/RESOURCE_TRACKER.md` for platform-specific details.
+`resource_tracker.go` detects orphaned MCP processes after task execution.
 
 ## Testing
 
 ```bash
-go test ./internal/executor/... -v                    # All tests
-go test ./internal/executor/... -run TestResolve -v   # Model resolution
-go test ./internal/executor/... -run TestTemplate -v  # Template vars
+go test ./internal/executor/... -v
 ```
 
 | Test File | Coverage |
 |-----------|----------|
-| `executor_test.go` | Integration tests |
-| `template_test.go` | Variable substitution, initiative context |
-| `session_adapter_test.go` | Token usage, effective tokens |
-| `finalize_test.go` | Sync strategies, risk assessment |
-| `ci_merge_test.go` | CI status, polling, merge methods |
-| `resource_tracker_test.go` | Orphan detection, memory growth |
+| `executor_test.go` | Integration |
+| `template_test.go` | Variable substitution |
+| `finalize_test.go` | Sync, risk assessment |
+| `ci_merge_test.go` | CI polling, merge |
 
 ## Common Gotchas
 
-1. **Raw InputTokens misleading** - Use `EffectiveInputTokens()` for actual context size
-2. **Ultrathink in system prompt** - Doesn't work; must be in user message
-3. **FinalizeExecutor OrcConfig** - `WithFinalizeOrcConfig()` must set both `e.orcConfig` and `e.config.OrcConfig`
-4. **Model not resolved in trivial** - Fixed: now uses `ResolveModelSetting()` like other executors
-5. **Template variable not substituted** - Check BOTH `template.go:RenderTemplate()` AND `flowgraph_nodes.go:renderTemplate()` have the variable
-6. **User agents not available in headless** - Session needs `WithSettingSources([]string{"project", "local", "user"})` to load `~/.claude/agents/`
+1. **Raw InputTokens misleading** - Use `EffectiveInputTokens()`
+2. **Ultrathink in system prompt** - Doesn't work; must be user message
+3. **Template not substituted** - Check BOTH `template.go` AND `flowgraph_nodes.go`
+4. **User agents unavailable** - Need `WithSettingSources` with "user"
