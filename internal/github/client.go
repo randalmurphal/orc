@@ -171,7 +171,8 @@ func (c *Client) CreatePR(ctx context.Context, opts PRCreateOptions) (*PR, error
 	output, err := c.runGH(ctx, args...)
 	if err != nil && len(labels) > 0 && isLabelError(err) {
 		// Labels failed - retry without labels
-		slog.Warn("PR labels not found on repository, creating PR without labels",
+		// This is expected behavior for repos without pre-configured labels, so use Debug
+		slog.Debug("PR labels not found on repository, creating PR without labels",
 			"labels", labels,
 			"error", err)
 
