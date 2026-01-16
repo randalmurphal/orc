@@ -1251,6 +1251,8 @@ npm run e2e:report       # Open HTML report
 
 **Worker limit:** Playwright uses a maximum of 4 workers locally (1 in CI) to prevent OOM when multiple orc tasks run E2E tests in parallel. Each worker spawns browser processes, so unlimited workers on a 16-core machine could exhaust memory.
 
+**Animation disabling:** The `fixtures.ts` module injects CSS that disables all animations and transitions during E2E tests. This prevents Playwright's "element not stable" timeouts caused by CSS transitions (fade-in, width changes, `transition: all`) that keep elements moving during click stability checks. The injected styles set `animation-duration: 0.01ms` and `transition-duration: 0.01ms` for all elements.
+
 #### UI Primitives & Radix Integration Tests
 
 Three test files validate the UI component library and Radix integration:
