@@ -1047,7 +1047,6 @@ import { TaskList } from '@/pages/TaskList';
 - Sort by recent/oldest/status
 - Keyboard navigation (j/k/Enter/r/p/d)
 - Initiative filter banner when filtered
-- New task button
 
 **URL params:**
 - `project`: Project filter (handled by UrlParamSync)
