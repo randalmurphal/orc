@@ -150,6 +150,15 @@ Examples:
 
 			// Only allow resolving failed tasks
 			if t.Status != task.StatusFailed {
+				if t.Status == task.StatusBlocked {
+					return fmt.Errorf(`task %s is blocked (status: blocked), not failed
+
+For blocked tasks, use one of these commands instead:
+  orc approve %s   Approve a gate and mark task ready to run
+  orc resume %s    Resume execution (for paused/blocked/failed tasks)
+
+The 'resolve' command is for marking failed tasks as complete without re-running.`, id, id, id)
+				}
 				return fmt.Errorf("task %s is %s, not failed; resolve is only for failed tasks", id, t.Status)
 			}
 
