@@ -289,7 +289,10 @@ Example:
 
 				// Check if task is blocked (phases succeeded but completion failed)
 				if errors.Is(err, executor.ErrTaskBlocked) {
-					disp.TaskBlocked(s.Tokens.TotalTokens, s.Elapsed(), "sync conflict")
+					// Reload task to get updated metadata with conflict info
+					t, _ = backend.LoadTask(id)
+					blockedCtx := buildBlockedContext(t, cfg)
+					disp.TaskBlockedWithContext(s.Tokens.TotalTokens, s.Elapsed(), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
 				}
 
@@ -353,4 +356,70 @@ func getFileChangeStats(ctx context.Context, projectRoot, taskBranch string, cfg
 		Additions:    stats.Additions,
 		Deletions:    stats.Deletions,
 	}
+}
+
+// buildBlockedContext builds a BlockedContext from the task and config for enhanced
+// conflict resolution guidance. It extracts worktree path, conflict files from task
+// metadata, and sync strategy from config.
+func buildBlockedContext(t *task.Task, cfg *config.Config) *progress.BlockedContext {
+	ctx := &progress.BlockedContext{}
+
+	// Get worktree path from task ID and config
+	if cfg != nil && cfg.Worktree.Enabled {
+		// Construct worktree path using config's worktree directory
+		worktreeDir := cfg.Worktree.Dir
+		if worktreeDir == "" {
+			worktreeDir = ".orc/worktrees"
+		}
+		ctx.WorktreePath = worktreeDir + "/orc-" + t.ID
+	}
+
+	// Extract conflict files from task metadata if available
+	if t.Metadata != nil {
+		if errStr, ok := t.Metadata["blocked_error"]; ok {
+			ctx.ConflictFiles = parseConflictFilesFromError(errStr)
+		}
+	}
+
+	// Set sync strategy based on config
+	if cfg != nil {
+		if cfg.Completion.Finalize.Sync.Strategy == config.FinalizeSyncMerge {
+			ctx.SyncStrategy = progress.SyncStrategyMerge
+		} else {
+			ctx.SyncStrategy = progress.SyncStrategyRebase
+		}
+
+		// Set target branch
+		ctx.TargetBranch = cfg.Completion.TargetBranch
+		if ctx.TargetBranch == "" {
+			ctx.TargetBranch = "main"
+		}
+	}
+
+	return ctx
+}
+
+// parseConflictFilesFromError extracts conflict file paths from an error message.
+// Error messages contain conflict files in format: "[file1 file2 ...]" or similar patterns.
+func parseConflictFilesFromError(errStr string) []string {
+	var files []string
+
+	// Look for file list in brackets: [file1 file2 file3]
+	// This matches the format from ErrSyncConflict error messages
+	startBracket := strings.Index(errStr, "[")
+	endBracket := strings.LastIndex(errStr, "]")
+
+	if startBracket >= 0 && endBracket > startBracket {
+		fileListStr := errStr[startBracket+1 : endBracket]
+		// Split by space, handling empty strings
+		for _, f := range strings.Fields(fileListStr) {
+			// Clean up any extra punctuation
+			f = strings.Trim(f, ",")
+			if f != "" {
+				files = append(files, f)
+			}
+		}
+	}
+
+	return files
 }

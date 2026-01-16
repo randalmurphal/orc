@@ -852,11 +852,42 @@ orc resume TASK-XXX
 ### Task Blocked After Sync Conflict
 
 **Symptoms**:
+
+When a task is blocked by sync conflicts, orc now provides detailed guidance:
+
 ```
-⚠️  Task TASK-XXX blocked: sync conflict
+⚠️  Task TASK-042 blocked: sync conflict
    All phases completed, but sync with target branch failed.
-   To resolve: manually resolve conflicts then run 'orc resume TASK-XXX'
+
+   Worktree: .orc/worktrees/orc-TASK-042
+   Conflicted files:
+     - internal/api/handler.go
+     - CLAUDE.md
+
+   To resolve manually:
+   ────────────────────────────────────────────
+   cd .orc/worktrees/orc-TASK-042
+   git fetch origin
+   git rebase origin/main
+
+   # For each conflicted file:
+   #   1. Edit the file to resolve conflict markers
+   #   2. git add <file>
+
+   git rebase --continue
+   ────────────────────────────────────────────
+
+   Verify resolution:
+     git diff --name-only --diff-filter=U  # Should show no files
+
+   Then resume:
+     orc resume TASK-042
+
+   Total tokens: 45,231
+   Total time: 12m34s
 ```
+
+**Note**: The commands shown are contextual—if your project uses merge strategy instead of rebase, the instructions will show `git merge` commands instead.
 
 **Cause**: All task phases completed successfully, but the final sync with the target branch failed due to merge conflicts. This happens when:
 - Another task merged to the target branch while this task was running
@@ -865,32 +896,28 @@ orc resume TASK-XXX
 
 **Why This Message (Not "Completed!")**:
 
-Previously, this scenario would display a celebration message ("completed!") which was misleading since the task couldn't actually be finalized. Now orc correctly shows that the task is blocked and needs attention.
+Previously, this scenario would display a celebration message ("completed!") which was misleading since the task couldn't actually be finalized. Now orc correctly shows that the task is blocked and needs attention, with actionable copy-paste commands.
 
 **Solutions**:
 
 | Approach | Command | When to Use |
 |----------|---------|-------------|
-| Resolve manually | See below | Standard approach |
+| Resolve manually | Follow the displayed instructions | Standard approach |
 | Force resume | `orc resume TASK-XXX --force` | Skip conflict check |
 
-**To resolve conflicts manually**:
-```bash
-# Navigate to the worktree
-cd .orc/worktrees/orc-TASK-XXX
+**Viewing Blocked Tasks with `orc status`**:
 
-# Fetch latest and attempt rebase
-git fetch origin
-git rebase origin/main  # or your target branch
+The `orc status` command now shows additional detail for tasks blocked by sync conflicts:
 
-# Resolve any conflicts
-# ... edit files ...
-git add <resolved-files>
-git rebase --continue
-
-# Once clean, resume the task
-orc resume TASK-XXX
 ```
+⚠️  ATTENTION NEEDED
+
+  TASK-042  Add user authentication  (sync conflict)
+      Worktree: .orc/worktrees/orc-TASK-042
+      → orc resume TASK-042 (after resolving conflicts)
+```
+
+This makes it easy to identify which worktree needs attention and provides the exact resume command.
 
 **Task State**: The task remains in `running` status with `sync_conflict` state. All completed phases are preserved - only the sync/finalize step needs to be retried.
 
