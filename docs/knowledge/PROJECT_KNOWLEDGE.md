@@ -106,6 +106,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Dashboard initiative progress shows 0/0 | Fixed: `DashboardInitiatives` was calculating progress from `initiative.tasks` (unpopulated by API) while Sidebar used `getInitiativeProgress(tasks)` from task store; now both use task store for consistent counts | TASK-276 |
 | View mode dropdown disabled on clean URL | Fixed: `swimlaneDisabled` was using store value `currentInitiativeId` which includes localStorage-persisted state; changed to use URL param `searchParams.get('initiative')` as source of truth; clean URL (`/board`) now enables dropdown even with stale localStorage filter | TASK-275 |
 | Worktrees orphaned after task completion | Fixed: `CleanupWorktree(taskID)` reconstructed paths assuming default naming, but initiative-prefixed worktrees use different names; `CleanupWorktreeAtPath(path)` now used with stored executor worktree path; `orc cleanup --orphaned` regex updated to match `TASK-XXX` anywhere in directory name | TASK-282 |
+| 'completed!' shown when sync fails | Fixed: `completeTask()` returned nil when sync failed with conflicts, so CLI showed celebration message; now returns `ErrTaskBlocked` sentinel error; CLI checks `errors.Is(err, executor.ErrTaskBlocked)` and calls `TaskBlocked()` display instead of `TaskCompleted()` | TASK-287 |
 
 ## Decisions
 

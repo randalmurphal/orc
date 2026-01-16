@@ -849,6 +849,53 @@ sync conflict: task branch has 3 files in conflict with target
 orc resume TASK-XXX
 ```
 
+### Task Blocked After Sync Conflict
+
+**Symptoms**:
+```
+⚠️  Task TASK-XXX blocked: sync conflict
+   All phases completed, but sync with target branch failed.
+   To resolve: manually resolve conflicts then run 'orc resume TASK-XXX'
+```
+
+**Cause**: All task phases completed successfully, but the final sync with the target branch failed due to merge conflicts. This happens when:
+- Another task merged to the target branch while this task was running
+- Manual commits were pushed to the target branch
+- The worktree's branch diverged from the remote
+
+**Why This Message (Not "Completed!")**:
+
+Previously, this scenario would display a celebration message ("completed!") which was misleading since the task couldn't actually be finalized. Now orc correctly shows that the task is blocked and needs attention.
+
+**Solutions**:
+
+| Approach | Command | When to Use |
+|----------|---------|-------------|
+| Resolve manually | See below | Standard approach |
+| Force resume | `orc resume TASK-XXX --force` | Skip conflict check |
+
+**To resolve conflicts manually**:
+```bash
+# Navigate to the worktree
+cd .orc/worktrees/orc-TASK-XXX
+
+# Fetch latest and attempt rebase
+git fetch origin
+git rebase origin/main  # or your target branch
+
+# Resolve any conflicts
+# ... edit files ...
+git add <resolved-files>
+git rebase --continue
+
+# Once clean, resume the task
+orc resume TASK-XXX
+```
+
+**Task State**: The task remains in `running` status with `sync_conflict` state. All completed phases are preserved - only the sync/finalize step needs to be retried.
+
+---
+
 ### Disabling Sync on Start
 
 If you want task isolation (to work on an older branch state without other changes):
