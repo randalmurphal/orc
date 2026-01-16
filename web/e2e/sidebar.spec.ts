@@ -17,8 +17,8 @@ test.describe('Sidebar', () => {
 		await expect(sidebar).toBeVisible();
 		await expect(sidebar).toHaveClass(/expanded/);
 
-		// Labels should be visible when expanded
-		const taskLabel = page.locator('.nav-label:has-text("Tasks")');
+		// Labels should be visible when expanded (use exact match to avoid "All Tasks")
+		const taskLabel = page.locator('.nav-label').filter({ hasText: /^Tasks$/ });
 		await expect(taskLabel).toBeVisible();
 	});
 
@@ -36,14 +36,11 @@ test.describe('Sidebar', () => {
 		await expect(collapseBtn).toBeVisible();
 		await collapseBtn.click();
 
-		// Wait for transition
-		await page.waitForTimeout(300);
-
-		// Sidebar should no longer have expanded class
+		// Sidebar should no longer have expanded class (animations disabled in fixtures)
 		await expect(sidebar).not.toHaveClass(/expanded/);
 
-		// Labels should not be visible when collapsed
-		const taskLabel = page.locator('.nav-label:has-text("Tasks")');
+		// Labels should not be visible when collapsed (use exact match)
+		const taskLabel = page.locator('.nav-label').filter({ hasText: /^Tasks$/ });
 		await expect(taskLabel).not.toBeVisible();
 	});
 
@@ -61,10 +58,7 @@ test.describe('Sidebar', () => {
 		await expect(toggleBtn).toBeVisible();
 		await toggleBtn.click();
 
-		// Wait for transition
-		await page.waitForTimeout(300);
-
-		// Sidebar should now have expanded class
+		// Sidebar should now have expanded class (animations disabled in fixtures)
 		await expect(sidebar).toHaveClass(/expanded/);
 	});
 
@@ -82,15 +76,11 @@ test.describe('Sidebar', () => {
 		// Press Shift+Alt+B (browser-safe alternative to Cmd+B)
 		await page.keyboard.press('Shift+Alt+b');
 
-		// Wait for transition
-		await page.waitForTimeout(300);
-
-		// Sidebar should be collapsed
+		// Sidebar should be collapsed (animations disabled in fixtures)
 		await expect(sidebar).not.toHaveClass(/expanded/);
 
 		// Press again to expand
 		await page.keyboard.press('Shift+Alt+b');
-		await page.waitForTimeout(300);
 
 		// Sidebar should be expanded again
 		await expect(sidebar).toHaveClass(/expanded/);
@@ -106,9 +96,8 @@ test.describe('Sidebar', () => {
 		const collapseBtn = page.locator('.toggle-btn');
 		await expect(collapseBtn).toBeVisible();
 		await collapseBtn.click();
-		await page.waitForTimeout(300);
 
-		// Verify sidebar is collapsed
+		// Verify sidebar is collapsed (animations disabled in fixtures)
 		const sidebar = page.locator('.sidebar');
 		await expect(sidebar).not.toHaveClass(/expanded/);
 
@@ -135,9 +124,8 @@ test.describe('Sidebar', () => {
 		const toggleBtn = page.locator('.toggle-btn');
 		await expect(toggleBtn).toBeVisible();
 		await toggleBtn.click();
-		await page.waitForTimeout(300);
 
-		// Verify expanded
+		// Verify expanded (animations disabled in fixtures)
 		await expect(sidebar).toHaveClass(/expanded/);
 
 		// Reload the page - localStorage should persist
@@ -154,11 +142,11 @@ test.describe('Sidebar', () => {
 		await page.reload();
 
 		const sidebar = page.locator('.sidebar');
-		const mainArea = page.locator('.main-area');
+		const appLayout = page.locator('.app-layout');
 
-		// When expanded, both sidebar and main-area should reflect expanded state
+		// When expanded, both sidebar and app-layout should reflect expanded state
 		await expect(sidebar).toHaveClass(/expanded/);
-		await expect(mainArea).toHaveClass(/sidebar-expanded/);
+		await expect(appLayout).toHaveClass(/sidebar-expanded/);
 
 		// Collapse sidebar
 		const collapseBtn = page.locator('.toggle-btn');
@@ -168,8 +156,8 @@ test.describe('Sidebar', () => {
 		// Wait for sidebar to actually collapse (source of truth)
 		await expect(sidebar).not.toHaveClass(/expanded/, { timeout: 2000 });
 
-		// Main area should reflect collapsed state (reactive binding from same store)
-		await expect(mainArea).not.toHaveClass(/sidebar-expanded/, { timeout: 2000 });
+		// App layout should reflect collapsed state (reactive binding from same store)
+		await expect(appLayout).not.toHaveClass(/sidebar-expanded/, { timeout: 2000 });
 	});
 
 	test('should show keyboard hint when expanded', async ({ page }) => {
