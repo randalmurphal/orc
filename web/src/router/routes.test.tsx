@@ -82,6 +82,58 @@ vi.mock('@/lib/api', () => ({
 		referenced_by: [],
 	}),
 	getTaskTimeline: vi.fn().mockResolvedValue([]),
+	// Environment pages APIs
+	getSettingsHierarchy: vi.fn().mockResolvedValue({
+		merged: null,
+		global: { path: '~/.claude/settings.json', settings: {} },
+		project: { path: '.claude/settings.json', settings: {} },
+		sources: {},
+	}),
+	updateSettings: vi.fn(),
+	updateGlobalSettings: vi.fn(),
+	listPrompts: vi.fn().mockResolvedValue([]),
+	getPrompt: vi.fn().mockResolvedValue({ phase: 'implement', content: '', source: 'embedded', variables: [] }),
+	getPromptDefault: vi.fn().mockResolvedValue({ phase: 'implement', content: '', source: 'embedded', variables: [] }),
+	listScripts: vi.fn().mockResolvedValue([]),
+	discoverScripts: vi.fn().mockResolvedValue([]),
+	listHooks: vi.fn().mockResolvedValue({}),
+	getHookTypes: vi.fn().mockResolvedValue(['PreToolUse', 'PostToolUse']),
+	listSkills: vi.fn().mockResolvedValue([]),
+	getSkill: vi.fn().mockResolvedValue({ name: 'test', description: '', content: '' }),
+	listMCPServers: vi.fn().mockResolvedValue([]),
+	getMCPServer: vi.fn().mockResolvedValue({ name: 'test', type: 'stdio', disabled: false }),
+	getConfig: vi.fn().mockResolvedValue({
+		version: '1.0.0',
+		profile: 'auto',
+		automation: { profile: 'auto', gates_default: 'auto', retry_enabled: true, retry_max: 3 },
+		execution: { model: 'claude-3-opus', max_iterations: 10, timeout: '30m' },
+		git: { branch_prefix: 'orc/', commit_prefix: '[orc]' },
+		worktree: { enabled: true, dir: '.orc/worktrees', cleanup_on_complete: true, cleanup_on_fail: false },
+		completion: { action: 'pr', target_branch: 'main', delete_branch: true },
+		timeouts: { phase_max: '1h', turn_max: '10m', idle_warning: '2m', heartbeat_interval: '30s', idle_timeout: '5m' },
+	}),
+	getConfigWithSources: vi.fn().mockResolvedValue({
+		version: '1.0.0',
+		profile: 'auto',
+		automation: { profile: 'auto', gates_default: 'auto', retry_enabled: true, retry_max: 3 },
+		execution: { model: 'claude-3-opus', max_iterations: 10, timeout: '30m' },
+		git: { branch_prefix: 'orc/', commit_prefix: '[orc]' },
+		worktree: { enabled: true, dir: '.orc/worktrees', cleanup_on_complete: true, cleanup_on_fail: false },
+		completion: { action: 'pr', target_branch: 'main', delete_branch: true },
+		timeouts: { phase_max: '1h', turn_max: '10m', idle_warning: '2m', heartbeat_interval: '30s', idle_timeout: '5m' },
+		sources: {},
+	}),
+	updateConfig: vi.fn(),
+	getClaudeMDHierarchy: vi.fn().mockResolvedValue({
+		global: null,
+		user: null,
+		project: { path: 'CLAUDE.md', content: '# Test', is_global: false, source: 'project' },
+		local: [],
+	}),
+	listToolsByCategory: vi.fn().mockResolvedValue({}),
+	getToolPermissions: vi.fn().mockResolvedValue({ allow: [], deny: [] }),
+	listAgents: vi.fn().mockResolvedValue([]),
+	getAgent: vi.fn().mockResolvedValue({ name: 'test', description: '' }),
 }));
 
 // Test wrapper component
@@ -294,22 +346,28 @@ describe('Routes', () => {
 		it('redirects /environment to /environment/settings', async () => {
 			renderWithRouter('/environment');
 			await waitFor(() => {
-				// Environment pages use h3 headings
-				expect(screen.getByRole('heading', { level: 3, name: 'Settings' })).toBeInTheDocument();
+				// Settings page has "Claude Code Settings" heading
+				expect(
+					screen.getByRole('heading', { level: 3, name: 'Claude Code Settings' })
+				).toBeInTheDocument();
 			});
 		});
 
 		it('renders Settings page at /environment/settings', async () => {
 			renderWithRouter('/environment/settings');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Settings' })).toBeInTheDocument();
+				expect(
+					screen.getByRole('heading', { level: 3, name: 'Claude Code Settings' })
+				).toBeInTheDocument();
 			});
 		});
 
 		it('renders Prompts page at /environment/prompts', async () => {
 			renderWithRouter('/environment/prompts');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Prompts' })).toBeInTheDocument();
+				expect(
+					screen.getByRole('heading', { level: 3, name: 'Phase Prompts' })
+				).toBeInTheDocument();
 			});
 		});
 
@@ -347,7 +405,7 @@ describe('Routes', () => {
 			renderWithRouter('/environment/config');
 			await waitFor(() => {
 				expect(
-					screen.getByRole('heading', { level: 3, name: 'Configuration' })
+					screen.getByRole('heading', { level: 3, name: 'Orc Configuration' })
 				).toBeInTheDocument();
 			});
 		});
