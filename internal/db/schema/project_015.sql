@@ -1,14 +1,8 @@
--- Branch targeting: Add branches table for tracking orc-managed branches
-CREATE TABLE IF NOT EXISTS branches (
-    name TEXT PRIMARY KEY,         -- Branch name (e.g., "feature/auth", "dev/randy")
-    type TEXT NOT NULL,            -- 'initiative' | 'staging' | 'task'
-    owner_id TEXT,                 -- INIT-001, TASK-XXX, or developer name
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status TEXT DEFAULT 'active'   -- 'active' | 'merged' | 'stale' | 'orphaned'
-);
-
--- Index for quick lookups by type and status
-CREATE INDEX IF NOT EXISTS idx_branches_type ON branches(type);
-CREATE INDEX IF NOT EXISTS idx_branches_status ON branches(status);
-CREATE INDEX IF NOT EXISTS idx_branches_owner ON branches(owner_id);
+-- Migration 015: Intentionally empty
+--
+-- The branches table was originally added here but was moved to project_013.sql
+-- to consolidate branch targeting schema changes. The project_013.sql version
+-- includes additional columns (base_branch, merged_at, merged_to, merge_commit_sha)
+-- needed for full branch lifecycle tracking.
+--
+-- This file is kept as a placeholder to maintain migration sequence integrity.

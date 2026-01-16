@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -27,30 +28,44 @@ const DefaultTargetBranch = "main"
 //   - init: The initiative the task belongs to (may be nil)
 //   - cfg: The orc configuration (may be nil)
 //
-// Returns the resolved target branch name.
+// Returns the resolved target branch name. If the resolved branch name is invalid,
+// falls back to the default branch for safety.
 func ResolveTargetBranch(t *task.Task, init *initiative.Initiative, cfg *config.Config) string {
+	var branch string
+	var source string
+
 	// Level 1: Task explicit override
 	if t != nil && t.TargetBranch != "" {
-		return t.TargetBranch
+		branch = t.TargetBranch
+		source = "task override"
+	} else if init != nil && init.BranchBase != "" {
+		// Level 2: Initiative branch base
+		branch = init.BranchBase
+		source = "initiative branch"
+	} else if cfg != nil && cfg.Developer.StagingEnabled && cfg.Developer.StagingBranch != "" {
+		// Level 3: Developer staging branch (personal config)
+		branch = cfg.Developer.StagingBranch
+		source = "developer staging"
+	} else if cfg != nil && cfg.Completion.TargetBranch != "" {
+		// Level 4: Project config default
+		branch = cfg.Completion.TargetBranch
+		source = "project config"
+	} else {
+		// Level 5: Hardcoded fallback
+		return DefaultTargetBranch
 	}
 
-	// Level 2: Initiative branch base
-	if init != nil && init.BranchBase != "" {
-		return init.BranchBase
+	// Defense-in-depth: validate resolved branch name
+	if err := git.ValidateBranchName(branch); err != nil {
+		slog.Warn("invalid branch name in resolution, using default",
+			"branch", branch,
+			"source", source,
+			"error", err,
+		)
+		return DefaultTargetBranch
 	}
 
-	// Level 3: Developer staging branch (personal config)
-	if cfg != nil && cfg.Developer.StagingEnabled && cfg.Developer.StagingBranch != "" {
-		return cfg.Developer.StagingBranch
-	}
-
-	// Level 4: Project config default
-	if cfg != nil && cfg.Completion.TargetBranch != "" {
-		return cfg.Completion.TargetBranch
-	}
-
-	// Level 5: Hardcoded fallback
-	return DefaultTargetBranch
+	return branch
 }
 
 // ResolveTargetBranchSource returns both the resolved target branch and the source
@@ -59,29 +74,41 @@ func ResolveTargetBranch(t *task.Task, init *initiative.Initiative, cfg *config.
 // Returns:
 //   - branch: The resolved target branch name
 //   - source: A human-readable description of where the branch came from
+//
+// If the resolved branch name is invalid, falls back to the default branch for safety.
 func ResolveTargetBranchSource(t *task.Task, init *initiative.Initiative, cfg *config.Config) (branch, source string) {
 	// Level 1: Task explicit override
 	if t != nil && t.TargetBranch != "" {
-		return t.TargetBranch, "task override"
+		branch = t.TargetBranch
+		source = "task override"
+	} else if init != nil && init.BranchBase != "" {
+		// Level 2: Initiative branch base
+		branch = init.BranchBase
+		source = "initiative branch"
+	} else if cfg != nil && cfg.Developer.StagingEnabled && cfg.Developer.StagingBranch != "" {
+		// Level 3: Developer staging branch (personal config)
+		branch = cfg.Developer.StagingBranch
+		source = "developer staging"
+	} else if cfg != nil && cfg.Completion.TargetBranch != "" {
+		// Level 4: Project config default
+		branch = cfg.Completion.TargetBranch
+		source = "project config"
+	} else {
+		// Level 5: Hardcoded fallback
+		return DefaultTargetBranch, "default"
 	}
 
-	// Level 2: Initiative branch base
-	if init != nil && init.BranchBase != "" {
-		return init.BranchBase, "initiative branch"
+	// Defense-in-depth: validate resolved branch name
+	if err := git.ValidateBranchName(branch); err != nil {
+		slog.Warn("invalid branch name in resolution, using default",
+			"branch", branch,
+			"source", source,
+			"error", err,
+		)
+		return DefaultTargetBranch, "default (fallback from invalid " + source + ")"
 	}
 
-	// Level 3: Developer staging branch (personal config)
-	if cfg != nil && cfg.Developer.StagingEnabled && cfg.Developer.StagingBranch != "" {
-		return cfg.Developer.StagingBranch, "developer staging"
-	}
-
-	// Level 4: Project config default
-	if cfg != nil && cfg.Completion.TargetBranch != "" {
-		return cfg.Completion.TargetBranch, "project config"
-	}
-
-	// Level 5: Hardcoded fallback
-	return DefaultTargetBranch, "default"
+	return branch, source
 }
 
 // IsDefaultBranch returns true if the given branch name is a default/main branch

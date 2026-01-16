@@ -28,9 +28,23 @@ type branchResponse struct {
 //   - page: page number for pagination (default: 1)
 //   - limit: items per page (default: 20, max: 100)
 func (s *Server) handleListBranches(w http.ResponseWriter, r *http.Request) {
-	// Parse filter params
+	// Parse and validate filter params
 	branchType := r.URL.Query().Get("type")
 	branchStatus := r.URL.Query().Get("status")
+
+	// Validate type if provided
+	validTypes := map[string]bool{"": true, "initiative": true, "staging": true, "task": true}
+	if !validTypes[branchType] {
+		s.jsonError(w, "invalid type: must be initiative, staging, or task", http.StatusBadRequest)
+		return
+	}
+
+	// Validate status if provided
+	validStatuses := map[string]bool{"": true, "active": true, "merged": true, "stale": true, "orphaned": true}
+	if !validStatuses[branchStatus] {
+		s.jsonError(w, "invalid status: must be active, merged, stale, or orphaned", http.StatusBadRequest)
+		return
+	}
 
 	opts := storage.BranchListOpts{
 		Type:   storage.BranchType(branchType),
