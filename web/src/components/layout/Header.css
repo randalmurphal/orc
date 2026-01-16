@@ -140,7 +140,7 @@
    ============================================================================= */
 
 /* Mobile menu button - hidden on desktop */
-.mobile-menu-btn {
+.mobile-menu-btn.btn {
 	display: none;
 }
 
@@ -151,7 +151,7 @@
 	}
 
 	/* Show mobile menu button */
-	.mobile-menu-btn {
+	.mobile-menu-btn.btn {
 		display: flex;
 		margin-right: var(--space-2, 8px);
 	}
