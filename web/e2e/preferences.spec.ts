@@ -12,14 +12,17 @@ import { test, expect } from './fixtures';
 
 test.describe('Preferences Page', () => {
 	test.beforeEach(async ({ page }) => {
-		// Clear preference localStorage keys before each test
-		await page.addInitScript(() => {
+		// Navigate to preferences first, then clear localStorage
+		// Using evaluate instead of addInitScript to avoid clearing on reload
+		await page.goto('/preferences');
+		await page.evaluate(() => {
 			localStorage.removeItem('orc-theme');
 			localStorage.removeItem('orc-sidebar-default');
 			localStorage.removeItem('orc-board-view-mode');
 			localStorage.removeItem('orc-date-format');
 		});
-		await page.goto('/preferences');
+		// Reload to apply the cleared state
+		await page.reload();
 	});
 
 	test('should render preferences page with all sections', async ({ page }) => {
