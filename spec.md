@@ -1,78 +1,121 @@
-# Specification: Add initiative and priority to task detail header
+# Specification: Expand Task Info panel with more metadata
 
 ## Problem Statement
-The task detail page header is missing key context information: initiative assignment and priority level are not displayed even though these fields exist on the task object. This makes it harder for users to understand task context when viewing details.
+
+The Task Info panel in TimelineTab shows only basic information (weight, status, created date, timestamps), missing important task metadata that users need for context: priority, category, queue, initiative, last updated, blocked_by count, and branch name.
 
 ## Success Criteria
-- [ ] Initiative badge displays in TaskHeader when `task.initiative_id` is set
-- [ ] Initiative badge is clickable and navigates to `/initiatives/:id`
-- [ ] Initiative badge shows truncated title (max 20 chars) with full title in tooltip
-- [ ] Priority badge displays for non-normal priorities (critical, high, low)
-- [ ] Priority badge uses consistent styling from `PRIORITY_CONFIG` (same as TaskCard)
-- [ ] Critical priority shows pulsing animation (same as TaskCard)
-- [ ] Initiative and priority badges appear in `.task-identity` section after existing badges
-- [ ] No visual regression on existing header elements
+
+- [ ] Priority field displayed with appropriate styling (critical/high/normal/low)
+- [ ] Category field displayed with icon matching TaskHeader pattern
+- [ ] Queue field displayed (active/backlog)
+- [ ] Initiative field displayed as clickable link to initiative page (when set)
+- [ ] Updated timestamp displayed showing last modification time
+- [ ] Blocked by count displayed when task has blockers (e.g., "2 tasks")
+- [ ] Branch name displayed with code formatting (currently shown elsewhere but fits here)
+- [ ] All new fields match existing dt/dd pair formatting
+- [ ] All new fields conditionally render (skip if value is undefined/null)
+- [ ] Styling consistent with existing info-item pattern
 
 ## Testing Requirements
-- [ ] Unit test: TaskHeader renders initiative badge when `task.initiative_id` is set
-- [ ] Unit test: TaskHeader hides initiative badge when `task.initiative_id` is null/undefined
-- [ ] Unit test: TaskHeader renders priority badge only for non-normal priorities
-- [ ] Unit test: Initiative badge click navigates to initiative detail page
-- [ ] E2E test: Verify initiative badge visibility and navigation on task detail page
-- [ ] E2E test: Verify priority badge visibility for critical/high/low tasks
+
+- [ ] Unit test: TimelineTab renders priority field with correct styling class
+- [ ] Unit test: TimelineTab renders category field with correct icon
+- [ ] Unit test: TimelineTab renders initiative as clickable link
+- [ ] Unit test: TimelineTab renders blocked_by count when blockers exist
+- [ ] Unit test: TimelineTab hides optional fields when not set
+- [ ] E2E test: Task detail page displays all metadata fields correctly
 
 ## Scope
+
 ### In Scope
-- Add initiative badge to TaskHeader component
-- Add priority badge to TaskHeader component (reuse existing styling, currently in wrong position)
-- Update TaskHeader.css with initiative badge styles
-- Tooltip support for both badges
+- Adding priority, category, queue, initiative, updated_at, blocked_by count, and branch to Task Info section
+- Matching existing styling patterns (dt/dd pairs, status colors)
+- Making initiative a clickable link to `/initiatives/:id`
+- Conditional rendering for optional fields
 
 ### Out of Scope
-- Modifying Task Info panel (separate enhancement)
-- Adding editable initiative/priority from header (use edit modal)
-- Showing target branch or blocking dependencies in header
+- Modifying the info-item CSS styling (use existing)
+- Adding edit functionality within Task Info panel (TaskEditModal handles edits)
+- Adding dependency management UI (DependencySidebar handles this)
+- Changing the layout or position of Task Info panel
 
 ## Technical Approach
 
+The Task Info section in TimelineTab.tsx needs additional fields. All required data is already available on the `task` prop. The initiative link requires importing `Link` from react-router-dom and `getInitiativeBadgeTitle` from stores (following TaskHeader.tsx pattern).
+
 ### Files to Modify
-- `web/src/components/task-detail/TaskHeader.tsx`: Add initiative badge with click handler and navigation; fix priority badge positioning in task-identity section
-- `web/src/components/task-detail/TaskHeader.css`: Add `.initiative-badge` styles matching TaskCard pattern
-- `web/src/components/task-detail/TaskHeader.test.tsx`: Add unit tests for new badges (create if doesn't exist)
-- `web/e2e/task-detail.spec.ts`: Add E2E tests for badge visibility and navigation
 
-### Implementation Details
+1. **web/src/components/task-detail/TimelineTab.tsx**
+   - Import `Link` from react-router-dom
+   - Import `Icon` (already imported)
+   - Import `getInitiativeBadgeTitle` from `@/stores`
+   - Import `CATEGORY_CONFIG`, `PRIORITY_CONFIG` from `@/lib/types`
+   - Add priority field with priority-specific class
+   - Add category field with icon
+   - Add queue field
+   - Add initiative field as Link
+   - Add updated_at field (using existing `formatDate` helper)
+   - Add blocked_by count field
+   - Add branch field with code tag
 
-1. **Initiative Badge** (in `task-identity` section):
-   - Use `getInitiativeBadgeTitle()` from initiativeStore (same as TaskCard)
-   - Wrap with `Tooltip` component showing full title
-   - Use `Button` component with `variant="ghost"` (same pattern as TaskCard)
-   - Navigate to `/initiatives/${task.initiative_id}` on click
-   - Style with CSS class `.initiative-badge` (adapt from TaskCard)
+2. **web/src/components/task-detail/TimelineTab.css**
+   - Add priority-specific color classes (matching TaskHeader pattern)
+   - Add category-color styling
+   - Add initiative link styling (clickable, underline on hover)
+   - Add branch code styling
 
-2. **Priority Badge** (already implemented but verify position):
-   - Priority badge code exists at lines 144-151 but need to verify visual ordering
-   - Should appear after category badge, before initiative badge
-   - Uses inline style with `--priority-color` CSS variable
-   - Critical priority needs pulsing animation
+3. **web/src/components/task-detail/TimelineTab.test.tsx** (new file)
+   - Unit tests for new metadata fields
+   - Mock store for initiative badge lookup
 
-3. **Visual Order in `.task-identity`**:
-   - Task ID
-   - Status indicator
-   - Weight badge
-   - Category badge
-   - Priority badge (non-normal only)
-   - Initiative badge (if assigned)
-
-## Feature-Specific Analysis
+## Feature Details
 
 ### User Story
-As a user viewing a task detail page, I want to see which initiative the task belongs to and its priority level so that I understand the task's context and urgency without having to scroll or open additional panels.
+As a user viewing a task's timeline, I want to see comprehensive task metadata in the Task Info panel so that I have full context without navigating to other views.
 
 ### Acceptance Criteria
-- Initiative badge appears between priority badge and branch info when task has `initiative_id`
-- Initiative badge shows truncated title with tooltip for full title
-- Clicking initiative badge navigates to initiative detail page
-- Priority badge appears for critical/high/low tasks with appropriate color coding
-- Critical priority has pulsing animation matching TaskCard behavior
-- Header maintains visual balance and doesn't become cluttered
+
+1. **Priority** - Displays the task priority with color coding:
+   - critical: red/error color
+   - high: orange/warning color
+   - normal: muted text
+   - low: muted text
+
+2. **Category** - Displays task category with matching icon:
+   - feature: sparkles icon, green
+   - bug: bug icon, red
+   - refactor: recycle icon, blue
+   - chore: tools icon, muted
+   - docs: file-text icon, orange
+   - test: beaker icon, accent color
+
+3. **Queue** - Displays "active" or "backlog"
+
+4. **Initiative** - When task has `initiative_id`:
+   - Displays initiative badge (from `getInitiativeBadgeTitle`)
+   - Clickable link navigating to `/initiatives/:id`
+   - Shows layers icon
+
+5. **Updated** - Displays `updated_at` timestamp in same format as created_at
+
+6. **Blocked By** - When `blocked_by` array has items:
+   - Shows count: "N task(s)"
+   - Links to DependencySidebar (or just informational)
+
+7. **Branch** - Displays branch name in `<code>` tags matching phase-commit styling
+
+### Field Order
+1. Weight (existing)
+2. Status (existing)
+3. Priority (new)
+4. Category (new)
+5. Queue (new)
+6. Initiative (new)
+7. Blocked By (new, conditional)
+8. Branch (new)
+9. Retries (existing, conditional)
+10. Created (existing)
+11. Updated (new)
+12. Started (existing, conditional)
+13. Completed (existing, conditional)

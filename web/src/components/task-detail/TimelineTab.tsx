@@ -1,5 +1,9 @@
+import { Link } from 'react-router-dom';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { getInitiativeBadgeTitle } from '@/stores';
 import type { Task, TaskState, Plan, PhaseStatus, TokenUsage } from '@/lib/types';
+import { CATEGORY_CONFIG, PRIORITY_CONFIG } from '@/lib/types';
 import './TimelineTab.css';
 
 interface TimelineTabProps {
@@ -89,38 +93,7 @@ export function TimelineTab({ task, taskState, plan }: TimelineTabProps) {
 						<Icon name="info" size={16} />
 						Task Info
 					</h3>
-					<dl className="info-list">
-						<div className="info-item">
-							<dt>Weight</dt>
-							<dd>{task.weight}</dd>
-						</div>
-						<div className="info-item">
-							<dt>Status</dt>
-							<dd className={`status-${task.status}`}>{task.status}</dd>
-						</div>
-						{taskState?.retries !== undefined && taskState.retries > 0 && (
-							<div className="info-item">
-								<dt>Retries</dt>
-								<dd>{taskState.retries}</dd>
-							</div>
-						)}
-						<div className="info-item">
-							<dt>Created</dt>
-							<dd>{formatDate(task.created_at)}</dd>
-						</div>
-						{task.started_at && (
-							<div className="info-item">
-								<dt>Started</dt>
-								<dd>{formatDate(task.started_at)}</dd>
-							</div>
-						)}
-						{task.completed_at && (
-							<div className="info-item">
-								<dt>Completed</dt>
-								<dd>{formatDate(task.completed_at)}</dd>
-							</div>
-						)}
-					</dl>
+					<TaskInfoList task={task} taskState={taskState} />
 				</div>
 			</div>
 		</div>
@@ -254,6 +227,164 @@ function TokenStats({ tokens }: TokenStatsProps) {
 	);
 }
 
+// Task Info List Component
+interface TaskInfoListProps {
+	task: Task;
+	taskState: TaskState | null;
+}
+
+function TaskInfoList({ task, taskState }: TaskInfoListProps) {
+	const categoryConfig = task.category ? CATEGORY_CONFIG[task.category] : null;
+	const priority = task.priority || 'normal';
+	const priorityConfig = PRIORITY_CONFIG[priority];
+	const initiativeBadge = task.initiative_id ? getInitiativeBadgeTitle(task.initiative_id) : null;
+	const duration = calculateDuration(task.started_at, task.completed_at);
+
+	return (
+		<dl className="info-list">
+			{/* Status & Classification */}
+			<div className="info-item">
+				<dt>Status</dt>
+				<dd className={`status-${task.status}`}>{task.status}</dd>
+			</div>
+			<div className="info-item">
+				<dt>Weight</dt>
+				<dd className="weight-value">{task.weight}</dd>
+			</div>
+			<div className="info-item">
+				<dt>Queue</dt>
+				<dd className={`queue-${task.queue || 'active'}`}>{task.queue || 'active'}</dd>
+			</div>
+			<div className="info-item">
+				<dt>Priority</dt>
+				<dd>
+					<span
+						className={`info-priority priority-${priority}`}
+						style={{ '--priority-color': priorityConfig.color } as React.CSSProperties}
+					>
+						{priorityConfig.label}
+					</span>
+				</dd>
+			</div>
+			{categoryConfig && (
+				<div className="info-item">
+					<dt>Category</dt>
+					<dd>
+						<span
+							className="info-category"
+							style={{ '--category-color': categoryConfig.color } as React.CSSProperties}
+						>
+							<Icon name={categoryConfig.icon} size={12} />
+							{categoryConfig.label}
+						</span>
+					</dd>
+				</div>
+			)}
+
+			{/* Initiative */}
+			{initiativeBadge && (
+				<div className="info-item">
+					<dt>Initiative</dt>
+					<dd>
+						<Link to={`/initiatives/${task.initiative_id}`} className="info-initiative-link">
+							<Icon name="layers" size={12} />
+							<Tooltip content={initiativeBadge.full}>
+								<span>{initiativeBadge.display}</span>
+							</Tooltip>
+						</Link>
+					</dd>
+				</div>
+			)}
+
+			{/* Blocked By */}
+			{task.blocked_by && task.blocked_by.length > 0 && (
+				<div className="info-item">
+					<dt>Blocked By</dt>
+					<dd className="info-blocked-by">
+						<Icon name="alert-circle" size={12} />
+						{task.blocked_by.length} {task.blocked_by.length === 1 ? 'task' : 'tasks'}
+					</dd>
+				</div>
+			)}
+
+			{/* Git Info */}
+			{task.branch && (
+				<div className="info-item">
+					<dt>Branch</dt>
+					<dd>
+						<code className="info-branch">{task.branch}</code>
+					</dd>
+				</div>
+			)}
+			{task.target_branch && (
+				<div className="info-item">
+					<dt>Target</dt>
+					<dd>
+						<code className="info-branch">{task.target_branch}</code>
+					</dd>
+				</div>
+			)}
+
+			{/* Execution Info (when running) */}
+			{taskState?.current_phase && task.status === 'running' && (
+				<div className="info-item">
+					<dt>Current Phase</dt>
+					<dd className="info-phase">{taskState.current_phase}</dd>
+				</div>
+			)}
+			{taskState?.execution && task.status === 'running' && (
+				<div className="info-item">
+					<dt>Executor</dt>
+					<dd>
+						<Tooltip content={`PID ${taskState.execution.pid} on ${taskState.execution.hostname}`}>
+							<span className="info-executor">
+								<Icon name="cpu" size={12} />
+								{taskState.execution.hostname}
+							</span>
+						</Tooltip>
+					</dd>
+				</div>
+			)}
+
+			{/* Retries */}
+			{taskState?.retries !== undefined && taskState.retries > 0 && (
+				<div className="info-item">
+					<dt>Retries</dt>
+					<dd className="info-retries">{taskState.retries}</dd>
+				</div>
+			)}
+
+			{/* Timestamps */}
+			<div className="info-item">
+				<dt>Created</dt>
+				<dd>{formatDateTime(task.created_at)}</dd>
+			</div>
+			{task.started_at && (
+				<div className="info-item">
+					<dt>Started</dt>
+					<dd>{formatDateTime(task.started_at)}</dd>
+				</div>
+			)}
+			{task.completed_at && (
+				<div className="info-item">
+					<dt>Completed</dt>
+					<dd>{formatDateTime(task.completed_at)}</dd>
+				</div>
+			)}
+			{duration && (
+				<div className="info-item">
+					<dt>Duration</dt>
+					<dd className="info-duration">{duration}</dd>
+				</div>
+			)}
+			<div className="info-item">
+				<dt>Updated</dt>
+				<dd className="info-updated">{formatDateTime(task.updated_at)}</dd>
+			</div>
+		</dl>
+	);
+}
+
 // Utility functions
 function formatNumber(num: number): string {
 	if (num >= 1000000) {
@@ -265,14 +396,6 @@ function formatNumber(num: number): string {
 	return num.toString();
 }
 
-function formatDate(dateStr: string): string {
-	return new Date(dateStr).toLocaleDateString(undefined, {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-	});
-}
-
 function formatTime(dateStr: string): string {
 	return new Date(dateStr).toLocaleString(undefined, {
 		month: 'short',
@@ -280,4 +403,49 @@ function formatTime(dateStr: string): string {
 		hour: '2-digit',
 		minute: '2-digit',
 	});
+}
+
+function formatDateTime(dateStr: string): string {
+	if (!dateStr) return '';
+	const date = new Date(dateStr);
+	if (isNaN(date.getTime())) return '';
+	return date.toLocaleString(undefined, {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+	});
+}
+
+function calculateDuration(startedAt?: string, completedAt?: string): string | null {
+	if (!startedAt) return null;
+
+	const start = new Date(startedAt);
+	const end = completedAt ? new Date(completedAt) : new Date();
+
+	if (isNaN(start.getTime())) return null;
+	if (completedAt && isNaN(end.getTime())) return null;
+
+	const diffMs = end.getTime() - start.getTime();
+	if (diffMs < 0) return null;
+
+	const seconds = Math.floor(diffMs / 1000);
+	const minutes = Math.floor(seconds / 60);
+	const hours = Math.floor(minutes / 60);
+	const days = Math.floor(hours / 24);
+
+	if (days > 0) {
+		const remainingHours = hours % 24;
+		return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
+	}
+	if (hours > 0) {
+		const remainingMinutes = minutes % 60;
+		return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+	}
+	if (minutes > 0) {
+		const remainingSeconds = seconds % 60;
+		return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+	}
+	return `${seconds}s`;
 }

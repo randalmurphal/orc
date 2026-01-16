@@ -2283,7 +2283,7 @@ import { DependencySidebar } from '@/components/task-detail';
 
 ### TimelineTab
 
-Phase execution timeline with token usage stats.
+Phase execution timeline with token usage stats and comprehensive task metadata.
 
 ```tsx
 import { TimelineTab } from '@/components/task-detail';
@@ -2311,9 +2311,26 @@ import { TimelineTab } from '@/components/task-detail';
 - Per-phase token breakdown
 
 **Task Info Section:**
-- Weight classification
-- Status with timestamp
-- Created/started/completed dates
+
+Organized into logical groups with consistent styling:
+
+| Group | Fields |
+|-------|--------|
+| Status & Classification | Status, Weight, Queue (active/backlog), Priority (with color badge) |
+| Category | Category with icon (feature/bug/refactor/chore/docs/test) |
+| Initiative | Initiative link (if assigned, navigates to initiative detail) |
+| Dependencies | Blocked by count (if any blockers) |
+| Git Info | Branch name, Target branch |
+| Execution | Current phase, Executor (hostname + PID with tooltip) - shown when running |
+| Retries | Retry count (if > 0) |
+| Timestamps | Created, Started, Completed, Duration (calculated), Updated |
+
+**Styling features:**
+- Priority badge with `--priority-color` CSS variable
+- Category badge with icon and `--category-color` CSS variable
+- Initiative link with layers icon and tooltip for full title
+- Duration auto-calculated from started_at/completed_at
+- Executor info shown in tooltip (PID + hostname)
 
 ### ChangesTab
 
