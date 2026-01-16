@@ -26,6 +26,7 @@ You are working in an **isolated git worktree**.
 - All commits go to branch `{{TASK_BRANCH}}`
 - **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch
 - **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
+- **DO NOT** write `spec.md` files to the filesystem - specs are saved to the database from `<artifact>` tags
 - Merging happens via PR after all phases complete
 - Git hooks are active to prevent accidental protected branch modifications
 
@@ -229,6 +230,8 @@ This checklist will be verified during the review phase. Define upfront what rev
 | Existing tests pass | `make test` | All pass |
 
 ## Output Format
+
+**IMPORTANT**: Do NOT use the Write tool to create `spec.md` files. Specs are extracted from the `<artifact>` tags below and saved to the database automatically. Writing spec files to the filesystem causes merge conflicts and cleanup issues.
 
 Create the spec and wrap it in artifact tags for automatic persistence:
 
