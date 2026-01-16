@@ -327,8 +327,11 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 **Keyboard shortcuts:** Uses `Shift+Alt` modifier (⇧⌥ on Mac) to avoid browser conflicts. `Shift+Alt+K` (palette), `Shift+Alt+N` (new task), `g t` (tasks), `j/k` (navigate). Press `?` for full list.
 
 **Settings management:** All settings are editable through the UI:
-- Claude Code settings (global `~/.claude/settings.json` + project `.claude/settings.json`) via `/preferences`
-- Orc config (`.orc/config.yaml`) via `/environment/orchestrator/automation`
+- Claude Code settings (global `~/.claude/settings.json` + project `.claude/settings.json`) via `/environment/settings`
+- Orc config (`.orc/config.yaml`) via `/environment/config`
+- Phase prompts via `/environment/prompts`
+- Claude Code hooks via `/environment/hooks`
+- MCP servers via `/environment/mcp`
 
 **Task dependencies:** Task detail page shows a collapsible Dependencies sidebar displaying blocked_by, blocks, related_to, and referenced_by relationships with status indicators. Add/remove blockers and related tasks inline.
 
@@ -338,8 +341,6 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 - **Finished**: Shows merged commit SHA and target branch in green section
 
 **Initiative detail:** Click an initiative in the sidebar or navigate to `/initiatives/:id` to view/manage initiative tasks and decisions. Features include progress tracking, task linking, decision recording, and status management.
-
-**Mobile responsive:** On viewports below 768px, the sidebar is hidden by default and accessible via a hamburger menu button in the header. The sidebar opens as an overlay and closes when clicking outside (backdrop), selecting a navigation link, or pressing Escape. Mobile menu state does not persist to localStorage. Desktop sidebar expand/collapse behavior is preserved.
 
 ### Component Library
 
@@ -561,7 +562,7 @@ Patterns, gotchas, and decisions learned during development.
 | Branch registry tracking | All orc-managed branches tracked in `branches` table with type (initiative/staging/task), owner_id, status (active/merged/stale/orphaned), timestamps; enables `orc branches list/cleanup` for lifecycle management | branch-targeting |
 | Initiative branch auto-merge | When all initiative tasks complete and initiative has `BranchBase`, auto-merge to target branch; `auto`/`fast` profiles auto-merge after CI, `safe`/`strict` leave PR for human review; tracks `MergeStatus` (none/pending/merged/failed) | branch-targeting |
 | Developer staging workflow | Personal staging branches via `developer.staging_branch` + `staging_enabled` in personal config; `orc staging status/sync/enable/disable` commands; staging takes precedence over project default but yields to initiative branches | branch-targeting |
-| Mobile responsive hamburger menu | Sidebar hidden by default on mobile (<768px); hamburger button in header toggles sidebar as overlay; closes on backdrop click, nav link click, or Escape; `mobileMenuOpen` state in uiStore (not persisted); desktop sidebar expand/collapse behavior preserved | TASK-256 |
+| Environment configuration pages | All `/environment/*` pages follow consistent pattern: Radix Tabs for scope (project/global), loading/error/empty states, Modal for editors, toast feedback; CSS in `environment.css`; editable: Settings, Config, Prompts, Hooks, MCP; read-only: Skills, ClaudeMd, Tools, Agents, Scripts | TASK-265 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
