@@ -316,32 +316,6 @@ describe('Board', () => {
 		});
 	});
 
-	describe('escalate modal', () => {
-		it('shows escalate modal when dragging running task back', async () => {
-			// This is harder to test without actual drag-drop
-			// The modal should appear when escalateTask state is set
-			renderWithRouter(<Board {...defaultProps} />);
-
-			// Modal should not be visible initially
-			expect(screen.queryByText('Escalate Task')).not.toBeInTheDocument();
-		});
-	});
-
-	describe('initiative change modal', () => {
-		it('does not show initiative change modal initially', () => {
-			renderWithRouter(
-				<Board
-					{...defaultProps}
-					viewMode="swimlane"
-					initiatives={sampleInitiatives}
-					onInitiativeChange={vi.fn()}
-				/>
-			);
-
-			expect(screen.queryByText('Change Initiative')).not.toBeInTheDocument();
-		});
-	});
-
 	describe('empty state', () => {
 		it('renders with empty task list', () => {
 			renderWithRouter(<Board {...defaultProps} tasks={[]} />);

@@ -4,7 +4,7 @@
  * Features:
  * - Flat and swimlane view modes
  * - Filter by initiative
- * - Task drag-drop for status changes
+ * - Clickable task cards for navigation
  * - Live transcript modal for running tasks
  * - Finalize modal for completed tasks
  *
@@ -35,8 +35,6 @@ import {
 	runProjectTask,
 	pauseProjectTask,
 	resumeProjectTask,
-	escalateProjectTask,
-	updateTask,
 	type FinalizeState,
 } from '@/lib/api';
 import type { Task, DependencyStatus } from '@/lib/types';
@@ -54,7 +52,6 @@ export function Board() {
 
 	// Get tasks and initiatives from stores (data loaded by DataProvider)
 	const tasks = useTaskStore((state) => state.tasks);
-	const updateTaskInStore = useTaskStore((state) => state.updateTask);
 	const initiatives = useInitiatives();
 	const loading = useTaskStore((state) => state.loading);
 	const error = useTaskStore((state) => state.error);
@@ -137,21 +134,6 @@ export function Board() {
 		[currentProjectId]
 	);
 
-	// Handle escalate
-	const handleEscalate = useCallback(
-		async (taskId: string, reason: string) => {
-			if (!currentProjectId) return;
-
-			try {
-				await escalateProjectTask(currentProjectId, taskId, reason);
-				// WebSocket will update the store
-			} catch (err) {
-				console.error('Failed to escalate task:', err);
-			}
-		},
-		[currentProjectId]
-	);
-
 	// Handle task click (for running tasks, show transcript modal)
 	const handleTaskClick = useCallback((task: Task) => {
 		setSelectedTask(task);
@@ -170,19 +152,6 @@ export function Board() {
 			selectInitiative(initiativeId);
 		},
 		[selectInitiative]
-	);
-
-	// Handle initiative change via drag-drop
-	const handleInitiativeChangeFromDrag = useCallback(
-		async (taskId: string, initiativeId: string | null) => {
-			try {
-				const updated = await updateTask(taskId, { initiative_id: initiativeId ?? '' });
-				updateTaskInStore(taskId, updated);
-			} catch (err) {
-				console.error('Failed to update task initiative:', err);
-			}
-		},
-		[updateTaskInStore]
 	);
 
 	// Get finalize state for a task
@@ -291,11 +260,9 @@ export function Board() {
 				viewMode={swimlaneDisabled ? 'flat' : viewMode}
 				initiatives={initiatives}
 				onAction={handleAction}
-				onEscalate={handleEscalate}
 				onTaskClick={handleTaskClick}
 				onFinalizeClick={handleFinalizeClick}
 				onInitiativeClick={handleInitiativeClick}
-				onInitiativeChange={handleInitiativeChangeFromDrag}
 				getFinalizeState={getFinalizeState}
 			/>
 
