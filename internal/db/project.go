@@ -2605,7 +2605,8 @@ func (p *ProjectDB) UpdateBranchStatus(name string, status BranchStatus) error {
 
 // UpdateBranchActivity updates a branch's last_activity timestamp.
 func (p *ProjectDB) UpdateBranchActivity(name string) error {
-	_, err := p.Exec(`UPDATE branches SET last_activity = datetime('now') WHERE name = ?`, name)
+	// Use RFC3339 format to match time.Parse in GetBranch
+	_, err := p.Exec(`UPDATE branches SET last_activity = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE name = ?`, name)
 	if err != nil {
 		return fmt.Errorf("update branch activity: %w", err)
 	}
