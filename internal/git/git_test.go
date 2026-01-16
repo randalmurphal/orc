@@ -2174,3 +2174,122 @@ func TestHasRemote_InWorktree(t *testing.T) {
 		t.Error("HasRemote('origin') in worktree = false, want true")
 	}
 }
+
+// TestCleanupWorktreeAtPath tests path-based worktree cleanup
+func TestCleanupWorktreeAtPath(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// Get current branch to use as base
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create worktree
+	worktreePath, err := g.CreateWorktree("TASK-PATH-001", baseBranch)
+	if err != nil {
+		t.Fatalf("CreateWorktree() failed: %v", err)
+	}
+
+	// Verify worktree exists
+	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+		t.Errorf("worktree not created at %s", worktreePath)
+	}
+
+	// Cleanup using path-based method
+	err = g.CleanupWorktreeAtPath(worktreePath)
+	if err != nil {
+		t.Fatalf("CleanupWorktreeAtPath() failed: %v", err)
+	}
+
+	// Verify worktree removed
+	if _, err := os.Stat(worktreePath); !os.IsNotExist(err) {
+		t.Error("worktree should be removed after CleanupWorktreeAtPath")
+	}
+}
+
+// TestCleanupWorktreeAtPath_EmptyPath tests CleanupWorktreeAtPath with empty path
+func TestCleanupWorktreeAtPath_EmptyPath(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	// Empty path should return nil (nothing to clean up)
+	err := g.CleanupWorktreeAtPath("")
+	if err != nil {
+		t.Errorf("CleanupWorktreeAtPath('') should return nil, got: %v", err)
+	}
+}
+
+// TestCleanupWorktreeAtPath_InitiativePrefix tests cleanup of initiative-prefixed worktrees
+func TestCleanupWorktreeAtPath_InitiativePrefix(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create worktree with initiative prefix
+	// Initiative prefix "feature/auth-" becomes "feature-auth-" in directory name
+	worktreePath, err := g.CreateWorktreeWithInitiativePrefix("TASK-INIT-001", baseBranch, "feature/auth-")
+	if err != nil {
+		t.Fatalf("CreateWorktreeWithInitiativePrefix() failed: %v", err)
+	}
+
+	// Verify path contains initiative prefix (slashes replaced with dashes)
+	if !strings.Contains(worktreePath, "feature-auth-TASK-INIT-001") {
+		t.Errorf("worktree path should contain initiative prefix, got: %s", worktreePath)
+	}
+
+	// Verify worktree exists
+	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+		t.Fatalf("worktree not created at %s", worktreePath)
+	}
+
+	// Cleanup using path-based method (this is what the fix enables)
+	err = g.CleanupWorktreeAtPath(worktreePath)
+	if err != nil {
+		t.Fatalf("CleanupWorktreeAtPath() failed for initiative-prefixed worktree: %v", err)
+	}
+
+	// Verify worktree removed
+	if _, err := os.Stat(worktreePath); !os.IsNotExist(err) {
+		t.Error("initiative-prefixed worktree should be removed after CleanupWorktreeAtPath")
+	}
+}
+
+// TestCleanupWorktreeAtPath_VsCleanupWorktree verifies path-based cleanup
+// works correctly for initiative-prefixed worktrees where ID-based cleanup would fail
+func TestCleanupWorktreeAtPath_VsCleanupWorktree(t *testing.T) {
+	tmpDir := setupTestRepo(t)
+	g, _ := New(tmpDir, DefaultConfig())
+
+	baseBranch, _ := g.GetCurrentBranch()
+
+	// Create worktree with initiative prefix
+	worktreePath, err := g.CreateWorktreeWithInitiativePrefix("TASK-VS-001", baseBranch, "feature/test-")
+	if err != nil {
+		t.Fatalf("CreateWorktreeWithInitiativePrefix() failed: %v", err)
+	}
+
+	// Verify the paths differ - ID-based would look for orc-TASK-VS-001
+	idBasedPath := g.WorktreePath("TASK-VS-001")
+	if idBasedPath == worktreePath {
+		t.Skip("paths are the same - this test is for verifying initiative prefix behavior")
+	}
+
+	// The ID-based path should NOT match the actual worktree path
+	if !strings.Contains(idBasedPath, "orc-TASK-VS-001") {
+		t.Errorf("ID-based path should use default prefix, got: %s", idBasedPath)
+	}
+	if !strings.Contains(worktreePath, "feature-test-TASK-VS-001") {
+		t.Errorf("initiative path should use initiative prefix, got: %s", worktreePath)
+	}
+
+	// Path-based cleanup should work
+	err = g.CleanupWorktreeAtPath(worktreePath)
+	if err != nil {
+		t.Fatalf("CleanupWorktreeAtPath() should work with actual path: %v", err)
+	}
+
+	// Verify cleanup succeeded
+	if _, err := os.Stat(worktreePath); !os.IsNotExist(err) {
+		t.Error("worktree should be removed after CleanupWorktreeAtPath")
+	}
+}

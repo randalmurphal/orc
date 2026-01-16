@@ -125,8 +125,8 @@ Examples:
 					}
 				}
 
-				// Remove the worktree
-				if err := gitOps.CleanupWorktree(o.TaskID); err != nil {
+				// Remove the worktree using the actual path (handles initiative-prefixed worktrees)
+				if err := gitOps.CleanupWorktreeAtPath(o.Path); err != nil {
 					if !quiet {
 						fmt.Printf("    ❌ Failed: %v\n", err)
 					}
@@ -186,17 +186,15 @@ func findOrphanedWorktrees(gitOps *git.Git, backend interface {
 	// ...
 
 	// Extract task IDs from worktree paths
-	// Pattern: orc-TASK-XXX or <prefix>-TASK-XXX
-	taskIDPattern := regexp.MustCompile(`(?:orc-|^)(TASK-\d+)$`)
+	// Pattern matches TASK-XXX anywhere in the directory name, supporting:
+	// - orc-TASK-001 (default naming)
+	// - feature-auth-TASK-001 (initiative prefix with slashes replaced by dashes)
+	// - any-prefix-TASK-001 (custom prefixes)
+	taskIDPattern := regexp.MustCompile(`(TASK-\d+)`)
 
 	worktrees := parseWorktreeList(output)
 	for _, wt := range worktrees {
-		// Skip the main worktree (no orc- prefix)
-		if !strings.Contains(wt.path, "orc-TASK-") && !strings.Contains(wt.path, "/TASK-") {
-			continue
-		}
-
-		// Extract task ID from path
+		// Extract task ID from path - look for TASK-XXX anywhere in the path
 		baseName := strings.TrimSuffix(wt.path, "/")
 		if idx := strings.LastIndex(baseName, "/"); idx != -1 {
 			baseName = baseName[idx+1:]
@@ -204,7 +202,7 @@ func findOrphanedWorktrees(gitOps *git.Git, backend interface {
 
 		matches := taskIDPattern.FindStringSubmatch(baseName)
 		if len(matches) < 2 {
-			continue
+			continue // Not an orc task worktree
 		}
 		taskID := matches[1]
 

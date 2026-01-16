@@ -260,11 +260,28 @@ func (g *Git) CreateWorktreeWithInitiativePrefix(taskID, baseBranch, initiativeP
 }
 
 // CleanupWorktree removes a task's worktree.
+// Note: This uses the default worktree path calculation. For initiative-prefixed
+// worktrees, use CleanupWorktreeAtPath with the actual path.
 func (g *Git) CleanupWorktree(taskID string) error {
 	worktreePath := WorktreePath(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix)
 
 	if err := g.ctx.CleanupWorktree(worktreePath); err != nil {
 		return fmt.Errorf("cleanup worktree for %s: %w", taskID, err)
+	}
+
+	return nil
+}
+
+// CleanupWorktreeAtPath removes a worktree at the specified path.
+// This is the preferred method when the exact worktree path is known,
+// as it handles initiative-prefixed worktrees correctly.
+func (g *Git) CleanupWorktreeAtPath(worktreePath string) error {
+	if worktreePath == "" {
+		return nil // Nothing to clean up
+	}
+
+	if err := g.ctx.CleanupWorktree(worktreePath); err != nil {
+		return fmt.Errorf("cleanup worktree at %s: %w", worktreePath, err)
 	}
 
 	return nil
