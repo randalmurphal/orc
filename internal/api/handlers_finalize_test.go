@@ -41,24 +41,6 @@ func createTestBackend(t *testing.T) storage.Backend {
 	return backend
 }
 
-// createTestServerWithContext creates a server with proper context for testing.
-func createTestServerWithContext(t *testing.T, backend storage.Backend, orcCfg *config.Config) *Server {
-	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(func() { cancel() })
-
-	return &Server{
-		workDir:         t.TempDir(),
-		mux:             http.NewServeMux(),
-		orcConfig:       orcCfg,
-		logger:          testLogger(),
-		publisher:       events.NewNopPublisher(),
-		backend:         backend,
-		serverCtx:       ctx,
-		serverCtxCancel: cancel,
-	}
-}
-
 func TestHandleFinalizeTask(t *testing.T) {
 	backend := createTestBackend(t)
 
