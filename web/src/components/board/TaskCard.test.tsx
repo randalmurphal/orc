@@ -460,6 +460,46 @@ Some \`inline code\` here`;
 		});
 	});
 
+	describe('updated time display', () => {
+		it('shows relative time for recent updates', () => {
+			// Set updated_at to 5 minutes ago
+			const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+			const { container } = renderTaskCard(createTask({ updated_at: fiveMinutesAgo }));
+
+			const timeElement = container.querySelector('.updated-time');
+			expect(timeElement).toBeInTheDocument();
+			expect(timeElement?.textContent).toMatch(/5m ago/);
+		});
+
+		it('shows empty string for empty date', () => {
+			// Test with empty updated_at - shouldn't crash
+			const { container } = renderTaskCard(createTask({ updated_at: '' }));
+
+			const timeElement = container.querySelector('.updated-time');
+			expect(timeElement).toBeInTheDocument();
+			expect(timeElement?.textContent).toBe('');
+		});
+
+		it('shows empty string for invalid date', () => {
+			// Test with invalid date string - shouldn't crash
+			const { container } = renderTaskCard(createTask({ updated_at: 'not-a-date' }));
+
+			const timeElement = container.querySelector('.updated-time');
+			expect(timeElement).toBeInTheDocument();
+			expect(timeElement?.textContent).toBe('');
+		});
+
+		it('shows formatted date with 4-digit year for old dates', () => {
+			// Set updated_at to more than 7 days ago
+			const { container } = renderTaskCard(createTask({ updated_at: '2024-01-15T00:00:00Z' }));
+
+			const timeElement = container.querySelector('.updated-time');
+			expect(timeElement).toBeInTheDocument();
+			// Should contain 4-digit year (2024), not truncated
+			expect(timeElement?.textContent).toMatch(/2024/);
+		});
+	});
+
 	describe('finalize state', () => {
 		it('shows finalize progress when finalizing', () => {
 			renderTaskCard(
