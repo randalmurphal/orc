@@ -321,7 +321,7 @@ Both sync to the same state. Options include "All initiatives" (no filter), "Una
 
 **Board view modes:** The board supports two view modes via dropdown toggle:
 - **Flat** (default): Traditional kanban with all tasks in columns
-- **By Initiative**: Swimlane view grouping tasks by initiative with collapsible rows, progress bars, and cross-swimlane drag-drop for reassigning tasks
+- **By Initiative**: Swimlane view grouping tasks by initiative with collapsible rows and progress bars
 
 **Keyboard shortcuts:** Uses `Shift+Alt` modifier (⇧⌥ on Mac) to avoid browser conflicts. `Shift+Alt+K` (palette), `Shift+Alt+N` (new task), `g t` (tasks), `j/k` (navigate). Press `?` for full list.
 
@@ -514,7 +514,7 @@ Patterns, gotchas, and decisions learned during development.
 | Initiative detail page | `/initiatives/:id` route manages tasks and decisions within an initiative; supports task linking/unlinking, decision recording with rationale, status management (draft/active/completed/archived), and progress tracking | TASK-066 |
 | Initiative dependency graph | Graph tab in initiative detail shows visual DAG of task dependencies; uses Kahn's algorithm for topological layout; interactive zoom/pan, click-to-navigate, PNG export; API: `GET /api/initiatives/:id/dependency-graph` | TASK-076 |
 | PR status polling | Background poller (60s interval, 30s rate limit) tracks PR status via GitHub API; status derived from PR state + reviews (changes_requested > approved > pending_review); stores in task.yaml `pr` field | TASK-090 |
-| Board swimlane view | Optional "By Initiative" view groups tasks into horizontal swimlanes; toggle persists in localStorage; disabled when initiative filter active; cross-swimlane drag-drop changes task initiative with confirmation | TASK-065 |
+| Board swimlane view | Optional "By Initiative" view groups tasks into horizontal swimlanes; toggle persists in localStorage; disabled when initiative filter active; click task card to navigate to detail | TASK-065 |
 | Auto-trigger finalize on approval | In `auto` profile, finalize phase auto-triggers when PR is approved; controlled by `completion.finalize.auto_trigger_on_approval`; respects 30s rate limit, skips trivial tasks | TASK-091 |
 | Finalize UI components | FinalizeModal for progress/results; TaskCard shows finalize button (completed), progress bar (finalizing), merge info (finished); WebSocket `finalize` events for real-time updates | TASK-094 |
 | Auto-approve PRs in auto mode | In `auto`/`fast` profiles, PRs are auto-approved after verifying CI passes; uses `gh pr review --approve` with summary comment; `safe`/`strict` profiles require human approval | TASK-099 |
@@ -556,6 +556,7 @@ Patterns, gotchas, and decisions learned during development.
 | Branch registry tracking | All orc-managed branches tracked in `branches` table with type (initiative/staging/task), owner_id, status (active/merged/stale/orphaned), timestamps; enables `orc branches list/cleanup` for lifecycle management | branch-targeting |
 | Initiative branch auto-merge | When all initiative tasks complete and initiative has `BranchBase`, auto-merge to target branch; `auto`/`fast` profiles auto-merge after CI, `safe`/`strict` leave PR for human review; tracks `MergeStatus` (none/pending/merged/failed) | branch-targeting |
 | Developer staging workflow | Personal staging branches via `developer.staging_branch` + `staging_enabled` in personal config; `orc staging status/sync/enable/disable` commands; staging takes precedence over project default but yields to initiative branches | branch-targeting |
+| Clickable task cards | TaskCard removed drag-and-drop; clicking anywhere (except action buttons) navigates to task detail; running tasks open LiveTranscriptModal; uses `cursor: pointer` and `role="button"` for accessibility | TASK-277 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
