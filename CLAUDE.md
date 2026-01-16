@@ -579,6 +579,7 @@ Patterns, gotchas, and decisions learned during development.
 | detectConflictsViaMerge left worktree in merge state | Fixed: Cleanup (`merge --abort` + `reset --hard`) now uses `defer` to guarantee execution even on error/panic; idempotent cleanup is safe even if merge wasn't started | TASK-229 |
 | Resume blocked by dirty worktree state | Fixed: `SetupWorktree` now calls `cleanWorktreeState` when reusing existing worktree; aborts in-progress rebase/merge and discards uncommitted changes; enables resume after task failure without manual cleanup | TASK-247 |
 | Template variables not substituted in prompts | Fixed: Flowgraph executor's `renderTemplate()` now includes all variables from standard `RenderTemplate()`: `{{TASK_CATEGORY}}`, `{{INITIATIVE_CONTEXT}}`, `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}`, `{{COVERAGE_THRESHOLD}}`, `{{REVIEW_FINDINGS}}` | TASK-278 |
+| Date shows '12/31/1' instead of '12/31/2001' | Fixed: `toLocaleDateString()` without options can produce abbreviated years; use explicit options `{ year: 'numeric', month: 'numeric', day: 'numeric' }` to ensure 4-digit year display; also add null/invalid date guards | TASK-255 |
 
 ### Decisions
 | Decision | Rationale | Source |
