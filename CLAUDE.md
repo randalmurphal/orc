@@ -520,6 +520,7 @@ Patterns, gotchas, and decisions learned during development.
 | Context propagation in DatabaseBackend | `SaveTaskCtx`, `SaveStateCtx`, `SaveInitiativeCtx` methods propagate context through `RunInTx` to `TxOps`; enables request cancellation and timeouts for database operations; non-context methods use `context.Background()` for backward compatibility | TASK-240 |
 | Worker.run() iterative phase loop | `Worker.run()` uses `for` loop (not recursion) to execute phases sequentially; eliminates stack growth risk for tasks with many phases; loop continues until all phases complete, context cancelled, or error occurs | TASK-230 |
 | Git mutex for compound operations | `Git` struct has mutex protecting compound operations (worktree creation, checkpoint, rebase, conflict detection); individual git commands are process-atomic and don't need locking; worktree instances get independent mutexes for parallel execution | TASK-235 |
+| Finalize tracker atomic tryStart | `finalizeTracker.tryStart()` atomically checks and sets finalize state to prevent TOCTOU race; returns existing state if pending/running, allows replacement if completed/failed (retry); eliminates race where concurrent requests both pass the check and both start finalize | TASK-236 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

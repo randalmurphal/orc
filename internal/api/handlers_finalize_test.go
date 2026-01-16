@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,24 +39,6 @@ func createTestBackend(t *testing.T) storage.Backend {
 		backend.Close()
 	})
 	return backend
-}
-
-// createTestServerWithContext creates a server with proper context for testing.
-func createTestServerWithContext(t *testing.T, backend storage.Backend, orcCfg *config.Config) *Server {
-	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(func() { cancel() })
-
-	return &Server{
-		workDir:         t.TempDir(),
-		mux:             http.NewServeMux(),
-		orcConfig:       orcCfg,
-		logger:          testLogger(),
-		publisher:       events.NewNopPublisher(),
-		backend:         backend,
-		serverCtx:       ctx,
-		serverCtxCancel: cancel,
-	}
 }
 
 func TestHandleFinalizeTask(t *testing.T) {
@@ -857,6 +841,388 @@ func TestServerContextOnShutdown(t *testing.T) {
 
 	// Clean up
 	finTracker.delete(taskID)
+}
+
+func TestFinalizeTrackerTryStart(t *testing.T) {
+	t.Run("returns true when no prior state", func(t *testing.T) {
+		tracker := &finalizeTracker{
+			states:  make(map[string]*FinalizeState),
+			cancels: make(map[string]context.CancelFunc),
+		}
+
+		newState := &FinalizeState{
+			TaskID:    "test-task",
+			Status:    FinalizeStatusPending,
+			StartedAt: time.Now(),
+		}
+
+		existing, ok := tracker.tryStart("test-task", newState)
+		if !ok {
+			t.Error("tryStart should return true when no prior state")
+		}
+		if existing != nil {
+			t.Error("existing should be nil when no prior state")
+		}
+
+		// Verify state was set
+		got := tracker.get("test-task")
+		if got != newState {
+			t.Error("state should be set after successful tryStart")
+		}
+	})
+
+	t.Run("returns false when running state exists", func(t *testing.T) {
+		tracker := &finalizeTracker{
+			states:  make(map[string]*FinalizeState),
+			cancels: make(map[string]context.CancelFunc),
+		}
+
+		// Set up existing running state
+		existingState := &FinalizeState{
+			TaskID:    "test-task",
+			Status:    FinalizeStatusRunning,
+			StartedAt: time.Now(),
+		}
+		tracker.set("test-task", existingState)
+
+		newState := &FinalizeState{
+			TaskID:    "test-task",
+			Status:    FinalizeStatusPending,
+			StartedAt: time.Now(),
+		}
+
+		existing, ok := tracker.tryStart("test-task", newState)
+		if ok {
+			t.Error("tryStart should return false when running state exists")
+		}
+		if existing != existingState {
+			t.Error("should return the existing state")
+		}
+
+		// Verify original state not replaced
+		got := tracker.get("test-task")
+		if got != existingState {
+			t.Error("original state should not be replaced")
+		}
+	})
+
+	t.Run("returns false when pending state exists", func(t *testing.T) {
+		tracker := &finalizeTracker{
+			states:  make(map[string]*FinalizeState),
+			cancels: make(map[string]context.CancelFunc),
+		}
+
+		existingState := &FinalizeState{
+			TaskID:    "test-task",
+			Status:    FinalizeStatusPending,
+			StartedAt: time.Now(),
+		}
+		tracker.set("test-task", existingState)
+
+		newState := &FinalizeState{
+			TaskID:    "test-task",
+			Status:    FinalizeStatusPending,
+			StartedAt: time.Now(),
+		}
+
+		existing, ok := tracker.tryStart("test-task", newState)
+		if ok {
+			t.Error("tryStart should return false when pending state exists")
+		}
+		if existing != existingState {
+			t.Error("should return the existing state")
+		}
+	})
+
+	t.Run("returns true when completed state exists (allows retry)", func(t *testing.T) {
+		tracker := &finalizeTracker{
+			states:  make(map[string]*FinalizeState),
+			cancels: make(map[string]context.CancelFunc),
+		}
+
+		existingState := &FinalizeState{
+			TaskID:    "test-task",
+			Status:    FinalizeStatusCompleted,
+			StartedAt: time.Now(),
+		}
+		tracker.set("test-task", existingState)
+
+		newState := &FinalizeState{
+			TaskID:    "test-task",
+			Status:    FinalizeStatusPending,
+			StartedAt: time.Now(),
+		}
+
+		existing, ok := tracker.tryStart("test-task", newState)
+		if !ok {
+			t.Error("tryStart should return true when completed state exists (allows retry)")
+		}
+		if existing != nil {
+			t.Error("existing should be nil when successful")
+		}
+
+		// Verify state was replaced
+		got := tracker.get("test-task")
+		if got != newState {
+			t.Error("state should be replaced after successful tryStart")
+		}
+	})
+
+	t.Run("returns true when failed state exists (allows retry)", func(t *testing.T) {
+		tracker := &finalizeTracker{
+			states:  make(map[string]*FinalizeState),
+			cancels: make(map[string]context.CancelFunc),
+		}
+
+		existingState := &FinalizeState{
+			TaskID:    "test-task",
+			Status:    FinalizeStatusFailed,
+			StartedAt: time.Now(),
+		}
+		tracker.set("test-task", existingState)
+
+		newState := &FinalizeState{
+			TaskID:    "test-task",
+			Status:    FinalizeStatusPending,
+			StartedAt: time.Now(),
+		}
+
+		existing, ok := tracker.tryStart("test-task", newState)
+		if !ok {
+			t.Error("tryStart should return true when failed state exists (allows retry)")
+		}
+		if existing != nil {
+			t.Error("existing should be nil when successful")
+		}
+	})
+
+	t.Run("is thread-safe under concurrent access", func(t *testing.T) {
+		tracker := &finalizeTracker{
+			states:  make(map[string]*FinalizeState),
+			cancels: make(map[string]context.CancelFunc),
+		}
+
+		const numGoroutines = 100
+		var wg sync.WaitGroup
+		var successCount int32
+
+		// Launch many goroutines trying to start the same task
+		for i := 0; i < numGoroutines; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+
+				newState := &FinalizeState{
+					TaskID:    "concurrent-task",
+					Status:    FinalizeStatusPending,
+					StartedAt: time.Now(),
+					Progress:  fmt.Sprintf("goroutine-%d", id),
+				}
+
+				if _, ok := tracker.tryStart("concurrent-task", newState); ok {
+					atomic.AddInt32(&successCount, 1)
+				}
+			}(i)
+		}
+
+		wg.Wait()
+
+		// Exactly one goroutine should succeed
+		if successCount != 1 {
+			t.Errorf("expected exactly 1 successful tryStart, got %d", successCount)
+		}
+	})
+}
+
+func TestHandleFinalizeTask_ConcurrentRequests(t *testing.T) {
+	backend := createTestBackend(t)
+
+	// Create a task
+	taskID := "TASK-CONCURRENT"
+	tsk := &task.Task{
+		ID:     taskID,
+		Title:  "Concurrent test task",
+		Status: task.StatusCompleted,
+		Weight: task.WeightMedium,
+	}
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Create plan
+	p := &plan.Plan{
+		TaskID: taskID,
+		Phases: []plan.Phase{
+			{ID: "implement", Status: plan.PhaseCompleted},
+			{ID: "finalize", Status: plan.PhasePending},
+		},
+	}
+	if err := backend.SavePlan(p, taskID); err != nil {
+		t.Fatalf("save plan: %v", err)
+	}
+
+	orcCfg := config.Default()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() { cancel() })
+
+	srv := &Server{
+		workDir:         t.TempDir(),
+		mux:             http.NewServeMux(),
+		orcConfig:       orcCfg,
+		logger:          testLogger(),
+		publisher:       events.NewNopPublisher(),
+		backend:         backend,
+		serverCtx:       ctx,
+		serverCtxCancel: cancel,
+	}
+	srv.mux.HandleFunc("POST /api/tasks/{id}/finalize", srv.handleFinalizeTask)
+
+	// Pre-set a pending state to simulate an in-progress finalize
+	// This ensures all concurrent requests see the same state
+	finTracker.set(taskID, &FinalizeState{
+		TaskID:    taskID,
+		Status:    FinalizeStatusPending,
+		StartedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+	t.Cleanup(func() { finTracker.delete(taskID) })
+
+	const numRequests = 20
+	var wg sync.WaitGroup
+	var alreadyInProgressCount int32
+
+	// Use a barrier to synchronize goroutine starts
+	startBarrier := make(chan struct{})
+
+	for i := 0; i < numRequests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Wait for barrier to ensure concurrent start
+			<-startBarrier
+
+			req := httptest.NewRequest("POST", "/api/tasks/"+taskID+"/finalize", nil)
+			w := httptest.NewRecorder()
+
+			srv.mux.ServeHTTP(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Errorf("unexpected status code: %d", w.Code)
+				return
+			}
+
+			var resp FinalizeResponse
+			if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+				t.Errorf("unmarshal response: %v", err)
+				return
+			}
+
+			if resp.Message == "Finalize already in progress" {
+				atomic.AddInt32(&alreadyInProgressCount, 1)
+			}
+		}()
+	}
+
+	// Release all goroutines at once
+	close(startBarrier)
+
+	wg.Wait()
+
+	// ALL requests should get "already in progress" since we pre-set the state
+	if alreadyInProgressCount != numRequests {
+		t.Errorf("expected all %d requests to get 'already in progress', got %d", numRequests, alreadyInProgressCount)
+	}
+}
+
+func TestTriggerFinalizeOnApproval_ConcurrentCalls(t *testing.T) {
+	backend := createTestBackend(t)
+
+	taskID := "TASK-CONCURRENT-APPROVAL"
+	tsk := &task.Task{
+		ID:     taskID,
+		Title:  "Concurrent approval test",
+		Status: task.StatusCompleted,
+		Weight: task.WeightMedium,
+	}
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Create plan
+	p := &plan.Plan{
+		TaskID: taskID,
+		Phases: []plan.Phase{
+			{ID: "implement", Status: plan.PhaseCompleted},
+			{ID: "finalize", Status: plan.PhasePending},
+		},
+	}
+	if err := backend.SavePlan(p, taskID); err != nil {
+		t.Fatalf("save plan: %v", err)
+	}
+
+	orcCfg := config.Default()
+	orcCfg.Completion.Finalize.AutoTriggerOnApproval = true
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() { cancel() })
+
+	srv := &Server{
+		workDir:         t.TempDir(),
+		orcConfig:       orcCfg,
+		logger:          testLogger(),
+		publisher:       events.NewNopPublisher(),
+		backend:         backend,
+		serverCtx:       ctx,
+		serverCtxCancel: cancel,
+	}
+
+	// Pre-set a pending state to simulate an in-progress finalize
+	// This ensures all concurrent calls see the same state
+	finTracker.set(taskID, &FinalizeState{
+		TaskID:    taskID,
+		Status:    FinalizeStatusRunning, // Already running
+		StartedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+	t.Cleanup(func() { finTracker.delete(taskID) })
+
+	const numCalls = 20
+	var wg sync.WaitGroup
+	var triggeredCount int32
+
+	// Use a barrier to synchronize goroutine starts
+	startBarrier := make(chan struct{})
+
+	for i := 0; i < numCalls; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Wait for barrier to ensure concurrent start
+			<-startBarrier
+
+			triggered, err := srv.TriggerFinalizeOnApproval(taskID)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if triggered {
+				atomic.AddInt32(&triggeredCount, 1)
+			}
+		}()
+	}
+
+	// Release all goroutines at once
+	close(startBarrier)
+
+	wg.Wait()
+
+	// No call should trigger since finalize is already running
+	if triggeredCount != 0 {
+		t.Errorf("expected 0 finalize triggered (already running), got %d", triggeredCount)
+	}
 }
 
 func TestTriggerFinalizeOnApproval(t *testing.T) {
