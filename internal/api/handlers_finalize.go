@@ -135,6 +135,30 @@ func (ft *finalizeTracker) cancel(taskID string) {
 	}
 }
 
+// tryStart attempts to atomically start a finalize operation for a task.
+// It returns (nil, true) if successful, or (existingState, false) if finalize
+// is already in progress (pending or running). This prevents the TOCTOU race
+// condition between checking and setting the finalize state.
+func (ft *finalizeTracker) tryStart(taskID string, newState *FinalizeState) (*FinalizeState, bool) {
+	ft.mu.Lock()
+	defer ft.mu.Unlock()
+
+	// Check if finalize is already in progress
+	if existing := ft.states[taskID]; existing != nil {
+		existing.mu.RLock()
+		status := existing.Status
+		existing.mu.RUnlock()
+
+		if status == FinalizeStatusRunning || status == FinalizeStatusPending {
+			return existing, false
+		}
+	}
+
+	// No active finalize - set the new state
+	ft.states[taskID] = newState
+	return nil, true
+}
+
 // cancelAll cancels all running finalize operations.
 // This is called during server shutdown to prevent goroutine leaks.
 func (ft *finalizeTracker) cancelAll() {
@@ -209,22 +233,7 @@ func (s *Server) handleFinalizeTask(w http.ResponseWriter, r *http.Request) {
 		req = FinalizeRequest{}
 	}
 
-	// Check if finalize is already running
-	if existing := finTracker.get(taskID); existing != nil {
-		existing.mu.RLock()
-		status := existing.Status
-		existing.mu.RUnlock()
-		if status == FinalizeStatusRunning || status == FinalizeStatusPending {
-			s.jsonResponse(w, FinalizeResponse{
-				TaskID:  taskID,
-				Status:  status,
-				Message: "Finalize already in progress",
-			})
-			return
-		}
-	}
-
-	// Load task
+	// Load task first (before attempting to acquire finalize slot)
 	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
@@ -250,7 +259,20 @@ func (s *Server) handleFinalizeTask(w http.ResponseWriter, r *http.Request) {
 		Step:      "Initializing",
 		Progress:  "Starting finalize process",
 	}
-	finTracker.set(taskID, finState)
+
+	// Atomically try to start finalize (prevents concurrent requests race)
+	if existing, ok := finTracker.tryStart(taskID, finState); !ok {
+		// Another finalize is already in progress
+		existing.mu.RLock()
+		status := existing.Status
+		existing.mu.RUnlock()
+		s.jsonResponse(w, FinalizeResponse{
+			TaskID:  taskID,
+			Status:  status,
+			Message: "Finalize already in progress",
+		})
+		return
+	}
 
 	// Publish initial event
 	s.publishFinalizeEvent(taskID, finState)
@@ -631,18 +653,7 @@ func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error) {
 		return false, nil
 	}
 
-	// Check if finalize is already running
-	if existing := finTracker.get(taskID); existing != nil {
-		existing.mu.RLock()
-		status := existing.Status
-		existing.mu.RUnlock()
-		if status == FinalizeStatusRunning || status == FinalizeStatusPending {
-			s.logger.Debug("finalize already in progress", "task", taskID, "status", status)
-			return false, nil
-		}
-	}
-
-	// Load task
+	// Load task first (before attempting to acquire finalize slot)
 	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		return false, fmt.Errorf("load task: %w", err)
@@ -682,7 +693,15 @@ func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error) {
 		Step:      "Initializing",
 		Progress:  "Auto-triggered on PR approval",
 	}
-	finTracker.set(taskID, finState)
+
+	// Atomically try to start finalize (prevents concurrent calls race)
+	if existing, ok := finTracker.tryStart(taskID, finState); !ok {
+		existing.mu.RLock()
+		status := existing.Status
+		existing.mu.RUnlock()
+		s.logger.Debug("finalize already in progress", "task", taskID, "status", status)
+		return false, nil
+	}
 
 	// Publish initial event
 	s.publishFinalizeEvent(taskID, finState)
