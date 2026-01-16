@@ -1,8 +1,10 @@
-/* Export Dropdown */
+/* Export Dropdown - Radix DropdownMenu */
+
 .export-dropdown {
 	position: relative;
 }
 
+/* Radix DropdownMenu Trigger */
 .export-trigger {
 	display: flex;
 	align-items: center;
@@ -17,37 +19,72 @@
 	transition: all var(--duration-fast) var(--ease-out);
 }
 
-.export-trigger:hover:not(:disabled) {
+.export-trigger:hover:not([data-disabled]) {
 	background: var(--bg-surface);
 	color: var(--text-primary);
 	border-color: var(--border-strong);
 }
 
-.export-trigger:disabled {
+.export-trigger:focus-visible {
+	outline: none;
+	border-color: var(--accent-primary);
+	box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.export-trigger[data-disabled] {
 	opacity: 0.6;
 	cursor: not-allowed;
 }
 
+/* Chevron rotation */
+.export-trigger .chevron {
+	display: flex;
+	align-items: center;
+	transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.export-trigger[data-state='open'] .chevron {
+	transform: rotate(180deg);
+}
+
+/* Menu Content */
 .export-menu {
-	position: absolute;
-	top: calc(100% + var(--space-1));
-	right: 0;
 	min-width: 200px;
 	background: var(--bg-primary);
 	border: 1px solid var(--border-default);
 	border-radius: var(--radius-lg);
 	box-shadow: var(--shadow-lg);
-	z-index: 50;
-	animation: dropdownFadeIn var(--duration-fast) var(--ease-out);
+	z-index: var(--z-dropdown, 50);
+	animation: export-menu-enter var(--duration-fast) var(--ease-out);
 }
 
-@keyframes dropdownFadeIn {
+.export-menu[data-state='closed'] {
+	animation: export-menu-exit var(--duration-fast) var(--ease-in);
+}
+
+@keyframes export-menu-enter {
 	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes export-menu-exit {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	to {
 		opacity: 0;
 		transform: translateY(-4px);
 	}
 }
 
+/* Menu Label (Header) */
 .export-menu-header {
 	padding: var(--space-2) var(--space-3);
 	font-size: var(--text-xs);
@@ -58,6 +95,7 @@
 	border-bottom: 1px solid var(--border-subtle);
 }
 
+/* Menu Item */
 .export-option {
 	display: flex;
 	align-items: center;
@@ -70,21 +108,33 @@
 	font-size: var(--text-sm);
 	text-align: left;
 	cursor: pointer;
+	outline: none;
 	transition: all var(--duration-fast) var(--ease-out);
 }
 
-.export-option:hover:not(:disabled) {
+/* Highlighted state (keyboard focus or hover) */
+.export-option[data-highlighted] {
 	background: var(--bg-secondary);
 	color: var(--text-primary);
 }
 
-.export-option:disabled {
+/* Disabled state */
+.export-option[data-disabled] {
 	opacity: 0.6;
 	cursor: not-allowed;
 }
 
+/* Separator */
 .export-menu-divider {
 	height: 1px;
 	background: var(--border-subtle);
 	margin: var(--space-1) 0;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+	.export-menu,
+	.export-menu[data-state='closed'] {
+		animation: none;
+	}
 }
