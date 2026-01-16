@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,10 +26,11 @@ import (
 
 // Server is the orc API server.
 type Server struct {
-	addr    string
-	workDir string // Project directory
-	mux     *http.ServeMux
-	logger  *slog.Logger
+	addr            string
+	workDir         string // Project directory
+	maxPortAttempts int    // Number of ports to try
+	mux             *http.ServeMux
+	logger          *slog.Logger
 
 	// Orc configuration
 	orcConfig *config.Config
@@ -65,17 +69,19 @@ type Event struct {
 
 // Config holds server configuration.
 type Config struct {
-	Addr    string
-	WorkDir string // Project directory (defaults to ".")
-	Logger  *slog.Logger
+	Addr            string
+	WorkDir         string // Project directory (defaults to ".")
+	Logger          *slog.Logger
+	MaxPortAttempts int // Number of ports to try if initial port is busy (default: 10)
 }
 
 // DefaultConfig returns the default server configuration.
 func DefaultConfig() *Config {
 	return &Config{
-		Addr:    ":8080",
-		WorkDir: ".",
-		Logger:  slog.Default(),
+		Addr:            ":8080",
+		WorkDir:         ".",
+		Logger:          slog.Default(),
+		MaxPortAttempts: 10,
 	}
 }
 
@@ -119,9 +125,16 @@ func New(cfg *Config) *Server {
 	// Create a background context for the server - will be replaced by StartContext
 	serverCtx, serverCtxCancel := context.WithCancel(context.Background())
 
+	// Set default max port attempts
+	maxPortAttempts := cfg.MaxPortAttempts
+	if maxPortAttempts <= 0 {
+		maxPortAttempts = 10
+	}
+
 	s := &Server{
 		addr:            cfg.Addr,
 		workDir:         workDir,
+		maxPortAttempts: maxPortAttempts,
 		mux:             http.NewServeMux(),
 		logger:          logger,
 		orcConfig:       orcCfg,
@@ -420,16 +433,73 @@ func (s *Server) registerRoutes() {
 	s.mux.Handle("/", staticHandler())
 }
 
+// parseAddr extracts host and port from an address string like ":8080" or "127.0.0.1:8080"
+func parseAddr(addr string) (host string, port int, err error) {
+	// Handle ":8080" format
+	if strings.HasPrefix(addr, ":") {
+		port, err = strconv.Atoi(addr[1:])
+		return "", port, err
+	}
+
+	// Handle "host:port" format
+	h, p, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", 0, err
+	}
+	port, err = strconv.Atoi(p)
+	return h, port, err
+}
+
+// findAvailablePort tries to find an available port starting from basePort.
+// Returns a listener bound to an available port, or an error if none found.
+func findAvailablePort(host string, basePort, maxAttempts int) (net.Listener, int, error) {
+	for i := 0; i < maxAttempts; i++ {
+		port := basePort + i
+		addr := net.JoinHostPort(host, strconv.Itoa(port))
+		ln, err := net.Listen("tcp", addr)
+		if err == nil {
+			return ln, port, nil
+		}
+	}
+	return nil, 0, fmt.Errorf("no available port in range %d-%d", basePort, basePort+maxAttempts-1)
+}
+
 // Start starts the API server.
 func (s *Server) Start() error {
-	s.logger.Info("starting API server", "addr", s.addr)
-	return http.ListenAndServe(s.addr, s.mux)
+	host, basePort, err := parseAddr(s.addr)
+	if err != nil {
+		return fmt.Errorf("invalid address %q: %w", s.addr, err)
+	}
+
+	ln, actualPort, err := findAvailablePort(host, basePort, s.maxPortAttempts)
+	if err != nil {
+		return err
+	}
+
+	if actualPort != basePort {
+		s.logger.Info("port in use, using alternative", "requested", basePort, "actual", actualPort)
+	}
+	s.logger.Info("starting API server", "addr", ln.Addr().String())
+	return http.Serve(ln, s.mux)
 }
 
 // StartContext starts the API server with context for graceful shutdown.
 func (s *Server) StartContext(ctx context.Context) error {
+	host, basePort, err := parseAddr(s.addr)
+	if err != nil {
+		return fmt.Errorf("invalid address %q: %w", s.addr, err)
+	}
+
+	ln, actualPort, err := findAvailablePort(host, basePort, s.maxPortAttempts)
+	if err != nil {
+		return err
+	}
+
+	if actualPort != basePort {
+		s.logger.Info("port in use, using alternative", "requested", basePort, "actual", actualPort)
+	}
+
 	server := &http.Server{
-		Addr:    s.addr,
 		Handler: s.mux,
 	}
 
@@ -486,8 +556,8 @@ func (s *Server) StartContext(ctx context.Context) error {
 		server.Shutdown(shutdownCtx)
 	}()
 
-	s.logger.Info("starting API server", "addr", s.addr)
-	return server.ListenAndServe()
+	s.logger.Info("starting API server", "addr", ln.Addr().String())
+	return server.Serve(ln)
 }
 
 // Publish sends an event to all subscribers of a task.

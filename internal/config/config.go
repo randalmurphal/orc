@@ -351,6 +351,10 @@ type ServerConfig struct {
 	// Port is the server port (default: 8080)
 	Port int `yaml:"port"`
 
+	// MaxPortAttempts is the number of ports to try if the initial port is busy (default: 10)
+	// If port 8080 is busy, tries 8081, 8082, etc. up to Port + MaxPortAttempts - 1
+	MaxPortAttempts int `yaml:"max_port_attempts"`
+
 	// Auth configuration
 	Auth AuthConfig `yaml:"auth"`
 }
@@ -1037,8 +1041,9 @@ func Default() *Config {
 			ConfigPath: "~/.orc/token-pool/pool.yaml",
 		},
 		Server: ServerConfig{
-			Host: "127.0.0.1",
-			Port: 8080,
+			Host:            "127.0.0.1",
+			Port:            8080,
+			MaxPortAttempts: 10,
 			Auth: AuthConfig{
 				Enabled: false,
 				Type:    "token",
