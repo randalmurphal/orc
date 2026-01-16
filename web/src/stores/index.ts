@@ -33,6 +33,7 @@ export {
 export {
 	useUIStore,
 	useSidebarExpanded,
+	useMobileMenuOpen,
 	useWsStatus,
 	useToasts,
 	toast,

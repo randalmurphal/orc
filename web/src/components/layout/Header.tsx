@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
-import { useCurrentProject, useCurrentProjectId, useProjectLoading } from '@/stores';
+import { useCurrentProject, useCurrentProjectId, useProjectLoading, useUIStore } from '@/stores';
 import { getModifierKey, formatShortcut } from '@/lib/platform';
 import './Header.css';
 
@@ -26,6 +26,7 @@ export function Header({ onProjectClick, onNewTask, onCommandPalette }: HeaderPr
 	const currentProjectId = useCurrentProjectId();
 	const projectLoading = useProjectLoading();
 	const modKey = getModifierKey();
+	const toggleMobileMenu = useUIStore((state) => state.toggleMobileMenu);
 
 	// Determine project button label:
 	// - If loading: show "Loading..."
@@ -45,6 +46,18 @@ export function Header({ onProjectClick, onNewTask, onCommandPalette }: HeaderPr
 	return (
 		<header className="header">
 			<div className="header-left">
+				{/* Mobile Menu Toggle - visible only on mobile */}
+				<Button
+					variant="ghost"
+					size="sm"
+					iconOnly
+					className="mobile-menu-btn"
+					onClick={toggleMobileMenu}
+					aria-label="Toggle navigation menu"
+				>
+					<Icon name="menu" size={20} />
+				</Button>
+
 				{/* Project Switcher Button */}
 				<button
 					className="project-btn"

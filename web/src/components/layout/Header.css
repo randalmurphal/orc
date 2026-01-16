@@ -134,3 +134,74 @@
 }
 
 /* New Task Button - uses Button component now, no custom styles needed */
+
+/* =============================================================================
+   MOBILE RESPONSIVE STYLES
+   ============================================================================= */
+
+/* Mobile menu button - hidden on desktop */
+.mobile-menu-btn.btn {
+	display: none;
+}
+
+/* Mobile breakpoint (max-width: 767px) */
+@media (max-width: 767px) {
+	.header {
+		padding: 0 var(--space-3, 12px);
+	}
+
+	/* Show mobile menu button */
+	.mobile-menu-btn.btn {
+		display: flex;
+		margin-right: var(--space-2, 8px);
+	}
+
+	/* Hide project button on very small screens */
+	.project-btn {
+		display: none;
+	}
+
+	/* Hide page separator on mobile */
+	.page-info .separator {
+		display: none;
+	}
+
+	/* Page title gets more space */
+	.page-title {
+		font-size: var(--text-sm, 0.875rem);
+	}
+
+	/* Simplify header-right on mobile */
+	.header-right {
+		gap: var(--space-2, 8px);
+	}
+
+	/* Hide command hint on mobile */
+	.cmd-hint {
+		display: none;
+	}
+
+	/* Make New Task button icon-only on very small screens */
+	.header-right .btn span:not(.btn-icon) {
+		display: none;
+	}
+
+	.header-right .btn {
+		padding: var(--space-2, 8px);
+	}
+}
+
+/* Tablet breakpoint (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+	.header {
+		padding: 0 var(--space-4, 16px);
+	}
+
+	.project-name {
+		max-width: 100px;
+	}
+
+	.cmd-hint-label {
+		display: none;
+	}
+}

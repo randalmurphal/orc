@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
 import {
 	useSidebarExpanded,
+	useMobileMenuOpen,
 	useUIStore,
 	useInitiatives,
 	useCurrentInitiativeId,
@@ -128,7 +129,10 @@ interface SidebarProps {
 export function Sidebar({ onNewInitiative }: SidebarProps) {
 	const location = useLocation();
 	const expanded = useSidebarExpanded();
+	const mobileMenuOpen = useMobileMenuOpen();
 	const toggleSidebar = useUIStore((state) => state.toggleSidebar);
+	const closeMobileMenu = useUIStore((state) => state.closeMobileMenu);
+	const sidebarRef = useRef<HTMLElement>(null);
 
 	// Initiative data
 	const initiatives = useInitiatives();
@@ -145,6 +149,39 @@ export function Sidebar({ onNewInitiative }: SidebarProps) {
 	useEffect(() => {
 		saveExpandedState(expandedSections, expandedGroups);
 	}, [expandedSections, expandedGroups]);
+
+	// Close mobile menu on route change
+	useEffect(() => {
+		closeMobileMenu();
+	}, [location.pathname, closeMobileMenu]);
+
+	// Close mobile menu on click outside
+	useEffect(() => {
+		if (!mobileMenuOpen) return;
+
+		const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+			if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+				closeMobileMenu();
+			}
+		};
+
+		// Handle escape key
+		const handleEscape = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				closeMobileMenu();
+			}
+		};
+
+		document.addEventListener('mousedown', handleClickOutside);
+		document.addEventListener('touchstart', handleClickOutside);
+		document.addEventListener('keydown', handleEscape);
+
+		return () => {
+			document.removeEventListener('mousedown', handleClickOutside);
+			document.removeEventListener('touchstart', handleClickOutside);
+			document.removeEventListener('keydown', handleEscape);
+		};
+	}, [mobileMenuOpen, closeMobileMenu]);
 
 	// Sort initiatives: active first, then by updated_at
 	const sortedInitiatives = useMemo(() => {
@@ -228,7 +265,8 @@ export function Sidebar({ onNewInitiative }: SidebarProps) {
 
 	return (
 		<aside
-			className={`sidebar ${expanded ? 'expanded' : ''}`}
+			ref={sidebarRef}
+			className={`sidebar ${expanded ? 'expanded' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}
 			role="navigation"
 			aria-label="Main navigation"
 		>
