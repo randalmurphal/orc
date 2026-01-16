@@ -149,26 +149,12 @@ test.describe('Board Page', () => {
 			const cardCount = await taskCards.count();
 
 			if (cardCount > 0) {
-<<<<<<< HEAD
 				// For each task card, verify it's in a column (not the board container)
 				for (let i = 0; i < Math.min(cardCount, 5); i++) {
 					const card = taskCards.nth(i);
-<<<<<<< HEAD
 					// Card should be inside a column region (not the board region)
 					// Use a more specific XPath to find the closest ancestor with "column" in aria-label
 					const parentColumn = card.locator('xpath=ancestor::div[@role="region"][contains(@aria-label, "column")]');
-=======
-					// Card should be inside a column region (use .first() since board also has role="region")
-					// The column regions have aria-label ending in "column"
-					const parentColumn = card.locator('xpath=ancestor::div[@role="region" and contains(@aria-label, "column")]');
->>>>>>> orc/TASK-275
-=======
-				// For each task card, verify it's in a column (not the board itself)
-				for (let i = 0; i < Math.min(cardCount, 5); i++) {
-					const card = taskCards.nth(i);
-					// Card should be inside a column region (use aria-label*="column" to exclude the board)
-					const parentColumn = card.locator('xpath=ancestor::div[@role="region"][contains(@aria-label, "column")]');
->>>>>>> orc/TASK-277
 					await expect(parentColumn).toBeVisible();
 				}
 
