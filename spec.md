@@ -1,111 +1,78 @@
-# Specification: Fix: Dashboard initiative progress shows 0/0 while sidebar shows 16/17
+# Specification: Add initiative and priority to task detail header
 
 ## Problem Statement
-
-Dashboard's "Active Initiatives" section shows incorrect progress (0/0) while the Sidebar shows correct progress (16/17). The two components calculate progress using different data sources, causing inconsistent counts.
-
-## Root Cause Analysis
-
-| Component | Data Source | Calculation Method |
-|-----------|-------------|-------------------|
-| **Sidebar** | Task store (all tasks) | `getInitiativeProgress(tasks)` - counts tasks where `task.initiative_id === initiative.id` |
-| **Dashboard** | Initiative API response | `getProgress(initiative)` - counts `initiative.tasks[]` array embedded in initiative object |
-
-The discrepancy occurs because:
-1. **Sidebar** correctly counts tasks by checking each task's `initiative_id` field
-2. **Dashboard** relies on the `initiative.tasks[]` array, which may be empty if:
-   - Tasks were linked via `initiative_id` but never added to `initiative_tasks` join table
-   - Legacy tasks created before bidirectional sync was implemented
-   - Data inconsistency between `tasks.initiative_id` and `initiative_tasks` table
+The task detail page header is missing key context information: initiative assignment and priority level are not displayed even though these fields exist on the task object. This makes it harder for users to understand task context when viewing details.
 
 ## Success Criteria
-
-- [ ] Dashboard "Active Initiatives" shows same progress counts as Sidebar for all initiatives
-- [ ] Progress calculation uses task store (canonical source) not embedded initiative.tasks array
-- [ ] Existing tests pass (`make web-test`)
-- [ ] No visual regression in Dashboard layout
+- [ ] Initiative badge displays in TaskHeader when `task.initiative_id` is set
+- [ ] Initiative badge is clickable and navigates to `/initiatives/:id`
+- [ ] Initiative badge shows truncated title (max 20 chars) with full title in tooltip
+- [ ] Priority badge displays for non-normal priorities (critical, high, low)
+- [ ] Priority badge uses consistent styling from `PRIORITY_CONFIG` (same as TaskCard)
+- [ ] Critical priority shows pulsing animation (same as TaskCard)
+- [ ] Initiative and priority badges appear in `.task-identity` section after existing badges
+- [ ] No visual regression on existing header elements
 
 ## Testing Requirements
-
-- [ ] Unit test: `DashboardInitiatives` renders correct progress from task store
-- [ ] Unit test: Progress shows 0/0 when initiative has no tasks in task store
-- [ ] Unit test: Component handles initiatives with tasks in both sources consistently
-- [ ] E2E test: Verify Dashboard and Sidebar show matching progress counts
+- [ ] Unit test: TaskHeader renders initiative badge when `task.initiative_id` is set
+- [ ] Unit test: TaskHeader hides initiative badge when `task.initiative_id` is null/undefined
+- [ ] Unit test: TaskHeader renders priority badge only for non-normal priorities
+- [ ] Unit test: Initiative badge click navigates to initiative detail page
+- [ ] E2E test: Verify initiative badge visibility and navigation on task detail page
+- [ ] E2E test: Verify priority badge visibility for critical/high/low tasks
 
 ## Scope
-
 ### In Scope
-- Modify `DashboardInitiatives` to use same progress calculation method as Sidebar
-- Pass tasks from task store to `DashboardInitiatives` component
-- Update Dashboard page to provide tasks to the component
+- Add initiative badge to TaskHeader component
+- Add priority badge to TaskHeader component (reuse existing styling, currently in wrong position)
+- Update TaskHeader.css with initiative badge styles
+- Tooltip support for both badges
 
 ### Out of Scope
-- Fixing data consistency between `tasks.initiative_id` and `initiative_tasks` table (separate issue)
-- Modifying backend API response format
-- Changing Sidebar implementation
-- Adding new backend endpoints
+- Modifying Task Info panel (separate enhancement)
+- Adding editable initiative/priority from header (use edit modal)
+- Showing target branch or blocking dependencies in header
 
 ## Technical Approach
 
-The fix aligns Dashboard with Sidebar by using the same progress calculation method: counting tasks from the task store by `initiative_id` rather than relying on the embedded `initiative.tasks[]` array.
-
 ### Files to Modify
-
-1. **`web/src/components/dashboard/DashboardInitiatives.tsx`**
-   - Add `tasks` prop to receive tasks from task store
-   - Change `getProgress()` to calculate progress using task store data (count tasks where `task.initiative_id === initiative.id`)
-   - Match the logic used in Sidebar's `getInitiativeProgress()`
-
-2. **`web/src/pages/Dashboard.tsx`**
-   - Pass `tasks` from task store to `DashboardInitiatives` component
-   - Tasks are already available via `useTaskStore((state) => state.tasks)`
+- `web/src/components/task-detail/TaskHeader.tsx`: Add initiative badge with click handler and navigation; fix priority badge positioning in task-identity section
+- `web/src/components/task-detail/TaskHeader.css`: Add `.initiative-badge` styles matching TaskCard pattern
+- `web/src/components/task-detail/TaskHeader.test.tsx`: Add unit tests for new badges (create if doesn't exist)
+- `web/e2e/task-detail.spec.ts`: Add E2E tests for badge visibility and navigation
 
 ### Implementation Details
 
-**Current Dashboard getProgress (problematic):**
-```typescript
-function getProgress(initiative: Initiative): ProgressInfo {
-  const tasks = initiative.tasks || [];  // Uses embedded array - may be empty/stale
-  const total = tasks.length;
-  // ...
-}
-```
+1. **Initiative Badge** (in `task-identity` section):
+   - Use `getInitiativeBadgeTitle()` from initiativeStore (same as TaskCard)
+   - Wrap with `Tooltip` component showing full title
+   - Use `Button` component with `variant="ghost"` (same pattern as TaskCard)
+   - Navigate to `/initiatives/${task.initiative_id}` on click
+   - Style with CSS class `.initiative-badge` (adapt from TaskCard)
 
-**Fixed Dashboard getProgress:**
-```typescript
-function getProgress(initiativeId: string, tasks: Task[]): ProgressInfo {
-  const initiativeTasks = tasks.filter(t => t.initiative_id === initiativeId);
-  const total = initiativeTasks.length;
-  const completed = initiativeTasks.filter(
-    t => t.status === 'completed' || t.status === 'finished'
-  ).length;
-  // ...
-}
-```
+2. **Priority Badge** (already implemented but verify position):
+   - Priority badge code exists at lines 144-151 but need to verify visual ordering
+   - Should appear after category badge, before initiative badge
+   - Uses inline style with `--priority-color` CSS variable
+   - Critical priority needs pulsing animation
 
-This matches the Sidebar's `getInitiativeProgress()` logic in `initiativeStore.ts:125-148`.
+3. **Visual Order in `.task-identity`**:
+   - Task ID
+   - Status indicator
+   - Weight badge
+   - Category badge
+   - Priority badge (non-normal only)
+   - Initiative badge (if assigned)
 
-## Bug Analysis
+## Feature-Specific Analysis
 
-### Reproduction Steps
-1. Navigate to Dashboard (`/dashboard`)
-2. Observe "Active Initiatives" section showing initiative with "0/0" progress
-3. Check Sidebar showing same initiative with correct progress (e.g., "16/17")
+### User Story
+As a user viewing a task detail page, I want to see which initiative the task belongs to and its priority level so that I understand the task's context and urgency without having to scroll or open additional panels.
 
-### Current Behavior
-Dashboard shows "0/0" because `initiative.tasks` array is empty/not populated even though tasks exist with matching `initiative_id`.
-
-### Expected Behavior
-Dashboard shows same count as Sidebar (e.g., "16/17") by counting tasks from task store.
-
-### Root Cause
-Two different progress calculation methods:
-- Sidebar uses task store (correct, canonical source)
-- Dashboard uses embedded `initiative.tasks[]` (may be inconsistent)
-
-### Verification
-After fix:
-1. Navigate to Dashboard
-2. Compare initiative progress counts with Sidebar
-3. Both should show identical progress for all initiatives
-4. Run `make web-test` - all tests pass
+### Acceptance Criteria
+- Initiative badge appears between priority badge and branch info when task has `initiative_id`
+- Initiative badge shows truncated title with tooltip for full title
+- Clicking initiative badge navigates to initiative detail page
+- Priority badge appears for critical/high/low tasks with appropriate color coding
+- Critical priority has pulsing animation matching TaskCard behavior
+- Header maintains visual balance and doesn't become cluttered
