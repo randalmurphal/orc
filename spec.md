@@ -1,111 +1,131 @@
-# Specification: Fix: Dashboard initiative progress shows 0/0 while sidebar shows 16/17
+# Specification: Fix: View mode dropdown disabled on Board page - can't switch to swimlane view
 
 ## Problem Statement
-
-Dashboard's "Active Initiatives" section shows incorrect progress (0/0) while the Sidebar shows correct progress (16/17). The two components calculate progress using different data sources, causing inconsistent counts.
-
-## Root Cause Analysis
-
-| Component | Data Source | Calculation Method |
-|-----------|-------------|-------------------|
-| **Sidebar** | Task store (all tasks) | `getInitiativeProgress(tasks)` - counts tasks where `task.initiative_id === initiative.id` |
-| **Dashboard** | Initiative API response | `getProgress(initiative)` - counts `initiative.tasks[]` array embedded in initiative object |
-
-The discrepancy occurs because:
-1. **Sidebar** correctly counts tasks by checking each task's `initiative_id` field
-2. **Dashboard** relies on the `initiative.tasks[]` array, which may be empty if:
-   - Tasks were linked via `initiative_id` but never added to `initiative_tasks` join table
-   - Legacy tasks created before bidirectional sync was implemented
-   - Data inconsistency between `tasks.initiative_id` and `initiative_tasks` table
-
-## Success Criteria
-
-- [ ] Dashboard "Active Initiatives" shows same progress counts as Sidebar for all initiatives
-- [ ] Progress calculation uses task store (canonical source) not embedded initiative.tasks array
-- [ ] Existing tests pass (`make web-test`)
-- [ ] No visual regression in Dashboard layout
-
-## Testing Requirements
-
-- [ ] Unit test: `DashboardInitiatives` renders correct progress from task store
-- [ ] Unit test: Progress shows 0/0 when initiative has no tasks in task store
-- [ ] Unit test: Component handles initiatives with tasks in both sources consistently
-- [ ] E2E test: Verify Dashboard and Sidebar show matching progress counts
-
-## Scope
-
-### In Scope
-- Modify `DashboardInitiatives` to use same progress calculation method as Sidebar
-- Pass tasks from task store to `DashboardInitiatives` component
-- Update Dashboard page to provide tasks to the component
-
-### Out of Scope
-- Fixing data consistency between `tasks.initiative_id` and `initiative_tasks` table (separate issue)
-- Modifying backend API response format
-- Changing Sidebar implementation
-- Adding new backend endpoints
-
-## Technical Approach
-
-The fix aligns Dashboard with Sidebar by using the same progress calculation method: counting tasks from the task store by `initiative_id` rather than relying on the embedded `initiative.tasks[]` array.
-
-### Files to Modify
-
-1. **`web/src/components/dashboard/DashboardInitiatives.tsx`**
-   - Add `tasks` prop to receive tasks from task store
-   - Change `getProgress()` to calculate progress using task store data (count tasks where `task.initiative_id === initiative.id`)
-   - Match the logic used in Sidebar's `getInitiativeProgress()`
-
-2. **`web/src/pages/Dashboard.tsx`**
-   - Pass `tasks` from task store to `DashboardInitiatives` component
-   - Tasks are already available via `useTaskStore((state) => state.tasks)`
-
-### Implementation Details
-
-**Current Dashboard getProgress (problematic):**
-```typescript
-function getProgress(initiative: Initiative): ProgressInfo {
-  const tasks = initiative.tasks || [];  // Uses embedded array - may be empty/stale
-  const total = tasks.length;
-  // ...
-}
-```
-
-**Fixed Dashboard getProgress:**
-```typescript
-function getProgress(initiativeId: string, tasks: Task[]): ProgressInfo {
-  const initiativeTasks = tasks.filter(t => t.initiative_id === initiativeId);
-  const total = initiativeTasks.length;
-  const completed = initiativeTasks.filter(
-    t => t.status === 'completed' || t.status === 'finished'
-  ).length;
-  // ...
-}
-```
-
-This matches the Sidebar's `getInitiativeProgress()` logic in `initiativeStore.ts:125-148`.
+The View Mode dropdown on the Board page is disabled and users cannot switch to swimlane view. This occurs because the initiative filter state persists in localStorage, and when the filter is active (even "Unassigned"), the swimlane toggle is intentionally disabled per design. However, the current behavior may be unexpected to users who don't realize a filter is active from a previous session.
 
 ## Bug Analysis
 
 ### Reproduction Steps
-1. Navigate to Dashboard (`/dashboard`)
-2. Observe "Active Initiatives" section showing initiative with "0/0" progress
-3. Check Sidebar showing same initiative with correct progress (e.g., "16/17")
+1. Navigate to the Board page and select an initiative filter (including "Unassigned")
+2. Navigate away from the page or close the browser
+3. Return to `/board` (without any URL parameters)
+4. Observe: View Mode dropdown shows "Flat" and is disabled
 
 ### Current Behavior
-Dashboard shows "0/0" because `initiative.tasks` array is empty/not populated even though tasks exist with matching `initiative_id`.
+- The initiative filter persists in localStorage (`orc_current_initiative_id`)
+- On page load, `initializeFromUrl()` restores the filter from localStorage
+- `swimlaneDisabled = currentInitiativeId !== null` evaluates to `true`
+- The ViewModeDropdown receives `disabled={true}`
+- The dropdown cannot be clicked/opened
 
 ### Expected Behavior
-Dashboard shows same count as Sidebar (e.g., "16/17") by counting tasks from task store.
+Two possible interpretations:
+1. **If filter IS active**: Dropdown should be disabled (current design) BUT this should be clearly communicated to the user
+2. **If no explicit filter**: Dropdown should be enabled, allowing swimlane view
+
+The bug report suggests scenario #2 - user expects no filter when URL has no `initiative` param.
 
 ### Root Cause
-Two different progress calculation methods:
-- Sidebar uses task store (correct, canonical source)
-- Dashboard uses embedded `initiative.tasks[]` (may be inconsistent)
+The root cause is a **design ambiguity** between URL-based filtering and localStorage persistence:
+- **Design intent**: localStorage persists filter selection for convenience
+- **User expectation**: Clean URL = no filter active
+- **Result**: Mismatch causes confusion
 
-### Verification
-After fix:
-1. Navigate to Dashboard
-2. Compare initiative progress counts with Sidebar
-3. Both should show identical progress for all initiatives
-4. Run `make web-test` - all tests pass
+The code at `Board.tsx:84` treats any non-null `currentInitiativeId` as "filter active":
+```typescript
+const swimlaneDisabled = currentInitiativeId !== null;
+```
+
+This includes values restored from localStorage, not just explicit user actions.
+
+## Success Criteria
+- [ ] View Mode dropdown is enabled when no initiative filter is explicitly active
+- [ ] View Mode dropdown is disabled only when user has actively selected an initiative filter in the current session OR URL param is present
+- [ ] Swimlane view is accessible when filter is not active
+- [ ] Initiative filter persistence behavior is clearly documented
+- [ ] E2E test validates dropdown enabled state on clean page load
+
+## Testing Requirements
+- [ ] Unit test: `initiativeStore.initializeFromUrl()` clears stale filters correctly
+- [ ] E2E test: View mode dropdown enabled on fresh `/board` navigation (after clearing localStorage)
+- [ ] E2E test: View mode dropdown disabled when initiative filter explicitly selected
+- [ ] E2E test: Swimlane view accessible and functional when dropdown enabled
+
+## Scope
+
+### In Scope
+- Fix the disabled state logic for ViewModeDropdown
+- Ensure clean URL navigation results in enabled dropdown
+- Maintain intentional disable when initiative filter IS active
+
+### Out of Scope
+- Changing localStorage persistence behavior (filter should still persist for convenience)
+- Modifying initiative filter dropdown behavior
+- UI changes to the ViewModeDropdown component itself
+- Changes to swimlane view functionality
+
+## Technical Approach
+
+The fix should distinguish between:
+1. **Active filter from user action**: Keep dropdown disabled
+2. **No filter / Clean navigation**: Enable dropdown
+
+### Option A: URL-based approach (Recommended)
+Only disable swimlane when URL has initiative param, not just when localStorage has a value:
+
+```typescript
+// In Board.tsx
+const [searchParams] = useSearchParams();
+const urlInitiativeFilter = searchParams.get('initiative');
+const swimlaneDisabled = urlInitiativeFilter !== null;
+```
+
+**Pros**: URL is the source of truth for sharing links; clean URL = clean state
+**Cons**: Changes current persistence behavior (filter won't persist across navigation)
+
+### Option B: Session-based flag
+Track whether the filter was explicitly set in current session:
+
+```typescript
+// In initiativeStore.ts
+filterSetThisSession: boolean; // true when user clicks initiative dropdown
+```
+
+**Pros**: Maintains localStorage persistence while fixing the issue
+**Cons**: More state to track; could still confuse users
+
+### Option C: Don't auto-restore filter on Board page
+Clear the initiative filter when navigating to Board page without URL param:
+
+```typescript
+// In Board.tsx useEffect
+useEffect(() => {
+    if (!searchParams.get('initiative')) {
+        selectInitiative(null);
+    }
+}, []);
+```
+
+**Pros**: Simple fix; clean URL = clean state
+**Cons**: Breaks current persistence design; filter doesn't persist when navigating around
+
+### Recommended Approach: Option A
+The URL should be the source of truth for the initiative filter. If user wants to maintain the filter, the URL param will be present. This aligns with:
+- CLAUDE.md: "URL param (`?initiative=xxx`) takes precedence over localStorage"
+- Browser back/forward navigation expectations
+- Shareable link expectations
+
+### Files to Modify
+- `web/src/pages/Board.tsx`: Change `swimlaneDisabled` logic to use URL param instead of store value
+- `web/e2e/board.spec.ts`: Add test for dropdown enabled on clean navigation
+
+## Verification
+After the fix:
+1. Navigate to `/board` with no URL params and clear localStorage
+2. View Mode dropdown should be enabled and show "Flat"
+3. Click dropdown, select "By Initiative"
+4. Swimlane view renders correctly
+5. Select an initiative filter from InitiativeDropdown
+6. View Mode dropdown becomes disabled
+7. Clear the initiative filter
+8. View Mode dropdown becomes enabled again
