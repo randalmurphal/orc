@@ -381,3 +381,65 @@
 	from { opacity: 0; }
 	to { opacity: 1; }
 }
+
+/* =============================================================================
+   MOBILE RESPONSIVE STYLES
+   ============================================================================= */
+
+/* Mobile breakpoint (max-width: 767px) */
+@media (max-width: 767px) {
+	/* Sidebar becomes a slide-out overlay on mobile */
+	.sidebar {
+		/* Always expanded width when visible on mobile */
+		width: var(--sidebar-width-expanded, 220px);
+		/* Start off-screen */
+		transform: translateX(-100%);
+		/* Add shadow for overlay effect */
+		box-shadow: var(--shadow-xl);
+	}
+
+	/* Show sidebar when mobile menu is open */
+	.sidebar.mobile-open {
+		transform: translateX(0);
+	}
+
+	/* Always show expanded content on mobile when open */
+	.sidebar.mobile-open .logo-section {
+		justify-content: space-between;
+	}
+
+	/* Hide the toggle button on mobile - use header hamburger instead */
+	.sidebar .toggle-btn {
+		display: none;
+	}
+
+	/* Ensure keyboard hint is hidden on mobile */
+	.sidebar .keyboard-hint {
+		display: none;
+	}
+
+	/* Show all nav labels on mobile (always expanded view) */
+	.sidebar .nav-label {
+		display: inline;
+	}
+
+	/* Show initiatives section on mobile */
+	.sidebar .initiatives-section {
+		display: block;
+	}
+
+	/* Show environment expanded content on mobile */
+	.sidebar .nav-group {
+		display: block;
+	}
+}
+
+/* Slide animation */
+@keyframes sidebar-slide-in {
+	from {
+		transform: translateX(-100%);
+	}
+	to {
+		transform: translateX(0);
+	}
+}

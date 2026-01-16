@@ -6,7 +6,7 @@ import { NotificationBar } from './NotificationBar';
 import { UrlParamSync } from './UrlParamSync';
 import { useGlobalShortcuts } from '@/hooks';
 import { KeyboardShortcutsHelp, ProjectSwitcher, NewTaskModal } from '@/components/overlays';
-import { useUIStore } from '@/stores';
+import { useUIStore, useMobileMenuOpen } from '@/stores';
 import './AppLayout.css';
 
 /**
@@ -33,6 +33,8 @@ export function AppLayout() {
 
 	// Sidebar state for layout margin
 	const sidebarExpanded = useUIStore((state) => state.sidebarExpanded);
+	const mobileMenuOpen = useMobileMenuOpen();
+	const closeMobileMenu = useUIStore((state) => state.closeMobileMenu);
 
 	// Close all modals
 	const closeModals = useCallback(() => {
@@ -56,6 +58,15 @@ export function AppLayout() {
 		<div className={`app-layout ${sidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
 			{/* Sync URL params with stores */}
 			<UrlParamSync />
+
+			{/* Mobile backdrop - visible when mobile menu is open */}
+			{mobileMenuOpen && (
+				<div
+					className="mobile-backdrop"
+					onClick={closeMobileMenu}
+					aria-hidden="true"
+				/>
+			)}
 
 			<Sidebar />
 			<div className="app-main">

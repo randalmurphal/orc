@@ -18,7 +18,8 @@ test.describe('Sidebar', () => {
 		await expect(sidebar).toHaveClass(/expanded/);
 
 		// Labels should be visible when expanded
-		const taskLabel = page.locator('.nav-label:has-text("Tasks")');
+		// Use exact text match to avoid matching "All Tasks"
+		const taskLabel = page.locator('.nav-label', { hasText: /^Tasks$/ });
 		await expect(taskLabel).toBeVisible();
 	});
 
@@ -43,7 +44,8 @@ test.describe('Sidebar', () => {
 		await expect(sidebar).not.toHaveClass(/expanded/);
 
 		// Labels should not be visible when collapsed
-		const taskLabel = page.locator('.nav-label:has-text("Tasks")');
+		// Use exact text match to avoid matching "All Tasks"
+		const taskLabel = page.locator('.nav-label', { hasText: /^Tasks$/ });
 		await expect(taskLabel).not.toBeVisible();
 	});
 
@@ -154,11 +156,11 @@ test.describe('Sidebar', () => {
 		await page.reload();
 
 		const sidebar = page.locator('.sidebar');
-		const mainArea = page.locator('.main-area');
+		const appLayout = page.locator('.app-layout');
 
-		// When expanded, both sidebar and main-area should reflect expanded state
+		// When expanded, both sidebar and app-layout should reflect expanded state
 		await expect(sidebar).toHaveClass(/expanded/);
-		await expect(mainArea).toHaveClass(/sidebar-expanded/);
+		await expect(appLayout).toHaveClass(/sidebar-expanded/);
 
 		// Collapse sidebar
 		const collapseBtn = page.locator('.toggle-btn');
@@ -168,8 +170,8 @@ test.describe('Sidebar', () => {
 		// Wait for sidebar to actually collapse (source of truth)
 		await expect(sidebar).not.toHaveClass(/expanded/, { timeout: 2000 });
 
-		// Main area should reflect collapsed state (reactive binding from same store)
-		await expect(mainArea).not.toHaveClass(/sidebar-expanded/, { timeout: 2000 });
+		// App layout should reflect collapsed state (reactive binding from same store)
+		await expect(appLayout).toHaveClass(/sidebar-collapsed/, { timeout: 2000 });
 	});
 
 	test('should show keyboard hint when expanded', async ({ page }) => {

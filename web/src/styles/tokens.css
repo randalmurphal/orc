@@ -231,6 +231,14 @@
   /* Header */
   --header-height: 56px;
 
+  /* Breakpoints (as values, used with @media queries directly) */
+  /* Note: CSS custom properties can't be used in @media queries,
+     so breakpoint values are documented here for reference:
+     - Mobile: 0 - 767px
+     - Tablet: 768px - 1023px
+     - Desktop: 1024px+
+  */
+
   /* ==========================================================================
      EFFECTS
      ========================================================================== */

@@ -48,6 +48,9 @@ interface UIStore {
 	// Sidebar state
 	sidebarExpanded: boolean;
 
+	// Mobile sidebar state (separate from desktop expanded state)
+	mobileMenuOpen: boolean;
+
 	// WebSocket connection status
 	wsStatus: ConnectionStatus;
 
@@ -57,6 +60,11 @@ interface UIStore {
 	// Sidebar actions
 	toggleSidebar: () => void;
 	setSidebarExpanded: (expanded: boolean) => void;
+
+	// Mobile menu actions
+	openMobileMenu: () => void;
+	closeMobileMenu: () => void;
+	toggleMobileMenu: () => void;
 
 	// WebSocket actions
 	setWsStatus: (status: ConnectionStatus) => void;
@@ -80,6 +88,7 @@ interface UIStore {
 
 const initialState = {
 	sidebarExpanded: true, // Will be overridden by getStoredSidebarExpanded() on init
+	mobileMenuOpen: false,
 	wsStatus: 'disconnected' as ConnectionStatus,
 	toasts: [] as Toast[],
 };
@@ -137,6 +146,12 @@ export const useUIStore = create<UIStore>()(
 				set({ sidebarExpanded: expanded });
 			},
 
+			// Mobile menu actions
+			openMobileMenu: () => set({ mobileMenuOpen: true }),
+			closeMobileMenu: () => set({ mobileMenuOpen: false }),
+			toggleMobileMenu: () =>
+				set((state: UIStore) => ({ mobileMenuOpen: !state.mobileMenuOpen })),
+
 			// WebSocket actions
 			setWsStatus: (status: ConnectionStatus) => set({ wsStatus: status }),
 
@@ -177,6 +192,7 @@ useUIStore.subscribe(
 
 // Selector hooks
 export const useSidebarExpanded = () => useUIStore((state: UIStore) => state.sidebarExpanded);
+export const useMobileMenuOpen = () => useUIStore((state: UIStore) => state.mobileMenuOpen);
 export const useWsStatus = () => useUIStore((state: UIStore) => state.wsStatus);
 export const useToasts = () => useUIStore((state: UIStore) => state.toasts);
 
