@@ -583,6 +583,7 @@ Patterns, gotchas, and decisions learned during development.
 | Date shows '12/31/1' instead of '12/31/2001' | Fixed: `toLocaleDateString()` without options can produce abbreviated years; use explicit options `{ year: 'numeric', month: 'numeric', day: 'numeric' }` to ensure 4-digit year display; also add null/invalid date guards | TASK-255 |
 | Dashboard initiative progress shows 0/0 | Fixed: `DashboardInitiatives` was calculating progress from `initiative.tasks` (unpopulated by API) while Sidebar used `getInitiativeProgress(tasks)` from task store; now both use task store for consistent counts | TASK-276 |
 | Project selector shows 'Select project' after refresh | Fixed: `useCurrentProject()` was calling `state.getCurrentProject()` method which Zustand couldn't track for dependencies; now computes directly in selector `state.projects.find(p => p.id === state.currentProjectId)` to properly track both `projects` and `currentProjectId` | TASK-266 |
+| E2E click actions timing out on some elements | Fixed: CSS animations/transitions caused Playwright "element not stable" timeouts; `fixtures.ts` now injects CSS to disable all animations during E2E tests (`animation-duration: 0.01ms`, `transition-duration: 0.01ms`) | TASK-270 |
 
 ### Decisions
 | Decision | Rationale | Source |
