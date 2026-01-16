@@ -74,6 +74,13 @@ Components expose `data-*` attributes for CSS styling:
 
 Global animations defined in `index.css` apply to all Radix components.
 
+## Active Usage
+
+| Component | Radix Package | Usage |
+|-----------|---------------|-------|
+| `TaskCard` | `@radix-ui/react-dropdown-menu` | Quick menu for queue/priority changes |
+| `Modal` | `@radix-ui/react-dialog` | Base modal dialogs |
+
 ## Consequences
 
 **Positive**:

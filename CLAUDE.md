@@ -522,6 +522,7 @@ Patterns, gotchas, and decisions learned during development.
 | Git mutex for compound operations | `Git` struct has mutex protecting compound operations (worktree creation, checkpoint, rebase, conflict detection); individual git commands are process-atomic and don't need locking; worktree instances get independent mutexes for parallel execution | TASK-235 |
 | Finalize tracker atomic tryStart | `finalizeTracker.tryStart()` atomically checks and sets finalize state to prevent TOCTOU race; returns existing state if pending/running, allows replacement if completed/failed (retry); eliminates race where concurrent requests both pass the check and both start finalize | TASK-236 |
 | Worker process group cleanup | Workers set `Setpgid: true` on commands to create process groups; `Stop()` kills entire process group via negative PID (`syscall.Kill(-pid, SIGKILL)`); prevents orphaned MCP processes (playwright, chromium) after worker shutdown; platform-specific files: `worker_unix.go` (real), `worker_windows.go` (no-op) | TASK-222 |
+| TaskCard Radix DropdownMenu | TaskCard quick menu uses `@radix-ui/react-dropdown-menu` for accessible menu; trigger wraps Button with `DropdownMenu.Trigger asChild`; content portals via `DropdownMenu.Portal`; uses `data-highlighted` for keyboard focus, `onCloseAutoFocus` prevents refocus; CSS class `.quick-menu-dropdown` for styling | TASK-212 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |

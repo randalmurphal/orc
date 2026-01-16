@@ -7,12 +7,13 @@
  * - Phase indicator when running
  * - Weight badge, blocked indicator, initiative badge
  * - Action buttons (run/pause/resume/finalize)
- * - Quick menu for queue/priority changes
+ * - Quick menu for queue/priority changes (Radix DropdownMenu)
  * - Drag-and-drop support
  */
 
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { Button } from '@/components/ui/Button';
 import type { Task, TaskPriority, TaskQueue } from '@/lib/types';
@@ -67,7 +68,7 @@ export function TaskCard({
 
 	const [actionLoading, setActionLoading] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
-	const [showQuickMenu, setShowQuickMenu] = useState(false);
+	const [quickMenuOpen, setQuickMenuOpen] = useState(false);
 	const [quickMenuLoading, setQuickMenuLoading] = useState(false);
 	const [finalizeLoading, setFinalizeLoading] = useState(false);
 
@@ -149,28 +150,16 @@ export function TaskCard({
 				e.preventDefault();
 				navigate(`/tasks/${task.id}`);
 			}
-			if (e.key === 'Escape' && showQuickMenu) {
-				setShowQuickMenu(false);
-			}
+			// Note: Escape handling for dropdown is managed by Radix DropdownMenu
 		},
-		[task.id, showQuickMenu, navigate]
+		[task.id, navigate]
 	);
 
 	// Quick menu handlers
-	const toggleQuickMenu = useCallback((e: React.MouseEvent) => {
-		e.stopPropagation();
-		e.preventDefault();
-		setShowQuickMenu((prev) => !prev);
-	}, []);
-
-	const closeQuickMenu = useCallback(() => {
-		setShowQuickMenu(false);
-	}, []);
-
 	const setQueueValue = useCallback(
 		async (newQueue: TaskQueue) => {
 			if (newQueue === queue) {
-				setShowQuickMenu(false);
+				setQuickMenuOpen(false);
 				return;
 			}
 			setQuickMenuLoading(true);
@@ -181,7 +170,7 @@ export function TaskCard({
 				console.error('Failed to update queue:', err);
 			} finally {
 				setQuickMenuLoading(false);
-				setShowQuickMenu(false);
+				setQuickMenuOpen(false);
 			}
 		},
 		[task.id, queue, updateTaskInStore]
@@ -190,7 +179,7 @@ export function TaskCard({
 	const setPriorityValue = useCallback(
 		async (newPriority: TaskPriority) => {
 			if (newPriority === priority) {
-				setShowQuickMenu(false);
+				setQuickMenuOpen(false);
 				return;
 			}
 			setQuickMenuLoading(true);
@@ -201,7 +190,7 @@ export function TaskCard({
 				console.error('Failed to update priority:', err);
 			} finally {
 				setQuickMenuLoading(false);
-				setShowQuickMenu(false);
+				setQuickMenuOpen(false);
 			}
 		},
 		[task.id, priority, updateTaskInStore]
@@ -523,156 +512,115 @@ export function TaskCard({
 						</Button>
 					)}
 
-					{/* Quick menu for queue/priority */}
-					<div className="quick-menu">
-						<Button
-							variant="ghost"
-							size="sm"
-							iconOnly
-							className="action-btn more"
-							onClick={toggleQuickMenu}
-							title="Quick actions"
-							aria-label="Quick actions"
-							aria-expanded={showQuickMenu}
-							aria-haspopup="true"
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="currentColor"
-								stroke="none"
+					{/* Quick menu for queue/priority - Radix DropdownMenu */}
+					<DropdownMenu.Root open={quickMenuOpen} onOpenChange={setQuickMenuOpen}>
+						<DropdownMenu.Trigger asChild>
+							<Button
+								variant="ghost"
+								size="sm"
+								iconOnly
+								className="action-btn more"
+								title="Quick actions"
+								aria-label="Quick actions"
 							>
-								<circle cx="12" cy="5" r="2" />
-								<circle cx="12" cy="12" r="2" />
-								<circle cx="12" cy="19" r="2" />
-							</svg>
-						</Button>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="currentColor"
+									stroke="none"
+								>
+									<circle cx="12" cy="5" r="2" />
+									<circle cx="12" cy="12" r="2" />
+									<circle cx="12" cy="19" r="2" />
+								</svg>
+							</Button>
+						</DropdownMenu.Trigger>
 
-						{showQuickMenu && (
-							<>
-								<div
-									className="quick-menu-backdrop"
-									onClick={closeQuickMenu}
-									onKeyDown={(e) => e.key === 'Escape' && closeQuickMenu()}
-								/>
-								<div className="quick-menu-dropdown" role="menu">
-									{quickMenuLoading ? (
-										<div className="menu-loading">
-											<div className="spinner" />
-										</div>
-									) : (
-										<>
-											{/* Queue section */}
-											<div className="menu-section">
-												<div className="menu-label">Queue</div>
-												<Button
-													variant="ghost"
-													size="sm"
-													className={`menu-item ${queue === 'active' ? 'selected' : ''}`}
-													onClick={() => setQueueValue('active')}
-													role="menuitem"
-													leftIcon={
-														<span className="menu-icon active-icon" />
-													}
-												>
-													Active
-												</Button>
-												<Button
-													variant="ghost"
-													size="sm"
-													className={`menu-item ${queue === 'backlog' ? 'selected' : ''}`}
-													onClick={() => setQueueValue('backlog')}
-													role="menuitem"
-													leftIcon={
-														<span className="menu-icon backlog-icon" />
-													}
-												>
-													Backlog
-												</Button>
-											</div>
+						<DropdownMenu.Portal>
+							<DropdownMenu.Content
+								className="quick-menu-dropdown"
+								sideOffset={4}
+								align="end"
+								onCloseAutoFocus={(e) => e.preventDefault()}
+							>
+								{quickMenuLoading ? (
+									<div className="menu-loading">
+										<div className="spinner" />
+									</div>
+								) : (
+									<>
+										{/* Queue section */}
+										<DropdownMenu.Label className="menu-label">
+											Queue
+										</DropdownMenu.Label>
+										<DropdownMenu.Item
+											className={`menu-item ${queue === 'active' ? 'selected' : ''}`}
+											onSelect={() => setQueueValue('active')}
+										>
+											<span className="menu-icon active-icon" />
+											Active
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											className={`menu-item ${queue === 'backlog' ? 'selected' : ''}`}
+											onSelect={() => setQueueValue('backlog')}
+										>
+											<span className="menu-icon backlog-icon" />
+											Backlog
+										</DropdownMenu.Item>
 
-											<div className="menu-divider" />
+										<DropdownMenu.Separator className="menu-divider" />
 
-											{/* Priority section */}
-											<div className="menu-section">
-												<div className="menu-label">Priority</div>
-												<Button
-													variant="ghost"
-													size="sm"
-													className={`menu-item ${priority === 'critical' ? 'selected' : ''}`}
-													onClick={() => setPriorityValue('critical')}
-													role="menuitem"
-													leftIcon={
-														<span
-															className="menu-icon priority-icon"
-															style={{
-																background: 'var(--status-error)',
-															}}
-														/>
-													}
-												>
-													Critical
-												</Button>
-												<Button
-													variant="ghost"
-													size="sm"
-													className={`menu-item ${priority === 'high' ? 'selected' : ''}`}
-													onClick={() => setPriorityValue('high')}
-													role="menuitem"
-													leftIcon={
-														<span
-															className="menu-icon priority-icon"
-															style={{
-																background: 'var(--status-warning)',
-															}}
-														/>
-													}
-												>
-													High
-												</Button>
-												<Button
-													variant="ghost"
-													size="sm"
-													className={`menu-item ${priority === 'normal' ? 'selected' : ''}`}
-													onClick={() => setPriorityValue('normal')}
-													role="menuitem"
-													leftIcon={
-														<span
-															className="menu-icon priority-icon"
-															style={{
-																background: 'var(--text-muted)',
-															}}
-														/>
-													}
-												>
-													Normal
-												</Button>
-												<Button
-													variant="ghost"
-													size="sm"
-													className={`menu-item ${priority === 'low' ? 'selected' : ''}`}
-													onClick={() => setPriorityValue('low')}
-													role="menuitem"
-													leftIcon={
-														<span
-															className="menu-icon priority-icon"
-															style={{
-																background: 'var(--text-disabled)',
-															}}
-														/>
-													}
-												>
-													Low
-												</Button>
-											</div>
-										</>
-									)}
-								</div>
-							</>
-						)}
-					</div>
+										{/* Priority section */}
+										<DropdownMenu.Label className="menu-label">
+											Priority
+										</DropdownMenu.Label>
+										<DropdownMenu.Item
+											className={`menu-item ${priority === 'critical' ? 'selected' : ''}`}
+											onSelect={() => setPriorityValue('critical')}
+										>
+											<span
+												className="menu-icon priority-icon"
+												style={{ background: 'var(--status-error)' }}
+											/>
+											Critical
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											className={`menu-item ${priority === 'high' ? 'selected' : ''}`}
+											onSelect={() => setPriorityValue('high')}
+										>
+											<span
+												className="menu-icon priority-icon"
+												style={{ background: 'var(--status-warning)' }}
+											/>
+											High
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											className={`menu-item ${priority === 'normal' ? 'selected' : ''}`}
+											onSelect={() => setPriorityValue('normal')}
+										>
+											<span
+												className="menu-icon priority-icon"
+												style={{ background: 'var(--text-muted)' }}
+											/>
+											Normal
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											className={`menu-item ${priority === 'low' ? 'selected' : ''}`}
+											onSelect={() => setPriorityValue('low')}
+										>
+											<span
+												className="menu-icon priority-icon"
+												style={{ background: 'var(--text-disabled)' }}
+											/>
+											Low
+										</DropdownMenu.Item>
+									</>
+								)}
+							</DropdownMenu.Content>
+						</DropdownMenu.Portal>
+					</DropdownMenu.Root>
 				</div>
 			</div>
 		</article>

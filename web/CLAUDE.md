@@ -1831,10 +1831,15 @@ All action buttons use the `Button` primitive (`variant="ghost" size="sm" iconOn
 - **Finished**: Merge info (commit SHA + target branch)
 - **Dragging**: Reduced opacity
 
-**Quick Menu:**
-Menu items use `Button` primitive (`variant="ghost" size="sm"`) with `leftIcon` for indicator dots:
-- Queue selection (Active/Backlog)
-- Priority selection (Critical/High/Normal/Low)
+**Quick Menu (Radix DropdownMenu):**
+Uses `@radix-ui/react-dropdown-menu` for accessible menu with keyboard navigation:
+- Trigger: `Button` primitive (`variant="ghost" size="sm" iconOnly`) wrapped with `DropdownMenu.Trigger`
+- Menu content portals to `document.body` via `DropdownMenu.Portal`
+- Queue section: Active/Backlog with indicator dots
+- Priority section: Critical/High/Normal/Low with color-coded dots
+- Loading state spinner while updating
+- `data-highlighted` attribute for keyboard/hover focus
+- Escape key and click-outside close automatically
 - Updates via API and store
 
 **Drag-Drop:**
