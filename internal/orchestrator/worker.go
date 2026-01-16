@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -295,7 +296,15 @@ func (w *Worker) killProcessGroup() {
 	pid := cmd.Process.Pid
 	if pid > 0 {
 		// killProcessGroup is platform-specific (unix vs windows)
-		_ = killProcessGroup(pid)
+		if err := killProcessGroup(pid); err != nil {
+			// Log at debug level - ESRCH (no such process) is expected when
+			// the process already exited before we tried to kill it.
+			slog.Debug("process group cleanup",
+				"task_id", w.TaskID,
+				"pid", pid,
+				"error", err,
+			)
+		}
 	}
 }
 
