@@ -126,7 +126,7 @@ Next steps:
 List tasks.
 
 ```bash
-orc list [--status <status>] [--weight <weight>] [--category <category>] [--queue <queue>] [--all]
+orc list [--status <status>] [--weight <weight>] [--category <category>] [--queue <queue>] [--limit <n>] [--all]
 ```
 
 | Option | Description | Default |
@@ -135,6 +135,7 @@ orc list [--status <status>] [--weight <weight>] [--category <category>] [--queu
 | `--weight`, `-w` | Filter by weight | all |
 | `--category`, `-c` | Filter by category: `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | all |
 | `--queue`, `-Q` | Filter by queue: `active`, `backlog` | all |
+| `--limit`, `-n` | Limit output to N most recent tasks | 0 (all) |
 | `--all`, `-a` | Include completed | false |
 
 **Output**:
@@ -142,6 +143,14 @@ orc list [--status <status>] [--weight <weight>] [--category <category>] [--queu
 ID        WEIGHT   STATUS      PHASE      TITLE
 TASK-001  medium   running     implement  Add user auth
 TASK-002  small    paused      research   Fix rate limiting
+```
+
+**Examples**:
+```bash
+orc list                        # List all tasks
+orc list -n 5                   # Show 5 most recent tasks
+orc list --status pending -n 10 # Show 10 most recent pending tasks
+orc list -i INIT-001 -n 3       # Show 3 most recent tasks in initiative
 ```
 
 **Note:** Queue, priority, and category are primarily managed via the Web UI or API. See [API Reference](../API_REFERENCE.md) for PATCH `/api/tasks/:id` to set these fields.
