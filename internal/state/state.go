@@ -418,6 +418,8 @@ func (s *State) GetSessionID() string {
 }
 
 // StartExecution records that an executor process has started running this task.
+// Also sets s.StartedAt if not already set (for fresh runs), preserving existing
+// start time for resumed tasks to ensure Elapsed() returns the correct total duration.
 func (s *State) StartExecution(pid int, hostname string) {
 	now := time.Now()
 	s.Execution = &ExecutionInfo{
@@ -425,6 +427,11 @@ func (s *State) StartExecution(pid int, hostname string) {
 		Hostname:      hostname,
 		StartedAt:     now,
 		LastHeartbeat: now,
+	}
+	// Set task-level StartedAt if not already set (fresh runs)
+	// For resumed tasks, preserve the original start time
+	if s.StartedAt.IsZero() {
+		s.StartedAt = now
 	}
 	s.UpdatedAt = now
 }

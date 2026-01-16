@@ -537,3 +537,68 @@ func TestElapsed(t *testing.T) {
 		t.Errorf("Elapsed() = %v, want ~5m", elapsed3)
 	}
 }
+
+func TestStartExecution_SetsStartedAt(t *testing.T) {
+	// Test 1: StartExecution on fresh state (zero StartedAt) should set StartedAt
+	// This is the key bug fix - loaded states have zero StartedAt
+	s := &State{
+		TaskID: "TASK-001",
+		Phases: make(map[string]*PhaseState),
+	}
+	if !s.StartedAt.IsZero() {
+		t.Error("Pre-condition: StartedAt should be zero for loaded state simulation")
+	}
+
+	beforeExec := time.Now()
+	s.StartExecution(12345, "testhost")
+	afterExec := time.Now()
+
+	// Verify StartedAt was set
+	if s.StartedAt.IsZero() {
+		t.Fatal("StartedAt should not be zero after StartExecution")
+	}
+
+	// Verify StartedAt is within expected range
+	if s.StartedAt.Before(beforeExec) || s.StartedAt.After(afterExec) {
+		t.Errorf("StartedAt = %v, want between %v and %v", s.StartedAt, beforeExec, afterExec)
+	}
+
+	// Verify Elapsed() now returns a sensible value
+	elapsed := s.Elapsed()
+	if elapsed < 0 || elapsed > time.Second {
+		t.Errorf("Elapsed() = %v, want small positive duration", elapsed)
+	}
+
+	// Verify Execution info was also set
+	if s.Execution == nil {
+		t.Fatal("Execution should not be nil after StartExecution")
+	}
+	if s.Execution.PID != 12345 {
+		t.Errorf("Execution.PID = %d, want 12345", s.Execution.PID)
+	}
+	if s.Execution.Hostname != "testhost" {
+		t.Errorf("Execution.Hostname = %s, want testhost", s.Execution.Hostname)
+	}
+
+	// Test 2: StartExecution on resumed state (existing StartedAt) should preserve original
+	// This ensures we don't reset StartedAt when resuming a paused task
+	originalStartTime := time.Now().Add(-10 * time.Minute)
+	s2 := &State{
+		TaskID:    "TASK-002",
+		StartedAt: originalStartTime,
+		Phases:    make(map[string]*PhaseState),
+	}
+
+	s2.StartExecution(67890, "otherhost")
+
+	// Verify original StartedAt was preserved
+	if !s2.StartedAt.Equal(originalStartTime) {
+		t.Errorf("StartedAt = %v, want %v (should preserve original for resumed tasks)", s2.StartedAt, originalStartTime)
+	}
+
+	// Verify Elapsed() returns the full time since original start
+	elapsed2 := s2.Elapsed()
+	if elapsed2 < 9*time.Minute || elapsed2 > 11*time.Minute {
+		t.Errorf("Elapsed() = %v, want ~10m (should reflect original start time)", elapsed2)
+	}
+}
