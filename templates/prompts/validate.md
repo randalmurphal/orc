@@ -100,12 +100,34 @@ npm test
 pytest -v
 ```
 
-### Step 4: Verify Build
+### Step 4: Verify Build and Linting
 
 ```bash
+# Build verification
 go build ./...
-# Ensure clean build with no warnings
+
+# Linting verification (REQUIRED)
+golangci-lint run ./...
+
+# If golangci-lint not available, at minimum:
+go vet ./...
+
+# For Node projects
+npm run build
+npm run lint
+
+# For Python projects
+python -m py_compile $(find . -name "*.py" -not -path "./.venv/*")
+ruff check .
 ```
+
+**IMPORTANT**: Both build AND linting must pass before proceeding.
+
+If linting fails:
+1. Fix all linting errors
+2. For Go errcheck issues: use `_ = functionCall()` to explicitly ignore when safe
+3. For deferred Close(): wrap as `defer func() { _ = x.Close() }()`
+4. Re-run linter until clean
 
 ### Step 5: Sync with Target Branch
 
@@ -131,6 +153,7 @@ If there are conflicts:
 - [ ] All success criteria verified
 - [ ] All tests passing
 - [ ] Build succeeds
+- [ ] **Linting passes** (golangci-lint/npm lint/ruff - 0 errors)
 - [ ] No console errors (for UI)
 - [ ] No failed network requests (for UI)
 - [ ] Documentation updated (if needed)
@@ -171,6 +194,7 @@ If there are conflicts:
 
 - [x] All tests passing
 - [x] Build succeeds
+- [x] Linting passes
 - [x] No console errors
 - [x] No failed network requests
 
@@ -202,6 +226,7 @@ Ready for merge: YES
 **Criteria Verified**: [count]/[total]
 **E2E Tests**: [count] passed (if applicable)
 **Build**: Clean
+**Linting**: ✅ passed
 **Commit**: [commit SHA]
 
 <phase_complete>true</phase_complete>

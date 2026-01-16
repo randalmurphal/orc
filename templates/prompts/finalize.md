@@ -140,19 +140,29 @@ If tests fail:
 3. Fix the resolution (don't just fix the test)
 4. Re-run full test suite
 
-### Step 6: Verify Build
+### Step 6: Verify Build and Linting
 
 ```bash
 # For Go projects
 go build ./...
 go vet ./...
+golangci-lint run ./...  # REQUIRED: Full linter suite including errcheck
 
 # For Node projects
 npm run build
+npm run lint
 
 # For Python projects
 python -m py_compile $(find . -name "*.py" -not -path "./.venv/*")
+ruff check .
 ```
+
+**IMPORTANT**: Both build AND linting must pass. This is the last gate before merge.
+
+If linting fails after conflict resolution:
+1. Fix all linting errors introduced during merge
+2. Particularly watch for errcheck issues in new/modified code
+3. Re-run linter until clean
 
 ### Step 7: Risk Assessment
 
