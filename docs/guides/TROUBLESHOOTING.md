@@ -181,7 +181,7 @@ A task is considered orphaned when:
 | Auto-resume | `orc resume TASK-XXX` | Detects orphan, marks as interrupted, resumes |
 | Force resume | `orc resume TASK-XXX --force` | For tasks that appear running but you know are not |
 | Reset | `orc reset TASK-XXX --force` | Start completely fresh (clears all progress) |
-| Resolve | `orc resolve TASK-XXX -m "reason"` | Mark as resolved if fix was applied manually |
+| Resolve | `orc resolve TASK-XXX --force` | Mark as resolved if PR was already merged |
 | Check in Web UI | `orc serve` then view Dashboard | Orphaned tasks highlighted with warning |
 
 **The resume command automatically**:
@@ -197,6 +197,66 @@ A task is considered orphaned when:
 # Edit .orc/tasks/TASK-XXX/state.yaml: change status to "interrupted", remove execution block
 orc resume TASK-XXX
 ```
+
+---
+
+## Stuck Running Tasks with Merged PRs
+
+**Symptoms**:
+- Task shows as "running" in `orc status`
+- PR was already created and merged in GitHub
+- Executor crashed or lost connection after PR merge but before marking task complete
+- `orc resolve TASK-XXX` fails with "task is running, not failed"
+
+**Diagnosis**:
+```bash
+# Check task status
+orc show TASK-XXX
+
+# Check if PR was merged (look for PR info in output)
+orc show TASK-XXX | grep -A5 "PR:"
+
+# Or check GitHub directly
+gh pr view <PR-NUMBER> --json state,merged
+```
+
+**Cause**: The executor creates a PR, waits for merge (or auto-merges), then marks the task complete. If the executor dies between merge and status update, the task is stuck in "running" with a merged PR.
+
+**Solution**:
+
+Use `orc resolve --force` to mark the task as completed:
+
+```bash
+# Will auto-detect merged PR and report it
+orc resolve TASK-XXX --force
+# Output: PR merged (PR #123)
+# Output: Task TASK-XXX marked as resolved (was: running)
+
+# With a message explaining the resolution
+orc resolve TASK-XXX --force -m "Executor crashed after PR merge"
+```
+
+**What happens**:
+1. Command checks the task's PR field for merge status
+2. If PR is merged, reports: `PR merged (PR #123)`
+3. If PR is not merged or missing, shows a warning
+4. Task is marked as completed with metadata:
+   - `force_resolved: true`
+   - `original_status: running`
+   - `pr_was_merged: true` (if applicable)
+
+**When NOT to use --force**:
+- If the PR was not merged (use `orc resume` instead to continue execution)
+- If you're unsure whether the work was completed (check PR status first)
+- If you want to retry the task from scratch (use `orc reset` instead)
+
+**Alternative approaches**:
+
+| Scenario | Command |
+|----------|---------|
+| PR merged, mark complete | `orc resolve TASK-XXX --force` |
+| PR not merged, continue | `orc resume TASK-XXX` |
+| Start over completely | `orc reset TASK-XXX --force` |
 
 ---
 

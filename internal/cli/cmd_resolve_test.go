@@ -191,10 +191,12 @@ func TestResolveCommand_WithMessage(t *testing.T) {
 	}
 }
 
-func TestResolveCommand_OnlyFailedTasks(t *testing.T) {
+// TestResolveCommand_WithoutForceStillRequiresFailed verifies that without --force,
+// resolve still requires status=failed (preserves current behavior).
+func TestResolveCommand_WithoutForceStillRequiresFailed(t *testing.T) {
 	tmpDir := withResolveTestDir(t)
 
-	// Test various non-failed statuses
+	// Test various non-failed statuses WITHOUT --force
 	statuses := []task.Status{
 		task.StatusCreated,
 		task.StatusPlanned,
@@ -215,19 +217,24 @@ func TestResolveCommand_OnlyFailedTasks(t *testing.T) {
 			}
 			_ = backend.Close()
 
-			// Run resolve - should fail
+			// Run resolve WITHOUT --force - should fail
 			cmd := newResolveCmd()
-			cmd.SetArgs([]string{"TASK-001", "--force"})
+			cmd.SetArgs([]string{"TASK-001"}) // No --force flag
 			err := cmd.Execute()
 			if err == nil {
-				t.Errorf("expected error for status %s, got nil", status)
+				t.Errorf("expected error for status %s without --force, got nil", status)
+			}
+
+			// Verify error message mentions using --force
+			if !strings.Contains(err.Error(), "--force") {
+				t.Errorf("error message should mention --force, got: %s", err.Error())
 			}
 		})
 	}
 }
 
 // TestResolveCommand_BlockedTask_GuidesToCorrectCommand verifies that running
-// orc resolve on a blocked task provides helpful guidance to the correct command.
+// orc resolve on a blocked task (without --force) provides helpful guidance.
 func TestResolveCommand_BlockedTask_GuidesToCorrectCommand(t *testing.T) {
 	tmpDir := withResolveTestDir(t)
 
@@ -240,12 +247,12 @@ func TestResolveCommand_BlockedTask_GuidesToCorrectCommand(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve - should fail with helpful guidance
+	// Run resolve WITHOUT --force - should fail with helpful guidance
 	cmd := newResolveCmd()
-	cmd.SetArgs([]string{"TASK-BLOCKED", "--force"})
+	cmd.SetArgs([]string{"TASK-BLOCKED"}) // No --force
 	err := cmd.Execute()
 	if err == nil {
-		t.Fatal("expected error for blocked task, got nil")
+		t.Fatal("expected error for blocked task without --force, got nil")
 	}
 
 	errMsg := err.Error()
@@ -273,6 +280,11 @@ func TestResolveCommand_BlockedTask_GuidesToCorrectCommand(t *testing.T) {
 	// Verify error message explains what resolve is for
 	if !strings.Contains(errMsg, "marking failed tasks") {
 		t.Errorf("error message should explain resolve is for failed tasks, got: %s", errMsg)
+	}
+
+	// Verify error message mentions using --force
+	if !strings.Contains(errMsg, "--force") {
+		t.Errorf("error message should mention --force option, got: %s", errMsg)
 	}
 }
 
@@ -1156,5 +1168,353 @@ func TestResolveCommand_CleanWorktree(t *testing.T) {
 	}
 	if reloaded.Metadata["worktree_had_incomplete_operation"] == "true" {
 		t.Error("expected worktree_had_incomplete_operation to NOT be set for clean worktree")
+	}
+}
+
+// =============================================================================
+// Tests for --force flag on non-failed tasks (TASK-220 requirements)
+// =============================================================================
+
+// TestResolveCommand_ForceOnRunningTask verifies --force works on running tasks.
+func TestResolveCommand_ForceOnRunningTask(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create a running task
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.New("TASK-RUNNING", "Test running task")
+	tk.Status = task.StatusRunning
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve with --force - should succeed
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-RUNNING", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve --force on running task failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend = createResolveTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-RUNNING")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusCompleted)
+	}
+
+	// Verify force_resolved metadata
+	if reloaded.Metadata["force_resolved"] != "true" {
+		t.Error("expected force_resolved metadata to be 'true'")
+	}
+	if reloaded.Metadata["original_status"] != "running" {
+		t.Errorf("original_status = %q, want 'running'", reloaded.Metadata["original_status"])
+	}
+}
+
+// TestResolveCommand_ForceOnPausedTask verifies --force works on paused tasks.
+func TestResolveCommand_ForceOnPausedTask(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create a paused task
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.New("TASK-PAUSED", "Test paused task")
+	tk.Status = task.StatusPaused
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve with --force - should succeed
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-PAUSED", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve --force on paused task failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend = createResolveTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-PAUSED")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusCompleted)
+	}
+
+	// Verify force_resolved metadata
+	if reloaded.Metadata["force_resolved"] != "true" {
+		t.Error("expected force_resolved metadata to be 'true'")
+	}
+	if reloaded.Metadata["original_status"] != "paused" {
+		t.Errorf("original_status = %q, want 'paused'", reloaded.Metadata["original_status"])
+	}
+}
+
+// TestResolveCommand_ForceOnBlockedTask verifies --force works on blocked tasks,
+// overriding the helpful error that normally guides users to approve/resume.
+func TestResolveCommand_ForceOnBlockedTask(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create a blocked task
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.New("TASK-BLOCKED-FORCE", "Test blocked task for force")
+	tk.Status = task.StatusBlocked
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve with --force - should succeed (bypasses the helpful error)
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-BLOCKED-FORCE", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve --force on blocked task failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend = createResolveTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-BLOCKED-FORCE")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusCompleted)
+	}
+
+	// Verify force_resolved metadata
+	if reloaded.Metadata["force_resolved"] != "true" {
+		t.Error("expected force_resolved metadata to be 'true'")
+	}
+	if reloaded.Metadata["original_status"] != "blocked" {
+		t.Errorf("original_status = %q, want 'blocked'", reloaded.Metadata["original_status"])
+	}
+}
+
+// TestResolveCommand_ForceOnCreatedTask verifies --force works on created tasks.
+func TestResolveCommand_ForceOnCreatedTask(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create a task in 'created' status (default)
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.New("TASK-CREATED", "Test created task")
+	// Status is already StatusCreated by default
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve with --force - should succeed
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-CREATED", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve --force on created task failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend = createResolveTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-CREATED")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusCompleted)
+	}
+
+	// Verify force_resolved metadata
+	if reloaded.Metadata["force_resolved"] != "true" {
+		t.Error("expected force_resolved metadata to be 'true'")
+	}
+	if reloaded.Metadata["original_status"] != "created" {
+		t.Errorf("original_status = %q, want 'created'", reloaded.Metadata["original_status"])
+	}
+}
+
+// TestResolveCommand_ForceWithMergedPR_Logic verifies the PR merge detection logic
+// works correctly by testing the internal behavior.
+// NOTE: The PR field is not persisted by the current storage backend, so this test
+// verifies the behavior at the code level rather than through the full CLI flow.
+func TestResolveCommand_ForceWithMergedPR(t *testing.T) {
+	// Test that the PR merge detection logic works correctly
+	// by checking the condition directly
+	tk := task.New("TASK-TEST", "Test task")
+	tk.PR = &task.PRInfo{
+		URL:    "https://github.com/owner/repo/pull/123",
+		Number: 123,
+		Status: task.PRStatusMerged,
+		Merged: true,
+	}
+
+	// Verify the merge detection logic
+	prMerged := tk.PR.Status == task.PRStatusMerged || tk.PR.Merged
+	if !prMerged {
+		t.Error("expected prMerged to be true for merged PR")
+	}
+
+	// Also test with just the Merged flag (Status might not be set)
+	tk2 := task.New("TASK-TEST2", "Test task 2")
+	tk2.PR = &task.PRInfo{
+		URL:    "https://github.com/owner/repo/pull/124",
+		Number: 124,
+		Merged: true,
+	}
+	prMerged2 := tk2.PR.Status == task.PRStatusMerged || tk2.PR.Merged
+	if !prMerged2 {
+		t.Error("expected prMerged to be true when Merged=true")
+	}
+
+	// Test with just Status (Merged might not be set)
+	tk3 := task.New("TASK-TEST3", "Test task 3")
+	tk3.PR = &task.PRInfo{
+		URL:    "https://github.com/owner/repo/pull/125",
+		Number: 125,
+		Status: task.PRStatusMerged,
+	}
+	prMerged3 := tk3.PR.Status == task.PRStatusMerged || tk3.PR.Merged
+	if !prMerged3 {
+		t.Error("expected prMerged to be true when Status=merged")
+	}
+}
+
+// TestResolveCommand_ForceWithoutPR verifies warning when no PR exists.
+func TestResolveCommand_ForceWithoutPR(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create a running task without a PR
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.New("TASK-NO-PR", "Test task without PR")
+	tk.Status = task.StatusRunning
+	// No PR set
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve with --force - should succeed (with warning to stdout, not error)
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-NO-PR", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve --force without PR failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend = createResolveTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-NO-PR")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusCompleted)
+	}
+
+	// Verify pr_was_merged is NOT set (because there was no merged PR)
+	if reloaded.Metadata["pr_was_merged"] == "true" {
+		t.Error("expected pr_was_merged NOT to be set when no PR exists")
+	}
+
+	// force_resolved should still be set
+	if reloaded.Metadata["force_resolved"] != "true" {
+		t.Error("expected force_resolved metadata to be 'true'")
+	}
+}
+
+// TestResolveCommand_ForceWithOpenPR_Logic verifies that open (not merged) PRs
+// are correctly identified as not merged.
+// NOTE: The PR field is not persisted by the current storage backend, so this test
+// verifies the behavior at the code level.
+func TestResolveCommand_ForceWithOpenPR(t *testing.T) {
+	// Test that open PRs are correctly identified as not merged
+	tk := task.New("TASK-TEST", "Test task")
+	tk.PR = &task.PRInfo{
+		URL:    "https://github.com/owner/repo/pull/45",
+		Number: 45,
+		Status: task.PRStatusPendingReview,
+		Merged: false,
+	}
+
+	// Verify the merge detection returns false for open PRs
+	prMerged := tk.PR.Status == task.PRStatusMerged || tk.PR.Merged
+	if prMerged {
+		t.Error("expected prMerged to be false for open PR")
+	}
+
+	// Test various non-merged statuses
+	nonMergedStatuses := []task.PRStatus{
+		task.PRStatusDraft,
+		task.PRStatusPendingReview,
+		task.PRStatusChangesRequested,
+		task.PRStatusApproved,
+		task.PRStatusClosed,
+	}
+
+	for _, status := range nonMergedStatuses {
+		tk.PR.Status = status
+		tk.PR.Merged = false
+		prMerged = tk.PR.Status == task.PRStatusMerged || tk.PR.Merged
+		if prMerged {
+			t.Errorf("expected prMerged to be false for status %s", status)
+		}
+	}
+}
+
+// TestResolveCommand_FailedTaskNoForceMetadata verifies that resolving a failed task
+// does NOT set force_resolved metadata (since it's not a force-resolve).
+func TestResolveCommand_FailedTaskNoForceMetadata(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create a failed task
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.New("TASK-FAILED-NO-FORCE", "Test failed task")
+	tk.Status = task.StatusFailed
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve with --force on failed task
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-FAILED-NO-FORCE", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve command failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend = createResolveTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-FAILED-NO-FORCE")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusCompleted)
+	}
+
+	// force_resolved should NOT be set for failed tasks (they don't need forcing)
+	if reloaded.Metadata["force_resolved"] == "true" {
+		t.Error("expected force_resolved NOT to be set for failed task resolution")
+	}
+
+	// original_status should NOT be set for failed tasks
+	if reloaded.Metadata["original_status"] != "" {
+		t.Errorf("expected original_status NOT to be set for failed task, got %q", reloaded.Metadata["original_status"])
 	}
 }

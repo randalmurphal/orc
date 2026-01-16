@@ -97,6 +97,7 @@ This is useful when:
   - The issue was fixed manually outside of orc
   - The failure is no longer relevant (e.g., requirements changed)
   - You want to acknowledge and close out a failed task
+  - A task is stuck in 'running' status but its PR was already merged
 
 The task will be marked as completed with metadata indicating it was resolved
 rather than executed to completion. This preserves the failure context in the
@@ -105,22 +106,34 @@ execution history.
 Unlike 'reset' which clears progress and allows retry, 'resolve' closes the
 task without clearing its execution state.
 
+Force resolving non-failed tasks:
+  By default, resolve only works on failed tasks. Use --force to resolve tasks
+  in any status (running, paused, blocked, created, etc.). This is useful when
+  a task is stuck but the work is already complete (e.g., PR merged but executor
+  crashed before marking task complete).
+
+  When force-resolving, the command will:
+  - Check if the task has a merged PR and report it
+  - Warn if no PR exists or the PR is not merged
+  - Record the original status and force_resolved flag in metadata
+
 Worktree handling:
   If the task has an associated worktree with uncommitted changes, in-progress
   git operations (rebase/merge), or unresolved conflicts, a warning will be
   displayed with suggested actions:
 
   --cleanup   Abort in-progress git operations and discard uncommitted changes
-  --force     Skip worktree state checks entirely (resolve without cleanup)
+  -f/--force  Skip confirmation and status checks (resolve any status)
 
 Note: --cleanup cleans the worktree state but preserves the worktree itself.
 Use 'orc cleanup TASK-XXX' to fully remove a worktree after resolving.
 
 Examples:
-  orc resolve TASK-001                          # Mark as resolved
+  orc resolve TASK-001                          # Mark failed task as resolved
   orc resolve TASK-001 -m "Fixed manually"      # With resolution message
   orc resolve TASK-001 --cleanup                # Clean up worktree state first
-  orc resolve TASK-001 --force                  # Skip all checks`,
+  orc resolve TASK-001 --force                  # Resolve any status (skip checks)
+  orc resolve TASK-001 --force -m "PR merged"   # Force resolve with message`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Find the project root (handles worktrees)
@@ -148,21 +161,61 @@ Examples:
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			// Only allow resolving failed tasks. Blocked tasks get special guidance
-			// since users often confuse "resolve" with "resume" for blocked tasks.
-			// See TASK-288 for rationale.
+			// Track if we're force-resolving a non-failed task
+			originalStatus := t.Status
+			forceResolving := false
+
+			// Only allow resolving failed tasks without --force.
+			// With --force, allow any status (useful for stuck running tasks with merged PRs).
+			// Blocked tasks get special guidance since users often confuse "resolve" with "resume".
 			if t.Status != task.StatusFailed {
-				if t.Status == task.StatusBlocked {
-					// Provide actionable guidance with task ID included for copy-paste
-					return fmt.Errorf(`task %s is blocked (status: blocked), not failed
+				if !force {
+					if t.Status == task.StatusBlocked {
+						// Provide actionable guidance with task ID included for copy-paste
+						return fmt.Errorf(`task %s is blocked (status: blocked), not failed
 
 For blocked tasks, use one of these commands instead:
   orc approve %s   Approve a gate and mark task ready to run
   orc resume %s    Resume execution (for paused/blocked/failed tasks)
 
-The 'resolve' command is for marking failed tasks as complete without re-running`, id, id, id)
+The 'resolve' command is for marking failed tasks as complete without re-running.
+Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
+					}
+					return fmt.Errorf("task %s is %s, not failed; resolve is only for failed tasks (use --force to override)", id, t.Status)
 				}
-				return fmt.Errorf("task %s is %s, not failed; resolve is only for failed tasks", id, t.Status)
+				forceResolving = true
+			}
+
+			// Check PR merge status when force-resolving non-failed tasks
+			prWasMerged := false
+			if forceResolving {
+				if t.PR != nil {
+					prMerged := t.PR.Status == task.PRStatusMerged || t.PR.Merged
+					if prMerged {
+						prWasMerged = true
+						if !quiet {
+							if t.PR.Number > 0 {
+								fmt.Printf("PR merged (PR #%d)\n", t.PR.Number)
+							} else {
+								fmt.Println("PR merged")
+							}
+						}
+					} else if !quiet {
+						// PR exists but not merged - warn user
+						statusStr := string(t.PR.Status)
+						if statusStr == "" {
+							statusStr = "unknown"
+						}
+						if t.PR.Number > 0 {
+							fmt.Printf("Warning: PR #%d is not merged (status: %s). Work may be incomplete.\n", t.PR.Number, statusStr)
+						} else {
+							fmt.Printf("Warning: PR is not merged (status: %s). Work may be incomplete.\n", statusStr)
+						}
+					}
+				} else if !quiet {
+					// No PR - warn user
+					fmt.Println("Warning: No PR found for this task. Work may be incomplete.")
+				}
 			}
 
 			// Load config for git settings
@@ -288,6 +341,14 @@ The 'resolve' command is for marking failed tasks as complete without re-running
 			if message != "" {
 				t.Metadata["resolution_message"] = message
 			}
+			// Track force-resolve metadata for non-failed tasks
+			if forceResolving {
+				t.Metadata["force_resolved"] = "true"
+				t.Metadata["original_status"] = string(originalStatus)
+				if prWasMerged {
+					t.Metadata["pr_was_merged"] = "true"
+				}
+			}
 			// Track worktree state at resolution time
 			if wtStatus != nil && wtStatus.exists {
 				if wtStatus.isDirty {
@@ -307,9 +368,17 @@ The 'resolve' command is for marking failed tasks as complete without re-running
 
 			// Output results
 			if plain {
-				fmt.Printf("Task %s resolved\n", id)
+				if forceResolving {
+					fmt.Printf("Task %s resolved (was: %s)\n", id, originalStatus)
+				} else {
+					fmt.Printf("Task %s resolved\n", id)
+				}
 			} else {
-				fmt.Printf("✓ Task %s marked as resolved\n", id)
+				if forceResolving {
+					fmt.Printf("✓ Task %s marked as resolved (was: %s)\n", id, originalStatus)
+				} else {
+					fmt.Printf("✓ Task %s marked as resolved\n", id)
+				}
 			}
 			if message != "" {
 				fmt.Printf("   Message: %s\n", message)
@@ -321,7 +390,7 @@ The 'resolve' command is for marking failed tasks as complete without re-running
 		},
 	}
 
-	cmd.Flags().BoolP("force", "f", false, "skip confirmation")
+	cmd.Flags().BoolP("force", "f", false, "skip confirmation and allow resolving non-failed tasks")
 	cmd.Flags().StringVarP(&message, "message", "m", "", "resolution message explaining why task was resolved")
 	cmd.Flags().BoolVar(&cleanup, "cleanup", false, "abort in-progress git operations and discard uncommitted changes")
 	return cmd

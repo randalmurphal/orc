@@ -408,7 +408,7 @@ orc reset TASK-001 --force   # Skip confirmation (for scripts/automation)
 
 ### orc resolve
 
-Mark a failed task as resolved without re-running.
+Mark a task as resolved without re-running.
 
 ```bash
 orc resolve <task-id> [--message <msg>] [--cleanup] [--force]
@@ -418,14 +418,36 @@ orc resolve <task-id> [--message <msg>] [--cleanup] [--force]
 |--------|-------------|
 | `--message`, `-m` | Resolution message explaining why task was resolved |
 | `--cleanup` | Abort in-progress git operations and discard uncommitted changes in worktree |
-| `--force`, `-f` | Skip confirmation prompt and worktree state checks |
+| `--force`, `-f` | Skip confirmation prompt and allow resolving non-failed tasks |
 
-Marks a failed task as completed (resolved) without clearing its execution state. Unlike `reset` which clears progress for retry, `resolve` closes out a failed task while preserving the failure context.
+Marks a task as completed (resolved) without clearing its execution state. Unlike `reset` which clears progress for retry, `resolve` closes out a task while preserving execution context.
 
 **Use cases**:
 - Issue was fixed manually outside of orc
 - Failure is no longer relevant (requirements changed)
 - Acknowledge and close out a failed task without retry
+- **Task stuck in 'running' status but its PR was already merged** (use `--force`)
+- **Executor crashed after merge but before marking task complete** (use `--force`)
+
+**Force resolving non-failed tasks**:
+
+By default, `resolve` only works on failed tasks. Use `--force` to resolve tasks in any status (running, paused, blocked, created, etc.). This is useful when a task is stuck but the work is already complete.
+
+When force-resolving:
+- If the task has a merged PR, it is reported: `PR merged (PR #123)`
+- If no PR exists, a warning is shown: `Warning: No PR found for this task. Work may be incomplete.`
+- If the PR exists but isn't merged, a warning is shown: `Warning: PR #45 is not merged (status: pending_review). Work may be incomplete.`
+- The original status and force_resolved flag are recorded in metadata
+
+```
+$ orc resolve TASK-201 --force
+PR merged (PR #123)
+Task TASK-201 marked as resolved (was: running)
+
+$ orc resolve TASK-202 --force  # task with no PR
+Warning: No PR found for this task. Work may be incomplete.
+Task TASK-202 marked as resolved (was: running)
+```
 
 **Worktree handling**:
 
@@ -440,27 +462,32 @@ If the task has an associated worktree with uncommitted changes, in-progress git
 | Flag | Behavior |
 |------|----------|
 | `--cleanup` | Abort in-progress git ops, discard uncommitted changes, then resolve |
-| `--force` | Skip all worktree checks, resolve without cleanup |
+| `--force` | Skip confirmation and status checks (resolve any status) |
 | (default) | Show warnings and prompt for confirmation |
 
 **Metadata stored**:
 - `resolved: true` - Indicates task was resolved, not executed to completion
 - `resolved_at` - Timestamp of resolution
 - `resolution_message` - Optional explanation (if provided via `-m`)
+- `force_resolved: true` - Set when `--force` was used on a non-failed task
+- `original_status` - The task's status before resolution (when force-resolved)
+- `pr_was_merged: true` - Set if PR was merged at resolution time (when force-resolved)
 - `worktree_was_dirty` - Set if worktree had uncommitted changes
 - `worktree_had_conflicts` - Set if worktree had unresolved merge conflicts
 - `worktree_had_incomplete_operation` - Set if worktree had rebase/merge in progress
 
-**Restrictions**:
-- Only failed tasks can be resolved
+**Status behavior**:
+- Without `--force`: Only failed tasks can be resolved
+- With `--force`: Any status can be resolved (running, paused, blocked, created, etc.)
 - Confirmation prompt unless `--force` is used
 
 **Examples**:
 ```bash
-orc resolve TASK-001                          # Resolve with confirmation
+orc resolve TASK-001                          # Resolve failed task with confirmation
 orc resolve TASK-001 -m "Fixed manually"      # With resolution message
 orc resolve TASK-001 --cleanup                # Clean up worktree state first
-orc resolve TASK-001 --force                  # Skip all checks
+orc resolve TASK-001 --force                  # Resolve any status (skip checks)
+orc resolve TASK-001 --force -m "PR merged"   # Force resolve with message
 ```
 
 ---

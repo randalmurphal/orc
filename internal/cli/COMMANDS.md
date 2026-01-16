@@ -106,15 +106,21 @@ Full command reference for the orc CLI.
 
 ### `orc resolve TASK-ID`
 
-Mark a failed task as resolved without re-running it. Useful when an issue was fixed manually, the failure is no longer relevant, or you want to acknowledge and close a failed task.
+Mark a task as resolved without re-running it. Useful when an issue was fixed manually, the failure is no longer relevant, or you want to acknowledge and close a task.
 
-**Note:** Only works on tasks with `status=failed`. For blocked tasks, use `orc approve` (for gate approval) or `orc resume` (to resume execution). Running `orc resolve` on a blocked task will show guidance to the correct command.
+**Status behavior:**
+- Without `--force`: Only works on tasks with `status=failed`
+- With `--force`: Works on any status (running, paused, blocked, created, etc.)
+
+Use `--force` when a task is stuck in 'running' status but its PR was already merged (e.g., executor crashed after merge). The command will detect merged PRs and warn if the PR is missing or not merged.
+
+**Note:** For blocked tasks without `--force`, the command shows guidance to use `orc approve` or `orc resume` instead.
 
 | Flag | Description |
 |------|-------------|
 | `--message, -m` | Resolution message |
 | `--cleanup` | Abort git ops, discard changes |
-| `--force, -f` | Skip confirmation |
+| `--force, -f` | Skip confirmation and allow resolving non-failed tasks |
 
 ## Initiative Commands
 
