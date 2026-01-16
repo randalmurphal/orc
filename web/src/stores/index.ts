@@ -27,6 +27,7 @@ export {
 	UNASSIGNED_INITIATIVE,
 	truncateInitiativeTitle,
 	getInitiativeBadgeTitle,
+	type InitiativeBadgeFormat,
 } from './initiativeStore';
 
 // UI store
