@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import * as Select from '@radix-ui/react-select';
 import { Modal } from '@/components/overlays/Modal';
 import { Icon } from '@/components/ui/Icon';
@@ -35,6 +35,20 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 	const [saving, setSaving] = useState(false);
 
 	const initiatives = useInitiatives();
+
+	// Reset form when modal opens or task changes
+	useEffect(() => {
+		if (open) {
+			setTitle(task.title);
+			setDescription(task.description ?? '');
+			setWeight(task.weight);
+			setPriority(task.priority ?? 'normal');
+			setCategory(task.category ?? 'feature');
+			setQueue(task.queue ?? 'active');
+			setInitiativeId(task.initiative_id);
+			setTargetBranch(task.target_branch ?? '');
+		}
+	}, [open, task]);
 
 	// Sort initiatives: active first, then by title
 	const sortedInitiatives = useMemo(() => {
