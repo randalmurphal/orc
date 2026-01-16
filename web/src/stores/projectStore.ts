@@ -169,6 +169,12 @@ useProjectStore.subscribe(
 );
 
 // Selector hooks
-export const useCurrentProject = () => useProjectStore((state) => state.getCurrentProject());
+// Note: useCurrentProject computes the current project directly in the selector
+// to ensure Zustand properly tracks dependencies on both `projects` and `currentProjectId`.
+// Previously, calling `state.getCurrentProject()` (a method) didn't track dependencies correctly,
+// causing stale values when the projects array updated after initial load.
+export const useCurrentProject = () =>
+	useProjectStore((state) => state.projects.find((p) => p.id === state.currentProjectId));
 export const useProjects = () => useProjectStore((state) => state.projects);
 export const useCurrentProjectId = () => useProjectStore((state) => state.currentProjectId);
+export const useProjectLoading = () => useProjectStore((state) => state.loading);
