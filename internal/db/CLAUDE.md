@@ -72,9 +72,74 @@ matches, err := pdb.SearchTranscripts(query)
 
 ## Cost Tracking
 
+### Basic (Deprecated)
+
 ```go
+// Deprecated: Use RecordCostExtended for model and cache token tracking
 gdb.RecordCost(projectID, taskID, phase, costUSD, inputTokens, outputTokens)
 summary, err := gdb.GetCostSummary(projectID, since)
+```
+
+### Extended (Recommended)
+
+```go
+// Record cost with full model and cache tracking
+entry := db.CostEntry{
+    ProjectID:           projectID,
+    TaskID:              taskID,
+    Phase:               phase,
+    Model:               db.DetectModel(modelID),  // opus, sonnet, haiku, unknown
+    Iteration:           1,
+    CostUSD:             0.015,
+    InputTokens:         1000,
+    OutputTokens:        500,
+    CacheCreationTokens: 200,
+    CacheReadTokens:     8000,
+    TotalTokens:         9700,
+    InitiativeID:        "INIT-001",
+}
+gdb.RecordCostExtended(entry)
+
+// Query by model
+costs, err := gdb.GetCostByModel(projectID, since)
+// Returns: map[string]float64{"opus": 12.50, "sonnet": 3.20, ...}
+
+// Time-series for charting (day, week, month granularity)
+timeseries, err := gdb.GetCostTimeseries(projectID, since, "day")
+// Returns: []CostAggregate with date buckets
+
+// Pre-computed aggregates
+gdb.UpdateCostAggregate(agg)  // Upsert
+aggregates, err := gdb.GetCostAggregates(projectID, "2026-01-01", "2026-01-31")
+```
+
+### Budget Management
+
+```go
+// Set monthly budget
+budget := db.CostBudget{
+    ProjectID:             projectID,
+    MonthlyLimitUSD:       100.00,
+    AlertThresholdPercent: 80,
+    CurrentMonth:          "2026-01",
+}
+gdb.SetBudget(budget)
+
+// Get budget (nil if none configured)
+budget, err := gdb.GetBudget(projectID)
+
+// Get status with computed fields
+status, err := gdb.GetBudgetStatus(projectID)
+// Returns: *BudgetStatus{PercentUsed, OverBudget, AtAlertThreshold, ...}
+```
+
+### Model Detection
+
+```go
+model := db.DetectModel("claude-opus-4-5-20251101")  // "opus"
+model := db.DetectModel("claude-sonnet-4-20250514")  // "sonnet"
+model := db.DetectModel("claude-3-5-haiku-20241022") // "haiku"
+model := db.DetectModel("unknown-model")             // "unknown"
 ```
 
 ## Testing

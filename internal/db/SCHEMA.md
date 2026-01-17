@@ -8,7 +8,8 @@ Embedded via `//go:embed schema/*.sql`:
 
 | File | Purpose |
 |------|---------|
-| `schema/global_001.sql` | Projects, cost_log, templates tables |
+| `schema/global_001.sql` | Projects, cost_log (basic), templates tables |
+| `schema/global_002.sql` | cost_log extensions (model, cache tokens), cost_aggregates, cost_budgets |
 | `schema/project_001.sql` | Detection, tasks, phases, transcripts, FTS |
 | `schema/project_002.sql` | Initiatives, decisions, task dependencies |
 | `schema/project_003.sql` | Subtasks queue table |
@@ -27,8 +28,30 @@ Embedded via `//go:embed schema/*.sql`:
 | Table | Columns | Purpose |
 |-------|---------|---------|
 | `projects` | id, name, path, language, created_at | Registered projects |
-| `cost_log` | project_id, task_id, phase, cost_usd, input_tokens, output_tokens, timestamp | Token usage (no FK) |
+| `cost_log` | project_id, task_id, phase, model, iteration, cost_usd, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_tokens, initiative_id, timestamp | Token usage with model tracking (no FK) |
+| `cost_aggregates` | project_id, model, phase, date, total_cost_usd, total_input_tokens, total_output_tokens, total_cache_tokens, turn_count, task_count | Pre-computed time-series for dashboards |
+| `cost_budgets` | project_id, monthly_limit_usd, alert_threshold_percent, current_month, current_month_spent | Monthly budget tracking |
 | `templates` | id, name, phases (JSON), created_at | Shared task templates |
+
+### cost_log Extended Columns (global_002.sql)
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `model` | TEXT | `''` | Claude model (opus, sonnet, haiku) |
+| `iteration` | INTEGER | `0` | Iteration within phase |
+| `cache_creation_tokens` | INTEGER | `0` | Tokens written to prompt cache |
+| `cache_read_tokens` | INTEGER | `0` | Tokens served from cache |
+| `total_tokens` | INTEGER | `0` | Effective total tokens |
+| `initiative_id` | TEXT | `''` | Links to initiative |
+
+### cost_log Indexes
+
+| Index | Columns | Purpose |
+|-------|---------|---------|
+| `idx_cost_model` | model | Model-based queries |
+| `idx_cost_model_timestamp` | model, timestamp | Time-range by model |
+| `idx_cost_initiative` | initiative_id | Initiative cost analysis |
+| `idx_cost_project_timestamp` | project_id, timestamp | Project timeline |
 
 ## Project Tables
 
