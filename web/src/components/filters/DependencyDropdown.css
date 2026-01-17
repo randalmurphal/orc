@@ -10,30 +10,30 @@
 	align-items: center;
 	gap: var(--space-2);
 	padding: var(--space-2) var(--space-3);
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-surface);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-md);
 	font-size: var(--text-sm);
 	color: var(--text-primary);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: all var(--transition-fast);
 	min-width: 140px;
 }
 
 .dependency-dropdown .dropdown-trigger:hover {
-	border-color: var(--border-strong);
+	border-color: var(--border-light);
 }
 
 .dependency-dropdown .dropdown-trigger:focus-visible {
 	outline: none;
-	border-color: var(--accent-primary);
-	box-shadow: 0 0 0 3px var(--accent-glow);
+	border-color: var(--primary);
+	box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
 .dependency-dropdown .dropdown-trigger.active {
-	background: var(--accent-subtle);
-	border-color: var(--accent-primary);
-	color: var(--accent-primary);
+	background: var(--primary-dim);
+	border-color: var(--primary);
+	color: var(--primary);
 }
 
 .dependency-dropdown .trigger-text {
@@ -46,7 +46,7 @@
 
 /* Chevron icon rotation */
 .dependency-dropdown .chevron {
-	transition: transform var(--duration-fast) var(--ease-out);
+	transition: transform var(--transition-fast);
 	color: var(--text-muted);
 	display: flex;
 	align-items: center;
@@ -61,16 +61,16 @@
 	min-width: 180px;
 	max-height: var(--radix-select-content-available-height);
 	overflow: hidden;
-	background: var(--bg-primary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-lg);
 	box-shadow: var(--shadow-lg);
 	z-index: var(--z-dropdown);
-	animation: dependency-select-enter var(--duration-fast) var(--ease-out);
+	animation: dependency-select-enter var(--transition-fast);
 }
 
 .dependency-dropdown .dropdown-menu[data-state='closed'] {
-	animation: dependency-select-exit var(--duration-fast) var(--ease-in);
+	animation: dependency-select-exit var(--transition-fast);
 }
 
 @keyframes dependency-select-enter {
@@ -113,21 +113,21 @@
 	font-size: var(--text-sm);
 	color: var(--text-secondary);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: all var(--transition-fast);
 	text-align: left;
 	outline: none;
 }
 
 /* Highlighted state (keyboard focus or hover) */
 .dependency-dropdown .dropdown-item[data-highlighted] {
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 	color: var(--text-primary);
 }
 
 /* Selected state */
 .dependency-dropdown .dropdown-item[data-state='checked'] {
-	background: var(--accent-subtle);
-	color: var(--accent-primary);
+	background: var(--primary-dim);
+	color: var(--primary);
 }
 
 .dependency-dropdown .item-indicator {
@@ -145,7 +145,7 @@
 	border-radius: 50%;
 	border: 1.5px solid var(--text-muted);
 	background: transparent;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: all var(--transition-fast);
 }
 
 .dependency-dropdown .dropdown-item[data-highlighted] .indicator-dot {
@@ -153,8 +153,8 @@
 }
 
 .dependency-dropdown .dropdown-item[data-state='checked'] .indicator-dot {
-	background: var(--accent-primary);
-	border-color: var(--accent-primary);
+	background: var(--primary);
+	border-color: var(--primary);
 }
 
 .dependency-dropdown .item-label {
@@ -169,13 +169,13 @@
 	font-family: var(--font-mono);
 	color: var(--text-muted);
 	padding: var(--space-0-5) var(--space-1-5);
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 	border-radius: var(--radius-full);
 	flex-shrink: 0;
 }
 
 .dependency-dropdown .dropdown-item[data-state='checked'] .item-count {
-	background: var(--accent-primary);
+	background: var(--primary);
 	color: var(--text-inverse);
 }
 

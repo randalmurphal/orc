@@ -1,8 +1,8 @@
 /* Header styles - matches Svelte implementation */
 .header {
 	height: var(--header-height, 56px);
-	background: var(--bg-primary);
-	border-bottom: 1px solid var(--border-subtle);
+	background: var(--bg-elevated);
+	border-bottom: 1px solid var(--border);
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -30,29 +30,29 @@
 	align-items: center;
 	gap: var(--space-2, 8px);
 	padding: var(--space-1-5, 6px) var(--space-3, 12px);
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-surface);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-md, 6px);
 	color: var(--text-primary);
 	font-size: var(--text-sm, 0.875rem);
 	font-weight: var(--font-medium, 500);
 	cursor: pointer;
-	transition: all var(--duration-fast, 150ms) var(--ease-out, ease-out);
+	transition: all var(--transition-fast);
 }
 
 .project-btn:hover {
-	background: var(--bg-tertiary);
-	border-color: var(--border-strong);
+	background: var(--bg-card);
+	border-color: var(--border-light);
 }
 
 .project-btn:focus-visible {
-	border-color: var(--accent-primary);
-	box-shadow: 0 0 0 3px var(--accent-glow, rgba(56, 139, 253, 0.3));
+	border-color: var(--primary);
+	box-shadow: 0 0 0 3px var(--primary-glow, rgba(56, 139, 253, 0.3));
 	outline: none;
 }
 
 .project-icon {
-	color: var(--accent-primary);
+	color: var(--primary);
 	display: flex;
 	align-items: center;
 }
@@ -99,23 +99,23 @@
 	gap: var(--space-2, 8px);
 	color: var(--text-muted);
 	font-size: var(--text-xs, 0.75rem);
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-surface);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-md, 6px);
 	padding: var(--space-1-5, 6px) var(--space-3, 12px);
 	cursor: pointer;
-	transition: all var(--duration-fast, 150ms) var(--ease-out, ease-out);
+	transition: all var(--transition-fast);
 }
 
 .cmd-hint:hover {
-	background: var(--bg-tertiary);
-	border-color: var(--border-strong);
+	background: var(--bg-card);
+	border-color: var(--border-light);
 	color: var(--text-secondary);
 }
 
 .cmd-hint:focus-visible {
-	border-color: var(--accent-primary);
-	box-shadow: 0 0 0 3px var(--accent-glow, rgba(56, 139, 253, 0.3));
+	border-color: var(--primary);
+	box-shadow: 0 0 0 3px var(--primary-glow, rgba(56, 139, 253, 0.3));
 	outline: none;
 }
 
@@ -126,11 +126,11 @@
 .cmd-hint kbd {
 	font-family: var(--font-mono);
 	font-size: var(--text-2xs, 0.625rem);
-	background: var(--bg-tertiary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-card);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-sm, 4px);
 	padding: var(--space-0-5, 2px) var(--space-1-5, 6px);
-	box-shadow: 0 1px 0 var(--border-default);
+	box-shadow: 0 1px 0 var(--border-light);
 }
 
 /* New Task Button - uses Button component now, no custom styles needed */

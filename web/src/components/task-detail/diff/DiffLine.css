@@ -8,7 +8,7 @@
 }
 
 .diff-line:hover {
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 }
 
 .diff-line .line-number {
@@ -17,8 +17,8 @@
 	text-align: right;
 	color: var(--text-muted);
 	user-select: none;
-	background: var(--bg-secondary);
-	border-right: 1px solid var(--border-subtle);
+	background: var(--bg-surface);
+	border-right: 1px solid var(--border);
 	flex-shrink: 0;
 }
 
@@ -36,21 +36,21 @@
 
 /* Line Types */
 .diff-line.context {
-	background: var(--bg-primary);
+	background: var(--bg-elevated);
 }
 
 .diff-line.addition {
-	background: color-mix(in srgb, var(--status-success) 10%, transparent);
+	background: color-mix(in srgb, var(--green) 10%, transparent);
 }
 
 .diff-line.addition .prefix {
-	color: var(--status-success);
+	color: var(--green);
 }
 
 .diff-line.deletion {
-	background: color-mix(in srgb, var(--status-danger) 10%, transparent);
+	background: color-mix(in srgb, var(--red) 10%, transparent);
 }
 
 .diff-line.deletion .prefix {
-	color: var(--status-danger);
+	color: var(--red);
 }

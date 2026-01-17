@@ -13,7 +13,7 @@
 }
 
 .board:focus-visible {
-	outline: 2px solid var(--accent-primary);
+	outline: 2px solid var(--primary);
 	outline-offset: 2px;
 	border-radius: var(--radius-lg);
 }
@@ -46,7 +46,7 @@
 	display: flex;
 	gap: var(--space-1);
 	padding: var(--space-2) var(--space-3);
-	background: var(--bg-secondary);
+	background: var(--bg-surface);
 	border-radius: var(--radius-lg);
 	position: sticky;
 	top: 0;
@@ -92,8 +92,8 @@
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%, -50%);
-	background: var(--bg-primary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-lg);
 	padding: var(--space-6);
 	max-width: 400px;
@@ -132,8 +132,8 @@
 	width: 100%;
 	padding: var(--space-2);
 	font-size: var(--text-sm);
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-surface);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-md);
 	color: var(--text-primary);
 	resize: vertical;
@@ -142,8 +142,8 @@
 
 .modal .form-group textarea:focus {
 	outline: none;
-	border-color: var(--accent-primary);
-	box-shadow: 0 0 0 3px var(--accent-glow);
+	border-color: var(--primary);
+	box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
 .modal-actions {
@@ -163,7 +163,7 @@
 	font-weight: var(--font-medium);
 	border-radius: var(--radius-md);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: all var(--transition-fast);
 	border: 1px solid transparent;
 }
 
@@ -173,21 +173,21 @@
 }
 
 .btn-primary {
-	background: var(--accent-button);
+	background: var(--primary);
 	color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-	background: var(--accent-button-hover);
+	background: var(--primary-bright);
 }
 
 .btn-secondary {
-	background: var(--bg-secondary);
-	border-color: var(--border-default);
+	background: var(--bg-surface);
+	border-color: var(--border-light);
 	color: var(--text-primary);
 }
 
 .btn-secondary:hover:not(:disabled) {
-	background: var(--bg-tertiary);
-	border-color: var(--border-strong);
+	background: var(--bg-card);
+	border-color: var(--border-light);
 }

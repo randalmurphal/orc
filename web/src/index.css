@@ -18,10 +18,10 @@ html {
 }
 
 body {
-  font-family: var(--font-body);
+  font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: var(--leading-normal);
-  background-color: var(--bg-primary);
+  background-color: var(--bg-base);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -32,20 +32,20 @@ body {
    ============================================================================= */
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: var(--font-semibold);
   line-height: var(--leading-tight);
   color: var(--text-primary);
 }
 
 a {
-  color: var(--accent-primary);
+  color: var(--primary);
   text-decoration: none;
-  transition: color var(--duration-fast) var(--ease-out);
+  transition: color var(--transition-fast);
 }
 
 a:hover {
-  color: var(--accent-hover);
+  color: var(--primary-bright);
 }
 
 code, pre, kbd, samp {
@@ -66,7 +66,7 @@ code, pre, kbd, samp {
 .header {
   padding: var(--space-8);
   text-align: center;
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .header h1 {
@@ -93,8 +93,8 @@ code, pre, kbd, samp {
 
 .status-card,
 .info-card {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-default);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
 }
@@ -114,11 +114,11 @@ code, pre, kbd, samp {
 }
 
 .success {
-  color: var(--status-success);
+  color: var(--green);
 }
 
 .error {
-  color: var(--status-danger);
+  color: var(--red);
 }
 
 .error small {
@@ -136,38 +136,10 @@ code, pre, kbd, samp {
 
 .info-card code {
   font-family: var(--font-mono);
-  background-color: var(--bg-primary);
+  background-color: var(--bg-elevated);
   padding: var(--space-0-5) var(--space-1-5);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
-}
-
-/* =============================================================================
-   SCROLLBAR STYLING
-   ============================================================================= */
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--bg-elevated);
-  border-radius: var(--radius-full);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--border-strong);
-}
-
-/* Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--bg-elevated) var(--bg-secondary);
 }
 
 /* =============================================================================
@@ -175,7 +147,7 @@ code, pre, kbd, samp {
    ============================================================================= */
 
 ::selection {
-  background-color: var(--accent-muted);
+  background-color: var(--primary-dim);
   color: var(--text-primary);
 }
 
@@ -208,11 +180,11 @@ code, pre, kbd, samp {
 
 /* Radix UI data-state transitions */
 [data-state='open'] {
-  animation: radix-enter var(--duration-fast) var(--ease-out);
+  animation: radix-enter var(--transition-fast);
 }
 
 [data-state='closed'] {
-  animation: radix-exit var(--duration-fast) var(--ease-in);
+  animation: radix-exit var(--transition-fast);
 }
 
 @keyframes radix-enter {

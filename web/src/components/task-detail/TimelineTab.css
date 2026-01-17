@@ -63,8 +63,8 @@
 
 /* Timeline */
 .timeline-section {
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-subtle);
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
 	border-radius: var(--radius-lg);
 	padding: var(--space-4);
 }
@@ -89,30 +89,30 @@
 }
 
 .phase-marker svg {
-	background: var(--bg-secondary);
+	background: var(--bg-surface);
 	color: var(--text-muted);
 }
 
 .phase-connector {
 	width: 2px;
 	flex: 1;
-	background: var(--border-default);
+	background: var(--border-light);
 	margin-top: var(--space-1);
 	margin-bottom: calc(-1 * var(--space-1));
 }
 
 /* Phase Status Colors */
 .timeline-phase.completed .phase-marker svg {
-	color: var(--status-success);
+	color: var(--green);
 }
 
 .timeline-phase.running .phase-marker svg {
-	color: var(--accent-primary);
+	color: var(--primary);
 	animation: pulse 2s ease-in-out infinite;
 }
 
 .timeline-phase.failed .phase-marker svg {
-	color: var(--status-danger);
+	color: var(--red);
 }
 
 .timeline-phase.skipped .phase-marker svg {
@@ -120,7 +120,7 @@
 }
 
 .timeline-phase.current {
-	background: var(--accent-glow);
+	background: var(--primary-glow);
 	margin: calc(-1 * var(--space-2));
 	padding: var(--space-2);
 	border-radius: var(--radius-md);
@@ -154,7 +154,7 @@
 	font-weight: var(--font-medium);
 	color: var(--text-muted);
 	padding: var(--space-0-5) var(--space-1-5);
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 	border-radius: var(--radius-sm);
 	font-variant-numeric: tabular-nums;
 }
@@ -175,36 +175,36 @@
 }
 
 .phase-status-label.completed {
-	color: var(--status-success);
-	background: var(--status-success-bg);
+	color: var(--green);
+	background: var(--green-dim);
 }
 
 .phase-status-label.running {
-	color: var(--accent-primary);
-	background: var(--accent-subtle);
+	color: var(--primary);
+	background: var(--primary-dim);
 	animation: pulse 2s ease-in-out infinite;
 }
 
 .phase-status-label.failed {
-	color: var(--status-danger);
-	background: var(--status-danger-bg);
+	color: var(--red);
+	background: var(--red-dim);
 }
 
 .phase-status-label.skipped {
 	color: var(--text-muted);
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 }
 
 .phase-status-label.pending {
 	color: var(--text-muted);
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 }
 
 .phase-iterations {
 	font-size: var(--text-xs);
 	color: var(--text-muted);
 	padding: var(--space-0-5) var(--space-1-5);
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 	border-radius: var(--radius-full);
 }
 
@@ -228,7 +228,7 @@
 
 .phase-commit code {
 	font-family: var(--font-mono);
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 	padding: var(--space-0-5) var(--space-1);
 	border-radius: var(--radius-sm);
 }
@@ -239,10 +239,10 @@
 	gap: var(--space-1);
 	margin-top: var(--space-2);
 	padding: var(--space-2);
-	background: var(--status-danger-bg);
+	background: var(--red-dim);
 	border-radius: var(--radius-md);
 	font-size: var(--text-xs);
-	color: var(--status-danger);
+	color: var(--red);
 }
 
 .phase-error svg {
@@ -252,8 +252,8 @@
 
 /* Stats Section */
 .stats-section {
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-subtle);
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
 	border-radius: var(--radius-lg);
 	padding: var(--space-4);
 }
@@ -269,12 +269,12 @@
 	flex-direction: column;
 	gap: var(--space-1);
 	padding: var(--space-3);
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 	border-radius: var(--radius-md);
 }
 
 .stat-card.highlight {
-	background: var(--accent-glow);
+	background: var(--primary-glow);
 }
 
 .stat-label {
@@ -291,7 +291,7 @@
 }
 
 .stat-card.highlight .stat-value {
-	color: var(--accent-primary);
+	color: var(--primary);
 }
 
 /* Phase Tokens */
@@ -306,7 +306,7 @@
 	align-items: center;
 	justify-content: space-between;
 	padding: var(--space-1-5) var(--space-2);
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 	border-radius: var(--radius-sm);
 	font-size: var(--text-xs);
 }
@@ -323,8 +323,8 @@
 
 /* Info Section */
 .info-section {
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-subtle);
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
 	border-radius: var(--radius-lg);
 	padding: var(--space-4);
 }
@@ -337,7 +337,7 @@
 	display: flex;
 	justify-content: space-between;
 	padding: var(--space-2) 0;
-	border-bottom: 1px solid var(--border-subtle);
+	border-bottom: 1px solid var(--border);
 }
 
 .info-item:last-child {
@@ -357,21 +357,21 @@
 }
 
 .info-item dd.status-running {
-	color: var(--accent-primary);
+	color: var(--primary);
 }
 
 .info-item dd.status-completed,
 .info-item dd.status-finished {
-	color: var(--status-success);
+	color: var(--green);
 }
 
 .info-item dd.status-failed {
-	color: var(--status-danger);
+	color: var(--red);
 }
 
 .info-item dd.status-paused,
 .info-item dd.status-blocked {
-	color: var(--status-warning);
+	color: var(--amber);
 }
 
 /* Queue styles */
@@ -417,15 +417,15 @@
 	display: inline-flex;
 	align-items: center;
 	gap: var(--space-1);
-	color: var(--accent-primary);
+	color: var(--primary);
 	text-decoration: none;
 	font-size: var(--text-sm);
 	font-weight: var(--font-medium);
-	transition: color var(--duration-fast) var(--ease-out);
+	transition: color var(--transition-fast);
 }
 
 .info-initiative-link:hover {
-	color: var(--accent-hover);
+	color: var(--primary-bright);
 	text-decoration: underline;
 }
 
@@ -433,7 +433,7 @@
 .info-branch {
 	font-family: var(--font-mono);
 	font-size: var(--text-xs);
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 	padding: var(--space-0-5) var(--space-1);
 	border-radius: var(--radius-sm);
 	word-break: break-all;
@@ -442,7 +442,7 @@
 /* Phase name in info */
 .info-phase {
 	text-transform: capitalize;
-	color: var(--accent-primary);
+	color: var(--primary);
 	font-weight: var(--font-medium);
 }
 
@@ -461,13 +461,13 @@
 	display: inline-flex;
 	align-items: center;
 	gap: var(--space-1);
-	color: var(--status-warning);
+	color: var(--amber);
 	font-weight: var(--font-medium);
 }
 
 /* Retries badge */
 .info-retries {
-	color: var(--status-warning);
+	color: var(--amber);
 	font-weight: var(--font-semibold);
 }
 

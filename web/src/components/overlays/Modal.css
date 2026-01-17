@@ -14,7 +14,7 @@
 
 /* Animation with data-state for Radix */
 .modal-backdrop[data-state='open'] {
-	animation: fade-in var(--duration-normal) var(--ease-out);
+	animation: fade-in var(--transition-medium);
 }
 
 .modal-content {
@@ -22,8 +22,8 @@
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%, -50%);
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-surface);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-xl);
 	box-shadow: var(--shadow-2xl);
 	width: 100%;
@@ -36,7 +36,7 @@
 
 /* Animation with data-state for Radix */
 .modal-content[data-state='open'] {
-	animation: modal-content-in var(--duration-normal) var(--ease-out);
+	animation: modal-content-in var(--transition-medium);
 }
 
 /* Size variants */
@@ -62,7 +62,7 @@
 	align-items: center;
 	justify-content: space-between;
 	padding: var(--space-4) var(--space-5);
-	border-bottom: 1px solid var(--border-subtle);
+	border-bottom: 1px solid var(--border);
 	flex-shrink: 0;
 }
 
@@ -84,17 +84,17 @@
 	border-radius: var(--radius-md);
 	color: var(--text-muted);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: all var(--transition-fast);
 }
 
 .modal-close:hover {
-	background: var(--bg-tertiary);
+	background: var(--bg-card);
 	color: var(--text-primary);
 }
 
 .modal-close:focus-visible {
 	outline: none;
-	box-shadow: 0 0 0 2px var(--accent-glow);
+	box-shadow: 0 0 0 2px var(--primary-glow);
 }
 
 /* Body */

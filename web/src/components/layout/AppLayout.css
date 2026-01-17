@@ -1,7 +1,7 @@
 /* AppLayout - Main application layout */
 .app-layout {
 	min-height: 100vh;
-	background: var(--bg-primary);
+	background: var(--bg-elevated);
 }
 
 /* Main content wrapper - needs margin to account for fixed sidebar */
@@ -10,7 +10,7 @@
 	flex-direction: column;
 	min-height: 100vh;
 	min-width: 0; /* Allow content to shrink */
-	transition: margin-left var(--duration-normal, 200ms) var(--ease-out, ease-out);
+	transition: margin-left var(--transition-medium);
 }
 
 /* Sidebar expanded state - wider margin */
@@ -62,7 +62,7 @@
 		bottom: 0;
 		background: rgba(0, 0, 0, 0.5);
 		z-index: calc(var(--z-sidebar, 300) - 1);
-		animation: backdrop-fade-in var(--duration-fast, 100ms) var(--ease-out, ease-out);
+		animation: backdrop-fade-in var(--transition-fast);
 	}
 }
 
