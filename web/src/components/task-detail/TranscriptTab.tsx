@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { TranscriptFile } from '@/lib/types';
+import type { TranscriptLine } from '@/hooks/useWebSocket';
 import { getTranscripts } from '@/lib/api';
 import { Icon } from '@/components/ui/Icon';
 import { toast } from '@/stores/uiStore';
@@ -27,7 +28,8 @@ interface ParsedTranscript {
 
 interface TranscriptTabProps {
 	taskId: string;
-	streamingContent?: string;
+	/** Streaming transcript lines from WebSocket */
+	streamingLines?: TranscriptLine[];
 	autoScroll?: boolean;
 }
 
@@ -147,7 +149,7 @@ function formatTime(timestamp: string): string {
 
 export function TranscriptTab({
 	taskId,
-	streamingContent = '',
+	streamingLines = [],
 	autoScroll = true,
 }: TranscriptTabProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -194,7 +196,7 @@ export function TranscriptTab({
 		if (isAutoScrollEnabled && containerRef.current) {
 			containerRef.current.scrollTop = containerRef.current.scrollHeight;
 		}
-	}, [files.length, streamingContent.length, isAutoScrollEnabled]);
+	}, [files.length, streamingLines.length, isAutoScrollEnabled]);
 
 	const toggleFile = useCallback((filename: string) => {
 		setExpandedFiles((prev) => {
@@ -266,7 +268,8 @@ export function TranscriptTab({
 		}
 	}, [files]);
 
-	const isEmpty = files.length === 0 && !streamingContent;
+	const hasStreamingContent = streamingLines.length > 0;
+	const isEmpty = files.length === 0 && !hasStreamingContent;
 
 	// Loading state
 	if (loading) {
@@ -485,7 +488,7 @@ export function TranscriptTab({
 				)}
 
 				{/* Live streaming content */}
-				{streamingContent && (
+				{hasStreamingContent && (
 					<div className="streaming-entry">
 						<div className="streaming-header">
 							<span className="streaming-icon">●</span>
@@ -493,7 +496,36 @@ export function TranscriptTab({
 							<span className="streaming-time">Live</span>
 						</div>
 						<div className="streaming-content">
-							<pre>{streamingContent}</pre>
+							{streamingLines.map((line, idx) => {
+								// Get style based on line type
+								const typeStyle = line.type === 'prompt' ? sectionStyles.prompt
+									: line.type === 'response' ? sectionStyles.response
+									: line.type === 'chunk' ? sectionStyles.response
+									: sectionStyles.response;
+
+								// For chunks, just append content without header
+								if (line.type === 'chunk') {
+									return <span key={idx} className="streaming-chunk">{line.content}</span>;
+								}
+
+								return (
+									<div
+										key={idx}
+										className={`streaming-line streaming-line-${line.type}`}
+										style={{
+											'--section-color': typeStyle.colorVar,
+											'--section-bg': typeStyle.bgVar,
+										} as React.CSSProperties}
+									>
+										<div className="streaming-line-header">
+											<span className="streaming-line-icon">{typeStyle.icon}</span>
+											<span className="streaming-line-type">{line.type.toUpperCase()}</span>
+											<span className="streaming-line-phase">{line.phase} #{line.iteration}</span>
+										</div>
+										<pre className="streaming-line-content">{line.content}</pre>
+									</div>
+								);
+							})}
 						</div>
 					</div>
 				)}

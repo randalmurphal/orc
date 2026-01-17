@@ -44,7 +44,7 @@ export function TaskDetail() {
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
 	// Subscribe to real-time updates - returns state from the store
-	const { state: taskState } = useTaskSubscription(id);
+	const { state: taskState, transcript: streamingTranscript } = useTaskSubscription(id);
 
 	// Load task data
 	const loadTask = useCallback(async () => {
@@ -154,7 +154,7 @@ export function TaskDetail() {
 								case 'changes':
 									return <ChangesTab taskId={task.id} />;
 								case 'transcript':
-									return <TranscriptTab taskId={task.id} />;
+									return <TranscriptTab taskId={task.id} streamingLines={streamingTranscript} />;
 								case 'test-results':
 									return <TestResultsTab taskId={task.id} />;
 								case 'attachments':

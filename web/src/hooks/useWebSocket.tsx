@@ -346,9 +346,11 @@ function handleWSError(error: WSError): void {
  * Transcript line from streaming events
  */
 export interface TranscriptLine {
-	timestamp: string;
-	type: 'prompt' | 'response' | 'tool' | 'error';
+	phase: string;
+	iteration: number;
+	type: 'prompt' | 'response' | 'tool' | 'error' | 'chunk';
 	content: string;
+	timestamp: string;
 }
 
 /**

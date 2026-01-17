@@ -340,6 +340,62 @@ describe('WebSocket hooks', () => {
 			expect(result.current.transcript[0].content).toBe('Hello');
 		});
 
+		it('should receive transcript events with phase and iteration', async () => {
+			const { result } = renderHook(() => useTaskSubscription('TASK-001'), { wrapper });
+
+			await act(async () => {
+				mockWsInstances[0].simulateOpen();
+			});
+
+			await act(async () => {
+				mockWsInstances[0].simulateMessage({
+					type: 'event',
+					event: 'transcript',
+					task_id: 'TASK-001',
+					data: {
+						phase: 'implement',
+						iteration: 2,
+						type: 'response',
+						content: 'Implementation complete',
+						timestamp: '2024-01-01T00:00:00Z',
+					},
+				});
+			});
+
+			expect(result.current.transcript).toHaveLength(1);
+			expect(result.current.transcript[0].phase).toBe('implement');
+			expect(result.current.transcript[0].iteration).toBe(2);
+			expect(result.current.transcript[0].type).toBe('response');
+			expect(result.current.transcript[0].content).toBe('Implementation complete');
+		});
+
+		it('should receive chunk transcript events for streaming', async () => {
+			const { result } = renderHook(() => useTaskSubscription('TASK-001'), { wrapper });
+
+			await act(async () => {
+				mockWsInstances[0].simulateOpen();
+			});
+
+			await act(async () => {
+				mockWsInstances[0].simulateMessage({
+					type: 'event',
+					event: 'transcript',
+					task_id: 'TASK-001',
+					data: {
+						phase: 'implement',
+						iteration: 1,
+						type: 'chunk',
+						content: 'partial output...',
+						timestamp: '2024-01-01T00:00:00Z',
+					},
+				});
+			});
+
+			expect(result.current.transcript).toHaveLength(1);
+			expect(result.current.transcript[0].type).toBe('chunk');
+			expect(result.current.transcript[0].content).toBe('partial output...');
+		});
+
 		it('should not receive transcript events for other tasks', async () => {
 			const { result } = renderHook(() => useTaskSubscription('TASK-001'), { wrapper });
 
