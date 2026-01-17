@@ -501,6 +501,45 @@ func TestShouldRetryFrom(t *testing.T) {
 	}
 }
 
+func TestDefaultConfigRetryMap(t *testing.T) {
+	// Verify default config has the expected retry mappings
+	// These mappings prevent infinite loops when phases fail
+	cfg := Default()
+
+	// Phases that should have retry mappings
+	retryTests := []struct {
+		phase    string
+		wantFrom string
+	}{
+		{"design", "spec"},       // Design issues often stem from incomplete spec
+		{"test", "implement"},
+		{"test_unit", "implement"},
+		{"test_e2e", "implement"},
+		{"validate", "implement"},
+		{"review", "implement"},  // Critical: prevents review-resume loop
+	}
+
+	for _, tt := range retryTests {
+		t.Run(tt.phase, func(t *testing.T) {
+			from := cfg.ShouldRetryFrom(tt.phase)
+			if from != tt.wantFrom {
+				t.Errorf("Default().ShouldRetryFrom(%s) = %s, want %s", tt.phase, from, tt.wantFrom)
+			}
+		})
+	}
+
+	// Phases that should NOT have retry mappings (no upstream phase or retry not helpful)
+	noRetryPhases := []string{"spec", "implement", "docs", "research"}
+	for _, phase := range noRetryPhases {
+		t.Run("no_retry_"+phase, func(t *testing.T) {
+			from := cfg.ShouldRetryFrom(phase)
+			if from != "" {
+				t.Errorf("Default().ShouldRetryFrom(%s) = %s, want empty (no retry mapping)", phase, from)
+			}
+		})
+	}
+}
+
 func TestProfilePresets(t *testing.T) {
 	tests := []struct {
 		profile     AutomationProfile

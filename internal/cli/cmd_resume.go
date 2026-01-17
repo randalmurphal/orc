@@ -146,11 +146,33 @@ Use --force to resume a task even if it appears to still be running.`,
 				defer publisher.Close()
 			}
 
-			// Find resume phase
+			// Find resume phase with smart retry handling
 			resumePhase := s.GetResumePhase()
+
+			// If no interrupted/running phase, check retry context
+			if resumePhase == "" {
+				if rc := s.GetRetryContext(); rc != nil && rc.ToPhase != "" {
+					resumePhase = rc.ToPhase
+					fmt.Printf("Resuming from retry target: %s (failed at %s)\n", rc.ToPhase, rc.FromPhase)
+				}
+			}
+
+			// For failed phases (e.g., review, test), use retry map to go back to earlier phase
+			// This prevents loops where failed phases keep restarting from the failed phase
+			if resumePhase == "" && s.CurrentPhase != "" {
+				if ps, ok := s.Phases[s.CurrentPhase]; ok && ps.Status == state.StatusFailed {
+					if retryFrom := cfg.ShouldRetryFrom(s.CurrentPhase); retryFrom != "" {
+						resumePhase = retryFrom
+						fmt.Printf("Using retry map: %s -> %s (retrying from earlier phase)\n", s.CurrentPhase, retryFrom)
+					}
+				}
+			}
+
+			// Final fallback to current phase
 			if resumePhase == "" {
 				resumePhase = s.CurrentPhase
 			}
+
 			if resumePhase == "" {
 				return fmt.Errorf("no phase to resume from")
 			}

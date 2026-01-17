@@ -22,6 +22,7 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
+	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -685,67 +686,99 @@ func (s *Server) pauseTask(id string) (map[string]any, error) {
 	}, nil
 }
 
-// resumeTask resumes a paused task (called by WebSocket handler).
+// resumeTask resumes a paused, blocked, or failed task (called by WebSocket handler).
 func (s *Server) resumeTask(id string) (map[string]any, error) {
 	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
-	// If task was paused, restart execution
-	if t.Status == task.StatusPaused {
-		t.Status = task.StatusRunning
-		if err := s.backend.SaveTask(t); err != nil {
-			return nil, fmt.Errorf("failed to update task: %w", err)
-		}
-
-		// Resume execution
-		p, err := s.backend.LoadPlan(id)
-		if err != nil {
-			return nil, fmt.Errorf("plan not found")
-		}
-
-		st, err := s.backend.LoadState(id)
-		if err != nil {
-			return nil, fmt.Errorf("state not found")
-		}
-
-		// Find resume point
-		resumePhase := st.GetResumePhase()
-		if resumePhase == "" {
-			return nil, fmt.Errorf("no resume point found")
-		}
-
-		// Create cancellable context
-		ctx, cancel := context.WithCancel(context.Background())
-
-		s.runningTasksMu.Lock()
-		s.runningTasks[id] = cancel
-		s.runningTasksMu.Unlock()
-
-		go func() {
-			defer func() {
-				s.runningTasksMu.Lock()
-				delete(s.runningTasks, id)
-				s.runningTasksMu.Unlock()
-			}()
-
-			execCfg := executor.ConfigFromOrc(s.orcConfig)
-			execCfg.WorkDir = s.workDir
-			exec := executor.NewWithConfig(execCfg, s.orcConfig)
-			exec.SetBackend(s.backend)
-			exec.SetPublisher(s.publisher)
-			exec.SetAutomationService(s.automationSvc)
-			err := exec.ResumeFromPhase(ctx, t, p, st, resumePhase)
-			if err != nil {
-				s.logger.Error("task resume failed", "task", id, "error", err)
-			}
-		}()
+	// Check if task is resumable
+	switch t.Status {
+	case task.StatusPaused, task.StatusBlocked, task.StatusFailed:
+		// These are resumable
+	default:
+		return nil, fmt.Errorf("task cannot be resumed (status: %s)", t.Status)
 	}
 
+	// Load plan and state
+	p, err := s.backend.LoadPlan(id)
+	if err != nil {
+		return nil, fmt.Errorf("plan not found")
+	}
+
+	st, err := s.backend.LoadState(id)
+	if err != nil {
+		return nil, fmt.Errorf("state not found")
+	}
+
+	// Find resume phase with smart retry handling (mirrors CLI logic)
+	resumePhase := st.GetResumePhase()
+
+	// If no interrupted/running phase, check retry context
+	if resumePhase == "" {
+		if rc := st.GetRetryContext(); rc != nil && rc.ToPhase != "" {
+			resumePhase = rc.ToPhase
+			s.logger.Info("resuming from retry target", "task", id, "from", rc.FromPhase, "to", rc.ToPhase)
+		}
+	}
+
+	// For failed phases (e.g., review), use retry map to go back to earlier phase
+	// This prevents the review-resume loop where failed reviews keep restarting from review
+	if resumePhase == "" && st.CurrentPhase != "" {
+		if ps, ok := st.Phases[st.CurrentPhase]; ok && ps.Status == state.StatusFailed {
+			if retryFrom := s.orcConfig.ShouldRetryFrom(st.CurrentPhase); retryFrom != "" {
+				resumePhase = retryFrom
+				s.logger.Info("using retry map for failed phase", "task", id, "from", st.CurrentPhase, "to", retryFrom)
+			}
+		}
+	}
+
+	// Final fallback to current phase
+	if resumePhase == "" {
+		resumePhase = st.CurrentPhase
+	}
+
+	if resumePhase == "" {
+		return nil, fmt.Errorf("no resume point found")
+	}
+
+	// Update task status
+	t.Status = task.StatusRunning
+	if err := s.backend.SaveTask(t); err != nil {
+		return nil, fmt.Errorf("failed to update task: %w", err)
+	}
+
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	s.runningTasksMu.Lock()
+	s.runningTasks[id] = cancel
+	s.runningTasksMu.Unlock()
+
+	go func() {
+		defer func() {
+			s.runningTasksMu.Lock()
+			delete(s.runningTasks, id)
+			s.runningTasksMu.Unlock()
+		}()
+
+		execCfg := executor.ConfigFromOrc(s.orcConfig)
+		execCfg.WorkDir = s.workDir
+		exec := executor.NewWithConfig(execCfg, s.orcConfig)
+		exec.SetBackend(s.backend)
+		exec.SetPublisher(s.publisher)
+		exec.SetAutomationService(s.automationSvc)
+		err := exec.ResumeFromPhase(ctx, t, p, st, resumePhase)
+		if err != nil {
+			s.logger.Error("task resume failed", "task", id, "error", err)
+		}
+	}()
+
 	return map[string]any{
-		"status":  "resumed",
-		"task_id": id,
+		"status":      "resumed",
+		"task_id":     id,
+		"from_phase":  resumePhase,
 	}, nil
 }
 
