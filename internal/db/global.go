@@ -418,6 +418,7 @@ func strftimeFormat(granularity string) string {
 // If withProject is true, a project_id filter placeholder is added.
 func buildTimeseriesQuery(granularity string, withProject bool) string {
 	dateFormat := strftimeFormat(granularity)
+	// Use the same dateFormat in both SELECT and GROUP BY for consistency
 	query := fmt.Sprintf(`
 		SELECT
 			COALESCE(project_id, '') as project_id,

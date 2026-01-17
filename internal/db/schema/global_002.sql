@@ -1,5 +1,6 @@
 -- Global database migration 002: Add model tracking and enhanced schema to cost_log
 -- Adds model field, cache tokens, and creates aggregation/budget tables
+-- Note: Transaction safety is handled by the migration infrastructure in sqlite.go/postgres.go
 
 -- Add missing columns to cost_log
 -- SQLite only allows ADD COLUMN with defaults, so we use safe defaults
