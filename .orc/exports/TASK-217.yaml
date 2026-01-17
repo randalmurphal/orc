@@ -1,0 +1,1169 @@
+version: 2
+exported_at: 2026-01-16T23:27:37.388722131-06:00
+task:
+    id: TASK-217
+    title: Update visual regression baselines
+    description: |-
+        ## Overview
+        Update visual regression baselines for React frontend after all UI changes are complete.
+
+        ## Baseline Location
+        `web/e2e/__snapshots__/visual.spec.ts-snapshots/`
+
+        ## Baselines to Review (16 Screenshots)
+
+        ### Dashboard (3)
+        | Baseline | Description |
+        |----------|-------------|
+        | dashboard/populated.png | Full data state |
+        | dashboard/empty.png | Empty state |
+        | dashboard/loading.png | Skeleton loading |
+
+        ### Board Flat (2)
+        | Baseline | Description |
+        |----------|-------------|
+        | board/flat/populated.png | Tasks in columns |
+        | board/flat/with-running.png | Running task with pulse animation |
+
+        ### Board Swimlane (2)
+        | Baseline | Description |
+        |----------|-------------|
+        | board/swimlane/populated.png | Multiple initiative swimlanes |
+        | board/swimlane/collapsed.png | Collapsed swimlane state |
+
+        ### Task Detail (5)
+        | Baseline | Description |
+        |----------|-------------|
+        | task-detail/timeline/running.png | Running task timeline |
+        | task-detail/timeline/completed.png | Completed task timeline |
+        | task-detail/changes/split.png | Split diff view |
+        | task-detail/changes/unified.png | Unified diff view |
+        | task-detail/transcript/content.png | Transcript tab content |
+
+        ### Modals (4)
+        | Baseline | Description |
+        |----------|-------------|
+        | modals/new-task/empty.png | Empty new task form |
+        | modals/new-task/filled.png | Filled new task form |
+        | modals/command-palette/open.png | Command palette open |
+        | modals/keyboard-shortcuts.png | Shortcuts help modal |
+
+        ## Configuration
+        - Viewport: 1440x900 @2x (retina)
+        - Browser: Chromium only
+        - Tolerance: 1000 pixels max diff, 20% color threshold
+        - Animations: Disabled via injected stylesheet
+        - Dynamic masking: Timestamps, token counts, PIDs
+
+        ## Process
+
+        ### 1. Run Visual Tests
+        ```bash
+        cd web && bunx playwright test --project=visual
+        ```
+
+        ### 2. Review Each Diff
+        For each failing screenshot:
+        - Open Playwright HTML report
+        - Compare expected vs actual
+        - Categorize: Intentional change or regression?
+
+        ### 3. Intentional Changes (Expected)
+        Changes from this initiative:
+        - Button styling may have subtle differences
+        - Badge styling updates
+        - Radix component state indicators (data-state)
+        - Focus ring styling changes
+
+        ### 4. Regressions (Unexpected)
+        If found:
+        - Do NOT update baseline
+        - Create bug task to fix
+        - Block this task until fixed
+
+        ### 5. Update Baselines
+        ```bash
+        bunx playwright test --project=visual --update-snapshots
+        ```
+
+        ### 6. Document Changes
+        In commit message, list each intentional change:
+        ```
+        feat(visual): update baselines for UI primitives
+
+        Changes:
+        - Button: updated focus ring styling
+        - Badge: refined padding and font-size
+        - Modal: Radix Dialog data-state classes
+        - Dropdown: Radix Select animation states
+        ```
+
+        ## Success Criteria
+        - All 16 visual regression tests pass
+        - Each diff reviewed and categorized
+        - No unexpected regressions
+        - Intentional changes documented
+
+        ## Commands
+        ```bash
+        # Compare against baselines
+        bunx playwright test --project=visual
+
+        # Update baselines (after review)
+        bunx playwright test --project=visual --update-snapshots
+
+        # View report
+        bunx playwright show-report
+        ```
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-217
+    queue: active
+    priority: normal
+    category: test
+    initiative_id: INIT-009
+    blocked_by:
+        - TASK-216
+    created_at: 2026-01-14T23:05:46-06:00
+    updated_at: 2026-01-15T23:27:15-06:00
+    started_at: 2026-01-15T23:05:25-06:00
+    completed_at: 2026-01-15T23:27:15-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/147
+plan:
+    version: 1
+    task_id: TASK-217
+    weight: medium
+    description: Medium task - spec, implement, test, docs with clear success criteria
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 33fbac90ea405ff94b4d61de6563d0e98df151e5
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: b3cf59837ba8338d30fc0c810fcb8bef24313a18
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 7b6a0ea79b7e95a5fcc034fbb9fde4612df70ce8
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: f612a7b72e3909554acfb6eae9f1d54dd08b25cf
+spec: |-
+    **Commit**: c6648bf2
+    <phase_complete>true</phase_complete>
+state:
+    task_id: TASK-217
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-15T23:05:25-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-15T23:26:17-06:00
+            completed_at: 2026-01-15T23:27:15-06:00
+            iterations: 1
+            commit_sha: f612a7b72e3909554acfb6eae9f1d54dd08b25cf
+            tokens:
+                input_tokens: 517440
+                output_tokens: 1386
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-15T23:06:52-06:00
+            completed_at: 2026-01-15T23:19:00-06:00
+            iterations: 1
+            commit_sha: b3cf59837ba8338d30fc0c810fcb8bef24313a18
+            tokens:
+                input_tokens: 6340313
+                output_tokens: 29372
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-15T23:05:26-06:00
+            completed_at: 2026-01-15T23:06:52-06:00
+            iterations: 1
+            commit_sha: 33fbac90ea405ff94b4d61de6563d0e98df151e5
+            tokens:
+                input_tokens: 610955
+                output_tokens: 4638
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-15T23:19:00-06:00
+            completed_at: 2026-01-15T23:26:17-06:00
+            iterations: 1
+            commit_sha: 7b6a0ea79b7e95a5fcc034fbb9fde4612df70ce8
+            tokens:
+                input_tokens: 714848
+                output_tokens: 1933
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:06:52-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:06:52-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:06:52-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:06:52-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:06:52-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:06:52-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:06:52-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:19:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:19:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:19:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:19:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:19:00-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:26:17-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:26:17-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:26:17-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:27:15-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 59
+      taskid: TASK-217
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Update visual regression baselines
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        # Specification: Update visual regression baselines
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-217: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        The working tree is clean - no documentation changes were needed because:
+
+        1. The visual regression testing documentation in `web/CLAUDE.md` is already comprehensive (lines 1196-1252)
+        2. The "Visual regression baselines" pattern is already in the knowledge section (TASK-159)
+        3. This was a routine baseline update after intentional UI changes from the Radix Tooltip integration
+
+        Since there are no changes to commit, I'll note the completion:
+
+        **Commit**: N/A (no changes needed - documentation already covers visual regression baselines)
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 517440 input, 1386 output, 67969 cache_creation, 449461 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 60
+      taskid: TASK-217
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Update visual regression baselines
+        **Category**: {{TASK_CATEGORY}}
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Specification
+
+        # Specification: Update visual regression baselines
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-217: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 62373425
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 6340313 input, 29372 output, 149001 cache_creation, 6191249 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 61
+      taskid: TASK-217
+      phase: spec
+      iteration: 1
+      role: combined
+      content: |
+        # spec - Iteration 1
+
+        ## Prompt
+
+        Create a specification for this task:
+
+        **Task**: Update visual regression baselines
+        **Category**: {{TASK_CATEGORY}}
+        **Description**: ## Overview
+        Update visual regression baselines for React frontend after all UI changes are complete.
+
+        ## Baseline Location
+        `web/e2e/__snapshots__/visual.spec.ts-snapshots/`
+
+        ## Baselines to Review (16 Screenshots)
+
+        ### Dashboard (3)
+        | Baseline | Description |
+        |----------|-------------|
+        | dashboard/populated.png | Full data state |
+        | dashboard/empty.png | Empty state |
+        | dashboard/loading.png | Skeleton loading |
+
+        ### Board Flat (2)
+        | Baseline | Description |
+        |----------|-------------|
+        | board/flat/populated.png | Tasks in columns |
+        | board/flat/with-running.png | Running task with pulse animation |
+
+        ### Board Swimlane (2)
+        | Baseline | Description |
+        |----------|-------------|
+        | board/swimlane/populated.png | Multiple initiative swimlanes |
+        | board/swimlane/collapsed.png | Collapsed swimlane state |
+
+        ### Task Detail (5)
+        | Baseline | Description |
+        |----------|-------------|
+        | task-detail/timeline/running.png | Running task timeline |
+        | task-detail/timeline/completed.png | Completed task timeline |
+        | task-detail/changes/split.png | Split diff view |
+        | task-detail/changes/unified.png | Unified diff view |
+        | task-detail/transcript/content.png | Transcript tab content |
+
+        ### Modals (4)
+        | Baseline | Description |
+        |----------|-------------|
+        | modals/new-task/empty.png | Empty new task form |
+        | modals/new-task/filled.png | Filled new task form |
+        | modals/command-palette/open.png | Command palette open |
+        | modals/keyboard-shortcuts.png | Shortcuts help modal |
+
+        ## Configuration
+        - Viewport: 1440x900 @2x (retina)
+        - Browser: Chromium only
+        - Tolerance: 1000 pixels max diff, 20% color threshold
+        - Animations: Disabled via injected stylesheet
+        - Dynamic masking: Timestamps, token counts, PIDs
+
+        ## Process
+
+        ### 1. Run Visual Tests
+        ```bash
+        cd web && bunx playwright test --project=visual
+        ```
+
+        ### 2. Review Each Diff
+        For each failing screenshot:
+        - Open Playwright HTML report
+        - Compare expected vs actual
+        - Categorize: Intentional change or regression?
+
+        ### 3. Intentional Changes (Expected)
+        Changes from this initiative:
+        - Button styling may have subtle differences
+        - Badge styling updates
+        - Radix component state indicators (data-state)
+        - Focus ring styling changes
+
+        ### 4. Regressions (Unexpected)
+        If found:
+        - Do NOT update baseline
+        - Create bug task to fix
+        - Block this task until fixed
+
+        ### 5. Update Baselines
+        ```bash
+        bunx playwright test --project=visual --update-snapshots
+        ```
+
+        ### 6. Document Changes
+        In commit message, list each intentional change:
+        ```
+        feat(visual): update baselines for UI primitives
+
+        Changes:
+        - Button: updated focus ring styling
+        - Badge: refined padding and font-size
+        - Modal: Radix Dialog data-state classes
+        - Dropdown: Radix Select animation states
+        ```
+
+        ## Success Criteria
+        - All 16 visual regression tests pass
+        - Each diff reviewed and categorized
+        - No unexpected regressions
+        - Intentional changes documented
+
+        ## Commands
+        ```bash
+        # Compare against baselines
+        bunx playwright test --project=visual
+
+        # Update baselines (after review)
+        bunx playwright test --project=visual --update-snapshots
+
+        # View report
+        bunx playwright show-report
+        ```
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Instructions
+
+        Create a clear, actionable specification that defines exactly what needs to be done
+        and how to verify it's complete.
+
+        ### 1. Problem Statement
+        Summarize what needs to be solved in 1-2 sentences.
+
+        ### 2. Success Criteria (REQUIRED)
+        Define specific, testable criteria as checkboxes:
+        - Each criterion must be verifiable (file exists, test passes, API returns X)
+        - No vague language ("works well", "is fast")
+        - Include both functional and quality criteria
+
+        ### 3. Testing Requirements (REQUIRED)
+        Specify what tests must pass:
+        - [ ] Unit test: [specific test description]
+        - [ ] Integration test: [if applicable]
+        - [ ] E2E test: [if UI changes]
+
+        ### 4. Scope
+        Define boundaries to prevent scope creep:
+        - **In Scope**: What will be implemented
+        - **Out of Scope**: What will NOT be implemented
+
+        ### 5. Technical Approach
+        Brief plan for implementation:
+        - Files to modify
+        - Key changes in each file
+
+        ### 6. Category-Specific Analysis
+
+        **If this is a BUG (category=bug):**
+        - Reproduction Steps: Exact steps to trigger the bug
+        - Current Behavior: What happens now (the bug)
+        - Expected Behavior: What should happen
+        - Root Cause: Where the bug originates (if known)
+        - Verification: How to confirm the fix works
+
+        **If this is a FEATURE (category=feature):**
+        - User Story: As a [user], I want [feature] so that [benefit]
+        - Acceptance Criteria: Specific conditions for feature acceptance
+
+        **If this is a REFACTOR (category=refactor):**
+        - Before Pattern: Current code/architecture
+        - After Pattern: Target code/architecture
+        - Risk Assessment: What could break
+
+        ## Output Format
+
+        Wrap your spec in artifact tags:
+
+        <artifact>
+        # Specification: Update visual regression baselines
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+        </artifact>
+
+        After completing the spec, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-217: spec - completed"
+        ```
+
+        Then output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+        If blocked (requirements unclear):
+        ```
+        <phase_blocked>
+        reason: [what's unclear]
+        needs: [what clarification is needed]
+        </phase_blocked>
+        ```
+
+
+        ## Response
+
+        **Commit**: c6648bf2
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 610955 input, 4638 output, 52475 cache_creation, 557151 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 62
+      taskid: TASK-217
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: Update visual regression baselines
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        # Specification: Update visual regression baselines
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-217: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: b68ab43c
+
+        ## Summary
+
+        All tests pass:
+        - **Unit tests**: 683 passed (30 test files)
+        - **Visual regression tests**: 16 passed (all baselines updated and verified)
+
+        The visual regression baselines were regenerated for all 16 snapshots covering:
+        - Dashboard states (populated, empty, loading)
+        - Board views (flat populated, flat with running, swimlane populated, swimlane collapsed)
+        - Task detail tabs (timeline running, timeline completed, changes split view, changes unified view, transcript with content)
+        - Modals (new task empty, new task filled, command palette open, keyboard shortcuts)
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 714848 input, 1933 output, 40436 cache_creation, 674396 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 65283
+      taskid: TASK-217
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:06:52-06:00
+    - id: 65296
+      taskid: TASK-217
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:06:52-06:00
+    - id: 65297
+      taskid: TASK-217
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:06:52-06:00
+    - id: 65299
+      taskid: TASK-217
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:06:52-06:00
+    - id: 65301
+      taskid: TASK-217
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:06:52-06:00
+    - id: 65304
+      taskid: TASK-217
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:06:52-06:00
+    - id: 65307
+      taskid: TASK-217
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:06:52-06:00
+    - id: 65298
+      taskid: TASK-217
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:19:00-06:00
+    - id: 65300
+      taskid: TASK-217
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:19:00-06:00
+    - id: 65302
+      taskid: TASK-217
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:19:00-06:00
+    - id: 65305
+      taskid: TASK-217
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:19:00-06:00
+    - id: 65308
+      taskid: TASK-217
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:19:00-06:00
+    - id: 65303
+      taskid: TASK-217
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:26:17-06:00
+    - id: 65306
+      taskid: TASK-217
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:26:17-06:00
+    - id: 65309
+      taskid: TASK-217
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:26:17-06:00
+    - id: 65310
+      taskid: TASK-217
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:27:15-06:00

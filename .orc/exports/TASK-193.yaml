@@ -1,0 +1,185 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.838141484-06:00
+task:
+    id: TASK-193
+    title: 'Comprehensive auto-commit: ALL .orc/ file mutations must commit'
+    description: "## Problem\nTASK-153 and TASK-191 added auto-commit for some task operations, but many mutations still don't auto-commit:\n\n### Task operations missing auto-commit:\n- Status changes during execution (running, completed, failed)\n- State file updates (state.yaml)\n- Transcript additions\n- Phase transitions\n- Retry context updates\n- Token/cost tracking updates\n\n### Initiative operations missing auto-commit:\n- Status changes (draft → active → completed)\n- Task linking/unlinking\n- Decision additions\n- Progress updates\n\n### Other .orc/ changes:\n- Config changes via API\n- Project registration\n- Any file watcher-triggered changes\n\n## Solution\nAudit ALL code paths that write to .orc/ and ensure they call CommitAndSync:\n\n1. **Task lifecycle:**\n   - internal/executor/*.go - all state updates\n   - internal/task/store.go - all Save() calls\n   \n2. **Initiative lifecycle:**\n   - internal/initiative/*.go - all mutations\n   \n3. **API handlers:**\n   - internal/api/handlers*.go - all POST/PUT/DELETE\n\n4. **Consider:** Centralized hook that commits after any .orc/ file write\n\n## Success Criteria\n1. `git status` shows clean after ANY orc operation\n2. No manual commits needed for .orc/ files ever\n3. Commit messages are descriptive of what changed"
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-193
+    queue: active
+    priority: high
+    category: bug
+    created_at: 2026-01-14T03:17:27-06:00
+    updated_at: 2026-01-14T03:47:57-06:00
+    started_at: 2026-01-14T03:17:32-06:00
+    completed_at: 2026-01-14T03:47:57-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/71
+plan:
+    version: 1
+    task_id: TASK-193
+    weight: medium
+    description: Medium task - implement with review, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following feature/task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Plan your implementation approach
+            2. Implement the required changes
+            3. Write/update tests alongside code
+            4. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: d7bddfe7012cc663c7bfdd2eb6ba8f4bf320bcd8
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Review code for quality issues
+            3. Check for edge cases and security issues
+            4. Fix any problems found
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: b640c85aa7d3ae000ce4eab210d3552077718944
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: f259071f2059a19a6c5e5a9e105279932ee99343
+state:
+    task_id: TASK-193
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-14T03:17:32-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-14T03:44:28-06:00
+            completed_at: 2026-01-14T03:47:57-06:00
+            iterations: 1
+            commit_sha: f259071f2059a19a6c5e5a9e105279932ee99343
+            tokens:
+                input_tokens: 2511763
+                output_tokens: 7921
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-14T03:17:32-06:00
+            completed_at: 2026-01-14T03:40:16-06:00
+            iterations: 2
+            commit_sha: d7bddfe7012cc663c7bfdd2eb6ba8f4bf320bcd8
+            tokens:
+                input_tokens: 32314541
+                output_tokens: 86523
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-14T03:40:16-06:00
+            completed_at: 2026-01-14T03:44:28-06:00
+            iterations: 1
+            commit_sha: b640c85aa7d3ae000ce4eab210d3552077718944
+            tokens:
+                input_tokens: 3128483
+                output_tokens: 5805
+                total_tokens: 0
+    gates:
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T03:40:16-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T03:44:28-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T03:47:57-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+gate_decisions:
+    - id: 53
+      taskid: TASK-193
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T03:40:16-06:00
+    - id: 54
+      taskid: TASK-193
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T03:44:28-06:00
+    - id: 55
+      taskid: TASK-193
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T03:47:57-06:00

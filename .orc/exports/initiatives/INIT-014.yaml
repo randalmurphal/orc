@@ -1,0 +1,54 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.866969463-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-014
+    title: Frontend UX Improvements Phase 2
+    status: active
+    vision: Second round of frontend improvements based on hands-on UI testing. Focuses on tooltips, loading states, keyboard navigation, and power user features.
+    tasks:
+        - id: TASK-311
+          title: 'UX: Add tooltips for all truncated text (task titles, initiative names, descriptions)'
+          status: planned
+        - id: TASK-312
+          title: 'UX: Make task status/phase prominent for running tasks'
+          status: planned
+        - id: TASK-313
+          title: 'UX: Replace loading state ''0'' counts with skeleton loaders'
+          status: planned
+        - id: TASK-314
+          title: 'Feature: Keyboard navigation in task list'
+          status: planned
+        - id: TASK-315
+          title: 'Feature: Keyboard shortcuts cheat sheet modal'
+          status: planned
+        - id: TASK-316
+          title: 'UX: Board view - collapse empty columns and improve horizontal space'
+          status: planned
+        - id: TASK-317
+          title: 'Feature: Display token usage in task detail and dashboard'
+          status: planned
+        - id: TASK-318
+          title: 'Feature: Search within task transcripts'
+          status: planned
+        - id: TASK-319
+          title: 'UX: Visual feedback on real-time WebSocket updates'
+          status: planned
+        - id: TASK-320
+          title: 'Feature: Right-click context menu for task cards'
+          status: planned
+        - id: TASK-321
+          title: 'Feature: Bulk task operations (select multiple, run/archive/delete)'
+          status: planned
+        - id: TASK-322
+          title: 'Feature: Interactive dependency graph visualization'
+          status: planned
+        - id: TASK-323
+          title: 'UX: Phase progress bar for multi-phase tasks'
+          status: planned
+        - id: TASK-324
+          title: 'UX: Changes tab - show context when no code changes exist'
+          status: planned
+    created_at: 2026-01-16T19:31:21-06:00
+    updated_at: 2026-01-16T19:33:14-06:00

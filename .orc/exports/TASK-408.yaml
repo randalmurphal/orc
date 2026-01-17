@@ -1,0 +1,293 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.883347839-06:00
+task:
+    id: TASK-408
+    title: Implement cost analytics API endpoints
+    description: "Add comprehensive cost analytics endpoints for the frontend dashboard.\n\n**ENDPOINTS TO CREATE:**\n\n1. **GET /api/cost/breakdown**\nQuery params: by=model|phase|task|initiative, period=24h|7d|30d|all\n```json\n{\n  \"period\": \"7d\",\n  \"total_cost_usd\": 156.78,\n  \"breakdown\": {\n    \"opus\": {\"cost\": 120.50, \"tokens\": 500000, \"percent\": 76.8},\n    \"sonnet\": {\"cost\": 35.28, \"tokens\": 200000, \"percent\": 22.5},\n    \"haiku\": {\"cost\": 1.00, \"tokens\": 50000, \"percent\": 0.6}\n  }\n}\n```\n\n2. **GET /api/cost/timeseries**\nQuery params: start, end, granularity=hour|day|week, model (optional)\n```json\n{\n  \"start\": \"2026-01-01\",\n  \"end\": \"2026-01-16\",\n  \"granularity\": \"day\",\n  \"series\": [\n    {\"date\": \"2026-01-01\", \"cost\": 12.50, \"tokens\": 50000, \"model\": \"opus\"},\n    {\"date\": \"2026-01-01\", \"cost\": 2.30, \"tokens\": 15000, \"model\": \"sonnet\"},\n    ...\n  ]\n}\n```\n\n3. **GET /api/cost/budget**\n```json\n{\n  \"monthly_limit_usd\": 500.00,\n  \"current_spent_usd\": 234.50,\n  \"remaining_usd\": 265.50,\n  \"percent_used\": 46.9,\n  \"projected_monthly\": 480.00,\n  \"days_remaining\": 15,\n  \"on_track\": true\n}\n```\n\n4. **PUT /api/cost/budget**\n```json\n{\"monthly_limit_usd\": 500.00, \"alert_threshold_percent\": 80}\n```\n\n5. **GET /api/initiatives/:id/cost**\n```json\n{\n  \"initiative_id\": \"INIT-015\",\n  \"total_cost_usd\": 45.67,\n  \"by_task\": [\n    {\"task_id\": \"TASK-325\", \"cost\": 12.30, \"tokens\": 50000},\n    ...\n  ],\n  \"by_model\": {\"opus\": 40.00, \"sonnet\": 5.67},\n  \"by_phase\": {\"implement\": 30.00, \"test\": 15.67}\n}\n```\n\n**IMPLEMENTATION:**\n```go\n// internal/api/cost.go\nfunc handleCostBreakdown(w http.ResponseWriter, r *http.Request) {\n    by := r.URL.Query().Get(\"by\")  // model, phase, task, initiative\n    period := parsePeriod(r.URL.Query().Get(\"period\"))\n    \n    switch by {\n    case \"model\":\n        breakdown, _ := globalDB.GetCostByModel(period.Start, period.End)\n    case \"phase\":\n        breakdown, _ := globalDB.GetCostByPhase(period.Start, period.End)\n    // ...\n    }\n}\n```\n\n**FILES TO CREATE/MODIFY:**\n- internal/api/cost.go (new)\n- internal/api/routes.go (register endpoints)\n- internal/db/global.go (add query methods)\n\n**SUCCESS CRITERIA:**\n1. All endpoints return correct data\n2. Period filtering works\n3. Model breakdown accurate\n4. Budget calculations correct\n5. Initiative rollup includes all tasks\n6. Performance: < 200ms for 30-day queries"
+    weight: medium
+    status: planned
+    branch: orc/TASK-408
+    queue: active
+    priority: normal
+    category: feature
+    initiative_id: INIT-026
+    blocked_by:
+        - TASK-407
+    created_at: 2026-01-16T23:00:10-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-408
+    weight: medium
+    description: Medium task - spec, implement, review, test, docs with multi-agent code review
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: review
+          name: review
+          prompt: ""
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - review
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-408
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

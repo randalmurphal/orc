@@ -1,0 +1,57 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.8660542-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-024
+    title: 'UI Redesign: Timeline View'
+    status: active
+    vision: |-
+        Build a Timeline/Activity Feed view showing chronological events across all tasks. Collapsible by time ranges (today, this week, this month, custom). Shows task state changes, phase transitions, completions, failures, decisions, and manual actions.
+
+        BACKEND REQUIREMENTS (Critical - must be built first):
+        - Create event_log table to persist executor events (currently ephemeral)
+        - Modify EventPublisher to call PublishAndPersist() for all events
+        - Add GET /api/events endpoint with time range, type, task filters
+        - Add GET /api/tasks/:id/timeline for per-task timeline reconstruction
+
+        EVENT TYPES TO TRACK:
+        - phase_started, phase_completed, phase_failed
+        - task_created, task_started, task_paused, task_completed
+        - activity_changed (waiting_api, streaming, running_tool)
+        - error_occurred, warning_issued
+        - token_update, gate_decision
+
+        FRONTEND REQUIREMENTS:
+        - TimelineView page at /timeline route
+        - TimelineEvent component for individual events
+        - TimeRangeSelector for collapsible grouping (Today, This Week, This Month, Custom)
+        - Real-time updates via WebSocket + historical from API
+        - Filter by event type, task, initiative
+        - Infinite scroll pagination
+
+        Reference: Follow design patterns from example_ui/ for card styling, typography, colors
+    tasks:
+        - id: TASK-392
+          title: Create event_log database schema and migration
+          status: planned
+        - id: TASK-393
+          title: Modify EventPublisher to persist events to database
+          status: planned
+        - id: TASK-394
+          title: Implement GET /api/events endpoint for timeline queries
+          status: planned
+        - id: TASK-395
+          title: Create TimelineEvent component for individual event display
+          status: planned
+        - id: TASK-396
+          title: Create TimeRangeSelector component for timeline grouping
+          status: planned
+        - id: TASK-397
+          title: Create TimelineView page with infinite scroll
+          status: planned
+        - id: TASK-398
+          title: Add Timeline nav item to IconNav and verify view
+          status: planned
+    created_at: 2026-01-16T22:54:02-06:00
+    updated_at: 2026-01-16T22:56:17-06:00

@@ -1,0 +1,1274 @@
+version: 2
+exported_at: 2026-01-16T23:27:37.014489046-06:00
+task:
+    id: TASK-270
+    title: 'Investigate: Click actions timing out on some elements'
+    description: |-
+        ## Problem
+        During UI testing, several click actions timed out:
+        - Dashboard link in sidebar
+        - Prompts link in Environment nav
+        - Elements resolve but click action times out waiting for 'visible, enabled and stable'
+
+        ## Possible Causes
+        1. Animations preventing element stability
+        2. Overlays blocking click target
+        3. CSS transforms causing stability issues
+        4. Loading states not fully completing
+
+        ## Impact
+        - E2E tests may be flaky
+        - User experience could be affected by unresponsive UI
+
+        ## To Investigate
+        - Check for CSS transitions/animations on nav elements
+        - Look for invisible overlays or loading states
+        - Test with reduced motion settings
+        - Check z-index layering
+
+        ## Location
+        - components/layout/Sidebar.tsx
+        - components/layout/AppLayout.tsx
+        - CSS files for transitions
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-270
+    queue: active
+    priority: low
+    category: bug
+    initiative_id: INIT-013
+    created_at: 2026-01-15T23:18:41-06:00
+    updated_at: 2026-01-16T04:37:19-06:00
+    started_at: 2026-01-16T04:00:51-06:00
+    completed_at: 2026-01-16T04:37:19-06:00
+plan:
+    version: 1
+    task_id: TASK-270
+    weight: medium
+    description: Medium task - spec, implement, test, docs with clear success criteria
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 6ecd6e7b42636a0abffe7ed77f703989a20a2224
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: dd7791556fa7d4957ecdb30b60d7e0e45d03ffed
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 492818a0b187aaea6bde8b857f89d2641491372b
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: e9620ed4db8d3a6b8310cfd6bd4c8f6f36170318
+spec: |-
+    # Specification: Investigate Click Actions Timing Out on Some Elements
+
+    ## Problem Statement
+
+    Click actions on navigation elements (Dashboard link in sidebar, Prompts link in Environment nav) time out during E2E testing. Elements resolve but the click action times out waiting for elements to become "visible, enabled and stable." This indicates CSS transitions/animations are preventing Playwright from determining element stability.
+
+    ## Bug Analysis
+
+    ### Reproduction Steps
+    1. Run E2E tests with Playwright MCP tools
+    2. Navigate to the web UI
+    3. Attempt to click the Dashboard link in the sidebar
+    4. Attempt to click the Prompts link in the Environment navigation
+    5. Observe timeout errors waiting for element stability
+
+    ### Current Behavior
+    - Click actions on nav elements timeout after default Playwright timeout
+    - Error message: element not stable (waiting for "visible, enabled and stable")
+    - Elements are visible and enabled but fail stability check
+
+    ### Expected Behavior
+    - Click actions should complete successfully within reasonable time
+    - Navigation should work consistently in both manual testing and E2E tests
+
+    ### Root Cause Analysis
+
+    Based on code inspection, multiple factors contribute to element instability:
+
+    1. **CSS Transitions on Layout Elements**
+       - `.sidebar`: `transition: width 200ms` (Sidebar.css:13)
+       - `.app-main`: `transition: margin-left 200ms` (AppLayout.css:13)
+       - `.nav-item`: `transition: all 150ms` (Sidebar.css:139)
+       - When sidebar state changes, all these transitions fire simultaneously
+
+    2. **Entrance Animations on Nav Labels**
+       - `.nav-label`: `animation: fade-in 150ms` (Sidebar.css:186)
+       - `.keyboard-hint`: `animation: fade-in 150ms` (Sidebar.css:366)
+       - These play every time elements mount (sidebar expansion/collapse)
+
+    3. **Conditional DOM Rendering**
+       - Initiatives section only renders when `expanded && expandedSections.has('initiatives')` (Sidebar.tsx:295)
+       - Environment sub-nav only renders when `expanded && expandedSections.has('environment')` (Sidebar.tsx:389)
+       - DOM additions cause reflow, compounded by animations
+
+    4. **Transform-based Animations**
+       - Radix components use `transform: scale()` animations (index.css:218-238)
+       - Dropdown menus use `transform: translateY()` animations
+       - Transforms can affect bounding box calculations during stability checks
+
+    5. **E2E Tests Already Compensate**
+       - `sidebar.spec.ts` uses `waitForTimeout(300)` after toggle operations
+       - This workaround masks the underlying issue
+
+    ### Verification
+    The fix is verified when:
+    - E2E tests pass without explicit `waitForTimeout()` delays after navigation
+    - Click actions complete within Playwright's actionability timeout (30s default)
+    - No "element not stable" errors in test logs
+
+    ## Success Criteria
+
+    - [x] Identify specific CSS properties causing instability (transitions, animations, transforms)
+    - [x] Document which elements are affected and their animation timings
+    - [x] Propose solution(s) with tradeoffs
+    - [ ] Create reproducible test case demonstrating the issue
+    - [ ] Verify solution works with existing E2E test suite
+
+    ## Testing Requirements
+
+    - [ ] E2E test: Sidebar navigation links respond to clicks without waitForTimeout workarounds
+    - [ ] E2E test: Environment nav links (Prompts, etc.) clickable immediately after section expansion
+    - [ ] E2E test: Dashboard link clickable on first attempt
+    - [ ] Visual regression: Animations still work in normal usage (non-reduced-motion)
+    - [ ] Manual verification: UX unchanged for end users
+
+    ## Scope
+
+    ### In Scope
+    - CSS transitions/animations on sidebar elements (Sidebar.css)
+    - CSS transitions on layout elements (AppLayout.css)
+    - Radix UI animation globals (index.css)
+    - Navigation elements affected by the issue
+
+    ### Out of Scope
+    - Board drag-drop functionality (separate interaction pattern)
+    - Modal animations (not reported as problematic)
+    - Toast animations (not navigation-related)
+    - Complete animation system refactor
+
+    ## Technical Approach
+
+    ### Recommended: CSS `prefers-reduced-motion` Enhancement
+
+    Enhance the existing `prefers-reduced-motion` media query (index.css:195-203) to also apply during E2E testing via a CSS class toggle:
+
+    ```css
+    /* Add: E2E testing mode class */
+    html.e2e-testing *,
+    html.e2e-testing *::before,
+    html.e2e-testing *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+    ```
+
+    E2E setup would add the class:
+    ```typescript
+    // In fixtures.ts or beforeEach
+    await page.addStyleTag({ content: 'html { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }' });
+    ```
+
+    ### Files to Modify
+
+    | File | Change |
+    |------|--------|
+    | `web/src/index.css` | Add `.e2e-testing` class rules |
+    | `web/e2e/fixtures.ts` | Inject e2e class or disable animations |
+    | `web/src/components/layout/Sidebar.css` | Audit animation properties (no changes if using global fix) |
+    | `web/e2e/sidebar.spec.ts` | Remove `waitForTimeout(300)` workarounds after fix verified |
+    | `web/e2e/navigation.spec.ts` | Add explicit nav click tests |
+state:
+    task_id: TASK-270
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-16T04:00:51-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-16T04:35:53-06:00
+            completed_at: 2026-01-16T04:37:19-06:00
+            iterations: 1
+            commit_sha: e9620ed4db8d3a6b8310cfd6bd4c8f6f36170318
+            tokens:
+                input_tokens: 1126641
+                output_tokens: 2860
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-16T04:03:33-06:00
+            completed_at: 2026-01-16T04:13:51-06:00
+            iterations: 1
+            commit_sha: dd7791556fa7d4957ecdb30b60d7e0e45d03ffed
+            tokens:
+                input_tokens: 4951367
+                output_tokens: 14744
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-16T04:00:52-06:00
+            completed_at: 2026-01-16T04:03:33-06:00
+            iterations: 1
+            commit_sha: 6ecd6e7b42636a0abffe7ed77f703989a20a2224
+            tokens:
+                input_tokens: 1363664
+                output_tokens: 9038
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-16T04:13:51-06:00
+            completed_at: 2026-01-16T04:35:53-06:00
+            iterations: 1
+            commit_sha: 492818a0b187aaea6bde8b857f89d2641491372b
+            tokens:
+                input_tokens: 2820009
+                output_tokens: 6953
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:03:33-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:03:33-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:03:33-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:03:33-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:03:33-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:03:33-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:03:33-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:13:51-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:13:51-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:13:51-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:13:51-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:13:51-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:35:53-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:35:53-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:35:53-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:37:19-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 276
+      taskid: TASK-270
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Investigate: Click actions timing out on some elements
+        **Category**: bug
+
+        ## Specification
+
+        # Specification: Investigate: Click actions timing out on some elements
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-270: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: a6de576b
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1126641 input, 2860 output, 79292 cache_creation, 1047329 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 277
+      taskid: TASK-270
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Investigate: Click actions timing out on some elements
+        **Category**: bug
+
+        ## Initiative Context
+
+        This task is part of **Frontend Polish & UX Audit** (INIT-013).
+
+        ### Vision
+
+        Comprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Specification
+
+        # Specification: Investigate: Click actions timing out on some elements
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-270: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 61df175d
+
+        ## Summary
+
+        Fixed click action timeouts in E2E tests by disabling CSS animations and transitions during test execution.
+
+        ### Root Cause
+        CSS transitions and animations on navigation elements (sidebar width 200ms, nav-item all 150ms, fade-in 150ms) caused Playwright to fail stability checks. Elements would resolve but clicks timed out waiting for "visible, enabled and stable" state.
+
+        ### Solution
+        1. **fixtures.ts**: Added CSS injection that disables all animations/transitions during E2E tests:
+           ```css
+           animation-duration: 0.01ms !important;
+           transition-duration: 0.01ms !important;
+           ```
+
+        2. **sidebar.spec.ts**: Removed `waitForTimeout(300)` workarounds that were compensating for animation delays
+
+        3. **Bonus fixes**: Fixed two unrelated test bugs discovered during validation:
+           - Fixed locator "Tasks" matching both "Tasks" and "All Tasks"
+           - Fixed wrong element selector (`.app-layout` instead of `.main-area`)
+
+        ### Verification
+        All 10 sidebar E2E tests pass (1 skipped), including tests that previously required animation delay workarounds:
+        - ✓ should collapse when clicking the collapse button
+        - ✓ should expand when clicking the expand button
+        - ✓ navigation links should work when expanded/collapsed
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 4951367 input, 14744 output, 98262 cache_creation, 4852528 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 278
+      taskid: TASK-270
+      phase: spec
+      iteration: 1
+      role: combined
+      content: |
+        # spec - Iteration 1
+
+        ## Prompt
+
+        Create a specification for this task:
+
+        **Task**: Investigate: Click actions timing out on some elements
+        **Category**: bug
+        **Description**: ## Problem
+        During UI testing, several click actions timed out:
+        - Dashboard link in sidebar
+        - Prompts link in Environment nav
+        - Elements resolve but click action times out waiting for 'visible, enabled and stable'
+
+        ## Possible Causes
+        1. Animations preventing element stability
+        2. Overlays blocking click target
+        3. CSS transforms causing stability issues
+        4. Loading states not fully completing
+
+        ## Impact
+        - E2E tests may be flaky
+        - User experience could be affected by unresponsive UI
+
+        ## To Investigate
+        - Check for CSS transitions/animations on nav elements
+        - Look for invisible overlays or loading states
+        - Test with reduced motion settings
+        - Check z-index layering
+
+        ## Location
+        - components/layout/Sidebar.tsx
+        - components/layout/AppLayout.tsx
+        - CSS files for transitions
+
+        ## Initiative Context
+
+        This task is part of **Frontend Polish & UX Audit** (INIT-013).
+
+        ### Vision
+
+        Comprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Instructions
+
+        Create a clear, actionable specification that defines exactly what needs to be done
+        and how to verify it's complete.
+
+        ### 1. Problem Statement
+        Summarize what needs to be solved in 1-2 sentences.
+
+        ### 2. Success Criteria (REQUIRED)
+        Define specific, testable criteria as checkboxes:
+        - Each criterion must be verifiable (file exists, test passes, API returns X)
+        - No vague language ("works well", "is fast")
+        - Include both functional and quality criteria
+
+        ### 3. Testing Requirements (REQUIRED)
+        Specify what tests must pass:
+        - [ ] Unit test: [specific test description]
+        - [ ] Integration test: [if applicable]
+        - [ ] E2E test: [if UI changes]
+
+        ### 4. Scope
+        Define boundaries to prevent scope creep:
+        - **In Scope**: What will be implemented
+        - **Out of Scope**: What will NOT be implemented
+
+        ### 5. Technical Approach
+        Brief plan for implementation:
+        - Files to modify
+        - Key changes in each file
+
+        ### 6. Category-Specific Analysis
+
+        **If this is a BUG (category=bug):**
+        - Reproduction Steps: Exact steps to trigger the bug
+        - Current Behavior: What happens now (the bug)
+        - Expected Behavior: What should happen
+        - Root Cause: Where the bug originates (if known)
+        - Verification: How to confirm the fix works
+
+        **If this is a FEATURE (category=feature):**
+        - User Story: As a [user], I want [feature] so that [benefit]
+        - Acceptance Criteria: Specific conditions for feature acceptance
+
+        **If this is a REFACTOR (category=refactor):**
+        - Before Pattern: Current code/architecture
+        - After Pattern: Target code/architecture
+        - Risk Assessment: What could break
+
+        ## Output Format
+
+        Wrap your spec in artifact tags:
+
+        <artifact>
+        # Specification: Investigate: Click actions timing out on some elements
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+        </artifact>
+
+        After completing the spec, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-270: spec - completed"
+        ```
+
+        Then output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+        If blocked (requirements unclear):
+        ```
+        <phase_blocked>
+        reason: [what's unclear]
+        needs: [what clarification is needed]
+        </phase_blocked>
+        ```
+
+
+        ## Response
+
+        **Commit**: 22e01f46
+
+        <artifact>
+        # Specification: Investigate Click Actions Timing Out on Some Elements
+
+        ## Problem Statement
+
+        Click actions on navigation elements (Dashboard link in sidebar, Prompts link in Environment nav) time out during E2E testing. Elements resolve but the click action times out waiting for elements to become "visible, enabled and stable." This indicates CSS transitions/animations are preventing Playwright from determining element stability.
+
+        ## Bug Analysis
+
+        ### Reproduction Steps
+        1. Run E2E tests with Playwright MCP tools
+        2. Navigate to the web UI
+        3. Attempt to click the Dashboard link in the sidebar
+        4. Attempt to click the Prompts link in the Environment navigation
+        5. Observe timeout errors waiting for element stability
+
+        ### Current Behavior
+        - Click actions on nav elements timeout after default Playwright timeout
+        - Error message: element not stable (waiting for "visible, enabled and stable")
+        - Elements are visible and enabled but fail stability check
+
+        ### Expected Behavior
+        - Click actions should complete successfully within reasonable time
+        - Navigation should work consistently in both manual testing and E2E tests
+
+        ### Root Cause Analysis
+
+        Based on code inspection, multiple factors contribute to element instability:
+
+        1. **CSS Transitions on Layout Elements**
+           - `.sidebar`: `transition: width 200ms` (Sidebar.css:13)
+           - `.app-main`: `transition: margin-left 200ms` (AppLayout.css:13)
+           - `.nav-item`: `transition: all 150ms` (Sidebar.css:139)
+           - When sidebar state changes, all these transitions fire simultaneously
+
+        2. **Entrance Animations on Nav Labels**
+           - `.nav-label`: `animation: fade-in 150ms` (Sidebar.css:186)
+           - `.keyboard-hint`: `animation: fade-in 150ms` (Sidebar.css:366)
+           - These play every time elements mount (sidebar expansion/collapse)
+
+        3. **Conditional DOM Rendering**
+           - Initiatives section only renders when `expanded && expandedSections.has('initiatives')` (Sidebar.tsx:295)
+           - Environment sub-nav only renders when `expanded && expandedSections.has('environment')` (Sidebar.tsx:389)
+           - DOM additions cause reflow, compounded by animations
+
+        4. **Transform-based Animations**
+           - Radix components use `transform: scale()` animations (index.css:218-238)
+           - Dropdown menus use `transform: translateY()` animations
+           - Transforms can affect bounding box calculations during stability checks
+
+        5. **E2E Tests Already Compensate**
+           - `sidebar.spec.ts` uses `waitForTimeout(300)` after toggle operations
+           - This workaround masks the underlying issue
+
+        ### Verification
+        The fix is verified when:
+        - E2E tests pass without explicit `waitForTimeout()` delays after navigation
+        - Click actions complete within Playwright's actionability timeout (30s default)
+        - No "element not stable" errors in test logs
+
+        ## Success Criteria
+
+        - [x] Identify specific CSS properties causing instability (transitions, animations, transforms)
+        - [x] Document which elements are affected and their animation timings
+        - [x] Propose solution(s) with tradeoffs
+        - [ ] Create reproducible test case demonstrating the issue
+        - [ ] Verify solution works with existing E2E test suite
+
+        ## Testing Requirements
+
+        - [ ] E2E test: Sidebar navigation links respond to clicks without waitForTimeout workarounds
+        - [ ] E2E test: Environment nav links (Prompts, etc.) clickable immediately after section expansion
+        - [ ] E2E test: Dashboard link clickable on first attempt
+        - [ ] Visual regression: Animations still work in normal usage (non-reduced-motion)
+        - [ ] Manual verification: UX unchanged for end users
+
+        ## Scope
+
+        ### In Scope
+        - CSS transitions/animations on sidebar elements (Sidebar.css)
+        - CSS transitions on layout elements (AppLayout.css)
+        - Radix UI animation globals (index.css)
+        - Navigation elements affected by the issue
+
+        ### Out of Scope
+        - Board drag-drop functionality (separate interaction pattern)
+        - Modal animations (not reported as problematic)
+        - Toast animations (not navigation-related)
+        - Complete animation system refactor
+
+        ## Technical Approach
+
+        ### Recommended: CSS `prefers-reduced-motion` Enhancement
+
+        Enhance the existing `prefers-reduced-motion` media query (index.css:195-203) to also apply during E2E testing via a CSS class toggle:
+
+        ```css
+        /* Add: E2E testing mode class */
+        html.e2e-testing *,
+        html.e2e-testing *::before,
+        html.e2e-testing *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+        ```
+
+        E2E setup would add the class:
+        ```typescript
+        // In fixtures.ts or beforeEach
+        await page.addStyleTag({ content: 'html { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }' });
+        ```
+
+        ### Files to Modify
+
+        | File | Change |
+        |------|--------|
+        | `web/src/index.css` | Add `.e2e-testing` class rules |
+        | `web/e2e/fixtures.ts` | Inject e2e class or disable animations |
+        | `web/src/components/layout/Sidebar.css` | Audit animation properties (no changes if using global fix) |
+        | `web/e2e/sidebar.spec.ts` | Remove `waitForTimeout(300)` workarounds after fix verified |
+        | `web/e2e/navigation.spec.ts` | Add explicit nav click tests |
+        </artifact>
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1363664 input, 9038 output, 88403 cache_creation, 1275243 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 279
+      taskid: TASK-270
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: Investigate: Click actions timing out on some elements
+        **Category**: bug
+
+        ## Specification
+
+        # Specification: Investigate: Click actions timing out on some elements
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-270: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 689eaf93
+
+        ## Verification Summary
+
+        ### Success Criteria Verified:
+        1. **Animation fix works**: CSS injection disables animations/transitions, preventing "element not stable" timeouts
+        2. **Click actions no longer timeout**: Sidebar tests (collapse/expand, persist state) all pass without `waitForTimeout()` workarounds
+        3. **All E2E tests pass**: 35 sidebar/board/dashboard tests pass with animations disabled
+
+        ### Testing Requirements Met:
+        1. Ran full E2E test suite (92 tests passed in original run)
+        2. Verified sidebar-specific tests (10 passed, 1 skipped)
+        3. Fixed unrelated board.spec.ts selector issue discovered during testing
+        4. Tests run reliably without timing-dependent workarounds
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 2820009 input, 6953 output, 266236 cache_creation, 2553574 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 65644
+      taskid: TASK-270
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:03:33-06:00
+    - id: 65652
+      taskid: TASK-270
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:03:33-06:00
+    - id: 65653
+      taskid: TASK-270
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:03:33-06:00
+    - id: 65679
+      taskid: TASK-270
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:03:33-06:00
+    - id: 65681
+      taskid: TASK-270
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:03:33-06:00
+    - id: 65684
+      taskid: TASK-270
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:03:33-06:00
+    - id: 65687
+      taskid: TASK-270
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:03:33-06:00
+    - id: 65654
+      taskid: TASK-270
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:13:51-06:00
+    - id: 65680
+      taskid: TASK-270
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:13:51-06:00
+    - id: 65682
+      taskid: TASK-270
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:13:51-06:00
+    - id: 65685
+      taskid: TASK-270
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:13:51-06:00
+    - id: 65688
+      taskid: TASK-270
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:13:51-06:00
+    - id: 65683
+      taskid: TASK-270
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:35:53-06:00
+    - id: 65686
+      taskid: TASK-270
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:35:53-06:00
+    - id: 65689
+      taskid: TASK-270
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:35:53-06:00
+    - id: 65690
+      taskid: TASK-270
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:37:19-06:00

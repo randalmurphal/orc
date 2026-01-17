@@ -1,0 +1,107 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.934478519-06:00
+task:
+    id: TASK-327
+    title: Create Button component with primary, ghost, and icon variants
+    description: |-
+        Create a Button component matching the mockup button styles.
+
+        REFERENCE FILES:
+        - example_ui/board.html (.btn, .btn-primary, .btn-ghost classes)
+        - example_ui/initiatives.html (New Initiative button)
+        - example_ui/Screenshot_20260116_201819.png
+
+        SUCCESS CRITERIA:
+        1. Button component created at web/src/components/core/Button.tsx
+        2. Primary variant: background var(--primary), hover var(--primary-bright), white text, glow shadow
+        3. Ghost variant: background var(--bg-surface), 1px border, hover var(--bg-hover)
+        4. Icon variant: 28-32px square, icon centered, no text
+        5. Shared styles: border-radius 6px, padding 7px 12px, font-size 11px, font-weight 500, gap 5px, transition 0.15s
+        6. Loading state with spinner
+        7. Disabled state with reduced opacity
+        8. Props interface with variant, size, icon, loading, disabled
+        9. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Icon-only buttons must have aria-label for accessibility
+        - Loading state should disable click
+        - Should work as submit button in forms
+
+        FILES TO CREATE:
+        - web/src/components/core/Button.tsx
+        - web/src/components/core/Button.css
+    weight: small
+    status: planned
+    branch: orc/TASK-327
+    queue: active
+    priority: high
+    category: feature
+    initiative_id: INIT-015
+    blocked_by:
+        - TASK-325
+    created_at: 2026-01-16T20:55:02-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-327
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-327
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

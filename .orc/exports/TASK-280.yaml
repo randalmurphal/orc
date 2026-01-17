@@ -1,0 +1,1158 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.994775379-06:00
+task:
+    id: TASK-280
+    title: Memory growth threshold (100MB) triggers too frequently
+    description: |-
+        The memory growth warning threshold of 100MB is triggering constantly during normal task execution.
+
+        ## Evidence from logs
+        - delta_mb=452.0, 748.1, 2601.5, 6085.1, 331.2, 2418.2, 2098.0, 1650.6
+
+        Memory growth of several GB during task execution appears normal (Claude sessions, browser processes for UI testing).
+
+        ## Options
+        1. Increase default threshold (e.g., 500MB or 1GB)
+        2. Make threshold configurable per-task-weight (larger tasks need more memory)
+        3. Only warn on sustained growth (multiple snapshots) not single spikes
+        4. Reduce log level from WARN to DEBUG for small overages
+
+        ## Files
+        - internal/executor/resource_tracker.go
+        - .orc/config.yaml (diagnostics.resource_tracking.memory_threshold_mb)
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-280
+    queue: active
+    priority: low
+    category: bug
+    initiative_id: INIT-013
+    created_at: 2026-01-15T23:57:01-06:00
+    updated_at: 2026-01-16T04:54:23-06:00
+    started_at: 2026-01-16T04:37:41-06:00
+    completed_at: 2026-01-16T04:54:23-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/165
+plan:
+    version: 1
+    task_id: TASK-280
+    weight: medium
+    description: Medium task - spec, implement, test, docs with clear success criteria
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: b4ae40be9b5d0eb210207c8c6916cdf1b0c08337
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: dddebd7edd968cdf2b19a3c90e35461552e08d95
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: a1a05cb3ed77c75af71e15368cab265d3f1c9610
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: c491b3437670300a81188b0fcd7bc05ea28e660f
+spec: |-
+    # Specification: Memory growth threshold (100MB) triggers too frequently
+
+    ## Problem Statement
+
+    The memory growth warning threshold of 100MB for resource tracking triggers constantly during normal task execution, generating excessive noise in logs. Observed deltas of 452MB to 6GB are common during tasks that launch Claude sessions and browser processes for UI testing.
+
+    ## Success Criteria
+
+    - [ ] Default memory threshold increased from 100MB to 500MB
+    - [ ] Warning logs no longer appear for typical task execution (under ~500MB growth)
+    - [ ] Tasks with genuine memory issues (multi-GB sustained growth) still trigger warnings
+    - [ ] Configuration remains backward-compatible (existing `memory_threshold_mb` settings honored)
+    - [ ] Unit tests verify the new default value
+    - [ ] Documentation updated to reflect the new default
+
+    ## Testing Requirements
+
+    - [ ] Unit test: Verify `Default()` returns `MemoryThresholdMB: 500`
+    - [ ] Unit test: Verify `CheckMemoryGrowth()` only logs warnings when delta exceeds threshold
+    - [ ] Unit test: Verify custom threshold from config is respected (backward compatibility)
+
+    ## Scope
+
+    ### In Scope
+    - Increase default `memory_threshold_mb` from 100 to 500
+    - Update default value in `internal/config/config.go`
+    - Update documentation in:
+      - `docs/specs/CONFIG_HIERARCHY.md`
+      - `internal/executor/docs/RESOURCE_TRACKER.md`
+      - Project `CLAUDE.md` files
+
+    ### Out of Scope
+    - Per-weight memory thresholds (Option 2 from task description)
+    - Sustained growth detection across multiple snapshots (Option 3)
+    - Log level changes (Option 4 - would hide useful warnings)
+    - Changing the memory tracking mechanism itself
+    - Any changes to orphan process detection
+
+    ## Technical Approach
+
+    The fix is straightforward: increase the default threshold to a value that reflects normal task memory usage while still catching genuine problems.
+
+    **Rationale for 500MB:**
+    - Normal Claude sessions + Node.js processes: ~200-400MB
+    - Browser processes for UI testing: ~200-500MB additional
+    - 500MB provides headroom for normal operation while still catching multi-GB leaks
+    - Conservative enough to flag issues without being noisy
+
+    ### Files to Modify
+
+    1. `internal/config/config.go:774`: Change `MemoryThresholdMB: 100` to `MemoryThresholdMB: 500`
+    2. `docs/specs/CONFIG_HIERARCHY.md:294`: Update comment from 100 to 500
+    3. `internal/executor/docs/RESOURCE_TRACKER.md:97`: Update example from 100 to 500
+    4. `CLAUDE.md` (both root and worktree): Update config docs table
+
+    ## Bug Analysis
+
+    ### Reproduction Steps
+    1. Run any orc task with UI testing (`requires_ui_testing: true`)
+    2. Or run any task that takes >30 seconds (normal Claude session duration)
+    3. Observe resource tracking logs at task completion
+
+    ### Current Behavior
+    Warning logs appear constantly with messages like:
+    ```
+    WARN memory growth exceeded threshold delta_mb=452.0 threshold_mb=100
+    WARN memory growth exceeded threshold delta_mb=748.1 threshold_mb=100
+    WARN memory growth exceeded threshold delta_mb=2601.5 threshold_mb=100
+    ```
+
+    ### Expected Behavior
+    Warnings should only appear for genuinely concerning memory growth (500MB+), not for normal task operation.
+
+    ### Root Cause
+    The default threshold of 100MB was set too low for typical task execution. Claude sessions, Node.js processes, and browser instances for Playwright testing regularly consume several hundred megabytes combined.
+
+    ### Verification
+    After fix:
+    1. Run `orc run` on a UI task - no memory warnings for normal execution
+    2. Manually set `memory_threshold_mb: 50` - verify warnings appear (backward compat)
+    3. Verify config default shows 500 via `orc config show`
+state:
+    task_id: TASK-280
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-16T04:37:41-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-16T04:53:25-06:00
+            completed_at: 2026-01-16T04:54:23-06:00
+            iterations: 1
+            commit_sha: c491b3437670300a81188b0fcd7bc05ea28e660f
+            tokens:
+                input_tokens: 765478
+                output_tokens: 2001
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-16T04:38:59-06:00
+            completed_at: 2026-01-16T04:47:04-06:00
+            iterations: 2
+            commit_sha: dddebd7edd968cdf2b19a3c90e35461552e08d95
+            tokens:
+                input_tokens: 6924972
+                output_tokens: 18115
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-16T04:37:42-06:00
+            completed_at: 2026-01-16T04:38:59-06:00
+            iterations: 1
+            commit_sha: b4ae40be9b5d0eb210207c8c6916cdf1b0c08337
+            tokens:
+                input_tokens: 875501
+                output_tokens: 4007
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-16T04:47:04-06:00
+            completed_at: 2026-01-16T04:53:25-06:00
+            iterations: 1
+            commit_sha: a1a05cb3ed77c75af71e15368cab265d3f1c9610
+            tokens:
+                input_tokens: 3918596
+                output_tokens: 6244
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:38:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:38:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:38:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:38:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:38:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:38:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:38:59-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:47:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:47:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:47:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:47:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:47:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:53:25-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:53:25-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:53:25-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:54:23-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 317
+      taskid: TASK-280
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Memory growth threshold (100MB) triggers too frequently
+        **Category**: bug
+
+        ## Specification
+
+        # Specification: Memory growth threshold (100MB) triggers too frequently
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-280: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 5dca1078
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 765478 input, 2001 output, 72252 cache_creation, 681011 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 318
+      taskid: TASK-280
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Memory growth threshold (100MB) triggers too frequently
+        **Category**: bug
+
+        ## Initiative Context
+
+        This task is part of **Frontend Polish & UX Audit** (INIT-013).
+
+        ### Vision
+
+        Comprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Specification
+
+        # Specification: Memory growth threshold (100MB) triggers too frequently
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-280: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        All tests pass. TASK-280 is complete. Here's a summary of the changes:
+
+        **Changes made:**
+
+        | File | Change |
+        |------|--------|
+        | `internal/config/config.go:1313` | Default `MemoryThresholdMB` changed from 100 to 500 |
+        | `internal/config/config.go:552` | Struct field comment updated to "(default: 500)" |
+        | `internal/config/config_test.go:1863-1902` | Added two test functions verifying the new default |
+        | `docs/specs/CONFIG_HIERARCHY.md:294` | Updated default value in documentation |
+        | `docs/guides/TROUBLESHOOTING.md:622,629` | Updated YAML example and table |
+        | `internal/executor/docs/RESOURCE_TRACKER.md:97` | Updated configuration example |
+
+        **Rationale:** Normal Claude sessions with Node.js processes use ~200-400MB, and browser processes add ~200-500MB more. The 100MB threshold was triggering warnings during normal task execution, causing noise in the logs.
+
+        ---
+        Tokens: 3056294 input, 7876 output, 336467 cache_creation, 2719788 cache_read
+        Complete: false
+        Blocked: false
+      timestamp: 1768627233
+    - id: 319
+      taskid: TASK-280
+      phase: implement
+      iteration: 2
+      role: combined
+      content: "# implement - Iteration 2\n\n## Prompt\n\nImplement the task according to the specification:\n\n**Task**: Memory growth threshold (100MB) triggers too frequently\n**Category**: bug\n\n## Initiative Context\n\nThis task is part of **Frontend Polish & UX Audit** (INIT-013).\n\n### Vision\n\nComprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.\n\n**Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.\n\n\n## Specification\n\n# Specification: Memory growth threshold (100MB) triggers too frequently\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n\n\n\n## Instructions\n\n1. Review the spec's success criteria - these are your acceptance criteria\n2. Implement the required changes following the technical approach\n3. Write/update tests alongside code (as specified in Testing Requirements)\n4. Run tests and fix any failures\n5. Self-review against success criteria before completing\n\n### Self-Review Checklist\n- [ ] All success criteria from spec addressed\n- [ ] All testing requirements satisfied\n- [ ] Scope boundaries respected (no extra features)\n- [ ] Error handling complete\n- [ ] Code follows project patterns\n\nKeep iterating until implementation is complete and tests pass.\n\nAfter completing, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-280: implement - completed\"\n```\n\nWhen done, output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\n\n## Response\n\n**Commit**: 46f703ab\n\n**Summary of changes:**\n- Changed the default `memory_threshold_mb` from 100MB to 500MB in `internal/config/config.go`\n- Updated documentation in:\n  - `docs/guides/TROUBLESHOOTING.md`\n  - `docs/specs/CONFIG_HIERARCHY.md`  \n  - `internal/executor/docs/RESOURCE_TRACKER.md` (3 places: type comment, config example, and log output example)\n- Added tests in `internal/config/config_test.go` to verify:\n  - Default threshold is 500MB\n  - Custom thresholds are respected (backward compatibility)\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 3868678 input, 10239 output, 380220 cache_creation, 3488401 cache_read\nComplete: true\nBlocked: false\n"
+      timestamp: 1768627233
+    - id: 320
+      taskid: TASK-280
+      phase: spec
+      iteration: 1
+      role: combined
+      content: |
+        # spec - Iteration 1
+
+        ## Prompt
+
+        Create a specification for this task:
+
+        **Task**: Memory growth threshold (100MB) triggers too frequently
+        **Category**: bug
+        **Description**: The memory growth warning threshold of 100MB is triggering constantly during normal task execution.
+
+        ## Evidence from logs
+        - delta_mb=452.0, 748.1, 2601.5, 6085.1, 331.2, 2418.2, 2098.0, 1650.6
+
+        Memory growth of several GB during task execution appears normal (Claude sessions, browser processes for UI testing).
+
+        ## Options
+        1. Increase default threshold (e.g., 500MB or 1GB)
+        2. Make threshold configurable per-task-weight (larger tasks need more memory)
+        3. Only warn on sustained growth (multiple snapshots) not single spikes
+        4. Reduce log level from WARN to DEBUG for small overages
+
+        ## Files
+        - internal/executor/resource_tracker.go
+        - .orc/config.yaml (diagnostics.resource_tracking.memory_threshold_mb)
+
+        ## Initiative Context
+
+        This task is part of **Frontend Polish & UX Audit** (INIT-013).
+
+        ### Vision
+
+        Comprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Instructions
+
+        Create a clear, actionable specification that defines exactly what needs to be done
+        and how to verify it's complete.
+
+        ### 1. Problem Statement
+        Summarize what needs to be solved in 1-2 sentences.
+
+        ### 2. Success Criteria (REQUIRED)
+        Define specific, testable criteria as checkboxes:
+        - Each criterion must be verifiable (file exists, test passes, API returns X)
+        - No vague language ("works well", "is fast")
+        - Include both functional and quality criteria
+
+        ### 3. Testing Requirements (REQUIRED)
+        Specify what tests must pass:
+        - [ ] Unit test: [specific test description]
+        - [ ] Integration test: [if applicable]
+        - [ ] E2E test: [if UI changes]
+
+        ### 4. Scope
+        Define boundaries to prevent scope creep:
+        - **In Scope**: What will be implemented
+        - **Out of Scope**: What will NOT be implemented
+
+        ### 5. Technical Approach
+        Brief plan for implementation:
+        - Files to modify
+        - Key changes in each file
+
+        ### 6. Category-Specific Analysis
+
+        **If this is a BUG (category=bug):**
+        - Reproduction Steps: Exact steps to trigger the bug
+        - Current Behavior: What happens now (the bug)
+        - Expected Behavior: What should happen
+        - Root Cause: Where the bug originates (if known)
+        - Verification: How to confirm the fix works
+
+        **If this is a FEATURE (category=feature):**
+        - User Story: As a [user], I want [feature] so that [benefit]
+        - Acceptance Criteria: Specific conditions for feature acceptance
+
+        **If this is a REFACTOR (category=refactor):**
+        - Before Pattern: Current code/architecture
+        - After Pattern: Target code/architecture
+        - Risk Assessment: What could break
+
+        ## Output Format
+
+        Wrap your spec in artifact tags:
+
+        <artifact>
+        # Specification: Memory growth threshold (100MB) triggers too frequently
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+        </artifact>
+
+        After completing the spec, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-280: spec - completed"
+        ```
+
+        Then output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+        If blocked (requirements unclear):
+        ```
+        <phase_blocked>
+        reason: [what's unclear]
+        needs: [what clarification is needed]
+        </phase_blocked>
+        ```
+
+
+        ## Response
+
+        **Commit**: 6f443120
+
+        <artifact>
+        # Specification: Memory growth threshold (100MB) triggers too frequently
+
+        ## Problem Statement
+
+        The memory growth warning threshold of 100MB for resource tracking triggers constantly during normal task execution, generating excessive noise in logs. Observed deltas of 452MB to 6GB are common during tasks that launch Claude sessions and browser processes for UI testing.
+
+        ## Success Criteria
+
+        - [ ] Default memory threshold increased from 100MB to 500MB
+        - [ ] Warning logs no longer appear for typical task execution (under ~500MB growth)
+        - [ ] Tasks with genuine memory issues (multi-GB sustained growth) still trigger warnings
+        - [ ] Configuration remains backward-compatible (existing `memory_threshold_mb` settings honored)
+        - [ ] Unit tests verify the new default value
+        - [ ] Documentation updated to reflect the new default
+
+        ## Testing Requirements
+
+        - [ ] Unit test: Verify `Default()` returns `MemoryThresholdMB: 500`
+        - [ ] Unit test: Verify `CheckMemoryGrowth()` only logs warnings when delta exceeds threshold
+        - [ ] Unit test: Verify custom threshold from config is respected (backward compatibility)
+
+        ## Scope
+
+        ### In Scope
+        - Increase default `memory_threshold_mb` from 100 to 500
+        - Update default value in `internal/config/config.go`
+        - Update documentation in:
+          - `docs/specs/CONFIG_HIERARCHY.md`
+          - `internal/executor/docs/RESOURCE_TRACKER.md`
+          - Project `CLAUDE.md` files
+
+        ### Out of Scope
+        - Per-weight memory thresholds (Option 2 from task description)
+        - Sustained growth detection across multiple snapshots (Option 3)
+        - Log level changes (Option 4 - would hide useful warnings)
+        - Changing the memory tracking mechanism itself
+        - Any changes to orphan process detection
+
+        ## Technical Approach
+
+        The fix is straightforward: increase the default threshold to a value that reflects normal task memory usage while still catching genuine problems.
+
+        **Rationale for 500MB:**
+        - Normal Claude sessions + Node.js processes: ~200-400MB
+        - Browser processes for UI testing: ~200-500MB additional
+        - 500MB provides headroom for normal operation while still catching multi-GB leaks
+        - Conservative enough to flag issues without being noisy
+
+        ### Files to Modify
+
+        1. `internal/config/config.go:774`: Change `MemoryThresholdMB: 100` to `MemoryThresholdMB: 500`
+        2. `docs/specs/CONFIG_HIERARCHY.md:294`: Update comment from 100 to 500
+        3. `internal/executor/docs/RESOURCE_TRACKER.md:97`: Update example from 100 to 500
+        4. `CLAUDE.md` (both root and worktree): Update config docs table
+
+        ## Bug Analysis
+
+        ### Reproduction Steps
+        1. Run any orc task with UI testing (`requires_ui_testing: true`)
+        2. Or run any task that takes >30 seconds (normal Claude session duration)
+        3. Observe resource tracking logs at task completion
+
+        ### Current Behavior
+        Warning logs appear constantly with messages like:
+        ```
+        WARN memory growth exceeded threshold delta_mb=452.0 threshold_mb=100
+        WARN memory growth exceeded threshold delta_mb=748.1 threshold_mb=100
+        WARN memory growth exceeded threshold delta_mb=2601.5 threshold_mb=100
+        ```
+
+        ### Expected Behavior
+        Warnings should only appear for genuinely concerning memory growth (500MB+), not for normal task operation.
+
+        ### Root Cause
+        The default threshold of 100MB was set too low for typical task execution. Claude sessions, Node.js processes, and browser instances for Playwright testing regularly consume several hundred megabytes combined.
+
+        ### Verification
+        After fix:
+        1. Run `orc run` on a UI task - no memory warnings for normal execution
+        2. Manually set `memory_threshold_mb: 50` - verify warnings appear (backward compat)
+        3. Verify config default shows 500 via `orc config show`
+        </artifact>
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 875501 input, 4007 output, 87736 cache_creation, 787753 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 321
+      taskid: TASK-280
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: Memory growth threshold (100MB) triggers too frequently
+        **Category**: bug
+
+        ## Specification
+
+        # Specification: Memory growth threshold (100MB) triggers too frequently
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-280: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        The working tree is clean because all implementation work was already committed. This is expected - the test phase verified the existing implementation without needing additional changes.
+
+        **Commit**: dddebd7e (implementation commit - all tests pass)
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 3918596 input, 6244 output, 136657 cache_creation, 3781900 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 65691
+      taskid: TASK-280
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:38:59-06:00
+    - id: 65696
+      taskid: TASK-280
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:38:59-06:00
+    - id: 65697
+      taskid: TASK-280
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:38:59-06:00
+    - id: 65711
+      taskid: TASK-280
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:38:59-06:00
+    - id: 65713
+      taskid: TASK-280
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:38:59-06:00
+    - id: 65716
+      taskid: TASK-280
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:38:59-06:00
+    - id: 65719
+      taskid: TASK-280
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:38:59-06:00
+    - id: 65698
+      taskid: TASK-280
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:47:04-06:00
+    - id: 65712
+      taskid: TASK-280
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:47:04-06:00
+    - id: 65714
+      taskid: TASK-280
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:47:04-06:00
+    - id: 65717
+      taskid: TASK-280
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:47:04-06:00
+    - id: 65720
+      taskid: TASK-280
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:47:04-06:00
+    - id: 65715
+      taskid: TASK-280
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:53:25-06:00
+    - id: 65718
+      taskid: TASK-280
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:53:25-06:00
+    - id: 65721
+      taskid: TASK-280
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:53:25-06:00
+    - id: 65722
+      taskid: TASK-280
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:54:23-06:00

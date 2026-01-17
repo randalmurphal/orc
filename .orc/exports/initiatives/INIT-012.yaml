@@ -1,0 +1,114 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.867218134-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-012
+    title: Systems Reliability & Performance
+    status: active
+    vision: Address architectural issues, race conditions, and resource leaks identified in systems audit. Ensure data integrity, proper process lifecycle management, and cleanup patterns that make orc production-ready.
+    tasks:
+        - id: TASK-222
+          title: Add process group handling to orchestrator workers
+          status: completed
+        - id: TASK-223
+          title: Wrap multi-table DB operations in transactions
+          status: completed
+        - id: TASK-224
+          title: Fix SaveTask/SaveState race condition
+          status: completed
+        - id: TASK-225
+          title: Add cleanup for finalizeTracker memory leak
+          status: completed
+        - id: TASK-226
+          title: Fix runFinalizeAsync goroutine leak on shutdown
+          status: completed
+        - id: TASK-227
+          title: Close server backend on shutdown
+          status: completed
+        - id: TASK-228
+          title: Fix worktree creation TOCTOU race condition
+          status: completed
+        - id: TASK-229
+          title: Fix detectConflictsViaMerge cleanup on failure
+          status: completed
+        - id: TASK-230
+          title: Convert Worker.run() from recursion to iteration
+          status: completed
+        - id: TASK-231
+          title: Guard PRPoller.Stop() against double-close panic
+          status: completed
+        - id: TASK-233
+          title: Upgrade resource tracker to kill orphaned processes
+          status: completed
+        - id: TASK-234
+          title: Fix N+1 queries in LoadAllInitiatives
+          status: completed
+        - id: TASK-235
+          title: Add mutex to Git struct for compound operations
+          status: completed
+        - id: TASK-236
+          title: Fix concurrent finalize race condition
+          status: completed
+        - id: TASK-237
+          title: Stream transcripts instead of loading all into memory
+          status: completed
+        - id: TASK-238
+          title: Clean up WorkerPool.workers map on completion
+          status: completed
+        - id: TASK-239
+          title: Clean up Scheduler maps on completion
+          status: completed
+        - id: TASK-240
+          title: Add context propagation to DatabaseBackend methods
+          status: completed
+        - id: TASK-242
+          title: 'Fix: Execution info not persisted to database causing false orphan detection'
+          status: completed
+        - id: TASK-243
+          title: 'Fix: Total time calculation shows absurd values (292 years)'
+          status: completed
+        - id: TASK-246
+          title: 'Fix: spec.md conflicts between parallel tasks - each task overwrites shared file'
+          status: completed
+        - id: TASK-247
+          title: 'Fix: Worktree not cleaned up on task failure, blocking resume'
+          status: completed
+        - id: TASK-248
+          title: 'UX: Task shows completed but work not merged when PR fails on conflict'
+          status: completed
+        - id: TASK-249
+          title: 'Fix: SaveTask overwrites executor fields (false orphan detection)'
+          status: completed
+        - id: TASK-250
+          title: 'Fix: Heartbeat goes stale during long phases causing false orphan detection'
+          status: completed
+        - id: TASK-251
+          title: 'Bug: Spec phase completes but spec content not saved to database'
+          status: completed
+        - id: TASK-252
+          title: 'UX: Task failure details not accessible via CLI - requires database queries to diagnose'
+          status: completed
+        - id: TASK-283
+          title: 'Bug: Executor writes spec.md to repo root instead of database'
+          status: completed
+        - id: TASK-284
+          title: 'Bug: ''Total time: 0s'' shown for completed tasks that ran for minutes'
+          status: completed
+        - id: TASK-286
+          title: 'Bug: ''Invalid session ID'' error during auto conflict resolution'
+          status: completed
+        - id: TASK-287
+          title: 'Bug: Task prints ''completed\!'' message when sync fails with conflicts'
+          status: completed
+        - id: TASK-288
+          title: 'CLI: orc resolve should support blocked tasks or guide users to correct command'
+          status: completed
+        - id: TASK-289
+          title: 'UX: Reduce noisy WARN messages (no spec, PR labels, auto-merge)'
+          status: completed
+        - id: TASK-290
+          title: 'UX: Better guidance for manual conflict resolution in worktrees'
+          status: completed
+    created_at: 2026-01-15T12:11:17-06:00
+    updated_at: 2026-01-16T14:16:26-06:00

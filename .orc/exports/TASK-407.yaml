@@ -1,0 +1,293 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.884091347-06:00
+task:
+    id: TASK-407
+    title: Fix RecordCost to actually save costs with model info
+    description: "Fix the executor to actually call RecordCost() and include model information.\n\n**PROBLEM:**\n`internal/db/global.go` has RecordCost() method, but it's NEVER called. Costs tracked locally per-project only, not in global DB. Cannot aggregate costs across projects or by model.\n\n**CURRENT STATE:**\n1. TurnResult captures cost from Claude API ✓\n2. State.AddTokens() updates in-memory state ✓\n3. SavePhase() writes to project DB ✓\n4. RecordCost() to global DB ✗ <-- NEVER CALLED\n\n**REQUIRED CHANGES:**\n\n1. **Hook into executor turn completion:**\n```go\n// In session_adapter.go after successful turn\nfunc (a *SessionAdapter) completeTurn(result TurnResult) {\n    // Existing: update state\n    a.state.AddTokens(result.Usage.InputTokens, result.Usage.OutputTokens, ...)\n    \n    // NEW: record to global DB\n    a.globalDB.RecordCost(CostEntry{\n        ProjectID:   a.projectID,\n        TaskID:      a.taskID,\n        Phase:       a.currentPhase,\n        Iteration:   a.currentIteration,\n        Model:       detectModel(a.modelID),\n        CostUSD:     result.CostUSD,\n        InputTokens: result.Usage.InputTokens,\n        OutputTokens: result.Usage.OutputTokens,\n        CacheCreation: result.Usage.CacheCreationInputTokens,\n        CacheRead:   result.Usage.CacheReadInputTokens,\n        InitiativeID: a.initiativeID,  // If available\n    })\n}\n```\n\n2. **Update GlobalDB.RecordCost():**\n```go\nfunc (db *GlobalDB) RecordCost(entry CostEntry) error {\n    _, err := db.Exec(`\n        INSERT INTO cost_log \n        (project_id, task_id, phase, iteration, model, cost_usd, \n         input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens,\n         total_tokens, initiative_id, timestamp)\n        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))\n    `, entry.ProjectID, entry.TaskID, entry.Phase, entry.Iteration, \n       entry.Model, entry.CostUSD, entry.InputTokens, entry.OutputTokens,\n       entry.CacheCreation, entry.CacheRead, \n       entry.InputTokens+entry.OutputTokens, entry.InitiativeID)\n    \n    // Also update daily aggregate\n    db.updateCostAggregate(entry)\n    \n    return err\n}\n```\n\n3. **Aggregate update helper:**\n```go\nfunc (db *GlobalDB) updateCostAggregate(entry CostEntry) {\n    today := time.Now().Format(\"2006-01-02\")\n    db.Exec(`\n        INSERT INTO cost_aggregates \n        (project_id, model, phase, date, total_cost_usd, total_input_tokens, \n         total_output_tokens, total_cache_tokens, turn_count, task_count)\n        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1)\n        ON CONFLICT(project_id, model, phase, date) DO UPDATE SET\n            total_cost_usd = total_cost_usd + excluded.total_cost_usd,\n            total_input_tokens = total_input_tokens + excluded.total_input_tokens,\n            total_output_tokens = total_output_tokens + excluded.total_output_tokens,\n            total_cache_tokens = total_cache_tokens + excluded.total_cache_tokens,\n            turn_count = turn_count + 1\n    `, ...)\n}\n```\n\n**FILES TO MODIFY:**\n- internal/executor/session_adapter.go (add RecordCost call)\n- internal/db/global.go (update RecordCost, add updateCostAggregate)\n- internal/executor/executor.go (pass globalDB reference)\n\n**SUCCESS CRITERIA:**\n1. Every Claude API turn creates cost_log entry\n2. Model field populated correctly\n3. Daily aggregates auto-update\n4. Existing project-level tracking unchanged\n5. Performance: < 5ms overhead per turn\n\n**TESTING:**\n- Run a task, verify cost_log has entries\n- Check model field is correct\n- Verify aggregates table populated"
+    weight: medium
+    status: planned
+    branch: orc/TASK-407
+    queue: active
+    priority: normal
+    category: bug
+    initiative_id: INIT-026
+    blocked_by:
+        - TASK-406
+    created_at: 2026-01-16T23:00:08-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-407
+    weight: medium
+    description: Medium task - spec, implement, review, test, docs with multi-agent code review
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: review
+          name: review
+          prompt: ""
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - review
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-407
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

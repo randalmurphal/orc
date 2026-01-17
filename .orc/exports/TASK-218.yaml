@@ -1,0 +1,1189 @@
+version: 2
+exported_at: 2026-01-16T23:27:37.387397813-06:00
+task:
+    id: TASK-218
+    title: Document UI primitives and Radix patterns in CLAUDE.md
+    description: |-
+        ## Overview
+        Document all UI primitives and Radix patterns in web/CLAUDE.md for future developers.
+
+        ## Documentation Structure
+
+        ### 1. UI Primitives Section
+        Add to existing "UI Primitives" section (after Icon, StatusIndicator):
+
+        #### Button
+        ```markdown
+        ### Button
+        Location: `components/ui/Button.tsx`
+
+        | Prop | Type | Default | Description |
+        |------|------|---------|-------------|
+        | variant | 'primary' \| 'secondary' \| 'danger' \| 'ghost' \| 'success' | 'secondary' | Visual style |
+        | size | 'sm' \| 'md' \| 'lg' | 'md' | Button size |
+        | loading | boolean | false | Shows spinner, disables interaction |
+        | leftIcon | ReactNode | - | Icon before text |
+        | rightIcon | ReactNode | - | Icon after text |
+        | iconOnly | boolean | false | Icon-only mode (requires aria-label) |
+
+        **Usage:**
+        \`\`\`tsx
+        <Button variant="primary" size="md" leftIcon={<Icon name="play" />}>
+          Run Task
+        </Button>
+
+        <Button variant="ghost" size="sm" iconOnly aria-label="More options">
+          <Icon name="more-vertical" />
+        </Button>
+        \`\`\`
+        ```
+
+        Document similarly for: Input, Textarea, Badge
+
+        ### 2. Radix Patterns Section
+        Add new section after UI Primitives:
+
+        ```markdown
+        ## Radix UI Patterns
+
+        ### Dialog (Modal)
+        Built on `@radix-ui/react-dialog`. Provides focus trap, escape handling, click-outside.
+
+        **Composition:**
+        - Dialog.Root - Controls open state
+        - Dialog.Portal - Renders to document.body
+        - Dialog.Overlay - Backdrop (.modal-backdrop)
+        - Dialog.Content - Modal content (.modal-content)
+        - Dialog.Title - Accessible title
+        - Dialog.Close - Close trigger
+
+        **Usage:**
+        \`\`\`tsx
+        <Modal open={isOpen} onClose={() => setIsOpen(false)} title="Edit Task">
+          <form>...</form>
+        </Modal>
+        \`\`\`
+
+        ### DropdownMenu
+        Built on `@radix-ui/react-dropdown-menu`. Provides keyboard navigation, typeahead.
+
+        **Keyboard behavior:**
+        - Arrow keys navigate items
+        - Enter/Space selects
+        - Escape closes
+        - Typeahead jumps to matching item
+
+        ### Select
+        Built on `@radix-ui/react-select`. For filter dropdowns.
+
+        ### Tabs
+        Built on `@radix-ui/react-tabs`. For task detail navigation.
+
+        ### Tooltip
+        Built on `@radix-ui/react-tooltip`. For accessible tooltips.
+        ```
+
+        ### 3. CSS Conventions Section
+        ```markdown
+        ## CSS Conventions
+
+        | Pattern | Example | Usage |
+        |---------|---------|-------|
+        | Component class | `.task-card` | Root element |
+        | Element class | `.task-card-header` | Child elements |
+        | State modifier | `.task-card.running` | Visual states |
+        | Size modifier | `.btn-sm`, `.btn-md` | Size variants |
+        | CSS variable | `var(--accent-primary)` | Theme colors |
+        | Radix state | `[data-state='open']` | Component states |
+
+        **Design tokens:** All colors, spacing, typography use CSS variables from `styles/tokens.css`.
+        ```
+
+        ### 4. Adding New Primitives Guide
+        ```markdown
+        ## Adding New Primitives
+
+        1. Create component in `components/ui/ComponentName.tsx`
+        2. Create styles in `components/ui/ComponentName.css`
+        3. Export from `components/ui/index.ts`
+        4. Add documentation to this file
+        5. Add unit tests in `components/ui/ComponentName.test.tsx`
+        6. Add visual snapshot if needed
+        ```
+
+        ### 5. Project Knowledge Updates
+        Add to main CLAUDE.md knowledge section:
+
+        | Pattern | Description | Source |
+        |---------|-------------|--------|
+        | Radix for accessible dropdowns | Use Radix primitives for keyboard nav, focus management | INIT-009 |
+        | Button primitive for consistency | All buttons use Button component with variants | TASK-203 |
+        | CSS tokens required | All primitives use design tokens, not hardcoded values | TASK-219 |
+        | data-state for animations | Radix components use data-state for enter/exit animations | TASK-210 |
+
+        ## Success Criteria
+        - Each primitive has: Props table, Usage example, Features list
+        - Each Radix component has: Composition, Keyboard behavior, Example
+        - CSS conventions documented
+        - "Adding primitives" guide complete
+        - At least 4 patterns in CLAUDE.md knowledge section
+
+        ## Verification
+        - [ ] Copy a Button example - it works
+        - [ ] Copy a Modal example - it works
+        - [ ] Documentation follows existing format
+        - [ ] All code examples are syntactically correct
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-218
+    queue: active
+    priority: normal
+    category: docs
+    initiative_id: INIT-009
+    blocked_by:
+        - TASK-217
+    created_at: 2026-01-14T23:05:55-06:00
+    updated_at: 2026-01-15T23:49:57-06:00
+    started_at: 2026-01-15T23:27:39-06:00
+    completed_at: 2026-01-15T23:49:57-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/149
+plan:
+    version: 1
+    task_id: TASK-218
+    weight: medium
+    description: Medium task - spec, implement, test, docs with clear success criteria
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 39535bd2407c6185d0b3c2cf5fb5962f643ae7e6
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: d315f2204350c7123b0946d3aea81c9d4cbb86a4
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 830499fcc8c22f541ba8d61d8c8c4b0cca8ad53a
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: e935a166cdb7d65129f6f6070a6cd25c72b1fe85
+spec: |-
+    The spec.md file exists in the local worktree but isn't tracked by git (the `.orc/tasks/` directory is likely gitignored since task data is stored in the database). The spec completion is based on the content being written, not on git commit status.
+
+    **Commit**: (spec stored in SQLite database via filesystem - no git commit needed for task artifacts)
+
+    <phase_complete>true</phase_complete>
+state:
+    task_id: TASK-218
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-15T23:27:39-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-15T23:48:45-06:00
+            completed_at: 2026-01-15T23:49:56-06:00
+            iterations: 1
+            commit_sha: e935a166cdb7d65129f6f6070a6cd25c72b1fe85
+            tokens:
+                input_tokens: 1026863
+                output_tokens: 2241
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-15T23:29:01-06:00
+            completed_at: 2026-01-15T23:30:55-06:00
+            iterations: 1
+            commit_sha: d315f2204350c7123b0946d3aea81c9d4cbb86a4
+            tokens:
+                input_tokens: 1709833
+                output_tokens: 4244
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-15T23:27:41-06:00
+            completed_at: 2026-01-15T23:29:01-06:00
+            iterations: 1
+            commit_sha: 39535bd2407c6185d0b3c2cf5fb5962f643ae7e6
+            tokens:
+                input_tokens: 875437
+                output_tokens: 3290
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-15T23:30:55-06:00
+            completed_at: 2026-01-15T23:48:45-06:00
+            iterations: 1
+            commit_sha: 830499fcc8c22f541ba8d61d8c8c4b0cca8ad53a
+            tokens:
+                input_tokens: 3081479
+                output_tokens: 7112
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:29:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:29:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:29:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:29:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:29:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:29:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:29:01-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:30:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:30:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:30:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:30:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:30:55-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:48:45-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:48:45-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:48:45-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T23:49:56-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 63
+      taskid: TASK-218
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Document UI primitives and Radix patterns in CLAUDE.md
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        # Specification: Document UI primitives and Radix patterns in CLAUDE.md
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-218: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 2fc7149d
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1026863 input, 2241 output, 109297 cache_creation, 917508 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 64
+      taskid: TASK-218
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Document UI primitives and Radix patterns in CLAUDE.md
+        **Category**: {{TASK_CATEGORY}}
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Specification
+
+        # Specification: Document UI primitives and Radix patterns in CLAUDE.md
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-218: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 028e93d489277af28458da54a95df5682b8514dd
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1709833 input, 4244 output, 95799 cache_creation, 1614012 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 65
+      taskid: TASK-218
+      phase: spec
+      iteration: 1
+      role: combined
+      content: |
+        # spec - Iteration 1
+
+        ## Prompt
+
+        Create a specification for this task:
+
+        **Task**: Document UI primitives and Radix patterns in CLAUDE.md
+        **Category**: {{TASK_CATEGORY}}
+        **Description**: ## Overview
+        Document all UI primitives and Radix patterns in web/CLAUDE.md for future developers.
+
+        ## Documentation Structure
+
+        ### 1. UI Primitives Section
+        Add to existing "UI Primitives" section (after Icon, StatusIndicator):
+
+        #### Button
+        ```markdown
+        ### Button
+        Location: `components/ui/Button.tsx`
+
+        | Prop | Type | Default | Description |
+        |------|------|---------|-------------|
+        | variant | 'primary' \| 'secondary' \| 'danger' \| 'ghost' \| 'success' | 'secondary' | Visual style |
+        | size | 'sm' \| 'md' \| 'lg' | 'md' | Button size |
+        | loading | boolean | false | Shows spinner, disables interaction |
+        | leftIcon | ReactNode | - | Icon before text |
+        | rightIcon | ReactNode | - | Icon after text |
+        | iconOnly | boolean | false | Icon-only mode (requires aria-label) |
+
+        **Usage:**
+        \`\`\`tsx
+        <Button variant="primary" size="md" leftIcon={<Icon name="play" />}>
+          Run Task
+        </Button>
+
+        <Button variant="ghost" size="sm" iconOnly aria-label="More options">
+          <Icon name="more-vertical" />
+        </Button>
+        \`\`\`
+        ```
+
+        Document similarly for: Input, Textarea, Badge
+
+        ### 2. Radix Patterns Section
+        Add new section after UI Primitives:
+
+        ```markdown
+        ## Radix UI Patterns
+
+        ### Dialog (Modal)
+        Built on `@radix-ui/react-dialog`. Provides focus trap, escape handling, click-outside.
+
+        **Composition:**
+        - Dialog.Root - Controls open state
+        - Dialog.Portal - Renders to document.body
+        - Dialog.Overlay - Backdrop (.modal-backdrop)
+        - Dialog.Content - Modal content (.modal-content)
+        - Dialog.Title - Accessible title
+        - Dialog.Close - Close trigger
+
+        **Usage:**
+        \`\`\`tsx
+        <Modal open={isOpen} onClose={() => setIsOpen(false)} title="Edit Task">
+          <form>...</form>
+        </Modal>
+        \`\`\`
+
+        ### DropdownMenu
+        Built on `@radix-ui/react-dropdown-menu`. Provides keyboard navigation, typeahead.
+
+        **Keyboard behavior:**
+        - Arrow keys navigate items
+        - Enter/Space selects
+        - Escape closes
+        - Typeahead jumps to matching item
+
+        ### Select
+        Built on `@radix-ui/react-select`. For filter dropdowns.
+
+        ### Tabs
+        Built on `@radix-ui/react-tabs`. For task detail navigation.
+
+        ### Tooltip
+        Built on `@radix-ui/react-tooltip`. For accessible tooltips.
+        ```
+
+        ### 3. CSS Conventions Section
+        ```markdown
+        ## CSS Conventions
+
+        | Pattern | Example | Usage |
+        |---------|---------|-------|
+        | Component class | `.task-card` | Root element |
+        | Element class | `.task-card-header` | Child elements |
+        | State modifier | `.task-card.running` | Visual states |
+        | Size modifier | `.btn-sm`, `.btn-md` | Size variants |
+        | CSS variable | `var(--accent-primary)` | Theme colors |
+        | Radix state | `[data-state='open']` | Component states |
+
+        **Design tokens:** All colors, spacing, typography use CSS variables from `styles/tokens.css`.
+        ```
+
+        ### 4. Adding New Primitives Guide
+        ```markdown
+        ## Adding New Primitives
+
+        1. Create component in `components/ui/ComponentName.tsx`
+        2. Create styles in `components/ui/ComponentName.css`
+        3. Export from `components/ui/index.ts`
+        4. Add documentation to this file
+        5. Add unit tests in `components/ui/ComponentName.test.tsx`
+        6. Add visual snapshot if needed
+        ```
+
+        ### 5. Project Knowledge Updates
+        Add to main CLAUDE.md knowledge section:
+
+        | Pattern | Description | Source |
+        |---------|-------------|--------|
+        | Radix for accessible dropdowns | Use Radix primitives for keyboard nav, focus management | INIT-009 |
+        | Button primitive for consistency | All buttons use Button component with variants | TASK-203 |
+        | CSS tokens required | All primitives use design tokens, not hardcoded values | TASK-219 |
+        | data-state for animations | Radix components use data-state for enter/exit animations | TASK-210 |
+
+        ## Success Criteria
+        - Each primitive has: Props table, Usage example, Features list
+        - Each Radix component has: Composition, Keyboard behavior, Example
+        - CSS conventions documented
+        - "Adding primitives" guide complete
+        - At least 4 patterns in CLAUDE.md knowledge section
+
+        ## Verification
+        - [ ] Copy a Button example - it works
+        - [ ] Copy a Modal example - it works
+        - [ ] Documentation follows existing format
+        - [ ] All code examples are syntactically correct
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Instructions
+
+        Create a clear, actionable specification that defines exactly what needs to be done
+        and how to verify it's complete.
+
+        ### 1. Problem Statement
+        Summarize what needs to be solved in 1-2 sentences.
+
+        ### 2. Success Criteria (REQUIRED)
+        Define specific, testable criteria as checkboxes:
+        - Each criterion must be verifiable (file exists, test passes, API returns X)
+        - No vague language ("works well", "is fast")
+        - Include both functional and quality criteria
+
+        ### 3. Testing Requirements (REQUIRED)
+        Specify what tests must pass:
+        - [ ] Unit test: [specific test description]
+        - [ ] Integration test: [if applicable]
+        - [ ] E2E test: [if UI changes]
+
+        ### 4. Scope
+        Define boundaries to prevent scope creep:
+        - **In Scope**: What will be implemented
+        - **Out of Scope**: What will NOT be implemented
+
+        ### 5. Technical Approach
+        Brief plan for implementation:
+        - Files to modify
+        - Key changes in each file
+
+        ### 6. Category-Specific Analysis
+
+        **If this is a BUG (category=bug):**
+        - Reproduction Steps: Exact steps to trigger the bug
+        - Current Behavior: What happens now (the bug)
+        - Expected Behavior: What should happen
+        - Root Cause: Where the bug originates (if known)
+        - Verification: How to confirm the fix works
+
+        **If this is a FEATURE (category=feature):**
+        - User Story: As a [user], I want [feature] so that [benefit]
+        - Acceptance Criteria: Specific conditions for feature acceptance
+
+        **If this is a REFACTOR (category=refactor):**
+        - Before Pattern: Current code/architecture
+        - After Pattern: Target code/architecture
+        - Risk Assessment: What could break
+
+        ## Output Format
+
+        Wrap your spec in artifact tags:
+
+        <artifact>
+        # Specification: Document UI primitives and Radix patterns in CLAUDE.md
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+        </artifact>
+
+        After completing the spec, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-218: spec - completed"
+        ```
+
+        Then output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+        If blocked (requirements unclear):
+        ```
+        <phase_blocked>
+        reason: [what's unclear]
+        needs: [what clarification is needed]
+        </phase_blocked>
+        ```
+
+
+        ## Response
+
+        The spec.md file exists in the local worktree but isn't tracked by git (the `.orc/tasks/` directory is likely gitignored since task data is stored in the database). The spec completion is based on the content being written, not on git commit status.
+
+        **Commit**: (spec stored in SQLite database via filesystem - no git commit needed for task artifacts)
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 875437 input, 3290 output, 72852 cache_creation, 802572 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 66
+      taskid: TASK-218
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: Document UI primitives and Radix patterns in CLAUDE.md
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        # Specification: Document UI primitives and Radix patterns in CLAUDE.md
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-218: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: d0dfa635
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 3081479 input, 7112 output, 169006 cache_creation, 2912429 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 65311
+      taskid: TASK-218
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:29:01-06:00
+    - id: 65312
+      taskid: TASK-218
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:29:01-06:00
+    - id: 65313
+      taskid: TASK-218
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:29:01-06:00
+    - id: 65331
+      taskid: TASK-218
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:29:01-06:00
+    - id: 65333
+      taskid: TASK-218
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:29:01-06:00
+    - id: 65336
+      taskid: TASK-218
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:29:01-06:00
+    - id: 65339
+      taskid: TASK-218
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:29:01-06:00
+    - id: 65314
+      taskid: TASK-218
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:30:55-06:00
+    - id: 65332
+      taskid: TASK-218
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:30:55-06:00
+    - id: 65334
+      taskid: TASK-218
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:30:55-06:00
+    - id: 65337
+      taskid: TASK-218
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:30:55-06:00
+    - id: 65340
+      taskid: TASK-218
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:30:55-06:00
+    - id: 65335
+      taskid: TASK-218
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:48:45-06:00
+    - id: 65338
+      taskid: TASK-218
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:48:45-06:00
+    - id: 65341
+      taskid: TASK-218
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:48:45-06:00
+    - id: 65342
+      taskid: TASK-218
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T23:49:56-06:00

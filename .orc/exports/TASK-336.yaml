@@ -1,0 +1,293 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.929969148-06:00
+task:
+    id: TASK-336
+    title: Create IconNav component (56px sidebar)
+    description: "Create the 56px icon navigation sidebar that replaces the current text-based sidebar.\n\nREFERENCE FILES:\n- example_ui/board.html (.nav, .nav-item, .nav-logo classes, lines 54-108)\n- example_ui/Screenshot_20260116_201804.png (left edge shows nav)\n\nTYPESCRIPT INTERFACES:\n```typescript\ninterface IconNavProps {\n  currentPath: string;\n  onNavigate?: (path: string) => void;\n}\n\ninterface NavItem {\n  icon: React.ComponentType<{ size?: number }>;\n  label: string;\n  path: string;\n  section: \"main\" | \"secondary\" | \"bottom\";\n}\n\n// Export the component\nexport const IconNav: React.FC<IconNavProps> = ({ currentPath, onNavigate }) => { ... }\n```\n\nSUCCESS CRITERIA:\n1. IconNav component at web/src/components/layout/IconNav.tsx\n2. Fixed 56px width, full height, var(--bg-elevated) background\n3. Logo section at top: 32px gradient square (purple to pink), \"O\" letter, glow shadow\n4. Nav items: icon (18px) + label (8px) stacked vertically, 6px border-radius\n5. States: default (var(--text-muted)), hover (var(--bg-surface)), active (var(--primary-dim) + var(--primary-bright))\n6. Divider line between main nav and settings section\n7. Help icon at bottom\n8. Navigation items:\n   - Board (grid icon) -> /board\n   - Initiatives (layers icon) -> /initiatives  \n   - Stats (bar chart icon) -> /stats\n   - [divider]\n   - Agents (bot icon) -> /agents\n   - Settings (gear icon) -> /settings\n   - [bottom] Help (question mark icon)\n9. Uses react-router NavLink for active state\n10. Tooltip on hover showing full label\n11. npm run typecheck exits 0\n\nEXACT CSS VALUES (from mockup):\n- Logo: background: linear-gradient(135deg, var(--primary), #ec4899)\n- Logo shadow: box-shadow: 0 4px 12px var(--primary-glow)\n- Nav container: padding: 10px 0\n- Nav item: padding: 8px 4px, gap: 2px between items\n- Icon size: 18px, label font-size: 8px\n- Focus outline: 2px solid var(--primary)\n\nACCESSIBILITY REQUIREMENTS:\n- role=\"navigation\" on nav element\n- aria-label=\"Main navigation\" on nav\n- aria-current=\"page\" on active NavLink\n- Each nav item needs aria-label with full description\n- Focus visible: outline: 2px solid var(--primary), outline-offset: 2px\n- Keyboard: Tab moves between items, Enter activates\n- Skip link target for accessibility\n\nRESPONSIVE BEHAVIOR:\n- Below 768px: nav collapses, only icons visible (no labels)\n- Below 480px: nav hidden, hamburger menu appears in TopBar\n\nEDGE CASES:\n- Active state must work with nested routes (/settings/*)\n- Keyboard navigation between items\n- Icons must be accessible (aria-label)\n- Handle route prefetch on hover\n\nFILES TO CREATE:\n- web/src/components/layout/IconNav.tsx\n- web/src/components/layout/IconNav.css"
+    weight: medium
+    status: planned
+    branch: orc/TASK-336
+    queue: active
+    priority: critical
+    category: feature
+    initiative_id: INIT-016
+    blocked_by:
+        - TASK-335
+    created_at: 2026-01-16T20:56:40-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-336
+    weight: medium
+    description: Medium task - spec, implement, review, test, docs with multi-agent code review
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: review
+          name: review
+          prompt: ""
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - review
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-336
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

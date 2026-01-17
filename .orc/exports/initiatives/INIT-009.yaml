@@ -1,0 +1,11 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.867815265-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-009
+    title: React UI Primitives & Radix Integration
+    status: completed
+    vision: 'Establish shared UI primitives (Button, Input, Select, Dropdown) for consistency across all pages, then integrate Radix UI for accessible behavior in interactive components (Modal, Dropdowns, Tabs). Preserve existing CSS architecture and design tokens. Success criteria: 164 raw buttons replaced with Button primitive, all dropdowns use Radix, E2E tests pass, visual regression baselines updated.'
+    created_at: 2026-01-14T23:03:36-06:00
+    updated_at: 2026-01-15T23:50:41-06:00

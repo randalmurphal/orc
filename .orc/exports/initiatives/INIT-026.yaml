@@ -1,0 +1,67 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.865830666-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-026
+    title: 'UI Redesign: Cost Analytics'
+    status: active
+    vision: |-
+        Build a comprehensive cost analytics dashboard with per-model tracking, time-series visualization, and budget management.
+
+        BACKEND REQUIREMENTS (Critical - major gaps exist):
+        - Add model field to cost_log table (currently not tracked!)
+        - Fix RecordCost() - method exists but NEVER called
+        - Create cost aggregation table for efficient time-series queries
+        - Add per-model breakdown endpoints
+        - Add budget tracking and alerts
+
+        DATABASE CHANGES:
+        - ALTER cost_log ADD model TEXT (opus, sonnet, haiku)
+        - ALTER cost_log ADD iteration INTEGER, cache_creation_tokens, cache_read_tokens
+        - CREATE cost_aggregates table (materialized daily/weekly/monthly rollups)
+        - CREATE cost_budgets table (monthly limits per project)
+
+        NEW ENDPOINTS:
+        - GET /api/cost/breakdown?by=model|phase|task|initiative&period=day|week|month
+        - GET /api/cost/timeseries?start=X&end=Y&granularity=hour|day|week&model=opus|sonnet
+        - GET /api/cost/budget (current vs limit)
+        - GET /api/initiatives/:id/cost (per-initiative rollup)
+
+        FRONTEND REQUIREMENTS:
+        - CostAnalyticsView page at /costs route
+        - ModelBreakdownChart (pie/donut showing Opus vs Sonnet vs Haiku)
+        - CostTimeseriesChart (line chart over time, filterable by model)
+        - BudgetGauge component (current spend vs limit)
+        - CostTable with drill-down (by initiative, task, phase)
+        - Period selector (24h, 7d, 30d, custom)
+        - Export to CSV
+
+        Reference: Follow design patterns from example_ui/stats.html for chart styling
+    tasks:
+        - id: TASK-406
+          title: Add model tracking and enhanced schema to cost_log
+          status: planned
+        - id: TASK-407
+          title: Fix RecordCost to actually save costs with model info
+          status: planned
+        - id: TASK-408
+          title: Implement cost analytics API endpoints
+          status: planned
+        - id: TASK-409
+          title: Create ModelBreakdownChart component
+          status: planned
+        - id: TASK-410
+          title: Create CostTimeseriesChart component
+          status: planned
+        - id: TASK-411
+          title: Create BudgetGauge component
+          status: planned
+        - id: TASK-412
+          title: Create CostAnalyticsView page
+          status: planned
+        - id: TASK-413
+          title: Add Costs nav item to IconNav and verify view
+          status: planned
+    created_at: 2026-01-16T22:59:08-06:00
+    updated_at: 2026-01-16T23:01:36-06:00

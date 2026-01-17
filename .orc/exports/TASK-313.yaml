@@ -1,0 +1,87 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.942450588-06:00
+task:
+    id: TASK-313
+    title: 'UX: Replace loading state ''0'' counts with skeleton loaders'
+    description: |-
+        When task list first loads, status tabs show 'All 0', 'Active 0', etc. before data arrives.
+
+        Replace with skeleton/shimmer states:
+        - Status tabs: Show animated placeholder instead of '0'
+        - Task list: Show skeleton cards while loading
+        - Board columns: Show skeleton cards
+
+        This prevents the jarring flash of zeros before real counts appear.
+    weight: small
+    status: planned
+    branch: orc/TASK-313
+    queue: active
+    priority: normal
+    category: feature
+    initiative_id: INIT-014
+    created_at: 2026-01-16T19:31:46-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-313
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-313
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

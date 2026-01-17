@@ -1,0 +1,113 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.921299007-06:00
+task:
+    id: TASK-349
+    title: Create DecisionsPanel component for pending decisions
+    description: |-
+        Create the DecisionsPanel component for the right panel showing pending decisions that need user input.
+
+        REFERENCE FILES:
+        - example_ui/board.html (.decisions-section class, lines 461-500)
+        - example_ui/Screenshot_20260116_201804.png (right panel, purple section)
+
+        SUCCESS CRITERIA:
+        1. DecisionsPanel component at web/src/components/board/DecisionsPanel.tsx
+        2. Purple-themed section header with decision icon and count
+        3. Each pending decision shows:
+           - Question/prompt text
+           - Multiple choice buttons (options)
+           - Recommended option highlighted (first option or marked)
+           - Task context (which task is asking)
+        4. Visual specs:
+           - Header background: var(--primary-dim)
+           - Header text: var(--primary)
+           - Option buttons: ghost style, primary for recommended
+        5. Clicking option submits the decision
+        6. Props:
+           - decisions: PendingDecision[]
+           - onDecide: (decisionId, optionId) => void
+        7. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Empty state hidden
+        - Long option text wraps
+        - Loading state while submitting decision
+
+        FILES TO CREATE:
+        - web/src/components/board/DecisionsPanel.tsx
+        - web/src/components/board/DecisionsPanel.css
+    weight: small
+    status: planned
+    branch: orc/TASK-349
+    queue: active
+    priority: high
+    category: feature
+    initiative_id: INIT-017
+    blocked_by:
+        - TASK-339
+    created_at: 2026-01-16T20:59:07-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-349
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-349
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

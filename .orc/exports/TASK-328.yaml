@@ -1,0 +1,104 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.934037313-06:00
+task:
+    id: TASK-328
+    title: Create Card component as base container
+    description: |-
+        Create a Card component as the base container used throughout the UI.
+
+        REFERENCE FILES:
+        - example_ui/board.html (.stat-card, .swimlane-card classes)
+        - example_ui/initiatives.html (.initiative-card class)
+        - example_ui/Screenshot_20260116_201819.png
+
+        SUCCESS CRITERIA:
+        1. Card component created at web/src/components/core/Card.tsx
+        2. Base styles: background var(--bg-card), border 1px solid var(--border), border-radius 10-12px, padding 16-20px
+        3. Hoverable variant: border lightens to var(--border-light), optional translateY(-2px)
+        4. Active/selected variant: border with primary tint, gradient background option
+        5. Props: children, hoverable, active, padding (sm/md/lg), className, onClick
+        6. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Clickable cards should have cursor: pointer
+        - Cards with onClick should have proper keyboard accessibility (Enter/Space)
+        - Nested cards should work correctly
+
+        FILES TO CREATE:
+        - web/src/components/core/Card.tsx
+        - web/src/components/core/Card.css
+    weight: small
+    status: planned
+    branch: orc/TASK-328
+    queue: active
+    priority: high
+    category: feature
+    initiative_id: INIT-015
+    blocked_by:
+        - TASK-325
+    created_at: 2026-01-16T20:55:24-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-328
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-328
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

@@ -1,0 +1,1081 @@
+version: 2
+exported_at: 2026-01-16T23:27:37.138716238-06:00
+task:
+    id: TASK-237
+    title: Stream transcripts instead of loading all into memory
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-237
+    queue: active
+    priority: high
+    category: refactor
+    initiative_id: INIT-012
+    created_at: 2026-01-15T12:13:19-06:00
+    updated_at: 2026-01-15T18:52:59-06:00
+    started_at: 2026-01-15T18:19:18-06:00
+    completed_at: 2026-01-15T18:52:59-06:00
+plan:
+    version: 1
+    task_id: TASK-237
+    weight: medium
+    description: Medium task - spec, implement, test, docs with clear success criteria
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 4af7c06386055d2342c48e907c7f1165b9a07670
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 6d435957436a120b7989981bbf140c8ff9ef3886
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: ebb071712dc980dd47503c39e044c7354097b1b8
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 5c96aed3b5763e6157035abf0c613f8326c71e5b
+state:
+    task_id: TASK-237
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-15T18:19:18-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-15T18:51:18-06:00
+            completed_at: 2026-01-15T18:52:59-06:00
+            iterations: 1
+            commit_sha: 5c96aed3b5763e6157035abf0c613f8326c71e5b
+            tokens:
+                input_tokens: 1772522
+                output_tokens: 3784
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-15T18:21:14-06:00
+            completed_at: 2026-01-15T18:44:56-06:00
+            iterations: 3
+            commit_sha: 6d435957436a120b7989981bbf140c8ff9ef3886
+            tokens:
+                input_tokens: 31882058
+                output_tokens: 103170
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-15T18:19:20-06:00
+            completed_at: 2026-01-15T18:21:14-06:00
+            iterations: 1
+            commit_sha: 4af7c06386055d2342c48e907c7f1165b9a07670
+            tokens:
+                input_tokens: 1067322
+                output_tokens: 4422
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-15T18:44:56-06:00
+            completed_at: 2026-01-15T18:51:18-06:00
+            iterations: 1
+            commit_sha: ebb071712dc980dd47503c39e044c7354097b1b8
+            tokens:
+                input_tokens: 2763924
+                output_tokens: 5702
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:44:56-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:44:56-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:44:56-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:44:56-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:44:56-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:18-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:18-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:18-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:52:59-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 141
+      taskid: TASK-237
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Stream transcripts instead of loading all into memory
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        # Specification: Stream transcripts instead of loading all into memory
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-237: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: a0ff4905
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1772522 input, 3784 output, 115288 cache_creation, 1657215 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 142
+      taskid: TASK-237
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Stream transcripts instead of loading all into memory
+        **Category**: {{TASK_CATEGORY}}
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Specification
+
+        # Specification: Stream transcripts instead of loading all into memory
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-237: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        The implementation is complete. Here's a summary of what was done:
+
+        ## Summary
+
+        Implemented streaming support for transcript loading to avoid loading all transcripts into memory at once.
+
+        ### Changes Made
+
+        1. **`internal/db/project.go`** (already done in previous session):
+           - Added `TranscriptIterator` struct that wraps `sql.Rows`
+           - Added `StreamTranscripts(taskID string)` method for streaming access
+           - Implements `Next()`, `Transcript()`, `Err()`, `Close()` methods
+
+        2. **`internal/storage/backend.go`**:
+           - Added `TranscriptIterator` interface definition
+           - Added `StreamTranscripts(taskID string) (TranscriptIterator, error)` to `Backend` interface
+
+        3. **`internal/storage/database_backend.go`**:
+           - Added `dbTranscriptIterator` wrapper type to convert `db.TranscriptIterator` to `storage.TranscriptIterator`
+           - Implemented `StreamTranscripts()` method that delegates to the underlying database
+
+        4. **`internal/storage/export.go`**:
+           - Updated `exportTranscripts()` to use streaming - each transcript is processed and written to file individually instead of loading all into memory first
+
+        5. **`internal/executor/retry.go`**:
+           - Added `CompressPreviousContextStreaming(iter *db.TranscriptIterator)` for streaming context compression
+
+        6. **`internal/api/handlers_retry.go`**:
+           - Updated both `handleRetryTask()` and `handleRetryWithFeedback()` to use streaming for transcript context compression
+
+        7. **`internal/api/pr_poller_test.go`**:
+           - Added `StreamTranscripts` method to `emptyBackend` mock
+           - Added `emptyTranscriptIterator` mock implementation
+
+        ### Design Decision
+
+        The `cmd_export.go` YAML export was intentionally kept using batch loading because:
+        - YAML serialization requires all `ExportData.Transcripts` in memory
+        - Changing to streaming would require a different export format (e.g., separate files per transcript)
+        - This maintains backward compatibility with existing exports
+
+        ### Memory Benefits
+
+        The streaming approach benefits two key use cases:
+        1. **Export to files** (`storage/export.go`): Each transcript is written to a file immediately, never holding more than one transcript in memory
+        2. **Retry context compression** (`handlers_retry.go`): Processes transcripts one-by-one, extracting key error lines without loading all content
+
+        ---
+        Tokens: 4437380 input, 14689 output, 253186 cache_creation, 4179264 cache_read
+        Complete: false
+        Blocked: false
+      timestamp: 1768627233
+    - id: 143
+      taskid: TASK-237
+      phase: implement
+      iteration: 2
+      role: combined
+      content: |
+        # implement - Iteration 2
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Stream transcripts instead of loading all into memory
+        **Category**: {{TASK_CATEGORY}}
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Specification
+
+        # Specification: Stream transcripts instead of loading all into memory
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-237: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        The implementation for TASK-237 has been committed successfully. Here's a summary of what was implemented:
+
+        ## TASK-237: Stream transcripts instead of loading all into memory
+
+        ### Backend Changes
+        - **Pagination support**: Added `page` and `limit` query params to `/api/tasks/{id}/transcripts` and project-scoped variants
+        - **Single transcript endpoint**: Added `/api/tasks/{id}/transcripts/{filename}` for lazy loading individual files
+        - **Streaming iterator**: Added `StreamTranscripts()` method that yields transcripts one at a time instead of loading all into memory
+        - **Updated retry handlers**: Modified to use streaming instead of `GetTranscripts()` which loaded everything
+        - **New types**: `TranscriptMeta`, `TranscriptWithContent`, `PaginatedTranscripts`
+
+        ### Frontend Changes
+        - **Lazy loading**: TranscriptTab now fetches metadata only, then loads content when user expands a file
+        - **Content cache**: Uses `Map<string, string>` to avoid re-fetching already loaded content
+        - **Loading states**: Shows spinner while fetching individual transcript content
+        - **File size display**: Shows size in transcript header for metadata-only view
+
+        ### Backward Compatibility
+        - API without pagination params returns full content (old behavior preserved)
+        - Existing API consumers continue to work unchanged
+
+        ---
+        Tokens: 11675456 input, 40842 output, 573051 cache_creation, 11097410 cache_read
+        Complete: false
+        Blocked: false
+      timestamp: 1768627233
+    - id: 144
+      taskid: TASK-237
+      phase: implement
+      iteration: 3
+      role: combined
+      content: |
+        # implement - Iteration 3
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Stream transcripts instead of loading all into memory
+        **Category**: {{TASK_CATEGORY}}
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Specification
+
+        # Specification: Stream transcripts instead of loading all into memory
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-237: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        The implementation is already committed in c6e37eb1. All tests pass (except for the pre-existing flaky `TestRun_Performance` test which is unrelated to this task).
+
+        **Summary of implementation:**
+
+        **Backend Changes:**
+        - `internal/api/handlers_tasks_state.go`: Added pagination support to `handleGetTranscripts`, new `handleGetTranscriptContent` endpoint
+        - `internal/api/handlers_projects.go`: Added project-scoped paginated endpoints (`handleGetProjectTranscripts`, `handleGetProjectTranscriptContent`)
+        - `internal/api/server.go`: Registered new single transcript content routes
+        - `internal/storage/backend.go`: Added `TranscriptIterator` interface and `StreamTranscripts()` method
+        - `internal/storage/database_backend.go`: Implemented `StreamTranscripts()` returning a memory-efficient iterator
+        - `internal/db/project.go`: Added `TranscriptIterator` type and `StreamTranscripts()` database method
+        - `internal/executor/retry.go`: Added `CompressPreviousContextStreaming()` for iterator-based context compression
+
+        **Frontend Changes:**
+        - `web/src/lib/api.ts`: Added `getTranscriptsPaginated()` and `getTranscriptContent()` functions
+        - `web/src/lib/types.ts`: Added `TranscriptMeta` and `PaginatedTranscripts` types
+        - `web/src/components/task-detail/TranscriptTab.tsx`: Refactored to lazy-load content on expand with content cache
+
+        **Tests:**
+        - 9 new tests in `internal/api/handlers_transcripts_test.go` covering pagination, backward compatibility, path traversal, etc.
+
+        **Commit**: c6e37eb1
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 15769222 input, 47639 output, 691090 cache_creation, 15073091 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 145
+      taskid: TASK-237
+      phase: spec
+      iteration: 1
+      role: combined
+      content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Stream transcripts instead of loading all into memory\n**Category**: {{TASK_CATEGORY}}\n**Description**: \n\n{{INITIATIVE_CONTEXT}}\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Stream transcripts instead of loading all into memory\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-237: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n<artifact>\n# Specification: Stream transcripts instead of loading all into memory\n\n## Problem Statement\n\nThe transcript API endpoints (`handleGetTranscripts`, `handleGetProjectTaskTranscripts`) load all transcript files completely into memory before returning them as JSON. For tasks with many iterations or large transcripts (common with LLM outputs), this causes memory spikes and slow initial response times. The frontend already has pagination but the backend loads everything upfront.\n\n## Success Criteria\n\n- [ ] Backend provides a paginated transcript list endpoint (`/api/tasks/{id}/transcripts?page=1&limit=10`) returning metadata only (filename, created_at, size) without content\n- [ ] Backend provides a single transcript content endpoint (`/api/tasks/{id}/transcripts/{filename}`) for lazy loading content\n- [ ] Memory usage stays proportional to single transcript size, not total transcript count\n- [ ] Response time for transcript list is <100ms regardless of transcript count\n- [ ] Backward compatibility: existing frontend works without changes (content included if no pagination params)\n- [ ] CLI `orc log` continues to work with file-based streaming (no changes needed)\n\n## Testing Requirements\n\n- [ ] Unit test: paginated list returns correct metadata without content\n- [ ] Unit test: single transcript endpoint returns correct content\n- [ ] Unit test: pagination parameters (page, limit, offset) work correctly\n- [ ] Unit test: backward compatibility - no params returns full content\n- [ ] Integration test: large number of transcripts (100+) doesn't cause memory spike\n\n## Scope\n\n### In Scope\n- Modify `handleGetTranscripts` in `internal/api/handlers_tasks_state.go`\n- Modify `handleGetProjectTaskTranscripts` in `internal/api/handlers_projects.go`\n- Add single transcript content endpoint\n- Add pagination query parameters\n- Update frontend `TranscriptTab.tsx` to use lazy loading\n- Update frontend API client (`web/src/lib/api.ts`)\n\n### Out of Scope\n- Database transcript storage (already exists, separate concern)\n- CLI log command changes (already streams efficiently)\n- WebSocket live streaming (separate mechanism, works differently)\n- Transcript compression or archival\n\n## Technical Approach\n\n### API Changes\n\n**1. List endpoint with pagination:**\n```\nGET /api/tasks/{id}/transcripts?page=1&limit=10&includeContent=false\n```\n\nResponse:\n```json\n{\n  \"files\": [\n    {\"filename\": \"implement-001.md\", \"created_at\": \"...\", \"size\": 12345},\n    {\"filename\": \"implement-002.md\", \"created_at\": \"...\", \"size\": 23456}\n  ],\n  \"total\": 45,\n  \"page\": 1,\n  \"limit\": 10\n}\n```\n\nWhen `includeContent=true` (default for backward compatibility), includes full content in each file object.\n\n**2. Single file endpoint:**\n```\nGET /api/tasks/{id}/transcripts/{filename}\n```\n\nResponse: Raw file content or JSON with content field.\n\n### Frontend Changes\n\nUpdate `TranscriptTab.tsx` to:\n1. First fetch transcript list (metadata only)\n2. Lazy-load content when expanding a transcript\n3. Use intersection observer for infinite scroll or keep existing pagination\n\n### Files to Modify\n\n| File | Change |\n|------|--------|\n| `internal/api/handlers_tasks_state.go` | Add pagination params, separate list/content modes |\n| `internal/api/handlers_projects.go` | Same changes for project-scoped endpoint |\n| `internal/api/server.go` | Register single transcript endpoint |\n| `web/src/lib/api.ts` | Add paginated list + single file functions |\n| `web/src/lib/types.ts` | Add pagination response types |\n| `web/src/components/task-detail/TranscriptTab.tsx` | Lazy load content on expand |\n\n## Category-Specific Analysis\n\n**This is a REFACTOR (category=refactor):**\n\n### Before Pattern\n```go\n// Load ALL transcripts into memory at once\nvar transcripts []map[string]any\nfor _, entry := range entries {\n    content, err := os.ReadFile(transcriptsDir + \"/\" + entry.Name())\n    transcripts = append(transcripts, map[string]any{\n        \"filename\": entry.Name(),\n        \"content\":  string(content),  // Full content loaded\n        ...\n    })\n}\ns.jsonResponse(w, transcripts)\n```\n\n### After Pattern\n```go\n// Return metadata only, content loaded on-demand\nfiles := make([]TranscriptMeta, 0, len(entries))\nfor _, entry := range entries {\n    info, _ := entry.Info()\n    files = append(files, TranscriptMeta{\n        Filename:  entry.Name(),\n        Size:      info.Size(),\n        CreatedAt: info.ModTime(),\n    })\n}\n// Paginate\nstart, end := paginate(page, limit, len(files))\ns.jsonResponse(w, PaginatedResponse{\n    Files: files[start:end],\n    Total: len(files),\n    Page:  page,\n})\n```\n\n### Risk Assessment\n\n| Risk | Mitigation |\n|------|------------|\n| Breaking frontend | Backward compatibility mode with `includeContent=true` default |\n| Breaking API clients | Same, plus keep existing response shape when no pagination |\n| Performance regression | Benchmark before/after on large transcript sets |\n| Race with file writes | File locking already handled by fsnotify in CLI |\n</artifact>\n\n**Commit**: 7cdd37ae\n<phase_complete>true</phase_complete>\n\n---\nTokens: 1067322 input, 4422 output, 117250 cache_creation, 949735 cache_read\nComplete: true\nBlocked: false\n"
+      timestamp: 1768627233
+    - id: 146
+      taskid: TASK-237
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: Stream transcripts instead of loading all into memory
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        # Specification: Stream transcripts instead of loading all into memory
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-237: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        ## Summary
+
+        I've verified the implementation of "Stream transcripts instead of loading all into memory":
+
+        ### Test Suite Results
+        - All API transcript tests pass (11 tests)
+        - All storage backend tests pass
+        - All executor retry tests pass
+        - The only failing test (`TestRun_Performance`) is unrelated to this task - it's a flaky performance test that sometimes takes longer than the 500ms threshold
+
+        ### Implementation Verified
+        1. **TranscriptIterator interface** (`storage/backend.go:23-32`) - Provides streaming access with `Next()`, `Transcript()`, `Err()`, `Close()` methods
+        2. **db.TranscriptIterator** (`db/project.go:784-841`) - SQLite implementation that streams rows one at a time
+        3. **dbTranscriptIterator adapter** (`storage/database_backend.go:539-568`) - Adapts db iterator to storage interface
+        4. **StreamTranscripts method** (`storage/database_backend.go:576-584`) - Backend method that returns the iterator
+        5. **CompressPreviousContextStreaming** (`executor/retry.go:395-445`) - Uses iterator for memory-efficient context compression
+        6. **API handlers** use streaming in retry endpoints (`handlers_retry.go:93-98`, `229-234`)
+
+        ### Security & Edge Cases Verified
+        - Path traversal tests pass (4 different attack patterns)
+        - Task not found handling works correctly
+        - Empty results return properly formatted responses
+        - Pagination with metadata-only mode works
+        - Backward compatibility with content mode preserved
+
+        **Commit**: 32be00b4
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 2763924 input, 5702 output, 103799 cache_creation, 2660084 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 11096
+      taskid: TASK-237
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:14-06:00
+    - id: 11128
+      taskid: TASK-237
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:14-06:00
+    - id: 11129
+      taskid: TASK-237
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:14-06:00
+    - id: 11133
+      taskid: TASK-237
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:14-06:00
+    - id: 11135
+      taskid: TASK-237
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:14-06:00
+    - id: 11141
+      taskid: TASK-237
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:14-06:00
+    - id: 11144
+      taskid: TASK-237
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:14-06:00
+    - id: 11130
+      taskid: TASK-237
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:44:56-06:00
+    - id: 11134
+      taskid: TASK-237
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:44:56-06:00
+    - id: 11136
+      taskid: TASK-237
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:44:56-06:00
+    - id: 11142
+      taskid: TASK-237
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:44:56-06:00
+    - id: 11145
+      taskid: TASK-237
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:44:56-06:00
+    - id: 11137
+      taskid: TASK-237
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:18-06:00
+    - id: 11143
+      taskid: TASK-237
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:18-06:00
+    - id: 11146
+      taskid: TASK-237
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:18-06:00
+    - id: 11147
+      taskid: TASK-237
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:52:59-06:00

@@ -1,0 +1,1794 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.977096576-06:00
+task:
+    id: TASK-286
+    title: 'Bug: ''Invalid session ID'' error during auto conflict resolution'
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-286
+    queue: active
+    priority: high
+    category: bug
+    initiative_id: INIT-012
+    created_at: 2026-01-16T14:16:21-06:00
+    updated_at: 2026-01-16T14:35:30-06:00
+    started_at: 2026-01-16T14:16:54-06:00
+    completed_at: 2026-01-16T14:35:30-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/174
+plan:
+    version: 1
+    task_id: TASK-286
+    weight: medium
+    description: Medium task - spec, implement, review, test, docs with multi-agent code review
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 8ec5261a5a29372bc91aba5ad6b9e7e9e909d6ec
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 15f3b47e77d3754e3ad78e510d69edbfc77fca15
+        - id: review
+          name: review
+          prompt: ""
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 21f989b59edf7d48394cf0ea293169b719ee0de1
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - review
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 3da0ead571178a255bbada5e39c184e977d94e4d
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 61698409ac9edf2781b8255202e16d0f6b3e984e
+spec: |-
+    # Specification: Bug: 'Invalid session ID' error during auto conflict resolution
+
+    ## Problem Statement
+
+    During auto conflict resolution in the finalize phase, orc creates a new Claude session with a custom session ID (e.g., `"TASK-001-conflict-resolution"`). The llmkit session manager passes this to Claude CLI via `--session-id`, but Claude CLI expects session IDs to be UUIDs that it generates itself. When orc provides a non-UUID custom string, Claude CLI rejects it with "Invalid session ID", causing conflict resolution to fail.
+
+    ## Success Criteria
+
+    - [ ] Conflict resolution sessions create successfully without "Invalid session ID" errors
+    - [ ] Session IDs for conflict resolution follow Claude CLI's expected format (UUID) or are omitted entirely
+    - [ ] Unit test verifies conflict resolution session creation succeeds
+    - [ ] Integration test demonstrates conflict resolution works end-to-end when conflicts occur
+    - [ ] Finalize phase completes successfully when merge conflicts are auto-resolvable
+
+    ## Testing Requirements
+
+    - [ ] Unit test: `TestConflictResolverSessionCreation` - verify session adapter creates without error when session ID is properly handled
+    - [ ] Unit test: `TestNewSessionAdapterEphemeralSession` - verify ephemeral sessions (Persistence: false) work correctly without custom session IDs
+    - [ ] Integration test: `TestFinalizeWithConflictResolution` - simulate merge conflict scenario and verify Claude-assisted resolution completes
+
+    ## Scope
+
+    ### In Scope
+    - Fix session ID handling in `NewSessionAdapter` for ephemeral sessions
+    - Update `ConflictResolver.resolveWithClaude` to not pass invalid session IDs
+    - Update `FinalizeExecutor.resolveConflicts` (same pattern as ConflictResolver)
+    - Update `FinalizeExecutor.tryFixTests` (uses same session pattern)
+    - Add unit tests for the fix
+
+    ### Out of Scope
+    - Changes to llmkit session library
+    - Changes to Claude CLI behavior
+    - Session resume functionality for conflict resolution (not needed for ephemeral sessions)
+    - Auto-resolution improvements (CLAUDE.md table merging already works)
+
+    ## Technical Approach
+
+    The fix removes custom session IDs for ephemeral sessions. When `Persistence: false` is set, there's no reason to specify a session ID since the session won't be persisted or resumed. Letting Claude CLI generate its own UUID session ID avoids the validation error.
+
+    ### Files to Modify
+
+    | File | Change |
+    |------|--------|
+    | `internal/executor/session_adapter.go:52-57` | Skip `session.WithSessionID()` when `Persistence: false` |
+    | `internal/executor/conflict_resolver.go:176-182` | Remove SessionID from options (or let adapter handle it) |
+    | `internal/executor/finalize.go:591-597` | Remove SessionID from conflict resolution options |
+    | `internal/executor/finalize.go:764-770` | Remove SessionID from test fix options |
+    | `internal/executor/session_adapter_test.go` | Add test for ephemeral session creation |
+
+    ### Implementation Details
+
+    **Option A (Preferred)**: Modify `NewSessionAdapter` to skip custom session IDs when persistence is disabled:
+
+    ```go
+    // In NewSessionAdapter, line 52-57:
+    if opts.SessionID != "" {
+        if opts.Resume {
+            sessionOpts = append(sessionOpts, session.WithResume(opts.SessionID))
+        } else if opts.Persistence {
+            // Only use custom session ID when persistence is enabled
+            sessionOpts = append(sessionOpts, session.WithSessionID(opts.SessionID))
+        }
+        // When Persistence is false, skip WithSessionID - let Claude generate a UUID
+    }
+    ```
+
+    This is the cleanest fix because:
+    1. Centralized in one place (session_adapter.go)
+    2. Callers don't need to change their code
+    3. Custom session IDs are only useful for persistence/resume anyway
+
+    **Option B**: Remove SessionID from all conflict resolution callers. This requires updating 3-4 call sites but is more explicit.
+
+    ## Bug Analysis
+
+    ### Reproduction Steps
+
+    1. Create a task that modifies files also changed on main
+    2. Complete implement phase, main branch advances with conflicting changes
+    3. Finalize phase attempts merge, conflicts detected
+    4. Auto-resolution handles CLAUDE.md but other conflicts remain
+    5. Claude-assisted resolution is triggered
+    6. `NewSessionAdapter` is called with:
+       ```go
+       SessionAdapterOptions{
+           SessionID:   "TASK-001-conflict-resolution",
+           Persistence: false,
+           MaxTurns:    5,
+           Model:       "sonnet",
+           Workdir:     "/path/to/worktree",
+       }
+       ```
+    7. llmkit passes `--session-id TASK-001-conflict-resolution` to Claude CLI
+    8. Claude CLI rejects non-UUID session ID: "Invalid session ID"
+
+    ### Current Behavior
+
+    Error during finalize phase:
+    ```
+    ERROR conflict resolution turn: create session: Invalid session ID: TASK-001-conflict-resolution
+    ```
+
+    ### Expected Behavior
+
+    Conflict resolution session should be created successfully using a Claude-generated UUID, allowing Claude-assisted conflict resolution to proceed.
+
+    ### Root Cause
+
+    The `NewSessionAdapter` function unconditionally passes the provided `SessionID` to `session.WithSessionID()` even when `Persistence: false`. Claude CLI validates session IDs as UUIDs and rejects arbitrary strings. Since ephemeral sessions don't need custom IDs (they won't be persisted or resumed), the fix is to simply not pass the ID.
+
+    ### Verification
+
+    After the fix:
+    1. Run a task that results in merge conflicts during finalize
+    2. Verify Claude-assisted conflict resolution creates session successfully
+    3. Verify conflicts are resolved and finalize completes
+    4. Check logs show session creation without errors
+
+    ## Related Code
+
+    - `internal/executor/conflict_resolver.go:164-209` - `resolveWithClaude()` creates conflict resolution session
+    - `internal/executor/finalize.go:566-623` - `resolveConflicts()` similar pattern
+    - `internal/executor/finalize.go:740-796` - `tryFixTests()` similar pattern
+    - `internal/executor/session_adapter.go:34-92` - `NewSessionAdapter()` where fix applies
+    - llmkit `session.WithSessionID()` - passes `--session-id` to Claude CLI
+state:
+    task_id: TASK-286
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-16T14:16:54-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-16T14:34:21-06:00
+            completed_at: 2026-01-16T14:35:23-06:00
+            iterations: 1
+            commit_sha: 61698409ac9edf2781b8255202e16d0f6b3e984e
+            tokens:
+                input_tokens: 363083
+                output_tokens: 2257
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-16T14:20:24-06:00
+            completed_at: 2026-01-16T14:25:05-06:00
+            iterations: 1
+            commit_sha: 15f3b47e77d3754e3ad78e510d69edbfc77fca15
+            tokens:
+                input_tokens: 2629190
+                output_tokens: 8360
+                total_tokens: 0
+        review:
+            status: completed
+            started_at: 2026-01-16T14:25:05-06:00
+            completed_at: 2026-01-16T14:29:00-06:00
+            iterations: 1
+            commit_sha: 21f989b59edf7d48394cf0ea293169b719ee0de1
+            tokens:
+                input_tokens: 659343
+                output_tokens: 7172
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-16T14:16:55-06:00
+            completed_at: 2026-01-16T14:20:24-06:00
+            iterations: 1
+            commit_sha: 8ec5261a5a29372bc91aba5ad6b9e7e9e909d6ec
+            tokens:
+                input_tokens: 2384375
+                output_tokens: 8515
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-16T14:29:00-06:00
+            completed_at: 2026-01-16T14:34:21-06:00
+            iterations: 1
+            commit_sha: 3da0ead571178a255bbada5e39c184e977d94e4d
+            tokens:
+                input_tokens: 1500962
+                output_tokens: 5939
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:29:00-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:29:00-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:29:00-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:29:00-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:29:00-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:34:21-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:34:21-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:34:21-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:35:23-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 340
+      taskid: TASK-286
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Bug: 'Invalid session ID' error during auto conflict resolution
+        **Category**: bug
+
+        ## Specification
+
+        # Specification: Bug: 'Invalid session ID' error during auto conflict resolution
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-286: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 1428c780acbf7f068769222913d5e1c8625aae51
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 363083 input, 2257 output, 43608 cache_creation, 319418 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 341
+      taskid: TASK-286
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Bug: 'Invalid session ID' error during auto conflict resolution
+        **Category**: bug
+
+        ## Initiative Context
+
+        This task is part of **Systems Reliability & Performance** (INIT-012).
+
+        ### Vision
+
+        Address architectural issues, race conditions, and resource leaks identified in systems audit. Ensure data integrity, proper process lifecycle management, and cleanup patterns that make orc production-ready.
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Specification
+
+        # Specification: Bug: 'Invalid session ID' error during auto conflict resolution
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-286: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: ab90b16e
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 2629190 input, 8360 output, 89762 cache_creation, 2539387 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 342
+      taskid: TASK-286
+      phase: review
+      iteration: 1
+      role: combined
+      content: |
+        # review - Iteration 1
+
+        ## Prompt
+
+        # Multi-Agent Code Review Phase
+
+        You are the review coordinator orchestrating a comprehensive multi-perspective code review.
+
+        ## Context
+
+        **Task ID**: TASK-286
+        **Task**: Bug: 'Invalid session ID' error during auto conflict resolution
+        **Weight**: medium
+        **Category**: bug
+        **Review Round**: 1
+
+        ## Initiative Context
+
+        This task is part of **Systems Reliability & Performance** (INIT-012).
+
+        ### Vision
+
+        Address architectural issues, race conditions, and resource leaks identified in systems audit. Ensure data integrity, proper process lifecycle management, and cleanup patterns that make orc production-ready.
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Worktree Safety
+
+        You are working in an **isolated git worktree**.
+
+        | Property | Value |
+        |----------|-------|
+        | Worktree Path | `/home/randy/repos/orc/.orc/worktrees/orc-TASK-286` |
+        | Task Branch | `orc/TASK-286` |
+        | Target Branch | `main` |
+
+        **CRITICAL SAFETY RULES:**
+        - All commits go to branch `orc/TASK-286`
+        - **DO NOT** push to `main` or any protected branch
+        - **DO NOT** checkout other branches - stay on `orc/TASK-286`
+        - Merging happens via PR after all phases complete
+
+        ## Specification
+
+        # Specification: Bug: 'Invalid session ID' error during auto conflict resolution
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Implementation Summary
+
+        # Specification: Bug: 'Invalid session ID' error during auto conflict resolution
+
+
+
+        ---
+
+        ## Round 1: Multi-Agent Review
+
+
+
+        ### Step 1: Gather Changed Files
+
+        First, identify what to review:
+
+        ```bash
+        # Get list of changed files
+        git diff --name-only origin/main...HEAD
+
+        # Get summary of changes
+        git diff --stat origin/main...HEAD
+        ```
+
+        ### Step 2: Spawn Reviewer Agents
+
+        **CRITICAL**: You MUST spawn ALL 5 reviewer agents in a SINGLE response using the Task tool. Do NOT wait for one to complete before spawning the next. All agents run in parallel.
+
+        Use the Task tool with these exact configurations:
+
+        ---
+
+        #### Agent 1: Correctness Reviewer (model: opus)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: opus
+        - description: "Review correctness and spec compliance"
+        - prompt: |
+            You are reviewing code for CORRECTNESS and SPEC COMPLIANCE.
+
+            ## Task Context
+            - Task: Bug: 'Invalid session ID' error during auto conflict resolution
+            - Task ID: TASK-286
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-286
+
+            ## Specification
+            # Specification: Bug: 'Invalid session ID' error during auto conflict resolution
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+            ## Your Focus
+            1. Does the implementation satisfy ALL success criteria from the spec?
+            2. Are there any logic errors or bugs?
+            3. Are edge cases from the spec handled correctly?
+            4. Is behavior correct for both happy path AND error paths?
+            5. Are all requirements implemented (no missing features)?
+            6. Does the implementation match the spec's technical approach?
+
+            ## Process
+            1. Read each changed file: `git diff --name-only origin/main...HEAD`
+            2. For each file, check against spec requirements
+            3. Verify error handling paths work correctly
+            4. Test boundary conditions mentioned in spec
+
+            ## Output Format (REQUIRED)
+
+            Output your findings in this EXACT XML format:
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>correctness</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+                <file>path/to/file2.go</file>
+              </files_reviewed>
+              <spec_compliance>
+                <criterion id="SC-1" status="pass|fail">Notes on compliance</criterion>
+                <criterion id="SC-2" status="pass|fail">Notes on compliance</criterion>
+              </spec_compliance>
+              <issues>
+                <issue id="COR-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Detailed description of the correctness issue</description>
+                  <spec_violation>Which spec criterion is violated (if any)</spec_violation>
+                  <suggestion>How to fix it</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall correctness assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+
+            If no issues found, output empty <issues></issues> but still include spec_compliance.
+        ```
+
+        ---
+
+        #### Agent 2: Security Reviewer (model: opus)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Security-Auditor
+        - model: opus
+        - description: "Review security vulnerabilities"
+        - prompt: |
+            You are reviewing code for SECURITY VULNERABILITIES.
+
+            ## Task Context
+            - Task: Bug: 'Invalid session ID' error during auto conflict resolution
+            - Task ID: TASK-286
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-286
+
+            ## Your Focus - OWASP Top 10 and Common Vulnerabilities
+            1. **Injection**: SQL, command, XSS, template injection
+            2. **Broken Authentication**: Session management, credential exposure
+            3. **Sensitive Data Exposure**: Secrets in code, logging PII, unencrypted data
+            4. **Security Misconfigurations**: Hardcoded credentials, debug enabled
+            5. **Insecure Dependencies**: Known vulnerable packages
+            6. **Input Validation**: Missing or inadequate validation
+            7. **Cryptographic Weaknesses**: Weak algorithms, improper key management
+            8. **Error Handling**: Information leakage through errors
+
+            ## Process
+            1. Read each changed file
+            2. Check for common vulnerability patterns
+            3. Verify input validation on all external inputs
+            4. Check for secrets/credentials in code
+            5. Review authentication/authorization logic
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>security</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+              </files_reviewed>
+              <issues>
+                <issue id="SEC-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Security vulnerability description</description>
+                  <owasp_category>A01:2021-Broken Access Control</owasp_category>
+                  <cwe>CWE-89</cwe>
+                  <suggestion>Remediation steps</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall security assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        #### Agent 3: Architecture Reviewer (model: haiku)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: haiku
+        - description: "Review architecture and maintainability"
+        - prompt: |
+            You are reviewing code for ARCHITECTURE and MAINTAINABILITY.
+
+            ## Task Context
+            - Task: Bug: 'Invalid session ID' error during auto conflict resolution
+            - Task ID: TASK-286
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-286
+
+            ## Your Focus
+            1. Does it follow existing project patterns? (Check CLAUDE.md)
+            2. Is the code well-organized and modular?
+            3. Are abstractions appropriate (not over/under-engineered)?
+            4. Is error handling consistent with project conventions?
+            5. Are there code smells (god classes, feature envy, etc.)?
+            6. Is the code testable?
+            7. Are dependencies appropriate?
+            8. Is naming clear and consistent?
+
+            ## Process
+            1. Read CLAUDE.md to understand project patterns
+            2. Read each changed file
+            3. Compare against existing code patterns
+            4. Check for code smells and anti-patterns
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>architecture</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+              </files_reviewed>
+              <patterns_checked>
+                <pattern name="error-wrapping" followed="true|false">Notes</pattern>
+                <pattern name="functional-options" followed="true|false">Notes</pattern>
+              </patterns_checked>
+              <issues>
+                <issue id="ARCH-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Architecture/maintainability concern</description>
+                  <pattern_violated>Which project pattern is violated</pattern_violated>
+                  <suggestion>How to improve</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall architecture assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        #### Agent 4: Performance Reviewer (model: haiku)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: haiku
+        - description: "Review performance issues"
+        - prompt: |
+            You are reviewing code for PERFORMANCE ISSUES.
+
+            ## Task Context
+            - Task: Bug: 'Invalid session ID' error during auto conflict resolution
+            - Task ID: TASK-286
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-286
+
+            ## Your Focus
+            1. N+1 query patterns (database calls in loops)
+            2. Unbounded iterations/recursion
+            3. Memory leaks or excessive allocations
+            4. Missing caching opportunities
+            5. Blocking operations in hot paths
+            6. Inefficient algorithms (O(n^2) when O(n) possible)
+            7. Resource leaks (unclosed files, connections, channels)
+            8. Missing pagination/limits on queries
+
+            ## Process
+            1. Read each changed file
+            2. Look for loops with I/O operations inside
+            3. Check for proper resource cleanup (defer, close)
+            4. Identify algorithmic complexity
+            5. Check for unbounded data structures
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>performance</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+              </files_reviewed>
+              <issues>
+                <issue id="PERF-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Performance issue description</description>
+                  <impact>Expected performance impact (e.g., O(n^2) instead of O(n))</impact>
+                  <suggestion>Optimization approach</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall performance assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        #### Agent 5: Integration Reviewer (model: haiku)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: haiku
+        - description: "Review integration and linting"
+        - prompt: |
+            You are reviewing code for INTEGRATION issues, MERGE CONFLICTS, and LINTING.
+
+            ## Task Context
+            - Task: Bug: 'Invalid session ID' error during auto conflict resolution
+            - Task ID: TASK-286
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-286
+            - Task Branch: orc/TASK-286
+            - Target Branch: main
+
+            ## Your Focus
+
+            ### 1. Merge Conflict Detection (CRITICAL)
+            Run this FIRST:
+            ```bash
+            git fetch origin main
+            git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main
+            ```
+            If output shows conflicts, document each conflicted file.
+
+            ### 2. Linting Compliance (CRITICAL)
+            Run the appropriate linter:
+            ```bash
+            # For Go projects
+            golangci-lint run ./... 2>&1 || go vet ./...
+
+            # For Node/TypeScript projects
+            npm run typecheck 2>&1
+            npm run lint 2>&1
+            ```
+            Document ALL linting errors - these are BLOCKING.
+
+            ### 3. Build Verification
+            ```bash
+            # For Go
+            go build ./...
+
+            # For Node
+            npm run build
+            ```
+
+            ### 4. API/Integration Compatibility
+            - Breaking changes to public APIs?
+            - Missing migrations for schema changes?
+            - Config changes documented?
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>integration</reviewer>
+              <merge_status>
+                <target_branch>main</target_branch>
+                <conflicts_detected>true|false</conflicts_detected>
+                <conflicted_files>
+                  <file path="path/to/file.go">Description of conflict</file>
+                </conflicted_files>
+              </merge_status>
+              <lint_status>
+                <tool>golangci-lint|eslint|ruff</tool>
+                <passed>true|false</passed>
+                <error_count>N</error_count>
+                <errors>
+                  <error file="path/to/file.go" line="123">Error message</error>
+                </errors>
+              </lint_status>
+              <build_status>
+                <passed>true|false</passed>
+                <errors>Build error messages if any</errors>
+              </build_status>
+              <issues>
+                <issue id="INT-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Integration issue description</description>
+                  <suggestion>How to resolve</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall integration assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        ### Step 3: Aggregate and Validate Findings
+
+        After ALL 5 agents complete, collect and process their findings:
+
+        1. **Parse all XML findings** from each agent
+        2. **Deduplicate issues** - Same file/line with similar description = single issue
+        3. **Validate findings** - Remove obvious false positives:
+           - Issues in unchanged code (not part of this task)
+           - Theoretical issues with no practical impact
+           - Already-fixed issues
+        4. **Assign final severity**:
+           - `blocking`: Security vulns, bugs, spec violations, merge conflicts, lint errors
+           - `should-fix`: Performance issues, maintainability problems, missing error handling
+           - `nice-to-have`: Better naming, comments, minor refactors
+
+        ### Step 4: Create Aggregated Review Report
+
+        ```xml
+        <review_aggregate>
+          <round>1</round>
+          <task_id>TASK-286</task_id>
+          <summary>
+            <total_issues>[count]</total_issues>
+            <blocking>[count]</blocking>
+            <should_fix>[count]</should_fix>
+            <nice_to_have>[count]</nice_to_have>
+            <duplicates_removed>[count]</duplicates_removed>
+            <false_positives_removed>[count]</false_positives_removed>
+          </summary>
+
+          <merge_status>
+            <conflicts_detected>true|false</conflicts_detected>
+            <conflicted_files>
+              <file>path/to/file.go</file>
+            </conflicted_files>
+          </merge_status>
+
+          <lint_status>
+            <passed>true|false</passed>
+            <error_count>[count]</error_count>
+          </lint_status>
+
+          <spec_compliance>
+            <criterion id="SC-1" status="pass|fail">Notes</criterion>
+            <criterion id="SC-2" status="pass|fail">Notes</criterion>
+          </spec_compliance>
+
+          <validated_issues>
+            <issue id="REV-001" original_id="SEC-001" severity="blocking">
+              <reviewer>security</reviewer>
+              <file>path/to/file.go</file>
+              <line>123</line>
+              <title>SQL Injection vulnerability</title>
+              <description>User input passed directly to query</description>
+              <suggestion>Use parameterized queries</suggestion>
+            </issue>
+            <!-- More validated issues... -->
+          </validated_issues>
+
+          <nice_to_have_issues>
+            <!-- Issues that don't block but would be nice to fix -->
+          </nice_to_have_issues>
+
+          <decision>pass|fail</decision>
+          <reason>Explanation of decision</reason>
+        </review_aggregate>
+        ```
+
+        ---
+
+        ### Pass/Fail Criteria
+
+        **PASS** if ALL of the following are true:
+        - Zero `blocking` issues
+        - Zero `should-fix` issues
+        - No merge conflicts with target branch
+        - Linting passes (zero errors)
+        - All spec success criteria satisfied
+
+        **FAIL** if ANY of the following are true:
+        - One or more `blocking` issues
+        - One or more `should-fix` issues
+        - Merge conflicts exist with target branch
+        - Linting errors exist
+        - Spec success criteria not satisfied
+
+        ---
+
+        ## Phase Completion
+
+        ### If PASS (Round 1):
+
+        Commit and complete:
+
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-286: review - passed
+
+        Phase: review
+        Round: 1
+        Reviewers: 5 (correctness, security, architecture, performance, integration)
+        Issues: 0 blocking, 0 should-fix
+        "
+        ```
+
+        Then output:
+
+        ```
+        ### Review Summary - PASSED
+
+        **Round**: 1
+        **Reviewers**: 5 (correctness, security, architecture, performance, integration)
+
+        | Category | Count |
+        |----------|-------|
+        | Blocking | 0 |
+        | Should-Fix | 0 |
+        | Nice-to-Have | [count] |
+
+        **Merge Status**: Clean (no conflicts with main)
+        **Lint Status**: Passed
+        **Spec Compliance**: All criteria satisfied
+
+        **Nice-to-Have Notes** (not blocking):
+        [List any nice-to-have suggestions for future consideration]
+
+        **Commit**: [SHA]
+
+        <phase_complete>true</phase_complete>
+        ```
+
+        ### If FAIL (Round 1):
+
+        Do NOT output `<phase_complete>`. Create detailed feedback for implement phase:
+
+        ```
+        ### Review Summary - FAILED
+
+        **Round**: 1
+        **Issues Requiring Fix**:
+
+        | Severity | Count |
+        |----------|-------|
+        | Blocking | [count] |
+        | Should-Fix | [count] |
+
+        <review_findings_for_implement>
+          <round>1</round>
+          <blocking_issues>
+            <issue id="REV-001">
+              <file>path/to/file.go</file>
+              <line>45</line>
+              <reviewer>security</reviewer>
+              <title>SQL Injection vulnerability</title>
+              <description>User input concatenated into SQL query without sanitization</description>
+              <fix_required>Use parameterized queries: db.Query("SELECT * FROM users WHERE id = ?", userID)</fix_required>
+            </issue>
+          </blocking_issues>
+
+          <should_fix_issues>
+            <issue id="REV-005">
+              <file>path/to/handler.go</file>
+              <line>123</line>
+              <reviewer>performance</reviewer>
+              <title>N+1 query in loop</title>
+              <description>Database query inside for loop causes N+1 problem</description>
+              <fix_required>Batch the query outside the loop using IN clause</fix_required>
+            </issue>
+          </should_fix_issues>
+
+          <merge_conflicts>
+            <file path="config/settings.go">Upstream added new config field that conflicts with your changes</file>
+          </merge_conflicts>
+
+          <lint_errors>
+            <error file="internal/task/task.go" line="89">errcheck: error return value not checked</error>
+            <error file="internal/api/handler.go" line="156">unused variable 'ctx'</error>
+          </lint_errors>
+
+          <spec_failures>
+            <criterion id="SC-2">Error handling not implemented for network timeout case</criterion>
+          </spec_failures>
+        </review_findings_for_implement>
+
+        The implement phase will receive this feedback as  and must fix all issues before review can pass.
+
+        <phase_blocked>
+        reason: Review found [X] blocking and [Y] should-fix issues that must be addressed
+        needs: Fix all issues listed above, then review will re-run automatically
+        </phase_blocked>
+        ```
+
+
+
+        ---
+
+        ## Round 2: Verification Review
+
+
+
+        ---
+
+        ## Severity Reference
+
+        | Severity | Examples | Action |
+        |----------|----------|--------|
+        | `blocking` | SQL injection, auth bypass, spec violations, merge conflicts, lint errors, missing required functionality | MUST fix before merge |
+        | `should-fix` | N+1 queries, memory leaks, missing error handling, code duplication, poor naming | MUST fix before merge |
+        | `nice-to-have` | Additional comments, minor refactors, style preferences | Note for future, doesn't block |
+
+        **Golden Rule**: When in doubt, classify as `should-fix`. It's better to fix something that could have been skipped than to skip something that causes problems later.
+
+
+        ## Response
+
+        ### Review Summary - PASSED
+
+        **Round**: 1
+        **Reviewers**: 5 (correctness, security, architecture, performance, integration)
+
+        | Category | Count |
+        |----------|-------|
+        | Blocking | 0 |
+        | Should-Fix | 0 |
+        | Nice-to-Have | 2 |
+
+        **Merge Status**: Clean (no conflicts with main)
+        **Lint Status**: Passed (golangci-lint: 0 issues)
+        **Build Status**: Passed
+        **Tests**: Passed (219 tests in executor package)
+        **Spec Compliance**: All criteria satisfied
+
+        **Reviewer Summary**:
+        - **Correctness**: Implementation correctly fixes the bug by conditionally skipping `WithSessionID()` when `Persistence: false`
+        - **Security**: No vulnerabilities - defensive programming that improves reliability
+        - **Architecture**: Well-designed, consistent with existing patterns, proper error wrapping
+        - **Performance**: No issues - O(1) conditional logic change with no resource concerns
+        - **Integration**: Clean merge, linting passed, build passed, tests passed
+
+        **Nice-to-Have Notes** (not blocking):
+        1. Tests document expected behavior rather than mock-verify `NewSessionAdapter` - acceptable for simple conditionals
+        2. Comments at lines 56-64 could be condensed from 8 lines to 2-3 - style preference only
+
+        **Commit**: 15f3b47e (previous implement phase commit - no new changes from review)
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 659343 input, 7172 output, 35895 cache_creation, 623428 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 343
+      taskid: TASK-286
+      phase: spec
+      iteration: 1
+      role: combined
+      content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Bug: 'Invalid session ID' error during auto conflict resolution\n**Category**: bug\n**Description**: \n\n## Initiative Context\n\nThis task is part of **Systems Reliability & Performance** (INIT-012).\n\n### Vision\n\nAddress architectural issues, race conditions, and resource leaks identified in systems audit. Ensure data integrity, proper process lifecycle management, and cleanup patterns that make orc production-ready.\n\n**Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.\n\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Bug: 'Invalid session ID' error during auto conflict resolution\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-286: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n<artifact>\n# Specification: Bug: 'Invalid session ID' error during auto conflict resolution\n\n## Problem Statement\n\nDuring auto conflict resolution in the finalize phase, orc creates a new Claude session with a custom session ID (e.g., `\"TASK-001-conflict-resolution\"`). The llmkit session manager passes this to Claude CLI via `--session-id`, but Claude CLI expects session IDs to be UUIDs that it generates itself. When orc provides a non-UUID custom string, Claude CLI rejects it with \"Invalid session ID\", causing conflict resolution to fail.\n\n## Success Criteria\n\n- [ ] Conflict resolution sessions create successfully without \"Invalid session ID\" errors\n- [ ] Session IDs for conflict resolution follow Claude CLI's expected format (UUID) or are omitted entirely\n- [ ] Unit test verifies conflict resolution session creation succeeds\n- [ ] Integration test demonstrates conflict resolution works end-to-end when conflicts occur\n- [ ] Finalize phase completes successfully when merge conflicts are auto-resolvable\n\n## Testing Requirements\n\n- [ ] Unit test: `TestConflictResolverSessionCreation` - verify session adapter creates without error when session ID is properly handled\n- [ ] Unit test: `TestNewSessionAdapterEphemeralSession` - verify ephemeral sessions (Persistence: false) work correctly without custom session IDs\n- [ ] Integration test: `TestFinalizeWithConflictResolution` - simulate merge conflict scenario and verify Claude-assisted resolution completes\n\n## Scope\n\n### In Scope\n- Fix session ID handling in `NewSessionAdapter` for ephemeral sessions\n- Update `ConflictResolver.resolveWithClaude` to not pass invalid session IDs\n- Update `FinalizeExecutor.resolveConflicts` (same pattern as ConflictResolver)\n- Update `FinalizeExecutor.tryFixTests` (uses same session pattern)\n- Add unit tests for the fix\n\n### Out of Scope\n- Changes to llmkit session library\n- Changes to Claude CLI behavior\n- Session resume functionality for conflict resolution (not needed for ephemeral sessions)\n- Auto-resolution improvements (CLAUDE.md table merging already works)\n\n## Technical Approach\n\nThe fix removes custom session IDs for ephemeral sessions. When `Persistence: false` is set, there's no reason to specify a session ID since the session won't be persisted or resumed. Letting Claude CLI generate its own UUID session ID avoids the validation error.\n\n### Files to Modify\n\n| File | Change |\n|------|--------|\n| `internal/executor/session_adapter.go:52-57` | Skip `session.WithSessionID()` when `Persistence: false` |\n| `internal/executor/conflict_resolver.go:176-182` | Remove SessionID from options (or let adapter handle it) |\n| `internal/executor/finalize.go:591-597` | Remove SessionID from conflict resolution options |\n| `internal/executor/finalize.go:764-770` | Remove SessionID from test fix options |\n| `internal/executor/session_adapter_test.go` | Add test for ephemeral session creation |\n\n### Implementation Details\n\n**Option A (Preferred)**: Modify `NewSessionAdapter` to skip custom session IDs when persistence is disabled:\n\n```go\n// In NewSessionAdapter, line 52-57:\nif opts.SessionID != \"\" {\n    if opts.Resume {\n        sessionOpts = append(sessionOpts, session.WithResume(opts.SessionID))\n    } else if opts.Persistence {\n        // Only use custom session ID when persistence is enabled\n        sessionOpts = append(sessionOpts, session.WithSessionID(opts.SessionID))\n    }\n    // When Persistence is false, skip WithSessionID - let Claude generate a UUID\n}\n```\n\nThis is the cleanest fix because:\n1. Centralized in one place (session_adapter.go)\n2. Callers don't need to change their code\n3. Custom session IDs are only useful for persistence/resume anyway\n\n**Option B**: Remove SessionID from all conflict resolution callers. This requires updating 3-4 call sites but is more explicit.\n\n## Bug Analysis\n\n### Reproduction Steps\n\n1. Create a task that modifies files also changed on main\n2. Complete implement phase, main branch advances with conflicting changes\n3. Finalize phase attempts merge, conflicts detected\n4. Auto-resolution handles CLAUDE.md but other conflicts remain\n5. Claude-assisted resolution is triggered\n6. `NewSessionAdapter` is called with:\n   ```go\n   SessionAdapterOptions{\n       SessionID:   \"TASK-001-conflict-resolution\",\n       Persistence: false,\n       MaxTurns:    5,\n       Model:       \"sonnet\",\n       Workdir:     \"/path/to/worktree\",\n   }\n   ```\n7. llmkit passes `--session-id TASK-001-conflict-resolution` to Claude CLI\n8. Claude CLI rejects non-UUID session ID: \"Invalid session ID\"\n\n### Current Behavior\n\nError during finalize phase:\n```\nERROR conflict resolution turn: create session: Invalid session ID: TASK-001-conflict-resolution\n```\n\n### Expected Behavior\n\nConflict resolution session should be created successfully using a Claude-generated UUID, allowing Claude-assisted conflict resolution to proceed.\n\n### Root Cause\n\nThe `NewSessionAdapter` function unconditionally passes the provided `SessionID` to `session.WithSessionID()` even when `Persistence: false`. Claude CLI validates session IDs as UUIDs and rejects arbitrary strings. Since ephemeral sessions don't need custom IDs (they won't be persisted or resumed), the fix is to simply not pass the ID.\n\n### Verification\n\nAfter the fix:\n1. Run a task that results in merge conflicts during finalize\n2. Verify Claude-assisted conflict resolution creates session successfully\n3. Verify conflicts are resolved and finalize completes\n4. Check logs show session creation without errors\n\n## Related Code\n\n- `internal/executor/conflict_resolver.go:164-209` - `resolveWithClaude()` creates conflict resolution session\n- `internal/executor/finalize.go:566-623` - `resolveConflicts()` similar pattern\n- `internal/executor/finalize.go:740-796` - `tryFixTests()` similar pattern\n- `internal/executor/session_adapter.go:34-92` - `NewSessionAdapter()` where fix applies\n- llmkit `session.WithSessionID()` - passes `--session-id` to Claude CLI\n</artifact>\n\nSince there are no file changes to commit (spec is stored in database), I'll skip the git commit step.\n\n**Commit**: (no commit needed - spec stored in database)\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 2384375 input, 8515 output, 108610 cache_creation, 2274035 cache_read\nComplete: true\nBlocked: false\n"
+      timestamp: 1768627233
+    - id: 344
+      taskid: TASK-286
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: Bug: 'Invalid session ID' error during auto conflict resolution
+        **Category**: bug
+
+        ## Specification
+
+        # Specification: Bug: 'Invalid session ID' error during auto conflict resolution
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-286: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 351bf568
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1500962 input, 5939 output, 53911 cache_creation, 1446893 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 66330
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 66334
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 66335
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 66352
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 66354
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 66359
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 66362
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 66366
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 66370
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 66336
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 66353
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 66355
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 66360
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 66363
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 66367
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 66371
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 66356
+      taskid: TASK-286
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:29:00-06:00
+    - id: 66361
+      taskid: TASK-286
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:29:00-06:00
+    - id: 66364
+      taskid: TASK-286
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:29:00-06:00
+    - id: 66368
+      taskid: TASK-286
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:29:00-06:00
+    - id: 66372
+      taskid: TASK-286
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:29:00-06:00
+    - id: 66365
+      taskid: TASK-286
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:34:21-06:00
+    - id: 66369
+      taskid: TASK-286
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:34:21-06:00
+    - id: 66373
+      taskid: TASK-286
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:34:21-06:00
+    - id: 66374
+      taskid: TASK-286
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:35:23-06:00

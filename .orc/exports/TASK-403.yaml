@@ -1,0 +1,81 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.886655083-06:00
+task:
+    id: TASK-403
+    title: Create TranscriptNav sidebar for phase/iteration navigation
+    description: "Create a navigation sidebar for jumping between phases and iterations in a transcript.\n\n**COMPONENT INTERFACE:**\n```typescript\ninterface TranscriptNavProps {\n  phases: Array<{\n    phase: string;\n    iterations: number;\n    transcript_count: number;\n    status: 'completed' | 'failed' | 'running';\n  }>;\n  currentPhase?: string;\n  currentIteration?: number;\n  onNavigate: (phase: string, iteration?: number) => void;\n}\n```\n\n**VISUAL DESIGN:**\n```\n┌─────────────────────┐\n│ Phases              │\n├─────────────────────┤\n│ ▼ spec         ✓    │\n│   └─ Iteration 1    │\n├─────────────────────┤\n│ ▼ implement    ✓    │\n│   ├─ Iteration 1    │\n│   ├─ Iteration 2    │\n│   └─ Iteration 3 ← │\n├─────────────────────┤\n│ ▶ test         ●    │\n├─────────────────────┤\n│ ○ review            │\n│ ○ docs              │\n└─────────────────────┘\n```\n\n**STATUS INDICATORS:**\n- ✓ (green checkmark): completed\n- ✗ (red x): failed  \n- ● (cyan dot): running/current\n- ○ (gray circle): pending\n\n**FEATURES:**\n1. Collapsible phase sections\n2. Click phase to scroll to that section\n3. Click iteration to scroll to specific iteration\n4. Current position highlighted\n5. Shows iteration count per phase\n6. Sticky positioning in viewer\n\n**CSS:**\n```css\n.transcript-nav {\n  width: 180px;\n  background: var(--bg-elevated);\n  border-right: 1px solid var(--border);\n  padding: 12px;\n  position: sticky;\n  top: 0;\n  height: 100vh;\n  overflow-y: auto;\n}\n\n.nav-phase {\n  padding: 6px 8px;\n  border-radius: 4px;\n  cursor: pointer;\n}\n\n.nav-phase:hover {\n  background: var(--bg-hover);\n}\n\n.nav-phase.active {\n  background: var(--primary-dim);\n  color: var(--primary);\n}\n\n.nav-iteration {\n  padding: 4px 8px 4px 24px;\n  font-size: var(--text-sm);\n  color: var(--text-muted);\n}\n```\n\n**FILES TO CREATE:**\n- web/src/components/transcript/TranscriptNav.tsx\n\n**SUCCESS CRITERIA:**\n1. All phases shown with status\n2. Iterations expandable under each phase\n3. Click navigates to section\n4. Current position highlighted\n5. Smooth scroll to target section"
+    weight: small
+    status: planned
+    branch: orc/TASK-403
+    queue: active
+    priority: normal
+    category: feature
+    initiative_id: INIT-025
+    blocked_by:
+        - TASK-335
+    created_at: 2026-01-16T22:58:34-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-403
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-403
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

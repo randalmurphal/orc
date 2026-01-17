@@ -1,0 +1,11 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.868519058-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-003
+    title: Initiative-Task Integration - Context inheritance and UX improvements
+    status: active
+    vision: 'Improve UX when working with tasks under initiatives: context inheritance, auto-linking, and CLI improvements'
+    created_at: 2026-01-13T21:36:36-06:00
+    updated_at: 2026-01-15T10:49:59-06:00
