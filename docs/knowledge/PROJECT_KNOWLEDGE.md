@@ -112,6 +112,8 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Worktrees orphaned after task completion | Fixed: `CleanupWorktree(taskID)` reconstructed paths assuming default naming, but initiative-prefixed worktrees use different names; `CleanupWorktreeAtPath(path)` now used with stored executor worktree path; `orc cleanup --orphaned` regex updated to match `TASK-XXX` anywhere in directory name | TASK-282 |
 | 'completed!' shown when sync fails | Fixed: `completeTask()` returned nil when sync failed with conflicts, so CLI showed celebration message; now returns `ErrTaskBlocked` sentinel error; CLI checks `errors.Is(err, executor.ErrTaskBlocked)` and calls `TaskBlocked()` display instead of `TaskCompleted()` | TASK-287 |
 | Stray spec.md files in repo | Fixed: Added `spec.md` and `artifacts/spec.md` to `.gitignore`; spec prompt now explicitly instructs Claude not to write spec files to filesystem; specs stored in database only via `<artifact>` tags | TASK-292 |
+| Initiative decision ID collision | Fixed: Every `initiative decide` tried to create DEC-001 because `SaveInitiative` tried to INSERT existing decisions; now calls `ClearInitiativeDecisionsTx` before re-inserting decisions | TASK-389 |
+| `--blocked-by ""` doesn't clear dependencies | Fixed: `orc edit --blocked-by ""` said "No changes" but kept blockers; empty slice from StringSlice flag checked with `len() > 0` missed explicit empty; now uses `cmd.Flags().Changed()` to detect explicit flag usage; same fix applied to `--related-to` | TASK-389 |
 
 ## Decisions
 
