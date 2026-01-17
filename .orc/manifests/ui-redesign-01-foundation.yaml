@@ -1,0 +1,565 @@
+version: 1
+
+create_initiative:
+  title: "UI Redesign: Foundation & Design System"
+  vision: |
+    Establish the complete design system foundation for the new ORC UI.
+    This includes CSS tokens, typography, color system, and atomic components
+    that will be used across all views. Reference mockups in example_ui/.
+
+tasks:
+  - id: 1
+    title: "Replace CSS tokens with new design system"
+    weight: medium
+    category: refactor
+    priority: critical
+    description: |
+      Replace the existing web/src/styles/tokens.css with the new design system
+      extracted from example_ui/*.html mockups.
+
+      Reference: example_ui/board.html (lines 10-50 contain the CSS variables)
+      Screenshot: example_ui/Screenshot_20260116_201804.png
+    spec: |
+      # Specification: Replace CSS Tokens with New Design System
+
+      ## Problem Statement
+      The current CSS tokens don't match the new UI design. We need to replace
+      them with the exact color palette, typography, and spacing from the mockups.
+
+      ## Success Criteria
+      - [ ] All color tokens match example_ui/board.html exactly:
+        - `--bg-base: #050508`
+        - `--bg-elevated: #0a0a0f`
+        - `--bg-surface: #101016`
+        - `--bg-card: #15151d`
+        - `--bg-hover: #1c1c26`
+        - `--border: rgba(255, 255, 255, 0.04)`
+        - `--border-light: rgba(255, 255, 255, 0.08)`
+        - `--text-primary: #eaeaef`
+        - `--text-secondary: #8e8e9a`
+        - `--text-muted: #55555f`
+        - `--primary: #a855f7`
+        - `--primary-bright: #c084fc`
+        - `--primary-dim: rgba(168, 85, 247, 0.1)`
+        - `--primary-glow: rgba(168, 85, 247, 0.25)`
+        - `--green: #10b981` and `--green-dim`
+        - `--amber: #f59e0b` and `--amber-dim`
+        - `--red: #ef4444` and `--red-dim`
+        - `--blue: #3b82f6` and `--blue-dim`
+        - `--cyan: #06b6d4` and `--cyan-dim`
+        - `--orange: #f97316` and `--orange-dim`
+        - Verify: `grep -c "050508" web/src/styles/tokens.css` returns 1
+      - [ ] Typography tokens defined:
+        - `--font-sans: 'Inter', system-ui, sans-serif`
+        - `--font-mono: 'JetBrains Mono', monospace`
+        - Font sizes from 8px to 28px
+        - Verify: Google Fonts imports added to index.html
+      - [ ] Layout dimension tokens:
+        - `--icon-nav-width: 56px`
+        - `--settings-sidebar-width: 240px`
+        - `--right-panel-width: 300px`
+        - `--top-bar-height: 48px`
+      - [ ] Frontend builds without errors: `npm run build` exits 0
+      - [ ] No TypeScript errors: `npm run typecheck` exits 0
+
+      ## Edge Cases
+      - Existing components using old token names must be updated
+      - Light theme support can be removed (new design is dark-only)
+      - Ensure scrollbar styles updated to match new colors
+
+      ## Files to Modify
+      - `web/src/styles/tokens.css` - Complete replacement
+      - `web/index.html` - Add Google Fonts imports
+      - `web/src/index.css` - Update base styles
+
+      ## Testing Requirements
+      - [ ] Visual inspection: background colors match mockup darkness
+      - [ ] Text contrast is readable against backgrounds
+
+  - id: 2
+    title: "Create Badge component with all variants"
+    weight: small
+    category: feature
+    priority: high
+    depends_on: [1]
+    description: |
+      Create a Badge component matching the mockup styles for status badges,
+      count badges, and pill badges.
+
+      Reference: example_ui/board.html (initiative-status, tool-badge classes)
+      Reference: example_ui/agents.html (agent-status classes)
+    spec: |
+      # Specification: Badge Component
+
+      ## Problem Statement
+      Need a Badge component with multiple variants for status display, counts,
+      and tool indicators matching the mockup designs.
+
+      ## Success Criteria
+      - [ ] Badge component created at `web/src/components/core/Badge.tsx`
+      - [ ] Status variant supports: active (green), paused (amber), completed (purple), failed (red), idle (muted)
+      - [ ] Count variant for numeric badges with muted background
+      - [ ] Tool variant for small pill-shaped tool indicators
+      - [ ] Props interface:
+        ```typescript
+        interface BadgeProps {
+          variant: 'status' | 'count' | 'tool';
+          status?: 'active' | 'paused' | 'completed' | 'failed' | 'idle';
+          children: React.ReactNode;
+        }
+        ```
+      - [ ] Styles match mockup exactly:
+        - Border radius: 3-4px
+        - Font size: 9px for status, 10px for others
+        - Font weight: 600
+        - Text transform: uppercase for status
+        - Verify: visual comparison with example_ui/Screenshot_20260116_201905.png
+      - [ ] Component exports from `web/src/components/core/index.ts`
+      - [ ] TypeScript compiles: `npm run typecheck` exits 0
+
+      ## Edge Cases
+      - Empty children should render nothing
+      - Very long text should truncate with ellipsis
+      - Must work inside flex containers without layout issues
+
+      ## Files to Create
+      - `web/src/components/core/Badge.tsx`
+      - `web/src/components/core/Badge.css`
+
+      ## Testing Requirements
+      - [ ] Unit test for each variant
+      - [ ] Snapshot test for visual regression
+
+  - id: 3
+    title: "Create Button component with primary, ghost, and icon variants"
+    weight: small
+    category: feature
+    priority: high
+    depends_on: [1]
+    description: |
+      Create a Button component matching the mockup button styles.
+
+      Reference: example_ui/board.html (.btn, .btn-primary, .btn-ghost classes)
+      Reference: example_ui/initiatives.html (New Initiative button)
+    spec: |
+      # Specification: Button Component
+
+      ## Problem Statement
+      Need a Button component with primary, ghost, and icon-only variants
+      matching the mockup designs exactly.
+
+      ## Success Criteria
+      - [ ] Button component created at `web/src/components/core/Button.tsx`
+      - [ ] Primary variant:
+        - Background: var(--primary)
+        - Hover: var(--primary-bright)
+        - Text: white
+        - Box shadow glow on primary buttons
+      - [ ] Ghost variant:
+        - Background: var(--bg-surface)
+        - Border: 1px solid var(--border)
+        - Hover: var(--bg-hover), text brightens
+      - [ ] Icon variant:
+        - 28-32px square
+        - Icon centered
+        - No text
+      - [ ] Shared styles:
+        - Border radius: 6px
+        - Padding: 7px 12px
+        - Font size: 11px
+        - Font weight: 500
+        - Gap: 5px (for icon + text)
+        - Transition: all 0.15s
+      - [ ] Props interface:
+        ```typescript
+        interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+          variant?: 'primary' | 'ghost' | 'icon';
+          size?: 'sm' | 'md';
+          icon?: React.ReactNode;
+        }
+        ```
+      - [ ] Loading state with spinner
+      - [ ] Disabled state with reduced opacity
+      - [ ] TypeScript compiles: `npm run typecheck` exits 0
+
+      ## Edge Cases
+      - Icon-only buttons must have aria-label
+      - Loading state should disable click
+      - Should work as submit button in forms
+
+      ## Files to Create
+      - `web/src/components/core/Button.tsx`
+      - `web/src/components/core/Button.css`
+
+      ## Testing Requirements
+      - [ ] Unit test for each variant
+      - [ ] Accessibility test for icon buttons
+
+  - id: 4
+    title: "Create Card component as base container"
+    weight: small
+    category: feature
+    priority: high
+    depends_on: [1]
+    description: |
+      Create a Card component as the base container used throughout the UI.
+
+      Reference: example_ui/board.html (.stat-card, .initiative-card classes)
+    spec: |
+      # Specification: Card Component
+
+      ## Problem Statement
+      Need a Card component as the foundational container element matching
+      the mockup card styles.
+
+      ## Success Criteria
+      - [ ] Card component created at `web/src/components/core/Card.tsx`
+      - [ ] Base styles:
+        - Background: var(--bg-card)
+        - Border: 1px solid var(--border)
+        - Border radius: 10-12px
+        - Padding: 16-20px
+      - [ ] Hover variant:
+        - Border lightens to var(--border-light)
+        - Optional transform: translateY(-2px)
+      - [ ] Active/selected variant:
+        - Border color with primary tint
+        - Gradient background option
+      - [ ] Props interface:
+        ```typescript
+        interface CardProps {
+          children: React.ReactNode;
+          hoverable?: boolean;
+          active?: boolean;
+          padding?: 'sm' | 'md' | 'lg';
+          className?: string;
+          onClick?: () => void;
+        }
+        ```
+      - [ ] TypeScript compiles: `npm run typecheck` exits 0
+
+      ## Edge Cases
+      - Clickable cards should have cursor: pointer
+      - Cards with onClick should have proper keyboard accessibility
+      - Nested cards should work correctly
+
+      ## Files to Create
+      - `web/src/components/core/Card.tsx`
+      - `web/src/components/core/Card.css`
+
+  - id: 5
+    title: "Create Stat component for dashboard statistics"
+    weight: small
+    category: feature
+    priority: high
+    depends_on: [1, 4]
+    description: |
+      Create a Stat component for displaying large numeric values with labels
+      and trend indicators.
+
+      Reference: example_ui/stats.html (.stat-card, .stat-value classes)
+      Reference: example_ui/initiatives.html (stats row)
+      Screenshot: example_ui/Screenshot_20260116_201852.png
+    spec: |
+      # Specification: Stat Component
+
+      ## Problem Statement
+      Need a Stat component for displaying key metrics with large values,
+      labels, and optional trend indicators.
+
+      ## Success Criteria
+      - [ ] Stat component created at `web/src/components/core/Stat.tsx`
+      - [ ] Layout matches mockup:
+        - Header row: label (left) + icon (right)
+        - Large value in JetBrains Mono font
+        - Trend indicator below value
+      - [ ] Value styling:
+        - Font size: 24-28px
+        - Font weight: 700
+        - Font family: JetBrains Mono
+        - Color variants: default, purple, green, amber
+      - [ ] Trend indicator:
+        - Up arrow (green) or down arrow (red)
+        - Percentage or text change
+        - Font size: 10px
+      - [ ] Icon slot with colored background circle
+      - [ ] Props interface:
+        ```typescript
+        interface StatProps {
+          label: string;
+          value: string | number;
+          valueColor?: 'default' | 'purple' | 'green' | 'amber';
+          trend?: {
+            direction: 'up' | 'down';
+            value: string;
+            positive?: boolean; // up can be bad (cost), down can be good (time)
+          };
+          icon?: React.ReactNode;
+          iconColor?: 'purple' | 'green' | 'amber' | 'blue';
+        }
+        ```
+      - [ ] TypeScript compiles: `npm run typecheck` exits 0
+
+      ## Edge Cases
+      - Very large numbers should format with abbreviations (1.2M, 847K)
+      - Null/undefined values should show placeholder
+      - Trend can be positive even when direction is down (e.g., "cost down is good")
+
+      ## Files to Create
+      - `web/src/components/core/Stat.tsx`
+      - `web/src/components/core/Stat.css`
+
+      ## Testing Requirements
+      - [ ] Test number formatting (1234567 -> "1.23M")
+      - [ ] Test trend color logic
+
+  - id: 6
+    title: "Create Progress component for progress bars"
+    weight: small
+    category: feature
+    priority: high
+    depends_on: [1]
+    description: |
+      Create a Progress component for horizontal progress bars with color variants.
+
+      Reference: example_ui/initiatives.html (.progress-bar, .progress-fill classes)
+    spec: |
+      # Specification: Progress Component
+
+      ## Problem Statement
+      Need a Progress component for showing task/initiative completion status.
+
+      ## Success Criteria
+      - [ ] Progress component at `web/src/components/core/Progress.tsx`
+      - [ ] Visual specs:
+        - Height: 6px
+        - Border radius: 3px (fully rounded)
+        - Background: var(--bg-surface)
+        - Fill with smooth transition
+      - [ ] Color variants: purple, green, amber, blue
+      - [ ] Props interface:
+        ```typescript
+        interface ProgressProps {
+          value: number;  // 0-100
+          max?: number;   // default 100
+          color?: 'purple' | 'green' | 'amber' | 'blue';
+          showLabel?: boolean;
+          size?: 'sm' | 'md';
+        }
+        ```
+      - [ ] Animation on value change: transition width 0.3s
+      - [ ] TypeScript compiles
+
+      ## Edge Cases
+      - Value > max should clamp to 100%
+      - Value < 0 should clamp to 0%
+      - Animate from 0 on initial mount
+
+      ## Files to Create
+      - `web/src/components/core/Progress.tsx`
+      - `web/src/components/core/Progress.css`
+
+  - id: 7
+    title: "Create Toggle component for on/off switches"
+    weight: small
+    category: feature
+    priority: normal
+    depends_on: [1]
+    description: |
+      Create a Toggle component for boolean settings.
+
+      Reference: example_ui/agents.html (.toggle classes)
+      Screenshot: example_ui/Screenshot_20260116_201905.png
+    spec: |
+      # Specification: Toggle Component
+
+      ## Problem Statement
+      Need a Toggle switch component for settings and permissions.
+
+      ## Success Criteria
+      - [ ] Toggle component at `web/src/components/core/Toggle.tsx`
+      - [ ] Visual specs:
+        - Width: 36px, Height: 20px
+        - Border radius: 10px (pill shape)
+        - Off: var(--bg-surface)
+        - On: var(--primary)
+        - Knob: 16px circle, white, 2px offset
+        - Transition: 0.2s
+      - [ ] Props interface:
+        ```typescript
+        interface ToggleProps {
+          checked: boolean;
+          onChange: (checked: boolean) => void;
+          disabled?: boolean;
+          size?: 'sm' | 'md';
+        }
+        ```
+      - [ ] Keyboard accessible: Space to toggle
+      - [ ] Uses hidden checkbox for form compatibility
+
+      ## Edge Cases
+      - Disabled state should have reduced opacity
+      - Must work in forms
+      - Focus state visible
+
+      ## Files to Create
+      - `web/src/components/core/Toggle.tsx`
+      - `web/src/components/core/Toggle.css`
+
+  - id: 8
+    title: "Create Slider component for range inputs"
+    weight: small
+    category: feature
+    priority: normal
+    depends_on: [1]
+    description: |
+      Create a Slider component for numeric range selection.
+
+      Reference: example_ui/agents.html (.slider, .slider-fill classes)
+    spec: |
+      # Specification: Slider Component
+
+      ## Problem Statement
+      Need a Slider component for settings like "parallel tasks" and "cost limit".
+
+      ## Success Criteria
+      - [ ] Slider component at `web/src/components/core/Slider.tsx`
+      - [ ] Visual specs:
+        - Track: 4px height, var(--bg-surface)
+        - Fill: var(--primary)
+        - Thumb: 14px circle, white, with shadow
+        - Border radius: 2px
+      - [ ] Props interface:
+        ```typescript
+        interface SliderProps {
+          value: number;
+          onChange: (value: number) => void;
+          min: number;
+          max: number;
+          step?: number;
+          showValue?: boolean;
+          formatValue?: (value: number) => string;
+        }
+        ```
+      - [ ] Value display to the right of slider
+      - [ ] Keyboard accessible: Arrow keys adjust
+
+      ## Edge Cases
+      - Step values must snap correctly
+      - Value display should update in real-time
+      - Touch support for mobile
+
+      ## Files to Create
+      - `web/src/components/core/Slider.tsx`
+      - `web/src/components/core/Slider.css`
+
+  - id: 9
+    title: "Create Select component for dropdowns"
+    weight: small
+    category: feature
+    priority: normal
+    depends_on: [1]
+    description: |
+      Create a Select dropdown component matching mockup styles.
+
+      Reference: example_ui/agents.html (.select class)
+    spec: |
+      # Specification: Select Component
+
+      ## Problem Statement
+      Need a styled Select dropdown for settings and filters.
+
+      ## Success Criteria
+      - [ ] Select component at `web/src/components/core/Select.tsx`
+      - [ ] Visual specs:
+        - Background: var(--bg-surface)
+        - Border: 1px solid var(--border)
+        - Border radius: 6px
+        - Padding: 8px 12px
+        - Custom chevron icon
+        - Focus: border-color var(--primary)
+      - [ ] Built on Radix Select for accessibility
+      - [ ] Props interface:
+        ```typescript
+        interface SelectProps {
+          value: string;
+          onChange: (value: string) => void;
+          options: { value: string; label: string }[];
+          placeholder?: string;
+        }
+        ```
+
+      ## Files to Create
+      - `web/src/components/core/Select.tsx`
+      - `web/src/components/core/Select.css`
+
+  - id: 10
+    title: "Create Input and SearchInput components"
+    weight: small
+    category: feature
+    priority: normal
+    depends_on: [1]
+    description: |
+      Create Input and SearchInput components for text entry and search.
+
+      Reference: example_ui/board.html (.search-box class)
+    spec: |
+      # Specification: Input and SearchInput Components
+
+      ## Problem Statement
+      Need styled input components for forms and search functionality.
+
+      ## Success Criteria
+      - [ ] Input component at `web/src/components/core/Input.tsx`
+      - [ ] SearchInput component with icon at `web/src/components/core/SearchInput.tsx`
+      - [ ] Visual specs:
+        - Background: var(--bg-surface)
+        - Border: 1px solid var(--border)
+        - Border radius: 6px
+        - Padding: 8px 12px
+        - Font size: 12px
+        - Placeholder color: var(--text-muted)
+        - Focus: border-color var(--primary)
+      - [ ] SearchInput specific:
+        - Search icon on left (14px, muted)
+        - Padding-left to accommodate icon
+        - Clear button on right when has value
+      - [ ] TypeScript compiles
+
+      ## Files to Create
+      - `web/src/components/core/Input.tsx`
+      - `web/src/components/core/Input.css`
+      - `web/src/components/core/SearchInput.tsx`
+
+  - id: 11
+    title: "Create core component barrel export"
+    weight: trivial
+    category: chore
+    priority: normal
+    depends_on: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    description: |
+      Create barrel export file for all core components.
+    spec: |
+      # Specification: Core Component Exports
+
+      ## Problem Statement
+      Need a barrel export file for clean imports of core components.
+
+      ## Success Criteria
+      - [ ] `web/src/components/core/index.ts` exports all components:
+        ```typescript
+        export { Badge } from './Badge';
+        export { Button } from './Button';
+        export { Card } from './Card';
+        export { Input, SearchInput } from './Input';
+        export { Progress } from './Progress';
+        export { Select } from './Select';
+        export { Slider } from './Slider';
+        export { Stat } from './Stat';
+        export { Toggle } from './Toggle';
+        ```
+      - [ ] All imports work: `import { Button, Card } from '@/components/core'`
+      - [ ] TypeScript compiles: `npm run typecheck` exits 0
+
+      ## Files to Create
+      - `web/src/components/core/index.ts`
