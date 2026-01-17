@@ -312,6 +312,79 @@ func TestSaveInitiative_WithDependencies(t *testing.T) {
 	}
 }
 
+// TestSaveInitiative_MultipleDecisions verifies that adding multiple decisions
+// to an initiative works correctly (decision IDs are unique).
+func TestSaveInitiative_MultipleDecisions(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create initiative
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Test Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save init: %v", err)
+	}
+
+	// Add first decision
+	init.AddDecision("Use JWT tokens", "Industry standard", "RM")
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save init with first decision: %v", err)
+	}
+
+	// Load and verify first decision
+	loaded, err := backend.LoadInitiative("INIT-001")
+	if err != nil {
+		t.Fatalf("load initiative: %v", err)
+	}
+	if len(loaded.Decisions) != 1 {
+		t.Fatalf("expected 1 decision, got %d", len(loaded.Decisions))
+	}
+	if loaded.Decisions[0].ID != "DEC-001" {
+		t.Errorf("expected first decision ID=DEC-001, got %s", loaded.Decisions[0].ID)
+	}
+
+	// Add second decision to the loaded initiative (simulating CLI flow)
+	loaded.AddDecision("Use bcrypt for passwords", "Secure hashing", "RM")
+	if err := backend.SaveInitiative(loaded); err != nil {
+		t.Fatalf("save init with second decision: %v", err)
+	}
+
+	// Load again and verify both decisions
+	loaded2, err := backend.LoadInitiative("INIT-001")
+	if err != nil {
+		t.Fatalf("load initiative: %v", err)
+	}
+	if len(loaded2.Decisions) != 2 {
+		t.Fatalf("expected 2 decisions, got %d", len(loaded2.Decisions))
+	}
+	if loaded2.Decisions[0].ID != "DEC-001" {
+		t.Errorf("expected first decision ID=DEC-001, got %s", loaded2.Decisions[0].ID)
+	}
+	if loaded2.Decisions[1].ID != "DEC-002" {
+		t.Errorf("expected second decision ID=DEC-002, got %s", loaded2.Decisions[1].ID)
+	}
+
+	// Add third decision
+	loaded2.AddDecision("7-day session expiry", "Security practice", "RM")
+	if err := backend.SaveInitiative(loaded2); err != nil {
+		t.Fatalf("save init with third decision: %v", err)
+	}
+
+	// Final verification
+	loaded3, err := backend.LoadInitiative("INIT-001")
+	if err != nil {
+		t.Fatalf("load initiative: %v", err)
+	}
+	if len(loaded3.Decisions) != 3 {
+		t.Errorf("expected 3 decisions, got %d", len(loaded3.Decisions))
+	}
+}
+
 // TestDeleteTask_CascadesCorrectly verifies cascade deletes work.
 func TestDeleteTask_CascadesCorrectly(t *testing.T) {
 	backend, tmpDir := setupTestDB(t)

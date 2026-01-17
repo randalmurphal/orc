@@ -2247,6 +2247,15 @@ func AddInitiativeDecisionTx(tx *TxOps, d *InitiativeDecision) error {
 	return nil
 }
 
+// ClearInitiativeDecisionsTx removes all decisions for an initiative within a transaction.
+func ClearInitiativeDecisionsTx(tx *TxOps, initiativeID string) error {
+	_, err := tx.Exec(`DELETE FROM initiative_decisions WHERE initiative_id = ?`, initiativeID)
+	if err != nil {
+		return fmt.Errorf("clear initiative decisions: %w", err)
+	}
+	return nil
+}
+
 // ClearInitiativeTasksTx removes all task references from an initiative within a transaction.
 func ClearInitiativeTasksTx(tx *TxOps, initiativeID string) error {
 	_, err := tx.Exec(`DELETE FROM initiative_tasks WHERE initiative_id = ?`, initiativeID)

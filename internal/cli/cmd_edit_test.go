@@ -389,3 +389,67 @@ func restoreWorkDir(t *testing.T, dir string) {
 		t.Errorf("restore work dir: %v", err)
 	}
 }
+
+// TestEditCommand_BlockedByEmptyClearsDependencies tests that --blocked-by ""
+// correctly clears all dependencies from a task.
+func TestEditCommand_BlockedByEmptyClearsDependencies(t *testing.T) {
+	_, tmpDir := createEditTestBackend(t)
+
+	// Set up working directory for command execution
+	origDir := setupTestWorkDir(t, tmpDir)
+	defer restoreWorkDir(t, origDir)
+
+	// Create tasks via backend
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	// Create two tasks, with TASK-002 blocked by TASK-001
+	tk1 := task.New("TASK-001", "Task 1")
+	if err := backend.SaveTask(tk1); err != nil {
+		t.Fatalf("failed to save task 1: %v", err)
+	}
+
+	tk2 := task.New("TASK-002", "Task 2")
+	tk2.BlockedBy = []string{"TASK-001"}
+	if err := backend.SaveTask(tk2); err != nil {
+		t.Fatalf("failed to save task 2: %v", err)
+	}
+
+	// Verify the blocker is set
+	loaded, err := backend.LoadTask("TASK-002")
+	if err != nil {
+		t.Fatalf("failed to load task: %v", err)
+	}
+	if len(loaded.BlockedBy) != 1 || loaded.BlockedBy[0] != "TASK-001" {
+		t.Fatalf("expected BlockedBy=[TASK-001], got %v", loaded.BlockedBy)
+	}
+
+	// Close backend before running command (command opens its own)
+	_ = backend.Close()
+
+	// Clear all blockers using --blocked-by ""
+	cmd := newEditCmd()
+	cmd.SetArgs([]string{"TASK-002", "--blocked-by", ""})
+	err = cmd.Execute()
+	if err != nil {
+		t.Fatalf("edit command failed: %v", err)
+	}
+
+	// Reload and verify blockers are cleared
+	backend2, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer func() { _ = backend2.Close() }()
+
+	loaded, err = backend2.LoadTask("TASK-002")
+	if err != nil {
+		t.Fatalf("failed to load task: %v", err)
+	}
+	if len(loaded.BlockedBy) != 0 {
+		t.Errorf("expected empty BlockedBy, got %v", loaded.BlockedBy)
+	}
+}
