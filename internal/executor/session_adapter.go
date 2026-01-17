@@ -189,6 +189,14 @@ collectLoop:
 
 			if output.IsAssistant() {
 				content.WriteString(output.GetText())
+
+				// WORKAROUND for Claude Code CLI bug #1920: Missing result message
+				// Check for phase completion markers immediately - don't wait for result message.
+				// See: https://github.com/anthropics/claude-code/issues/1920
+				accumulated := content.String()
+				if IsPhaseComplete(accumulated) || IsPhaseBlocked(accumulated) {
+					break collectLoop
+				}
 			}
 
 			if output.IsResult() {
@@ -414,6 +422,16 @@ streamLoop:
 			if output.IsAssistant() {
 				text := output.GetText()
 				content.WriteString(text)
+
+				// WORKAROUND for Claude Code CLI bug #1920: Missing result message
+				// Check for phase completion markers immediately - don't wait for result message.
+				// When we see <phase_complete> or <phase_blocked>, the agent is done and won't
+				// send more content, so we can safely exit even without a result message.
+				// See: https://github.com/anthropics/claude-code/issues/1920
+				accumulated := content.String()
+				if IsPhaseComplete(accumulated) || IsPhaseBlocked(accumulated) {
+					break streamLoop
+				}
 
 				// Update activity state on first chunk
 				if opts.OnActivityChange != nil && content.Len() == len(text) {
