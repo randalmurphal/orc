@@ -2086,3 +2086,205 @@ func TestExecuteTask_UpdatesTaskCurrentPhase(t *testing.T) {
 		t.Errorf("task status = %s, want completed", reloadedTask.Status)
 	}
 }
+
+// TestHandlePhaseFailure_BlockedReview_TriggersRetry verifies that when a review phase
+// fails with a blocked error, the retry logic triggers a retry from the implement phase.
+func TestHandlePhaseFailure_BlockedReview_TriggersRetry(t *testing.T) {
+	backend := newTestBackend(t)
+
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	e := New(cfg)
+
+	// Verify the retry map includes review -> implement
+	retryFrom := e.orcConfig.ShouldRetryFrom("review")
+	if retryFrom != "implement" {
+		t.Fatalf("expected review to retry from implement, got %q", retryFrom)
+	}
+
+	// Create a plan with implement and review phases
+	testPlan := &plan.Plan{
+		Version: 1,
+		Weight:  "medium",
+		Phases: []plan.Phase{
+			{ID: "implement", Name: "Implementation"},
+			{ID: "review", Name: "Review"},
+		},
+	}
+
+	testState := state.New("TASK-HANDLE-001")
+
+	// Simulate review phase failing with blocked error
+	blockError := fmt.Errorf("phase blocked: Review found 3 issues")
+	blockResult := &Result{
+		Phase:  "review",
+		Status: plan.PhaseFailed,
+		Output: "<phase_blocked>Review found 3 issues that need fixing</phase_blocked>",
+		Error:  blockError,
+	}
+
+	retryCounts := make(map[string]int)
+	currentIdx := 1 // review is at index 1
+
+	// Call handlePhaseFailure
+	shouldRetry, retryIdx := e.handlePhaseFailure("review", blockError, blockResult, testPlan, testState, retryCounts, currentIdx)
+
+	// Should trigger retry
+	if !shouldRetry {
+		t.Errorf("expected shouldRetry=true for blocked review phase")
+	}
+
+	// Should retry from implement (index 0)
+	if retryIdx != 0 {
+		t.Errorf("expected retryIdx=0 (implement), got %d", retryIdx)
+	}
+
+	// Retry count should be incremented
+	if retryCounts["review"] != 1 {
+		t.Errorf("expected retryCounts[review]=1, got %d", retryCounts["review"])
+	}
+
+	// State should have retry context
+	rc := testState.GetRetryContext()
+	if rc == nil {
+		t.Fatal("expected retry context to be set")
+	}
+	if rc.FromPhase != "review" {
+		t.Errorf("expected FromPhase=review, got %s", rc.FromPhase)
+	}
+	if rc.ToPhase != "implement" {
+		t.Errorf("expected ToPhase=implement, got %s", rc.ToPhase)
+	}
+}
+
+// TestHandlePhaseFailure_BlockedTest_TriggersRetry verifies that when a test phase
+// fails with a blocked error, the retry logic triggers a retry from the implement phase.
+func TestHandlePhaseFailure_BlockedTest_TriggersRetry(t *testing.T) {
+	backend := newTestBackend(t)
+
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	e := New(cfg)
+
+	testPlan := &plan.Plan{
+		Version: 1,
+		Weight:  "medium",
+		Phases: []plan.Phase{
+			{ID: "implement", Name: "Implementation"},
+			{ID: "test", Name: "Test"},
+		},
+	}
+
+	testState := state.New("TASK-HANDLE-002")
+
+	blockError := fmt.Errorf("phase blocked: Tests failed")
+	blockResult := &Result{
+		Phase:  "test",
+		Status: plan.PhaseFailed,
+		Output: "<phase_blocked>Tests failed - 5 tests need fixing</phase_blocked>",
+		Error:  blockError,
+	}
+
+	retryCounts := make(map[string]int)
+	currentIdx := 1 // test is at index 1
+
+	shouldRetry, retryIdx := e.handlePhaseFailure("test", blockError, blockResult, testPlan, testState, retryCounts, currentIdx)
+
+	if !shouldRetry {
+		t.Errorf("expected shouldRetry=true for blocked test phase")
+	}
+	if retryIdx != 0 {
+		t.Errorf("expected retryIdx=0 (implement), got %d", retryIdx)
+	}
+}
+
+// TestHandlePhaseFailure_NoRetryForSpec verifies that spec phase failures do NOT trigger retry
+// (spec has no upstream phase to retry from).
+func TestHandlePhaseFailure_NoRetryForSpec(t *testing.T) {
+	backend := newTestBackend(t)
+
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	e := New(cfg)
+
+	// Spec is not in the retry map
+	retryFrom := e.orcConfig.ShouldRetryFrom("spec")
+	if retryFrom != "" {
+		t.Fatalf("expected spec to NOT be in retry map, got %q", retryFrom)
+	}
+
+	testPlan := &plan.Plan{
+		Version: 1,
+		Weight:  "medium",
+		Phases: []plan.Phase{
+			{ID: "spec", Name: "Specification"},
+		},
+	}
+
+	testState := state.New("TASK-HANDLE-003")
+
+	specError := fmt.Errorf("phase blocked: Need clarification")
+	specResult := &Result{
+		Phase:  "spec",
+		Status: plan.PhaseFailed,
+		Output: "Need more details",
+		Error:  specError,
+	}
+
+	retryCounts := make(map[string]int)
+	currentIdx := 0
+
+	shouldRetry, _ := e.handlePhaseFailure("spec", specError, specResult, testPlan, testState, retryCounts, currentIdx)
+
+	// Should NOT trigger retry (spec has no retry target)
+	if shouldRetry {
+		t.Errorf("expected shouldRetry=false for spec phase (no retry target)")
+	}
+}
+
+// TestHandlePhaseFailure_MaxRetriesExceeded verifies that retry is not triggered when
+// max retries have been exceeded.
+func TestHandlePhaseFailure_MaxRetriesExceeded(t *testing.T) {
+	backend := newTestBackend(t)
+
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	e := New(cfg)
+
+	testPlan := &plan.Plan{
+		Version: 1,
+		Weight:  "medium",
+		Phases: []plan.Phase{
+			{ID: "implement", Name: "Implementation"},
+			{ID: "review", Name: "Review"},
+		},
+	}
+
+	testState := state.New("TASK-HANDLE-004")
+
+	blockError := fmt.Errorf("phase blocked: Review found issues")
+	blockResult := &Result{
+		Phase:  "review",
+		Status: plan.PhaseFailed,
+		Output: "Issues found",
+		Error:  blockError,
+	}
+
+	// Pre-fill retry counts to max
+	maxRetries := e.orcConfig.EffectiveMaxRetries()
+	retryCounts := map[string]int{
+		"review": maxRetries,
+	}
+	currentIdx := 1
+
+	shouldRetry, _ := e.handlePhaseFailure("review", blockError, blockResult, testPlan, testState, retryCounts, currentIdx)
+
+	// Should NOT trigger retry (max retries exceeded)
+	if shouldRetry {
+		t.Errorf("expected shouldRetry=false when max retries (%d) exceeded", maxRetries)
+	}
+}
