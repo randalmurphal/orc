@@ -6,6 +6,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/diff"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // handleGetDiff returns the diff for a task's changes.
@@ -15,13 +16,98 @@ import (
 func (s *Server) handleGetDiff(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
-	// Load task to get branch
+	// Load task to get branch and PR info
 	t, err := s.backend.LoadTask(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
+	// Check if only file list requested (for virtual scrolling of large diffs)
+	filesOnly := r.URL.Query().Get("files") == "true"
+
+	diffSvc := diff.NewService(s.getProjectRoot(), s.diffCache)
+
+	// Determine which diff strategy to use:
+	// 1. Merged PR with merge commit SHA → show merge commit diff
+	// 2. Task with commit SHAs from phase states → use commit range
+	// 3. Default → branch comparison
+
+	// Strategy 1: Merged PR
+	if t.PR != nil && t.PR.Merged && t.PR.MergeCommitSHA != "" {
+		s.handleMergedPRDiff(w, r, diffSvc, t.PR.MergeCommitSHA, filesOnly)
+		return
+	}
+
+	// Strategy 2: Use commit SHAs from task state if available
+	firstCommit, lastCommit := s.getTaskCommitRange(taskID)
+	if firstCommit != "" && lastCommit != "" {
+		s.handleCommitRangeDiff(w, r, diffSvc, firstCommit, lastCommit, filesOnly)
+		return
+	}
+
+	// Strategy 3: Fall back to branch comparison
+	s.handleBranchDiff(w, r, diffSvc, t, filesOnly)
+}
+
+// handleMergedPRDiff returns the diff for a merged PR using its merge commit.
+func (s *Server) handleMergedPRDiff(w http.ResponseWriter, r *http.Request, diffSvc *diff.Service, mergeCommitSHA string, filesOnly bool) {
+	displayBase := mergeCommitSHA + "^"
+	displayHead := mergeCommitSHA
+
+	if filesOnly {
+		files, stats, err := diffSvc.GetMergeCommitFileList(r.Context(), mergeCommitSHA)
+		if err != nil {
+			s.jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		s.jsonResponse(w, diff.DiffResult{
+			Base:  displayBase,
+			Head:  displayHead,
+			Stats: *stats,
+			Files: files,
+		})
+		return
+	}
+
+	result, err := diffSvc.GetMergeCommitDiff(r.Context(), mergeCommitSHA)
+	if err != nil {
+		s.jsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s.jsonResponse(w, result)
+}
+
+// handleCommitRangeDiff returns the diff for a range of commits.
+func (s *Server) handleCommitRangeDiff(w http.ResponseWriter, r *http.Request, diffSvc *diff.Service, firstCommit, lastCommit string, filesOnly bool) {
+	displayBase := firstCommit + "^"
+	displayHead := lastCommit
+
+	if filesOnly {
+		files, stats, err := diffSvc.GetCommitRangeFileList(r.Context(), firstCommit, lastCommit)
+		if err != nil {
+			s.jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		s.jsonResponse(w, diff.DiffResult{
+			Base:  displayBase,
+			Head:  displayHead,
+			Stats: *stats,
+			Files: files,
+		})
+		return
+	}
+
+	result, err := diffSvc.GetCommitRangeDiff(r.Context(), firstCommit, lastCommit)
+	if err != nil {
+		s.jsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s.jsonResponse(w, result)
+}
+
+// handleBranchDiff returns the diff using branch comparison (original logic).
+func (s *Server) handleBranchDiff(w http.ResponseWriter, r *http.Request, diffSvc *diff.Service, t *task.Task, filesOnly bool) {
 	base := r.URL.Query().Get("base")
 	if base == "" {
 		base = "main"
@@ -31,11 +117,6 @@ func (s *Server) handleGetDiff(w http.ResponseWriter, r *http.Request) {
 	if head == "" {
 		head = "HEAD"
 	}
-
-	// Check if only file list requested (for virtual scrolling of large diffs)
-	filesOnly := r.URL.Query().Get("files") == "true"
-
-	diffSvc := diff.NewService(s.getProjectRoot(), s.diffCache)
 
 	// Resolve refs (handles remote-only branches)
 	base = diffSvc.ResolveRef(r.Context(), base)
@@ -89,6 +170,67 @@ func (s *Server) handleGetDiff(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, result)
 }
 
+// getTaskCommitRange extracts the first and last commit SHAs from the task's state.
+// Returns empty strings if no commits are found.
+func (s *Server) getTaskCommitRange(taskID string) (firstCommit, lastCommit string) {
+	// Try to load state
+	taskState, err := s.backend.LoadState(taskID)
+	if err != nil || taskState == nil {
+		return "", ""
+	}
+
+	// Collect all commit SHAs from phase states
+	var commits []string
+	for _, phaseState := range taskState.Phases {
+		if phaseState != nil && phaseState.CommitSHA != "" {
+			commits = append(commits, phaseState.CommitSHA)
+		}
+	}
+
+	if len(commits) == 0 {
+		return "", ""
+	}
+
+	// If we have commits, we need them in execution order.
+	// Since map iteration order is undefined, we also load the plan
+	// to get the correct phase ordering.
+	plan, err := s.backend.LoadPlan(taskID)
+	if err != nil || plan == nil {
+		// Fallback: just use the commits we found (might not be in order)
+		// This still works for single-commit tasks
+		if len(commits) == 1 {
+			return commits[0], commits[0]
+		}
+		// For multiple commits without order info, return empty
+		// to fall back to branch comparison
+		return "", ""
+	}
+
+	// Build ordered commit list based on plan's phase order
+	var orderedCommits []string
+	for _, phase := range plan.Phases {
+		if phaseState, ok := taskState.Phases[phase.ID]; ok && phaseState != nil && phaseState.CommitSHA != "" {
+			orderedCommits = append(orderedCommits, phaseState.CommitSHA)
+		}
+	}
+
+	if len(orderedCommits) == 0 {
+		return "", ""
+	}
+
+	// Deduplicate (some phases might have the same commit if combined)
+	seen := make(map[string]bool)
+	var uniqueCommits []string
+	for _, c := range orderedCommits {
+		if !seen[c] {
+			seen[c] = true
+			uniqueCommits = append(uniqueCommits, c)
+		}
+	}
+
+	return uniqueCommits[0], uniqueCommits[len(uniqueCommits)-1]
+}
+
 // handleGetDiffFile returns the diff for a single file.
 // This is used for on-demand loading in virtual scrolling.
 // Query params:
@@ -113,6 +255,37 @@ func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	diffSvc := diff.NewService(s.getProjectRoot(), s.diffCache)
+
+	// Use the same diff strategy as handleGetDiff:
+	// 1. Merged PR with merge commit SHA → use merge commit
+	// 2. Task with commit SHAs from phase states → use commit range
+	// 3. Default → branch comparison
+
+	// Strategy 1: Merged PR
+	if t.PR != nil && t.PR.Merged && t.PR.MergeCommitSHA != "" {
+		fileDiff, err := diffSvc.GetMergeCommitFileDiff(r.Context(), t.PR.MergeCommitSHA, filePath)
+		if err != nil {
+			s.jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		s.jsonResponse(w, fileDiff)
+		return
+	}
+
+	// Strategy 2: Use commit SHAs from task state if available
+	firstCommit, lastCommit := s.getTaskCommitRange(taskID)
+	if firstCommit != "" && lastCommit != "" {
+		fileDiff, err := diffSvc.GetCommitRangeFileDiff(r.Context(), firstCommit, lastCommit, filePath)
+		if err != nil {
+			s.jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		s.jsonResponse(w, fileDiff)
+		return
+	}
+
+	// Strategy 3: Branch comparison
 	base := r.URL.Query().Get("base")
 	if base == "" {
 		base = "main"
@@ -122,8 +295,6 @@ func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 	if head == "" {
 		head = "HEAD"
 	}
-
-	diffSvc := diff.NewService(s.getProjectRoot(), s.diffCache)
 
 	// Resolve refs (handles remote-only branches)
 	base = diffSvc.ResolveRef(r.Context(), base)
@@ -155,6 +326,37 @@ func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	diffSvc := diff.NewService(s.getProjectRoot(), s.diffCache)
+
+	// Use the same diff strategy as handleGetDiff:
+	// 1. Merged PR with merge commit SHA → use merge commit
+	// 2. Task with commit SHAs from phase states → use commit range
+	// 3. Default → branch comparison
+
+	// Strategy 1: Merged PR
+	if t.PR != nil && t.PR.Merged && t.PR.MergeCommitSHA != "" {
+		stats, err := diffSvc.GetStats(r.Context(), t.PR.MergeCommitSHA+"^", t.PR.MergeCommitSHA)
+		if err != nil {
+			s.jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		s.jsonResponse(w, stats)
+		return
+	}
+
+	// Strategy 2: Use commit SHAs from task state if available
+	firstCommit, lastCommit := s.getTaskCommitRange(taskID)
+	if firstCommit != "" && lastCommit != "" {
+		stats, err := diffSvc.GetStats(r.Context(), firstCommit+"^", lastCommit)
+		if err != nil {
+			s.jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		s.jsonResponse(w, stats)
+		return
+	}
+
+	// Strategy 3: Branch comparison
 	base := r.URL.Query().Get("base")
 	if base == "" {
 		base = "main"
@@ -164,8 +366,6 @@ func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 	if head == "" {
 		head = "HEAD"
 	}
-
-	diffSvc := diff.NewService(s.getProjectRoot(), s.diffCache)
 
 	// Resolve refs (handles remote-only branches)
 	base = diffSvc.ResolveRef(r.Context(), base)
