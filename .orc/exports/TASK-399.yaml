@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.889578069-06:00
+exported_at: 2026-01-17T08:29:45.89234-06:00
 task:
     id: TASK-399
     title: Add section_type column and structured transcript indexing

@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.866675967-06:00
+exported_at: 2026-01-17T08:29:48.030332-06:00
 type: initiative
 initiative:
     version: 0
@@ -75,4 +75,4 @@ initiative:
     blocked_by:
         - INIT-016
     created_at: 2026-01-16T20:57:45-06:00
-    updated_at: 2026-01-16T22:40:10-06:00
+    updated_at: 2026-01-16T23:43:19-06:00

@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:37.171423705-06:00
+exported_at: 2026-01-17T08:29:46.139467-06:00
 task:
     id: TASK-224
     title: Fix SaveTask/SaveState race condition
@@ -14,7 +14,7 @@ task:
     blocked_by:
         - TASK-223
     created_at: 2026-01-15T12:12:23-06:00
-    updated_at: 2026-01-15T17:27:10-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-15T17:05:12-06:00
     completed_at: 2026-01-15T17:27:10-06:00
 plan:
@@ -358,6 +358,66 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T17:07:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:07:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:07:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:07:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:07:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:07:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:07:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:07:30-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:20:44-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:20:44-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:20:44-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:20:44-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:20:44-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -398,6 +458,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T17:25:06-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:25:06-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:25:06-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:25:06-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T17:27:10-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -486,14 +566,14 @@ transcripts:
         Tokens: 1868668 input, 3954 output, 77072 cache_creation, 1791571 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628596
     - id: 88
       taskid: TASK-224
       phase: implement
       iteration: 1
       role: combined
       content: "# implement - Iteration 1\n\n## Prompt\n\nImplement the task according to the specification:\n\n**Task**: Fix SaveTask/SaveState race condition\n**Category**: {{TASK_CATEGORY}}\n\n{{INITIATIVE_CONTEXT}}\n\n## Specification\n\n# Specification: Fix SaveTask/SaveState race condition\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n\n\n\n## Instructions\n\n1. Review the spec's success criteria - these are your acceptance criteria\n2. Implement the required changes following the technical approach\n3. Write/update tests alongside code (as specified in Testing Requirements)\n4. Run tests and fix any failures\n5. Self-review against success criteria before completing\n\n### Self-Review Checklist\n- [ ] All success criteria from spec addressed\n- [ ] All testing requirements satisfied\n- [ ] Scope boundaries respected (no extra features)\n- [ ] Error handling complete\n- [ ] Code follows project patterns\n\nKeep iterating until implementation is complete and tests pass.\n\nAfter completing, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-224: implement - completed\"\n```\n\nWhen done, output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\n\n## Response\n\n## Summary\n\nI've completed the TASK-224 implementation to fix the SaveTask/SaveState race condition. Here's what was done:\n\n### Changes Made\n\n1. **`internal/db/project.go`** - Added field-level update functions:\n   - `UpdateTaskMetadataTx()` - Updates only task metadata fields (title, description, weight, status, etc.)\n   - `UpdateTaskStateTx()` - Updates only state-managed fields (state_status, current_phase, executor fields, retry_context)\n   - `TaskExistsTx()` - Helper to check if a task exists within a transaction\n\n2. **`internal/storage/database_backend.go`** - Refactored both methods to use field-level updates:\n   - `SaveTaskCtx` now checks if task exists, then either creates (full record) or updates (metadata only)\n   - `SaveStateCtx` now uses `UpdateTaskStateTx` instead of read-modify-write\n\n3. **`internal/storage/database_backend_test.go`** - Added 5 comprehensive tests:\n   - `TestConcurrentSaveTaskAndSaveState_DataIntegrity` - Main race condition regression test\n   - `TestRapidAlternatingSaveTaskSaveState` - Stress test with 100 alternating updates\n   - `TestSaveState_DoesNotOverwriteTaskMetadata` - Verifies SaveState field isolation\n   - `TestSaveTask_DoesNotOverwriteStateFields` - Verifies SaveTask field isolation  \n   - `TestExecutorHeartbeatSurvivesAPITaskUpdate` - Integration test simulating real-world scenario\n\n4. **`internal/api/handlers_tasks_control.go`** - Fixed API to save `current_phase` via SaveState (since it's a state-managed field)\n\n5. **`CLAUDE.md`** - Added knowledge entry documenting the pattern\n\n### Key Design\n\nThe fix uses **Option A from the spec: Field-level updates**. Instead of reading the entire task, modifying fields, and writing back (TOCTOU vulnerable), each method now directly updates only the fields it owns via SQL UPDATE statements. This eliminates the race condition entirely without adding complexity or contention.\n\n---\nTokens: 4274659 input, 21743 output, 239142 cache_creation, 4035419 cache_read\nComplete: false\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628596
     - id: 89
       taskid: TASK-224
       phase: implement
@@ -606,14 +686,14 @@ transcripts:
         Tokens: 6219896 input, 26245 output, 333498 cache_creation, 5886267 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628596
     - id: 90
       taskid: TASK-224
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Fix SaveTask/SaveState race condition\n**Category**: {{TASK_CATEGORY}}\n**Description**: \n\n{{INITIATIVE_CONTEXT}}\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Fix SaveTask/SaveState race condition\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-224: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n**Commit**: e001cb48\n\n<artifact>\n# Specification: Fix SaveTask/SaveState race condition\n\n## Problem Statement\n\nDespite TASK-249's fix to preserve executor fields in `SaveTask()`, a TOCTOU (Time Of Check To Time Of Use) race condition exists when `SaveTask` and `SaveState` are called concurrently from different goroutines (e.g., executor heartbeat vs API task update). The read-then-write pattern in `SaveTaskCtx` can overwrite executor fields that were just updated by a concurrent `SaveStateCtx` call.\n\n## Success Criteria\n\n- [ ] `SaveTask` and `SaveState` cannot overwrite each other's fields when called concurrently\n- [ ] Executor fields (PID, hostname, heartbeat) survive concurrent API task updates\n- [ ] Task metadata fields (title, description, weight) survive concurrent state updates\n- [ ] All existing backend tests pass\n- [ ] New tests verify concurrent SaveTask/SaveState calls don't corrupt data\n- [ ] No deadlocks introduced by the fix\n\n## Testing Requirements\n\n- [ ] Unit test: Concurrent `SaveTask` and `SaveState` calls maintain data integrity\n- [ ] Unit test: Rapid alternating SaveTask/SaveState calls don't lose updates\n- [ ] Unit test: Verify executor fields persist through task metadata updates\n- [ ] Integration test: Executor heartbeat updates survive API task edits\n\n## Scope\n### In Scope\n- Fix the race condition in `DatabaseBackend.SaveTaskCtx` and `SaveStateCtx`\n- Add tests to verify concurrent access safety\n- Document the fix in CLAUDE.md knowledge section\n\n### Out of Scope\n- Changing the Backend interface\n- Modifying the CLI or API handlers (fix is entirely in storage layer)\n- Database schema changes\n- Adding new fields to task or state\n\n## Technical Approach\n\n**Option A: Field-level updates (Recommended)**\nInstead of reading the entire task, modifying, and writing back, use SQL UPDATE statements that only modify the specific fields each method owns:\n- `SaveTaskCtx`: Only UPDATE task metadata fields (title, description, weight, status, etc.)\n- `SaveStateCtx`: Only UPDATE state-managed fields (StateStatus, CurrentPhase, executor fields, RetryContext)\n\nThis eliminates the read-modify-write cycle entirely.\n\n### Files to Modify\n- `internal/storage/database_backend.go`: Refactor SaveTaskCtx to use field-level SQL UPDATE\n- `internal/db/tasks.go`: Add `UpdateTaskMetadata` and `UpdateTaskState` functions for partial updates\n- `internal/storage/database_backend_test.go`: Add concurrent access tests\n\n## Bug Analysis\n\n### Reproduction Steps\n1. Start a task execution (creates executor info via SaveState)\n2. While task is running, update task metadata via API (calls SaveTask)\n3. Race window: If SaveTask reads after SaveState writes but commits after, executor fields are overwritten with stale values\n\n### Current Behavior\nSaveTaskCtx reads the entire task row to preserve executor fields, then writes the entire row back. A concurrent SaveStateCtx can update executor fields between the read and write, causing data loss.\n\n### Expected Behavior\nSaveTask should only update task metadata fields. SaveState should only update state-managed fields. Neither should read-modify-write the other's fields.\n\n### Root Cause\nThe read-modify-write pattern in SaveTaskCtx (lines 88-97 in database_backend.go) is vulnerable to TOCTOU races.\n\n### Verification\n1. Add a concurrent test that spawns goroutines calling SaveTask and SaveState simultaneously\n2. Verify executor fields are preserved after multiple concurrent updates\n3. Verify task metadata is preserved after multiple concurrent state updates\n</artifact>\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 1496865 input, 6274 output, 127349 cache_creation, 1363026 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628596
     - id: 91
       taskid: TASK-224
       phase: test
@@ -696,9 +776,9 @@ transcripts:
         Tokens: 3089605 input, 6444 output, 106396 cache_creation, 2983173 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628596
 gate_decisions:
-    - id: 11000
+    - id: 110183
       taskid: TASK-224
       phase: spec
       gatetype: auto
@@ -706,7 +786,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:07:30-06:00
-    - id: 11020
+    - id: 110184
       taskid: TASK-224
       phase: spec
       gatetype: auto
@@ -714,7 +794,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:07:30-06:00
-    - id: 11021
+    - id: 110185
       taskid: TASK-224
       phase: spec
       gatetype: auto
@@ -722,7 +802,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:07:30-06:00
-    - id: 11028
+    - id: 110186
       taskid: TASK-224
       phase: spec
       gatetype: auto
@@ -730,7 +810,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:07:30-06:00
-    - id: 11030
+    - id: 110187
       taskid: TASK-224
       phase: spec
       gatetype: auto
@@ -738,7 +818,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:07:30-06:00
-    - id: 11040
+    - id: 110188
       taskid: TASK-224
       phase: spec
       gatetype: auto
@@ -746,7 +826,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:07:30-06:00
-    - id: 11043
+    - id: 110189
       taskid: TASK-224
       phase: spec
       gatetype: auto
@@ -754,7 +834,63 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:07:30-06:00
-    - id: 11022
+    - id: 110199
+      taskid: TASK-224
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:07:30-06:00
+    - id: 110200
+      taskid: TASK-224
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:07:30-06:00
+    - id: 110201
+      taskid: TASK-224
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:07:30-06:00
+    - id: 110202
+      taskid: TASK-224
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:07:30-06:00
+    - id: 110203
+      taskid: TASK-224
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:07:30-06:00
+    - id: 110204
+      taskid: TASK-224
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:07:30-06:00
+    - id: 110205
+      taskid: TASK-224
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:07:30-06:00
+    - id: 110190
       taskid: TASK-224
       phase: implement
       gatetype: auto
@@ -762,7 +898,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:20:44-06:00
-    - id: 11029
+    - id: 110191
       taskid: TASK-224
       phase: implement
       gatetype: auto
@@ -770,7 +906,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:20:44-06:00
-    - id: 11031
+    - id: 110192
       taskid: TASK-224
       phase: implement
       gatetype: auto
@@ -778,7 +914,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:20:44-06:00
-    - id: 11041
+    - id: 110193
       taskid: TASK-224
       phase: implement
       gatetype: auto
@@ -786,7 +922,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:20:44-06:00
-    - id: 11044
+    - id: 110194
       taskid: TASK-224
       phase: implement
       gatetype: auto
@@ -794,7 +930,47 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:20:44-06:00
-    - id: 11032
+    - id: 110206
+      taskid: TASK-224
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:20:44-06:00
+    - id: 110207
+      taskid: TASK-224
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:20:44-06:00
+    - id: 110208
+      taskid: TASK-224
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:20:44-06:00
+    - id: 110209
+      taskid: TASK-224
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:20:44-06:00
+    - id: 110210
+      taskid: TASK-224
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:20:44-06:00
+    - id: 110195
       taskid: TASK-224
       phase: test
       gatetype: auto
@@ -802,7 +978,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:25:06-06:00
-    - id: 11042
+    - id: 110196
       taskid: TASK-224
       phase: test
       gatetype: auto
@@ -810,7 +986,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:25:06-06:00
-    - id: 11045
+    - id: 110197
       taskid: TASK-224
       phase: test
       gatetype: auto
@@ -818,7 +994,39 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T17:25:06-06:00
-    - id: 11046
+    - id: 110211
+      taskid: TASK-224
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:25:06-06:00
+    - id: 110212
+      taskid: TASK-224
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:25:06-06:00
+    - id: 110213
+      taskid: TASK-224
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:25:06-06:00
+    - id: 110198
+      taskid: TASK-224
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T17:27:10-06:00
+    - id: 110214
       taskid: TASK-224
       phase: docs
       gatetype: auto

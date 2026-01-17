@@ -1,19 +1,41 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.947892-06:00
+exported_at: 2026-01-17T08:29:45.880463-06:00
 task:
-    id: TASK-298
-    title: 'CLI: Add task search with orc list --search or orc search'
+    id: TASK-415
+    title: 'Bug: Review-blocked tasks resume in review instead of implement'
+    description: |-
+        When review phase fails with blocking issues, resuming the task runs review again instead of going back to implement phase.
+
+        **Current behavior:**
+        1. Review finds issues → phase_blocked
+        2. orc resume TASK-XXX → runs review again
+        3. Same issues found → fails again
+        4. Loop forever
+
+        **Expected behavior:**
+        1. Review finds issues → phase_blocked
+        2. orc resume TASK-XXX → runs implement phase with RETRY_CONTEXT
+        3. Implement fixes issues
+        4. Review passes
+
+        **Root cause:** Resume uses 'last phase' which is review, but for review-blocked it should go back to implement.
+
+        **Affected:** TASK-325, TASK-377 both stuck in this loop.
+
+        **Files to investigate:**
+        - internal/executor/task_execution.go (ResumeFromPhase logic)
+        - internal/cli/cmd_resume.go (phase selection)
     weight: medium
     status: planned
-    branch: orc/TASK-298
+    branch: orc/TASK-415
     queue: active
-    priority: normal
-    category: feature
-    created_at: 2026-01-16T16:38:54-06:00
+    priority: critical
+    category: bug
+    created_at: 2026-01-17T00:25:29-06:00
     updated_at: 0001-01-01T00:00:00Z
 plan:
     version: 1
-    task_id: TASK-298
+    task_id: TASK-415
     weight: medium
     description: Medium task - spec, implement, review, test, docs with multi-agent code review
     phases:
@@ -274,7 +296,7 @@ plan:
           checkpoint: true
           status: pending
 state:
-    task_id: TASK-298
+    task_id: TASK-415
     current_phase: ""
     current_iteration: 0
     status: pending

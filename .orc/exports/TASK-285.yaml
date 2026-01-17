@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.981307071-06:00
+exported_at: 2026-01-17T08:29:45.971627-06:00
 task:
     id: TASK-285
     title: Remove web-react directory and references - cleanup from React migration
@@ -12,7 +12,7 @@ task:
     category: chore
     initiative_id: INIT-013
     created_at: 2026-01-16T07:54:40-06:00
-    updated_at: 2026-01-16T07:56:21-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-16T07:55:24-06:00
     completed_at: 2026-01-16T07:56:21-06:00
 plan:
@@ -66,6 +66,11 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T07:56:21-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T07:56:21-06:00
     tokens:
         input_tokens: 0
         output_tokens: 0
@@ -79,9 +84,17 @@ transcripts:
       iteration: 1
       role: combined
       content: "# implement - Iteration 1\n\n## Prompt\n\nComplete this task:\n\n**Task**: Remove web-react directory and references - cleanup from React migration\n\n**Description**: \n\n\n\nImplement the fix/change directly. Run any affected tests.\nKeep iterating until the implementation is complete and tests pass.\n\nWhen done, output:\n<phase_complete>true</phase_complete>\n\n\n## Response\n\nNo references in CLAUDE.md files either.\n\n**Summary**: The `web-react` directory has already been removed and properly migrated to `web/`. The only reference is in `docs/decisions/ADR-004-ui-framework.md` which is historical documentation explaining the migration process - it describes that the React app was *built* in `web-react/` before being moved to `web/`. This is accurate historical context and should remain to document what happened during the migration.\n\nThere are no broken references, no stale config, and no cleanup needed. The task is complete - the cleanup was already done as part of the React migration (TASK-180).\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 525475 input, 2086 output, 52197 cache_creation, 473129 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628597
 gate_decisions:
-    - id: 65879
+    - id: 132939
+      taskid: TASK-285
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T07:56:21-06:00
+    - id: 132940
       taskid: TASK-285
       phase: implement
       gatetype: auto

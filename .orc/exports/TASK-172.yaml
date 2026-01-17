@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.846827004-06:00
+exported_at: 2026-01-17T08:29:48.017073-06:00
 task:
     id: TASK-172
     title: 'Phase 2: React - Board page (flat and swimlane views)'
@@ -60,7 +60,7 @@ task:
         - TASK-169
         - TASK-170
     created_at: 2026-01-14T02:21:55-06:00
-    updated_at: 2026-01-14T14:22:00-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-14T14:22:00-06:00
 plan:
     version: 1
@@ -293,6 +293,11 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T13:11:58-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T13:11:58-06:00
     tokens:
         input_tokens: 0
         output_tokens: 0
@@ -300,7 +305,15 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 33
+    - id: 65
+      taskid: TASK-172
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T13:11:58-06:00
+    - id: 66
       taskid: TASK-172
       phase: spec
       gatetype: auto

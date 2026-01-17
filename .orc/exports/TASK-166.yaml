@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.849701939-06:00
+exported_at: 2026-01-17T08:29:48.019235-06:00
 task:
     id: TASK-166
     title: 'Phase 1: Setup React Router with URL param persistence'
@@ -49,7 +49,7 @@ task:
     blocked_by:
         - TASK-163
     created_at: 2026-01-14T02:20:36-06:00
-    updated_at: 2026-01-14T02:20:36-06:00
+    updated_at: 0001-01-01T00:00:00Z
 plan:
     version: 1
     task_id: TASK-166

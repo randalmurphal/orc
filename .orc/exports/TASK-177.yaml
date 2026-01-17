@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.842967254-06:00
+exported_at: 2026-01-17T08:29:48.01436-06:00
 task:
     id: TASK-177
     title: 'Phase 2: React - Environment and Config pages'
@@ -56,7 +56,7 @@ task:
         - TASK-164
         - TASK-170
     created_at: 2026-01-14T02:22:59-06:00
-    updated_at: 2026-01-14T21:00:22-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-14T20:54:05-06:00
     completed_at: 2026-01-14T21:00:22-06:00
 plan:
@@ -180,6 +180,16 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T15:55:44-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T15:55:44-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T20:30:25-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -190,11 +200,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T20:36:57-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T20:36:57-06:00
         - phase: docs
           gate_type: auto
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T20:41:55-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T20:41:55-06:00
+        - phase: validate
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T21:00:22-06:00
         - phase: validate
           gate_type: auto
           approved: true
@@ -207,7 +232,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 39
+    - id: 77
       taskid: TASK-177
       phase: spec
       gatetype: auto
@@ -215,7 +240,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T15:55:44-06:00
-    - id: 40
+    - id: 82
+      taskid: TASK-177
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T15:55:44-06:00
+    - id: 78
       taskid: TASK-177
       phase: implement
       gatetype: auto
@@ -223,7 +256,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T20:30:25-06:00
-    - id: 41
+    - id: 83
+      taskid: TASK-177
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T20:30:25-06:00
+    - id: 79
       taskid: TASK-177
       phase: test
       gatetype: auto
@@ -231,7 +272,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T20:36:57-06:00
-    - id: 42
+    - id: 84
+      taskid: TASK-177
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T20:36:57-06:00
+    - id: 80
       taskid: TASK-177
       phase: docs
       gatetype: auto
@@ -239,7 +288,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T20:41:55-06:00
-    - id: 43
+    - id: 85
+      taskid: TASK-177
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T20:41:55-06:00
+    - id: 81
+      taskid: TASK-177
+      phase: validate
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T21:00:22-06:00
+    - id: 86
       taskid: TASK-177
       phase: validate
       gatetype: auto

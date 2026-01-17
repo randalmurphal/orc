@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.923569137-06:00
+exported_at: 2026-01-17T08:29:45.923631-06:00
 task:
     id: TASK-345
     title: Create RunningCard component with expanded task view

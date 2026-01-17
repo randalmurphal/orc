@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.834787171-06:00
+exported_at: 2026-01-17T08:29:48.006899-06:00
 task:
     id: TASK-199
     title: 'Bug: Blocker check doesn''t recognize ''finished'' status as complete'
@@ -12,7 +12,7 @@ task:
     priority: high
     category: bug
     created_at: 2026-01-14T22:01:20-06:00
-    updated_at: 2026-01-14T22:19:23-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-14T22:19:23-06:00
 plan:
     version: 1
@@ -321,6 +321,16 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T22:20:45-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:20:45-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:23:50-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -331,6 +341,16 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T22:25:32-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:25:32-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:26:41-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -343,7 +363,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 72
+    - id: 161
       taskid: TASK-199
       phase: spec
       gatetype: auto
@@ -351,7 +371,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:20:45-06:00
-    - id: 73
+    - id: 165
+      taskid: TASK-199
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:20:45-06:00
+    - id: 162
       taskid: TASK-199
       phase: implement
       gatetype: auto
@@ -359,7 +387,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:23:50-06:00
-    - id: 74
+    - id: 166
+      taskid: TASK-199
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:23:50-06:00
+    - id: 163
       taskid: TASK-199
       phase: test
       gatetype: auto
@@ -367,7 +403,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:25:32-06:00
-    - id: 75
+    - id: 167
+      taskid: TASK-199
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:25:32-06:00
+    - id: 164
+      taskid: TASK-199
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:26:41-06:00
+    - id: 168
       taskid: TASK-199
       phase: docs
       gatetype: auto

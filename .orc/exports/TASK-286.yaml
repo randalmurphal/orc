@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.977096576-06:00
+exported_at: 2026-01-17T08:29:45.96961-06:00
 task:
     id: TASK-286
     title: 'Bug: ''Invalid session ID'' error during auto conflict resolution'
@@ -12,7 +12,7 @@ task:
     category: bug
     initiative_id: INIT-012
     created_at: 2026-01-16T14:16:21-06:00
-    updated_at: 2026-01-16T14:35:30-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-16T14:16:54-06:00
     completed_at: 2026-01-16T14:35:30-06:00
     metadata:
@@ -514,6 +514,51 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:20:24-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -549,6 +594,66 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:25:05-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:29:00-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:29:00-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:29:00-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:29:00-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:29:00-06:00
         - phase: review
           gate_type: auto
           approved: true
@@ -589,6 +694,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T14:34:21-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:34:21-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:34:21-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:34:21-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:35:23-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -678,7 +803,7 @@ transcripts:
         Tokens: 363083 input, 2257 output, 43608 cache_creation, 319418 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628598
     - id: 341
       taskid: TASK-286
       phase: implement
@@ -777,7 +902,7 @@ transcripts:
         Tokens: 2629190 input, 8360 output, 89762 cache_creation, 2539387 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628598
     - id: 342
       taskid: TASK-286
       phase: review
@@ -1500,14 +1625,14 @@ transcripts:
         Tokens: 659343 input, 7172 output, 35895 cache_creation, 623428 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628598
     - id: 343
       taskid: TASK-286
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Bug: 'Invalid session ID' error during auto conflict resolution\n**Category**: bug\n**Description**: \n\n## Initiative Context\n\nThis task is part of **Systems Reliability & Performance** (INIT-012).\n\n### Vision\n\nAddress architectural issues, race conditions, and resource leaks identified in systems audit. Ensure data integrity, proper process lifecycle management, and cleanup patterns that make orc production-ready.\n\n**Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.\n\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Bug: 'Invalid session ID' error during auto conflict resolution\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-286: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n<artifact>\n# Specification: Bug: 'Invalid session ID' error during auto conflict resolution\n\n## Problem Statement\n\nDuring auto conflict resolution in the finalize phase, orc creates a new Claude session with a custom session ID (e.g., `\"TASK-001-conflict-resolution\"`). The llmkit session manager passes this to Claude CLI via `--session-id`, but Claude CLI expects session IDs to be UUIDs that it generates itself. When orc provides a non-UUID custom string, Claude CLI rejects it with \"Invalid session ID\", causing conflict resolution to fail.\n\n## Success Criteria\n\n- [ ] Conflict resolution sessions create successfully without \"Invalid session ID\" errors\n- [ ] Session IDs for conflict resolution follow Claude CLI's expected format (UUID) or are omitted entirely\n- [ ] Unit test verifies conflict resolution session creation succeeds\n- [ ] Integration test demonstrates conflict resolution works end-to-end when conflicts occur\n- [ ] Finalize phase completes successfully when merge conflicts are auto-resolvable\n\n## Testing Requirements\n\n- [ ] Unit test: `TestConflictResolverSessionCreation` - verify session adapter creates without error when session ID is properly handled\n- [ ] Unit test: `TestNewSessionAdapterEphemeralSession` - verify ephemeral sessions (Persistence: false) work correctly without custom session IDs\n- [ ] Integration test: `TestFinalizeWithConflictResolution` - simulate merge conflict scenario and verify Claude-assisted resolution completes\n\n## Scope\n\n### In Scope\n- Fix session ID handling in `NewSessionAdapter` for ephemeral sessions\n- Update `ConflictResolver.resolveWithClaude` to not pass invalid session IDs\n- Update `FinalizeExecutor.resolveConflicts` (same pattern as ConflictResolver)\n- Update `FinalizeExecutor.tryFixTests` (uses same session pattern)\n- Add unit tests for the fix\n\n### Out of Scope\n- Changes to llmkit session library\n- Changes to Claude CLI behavior\n- Session resume functionality for conflict resolution (not needed for ephemeral sessions)\n- Auto-resolution improvements (CLAUDE.md table merging already works)\n\n## Technical Approach\n\nThe fix removes custom session IDs for ephemeral sessions. When `Persistence: false` is set, there's no reason to specify a session ID since the session won't be persisted or resumed. Letting Claude CLI generate its own UUID session ID avoids the validation error.\n\n### Files to Modify\n\n| File | Change |\n|------|--------|\n| `internal/executor/session_adapter.go:52-57` | Skip `session.WithSessionID()` when `Persistence: false` |\n| `internal/executor/conflict_resolver.go:176-182` | Remove SessionID from options (or let adapter handle it) |\n| `internal/executor/finalize.go:591-597` | Remove SessionID from conflict resolution options |\n| `internal/executor/finalize.go:764-770` | Remove SessionID from test fix options |\n| `internal/executor/session_adapter_test.go` | Add test for ephemeral session creation |\n\n### Implementation Details\n\n**Option A (Preferred)**: Modify `NewSessionAdapter` to skip custom session IDs when persistence is disabled:\n\n```go\n// In NewSessionAdapter, line 52-57:\nif opts.SessionID != \"\" {\n    if opts.Resume {\n        sessionOpts = append(sessionOpts, session.WithResume(opts.SessionID))\n    } else if opts.Persistence {\n        // Only use custom session ID when persistence is enabled\n        sessionOpts = append(sessionOpts, session.WithSessionID(opts.SessionID))\n    }\n    // When Persistence is false, skip WithSessionID - let Claude generate a UUID\n}\n```\n\nThis is the cleanest fix because:\n1. Centralized in one place (session_adapter.go)\n2. Callers don't need to change their code\n3. Custom session IDs are only useful for persistence/resume anyway\n\n**Option B**: Remove SessionID from all conflict resolution callers. This requires updating 3-4 call sites but is more explicit.\n\n## Bug Analysis\n\n### Reproduction Steps\n\n1. Create a task that modifies files also changed on main\n2. Complete implement phase, main branch advances with conflicting changes\n3. Finalize phase attempts merge, conflicts detected\n4. Auto-resolution handles CLAUDE.md but other conflicts remain\n5. Claude-assisted resolution is triggered\n6. `NewSessionAdapter` is called with:\n   ```go\n   SessionAdapterOptions{\n       SessionID:   \"TASK-001-conflict-resolution\",\n       Persistence: false,\n       MaxTurns:    5,\n       Model:       \"sonnet\",\n       Workdir:     \"/path/to/worktree\",\n   }\n   ```\n7. llmkit passes `--session-id TASK-001-conflict-resolution` to Claude CLI\n8. Claude CLI rejects non-UUID session ID: \"Invalid session ID\"\n\n### Current Behavior\n\nError during finalize phase:\n```\nERROR conflict resolution turn: create session: Invalid session ID: TASK-001-conflict-resolution\n```\n\n### Expected Behavior\n\nConflict resolution session should be created successfully using a Claude-generated UUID, allowing Claude-assisted conflict resolution to proceed.\n\n### Root Cause\n\nThe `NewSessionAdapter` function unconditionally passes the provided `SessionID` to `session.WithSessionID()` even when `Persistence: false`. Claude CLI validates session IDs as UUIDs and rejects arbitrary strings. Since ephemeral sessions don't need custom IDs (they won't be persisted or resumed), the fix is to simply not pass the ID.\n\n### Verification\n\nAfter the fix:\n1. Run a task that results in merge conflicts during finalize\n2. Verify Claude-assisted conflict resolution creates session successfully\n3. Verify conflicts are resolved and finalize completes\n4. Check logs show session creation without errors\n\n## Related Code\n\n- `internal/executor/conflict_resolver.go:164-209` - `resolveWithClaude()` creates conflict resolution session\n- `internal/executor/finalize.go:566-623` - `resolveConflicts()` similar pattern\n- `internal/executor/finalize.go:740-796` - `tryFixTests()` similar pattern\n- `internal/executor/session_adapter.go:34-92` - `NewSessionAdapter()` where fix applies\n- llmkit `session.WithSessionID()` - passes `--session-id` to Claude CLI\n</artifact>\n\nSince there are no file changes to commit (spec is stored in database), I'll skip the git commit step.\n\n**Commit**: (no commit needed - spec stored in database)\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 2384375 input, 8515 output, 108610 cache_creation, 2274035 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628598
     - id: 344
       taskid: TASK-286
       phase: test
@@ -1590,9 +1715,9 @@ transcripts:
         Tokens: 1500962 input, 5939 output, 53911 cache_creation, 1446893 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628598
 gate_decisions:
-    - id: 66330
+    - id: 132941
       taskid: TASK-286
       phase: spec
       gatetype: auto
@@ -1600,7 +1725,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:20:24-06:00
-    - id: 66334
+    - id: 132942
       taskid: TASK-286
       phase: spec
       gatetype: auto
@@ -1608,7 +1733,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:20:24-06:00
-    - id: 66335
+    - id: 132943
       taskid: TASK-286
       phase: spec
       gatetype: auto
@@ -1616,7 +1741,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:20:24-06:00
-    - id: 66352
+    - id: 132944
       taskid: TASK-286
       phase: spec
       gatetype: auto
@@ -1624,7 +1749,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:20:24-06:00
-    - id: 66354
+    - id: 132945
       taskid: TASK-286
       phase: spec
       gatetype: auto
@@ -1632,7 +1757,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:20:24-06:00
-    - id: 66359
+    - id: 132946
       taskid: TASK-286
       phase: spec
       gatetype: auto
@@ -1640,7 +1765,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:20:24-06:00
-    - id: 66362
+    - id: 132947
       taskid: TASK-286
       phase: spec
       gatetype: auto
@@ -1648,7 +1773,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:20:24-06:00
-    - id: 66366
+    - id: 132948
       taskid: TASK-286
       phase: spec
       gatetype: auto
@@ -1656,7 +1781,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:20:24-06:00
-    - id: 66370
+    - id: 132949
       taskid: TASK-286
       phase: spec
       gatetype: auto
@@ -1664,7 +1789,79 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:20:24-06:00
-    - id: 66336
+    - id: 132966
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 132967
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 132968
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 132969
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 132970
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 132971
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 132972
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 132973
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 132974
+      taskid: TASK-286
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:20:24-06:00
+    - id: 132950
       taskid: TASK-286
       phase: implement
       gatetype: auto
@@ -1672,7 +1869,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:25:05-06:00
-    - id: 66353
+    - id: 132951
       taskid: TASK-286
       phase: implement
       gatetype: auto
@@ -1680,7 +1877,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:25:05-06:00
-    - id: 66355
+    - id: 132952
       taskid: TASK-286
       phase: implement
       gatetype: auto
@@ -1688,7 +1885,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:25:05-06:00
-    - id: 66360
+    - id: 132953
       taskid: TASK-286
       phase: implement
       gatetype: auto
@@ -1696,7 +1893,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:25:05-06:00
-    - id: 66363
+    - id: 132954
       taskid: TASK-286
       phase: implement
       gatetype: auto
@@ -1704,7 +1901,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:25:05-06:00
-    - id: 66367
+    - id: 132955
       taskid: TASK-286
       phase: implement
       gatetype: auto
@@ -1712,7 +1909,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:25:05-06:00
-    - id: 66371
+    - id: 132956
       taskid: TASK-286
       phase: implement
       gatetype: auto
@@ -1720,7 +1917,63 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:25:05-06:00
-    - id: 66356
+    - id: 132975
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 132976
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 132977
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 132978
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 132979
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 132980
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 132981
+      taskid: TASK-286
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:25:05-06:00
+    - id: 132957
       taskid: TASK-286
       phase: review
       gatetype: auto
@@ -1728,7 +1981,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:29:00-06:00
-    - id: 66361
+    - id: 132958
       taskid: TASK-286
       phase: review
       gatetype: auto
@@ -1736,7 +1989,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:29:00-06:00
-    - id: 66364
+    - id: 132959
       taskid: TASK-286
       phase: review
       gatetype: auto
@@ -1744,7 +1997,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:29:00-06:00
-    - id: 66368
+    - id: 132960
       taskid: TASK-286
       phase: review
       gatetype: auto
@@ -1752,7 +2005,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:29:00-06:00
-    - id: 66372
+    - id: 132961
       taskid: TASK-286
       phase: review
       gatetype: auto
@@ -1760,7 +2013,47 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:29:00-06:00
-    - id: 66365
+    - id: 132982
+      taskid: TASK-286
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:29:00-06:00
+    - id: 132983
+      taskid: TASK-286
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:29:00-06:00
+    - id: 132984
+      taskid: TASK-286
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:29:00-06:00
+    - id: 132985
+      taskid: TASK-286
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:29:00-06:00
+    - id: 132986
+      taskid: TASK-286
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:29:00-06:00
+    - id: 132962
       taskid: TASK-286
       phase: test
       gatetype: auto
@@ -1768,7 +2061,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:34:21-06:00
-    - id: 66369
+    - id: 132963
       taskid: TASK-286
       phase: test
       gatetype: auto
@@ -1776,7 +2069,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:34:21-06:00
-    - id: 66373
+    - id: 132964
       taskid: TASK-286
       phase: test
       gatetype: auto
@@ -1784,7 +2077,39 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:34:21-06:00
-    - id: 66374
+    - id: 132987
+      taskid: TASK-286
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:34:21-06:00
+    - id: 132988
+      taskid: TASK-286
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:34:21-06:00
+    - id: 132989
+      taskid: TASK-286
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:34:21-06:00
+    - id: 132965
+      taskid: TASK-286
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:35:23-06:00
+    - id: 132990
       taskid: TASK-286
       phase: docs
       gatetype: auto

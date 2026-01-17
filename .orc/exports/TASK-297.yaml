@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.954652768-06:00
+exported_at: 2026-01-17T08:29:45.948271-06:00
 task:
     id: TASK-297
     title: 'CLI: Sort ready tasks by priority in orc status output'
@@ -10,7 +10,7 @@ task:
     priority: low
     category: refactor
     created_at: 2026-01-16T16:38:45-06:00
-    updated_at: 2026-01-16T16:38:45-06:00
+    updated_at: 0001-01-01T00:00:00Z
 plan:
     version: 1
     task_id: TASK-297

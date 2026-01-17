@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.953494314-06:00
+exported_at: 2026-01-17T08:29:45.947493-06:00
 task:
     id: TASK-299
     title: 'Bug: Initiative lookup fails when running from worktree directory'
@@ -10,7 +10,7 @@ task:
     priority: normal
     category: bug
     created_at: 2026-01-16T16:39:04-06:00
-    updated_at: 2026-01-16T16:39:04-06:00
+    updated_at: 0001-01-01T00:00:00Z
 plan:
     version: 1
     task_id: TASK-299
