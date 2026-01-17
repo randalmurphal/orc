@@ -166,6 +166,37 @@ test.describe('Mobile Responsive Design', () => {
 			expect(hasHorizontalScroll).toBe(false);
 		});
 
+		test('status tabs should not cause page overflow on small screens', async ({ page }) => {
+			await page.goto('/');
+
+			const statusTabs = page.locator('.status-tabs');
+			await expect(statusTabs).toBeVisible();
+
+			// Check that all 4 status tabs are present
+			const tabs = page.locator('.status-tab');
+			await expect(tabs).toHaveCount(4);
+
+			// The key test: page should NOT have horizontal scrollbar
+			// (the status tabs should handle overflow internally, not cause page scroll)
+			const hasHorizontalPageScroll = await page.evaluate(() => {
+				return document.documentElement.scrollWidth > document.documentElement.clientWidth;
+			});
+			expect(hasHorizontalPageScroll).toBe(false);
+
+			// Verify the tabs container has the right CSS properties for scrolling
+			const tabsStyles = await statusTabs.evaluate((el) => {
+				const styles = window.getComputedStyle(el);
+				return {
+					display: styles.display,
+					// Check if the tabs don't shrink (they should be flex: 0 0 auto)
+					flexWrap: styles.flexWrap,
+				};
+			});
+			expect(tabsStyles.display).toBe('flex');
+			// Tabs should not wrap - they should stay in a single line and scroll
+			expect(tabsStyles.flexWrap).toBe('nowrap');
+		});
+
 		test('page should render correctly at 414px (iPhone Plus)', async ({ page }) => {
 			await page.setViewportSize({ width: 414, height: 896 });
 			await page.goto('/');
