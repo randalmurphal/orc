@@ -31,6 +31,9 @@ type StandardExecutor struct {
 	config     ExecutorConfig
 	workingDir string
 	backend    storage.Backend // Storage backend for loading initiatives
+
+	// Validation components (optional)
+	backpressure *BackpressureRunner // Deterministic quality checks
 }
 
 // StandardExecutorOption configures a StandardExecutor.
@@ -64,6 +67,11 @@ func WithWorkingDir(dir string) StandardExecutorOption {
 // WithStandardBackend sets the storage backend for loading initiatives.
 func WithStandardBackend(b storage.Backend) StandardExecutorOption {
 	return func(e *StandardExecutor) { e.backend = b }
+}
+
+// WithStandardBackpressure sets the backpressure runner for quality checks.
+func WithStandardBackpressure(bp *BackpressureRunner) StandardExecutorOption {
+	return func(e *StandardExecutor) { e.backpressure = bp }
 }
 
 // NewStandardExecutor creates a new standard executor.
@@ -294,6 +302,31 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		// Check for completion
 		switch turnResult.Status {
 		case PhaseStatusComplete:
+			// Run backpressure checks before accepting completion (implement phase only)
+			if e.backpressure != nil && !ShouldSkipBackpressure(p.ID) {
+				bpResult := e.backpressure.Run(ctx)
+				if !bpResult.AllPassed {
+					// Reject completion, inject failure context
+					e.logger.Info("backpressure failed, continuing iteration",
+						"task", t.ID,
+						"phase", p.ID,
+						"tests", bpResult.TestsPassed,
+						"lint", bpResult.LintPassed,
+						"summary", bpResult.FailureSummary(),
+					)
+					e.publisher.Warning(t.ID, p.ID, "Backpressure check failed: "+bpResult.FailureSummary())
+
+					// Inject failure context into next prompt
+					promptText = FormatBackpressureForPrompt(bpResult)
+					continue // Don't accept completion, iterate again
+				}
+				e.logger.Info("backpressure passed",
+					"task", t.ID,
+					"phase", p.ID,
+					"duration", bpResult.Duration,
+				)
+			}
+
 			result.Status = plan.PhaseCompleted
 			result.Output = turnResult.Content
 			e.logger.Info("phase complete", "task", t.ID, "phase", p.ID, "iterations", iteration)
