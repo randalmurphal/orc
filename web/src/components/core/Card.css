@@ -1,0 +1,107 @@
+/* =============================================================================
+   Card Component Styles
+   Base container used throughout the UI
+   ============================================================================= */
+
+/* ==========================================================================
+   BASE STYLES
+   ========================================================================== */
+
+.card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xl);
+	transition:
+		border-color var(--duration-normal) var(--ease-out),
+		background-color var(--duration-normal) var(--ease-out),
+		transform var(--duration-normal) var(--ease-out),
+		box-shadow var(--duration-normal) var(--ease-out);
+}
+
+/* ==========================================================================
+   PADDING VARIANTS
+   ========================================================================== */
+
+/* Small: 12px padding */
+.card-padding-sm {
+	padding: var(--space-3);
+}
+
+/* Medium: 16px padding (default) */
+.card-padding-md {
+	padding: var(--space-4);
+}
+
+/* Large: 20px padding */
+.card-padding-lg {
+	padding: var(--space-5);
+}
+
+/* ==========================================================================
+   HOVERABLE VARIANT
+   ========================================================================== */
+
+.card-hoverable:hover {
+	border-color: var(--border-light);
+	transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   ACTIVE/SELECTED VARIANT
+   ========================================================================== */
+
+.card-active {
+	border-color: rgba(168, 85, 247, 0.2);
+	background: linear-gradient(135deg, var(--bg-card), var(--primary-dim));
+}
+
+.card-active:hover {
+	border-color: rgba(168, 85, 247, 0.3);
+}
+
+/* ==========================================================================
+   INTERACTIVE (CLICKABLE) VARIANT
+   ========================================================================== */
+
+.card-interactive {
+	cursor: pointer;
+}
+
+.card-interactive:focus {
+	outline: none;
+}
+
+.card-interactive:focus-visible {
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+/* ==========================================================================
+   COMBINED STATES
+   ========================================================================== */
+
+/* Hoverable + Interactive */
+.card-hoverable.card-interactive:hover {
+	border-color: var(--border-light);
+	transform: translateY(-2px);
+}
+
+/* Active + Hoverable */
+.card-active.card-hoverable:hover {
+	border-color: rgba(168, 85, 247, 0.3);
+	transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.card {
+		transition: none;
+	}
+
+	.card-hoverable:hover {
+		transform: none;
+	}
+}
