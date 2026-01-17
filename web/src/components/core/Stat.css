@@ -1,0 +1,169 @@
+/* =============================================================================
+   Stat Component Styles
+   Dashboard statistics display with values, labels, trends, and icons
+   ============================================================================= */
+
+/* ==========================================================================
+   BASE STYLES
+   ========================================================================== */
+
+.stat {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+/* ==========================================================================
+   HEADER ROW (Label + Icon)
+   ========================================================================== */
+
+.stat-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.stat-label {
+	font-size: var(--text-md);
+	color: var(--text-muted);
+	font-weight: var(--font-medium);
+}
+
+/* ==========================================================================
+   ICON STYLES
+   ========================================================================== */
+
+.stat-icon {
+	width: 24px;
+	height: 24px;
+	border-radius: var(--radius-md);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.stat-icon svg {
+	width: 12px;
+	height: 12px;
+}
+
+/* Icon Color Variants */
+.stat-icon-default {
+	background: var(--bg-surface);
+	color: var(--text-secondary);
+}
+
+.stat-icon-purple {
+	background: var(--primary-dim);
+	color: var(--primary);
+}
+
+.stat-icon-green {
+	background: var(--green-dim);
+	color: var(--green);
+}
+
+.stat-icon-amber {
+	background: var(--amber-dim);
+	color: var(--amber);
+}
+
+.stat-icon-blue {
+	background: var(--blue-dim);
+	color: var(--blue);
+}
+
+.stat-icon-red {
+	background: var(--red-dim);
+	color: var(--red);
+}
+
+.stat-icon-cyan {
+	background: var(--cyan-dim);
+	color: var(--cyan);
+}
+
+/* ==========================================================================
+   VALUE STYLES
+   ========================================================================== */
+
+.stat-value {
+	font-size: var(--text-5xl);
+	font-weight: var(--font-bold);
+	font-family: var(--font-mono);
+	line-height: var(--leading-tight);
+}
+
+/* Value Color Variants */
+.stat-value-default {
+	color: var(--text-primary);
+}
+
+.stat-value-purple {
+	color: var(--primary);
+}
+
+.stat-value-green {
+	color: var(--green);
+}
+
+.stat-value-amber {
+	color: var(--amber);
+}
+
+.stat-value-blue {
+	color: var(--blue);
+}
+
+.stat-value-red {
+	color: var(--red);
+}
+
+.stat-value-cyan {
+	color: var(--cyan);
+}
+
+/* Placeholder for null/undefined values */
+.stat-value-placeholder {
+	color: var(--text-muted);
+}
+
+/* ==========================================================================
+   TREND INDICATOR
+   ========================================================================== */
+
+.stat-trend {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--text-base);
+	font-weight: var(--font-medium);
+}
+
+.stat-trend svg {
+	width: 12px;
+	height: 12px;
+	flex-shrink: 0;
+}
+
+/* Trend direction colors */
+.stat-trend-positive {
+	color: var(--green);
+}
+
+.stat-trend-negative {
+	color: var(--red);
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.stat,
+	.stat-value,
+	.stat-trend {
+		transition: none;
+	}
+}
