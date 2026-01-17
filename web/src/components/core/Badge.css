@@ -1,0 +1,119 @@
+/* =============================================================================
+   Badge Component Styles
+   Status indicators, count badges, and tool pills
+   Based on example_ui/board.html and example_ui/agents.html
+   ============================================================================= */
+
+/* ==========================================================================
+   BASE STYLES
+   ========================================================================== */
+
+.badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-family: var(--font-body);
+	font-weight: var(--font-semibold);
+	white-space: nowrap;
+	flex-shrink: 0;
+	max-width: 100%;
+}
+
+.badge-content {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* ==========================================================================
+   STATUS VARIANT
+   Uppercase text, 9px font, for status indicators
+   From: .agent-status in agents.html, .task-badge in board.html
+   ========================================================================== */
+
+.badge-status {
+	padding: 4px 8px;
+	border-radius: 4px;
+	font-size: 9px;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+}
+
+/* Active - Green */
+.badge-status-active {
+	background-color: var(--green-dim);
+	color: var(--green);
+}
+
+/* Paused - Amber */
+.badge-status-paused {
+	background-color: var(--amber-dim);
+	color: var(--amber);
+}
+
+/* Completed - Purple/Primary */
+.badge-status-completed {
+	background-color: var(--primary-dim);
+	color: var(--primary);
+}
+
+/* Failed - Red */
+.badge-status-failed {
+	background-color: var(--red-dim);
+	color: var(--red);
+}
+
+/* Idle - Muted */
+.badge-status-idle {
+	background-color: var(--bg-surface);
+	color: var(--text-muted);
+}
+
+/* ==========================================================================
+   COUNT VARIANT
+   Numeric badges with muted background
+   From: .column-count in board.html
+   ========================================================================== */
+
+.badge-count {
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 10px;
+	font-weight: var(--font-semibold);
+	background-color: var(--bg-surface);
+	color: var(--text-muted);
+}
+
+/* ==========================================================================
+   TOOL VARIANT
+   Small pill-shaped tool indicators
+   From: .tool-badge in agents.html
+   ========================================================================== */
+
+.badge-tool {
+	padding: 4px 8px;
+	border-radius: 4px;
+	font-size: 10px;
+	background-color: var(--bg-surface);
+	color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   FLEX CONTAINER COMPATIBILITY
+   Ensures badges work properly inside flex containers
+   ========================================================================== */
+
+.badge {
+	/* Prevent flex items from growing beyond their content */
+	min-width: 0;
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.badge {
+		transition: none;
+	}
+}
