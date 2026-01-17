@@ -300,6 +300,77 @@ func (s *Service) GetFullDiff(ctx context.Context, base, head string) (*DiffResu
 	}, nil
 }
 
+// GetMergeCommitDiff returns the diff for a merge commit showing what changes were merged.
+// Uses the merge commit's first parent to determine the base.
+func (s *Service) GetMergeCommitDiff(ctx context.Context, mergeCommitSHA string) (*DiffResult, error) {
+	// The diff between the merge commit's first parent and the merge commit
+	// shows what was merged. Format: <commit>^..<commit>
+	base := mergeCommitSHA + "^"
+	head := mergeCommitSHA
+	return s.GetFullDiff(ctx, base, head)
+}
+
+// GetMergeCommitFileList returns the file list for a merge commit.
+func (s *Service) GetMergeCommitFileList(ctx context.Context, mergeCommitSHA string) ([]FileDiff, *DiffStats, error) {
+	base := mergeCommitSHA + "^"
+	head := mergeCommitSHA
+
+	files, err := s.GetFileList(ctx, base, head)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	stats := &DiffStats{FilesChanged: len(files)}
+	for _, f := range files {
+		stats.Additions += f.Additions
+		stats.Deletions += f.Deletions
+	}
+
+	return files, stats, nil
+}
+
+// GetMergeCommitFileDiff returns the diff for a single file in a merge commit.
+func (s *Service) GetMergeCommitFileDiff(ctx context.Context, mergeCommitSHA, filePath string) (*FileDiff, error) {
+	base := mergeCommitSHA + "^"
+	head := mergeCommitSHA
+	return s.GetFileDiff(ctx, base, head, filePath)
+}
+
+// GetCommitRangeDiff returns the diff for a range of commits.
+// firstCommit is the first commit in the range (will use its parent as base).
+// lastCommit is the last commit in the range.
+func (s *Service) GetCommitRangeDiff(ctx context.Context, firstCommit, lastCommit string) (*DiffResult, error) {
+	base := firstCommit + "^"
+	head := lastCommit
+	return s.GetFullDiff(ctx, base, head)
+}
+
+// GetCommitRangeFileList returns the file list for a range of commits.
+func (s *Service) GetCommitRangeFileList(ctx context.Context, firstCommit, lastCommit string) ([]FileDiff, *DiffStats, error) {
+	base := firstCommit + "^"
+	head := lastCommit
+
+	files, err := s.GetFileList(ctx, base, head)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	stats := &DiffStats{FilesChanged: len(files)}
+	for _, f := range files {
+		stats.Additions += f.Additions
+		stats.Deletions += f.Deletions
+	}
+
+	return files, stats, nil
+}
+
+// GetCommitRangeFileDiff returns the diff for a single file in a commit range.
+func (s *Service) GetCommitRangeFileDiff(ctx context.Context, firstCommit, lastCommit, filePath string) (*FileDiff, error) {
+	base := firstCommit + "^"
+	head := lastCommit
+	return s.GetFileDiff(ctx, base, head, filePath)
+}
+
 // FileStatus contains status information for a file.
 type FileStatus struct {
 	Status  string

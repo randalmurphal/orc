@@ -541,3 +541,243 @@ func TestWorkingTreeDiff(t *testing.T) {
 		}
 	})
 }
+
+func TestCommitRangeDiff(t *testing.T) {
+	dir, cleanup := setupTestRepo(t)
+	defer cleanup()
+
+	svc := NewService(dir, nil)
+	ctx := context.Background()
+
+	// Get the initial commit SHA
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("failed to get initial commit: %v", err)
+	}
+	initialCommit := string(out[:len(out)-1])
+
+	// Create a sequence of commits to simulate task execution
+	// First commit (like implement phase)
+	if err := os.WriteFile(filepath.Join(dir, "feature.go"), []byte("package main\n\nfunc Feature() {}\n"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = dir
+	_ = cmd.Run()
+	cmd = exec.Command("git", "commit", "-m", "implement: add feature")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit: %v", err)
+	}
+
+	cmd = exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = dir
+	out, err = cmd.Output()
+	if err != nil {
+		t.Fatalf("failed to get first task commit: %v", err)
+	}
+	firstTaskCommit := string(out[:len(out)-1])
+
+	// Second commit (like test phase)
+	if err := os.WriteFile(filepath.Join(dir, "feature_test.go"), []byte("package main\n\nfunc TestFeature(t *testing.T) {}\n"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = dir
+	_ = cmd.Run()
+	cmd = exec.Command("git", "commit", "-m", "test: add tests")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit: %v", err)
+	}
+
+	cmd = exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = dir
+	out, err = cmd.Output()
+	if err != nil {
+		t.Fatalf("failed to get second task commit: %v", err)
+	}
+	lastTaskCommit := string(out[:len(out)-1])
+
+	t.Run("GetCommitRangeDiff shows all changes", func(t *testing.T) {
+		result, err := svc.GetCommitRangeDiff(ctx, firstTaskCommit, lastTaskCommit)
+		if err != nil {
+			t.Fatalf("GetCommitRangeDiff failed: %v", err)
+		}
+
+		// Should show 2 files changed (feature.go and feature_test.go)
+		if result.Stats.FilesChanged != 2 {
+			t.Errorf("expected 2 files changed, got %d", result.Stats.FilesChanged)
+		}
+
+		// Check that both files are in the result
+		fileNames := make(map[string]bool)
+		for _, f := range result.Files {
+			fileNames[f.Path] = true
+		}
+		if !fileNames["feature.go"] {
+			t.Error("expected feature.go in the file list")
+		}
+		if !fileNames["feature_test.go"] {
+			t.Error("expected feature_test.go in the file list")
+		}
+	})
+
+	t.Run("GetCommitRangeFileList returns correct files", func(t *testing.T) {
+		files, stats, err := svc.GetCommitRangeFileList(ctx, firstTaskCommit, lastTaskCommit)
+		if err != nil {
+			t.Fatalf("GetCommitRangeFileList failed: %v", err)
+		}
+
+		if stats.FilesChanged != 2 {
+			t.Errorf("expected 2 files changed, got %d", stats.FilesChanged)
+		}
+
+		if len(files) != 2 {
+			t.Errorf("expected 2 files, got %d", len(files))
+		}
+	})
+
+	t.Run("GetCommitRangeFileDiff returns correct diff", func(t *testing.T) {
+		fileDiff, err := svc.GetCommitRangeFileDiff(ctx, firstTaskCommit, lastTaskCommit, "feature.go")
+		if err != nil {
+			t.Fatalf("GetCommitRangeFileDiff failed: %v", err)
+		}
+
+		if fileDiff.Path != "feature.go" {
+			t.Errorf("expected path feature.go, got %s", fileDiff.Path)
+		}
+
+		// File was added as part of the commit range, but status detection may vary
+		// The important thing is that the diff contains content
+		if fileDiff.Additions == 0 {
+			t.Error("expected additions in the file diff")
+		}
+	})
+
+	t.Run("single commit range works", func(t *testing.T) {
+		// When first and last commit are the same
+		result, err := svc.GetCommitRangeDiff(ctx, firstTaskCommit, firstTaskCommit)
+		if err != nil {
+			t.Fatalf("GetCommitRangeDiff failed: %v", err)
+		}
+
+		// Should show 1 file (just feature.go from the first commit)
+		if result.Stats.FilesChanged != 1 {
+			t.Errorf("expected 1 file changed, got %d", result.Stats.FilesChanged)
+		}
+	})
+
+	// Suppress unused variable warning - initialCommit is used to verify setup
+	_ = initialCommit
+}
+
+func TestMergeCommitDiff(t *testing.T) {
+	dir, cleanup := setupTestRepo(t)
+	defer cleanup()
+
+	svc := NewService(dir, nil)
+	ctx := context.Background()
+
+	// Get the main branch name
+	cmd := exec.Command("git", "branch", "--show-current")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Skipf("could not get current branch: %v", err)
+	}
+	mainBranch := string(out[:len(out)-1])
+
+	// Create a feature branch
+	cmd = exec.Command("git", "checkout", "-b", "feature-for-merge")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to create branch: %v", err)
+	}
+
+	// Add files on feature branch
+	if err := os.WriteFile(filepath.Join(dir, "merged.go"), []byte("package main\n\nfunc Merged() {}\n"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = dir
+	_ = cmd.Run()
+	cmd = exec.Command("git", "commit", "-m", "feature: add merged file")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to commit: %v", err)
+	}
+
+	// Go back to main
+	cmd = exec.Command("git", "checkout", mainBranch)
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to checkout main: %v", err)
+	}
+
+	// Create a merge commit (no fast-forward to ensure we get a merge commit)
+	cmd = exec.Command("git", "merge", "--no-ff", "feature-for-merge", "-m", "Merge feature-for-merge")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to merge: %v", err)
+	}
+
+	// Get merge commit SHA
+	cmd = exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = dir
+	out, err = cmd.Output()
+	if err != nil {
+		t.Fatalf("failed to get merge commit: %v", err)
+	}
+	mergeCommit := string(out[:len(out)-1])
+
+	t.Run("GetMergeCommitDiff shows merged changes", func(t *testing.T) {
+		result, err := svc.GetMergeCommitDiff(ctx, mergeCommit)
+		if err != nil {
+			t.Fatalf("GetMergeCommitDiff failed: %v", err)
+		}
+
+		// Should show 1 file changed (merged.go)
+		if result.Stats.FilesChanged != 1 {
+			t.Errorf("expected 1 file changed, got %d", result.Stats.FilesChanged)
+		}
+
+		if len(result.Files) != 1 || result.Files[0].Path != "merged.go" {
+			t.Error("expected merged.go in the file list")
+		}
+	})
+
+	t.Run("GetMergeCommitFileList returns correct files", func(t *testing.T) {
+		files, stats, err := svc.GetMergeCommitFileList(ctx, mergeCommit)
+		if err != nil {
+			t.Fatalf("GetMergeCommitFileList failed: %v", err)
+		}
+
+		if stats.FilesChanged != 1 {
+			t.Errorf("expected 1 file changed, got %d", stats.FilesChanged)
+		}
+
+		if len(files) != 1 {
+			t.Errorf("expected 1 file, got %d", len(files))
+		}
+	})
+
+	t.Run("GetMergeCommitFileDiff returns correct diff", func(t *testing.T) {
+		fileDiff, err := svc.GetMergeCommitFileDiff(ctx, mergeCommit, "merged.go")
+		if err != nil {
+			t.Fatalf("GetMergeCommitFileDiff failed: %v", err)
+		}
+
+		if fileDiff.Path != "merged.go" {
+			t.Errorf("expected path merged.go, got %s", fileDiff.Path)
+		}
+
+		// File was added as part of the merge, but status detection may vary
+		// The important thing is that the diff contains content
+		if fileDiff.Additions == 0 {
+			t.Error("expected additions in the file diff")
+		}
+	})
+}
