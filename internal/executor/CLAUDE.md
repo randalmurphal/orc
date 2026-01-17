@@ -33,6 +33,8 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | `heartbeat.go` | Periodic heartbeat updates during execution |
 | `backpressure.go` | Deterministic quality checks (tests, lint, build) |
 | `haiku_validation.go` | Haiku-based spec and progress validation |
+| `buffer.go` | `TranscriptBuffer` for batched transcript persistence |
+| `publish.go` | `EventPublisher` with optional transcript buffering |
 
 ## Architecture
 
@@ -196,6 +198,44 @@ Objective quality checks run after agent claims completion. See `docs/research/E
 
 **Fail-open:** API errors, timeouts return success (don't block execution).
 
+## Transcript Persistence
+
+`buffer.go` provides `TranscriptBuffer` for batched transcript persistence during streaming execution.
+
+**Key features:**
+- Accumulates transcript lines in memory
+- Auto-flushes at 50 lines OR every 5 seconds (whichever first)
+- Chunk aggregation: streaming chunks combined until newline
+- Background goroutine for periodic flushing
+- `Close()` flushes remaining data on completion
+
+**Integration:**
+```go
+// In executor setup
+buf := NewTranscriptBuffer(ctx, TranscriptBufferConfig{
+    TaskID:        task.ID,
+    DB:            backend,  // Implements TranscriptPersister
+    Logger:        logger,
+    MaxBuffer:     50,       // Lines before auto-flush
+    FlushInterval: 5 * time.Second,
+})
+defer buf.Close()  // Flush remaining on completion
+
+// Attach to publisher
+publisher.SetBuffer(buf)
+```
+
+**Flush triggers:**
+
+| Trigger | Behavior |
+|---------|----------|
+| 50 lines accumulated | Immediate flush |
+| 5 seconds elapsed | Periodic background flush |
+| `FlushChunks(phase, iter)` | Flush pending chunks for phase |
+| `Close()` | Flush all remaining + stop flusher |
+
+**Write resilience:** Uses `context.Background()` with 30s timeout for DB writes to ensure persistence even when parent context is cancelled.
+
 ## Common Gotchas
 
 1. **Raw InputTokens misleading** - Use `EffectiveInputTokens()`
@@ -205,3 +245,4 @@ Objective quality checks run after agent claims completion. See `docs/research/E
 5. **Worktree cleanup by path** - Use `CleanupWorktreeAtPath(e.worktreePath)` not `CleanupWorktree(taskID)` to handle initiative-prefixed worktrees correctly
 6. **Spec not found in templates** - Use `WithSpecFromDatabase()` to load spec content; file-based specs are legacy
 7. **Invalid session ID errors** - Only pass custom session IDs when `Persistence: true`; Claude CLI expects UUIDs it generates for ephemeral sessions
+8. **Transcripts not persisting** - Ensure `TranscriptBuffer` is attached via `publisher.SetBuffer()` and `Close()` called on completion
