@@ -149,10 +149,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		if err != nil {
 			// Check for context cancellation (interrupt)
 			if ctx.Err() != nil {
-				s.InterruptPhase(phase.ID)
-				if saveErr := e.backend.SaveState(s); saveErr != nil {
-					e.logger.Error("failed to save state on interrupt", "error", saveErr)
-				}
+				e.interruptTask(t, phase.ID, s, ctx.Err())
 				return ctx.Err()
 			}
 
@@ -424,6 +421,30 @@ func (e *Executor) failTask(t *task.Task, phase *plan.Phase, s *state.State, err
 
 	// Trigger automation event for task failure
 	e.triggerAutomationEvent(context.Background(), automation.EventTaskFailed, t, phase.ID)
+}
+
+// interruptTask handles marking a task as interrupted/paused.
+// This ensures both task status and state are properly updated when execution is cancelled,
+// preventing orphaned tasks that show "running" but have no active executor.
+func (e *Executor) interruptTask(t *task.Task, phaseID string, s *state.State, err error) {
+	e.logger.Info("task interrupted", "task", t.ID, "phase", phaseID, "reason", err.Error())
+
+	// Update state: mark phase as interrupted and store error
+	s.InterruptPhase(phaseID)
+	s.Error = fmt.Sprintf("interrupted during %s: %s", phaseID, err.Error())
+	if saveErr := e.backend.SaveState(s); saveErr != nil {
+		e.logger.Error("failed to save state on interrupt", "error", saveErr)
+	}
+
+	// Update task status to paused (not running, not failed - can be resumed)
+	t.Status = task.StatusPaused
+	if saveErr := e.backend.SaveTask(t); saveErr != nil {
+		e.logger.Error("failed to save task on interrupt", "error", saveErr)
+	}
+
+	// Publish events so UI is updated
+	e.publishError(t.ID, phaseID, err.Error(), false) // Not fatal - can be resumed
+	e.publishState(t.ID, s)
 }
 
 // handleGateEvaluation evaluates a phase gate and handles potential retry.
@@ -776,10 +797,7 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 	if err != nil {
 		// Check for context cancellation (interrupt)
 		if ctx.Err() != nil {
-			s.InterruptPhase("finalize")
-			if saveErr := e.backend.SaveState(s); saveErr != nil {
-				e.logger.Error("failed to save state on interrupt", "error", saveErr)
-			}
+			e.interruptTask(t, "finalize", s, ctx.Err())
 			return ctx.Err()
 		}
 
