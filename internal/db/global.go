@@ -1,9 +1,11 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/db/driver"
@@ -148,14 +150,60 @@ func (g *GlobalDB) DeleteProject(id string) error {
 
 // CostEntry represents a cost log entry.
 type CostEntry struct {
-	ID           int64
-	ProjectID    string
-	TaskID       string
-	Phase        string
-	CostUSD      float64
-	InputTokens  int
-	OutputTokens int
-	Timestamp    time.Time
+	ID                  int64
+	ProjectID           string
+	TaskID              string
+	Phase               string
+	Model               string
+	Iteration           int
+	CostUSD             float64
+	InputTokens         int
+	OutputTokens        int
+	CacheCreationTokens int
+	CacheReadTokens     int
+	TotalTokens         int
+	InitiativeID        string
+	Timestamp           time.Time
+}
+
+// CostAggregate represents aggregated cost data for time-series queries.
+type CostAggregate struct {
+	ID                int64
+	ProjectID         string
+	Model             string
+	Phase             string
+	Date              string // YYYY-MM-DD
+	TotalCostUSD      float64
+	TotalInputTokens  int
+	TotalOutputTokens int
+	TotalCacheTokens  int
+	TurnCount         int
+	TaskCount         int
+	CreatedAt         time.Time
+}
+
+// CostBudget represents budget tracking for a project.
+type CostBudget struct {
+	ID                    int64
+	ProjectID             string
+	MonthlyLimitUSD       float64
+	AlertThresholdPercent int
+	CurrentMonth          string // YYYY-MM
+	CurrentMonthSpent     float64
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+}
+
+// BudgetStatus represents the current spend vs limit.
+type BudgetStatus struct {
+	ProjectID         string
+	MonthlyLimitUSD   float64
+	CurrentMonthSpent float64
+	CurrentMonth      string
+	PercentUsed       float64
+	AlertThreshold    int
+	OverBudget        bool
+	AtAlertThreshold  bool
 }
 
 // RecordCost logs a cost entry.
@@ -276,4 +324,315 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 	}
 
 	return summary, nil
+}
+
+// DetectModel returns a simplified model name from a full model identifier.
+// Maps model IDs to simplified names: opus, sonnet, haiku, or unknown.
+func DetectModel(modelID string) string {
+	lower := strings.ToLower(modelID)
+	switch {
+	case strings.Contains(lower, "opus"):
+		return "opus"
+	case strings.Contains(lower, "sonnet"):
+		return "sonnet"
+	case strings.Contains(lower, "haiku"):
+		return "haiku"
+	default:
+		return "unknown"
+	}
+}
+
+// RecordCostExtended logs a cost entry with all fields including model.
+func (g *GlobalDB) RecordCostExtended(entry CostEntry) error {
+	_, err := g.Exec(`
+		INSERT INTO cost_log (
+			project_id, task_id, phase, model, iteration,
+			cost_usd, input_tokens, output_tokens,
+			cache_creation_tokens, cache_read_tokens, total_tokens,
+			initiative_id
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, entry.ProjectID, entry.TaskID, entry.Phase, entry.Model, entry.Iteration,
+		entry.CostUSD, entry.InputTokens, entry.OutputTokens,
+		entry.CacheCreationTokens, entry.CacheReadTokens, entry.TotalTokens,
+		entry.InitiativeID)
+	if err != nil {
+		return fmt.Errorf("record cost extended: %w", err)
+	}
+	return nil
+}
+
+// GetCostByModel returns costs grouped by model for a time range.
+func (g *GlobalDB) GetCostByModel(projectID string, since time.Time) (map[string]float64, error) {
+	result := make(map[string]float64)
+
+	query := `
+		SELECT COALESCE(model, '') as model, COALESCE(SUM(cost_usd), 0)
+		FROM cost_log
+		WHERE timestamp >= ?
+	`
+	args := []any{since.UTC().Format("2006-01-02 15:04:05")}
+
+	if projectID != "" {
+		query += " AND project_id = ?"
+		args = append(args, projectID)
+	}
+	query += " GROUP BY model"
+
+	rows, err := g.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("get cost by model: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var model string
+		var cost float64
+		if err := rows.Scan(&model, &cost); err != nil {
+			return nil, fmt.Errorf("scan model cost: %w", err)
+		}
+		result[model] = cost
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate model costs: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetCostTimeseries returns cost data bucketed by time for charting.
+// Granularity can be "day", "week", or "month".
+func (g *GlobalDB) GetCostTimeseries(projectID string, since time.Time, granularity string) ([]CostAggregate, error) {
+	var dateFormat string
+	switch granularity {
+	case "week":
+		// SQLite: strftime('%Y-W%W', date) gives year-week
+		dateFormat = "strftime('%Y-W%W', timestamp)"
+	case "month":
+		dateFormat = "strftime('%Y-%m', timestamp)"
+	default: // "day" or default
+		dateFormat = "strftime('%Y-%m-%d', timestamp)"
+	}
+
+	query := fmt.Sprintf(`
+		SELECT
+			COALESCE(project_id, '') as project_id,
+			COALESCE(model, '') as model,
+			'' as phase,
+			%s as date,
+			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
+			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
+			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
+			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
+			COUNT(*) as turn_count,
+			COUNT(DISTINCT task_id) as task_count
+		FROM cost_log
+		WHERE timestamp >= ?
+	`, dateFormat)
+	args := []any{since.UTC().Format("2006-01-02 15:04:05")}
+
+	if projectID != "" {
+		query += " AND project_id = ?"
+		args = append(args, projectID)
+	}
+	query += fmt.Sprintf(" GROUP BY %s, model ORDER BY date ASC", dateFormat)
+
+	rows, err := g.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("get cost timeseries: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var results []CostAggregate
+	for rows.Next() {
+		var agg CostAggregate
+		if err := rows.Scan(
+			&agg.ProjectID, &agg.Model, &agg.Phase, &agg.Date,
+			&agg.TotalCostUSD, &agg.TotalInputTokens, &agg.TotalOutputTokens,
+			&agg.TotalCacheTokens, &agg.TurnCount, &agg.TaskCount,
+		); err != nil {
+			return nil, fmt.Errorf("scan timeseries row: %w", err)
+		}
+		results = append(results, agg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate timeseries: %w", err)
+	}
+
+	return results, nil
+}
+
+// UpdateCostAggregate upserts an aggregate record.
+func (g *GlobalDB) UpdateCostAggregate(agg CostAggregate) error {
+	_, err := g.Exec(`
+		INSERT INTO cost_aggregates (
+			project_id, model, phase, date,
+			total_cost_usd, total_input_tokens, total_output_tokens,
+			total_cache_tokens, turn_count, task_count
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(project_id, model, phase, date) DO UPDATE SET
+			total_cost_usd = excluded.total_cost_usd,
+			total_input_tokens = excluded.total_input_tokens,
+			total_output_tokens = excluded.total_output_tokens,
+			total_cache_tokens = excluded.total_cache_tokens,
+			turn_count = excluded.turn_count,
+			task_count = excluded.task_count
+	`, agg.ProjectID, agg.Model, agg.Phase, agg.Date,
+		agg.TotalCostUSD, agg.TotalInputTokens, agg.TotalOutputTokens,
+		agg.TotalCacheTokens, agg.TurnCount, agg.TaskCount)
+	if err != nil {
+		return fmt.Errorf("update cost aggregate: %w", err)
+	}
+	return nil
+}
+
+// GetCostAggregates retrieves aggregated cost data for a date range.
+func (g *GlobalDB) GetCostAggregates(projectID string, startDate, endDate string) ([]CostAggregate, error) {
+	query := `
+		SELECT id, project_id, model, phase, date,
+			total_cost_usd, total_input_tokens, total_output_tokens,
+			total_cache_tokens, turn_count, task_count, created_at
+		FROM cost_aggregates
+		WHERE date >= ? AND date <= ?
+	`
+	args := []any{startDate, endDate}
+
+	if projectID != "" {
+		query += " AND project_id = ?"
+		args = append(args, projectID)
+	}
+	query += " ORDER BY date ASC"
+
+	rows, err := g.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("get cost aggregates: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var results []CostAggregate
+	for rows.Next() {
+		var agg CostAggregate
+		var createdAt string
+		if err := rows.Scan(
+			&agg.ID, &agg.ProjectID, &agg.Model, &agg.Phase, &agg.Date,
+			&agg.TotalCostUSD, &agg.TotalInputTokens, &agg.TotalOutputTokens,
+			&agg.TotalCacheTokens, &agg.TurnCount, &agg.TaskCount, &createdAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan aggregate row: %w", err)
+		}
+		if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
+			agg.CreatedAt = t
+		} else if t, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
+			agg.CreatedAt = t
+		}
+		results = append(results, agg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate aggregates: %w", err)
+	}
+
+	return results, nil
+}
+
+// GetBudget retrieves the budget for a project.
+func (g *GlobalDB) GetBudget(projectID string) (*CostBudget, error) {
+	row := g.QueryRow(`
+		SELECT id, project_id, monthly_limit_usd, alert_threshold_percent,
+			current_month, current_month_spent, created_at, updated_at
+		FROM cost_budgets
+		WHERE project_id = ?
+	`, projectID)
+
+	var b CostBudget
+	var createdAt, updatedAt string
+	var monthlyLimit sql.NullFloat64
+	if err := row.Scan(
+		&b.ID, &b.ProjectID, &monthlyLimit, &b.AlertThresholdPercent,
+		&b.CurrentMonth, &b.CurrentMonthSpent, &createdAt, &updatedAt,
+	); err != nil {
+		return nil, fmt.Errorf("get budget %s: %w", projectID, err)
+	}
+	if monthlyLimit.Valid {
+		b.MonthlyLimitUSD = monthlyLimit.Float64
+	}
+	if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
+		b.CreatedAt = t
+	} else if t, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
+		b.CreatedAt = t
+	}
+	if t, err := time.Parse(time.RFC3339, updatedAt); err == nil {
+		b.UpdatedAt = t
+	} else if t, err := time.Parse("2006-01-02 15:04:05", updatedAt); err == nil {
+		b.UpdatedAt = t
+	}
+
+	return &b, nil
+}
+
+// SetBudget creates or updates the budget for a project.
+func (g *GlobalDB) SetBudget(budget CostBudget) error {
+	_, err := g.Exec(`
+		INSERT INTO cost_budgets (
+			project_id, monthly_limit_usd, alert_threshold_percent,
+			current_month, current_month_spent, updated_at
+		)
+		VALUES (?, ?, ?, ?, ?, datetime('now'))
+		ON CONFLICT(project_id) DO UPDATE SET
+			monthly_limit_usd = excluded.monthly_limit_usd,
+			alert_threshold_percent = excluded.alert_threshold_percent,
+			current_month = excluded.current_month,
+			current_month_spent = excluded.current_month_spent,
+			updated_at = datetime('now')
+	`, budget.ProjectID, budget.MonthlyLimitUSD, budget.AlertThresholdPercent,
+		budget.CurrentMonth, budget.CurrentMonthSpent)
+	if err != nil {
+		return fmt.Errorf("set budget: %w", err)
+	}
+	return nil
+}
+
+// GetBudgetStatus returns the current spend vs limit for a project.
+func (g *GlobalDB) GetBudgetStatus(projectID string) (*BudgetStatus, error) {
+	budget, err := g.GetBudget(projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	currentMonth := time.Now().UTC().Format("2006-01")
+
+	// If budget is for a different month, we need to calculate fresh
+	var currentSpent float64
+	if budget.CurrentMonth == currentMonth {
+		currentSpent = budget.CurrentMonthSpent
+	} else {
+		// Calculate from cost_log for current month
+		startOfMonth := currentMonth + "-01"
+		row := g.QueryRow(`
+			SELECT COALESCE(SUM(cost_usd), 0)
+			FROM cost_log
+			WHERE project_id = ? AND timestamp >= ?
+		`, projectID, startOfMonth)
+		if err := row.Scan(&currentSpent); err != nil {
+			return nil, fmt.Errorf("calculate current month spend: %w", err)
+		}
+	}
+
+	var percentUsed float64
+	if budget.MonthlyLimitUSD > 0 {
+		percentUsed = (currentSpent / budget.MonthlyLimitUSD) * 100
+	}
+
+	status := &BudgetStatus{
+		ProjectID:         projectID,
+		MonthlyLimitUSD:   budget.MonthlyLimitUSD,
+		CurrentMonthSpent: currentSpent,
+		CurrentMonth:      currentMonth,
+		PercentUsed:       percentUsed,
+		AlertThreshold:    budget.AlertThresholdPercent,
+		OverBudget:        budget.MonthlyLimitUSD > 0 && currentSpent > budget.MonthlyLimitUSD,
+		AtAlertThreshold:  percentUsed >= float64(budget.AlertThresholdPercent),
+	}
+
+	return status, nil
 }
