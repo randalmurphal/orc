@@ -1,0 +1,119 @@
+/* =============================================================================
+   Progress Component Styles
+   Horizontal progress bars with color variants
+   Based on example_ui/initiatives.html (.progress-bar, .progress-fill classes)
+   ============================================================================= */
+
+/* ==========================================================================
+   BASE STYLES
+   ========================================================================== */
+
+.progress {
+	width: 100%;
+	overflow: hidden;
+}
+
+.progress-track {
+	width: 100%;
+	background-color: var(--bg-surface);
+	overflow: hidden;
+}
+
+.progress-fill {
+	height: 100%;
+	border-radius: inherit;
+	transition: width 0.3s var(--ease-out);
+}
+
+/* ==========================================================================
+   SIZE VARIANTS
+   ========================================================================== */
+
+/* Small (4px height) */
+.progress-sm .progress-track {
+	height: 4px;
+	border-radius: 2px;
+}
+
+/* Medium - Default (6px height) */
+.progress-md .progress-track {
+	height: 6px;
+	border-radius: 3px;
+}
+
+/* ==========================================================================
+   COLOR VARIANTS
+   ========================================================================== */
+
+/* Purple - Default (Primary) */
+.progress-purple .progress-fill {
+	background-color: var(--primary);
+}
+
+/* Green */
+.progress-green .progress-fill {
+	background-color: var(--green);
+}
+
+/* Amber */
+.progress-amber .progress-fill {
+	background-color: var(--amber);
+}
+
+/* Blue */
+.progress-blue .progress-fill {
+	background-color: var(--blue);
+}
+
+/* ==========================================================================
+   LABEL
+   ========================================================================== */
+
+.progress-with-label {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.progress-with-label .progress-track {
+	flex: 1;
+}
+
+.progress-label {
+	font-family: var(--font-mono);
+	font-size: var(--text-md);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	white-space: nowrap;
+	min-width: 3ch;
+	text-align: right;
+}
+
+/* ==========================================================================
+   ANIMATION
+   Initial mount animation starts from 0
+   ========================================================================== */
+
+.progress-animate .progress-fill {
+	animation: progress-grow 0.3s var(--ease-out) forwards;
+}
+
+@keyframes progress-grow {
+	from {
+		width: 0%;
+	}
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.progress-fill {
+		transition: none;
+	}
+
+	.progress-animate .progress-fill {
+		animation: none;
+	}
+}
