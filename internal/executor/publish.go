@@ -2,6 +2,7 @@
 package executor
 
 import (
+	"sync"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/events"
@@ -15,8 +16,11 @@ import (
 // When a TranscriptBuffer is attached via SetBuffer(), transcript data is
 // automatically persisted to the database in addition to being published
 // for real-time display.
+//
+// Thread-safe: All methods can be called concurrently.
 type EventPublisher struct {
 	publisher events.Publisher
+	bufferMu  sync.RWMutex      // Protects buffer pointer access
 	buffer    *TranscriptBuffer // Optional buffer for transcript persistence
 }
 
@@ -33,34 +37,54 @@ func (ep *EventPublisher) SetBuffer(buf *TranscriptBuffer) {
 	if ep == nil {
 		return
 	}
+	ep.bufferMu.Lock()
 	ep.buffer = buf
+	ep.bufferMu.Unlock()
 }
 
 // FlushBuffer flushes any buffered transcripts to the database.
 // Safe to call if buffer is nil.
 func (ep *EventPublisher) FlushBuffer() error {
-	if ep == nil || ep.buffer == nil {
+	if ep == nil {
 		return nil
 	}
-	return ep.buffer.Flush()
+	ep.bufferMu.RLock()
+	buf := ep.buffer
+	ep.bufferMu.RUnlock()
+	if buf == nil {
+		return nil
+	}
+	return buf.Flush()
 }
 
 // FlushChunks flushes pending chunks for the given phase/iteration.
 // Call this at iteration completion to ensure partial chunks are persisted.
 func (ep *EventPublisher) FlushChunks(phase string, iteration int) {
-	if ep == nil || ep.buffer == nil {
+	if ep == nil {
 		return
 	}
-	ep.buffer.FlushChunks(phase, iteration)
+	ep.bufferMu.RLock()
+	buf := ep.buffer
+	ep.bufferMu.RUnlock()
+	if buf == nil {
+		return
+	}
+	buf.FlushChunks(phase, iteration)
 }
 
 // CloseBuffer closes the transcript buffer, flushing any remaining data.
 // Safe to call if buffer is nil.
 func (ep *EventPublisher) CloseBuffer() error {
-	if ep == nil || ep.buffer == nil {
+	if ep == nil {
 		return nil
 	}
-	return ep.buffer.Close()
+	ep.bufferMu.RLock()
+	buf := ep.buffer
+	ep.bufferMu.RUnlock()
+	if buf == nil {
+		return nil
+	}
+	return buf.Close()
 }
 
 // Publish sends an event to the underlying publisher.
@@ -115,8 +139,13 @@ func (ep *EventPublisher) Transcript(taskID, phase string, iteration int, msgTyp
 	}))
 
 	// Add to buffer for database persistence (async)
-	if ep != nil && ep.buffer != nil {
-		ep.buffer.Add(phase, iteration, msgType, content)
+	if ep != nil {
+		ep.bufferMu.RLock()
+		buf := ep.buffer
+		ep.bufferMu.RUnlock()
+		if buf != nil {
+			buf.Add(phase, iteration, msgType, content)
+		}
 	}
 }
 
@@ -133,8 +162,13 @@ func (ep *EventPublisher) TranscriptChunk(taskID, phase string, iteration int, c
 	}))
 
 	// Add to buffer for database persistence (async)
-	if ep != nil && ep.buffer != nil {
-		ep.buffer.AddChunk(phase, iteration, chunk)
+	if ep != nil {
+		ep.bufferMu.RLock()
+		buf := ep.buffer
+		ep.bufferMu.RUnlock()
+		if buf != nil {
+			buf.AddChunk(phase, iteration, chunk)
+		}
 	}
 }
 

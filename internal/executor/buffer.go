@@ -104,7 +104,9 @@ func (b *TranscriptBuffer) Add(phase string, iteration int, role, content string
 	})
 
 	if len(b.lines) >= b.maxBuffer {
-		b.flushLocked()
+		if err := b.flushLocked(); err != nil {
+			b.logger.Error("auto-flush failed", "error", err)
+		}
 	}
 }
 
@@ -154,7 +156,9 @@ func (b *TranscriptBuffer) AddChunk(phase string, iteration int, chunk string) {
 
 		// Check if buffer should flush
 		if len(b.lines) >= b.maxBuffer {
-			b.flushLocked()
+			if err := b.flushLocked(); err != nil {
+				b.logger.Error("auto-flush failed", "error", err)
+			}
 		}
 	}
 }
@@ -209,9 +213,12 @@ func (b *TranscriptBuffer) flushLocked() error {
 	copy(toWrite, b.lines)
 	b.lines = b.lines[:0]
 
-	// Use background context to ensure transcript data is persisted even if
-	// the parent context is cancelled. Transcripts are critical for auditing
-	// and task resumption, so we complete writes regardless of cancellation.
+	// INTENTIONAL: Use background context to ensure transcript data is persisted
+	// even if the parent context is cancelled. Transcripts are critical for:
+	// 1. Task resumption after failure/crash
+	// 2. Audit trails and debugging
+	// 3. User visibility into what happened during execution
+	// The 30-second timeout prevents indefinite hangs while ensuring writes complete.
 	writeCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

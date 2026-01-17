@@ -109,7 +109,6 @@ Examples:
 					if createInitiative {
 						// Create a new initiative with the ID
 						initToCreate = initiative.New(manifest.Initiative, manifest.Initiative)
-						targetInitiativeID = manifest.Initiative
 					} else {
 						return fmt.Errorf("initiative %s not found (use --create-initiative to create it)", manifest.Initiative)
 					}

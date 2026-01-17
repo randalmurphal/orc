@@ -66,7 +66,7 @@ func TestTranscriptBuffer_Add(t *testing.T) {
 		MaxBuffer:     5,
 		FlushInterval: time.Hour, // Long interval to control flushing manually
 	})
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	// Add 3 lines (under threshold)
 	buf.Add("implement", 1, "prompt", "Hello")
@@ -107,7 +107,7 @@ func TestTranscriptBuffer_ManualFlush(t *testing.T) {
 		MaxBuffer:     100,
 		FlushInterval: time.Hour,
 	})
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	buf.Add("spec", 1, "prompt", "Test")
 	buf.Add("spec", 1, "response", "Result")
@@ -143,7 +143,7 @@ func TestTranscriptBuffer_PeriodicFlush(t *testing.T) {
 		MaxBuffer:     100,
 		FlushInterval: 50 * time.Millisecond,
 	})
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	buf.Add("test", 1, "prompt", "Periodic test")
 
@@ -168,7 +168,7 @@ func TestTranscriptBuffer_AddChunk(t *testing.T) {
 		MaxBuffer:     100,
 		FlushInterval: time.Hour,
 	})
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	// Add chunks that form complete lines
 	buf.AddChunk("implement", 1, "Hello ")
@@ -208,7 +208,7 @@ func TestTranscriptBuffer_FlushChunks(t *testing.T) {
 		MaxBuffer:     100,
 		FlushInterval: time.Hour,
 	})
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	// Add partial chunks (no newline)
 	buf.AddChunk("implement", 1, "Partial ")
@@ -293,7 +293,7 @@ func TestTranscriptBuffer_MultipleIterations(t *testing.T) {
 		MaxBuffer:     100,
 		FlushInterval: time.Hour,
 	})
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	// Simulate multiple iterations with interleaved chunks
 	buf.AddChunk("implement", 1, "Iter1 ")
@@ -334,7 +334,7 @@ func TestTranscriptBuffer_TranscriptFields(t *testing.T) {
 		MaxBuffer:     100,
 		FlushInterval: time.Hour,
 	})
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	before := time.Now().Unix()
 	buf.Add("spec", 3, "response", "Test content")
@@ -382,7 +382,7 @@ func TestTranscriptBuffer_NilDB(t *testing.T) {
 		MaxBuffer:     3,
 		FlushInterval: time.Hour,
 	})
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	// Add enough to trigger threshold
 	buf.Add("test", 1, "prompt", "Line 1")
@@ -405,7 +405,7 @@ func TestTranscriptBuffer_Concurrent(t *testing.T) {
 		MaxBuffer:     100,
 		FlushInterval: time.Hour,
 	})
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	// Spawn multiple goroutines adding transcripts
 	var wg sync.WaitGroup
@@ -440,7 +440,7 @@ func TestTranscriptBuffer_ChunkAggregation(t *testing.T) {
 		MaxBuffer:     100,
 		FlushInterval: time.Hour,
 	})
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	// Simulate streaming: multiple small chunks forming lines
 	chunks := []string{"H", "e", "l", "l", "o", " ", "W", "o", "r", "l", "d", "\n"}
@@ -477,7 +477,7 @@ func TestTranscriptBuffer_WriteFailure(t *testing.T) {
 		MaxBuffer:     2,
 		FlushInterval: time.Hour,
 	})
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	// Add lines to trigger auto-flush
 	buf.Add("test", 1, "prompt", "Line 1")
