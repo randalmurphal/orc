@@ -1,8 +1,41 @@
 # Cost Tracking
 
-**Status**: Planning
+**Status**: Database Layer Implemented (TASK-406)
 **Priority**: P1
-**Last Updated**: 2026-01-10
+**Last Updated**: 2026-01-17
+
+---
+
+## Implementation Status
+
+### Completed (TASK-406)
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Schema Migration | ✅ Done | `internal/db/schema/global_002.sql` |
+| CostEntry struct | ✅ Done | `internal/db/global.go` |
+| CostAggregate struct | ✅ Done | `internal/db/global.go` |
+| CostBudget struct | ✅ Done | `internal/db/global.go` |
+| BudgetStatus struct | ✅ Done | `internal/db/global.go` |
+| RecordCostExtended() | ✅ Done | `internal/db/global.go` |
+| GetCostByModel() | ✅ Done | `internal/db/global.go` |
+| GetCostTimeseries() | ✅ Done | `internal/db/global.go` |
+| UpdateCostAggregate() | ✅ Done | `internal/db/global.go` |
+| GetCostAggregates() | ✅ Done | `internal/db/global.go` |
+| GetBudget() / SetBudget() | ✅ Done | `internal/db/global.go` |
+| GetBudgetStatus() | ✅ Done | `internal/db/global.go` |
+| DetectModel() utility | ✅ Done | `internal/db/global.go` |
+| Test coverage | ✅ Done | `internal/db/global_test.go` |
+
+### Pending (Future Tasks)
+
+| Component | Depends On |
+|-----------|------------|
+| Executor integration (call RecordCostExtended) | TASK-407 |
+| API endpoints (`/api/cost/*`) | TASK-406 complete |
+| CLI command (`orc cost`) | TASK-406 complete |
+| Web dashboard cost widget | API endpoints |
+| Budget alerting logic | Budget infrastructure |
 
 ---
 
@@ -403,6 +436,150 @@ daily_history:
     tasks: 4
   # Last 30 days...
 ```
+
+---
+
+## Database Schema (Implemented)
+
+### Migration: global_002.sql
+
+The cost tracking schema is added via `internal/db/schema/global_002.sql`:
+
+**Extended cost_log columns:**
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `model` | TEXT | `''` | Claude model used (opus, sonnet, haiku) |
+| `iteration` | INTEGER | `0` | Iteration within phase |
+| `cache_creation_tokens` | INTEGER | `0` | Tokens written to prompt cache |
+| `cache_read_tokens` | INTEGER | `0` | Tokens served from cache (90% cheaper) |
+| `total_tokens` | INTEGER | `0` | Effective total for analytics |
+| `initiative_id` | TEXT | `''` | Links costs to initiative |
+
+**New indexes on cost_log:**
+
+| Index | Columns | Purpose |
+|-------|---------|---------|
+| `idx_cost_model` | `model` | Model-based queries |
+| `idx_cost_model_timestamp` | `model, timestamp` | Time-range queries by model |
+| `idx_cost_initiative` | `initiative_id` | Initiative cost analysis |
+| `idx_cost_project_timestamp` | `project_id, timestamp` | Project timeline queries |
+
+**cost_aggregates table:**
+
+Pre-computed time-series data for efficient dashboard queries:
+
+```sql
+CREATE TABLE cost_aggregates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id TEXT NOT NULL,
+    model TEXT DEFAULT '',
+    phase TEXT DEFAULT '',
+    date TEXT NOT NULL,                    -- YYYY-MM-DD
+    total_cost_usd REAL DEFAULT 0,
+    total_input_tokens INTEGER DEFAULT 0,
+    total_output_tokens INTEGER DEFAULT 0,
+    total_cache_tokens INTEGER DEFAULT 0,
+    turn_count INTEGER DEFAULT 0,
+    task_count INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(project_id, model, phase, date)
+);
+```
+
+**cost_budgets table:**
+
+Monthly budget tracking:
+
+```sql
+CREATE TABLE cost_budgets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id TEXT UNIQUE NOT NULL,
+    monthly_limit_usd REAL,
+    alert_threshold_percent INTEGER DEFAULT 80,
+    current_month TEXT DEFAULT '',         -- YYYY-MM
+    current_month_spent REAL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+```
+
+### Go Types
+
+```go
+// CostEntry - complete snapshot of a Claude API call
+type CostEntry struct {
+    ID                  int64
+    ProjectID           string
+    TaskID              string
+    Phase               string
+    Model               string    // opus, sonnet, haiku, unknown
+    Iteration           int
+    CostUSD             float64
+    InputTokens         int
+    OutputTokens        int
+    CacheCreationTokens int
+    CacheReadTokens     int
+    TotalTokens         int
+    InitiativeID        string
+    Timestamp           time.Time
+}
+
+// CostAggregate - pre-computed rollups for charting
+type CostAggregate struct {
+    ID                int64
+    ProjectID         string
+    Model             string
+    Phase             string
+    Date              string  // YYYY-MM-DD
+    TotalCostUSD      float64
+    TotalInputTokens  int
+    TotalOutputTokens int
+    TotalCacheTokens  int
+    TurnCount         int
+    TaskCount         int
+    CreatedAt         time.Time
+}
+
+// CostBudget - monthly budget configuration
+type CostBudget struct {
+    ID                    int64
+    ProjectID             string
+    MonthlyLimitUSD       float64
+    AlertThresholdPercent int     // e.g., 80 for alert at 80%
+    CurrentMonth          string  // YYYY-MM
+    CurrentMonthSpent     float64
+    CreatedAt             time.Time
+    UpdatedAt             time.Time
+}
+
+// BudgetStatus - computed view for UI
+type BudgetStatus struct {
+    ProjectID         string
+    MonthlyLimitUSD   float64
+    CurrentMonthSpent float64
+    CurrentMonth      string
+    PercentUsed       float64
+    AlertThreshold    int
+    OverBudget        bool
+    AtAlertThreshold  bool
+}
+```
+
+### GlobalDB Methods
+
+| Method | Purpose |
+|--------|---------|
+| `RecordCost()` | *Deprecated* - Use RecordCostExtended |
+| `RecordCostExtended(entry)` | Record cost with model and cache tokens |
+| `DetectModel(modelID)` | Normalize model ID to opus/sonnet/haiku/unknown |
+| `GetCostByModel(projectID, since)` | Cost breakdown by model |
+| `GetCostTimeseries(projectID, since, granularity)` | Time-bucketed costs (day/week/month) |
+| `UpdateCostAggregate(agg)` | Upsert aggregate record |
+| `GetCostAggregates(projectID, start, end)` | Retrieve pre-computed aggregates |
+| `GetBudget(projectID)` | Get budget config (nil if none) |
+| `SetBudget(budget)` | Create/update budget |
+| `GetBudgetStatus(projectID)` | Current spend vs limit |
 
 ---
 

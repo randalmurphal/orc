@@ -1213,6 +1213,81 @@ Endpoints for Playwright test results, screenshots, and traces. Test results are
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/cost/summary` | Get cost summary (`?period=day|week|month|all`) |
+| GET | `/api/cost/by-model` | Get costs grouped by model (`?project_id=&since=`) |
+| GET | `/api/cost/timeseries` | Get time-bucketed costs (`?granularity=day|week|month`) |
+| GET | `/api/cost/budget` | Get project budget status |
+| PUT | `/api/cost/budget` | Set project budget |
+
+**Cost summary response:**
+```json
+{
+  "period": "week",
+  "start": "2026-01-10",
+  "end": "2026-01-17",
+  "total_cost_usd": 28.50,
+  "total_input_tokens": 890000,
+  "total_output_tokens": 310000,
+  "total_tokens": 1200000,
+  "entry_count": 45,
+  "by_project": {"project-abc": 20.00, "project-xyz": 8.50},
+  "by_phase": {"implement": 18.00, "spec": 6.50, "test": 4.00}
+}
+```
+
+**Costs by model response:**
+```json
+{
+  "opus": 24.00,
+  "sonnet": 4.20,
+  "haiku": 0.30
+}
+```
+
+**Cost timeseries response:**
+```json
+{
+  "granularity": "day",
+  "data": [
+    {
+      "project_id": "project-abc",
+      "model": "opus",
+      "phase": "",
+      "date": "2026-01-15",
+      "total_cost_usd": 8.50,
+      "total_input_tokens": 280000,
+      "total_output_tokens": 95000,
+      "total_cache_tokens": 120000,
+      "turn_count": 15,
+      "task_count": 3
+    }
+  ]
+}
+```
+
+**Budget status response:**
+```json
+{
+  "project_id": "project-abc",
+  "monthly_limit_usd": 100.00,
+  "current_month_spent": 82.50,
+  "current_month": "2026-01",
+  "percent_used": 82.5,
+  "alert_threshold": 80,
+  "over_budget": false,
+  "at_alert_threshold": true
+}
+```
+
+**Set budget body:**
+```json
+{
+  "project_id": "project-abc",
+  "monthly_limit_usd": 100.00,
+  "alert_threshold_percent": 80
+}
+```
+
+**Note:** The database layer for cost tracking with model identification is implemented (TASK-406). API endpoint handlers are pending future work.
 
 ---
 
