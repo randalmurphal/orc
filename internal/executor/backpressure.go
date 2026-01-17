@@ -7,12 +7,18 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
 )
+
+// DefaultBackpressureTimeout is the default timeout for backpressure commands.
+// Individual commands (tests, lint, build) should complete within this time.
+const DefaultBackpressureTimeout = 5 * time.Minute
 
 // BackpressureResult holds the results of deterministic quality checks.
 // These are objective, repeatable checks that don't rely on LLM judgment.
@@ -124,6 +130,7 @@ type BackpressureRunner struct {
 	config  *config.ValidationConfig
 	testing *config.TestingConfig
 	logger  *slog.Logger
+	shell   string // Shell to use for executing commands (bash or sh)
 }
 
 // NewBackpressureRunner creates a new backpressure runner.
@@ -136,11 +143,26 @@ func NewBackpressureRunner(workDir string, valCfg *config.ValidationConfig, test
 		config:  valCfg,
 		testing: testCfg,
 		logger:  logger,
+		shell:   detectShell(),
 	}
 }
 
-// Run executes all configured backpressure checks.
-// Returns results for each check type. Checks are run in parallel where possible.
+// detectShell returns the available shell, preferring bash over sh.
+func detectShell() string {
+	// Try bash first
+	if _, err := exec.LookPath("bash"); err == nil {
+		return "bash"
+	}
+	// Fall back to sh (POSIX shell, should always exist)
+	if _, err := exec.LookPath("sh"); err == nil {
+		return "sh"
+	}
+	// Default to bash and let it fail if neither exists
+	return "bash"
+}
+
+// Run executes all configured backpressure checks sequentially.
+// Returns results for each check type.
 func (r *BackpressureRunner) Run(ctx context.Context) *BackpressureResult {
 	start := time.Now()
 	result := &BackpressureResult{
@@ -210,9 +232,16 @@ func (r *BackpressureRunner) runCommand(ctx context.Context, command, checkType 
 		"workdir", r.workDir,
 	)
 
-	// Create command with context for cancellation
-	// Use bash -c to handle complex commands with pipes, etc.
-	cmd := exec.CommandContext(ctx, "bash", "-c", command)
+	// Apply default timeout if context doesn't have a deadline
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, DefaultBackpressureTimeout)
+		defer cancel()
+	}
+
+	// Create command with context for cancellation/timeout
+	// Use shell -c to handle complex commands with pipes, etc.
+	cmd := exec.CommandContext(ctx, r.shell, "-c", command)
 	cmd.Dir = r.workDir
 
 	// Capture both stdout and stderr
@@ -230,6 +259,16 @@ func (r *BackpressureRunner) runCommand(ctx context.Context, command, checkType 
 			output += "\n"
 		}
 		output += stderr.String()
+	}
+
+	// Check for timeout
+	if ctx.Err() == context.DeadlineExceeded {
+		output += fmt.Sprintf("\n[TIMEOUT] Command exceeded %v timeout", DefaultBackpressureTimeout)
+		r.logger.Warn("backpressure check timed out",
+			"type", checkType,
+			"timeout", DefaultBackpressureTimeout,
+		)
+		return false, output
 	}
 
 	passed := err == nil
@@ -305,9 +344,9 @@ func DetectProjectCommands(workDir string) (tests, lint, build, typecheck string
 
 // fileExists checks if a file exists in the given directory.
 func fileExists(dir, filename string) bool {
-	path := dir + "/" + filename
-	cmd := exec.Command("test", "-f", path)
-	return cmd.Run() == nil
+	path := filepath.Join(dir, filename)
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // FormatBackpressureForPrompt creates a prompt section from backpressure results.

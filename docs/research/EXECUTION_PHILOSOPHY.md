@@ -1,6 +1,8 @@
 # Execution Philosophy: Objective Validation
 
-This document explains the reasoning behind orc's validation and backpressure approach.
+Design rationale for orc's validation and backpressure approach.
+
+**Implementation:** `internal/executor/backpressure.go`, `internal/executor/haiku_validation.go`
 
 ## The Problem: LLM Self-Assessment
 
@@ -21,6 +23,8 @@ Each iteration, the agent sees fresh context (the spec, the current code state).
 3. External validation (Haiku reviewing progress)
 
 ## Backpressure: Deterministic Quality Gates
+
+**Integration:** `standard.go:305`, `full.go:305` (PhaseStatusComplete handling)
 
 Backpressure runs **after** the agent claims completion, **before** accepting it:
 
@@ -51,6 +55,8 @@ If FAIL: Inject failure context, continue iteration
 
 ## Haiku Validation: Objective Progress Assessment
 
+**Implementation:** `haiku_validation.go:53` (progress), `haiku_validation.go:130` (spec readiness)
+
 For tasks that warrant it, Haiku (a separate, faster model) evaluates:
 - **Iteration progress**: Is the agent's approach aligned with the spec?
 - **Spec quality**: Is the spec sufficient for implementation?
@@ -70,6 +76,8 @@ Validation errors (API failures, timeouts) don't block execution:
 This prevents validation infrastructure from becoming a reliability bottleneck.
 
 ## Configuration
+
+**Location:** `internal/config/config.go:2138` (helper methods), `.orc/config.yaml` (user settings)
 
 ```yaml
 validation:
