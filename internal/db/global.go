@@ -207,6 +207,9 @@ type BudgetStatus struct {
 }
 
 // RecordCost logs a cost entry.
+//
+// Deprecated: Use RecordCostExtended for full model and cache token tracking.
+// This method does not support model identification, cache tokens, or initiative tracking.
 func (g *GlobalDB) RecordCost(projectID, taskID, phase string, costUSD float64, inputTokens, outputTokens int) error {
 	_, err := g.Exec(`
 		INSERT INTO cost_log (project_id, task_id, phase, cost_usd, input_tokens, output_tokens)
@@ -235,92 +238,88 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 		ByPhase:   make(map[string]float64),
 	}
 
-	// Build query based on filters
-	// Use strftime to format 'since' to match SQLite's datetime('now') format
+	// Format timestamp once for all queries
 	// SQLite stores as "YYYY-MM-DD HH:MM:SS", RFC3339 is "YYYY-MM-DDTHH:MM:SSZ"
+	sinceStr := since.UTC().Format("2006-01-02 15:04:05")
+
+	// Single query with UNION ALL to get totals, project breakdown, and phase breakdown
+	// This reduces 3 database round-trips to 1
 	query := `
-		SELECT
-			COALESCE(SUM(cost_usd), 0),
-			COALESCE(SUM(input_tokens), 0),
-			COALESCE(SUM(output_tokens), 0),
-			COUNT(*)
+		SELECT 'total' as breakdown_type, '' as breakdown_key,
+			COALESCE(SUM(cost_usd), 0), COALESCE(SUM(input_tokens), 0),
+			COALESCE(SUM(output_tokens), 0), COUNT(*)
 		FROM cost_log
 		WHERE timestamp >= ?
 	`
-	args := []any{since.UTC().Format("2006-01-02 15:04:05")}
+	args := []any{sinceStr}
 
 	if projectID != "" {
 		query += " AND project_id = ?"
 		args = append(args, projectID)
 	}
 
-	row := g.QueryRow(query, args...)
-	if err := row.Scan(&summary.TotalCostUSD, &summary.TotalInput, &summary.TotalOutput, &summary.EntryCount); err != nil {
+	query += `
+		UNION ALL
+		SELECT 'project' as breakdown_type, project_id as breakdown_key,
+			COALESCE(SUM(cost_usd), 0), 0, 0, 0
+		FROM cost_log
+		WHERE timestamp >= ?
+	`
+	args = append(args, sinceStr)
+
+	if projectID != "" {
+		query += " AND project_id = ?"
+		args = append(args, projectID)
+	}
+	query += " GROUP BY project_id"
+
+	query += `
+		UNION ALL
+		SELECT 'phase' as breakdown_type, phase as breakdown_key,
+			COALESCE(SUM(cost_usd), 0), 0, 0, 0
+		FROM cost_log
+		WHERE timestamp >= ?
+	`
+	args = append(args, sinceStr)
+
+	if projectID != "" {
+		query += " AND project_id = ?"
+		args = append(args, projectID)
+	}
+	query += " GROUP BY phase"
+
+	rows, err := g.Query(query, args...)
+	if err != nil {
 		return nil, fmt.Errorf("get cost summary: %w", err)
 	}
-
-	// Get breakdown by project
-	projQuery := `
-		SELECT project_id, SUM(cost_usd)
-		FROM cost_log
-		WHERE timestamp >= ?
-		GROUP BY project_id
-	`
-	rows, err := g.Query(projQuery, since.UTC().Format("2006-01-02 15:04:05"))
-	if err != nil {
-		return nil, fmt.Errorf("get cost by project: %w", err)
-	}
 	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
-		var pid string
+		var breakdownType, breakdownKey string
 		var cost float64
-		if err := rows.Scan(&pid, &cost); err != nil {
-			return nil, fmt.Errorf("scan project cost: %w", err)
+		var input, output, count int
+		if err := rows.Scan(&breakdownType, &breakdownKey, &cost, &input, &output, &count); err != nil {
+			return nil, fmt.Errorf("scan cost summary row: %w", err)
 		}
-		summary.ByProject[pid] = cost
+
+		switch breakdownType {
+		case "total":
+			summary.TotalCostUSD = cost
+			summary.TotalInput = input
+			summary.TotalOutput = output
+			summary.EntryCount = count
+		case "project":
+			if breakdownKey != "" {
+				summary.ByProject[breakdownKey] = cost
+			}
+		case "phase":
+			if breakdownKey != "" {
+				summary.ByPhase[breakdownKey] = cost
+			}
+		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate project costs: %w", err)
-	}
-
-	// Get breakdown by phase
-	phaseQuery := `
-		SELECT phase, SUM(cost_usd)
-		FROM cost_log
-		WHERE timestamp >= ?
-		GROUP BY phase
-	`
-	if projectID != "" {
-		phaseQuery = `
-			SELECT phase, SUM(cost_usd)
-			FROM cost_log
-			WHERE timestamp >= ? AND project_id = ?
-			GROUP BY phase
-		`
-	}
-
-	sinceStr := since.UTC().Format("2006-01-02 15:04:05")
-	if projectID != "" {
-		rows, err = g.Query(phaseQuery, sinceStr, projectID)
-	} else {
-		rows, err = g.Query(phaseQuery, sinceStr)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get cost by phase: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var phase string
-		var cost float64
-		if err := rows.Scan(&phase, &cost); err != nil {
-			return nil, fmt.Errorf("scan phase cost: %w", err)
-		}
-		summary.ByPhase[phase] = cost
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate phase costs: %w", err)
+		return nil, fmt.Errorf("iterate cost summary: %w", err)
 	}
 
 	return summary, nil
@@ -400,26 +399,15 @@ func (g *GlobalDB) GetCostByModel(projectID string, since time.Time) (map[string
 	return result, nil
 }
 
-// GetCostTimeseries returns cost data bucketed by time for charting.
-// Granularity can be "day", "week", or "month".
-func (g *GlobalDB) GetCostTimeseries(projectID string, since time.Time, granularity string) ([]CostAggregate, error) {
-	var dateFormat string
-	switch granularity {
-	case "week":
-		// SQLite: strftime('%Y-W%W', date) gives year-week
-		dateFormat = "strftime('%Y-W%W', timestamp)"
-	case "month":
-		dateFormat = "strftime('%Y-%m', timestamp)"
-	default: // "day" or default
-		dateFormat = "strftime('%Y-%m-%d', timestamp)"
-	}
-
-	query := fmt.Sprintf(`
+// Predefined SQL queries for GetCostTimeseries to avoid dynamic SQL construction.
+// Each query uses a different date format function for the granularity.
+const (
+	timeseriesDayQuery = `
 		SELECT
 			COALESCE(project_id, '') as project_id,
 			COALESCE(model, '') as model,
 			'' as phase,
-			%s as date,
+			strftime('%Y-%m-%d', timestamp) as date,
 			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
 			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
@@ -427,15 +415,117 @@ func (g *GlobalDB) GetCostTimeseries(projectID string, since time.Time, granular
 			COUNT(*) as turn_count,
 			COUNT(DISTINCT task_id) as task_count
 		FROM cost_log
-		WHERE timestamp >= ?
-	`, dateFormat)
-	args := []any{since.UTC().Format("2006-01-02 15:04:05")}
+		WHERE timestamp >= ?`
+
+	timeseriesDayQueryWithProject = `
+		SELECT
+			COALESCE(project_id, '') as project_id,
+			COALESCE(model, '') as model,
+			'' as phase,
+			strftime('%Y-%m-%d', timestamp) as date,
+			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
+			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
+			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
+			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
+			COUNT(*) as turn_count,
+			COUNT(DISTINCT task_id) as task_count
+		FROM cost_log
+		WHERE timestamp >= ? AND project_id = ?
+		GROUP BY strftime('%Y-%m-%d', timestamp), model ORDER BY date ASC`
+
+	timeseriesWeekQuery = `
+		SELECT
+			COALESCE(project_id, '') as project_id,
+			COALESCE(model, '') as model,
+			'' as phase,
+			strftime('%Y-W%W', timestamp) as date,
+			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
+			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
+			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
+			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
+			COUNT(*) as turn_count,
+			COUNT(DISTINCT task_id) as task_count
+		FROM cost_log
+		WHERE timestamp >= ?`
+
+	timeseriesWeekQueryWithProject = `
+		SELECT
+			COALESCE(project_id, '') as project_id,
+			COALESCE(model, '') as model,
+			'' as phase,
+			strftime('%Y-W%W', timestamp) as date,
+			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
+			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
+			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
+			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
+			COUNT(*) as turn_count,
+			COUNT(DISTINCT task_id) as task_count
+		FROM cost_log
+		WHERE timestamp >= ? AND project_id = ?
+		GROUP BY strftime('%Y-W%W', timestamp), model ORDER BY date ASC`
+
+	timeseriesMonthQuery = `
+		SELECT
+			COALESCE(project_id, '') as project_id,
+			COALESCE(model, '') as model,
+			'' as phase,
+			strftime('%Y-%m', timestamp) as date,
+			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
+			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
+			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
+			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
+			COUNT(*) as turn_count,
+			COUNT(DISTINCT task_id) as task_count
+		FROM cost_log
+		WHERE timestamp >= ?`
+
+	timeseriesMonthQueryWithProject = `
+		SELECT
+			COALESCE(project_id, '') as project_id,
+			COALESCE(model, '') as model,
+			'' as phase,
+			strftime('%Y-%m', timestamp) as date,
+			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
+			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
+			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
+			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
+			COUNT(*) as turn_count,
+			COUNT(DISTINCT task_id) as task_count
+		FROM cost_log
+		WHERE timestamp >= ? AND project_id = ?
+		GROUP BY strftime('%Y-%m', timestamp), model ORDER BY date ASC`
+)
+
+// GetCostTimeseries returns cost data bucketed by time for charting.
+// Granularity can be "day", "week", or "month".
+func (g *GlobalDB) GetCostTimeseries(projectID string, since time.Time, granularity string) ([]CostAggregate, error) {
+	sinceStr := since.UTC().Format("2006-01-02 15:04:05")
+
+	// Select the appropriate predefined query based on granularity and project filter
+	var query string
+	var args []any
 
 	if projectID != "" {
-		query += " AND project_id = ?"
-		args = append(args, projectID)
+		switch granularity {
+		case "week":
+			query = timeseriesWeekQueryWithProject
+		case "month":
+			query = timeseriesMonthQueryWithProject
+		default: // "day" or default
+			query = timeseriesDayQueryWithProject
+		}
+		args = []any{sinceStr, projectID}
+	} else {
+		switch granularity {
+		case "week":
+			query = timeseriesWeekQuery + " GROUP BY strftime('%Y-W%W', timestamp), model ORDER BY date ASC"
+		case "month":
+			query = timeseriesMonthQuery + " GROUP BY strftime('%Y-%m', timestamp), model ORDER BY date ASC"
+		default: // "day" or default
+			query = timeseriesDayQuery + " GROUP BY strftime('%Y-%m-%d', timestamp), model ORDER BY date ASC"
+		}
+		args = []any{sinceStr}
 	}
-	query += fmt.Sprintf(" GROUP BY %s, model ORDER BY date ASC", dateFormat)
 
 	rows, err := g.Query(query, args...)
 	if err != nil {
