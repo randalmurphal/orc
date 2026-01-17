@@ -7,7 +7,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/llmkit/claude/session"
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/plan"
@@ -34,6 +36,8 @@ type StandardExecutor struct {
 
 	// Validation components (optional)
 	backpressure *BackpressureRunner // Deterministic quality checks
+	haikuClient  claude.Client       // Haiku client for progress validation
+	orcConfig    *config.Config      // Config for validation settings
 }
 
 // StandardExecutorOption configures a StandardExecutor.
@@ -72,6 +76,16 @@ func WithStandardBackend(b storage.Backend) StandardExecutorOption {
 // WithStandardBackpressure sets the backpressure runner for quality checks.
 func WithStandardBackpressure(bp *BackpressureRunner) StandardExecutorOption {
 	return func(e *StandardExecutor) { e.backpressure = bp }
+}
+
+// WithStandardHaikuClient sets the Haiku client for progress validation.
+func WithStandardHaikuClient(c claude.Client) StandardExecutorOption {
+	return func(e *StandardExecutor) { e.haikuClient = c }
+}
+
+// WithStandardOrcConfig sets the orc config for validation settings.
+func WithStandardOrcConfig(cfg *config.Config) StandardExecutorOption {
+	return func(e *StandardExecutor) { e.orcConfig = cfg }
 }
 
 // NewStandardExecutor creates a new standard executor.
@@ -213,6 +227,14 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 
 	promptText := RenderTemplate(tmpl, vars)
 
+	// Load spec content for progress validation (if enabled)
+	var specContent string
+	if e.haikuClient != nil && e.orcConfig != nil && e.backend != nil {
+		if content, err := e.backend.LoadSpec(t.ID); err == nil {
+			specContent = content
+		}
+	}
+
 	// Inject "ultrathink" for extended thinking mode
 	// This triggers maximum thinking budget (31,999 tokens) in Claude Code
 	if modelSetting.Thinking {
@@ -298,6 +320,46 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 
 		// Publish response transcript
 		e.publisher.Transcript(t.ID, p.ID, iteration, "response", turnResult.Content)
+
+		// Progress validation: check if iteration is on track (if enabled)
+		if e.haikuClient != nil && e.orcConfig != nil && specContent != "" &&
+			e.orcConfig.ShouldValidateProgress(string(t.Weight)) {
+			decision, reason, valErr := ValidateIterationProgress(ctx, e.haikuClient, specContent, turnResult.Content)
+			if valErr != nil {
+				e.logger.Warn("progress validation error (continuing)",
+					"task", t.ID,
+					"phase", p.ID,
+					"error", valErr,
+				)
+			} else {
+				switch decision {
+				case ValidationRetry:
+					e.logger.Info("progress validation: redirect needed",
+						"task", t.ID,
+						"phase", p.ID,
+						"reason", reason,
+					)
+					e.publisher.Warning(t.ID, p.ID, "Progress validation: "+reason)
+					// Inject redirect prompt for next iteration
+					promptText = fmt.Sprintf("## Progress Validation Feedback\n\n"+
+						"External review indicates your approach may be off track:\n%s\n\n"+
+						"Please review the specification and adjust your approach. "+
+						"Continue working on the task.", reason)
+					continue // Skip completion check, iterate with feedback
+				case ValidationStop:
+					e.logger.Warn("progress validation: blocked",
+						"task", t.ID,
+						"phase", p.ID,
+						"reason", reason,
+					)
+					result.Status = plan.PhaseFailed
+					result.Output = turnResult.Content
+					result.Error = fmt.Errorf("progress validation blocked: %s", reason)
+					goto done
+				}
+				// ValidationContinue - proceed normally
+			}
+		}
 
 		// Check for completion
 		switch turnResult.Status {

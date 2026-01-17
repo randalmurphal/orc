@@ -702,9 +702,9 @@ func TestDSN_Postgres(t *testing.T) {
 func TestDefault_PlanConfig(t *testing.T) {
 	cfg := Default()
 
-	// RequireSpecForExecution should default to false
-	if cfg.Plan.RequireSpecForExecution {
-		t.Error("Plan.RequireSpecForExecution should default to false")
+	// RequireSpecForExecution should default to true (quality-first)
+	if !cfg.Plan.RequireSpecForExecution {
+		t.Error("Plan.RequireSpecForExecution should default to true")
 	}
 
 	// WarnOnMissingSpec should default to true

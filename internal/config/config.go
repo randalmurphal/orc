@@ -1311,8 +1311,8 @@ func Default() *Config {
 		},
 		Validation: ValidationConfig{
 			Enabled:          true,                           // Validation enabled by default
-			Model:            "claude-haiku-4-5-20251101",    // Haiku for fast, cheap validation
-			SkipForWeights:   []string{"trivial", "small"},   // Skip for simple tasks
+			Model:            "claude-haiku-4-5-20251101",    // Haiku for fast validation
+			SkipForWeights:   []string{"trivial"},            // Only skip for trivial tasks
 			EnforceTests:     true,                           // Run tests before accepting completion
 			EnforceLint:      true,                           // Run lint before accepting completion
 			EnforceBuild:     false,                          // Build not enforced by default
@@ -1321,7 +1321,7 @@ func Default() *Config {
 			BuildCommand:     "",                             // Auto-detect
 			TypeCheckCommand: "",                             // Auto-detect
 			ValidateSpecs:    true,                           // Haiku validates spec quality
-			ValidateProgress: false,                          // Progress validation off (expensive)
+			ValidateProgress: true,                           // Haiku validates iteration progress
 		},
 		Documentation: DocumentationConfig{
 			Enabled:            true,
@@ -1349,9 +1349,9 @@ func Default() *Config {
 			RequirePass: true,
 		},
 		Plan: PlanConfig{
-			RequireSpecForExecution: false, // Don't block by default
-			WarnOnMissingSpec:       true,  // Warn but don't block
-			SkipValidationWeights:   []string{"trivial", "small"},
+			RequireSpecForExecution: true,  // Require spec for quality execution
+			WarnOnMissingSpec:       true,  // Also warn when missing
+			SkipValidationWeights:   []string{"trivial", "small"}, // Simple tasks don't need specs
 			MinimumSections:         []string{"intent", "success_criteria", "testing"},
 		},
 		ArtifactSkip: ArtifactSkipConfig{
@@ -1645,20 +1645,20 @@ func FinalizePresets(profile AutomationProfile) FinalizeConfig {
 func ValidationPresets(profile AutomationProfile) ValidationConfig {
 	switch profile {
 	case ProfileFast:
-		// Fast: disable validation for speed
+		// Fast: minimal validation for speed (only for quick iterations)
 		return ValidationConfig{
-			Enabled:          false,
+			Enabled:          true,
 			Model:            "claude-haiku-4-5-20251101",
-			SkipForWeights:   []string{"trivial", "small", "medium"},
-			EnforceTests:     false,
+			SkipForWeights:   []string{"trivial", "small"},
+			EnforceTests:     true,
 			EnforceLint:      false,
 			EnforceBuild:     false,
 			EnforceTypeCheck: false,
-			ValidateSpecs:    false,
+			ValidateSpecs:    true,
 			ValidateProgress: false,
 		}
 	case ProfileSafe:
-		// Safe: enable validation with stricter settings
+		// Safe: quality-focused validation
 		return ValidationConfig{
 			Enabled:          true,
 			Model:            "claude-haiku-4-5-20251101",
@@ -1668,7 +1668,7 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			EnforceBuild:     true,
 			EnforceTypeCheck: false,
 			ValidateSpecs:    true,
-			ValidateProgress: false,
+			ValidateProgress: true,
 		}
 	case ProfileStrict:
 		// Strict: maximum validation
@@ -1684,17 +1684,17 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			ValidateProgress: true,
 		}
 	default: // ProfileAuto
-		// Auto: balanced validation
+		// Auto: quality-first validation (default)
 		return ValidationConfig{
 			Enabled:          true,
 			Model:            "claude-haiku-4-5-20251101",
-			SkipForWeights:   []string{"trivial", "small"},
+			SkipForWeights:   []string{"trivial"},
 			EnforceTests:     true,
 			EnforceLint:      true,
 			EnforceBuild:     false,
 			EnforceTypeCheck: false,
 			ValidateSpecs:    true,
-			ValidateProgress: false,
+			ValidateProgress: true,
 		}
 	}
 }

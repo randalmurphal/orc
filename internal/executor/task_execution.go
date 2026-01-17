@@ -675,18 +675,22 @@ func (e *Executor) checkSpecRequirements(t *task.Task) error {
 			ctx := context.Background()
 			ready, suggestions, valErr := ValidateTaskReadiness(ctx, e.haikuClient, t.Description, specContent, string(t.Weight))
 			if valErr != nil {
-				// Fail open - don't block execution on validation errors
+				// Fail open - don't block execution on validation errors (API issues)
 				e.logger.Warn("haiku spec validation error (continuing)",
 					"task", t.ID,
 					"error", valErr,
 				)
 			} else if !ready && len(suggestions) > 0 {
-				e.logger.Warn("spec quality concerns detected",
+				// Block execution on poor spec quality
+				e.logger.Error("spec quality validation failed - blocking execution",
 					"task", t.ID,
 					"suggestions", suggestions,
 				)
-				// For now, just warn - don't block execution
-				// This can be made stricter via config if desired
+				suggestionText := ""
+				for i, s := range suggestions {
+					suggestionText += fmt.Sprintf("\n  %d. %s", i+1, s)
+				}
+				return fmt.Errorf("task %s spec quality is insufficient for execution:%s\n\nRun 'orc plan %s' to improve the spec", t.ID, suggestionText, t.ID)
 			}
 		}
 	} else if e.orcConfig.Plan.WarnOnMissingSpec {
