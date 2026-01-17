@@ -1033,7 +1033,10 @@ func (d *DatabaseBackend) SaveInitiativeCtx(ctx context.Context, i *initiative.I
 			return fmt.Errorf("save initiative: %w", err)
 		}
 
-		// Save decisions
+		// Clear and save decisions
+		if err := db.ClearInitiativeDecisionsTx(tx, i.ID); err != nil {
+			return fmt.Errorf("clear initiative decisions: %w", err)
+		}
 		for _, decision := range i.Decisions {
 			dbDecision := &db.InitiativeDecision{
 				ID:           decision.ID,
