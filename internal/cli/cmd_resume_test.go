@@ -317,3 +317,204 @@ func contains(strs []string, substr string) bool {
 	}
 	return false
 }
+
+func TestResumeCommand_FromPhaseFlag(t *testing.T) {
+	tmpDir := withResumeTestDir(t)
+
+	// Create a failed task with multiple phases
+	backend := createResumeTestBackend(t, tmpDir)
+
+	tk := task.New("TASK-001", "Test task")
+	tk.Status = task.StatusFailed
+	tk.Weight = task.WeightMedium
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create plan with multiple phases
+	p := &plan.Plan{
+		Version:     1,
+		TaskID:      "TASK-001",
+		Weight:      task.WeightMedium,
+		Description: "Test plan",
+		Phases: []plan.Phase{
+			{ID: "spec", Name: "spec", Status: plan.PhaseCompleted},
+			{ID: "implement", Name: "implement", Status: plan.PhaseCompleted},
+			{ID: "review", Name: "review", Status: plan.PhaseFailed},
+			{ID: "test", Name: "test", Status: plan.PhasePending},
+			{ID: "docs", Name: "docs", Status: plan.PhasePending},
+		},
+	}
+	if err := backend.SavePlan(p, "TASK-001"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
+
+	// Create state with review phase failed
+	s := state.New("TASK-001")
+	s.CurrentPhase = "review"
+	s.Phases["spec"] = &state.PhaseState{Status: state.StatusCompleted}
+	s.Phases["implement"] = &state.PhaseState{Status: state.StatusCompleted}
+	s.Phases["review"] = &state.PhaseState{Status: state.StatusFailed, Error: "review failed"}
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
+
+	_ = backend.Close()
+
+	// Test that --from-phase flag is accepted
+	cmd := newResumeCmd()
+	cmd.SetArgs([]string{"TASK-001", "--from-phase", "implement"})
+
+	err := cmd.Execute()
+
+	// The command will fail in execution (no real Claude API), but it should
+	// NOT fail with a "phase not found" error or flag parsing error
+	if err != nil && contains([]string{err.Error()}, "phase \"implement\" not found") {
+		t.Errorf("Phase 'implement' should be found in plan, got: %v", err)
+	}
+}
+
+func TestResumeCommand_FromPhaseInvalidPhase(t *testing.T) {
+	tmpDir := withResumeTestDir(t)
+
+	// Create a task
+	backend := createResumeTestBackend(t, tmpDir)
+
+	tk := task.New("TASK-001", "Test task")
+	tk.Status = task.StatusFailed
+	tk.Weight = task.WeightSmall
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	p := &plan.Plan{
+		Version:     1,
+		TaskID:      "TASK-001",
+		Weight:      task.WeightSmall,
+		Description: "Test plan",
+		Phases: []plan.Phase{
+			{ID: "implement", Name: "implement", Status: plan.PhasePending},
+			{ID: "test", Name: "test", Status: plan.PhasePending},
+		},
+	}
+	if err := backend.SavePlan(p, "TASK-001"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
+
+	s := state.New("TASK-001")
+	s.CurrentPhase = "implement"
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
+
+	_ = backend.Close()
+
+	cmd := newResumeCmd()
+	cmd.SetArgs([]string{"TASK-001", "--from-phase", "bogus"})
+
+	err := cmd.Execute()
+
+	// Should fail with a clear error about invalid phase
+	if err == nil {
+		t.Error("Expected error for invalid phase, got nil")
+	}
+
+	if err != nil {
+		errStr := err.Error()
+		if !contains([]string{errStr}, "phase \"bogus\" not found in plan") {
+			t.Errorf("Expected 'phase not found' error, got: %v", err)
+		}
+		if !contains([]string{errStr}, "available: implement, test") {
+			t.Errorf("Expected available phases in error, got: %v", err)
+		}
+	}
+}
+
+func TestResumeCommand_FromPhaseResetsState(t *testing.T) {
+	tmpDir := withResumeTestDir(t)
+
+	backend := createResumeTestBackend(t, tmpDir)
+
+	tk := task.New("TASK-001", "Test task")
+	tk.Status = task.StatusFailed
+	tk.Weight = task.WeightSmall
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	p := &plan.Plan{
+		Version:     1,
+		TaskID:      "TASK-001",
+		Weight:      task.WeightSmall,
+		Description: "Test plan",
+		Phases: []plan.Phase{
+			{ID: "implement", Name: "implement", Status: plan.PhaseCompleted},
+			{ID: "test", Name: "test", Status: plan.PhaseFailed},
+		},
+	}
+	if err := backend.SavePlan(p, "TASK-001"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
+
+	s := state.New("TASK-001")
+	s.CurrentPhase = "test"
+	s.Status = state.StatusFailed
+	s.Error = "test failed"
+	s.Phases["implement"] = &state.PhaseState{Status: state.StatusCompleted, CommitSHA: "abc123"}
+	s.Phases["test"] = &state.PhaseState{Status: state.StatusFailed, Error: "test failed"}
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
+
+	_ = backend.Close()
+
+	// Run resume with --from-phase implement
+	cmd := newResumeCmd()
+	cmd.SetArgs([]string{"TASK-001", "--from-phase", "implement"})
+
+	// The command will fail in execution, but state should be updated
+	_ = cmd.Execute()
+
+	// Reload state and verify phases were reset
+	backend2 := createResumeTestBackend(t, tmpDir)
+	defer func() { _ = backend2.Close() }()
+
+	updatedState, err := backend2.LoadState("TASK-001")
+	if err != nil {
+		t.Fatalf("failed to load updated state: %v", err)
+	}
+
+	// Verify implement phase was reset (from the point specified)
+	if updatedState.Phases["implement"] != nil && updatedState.Phases["implement"].Status != state.StatusPending {
+		t.Errorf("implement phase status = %s, want %s (should be reset)", updatedState.Phases["implement"].Status, state.StatusPending)
+	}
+
+	// Verify test phase was reset
+	if updatedState.Phases["test"] != nil && updatedState.Phases["test"].Status != state.StatusPending {
+		t.Errorf("test phase status = %s, want %s (should be reset)", updatedState.Phases["test"].Status, state.StatusPending)
+	}
+
+	// Verify task-level error was cleared
+	if updatedState.Error != "" {
+		t.Errorf("Error = %s, want empty", updatedState.Error)
+	}
+}
+
+func TestFormatPhaseList(t *testing.T) {
+	tests := []struct {
+		input []string
+		want  string
+	}{
+		{[]string{}, "(none)"},
+		{[]string{"implement"}, "implement"},
+		{[]string{"spec", "implement"}, "spec, implement"},
+		{[]string{"spec", "implement", "test", "docs"}, "spec, implement, test, docs"},
+	}
+
+	for _, tt := range tests {
+		got := formatPhaseList(tt.input)
+		if got != tt.want {
+			t.Errorf("formatPhaseList(%v) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}

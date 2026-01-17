@@ -538,6 +538,121 @@ func TestElapsed(t *testing.T) {
 	}
 }
 
+func TestResetPhasesFrom(t *testing.T) {
+	// Create a state with multiple phases in various states
+	s := New("TASK-001")
+
+	// Set up phases: spec (completed), implement (completed), review (failed), test (pending), docs (pending)
+	s.Phases["spec"] = &PhaseState{
+		Status:    StatusCompleted,
+		CommitSHA: "abc123",
+	}
+	s.Phases["implement"] = &PhaseState{
+		Status:    StatusCompleted,
+		CommitSHA: "def456",
+	}
+	now := time.Now()
+	s.Phases["review"] = &PhaseState{
+		Status:      StatusFailed,
+		CompletedAt: &now,
+		Error:       "review failed",
+	}
+	s.Phases["test"] = &PhaseState{Status: StatusPending}
+	s.Phases["docs"] = &PhaseState{Status: StatusPending}
+
+	// Set error and retry context
+	s.Status = StatusFailed
+	s.Error = "review phase failed"
+	s.SetRetryContext("review", "implement", "retry from implement", "output", 1)
+
+	// Define phase order
+	allPhases := []string{"spec", "implement", "review", "test", "docs"}
+
+	// Reset from "implement" onward
+	s.ResetPhasesFrom("implement", allPhases)
+
+	// Verify spec is still completed (before reset point)
+	if s.Phases["spec"].Status != StatusCompleted {
+		t.Errorf("spec status = %s, want %s (should be preserved)", s.Phases["spec"].Status, StatusCompleted)
+	}
+	if s.Phases["spec"].CommitSHA != "abc123" {
+		t.Errorf("spec CommitSHA = %s, want abc123 (should be preserved)", s.Phases["spec"].CommitSHA)
+	}
+
+	// Verify implement and later phases are reset to pending
+	for _, phaseID := range []string{"implement", "review", "test", "docs"} {
+		if s.Phases[phaseID].Status != StatusPending {
+			t.Errorf("%s status = %s, want %s", phaseID, s.Phases[phaseID].Status, StatusPending)
+		}
+		if s.Phases[phaseID].Error != "" {
+			t.Errorf("%s Error = %s, want empty", phaseID, s.Phases[phaseID].Error)
+		}
+	}
+
+	// Verify task-level error is cleared
+	if s.Error != "" {
+		t.Errorf("Error = %s, want empty", s.Error)
+	}
+
+	// Verify status is reset to pending
+	if s.Status != StatusPending {
+		t.Errorf("Status = %s, want %s", s.Status, StatusPending)
+	}
+
+	// Verify retry context is cleared
+	if s.HasRetryContext() {
+		t.Error("RetryContext should be cleared")
+	}
+}
+
+func TestResetPhasesFrom_FirstPhase(t *testing.T) {
+	s := New("TASK-001")
+
+	// Set up all phases as completed
+	s.Phases["spec"] = &PhaseState{Status: StatusCompleted}
+	s.Phases["implement"] = &PhaseState{Status: StatusCompleted}
+	s.Phases["test"] = &PhaseState{Status: StatusCompleted}
+
+	allPhases := []string{"spec", "implement", "test"}
+
+	// Reset from first phase
+	s.ResetPhasesFrom("spec", allPhases)
+
+	// All phases should be reset
+	for _, phaseID := range allPhases {
+		if s.Phases[phaseID].Status != StatusPending {
+			t.Errorf("%s status = %s, want %s", phaseID, s.Phases[phaseID].Status, StatusPending)
+		}
+	}
+}
+
+func TestResetPhasesFrom_LastPhase(t *testing.T) {
+	s := New("TASK-001")
+
+	// Set up phases
+	s.Phases["spec"] = &PhaseState{Status: StatusCompleted}
+	s.Phases["implement"] = &PhaseState{Status: StatusCompleted}
+	s.Phases["test"] = &PhaseState{Status: StatusFailed, Error: "tests failed"}
+
+	allPhases := []string{"spec", "implement", "test"}
+
+	// Reset only from last phase
+	s.ResetPhasesFrom("test", allPhases)
+
+	// Earlier phases should be preserved
+	if s.Phases["spec"].Status != StatusCompleted {
+		t.Errorf("spec status = %s, want %s", s.Phases["spec"].Status, StatusCompleted)
+	}
+	if s.Phases["implement"].Status != StatusCompleted {
+		t.Errorf("implement status = %s, want %s", s.Phases["implement"].Status, StatusCompleted)
+	}
+
+	// Only test phase should be reset
+	if s.Phases["test"].Status != StatusPending {
+		t.Errorf("test status = %s, want %s", s.Phases["test"].Status, StatusPending)
+	}
+}
+
 func TestStartExecution_SetsStartedAt(t *testing.T) {
 	// Test 1: StartExecution on fresh state (zero StartedAt) should set StartedAt
 	// This is the key bug fix - loaded states have zero StartedAt

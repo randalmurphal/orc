@@ -22,6 +22,7 @@ import (
 
 func newResumeCmd() *cobra.Command {
 	var forceResume bool
+	var fromPhase string
 
 	cmd := &cobra.Command{
 		Use:   "resume <task-id>",
@@ -34,7 +35,18 @@ this command will automatically mark them as interrupted and resume execution.
 For failed tasks, this command will resume from the last incomplete phase,
 allowing you to retry after fixing any issues.
 
-Use --force to resume a task even if it appears to still be running.`,
+Use --force to resume a task even if it appears to still be running.
+Use --from-phase to restart from a specific phase (resetting it and all subsequent phases).
+
+Examples:
+  # Resume from where the task left off
+  orc resume TASK-001
+
+  # Restart from the implement phase (resets implement and all later phases)
+  orc resume TASK-001 --from-phase implement
+
+  # Force resume an orphaned task from the spec phase
+  orc resume TASK-001 --force --from-phase spec`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Find the project root (handles worktrees)
@@ -110,6 +122,28 @@ Use --force to resume a task even if it appears to still be running.`,
 				return fmt.Errorf("load plan: %w", err)
 			}
 
+			// Validate --from-phase if provided
+			if fromPhase != "" {
+				// Collect available phase IDs
+				var availablePhases []string
+				found := false
+				for _, phase := range p.Phases {
+					availablePhases = append(availablePhases, phase.ID)
+					if phase.ID == fromPhase {
+						found = true
+					}
+				}
+				if !found {
+					return fmt.Errorf("phase %q not found in plan (available: %s)", fromPhase, formatPhaseList(availablePhases))
+				}
+
+				// Reset phases from the specified phase onward
+				s.ResetPhasesFrom(fromPhase, availablePhases)
+				if err := backend.SaveState(s); err != nil {
+					return fmt.Errorf("save state after phase reset: %w", err)
+				}
+			}
+
 			cfg, err := config.Load()
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
@@ -147,9 +181,15 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 
 			// Find resume phase
-			resumePhase := s.GetResumePhase()
-			if resumePhase == "" {
-				resumePhase = s.CurrentPhase
+			var resumePhase string
+			if fromPhase != "" {
+				resumePhase = fromPhase
+				fmt.Printf("Resuming from phase %q (phases reset)\n", fromPhase)
+			} else {
+				resumePhase = s.GetResumePhase()
+				if resumePhase == "" {
+					resumePhase = s.CurrentPhase
+				}
 			}
 			if resumePhase == "" {
 				return fmt.Errorf("no phase to resume from")
@@ -187,7 +227,20 @@ Use --force to resume a task even if it appears to still be running.`,
 	}
 	cmd.Flags().Bool("stream", false, "stream Claude transcript to stdout")
 	cmd.Flags().BoolVarP(&forceResume, "force", "f", false, "force resume even if task appears to be running")
+	cmd.Flags().StringVar(&fromPhase, "from-phase", "", "restart from a specific phase (resets it and all subsequent phases)")
 	return cmd
+}
+
+// formatPhaseList formats a list of phase IDs for display in error messages.
+func formatPhaseList(phases []string) string {
+	if len(phases) == 0 {
+		return "(none)"
+	}
+	result := phases[0]
+	for i := 1; i < len(phases); i++ {
+		result += ", " + phases[i]
+	}
+	return result
 }
 
 // getResumeFileChangeStats computes diff statistics for the task branch vs target branch.

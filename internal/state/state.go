@@ -298,6 +298,25 @@ func (s *State) ResetPhase(phaseID string) {
 	s.UpdatedAt = time.Now()
 }
 
+// ResetPhasesFrom resets the specified phase and all subsequent phases to pending state.
+// The allPhases slice must be in execution order. This is used for --from-phase resume.
+func (s *State) ResetPhasesFrom(startPhase string, allPhases []string) {
+	shouldReset := false
+	for _, phaseID := range allPhases {
+		if phaseID == startPhase {
+			shouldReset = true
+		}
+		if shouldReset {
+			s.ResetPhase(phaseID)
+		}
+	}
+	// Clear any error state and retry context since we're starting fresh
+	s.Error = ""
+	s.Status = StatusPending
+	s.ClearRetryContext()
+	s.UpdatedAt = time.Now()
+}
+
 // SetRetryContext sets the retry context for cross-phase retry.
 func (s *State) SetRetryContext(fromPhase, toPhase, reason, failureOutput string, attempt int) {
 	s.RetryContext = &RetryContext{
