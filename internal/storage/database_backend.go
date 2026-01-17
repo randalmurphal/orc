@@ -503,9 +503,11 @@ func (d *DatabaseBackend) AddTranscript(t *Transcript) error {
 	defer d.mu.Unlock()
 
 	dbTranscript := &db.Transcript{
-		TaskID:  t.TaskID,
-		Phase:   t.Phase,
-		Content: t.Content,
+		TaskID:    t.TaskID,
+		Phase:     t.Phase,
+		Iteration: t.Iteration,
+		Role:      t.Role,
+		Content:   t.Content,
 	}
 	if err := d.db.AddTranscript(dbTranscript); err != nil {
 		return fmt.Errorf("add transcript: %w", err)
@@ -530,6 +532,8 @@ func (d *DatabaseBackend) GetTranscripts(taskID string) ([]Transcript, error) {
 			ID:        t.ID,
 			TaskID:    t.TaskID,
 			Phase:     t.Phase,
+			Iteration: t.Iteration,
+			Role:      t.Role,
 			Content:   t.Content,
 			Timestamp: t.Timestamp.Unix(),
 		}
@@ -557,6 +561,157 @@ func (d *DatabaseBackend) SearchTranscripts(query string) ([]TranscriptMatch, er
 		}
 	}
 	return result, nil
+}
+
+// ListTaskComments retrieves all comments for a task.
+func (d *DatabaseBackend) ListTaskComments(taskID string) ([]TaskComment, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbComments, err := d.db.ListTaskComments(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("list task comments: %w", err)
+	}
+
+	result := make([]TaskComment, len(dbComments))
+	for i, c := range dbComments {
+		result[i] = TaskComment{
+			ID:         c.ID,
+			TaskID:     c.TaskID,
+			Author:     c.Author,
+			AuthorType: string(c.AuthorType),
+			Content:    c.Content,
+			Phase:      c.Phase,
+			CreatedAt:  c.CreatedAt,
+			UpdatedAt:  c.UpdatedAt,
+		}
+	}
+	return result, nil
+}
+
+// SaveTaskComment saves a task comment.
+func (d *DatabaseBackend) SaveTaskComment(c *TaskComment) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	dbComment := &db.TaskComment{
+		ID:         c.ID,
+		TaskID:     c.TaskID,
+		Author:     c.Author,
+		AuthorType: db.AuthorType(c.AuthorType),
+		Content:    c.Content,
+		Phase:      c.Phase,
+		CreatedAt:  c.CreatedAt,
+		UpdatedAt:  c.UpdatedAt,
+	}
+	if err := d.db.CreateTaskComment(dbComment); err != nil {
+		return fmt.Errorf("save task comment: %w", err)
+	}
+	c.ID = dbComment.ID
+	return nil
+}
+
+// ListReviewComments retrieves all review comments for a task.
+func (d *DatabaseBackend) ListReviewComments(taskID string) ([]ReviewComment, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	// List all comments regardless of status
+	dbComments, err := d.db.ListReviewComments(taskID, "")
+	if err != nil {
+		return nil, fmt.Errorf("list review comments: %w", err)
+	}
+
+	result := make([]ReviewComment, len(dbComments))
+	for i, c := range dbComments {
+		result[i] = ReviewComment{
+			ID:          c.ID,
+			TaskID:      c.TaskID,
+			ReviewRound: c.ReviewRound,
+			FilePath:    c.FilePath,
+			LineNumber:  c.LineNumber,
+			Content:     c.Content,
+			Severity:    string(c.Severity),
+			Status:      string(c.Status),
+			CreatedAt:   c.CreatedAt,
+			ResolvedAt:  c.ResolvedAt,
+			ResolvedBy:  c.ResolvedBy,
+		}
+	}
+	return result, nil
+}
+
+// SaveReviewComment saves a review comment.
+func (d *DatabaseBackend) SaveReviewComment(c *ReviewComment) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	dbComment := &db.ReviewComment{
+		ID:          c.ID,
+		TaskID:      c.TaskID,
+		ReviewRound: c.ReviewRound,
+		FilePath:    c.FilePath,
+		LineNumber:  c.LineNumber,
+		Content:     c.Content,
+		Severity:    db.ReviewCommentSeverity(c.Severity),
+		Status:      db.ReviewCommentStatus(c.Status),
+		CreatedAt:   c.CreatedAt,
+		ResolvedAt:  c.ResolvedAt,
+		ResolvedBy:  c.ResolvedBy,
+	}
+	if err := d.db.CreateReviewComment(dbComment); err != nil {
+		return fmt.Errorf("save review comment: %w", err)
+	}
+	c.ID = dbComment.ID
+	return nil
+}
+
+// ListGateDecisions retrieves all gate decisions for a task.
+func (d *DatabaseBackend) ListGateDecisions(taskID string) ([]GateDecision, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbDecisions, err := d.db.GetGateDecisions(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("list gate decisions: %w", err)
+	}
+
+	result := make([]GateDecision, len(dbDecisions))
+	for i, d := range dbDecisions {
+		result[i] = GateDecision{
+			ID:        d.ID,
+			TaskID:    d.TaskID,
+			Phase:     d.Phase,
+			GateType:  d.GateType,
+			Approved:  d.Approved,
+			Reason:    d.Reason,
+			DecidedBy: d.DecidedBy,
+			DecidedAt: d.DecidedAt,
+		}
+	}
+	return result, nil
+}
+
+// SaveGateDecision saves a gate decision.
+func (d *DatabaseBackend) SaveGateDecision(gd *GateDecision) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	dbDecision := &db.GateDecision{
+		ID:        gd.ID,
+		TaskID:    gd.TaskID,
+		Phase:     gd.Phase,
+		GateType:  gd.GateType,
+		Approved:  gd.Approved,
+		Reason:    gd.Reason,
+		DecidedBy: gd.DecidedBy,
+		DecidedAt: gd.DecidedAt,
+	}
+	if err := d.db.AddGateDecision(dbDecision); err != nil {
+		return fmt.Errorf("save gate decision: %w", err)
+	}
+	gd.ID = dbDecision.ID
+	return nil
 }
 
 // MaterializeContext generates context files for worktree execution.

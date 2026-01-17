@@ -8,24 +8,54 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// ExportFormatVersion is the current version of the export format.
+// Increment when making breaking changes to ExportData.
+const ExportFormatVersion = 2
+
 // ExportData contains all data for a task export.
 type ExportData struct {
-	Task        *task.Task      `yaml:"task"`
-	Plan        *plan.Plan      `yaml:"plan,omitempty"`
-	State       *state.State    `yaml:"state,omitempty"`
-	Transcripts []db.Transcript `yaml:"transcripts,omitempty"`
+	// Metadata for format versioning
+	Version    int       `yaml:"version"`
+	ExportedAt time.Time `yaml:"exported_at"`
+
+	// Core task data
+	Task  *task.Task   `yaml:"task"`
+	Plan  *plan.Plan   `yaml:"plan,omitempty"`
+	Spec  string       `yaml:"spec,omitempty"`
+	State *state.State `yaml:"state,omitempty"`
+
+	// Execution history
+	Transcripts   []storage.Transcript   `yaml:"transcripts,omitempty"`
+	GateDecisions []storage.GateDecision `yaml:"gate_decisions,omitempty"`
+
+	// Collaboration data
+	TaskComments   []storage.TaskComment   `yaml:"task_comments,omitempty"`
+	ReviewComments []storage.ReviewComment `yaml:"review_comments,omitempty"`
+
+	// Attachments (binary data base64 encoded in YAML)
+	Attachments []AttachmentExport `yaml:"attachments,omitempty"`
+}
+
+// AttachmentExport represents an attachment for export.
+type AttachmentExport struct {
+	Filename    string `yaml:"filename"`
+	ContentType string `yaml:"content_type"`
+	SizeBytes   int64  `yaml:"size_bytes"`
+	IsImage     bool   `yaml:"is_image"`
+	Data        []byte `yaml:"data"` // base64 encoded in YAML
 }
 
 // newExportCmd creates the export command
@@ -37,36 +67,46 @@ func newExportCmd() *cobra.Command {
 	var toBranch bool
 	var allData bool
 	var allTasks bool
+	var withInitiatives bool
 
 	cmd := &cobra.Command{
-		Use:   "export [task-id]",
-		Short: "Export task(s) to YAML, directory, or zip archive",
-		Long: `Export task(s) and related data.
+		Use:   "export [task-id|init-id]",
+		Short: "Export task(s) and initiative(s) for cross-machine portability",
+		Long: `Export task(s) and initiative(s) with all related data.
+
+The default export location is .orc/exports/ - this is where import looks by default.
 
 Export modes:
 
-1. Single Task YAML (default):
+1. Single Task YAML:
    orc export TASK-001                    # YAML to stdout
    orc export TASK-001 -o task.yaml       # YAML to file
 
-2. All Tasks:
-   orc export --all-tasks -o ./backup/    # All tasks to directory
-   orc export --all-tasks -o tasks.zip    # All tasks to zip archive
+2. All Tasks (full backup):
+   orc export --all-tasks                 # All tasks to .orc/exports/
+   orc export --all-tasks -o backup.zip   # All tasks to zip archive
 
-3. Branch Export (--to-branch):
-   orc export TASK-001 --to-branch        # Export to .orc/exports/
+3. With Initiatives:
+   orc export --all-tasks --initiatives   # Tasks + initiatives to .orc/exports/
 
 Data options:
-   --state        Include execution state
-   --transcripts  Include transcript content
+   --state        Include execution state and gate decisions
+   --transcripts  Include full transcript content
    --all          Include all data (state + transcripts + context)
+   --initiatives  Include all initiatives with decisions and task links
+
+What gets exported:
+  - Task definition, plan, spec, state
+  - Transcripts (execution history)
+  - Comments (task and review)
+  - Attachments (binary files)
+  - Gate decisions
+  - Initiative vision and decisions (with --initiatives)
 
 Examples:
-  orc export TASK-001                        # Single task to stdout
-  orc export TASK-001 -o task.yaml           # Single task to file
-  orc export --all-tasks -o ./backup/        # All tasks to directory
-  orc export --all-tasks -o tasks.zip        # All tasks to zip archive
-  orc export --all-tasks --all -o backup.zip # All tasks with all data`,
+  orc export --all-tasks --all                # Full backup to .orc/exports/
+  orc export --all-tasks --all -o backup.zip  # Full backup to zip
+  orc export TASK-001 --all -o task.yaml      # Single task with all data`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// If --all is set, enable all export data flags
@@ -78,10 +118,22 @@ Examples:
 
 			// Export all tasks
 			if allTasks {
+				// Default to .orc/exports/ if no output specified
 				if outputFile == "" {
-					return fmt.Errorf("--all-tasks requires -o/--output (directory or .zip file)")
+					wd, err := os.Getwd()
+					if err != nil {
+						return fmt.Errorf("get working directory: %w", err)
+					}
+					outputFile = task.ExportPath(wd)
 				}
-				return exportAllTasks(outputFile, withState, withTranscripts)
+				if err := exportAllTasks(outputFile, withState, withTranscripts); err != nil {
+					return err
+				}
+				// Also export initiatives if requested
+				if withInitiatives {
+					return exportAllInitiatives(outputFile, withState)
+				}
+				return nil
 			}
 
 			// Single task export requires task ID
@@ -90,28 +142,34 @@ Examples:
 			}
 			taskID := args[0]
 
+			// Check if it's an initiative ID
+			if strings.HasPrefix(taskID, "INIT-") {
+				return exportInitiative(taskID, outputFile, withState)
+			}
+
 			// Branch export mode
 			if toBranch {
 				return exportToBranchDir(taskID, withState, withTranscripts, withContext)
 			}
 
-			// Legacy YAML export mode
+			// YAML export mode
 			return exportToYAML(taskID, outputFile, withState, withTranscripts)
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "output file/directory path (default: stdout)")
+	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "output path (default: .orc/exports/ for --all-tasks, stdout for single)")
 	cmd.Flags().BoolVar(&withTranscripts, "transcripts", false, "include transcript content")
 	cmd.Flags().BoolVar(&withState, "state", false, "include execution state")
 	cmd.Flags().BoolVar(&withContext, "context", false, "include context.md summary")
 	cmd.Flags().BoolVar(&toBranch, "to-branch", false, "export to .orc/exports/ directory")
-	cmd.Flags().BoolVar(&allData, "all", false, "export all available data for task(s)")
+	cmd.Flags().BoolVar(&allData, "all", false, "export all available data")
 	cmd.Flags().BoolVar(&allTasks, "all-tasks", false, "export all tasks")
+	cmd.Flags().BoolVar(&withInitiatives, "initiatives", false, "include initiatives (with --all-tasks)")
 
 	return cmd
 }
 
-// exportToYAML performs the legacy YAML export for backup/migration.
+// exportToYAML performs the YAML export for backup/migration.
 func exportToYAML(taskID, outputFile string, withState, withTranscripts bool) error {
 	backend, err := getBackend()
 	if err != nil {
@@ -125,46 +183,8 @@ func exportToYAML(taskID, outputFile string, withState, withTranscripts bool) er
 		return fmt.Errorf("load task: %w", err)
 	}
 
-	export := &ExportData{Task: t}
-
-	// Load plan
-	p, err := backend.LoadPlan(taskID)
-	if err == nil {
-		export.Plan = p
-	} else {
-		fmt.Fprintf(os.Stderr, "Warning: could not load plan: %v\n", err)
-	}
-
-	// Load state if requested
-	if withState {
-		s, err := backend.LoadState(taskID)
-		if err == nil {
-			export.State = s
-		} else {
-			fmt.Fprintf(os.Stderr, "Warning: could not load state: %v\n", err)
-		}
-	}
-
-	// Load transcripts if requested
-	if withTranscripts {
-		wd, err := os.Getwd()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not get working directory for transcripts: %v\n", err)
-		} else {
-			pdb, err := db.OpenProject(wd)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: could not open database for transcripts: %v\n", err)
-			} else {
-				defer func() { _ = pdb.Close() }()
-				transcripts, err := pdb.GetTranscripts(taskID)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: could not load transcripts: %v\n", err)
-				} else {
-					export.Transcripts = transcripts
-				}
-			}
-		}
-	}
+	// Build full export data
+	export := buildExportDataWithBackend(backend, t, withState, withTranscripts)
 
 	// Marshal to YAML
 	data, err := yaml.Marshal(export)
@@ -232,25 +252,47 @@ func newImportCmd() *cobra.Command {
 	var skipExisting bool
 
 	cmd := &cobra.Command{
-		Use:   "import <file|directory|archive>",
-		Short: "Import task(s) from YAML, directory, or zip archive",
-		Long: `Import task(s) from YAML file, directory, or zip archive.
+		Use:   "import [path]",
+		Short: "Import task(s) and initiative(s) from YAML, directory, or zip archive",
+		Long: `Import task(s) and initiative(s) from YAML file, directory, or zip archive.
+
+Default location: .orc/exports/ (where export places files by default)
 
 Smart merge behavior (default):
-  • New tasks are imported
-  • Existing tasks: import only if incoming has newer updated_at
+  • New items are imported
+  • Existing items: import only if incoming has newer updated_at
   • Use --force to always overwrite
   • Use --skip-existing to never overwrite
 
+Supports:
+  - Task YAML files (detected by task field)
+  - Initiative YAML files (detected by type: initiative)
+  - Directories containing both
+  - Zip archives
+
 Examples:
+  orc import                        # Import from default .orc/exports/
   orc import task.yaml              # Import single task (smart merge)
   orc import ./backup/              # Import all YAML from directory
   orc import tasks.zip              # Import all from zip archive
   orc import tasks.zip --force      # Always overwrite existing
   orc import tasks.zip --skip-existing  # Never overwrite existing`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := args[0]
+			var path string
+			if len(args) == 0 {
+				// Default to .orc/exports/
+				wd, err := os.Getwd()
+				if err != nil {
+					return fmt.Errorf("get working directory: %w", err)
+				}
+				path = task.ExportPath(wd)
+				if _, err := os.Stat(path); os.IsNotExist(err) {
+					return fmt.Errorf("default export directory not found: %s\nUse 'orc export --all-tasks' first or specify a path", path)
+				}
+			} else {
+				path = args[0]
+			}
 
 			// Check if zip file
 			if strings.HasSuffix(strings.ToLower(path), ".zip") {
@@ -271,8 +313,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().BoolVar(&force, "force", false, "always overwrite existing tasks")
-	cmd.Flags().BoolVar(&skipExisting, "skip-existing", false, "never overwrite existing tasks")
+	cmd.Flags().BoolVar(&force, "force", false, "always overwrite existing items")
+	cmd.Flags().BoolVar(&skipExisting, "skip-existing", false, "never overwrite existing items")
 
 	return cmd
 }
@@ -290,8 +332,16 @@ func importFileWithMerge(path string, force, skipExisting bool) error {
 	return importData(data, path, force, skipExisting)
 }
 
-// importData imports task data with smart merge logic.
+// importData imports task or initiative data with smart merge logic.
 func importData(data []byte, sourceName string, force, skipExisting bool) error {
+	// First, try to detect if this is an initiative export
+	var typeCheck struct {
+		Type string `yaml:"type"`
+	}
+	if err := yaml.Unmarshal(data, &typeCheck); err == nil && typeCheck.Type == "initiative" {
+		return importInitiativeData(data, sourceName, force, skipExisting)
+	}
+
 	backend, err := getBackend()
 	if err != nil {
 		return fmt.Errorf("get backend: %w", err)
@@ -346,13 +396,53 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 
 	// Import transcripts if present
 	if len(export.Transcripts) > 0 {
-		wd, _ := os.Getwd()
-		pdb, err := db.OpenProject(wd)
-		if err == nil {
-			defer func() { _ = pdb.Close() }()
-			for i := range export.Transcripts {
-				_ = pdb.AddTranscript(&export.Transcripts[i])
+		for i := range export.Transcripts {
+			if err := backend.AddTranscript(&export.Transcripts[i]); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not import transcript: %v\n", err)
 			}
+		}
+	}
+
+	// Import gate decisions if present
+	if len(export.GateDecisions) > 0 {
+		for i := range export.GateDecisions {
+			if err := backend.SaveGateDecision(&export.GateDecisions[i]); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not import gate decision: %v\n", err)
+			}
+		}
+	}
+
+	// Import task comments if present
+	if len(export.TaskComments) > 0 {
+		for i := range export.TaskComments {
+			if err := backend.SaveTaskComment(&export.TaskComments[i]); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not import task comment: %v\n", err)
+			}
+		}
+	}
+
+	// Import review comments if present
+	if len(export.ReviewComments) > 0 {
+		for i := range export.ReviewComments {
+			if err := backend.SaveReviewComment(&export.ReviewComments[i]); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not import review comment: %v\n", err)
+			}
+		}
+	}
+
+	// Import attachments if present
+	if len(export.Attachments) > 0 {
+		for _, a := range export.Attachments {
+			if _, err := backend.SaveAttachment(export.Task.ID, a.Filename, a.ContentType, a.Data); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not import attachment %s: %v\n", a.Filename, err)
+			}
+		}
+	}
+
+	// Import spec if present
+	if export.Spec != "" {
+		if err := backend.SaveSpec(export.Task.ID, export.Spec, "imported"); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not import spec: %v\n", err)
 		}
 	}
 
@@ -361,6 +451,52 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 		action = "Updated"
 	}
 	fmt.Printf("%s task %s from %s\n", action, export.Task.ID, sourceName)
+	return nil
+}
+
+// importInitiativeData imports an initiative with smart merge logic.
+func importInitiativeData(data []byte, sourceName string, force, skipExisting bool) error {
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	var export InitiativeExportData
+	if err := yaml.Unmarshal(data, &export); err != nil {
+		return fmt.Errorf("parse yaml: %w", err)
+	}
+
+	if export.Initiative == nil {
+		return fmt.Errorf("no initiative found in %s", sourceName)
+	}
+
+	// Check if initiative exists
+	existing, _ := backend.LoadInitiative(export.Initiative.ID)
+	if existing != nil {
+		if skipExisting {
+			return fmt.Errorf("initiative %s skipped (--skip-existing)", export.Initiative.ID)
+		}
+
+		if !force {
+			// Smart merge: compare updated_at timestamps
+			if !export.Initiative.UpdatedAt.After(existing.UpdatedAt) {
+				return fmt.Errorf("initiative %s skipped (local version is newer or same)", export.Initiative.ID)
+			}
+			// Incoming is newer, proceed with import
+		}
+	}
+
+	// Save initiative
+	if err := backend.SaveInitiative(export.Initiative); err != nil {
+		return fmt.Errorf("save initiative: %w", err)
+	}
+
+	action := "Imported"
+	if existing != nil {
+		action = "Updated"
+	}
+	fmt.Printf("%s initiative %s from %s\n", action, export.Initiative.ID, sourceName)
 	return nil
 }
 
@@ -423,12 +559,75 @@ func importZip(zipPath string, force, skipExisting bool) error {
 }
 
 func importDirectory(dir string, force, skipExisting bool) error {
+	var tasksImported, tasksSkipped int
+	var initiativesImported, initiativesSkipped int
+
+	// Import YAML files in the root directory (tasks)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("read directory: %w", err)
 	}
 
-	var imported, skipped int
+	for _, entry := range entries {
+		if entry.IsDir() {
+			// Check for initiatives subdirectory
+			if entry.Name() == "initiatives" {
+				initDir := filepath.Join(dir, "initiatives")
+				imported, skipped := importInitiativesFromDir(initDir, force, skipExisting)
+				initiativesImported += imported
+				initiativesSkipped += skipped
+			}
+			continue
+		}
+
+		ext := filepath.Ext(entry.Name())
+		if ext != ".yaml" && ext != ".yml" {
+			continue
+		}
+
+		path := filepath.Join(dir, entry.Name())
+		if err := importFileWithMerge(path, force, skipExisting); err != nil {
+			if strings.Contains(err.Error(), "skipped") {
+				tasksSkipped++
+				continue
+			}
+			fmt.Fprintf(os.Stderr, "Warning: %s: %v\n", path, err)
+			continue
+		}
+		tasksImported++
+	}
+
+	// Print summary
+	if tasksImported == 0 && tasksSkipped == 0 && initiativesImported == 0 && initiativesSkipped == 0 {
+		fmt.Println("No YAML files found to import")
+	} else {
+		if tasksImported > 0 || tasksSkipped > 0 {
+			fmt.Printf("Imported %d task(s)", tasksImported)
+			if tasksSkipped > 0 {
+				fmt.Printf(", skipped %d (newer local version)", tasksSkipped)
+			}
+			fmt.Println()
+		}
+		if initiativesImported > 0 || initiativesSkipped > 0 {
+			fmt.Printf("Imported %d initiative(s)", initiativesImported)
+			if initiativesSkipped > 0 {
+				fmt.Printf(", skipped %d (newer local version)", initiativesSkipped)
+			}
+			fmt.Println()
+		}
+	}
+
+	return nil
+}
+
+// importInitiativesFromDir imports all initiatives from a directory.
+func importInitiativesFromDir(dir string, force, skipExisting bool) (imported, skipped int) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not read initiatives directory: %v\n", err)
+		return 0, 0
+	}
+
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -451,17 +650,7 @@ func importDirectory(dir string, force, skipExisting bool) error {
 		imported++
 	}
 
-	if imported == 0 && skipped == 0 {
-		fmt.Println("No YAML files found to import")
-	} else {
-		fmt.Printf("Imported %d task(s)", imported)
-		if skipped > 0 {
-			fmt.Printf(", skipped %d (newer local version)", skipped)
-		}
-		fmt.Println()
-	}
-
-	return nil
+	return imported, skipped
 }
 
 // exportAllTasks exports all tasks to a directory or zip file.
@@ -562,35 +751,177 @@ func exportAllTasksToZipWithBackend(backend storage.Backend, tasks []*task.Task,
 }
 
 // buildExportDataWithBackend creates ExportData for a task using the backend.
+// When withAll is true, includes all data (state, transcripts, comments, attachments, etc.)
 func buildExportDataWithBackend(backend storage.Backend, t *task.Task, withState, withTranscripts bool) *ExportData {
-	export := &ExportData{Task: t}
+	export := &ExportData{
+		Version:    ExportFormatVersion,
+		ExportedAt: time.Now(),
+		Task:       t,
+	}
 
-	// Load plan
-	p, err := backend.LoadPlan(t.ID)
-	if err == nil {
+	// Always load plan
+	if p, err := backend.LoadPlan(t.ID); err == nil {
 		export.Plan = p
+	}
+
+	// Always load spec
+	if spec, err := backend.LoadSpec(t.ID); err == nil {
+		export.Spec = spec
 	}
 
 	// Load state if requested
 	if withState {
-		s, err := backend.LoadState(t.ID)
-		if err == nil {
+		if s, err := backend.LoadState(t.ID); err == nil {
 			export.State = s
+		}
+
+		// Also load gate decisions when exporting state
+		if decisions, err := backend.ListGateDecisions(t.ID); err == nil {
+			export.GateDecisions = decisions
 		}
 	}
 
 	// Load transcripts if requested
 	if withTranscripts {
-		wd, _ := os.Getwd()
-		pdb, err := db.OpenProject(wd)
-		if err == nil {
-			defer func() { _ = pdb.Close() }()
-			transcripts, err := pdb.GetTranscripts(t.ID)
-			if err == nil {
-				export.Transcripts = transcripts
+		if transcripts, err := backend.GetTranscripts(t.ID); err == nil {
+			export.Transcripts = transcripts
+		}
+	}
+
+	// Always load collaboration data (small, important for context)
+	if comments, err := backend.ListTaskComments(t.ID); err == nil {
+		export.TaskComments = comments
+	}
+	if reviews, err := backend.ListReviewComments(t.ID); err == nil {
+		export.ReviewComments = reviews
+	}
+
+	// Always load attachments (with data)
+	if attachments, err := backend.ListAttachments(t.ID); err == nil {
+		export.Attachments = make([]AttachmentExport, 0, len(attachments))
+		for _, a := range attachments {
+			// Get attachment data
+			_, data, err := backend.GetAttachment(t.ID, a.Filename)
+			if err != nil {
+				continue // Skip attachments we can't read
 			}
+			// Check if it's an image by content type
+			isImage := strings.HasPrefix(a.ContentType, "image/")
+			export.Attachments = append(export.Attachments, AttachmentExport{
+				Filename:    a.Filename,
+				ContentType: a.ContentType,
+				SizeBytes:   a.Size,
+				IsImage:     isImage,
+				Data:        data,
+			})
 		}
 	}
 
 	return export
+}
+
+// InitiativeExportData contains all data for an initiative export.
+type InitiativeExportData struct {
+	Version    int       `yaml:"version"`
+	ExportedAt time.Time `yaml:"exported_at"`
+	Type       string    `yaml:"type"` // "initiative" to distinguish from task exports
+
+	Initiative *initiative.Initiative `yaml:"initiative"`
+}
+
+// exportInitiative exports a single initiative to YAML.
+func exportInitiative(initID, outputFile string, withState bool) error {
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	init, err := backend.LoadInitiative(initID)
+	if err != nil {
+		return fmt.Errorf("load initiative: %w", err)
+	}
+
+	export := &InitiativeExportData{
+		Version:    ExportFormatVersion,
+		ExportedAt: time.Now(),
+		Type:       "initiative",
+		Initiative: init,
+	}
+
+	data, err := yaml.Marshal(export)
+	if err != nil {
+		return fmt.Errorf("marshal yaml: %w", err)
+	}
+
+	if outputFile != "" {
+		if err := os.WriteFile(outputFile, data, 0644); err != nil {
+			return fmt.Errorf("write file: %w", err)
+		}
+		fmt.Printf("Exported initiative %s to %s\n", initID, outputFile)
+	} else {
+		fmt.Print(string(data))
+	}
+
+	return nil
+}
+
+// exportAllInitiatives exports all initiatives to a directory or zip.
+func exportAllInitiatives(outputPath string, withState bool) error {
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	initiatives, err := backend.LoadAllInitiatives()
+	if err != nil {
+		return fmt.Errorf("load initiatives: %w", err)
+	}
+
+	if len(initiatives) == 0 {
+		fmt.Println("No initiatives to export")
+		return nil
+	}
+
+	// Check if output is a zip file
+	isZip := strings.HasSuffix(strings.ToLower(outputPath), ".zip")
+
+	var exported int
+	if isZip {
+		// For zip, we need to append to the existing archive or create new
+		// For simplicity, export initiatives to a subdirectory
+		fmt.Printf("Note: Initiative export to zip not yet implemented, exporting to directory instead\n")
+	}
+
+	// Export to directory
+	initDir := filepath.Join(outputPath, "initiatives")
+	if err := os.MkdirAll(initDir, 0755); err != nil {
+		return fmt.Errorf("create initiatives directory: %w", err)
+	}
+
+	for _, init := range initiatives {
+		export := &InitiativeExportData{
+			Version:    ExportFormatVersion,
+			ExportedAt: time.Now(),
+			Type:       "initiative",
+			Initiative: init,
+		}
+
+		data, err := yaml.Marshal(export)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", init.ID, err)
+			continue
+		}
+
+		filename := filepath.Join(initDir, init.ID+".yaml")
+		if err := os.WriteFile(filename, data, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", init.ID, err)
+			continue
+		}
+		exported++
+	}
+
+	fmt.Printf("Exported %d initiative(s) to %s\n", exported, initDir)
+	return nil
 }

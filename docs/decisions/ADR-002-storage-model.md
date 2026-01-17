@@ -64,4 +64,4 @@ Configuration and prompts remain git-tracked.
 - Less human-inspectable (use `orc status`, `orc show` instead of `cat`)
 - Database corruption requires backup recovery
 
-**Mitigation**: Regular database backups; `orc export` for human-readable snapshots.
+**Mitigation**: Regular database backups; `orc export --all-tasks --all` for full portable backup to `.orc/exports/`.

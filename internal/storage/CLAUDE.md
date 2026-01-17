@@ -24,6 +24,9 @@ All storage operations are defined by the `Backend` interface:
 | Initiative | `SaveInitiative`, `LoadInitiative`, `LoadAllInitiatives`, `DeleteInitiative`, `InitiativeExists`, `GetNextInitiativeID` |
 | Transcript | `AddTranscript`, `GetTranscripts`, `SearchTranscripts` |
 | Attachment | `SaveAttachment`, `GetAttachment`, `ListAttachments`, `DeleteAttachment` |
+| Comments | `ListTaskComments`, `SaveTaskComment`, `ListReviewComments`, `SaveReviewComment` |
+| Gates | `ListGateDecisions`, `SaveGateDecision` |
+| Branch | `SaveBranch`, `LoadBranch`, `ListBranches`, `UpdateBranchStatus`, `UpdateBranchActivity`, `DeleteBranch`, `GetStaleBranches` |
 | Context | `MaterializeContext`, `NeedsMaterialization` |
 | Lifecycle | `Sync`, `Cleanup`, `Close` |
 
