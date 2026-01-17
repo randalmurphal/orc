@@ -2094,7 +2094,7 @@ func TestPauseTaskEndpoint_NotFound(t *testing.T) {
 func TestResumeTaskEndpoint_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create backend and paused task
+	// Create backend with task, plan, and state
 	storageCfg := &config.StorageConfig{Mode: "database"}
 	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
 	if err != nil {
@@ -2106,6 +2106,27 @@ func TestResumeTaskEndpoint_Success(t *testing.T) {
 	tsk.Weight = "medium"
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create a plan with an implement phase
+	p := &plan.Plan{
+		TaskID: "TASK-014",
+		Weight: "medium",
+		Phases: []plan.Phase{
+			{ID: "implement", Name: "implement", Status: plan.PhaseRunning},
+		},
+	}
+	if err := backend.SavePlan(p, "TASK-014"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
+
+	// Create state with a paused implement phase
+	st := state.New("TASK-014")
+	st.CurrentPhase = "implement"
+	st.Status = state.StatusPaused
+	st.Phases["implement"] = &state.PhaseState{Status: state.StatusInterrupted}
+	if err := backend.SaveState(st); err != nil {
+		t.Fatalf("failed to save state: %v", err)
 	}
 	_ = backend.Close()
 
@@ -2121,7 +2142,7 @@ func TestResumeTaskEndpoint_Success(t *testing.T) {
 	}
 
 	// Verify response
-	var resp map[string]string
+	var resp map[string]any
 	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["status"] != "resumed" {
 		t.Errorf("expected status 'resumed', got %q", resp["status"])

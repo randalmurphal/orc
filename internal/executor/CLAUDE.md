@@ -104,6 +104,21 @@ Sources: `project` (.claude/), `local` (worktree .claude/), `user` (~/.claude/)
 <phase_blocked>reason: ...</phase_blocked>  <!-- Needs help -->
 ```
 
+## Phase Retry Map
+
+When phases fail or emit `<phase_blocked>`, they retry from an earlier phase:
+
+| Failed Phase | Retries From | Reason |
+|--------------|--------------|--------|
+| design | spec | Design issues often stem from incomplete spec |
+| review | implement | Review findings need code changes |
+| test, test_unit, test_e2e | implement | Test failures need code fixes |
+| validate | implement | Validation issues need code changes |
+
+**Not in map:** `spec`, `implement`, `docs`, `research` - these either have no upstream phase or retry wouldn't help.
+
+**Blocked output preservation:** When `PhaseStatusBlocked` is detected, executors preserve `result.Output` with the response content so retry context includes what the agent reported as blocking.
+
 ## FinalizeExecutor
 
 Steps: fetchTarget → checkDivergence → syncWithTarget → resolveConflicts → runTests → assessRisk

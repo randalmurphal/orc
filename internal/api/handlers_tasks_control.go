@@ -169,21 +169,23 @@ func (s *Server) handlePauseTask(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleResumeTask resumes task execution.
+// Uses the same smart retry logic as CLI and WebSocket handlers.
 func (s *Server) handleResumeTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := s.backend.LoadTask(id)
+
+	// Use the shared resumeTask function which handles all the retry logic
+	result, err := s.resumeTask(id)
 	if err != nil {
-		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
+		// Return 404 for task not found, 400 for other errors
+		if err.Error() == "task not found" {
+			s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
+			return
+		}
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	t.Status = task.StatusRunning
-	if err := s.backend.SaveTask(t); err != nil {
-		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
-		return
-	}
-
-	s.jsonResponse(w, map[string]string{"status": "resumed", "task_id": id})
+	s.jsonResponse(w, result)
 }
 
 // handleStream handles SSE streaming for a task.

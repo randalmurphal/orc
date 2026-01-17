@@ -1191,12 +1191,14 @@ func Default() *Config {
 		Retry: RetryConfig{
 			Enabled:    true,
 			MaxRetries: 5,
-			// Default retry map: if test fails, go back to implement
+			// Default retry map: if phase fails, go back to earlier phase
 			RetryMap: map[string]string{
+				"design":    "spec",      // Design issues often stem from incomplete spec
 				"test":      "implement",
 				"test_unit": "implement",
 				"test_e2e":  "implement",
 				"validate":  "implement",
+				"review":    "implement", // Review findings need to be addressed in implement
 			},
 		},
 		Worktree: WorktreeConfig{

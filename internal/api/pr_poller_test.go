@@ -259,6 +259,12 @@ func (b *emptyBackend) DeleteBranch(string) error                             { 
 func (b *emptyBackend) GetStaleBranches(time.Time) ([]*storage.Branch, error) {
 	return nil, nil
 }
+func (b *emptyBackend) ListTaskComments(string) ([]storage.TaskComment, error)     { return nil, nil }
+func (b *emptyBackend) SaveTaskComment(*storage.TaskComment) error                 { return nil }
+func (b *emptyBackend) ListReviewComments(string) ([]storage.ReviewComment, error) { return nil, nil }
+func (b *emptyBackend) SaveReviewComment(*storage.ReviewComment) error             { return nil }
+func (b *emptyBackend) ListGateDecisions(string) ([]storage.GateDecision, error)   { return nil, nil }
+func (b *emptyBackend) SaveGateDecision(*storage.GateDecision) error               { return nil }
 
 func TestPRPoller_StopTwice(t *testing.T) {
 	// Create a poller with a backend that returns no tasks

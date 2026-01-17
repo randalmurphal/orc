@@ -334,6 +334,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 
 		case PhaseStatusBlocked:
 			result.Status = plan.PhaseFailed
+			result.Output = turnResult.Content // Preserve output for retry context
 			result.Error = fmt.Errorf("phase blocked: %s", turnResult.Reason)
 			e.logger.Warn("phase blocked", "task", t.ID, "phase", p.ID, "reason", turnResult.Reason)
 			goto done
