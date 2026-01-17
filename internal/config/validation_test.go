@@ -374,3 +374,215 @@ func TestConfig_Validate_ErrorMessages(t *testing.T) {
 		}
 	}
 }
+
+func TestConfig_ShouldValidateForWeight(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     *Config
+		weight  string
+		want    bool
+	}{
+		{
+			name: "enabled, no skip weights",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, SkipForWeights: nil},
+			},
+			weight: "medium",
+			want:   true,
+		},
+		{
+			name: "enabled, weight not in skip list",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, SkipForWeights: []string{"trivial", "small"}},
+			},
+			weight: "medium",
+			want:   true,
+		},
+		{
+			name: "enabled, weight in skip list",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, SkipForWeights: []string{"trivial", "small"}},
+			},
+			weight: "small",
+			want:   false,
+		},
+		{
+			name: "disabled",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: false},
+			},
+			weight: "medium",
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.cfg.ShouldValidateForWeight(tt.weight)
+			if got != tt.want {
+				t.Errorf("ShouldValidateForWeight(%q) = %v, want %v", tt.weight, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfig_ShouldRunBackpressure(t *testing.T) {
+	tests := []struct {
+		name   string
+		cfg    *Config
+		weight string
+		want   bool
+	}{
+		{
+			name: "enabled with tests enforced",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, EnforceTests: true},
+			},
+			weight: "medium",
+			want:   true,
+		},
+		{
+			name: "enabled with lint enforced",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, EnforceLint: true},
+			},
+			weight: "medium",
+			want:   true,
+		},
+		{
+			name: "enabled but no checks enforced",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true},
+			},
+			weight: "medium",
+			want:   false,
+		},
+		{
+			name: "disabled",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: false, EnforceTests: true},
+			},
+			weight: "medium",
+			want:   false,
+		},
+		{
+			name: "enabled but weight skipped",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, EnforceTests: true, SkipForWeights: []string{"trivial"}},
+			},
+			weight: "trivial",
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.cfg.ShouldRunBackpressure(tt.weight)
+			if got != tt.want {
+				t.Errorf("ShouldRunBackpressure(%q) = %v, want %v", tt.weight, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfig_ShouldValidateSpec(t *testing.T) {
+	tests := []struct {
+		name   string
+		cfg    *Config
+		weight string
+		want   bool
+	}{
+		{
+			name: "enabled with spec validation",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, ValidateSpecs: true},
+			},
+			weight: "medium",
+			want:   true,
+		},
+		{
+			name: "enabled without spec validation",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, ValidateSpecs: false},
+			},
+			weight: "medium",
+			want:   false,
+		},
+		{
+			name: "disabled",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: false, ValidateSpecs: true},
+			},
+			weight: "medium",
+			want:   false,
+		},
+		{
+			name: "enabled but weight skipped",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, ValidateSpecs: true, SkipForWeights: []string{"small"}},
+			},
+			weight: "small",
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.cfg.ShouldValidateSpec(tt.weight)
+			if got != tt.want {
+				t.Errorf("ShouldValidateSpec(%q) = %v, want %v", tt.weight, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfig_ShouldValidateProgress(t *testing.T) {
+	tests := []struct {
+		name   string
+		cfg    *Config
+		weight string
+		want   bool
+	}{
+		{
+			name: "enabled with progress validation",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, ValidateProgress: true},
+			},
+			weight: "large",
+			want:   true,
+		},
+		{
+			name: "enabled without progress validation",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, ValidateProgress: false},
+			},
+			weight: "large",
+			want:   false,
+		},
+		{
+			name: "disabled",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: false, ValidateProgress: true},
+			},
+			weight: "large",
+			want:   false,
+		},
+		{
+			name: "enabled but weight skipped",
+			cfg: &Config{
+				Validation: ValidationConfig{Enabled: true, ValidateProgress: true, SkipForWeights: []string{"trivial"}},
+			},
+			weight: "trivial",
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.cfg.ShouldValidateProgress(tt.weight)
+			if got != tt.want {
+				t.Errorf("ShouldValidateProgress(%q) = %v, want %v", tt.weight, got, tt.want)
+			}
+		})
+	}
+}

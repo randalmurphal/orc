@@ -31,6 +31,8 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | `ci_merge.go` | CI polling and auto-merge |
 | `resource_tracker.go` | Orphan process detection |
 | `heartbeat.go` | Periodic heartbeat updates during execution |
+| `backpressure.go` | Deterministic quality checks (tests, lint, build) |
+| `haiku_validation.go` | Haiku-based spec and progress validation |
 
 ## Architecture
 
@@ -164,6 +166,20 @@ go test ./internal/executor/... -v
 - `SavePhaseArtifact()` skips file writes for spec phase
 - `SaveSpecToDatabase()` saves spec content to database with source tag
 - `ArtifactDetector` checks database first (via `NewArtifactDetectorWithBackend`), falls back to legacy `spec.md` file
+
+## Backpressure & Haiku Validation
+
+Objective quality checks run after agent claims completion. See `docs/research/EXECUTION_PHILOSOPHY.md` for design rationale.
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Backpressure | `backpressure.go:146` | Runs tests/lint/build after `<phase_complete>` |
+| Haiku Validation | `haiku_validation.go:53` | External LLM validates progress against spec |
+| Config Helpers | `config.go:2138` | `ShouldRunBackpressure()`, `ShouldValidateSpec()` |
+
+**Flow:** Agent outputs `<phase_complete>` → Backpressure runs → If fail, inject context and continue iteration.
+
+**Fail-open:** API errors, timeouts return success (don't block execution).
 
 ## Common Gotchas
 

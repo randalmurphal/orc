@@ -60,6 +60,11 @@ func ValidateIterationProgress(
 		return ValidationContinue, "", nil
 	}
 
+	// Skip validation if no spec to validate against
+	if specContent == "" {
+		return ValidationContinue, "", nil
+	}
+
 	// Truncate long outputs to keep token costs reasonable
 	maxOutputLen := 8000
 	truncatedOutput := iterationOutput
@@ -111,6 +116,11 @@ The spec requires a third-party service that doesn't exist."`, specContent, trun
 		slog.Warn("haiku validation failed, continuing",
 			"error", err,
 		)
+		return ValidationContinue, "", nil
+	}
+
+	// Fail open if response is nil (shouldn't happen, but be defensive)
+	if resp == nil {
 		return ValidationContinue, "", nil
 	}
 
@@ -192,6 +202,11 @@ Example response for bad spec:
 		return true, nil, nil
 	}
 
+	// Fail open if response is nil
+	if resp == nil {
+		return true, nil, nil
+	}
+
 	return parseReadinessResponse(resp.Content)
 }
 
@@ -225,11 +240,12 @@ func parseValidationResponse(content string) (ValidationDecision, string) {
 // parseReadinessResponse extracts the readiness status and suggestions from Haiku's response.
 func parseReadinessResponse(content string) (bool, []string, error) {
 	content = strings.TrimSpace(content)
-	lines := strings.Split(content, "\n")
-	if len(lines) == 0 {
+	if content == "" {
+		// Fail open - empty response means ready
 		return true, nil, nil
 	}
 
+	lines := strings.Split(content, "\n")
 	firstLine := strings.ToUpper(strings.TrimSpace(lines[0]))
 	ready := strings.HasPrefix(firstLine, "READY") && !strings.HasPrefix(firstLine, "NOT READY")
 

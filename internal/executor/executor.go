@@ -217,9 +217,6 @@ type Executor struct {
 
 	// Haiku client for validation calls (separate from main client)
 	haikuClient claude.Client
-
-	// Backpressure runner for deterministic quality checks
-	backpressure *BackpressureRunner
 }
 
 // New creates a new executor with the given configuration.
@@ -338,17 +335,6 @@ func New(cfg *Config) *Executor {
 		haikuClient = claude.NewClaudeCLI(haikuOpts...)
 	}
 
-	// Create backpressure runner if validation is enabled
-	var backpressure *BackpressureRunner
-	if orcCfg.Validation.Enabled {
-		backpressure = NewBackpressureRunner(
-			cfg.WorkDir,
-			&orcCfg.Validation,
-			&orcCfg.Testing,
-			slog.Default(),
-		)
-	}
-
 	return &Executor{
 		config:              cfg,
 		orcConfig:           orcCfg,
@@ -363,7 +349,6 @@ func New(cfg *Config) *Executor {
 		useSessionExecution: orcCfg.Execution.UseSessionExecution,
 		resourceTracker:     resourceTracker,
 		haikuClient:         haikuClient,
-		backpressure:        backpressure,
 	}
 }
 
@@ -406,19 +391,9 @@ func (e *Executor) SetHaikuClient(c claude.Client) {
 	e.haikuClient = c
 }
 
-// SetBackpressure sets the backpressure runner (for testing).
-func (e *Executor) SetBackpressure(bp *BackpressureRunner) {
-	e.backpressure = bp
-}
-
 // HaikuClient returns the Haiku client for validation calls.
 func (e *Executor) HaikuClient() claude.Client {
 	return e.haikuClient
-}
-
-// Backpressure returns the backpressure runner.
-func (e *Executor) Backpressure() *BackpressureRunner {
-	return e.backpressure
 }
 
 // SetUseSessionExecution enables or disables session-based execution.
