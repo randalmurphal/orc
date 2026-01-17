@@ -11,6 +11,7 @@ import (
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // buildPromptNode creates the prompt building node.
@@ -209,15 +210,9 @@ func (e *Executor) commitCheckpointNode() flowgraph.NodeFunc[PhaseState] {
 }
 
 // saveTranscript saves the prompt/response for this iteration.
+// Writes to both database (for search/export) and files (for debugging).
 func (e *Executor) saveTranscript(s PhaseState) error {
-	dir := filepath.Join(e.config.WorkDir, ".orc", "tasks", s.TaskID, "transcripts")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-
-	filename := fmt.Sprintf("%s-%03d.md", s.Phase, s.Iteration)
-	path := filepath.Join(dir, filename)
-
+	// Build the full transcript content
 	content := fmt.Sprintf(`# %s - Iteration %d
 
 ## Prompt
@@ -235,6 +230,30 @@ Blocked: %v
 `,
 		s.Phase, s.Iteration, s.Prompt, s.Response,
 		s.InputTokens, s.OutputTokens, s.CacheCreationInputTokens, s.CacheReadInputTokens, s.Complete, s.Blocked)
+
+	// Write to database (source of truth for export/search)
+	if e.backend != nil {
+		transcript := &storage.Transcript{
+			TaskID:    s.TaskID,
+			Phase:     s.Phase,
+			Iteration: s.Iteration,
+			Role:      "combined", // Full prompt+response transcript
+			Content:   content,
+		}
+		if err := e.backend.AddTranscript(transcript); err != nil {
+			// Log but don't fail - file backup is still available
+			e.logger.Warn("failed to save transcript to database", "error", err)
+		}
+	}
+
+	// Also write to files for debugging/backup
+	dir := filepath.Join(e.config.WorkDir, ".orc", "tasks", s.TaskID, "transcripts")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+
+	filename := fmt.Sprintf("%s-%03d.md", s.Phase, s.Iteration)
+	path := filepath.Join(dir, filename)
 
 	return os.WriteFile(path, []byte(content), 0644)
 }

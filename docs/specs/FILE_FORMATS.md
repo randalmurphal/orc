@@ -2,7 +2,115 @@
 
 **Purpose**: Define data structures and file formats used by orc.
 
-> **Note**: Task data (tasks, plans, states, specs, initiatives) is stored in **SQLite** (`.orc/orc.db`), not YAML files. This document describes the data schemas for reference. Configuration files (`config.yaml`, `prompts/`) remain as files. Use `orc show TASK-001 --format yaml` for human-readable task export.
+> **Note**: Task data (tasks, plans, states, specs, initiatives) is stored in **SQLite** (`.orc/orc.db`), not YAML files. This document describes the data schemas for reference. Configuration files (`config.yaml`, `prompts/`) remain as files. Use `orc export --all-tasks --all` for full portable backup.
+
+---
+
+## Export Format (Cross-Machine Portability)
+
+Export files are YAML with versioning for compatibility. Default location: `.orc/exports/`
+
+### Task Export
+
+```yaml
+# .orc/exports/TASK-001.yaml (or stdout from orc export TASK-001)
+version: 2                          # Export format version
+exported_at: 2026-01-16T10:30:00Z
+
+# Core task data
+task:
+  id: TASK-001
+  title: "Add user auth"
+  # ... full task definition
+
+plan:
+  # ... phase sequence
+
+spec: |
+  # Task Specification
+  ...
+
+state:
+  # ... execution state
+
+# Execution history (with --transcripts or --all)
+transcripts:
+  - task_id: TASK-001
+    phase: implement
+    iteration: 1
+    role: combined
+    content: |
+      # implement - Iteration 1
+      ## Prompt
+      ...
+      ## Response
+      ...
+
+# Gate decisions
+gate_decisions:
+  - task_id: TASK-001
+    phase: spec
+    gate_type: ai
+    approved: true
+    reason: "Meets criteria"
+
+# Comments
+task_comments:
+  - id: comment-001
+    author: randy
+    content: "Consider edge case..."
+
+review_comments:
+  - id: review-001
+    file_path: src/auth.go
+    line_number: 42
+    severity: suggestion
+    content: "Could simplify this"
+
+# Attachments (base64-encoded binary)
+attachments:
+  - filename: screenshot.png
+    content_type: image/png
+    size_bytes: 12345
+    is_image: true
+    data: <base64-encoded>
+```
+
+### Initiative Export
+
+```yaml
+# .orc/exports/initiatives/INIT-001.yaml
+version: 2
+exported_at: 2026-01-16T10:30:00Z
+type: initiative                    # Distinguishes from task exports
+
+initiative:
+  id: INIT-001
+  title: "User Authentication"
+  vision: |
+    JWT-based auth with refresh tokens...
+  decisions:
+    - id: decision-001
+      decision: "Use bcrypt for passwords"
+      rationale: "Industry standard"
+  task_ids:
+    - TASK-001
+    - TASK-002
+  blocked_by:
+    - INIT-002
+```
+
+### Export Directory Structure
+
+```
+.orc/exports/
+├── TASK-001.yaml
+├── TASK-002.yaml
+├── ...
+└── initiatives/
+    ├── INIT-001.yaml
+    └── INIT-002.yaml
+```
 
 ---
 

@@ -118,7 +118,7 @@ See `docs/specs/CONFIG_HIERARCHY.md` for all options.
 .claude/                         # Claude Code settings, hooks, skills
 ```
 
-Task data stored in SQLite (`orc.db`). Use `orc show TASK-001 --format yaml` for export.
+Task data stored in SQLite (`orc.db`). Use `orc export --all-tasks --all` for full backup to `.orc/exports/`.
 
 ## Commands
 
@@ -154,6 +154,16 @@ Task data stored in SQLite (`orc.db`). Use `orc show TASK-001 --format yaml` for
 | `orc initiative run ID` | Run all ready tasks in order |
 
 Run `orc initiative --help` for full subcommand list.
+
+### Data Portability
+
+| Command | Purpose |
+|---------|---------|
+| `orc export --all-tasks --all` | Full backup to `.orc/exports/` |
+| `orc export --all-tasks --all --initiatives` | Backup with initiatives |
+| `orc import` | Restore from `.orc/exports/` |
+
+Smart merge on import: newer `updated_at` wins. Use `--force` to always overwrite.
 
 ### Key Insight: Help Text = Documentation
 

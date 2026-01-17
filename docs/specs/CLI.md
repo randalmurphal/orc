@@ -852,13 +852,84 @@ orc status --watch   # Refresh every 5s
 
 ---
 
-### orc export / import
+### orc export
 
-Export or import task data.
+Export task(s) and initiative(s) for cross-machine portability.
 
 ```bash
-orc export <task-id> [--format md|json|yaml]
-orc import <file> --task <task-id>
+orc export [task-id|init-id] [options]
+orc export --all-tasks [options]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--output`, `-o` | Output path | `.orc/exports/` for --all-tasks, stdout for single |
+| `--all-tasks` | Export all tasks | false |
+| `--all` | Include all data (state + transcripts + context) | false |
+| `--state` | Include execution state and gate decisions | false |
+| `--transcripts` | Include full transcript content | false |
+| `--initiatives` | Include initiatives (with --all-tasks) | false |
+
+**Default Location**: `.orc/exports/` - this is where `orc import` looks by default.
+
+**What Gets Exported** (with `--all`):
+- Task definition, plan, spec, state
+- Transcripts (execution history)
+- Comments (task and review)
+- Attachments (binary files, base64-encoded)
+- Gate decisions
+- Initiative vision and decisions (with `--initiatives`)
+
+**Export Format Version**: Exports include a `version` field for compatibility detection.
+
+**Examples**:
+```bash
+orc export TASK-001                         # Single task to stdout
+orc export TASK-001 -o task.yaml            # Single task to file
+orc export --all-tasks                      # All tasks to .orc/exports/
+orc export --all-tasks --all                # Full backup with all data
+orc export --all-tasks --all --initiatives  # Full backup including initiatives
+orc export --all-tasks -o backup.zip        # All tasks to zip archive
+orc export INIT-001                         # Single initiative to stdout
+```
+
+---
+
+### orc import
+
+Import task(s) and initiative(s) from YAML, directory, or zip archive.
+
+```bash
+orc import [path] [options]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--force` | Always overwrite existing items | false |
+| `--skip-existing` | Never overwrite existing items | false |
+
+**Default Location**: `.orc/exports/` - matches export default.
+
+**Smart Merge** (default behavior):
+- New items are imported
+- Existing items: import only if incoming has newer `updated_at`
+- Use `--force` to always overwrite
+- Use `--skip-existing` to never overwrite
+
+**Auto-Detection**: Import automatically detects:
+- Task YAML files (by `task` field)
+- Initiative YAML files (by `type: initiative` field)
+- Directories (imports all YAML, including `initiatives/` subdirectory)
+- Zip archives
+
+**Examples**:
+```bash
+orc import                              # Import from .orc/exports/
+orc import task.yaml                    # Import single task
+orc import ./backup/                    # Import all YAML from directory
+orc import tasks.zip                    # Import all from zip archive
+orc import tasks.zip --force            # Always overwrite existing
+orc import tasks.zip --skip-existing    # Never overwrite existing
 ```
 
 ---

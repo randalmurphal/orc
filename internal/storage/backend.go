@@ -16,6 +16,8 @@ type Transcript struct {
 	ID        int64
 	TaskID    string
 	Phase     string
+	Iteration int    // Iteration number within the phase (1-based)
+	Role      string // "prompt", "response", or "combined" for full transcript
 	Content   string
 	Timestamp int64
 }
@@ -26,6 +28,45 @@ type TranscriptMatch struct {
 	Phase   string
 	Snippet string
 	Rank    float64
+}
+
+// TaskComment represents a discussion comment on a task.
+type TaskComment struct {
+	ID         string
+	TaskID     string
+	Author     string
+	AuthorType string // "human", "agent", "system"
+	Content    string
+	Phase      string // Optional: which phase it relates to
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+// ReviewComment represents a code review comment.
+type ReviewComment struct {
+	ID          string
+	TaskID      string
+	ReviewRound int
+	FilePath    string
+	LineNumber  int
+	Content     string
+	Severity    string // "suggestion", "issue", "blocker"
+	Status      string // "open", "resolved", "wont_fix"
+	CreatedAt   time.Time
+	ResolvedAt  *time.Time
+	ResolvedBy  string
+}
+
+// GateDecision represents a phase gate approval decision.
+type GateDecision struct {
+	ID        int64
+	TaskID    string
+	Phase     string
+	GateType  string // "auto", "ai", "human", "skip"
+	Approved  bool
+	Reason    string
+	DecidedBy string
+	DecidedAt time.Time
 }
 
 // BranchType represents the type of branch being tracked.
@@ -106,6 +147,16 @@ type Backend interface {
 	GetAttachment(taskID, filename string) (*task.Attachment, []byte, error)
 	ListAttachments(taskID string) ([]*task.Attachment, error)
 	DeleteAttachment(taskID, filename string) error
+
+	// Comment operations (for export/import)
+	ListTaskComments(taskID string) ([]TaskComment, error)
+	SaveTaskComment(c *TaskComment) error
+	ListReviewComments(taskID string) ([]ReviewComment, error)
+	SaveReviewComment(c *ReviewComment) error
+
+	// Gate decision operations (for export/import)
+	ListGateDecisions(taskID string) ([]GateDecision, error)
+	SaveGateDecision(d *GateDecision) error
 
 	// Context materialization (for agents working in worktrees)
 	// Generates context.md with all relevant task information

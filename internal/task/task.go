@@ -38,7 +38,14 @@ const (
 	OrcDir = ".orc"
 	// TasksDir is the subdirectory for tasks
 	TasksDir = "tasks"
+	// ExportsDir is the subdirectory for exports
+	ExportsDir = "exports"
 )
+
+// ExportPath returns the default export directory path.
+func ExportPath(projectDir string) string {
+	return filepath.Join(projectDir, OrcDir, ExportsDir)
+}
 
 // Weight represents the complexity classification of a task.
 type Weight string
