@@ -140,10 +140,10 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 			s.Publish(id, Event{Type: "complete", Data: map[string]string{"status": "completed"}})
 		}
 
-		// Reload and publish final state
-		if finalState, err := s.backend.LoadState(id); err == nil {
-			s.Publish(id, Event{Type: "state", Data: finalState})
-		}
+		// Safety net: ensure task status is consistent with execution result.
+		// The executor should have updated task status, but we verify here to
+		// prevent orphaned "running" tasks if something was missed.
+		s.ensureTaskStatusConsistent(id, err)
 	}()
 
 	// Return task with updated status so frontend can update store immediately

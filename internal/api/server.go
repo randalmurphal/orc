@@ -782,6 +782,65 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 	}, nil
 }
 
+// ensureTaskStatusConsistent verifies task status matches execution outcome.
+// This is a safety net to prevent orphaned "running" tasks when the executor
+// fails to update task status (e.g., due to panic, unexpected error path).
+func (s *Server) ensureTaskStatusConsistent(id string, execErr error) {
+	// Reload task and state to get current values
+	t, err := s.backend.LoadTask(id)
+	if err != nil {
+		s.logger.Warn("failed to reload task for status check", "task", id, "error", err)
+		return
+	}
+
+	st, err := s.backend.LoadState(id)
+	if err != nil {
+		s.logger.Warn("failed to reload state for status check", "task", id, "error", err)
+		return
+	}
+
+	// If task is still "running" but execution finished, fix it
+	if t.Status == task.StatusRunning {
+		var newStatus task.Status
+		var reason string
+
+		if execErr != nil {
+			// Execution failed
+			switch st.Status {
+			case state.StatusInterrupted:
+				newStatus = task.StatusPaused
+				reason = "interrupted"
+			default:
+				newStatus = task.StatusFailed
+				reason = "execution error"
+			}
+		} else {
+			// Execution succeeded - this shouldn't happen if executor worked correctly
+			// but handle it anyway
+			newStatus = task.StatusCompleted
+			reason = "execution completed"
+		}
+
+		s.logger.Warn("fixing stale task status",
+			"task", id,
+			"old_status", t.Status,
+			"new_status", newStatus,
+			"reason", reason,
+			"state_status", st.Status,
+		)
+
+		t.Status = newStatus
+		if err := s.backend.SaveTask(t); err != nil {
+			s.logger.Error("failed to fix task status", "task", id, "error", err)
+		}
+	}
+
+	// Always publish final state
+	if finalState, err := s.backend.LoadState(id); err == nil {
+		s.Publish(id, Event{Type: "state", Data: finalState})
+	}
+}
+
 // cancelTask cancels a running task (called by WebSocket handler).
 func (s *Server) cancelTask(id string) (map[string]any, error) {
 	s.runningTasksMu.RLock()
