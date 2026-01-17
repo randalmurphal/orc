@@ -239,6 +239,7 @@ type Task struct {
 	CreatedAt    time.Time
 	StartedAt    *time.Time
 	CompletedAt  *time.Time
+	UpdatedAt    time.Time
 	TotalCostUSD float64
 	Metadata     string // JSON object: {"key": "value", ...}
 	RetryContext string // JSON: state.RetryContext serialized
@@ -340,7 +341,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 // GetTask retrieves a task by ID.
 func (p *ProjectDB) GetTask(id string) (*Task, error) {
 	row := p.QueryRow(`
-		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation
+		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation
 		FROM tasks WHERE id = ?
 	`, id)
 
@@ -411,7 +412,7 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 
 	// Query tasks
 	query := `
-		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation
+		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation
 		FROM tasks
 	` + whereClause + " ORDER BY created_at DESC"
 
@@ -482,14 +483,14 @@ func (p *ProjectDB) GetAutomationTaskStats() (*AutomationTaskStats, error) {
 func scanTask(row *sql.Row) (*Task, error) {
 	var t Task
 	var createdAt string
-	var startedAt, completedAt sql.NullString
+	var startedAt, completedAt, updatedAt sql.NullString
 	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext sql.NullString
 	var executorPID sql.NullInt64
 	var executorHostname, executorStartedAt, lastHeartbeat sql.NullString
 	var isAutomation sql.NullInt64
 
 	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
-		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext,
+		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &updatedAt, &t.TotalCostUSD, &metadata, &retryContext,
 		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat, &isAutomation); err != nil {
 		return nil, err
 	}
@@ -571,6 +572,12 @@ func scanTask(row *sql.Row) (*Task, error) {
 	// Automation flag
 	if isAutomation.Valid && isAutomation.Int64 == 1 {
 		t.IsAutomation = true
+	}
+	// Updated timestamp
+	if updatedAt.Valid {
+		if ts, err := time.Parse(time.RFC3339, updatedAt.String); err == nil {
+			t.UpdatedAt = ts
+		}
 	}
 
 	return &t, nil
@@ -580,14 +587,14 @@ func scanTask(row *sql.Row) (*Task, error) {
 func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	var t Task
 	var createdAt string
-	var startedAt, completedAt sql.NullString
+	var startedAt, completedAt, updatedAt sql.NullString
 	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext sql.NullString
 	var executorPID sql.NullInt64
 	var executorHostname, executorStartedAt, lastHeartbeat sql.NullString
 	var isAutomation sql.NullInt64
 
 	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
-		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &t.TotalCostUSD, &metadata, &retryContext,
+		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &updatedAt, &t.TotalCostUSD, &metadata, &retryContext,
 		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat, &isAutomation); err != nil {
 		return nil, err
 	}
@@ -669,6 +676,12 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	// Automation flag
 	if isAutomation.Valid && isAutomation.Int64 == 1 {
 		t.IsAutomation = true
+	}
+	// Updated timestamp
+	if updatedAt.Valid {
+		if ts, err := time.Parse(time.RFC3339, updatedAt.String); err == nil {
+			t.UpdatedAt = ts
+		}
 	}
 
 	return &t, nil

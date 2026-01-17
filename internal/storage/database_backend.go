@@ -755,6 +755,7 @@ func taskToDBTask(t *task.Task) *db.Task {
 		CreatedAt:    t.CreatedAt,
 		StartedAt:    t.StartedAt,
 		CompletedAt:  t.CompletedAt,
+		UpdatedAt:    t.UpdatedAt,
 		Metadata:     metadataJSON,
 		IsAutomation: t.IsAutomation,
 	}
@@ -784,6 +785,7 @@ func dbTaskToTask(dbTask *db.Task) *task.Task {
 		CreatedAt:    dbTask.CreatedAt,
 		StartedAt:    dbTask.StartedAt,
 		CompletedAt:  dbTask.CompletedAt,
+		UpdatedAt:    dbTask.UpdatedAt,
 		Metadata:     metadata,
 		IsAutomation: dbTask.IsAutomation,
 	}
