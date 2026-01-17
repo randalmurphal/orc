@@ -222,33 +222,45 @@ make e2e        # E2E (Playwright)
 
 This project uses [orc](https://github.com/randalmurphal/orc) for task orchestration.
 
+### When to Use Orc
+
+Use orc when:
+- **Multi-step work**: Features, refactors, or fixes requiring multiple phases
+- **Parallel tasks**: Running multiple independent tasks simultaneously
+- **Complex changes**: Work that benefits from spec → implement → test → review flow
+- **Tracked progress**: When you need visibility into what's done/remaining
+
+**Key principle**: Delegate implementation to `orc run`. Don't implement tasks directly - create them and let orc execute them.
+
+### Workflow
+
+1. `orc new "task title"` - Create a task
+2. `orc run TASK-XXX` - Execute it (runs in background)
+3. Validate results when complete
+4. `orc status` - Check what's next
+
 ### Slash Commands
 
 | Command | Purpose |
 |---------|---------|
-| `/orc:init` | Initialize project or create spec |
-| `/orc:continue` | Resume current task |
+| `/orc:continue` | Tech Lead session - run tasks, validate, keep moving |
 | `/orc:status` | Show progress and next steps |
+| `/orc:init` | Initialize project or create spec |
 | `/orc:review` | Multi-round code review |
 | `/orc:qa` | E2E tests and documentation |
-| `/orc:propose` | Create sub-task for later |
-
-### Task Files
-
-Task specifications and state stored in `.orc/tasks/`:
-```
-.orc/tasks/TASK-001/
-├── task.yaml, spec.md, plan.yaml, state.yaml, attachments/
-```
 
 ### CLI Commands
 
 ```bash
 orc status           # View active tasks
+orc new "title"      # Create task
 orc run TASK-001     # Execute task
-orc pause TASK-001   # Pause execution
-orc resume TASK-001  # Continue task
+orc show TASK-001    # Task details
+orc diff TASK-001    # What changed
 ```
+
+See `.orc/` for configuration and task details.
+
 <!-- orc:end -->
 
 ## Project Knowledge
