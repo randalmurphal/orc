@@ -1,0 +1,229 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.847479961-06:00
+task:
+    id: TASK-171
+    title: 'Phase 2: React - Dashboard page'
+    description: |-
+        ## Purpose
+        Port the Dashboard page with all its subcomponents.
+
+        ## Components to Port
+
+        ### DashboardStats.svelte -> DashboardStats.tsx
+        - Running count
+        - Blocked count
+        - Today's completed count
+        - Token usage (total + cached)
+        - Live indicator
+
+        ### DashboardActiveTasks.svelte -> DashboardActiveTasks.tsx
+        - List of running/paused/blocked tasks
+        - Click to navigate to task detail
+        - Shows phase and timestamp
+
+        ### DashboardQuickActions.svelte -> DashboardQuickActions.tsx
+        - New Task button
+        - View All Tasks button
+
+        ### DashboardRecentActivity.svelte -> DashboardRecentActivity.tsx
+        - Recently completed tasks timeline
+        - Timestamps
+
+        ### DashboardInitiatives.svelte -> DashboardInitiatives.tsx
+        - Active initiatives with progress bars
+        - Click to filter by initiative
+
+        ### DashboardSummary.svelte -> DashboardSummary.tsx
+        - Total tasks, completed, failed counts
+
+        ## Data Flow
+        - Fetches from TaskStore and InitiativeStore
+        - WebSocket updates stats in real-time
+
+        ## Success Criteria
+        - Dashboard matches visual design exactly
+        - Stats update in real-time via WebSocket
+        - All clicks navigate correctly
+        - E2E tests from Phase 0 pass
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-171
+    queue: active
+    priority: normal
+    category: feature
+    initiative_id: INIT-005
+    blocked_by:
+        - TASK-164
+        - TASK-165
+        - TASK-170
+    created_at: 2026-01-14T02:21:40-06:00
+    updated_at: 2026-01-14T13:22:23-06:00
+    started_at: 2026-01-14T13:08:17-06:00
+    completed_at: 2026-01-14T13:22:23-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/91
+plan:
+    version: 1
+    task_id: TASK-171
+    weight: medium
+    description: Medium task - implement with review, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following feature/task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Plan your implementation approach
+            2. Implement the required changes
+            3. Write/update tests alongside code
+            4. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 5c8ba3143458219803d056810f9dfd02be95a607
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Review code for quality issues
+            3. Check for edge cases and security issues
+            4. Fix any problems found
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: ffeaa451122262a65da64c5e6b8fd6b4d122405a
+state:
+    task_id: TASK-171
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-14T13:08:17-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-14T13:19:42-06:00
+            completed_at: 2026-01-14T13:22:21-06:00
+            iterations: 1
+            commit_sha: ffeaa451122262a65da64c5e6b8fd6b4d122405a
+            tokens:
+                input_tokens: 956076
+                output_tokens: 4370
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-14T13:08:18-06:00
+            completed_at: 2026-01-14T13:16:12-06:00
+            iterations: 1
+            commit_sha: 5c8ba3143458219803d056810f9dfd02be95a607
+            tokens:
+                input_tokens: 7678199
+                output_tokens: 24623
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-14T13:16:12-06:00
+            completed_at: 2026-01-14T13:19:40-06:00
+            iterations: 1
+            tokens:
+                input_tokens: 1348087
+                output_tokens: 5463
+                total_tokens: 0
+    gates:
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T13:16:12-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T13:19:42-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T13:22:23-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+gate_decisions:
+    - id: 30
+      taskid: TASK-171
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T13:16:12-06:00
+    - id: 31
+      taskid: TASK-171
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T13:19:42-06:00
+    - id: 32
+      taskid: TASK-171
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T13:22:23-06:00

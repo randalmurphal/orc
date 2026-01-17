@@ -1,0 +1,105 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.931818871-06:00
+task:
+    id: TASK-333
+    title: Create Select dropdown component
+    description: |-
+        Create a styled Select dropdown component matching mockup styles.
+
+        REFERENCE FILES:
+        - example_ui/agents.html (.select class, lines 393-410)
+        - example_ui/Screenshot_20260116_201905.png
+
+        SUCCESS CRITERIA:
+        1. Select component at web/src/components/core/Select.tsx
+        2. Visual specs: background var(--bg-surface), border 1px solid var(--border), border-radius 6px, padding 8px 12px
+        3. Custom chevron icon on right (12px, var(--text-muted))
+        4. Focus state: border-color var(--primary)
+        5. Built on Radix Select primitive for accessibility
+        6. Dropdown menu matches card styling (var(--bg-card) background)
+        7. Props: value, onChange, options array ({value, label}), placeholder
+        8. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Long option text should truncate with ellipsis
+        - Dropdown should flip if near viewport edge
+        - Keyboard navigation (arrow keys, enter, escape)
+
+        FILES TO CREATE:
+        - web/src/components/core/Select.tsx
+        - web/src/components/core/Select.css
+    weight: small
+    status: planned
+    branch: orc/TASK-333
+    queue: active
+    priority: normal
+    category: feature
+    initiative_id: INIT-015
+    blocked_by:
+        - TASK-325
+    created_at: 2026-01-16T20:55:51-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-333
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-333
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

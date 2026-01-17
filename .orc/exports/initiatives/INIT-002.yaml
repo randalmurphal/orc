@@ -1,0 +1,22 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.868580324-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-002
+    title: Task & Initiative Dependencies - Relationship and blocking system
+    status: active
+    vision: Implement comprehensive dependency management allowing tasks to block other tasks, initiatives to depend on other initiatives, and soft relationships (related, referenced) to be tracked. Includes visualization with blocking badges, dependency sidebar, and optional graph view.
+    decisions:
+        - id: DEC-002
+          date: 2026-01-13T21:18:44-06:00
+          by: ""
+          decision: Compute inverse relationships (blocks, referenced_by) on-demand rather than storing
+          rationale: Avoids update complexity when tasks change. Cache in memory for performance.
+        - id: DEC-003
+          date: 2026-01-13T21:18:44-06:00
+          by: ""
+          decision: Dependency graph visualization is optional power feature (large weight)
+          rationale: Core blocking/related functionality more important. Graph can come later.
+    created_at: 2026-01-13T21:15:38-06:00
+    updated_at: 2026-01-15T10:49:59-06:00

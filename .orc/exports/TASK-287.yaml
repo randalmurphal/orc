@@ -1,0 +1,1296 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.973791256-06:00
+task:
+    id: TASK-287
+    title: 'Bug: Task prints ''completed\!'' message when sync fails with conflicts'
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-287
+    queue: active
+    priority: high
+    category: bug
+    initiative_id: INIT-012
+    created_at: 2026-01-16T14:16:22-06:00
+    updated_at: 2026-01-16T14:44:11-06:00
+    started_at: 2026-01-16T14:35:53-06:00
+    completed_at: 2026-01-16T14:44:11-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/175
+plan:
+    version: 1
+    task_id: TASK-287
+    weight: medium
+    description: Medium task - spec, implement, review, test, docs with multi-agent code review
+    phases:
+        - id: review
+          name: review
+          prompt: ""
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 92ace3a20779ffea0dee6f7196298730021274ae
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - review
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 62050044983ddf1faaafad4fbd43cdf3642ba1b8
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 9a371593c2fcef3688dddd462de2d97aaa4d38a6
+spec: "# Specification: Bug: Task prints 'completed!' message when sync fails with conflicts\n\n## Problem Statement\n\nWhen a task completes all phases but the post-completion sync with the target branch fails due to merge conflicts, orc incorrectly prints the \"Task TASK-XXX completed!\" message even though the task status is set to `blocked`. This confuses users because the CLI message suggests success while the task actually requires manual intervention.\n\n## Success Criteria\n\n- [ ] When sync fails with conflicts during completion, CLI displays a blocked/warning message instead of \"completed!\"\n- [ ] The message clearly indicates the task is blocked due to sync conflicts\n- [ ] The message provides guidance on how to resolve the conflict (e.g., \"run orc resume TASK-XXX after resolving conflicts\")\n- [ ] Existing behavior preserved: task execution success is still separate from sync/PR success\n- [ ] Unit test covers the blocked-on-sync-conflict scenario\n- [ ] Integration test verifies correct CLI output on sync conflict\n\n## Testing Requirements\n\n- [ ] Unit test: `TestTaskComplete_DoesNotPrintWhenBlocked` - verifies `TaskComplete()` is not called when task status is blocked\n- [ ] Unit test: `TestExecuteTask_ReturnsBlockedOnSyncConflict` - verifies `ExecuteTask` returns a distinguishable result when blocked by sync conflict\n- [ ] Integration test: E2E test that triggers a sync conflict and verifies the CLI output shows blocked message\n\n## Scope\n\n### In Scope\n- Modify `completeTask()` to communicate the blocked-on-conflict status to callers\n- Update CLI layer (`cmd_run.go`, `cmd_resume.go`, `cmd_finalize.go`, `cmd_go.go`) to handle blocked completion\n- Add a display method for blocked-on-sync-conflict scenario in progress display\n- Add appropriate tests\n\n### Out of Scope\n- Automatic conflict resolution improvements (already exists, this bug is about the message when resolution fails)\n- Changes to how conflicts are detected or resolved\n- Web UI changes (already shows correct status via WebSocket events)\n\n## Technical Approach\n\nThe root cause is in `internal/executor/task_execution.go:completeTask()`. When sync fails with `ErrSyncConflict`:\n1. The function correctly sets `t.Status = task.StatusBlocked` (line 492)\n2. The function returns `nil` to indicate \"task execution was successful\" (line 515)\n3. CLI interprets `nil` error as full success and calls `disp.TaskComplete()`\n\n**Solution**: Return a sentinel error or result type that distinguishes \"completed\" from \"blocked due to sync conflict\" so CLI can display the appropriate message.\n\n### Files to Modify\n\n1. `internal/executor/task_execution.go`:\n   - Create a new sentinel error `ErrTaskBlocked` that wraps the underlying sync conflict\n   - Return `ErrTaskBlocked` when sync conflict blocks completion instead of `nil`\n   - Add an `errors.Is(err, ErrTaskBlocked)` check for callers\n\n2. `internal/cli/cmd_run.go`:\n   - Check for `ErrTaskBlocked` after `ExecuteTask`\n   - Call `disp.TaskBlocked()` instead of `disp.TaskComplete()` when blocked\n   - Return `nil` (not an error) since the task itself executed correctly\n\n3. `internal/cli/cmd_resume.go`:\n   - Same changes as `cmd_run.go`\n\n4. `internal/cli/cmd_finalize.go`:\n   - Same changes as `cmd_run.go`\n\n5. `internal/cli/cmd_go.go`:\n   - Same changes as `cmd_run.go`\n\n6. `internal/progress/display.go`:\n   - Add `TaskBlocked(reason string)` method to display:\n     ```\n     ⚠️  Task TASK-XXX blocked: sync conflict\n        To resolve: orc resume TASK-XXX after manually resolving conflicts\n     ```\n\n7. `internal/executor/task_execution_test.go`:\n   - Add test for `ErrTaskBlocked` being returned on sync conflict\n\n## Bug Analysis\n\n### Reproduction Steps\n1. Create two tasks that modify the same file\n2. Run both tasks in parallel (or sequentially before merging)\n3. First task completes and merges successfully\n4. Second task completes all phases\n5. Second task's completion sync detects conflicts\n6. Observe: CLI prints \"Task TASK-XXX completed!\" even though task is blocked\n\n### Current Behavior\n```\n\U0001F389 Task TASK-002 completed!\n   Total tokens: 5000\n   Total time: 2m30s\n   Files changed: 3 (+150, -20)\n```\n\n### Expected Behavior\n```\n⚠️  Task TASK-002 blocked: sync conflict\n   All phases completed, but sync with main failed due to conflicts.\n   To resolve: manually resolve conflicts then run 'orc resume TASK-002'\n   Total tokens: 5000\n   Total time: 2m30s\n```\n\n### Root Cause\nIn `internal/executor/task_execution.go:515`:\n```go\n// Don't return error - task execution itself was successful,\n// just the post-execution sync/PR failed\nreturn nil\n```\n\nThis design intentionally returns `nil` to separate \"task execution success\" from \"sync/PR success\", but it prevents the CLI from knowing the task is actually blocked. The comment even acknowledges the decision, but the CLI layer wasn't updated to handle this case.\n\n### Verification\nAfter fix:\n1. Blocked tasks show warning message with resolution guidance\n2. Completed tasks still show celebration message\n3. `orc status` shows the task as blocked (this already works correctly)\n4. Web UI shows blocked status (this already works via events)"
+state:
+    task_id: TASK-287
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-16T14:35:53-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-16T14:42:57-06:00
+            completed_at: 2026-01-16T14:44:04-06:00
+            iterations: 1
+            commit_sha: 9a371593c2fcef3688dddd462de2d97aaa4d38a6
+            tokens:
+                input_tokens: 436652
+                output_tokens: 2504
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-16T14:19:30-06:00
+            completed_at: 2026-01-16T14:26:00-06:00
+            iterations: 1
+            commit_sha: 6fdc99fb3532106c45bb8b739dd8a9526bdbd413
+            tokens:
+                input_tokens: 5386011
+                output_tokens: 18483
+                total_tokens: 0
+        review:
+            status: completed
+            started_at: 2026-01-16T14:35:54-06:00
+            completed_at: 2026-01-16T14:38:27-06:00
+            iterations: 2
+            commit_sha: 92ace3a20779ffea0dee6f7196298730021274ae
+            tokens:
+                input_tokens: 356453
+                output_tokens: 13513
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-16T14:16:57-06:00
+            completed_at: 2026-01-16T14:19:30-06:00
+            iterations: 1
+            commit_sha: 01b68598a6b9ad88fad59694dafe593875458a60
+            tokens:
+                input_tokens: 1604115
+                output_tokens: 6542
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-16T14:38:27-06:00
+            completed_at: 2026-01-16T14:42:57-06:00
+            iterations: 1
+            commit_sha: 62050044983ddf1faaafad4fbd43cdf3642ba1b8
+            tokens:
+                input_tokens: 1201832
+                output_tokens: 4093
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:19:30-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:26:00-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:38:27-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:38:27-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:38:27-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:38:27-06:00
+        - phase: review
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:38:27-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:42:57-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:42:57-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:42:57-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:44:04-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 345
+      taskid: TASK-287
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Bug: Task prints 'completed\!' message when sync fails with conflicts
+        **Category**: bug
+
+        ## Specification
+
+        # Specification: Bug: Task prints 'completed\!' message when sync fails with conflicts
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-287: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 9e3a8a1b
+
+        Documentation updated:
+        1. **PROJECT_KNOWLEDGE.md**: Added entry to "Known Gotchas" table documenting the fix for the misleading "completed!" message when sync fails with conflicts
+        2. **TROUBLESHOOTING.md**: Added new section "Task Blocked After Sync Conflict" explaining symptoms, causes, and resolution steps
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 436652 input, 2504 output, 35220 cache_creation, 401374 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 346
+      taskid: TASK-287
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Bug: Task prints 'completed\!' message when sync fails with conflicts
+        **Category**: bug
+
+        ## Initiative Context
+
+        This task is part of **Systems Reliability & Performance** (INIT-012).
+
+        ### Vision
+
+        Address architectural issues, race conditions, and resource leaks identified in systems audit. Ensure data integrity, proper process lifecycle management, and cleanup patterns that make orc production-ready.
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Specification
+
+        # Specification: Bug: Task prints 'completed\!' message when sync fails with conflicts
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-287: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 8684831e
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 5386011 input, 18483 output, 114575 cache_creation, 5271367 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 347
+      taskid: TASK-287
+      phase: review
+      iteration: 1
+      role: combined
+      content: "# review - Iteration 1\n\n## Prompt\n\n# Multi-Agent Code Review Phase\n\nYou are the review coordinator orchestrating a comprehensive multi-perspective code review.\n\n## Context\n\n**Task ID**: TASK-287\n**Task**: Bug: Task prints 'completed\\!' message when sync fails with conflicts\n**Weight**: medium\n**Category**: bug\n**Review Round**: 1\n\n## Initiative Context\n\nThis task is part of **Systems Reliability & Performance** (INIT-012).\n\n### Vision\n\nAddress architectural issues, race conditions, and resource leaks identified in systems audit. Ensure data integrity, proper process lifecycle management, and cleanup patterns that make orc production-ready.\n\n**Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.\n\n\n## Worktree Safety\n\nYou are working in an **isolated git worktree**.\n\n| Property | Value |\n|----------|-------|\n| Worktree Path | `/home/randy/repos/orc/.orc/worktrees/orc-TASK-287` |\n| Task Branch | `orc/TASK-287` |\n| Target Branch | `main` |\n\n**CRITICAL SAFETY RULES:**\n- All commits go to branch `orc/TASK-287`\n- **DO NOT** push to `main` or any protected branch\n- **DO NOT** checkout other branches - stay on `orc/TASK-287`\n- Merging happens via PR after all phases complete\n\n## Specification\n\n# Specification: Bug: Task prints 'completed\\!' message when sync fails with conflicts\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n\n## Implementation Summary\n\n# Specification: Bug: Task prints 'completed\\!' message when sync fails with conflicts\n\n\n\n---\n\n## Round 1: Multi-Agent Review\n\n\n\n### Step 1: Gather Changed Files\n\nFirst, identify what to review:\n\n```bash\n# Get list of changed files\ngit diff --name-only origin/main...HEAD\n\n# Get summary of changes\ngit diff --stat origin/main...HEAD\n```\n\n### Step 2: Spawn Reviewer Agents\n\n**CRITICAL**: You MUST spawn ALL 5 reviewer agents in a SINGLE response using the Task tool. Do NOT wait for one to complete before spawning the next. All agents run in parallel.\n\nUse the Task tool with these exact configurations:\n\n---\n\n#### Agent 1: Correctness Reviewer (model: opus)\n\n```\nTask tool parameters:\n- subagent_type: Reviewer\n- model: opus\n- description: \"Review correctness and spec compliance\"\n- prompt: |\n    You are reviewing code for CORRECTNESS and SPEC COMPLIANCE.\n\n    ## Task Context\n    - Task: Bug: Task prints 'completed\\!' message when sync fails with conflicts\n    - Task ID: TASK-287\n    - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-287\n\n    ## Specification\n    # Specification: Bug: Task prints 'completed\\!' message when sync fails with conflicts\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n\n    ## Your Focus\n    1. Does the implementation satisfy ALL success criteria from the spec?\n    2. Are there any logic errors or bugs?\n    3. Are edge cases from the spec handled correctly?\n    4. Is behavior correct for both happy path AND error paths?\n    5. Are all requirements implemented (no missing features)?\n    6. Does the implementation match the spec's technical approach?\n\n    ## Process\n    1. Read each changed file: `git diff --name-only origin/main...HEAD`\n    2. For each file, check against spec requirements\n    3. Verify error handling paths work correctly\n    4. Test boundary conditions mentioned in spec\n\n    ## Output Format (REQUIRED)\n\n    Output your findings in this EXACT XML format:\n\n    ```xml\n    <reviewer_findings>\n      <reviewer>correctness</reviewer>\n      <files_reviewed>\n        <file>path/to/file1.go</file>\n        <file>path/to/file2.go</file>\n      </files_reviewed>\n      <spec_compliance>\n        <criterion id=\"SC-1\" status=\"pass|fail\">Notes on compliance</criterion>\n        <criterion id=\"SC-2\" status=\"pass|fail\">Notes on compliance</criterion>\n      </spec_compliance>\n      <issues>\n        <issue id=\"COR-001\" severity=\"blocking|should-fix|nice-to-have\">\n          <file>path/to/file.go</file>\n          <line>123</line>\n          <title>Brief issue title</title>\n          <description>Detailed description of the correctness issue</description>\n          <spec_violation>Which spec criterion is violated (if any)</spec_violation>\n          <suggestion>How to fix it</suggestion>\n        </issue>\n      </issues>\n      <summary>Overall correctness assessment in 2-3 sentences</summary>\n    </reviewer_findings>\n    ```\n\n    If no issues found, output empty <issues></issues> but still include spec_compliance.\n```\n\n---\n\n#### Agent 2: Security Reviewer (model: opus)\n\n```\nTask tool parameters:\n- subagent_type: Security-Auditor\n- model: opus\n- description: \"Review security vulnerabilities\"\n- prompt: |\n    You are reviewing code for SECURITY VULNERABILITIES.\n\n    ## Task Context\n    - Task: Bug: Task prints 'completed\\!' message when sync fails with conflicts\n    - Task ID: TASK-287\n    - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-287\n\n    ## Your Focus - OWASP Top 10 and Common Vulnerabilities\n    1. **Injection**: SQL, command, XSS, template injection\n    2. **Broken Authentication**: Session management, credential exposure\n    3. **Sensitive Data Exposure**: Secrets in code, logging PII, unencrypted data\n    4. **Security Misconfigurations**: Hardcoded credentials, debug enabled\n    5. **Insecure Dependencies**: Known vulnerable packages\n    6. **Input Validation**: Missing or inadequate validation\n    7. **Cryptographic Weaknesses**: Weak algorithms, improper key management\n    8. **Error Handling**: Information leakage through errors\n\n    ## Process\n    1. Read each changed file\n    2. Check for common vulnerability patterns\n    3. Verify input validation on all external inputs\n    4. Check for secrets/credentials in code\n    5. Review authentication/authorization logic\n\n    ## Output Format (REQUIRED)\n\n    ```xml\n    <reviewer_findings>\n      <reviewer>security</reviewer>\n      <files_reviewed>\n        <file>path/to/file1.go</file>\n      </files_reviewed>\n      <issues>\n        <issue id=\"SEC-001\" severity=\"blocking|should-fix|nice-to-have\">\n          <file>path/to/file.go</file>\n          <line>123</line>\n          <title>Brief issue title</title>\n          <description>Security vulnerability description</description>\n          <owasp_category>A01:2021-Broken Access Control</owasp_category>\n          <cwe>CWE-89</cwe>\n          <suggestion>Remediation steps</suggestion>\n        </issue>\n      </issues>\n      <summary>Overall security assessment in 2-3 sentences</summary>\n    </reviewer_findings>\n    ```\n```\n\n---\n\n#### Agent 3: Architecture Reviewer (model: haiku)\n\n```\nTask tool parameters:\n- subagent_type: Reviewer\n- model: haiku\n- description: \"Review architecture and maintainability\"\n- prompt: |\n    You are reviewing code for ARCHITECTURE and MAINTAINABILITY.\n\n    ## Task Context\n    - Task: Bug: Task prints 'completed\\!' message when sync fails with conflicts\n    - Task ID: TASK-287\n    - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-287\n\n    ## Your Focus\n    1. Does it follow existing project patterns? (Check CLAUDE.md)\n    2. Is the code well-organized and modular?\n    3. Are abstractions appropriate (not over/under-engineered)?\n    4. Is error handling consistent with project conventions?\n    5. Are there code smells (god classes, feature envy, etc.)?\n    6. Is the code testable?\n    7. Are dependencies appropriate?\n    8. Is naming clear and consistent?\n\n    ## Process\n    1. Read CLAUDE.md to understand project patterns\n    2. Read each changed file\n    3. Compare against existing code patterns\n    4. Check for code smells and anti-patterns\n\n    ## Output Format (REQUIRED)\n\n    ```xml\n    <reviewer_findings>\n      <reviewer>architecture</reviewer>\n      <files_reviewed>\n        <file>path/to/file1.go</file>\n      </files_reviewed>\n      <patterns_checked>\n        <pattern name=\"error-wrapping\" followed=\"true|false\">Notes</pattern>\n        <pattern name=\"functional-options\" followed=\"true|false\">Notes</pattern>\n      </patterns_checked>\n      <issues>\n        <issue id=\"ARCH-001\" severity=\"blocking|should-fix|nice-to-have\">\n          <file>path/to/file.go</file>\n          <line>123</line>\n          <title>Brief issue title</title>\n          <description>Architecture/maintainability concern</description>\n          <pattern_violated>Which project pattern is violated</pattern_violated>\n          <suggestion>How to improve</suggestion>\n        </issue>\n      </issues>\n      <summary>Overall architecture assessment in 2-3 sentences</summary>\n    </reviewer_findings>\n    ```\n```\n\n---\n\n#### Agent 4: Performance Reviewer (model: haiku)\n\n```\nTask tool parameters:\n- subagent_type: Reviewer\n- model: haiku\n- description: \"Review performance issues\"\n- prompt: |\n    You are reviewing code for PERFORMANCE ISSUES.\n\n    ## Task Context\n    - Task: Bug: Task prints 'completed\\!' message when sync fails with conflicts\n    - Task ID: TASK-287\n    - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-287\n\n    ## Your Focus\n    1. N+1 query patterns (database calls in loops)\n    2. Unbounded iterations/recursion\n    3. Memory leaks or excessive allocations\n    4. Missing caching opportunities\n    5. Blocking operations in hot paths\n    6. Inefficient algorithms (O(n^2) when O(n) possible)\n    7. Resource leaks (unclosed files, connections, channels)\n    8. Missing pagination/limits on queries\n\n    ## Process\n    1. Read each changed file\n    2. Look for loops with I/O operations inside\n    3. Check for proper resource cleanup (defer, close)\n    4. Identify algorithmic complexity\n    5. Check for unbounded data structures\n\n    ## Output Format (REQUIRED)\n\n    ```xml\n    <reviewer_findings>\n      <reviewer>performance</reviewer>\n      <files_reviewed>\n        <file>path/to/file1.go</file>\n      </files_reviewed>\n      <issues>\n        <issue id=\"PERF-001\" severity=\"blocking|should-fix|nice-to-have\">\n          <file>path/to/file.go</file>\n          <line>123</line>\n          <title>Brief issue title</title>\n          <description>Performance issue description</description>\n          <impact>Expected performance impact (e.g., O(n^2) instead of O(n))</impact>\n          <suggestion>Optimization approach</suggestion>\n        </issue>\n      </issues>\n      <summary>Overall performance assessment in 2-3 sentences</summary>\n    </reviewer_findings>\n    ```\n```\n\n---\n\n#### Agent 5: Integration Reviewer (model: haiku)\n\n```\nTask tool parameters:\n- subagent_type: Reviewer\n- model: haiku\n- description: \"Review integration and linting\"\n- prompt: |\n    You are reviewing code for INTEGRATION issues, MERGE CONFLICTS, and LINTING.\n\n    ## Task Context\n    - Task: Bug: Task prints 'completed\\!' message when sync fails with conflicts\n    - Task ID: TASK-287\n    - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-287\n    - Task Branch: orc/TASK-287\n    - Target Branch: main\n\n    ## Your Focus\n\n    ### 1. Merge Conflict Detection (CRITICAL)\n    Run this FIRST:\n    ```bash\n    git fetch origin main\n    git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main\n    ```\n    If output shows conflicts, document each conflicted file.\n\n    ### 2. Linting Compliance (CRITICAL)\n    Run the appropriate linter:\n    ```bash\n    # For Go projects\n    golangci-lint run ./... 2>&1 || go vet ./...\n\n    # For Node/TypeScript projects\n    npm run typecheck 2>&1\n    npm run lint 2>&1\n    ```\n    Document ALL linting errors - these are BLOCKING.\n\n    ### 3. Build Verification\n    ```bash\n    # For Go\n    go build ./...\n\n    # For Node\n    npm run build\n    ```\n\n    ### 4. API/Integration Compatibility\n    - Breaking changes to public APIs?\n    - Missing migrations for schema changes?\n    - Config changes documented?\n\n    ## Output Format (REQUIRED)\n\n    ```xml\n    <reviewer_findings>\n      <reviewer>integration</reviewer>\n      <merge_status>\n        <target_branch>main</target_branch>\n        <conflicts_detected>true|false</conflicts_detected>\n        <conflicted_files>\n          <file path=\"path/to/file.go\">Description of conflict</file>\n        </conflicted_files>\n      </merge_status>\n      <lint_status>\n        <tool>golangci-lint|eslint|ruff</tool>\n        <passed>true|false</passed>\n        <error_count>N</error_count>\n        <errors>\n          <error file=\"path/to/file.go\" line=\"123\">Error message</error>\n        </errors>\n      </lint_status>\n      <build_status>\n        <passed>true|false</passed>\n        <errors>Build error messages if any</errors>\n      </build_status>\n      <issues>\n        <issue id=\"INT-001\" severity=\"blocking|should-fix|nice-to-have\">\n          <file>path/to/file.go</file>\n          <line>123</line>\n          <title>Brief issue title</title>\n          <description>Integration issue description</description>\n          <suggestion>How to resolve</suggestion>\n        </issue>\n      </issues>\n      <summary>Overall integration assessment in 2-3 sentences</summary>\n    </reviewer_findings>\n    ```\n```\n\n---\n\n### Step 3: Aggregate and Validate Findings\n\nAfter ALL 5 agents complete, collect and process their findings:\n\n1. **Parse all XML findings** from each agent\n2. **Deduplicate issues** - Same file/line with similar description = single issue\n3. **Validate findings** - Remove obvious false positives:\n   - Issues in unchanged code (not part of this task)\n   - Theoretical issues with no practical impact\n   - Already-fixed issues\n4. **Assign final severity**:\n   - `blocking`: Security vulns, bugs, spec violations, merge conflicts, lint errors\n   - `should-fix`: Performance issues, maintainability problems, missing error handling\n   - `nice-to-have`: Better naming, comments, minor refactors\n\n### Step 4: Create Aggregated Review Report\n\n```xml\n<review_aggregate>\n  <round>1</round>\n  <task_id>TASK-287</task_id>\n  <summary>\n    <total_issues>[count]</total_issues>\n    <blocking>[count]</blocking>\n    <should_fix>[count]</should_fix>\n    <nice_to_have>[count]</nice_to_have>\n    <duplicates_removed>[count]</duplicates_removed>\n    <false_positives_removed>[count]</false_positives_removed>\n  </summary>\n\n  <merge_status>\n    <conflicts_detected>true|false</conflicts_detected>\n    <conflicted_files>\n      <file>path/to/file.go</file>\n    </conflicted_files>\n  </merge_status>\n\n  <lint_status>\n    <passed>true|false</passed>\n    <error_count>[count]</error_count>\n  </lint_status>\n\n  <spec_compliance>\n    <criterion id=\"SC-1\" status=\"pass|fail\">Notes</criterion>\n    <criterion id=\"SC-2\" status=\"pass|fail\">Notes</criterion>\n  </spec_compliance>\n\n  <validated_issues>\n    <issue id=\"REV-001\" original_id=\"SEC-001\" severity=\"blocking\">\n      <reviewer>security</reviewer>\n      <file>path/to/file.go</file>\n      <line>123</line>\n      <title>SQL Injection vulnerability</title>\n      <description>User input passed directly to query</description>\n      <suggestion>Use parameterized queries</suggestion>\n    </issue>\n    <!-- More validated issues... -->\n  </validated_issues>\n\n  <nice_to_have_issues>\n    <!-- Issues that don't block but would be nice to fix -->\n  </nice_to_have_issues>\n\n  <decision>pass|fail</decision>\n  <reason>Explanation of decision</reason>\n</review_aggregate>\n```\n\n---\n\n### Pass/Fail Criteria\n\n**PASS** if ALL of the following are true:\n- Zero `blocking` issues\n- Zero `should-fix` issues\n- No merge conflicts with target branch\n- Linting passes (zero errors)\n- All spec success criteria satisfied\n\n**FAIL** if ANY of the following are true:\n- One or more `blocking` issues\n- One or more `should-fix` issues\n- Merge conflicts exist with target branch\n- Linting errors exist\n- Spec success criteria not satisfied\n\n---\n\n## Phase Completion\n\n### If PASS (Round 1):\n\nCommit and complete:\n\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-287: review - passed\n\nPhase: review\nRound: 1\nReviewers: 5 (correctness, security, architecture, performance, integration)\nIssues: 0 blocking, 0 should-fix\n\"\n```\n\nThen output:\n\n```\n### Review Summary - PASSED\n\n**Round**: 1\n**Reviewers**: 5 (correctness, security, architecture, performance, integration)\n\n| Category | Count |\n|----------|-------|\n| Blocking | 0 |\n| Should-Fix | 0 |\n| Nice-to-Have | [count] |\n\n**Merge Status**: Clean (no conflicts with main)\n**Lint Status**: Passed\n**Spec Compliance**: All criteria satisfied\n\n**Nice-to-Have Notes** (not blocking):\n[List any nice-to-have suggestions for future consideration]\n\n**Commit**: [SHA]\n\n<phase_complete>true</phase_complete>\n```\n\n### If FAIL (Round 1):\n\nDo NOT output `<phase_complete>`. Create detailed feedback for implement phase:\n\n```\n### Review Summary - FAILED\n\n**Round**: 1\n**Issues Requiring Fix**:\n\n| Severity | Count |\n|----------|-------|\n| Blocking | [count] |\n| Should-Fix | [count] |\n\n<review_findings_for_implement>\n  <round>1</round>\n  <blocking_issues>\n    <issue id=\"REV-001\">\n      <file>path/to/file.go</file>\n      <line>45</line>\n      <reviewer>security</reviewer>\n      <title>SQL Injection vulnerability</title>\n      <description>User input concatenated into SQL query without sanitization</description>\n      <fix_required>Use parameterized queries: db.Query(\"SELECT * FROM users WHERE id = ?\", userID)</fix_required>\n    </issue>\n  </blocking_issues>\n\n  <should_fix_issues>\n    <issue id=\"REV-005\">\n      <file>path/to/handler.go</file>\n      <line>123</line>\n      <reviewer>performance</reviewer>\n      <title>N+1 query in loop</title>\n      <description>Database query inside for loop causes N+1 problem</description>\n      <fix_required>Batch the query outside the loop using IN clause</fix_required>\n    </issue>\n  </should_fix_issues>\n\n  <merge_conflicts>\n    <file path=\"config/settings.go\">Upstream added new config field that conflicts with your changes</file>\n  </merge_conflicts>\n\n  <lint_errors>\n    <error file=\"internal/task/task.go\" line=\"89\">errcheck: error return value not checked</error>\n    <error file=\"internal/api/handler.go\" line=\"156\">unused variable 'ctx'</error>\n  </lint_errors>\n\n  <spec_failures>\n    <criterion id=\"SC-2\">Error handling not implemented for network timeout case</criterion>\n  </spec_failures>\n</review_findings_for_implement>\n\nThe implement phase will receive this feedback as  and must fix all issues before review can pass.\n\n<phase_blocked>\nreason: Review found [X] blocking and [Y] should-fix issues that must be addressed\nneeds: Fix all issues listed above, then review will re-run automatically\n</phase_blocked>\n```\n\n\n\n---\n\n## Round 2: Verification Review\n\n\n\n---\n\n## Severity Reference\n\n| Severity | Examples | Action |\n|----------|----------|--------|\n| `blocking` | SQL injection, auth bypass, spec violations, merge conflicts, lint errors, missing required functionality | MUST fix before merge |\n| `should-fix` | N+1 queries, memory leaks, missing error handling, code duplication, poor naming | MUST fix before merge |\n| `nice-to-have` | Additional comments, minor refactors, style preferences | Note for future, doesn't block |\n\n**Golden Rule**: When in doubt, classify as `should-fix`. It's better to fix something that could have been skipped than to skip something that causes problems later.\n\n\n## Response\n\nThe implementation is already committed. The review phase has passed.\n\n---\n\n### Review Summary - PASSED\n\n**Round**: 1  \n**Reviewers**: 5 (correctness, security, architecture, performance, integration)\n\n| Category | Count |\n|----------|-------|\n| Blocking | 0 |\n| Should-Fix | 0 |\n| Nice-to-Have | 8 |\n\n**Merge Status**: Clean (no conflicts with main)  \n**Lint Status**: Passed  \n**Build Status**: Passed  \n**Spec Compliance**: All criteria satisfied\n\n**Implementation verified**:\n- `ErrTaskBlocked` sentinel error properly defined and wrapped\n- All 4 CLI commands (`cmd_run.go`, `cmd_resume.go`, `cmd_finalize.go`, `cmd_go.go`) check for `ErrTaskBlocked`\n- `TaskBlocked()` display method shows clear warning with resolution guidance\n- Unit tests cover the error wrapping behavior\n\n**Commit**: 7dd34709\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 221567 input, 6202 output, 44076 cache_creation, 177481 cache_read\nComplete: true\nBlocked: false\n"
+      timestamp: 1768627233
+    - id: 348
+      taskid: TASK-287
+      phase: spec
+      iteration: 1
+      role: combined
+      content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Bug: Task prints 'completed\\!' message when sync fails with conflicts\n**Category**: bug\n**Description**: \n\n## Initiative Context\n\nThis task is part of **Systems Reliability & Performance** (INIT-012).\n\n### Vision\n\nAddress architectural issues, race conditions, and resource leaks identified in systems audit. Ensure data integrity, proper process lifecycle management, and cleanup patterns that make orc production-ready.\n\n**Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.\n\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Bug: Task prints 'completed\\!' message when sync fails with conflicts\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-287: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n<artifact>\n# Specification: Bug: Task prints 'completed!' message when sync fails with conflicts\n\n## Problem Statement\n\nWhen a task completes all phases but the post-completion sync with the target branch fails due to merge conflicts, orc incorrectly prints the \"Task TASK-XXX completed!\" message even though the task status is set to `blocked`. This confuses users because the CLI message suggests success while the task actually requires manual intervention.\n\n## Success Criteria\n\n- [ ] When sync fails with conflicts during completion, CLI displays a blocked/warning message instead of \"completed!\"\n- [ ] The message clearly indicates the task is blocked due to sync conflicts\n- [ ] The message provides guidance on how to resolve the conflict (e.g., \"run orc resume TASK-XXX after resolving conflicts\")\n- [ ] Existing behavior preserved: task execution success is still separate from sync/PR success\n- [ ] Unit test covers the blocked-on-sync-conflict scenario\n- [ ] Integration test verifies correct CLI output on sync conflict\n\n## Testing Requirements\n\n- [ ] Unit test: `TestTaskComplete_DoesNotPrintWhenBlocked` - verifies `TaskComplete()` is not called when task status is blocked\n- [ ] Unit test: `TestExecuteTask_ReturnsBlockedOnSyncConflict` - verifies `ExecuteTask` returns a distinguishable result when blocked by sync conflict\n- [ ] Integration test: E2E test that triggers a sync conflict and verifies the CLI output shows blocked message\n\n## Scope\n\n### In Scope\n- Modify `completeTask()` to communicate the blocked-on-conflict status to callers\n- Update CLI layer (`cmd_run.go`, `cmd_resume.go`, `cmd_finalize.go`, `cmd_go.go`) to handle blocked completion\n- Add a display method for blocked-on-sync-conflict scenario in progress display\n- Add appropriate tests\n\n### Out of Scope\n- Automatic conflict resolution improvements (already exists, this bug is about the message when resolution fails)\n- Changes to how conflicts are detected or resolved\n- Web UI changes (already shows correct status via WebSocket events)\n\n## Technical Approach\n\nThe root cause is in `internal/executor/task_execution.go:completeTask()`. When sync fails with `ErrSyncConflict`:\n1. The function correctly sets `t.Status = task.StatusBlocked` (line 492)\n2. The function returns `nil` to indicate \"task execution was successful\" (line 515)\n3. CLI interprets `nil` error as full success and calls `disp.TaskComplete()`\n\n**Solution**: Return a sentinel error or result type that distinguishes \"completed\" from \"blocked due to sync conflict\" so CLI can display the appropriate message.\n\n### Files to Modify\n\n1. `internal/executor/task_execution.go`:\n   - Create a new sentinel error `ErrTaskBlocked` that wraps the underlying sync conflict\n   - Return `ErrTaskBlocked` when sync conflict blocks completion instead of `nil`\n   - Add an `errors.Is(err, ErrTaskBlocked)` check for callers\n\n2. `internal/cli/cmd_run.go`:\n   - Check for `ErrTaskBlocked` after `ExecuteTask`\n   - Call `disp.TaskBlocked()` instead of `disp.TaskComplete()` when blocked\n   - Return `nil` (not an error) since the task itself executed correctly\n\n3. `internal/cli/cmd_resume.go`:\n   - Same changes as `cmd_run.go`\n\n4. `internal/cli/cmd_finalize.go`:\n   - Same changes as `cmd_run.go`\n\n5. `internal/cli/cmd_go.go`:\n   - Same changes as `cmd_run.go`\n\n6. `internal/progress/display.go`:\n   - Add `TaskBlocked(reason string)` method to display:\n     ```\n     ⚠️  Task TASK-XXX blocked: sync conflict\n        To resolve: orc resume TASK-XXX after manually resolving conflicts\n     ```\n\n7. `internal/executor/task_execution_test.go`:\n   - Add test for `ErrTaskBlocked` being returned on sync conflict\n\n## Bug Analysis\n\n### Reproduction Steps\n1. Create two tasks that modify the same file\n2. Run both tasks in parallel (or sequentially before merging)\n3. First task completes and merges successfully\n4. Second task completes all phases\n5. Second task's completion sync detects conflicts\n6. Observe: CLI prints \"Task TASK-XXX completed!\" even though task is blocked\n\n### Current Behavior\n```\n\U0001F389 Task TASK-002 completed!\n   Total tokens: 5000\n   Total time: 2m30s\n   Files changed: 3 (+150, -20)\n```\n\n### Expected Behavior\n```\n⚠️  Task TASK-002 blocked: sync conflict\n   All phases completed, but sync with main failed due to conflicts.\n   To resolve: manually resolve conflicts then run 'orc resume TASK-002'\n   Total tokens: 5000\n   Total time: 2m30s\n```\n\n### Root Cause\nIn `internal/executor/task_execution.go:515`:\n```go\n// Don't return error - task execution itself was successful,\n// just the post-execution sync/PR failed\nreturn nil\n```\n\nThis design intentionally returns `nil` to separate \"task execution success\" from \"sync/PR success\", but it prevents the CLI from knowing the task is actually blocked. The comment even acknowledges the decision, but the CLI layer wasn't updated to handle this case.\n\n### Verification\nAfter fix:\n1. Blocked tasks show warning message with resolution guidance\n2. Completed tasks still show celebration message\n3. `orc status` shows the task as blocked (this already works correctly)\n4. Web UI shows blocked status (this already works via events)\n</artifact>\n\n**Commit**: 245eb9235d93eac4456602447041df2f6ab74ee3\n<phase_complete>true</phase_complete>\n\n---\nTokens: 1604115 input, 6542 output, 85803 cache_creation, 1518286 cache_read\nComplete: true\nBlocked: false\n"
+      timestamp: 1768627233
+    - id: 349
+      taskid: TASK-287
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: Bug: Task prints 'completed\!' message when sync fails with conflicts
+        **Category**: bug
+
+        ## Specification
+
+        # Specification: Bug: Task prints 'completed\!' message when sync fails with conflicts
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-287: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 92ace3a2
+
+        ## Test Phase Summary
+
+        All tests pass and the implementation has been verified:
+
+        | Verification Item | Status |
+        |------------------|--------|
+        | `make test` - Full test suite | ✅ All tests pass |
+        | `ErrTaskBlocked` sentinel error defined | ✅ Verified |
+        | Error wrapping with `fmt.Errorf` works | ✅ Verified |
+        | `errors.Is()` detection works | ✅ Verified |
+        | CLI commands handle blocked state | ✅ Verified in `cmd_run.go`, `cmd_resume.go`, `cmd_finalize.go`, `cmd_go.go` |
+        | `TaskBlocked()` displays correct message | ✅ Verified in `display.go` |
+        | Task status set to `StatusBlocked` on sync conflict | ✅ Verified in `task_execution.go:completeTask()` |
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1201832 input, 4093 output, 59352 cache_creation, 1142455 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 66329
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66337
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66338
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66357
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66375
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66376
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66377
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66378
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66381
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66382
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66383
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66384
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66387
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66388
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66389
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66390
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66393
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66394
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66395
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66396
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66400
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66401
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66402
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66403
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66407
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66408
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66409
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66410
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66415
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66416
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66417
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66418
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66423
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66424
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66425
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66426
+      taskid: TASK-287
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:19:30-06:00
+    - id: 66339
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66358
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66379
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66380
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66385
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66386
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66391
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66392
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66397
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66398
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66404
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66405
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66411
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66412
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66419
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66420
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66427
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66428
+      taskid: TASK-287
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:26:00-06:00
+    - id: 66399
+      taskid: TASK-287
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:38:27-06:00
+    - id: 66406
+      taskid: TASK-287
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:38:27-06:00
+    - id: 66413
+      taskid: TASK-287
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:38:27-06:00
+    - id: 66421
+      taskid: TASK-287
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:38:27-06:00
+    - id: 66429
+      taskid: TASK-287
+      phase: review
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:38:27-06:00
+    - id: 66414
+      taskid: TASK-287
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:42:57-06:00
+    - id: 66422
+      taskid: TASK-287
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:42:57-06:00
+    - id: 66430
+      taskid: TASK-287
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:42:57-06:00
+    - id: 66431
+      taskid: TASK-287
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:44:04-06:00

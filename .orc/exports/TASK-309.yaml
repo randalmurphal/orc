@@ -1,0 +1,266 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.945266601-06:00
+task:
+    id: TASK-309
+    title: 'CRITICAL: UI Run button sets status to ''running'' but doesn''t spawn executor process'
+    description: 'Steps to reproduce: 1. Click Run on any task in the UI. 2. Task status changes to ''running'' in the UI. 3. No executor process is spawned - check ''ps aux | grep claude''. 4. Task remains ''running'' indefinitely with no progress. Workaround: Use ''orc run TASK-XXX'' via CLI to actually execute tasks. Impact: Makes the Run button in the UI completely non-functional.'
+    weight: small
+    status: completed
+    current_phase: test
+    branch: orc/TASK-309
+    queue: active
+    priority: high
+    category: bug
+    created_at: 2026-01-16T17:22:24-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    started_at: 2026-01-16T18:02:25-06:00
+    completed_at: 2026-01-16T18:16:23-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/186
+plan:
+    version: 1
+    task_id: TASK-309
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 05f66318908bb7bc9d8dfc6230c7ca795acf1338
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 95ba42014460c486ca951c1ea5f9275498f67a5d
+state:
+    task_id: TASK-309
+    current_phase: test
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-16T18:02:25-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        implement:
+            status: completed
+            started_at: 2026-01-16T18:02:27-06:00
+            completed_at: 2026-01-16T18:11:55-06:00
+            iterations: 1
+            commit_sha: 05f66318908bb7bc9d8dfc6230c7ca795acf1338
+            tokens:
+                input_tokens: 6769381
+                output_tokens: 14940
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-16T18:11:55-06:00
+            completed_at: 2026-01-16T18:16:16-06:00
+            iterations: 1
+            commit_sha: 95ba42014460c486ca951c1ea5f9275498f67a5d
+            tokens:
+                input_tokens: 874170
+                output_tokens: 3165
+                total_tokens: 0
+    gates:
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:16:16-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 389
+      taskid: TASK-309
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the following task:
+
+        **Task**: CRITICAL: UI Run button sets status to 'running' but doesn't spawn executor process
+
+        **Description**: Steps to reproduce: 1. Click Run on any task in the UI. 2. Task status changes to 'running' in the UI. 3. No executor process is spawned - check 'ps aux | grep claude'. 4. Task remains 'running' indefinitely with no progress. Workaround: Use 'orc run TASK-XXX' via CLI to actually execute tasks. Impact: Makes the Run button in the UI completely non-functional.
+
+
+
+        1. Implement the required changes
+        2. Write/update tests as needed
+        3. Run tests and fix any failures
+
+        Keep iterating until implementation is complete and all tests pass.
+
+        When done, output:
+        <phase_complete>true</phase_complete>
+
+
+        ## Response
+
+        ## Summary
+
+        I've successfully fixed the critical bug where the UI Run button set task status to 'running' but didn't spawn the executor (Claude) process.
+
+        ### Root Cause
+        The session manager in `internal/executor/executor.go` was missing the Claude path configuration. When session-based execution is enabled and worktrees are disabled, the session manager didn't know where to find the Claude binary, causing it to silently fail to spawn processes.
+
+        ### Fix Applied
+        Added `session.WithClaudePath(claudePath)` at line 268 in `executor.go`:
+
+        ```go
+        sessionMgr := session.NewManager(
+            session.WithDefaultSessionOptions(
+                session.WithModel(cfg.Model),
+                session.WithWorkdir(cfg.WorkDir),
+                session.WithClaudePath(claudePath),  // <- Added this line
+                session.WithPermissions(cfg.DangerouslySkipPermissions),
+                session.WithSettingSources([]string{"project", "local", "user"}),
+            ),
+        )
+        ```
+
+        ### Why This Was Missed
+        The worktree code path (`setupWorktreeForTask()` in `task_execution.go`) correctly recreated the session manager with `claudePath`, but the non-worktree path didn't include it. This meant:
+        - CLI `orc run TASK-XXX` worked (because it uses the same executor but often has worktrees enabled)
+        - UI Run button failed when worktrees were disabled (the default in some configurations)
+
+        ### Tests Added
+        1. Enhanced `TestNew()` to verify `sessionMgr` is initialized
+        2. Added `TestNew_SessionManagerWithClaudePath()` to specifically test executor creation with custom Claude paths
+
+        ### Verification
+        - All executor tests pass (17.5s)
+        - All API run-related tests pass
+        - Build succeeds
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 6769381 input, 14940 output, 391414 cache_creation, 6377899 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 390
+      taskid: TASK-309
+      phase: test
+      iteration: 1
+      role: combined
+      content: "# test - Iteration 1\n\n## Prompt\n\nFinal test verification for: CRITICAL: UI Run button sets status to 'running' but doesn't spawn executor process\n\n**Original task**: Steps to reproduce: 1. Click Run on any task in the UI. 2. Task status changes to 'running' in the UI. 3. No executor process is spawned - check 'ps aux | grep claude'. 4. Task remains 'running' indefinitely with no progress. Workaround: Use 'orc run TASK-XXX' via CLI to actually execute tasks. Impact: Makes the Run button in the UI completely non-functional.\n\n1. Run the full test suite\n2. Fix any failures found\n3. Verify edge cases are covered\n\nKeep iterating until all tests pass.\n\nWhen done, output:\n<phase_complete>true</phase_complete>\n\n\n## Response\n\nAll tests pass and edge cases are covered:\n\n## Test Verification Summary\n\n### Go Backend Tests (All Pass)\n- **API Handler Tests**: \n  - `TestRunTaskEndpoint` - Verifies run endpoint starts execution and returns running status\n  - `TestRunTaskEndpoint_SetsCurrentPhase` - Ensures current_phase is set to the first phase\n  - `TestRunTaskEndpoint_TaskCannotRun` - Validates 400 for already-running tasks\n  - `TestRunTaskEndpoint_NoPlan` - Validates 404 for tasks without plans\n  - `TestRunTaskEndpoint_BlockedByIncompleteTasks` - Tests dependency checking\n\n- **Executor Tests**:\n  - `TestNew_SessionManagerWithClaudePath` - **Critical TASK-309 fix test** - verifies session manager receives Claude path for spawning\n  - `TestExecuteTask_SinglePhaseSuccess` - Full task execution through phases\n  - `TestExecuteTask_WithPublisher` - Event publishing during execution\n  - `TestExecutePhase_Complete` - Phase completion detection\n  - Various retry, cancellation, and error handling tests\n\n### Frontend Tests (783 tests, all pass)\n- WebSocket integration tests\n- TaskHeader tests (including `runTask` mock)\n- Store tests for task state management\n\n### Edge Cases Covered\n1. **Session manager initialization** - Tests verify `session.WithClaudePath(claudePath)` is passed\n2. **Task status updates** - Status set to 'running' BEFORE spawning executor\n3. **Current phase tracking** - First phase ID set when task starts\n4. **Dependency blocking** - Returns 409 Conflict when task is blocked\n5. **Force execution** - Allows bypassing dependency checks with `force=true`\n6. **Context cancellation** - Proper cleanup on context cancellation\n7. **Plan validation** - 404 when no plan exists\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 874170 input, 3165 output, 76044 cache_creation, 795151 cache_read\nComplete: true\nBlocked: false\n"
+      timestamp: 1768627233
+gate_decisions:
+    - id: 66817
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 66818
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 66819
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 66820
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 66821
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 66822
+      taskid: TASK-309
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:16:16-06:00

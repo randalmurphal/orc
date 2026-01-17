@@ -1,0 +1,81 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.918381482-06:00
+task:
+    id: TASK-354
+    title: Create StatsRow component for initiative overview stats
+    description: "Create the StatsRow component that displays 4 key statistics at the top of the Initiatives view.\n\nREFERENCE FILES:\n- example_ui/initiatives.html (.stats-row, .stat-card classes, lines 161-167)\n- example_ui/Screenshot_20260116_201819.png (top stats bar)\n\nTYPESCRIPT INTERFACES:\n```typescript\ninterface StatsRowProps {\n  stats: InitiativeStats;\n  loading?: boolean;\n  className?: string;\n}\n\ninterface InitiativeStats {\n  activeInitiatives: number;\n  totalTasks: number;\n  tasksThisWeek: number;\n  completionRate: number; // 0-100\n  totalCost: number; // In dollars\n  trends?: {\n    initiatives: number; // +/- change\n    tasks: number;\n    completionRate: number;\n    cost: number;\n  };\n}\n\ninterface StatCardProps {\n  label: string;\n  value: string | number;\n  trend?: number;\n  color?: \"default\" | \"green\" | \"amber\" | \"red\";\n}\n\nexport const StatsRow: React.FC<StatsRowProps> = ({ stats, loading }) => { ... }\n```\n\nSUCCESS CRITERIA:\n1. StatsRow component at web/src/components/initiatives/StatsRow.tsx\n2. 4 stat cards in a row: Active Initiatives, Total Tasks, Completion Rate, Total Cost\n3. Each card shows: label (9px muted), value (28px bold), optional trend arrow\n4. Responsive 2x2 grid on mobile\n5. Loading skeleton state\n6. npm run typecheck exits 0\n\nEXACT CSS VALUES (from mockup):\n```css\n.stats-row { \n  display: grid; \n  grid-template-columns: repeat(4, 1fr); \n  gap: 12px;\n}\n.stat-card {\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: 10px;\n  padding: 16px;\n}\n.stat-label { \n  font-size: 11px; \n  color: var(--text-secondary);\n  margin-bottom: 4px;\n}\n.stat-value { \n  font-size: 28px; \n  font-weight: 700; \n  color: var(--text-primary);\n}\n.stat-trend {\n  font-size: 10px;\n  display: flex;\n  align-items: center;\n  gap: 2px;\n}\n.stat-trend.positive { color: var(--green); }\n.stat-trend.negative { color: var(--red); }\n```\n\nACCESSIBILITY:\n- Each stat card is a landmark region\n- aria-label on cards describing the statistic\n- Trend changes announced to screen readers\n\nWEBSOCKET INTEGRATION:\n- Subscribe to \"stats_update\" event for real-time updates\n- Animate value changes smoothly\n\nRESPONSIVE:\n- 768px and below: 2x2 grid\n- 480px and below: single column stack\n\nEDGE CASES:\n- Format large numbers with K/M suffixes\n- Handle zero values gracefully\n- Loading state shows skeleton cards\n\nFILES TO CREATE:\n- web/src/components/initiatives/StatsRow.tsx\n- web/src/components/initiatives/StatsRow.css"
+    weight: small
+    status: planned
+    branch: orc/TASK-354
+    queue: active
+    priority: high
+    category: feature
+    initiative_id: INIT-018
+    blocked_by:
+        - TASK-329
+    created_at: 2026-01-16T21:00:24-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-354
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-354
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

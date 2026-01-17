@@ -1,0 +1,79 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.92715061-06:00
+task:
+    id: TASK-340
+    title: Create sessionStore for session metrics tracking
+    description: "Create the sessionStore Zustand store for tracking current session metrics.\n\nREFERENCE FILES:\n- example_ui/board.html (session stats in top bar, lines 136-148)\n- Current stores in web/src/stores/ for patterns\n\nTYPESCRIPT INTERFACES:\n```typescript\ninterface SessionState {\n  // Session data\n  sessionId: string | null;\n  startTime: Date | null;\n  \n  // Metrics\n  totalTokens: number;\n  totalCost: number;\n  inputTokens: number;\n  outputTokens: number;\n  \n  // Status\n  isPaused: boolean;\n  activeTaskCount: number;\n  \n  // Computed\n  duration: string; // \"2h 34m\" format\n  formattedCost: string; // \"$1.23\" format\n  formattedTokens: string; // \"125K\" format\n}\n\ninterface SessionActions {\n  // Session lifecycle\n  startSession: () => void;\n  endSession: () => void;\n  \n  // Control\n  pauseAll: () => Promise<void>;\n  resumeAll: () => Promise<void>;\n  \n  // Updates\n  updateMetrics: (metrics: Partial<SessionState>) => void;\n  addTokens: (input: number, output: number, cost: number) => void;\n  \n  // Task tracking\n  incrementActiveTask: () => void;\n  decrementActiveTask: () => void;\n  \n  // Computed getters\n  getFormattedDuration: () => string;\n}\n\ntype SessionStore = SessionState & SessionActions;\n\nexport const useSessionStore = create<SessionStore>((set, get) => ({\n  // Initial state\n  sessionId: null,\n  startTime: null,\n  totalTokens: 0,\n  totalCost: 0,\n  inputTokens: 0,\n  outputTokens: 0,\n  isPaused: false,\n  activeTaskCount: 0,\n  duration: \"0m\",\n  formattedCost: \"$0.00\",\n  formattedTokens: \"0\",\n  \n  // Actions...\n}));\n```\n\nSUCCESS CRITERIA:\n1. sessionStore at web/src/stores/sessionStore.ts\n2. Tracks session start time, duration, tokens, cost\n3. Provides formatted values (duration, cost, tokens with suffixes)\n4. pauseAll/resumeAll call API endpoints\n5. Updates via WebSocket \"session_update\" and \"tokens\" events\n6. Persists session ID to localStorage\n7. npm run typecheck exits 0\n\nWEBSOCKET INTEGRATION:\n```typescript\n// In WebSocket handler\nws.on(\"session_update\", (data) => {\n  useSessionStore.getState().updateMetrics(data);\n});\n\nws.on(\"tokens\", (data) => {\n  useSessionStore.getState().addTokens(\n    data.input_tokens,\n    data.output_tokens,\n    data.cost\n  );\n});\n\nws.on(\"task_created\", () => {\n  useSessionStore.getState().incrementActiveTask();\n});\n\nws.on(\"finalize\", () => {\n  useSessionStore.getState().decrementActiveTask();\n});\n```\n\nAPI INTEGRATION:\n- POST /api/tasks/pause-all for pauseAll()\n- POST /api/tasks/resume-all for resumeAll()\n- GET /api/session for initial session data\n\nFORMATTING UTILITIES:\n```typescript\n// Duration: \"2h 34m\" or \"45m\" or \"5s\"\nfunction formatDuration(startTime: Date): string { ... }\n\n// Cost: \"$1.23\" or \"$0.00\"\nfunction formatCost(cost: number): string { ... }\n\n// Tokens: \"125K\" or \"1.2M\" or \"500\"\nfunction formatTokens(tokens: number): string { ... }\n```\n\nEDGE CASES:\n- Handle page refresh (restore from localStorage)\n- Handle WebSocket reconnection\n- Reset on session end\n- Handle concurrent updates\n\nFILES TO CREATE:\n- web/src/stores/sessionStore.ts"
+    weight: small
+    status: planned
+    branch: orc/TASK-340
+    queue: active
+    priority: high
+    category: feature
+    initiative_id: INIT-016
+    created_at: 2026-01-16T20:57:28-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-340
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-340
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

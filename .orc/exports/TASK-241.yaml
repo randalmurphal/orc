@@ -1,0 +1,830 @@
+version: 2
+exported_at: 2026-01-16T23:27:37.128968677-06:00
+task:
+    id: TASK-241
+    title: 'CLI: Add --limit/-n flag to orc list command'
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-241
+    queue: active
+    priority: low
+    category: feature
+    created_at: 2026-01-15T12:54:23-06:00
+    updated_at: 2026-01-16T14:28:49-06:00
+    started_at: 2026-01-16T14:16:58-06:00
+    completed_at: 2026-01-16T14:28:49-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/173
+plan:
+    version: 1
+    task_id: TASK-241
+    weight: medium
+    description: Medium task - spec, implement, test, docs with clear success criteria
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 0b7fd24e1d40867427ba0bbd79264f0883dc8929
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 7f686544340b0388c4021b22eb45f45c2b4c8ee5
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: e9a170be298b1f7d05dfc6dbe0c68668ced5c6a8
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: d0e5f4c7b64371ce67b5d367779a001f06b5f61b
+spec: |-
+    The commit message says "spec - completed" but there are no files in the commit. This confirms specs are stored in the database (`.orc/tasks/`) and not committed to git.
+
+    Let me re-read the original instruction more carefully - the instruction says to commit after completing the spec, but since `.orc/tasks/` is gitignored, there won't be any git changes to commit. The spec is simply stored in the file I created.
+
+    The phase completion is signaled by outputting `<phase_complete>true</phase_complete>`, and the spec I created is already saved to the right location (`.orc/tasks/TASK-241/spec.md`).
+
+    **Commit**: (no files to commit - spec stored in database)
+
+    <phase_complete>true</phase_complete>
+state:
+    task_id: TASK-241
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-16T14:16:58-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-16T14:27:53-06:00
+            completed_at: 2026-01-16T14:28:41-06:00
+            iterations: 1
+            commit_sha: d0e5f4c7b64371ce67b5d367779a001f06b5f61b
+            tokens:
+                input_tokens: 331092
+                output_tokens: 1940
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-16T14:18:38-06:00
+            completed_at: 2026-01-16T14:22:58-06:00
+            iterations: 1
+            commit_sha: 7f686544340b0388c4021b22eb45f45c2b4c8ee5
+            tokens:
+                input_tokens: 1746677
+                output_tokens: 11728
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-16T14:16:59-06:00
+            completed_at: 2026-01-16T14:18:38-06:00
+            iterations: 1
+            commit_sha: 0b7fd24e1d40867427ba0bbd79264f0883dc8929
+            tokens:
+                input_tokens: 686212
+                output_tokens: 4080
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-16T14:22:58-06:00
+            completed_at: 2026-01-16T14:27:53-06:00
+            iterations: 1
+            commit_sha: e9a170be298b1f7d05dfc6dbe0c68668ced5c6a8
+            tokens:
+                input_tokens: 1044580
+                output_tokens: 4689
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:18:38-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:18:38-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:18:38-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:18:38-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:18:38-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:18:38-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:18:38-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:22:58-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:22:58-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:22:58-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:22:58-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:22:58-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:27:53-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:27:53-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:27:53-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:28:41-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 159
+      taskid: TASK-241
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: CLI: Add --limit/-n flag to orc list command
+        **Category**: feature
+
+        ## Specification
+
+        # Specification: CLI: Add --limit/-n flag to orc list command
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-241: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 7bab685e
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 331092 input, 1940 output, 38600 cache_creation, 292482 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 160
+      taskid: TASK-241
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: CLI: Add --limit/-n flag to orc list command
+        **Category**: feature
+
+
+
+        ## Specification
+
+        # Specification: CLI: Add --limit/-n flag to orc list command
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-241: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 35d7b062
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1746677 input, 11728 output, 50246 cache_creation, 1696394 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 161
+      taskid: TASK-241
+      phase: spec
+      iteration: 1
+      role: combined
+      content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: CLI: Add --limit/-n flag to orc list command\n**Category**: feature\n**Description**: \n\n\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: CLI: Add --limit/-n flag to orc list command\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-241: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\nThe commit message says \"spec - completed\" but there are no files in the commit. This confirms specs are stored in the database (`.orc/tasks/`) and not committed to git.\n\nLet me re-read the original instruction more carefully - the instruction says to commit after completing the spec, but since `.orc/tasks/` is gitignored, there won't be any git changes to commit. The spec is simply stored in the file I created.\n\nThe phase completion is signaled by outputting `<phase_complete>true</phase_complete>`, and the spec I created is already saved to the right location (`.orc/tasks/TASK-241/spec.md`).\n\n**Commit**: (no files to commit - spec stored in database)\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 686212 input, 4080 output, 40821 cache_creation, 645264 cache_read\nComplete: true\nBlocked: false\n"
+      timestamp: 1768627233
+    - id: 162
+      taskid: TASK-241
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: CLI: Add --limit/-n flag to orc list command
+        **Category**: feature
+
+        ## Specification
+
+        # Specification: CLI: Add --limit/-n flag to orc list command
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-241: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        ## Summary
+
+        The implementation of `--limit/-n` flag for `orc list` has been verified:
+
+        ### Testing Requirements - All Satisfied ✅
+        1. `TestListCommand_Flags` - verifies `--limit` flag exists with shorthand `-n`
+        2. `TestListCommand_LimitFlag` - verifies limit restricts output to N tasks
+        3. `TestListCommand_LimitZero` - verifies `--limit 0` shows all tasks
+        4. `TestListCommand_LimitWithFilters` - verifies limit applies after filtering
+        5. `TestListCommand_LimitExceedsTotal` - verifies limit > total shows all tasks
+
+        ### Success Criteria - All Met ✅
+        - `--limit`/`-n` flag added accepting positive integer
+        - Shows last N tasks (most recent by creation time)
+        - `--limit 0` or omitting flag shows all tasks
+        - Works with `--initiative`, `--status`, `--weight` filters
+        - Help text updated with examples
+        - CLI documentation (`COMMANDS.md`) updated
+
+        ### Code Quality ✅
+        - No linting issues
+        - All edge cases handled (negative values, zero, exceeds total)
+        - Tests pass with coverage
+
+        **Commit**: 7f686544 (implementation commit - no new changes needed for test phase)
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1044580 input, 4689 output, 44778 cache_creation, 999643 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 66328
+      taskid: TASK-241
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:18:38-06:00
+    - id: 66331
+      taskid: TASK-241
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:18:38-06:00
+    - id: 66332
+      taskid: TASK-241
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:18:38-06:00
+    - id: 66340
+      taskid: TASK-241
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:18:38-06:00
+    - id: 66342
+      taskid: TASK-241
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:18:38-06:00
+    - id: 66345
+      taskid: TASK-241
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:18:38-06:00
+    - id: 66348
+      taskid: TASK-241
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:18:38-06:00
+    - id: 66333
+      taskid: TASK-241
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:22:58-06:00
+    - id: 66341
+      taskid: TASK-241
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:22:58-06:00
+    - id: 66343
+      taskid: TASK-241
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:22:58-06:00
+    - id: 66346
+      taskid: TASK-241
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:22:58-06:00
+    - id: 66349
+      taskid: TASK-241
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:22:58-06:00
+    - id: 66344
+      taskid: TASK-241
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:27:53-06:00
+    - id: 66347
+      taskid: TASK-241
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:27:53-06:00
+    - id: 66350
+      taskid: TASK-241
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:27:53-06:00
+    - id: 66351
+      taskid: TASK-241
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:28:41-06:00

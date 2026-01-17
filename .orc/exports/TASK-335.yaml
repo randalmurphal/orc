@@ -1,0 +1,79 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.930923526-06:00
+task:
+    id: TASK-335
+    title: Create core component barrel export and documentation
+    description: |-
+        Create barrel export file for all core components and update component documentation.
+
+        SUCCESS CRITERIA:
+        1. web/src/components/core/index.ts exports all components:
+           - Badge, Button, Card, Input, SearchInput, Progress, Select, Slider, Stat, Toggle
+        2. All imports work: import { Button, Card } from '@/components/core'
+        3. Update web/docs/components.md with new component documentation
+        4. npm run typecheck exits 0
+
+        FILES TO CREATE/MODIFY:
+        - web/src/components/core/index.ts
+        - web/docs/components.md
+    weight: trivial
+    status: planned
+    branch: orc/TASK-335
+    queue: active
+    priority: normal
+    category: chore
+    initiative_id: INIT-015
+    blocked_by:
+        - TASK-326
+        - TASK-327
+        - TASK-328
+        - TASK-329
+        - TASK-330
+        - TASK-331
+        - TASK-332
+        - TASK-333
+        - TASK-334
+        - TASK-385
+        - TASK-386
+    created_at: 2026-01-16T20:56:07-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-335
+    weight: trivial
+    description: Trivial task - single implement phase, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Complete this task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            Implement the fix/change directly. Run any affected tests.
+            Keep iterating until the implementation is complete and tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-335
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

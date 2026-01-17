@@ -1,0 +1,51 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.866783902-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-016
+    title: 'UI Redesign: Layout Shell'
+    status: active
+    vision: |-
+        Build the main application shell replacing existing web/src/components/layout/AppLayout.tsx. The layout uses CSS Grid from example_ui/board.html.
+
+        Grid Structure:
+        - .app: display: grid; grid-template-columns: 56px 1fr; height: 100vh
+        - IconNav: 56px fixed width, bg-elevated background, border-right
+        - Main wrapper: flex column containing TopBar (48px) + scrollable content
+        - RightPanel: 300px width, collapsible via .panel-collapsed class
+
+        IconNav (56px sidebar):
+        - Logo: 32x32px gradient background, 'O' centered
+        - Nav items: icon (18px) + label (8px), vertical stack, 48px height each
+        - Sections: Board, Initiatives, Stats, [divider], Agents, Settings, [bottom] Help
+        - Active state: primary-dim background, primary-bright text, 2px left border
+
+        TopBar (48px header):
+        - Project dropdown (left), Search box (200px), Session metrics (center: time/tokens/cost), Actions (right: Pause, New Task, Panel toggle)
+
+        Replace: web/src/components/layout/AppLayout.tsx, Sidebar.tsx, Header.tsx
+        Reference: example_ui/board.html, example_ui/Screenshot_20260116_201804.png
+    tasks:
+        - id: TASK-336
+          title: Create IconNav component (56px sidebar)
+          status: planned
+        - id: TASK-337
+          title: Create TopBar component with session metrics
+          status: planned
+        - id: TASK-338
+          title: Create AppShell component with grid layout
+          status: planned
+        - id: TASK-339
+          title: Create RightPanel component (collapsible 300px panel)
+          status: planned
+        - id: TASK-340
+          title: Create sessionStore for session metrics tracking
+          status: planned
+        - id: TASK-341
+          title: Update router configuration for new layout
+          status: planned
+    blocked_by:
+        - INIT-015
+    created_at: 2026-01-16T20:56:25-06:00
+    updated_at: 2026-01-16T22:40:09-06:00

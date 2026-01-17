@@ -1,0 +1,115 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.914196285-06:00
+task:
+    id: TASK-360
+    title: Create LeaderboardTable component
+    description: |-
+        Create a LeaderboardTable component for showing ranked lists (most active initiatives, most modified files).
+
+        REFERENCE FILES:
+        - example_ui/stats.html (.table-card, .table-row classes, lines 537-600)
+        - example_ui/Screenshot_20260116_201852.png (tables at bottom)
+
+        SUCCESS CRITERIA:
+        1. LeaderboardTable component at web/src/components/stats/LeaderboardTable.tsx
+        2. Table layout:
+           - Rank number in 24px square badge
+           - Name/path text
+           - Right-aligned metric value (monospace)
+        3. Visual specs:
+           - Row padding: 12px 20px
+           - Border-bottom between rows
+           - Hover: var(--bg-hover)
+           - Card wrapper with header
+        4. Header: title + optional 'View all' link
+        5. File paths use monospace font and truncate from left
+        6. Limit to 4 items shown
+        7. Props:
+           - title: string
+           - items: { rank: number; name: string; value: string }[]
+           - onViewAll?: () => void
+        8. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Empty list shows 'No data' message
+        - Long names/paths truncate with ellipsis
+        - Rank badge supports 1-99
+
+        FILES TO CREATE:
+        - web/src/components/stats/LeaderboardTable.tsx
+        - web/src/components/stats/LeaderboardTable.css
+    weight: small
+    status: planned
+    branch: orc/TASK-360
+    queue: active
+    priority: normal
+    category: feature
+    initiative_id: INIT-019
+    blocked_by:
+        - TASK-335
+    created_at: 2026-01-16T21:01:28-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-360
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-360
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

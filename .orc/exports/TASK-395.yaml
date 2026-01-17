@@ -1,0 +1,81 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.89209691-06:00
+task:
+    id: TASK-395
+    title: Create TimelineEvent component for individual event display
+    description: "Create a TimelineEvent component to display individual events in the timeline feed.\n\n**COMPONENT INTERFACE:**\n```typescript\ninterface TimelineEventProps {\n  event: {\n    id: number;\n    task_id: string;\n    task_title: string;\n    phase?: string;\n    iteration?: number;\n    event_type: EventType;\n    data: Record<string, any>;\n    source: 'executor' | 'api' | 'cli' | 'manual';\n    created_at: string;\n  };\n  showTask?: boolean;  // Whether to show task info (false in task detail view)\n}\n\ntype EventType = \n  | 'phase_started' | 'phase_completed' | 'phase_failed'\n  | 'task_created' | 'task_started' | 'task_paused' | 'task_completed'\n  | 'activity_changed' | 'error_occurred' | 'warning_issued'\n  | 'token_update' | 'gate_decision';\n```\n\n**VISUAL DESIGN (following example_ui patterns):**\n```\n┌─────────────────────────────────────────────────────────────┐\n│ ● [icon]  Phase completed: implement                    2m ago │\n│           TASK-001: Implement user authentication              │\n│           ├─ Duration: 45s                                     │\n│           ├─ Tokens: 5,000 input / 2,500 output               │\n│           └─ Commit: abc123                                    │\n└─────────────────────────────────────────────────────────────┘\n```\n\n**EVENT TYPE STYLING:**\n| Type | Icon | Color | Badge |\n|------|------|-------|-------|\n| phase_completed | CheckCircle | green | success |\n| phase_failed | XCircle | red | error |\n| phase_started | Play | cyan | info |\n| task_created | Plus | primary | - |\n| task_completed | CheckCircle2 | green | success |\n| error_occurred | AlertTriangle | red | error |\n| warning_issued | AlertCircle | amber | warning |\n\n**CSS (using design tokens):**\n```css\n.timeline-event {\n  display: flex;\n  gap: 12px;\n  padding: 12px 16px;\n  border-bottom: 1px solid var(--border);\n}\n\n.timeline-event:hover {\n  background: var(--bg-hover);\n}\n\n.event-icon {\n  width: 32px;\n  height: 32px;\n  border-radius: 50%;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.event-icon.success { background: var(--green-dim); color: var(--green); }\n.event-icon.error { background: var(--red-dim); color: var(--red); }\n.event-icon.warning { background: var(--amber-dim); color: var(--amber); }\n.event-icon.info { background: var(--cyan-dim); color: var(--cyan); }\n```\n\n**FILES TO CREATE:**\n- web/src/components/timeline/TimelineEvent.tsx\n\n**SUCCESS CRITERIA:**\n1. Renders all event types with correct icon and color\n2. Shows relative time (2m ago, 1h ago, Yesterday)\n3. Task title links to task detail page\n4. Expandable details for data payload\n5. Matches design system colors and spacing"
+    weight: small
+    status: planned
+    branch: orc/TASK-395
+    queue: active
+    priority: normal
+    category: feature
+    initiative_id: INIT-024
+    blocked_by:
+        - TASK-335
+    created_at: 2026-01-16T22:55:55-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-395
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-395
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

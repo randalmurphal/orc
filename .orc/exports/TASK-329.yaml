@@ -1,0 +1,106 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.933559959-06:00
+task:
+    id: TASK-329
+    title: Create Stat component for dashboard statistics
+    description: |-
+        Create a Stat component for displaying large numeric values with labels and trend indicators.
+
+        REFERENCE FILES:
+        - example_ui/stats.html (.stat-card, .stat-value, .stat-change classes)
+        - example_ui/initiatives.html (stats row at top)
+        - example_ui/Screenshot_20260116_201852.png
+
+        SUCCESS CRITERIA:
+        1. Stat component created at web/src/components/core/Stat.tsx
+        2. Layout: header row (label left, icon right), large value, trend indicator below
+        3. Value styling: font-size 24-28px, font-weight 700, JetBrains Mono, color variants (default/purple/green/amber)
+        4. Trend indicator: up arrow (green) or down arrow (red), percentage text, font-size 10px
+        5. Icon slot with colored background circle (24px, 6px border-radius)
+        6. Props: label, value, valueColor, trend (direction/value/positive), icon, iconColor
+        7. Number formatting helper for large values (1234567 -> '1.23M', 847000 -> '847K')
+        8. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Very large numbers format with abbreviations
+        - Null/undefined values show placeholder dash
+        - Trend can be positive when direction is down (e.g., cost reduction is good)
+
+        FILES TO CREATE:
+        - web/src/components/core/Stat.tsx
+        - web/src/components/core/Stat.css
+    weight: small
+    status: planned
+    branch: orc/TASK-329
+    queue: active
+    priority: high
+    category: feature
+    initiative_id: INIT-015
+    blocked_by:
+        - TASK-325
+    created_at: 2026-01-16T20:55:26-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-329
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-329
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

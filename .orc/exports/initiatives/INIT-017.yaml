@@ -1,0 +1,78 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.866675967-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-017
+    title: 'UI Redesign: Board View'
+    status: active
+    vision: |-
+        Build the Board view as the primary task management interface, replacing web/src/pages/Board.tsx.
+
+        Layout (within AppShell):
+        - Two-column board: Queue (flex: 1, min-width: 280px) | Running (420px fixed)
+        - Right panel sections: Blocked, Decisions, Claude Config, Files Changed, Completed
+
+        Queue Column:
+        - Initiative swimlanes with collapse/expand (Swimlane component)
+        - Swimlane header: emoji icon, name, progress bar, task count, chevron
+        - TaskCard (compact): position number, title, task ID (monospace), priority badge
+        - '+N more' truncation for long lists
+
+        Running Column (420px):
+        - RunningCard with gradient background (bg-card -> primary-dim at bottom)
+        - Header: task ID (primary color), title, initiative tag, phase name, elapsed time
+        - Pipeline: 5-step visualization (Plan, Code, Test, Review, Done) with phase indicator
+        - Expandable output log (monospace, dark background, click card to toggle)
+        - Animation: pulse on active column, progress-grow on current phase
+
+        Right Panel Sections:
+        - BlockedPanel: tasks waiting for dependencies, Skip/Force action buttons
+        - DecisionsPanel: pending decisions with option buttons, real-time via WebSocket
+        - ConfigPanel: links to Slash Commands, CLAUDE.md, MCP Servers, Permissions
+        - FilesPanel: changed files with M/A/D status badges
+        - CompletedPanel: count summary with optional details (collapsible)
+
+        Data: Pull from taskStore, group by initiative for swimlanes, filter by status for columns
+        Reference: example_ui/board.html, example_ui/Screenshot_20260116_201804.png
+    tasks:
+        - id: TASK-342
+          title: Create Pipeline component for task phase visualization
+          status: planned
+        - id: TASK-343
+          title: Create Swimlane component for initiative grouping
+          status: planned
+        - id: TASK-344
+          title: Create compact TaskCard component for queue
+          status: planned
+        - id: TASK-345
+          title: Create RunningCard component with expanded task view
+          status: planned
+        - id: TASK-346
+          title: Create QueueColumn component with swimlane layout
+          status: planned
+        - id: TASK-347
+          title: Create RunningColumn component for active tasks
+          status: planned
+        - id: TASK-348
+          title: Create BlockedPanel component for blocked tasks
+          status: planned
+        - id: TASK-349
+          title: Create DecisionsPanel component for pending decisions
+          status: planned
+        - id: TASK-350
+          title: Create ConfigPanel component for Claude configuration links
+          status: planned
+        - id: TASK-351
+          title: Create FilesPanel component for changed files
+          status: planned
+        - id: TASK-352
+          title: Create CompletedPanel component for completion summary
+          status: planned
+        - id: TASK-353
+          title: Create BoardView main container component
+          status: planned
+    blocked_by:
+        - INIT-016
+    created_at: 2026-01-16T20:57:45-06:00
+    updated_at: 2026-01-16T22:40:10-06:00

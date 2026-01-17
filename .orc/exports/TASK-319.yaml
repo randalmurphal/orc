@@ -1,0 +1,62 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.939795198-06:00
+task:
+    id: TASK-319
+    title: 'UX: Visual feedback on real-time WebSocket updates'
+    description: |-
+        Add visual feedback when data updates via WebSocket:
+        - Brief highlight/flash animation when a task card updates
+        - Subtle border pulse or background color change
+        - Toast notification for significant events (task completed, task failed)
+        - Optional: sound notification toggle in preferences
+
+        Currently updates happen silently - users may not notice real-time changes.
+    weight: trivial
+    status: planned
+    branch: orc/TASK-319
+    queue: active
+    priority: low
+    category: feature
+    initiative_id: INIT-014
+    created_at: 2026-01-16T19:32:31-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-319
+    weight: trivial
+    description: Trivial task - single implement phase, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Complete this task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            Implement the fix/change directly. Run any affected tests.
+            Keep iterating until the implementation is complete and tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-319
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

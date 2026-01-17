@@ -1,0 +1,58 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.866425172-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-020
+    title: 'UI Redesign: Agents View'
+    status: active
+    vision: |-
+        Build the Agents view for configuring Claude Code instances and execution settings. 'Agents' are configured Claude instances with different models, token limits, and tool permissions.
+
+        Page Header:
+        - Title: 'Agents' with subtitle 'Configure Claude models and execution settings'
+        - '+ Add Agent' button (right side, primary style)
+
+        Active Agents Section:
+        - Subtitle: 'Currently configured Claude instances'
+        - 3-column responsive grid of AgentCard components
+
+        AgentCard:
+        - Header: gradient icon background (40x40), agent name, model ID (text-muted), status badge (ACTIVE green, IDLE cyan)
+        - Stats row: 3 columns showing 'Tokens Today', 'Tasks Done', 'Success Rate' with values
+        - Tools row: permission tags showing enabled tools (File Read, File Write, Bash, Web Search, Git, MCP)
+        - Styling: bg-card, border, hover:bg-hover transition
+
+        Execution Settings Section:
+        - Subtitle: 'Global configuration for all agents'
+        - 2-column grid of setting cards:
+          - Parallel Tasks: Slider component (1-10), shows current value
+          - Auto-Approve: Toggle with description text
+          - Default Model: Select dropdown with model options
+          - Cost Limit: Slider ($0-$100), shows current value with currency
+
+        Tool Permissions Section:
+        - Subtitle: 'Control what actions agents can perform'
+        - 3-column grid of permission toggles (6 total):
+          - File Read, File Write, Bash Commands, Web Search, Git Operations, MCP Servers
+        - Each toggle: icon, label, Toggle component
+
+        Data: Create agentsStore for agent configs, connect to /api/config and /api/agents endpoints
+        Reference: example_ui/agents.html, example_ui/Screenshot_20260116_201905.png
+    tasks:
+        - id: TASK-363
+          title: Create AgentCard component
+          status: planned
+        - id: TASK-364
+          title: Create ExecutionSettings component
+          status: planned
+        - id: TASK-365
+          title: Create ToolPermissions component
+          status: planned
+        - id: TASK-366
+          title: Create AgentsView container component
+          status: planned
+    blocked_by:
+        - INIT-016
+    created_at: 2026-01-16T21:01:46-06:00
+    updated_at: 2026-01-16T22:40:58-06:00

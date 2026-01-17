@@ -1,0 +1,1576 @@
+version: 2
+exported_at: 2026-01-16T23:27:37.024203014-06:00
+task:
+    id: TASK-265
+    title: Implement Environment configuration pages
+    description: |-
+        ## Problem
+        All Environment pages (/environment/*) show placeholders:
+        - Settings: 'Claude Code and orc settings editor will be implemented in Phase 3'
+        - Prompts: 'Phase prompts editor will be implemented in Phase 3'
+        - Scripts: Placeholder
+        - Hooks: Placeholder
+        - Skills: Placeholder
+        - MCP: Placeholder
+        - Config: 'Orc configuration editor will be implemented in Phase 3'
+        - CLAUDE.md: Placeholder
+        - Tools: Placeholder
+        - Agents: Placeholder
+
+        ## Expected Functionality
+        These pages should allow viewing and editing:
+        - Settings: Claude Code settings.json (global + project)
+        - Prompts: .orc/prompts/ template files
+        - Config: .orc/config.yaml
+
+        ## Priority
+        Medium-term as CLI works for configuration, but UI would be nice-to-have.
+
+        ## Technical Notes
+        - Backend APIs may need to be added for CRUD operations
+        - File editing requires careful validation
+        - Consider read-only view as first step
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-265
+    queue: active
+    priority: low
+    category: feature
+    initiative_id: INIT-013
+    created_at: 2026-01-15T23:17:56-06:00
+    updated_at: 2026-01-16T08:32:32-06:00
+    started_at: 2026-01-16T07:56:21-06:00
+    completed_at: 2026-01-16T08:32:32-06:00
+plan:
+    version: 1
+    task_id: TASK-265
+    weight: medium
+    description: Medium task - spec, implement, test, docs with clear success criteria
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 6d298b3fe236816600b42f14ea0946c8ee2ac6b6
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 93d9eee4f629b926350857dcbf85bf053cb0cafb
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 4ec161bdb30e60a2504ed9ebedd939721afd00c9
+spec: |-
+    # Specification: Implement Environment configuration pages
+
+    ## Problem Statement
+    All Environment pages (`/environment/*`) show placeholders instead of functional editors. Users cannot view or edit Claude Code settings, orc configuration, prompts, hooks, skills, MCP servers, or other configuration through the web UI, forcing them to use CLI or edit files directly.
+
+    ## Success Criteria
+    ### Core Pages (Priority 1 - Required)
+    - [ ] Settings page displays merged Claude Code settings (global + project) with tabs for scope selection
+    - [ ] Settings page allows editing env variables and statusLine configuration
+    - [ ] Config page displays orc configuration from `.orc/config.yaml`
+    - [ ] Config page allows editing automation, execution, git, worktree, completion, and timeout settings
+    - [ ] Prompts page lists all phase prompts with override indicator
+    - [ ] Prompts page shows prompt content with syntax highlighting
+    - [ ] Prompts page allows creating/editing/deleting prompt overrides
+
+    ### Secondary Pages (Priority 2 - Should Have)
+    - [ ] Hooks page lists all hooks grouped by event type
+    - [ ] Hooks page allows creating/editing/deleting hooks
+    - [ ] Skills page lists available skills (global + project)
+    - [ ] Skills page shows skill content with preview
+    - [ ] MCP page lists configured MCP servers
+    - [ ] MCP page allows creating/editing/deleting MCP servers
+
+    ### Read-Only Pages (Priority 3 - Nice to Have)
+    - [ ] CLAUDE.md page shows project CLAUDE.md content with markdown preview
+    - [ ] CLAUDE.md page shows hierarchy (global, user, project) via tabs
+    - [ ] Tools page lists available tools with permissions
+    - [ ] Agents page lists configured sub-agents
+    - [ ] Scripts page lists registered scripts with discovery option
+
+    ### Quality Criteria
+    - [ ] All pages handle loading, error, and empty states gracefully
+    - [ ] All forms validate input before submission
+    - [ ] All mutations show success/error feedback via toast
+    - [ ] All pages work with keyboard navigation
+    - [ ] Changes persist after page refresh
+
+    ## Testing Requirements
+    - [ ] Unit test: Settings page renders merged settings correctly
+    - [ ] Unit test: Config page renders configuration correctly
+    - [ ] Unit test: Prompts page lists prompts with override indicators
+    - [ ] E2E test: Navigate to each Environment page successfully
+    - [ ] E2E test: Settings edit env variable and verify persistence
+    - [ ] E2E test: Config edit automation profile and verify persistence
+
+    ## Scope
+    ### In Scope
+    - Implementing functional UI for all 10 Environment pages
+    - CRUD operations for editable configuration (Settings, Config, Prompts, Hooks, Skills, MCP)
+    - Read-only views for CLAUDE.md, Tools, Agents, Scripts
+    - Loading/error/empty state handling
+    - Form validation and toast feedback
+
+    ### Out of Scope
+    - Creating new backend API endpoints (all required endpoints exist)
+    - Real-time collaboration / multi-user editing
+    - Version history / rollback
+    - Import/export of configuration
+
+    ## Technical Approach
+    Each page follows a consistent pattern using existing API client (`lib/api.ts`), UI primitives (Button, Input, Textarea, Modal), and toast feedback.
+
+    ### Files to Modify
+    - `web/src/pages/environment/Settings.tsx`: Tabbed view with form editors
+    - `web/src/pages/environment/Config.tsx`: Accordion with config sections
+    - `web/src/pages/environment/Prompts.tsx`: List + editor modal
+    - `web/src/pages/environment/Hooks.tsx`: Grouped list + editor modal
+    - `web/src/pages/environment/Skills.tsx`: List + preview modal
+    - `web/src/pages/environment/Mcp.tsx`: Card list + add/edit modal
+    - `web/src/pages/environment/ClaudeMd.tsx`: Tabbed markdown viewer
+    - `web/src/pages/environment/Tools.tsx`: Table with permission toggles
+    - `web/src/pages/environment/Agents.tsx`: Card list + detail modal
+    - `web/src/pages/environment/Scripts.tsx`: Table + discover action
+
+    ## User Story
+    As a developer using orc, I want to view and edit Claude Code and orc configuration through the web UI so that I can quickly adjust settings without switching to CLI or editing files manually.
+state:
+    task_id: TASK-265
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-16T07:56:21-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-16T08:30:13-06:00
+            completed_at: 2026-01-16T08:32:32-06:00
+            iterations: 1
+            commit_sha: 4ec161bdb30e60a2504ed9ebedd939721afd00c9
+            tokens:
+                input_tokens: 1950979
+                output_tokens: 5521
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-16T07:56:22-06:00
+            completed_at: 2026-01-16T08:06:15-06:00
+            iterations: 2
+            commit_sha: 6d298b3fe236816600b42f14ea0946c8ee2ac6b6
+            tokens:
+                input_tokens: 15824451
+                output_tokens: 83315
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-16T04:54:52-06:00
+            completed_at: 2026-01-16T04:57:16-06:00
+            iterations: 1
+            commit_sha: fe43328d4fda3d9d5e46e5fe34e04aabf1137a8a
+            tokens:
+                input_tokens: 911132
+                output_tokens: 7865
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-16T08:06:15-06:00
+            completed_at: 2026-01-16T08:30:13-06:00
+            iterations: 1
+            commit_sha: 93d9eee4f629b926350857dcbf85bf053cb0cafb
+            tokens:
+                input_tokens: 13778048
+                output_tokens: 27239
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:57:16-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T08:06:15-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T08:06:15-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T08:06:15-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T08:06:15-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T08:06:15-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T08:30:13-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T08:30:13-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T08:30:13-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T08:32:32-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 256
+      taskid: TASK-265
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Implement Environment configuration pages
+        **Category**: feature
+
+        ## Specification
+
+        # Specification: Implement Environment configuration pages
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-265: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 91408832
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1950979 input, 5521 output, 129357 cache_creation, 1811739 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 257
+      taskid: TASK-265
+      phase: implement
+      iteration: 1
+      role: combined
+      content: "# implement - Iteration 1\n\n## Prompt\n\nImplement the task according to the specification:\n\n**Task**: Implement Environment configuration pages\n**Category**: feature\n\n## Initiative Context\n\nThis task is part of **Frontend Polish & UX Audit** (INIT-013).\n\n### Vision\n\nComprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.\n\n**Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.\n\n\n## Specification\n\n# Specification: Implement Environment configuration pages\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n\n\n\n## Instructions\n\n1. Review the spec's success criteria - these are your acceptance criteria\n2. Implement the required changes following the technical approach\n3. Write/update tests alongside code (as specified in Testing Requirements)\n4. Run tests and fix any failures\n5. Self-review against success criteria before completing\n\n### Self-Review Checklist\n- [ ] All success criteria from spec addressed\n- [ ] All testing requirements satisfied\n- [ ] Scope boundaries respected (no extra features)\n- [ ] Error handling complete\n- [ ] Code follows project patterns\n\nKeep iterating until implementation is complete and tests pass.\n\nAfter completing, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-265: implement - completed\"\n```\n\nWhen done, output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\n\n## Response\n\n**Commit**: 76dbe5c4\n\n## Summary\n\nThe Environment configuration pages were already fully implemented. The task was essentially complete, but the route tests were failing due to:\n\n1. **Missing API mocks**: Added mocks for all 10 Environment page APIs (getSettingsHierarchy, listPrompts, listScripts, listHooks, listSkills, listMCPServers, getConfig, getClaudeMDHierarchy, listToolsByCategory, listAgents, etc.)\n\n2. **Incorrect test assertions**: Fixed heading text expectations to match actual page content:\n   - \"Settings\" → \"Claude Code Settings\"  \n   - \"Prompts\" → \"Phase Prompts\"\n   - \"Configuration\" → \"Orc Configuration\"\n\nAll 733 frontend tests now pass, and the build succeeds.\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 3749334 input, 11218 output, 322456 cache_creation, 3425836 cache_read\nComplete: true\nBlocked: false\n"
+      timestamp: 1768627233
+    - id: 258
+      taskid: TASK-265
+      phase: spec
+      iteration: 1
+      role: combined
+      content: |
+        # spec - Iteration 1
+
+        ## Prompt
+
+        Create a specification for this task:
+
+        **Task**: Implement Environment configuration pages
+        **Category**: feature
+        **Description**: ## Problem
+        All Environment pages (/environment/*) show placeholders:
+        - Settings: 'Claude Code and orc settings editor will be implemented in Phase 3'
+        - Prompts: 'Phase prompts editor will be implemented in Phase 3'
+        - Scripts: Placeholder
+        - Hooks: Placeholder
+        - Skills: Placeholder
+        - MCP: Placeholder
+        - Config: 'Orc configuration editor will be implemented in Phase 3'
+        - CLAUDE.md: Placeholder
+        - Tools: Placeholder
+        - Agents: Placeholder
+
+        ## Expected Functionality
+        These pages should allow viewing and editing:
+        - Settings: Claude Code settings.json (global + project)
+        - Prompts: .orc/prompts/ template files
+        - Config: .orc/config.yaml
+
+        ## Priority
+        Medium-term as CLI works for configuration, but UI would be nice-to-have.
+
+        ## Technical Notes
+        - Backend APIs may need to be added for CRUD operations
+        - File editing requires careful validation
+        - Consider read-only view as first step
+
+        ## Initiative Context
+
+        This task is part of **Frontend Polish & UX Audit** (INIT-013).
+
+        ### Vision
+
+        Comprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Instructions
+
+        Create a clear, actionable specification that defines exactly what needs to be done
+        and how to verify it's complete.
+
+        ### 1. Problem Statement
+        Summarize what needs to be solved in 1-2 sentences.
+
+        ### 2. Success Criteria (REQUIRED)
+        Define specific, testable criteria as checkboxes:
+        - Each criterion must be verifiable (file exists, test passes, API returns X)
+        - No vague language ("works well", "is fast")
+        - Include both functional and quality criteria
+
+        ### 3. Testing Requirements (REQUIRED)
+        Specify what tests must pass:
+        - [ ] Unit test: [specific test description]
+        - [ ] Integration test: [if applicable]
+        - [ ] E2E test: [if UI changes]
+
+        ### 4. Scope
+        Define boundaries to prevent scope creep:
+        - **In Scope**: What will be implemented
+        - **Out of Scope**: What will NOT be implemented
+
+        ### 5. Technical Approach
+        Brief plan for implementation:
+        - Files to modify
+        - Key changes in each file
+
+        ### 6. Category-Specific Analysis
+
+        **If this is a BUG (category=bug):**
+        - Reproduction Steps: Exact steps to trigger the bug
+        - Current Behavior: What happens now (the bug)
+        - Expected Behavior: What should happen
+        - Root Cause: Where the bug originates (if known)
+        - Verification: How to confirm the fix works
+
+        **If this is a FEATURE (category=feature):**
+        - User Story: As a [user], I want [feature] so that [benefit]
+        - Acceptance Criteria: Specific conditions for feature acceptance
+
+        **If this is a REFACTOR (category=refactor):**
+        - Before Pattern: Current code/architecture
+        - After Pattern: Target code/architecture
+        - Risk Assessment: What could break
+
+        ## Output Format
+
+        Wrap your spec in artifact tags:
+
+        <artifact>
+        # Specification: Implement Environment configuration pages
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+        </artifact>
+
+        After completing the spec, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-265: spec - completed"
+        ```
+
+        Then output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+        If blocked (requirements unclear):
+        ```
+        <phase_blocked>
+        reason: [what's unclear]
+        needs: [what clarification is needed]
+        </phase_blocked>
+        ```
+
+
+        ## Response
+
+        **Commit**: 9f00e45e
+
+        <artifact>
+        # Specification: Implement Environment configuration pages
+
+        ## Problem Statement
+        All Environment pages (`/environment/*`) show placeholders instead of functional editors. Users cannot view or edit Claude Code settings, orc configuration, prompts, hooks, skills, MCP servers, or other configuration through the web UI, forcing them to use CLI or edit files directly.
+
+        ## Success Criteria
+        ### Core Pages (Priority 1 - Required)
+        - [ ] Settings page displays merged Claude Code settings (global + project) with tabs for scope selection
+        - [ ] Settings page allows editing env variables and statusLine configuration
+        - [ ] Config page displays orc configuration from `.orc/config.yaml`
+        - [ ] Config page allows editing automation, execution, git, worktree, completion, and timeout settings
+        - [ ] Prompts page lists all phase prompts with override indicator
+        - [ ] Prompts page shows prompt content with syntax highlighting
+        - [ ] Prompts page allows creating/editing/deleting prompt overrides
+
+        ### Secondary Pages (Priority 2 - Should Have)
+        - [ ] Hooks page lists all hooks grouped by event type
+        - [ ] Hooks page allows creating/editing/deleting hooks
+        - [ ] Skills page lists available skills (global + project)
+        - [ ] Skills page shows skill content with preview
+        - [ ] MCP page lists configured MCP servers
+        - [ ] MCP page allows creating/editing/deleting MCP servers
+
+        ### Read-Only Pages (Priority 3 - Nice to Have)
+        - [ ] CLAUDE.md page shows project CLAUDE.md content with markdown preview
+        - [ ] CLAUDE.md page shows hierarchy (global, user, project) via tabs
+        - [ ] Tools page lists available tools with permissions
+        - [ ] Agents page lists configured sub-agents
+        - [ ] Scripts page lists registered scripts with discovery option
+
+        ### Quality Criteria
+        - [ ] All pages handle loading, error, and empty states gracefully
+        - [ ] All forms validate input before submission
+        - [ ] All mutations show success/error feedback via toast
+        - [ ] All pages work with keyboard navigation
+        - [ ] Changes persist after page refresh
+
+        ## Testing Requirements
+        - [ ] Unit test: Settings page renders merged settings correctly
+        - [ ] Unit test: Config page renders configuration correctly
+        - [ ] Unit test: Prompts page lists prompts with override indicators
+        - [ ] E2E test: Navigate to each Environment page successfully
+        - [ ] E2E test: Settings edit env variable and verify persistence
+        - [ ] E2E test: Config edit automation profile and verify persistence
+
+        ## Scope
+        ### In Scope
+        - Implementing functional UI for all 10 Environment pages
+        - CRUD operations for editable configuration (Settings, Config, Prompts, Hooks, Skills, MCP)
+        - Read-only views for CLAUDE.md, Tools, Agents, Scripts
+        - Loading/error/empty state handling
+        - Form validation and toast feedback
+
+        ### Out of Scope
+        - Creating new backend API endpoints (all required endpoints exist)
+        - Real-time collaboration / multi-user editing
+        - Version history / rollback
+        - Import/export of configuration
+
+        ## Technical Approach
+        Each page follows a consistent pattern using existing API client (`lib/api.ts`), UI primitives (Button, Input, Textarea, Modal), and toast feedback.
+
+        ### Files to Modify
+        - `web/src/pages/environment/Settings.tsx`: Tabbed view with form editors
+        - `web/src/pages/environment/Config.tsx`: Accordion with config sections
+        - `web/src/pages/environment/Prompts.tsx`: List + editor modal
+        - `web/src/pages/environment/Hooks.tsx`: Grouped list + editor modal
+        - `web/src/pages/environment/Skills.tsx`: List + preview modal
+        - `web/src/pages/environment/Mcp.tsx`: Card list + add/edit modal
+        - `web/src/pages/environment/ClaudeMd.tsx`: Tabbed markdown viewer
+        - `web/src/pages/environment/Tools.tsx`: Table with permission toggles
+        - `web/src/pages/environment/Agents.tsx`: Card list + detail modal
+        - `web/src/pages/environment/Scripts.tsx`: Table + discover action
+
+        ## User Story
+        As a developer using orc, I want to view and edit Claude Code and orc configuration through the web UI so that I can quickly adjust settings without switching to CLI or editing files manually.
+        </artifact>
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 911132 input, 7865 output, 89832 cache_creation, 821285 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 259
+      taskid: TASK-265
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: Implement Environment configuration pages
+        **Category**: feature
+
+        ## Specification
+
+        # Specification: Implement Environment configuration pages
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-265: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        Commit SHA: **5dbca036**
+
+        ## Summary
+
+        I tested and reviewed the implementation for TASK-265 (Environment configuration pages). The test phase involved:
+
+        ### Issues Found and Fixed
+
+        1. **E2E Tests Out of Sync with Implementation**
+           - Route paths were outdated (`/prompts` → `/environment/prompts`)
+           - CSS selectors didn't match new page structure (`.prompt-list` → `.prompts-list`, etc.)
+           - Rewrote `prompts.spec.ts` and `hooks.spec.ts` to match actual implementation
+           - Fixed selector ambiguity for scope tabs (Radix Tab triggers vs content panels)
+
+        2. **Missing Document Titles**
+           - All 10 environment pages lacked `useDocumentTitle` hook
+           - Added to: Settings, Config, Prompts, Hooks, Skills, Mcp, ClaudeMd, Tools, Agents, Scripts
+           - Enables proper page titles in browser tabs
+
+        3. **Pre-existing Backend Bug** (not introduced by TASK-265)
+           - `UpdateBranchActivity` in `internal/db/project.go` used `datetime('now')` format
+           - Go's `time.Parse(time.RFC3339, ...)` expected ISO 8601 format
+           - Changed to `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` for compatibility
+
+        ### Test Results
+        - **Frontend Unit Tests**: 733 passed
+        - **E2E Tests**: 48 passed, 3 skipped
+        - **Backend Tests**: All passed
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 13778048 input, 27239 output, 262372 cache_creation, 13512860 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 65725
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65734
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65825
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65826
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65877
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65878
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65880
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65881
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65882
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65883
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65884
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65885
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65886
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65887
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65888
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65889
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65890
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65891
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65994
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65995
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65996
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65997
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65998
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 65999
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66000
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66001
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66002
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66003
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66004
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66005
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66014
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66015
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66016
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66017
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66018
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66019
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66021
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66022
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66023
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66024
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66025
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66026
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66038
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66039
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66040
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66041
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66042
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66043
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66046
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66047
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66048
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66049
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66050
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66051
+      taskid: TASK-265
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:57:16-06:00
+    - id: 66006
+      taskid: TASK-265
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T08:06:15-06:00
+    - id: 66020
+      taskid: TASK-265
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T08:06:15-06:00
+    - id: 66027
+      taskid: TASK-265
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T08:06:15-06:00
+    - id: 66044
+      taskid: TASK-265
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T08:06:15-06:00
+    - id: 66052
+      taskid: TASK-265
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T08:06:15-06:00
+    - id: 66028
+      taskid: TASK-265
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T08:30:13-06:00
+    - id: 66045
+      taskid: TASK-265
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T08:30:13-06:00
+    - id: 66053
+      taskid: TASK-265
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T08:30:13-06:00
+    - id: 66054
+      taskid: TASK-265
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T08:32:32-06:00

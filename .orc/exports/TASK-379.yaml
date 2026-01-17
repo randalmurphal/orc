@@ -1,0 +1,120 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.90252517-06:00
+task:
+    id: TASK-379
+    title: Implement GET /api/stats/outcomes endpoint for donut chart
+    description: |-
+        Add GET /api/stats/outcomes endpoint returning task outcome counts for the donut chart in Stats view.
+
+        **Query Parameters:**
+        - period: time period filter (24h, 7d, 30d, all) - default: all
+
+        **Response Schema:**
+        ```json
+        {
+          "period": "30d",
+          "total": 150,
+          "outcomes": {
+            "completed": {"count": 120, "percentage": 80.0},
+            "with_retries": {"count": 25, "percentage": 16.7},
+            "failed": {"count": 5, "percentage": 3.3}
+          }
+        }
+        ```
+
+        **Definitions:**
+        - completed: state=completed, no retry phases
+        - with_retries: state=completed, has retry in phase history
+        - failed: state=failed
+
+        **Implementation:**
+        1. Add OutcomesHandler to internal/api/stats.go
+        2. Query tasks with state filtering and period constraint
+        3. Check phase history for retry detection
+        4. Calculate percentages (handle division by zero)
+        5. Register route: GET /api/stats/outcomes
+
+        **Files to modify:**
+        - internal/api/stats.go (add handler)
+        - internal/api/routes.go (add route)
+
+        **Success criteria:**
+        - Percentages sum to 100% (or close due to rounding)
+        - Period filter works correctly (24h = last 24 hours from now)
+        - with_retries correctly identifies tasks that had phase failures
+        - Returns zeros gracefully when no tasks exist
+
+        **Reference:** docs/specs/UI_REDESIGN_ARCHITECTURE.md, example_ui/stats.html donut chart
+    weight: small
+    status: planned
+    branch: orc/TASK-379
+    queue: active
+    priority: normal
+    category: feature
+    initiative_id: INIT-023
+    created_at: 2026-01-16T22:37:06-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-379
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-379
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

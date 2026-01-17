@@ -1,0 +1,112 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.920844216-06:00
+task:
+    id: TASK-350
+    title: Create ConfigPanel component for Claude configuration links
+    description: |-
+        Create the ConfigPanel component for the right panel showing Claude Code configuration quick links.
+
+        REFERENCE FILES:
+        - example_ui/board.html (.config-section class, lines 501-540)
+        - example_ui/Screenshot_20260116_201804.png (right panel, cyan section)
+
+        SUCCESS CRITERIA:
+        1. ConfigPanel component at web/src/components/board/ConfigPanel.tsx
+        2. Cyan-themed section header
+        3. Config quick links:
+           - Slash Commands (with count badge)
+           - CLAUDE.md (with file size badge)
+           - MCP Servers (with count badge)
+           - Permissions
+        4. Each link shows: icon, title, description, badge
+        5. Click navigates to /settings/[section]
+        6. Visual specs:
+           - Header background: var(--cyan-dim)
+           - Header text: var(--cyan)
+           - Link cards: var(--bg-surface)
+        7. Props:
+           - config: ConfigStats object (counts, sizes)
+        8. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Links work even when config not loaded (navigate anyway)
+        - Badges show loading skeleton while fetching
+
+        FILES TO CREATE:
+        - web/src/components/board/ConfigPanel.tsx
+        - web/src/components/board/ConfigPanel.css
+    weight: small
+    status: planned
+    branch: orc/TASK-350
+    queue: active
+    priority: normal
+    category: feature
+    initiative_id: INIT-017
+    blocked_by:
+        - TASK-339
+    created_at: 2026-01-16T20:59:08-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-350
+    weight: small
+    description: Small task - implement with tests, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Implement the required changes
+            2. Write/update tests as needed
+            3. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Final test verification for: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Fix any failures found
+            3. Verify edge cases are covered
+
+            Keep iterating until all tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-350
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

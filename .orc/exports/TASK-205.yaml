@@ -1,0 +1,1085 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.80292214-06:00
+task:
+    id: TASK-205
+    title: Create Textarea primitive component
+    description: |-
+        ## Overview
+        Create a shared Textarea component in web/src/components/ui/Textarea.tsx with consistent styling, auto-resize, and character count support.
+
+        ## Design Specifications
+
+        ### Base Styling
+        - Font: var(--font-body) (Inter)
+        - Font size: var(--text-sm) (13px)
+        - Background: var(--bg-secondary)
+        - Border: 1px solid var(--border-default)
+        - Border radius: var(--radius-md) (6px)
+        - Padding: var(--space-2) var(--space-3) (8px 12px)
+        - Text color: var(--text-primary)
+        - Placeholder color: var(--text-muted)
+
+        ### State Styles
+        | State | Border | Ring |
+        |-------|--------|------|
+        | default | --border-default | none |
+        | hover | --border-strong | none |
+        | focus | --accent-primary | 0 0 0 2px var(--accent-glow) |
+        | error | --status-danger | none |
+        | disabled | --border-subtle | opacity 0.5, cursor: not-allowed |
+
+        ### Dimensions
+        - Min height: 80px (3 rows default)
+        - Default rows: 3
+        - Max height (when auto-resize): 300px (configurable)
+
+        ### Auto-Resize Behavior
+        - When autoResize={true}, textarea grows with content up to maxHeight
+        - Scrollbar appears when content exceeds maxHeight
+        - Uses scrollHeight to calculate required height
+
+        ### Character Count
+        - When maxLength provided and showCount={true}, display count below
+        - Format: "123/500" right-aligned
+        - Font size: var(--text-xs), color: var(--text-muted)
+        - Color changes to var(--status-danger) when >= 90% capacity
+
+        ### Props Interface
+        ```typescript
+        interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+          variant?: 'default' | 'error';
+          autoResize?: boolean;
+          maxHeight?: number; // Default: 300
+          showCount?: boolean;
+          error?: string;
+        }
+        ```
+
+        ## Accessibility Requirements
+        - Use aria-describedby to link character count to textarea
+        - Use aria-invalid="true" when error state
+        - Link error message via aria-describedby
+        - Support required attribute with visual indicator
+
+        ## Success Criteria
+        - Consistent textarea styling in comments, descriptions
+        - Auto-resize works smoothly up to maxHeight
+        - Character count updates in real-time
+        - Error state clearly visible
+
+        ## Test Criteria
+
+        ### Unit Tests
+        - Renders with default props
+        - Calls onChange when text entered
+        - Respects disabled state
+        - Auto-resize grows textarea height
+        - Auto-resize respects maxHeight
+        - Character count displays correctly
+        - Character count changes color at 90%
+        - Error state displays error message and red border
+
+        ### Visual Snapshots
+        - Default state
+        - Focus state
+        - Error state
+        - With character count (normal and warning)
+        - Auto-resize expanded
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-205
+    queue: active
+    priority: normal
+    category: feature
+    initiative_id: INIT-009
+    blocked_by:
+        - TASK-219
+    created_at: 2026-01-14T23:04:12-06:00
+    updated_at: 2026-01-15T18:56:06-06:00
+    started_at: 2026-01-15T18:47:33-06:00
+    completed_at: 2026-01-15T18:56:06-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/137
+plan:
+    version: 1
+    task_id: TASK-205
+    weight: medium
+    description: Medium task - spec, implement, test, docs with clear success criteria
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 2286bf450f55f7d16c731c31f32ea2b26658738d
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 7e75c6b9968817061a35d8e9c2d69f8214afebaa
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: d9bcd8bff439040d433736c24995af8a5a7ca54f
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 9168f3025d4d8a57e507e524e399c8cd73c7f4f5
+state:
+    task_id: TASK-205
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-15T18:47:33-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-15T18:54:50-06:00
+            completed_at: 2026-01-15T18:56:06-06:00
+            iterations: 1
+            commit_sha: 9168f3025d4d8a57e507e524e399c8cd73c7f4f5
+            tokens:
+                input_tokens: 1171449
+                output_tokens: 3040
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-15T18:49:08-06:00
+            completed_at: 2026-01-15T18:51:53-06:00
+            iterations: 1
+            commit_sha: 7e75c6b9968817061a35d8e9c2d69f8214afebaa
+            tokens:
+                input_tokens: 1839500
+                output_tokens: 8011
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-15T18:47:34-06:00
+            completed_at: 2026-01-15T18:49:08-06:00
+            iterations: 1
+            commit_sha: 2286bf450f55f7d16c731c31f32ea2b26658738d
+            tokens:
+                input_tokens: 624405
+                output_tokens: 4839
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-15T18:51:53-06:00
+            completed_at: 2026-01-15T18:54:50-06:00
+            iterations: 1
+            commit_sha: d9bcd8bff439040d433736c24995af8a5a7ca54f
+            tokens:
+                input_tokens: 1588810
+                output_tokens: 9561
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:49:08-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:49:08-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:49:08-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:49:08-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:49:08-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:49:08-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:49:08-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:53-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:53-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:53-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:53-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:53-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:54:50-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:54:50-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:54:50-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:56:06-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 10
+      taskid: TASK-205
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Create Textarea primitive component
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        # Specification: Create Textarea primitive component
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-205: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: da4640c2
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1171449 input, 3040 output, 102025 cache_creation, 1069410 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 11
+      taskid: TASK-205
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Create Textarea primitive component
+        **Category**: {{TASK_CATEGORY}}
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Specification
+
+        # Specification: Create Textarea primitive component
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-205: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: eb76fa56
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1839500 input, 8011 output, 79636 cache_creation, 1759807 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 12
+      taskid: TASK-205
+      phase: spec
+      iteration: 1
+      role: combined
+      content: |
+        # spec - Iteration 1
+
+        ## Prompt
+
+        Create a specification for this task:
+
+        **Task**: Create Textarea primitive component
+        **Category**: {{TASK_CATEGORY}}
+        **Description**: ## Overview
+        Create a shared Textarea component in web/src/components/ui/Textarea.tsx with consistent styling, auto-resize, and character count support.
+
+        ## Design Specifications
+
+        ### Base Styling
+        - Font: var(--font-body) (Inter)
+        - Font size: var(--text-sm) (13px)
+        - Background: var(--bg-secondary)
+        - Border: 1px solid var(--border-default)
+        - Border radius: var(--radius-md) (6px)
+        - Padding: var(--space-2) var(--space-3) (8px 12px)
+        - Text color: var(--text-primary)
+        - Placeholder color: var(--text-muted)
+
+        ### State Styles
+        | State | Border | Ring |
+        |-------|--------|------|
+        | default | --border-default | none |
+        | hover | --border-strong | none |
+        | focus | --accent-primary | 0 0 0 2px var(--accent-glow) |
+        | error | --status-danger | none |
+        | disabled | --border-subtle | opacity 0.5, cursor: not-allowed |
+
+        ### Dimensions
+        - Min height: 80px (3 rows default)
+        - Default rows: 3
+        - Max height (when auto-resize): 300px (configurable)
+
+        ### Auto-Resize Behavior
+        - When autoResize={true}, textarea grows with content up to maxHeight
+        - Scrollbar appears when content exceeds maxHeight
+        - Uses scrollHeight to calculate required height
+
+        ### Character Count
+        - When maxLength provided and showCount={true}, display count below
+        - Format: "123/500" right-aligned
+        - Font size: var(--text-xs), color: var(--text-muted)
+        - Color changes to var(--status-danger) when >= 90% capacity
+
+        ### Props Interface
+        ```typescript
+        interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+          variant?: 'default' | 'error';
+          autoResize?: boolean;
+          maxHeight?: number; // Default: 300
+          showCount?: boolean;
+          error?: string;
+        }
+        ```
+
+        ## Accessibility Requirements
+        - Use aria-describedby to link character count to textarea
+        - Use aria-invalid="true" when error state
+        - Link error message via aria-describedby
+        - Support required attribute with visual indicator
+
+        ## Success Criteria
+        - Consistent textarea styling in comments, descriptions
+        - Auto-resize works smoothly up to maxHeight
+        - Character count updates in real-time
+        - Error state clearly visible
+
+        ## Test Criteria
+
+        ### Unit Tests
+        - Renders with default props
+        - Calls onChange when text entered
+        - Respects disabled state
+        - Auto-resize grows textarea height
+        - Auto-resize respects maxHeight
+        - Character count displays correctly
+        - Character count changes color at 90%
+        - Error state displays error message and red border
+
+        ### Visual Snapshots
+        - Default state
+        - Focus state
+        - Error state
+        - With character count (normal and warning)
+        - Auto-resize expanded
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Instructions
+
+        Create a clear, actionable specification that defines exactly what needs to be done
+        and how to verify it's complete.
+
+        ### 1. Problem Statement
+        Summarize what needs to be solved in 1-2 sentences.
+
+        ### 2. Success Criteria (REQUIRED)
+        Define specific, testable criteria as checkboxes:
+        - Each criterion must be verifiable (file exists, test passes, API returns X)
+        - No vague language ("works well", "is fast")
+        - Include both functional and quality criteria
+
+        ### 3. Testing Requirements (REQUIRED)
+        Specify what tests must pass:
+        - [ ] Unit test: [specific test description]
+        - [ ] Integration test: [if applicable]
+        - [ ] E2E test: [if UI changes]
+
+        ### 4. Scope
+        Define boundaries to prevent scope creep:
+        - **In Scope**: What will be implemented
+        - **Out of Scope**: What will NOT be implemented
+
+        ### 5. Technical Approach
+        Brief plan for implementation:
+        - Files to modify
+        - Key changes in each file
+
+        ### 6. Category-Specific Analysis
+
+        **If this is a BUG (category=bug):**
+        - Reproduction Steps: Exact steps to trigger the bug
+        - Current Behavior: What happens now (the bug)
+        - Expected Behavior: What should happen
+        - Root Cause: Where the bug originates (if known)
+        - Verification: How to confirm the fix works
+
+        **If this is a FEATURE (category=feature):**
+        - User Story: As a [user], I want [feature] so that [benefit]
+        - Acceptance Criteria: Specific conditions for feature acceptance
+
+        **If this is a REFACTOR (category=refactor):**
+        - Before Pattern: Current code/architecture
+        - After Pattern: Target code/architecture
+        - Risk Assessment: What could break
+
+        ## Output Format
+
+        Wrap your spec in artifact tags:
+
+        <artifact>
+        # Specification: Create Textarea primitive component
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+        </artifact>
+
+        After completing the spec, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-205: spec - completed"
+        ```
+
+        Then output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+        If blocked (requirements unclear):
+        ```
+        <phase_blocked>
+        reason: [what's unclear]
+        needs: [what clarification is needed]
+        </phase_blocked>
+        ```
+
+
+        ## Response
+
+        **Commit**: 3d7e42db
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 624405 input, 4839 output, 61199 cache_creation, 563194 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 13
+      taskid: TASK-205
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: Create Textarea primitive component
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        # Specification: Create Textarea primitive component
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-205: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 94c6c7c0
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1588810 input, 9561 output, 77808 cache_creation, 1510974 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 11131
+      taskid: TASK-205
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:49:08-06:00
+    - id: 11138
+      taskid: TASK-205
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:49:08-06:00
+    - id: 11139
+      taskid: TASK-205
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:49:08-06:00
+    - id: 11148
+      taskid: TASK-205
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:49:08-06:00
+    - id: 11150
+      taskid: TASK-205
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:49:08-06:00
+    - id: 11157
+      taskid: TASK-205
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:49:08-06:00
+    - id: 11160
+      taskid: TASK-205
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:49:08-06:00
+    - id: 11140
+      taskid: TASK-205
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:53-06:00
+    - id: 11149
+      taskid: TASK-205
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:53-06:00
+    - id: 11151
+      taskid: TASK-205
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:53-06:00
+    - id: 11158
+      taskid: TASK-205
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:53-06:00
+    - id: 11161
+      taskid: TASK-205
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:53-06:00
+    - id: 11152
+      taskid: TASK-205
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:54:50-06:00
+    - id: 11159
+      taskid: TASK-205
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:54:50-06:00
+    - id: 11162
+      taskid: TASK-205
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:54:50-06:00
+    - id: 11163
+      taskid: TASK-205
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:56:06-06:00

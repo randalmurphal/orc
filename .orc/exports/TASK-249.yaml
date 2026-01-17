@@ -1,0 +1,798 @@
+version: 2
+exported_at: 2026-01-16T23:27:37.069557324-06:00
+task:
+    id: TASK-249
+    title: 'Fix: SaveTask overwrites executor fields (false orphan detection)'
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-249
+    queue: active
+    priority: high
+    category: bug
+    initiative_id: INIT-012
+    created_at: 2026-01-15T16:00:18-06:00
+    updated_at: 2026-01-15T16:27:56-06:00
+    started_at: 2026-01-15T16:15:57-06:00
+    completed_at: 2026-01-15T16:27:56-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/131
+plan:
+    version: 1
+    task_id: TASK-249
+    weight: medium
+    description: Medium task - spec, implement, test, docs with clear success criteria
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 38f8cdc0bf37dc5b815684fda0eba2581d4fd981
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 30b6c6acceae3998d2fb6c3583ebc8e9264f12df
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: ab77369b9fd5f80c8c55b35cf6c39e501e671c82
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: fed80caaf4b28445f377334d8e1f29706a146e7e
+state:
+    task_id: TASK-249
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-15T16:15:57-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-15T16:27:16-06:00
+            completed_at: 2026-01-15T16:27:56-06:00
+            iterations: 1
+            commit_sha: fed80caaf4b28445f377334d8e1f29706a146e7e
+            tokens:
+                input_tokens: 348682
+                output_tokens: 1375
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-15T16:17:36-06:00
+            completed_at: 2026-01-15T16:23:48-06:00
+            iterations: 1
+            commit_sha: 30b6c6acceae3998d2fb6c3583ebc8e9264f12df
+            tokens:
+                input_tokens: 2549791
+                output_tokens: 8265
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-15T16:15:58-06:00
+            completed_at: 2026-01-15T16:17:36-06:00
+            iterations: 1
+            commit_sha: 38f8cdc0bf37dc5b815684fda0eba2581d4fd981
+            tokens:
+                input_tokens: 1073687
+                output_tokens: 5391
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-15T16:23:48-06:00
+            completed_at: 2026-01-15T16:27:16-06:00
+            iterations: 1
+            commit_sha: ab77369b9fd5f80c8c55b35cf6c39e501e671c82
+            tokens:
+                input_tokens: 2229181
+                output_tokens: 5298
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:17:36-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:17:36-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:17:36-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:17:36-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:17:36-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:17:36-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:17:36-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:23:48-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:23:48-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:23:48-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:23:48-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:23:48-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:27:16-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:27:16-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:27:16-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:27:56-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 192
+      taskid: TASK-249
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Fix: SaveTask overwrites executor fields (false orphan detection)
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        # Specification: Fix: SaveTask overwrites executor fields (false orphan detection)
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-249: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: e6115b14
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 348682 input, 1375 output, 58722 cache_creation, 289951 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 193
+      taskid: TASK-249
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Fix: SaveTask overwrites executor fields (false orphan detection)
+        **Category**: {{TASK_CATEGORY}}
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Specification
+
+        # Specification: Fix: SaveTask overwrites executor fields (false orphan detection)
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-249: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 3f6b58f2
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 2549791 input, 8265 output, 102776 cache_creation, 2446976 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 194
+      taskid: TASK-249
+      phase: spec
+      iteration: 1
+      role: combined
+      content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Fix: SaveTask overwrites executor fields (false orphan detection)\n**Category**: {{TASK_CATEGORY}}\n**Description**: \n\n{{INITIATIVE_CONTEXT}}\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Fix: SaveTask overwrites executor fields (false orphan detection)\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-249: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n**Commit**: 19b50742\n\n<artifact>\n# Specification: Fix: SaveTask overwrites executor fields (false orphan detection)\n\n## Problem Statement\n\nWhen `SaveTask` is called to update a task (e.g., changing status, title, or other task fields), it overwrites the executor tracking fields (`executor_pid`, `executor_hostname`, `executor_started_at`, `last_heartbeat`) with zero values. This causes running tasks to be falsely flagged as orphaned because the orphan detection logic sees no executor info.\n\n## Success Criteria\n\n- [ ] `SaveTask` preserves executor fields (`ExecutorPID`, `ExecutorHostname`, `ExecutorStartedAt`, `LastHeartbeat`) from the existing database row when updating a task\n- [ ] A running task's executor fields survive calls to `SaveTask` for unrelated updates (title, status, etc.)\n- [ ] Orphan detection correctly identifies running tasks as NOT orphaned after `SaveTask` is called\n- [ ] `SaveState` remains the authoritative way to set/clear executor fields (no change to SaveState behavior)\n- [ ] Unit test verifies that `SaveTask` preserves executor fields set by prior `SaveState`\n- [ ] Unit test verifies orphan detection works correctly after a task update via `SaveTask`\n\n## Testing Requirements\n\n- [ ] Unit test: `TestSaveTask_PreservesExecutorFields` - Save a task, set executor fields via SaveState, update task via SaveTask, verify executor fields are preserved\n- [ ] Unit test: `TestSaveTask_PreservesExecutorFields_OrphanDetection` - After the SaveTask update, verify LoadState returns correct ExecutionInfo and CheckOrphaned returns false (not orphaned)\n\n## Scope\n\n### In Scope\n- Fix `SaveTaskCtx` in `internal/storage/database_backend.go` to preserve executor fields\n- Add unit tests validating the fix\n- Update documentation in CLAUDE.md knowledge section\n\n### Out of Scope\n- Changing how `SaveState` handles executor fields (it already works correctly)\n- Modifying the `task.Task` struct to include executor fields (they belong in state, not task)\n- Refactoring the task/state separation (just fixing the preservation bug)\n\n## Technical Approach\n\nThe fix is minimal: extend the preservation logic in `SaveTaskCtx` (which already preserves `StateStatus` and `RetryContext`) to also preserve the executor fields.\n\n### Files to Modify\n\n1. `internal/storage/database_backend.go`:\n   - In `SaveTaskCtx`, after reading the existing task and preserving `StateStatus`/`RetryContext`, also preserve:\n     - `dbTask.ExecutorPID = existingTask.ExecutorPID`\n     - `dbTask.ExecutorHostname = existingTask.ExecutorHostname`\n     - `dbTask.ExecutorStartedAt = existingTask.ExecutorStartedAt`\n     - `dbTask.LastHeartbeat = existingTask.LastHeartbeat`\n\n2. `internal/storage/database_backend_test.go`:\n   - Add `TestSaveTask_PreservesExecutorFields` test\n   - Add `TestSaveTask_PreservesExecutorFields_OrphanDetection` test\n\n3. `CLAUDE.md`:\n   - Add entry to Known Gotchas table documenting this fix\n\n## Bug Analysis\n\n### Reproduction Steps\n1. Create a task and start execution (SaveState with ExecutionInfo)\n2. Call SaveTask to update an unrelated field (e.g., title)\n3. Load the state and check ExecutionInfo\n4. Observe ExecutionInfo is nil/zeroed\n\n### Current Behavior (Bug)\n`SaveTaskCtx` (line 77-110) calls `taskToDBTask` which creates a fresh `db.Task` with zero values for executor fields. While it preserves `StateStatus` and `RetryContext` from the existing row, it doesn't preserve executor fields. The SQL upsert then overwrites the database with these zero values.\n\n### Expected Behavior\n`SaveTask` should only update task-related fields and preserve state-related fields (including executor tracking) that are managed by `SaveState`.\n\n### Root Cause\nLines 84-90 of `database_backend.go`:\n```go\nexistingTask, err := d.db.GetTask(t.ID)\nif err == nil && existingTask != nil {\n    dbTask.StateStatus = existingTask.StateStatus\n    dbTask.RetryContext = existingTask.RetryContext\n    // MISSING: executor field preservation\n}\n```\n\nThe preservation logic was incomplete - it handled `StateStatus` and `RetryContext` but not the executor fields added later for orphan detection (TASK-242).\n\n### Verification\nAfter the fix:\n1. SaveState sets executor fields → fields persist in DB\n2. SaveTask updates task → executor fields remain unchanged\n3. LoadState returns correct ExecutionInfo → orphan detection works\n</artifact>\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 1073687 input, 5391 output, 100604 cache_creation, 972474 cache_read\nComplete: true\nBlocked: false\n"
+      timestamp: 1768627233
+    - id: 195
+      taskid: TASK-249
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: Fix: SaveTask overwrites executor fields (false orphan detection)
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        # Specification: Fix: SaveTask overwrites executor fields (false orphan detection)
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-249: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 526a5635
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 2229181 input, 5298 output, 91612 cache_creation, 2137530 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 10967
+      taskid: TASK-249
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:17:36-06:00
+    - id: 10968
+      taskid: TASK-249
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:17:36-06:00
+    - id: 10969
+      taskid: TASK-249
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:17:36-06:00
+    - id: 10971
+      taskid: TASK-249
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:17:36-06:00
+    - id: 10973
+      taskid: TASK-249
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:17:36-06:00
+    - id: 10976
+      taskid: TASK-249
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:17:36-06:00
+    - id: 10979
+      taskid: TASK-249
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:17:36-06:00
+    - id: 10970
+      taskid: TASK-249
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:23:48-06:00
+    - id: 10972
+      taskid: TASK-249
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:23:48-06:00
+    - id: 10974
+      taskid: TASK-249
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:23:48-06:00
+    - id: 10977
+      taskid: TASK-249
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:23:48-06:00
+    - id: 10980
+      taskid: TASK-249
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:23:48-06:00
+    - id: 10975
+      taskid: TASK-249
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:27:16-06:00
+    - id: 10978
+      taskid: TASK-249
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:27:16-06:00
+    - id: 10981
+      taskid: TASK-249
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:27:16-06:00
+    - id: 10982
+      taskid: TASK-249
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:27:56-06:00

@@ -1,0 +1,60 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.866236455-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-022
+    title: 'UI Redesign: Playwright Verification'
+    status: active
+    vision: |-
+        Verify all UI redesign views match their reference mockups using Playwright visual testing via MCP tools.
+
+        Screenshot to View Mapping:
+        - Screenshot_20260116_201804.png -> Board View (/board, INIT-017)
+        - Screenshot_20260116_201819.png -> Initiatives View (/initiatives, INIT-018)
+        - Screenshot_20260116_201852.png -> Stats View (/stats, INIT-019)
+        - Screenshot_20260116_201905.png -> Agents View (/agents, INIT-020)
+        - Screenshot_20260116_201916.png -> Settings View (/settings, INIT-021)
+
+        Verification Process per view:
+        1. Navigate to view URL using browser_navigate
+        2. Wait for data to load using browser_wait_for
+        3. Take screenshot using browser_take_screenshot
+        4. Compare layout, spacing, colors against reference image
+        5. Document any discrepancies in task notes
+        6. Fix CSS/layout issues directly
+        7. Re-screenshot and verify fix
+
+        Viewport: 1920x1080 (match reference screenshot dimensions)
+        Tolerance: Visual similarity, not pixel-perfect (fonts may render differently across systems)
+        Focus Areas: Layout structure, spacing/padding, colors, component structure, text hierarchy
+
+        Test Infrastructure: Add visual regression tests to web/e2e/ directory using existing Playwright fixtures
+        Reference: All example_ui/Screenshot_20260116_*.png files
+    tasks:
+        - id: TASK-371
+          title: Verify Board View matches mockup using Playwright
+          status: planned
+        - id: TASK-372
+          title: Verify Initiatives View matches mockup using Playwright
+          status: planned
+        - id: TASK-373
+          title: Verify Stats View matches mockup using Playwright
+          status: planned
+        - id: TASK-374
+          title: Verify Agents View matches mockup using Playwright
+          status: planned
+        - id: TASK-375
+          title: Verify Settings View matches mockup using Playwright
+          status: planned
+        - id: TASK-376
+          title: Final visual regression test suite for all views
+          status: planned
+    blocked_by:
+        - INIT-017
+        - INIT-018
+        - INIT-019
+        - INIT-020
+        - INIT-021
+    created_at: 2026-01-16T21:03:35-06:00
+    updated_at: 2026-01-16T22:41:00-06:00

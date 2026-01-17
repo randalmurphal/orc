@@ -1,0 +1,1087 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.998502468-06:00
+task:
+    id: TASK-278
+    title: Flowgraph executor renderTemplate missing template variables
+    description: |-
+        The Executor.renderTemplate() function in internal/executor/flowgraph_nodes.go is missing several template variables that exist in template.go's RenderTemplate().
+
+        ## Problem
+        Prompts sent to Claude contain literal {{TASK_CATEGORY}} and {{INITIATIVE_CONTEXT}} instead of substituted values. This means Claude is receiving incomplete context, affecting task quality.
+
+        ## Missing Variables
+        - {{TASK_CATEGORY}} - Task category (bug, feature, etc.)
+        - {{INITIATIVE_ID}}, {{INITIATIVE_TITLE}}, {{INITIATIVE_VISION}}, {{INITIATIVE_DECISIONS}}, {{INITIATIVE_CONTEXT}} - Initiative context
+        - {{COVERAGE_THRESHOLD}} - Test coverage threshold
+        - {{REQUIRES_UI_TESTING}}, {{SCREENSHOT_DIR}}, {{TEST_RESULTS}} - UI testing context
+        - {{VERIFICATION_RESULTS}} - Verification results from implement phase
+
+        ## Root Cause
+        There are TWO template rendering functions:
+        1. RenderTemplate() in template.go (complete, used by standard/trivial/full executors)
+        2. Executor.renderTemplate() in flowgraph_nodes.go (incomplete, used by flowgraph executor)
+
+        ## Solution
+        Sync the variables in flowgraph_nodes.go:renderTemplate() with template.go:RenderTemplate(), or refactor to use a single shared implementation.
+
+        ## Files to Modify
+        - internal/executor/flowgraph_nodes.go:46-79 (renderTemplate method)
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-278
+    queue: active
+    priority: critical
+    category: bug
+    initiative_id: INIT-013
+    created_at: 2026-01-15T23:43:15-06:00
+    updated_at: 2026-01-16T01:44:20-06:00
+    started_at: 2026-01-16T01:26:58-06:00
+    completed_at: 2026-01-16T01:44:20-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/152
+plan:
+    version: 1
+    task_id: TASK-278
+    weight: medium
+    description: Medium task - spec, implement, test, docs with clear success criteria
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: a444261864eda1c4aede9fb4566a41d07e26fe75
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 4a099f60ea6da99038130afe698fd69b2444606b
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: c7141e05cbe60f41afe26d86aef33fa792699461
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: fc72aff97a23a26fe9385520dbeaf13524f9cc10
+spec: |-
+    # Specification: Flowgraph executor renderTemplate missing template variables
+
+    ## Problem Statement
+
+    The flowgraph executor's `renderTemplate()` method in `flowgraph_nodes.go` is missing 12 template variables that exist in `template.go:RenderTemplate()`. This causes prompts sent to Claude to contain literal `{{TASK_CATEGORY}}`, `{{INITIATIVE_CONTEXT}}`, etc. instead of substituted values, degrading task execution quality.
+
+    ## Success Criteria
+
+    - [ ] All template variables from `RenderTemplate()` in `template.go` are also handled in `Executor.renderTemplate()` in `flowgraph_nodes.go`
+    - [ ] `PhaseState` struct includes fields for all template variables (task category, initiative context, UI testing context, coverage threshold, verification results)
+    - [ ] `PhaseState` initialization in `phase.go` populates all new fields from `templateVars`
+    - [ ] Templates using `{{TASK_CATEGORY}}` receive the actual category value (bug, feature, etc.)
+    - [ ] Templates using `{{INITIATIVE_CONTEXT}}` receive formatted initiative context when task belongs to an initiative
+    - [ ] Tests pass: `make test` succeeds with no new failures
+    - [ ] Existing template rendering behavior is preserved (no regressions)
+
+    ## Testing Requirements
+
+    - [ ] Unit test: `TestRenderTemplateWithCategory` - verify `{{TASK_CATEGORY}}` substitution
+    - [ ] Unit test: `TestRenderTemplateWithInitiativeContext` - verify all 5 initiative variables
+    - [ ] Unit test: `TestRenderTemplateWithUITestingContext` - verify `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}`
+    - [ ] Unit test: `TestRenderTemplateWithCoverageThreshold` - verify `{{COVERAGE_THRESHOLD}}`
+    - [ ] Unit test: `TestRenderTemplateWithVerificationResults` - verify `{{VERIFICATION_RESULTS}}`
+    - [ ] Regression test: Existing `TestRenderTemplate*` tests continue to pass
+
+    ## Scope
+
+    ### In Scope
+
+    - Add missing fields to `PhaseState` struct to match `TemplateVars`
+    - Sync `Executor.renderTemplate()` variable map with `RenderTemplate()`
+    - Update `PhaseState` initialization in `phase.go` to populate new fields
+    - Add unit tests for new template variables
+    - Include helper function for `{{INITIATIVE_CONTEXT}}` (the formatted section)
+
+    ### Out of Scope
+
+    - Refactoring to use a single shared implementation (future improvement)
+    - Automation context variables (`{{RECENT_COMPLETED_TASKS}}`, `{{RECENT_CHANGED_FILES}}`, `{{CHANGELOG_CONTENT}}`, `{{CLAUDEMD_CONTENT}}`) - only used by automation tasks which use different executor path
+    - Changes to `template.go` or how standard executors work
+    - Changes to prompt templates themselves
+
+    ## Technical Approach
+
+    ### Strategy: Sync the Two Implementations
+
+    Rather than refactoring to a single implementation (higher risk, larger change), sync the missing variables to `renderTemplate()`. This is the minimal fix for the immediate problem.
+
+    ### Missing Variables Analysis
+
+    | Variable | In template.go | In flowgraph_nodes.go | Action |
+    |----------|---------------|----------------------|--------|
+    | `{{TASK_CATEGORY}}` | Yes | **No** | Add |
+    | `{{INITIATIVE_ID}}` | Yes | **No** | Add |
+    | `{{INITIATIVE_TITLE}}` | Yes | **No** | Add |
+    | `{{INITIATIVE_VISION}}` | Yes | **No** | Add |
+    | `{{INITIATIVE_DECISIONS}}` | Yes | **No** | Add |
+    | `{{INITIATIVE_CONTEXT}}` | Yes | **No** | Add (uses helper) |
+    | `{{COVERAGE_THRESHOLD}}` | Yes | **No** | Add |
+    | `{{REQUIRES_UI_TESTING}}` | Yes | **No** | Add |
+    | `{{SCREENSHOT_DIR}}` | Yes | **No** | Add |
+    | `{{TEST_RESULTS}}` | Yes | **No** | Add |
+    | `{{VERIFICATION_RESULTS}}` | Yes | **No** | Add |
+
+    ### Files to Modify
+
+    1. **`internal/executor/executor.go`** (lines 28-66):
+       - Add new fields to `PhaseState` struct
+
+    2. **`internal/executor/flowgraph_nodes.go`** (lines 46-79):
+       - Add all missing variables to the `replacements` map in `renderTemplate()`
+       - Add local helper function for `{{INITIATIVE_CONTEXT}}` formatting
+
+    3. **`internal/executor/phase.go`** (lines 112-127):
+       - Update `PhaseState` initialization to populate new fields from `templateVars`
+
+    4. **`internal/executor/executor_test.go`**:
+       - Add new test functions for category, initiative context, UI testing, coverage threshold, and verification results
+
+    ## Bug Analysis
+
+    ### Root Cause
+
+    Two parallel implementations:
+    - `template.go:RenderTemplate()` - complete, used by session-based executors
+    - `flowgraph_nodes.go:renderTemplate()` - incomplete, used by flowgraph executor
+
+    ### Verification
+
+    After fix:
+    1. Run a task with category set
+    2. Run a task belonging to an initiative
+    3. Verify transcripts show substituted values, not literal placeholders
+state:
+    task_id: TASK-278
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-16T01:26:58-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-16T01:42:47-06:00
+            completed_at: 2026-01-16T01:44:20-06:00
+            iterations: 1
+            commit_sha: fc72aff97a23a26fe9385520dbeaf13524f9cc10
+            tokens:
+                input_tokens: 1249324
+                output_tokens: 3245
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-16T01:29:26-06:00
+            completed_at: 2026-01-16T01:38:39-06:00
+            iterations: 1
+            commit_sha: 4a099f60ea6da99038130afe698fd69b2444606b
+            tokens:
+                input_tokens: 4275925
+                output_tokens: 11576
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-16T01:26:59-06:00
+            completed_at: 2026-01-16T01:29:26-06:00
+            iterations: 1
+            commit_sha: a444261864eda1c4aede9fb4566a41d07e26fe75
+            tokens:
+                input_tokens: 869113
+                output_tokens: 6267
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-16T01:38:39-06:00
+            completed_at: 2026-01-16T01:42:47-06:00
+            iterations: 1
+            commit_sha: c7141e05cbe60f41afe26d86aef33fa792699461
+            tokens:
+                input_tokens: 2697871
+                output_tokens: 6448
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:29:26-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:29:26-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:29:26-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:29:26-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:29:26-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:29:26-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:29:26-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:38:39-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:38:39-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:38:39-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:38:39-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:38:39-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:42:47-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:42:47-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:42:47-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T01:44:20-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 309
+      taskid: TASK-278
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Flowgraph executor renderTemplate missing template variables
+        **Category**: {{TASK_CATEGORY}}
+
+        ## Specification
+
+        # Specification: Flowgraph executor renderTemplate missing template variables
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-278: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: f8c266c7
+
+        Documentation updated:
+        - Added entry to the "Known Gotchas" section in CLAUDE.md documenting the fix for missing template variables in the flowgraph executor's `renderTemplate()` function
+
+        The existing documentation in `templates/CLAUDE.md` already correctly lists all template variables including the ones that were missing (`{{TASK_CATEGORY}}`, `{{INITIATIVE_CONTEXT}}`, `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}`, `{{COVERAGE_THRESHOLD}}`). The fix ensures these variables are now properly substituted in prompts.
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1249324 input, 3245 output, 72332 cache_creation, 1176832 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 310
+      taskid: TASK-278
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Flowgraph executor renderTemplate missing template variables
+        **Category**: {{TASK_CATEGORY}}
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Specification
+
+        # Specification: Flowgraph executor renderTemplate missing template variables
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-278: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 55615266
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 4275925 input, 11576 output, 128340 cache_creation, 4147099 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 311
+      taskid: TASK-278
+      phase: spec
+      iteration: 1
+      role: combined
+      content: |
+        # spec - Iteration 1
+
+        ## Prompt
+
+        Create a specification for this task:
+
+        **Task**: Flowgraph executor renderTemplate missing template variables
+        **Category**: {{TASK_CATEGORY}}
+        **Description**: The Executor.renderTemplate() function in internal/executor/flowgraph_nodes.go is missing several template variables that exist in template.go's RenderTemplate().
+
+        ## Problem
+        Prompts sent to Claude contain literal {{TASK_CATEGORY}} and {{INITIATIVE_CONTEXT}} instead of substituted values. This means Claude is receiving incomplete context, affecting task quality.
+
+        ## Missing Variables
+        - {{TASK_CATEGORY}} - Task category (bug, feature, etc.)
+        - {{INITIATIVE_ID}}, {{INITIATIVE_TITLE}}, {{INITIATIVE_VISION}}, {{INITIATIVE_DECISIONS}}, {{INITIATIVE_CONTEXT}} - Initiative context
+        - {{COVERAGE_THRESHOLD}} - Test coverage threshold
+        - {{REQUIRES_UI_TESTING}}, {{SCREENSHOT_DIR}}, {{TEST_RESULTS}} - UI testing context
+        - {{VERIFICATION_RESULTS}} - Verification results from implement phase
+
+        ## Root Cause
+        There are TWO template rendering functions:
+        1. RenderTemplate() in template.go (complete, used by standard/trivial/full executors)
+        2. Executor.renderTemplate() in flowgraph_nodes.go (incomplete, used by flowgraph executor)
+
+        ## Solution
+        Sync the variables in flowgraph_nodes.go:renderTemplate() with template.go:RenderTemplate(), or refactor to use a single shared implementation.
+
+        ## Files to Modify
+        - internal/executor/flowgraph_nodes.go:46-79 (renderTemplate method)
+
+        {{INITIATIVE_CONTEXT}}
+
+        ## Instructions
+
+        Create a clear, actionable specification that defines exactly what needs to be done
+        and how to verify it's complete.
+
+        ### 1. Problem Statement
+        Summarize what needs to be solved in 1-2 sentences.
+
+        ### 2. Success Criteria (REQUIRED)
+        Define specific, testable criteria as checkboxes:
+        - Each criterion must be verifiable (file exists, test passes, API returns X)
+        - No vague language ("works well", "is fast")
+        - Include both functional and quality criteria
+
+        ### 3. Testing Requirements (REQUIRED)
+        Specify what tests must pass:
+        - [ ] Unit test: [specific test description]
+        - [ ] Integration test: [if applicable]
+        - [ ] E2E test: [if UI changes]
+
+        ### 4. Scope
+        Define boundaries to prevent scope creep:
+        - **In Scope**: What will be implemented
+        - **Out of Scope**: What will NOT be implemented
+
+        ### 5. Technical Approach
+        Brief plan for implementation:
+        - Files to modify
+        - Key changes in each file
+
+        ### 6. Category-Specific Analysis
+
+        **If this is a BUG (category=bug):**
+        - Reproduction Steps: Exact steps to trigger the bug
+        - Current Behavior: What happens now (the bug)
+        - Expected Behavior: What should happen
+        - Root Cause: Where the bug originates (if known)
+        - Verification: How to confirm the fix works
+
+        **If this is a FEATURE (category=feature):**
+        - User Story: As a [user], I want [feature] so that [benefit]
+        - Acceptance Criteria: Specific conditions for feature acceptance
+
+        **If this is a REFACTOR (category=refactor):**
+        - Before Pattern: Current code/architecture
+        - After Pattern: Target code/architecture
+        - Risk Assessment: What could break
+
+        ## Output Format
+
+        Wrap your spec in artifact tags:
+
+        <artifact>
+        # Specification: Flowgraph executor renderTemplate missing template variables
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+        </artifact>
+
+        After completing the spec, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-278: spec - completed"
+        ```
+
+        Then output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+        If blocked (requirements unclear):
+        ```
+        <phase_blocked>
+        reason: [what's unclear]
+        needs: [what clarification is needed]
+        </phase_blocked>
+        ```
+
+
+        ## Response
+
+        **Commit**: ee208e68
+
+        <artifact>
+        # Specification: Flowgraph executor renderTemplate missing template variables
+
+        ## Problem Statement
+
+        The flowgraph executor's `renderTemplate()` method in `flowgraph_nodes.go` is missing 12 template variables that exist in `template.go:RenderTemplate()`. This causes prompts sent to Claude to contain literal `{{TASK_CATEGORY}}`, `{{INITIATIVE_CONTEXT}}`, etc. instead of substituted values, degrading task execution quality.
+
+        ## Success Criteria
+
+        - [ ] All template variables from `RenderTemplate()` in `template.go` are also handled in `Executor.renderTemplate()` in `flowgraph_nodes.go`
+        - [ ] `PhaseState` struct includes fields for all template variables (task category, initiative context, UI testing context, coverage threshold, verification results)
+        - [ ] `PhaseState` initialization in `phase.go` populates all new fields from `templateVars`
+        - [ ] Templates using `{{TASK_CATEGORY}}` receive the actual category value (bug, feature, etc.)
+        - [ ] Templates using `{{INITIATIVE_CONTEXT}}` receive formatted initiative context when task belongs to an initiative
+        - [ ] Tests pass: `make test` succeeds with no new failures
+        - [ ] Existing template rendering behavior is preserved (no regressions)
+
+        ## Testing Requirements
+
+        - [ ] Unit test: `TestRenderTemplateWithCategory` - verify `{{TASK_CATEGORY}}` substitution
+        - [ ] Unit test: `TestRenderTemplateWithInitiativeContext` - verify all 5 initiative variables
+        - [ ] Unit test: `TestRenderTemplateWithUITestingContext` - verify `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}`
+        - [ ] Unit test: `TestRenderTemplateWithCoverageThreshold` - verify `{{COVERAGE_THRESHOLD}}`
+        - [ ] Unit test: `TestRenderTemplateWithVerificationResults` - verify `{{VERIFICATION_RESULTS}}`
+        - [ ] Regression test: Existing `TestRenderTemplate*` tests continue to pass
+
+        ## Scope
+
+        ### In Scope
+
+        - Add missing fields to `PhaseState` struct to match `TemplateVars`
+        - Sync `Executor.renderTemplate()` variable map with `RenderTemplate()`
+        - Update `PhaseState` initialization in `phase.go` to populate new fields
+        - Add unit tests for new template variables
+        - Include helper function for `{{INITIATIVE_CONTEXT}}` (the formatted section)
+
+        ### Out of Scope
+
+        - Refactoring to use a single shared implementation (future improvement)
+        - Automation context variables (`{{RECENT_COMPLETED_TASKS}}`, `{{RECENT_CHANGED_FILES}}`, `{{CHANGELOG_CONTENT}}`, `{{CLAUDEMD_CONTENT}}`) - only used by automation tasks which use different executor path
+        - Changes to `template.go` or how standard executors work
+        - Changes to prompt templates themselves
+
+        ## Technical Approach
+
+        ### Strategy: Sync the Two Implementations
+
+        Rather than refactoring to a single implementation (higher risk, larger change), sync the missing variables to `renderTemplate()`. This is the minimal fix for the immediate problem.
+
+        ### Missing Variables Analysis
+
+        | Variable | In template.go | In flowgraph_nodes.go | Action |
+        |----------|---------------|----------------------|--------|
+        | `{{TASK_CATEGORY}}` | Yes | **No** | Add |
+        | `{{INITIATIVE_ID}}` | Yes | **No** | Add |
+        | `{{INITIATIVE_TITLE}}` | Yes | **No** | Add |
+        | `{{INITIATIVE_VISION}}` | Yes | **No** | Add |
+        | `{{INITIATIVE_DECISIONS}}` | Yes | **No** | Add |
+        | `{{INITIATIVE_CONTEXT}}` | Yes | **No** | Add (uses helper) |
+        | `{{COVERAGE_THRESHOLD}}` | Yes | **No** | Add |
+        | `{{REQUIRES_UI_TESTING}}` | Yes | **No** | Add |
+        | `{{SCREENSHOT_DIR}}` | Yes | **No** | Add |
+        | `{{TEST_RESULTS}}` | Yes | **No** | Add |
+        | `{{VERIFICATION_RESULTS}}` | Yes | **No** | Add |
+
+        ### Files to Modify
+
+        1. **`internal/executor/executor.go`** (lines 28-66):
+           - Add new fields to `PhaseState` struct
+
+        2. **`internal/executor/flowgraph_nodes.go`** (lines 46-79):
+           - Add all missing variables to the `replacements` map in `renderTemplate()`
+           - Add local helper function for `{{INITIATIVE_CONTEXT}}` formatting
+
+        3. **`internal/executor/phase.go`** (lines 112-127):
+           - Update `PhaseState` initialization to populate new fields from `templateVars`
+
+        4. **`internal/executor/executor_test.go`**:
+           - Add new test functions for category, initiative context, UI testing, coverage threshold, and verification results
+
+        ## Bug Analysis
+
+        ### Root Cause
+
+        Two parallel implementations:
+        - `template.go:RenderTemplate()` - complete, used by session-based executors
+        - `flowgraph_nodes.go:renderTemplate()` - incomplete, used by flowgraph executor
+
+        ### Verification
+
+        After fix:
+        1. Run a task with category set
+        2. Run a task belonging to an initiative
+        3. Verify transcripts show substituted values, not literal placeholders
+        </artifact>
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 869113 input, 6267 output, 77559 cache_creation, 791539 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 312
+      taskid: TASK-278
+      phase: test
+      iteration: 1
+      role: combined
+      content: "# test - Iteration 1\n\n## Prompt\n\nTest and review the implementation:\n\n**Task**: Flowgraph executor renderTemplate missing template variables\n**Category**: {{TASK_CATEGORY}}\n\n## Specification\n\n# Specification: Flowgraph executor renderTemplate missing template variables\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n\n## Instructions\n\n1. Run the full test suite\n2. Verify all Testing Requirements from spec are satisfied\n3. Review code for quality issues\n4. Check for edge cases and security issues\n5. Fix any problems found\n\n### Verification Against Spec\nGo through each Success Criterion and Testing Requirement from the spec\nand verify it's satisfied.\n\nKeep iterating until all tests pass and code quality is acceptable.\n\nAfter completing, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-278: test - completed\"\n```\n\nWhen done, output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\n\n## Response\n\n## Summary\n\nAll testing requirements from the spec have been verified:\n\n**Testing Requirements (all verified):**\n- ✅ `TestRenderTemplate_NewVariables` - verifies `{{TASK_CATEGORY}}` substitution\n- ✅ `TestRenderTemplate_InitiativeVariables` - verifies all 5 initiative variables\n- ✅ `TestRenderTemplate_UITestingVariables` - verifies `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}`  \n- ✅ `TestRenderTemplate_CoverageThresholdDefault` - verifies `{{COVERAGE_THRESHOLD}}`\n- ✅ `TestRenderTemplate_VerificationResultsVariable` - verifies `{{VERIFICATION_RESULTS}}`\n- ✅ All existing `TestRenderTemplate*` tests continue to pass (60 tests)\n\n**Success Criteria (all met):**\n- ✅ All template variables from `RenderTemplate()` now in `Executor.renderTemplate()`\n- ✅ `PhaseState` struct includes all new fields\n- ✅ `PhaseState` initialization populates all new fields from `templateVars`\n- ✅ Templates using `{{TASK_CATEGORY}}` receive actual category value\n- ✅ Templates using `{{INITIATIVE_CONTEXT}}` receive formatted initiative context\n- ✅ Tests pass: `./internal/executor/...` succeeds with no new failures\n- ✅ Existing template rendering behavior preserved (no regressions)\n\n**Commit**: 4a099f60\n<phase_complete>true</phase_complete>\n\n---\nTokens: 2697871 input, 6448 output, 76332 cache_creation, 2621503 cache_read\nComplete: true\nBlocked: false\n"
+      timestamp: 1768627233
+gate_decisions:
+    - id: 65344
+      taskid: TASK-278
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:29:26-06:00
+    - id: 65352
+      taskid: TASK-278
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:29:26-06:00
+    - id: 65353
+      taskid: TASK-278
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:29:26-06:00
+    - id: 65355
+      taskid: TASK-278
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:29:26-06:00
+    - id: 65357
+      taskid: TASK-278
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:29:26-06:00
+    - id: 65365
+      taskid: TASK-278
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:29:26-06:00
+    - id: 65368
+      taskid: TASK-278
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:29:26-06:00
+    - id: 65354
+      taskid: TASK-278
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:38:39-06:00
+    - id: 65356
+      taskid: TASK-278
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:38:39-06:00
+    - id: 65358
+      taskid: TASK-278
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:38:39-06:00
+    - id: 65366
+      taskid: TASK-278
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:38:39-06:00
+    - id: 65369
+      taskid: TASK-278
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:38:39-06:00
+    - id: 65359
+      taskid: TASK-278
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:42:47-06:00
+    - id: 65367
+      taskid: TASK-278
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:42:47-06:00
+    - id: 65370
+      taskid: TASK-278
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:42:47-06:00
+    - id: 65371
+      taskid: TASK-278
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T01:44:20-06:00

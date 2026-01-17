@@ -1,0 +1,291 @@
+version: 2
+exported_at: 2026-01-16T23:27:36.935458244-06:00
+task:
+    id: TASK-325
+    title: Replace CSS tokens with new design system
+    description: "Replace the existing web/src/styles/tokens.css with the new design system extracted from example_ui/*.html mockups.\n\nREFERENCE FILES:\n- example_ui/board.html (lines 10-80 contain CSS variables)\n- example_ui/Screenshot_20260116_201804.png\n- docs/specs/UI_REDESIGN_ARCHITECTURE.md (design system section)\n\nCOMPLETE CSS TOKEN SPECIFICATION:\n```css\n:root {\n  /* ========== BACKGROUNDS ========== */\n  --bg-base: #050508;           /* Page background */\n  --bg-elevated: #0a0a0f;       /* Nav, header, panels */\n  --bg-surface: #101016;        /* Interactive surfaces */\n  --bg-card: #15151d;           /* Card backgrounds */\n  --bg-hover: #1c1c26;          /* Hover states */\n\n  /* ========== BORDERS ========== */\n  --border: rgba(255, 255, 255, 0.04);\n  --border-light: rgba(255, 255, 255, 0.08);\n  --border-focus: rgba(168, 85, 247, 0.5);\n\n  /* ========== TEXT ========== */\n  --text-primary: #eaeaef;\n  --text-secondary: #8e8e9a;\n  --text-muted: #55555f;\n\n  /* ========== PRIMARY (PURPLE) ========== */\n  --primary: #a855f7;\n  --primary-bright: #c084fc;\n  --primary-dim: rgba(168, 85, 247, 0.1);\n  --primary-glow: rgba(168, 85, 247, 0.25);\n\n  /* ========== SEMANTIC COLORS ========== */\n  --green: #10b981;\n  --green-dim: rgba(16, 185, 129, 0.08);\n  --green-bright: #34d399;\n  \n  --amber: #f59e0b;\n  --amber-dim: rgba(245, 158, 11, 0.08);\n  --amber-bright: #fbbf24;\n  \n  --red: #ef4444;\n  --red-dim: rgba(239, 68, 68, 0.08);\n  --red-bright: #f87171;\n  \n  --blue: #3b82f6;\n  --blue-dim: rgba(59, 130, 246, 0.08);\n  --blue-bright: #60a5fa;\n  \n  --cyan: #06b6d4;\n  --cyan-dim: rgba(6, 182, 212, 0.08);\n  --cyan-bright: #22d3ee;\n  \n  --orange: #f97316;\n  --orange-dim: rgba(249, 115, 22, 0.08);\n  --orange-bright: #fb923c;\n\n  /* ========== TYPOGRAPHY ========== */\n  --font-sans: \"Inter\", system-ui, -apple-system, sans-serif;\n  --font-mono: \"JetBrains Mono\", ui-monospace, monospace;\n\n  --text-xs: 8px;     /* Labels, badges */\n  --text-sm: 9px;     /* Meta text, muted */\n  --text-base: 11px;  /* Body text */\n  --text-md: 12px;    /* Secondary text */\n  --text-lg: 13px;    /* Section titles */\n  --text-xl: 14px;    /* Card titles */\n  --text-2xl: 16px;   /* Page titles */\n  --text-3xl: 18px;   /* Large numbers */\n  --text-4xl: 24px;   /* Stats */\n  --text-5xl: 28px;   /* Hero stats */\n\n  /* ========== LAYOUT DIMENSIONS ========== */\n  --icon-nav-width: 56px;\n  --settings-sidebar-width: 240px;\n  --right-panel-width: 300px;\n  --top-bar-height: 48px;\n  --running-column-width: 420px;\n\n  /* ========== SPACING ========== */\n  --space-1: 4px;\n  --space-2: 8px;\n  --space-3: 12px;\n  --space-4: 16px;\n  --space-5: 20px;\n  --space-6: 24px;\n\n  /* ========== RADII ========== */\n  --radius-sm: 4px;\n  --radius-md: 6px;\n  --radius-lg: 10px;\n  --radius-xl: 12px;\n\n  /* ========== TRANSITIONS ========== */\n  --transition-fast: 0.1s ease;\n  --transition-medium: 0.15s ease;\n  --transition-slow: 0.2s ease;\n\n  /* ========== SHADOWS ========== */\n  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);\n  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.25);\n  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);\n  --shadow-glow: 0 0 20px var(--primary-glow);\n\n  /* ========== Z-INDEX ========== */\n  --z-dropdown: 100;\n  --z-modal: 200;\n  --z-tooltip: 300;\n  --z-toast: 400;\n}\n\n/* ========== SCROLLBAR STYLES ========== */\n::-webkit-scrollbar {\n  width: 5px;\n  height: 5px;\n}\n::-webkit-scrollbar-track {\n  background: transparent;\n}\n::-webkit-scrollbar-thumb {\n  background: var(--border-light);\n  border-radius: 3px;\n}\n::-webkit-scrollbar-thumb:hover {\n  background: var(--text-muted);\n}\n\n/* ========== ANIMATIONS ========== */\n@keyframes pulse {\n  0%, 100% { opacity: 1; }\n  50% { opacity: 0.5; }\n}\n\n@keyframes progress-grow {\n  0%, 100% { transform: scaleX(0.3); transform-origin: left; }\n  50% { transform: scaleX(1); }\n}\n\n@keyframes fadeIn {\n  from { opacity: 0; }\n  to { opacity: 1; }\n}\n\n@keyframes slideUp {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n```\n\nSUCCESS CRITERIA:\n1. All color tokens match example_ui/board.html exactly\n2. Typography tokens match mockup font sizes\n3. Layout dimensions match spec (56px nav, 300px panel, etc.)\n4. Google Fonts imports added to index.html\n5. Scrollbar styles match mockup\n6. Animation keyframes defined\n7. npm run build exits 0\n8. npm run typecheck exits 0\n\nMIGRATION STEPS:\n1. Read current tokens.css to identify existing token names\n2. Create mapping from old names to new names\n3. Search codebase for old token usage\n4. Replace tokens.css with new content\n5. Update all component CSS files using old tokens\n6. Verify no old token names remain\n\nEDGE CASES:\n- Remove light theme support (new design is dark-only)\n- Handle any existing animations that conflict\n- Ensure font imports load before render\n\nFILES TO MODIFY:\n- web/src/styles/tokens.css (complete replacement)\n- web/index.html (add Google Fonts link)\n- web/src/index.css (update base styles if needed)\n- Any component CSS files using old tokens"
+    weight: medium
+    status: planned
+    branch: orc/TASK-325
+    queue: active
+    priority: critical
+    category: refactor
+    initiative_id: INIT-015
+    created_at: 2026-01-16T20:54:37-06:00
+    updated_at: 0001-01-01T00:00:00Z
+plan:
+    version: 1
+    task_id: TASK-325
+    weight: medium
+    description: Medium task - spec, implement, review, test, docs with multi-agent code review
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: review
+          name: review
+          prompt: ""
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - review
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: pending
+state:
+    task_id: TASK-325
+    current_phase: ""
+    current_iteration: 0
+    status: pending
+    started_at: 0001-01-01T00:00:00Z
+    updated_at: 0001-01-01T00:00:00Z
+    phases: {}
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0

@@ -1,0 +1,48 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.866602238-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-018
+    title: 'UI Redesign: Initiatives View'
+    status: active
+    vision: |-
+        Build the Initiatives view displaying all project initiatives with aggregated statistics.
+
+        Stats Row (top of page):
+        - 4 stat cards in a row: Active Initiatives (count), Total Tasks (count + delta), Completion Rate (%), Total Cost ($)
+        - Each card: bg-card background, label (text-muted), large value (text-primary, primary color for money)
+
+        Initiative Cards (grid layout):
+        - 2-column responsive grid (1 column on mobile)
+        - Card contents:
+          - Header row: emoji icon (20x20), title (text-xl), status badge (ACTIVE/PAUSED/COMPLETED)
+          - Description: 1-2 lines, text-secondary, line-clamp-2
+          - Progress section: 'Progress' label, 'X / Y tasks' count, progress bar (green fill)
+          - Footer row: Est. time remaining, $ spent, tokens used (all text-muted)
+
+        Status Badge Colors:
+        - ACTIVE: green-dim background, green text
+        - PAUSED: amber-dim background, amber text
+        - COMPLETED: cyan-dim background, cyan text
+
+        Data: Pull from initiativeStore, aggregate task stats from taskStore
+        Reference: example_ui/initiatives.html, example_ui/Screenshot_20260116_201819.png
+        Integrate with: existing web/src/pages/Initiatives.tsx or create new InitiativesView.tsx
+    tasks:
+        - id: TASK-354
+          title: Create StatsRow component for initiative overview stats
+          status: planned
+        - id: TASK-355
+          title: Create InitiativeCard component
+          status: planned
+        - id: TASK-356
+          title: Create InitiativesView container component
+          status: planned
+        - id: TASK-388
+          title: Create InitiativeDetailPage for /initiatives/:id route
+          status: planned
+    blocked_by:
+        - INIT-016
+    created_at: 2026-01-16T20:59:55-06:00
+    updated_at: 2026-01-16T22:40:11-06:00

@@ -1,0 +1,1130 @@
+version: 2
+exported_at: 2026-01-16T23:27:37.004180853-06:00
+task:
+    id: TASK-275
+    title: 'Fix: View mode dropdown disabled on Board page - can''t switch to swimlane view'
+    description: |-
+        ## Problem
+        On the Board page, the View Mode dropdown is disabled and shows 'Flat'.
+        Users cannot switch to the 'By Initiative' swimlane view.
+
+        ## Current Behavior
+        - Dropdown trigger shows 'Flat' with disabled state
+        - Cannot click to open dropdown
+        - Cannot select 'By Initiative' option
+
+        ## Expected Behavior
+        - Dropdown should be enabled when no initiative filter is active
+        - Dropdown should allow switching between 'Flat' and 'By Initiative' views
+        - CLAUDE.md notes: 'Swimlane disabled when initiative filter active' - but it's disabled even without filter
+
+        ## Testing Performed
+        - Navigated to /board (no initiative filter in URL)
+        - View mode dropdown was disabled
+
+        ## Location
+        - components/board/ViewModeDropdown.tsx
+        - pages/Board.tsx (where disabled prop is passed)
+
+        ## Technical Notes
+        - Check if disabled prop is being set incorrectly
+        - May be tied to initiative filter state logic
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-275
+    queue: active
+    priority: normal
+    category: bug
+    initiative_id: INIT-013
+    created_at: 2026-01-15T23:33:23-06:00
+    updated_at: 2026-01-16T03:07:37-06:00
+    started_at: 2026-01-16T02:35:41-06:00
+    completed_at: 2026-01-16T03:07:37-06:00
+plan:
+    version: 1
+    task_id: TASK-275
+    weight: medium
+    description: Medium task - spec, implement, test, docs with clear success criteria
+    phases:
+        - id: spec
+          name: spec
+          prompt: |
+            Create a specification for this task:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Instructions
+
+            Create a clear, actionable specification that defines exactly what needs to be done
+            and how to verify it's complete.
+
+            ### 1. Problem Statement
+            Summarize what needs to be solved in 1-2 sentences.
+
+            ### 2. Success Criteria (REQUIRED)
+            Define specific, testable criteria as checkboxes:
+            - Each criterion must be verifiable (file exists, test passes, API returns X)
+            - No vague language ("works well", "is fast")
+            - Include both functional and quality criteria
+
+            ### 3. Testing Requirements (REQUIRED)
+            Specify what tests must pass:
+            - [ ] Unit test: [specific test description]
+            - [ ] Integration test: [if applicable]
+            - [ ] E2E test: [if UI changes]
+
+            ### 4. Scope
+            Define boundaries to prevent scope creep:
+            - **In Scope**: What will be implemented
+            - **Out of Scope**: What will NOT be implemented
+
+            ### 5. Technical Approach
+            Brief plan for implementation:
+            - Files to modify
+            - Key changes in each file
+
+            ### 6. Category-Specific Analysis
+
+            **If this is a BUG (category=bug):**
+            - Reproduction Steps: Exact steps to trigger the bug
+            - Current Behavior: What happens now (the bug)
+            - Expected Behavior: What should happen
+            - Root Cause: Where the bug originates (if known)
+            - Verification: How to confirm the fix works
+
+            **If this is a FEATURE (category=feature):**
+            - User Story: As a [user], I want [feature] so that [benefit]
+            - Acceptance Criteria: Specific conditions for feature acceptance
+
+            **If this is a REFACTOR (category=refactor):**
+            - Before Pattern: Current code/architecture
+            - After Pattern: Target code/architecture
+            - Risk Assessment: What could break
+
+            ## Output Format
+
+            Wrap your spec in artifact tags:
+
+            <artifact>
+            # Specification: {{TASK_TITLE}}
+
+            ## Problem Statement
+            [1-2 sentences]
+
+            ## Success Criteria
+            - [ ] [Criterion 1]
+            - [ ] [Criterion 2]
+
+            ## Testing Requirements
+            - [ ] [Test 1]
+            - [ ] [Test 2]
+
+            ## Scope
+            ### In Scope
+            - [Item]
+            ### Out of Scope
+            - [Item]
+
+            ## Technical Approach
+            [Brief implementation plan]
+
+            ### Files to Modify
+            - [file]: [change]
+
+            ## [Category-Specific Section]
+            [Include appropriate section based on category]
+            </artifact>
+
+            After completing the spec, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: spec - completed"
+            ```
+
+            Then output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+
+            If blocked (requirements unclear):
+            ```
+            <phase_blocked>
+            reason: [what's unclear]
+            needs: [what clarification is needed]
+            </phase_blocked>
+            ```
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 8aa5312f11c7eca6b01824b02c7bb5f86ecd3758
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the task according to the specification:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            {{INITIATIVE_CONTEXT}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            {{RETRY_CONTEXT}}
+
+            ## Instructions
+
+            1. Review the spec's success criteria - these are your acceptance criteria
+            2. Implement the required changes following the technical approach
+            3. Write/update tests alongside code (as specified in Testing Requirements)
+            4. Run tests and fix any failures
+            5. Self-review against success criteria before completing
+
+            ### Self-Review Checklist
+            - [ ] All success criteria from spec addressed
+            - [ ] All testing requirements satisfied
+            - [ ] Scope boundaries respected (no extra features)
+            - [ ] Error handling complete
+            - [ ] Code follows project patterns
+
+            Keep iterating until implementation is complete and tests pass.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: implement - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - spec
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 63101a34d27128ba2f615707284e3c5ea6c0cdf5
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Run the full test suite
+            2. Verify all Testing Requirements from spec are satisfied
+            3. Review code for quality issues
+            4. Check for edge cases and security issues
+            5. Fix any problems found
+
+            ### Verification Against Spec
+            Go through each Success Criterion and Testing Requirement from the spec
+            and verify it's satisfied.
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: test - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 084457e5ca2affeca75dd5243c77a4673aee2586
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+            **Category**: {{TASK_CATEGORY}}
+
+            ## Specification
+
+            {{SPEC_CONTENT}}
+
+            ## Instructions
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            After completing, commit:
+            ```bash
+            git add -A
+            git commit -m "[orc] {{TASK_ID}}: docs - completed"
+            ```
+
+            When done, output:
+            ```
+            **Commit**: [SHA]
+            <phase_complete>true</phase_complete>
+            ```
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 3efff720b216f13e146488101507c00733ef5ffe
+spec: |-
+    **Commit**: fe9cb6b5
+
+    <phase_complete>true</phase_complete>
+state:
+    task_id: TASK-275
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-16T02:35:41-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-16T03:06:11-06:00
+            completed_at: 2026-01-16T03:07:37-06:00
+            iterations: 1
+            commit_sha: 3efff720b216f13e146488101507c00733ef5ffe
+            tokens:
+                input_tokens: 1369237
+                output_tokens: 2876
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-16T02:39:01-06:00
+            completed_at: 2026-01-16T02:58:22-06:00
+            iterations: 2
+            commit_sha: 63101a34d27128ba2f615707284e3c5ea6c0cdf5
+            tokens:
+                input_tokens: 22339384
+                output_tokens: 43388
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-16T02:35:43-06:00
+            completed_at: 2026-01-16T02:39:01-06:00
+            iterations: 1
+            commit_sha: 8aa5312f11c7eca6b01824b02c7bb5f86ecd3758
+            tokens:
+                input_tokens: 1649468
+                output_tokens: 8139
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-16T02:58:22-06:00
+            completed_at: 2026-01-16T03:06:11-06:00
+            iterations: 1
+            commit_sha: 084457e5ca2affeca75dd5243c77a4673aee2586
+            tokens:
+                input_tokens: 3210478
+                output_tokens: 7251
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:39:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:39:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:39:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:39:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:39:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:39:01-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:39:01-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:58:22-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:58:22-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:58:22-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:58:22-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T02:58:22-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:06:11-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:06:11-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:06:11-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:07:37-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+transcripts:
+    - id: 296
+      taskid: TASK-275
+      phase: docs
+      iteration: 1
+      role: combined
+      content: |
+        # docs - Iteration 1
+
+        ## Prompt
+
+        Update documentation for:
+
+        **Task**: Fix: View mode dropdown disabled on Board page - can't switch to swimlane view
+        **Category**: bug
+
+        ## Specification
+
+        # Specification: Fix: View mode dropdown disabled on Board page - can't switch to swimlane view
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Update any relevant documentation files
+        2. Ensure CLAUDE.md reflects the changes if applicable
+        3. Add/update code comments where needed
+        4. Update README if user-facing changes were made
+
+        Keep iterating until documentation is complete.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-275: docs - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 7947a4bf
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1369237 input, 2876 output, 137912 cache_creation, 1231307 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 297
+      taskid: TASK-275
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Fix: View mode dropdown disabled on Board page - can't switch to swimlane view
+        **Category**: bug
+
+        ## Initiative Context
+
+        This task is part of **Frontend Polish & UX Audit** (INIT-013).
+
+        ### Vision
+
+        Comprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Specification
+
+        # Specification: Fix: View mode dropdown disabled on Board page - can't switch to swimlane view
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-275: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        TASK-275 is complete. Here's a summary of what was done:
+
+        **Problem:** View mode dropdown on Board page was disabled, preventing users from switching to swimlane view even on clean URL navigation (`/board`). The root cause was that `swimlaneDisabled` used `currentInitiativeId` from the Zustand store, which included localStorage-persisted values from previous sessions.
+
+        **Fix:** Changed `Board.tsx` (lines 83-87) to use the URL parameter as the source of truth:
+        ```typescript
+        // Use URL param as source of truth, not store value (which includes localStorage-persisted state)
+        // This ensures clean URL navigation (/board) has dropdown enabled
+        const urlInitiativeFilter = searchParams.get('initiative');
+        const swimlaneDisabled = urlInitiativeFilter !== null;
+        ```
+
+        **Testing:**
+        - Manual browser testing confirmed dropdown enabled on clean URL
+        - New E2E test added (`should enable view mode dropdown on clean URL`) - passed
+        - 25/26 E2E tests passed (the 1 failure is a pre-existing unrelated xpath issue)
+
+        **Commit:** `0549c76f` - `[orc] TASK-275: Fix view mode dropdown disabled on Board page`
+
+        ---
+        Tokens: 9143721 input, 16468 output, 194120 cache_creation, 8949470 cache_read
+        Complete: false
+        Blocked: false
+      timestamp: 1768627233
+    - id: 298
+      taskid: TASK-275
+      phase: implement
+      iteration: 2
+      role: combined
+      content: |
+        # implement - Iteration 2
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Fix: View mode dropdown disabled on Board page - can't switch to swimlane view
+        **Category**: bug
+
+        ## Initiative Context
+
+        This task is part of **Frontend Polish & UX Audit** (INIT-013).
+
+        ### Vision
+
+        Comprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Specification
+
+        # Specification: Fix: View mode dropdown disabled on Board page - can't switch to swimlane view
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-275: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 122ad52d
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 13195663 input, 26920 output, 305953 cache_creation, 12889074 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 299
+      taskid: TASK-275
+      phase: spec
+      iteration: 1
+      role: combined
+      content: |
+        # spec - Iteration 1
+
+        ## Prompt
+
+        Create a specification for this task:
+
+        **Task**: Fix: View mode dropdown disabled on Board page - can't switch to swimlane view
+        **Category**: bug
+        **Description**: ## Problem
+        On the Board page, the View Mode dropdown is disabled and shows 'Flat'.
+        Users cannot switch to the 'By Initiative' swimlane view.
+
+        ## Current Behavior
+        - Dropdown trigger shows 'Flat' with disabled state
+        - Cannot click to open dropdown
+        - Cannot select 'By Initiative' option
+
+        ## Expected Behavior
+        - Dropdown should be enabled when no initiative filter is active
+        - Dropdown should allow switching between 'Flat' and 'By Initiative' views
+        - CLAUDE.md notes: 'Swimlane disabled when initiative filter active' - but it's disabled even without filter
+
+        ## Testing Performed
+        - Navigated to /board (no initiative filter in URL)
+        - View mode dropdown was disabled
+
+        ## Location
+        - components/board/ViewModeDropdown.tsx
+        - pages/Board.tsx (where disabled prop is passed)
+
+        ## Technical Notes
+        - Check if disabled prop is being set incorrectly
+        - May be tied to initiative filter state logic
+
+        ## Initiative Context
+
+        This task is part of **Frontend Polish & UX Audit** (INIT-013).
+
+        ### Vision
+
+        Comprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Instructions
+
+        Create a clear, actionable specification that defines exactly what needs to be done
+        and how to verify it's complete.
+
+        ### 1. Problem Statement
+        Summarize what needs to be solved in 1-2 sentences.
+
+        ### 2. Success Criteria (REQUIRED)
+        Define specific, testable criteria as checkboxes:
+        - Each criterion must be verifiable (file exists, test passes, API returns X)
+        - No vague language ("works well", "is fast")
+        - Include both functional and quality criteria
+
+        ### 3. Testing Requirements (REQUIRED)
+        Specify what tests must pass:
+        - [ ] Unit test: [specific test description]
+        - [ ] Integration test: [if applicable]
+        - [ ] E2E test: [if UI changes]
+
+        ### 4. Scope
+        Define boundaries to prevent scope creep:
+        - **In Scope**: What will be implemented
+        - **Out of Scope**: What will NOT be implemented
+
+        ### 5. Technical Approach
+        Brief plan for implementation:
+        - Files to modify
+        - Key changes in each file
+
+        ### 6. Category-Specific Analysis
+
+        **If this is a BUG (category=bug):**
+        - Reproduction Steps: Exact steps to trigger the bug
+        - Current Behavior: What happens now (the bug)
+        - Expected Behavior: What should happen
+        - Root Cause: Where the bug originates (if known)
+        - Verification: How to confirm the fix works
+
+        **If this is a FEATURE (category=feature):**
+        - User Story: As a [user], I want [feature] so that [benefit]
+        - Acceptance Criteria: Specific conditions for feature acceptance
+
+        **If this is a REFACTOR (category=refactor):**
+        - Before Pattern: Current code/architecture
+        - After Pattern: Target code/architecture
+        - Risk Assessment: What could break
+
+        ## Output Format
+
+        Wrap your spec in artifact tags:
+
+        <artifact>
+        # Specification: Fix: View mode dropdown disabled on Board page - can't switch to swimlane view
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+        </artifact>
+
+        After completing the spec, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-275: spec - completed"
+        ```
+
+        Then output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+        If blocked (requirements unclear):
+        ```
+        <phase_blocked>
+        reason: [what's unclear]
+        needs: [what clarification is needed]
+        </phase_blocked>
+        ```
+
+
+        ## Response
+
+        **Commit**: fe9cb6b5
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1649468 input, 8139 output, 72588 cache_creation, 1576854 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+    - id: 300
+      taskid: TASK-275
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Test and review the implementation:
+
+        **Task**: Fix: View mode dropdown disabled on Board page - can't switch to swimlane view
+        **Category**: bug
+
+        ## Specification
+
+        # Specification: Fix: View mode dropdown disabled on Board page - can't switch to swimlane view
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+
+        ## Instructions
+
+        1. Run the full test suite
+        2. Verify all Testing Requirements from spec are satisfied
+        3. Review code for quality issues
+        4. Check for edge cases and security issues
+        5. Fix any problems found
+
+        ### Verification Against Spec
+        Go through each Success Criterion and Testing Requirement from the spec
+        and verify it's satisfied.
+
+        Keep iterating until all tests pass and code quality is acceptable.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-275: test - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 1ca69c87
+
+        ## Summary
+
+        The test phase is complete. I verified:
+
+        1. **E2E Tests Pass (26/26)**: All board tests pass including the new TASK-275 specific tests:
+           - `should enable view mode dropdown on clean URL (ignoring localStorage initiative filter)`
+           - `should disable swimlane toggle when initiative filter active in URL`
+           - `should show initiative banner when filtering`
+
+        2. **Frontend Unit Tests Pass (690/690)**: All Vitest tests pass
+
+        3. **Backend Tests**: Pass with one pre-existing failure (`TestBranch_UpdateActivity`) that exists on main branch and is unrelated to this task
+
+        4. **Success Criteria Verified**:
+           - ✅ View Mode dropdown enabled when no initiative filter in URL
+           - ✅ View Mode dropdown disabled only when URL has initiative param
+           - ✅ Swimlane view accessible when filter not active
+           - ✅ Initiative filter behavior documented in CLAUDE.md
+           - ✅ E2E tests validate all scenarios
+
+        5. **Code Quality**: The implementation follows the recommended Option A approach from the spec - using URL param as source of truth for `swimlaneDisabled`
+
+        6. **Fixed Flaky Test**: Also fixed a pre-existing flaky test (`should render task cards in correct columns`) that was selecting multiple ancestor regions instead of just the column region
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 3210478 input, 7251 output, 93505 cache_creation, 3116930 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768627233
+gate_decisions:
+    - id: 65501
+      taskid: TASK-275
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:39:01-06:00
+    - id: 65532
+      taskid: TASK-275
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:39:01-06:00
+    - id: 65533
+      taskid: TASK-275
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:39:01-06:00
+    - id: 65535
+      taskid: TASK-275
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:39:01-06:00
+    - id: 65537
+      taskid: TASK-275
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:39:01-06:00
+    - id: 65540
+      taskid: TASK-275
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:39:01-06:00
+    - id: 65543
+      taskid: TASK-275
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:39:01-06:00
+    - id: 65534
+      taskid: TASK-275
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:58:22-06:00
+    - id: 65536
+      taskid: TASK-275
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:58:22-06:00
+    - id: 65538
+      taskid: TASK-275
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:58:22-06:00
+    - id: 65541
+      taskid: TASK-275
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:58:22-06:00
+    - id: 65544
+      taskid: TASK-275
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T02:58:22-06:00
+    - id: 65539
+      taskid: TASK-275
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:06:11-06:00
+    - id: 65542
+      taskid: TASK-275
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:06:11-06:00
+    - id: 65545
+      taskid: TASK-275
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:06:11-06:00
+    - id: 65546
+      taskid: TASK-275
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:07:37-06:00

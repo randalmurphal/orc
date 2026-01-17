@@ -1,0 +1,65 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.865957076-06:00
+type: initiative
+initiative:
+    version: 0
+    id: INIT-025
+    title: 'UI Redesign: Transcript Viewer'
+    status: active
+    vision: |-
+        Build a performant, live-streaming transcript viewer for task execution logs. Handles large transcripts (15-30MB) with pagination, collapsible sections by phase/iteration, and intuitive navigation.
+
+        BACKEND REQUIREMENTS (Critical):
+        - Fix streaming persistence: WebSocket events published but NOT saved to DB
+        - Add pagination to transcript API (currently loads ALL into memory)
+        - Add structured section indexing (prompt, response, tool_call, error)
+        - Batch database writes for performance (buffer 10-50 lines per transaction)
+
+        FRONTEND REQUIREMENTS:
+        - TranscriptViewer component with live streaming support
+        - Collapsible sections by phase and iteration
+        - Section navigation sidebar (jump to phase/iteration)
+        - Search within transcript (use existing FTS)
+        - Syntax highlighting for code blocks
+        - Virtual scrolling for large transcripts
+        - Real-time updates via WebSocket with auto-scroll option
+
+        PERFORMANCE CONSIDERATIONS:
+        - Large tasks have 15-30MB of transcript data across 6 phases
+        - 50+ iterations per phase possible for retries
+        - Need cursor-based pagination, not offset
+        - Consider virtualized list rendering
+        - Buffer streaming chunks before render
+
+        UX REQUIREMENTS:
+        - Clear phase/iteration headers with timestamps
+        - Visual distinction between prompt, response, tool calls
+        - Expandable tool call results
+        - Copy button for code blocks
+        - Download full transcript option
+
+        Reference: Follow design patterns from example_ui/ for styling
+    tasks:
+        - id: TASK-399
+          title: Add section_type column and structured transcript indexing
+          status: planned
+        - id: TASK-400
+          title: Add pagination to transcript API endpoint
+          status: planned
+        - id: TASK-401
+          title: Fix streaming transcript persistence with batched writes
+          status: planned
+        - id: TASK-402
+          title: Create TranscriptSection component for collapsible content blocks
+          status: planned
+        - id: TASK-403
+          title: Create TranscriptNav sidebar for phase/iteration navigation
+          status: planned
+        - id: TASK-404
+          title: Create TranscriptViewer with live streaming and virtual scroll
+          status: planned
+        - id: TASK-405
+          title: Integrate TranscriptViewer into task detail page
+          status: planned
+    created_at: 2026-01-16T22:56:38-06:00
+    updated_at: 2026-01-16T22:58:51-06:00

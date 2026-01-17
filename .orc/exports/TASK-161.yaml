@@ -1,0 +1,211 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.851651321-06:00
+task:
+    id: TASK-161
+    title: 'Phase 0: Expand E2E tests for Finalize workflow (10 tests)'
+    description: |-
+        ## Purpose
+        E2E tests for the finalize phase workflow - branch sync, CI verification, and merge.
+
+        ## Test Coverage (10 tests)
+
+        ### Finalize UI (5 tests)
+        - should show finalize button on completed tasks in Done column
+        - should open FinalizeModal when finalize button clicked
+        - should display explanation and start button in modal
+        - should show progress bar with step labels during finalization
+        - should update task card to show finalizing state (pulsing border)
+
+        ### Finalize Results (5 tests)
+        - should show success state with merge info
+        - should display merged commit SHA
+        - should show target branch name
+        - should handle finalize failure with retry option
+        - should update task card to finished state with green merge badge
+
+        ## Implementation Notes
+        - Finalize involves real git operations - may need test branch setup
+        - WebSocket events: finalize progress updates in real-time
+        - Task states: completed -> finalizing -> finished
+
+        ## Success Criteria
+        - All 10 tests pass
+        - Tests cover both success and failure paths
+    weight: medium
+    status: completed
+    current_phase: docs
+    branch: orc/TASK-161
+    queue: active
+    priority: normal
+    category: test
+    initiative_id: INIT-005
+    created_at: 2026-01-14T02:19:09-06:00
+    updated_at: 2026-01-14T22:08:23-06:00
+    started_at: 2026-01-14T22:00:44-06:00
+    completed_at: 2026-01-14T22:08:23-06:00
+plan:
+    version: 1
+    task_id: TASK-161
+    weight: medium
+    description: Medium task - implement with review, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Implement the following feature/task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            1. Plan your implementation approach
+            2. Implement the required changes
+            3. Write/update tests alongside code
+            4. Run tests and fix any failures
+
+            Keep iterating until implementation is complete and tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: 75b2cbb9af8e001e3d6acef1de462d37e4c352d4
+        - id: test
+          name: test
+          prompt: |
+            Test and review the implementation:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Original task**: {{TASK_DESCRIPTION}}
+
+            1. Run the full test suite
+            2. Review code for quality issues
+            3. Check for edge cases and security issues
+            4. Fix any problems found
+
+            Keep iterating until all tests pass and code quality is acceptable.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - implement
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: f67b89760322943bcc29feb0c2578b5402adf098
+        - id: docs
+          name: docs
+          prompt: |
+            Update documentation for:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            1. Update any relevant documentation files
+            2. Ensure CLAUDE.md reflects the changes if applicable
+            3. Add/update code comments where needed
+            4. Update README if user-facing changes were made
+
+            Keep iterating until documentation is complete.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          depends_on:
+            - test
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: bd0963ef86ca84aba504b31303e1c8e5997f2a0a
+state:
+    task_id: TASK-161
+    current_phase: docs
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-14T22:00:44-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        docs:
+            status: completed
+            started_at: 2026-01-14T22:07:26-06:00
+            completed_at: 2026-01-14T22:08:23-06:00
+            iterations: 1
+            commit_sha: bd0963ef86ca84aba504b31303e1c8e5997f2a0a
+            tokens:
+                input_tokens: 588387
+                output_tokens: 1734
+                total_tokens: 0
+        implement:
+            status: completed
+            started_at: 2026-01-14T22:00:45-06:00
+            completed_at: 2026-01-14T22:04:08-06:00
+            iterations: 1
+            commit_sha: 75b2cbb9af8e001e3d6acef1de462d37e4c352d4
+            tokens:
+                input_tokens: 1005037
+                output_tokens: 2950
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-14T22:04:08-06:00
+            completed_at: 2026-01-14T22:07:26-06:00
+            iterations: 1
+            commit_sha: f67b89760322943bcc29feb0c2578b5402adf098
+            tokens:
+                input_tokens: 1766344
+                output_tokens: 4877
+                total_tokens: 0
+    gates:
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:04:08-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:07:26-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:08:23-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+gate_decisions:
+    - id: 27
+      taskid: TASK-161
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:04:08-06:00
+    - id: 28
+      taskid: TASK-161
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:07:26-06:00
+    - id: 29
+      taskid: TASK-161
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:08:23-06:00

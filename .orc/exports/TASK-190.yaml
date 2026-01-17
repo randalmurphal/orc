@@ -1,0 +1,94 @@
+version: 2
+exported_at: 2026-01-16T23:27:38.83992902-06:00
+task:
+    id: TASK-190
+    title: Add --priority flag to orc new command
+    description: |-
+        ## Problem
+        `orc new --priority critical` and `orc edit --priority critical` both fail with 'unknown flag: --priority'
+
+        Priority field exists in task.yaml but can't be set via CLI.
+
+        ## Solution
+        Add `--priority` / `-p` flag to both `orc new` and `orc edit` commands accepting: critical, high, normal, low
+
+        ## Files to Modify
+        - internal/cli/cmd_new.go
+        - internal/cli/cmd_edit.go
+    weight: trivial
+    status: completed
+    current_phase: implement
+    branch: orc/TASK-190
+    queue: active
+    priority: normal
+    category: feature
+    created_at: 2026-01-14T02:33:14-06:00
+    updated_at: 2026-01-14T02:38:48-06:00
+    started_at: 2026-01-14T02:35:44-06:00
+    completed_at: 2026-01-14T02:38:48-06:00
+plan:
+    version: 1
+    task_id: TASK-190
+    weight: trivial
+    description: Trivial task - single implement phase, fully automated
+    phases:
+        - id: implement
+          name: implement
+          prompt: |
+            Complete this task:
+
+            **Task**: {{TASK_TITLE}}
+
+            **Description**: {{TASK_DESCRIPTION}}
+
+            {{RETRY_CONTEXT}}
+
+            Implement the fix/change directly. Run any affected tests.
+            Keep iterating until the implementation is complete and tests pass.
+
+            When done, output:
+            <phase_complete>true</phase_complete>
+          gate:
+            type: auto
+          checkpoint: true
+          status: completed
+          commit_sha: d544a80b837dab8548a088c4420a2a58fe0a2c8c
+state:
+    task_id: TASK-190
+    current_phase: implement
+    current_iteration: 0
+    status: completed
+    started_at: 2026-01-14T02:35:44-06:00
+    updated_at: 0001-01-01T00:00:00Z
+    phases:
+        implement:
+            status: completed
+            started_at: 2026-01-14T02:35:44-06:00
+            completed_at: 2026-01-14T02:38:48-06:00
+            iterations: 1
+            commit_sha: d544a80b837dab8548a088c4420a2a58fe0a2c8c
+            tokens:
+                input_tokens: 1998778
+                output_tokens: 7847
+                total_tokens: 0
+    gates:
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:38:48-06:00
+    tokens:
+        input_tokens: 0
+        output_tokens: 0
+        total_tokens: 0
+    cost:
+        total_cost_usd: 0
+gate_decisions:
+    - id: 48
+      taskid: TASK-190
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:38:48-06:00
