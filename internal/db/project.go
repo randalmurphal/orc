@@ -818,6 +818,31 @@ func (p *ProjectDB) AddTranscript(t *Transcript) error {
 	return nil
 }
 
+// AddTranscriptBatch inserts multiple transcript entries in a single transaction.
+// This is more efficient than calling AddTranscript repeatedly for streaming data.
+// All entries are inserted atomically - either all succeed or none do.
+func (p *ProjectDB) AddTranscriptBatch(ctx context.Context, transcripts []Transcript) error {
+	if len(transcripts) == 0 {
+		return nil
+	}
+
+	return p.RunInTx(ctx, func(tx *TxOps) error {
+		for i := range transcripts {
+			t := &transcripts[i]
+			result, err := tx.Exec(`
+				INSERT INTO transcripts (task_id, phase, iteration, role, content)
+				VALUES (?, ?, ?, ?, ?)
+			`, t.TaskID, t.Phase, t.Iteration, t.Role, t.Content)
+			if err != nil {
+				return fmt.Errorf("add transcript %d: %w", i, err)
+			}
+			id, _ := result.LastInsertId()
+			t.ID = id
+		}
+		return nil
+	})
+}
+
 // GetTranscripts retrieves all transcripts for a task.
 func (p *ProjectDB) GetTranscripts(taskID string) ([]Transcript, error) {
 	rows, err := p.Query(`

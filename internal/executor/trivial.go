@@ -89,6 +89,21 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		Status: plan.PhaseRunning,
 	}
 
+	// Initialize transcript buffer for persistence if backend is available
+	if e.backend != nil {
+		buf := NewTranscriptBuffer(ctx, TranscriptBufferConfig{
+			TaskID: t.ID,
+			DB:     e.backend,
+			Logger: e.logger,
+		})
+		e.publisher.SetBuffer(buf)
+		defer func() {
+			if err := e.publisher.CloseBuffer(); err != nil {
+				e.logger.Warn("failed to close transcript buffer", "error", err)
+			}
+		}()
+	}
+
 	if e.client == nil {
 		result.Status = plan.PhaseFailed
 		result.Error = fmt.Errorf("no LLM client configured")

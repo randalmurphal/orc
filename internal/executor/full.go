@@ -134,6 +134,21 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		Status: plan.PhaseRunning,
 	}
 
+	// Initialize transcript buffer for persistence if backend is available
+	if e.backend != nil {
+		buf := NewTranscriptBuffer(ctx, TranscriptBufferConfig{
+			TaskID: t.ID,
+			DB:     e.backend,
+			Logger: e.logger,
+		})
+		e.publisher.SetBuffer(buf)
+		defer func() {
+			if err := e.publisher.CloseBuffer(); err != nil {
+				e.logger.Warn("failed to close transcript buffer", "error", err)
+			}
+		}()
+	}
+
 	// Generate session ID for resumability
 	sessionID := fmt.Sprintf("%s-%s", t.ID, p.ID)
 
@@ -352,6 +367,9 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		lastResponse = turnResult.Content
 
 		e.publisher.Transcript(t.ID, p.ID, iteration, "response", turnResult.Content)
+
+		// Flush any pending streaming chunks for this iteration
+		e.publisher.FlushChunks(p.ID, iteration)
 
 		// Progress validation: check if iteration is on track (if enabled)
 		if e.haikuClient != nil && e.orcConfig != nil && specContent != "" &&
