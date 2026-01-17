@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ORC — Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base: #050508;
+      --bg-elevated: #0a0a0f;
+      --bg-surface: #101016;
+      --bg-card: #15151d;
+      --bg-hover: #1c1c26;
+      --border: rgba(255, 255, 255, 0.04);
+      --border-light: rgba(255, 255, 255, 0.08);
+      --text-primary: #eaeaef;
+      --text-secondary: #8e8e9a;
+      --text-muted: #55555f;
+      --primary: #a855f7;
+      --primary-bright: #c084fc;
+      --primary-dim: rgba(168, 85, 247, 0.1);
+      --primary-glow: rgba(168, 85, 247, 0.25);
+      --cyan: #06b6d4;
+      --cyan-dim: rgba(6, 182, 212, 0.08);
+      --orange: #f97316;
+      --orange-dim: rgba(249, 115, 22, 0.08);
+      --green: #10b981;
+      --green-dim: rgba(16, 185, 129, 0.08);
+      --red: #ef4444;
+      --red-dim: rgba(239, 68, 68, 0.08);
+      --amber: #f59e0b;
+      --amber-dim: rgba(245, 158, 11, 0.08);
+      --blue: #3b82f6;
+      --blue-dim: rgba(59, 130, 246, 0.08);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    .app {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      height: 100vh;
+    }
+
+    .app.panel-collapsed .command-panel {
+      width: 0;
+      min-width: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Navigation */
+    .nav {
+      background: var(--bg-elevated);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 10px 0;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 0 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+
+    .logo-mark {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--primary), #ec4899);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 12px;
+      color: white;
+      box-shadow: 0 4px 12px var(--primary-glow);
+    }
+
+    .nav-items { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 8px 4px;
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+
+    .nav-item:hover { background: var(--bg-surface); color: var(--text-secondary); }
+    .nav-item.active { background: var(--primary-dim); color: var(--primary-bright); }
+    .nav-item svg { width: 18px; height: 18px; }
+    .nav-item span { font-size: 8px; font-weight: 500; letter-spacing: 0.02em; }
+
+    .nav-divider { height: 1px; background: var(--border); margin: 6px 8px; }
+    .nav-bottom { padding: 0 8px; }
+
+    .main-wrapper { display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 10px; }
+
+    .project-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .project-btn:hover { background: var(--bg-hover); border-color: var(--border-light); }
+    .project-btn svg { color: var(--text-muted); }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      width: 200px;
+      transition: all 0.15s;
+    }
+
+    .search-box:focus-within { border-color: var(--primary); background: var(--bg-card); }
+    .search-box svg { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
+    .search-box input { flex: 1; background: none; border: none; outline: none; font-size: 11px; color: var(--text-primary); }
+    .search-box input::placeholder { color: var(--text-muted); }
+
+    .header-center { flex: 1; display: flex; align-items: center; justify-content: center; gap: 16px; }
+
+    .session-info { display: flex; align-items: center; gap: 12px; }
+    .session-stat { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+
+    .session-stat-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .session-stat-icon svg { width: 10px; height: 10px; }
+    .session-stat-icon.purple { background: var(--primary-dim); color: var(--primary); }
+    .session-stat-icon.green { background: var(--green-dim); color: var(--green); }
+    .session-stat-icon.amber { background: var(--amber-dim); color: var(--amber); }
+
+    .session-stat .label { color: var(--text-muted); }
+    .session-stat .value { color: var(--text-primary); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .session-divider { width: 1px; height: 16px; background: var(--border); }
+
+    .header-right { display: flex; align-items: center; gap: 6px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-bright); box-shadow: 0 4px 12px var(--primary-glow); }
+    .btn-ghost { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-secondary); }
+    .btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-icon:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .btn-icon.active { background: var(--primary-dim); border-color: rgba(168, 85, 247, 0.2); color: var(--primary); }
+
+    /* Main Layout */
+    .main { flex: 1; display: flex; overflow: hidden; }
+
+    /* Board */
+    .board { flex: 1; display: flex; overflow: hidden; }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .column:last-child { border-right: none; }
+    .column.queued { flex: 1; min-width: 280px; }
+    .column.running { width: 420px; min-width: 420px; flex-shrink: 0; }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .column-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .column-indicator { width: 8px; height: 8px; border-radius: 2px; }
+    .column.queued .column-indicator { background: var(--text-muted); }
+    .column.running .column-indicator { 
+      background: var(--primary); 
+      box-shadow: 0 0 8px var(--primary-glow);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .column-count {
+      padding: 2px 6px;
+      background: var(--bg-surface);
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .column-body { flex: 1; overflow-y: auto; padding: 10px; }
+    .column-body::-webkit-scrollbar { width: 5px; }
+    .column-body::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    /* Swimlane */
+    .swimlane { margin-bottom: 8px; }
+    .swimlane:last-child { margin-bottom: 0; }
+
+    .swimlane-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+
+    .swimlane-header:hover { background: var(--bg-hover); }
+
+    .swimlane-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .swimlane-icon.purple { background: var(--primary-dim); }
+    .swimlane-icon.green { background: var(--green-dim); }
+    .swimlane-icon.amber { background: var(--amber-dim); }
+
+    .swimlane-info { flex: 1; min-width: 0; }
+    .swimlane-name { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+    .swimlane-meta { font-size: 9px; color: var(--text-muted); }
+
+    .swimlane-progress { width: 40px; height: 3px; background: var(--bg-hover); border-radius: 2px; overflow: hidden; }
+    .swimlane-progress-fill { height: 100%; border-radius: 2px; }
+    .swimlane-progress-fill.purple { background: var(--primary); }
+    .swimlane-progress-fill.green { background: var(--green); }
+    .swimlane-progress-fill.amber { background: var(--amber); }
+
+    .swimlane-chevron { color: var(--text-muted); transition: transform 0.15s; }
+    .swimlane.collapsed .swimlane-chevron { transform: rotate(-90deg); }
+    .swimlane.collapsed .swimlane-tasks { display: none; }
+
+    .swimlane-tasks { display: flex; flex-direction: column; gap: 4px; padding-left: 4px; }
+
+    /* Task Card */
+    .task-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .task-card:hover { background: var(--bg-hover); border-color: var(--border-light); }
+
+    .task-position {
+      width: 16px;
+      height: 16px;
+      background: var(--bg-surface);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .task-content { flex: 1; min-width: 0; }
+    .task-title { font-size: 11px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .task-id { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); }
+
+    .task-badge {
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .task-badge.high { background: var(--red-dim); color: var(--red); }
+
+    /* Running Card */
+    .running-card {
+      background: linear-gradient(135deg, var(--bg-card), var(--primary-dim));
+      border: 1px solid rgba(168, 85, 247, 0.15);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+
+    .running-card:last-child { margin-bottom: 0; }
+
+    .running-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+    .running-info { flex: 1; }
+    .running-id { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; color: var(--primary-bright); margin-bottom: 3px; }
+    .running-title { font-size: 13px; font-weight: 600; color: var(--text-primary); line-height: 1.35; margin-bottom: 6px; }
+
+    .running-initiative {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 7px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
+      font-size: 9px;
+      color: var(--text-secondary);
+    }
+
+    .running-stats { text-align: right; }
+    .running-phase { font-size: 9px; font-weight: 600; color: var(--primary-bright); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 2px; }
+    .running-time { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; color: var(--text-primary); }
+
+    .running-pipeline { display: flex; gap: 3px; }
+    .pipeline-step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .pipeline-bar { width: 100%; height: 4px; background: rgba(0,0,0,0.3); border-radius: 2px; overflow: hidden; }
+    .pipeline-bar.complete { background: var(--green); }
+    .pipeline-bar.active { position: relative; }
+    .pipeline-bar.active::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 60%;
+      background: var(--primary);
+      border-radius: 2px;
+      animation: progress-grow 2s ease-in-out infinite;
+    }
+
+    @keyframes progress-grow {
+      0%, 100% { width: 50%; opacity: 1; }
+      50% { width: 70%; opacity: 0.7; }
+    }
+
+    .pipeline-label { font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); }
+    .pipeline-step.complete .pipeline-label { color: var(--green); }
+    .pipeline-step.active .pipeline-label { color: var(--primary-bright); }
+
+    .running-output {
+      margin-top: 12px;
+      padding: 10px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      line-height: 1.5;
+      max-height: 100px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .running-card.expanded .running-output { display: block; }
+
+    .output-line { display: block; color: var(--text-secondary); }
+    .output-line.success { color: var(--green); }
+    .output-line.info { color: var(--primary-bright); }
+    .output-line.dim { color: var(--text-muted); }
+
+    /* Command Panel */
+    .command-panel {
+      width: 300px;
+      min-width: 300px;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-elevated);
+      border-left: 1px solid var(--border);
+      overflow: hidden;
+      transition: width 0.2s, min-width 0.2s, opacity 0.2s;
+    }
+
+    .panel-scroll { flex: 1; overflow-y: auto; }
+    .panel-scroll::-webkit-scrollbar { width: 4px; }
+    .panel-scroll::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+
+    .panel-section { border-bottom: 1px solid var(--border); }
+    .panel-section:last-child { border-bottom: none; }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+
+    .panel-header:hover { background: var(--bg-surface); }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .panel-title-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .panel-title-icon svg { width: 10px; height: 10px; }
+    .panel-title-icon.purple { background: var(--primary-dim); color: var(--primary); }
+    .panel-title-icon.amber { background: var(--amber-dim); color: var(--amber); }
+    .panel-title-icon.orange { background: var(--orange-dim); color: var(--orange); }
+    .panel-title-icon.green { background: var(--green-dim); color: var(--green); }
+    .panel-title-icon.blue { background: var(--blue-dim); color: var(--blue); }
+    .panel-title-icon.cyan { background: var(--cyan-dim); color: var(--cyan); }
+
+    .panel-badge { padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600; }
+    .panel-badge.purple { background: var(--primary-dim); color: var(--primary); }
+    .panel-badge.amber { background: var(--amber-dim); color: var(--amber); }
+    .panel-badge.orange { background: var(--orange-dim); color: var(--orange); }
+    .panel-badge.green { background: var(--green-dim); color: var(--green); }
+
+    .panel-chevron { color: var(--text-muted); transition: transform 0.15s; }
+    .panel-section.collapsed .panel-chevron { transform: rotate(-90deg); }
+    .panel-section.collapsed .panel-body { display: none; }
+
+    .panel-body { padding: 0 12px 12px; }
+
+    /* Blocked Item */
+    .blocked-item {
+      background: linear-gradient(135deg, var(--bg-surface), var(--orange-dim));
+      border: 1px solid rgba(249, 115, 22, 0.15);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+
+    .blocked-item:last-child { margin-bottom: 0; }
+    .blocked-header { display: flex; align-items: flex-start; gap: 8px; }
+
+    .blocked-icon {
+      width: 20px;
+      height: 20px;
+      background: var(--orange-dim);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--orange);
+      flex-shrink: 0;
+    }
+
+    .blocked-icon svg { width: 10px; height: 10px; }
+    .blocked-content { flex: 1; }
+    .blocked-id { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--orange); }
+    .blocked-title { font-size: 11px; font-weight: 500; color: var(--text-primary); line-height: 1.3; }
+
+    .blocked-reason {
+      margin-top: 8px;
+      padding: 6px 8px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .blocked-reason code {
+      color: var(--primary-bright);
+      background: rgba(0,0,0,0.3);
+      padding: 1px 3px;
+      border-radius: 2px;
+      font-size: 9px;
+    }
+
+    .blocked-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .blocked-actions .btn { flex: 1; justify-content: center; padding: 5px; font-size: 10px; }
+
+    /* Attention Item */
+    .attention-item {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+      transition: all 0.15s;
+    }
+
+    .attention-item:hover { border-color: var(--border-light); }
+    .attention-item:last-child { margin-bottom: 0; }
+
+    .attention-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+
+    .attention-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .attention-icon svg { width: 10px; height: 10px; }
+    .attention-icon.decision { background: var(--primary-dim); color: var(--primary); }
+    .attention-icon.warning { background: var(--amber-dim); color: var(--amber); }
+
+    .attention-content { flex: 1; min-width: 0; }
+    .attention-task { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); margin-bottom: 2px; }
+    .attention-title { font-size: 11px; font-weight: 500; color: var(--text-primary); line-height: 1.35; }
+
+    .attention-options { display: flex; gap: 6px; margin-top: 8px; }
+
+    .attention-option {
+      flex: 1;
+      padding: 5px 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 10px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+
+    .attention-option:hover { background: var(--bg-hover); border-color: var(--border-light); color: var(--text-primary); }
+    .attention-option.primary { background: var(--primary-dim); border-color: rgba(168, 85, 247, 0.2); color: var(--primary); }
+
+    /* Config Items */
+    .config-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+
+    .config-item:hover { background: var(--bg-hover); border-color: var(--border-light); }
+    .config-item:last-child { margin-bottom: 0; }
+
+    .config-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--primary-dim);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .config-icon svg { width: 14px; height: 14px; }
+    .config-content { flex: 1; min-width: 0; }
+    .config-title { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+    .config-desc { font-size: 9px; color: var(--text-muted); }
+    .config-badge { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+    .config-arrow { color: var(--text-muted); }
+    .config-arrow svg { width: 12px; height: 12px; }
+
+    /* Files */
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: var(--bg-surface);
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-size: 10px;
+    }
+
+    .file-item:last-child { margin-bottom: 0; }
+    .file-icon { color: var(--text-muted); }
+    .file-icon svg { width: 12px; height: 12px; }
+
+    .file-path {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .file-status { font-size: 9px; font-weight: 500; padding: 1px 4px; border-radius: 3px; }
+    .file-status.modified { background: var(--amber-dim); color: var(--amber); }
+    .file-status.added { background: var(--green-dim); color: var(--green); }
+
+    /* Completed */
+    .completed-summary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: var(--bg-surface);
+      border-radius: 6px;
+    }
+
+    .completed-count { font-size: 18px; font-weight: 700; color: var(--green); font-family: 'JetBrains Mono', monospace; }
+    .completed-info { flex: 1; }
+    .completed-label { font-size: 10px; color: var(--text-muted); }
+    .completed-stats { font-size: 9px; color: var(--text-secondary); }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Navigation -->
+    <nav class="nav">
+      <div class="nav-logo"><div class="logo-mark">O</div></div>
+      <div class="nav-items">
+        <a class="nav-item active" href="board.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Board</span>
+        </a>
+        <a class="nav-item" href="initiatives.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          <span>Initiatives</span>
+        </a>
+        <a class="nav-item" href="stats.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+          <span>Stats</span>
+        </a>
+        <div class="nav-divider"></div>
+        <a class="nav-item" href="agents.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4H8"/><rect x="8" y="8" width="8" height="8" rx="1"/><path d="M12 16v4h4"/><path d="M4 12H2"/><path d="M22 12h-2"/></svg>
+          <span>Agents</span>
+        </a>
+        <a class="nav-item" href="settings.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          <span>Settings</span>
+        </a>
+      </div>
+      <div class="nav-bottom">
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
+          <span>Help</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-left">
+          <button class="project-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+            </svg>
+            taskkeeper-api
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search tasks...">
+          </div>
+        </div>
+
+        <div class="header-center">
+          <div class="session-info">
+            <div class="session-stat">
+              <div class="session-stat-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+              <span class="label">Session</span>
+              <span class="value">1h 23m</span>
+            </div>
+            <div class="session-divider"></div>
+            <div class="session-stat">
+              <div class="session-stat-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+              <span class="label">Tokens</span>
+              <span class="value">847K</span>
+            </div>
+            <div class="session-divider"></div>
+            <div class="session-stat">
+              <div class="session-stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+              <span class="label">Cost</span>
+              <span class="value">$2.34</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <button class="btn btn-ghost">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            Pause
+          </button>
+          <button class="btn btn-primary">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 4v16m8-8H4"/></svg>
+            New Task
+          </button>
+          <button class="btn-icon" onclick="document.getElementById('app').classList.toggle('panel-collapsed'); this.classList.toggle('active')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main -->
+      <main class="main">
+        <!-- Board -->
+        <div class="board">
+          <!-- Queue Column -->
+          <div class="column queued">
+            <div class="column-header">
+              <div class="column-title"><div class="column-indicator"></div>Queue</div>
+              <span class="column-count">27</span>
+            </div>
+            <div class="column-body">
+              <div class="swimlane">
+                <div class="swimlane-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                  <div class="swimlane-icon purple">🎨</div>
+                  <div class="swimlane-info">
+                    <div class="swimlane-name">Frontend Polish</div>
+                    <div class="swimlane-meta">1/24 complete</div>
+                  </div>
+                  <div class="swimlane-progress"><div class="swimlane-progress-fill purple" style="width: 4%;"></div></div>
+                  <svg class="swimlane-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                <div class="swimlane-tasks">
+                  <div class="task-card">
+                    <div class="task-position">1</div>
+                    <div class="task-content"><div class="task-title">Refactor button variants</div><div class="task-id">TASK-219</div></div>
+                  </div>
+                  <div class="task-card">
+                    <div class="task-position">2</div>
+                    <div class="task-content"><div class="task-title">Add loading states</div><div class="task-id">TASK-220</div></div>
+                  </div>
+                  <div class="task-card">
+                    <div class="task-position">3</div>
+                    <div class="task-content"><div class="task-title">Implement skeleton loaders</div><div class="task-id">TASK-221</div></div>
+                    <span class="task-badge high">High</span>
+                  </div>
+                  <div style="padding: 6px; font-size: 9px; color: var(--text-muted); text-align: center;">+ 20 more</div>
+                </div>
+              </div>
+
+              <div class="swimlane">
+                <div class="swimlane-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                  <div class="swimlane-icon amber">🔐</div>
+                  <div class="swimlane-info">
+                    <div class="swimlane-name">Auth Overhaul</div>
+                    <div class="swimlane-meta">15/20 complete</div>
+                  </div>
+                  <div class="swimlane-progress"><div class="swimlane-progress-fill amber" style="width: 75%;"></div></div>
+                  <svg class="swimlane-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                <div class="swimlane-tasks">
+                  <div class="task-card">
+                    <div class="task-position">1</div>
+                    <div class="task-content"><div class="task-title">Fix token refresh race</div><div class="task-id">TASK-222</div></div>
+                    <span class="task-badge high">High</span>
+                  </div>
+                  <div class="task-card">
+                    <div class="task-position">2</div>
+                    <div class="task-content"><div class="task-title">Add PKCE to OAuth2</div><div class="task-id">TASK-223</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="swimlane collapsed">
+                <div class="swimlane-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                  <div class="swimlane-icon green">⚡</div>
+                  <div class="swimlane-info">
+                    <div class="swimlane-name">Reliability</div>
+                    <div class="swimlane-meta">26/27 complete</div>
+                  </div>
+                  <div class="swimlane-progress"><div class="swimlane-progress-fill green" style="width: 96%;"></div></div>
+                  <svg class="swimlane-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                <div class="swimlane-tasks">
+                  <div class="task-card">
+                    <div class="task-position">1</div>
+                    <div class="task-content"><div class="task-title">Migrate sessions to Redis</div><div class="task-id">TASK-216</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Running Column -->
+          <div class="column running">
+            <div class="column-header">
+              <div class="column-title"><div class="column-indicator"></div>Running</div>
+              <span class="column-count">2</span>
+            </div>
+            <div class="column-body">
+              <div class="running-card" onclick="this.classList.toggle('expanded')">
+                <div class="running-header">
+                  <div class="running-info">
+                    <div class="running-id">TASK-218</div>
+                    <div class="running-title">Document UI primitives for design system</div>
+                    <div class="running-initiative"><span style="width:5px;height:5px;border-radius:2px;background:var(--primary)"></span>Frontend Polish</div>
+                  </div>
+                  <div class="running-stats">
+                    <div class="running-phase">Testing</div>
+                    <div class="running-time">2:34</div>
+                  </div>
+                </div>
+                <div class="running-pipeline">
+                  <div class="pipeline-step complete"><div class="pipeline-bar complete"></div><span class="pipeline-label">Plan</span></div>
+                  <div class="pipeline-step complete"><div class="pipeline-bar complete"></div><span class="pipeline-label">Code</span></div>
+                  <div class="pipeline-step active"><div class="pipeline-bar active"></div><span class="pipeline-label">Test</span></div>
+                  <div class="pipeline-step"><div class="pipeline-bar"></div><span class="pipeline-label">Review</span></div>
+                  <div class="pipeline-step"><div class="pipeline-bar"></div><span class="pipeline-label">Done</span></div>
+                </div>
+                <div class="running-output">
+                  <span class="output-line success">✓ Generated component documentation</span>
+                  <span class="output-line success">✓ Created usage examples</span>
+                  <span class="output-line info">◐ Running test suite...</span>
+                  <span class="output-line dim">  → 12/18 tests passing</span>
+                </div>
+              </div>
+
+              <div class="running-card" onclick="this.classList.toggle('expanded')">
+                <div class="running-header">
+                  <div class="running-info">
+                    <div class="running-id">TASK-215</div>
+                    <div class="running-title">Implement Redis caching layer</div>
+                    <div class="running-initiative"><span style="width:5px;height:5px;border-radius:2px;background:var(--green)"></span>Reliability</div>
+                  </div>
+                  <div class="running-stats">
+                    <div class="running-phase">Coding</div>
+                    <div class="running-time">5:12</div>
+                  </div>
+                </div>
+                <div class="running-pipeline">
+                  <div class="pipeline-step complete"><div class="pipeline-bar complete"></div><span class="pipeline-label">Plan</span></div>
+                  <div class="pipeline-step active"><div class="pipeline-bar active"></div><span class="pipeline-label">Code</span></div>
+                  <div class="pipeline-step"><div class="pipeline-bar"></div><span class="pipeline-label">Test</span></div>
+                  <div class="pipeline-step"><div class="pipeline-bar"></div><span class="pipeline-label">Review</span></div>
+                  <div class="pipeline-step"><div class="pipeline-bar"></div><span class="pipeline-label">Done</span></div>
+                </div>
+                <div class="running-output">
+                  <span class="output-line success">✓ Created Redis client wrapper</span>
+                  <span class="output-line info">◐ Writing SessionRedisStore...</span>
+                  <span class="output-line dim">  → Adding TTL management</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Command Panel -->
+        <aside class="command-panel">
+          <div class="panel-scroll">
+            <!-- Blocked -->
+            <div class="panel-section">
+              <div class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                <div class="panel-title">
+                  <div class="panel-title-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+                  Blocked
+                </div>
+                <span class="panel-badge orange">1</span>
+                <svg class="panel-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              <div class="panel-body">
+                <div class="blocked-item">
+                  <div class="blocked-header">
+                    <div class="blocked-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+                    <div class="blocked-content">
+                      <div class="blocked-id">TASK-216</div>
+                      <div class="blocked-title">Migrate sessions to Redis</div>
+                    </div>
+                  </div>
+                  <div class="blocked-reason">Waiting for <code>TASK-215</code></div>
+                  <div class="blocked-actions">
+                    <button class="btn btn-ghost">Skip</button>
+                    <button class="btn btn-ghost">Force</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Decisions -->
+            <div class="panel-section">
+              <div class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                <div class="panel-title">
+                  <div class="panel-title-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+                  Decisions
+                </div>
+                <span class="panel-badge purple">2</span>
+                <svg class="panel-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              <div class="panel-body">
+                <div class="attention-item">
+                  <div class="attention-header">
+                    <div class="attention-icon decision"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+                    <div class="attention-content">
+                      <div class="attention-task">TASK-218</div>
+                      <div class="attention-title">Which test framework?</div>
+                    </div>
+                  </div>
+                  <div class="attention-options">
+                    <button class="attention-option">Jest</button>
+                    <button class="attention-option primary">Vitest</button>
+                    <button class="attention-option">Both</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Claude Config -->
+            <div class="panel-section">
+              <div class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                <div class="panel-title">
+                  <div class="panel-title-icon cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></svg></div>
+                  Claude Config
+                </div>
+                <svg class="panel-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              <div class="panel-body">
+                <a href="settings.html" class="config-item">
+                  <div class="config-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg></div>
+                  <div class="config-content">
+                    <div class="config-title">Slash Commands</div>
+                    <div class="config-desc">~/.claude/commands</div>
+                  </div>
+                  <div class="config-badge">4</div>
+                  <div class="config-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+                </a>
+                <a href="settings.html" class="config-item">
+                  <div class="config-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>
+                  <div class="config-content">
+                    <div class="config-title">CLAUDE.md</div>
+                    <div class="config-desc">Project context</div>
+                  </div>
+                  <div class="config-badge">2.4K</div>
+                  <div class="config-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+                </a>
+                <a href="settings.html" class="config-item">
+                  <div class="config-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></div>
+                  <div class="config-content">
+                    <div class="config-title">MCP Servers</div>
+                    <div class="config-desc">Integrations</div>
+                  </div>
+                  <div class="config-badge">3</div>
+                  <div class="config-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+                </a>
+                <a href="settings.html" class="config-item">
+                  <div class="config-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                  <div class="config-content">
+                    <div class="config-title">Permissions</div>
+                    <div class="config-desc">Tools & actions</div>
+                  </div>
+                  <div class="config-badge">Auto</div>
+                  <div class="config-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+                </a>
+              </div>
+            </div>
+
+            <!-- Files Changed -->
+            <div class="panel-section">
+              <div class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                <div class="panel-title">
+                  <div class="panel-title-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>
+                  Files Changed
+                </div>
+                <span class="panel-badge" style="background: var(--blue-dim); color: var(--blue);">7</span>
+                <svg class="panel-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              <div class="panel-body">
+                <div class="file-item">
+                  <div class="file-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg></div>
+                  <span class="file-path">src/components/Button.tsx</span>
+                  <span class="file-status modified">M</span>
+                </div>
+                <div class="file-item">
+                  <div class="file-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg></div>
+                  <span class="file-path">src/lib/redis.ts</span>
+                  <span class="file-status added">A</span>
+                </div>
+                <div class="file-item">
+                  <div class="file-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg></div>
+                  <span class="file-path">src/stores/session.ts</span>
+                  <span class="file-status modified">M</span>
+                </div>
+                <div style="padding: 4px; font-size: 9px; color: var(--text-muted); text-align: center;">+ 4 more files</div>
+              </div>
+            </div>
+
+            <!-- Completed -->
+            <div class="panel-section collapsed">
+              <div class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                <div class="panel-title">
+                  <div class="panel-title-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+                  Completed
+                </div>
+                <span class="panel-badge green">34</span>
+                <svg class="panel-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              <div class="panel-body">
+                <div class="completed-summary">
+                  <div class="completed-count">34</div>
+                  <div class="completed-info">
+                    <div class="completed-label">Tasks today</div>
+                    <div class="completed-stats">127K tokens · $2.34</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.running-output, .attention-options, .blocked-actions, .config-item').forEach(el => {
+      el.addEventListener('click', e => e.stopPropagation());
+    });
+  </script>
+</body>
+</html>
