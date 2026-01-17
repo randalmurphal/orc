@@ -1,0 +1,72 @@
+Session Summary
+
+  Completed
+
+  - TASK-389: CLI bugs fixed (partial - decision ID collision still has schema bug, but --blocked-by "" clearing
+   works for single initiatives)
+  - Created TASK-414: Decision ID schema fix (the root cause bug)
+  - Created TASK-415: Review-resume loop bug (CRITICAL)
+
+  Blocked by Review-Resume Loop (TASK-415)
+
+  - TASK-325: CSS tokens replacement - stuck at review
+  - TASK-377: Session endpoint - stuck at review
+  - TASK-300: --from-phase flag for resume - stuck at review
+
+  Critical Bugs Found
+  Task: TASK-415
+  Severity: CRITICAL
+  Description: Review-blocked tasks resume in review (not implement), causing infinite loop. Blocks ALL
+    medium-weight tasks.
+  ────────────────────────────────────────
+  Task: TASK-414
+  Severity: CRITICAL
+  Description: Decision IDs globally unique but code generates per-initiative. Prevents using decisions feature.
+  Root Cause Analysis
+
+  The review-resume loop happens because:
+  1. Review finds issues → emits <phase_blocked>
+  2. Task status = "failed" with last_phase = "review"
+  3. orc resume runs from last_phase (review)
+  4. Review sees unchanged code → finds same issues → blocks
+  5. Loop forever
+
+  Expected behavior: When review blocks with findings, resume should go back to implement phase with
+  RETRY_CONTEXT.
+
+  Friction Observed
+
+  1. Many tasks have no descriptions - spec phase has to guess
+  2. CLAUDE.md references old YAML task paths, now SQLite
+  3. Review is very strict (should-fix counts as blocking)
+
+  Next Steps
+
+  TASK-415 is the priority - it blocks all medium-weight task completion. Once that's fixed:
+  1. Resume TASK-325, TASK-377, TASK-300
+  2. Fix TASK-414 (decision ID schema)
+  3. Merge TASK-389 to main
+
+  Would you like me to implement TASK-415 manually? It's blocking enough work that a manual fix might be worth
+  it.
+
+✻ Brewed for 25m 26s
+
+⏺ Sautéed for 25m 26s"Run TASK-377 - session endpoint" failed with exit code 1
+
+⏺ Got all the notifications - confirms exactly what we found:
+  ┌──────────┬──────────────┬────────────────────────────────────┐
+  │   Task   │    Status    │               Notes                │
+  ├──────────┼──────────────┼────────────────────────────────────┤
+  │ TASK-389 │ ✅ Completed │ Partial fix, needs schema followup │
+  ├──────────┼──────────────┼────────────────────────────────────┤
+  │ TASK-377 │ ❌ Failed    │ Review-resume loop                 │
+  ├──────────┼──────────────┼────────────────────────────────────┤
+  │ TASK-325 │ ❌ Failed    │ Review-resume loop                 │
+  ├──────────┼──────────────┼────────────────────────────────────┤
+  │ TASK-300 │ ❌ Failed    │ Review-resume loop                 │
+  └──────────┴──────────────┴────────────────────────────────────┘
+  The review-resume loop (TASK-415) is the blocker. 4 tasks hit it this session alone.
+
+  Want me to implement TASK-415 manually? It's a straightforward fix in internal/executor/task_execution.go -
+  when resuming from a review-blocked phase, it needs to go back to implement instead of re-running review.
