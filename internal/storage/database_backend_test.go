@@ -1555,3 +1555,182 @@ func TestBranch_Upsert(t *testing.T) {
 		t.Errorf("expected status 'merged', got %s", loaded.Status)
 	}
 }
+
+// TestSaveInitiative_DecisionIDsAcrossInitiatives verifies that multiple initiatives
+// can each have decisions with the same local IDs (e.g., DEC-001).
+// This tests the fix for the decision ID collision bug.
+func TestSaveInitiative_DecisionIDsAcrossInitiatives(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	now := time.Now()
+
+	// Create first initiative with DEC-001
+	init1 := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "First Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: now,
+		UpdatedAt: now,
+		Decisions: []initiative.Decision{
+			{
+				ID:        "DEC-001",
+				Decision:  "Use Go for backend",
+				Rationale: "Team expertise",
+				Date:      now,
+				By:        "alice",
+			},
+		},
+	}
+	if err := backend.SaveInitiative(init1); err != nil {
+		t.Fatalf("save first initiative: %v", err)
+	}
+
+	// Create second initiative with its own DEC-001 (same ID, different initiative)
+	init2 := &initiative.Initiative{
+		ID:        "INIT-002",
+		Title:     "Second Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: now,
+		UpdatedAt: now,
+		Decisions: []initiative.Decision{
+			{
+				ID:        "DEC-001", // Same ID as init1's decision
+				Decision:  "Use React for frontend",
+				Rationale: "Modern framework",
+				Date:      now,
+				By:        "bob",
+			},
+		},
+	}
+
+	// This should NOT fail - each initiative has its own decision namespace
+	if err := backend.SaveInitiative(init2); err != nil {
+		t.Fatalf("save second initiative with same decision ID: %v", err)
+	}
+
+	// Verify both initiatives have their decisions intact
+	loaded1, err := backend.LoadInitiative("INIT-001")
+	if err != nil {
+		t.Fatalf("load first initiative: %v", err)
+	}
+	if len(loaded1.Decisions) != 1 {
+		t.Errorf("expected 1 decision in init1, got %d", len(loaded1.Decisions))
+	}
+	if loaded1.Decisions[0].Decision != "Use Go for backend" {
+		t.Errorf("init1 decision content mismatch: got %s", loaded1.Decisions[0].Decision)
+	}
+
+	loaded2, err := backend.LoadInitiative("INIT-002")
+	if err != nil {
+		t.Fatalf("load second initiative: %v", err)
+	}
+	if len(loaded2.Decisions) != 1 {
+		t.Errorf("expected 1 decision in init2, got %d", len(loaded2.Decisions))
+	}
+	if loaded2.Decisions[0].Decision != "Use React for frontend" {
+		t.Errorf("init2 decision content mismatch: got %s", loaded2.Decisions[0].Decision)
+	}
+}
+
+// TestSaveInitiative_DecisionLookupByInitiative verifies decision lookup works correctly
+// with the composite key schema.
+func TestSaveInitiative_DecisionLookupByInitiative(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	now := time.Now()
+
+	// Create initiative with multiple decisions
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Multi-Decision Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: now,
+		UpdatedAt: now,
+		Decisions: []initiative.Decision{
+			{ID: "DEC-001", Decision: "Decision 1", Date: now, By: "user1"},
+			{ID: "DEC-002", Decision: "Decision 2", Date: now, By: "user2"},
+			{ID: "DEC-003", Decision: "Decision 3", Date: now, By: "user3"},
+		},
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Load and verify all decisions are correctly associated
+	loaded, err := backend.LoadInitiative("INIT-001")
+	if err != nil {
+		t.Fatalf("load initiative: %v", err)
+	}
+	if len(loaded.Decisions) != 3 {
+		t.Errorf("expected 3 decisions, got %d", len(loaded.Decisions))
+	}
+
+	// Verify decision IDs
+	decisionIDs := make(map[string]bool)
+	for _, d := range loaded.Decisions {
+		decisionIDs[d.ID] = true
+	}
+	for _, expectedID := range []string{"DEC-001", "DEC-002", "DEC-003"} {
+		if !decisionIDs[expectedID] {
+			t.Errorf("missing decision %s", expectedID)
+		}
+	}
+}
+
+// TestSaveInitiative_DecisionUpdate verifies that updating an initiative preserves decisions
+// correctly with the clear-and-reinsert pattern.
+func TestSaveInitiative_DecisionUpdate(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	now := time.Now()
+
+	// Create initiative with initial decision
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Update Test Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: now,
+		UpdatedAt: now,
+		Decisions: []initiative.Decision{
+			{ID: "DEC-001", Decision: "Initial decision", Date: now, By: "user"},
+		},
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initial: %v", err)
+	}
+
+	// Update with more decisions
+	init.Decisions = append(init.Decisions, initiative.Decision{
+		ID:       "DEC-002",
+		Decision: "Second decision",
+		Date:     now,
+		By:       "user",
+	})
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("update with new decision: %v", err)
+	}
+
+	// Verify both decisions exist
+	loaded, err := backend.LoadInitiative("INIT-001")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(loaded.Decisions) != 2 {
+		t.Errorf("expected 2 decisions after update, got %d", len(loaded.Decisions))
+	}
+
+	// Re-save without changing decisions (idempotency test)
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("re-save: %v", err)
+	}
+	loaded, err = backend.LoadInitiative("INIT-001")
+	if err != nil {
+		t.Fatalf("load after re-save: %v", err)
+	}
+	if len(loaded.Decisions) != 2 {
+		t.Errorf("expected 2 decisions after re-save, got %d", len(loaded.Decisions))
+	}
+}
