@@ -82,6 +82,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Orphan detection prioritizes PID | `CheckOrphaned()` prioritizes PID check over heartbeat staleness - a live PID always indicates a healthy task regardless of heartbeat age; heartbeat staleness only provides additional context when PID is dead; `HeartbeatRunner` updates heartbeats every 2 minutes during phase execution for defense-in-depth | TASK-291 |
 | Log level classification for expected failures | PR label errors and auto-merge config errors (repo doesn't support auto-merge) log at DEBUG; auth errors log at WARN (actionable); missing spec warnings only for large/greenfield weights; keeps normal operation quiet while surfacing actionable issues | TASK-289 |
 | Initiative decision ID namespace | Decision IDs (DEC-001, DEC-002, etc.) are scoped per-initiative, not global; composite primary key `(id, initiative_id)` in `initiative_decisions` table; `AddDecision()` generates ID from `len(i.Decisions)+1`, so each initiative's first decision is DEC-001 | TASK-414 |
+| Streaming transcript persistence | `TranscriptBuffer` in executor package batches transcript lines (50 lines or 5 seconds) for database persistence; attached to `EventPublisher` via `SetBuffer()`; chunks accumulated until newline then persisted; `Close()` flushes remaining on phase/executor completion; uses background context with 30s timeout to ensure writes complete even on cancellation | TASK-401 |
 
 ## Known Gotchas
 
