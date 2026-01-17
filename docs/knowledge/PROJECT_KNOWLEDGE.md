@@ -81,6 +81,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Spec phase progress indication | Spec phase has two distinct activity states: `spec_analyzing` (reading codebase, researching patterns) and `spec_writing` (generating specification); CLI shows "Analyzing codebase..." / "Writing specification..." messages; WebSocket broadcasts `activity` events with phase-specific states; TaskCard shows activity label under phase name; heartbeats continue during spec execution | TASK-244 |
 | Orphan detection prioritizes PID | `CheckOrphaned()` prioritizes PID check over heartbeat staleness - a live PID always indicates a healthy task regardless of heartbeat age; heartbeat staleness only provides additional context when PID is dead; `HeartbeatRunner` updates heartbeats every 2 minutes during phase execution for defense-in-depth | TASK-291 |
 | Log level classification for expected failures | PR label errors and auto-merge config errors (repo doesn't support auto-merge) log at DEBUG; auth errors log at WARN (actionable); missing spec warnings only for large/greenfield weights; keeps normal operation quiet while surfacing actionable issues | TASK-289 |
+| Initiative decision ID namespace | Decision IDs (DEC-001, DEC-002, etc.) are scoped per-initiative, not global; composite primary key `(id, initiative_id)` in `initiative_decisions` table; `AddDecision()` generates ID from `len(i.Decisions)+1`, so each initiative's first decision is DEC-001 | TASK-414 |
 
 ## Known Gotchas
 
@@ -112,6 +113,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Worktrees orphaned after task completion | Fixed: `CleanupWorktree(taskID)` reconstructed paths assuming default naming, but initiative-prefixed worktrees use different names; `CleanupWorktreeAtPath(path)` now used with stored executor worktree path; `orc cleanup --orphaned` regex updated to match `TASK-XXX` anywhere in directory name | TASK-282 |
 | 'completed!' shown when sync fails | Fixed: `completeTask()` returned nil when sync failed with conflicts, so CLI showed celebration message; now returns `ErrTaskBlocked` sentinel error; CLI checks `errors.Is(err, executor.ErrTaskBlocked)` and calls `TaskBlocked()` display instead of `TaskCompleted()` | TASK-287 |
 | Stray spec.md files in repo | Fixed: Added `spec.md` and `artifacts/spec.md` to `.gitignore`; spec prompt now explicitly instructs Claude not to write spec files to filesystem; specs stored in database only via `<artifact>` tags | TASK-292 |
+| Decision IDs collide across initiatives | Fixed: `initiative_decisions` table now uses composite primary key `(id, initiative_id)` instead of `id` alone; decision IDs like DEC-001 are per-initiative, not global; migration 018 (SQLite) and 005 (PostgreSQL) handle existing data | TASK-414 |
 
 ## Decisions
 

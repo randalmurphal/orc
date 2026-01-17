@@ -921,7 +921,7 @@ func setupPostgresTestDB(t *testing.T) *bun.DB {
 
 ### Database Schema
 
-The database contains all task, state, plan, and initiative data. See `internal/db/schema/` for full schema definitions (project_001.sql through project_012.sql).
+The database contains all task, state, plan, and initiative data. See `internal/db/schema/` for full schema definitions (project_001.sql through project_018.sql).
 
 ### Export for Inspection
 
