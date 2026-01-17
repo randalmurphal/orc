@@ -314,7 +314,7 @@ func TopologicalSort(tasks []ManifestTask) ([]int, error) {
 			inDegree[t.ID] = 0
 		}
 		for _, dep := range t.DependsOn {
-			inDegree[dep] = inDegree[dep] // Ensure dep exists
+			_ = inDegree[dep] // Ensure dep exists in map (zero-value init)
 		}
 	}
 

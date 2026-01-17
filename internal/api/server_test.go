@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -2244,17 +2245,30 @@ func TestGetTranscriptsEndpoint_WithTranscripts(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	_ = backend.Close()
 
-	// Create a transcript file
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-TRANS-002")
-	transcriptsDir := filepath.Join(taskDir, "transcripts")
-	_ = os.MkdirAll(transcriptsDir, 0755)
-	transcriptContent := `# Phase: implement
-## Iteration 1
-Implementation done!
-`
-	_ = os.WriteFile(filepath.Join(transcriptsDir, "implement-001.md"), []byte(transcriptContent), 0644)
+	// Add transcripts to database (not filesystem)
+	transcripts := []storage.Transcript{
+		{
+			TaskID:    "TASK-TRANS-002",
+			Phase:     "implement",
+			Iteration: 1,
+			Role:      "prompt",
+			Content:   "Implement the feature",
+			Timestamp: 1700000000,
+		},
+		{
+			TaskID:    "TASK-TRANS-002",
+			Phase:     "implement",
+			Iteration: 1,
+			Role:      "response",
+			Content:   "Implementation done!",
+			Timestamp: 1700000001,
+		},
+	}
+	if err := backend.AddTranscriptBatch(context.Background(), transcripts); err != nil {
+		t.Fatalf("failed to add transcripts: %v", err)
+	}
+	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
@@ -2267,10 +2281,20 @@ Implementation done!
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var transcripts []map[string]interface{}
-	_ = json.NewDecoder(w.Body).Decode(&transcripts)
-	if len(transcripts) == 0 {
-		t.Error("expected at least one transcript")
+	var result []map[string]interface{}
+	_ = json.NewDecoder(w.Body).Decode(&result)
+	if len(result) != 2 {
+		t.Errorf("expected 2 transcripts, got %d", len(result))
+	}
+
+	// Verify transcript content from database
+	if len(result) > 0 {
+		if result[0]["phase"] != "implement" {
+			t.Errorf("expected phase 'implement', got %v", result[0]["phase"])
+		}
+		if result[0]["role"] != "prompt" {
+			t.Errorf("expected role 'prompt', got %v", result[0]["role"])
+		}
 	}
 }
 

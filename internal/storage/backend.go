@@ -3,6 +3,7 @@
 package storage
 
 import (
+	"context"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/initiative"
@@ -139,6 +140,7 @@ type Backend interface {
 
 	// Transcript operations
 	AddTranscript(t *Transcript) error
+	AddTranscriptBatch(ctx context.Context, transcripts []Transcript) error
 	GetTranscripts(taskID string) ([]Transcript, error)
 	SearchTranscripts(query string) ([]TranscriptMatch, error)
 

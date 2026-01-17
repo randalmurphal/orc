@@ -22,7 +22,7 @@ All storage operations are defined by the `Backend` interface:
 | Plan | `SavePlan`, `LoadPlan` |
 | Spec | `SaveSpec`, `LoadSpec`, `SpecExists` |
 | Initiative | `SaveInitiative`, `LoadInitiative`, `LoadAllInitiatives`, `DeleteInitiative`, `InitiativeExists`, `GetNextInitiativeID` |
-| Transcript | `AddTranscript`, `GetTranscripts`, `SearchTranscripts` |
+| Transcript | `AddTranscript`, `AddTranscriptBatch`, `GetTranscripts`, `SearchTranscripts` |
 | Attachment | `SaveAttachment`, `GetAttachment`, `ListAttachments`, `DeleteAttachment` |
 | Comments | `ListTaskComments`, `SaveTaskComment`, `ListReviewComments`, `SaveReviewComment` |
 | Gates | `ListGateDecisions`, `SaveGateDecision` |
@@ -151,3 +151,18 @@ The database stores two status fields:
 | `StateStatus` | pending, running, completed, failed, paused, interrupted, skipped | Execution engine state |
 
 `SaveState` updates `StateStatus`, while `SaveTask` updates `Status`.
+
+## Transcript Batch Persistence
+
+`AddTranscriptBatch(ctx, []Transcript)` writes multiple transcript entries in a single database transaction. Used by `executor.TranscriptBuffer` for efficient streaming transcript persistence.
+
+**Key characteristics:**
+- All transcripts inserted atomically (single transaction)
+- Empty slice is a no-op (no error)
+- `Transcript` struct includes: `TaskID`, `Phase`, `Iteration`, `Role`, `Content`, `Timestamp`
+
+**Role values:**
+- `"prompt"` - User/system prompts
+- `"response"` - Model responses
+- `"chunk"` - Aggregated streaming chunks
+- `"combined"` - Full transcript for phase

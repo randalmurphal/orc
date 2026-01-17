@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 	"time"
@@ -478,6 +479,99 @@ func TestProjectDB_Transcripts(t *testing.T) {
 	}
 	if len(got) != 3 {
 		t.Errorf("len(transcripts) = %d, want 3", len(got))
+	}
+}
+
+func TestProjectDB_TranscriptBatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create task
+	task := &Task{ID: "TASK-002", Title: "Batch Test", Status: "running", CreatedAt: time.Now()}
+	if err := pdb.SaveTask(task); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
+
+	// Batch add transcripts
+	transcripts := []Transcript{
+		{TaskID: "TASK-002", Phase: "implement", Iteration: 1, Role: "prompt", Content: "Start implementation"},
+		{TaskID: "TASK-002", Phase: "implement", Iteration: 1, Role: "chunk", Content: "Streaming chunk 1\n"},
+		{TaskID: "TASK-002", Phase: "implement", Iteration: 1, Role: "chunk", Content: "Streaming chunk 2\n"},
+		{TaskID: "TASK-002", Phase: "implement", Iteration: 1, Role: "response", Content: "Implementation complete"},
+		{TaskID: "TASK-002", Phase: "implement", Iteration: 2, Role: "prompt", Content: "Continue task"},
+	}
+
+	ctx := context.Background()
+	if err := pdb.AddTranscriptBatch(ctx, transcripts); err != nil {
+		t.Fatalf("AddTranscriptBatch failed: %v", err)
+	}
+
+	// Verify all IDs were assigned
+	for i, tr := range transcripts {
+		if tr.ID == 0 {
+			t.Errorf("transcript[%d] ID not set", i)
+		}
+	}
+
+	// Verify sequential IDs
+	for i := 1; i < len(transcripts); i++ {
+		if transcripts[i].ID != transcripts[i-1].ID+1 {
+			t.Errorf("transcript IDs not sequential: %d, %d", transcripts[i-1].ID, transcripts[i].ID)
+		}
+	}
+
+	// Get transcripts and verify
+	got, err := pdb.GetTranscripts("TASK-002")
+	if err != nil {
+		t.Fatalf("GetTranscripts failed: %v", err)
+	}
+	if len(got) != 5 {
+		t.Errorf("len(transcripts) = %d, want 5", len(got))
+	}
+
+	// Verify content matches
+	for i, tr := range got {
+		if tr.Content != transcripts[i].Content {
+			t.Errorf("transcript[%d] content = %q, want %q", i, tr.Content, transcripts[i].Content)
+		}
+	}
+}
+
+func TestProjectDB_TranscriptBatch_Empty(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Empty batch should be no-op
+	ctx := context.Background()
+	if err := pdb.AddTranscriptBatch(ctx, []Transcript{}); err != nil {
+		t.Errorf("empty batch failed: %v", err)
+	}
+	if err := pdb.AddTranscriptBatch(ctx, nil); err != nil {
+		t.Errorf("nil batch failed: %v", err)
 	}
 }
 

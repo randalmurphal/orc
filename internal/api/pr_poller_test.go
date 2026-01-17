@@ -228,7 +228,10 @@ func (b *emptyBackend) LoadAllInitiatives() ([]*initiative.Initiative, error) { 
 func (b *emptyBackend) DeleteInitiative(string) error                         { return nil }
 func (b *emptyBackend) InitiativeExists(string) (bool, error)                 { return false, nil }
 func (b *emptyBackend) GetNextInitiativeID() (string, error)                  { return "", nil }
-func (b *emptyBackend) AddTranscript(*storage.Transcript) error               { return nil }
+func (b *emptyBackend) AddTranscript(*storage.Transcript) error { return nil }
+func (b *emptyBackend) AddTranscriptBatch(context.Context, []storage.Transcript) error {
+	return nil
+}
 func (b *emptyBackend) GetTranscripts(string) ([]storage.Transcript, error)   { return nil, nil }
 func (b *emptyBackend) SearchTranscripts(string) ([]storage.TranscriptMatch, error) {
 	return nil, nil

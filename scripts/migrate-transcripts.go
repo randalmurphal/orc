@@ -33,7 +33,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error opening database: %v\n", err)
 		os.Exit(1)
 	}
-	defer projectDB.Close()
+	defer func() { _ = projectDB.Close() }()
 
 	// Find all transcript files
 	tasksDir := filepath.Join(orcDir, "tasks")

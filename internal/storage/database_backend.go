@@ -516,6 +516,38 @@ func (d *DatabaseBackend) AddTranscript(t *Transcript) error {
 	return nil
 }
 
+// AddTranscriptBatch adds multiple transcripts in a single transaction.
+// This is more efficient than calling AddTranscript repeatedly for streaming data.
+func (d *DatabaseBackend) AddTranscriptBatch(ctx context.Context, transcripts []Transcript) error {
+	if len(transcripts) == 0 {
+		return nil
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	dbTranscripts := make([]db.Transcript, len(transcripts))
+	for i, t := range transcripts {
+		dbTranscripts[i] = db.Transcript{
+			TaskID:    t.TaskID,
+			Phase:     t.Phase,
+			Iteration: t.Iteration,
+			Role:      t.Role,
+			Content:   t.Content,
+		}
+	}
+
+	if err := d.db.AddTranscriptBatch(ctx, dbTranscripts); err != nil {
+		return fmt.Errorf("add transcript batch: %w", err)
+	}
+
+	// Update IDs in the original slice
+	for i := range transcripts {
+		transcripts[i].ID = dbTranscripts[i].ID
+	}
+	return nil
+}
+
 // GetTranscripts retrieves transcripts for a task.
 func (d *DatabaseBackend) GetTranscripts(taskID string) ([]Transcript, error) {
 	d.mu.RLock()

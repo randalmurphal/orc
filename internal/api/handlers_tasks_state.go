@@ -4,13 +4,10 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // handleGetState returns task execution state.
@@ -175,7 +172,7 @@ func (s *Server) handleGetCostSummary(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, response)
 }
 
-// handleGetTranscripts returns task transcript files.
+// handleGetTranscripts returns task transcripts from the database.
 func (s *Server) handleGetTranscripts(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -185,38 +182,27 @@ func (s *Server) handleGetTranscripts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Read transcript files
-	transcriptsDir := task.TaskDirIn(s.workDir, id) + "/transcripts"
-	entries, err := os.ReadDir(transcriptsDir)
+	// Get transcripts from database
+	transcripts, err := s.backend.GetTranscripts(id)
 	if err != nil {
-		// No transcripts yet is OK
-		s.jsonResponse(w, []map[string]any{})
+		s.jsonError(w, "failed to load transcripts: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	var transcripts []map[string]any
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
+	// Transform to API response format
+	response := make([]map[string]any, len(transcripts))
+	for i, t := range transcripts {
+		response[i] = map[string]any{
+			"id":         t.ID,
+			"task_id":    t.TaskID,
+			"phase":      t.Phase,
+			"iteration":  t.Iteration,
+			"role":       t.Role,
+			"content":    t.Content,
+			"timestamp":  t.Timestamp,
+			"created_at": time.Unix(t.Timestamp, 0),
 		}
-
-		content, err := os.ReadFile(transcriptsDir + "/" + entry.Name())
-		if err != nil {
-			continue
-		}
-
-		info, _ := entry.Info()
-		transcripts = append(transcripts, map[string]any{
-			"filename":   entry.Name(),
-			"content":    string(content),
-			"created_at": info.ModTime(),
-		})
 	}
 
-	// Ensure we return an empty array, not null
-	if transcripts == nil {
-		transcripts = []map[string]any{}
-	}
-
-	s.jsonResponse(w, transcripts)
+	s.jsonResponse(w, response)
 }

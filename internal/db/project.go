@@ -818,6 +818,50 @@ func (p *ProjectDB) AddTranscript(t *Transcript) error {
 	return nil
 }
 
+// AddTranscriptBatch inserts multiple transcript entries in a single transaction.
+// This is more efficient than calling AddTranscript repeatedly for streaming data.
+// All entries are inserted atomically - either all succeed or none do.
+// Uses multi-row INSERT for O(1) database overhead instead of O(N).
+func (p *ProjectDB) AddTranscriptBatch(ctx context.Context, transcripts []Transcript) error {
+	if len(transcripts) == 0 {
+		return nil
+	}
+
+	return p.RunInTx(ctx, func(tx *TxOps) error {
+		// Build multi-row INSERT for efficiency
+		// SQLite supports up to 500 values per INSERT, but we batch by transcripts count
+		// which is typically 50 or less per flush
+		var query strings.Builder
+		query.WriteString("INSERT INTO transcripts (task_id, phase, iteration, role, content) VALUES ")
+
+		args := make([]any, 0, len(transcripts)*5)
+		for i, t := range transcripts {
+			if i > 0 {
+				query.WriteString(", ")
+			}
+			query.WriteString("(?, ?, ?, ?, ?)")
+			args = append(args, t.TaskID, t.Phase, t.Iteration, t.Role, t.Content)
+		}
+
+		result, err := tx.Exec(query.String(), args...)
+		if err != nil {
+			return fmt.Errorf("batch insert transcripts: %w", err)
+		}
+
+		// Get the last insert ID and work backwards to set all IDs
+		// SQLite guarantees sequential IDs for multi-row inserts
+		lastID, err := result.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("get last insert id: %w", err)
+		}
+		firstID := lastID - int64(len(transcripts)) + 1
+		for i := range transcripts {
+			transcripts[i].ID = firstID + int64(i)
+		}
+		return nil
+	})
+}
+
 // GetTranscripts retrieves all transcripts for a task.
 func (p *ProjectDB) GetTranscripts(taskID string) ([]Transcript, error) {
 	rows, err := p.Query(`
