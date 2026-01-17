@@ -265,6 +265,7 @@ func New(cfg *Config) *Executor {
 		session.WithDefaultSessionOptions(
 			session.WithModel(cfg.Model),
 			session.WithWorkdir(cfg.WorkDir),
+			session.WithClaudePath(claudePath),
 			session.WithPermissions(cfg.DangerouslySkipPermissions),
 			session.WithSettingSources([]string{"project", "local", "user"}),
 		),

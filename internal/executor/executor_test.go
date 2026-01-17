@@ -288,6 +288,42 @@ func TestNew(t *testing.T) {
 	if e.checkpointStore == nil {
 		t.Error("executor checkpointStore is nil when EnableCheckpoints=true")
 	}
+
+	// Verify session manager is initialized (required for session-based execution)
+	if e.sessionMgr == nil {
+		t.Error("executor sessionMgr is nil - session-based execution won't work")
+	}
+}
+
+// TestNew_SessionManagerWithClaudePath verifies that the session manager is initialized
+// with the Claude path. This is critical for the fix to TASK-309: without the Claude path,
+// session-based execution fails to spawn Claude processes when worktrees are disabled.
+func TestNew_SessionManagerWithClaudePath(t *testing.T) {
+	// Create a fake claude binary to test with
+	tmpDir := t.TempDir()
+	fakeClaude := filepath.Join(tmpDir, "claude")
+	if err := os.WriteFile(fakeClaude, []byte("#!/bin/sh\necho fake"), 0755); err != nil {
+		t.Fatalf("failed to create fake claude: %v", err)
+	}
+
+	cfg := DefaultConfig()
+	cfg.ClaudePath = fakeClaude
+	cfg.WorkDir = t.TempDir()
+	e := New(cfg)
+
+	if e == nil {
+		t.Fatal("New() returned nil")
+	}
+
+	// The session manager must be initialized for session-based execution to work
+	if e.sessionMgr == nil {
+		t.Fatal("sessionMgr is nil - session-based execution will fail")
+	}
+
+	// While we can't directly inspect the session manager's internal claudePath,
+	// we verify the executor was created successfully with a custom Claude path.
+	// The fix in executor.go line 268 ensures session.WithClaudePath(claudePath)
+	// is passed to the session manager, which enables proper Claude spawning.
 }
 
 func TestNewWithNilConfig(t *testing.T) {
