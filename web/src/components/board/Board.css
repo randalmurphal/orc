@@ -5,7 +5,6 @@
 	gap: var(--space-3);
 	min-height: 0;
 	flex: 1;
-	overflow-x: auto;
 	padding-bottom: var(--space-4);
 }
 
@@ -19,11 +18,22 @@
 	border-radius: var(--radius-lg);
 }
 
-/* Flat view - horizontal columns */
+/* Flat view - horizontal columns with scroll */
 .board.flat-view {
+	display: flex;
 	flex-direction: row;
-	align-items: flex-start;
+	flex-wrap: nowrap;
+	gap: var(--space-3);
+	align-items: stretch;
+	padding-bottom: var(--space-3);
+	/* Let the board expand to fit all columns */
+	width: max-content;
+	min-width: 100%;
+	/* Flex properties for container */
+	flex: 1 0 auto;
+	min-height: 0;
 }
+
 
 /* Swimlane view - vertical layout */
 .board.swimlane-view {
