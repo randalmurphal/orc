@@ -111,6 +111,71 @@ func TestSessionAdapterOptions_ResumeSession(t *testing.T) {
 	t.Log("Resume sessions use WithResume() to reconnect to existing Claude sessions")
 }
 
+// TestMissingResultMessageWorkaround documents the workaround for Claude Code CLI bug #1920.
+// In stream-json mode, Claude CLI intermittently fails to send the final {"type":"result",...}
+// event after completing a turn. This causes the session adapter to wait indefinitely.
+//
+// The workaround detects this scenario by:
+// 1. Tracking idle time (no messages from Claude CLI)
+// 2. When idle time exceeds 2x IdleTimeout AND accumulated content contains
+//    <phase_complete>true</phase_complete> or <phase_blocked>, break out of the loop
+//
+// See: https://github.com/anthropics/claude-code/issues/1920
+func TestMissingResultMessageWorkaround(t *testing.T) {
+	// Test that phase completion markers are correctly detected
+	tests := []struct {
+		name     string
+		content  string
+		complete bool
+		blocked  bool
+	}{
+		{
+			name:     "phase complete marker",
+			content:  "Done with the task.\n<phase_complete>true</phase_complete>",
+			complete: true,
+			blocked:  false,
+		},
+		{
+			name:     "phase blocked marker",
+			content:  "I cannot proceed.\n<phase_blocked>Missing configuration file</phase_blocked>",
+			complete: false,
+			blocked:  true,
+		},
+		{
+			name:     "no markers",
+			content:  "Still working on the task...",
+			complete: false,
+			blocked:  false,
+		},
+		{
+			name:     "empty content",
+			content:  "",
+			complete: false,
+			blocked:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isComplete := IsPhaseComplete(tt.content)
+			isBlocked := IsPhaseBlocked(tt.content)
+
+			if isComplete != tt.complete {
+				t.Errorf("IsPhaseComplete(%q) = %v, want %v", tt.content, isComplete, tt.complete)
+			}
+			if isBlocked != tt.blocked {
+				t.Errorf("IsPhaseBlocked(%q) = %v, want %v", tt.content, isBlocked, tt.blocked)
+			}
+		})
+	}
+
+	// Document the workaround behavior
+	t.Log("Workaround behavior:")
+	t.Log("1. If idle for > 2x IdleTimeout AND content contains completion markers, break loop")
+	t.Log("2. This handles Claude CLI bug #1920 where result message is never sent")
+	t.Log("3. The turn still completes successfully because we have the content")
+}
+
 func TestTokenUsageEffectiveInputTokens(t *testing.T) {
 	tests := []struct {
 		name     string

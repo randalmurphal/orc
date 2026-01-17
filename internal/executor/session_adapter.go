@@ -155,17 +155,37 @@ func (a *SessionAdapter) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 	var content strings.Builder
 	var result *session.ResultMessage
 
+	// Set up idle timeout (default 2 minutes) for workaround of Claude CLI bug #1920
+	const idleTimeout = 2 * time.Minute
+	idleTicker := time.NewTicker(idleTimeout / 4)
+	defer idleTicker.Stop()
+	lastActivity := time.Now()
+
 	outputCh := a.session.Output()
 collectLoop:
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
+		case <-idleTicker.C:
+			idleDuration := time.Since(lastActivity)
+			// WORKAROUND for Claude Code CLI bug #1920: Missing result message
+			// If we have accumulated content that indicates phase completion or blocking,
+			// and we've been idle for longer than 2x the timeout, assume the turn is complete.
+			// See: https://github.com/anthropics/claude-code/issues/1920
+			accumulated := content.String()
+			if accumulated != "" && idleDuration > idleTimeout*2 {
+				if IsPhaseComplete(accumulated) || IsPhaseBlocked(accumulated) {
+					break collectLoop
+				}
+			}
 		case output, ok := <-outputCh:
 			if !ok {
 				// Channel closed without result
 				break collectLoop
 			}
+
+			lastActivity = time.Now()
 
 			if output.IsAssistant() {
 				content.WriteString(output.GetText())
@@ -361,11 +381,25 @@ streamLoop:
 
 		case <-idleCh:
 			idleDuration := time.Since(lastActivity)
-			if idleDuration > opts.IdleTimeout && !hasWarned {
-				if opts.OnIdleWarning != nil {
-					opts.OnIdleWarning(idleDuration)
+			if idleDuration > opts.IdleTimeout {
+				if !hasWarned {
+					if opts.OnIdleWarning != nil {
+						opts.OnIdleWarning(idleDuration)
+					}
+					hasWarned = true
 				}
-				hasWarned = true
+
+				// WORKAROUND for Claude Code CLI bug #1920: Missing result message
+				// If we have accumulated content that indicates phase completion or blocking,
+				// and we've been idle for longer than 2x the timeout, assume the turn is complete.
+				// This prevents indefinite hangs when Claude CLI fails to send the result event.
+				// See: https://github.com/anthropics/claude-code/issues/1920
+				accumulated := content.String()
+				if accumulated != "" && idleDuration > opts.IdleTimeout*2 {
+					if IsPhaseComplete(accumulated) || IsPhaseBlocked(accumulated) {
+						break streamLoop
+					}
+				}
 			}
 
 		case output, ok := <-outputCh:
