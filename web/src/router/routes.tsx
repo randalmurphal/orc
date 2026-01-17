@@ -30,6 +30,7 @@ import { Agents } from '@/pages/environment/Agents';
  * | /dashboard | ?project |
  * | /automation | ?project |
  * | /tasks/:id | ?tab |
+ * | /initiatives | (redirects to /) |
  * | /initiatives/:id | - |
  * | /preferences | - |
  * | /environment/* | - |
@@ -59,6 +60,10 @@ export const routes: RouteObject[] = [
 			{
 				path: 'tasks/:id',
 				element: <TaskDetail />,
+			},
+			{
+				path: 'initiatives',
+				element: <Navigate to="/" replace />,
 			},
 			{
 				path: 'initiatives/:id',

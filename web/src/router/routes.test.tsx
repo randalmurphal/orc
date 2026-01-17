@@ -318,6 +318,18 @@ describe('Routes', () => {
 		});
 	});
 
+	describe('/initiatives route (redirect)', () => {
+		it('redirects /initiatives to root route', async () => {
+			renderWithRouter('/initiatives');
+			await waitFor(() => {
+				// After redirect, should show TaskList page (root route)
+				// TaskList shows status filter tabs
+				const allTab = document.querySelector('.status-tab');
+				expect(allTab).toBeInTheDocument();
+			});
+		});
+	});
+
 	describe('/initiatives/:id route', () => {
 		it('renders InitiativeDetail page with initiative title', async () => {
 			renderWithRouter('/initiatives/INIT-001');
