@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.956710385-06:00
+exported_at: 2026-01-17T08:29:45.949548-06:00
 task:
     id: TASK-294
     title: 'CLI: Add orc conflicts command for automated conflict resolution'
@@ -10,7 +10,7 @@ task:
     priority: high
     category: feature
     created_at: 2026-01-16T16:38:15-06:00
-    updated_at: 2026-01-16T16:38:15-06:00
+    updated_at: 0001-01-01T00:00:00Z
 plan:
     version: 1
     task_id: TASK-294

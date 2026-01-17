@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.83992902-06:00
+exported_at: 2026-01-17T08:29:48.011521-06:00
 task:
     id: TASK-190
     title: Add --priority flag to orc new command
@@ -23,7 +23,7 @@ task:
     priority: normal
     category: feature
     created_at: 2026-01-14T02:33:14-06:00
-    updated_at: 2026-01-14T02:38:48-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-14T02:35:44-06:00
     completed_at: 2026-01-14T02:38:48-06:00
 plan:
@@ -77,6 +77,11 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T02:38:48-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:38:48-06:00
     tokens:
         input_tokens: 0
         output_tokens: 0
@@ -84,7 +89,15 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 48
+    - id: 113
+      taskid: TASK-190
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:38:48-06:00
+    - id: 114
       taskid: TASK-190
       phase: implement
       gatetype: auto

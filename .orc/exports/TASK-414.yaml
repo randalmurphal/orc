@@ -1,19 +1,43 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.947892-06:00
+exported_at: 2026-01-17T08:29:45.881839-06:00
 task:
-    id: TASK-298
-    title: 'CLI: Add task search with orc list --search or orc search'
+    id: TASK-414
+    title: 'Bug: Decision IDs collide across initiatives (schema fix)'
+    description: |-
+        TASK-389 partially fixed decision ID collision but root cause remains.
+
+        **Root cause:** initiative_decisions.id is PRIMARY KEY (globally unique) but code generates per-initiative IDs (DEC-001, DEC-002). When second initiative adds its first decision, it creates DEC-001 which collides with first initiative's DEC-001.
+
+        **Fix options:**
+        1. Change schema to composite key (id, initiative_id)
+        2. Generate globally unique IDs (e.g., DEC-INIT-001-001)
+
+        **Current schema:**
+        ```sql
+        CREATE TABLE initiative_decisions (
+            id TEXT PRIMARY KEY,  -- BUG: should be (id, initiative_id)
+            initiative_id TEXT NOT NULL,
+            ...
+        )
+        ```
+
+        **Repro:**
+        1. Have initiative with DEC-001 decision
+        2. Try adding decision to different initiative
+        3. Error: UNIQUE constraint failed: initiative_decisions.id
+
+        **Blocked-by:** This is critical - prevents using decisions feature entirely after first initiative.
     weight: medium
     status: planned
-    branch: orc/TASK-298
+    branch: orc/TASK-414
     queue: active
-    priority: normal
-    category: feature
-    created_at: 2026-01-16T16:38:54-06:00
+    priority: critical
+    category: bug
+    created_at: 2026-01-17T00:23:38-06:00
     updated_at: 0001-01-01T00:00:00Z
 plan:
     version: 1
-    task_id: TASK-298
+    task_id: TASK-414
     weight: medium
     description: Medium task - spec, implement, review, test, docs with multi-agent code review
     phases:
@@ -274,7 +298,7 @@ plan:
           checkpoint: true
           status: pending
 state:
-    task_id: TASK-298
+    task_id: TASK-414
     current_phase: ""
     current_iteration: 0
     status: pending

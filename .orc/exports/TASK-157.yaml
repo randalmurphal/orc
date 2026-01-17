@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.854302062-06:00
+exported_at: 2026-01-17T08:29:48.022714-06:00
 task:
     id: TASK-157
     title: 'Phase 0: Expand E2E tests for WebSocket real-time updates (12 tests)'
@@ -44,7 +44,7 @@ task:
     category: test
     initiative_id: INIT-005
     created_at: 2026-01-14T02:18:14-06:00
-    updated_at: 2026-01-14T21:58:17-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-14T21:38:15-06:00
     completed_at: 2026-01-14T21:58:17-06:00
 plan:
@@ -314,6 +314,16 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T21:40:04-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T21:40:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T21:49:43-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -324,11 +334,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T21:53:05-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T21:53:05-06:00
         - phase: docs
           gate_type: auto
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T21:54:15-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T21:54:15-06:00
+        - phase: validate
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T21:58:17-06:00
         - phase: validate
           gate_type: auto
           approved: true
@@ -341,7 +366,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 14
+    - id: 27
       taskid: TASK-157
       phase: spec
       gatetype: auto
@@ -349,7 +374,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T21:40:04-06:00
-    - id: 15
+    - id: 32
+      taskid: TASK-157
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T21:40:04-06:00
+    - id: 28
       taskid: TASK-157
       phase: implement
       gatetype: auto
@@ -357,7 +390,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T21:49:43-06:00
-    - id: 16
+    - id: 33
+      taskid: TASK-157
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T21:49:43-06:00
+    - id: 29
       taskid: TASK-157
       phase: test
       gatetype: auto
@@ -365,7 +406,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T21:53:05-06:00
-    - id: 17
+    - id: 34
+      taskid: TASK-157
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T21:53:05-06:00
+    - id: 30
       taskid: TASK-157
       phase: docs
       gatetype: auto
@@ -373,7 +422,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T21:54:15-06:00
-    - id: 18
+    - id: 35
+      taskid: TASK-157
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T21:54:15-06:00
+    - id: 31
+      taskid: TASK-157
+      phase: validate
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T21:58:17-06:00
+    - id: 36
       taskid: TASK-157
       phase: validate
       gatetype: auto

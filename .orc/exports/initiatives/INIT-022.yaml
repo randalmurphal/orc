@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.866236455-06:00
+exported_at: 2026-01-17T08:29:48.029722-06:00
 type: initiative
 initiative:
     version: 0
@@ -57,4 +57,4 @@ initiative:
         - INIT-020
         - INIT-021
     created_at: 2026-01-16T21:03:35-06:00
-    updated_at: 2026-01-16T22:41:00-06:00
+    updated_at: 2026-01-16T23:43:19-06:00

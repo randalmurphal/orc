@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.946421007-06:00
+exported_at: 2026-01-17T08:29:45.940638-06:00
 task:
     id: TASK-308
     title: 'UI Bug: Changes tab shows ''No Changes'' despite commits existing'
@@ -123,6 +123,36 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T18:38:11-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:38:11-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:38:11-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:38:11-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:38:11-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:38:11-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:42:38-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -212,7 +242,7 @@ transcripts:
         Tokens: 4991398 input, 22071 output, 153770 cache_creation, 4837570 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628598
     - id: 388
       taskid: TASK-308
       phase: test
@@ -282,9 +312,9 @@ transcripts:
         Tokens: 762450 input, 3138 output, 50554 cache_creation, 711844 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628598
 gate_decisions:
-    - id: 66829
+    - id: 133677
       taskid: TASK-308
       phase: implement
       gatetype: auto
@@ -292,7 +322,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:38:11-06:00
-    - id: 66833
+    - id: 133678
       taskid: TASK-308
       phase: implement
       gatetype: auto
@@ -300,7 +330,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:38:11-06:00
-    - id: 66834
+    - id: 133679
       taskid: TASK-308
       phase: implement
       gatetype: auto
@@ -308,7 +338,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:38:11-06:00
-    - id: 66835
+    - id: 133680
       taskid: TASK-308
       phase: implement
       gatetype: auto
@@ -316,7 +346,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:38:11-06:00
-    - id: 66837
+    - id: 133681
       taskid: TASK-308
       phase: implement
       gatetype: auto
@@ -324,7 +354,55 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:38:11-06:00
-    - id: 66838
+    - id: 133683
+      taskid: TASK-308
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:38:11-06:00
+    - id: 133684
+      taskid: TASK-308
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:38:11-06:00
+    - id: 133685
+      taskid: TASK-308
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:38:11-06:00
+    - id: 133686
+      taskid: TASK-308
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:38:11-06:00
+    - id: 133687
+      taskid: TASK-308
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:38:11-06:00
+    - id: 133682
+      taskid: TASK-308
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:42:38-06:00
+    - id: 133688
       taskid: TASK-308
       phase: test
       gatetype: auto

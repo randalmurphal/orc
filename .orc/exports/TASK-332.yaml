@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.932247373-06:00
+exported_at: 2026-01-17T08:29:45.928944-06:00
 task:
     id: TASK-332
     title: Create Slider component for range inputs

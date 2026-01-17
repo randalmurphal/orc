@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:37.000664072-06:00
+exported_at: 2026-01-17T08:29:45.98814-06:00
 task:
     id: TASK-277
     title: Remove drag-and-drop from board and make task cards clickable
@@ -13,7 +13,7 @@ task:
     category: bug
     initiative_id: INIT-013
     created_at: 2026-01-15T23:34:48-06:00
-    updated_at: 2026-01-16T04:00:30-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-16T03:26:02-06:00
     completed_at: 2026-01-16T04:00:30-06:00
 plan:
@@ -459,6 +459,66 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T03:27:44-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:27:44-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:27:44-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:27:44-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:27:44-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:27:44-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:27:44-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:27:44-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:38:45-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:38:45-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:38:45-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:38:45-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:38:45-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -499,6 +559,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T03:58:17-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:58:17-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:58:17-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:58:17-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T04:00:30-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -587,7 +667,7 @@ transcripts:
         Tokens: 2404804 input, 5796 output, 127051 cache_creation, 2276924 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 306
       taskid: TASK-277
       phase: implement
@@ -686,14 +766,14 @@ transcripts:
         Tokens: 7203116 input, 27635 output, 186446 cache_creation, 7014725 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 307
       taskid: TASK-277
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Remove drag-and-drop from board and make task cards clickable\n**Category**: bug\n**Description**: ## Problem\nTask cards on the Board have drag-and-drop enabled but:\n1. It doesn't actually do anything useful currently\n2. It prevents clicking to navigate to task detail\n3. Users see drag cursor instead of pointer cursor\n\n## Solution\nRemove all drag-and-drop functionality from the board:\n1. Remove `draggable` attribute from TaskCard\n2. Remove drag event handlers (onDragStart, onDragEnd, onDragOver, onDrop)\n3. Remove drop zone styling/logic from columns\n4. Make entire task card clickable to navigate to task detail\n5. Remove any drag-related CSS classes and styles\n\n## Files to Clean Up\n- components/board/TaskCard.tsx - remove draggable, drag handlers\n- components/board/Column.tsx - remove drop zone logic\n- components/board/QueuedColumn.tsx - remove drop zone logic  \n- components/board/Swimlane.tsx - remove drop zone logic\n- components/board/Board.tsx - remove drag-related props/handlers\n- CSS files - remove drag-related styles (.dragging, .drag-over, etc.)\n\n## After Cleanup\n- Task card click navigates to /tasks/:id\n- No drag cursor on hover\n- Simpler, more maintainable code\n\n## Future Consideration\nDrag-and-drop can be re-added later if needed, potentially using a library like dnd-kit that handles click vs drag properly.\n\n## Initiative Context\n\nThis task is part of **Frontend Polish & UX Audit** (INIT-013).\n\n### Vision\n\nComprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.\n\n**Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.\n\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Remove drag-and-drop from board and make task cards clickable\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-277: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n<artifact>\n# Specification: Remove drag-and-drop from board and make task cards clickable\n\n## Problem Statement\n\nTask cards on the Board have drag-and-drop functionality that doesn't work properly - it shows a drag cursor but prevents intuitive click-to-navigate behavior. The drag-and-drop implementation adds complexity without providing value, as task status changes are better handled through explicit action buttons.\n\n## Success Criteria\n\n- [ ] TaskCard no longer has `draggable=\"true\"` attribute\n- [ ] TaskCard shows `cursor: pointer` instead of `cursor: grab/grabbing`\n- [ ] Clicking anywhere on TaskCard (except action buttons) navigates to `/tasks/:id`\n- [ ] Column components no longer have drag event handlers (onDragEnter, onDragLeave, onDragOver, onDrop)\n- [ ] QueuedColumn no longer has drag event handlers\n- [ ] Swimlane no longer has drag-related handlers for columns\n- [ ] Board component no longer has `handleFlatDrop` or `handleSwimlaneDrop` functions\n- [ ] All drag-related CSS classes removed (`.dragging`, `.drag-over`)\n- [ ] Escalate modal removed (only triggered by drag-drop)\n- [ ] Initiative change modal removed (only triggered by cross-swimlane drag)\n- [ ] Unit tests updated - drag-related tests removed\n- [ ] E2E tests updated - drag-related tests removed or modified\n- [ ] Build passes with no errors\n- [ ] All remaining tests pass\n\n## Testing Requirements\n\n- [ ] Unit test: TaskCard renders without draggable attribute\n- [ ] Unit test: TaskCard click navigates to task detail for non-running tasks\n- [ ] Unit test: TaskCard click calls onTaskClick for running tasks (transcript modal)\n- [ ] Unit test: Action buttons still work and stop propagation\n- [ ] E2E test: Clicking task card navigates to task detail page\n- [ ] E2E test: Board renders without drag-over styling\n- [ ] E2E test: Swimlane view works without drag functionality\n\n## Scope\n\n### In Scope\n- Remove `draggable` attribute and drag handlers from TaskCard\n- Remove drag event handlers from Column, QueuedColumn, Swimlane\n- Remove drop handling logic from Board component\n- Remove escalate modal (only used for drag-back scenario)\n- Remove initiative change modal (only used for cross-swimlane drag)\n- Update CSS to use pointer cursor instead of grab cursor\n- Remove drag-related CSS classes (`.dragging`, `.drag-over`)\n- Update/remove affected unit tests\n- Update/remove affected E2E tests\n\n### Out of Scope\n- Re-implementing drag-and-drop with a library (future task)\n- Adding any new functionality\n- Changing task action button behavior\n- Changing quick menu behavior\n- Modifying other pages or components\n\n## Technical Approach\n\n### Files to Modify\n\n| File | Changes |\n|------|---------|\n| `web/src/components/board/TaskCard.tsx` | Remove `isDragging` state, `handleDragStart`, `handleDragEnd`, `draggable` attribute, `onDragStart`, `onDragEnd` props |\n| `web/src/components/board/TaskCard.css` | Change `cursor: grab` to `cursor: pointer`, remove `.dragging` class, remove `:active { cursor: grabbing }` |\n| `web/src/components/board/Column.tsx` | Remove `dragOver` state, `dragCounter` state, all drag handlers, `onDrop` prop |\n| `web/src/components/board/Column.css` | Remove `.drag-over` class |\n| `web/src/components/board/QueuedColumn.tsx` | Remove `dragOver` state, `dragCounter` state, all drag handlers, `onDrop` prop |\n| `web/src/components/board/QueuedColumn.css` | Remove `.drag-over` class |\n| `web/src/components/board/Swimlane.tsx` | Remove `createColumnDropHandler`, `handleDragOver`, `onDrop` prop, drag event attributes |\n| `web/src/components/board/Board.tsx` | Remove `handleFlatDrop`, `handleSwimlaneDrop`, modals, `onDrop` props, `onEscalate` prop |\n| `web/src/components/board/TaskCard.test.tsx` | Remove \"drag and drop\" describe block (4 tests) |\n| `web/e2e/board.spec.ts` | Remove/update drag-related tests (~6 tests) |\n\n## Bug-Specific Analysis\n\n### Reproduction Steps\n1. Navigate to Board page (`/board`)\n2. Hover over any task card\n3. Observe cursor shows grab icon instead of pointer\n4. Try to click card to navigate - may initiate drag instead\n5. Drag card to another column - nothing meaningful happens\n\n### Current Behavior\n- Task cards have `cursor: grab` and `draggable=\"true\"`\n- Clicking can accidentally start drag operation\n- Dragging between columns shows modals but doesn't reliably update state\n- Users expect click = navigate, not drag = action\n\n### Expected Behavior\n- Task cards have `cursor: pointer`\n- Clicking navigates to task detail page\n- No drag operations on the board\n- Explicit action buttons (run/pause/resume/finalize) handle status changes\n\n### Root Cause\nThe drag-and-drop was implemented partially - the visual feedback exists but the actual status change logic through drag is unreliable and conflicts with expected click behavior.\n\n### Verification\n1. Open Board page\n2. Hover over task card - cursor should be pointer\n3. Click task card - should navigate to `/tasks/{id}`\n4. Running tasks should show transcript modal on click\n5. Action buttons should still work correctly\n6. No drag-related visual feedback should appear\n</artifact>\n\n**Commit**: 0702d64b\n<phase_complete>true</phase_complete>\n\n---\nTokens: 944511 input, 6254 output, 79627 cache_creation, 864870 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 308
       taskid: TASK-277
       phase: test
@@ -801,9 +881,9 @@ transcripts:
         Tokens: 4367492 input, 9221 output, 186398 cache_creation, 4181047 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
 gate_decisions:
-    - id: 65597
+    - id: 132233
       taskid: TASK-277
       phase: spec
       gatetype: auto
@@ -811,7 +891,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:27:44-06:00
-    - id: 65616
+    - id: 132234
       taskid: TASK-277
       phase: spec
       gatetype: auto
@@ -819,7 +899,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:27:44-06:00
-    - id: 65617
+    - id: 132235
       taskid: TASK-277
       phase: spec
       gatetype: auto
@@ -827,7 +907,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:27:44-06:00
-    - id: 65631
+    - id: 132236
       taskid: TASK-277
       phase: spec
       gatetype: auto
@@ -835,7 +915,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:27:44-06:00
-    - id: 65633
+    - id: 132237
       taskid: TASK-277
       phase: spec
       gatetype: auto
@@ -843,7 +923,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:27:44-06:00
-    - id: 65636
+    - id: 132238
       taskid: TASK-277
       phase: spec
       gatetype: auto
@@ -851,7 +931,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:27:44-06:00
-    - id: 65639
+    - id: 132239
       taskid: TASK-277
       phase: spec
       gatetype: auto
@@ -859,7 +939,63 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:27:44-06:00
-    - id: 65618
+    - id: 132249
+      taskid: TASK-277
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:27:44-06:00
+    - id: 132250
+      taskid: TASK-277
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:27:44-06:00
+    - id: 132251
+      taskid: TASK-277
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:27:44-06:00
+    - id: 132252
+      taskid: TASK-277
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:27:44-06:00
+    - id: 132253
+      taskid: TASK-277
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:27:44-06:00
+    - id: 132254
+      taskid: TASK-277
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:27:44-06:00
+    - id: 132255
+      taskid: TASK-277
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:27:44-06:00
+    - id: 132240
       taskid: TASK-277
       phase: implement
       gatetype: auto
@@ -867,7 +1003,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:38:45-06:00
-    - id: 65632
+    - id: 132241
       taskid: TASK-277
       phase: implement
       gatetype: auto
@@ -875,7 +1011,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:38:45-06:00
-    - id: 65634
+    - id: 132242
       taskid: TASK-277
       phase: implement
       gatetype: auto
@@ -883,7 +1019,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:38:45-06:00
-    - id: 65637
+    - id: 132243
       taskid: TASK-277
       phase: implement
       gatetype: auto
@@ -891,7 +1027,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:38:45-06:00
-    - id: 65640
+    - id: 132244
       taskid: TASK-277
       phase: implement
       gatetype: auto
@@ -899,7 +1035,47 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:38:45-06:00
-    - id: 65635
+    - id: 132256
+      taskid: TASK-277
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:38:45-06:00
+    - id: 132257
+      taskid: TASK-277
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:38:45-06:00
+    - id: 132258
+      taskid: TASK-277
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:38:45-06:00
+    - id: 132259
+      taskid: TASK-277
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:38:45-06:00
+    - id: 132260
+      taskid: TASK-277
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:38:45-06:00
+    - id: 132245
       taskid: TASK-277
       phase: test
       gatetype: auto
@@ -907,7 +1083,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:58:17-06:00
-    - id: 65638
+    - id: 132246
       taskid: TASK-277
       phase: test
       gatetype: auto
@@ -915,7 +1091,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:58:17-06:00
-    - id: 65641
+    - id: 132247
       taskid: TASK-277
       phase: test
       gatetype: auto
@@ -923,7 +1099,39 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:58:17-06:00
-    - id: 65642
+    - id: 132261
+      taskid: TASK-277
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:58:17-06:00
+    - id: 132262
+      taskid: TASK-277
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:58:17-06:00
+    - id: 132263
+      taskid: TASK-277
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:58:17-06:00
+    - id: 132248
+      taskid: TASK-277
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T04:00:30-06:00
+    - id: 132264
       taskid: TASK-277
       phase: docs
       gatetype: auto

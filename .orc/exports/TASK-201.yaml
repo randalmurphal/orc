@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.834055635-06:00
+exported_at: 2026-01-17T08:29:48.006215-06:00
 task:
     id: TASK-201
     title: 'Bug: Sync fails with ''0 files in conflict'' error'
@@ -11,7 +11,7 @@ task:
     priority: normal
     category: bug
     created_at: 2026-01-14T22:39:00-06:00
-    updated_at: 2026-01-14T22:45:55-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-14T22:45:55-06:00
 plan:
     version: 1
@@ -320,6 +320,16 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T22:47:34-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:47:34-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:51:52-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -330,6 +340,16 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T22:54:18-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:54:18-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:55:29-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -342,7 +362,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 77
+    - id: 169
       taskid: TASK-201
       phase: spec
       gatetype: auto
@@ -350,7 +370,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:47:34-06:00
-    - id: 78
+    - id: 173
+      taskid: TASK-201
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:47:34-06:00
+    - id: 170
       taskid: TASK-201
       phase: implement
       gatetype: auto
@@ -358,7 +386,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:51:52-06:00
-    - id: 79
+    - id: 174
+      taskid: TASK-201
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:51:52-06:00
+    - id: 171
       taskid: TASK-201
       phase: test
       gatetype: auto
@@ -366,7 +402,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:54:18-06:00
-    - id: 80
+    - id: 175
+      taskid: TASK-201
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:54:18-06:00
+    - id: 172
+      taskid: TASK-201
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:55:29-06:00
+    - id: 176
       taskid: TASK-201
       phase: docs
       gatetype: auto

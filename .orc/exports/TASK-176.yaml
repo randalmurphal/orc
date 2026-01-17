@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.843559906-06:00
+exported_at: 2026-01-17T08:29:48.014852-06:00
 task:
     id: TASK-176
     title: 'Phase 2: React - All modal components'
@@ -77,7 +77,7 @@ task:
         - TASK-168
         - TASK-169
     created_at: 2026-01-14T02:22:47-06:00
-    updated_at: 2026-01-14T19:04:43-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-14T18:40:51-06:00
     completed_at: 2026-01-14T19:04:43-06:00
 plan:
@@ -274,6 +274,16 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T15:55:09-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T15:55:09-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T16:45:35-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -284,11 +294,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T18:48:03-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T18:48:03-06:00
         - phase: docs
           gate_type: auto
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T18:50:42-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T18:50:42-06:00
+        - phase: validate
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T19:04:43-06:00
         - phase: validate
           gate_type: auto
           approved: true
@@ -301,7 +326,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 34
+    - id: 67
       taskid: TASK-176
       phase: spec
       gatetype: auto
@@ -309,7 +334,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T15:55:09-06:00
-    - id: 35
+    - id: 72
+      taskid: TASK-176
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T15:55:09-06:00
+    - id: 68
       taskid: TASK-176
       phase: implement
       gatetype: auto
@@ -317,7 +350,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T16:45:35-06:00
-    - id: 36
+    - id: 73
+      taskid: TASK-176
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T16:45:35-06:00
+    - id: 69
       taskid: TASK-176
       phase: test
       gatetype: auto
@@ -325,7 +366,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T18:48:03-06:00
-    - id: 37
+    - id: 74
+      taskid: TASK-176
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T18:48:03-06:00
+    - id: 70
       taskid: TASK-176
       phase: docs
       gatetype: auto
@@ -333,7 +382,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T18:50:42-06:00
-    - id: 38
+    - id: 75
+      taskid: TASK-176
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T18:50:42-06:00
+    - id: 71
+      taskid: TASK-176
+      phase: validate
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T19:04:43-06:00
+    - id: 76
       taskid: TASK-176
       phase: validate
       gatetype: auto

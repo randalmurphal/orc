@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:37.170184458-06:00
+exported_at: 2026-01-17T08:29:46.138349-06:00
 task:
     id: TASK-231
     title: Guard PRPoller.Stop() against double-close panic
@@ -12,7 +12,7 @@ task:
     category: bug
     initiative_id: INIT-012
     created_at: 2026-01-15T12:12:42-06:00
-    updated_at: 2026-01-15T13:22:50-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-15T13:13:32-06:00
     completed_at: 2026-01-15T13:22:50-06:00
     metadata:
@@ -358,6 +358,66 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T13:15:13-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:15:13-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:15:13-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:15:13-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:15:13-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:15:13-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:15:13-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:15:13-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:17:26-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:17:26-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:17:26-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:17:26-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:17:26-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -398,6 +458,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T13:21:28-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:21:28-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:21:28-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:21:28-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T13:22:50-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -486,7 +566,7 @@ transcripts:
         Tokens: 870976 input, 2904 output, 62466 cache_creation, 807890 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 117
       taskid: TASK-231
       phase: implement
@@ -575,14 +655,14 @@ transcripts:
         Tokens: 1247302 input, 7763 output, 67287 cache_creation, 1179990 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 118
       taskid: TASK-231
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Guard PRPoller.Stop() against double-close panic\n**Category**: {{TASK_CATEGORY}}\n**Description**: \n\n{{INITIATIVE_CONTEXT}}\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Guard PRPoller.Stop() against double-close panic\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-231: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n**Commit**: 726b2915\n\n<artifact>\n# Specification: Guard PRPoller.Stop() against double-close panic\n\n## Problem Statement\n`PRPoller.Stop()` directly calls `close(p.stopCh)` without protection against multiple calls. If `Stop()` is called twice, Go will panic with \"close of closed channel\".\n\n## Success Criteria\n- [ ] `PRPoller.Stop()` can be called multiple times without panic\n- [ ] Uses `sync.Once` pattern consistent with `ActivityTracker.Stop()` in the same codebase\n- [ ] Existing behavior preserved: first call closes channel and waits for goroutine, subsequent calls return immediately\n- [ ] No race conditions on the stop path\n- [ ] Unit test verifies double-call safety\n\n## Testing Requirements\n- [ ] Unit test: `TestPRPoller_StopTwice` - calls `Stop()` twice in succession, verifies no panic\n- [ ] Unit test: `TestPRPoller_StopConcurrent` - calls `Stop()` from multiple goroutines simultaneously\n- [ ] Existing tests continue to pass (no regression in normal start/stop flow)\n\n## Scope\n### In Scope\n- Add `sync.Once` field to `PRPoller` struct\n- Modify `Stop()` to use `stopOnce.Do()` pattern\n- Add unit tests for double-call and concurrent-call safety\n\n### Out of Scope\n- Changes to `Start()` behavior\n- Changes to polling logic\n- Multiple start/stop cycles (struct reuse)\n- Other pollers or similar components\n\n## Technical Approach\nFollow the existing pattern from `ActivityTracker` (`internal/executor/activity.go:141-146`)\n\n### Files to Modify\n- `internal/api/pr_poller.go`: Add `stopOnce sync.Once` field, wrap close in `stopOnce.Do()`\n- `internal/api/pr_poller_test.go`: Add `TestPRPoller_StopTwice` and `TestPRPoller_StopConcurrent`\n\n## Bug Analysis\n- **Root Cause**: Missing `sync.Once` to guard channel close\n- **Fix**: Wrap `close(p.stopCh)` in `p.stopOnce.Do()` \n- **Verification**: Run new unit tests + existing tests\n</artifact>\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 605603 input, 3550 output, 74296 cache_creation, 531295 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 119
       taskid: TASK-231
       phase: test
@@ -680,9 +760,9 @@ transcripts:
         Tokens: 911854 input, 3747 output, 47035 cache_creation, 864687 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
 gate_decisions:
-    - id: 1895
+    - id: 124973
       taskid: TASK-231
       phase: spec
       gatetype: auto
@@ -690,7 +770,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:15:13-06:00
-    - id: 1898
+    - id: 124974
       taskid: TASK-231
       phase: spec
       gatetype: auto
@@ -698,7 +778,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:15:13-06:00
-    - id: 1899
+    - id: 124975
       taskid: TASK-231
       phase: spec
       gatetype: auto
@@ -706,7 +786,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:15:13-06:00
-    - id: 1901
+    - id: 124976
       taskid: TASK-231
       phase: spec
       gatetype: auto
@@ -714,7 +794,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:15:13-06:00
-    - id: 1903
+    - id: 124977
       taskid: TASK-231
       phase: spec
       gatetype: auto
@@ -722,7 +802,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:15:13-06:00
-    - id: 1906
+    - id: 124978
       taskid: TASK-231
       phase: spec
       gatetype: auto
@@ -730,7 +810,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:15:13-06:00
-    - id: 1909
+    - id: 124979
       taskid: TASK-231
       phase: spec
       gatetype: auto
@@ -738,7 +818,63 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:15:13-06:00
-    - id: 1900
+    - id: 124989
+      taskid: TASK-231
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:15:13-06:00
+    - id: 124990
+      taskid: TASK-231
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:15:13-06:00
+    - id: 124991
+      taskid: TASK-231
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:15:13-06:00
+    - id: 124992
+      taskid: TASK-231
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:15:13-06:00
+    - id: 124993
+      taskid: TASK-231
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:15:13-06:00
+    - id: 124994
+      taskid: TASK-231
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:15:13-06:00
+    - id: 124995
+      taskid: TASK-231
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:15:13-06:00
+    - id: 124980
       taskid: TASK-231
       phase: implement
       gatetype: auto
@@ -746,7 +882,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:17:26-06:00
-    - id: 1902
+    - id: 124981
       taskid: TASK-231
       phase: implement
       gatetype: auto
@@ -754,7 +890,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:17:26-06:00
-    - id: 1904
+    - id: 124982
       taskid: TASK-231
       phase: implement
       gatetype: auto
@@ -762,7 +898,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:17:26-06:00
-    - id: 1907
+    - id: 124983
       taskid: TASK-231
       phase: implement
       gatetype: auto
@@ -770,7 +906,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:17:26-06:00
-    - id: 1910
+    - id: 124984
       taskid: TASK-231
       phase: implement
       gatetype: auto
@@ -778,7 +914,47 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:17:26-06:00
-    - id: 1905
+    - id: 124996
+      taskid: TASK-231
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:17:26-06:00
+    - id: 124997
+      taskid: TASK-231
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:17:26-06:00
+    - id: 124998
+      taskid: TASK-231
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:17:26-06:00
+    - id: 124999
+      taskid: TASK-231
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:17:26-06:00
+    - id: 125000
+      taskid: TASK-231
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:17:26-06:00
+    - id: 124985
       taskid: TASK-231
       phase: test
       gatetype: auto
@@ -786,7 +962,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:21:28-06:00
-    - id: 1908
+    - id: 124986
       taskid: TASK-231
       phase: test
       gatetype: auto
@@ -794,7 +970,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:21:28-06:00
-    - id: 1911
+    - id: 124987
       taskid: TASK-231
       phase: test
       gatetype: auto
@@ -802,7 +978,39 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T13:21:28-06:00
-    - id: 1912
+    - id: 125001
+      taskid: TASK-231
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:21:28-06:00
+    - id: 125002
+      taskid: TASK-231
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:21:28-06:00
+    - id: 125003
+      taskid: TASK-231
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:21:28-06:00
+    - id: 124988
+      taskid: TASK-231
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T13:22:50-06:00
+    - id: 125004
       taskid: TASK-231
       phase: docs
       gatetype: auto

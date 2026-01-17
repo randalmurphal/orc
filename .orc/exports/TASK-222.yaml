@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:37.375072519-06:00
+exported_at: 2026-01-17T08:29:46.374548-06:00
 task:
     id: TASK-222
     title: Add process group handling to orchestrator workers
@@ -12,7 +12,7 @@ task:
     category: bug
     initiative_id: INIT-012
     created_at: 2026-01-15T12:12:22-06:00
-    updated_at: 2026-01-15T18:32:41-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-15T18:19:17-06:00
     completed_at: 2026-01-15T18:32:41-06:00
     metadata:
@@ -358,6 +358,66 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T18:21:25-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:25-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:25-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:25-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:25-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:25-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:25-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:21:25-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:27:25-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:27:25-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:27:25-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:27:25-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:27:25-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -398,6 +458,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T18:30:59-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:30:59-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:30:59-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:30:59-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:32:41-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -486,7 +566,7 @@ transcripts:
         Tokens: 1022446 input, 3388 output, 65784 cache_creation, 955845 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628596
     - id: 80
       taskid: TASK-222
       phase: implement
@@ -575,14 +655,14 @@ transcripts:
         Tokens: 2521437 input, 10394 output, 72267 cache_creation, 2449131 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628596
     - id: 81
       taskid: TASK-222
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Add process group handling to orchestrator workers\n**Category**: {{TASK_CATEGORY}}\n**Description**: \n\n{{INITIATIVE_CONTEXT}}\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Add process group handling to orchestrator workers\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-222: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n<artifact>\n# Specification: Add process group handling to orchestrator workers\n\n## Problem Statement\n\nWhen an orchestrator worker is stopped (via context cancellation), the `claude` process receives a SIGKILL signal, but its child processes (MCP servers like Playwright, chromium, etc.) are orphaned and continue running. This causes resource leaks and can interfere with subsequent task executions.\n\n## Success Criteria\n\n- [ ] Worker's `exec.CommandContext` sets `SysProcAttr.Setpgid = true` to create new process groups\n- [ ] Worker's `Stop()` method kills the entire process group (not just the parent process)\n- [ ] Context cancellation triggers proper process group cleanup\n- [ ] Unit tests verify process group creation and cleanup behavior\n- [ ] All existing worker tests continue to pass\n- [ ] No orphaned processes remain after worker stop (can be verified with resource tracker)\n\n## Testing Requirements\n\n- [ ] Unit test: Verify `SysProcAttr.Setpgid` is set on command\n- [ ] Unit test: Verify `Stop()` sends signal to process group (negative PID)\n- [ ] Unit test: Verify idempotent cleanup behavior (double-stop is safe)\n- [ ] Integration test: Verify resource tracker detects fewer orphans after this change\n\n## Scope\n\n### In Scope\n- Modify `Worker.run()` in `internal/orchestrator/worker.go` to set process group attributes\n- Add process group kill logic to `Worker.Stop()` method\n- Add helper function for cross-platform process group handling\n- Add unit tests for new functionality\n- Update orchestrator CLAUDE.md with the pattern\n\n### Out of Scope\n- Modifying other spawn points (spec/spawn.go, setup/spawn.go, planner/planner.go)\n- Windows process group handling (Windows uses job objects, not POSIX process groups)\n- Modifying llmkit/claude package (that's a separate repo)\n- Resource tracker changes (it already detects orphans, this task fixes the cause)\n\n## Technical Approach\n\n### Key Insight\n\nGo's `exec.CommandContext` only kills the direct child process on context cancellation. Child processes spawned by the command (like MCP servers) are reparented to init (PID 1) and continue running.\n\nThe solution is to:\n1. Put the child process in its own process group using `Setpgid: true`\n2. Kill the entire process group on cancellation using `syscall.Kill(-pgid, signal)`\n\n### Implementation\n\n1. **Add process group attribute when creating command** (`worker.go:173`):\n```go\nw.cmd = exec.CommandContext(w.ctx, \"claude\", args...)\nw.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}\n```\n\n2. **Add process group kill to Worker.Stop()**:\n```go\nfunc (w *Worker) Stop() {\n    w.cancel()\n    w.killProcessGroup()\n}\n\nfunc (w *Worker) killProcessGroup() {\n    w.mu.Lock()\n    cmd := w.cmd\n    w.mu.Unlock()\n\n    if cmd == nil || cmd.Process == nil {\n        return\n    }\n\n    pid := cmd.Process.Pid\n    if pid > 0 {\n        // Kill the entire process group\n        syscall.Kill(-pid, syscall.SIGKILL)\n    }\n}\n```\n\n3. **Add cleanup on context cancellation in run loop**:\nThe run loop already handles context cancellation at line 192-195. Add process group cleanup there.\n\n### Files to Modify\n\n| File | Change |\n|------|--------|\n| `internal/orchestrator/worker.go` | Add `SysProcAttr.Setpgid`, add `killProcessGroup()` method, modify `Stop()` |\n| `internal/orchestrator/worker_unix.go` | Platform-specific process group kill (Linux/macOS) |\n| `internal/orchestrator/worker_windows.go` | Stub for Windows (no process groups, just cancel) |\n| `internal/orchestrator/worker_test.go` | Add tests for process group behavior |\n| `internal/orchestrator/CLAUDE.md` | Document the process group pattern |\n\n### Platform Considerations\n\nProcess groups are a POSIX concept. For cross-platform compatibility:\n- Linux/macOS: Use `syscall.SysProcAttr{Setpgid: true}` and `syscall.Kill(-pid, signal)`\n- Windows: No change needed (Windows uses job objects differently; context cancellation works adequately for single processes)\n\nUse build tags to separate platform-specific code:\n```go\n//go:build !windows\n// +build !windows\n```\n\n## Feature Analysis\n\n### User Story\nAs a user running the orchestrator with multiple concurrent tasks, I want workers to cleanly terminate all child processes when stopped, so that no orphaned processes (especially MCP servers) consume resources after task completion.\n\n### Acceptance Criteria\n1. When `worker.Stop()` is called, the `claude` process AND all its descendants are terminated\n2. When context is cancelled (timeout, user interrupt), all processes in the worker's process group are killed\n3. Resource tracker no longer detects orphaned MCP processes after normal task completion\n4. The change is transparent - existing code that calls `Stop()` doesn't need modification\n5. No behavioral change on Windows (maintains current behavior)\n</artifact>\n\n**Commit**: 3fcbd473\n<phase_complete>true</phase_complete>\n\n---\nTokens: 1072998 input, 5852 output, 67795 cache_creation, 1004255 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628596
     - id: 82
       taskid: TASK-222
       phase: test
@@ -675,9 +755,9 @@ transcripts:
         Tokens: 1459644 input, 6983 output, 52493 cache_creation, 1407124 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628596
 gate_decisions:
-    - id: 11097
+    - id: 110119
       taskid: TASK-222
       phase: spec
       gatetype: auto
@@ -685,7 +765,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:21:25-06:00
-    - id: 11098
+    - id: 110120
       taskid: TASK-222
       phase: spec
       gatetype: auto
@@ -693,7 +773,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:21:25-06:00
-    - id: 11099
+    - id: 110121
       taskid: TASK-222
       phase: spec
       gatetype: auto
@@ -701,7 +781,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:21:25-06:00
-    - id: 11101
+    - id: 110122
       taskid: TASK-222
       phase: spec
       gatetype: auto
@@ -709,7 +789,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:21:25-06:00
-    - id: 11103
+    - id: 110123
       taskid: TASK-222
       phase: spec
       gatetype: auto
@@ -717,7 +797,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:21:25-06:00
-    - id: 11106
+    - id: 110124
       taskid: TASK-222
       phase: spec
       gatetype: auto
@@ -725,7 +805,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:21:25-06:00
-    - id: 11109
+    - id: 110125
       taskid: TASK-222
       phase: spec
       gatetype: auto
@@ -733,7 +813,63 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:21:25-06:00
-    - id: 11100
+    - id: 110135
+      taskid: TASK-222
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:25-06:00
+    - id: 110136
+      taskid: TASK-222
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:25-06:00
+    - id: 110137
+      taskid: TASK-222
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:25-06:00
+    - id: 110138
+      taskid: TASK-222
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:25-06:00
+    - id: 110139
+      taskid: TASK-222
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:25-06:00
+    - id: 110140
+      taskid: TASK-222
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:25-06:00
+    - id: 110141
+      taskid: TASK-222
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:21:25-06:00
+    - id: 110126
       taskid: TASK-222
       phase: implement
       gatetype: auto
@@ -741,7 +877,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:27:25-06:00
-    - id: 11102
+    - id: 110127
       taskid: TASK-222
       phase: implement
       gatetype: auto
@@ -749,7 +885,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:27:25-06:00
-    - id: 11104
+    - id: 110128
       taskid: TASK-222
       phase: implement
       gatetype: auto
@@ -757,7 +893,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:27:25-06:00
-    - id: 11107
+    - id: 110129
       taskid: TASK-222
       phase: implement
       gatetype: auto
@@ -765,7 +901,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:27:25-06:00
-    - id: 11110
+    - id: 110130
       taskid: TASK-222
       phase: implement
       gatetype: auto
@@ -773,7 +909,47 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:27:25-06:00
-    - id: 11105
+    - id: 110142
+      taskid: TASK-222
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:27:25-06:00
+    - id: 110143
+      taskid: TASK-222
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:27:25-06:00
+    - id: 110144
+      taskid: TASK-222
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:27:25-06:00
+    - id: 110145
+      taskid: TASK-222
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:27:25-06:00
+    - id: 110146
+      taskid: TASK-222
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:27:25-06:00
+    - id: 110131
       taskid: TASK-222
       phase: test
       gatetype: auto
@@ -781,7 +957,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:30:59-06:00
-    - id: 11108
+    - id: 110132
       taskid: TASK-222
       phase: test
       gatetype: auto
@@ -789,7 +965,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:30:59-06:00
-    - id: 11111
+    - id: 110133
       taskid: TASK-222
       phase: test
       gatetype: auto
@@ -797,7 +973,39 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:30:59-06:00
-    - id: 11112
+    - id: 110147
+      taskid: TASK-222
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:30:59-06:00
+    - id: 110148
+      taskid: TASK-222
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:30:59-06:00
+    - id: 110149
+      taskid: TASK-222
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:30:59-06:00
+    - id: 110134
+      taskid: TASK-222
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:32:41-06:00
+    - id: 110150
       taskid: TASK-222
       phase: docs
       gatetype: auto

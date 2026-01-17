@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:37.037798393-06:00
+exported_at: 2026-01-17T08:29:46.017952-06:00
 task:
     id: TASK-262
     title: Replace category emoji with icon for consistent styling
@@ -13,7 +13,7 @@ task:
     category: refactor
     initiative_id: INIT-013
     created_at: 2026-01-15T23:17:29-06:00
-    updated_at: 2026-01-16T03:21:58-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-16T03:07:59-06:00
     completed_at: 2026-01-16T03:21:58-06:00
     metadata:
@@ -371,6 +371,66 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T03:09:02-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:09:02-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:09:02-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:09:02-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:09:02-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:09:02-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:09:02-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:09:02-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:13:01-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:13:01-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:13:01-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:13:01-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:13:01-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -411,6 +471,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T03:21:10-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:21:10-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:21:10-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:21:10-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T03:21:58-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -502,7 +582,7 @@ transcripts:
         Tokens: 464936 input, 1424 output, 67340 cache_creation, 397587 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 245
       taskid: TASK-262
       phase: implement
@@ -600,14 +680,14 @@ transcripts:
         Tokens: 3403445 input, 9167 output, 84486 cache_creation, 3318916 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 246
       taskid: TASK-262
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Replace category emoji with icon for consistent styling\n**Category**: refactor\n**Description**: ## Problem\nCategory badges use emojis (e.g., ✨ for Feature, \U0001F41B for Bug) instead of icons.\n- Inconsistent with the rest of the icon-based UI\n- Emojis render differently across platforms\n- Doesn't match the 'Mission Control' aesthetic\n\n## Current\n- ✨ Feature\n- \U0001F41B Bug\n- \U0001F504 Refactor\n- etc.\n\n## Proposed\nUse Icon component with appropriate SVG icons:\n- feature: sparkle or plus-circle icon\n- bug: bug icon (if available) or warning icon\n- refactor: refresh-cw icon\n- chore: wrench icon\n- docs: file-text icon\n- test: check-circle icon\n\n## Location\n- Check where category badges are rendered\n- May need to add new icons to Icon.tsx component\n\n## Initiative Context\n\nThis task is part of **Frontend Polish & UX Audit** (INIT-013).\n\n### Vision\n\nComprehensive audit and enhancement of the web UI: ensure all backend features are accessible, fix visual/functional issues, improve UX patterns, ensure responsive design, and modernize presentation following frontend-design standards.\n\n**Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.\n\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Replace category emoji with icon for consistent styling\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-262: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\nThe spec doesn't need to be saved as a file since it's part of the task orchestration. The specification is complete and describes exactly what needs to be done.\n\n**Summary**: The specification has been created for TASK-262 (Replace category emoji with icon for consistent styling). This is a straightforward refactor that involves:\n\n1. Adding 3 new icons to Icon.tsx (`sparkles`, `bug`, `test-tube`)\n2. Updating `CATEGORY_CONFIG` to use IconName instead of emoji strings\n3. Updating TaskHeader.tsx to render the Icon component\n\nThe changes are low-risk and isolated to the presentation layer with no behavioral changes.\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 521542 input, 2599 output, 81403 cache_creation, 440063 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 247
       taskid: TASK-262
       phase: test
@@ -704,9 +784,9 @@ transcripts:
         Tokens: 3922644 input, 7825 output, 93478 cache_creation, 3828923 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
 gate_decisions:
-    - id: 65548
+    - id: 131185
       taskid: TASK-262
       phase: spec
       gatetype: auto
@@ -714,7 +794,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:09:02-06:00
-    - id: 65550
+    - id: 131186
       taskid: TASK-262
       phase: spec
       gatetype: auto
@@ -722,7 +802,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:09:02-06:00
-    - id: 65551
+    - id: 131187
       taskid: TASK-262
       phase: spec
       gatetype: auto
@@ -730,7 +810,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:09:02-06:00
-    - id: 65564
+    - id: 131188
       taskid: TASK-262
       phase: spec
       gatetype: auto
@@ -738,7 +818,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:09:02-06:00
-    - id: 65566
+    - id: 131189
       taskid: TASK-262
       phase: spec
       gatetype: auto
@@ -746,7 +826,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:09:02-06:00
-    - id: 65569
+    - id: 131190
       taskid: TASK-262
       phase: spec
       gatetype: auto
@@ -754,7 +834,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:09:02-06:00
-    - id: 65572
+    - id: 131191
       taskid: TASK-262
       phase: spec
       gatetype: auto
@@ -762,7 +842,63 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:09:02-06:00
-    - id: 65552
+    - id: 131201
+      taskid: TASK-262
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:09:02-06:00
+    - id: 131202
+      taskid: TASK-262
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:09:02-06:00
+    - id: 131203
+      taskid: TASK-262
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:09:02-06:00
+    - id: 131204
+      taskid: TASK-262
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:09:02-06:00
+    - id: 131205
+      taskid: TASK-262
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:09:02-06:00
+    - id: 131206
+      taskid: TASK-262
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:09:02-06:00
+    - id: 131207
+      taskid: TASK-262
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:09:02-06:00
+    - id: 131192
       taskid: TASK-262
       phase: implement
       gatetype: auto
@@ -770,7 +906,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:13:01-06:00
-    - id: 65565
+    - id: 131193
       taskid: TASK-262
       phase: implement
       gatetype: auto
@@ -778,7 +914,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:13:01-06:00
-    - id: 65567
+    - id: 131194
       taskid: TASK-262
       phase: implement
       gatetype: auto
@@ -786,7 +922,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:13:01-06:00
-    - id: 65570
+    - id: 131195
       taskid: TASK-262
       phase: implement
       gatetype: auto
@@ -794,7 +930,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:13:01-06:00
-    - id: 65573
+    - id: 131196
       taskid: TASK-262
       phase: implement
       gatetype: auto
@@ -802,7 +938,47 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:13:01-06:00
-    - id: 65568
+    - id: 131208
+      taskid: TASK-262
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:13:01-06:00
+    - id: 131209
+      taskid: TASK-262
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:13:01-06:00
+    - id: 131210
+      taskid: TASK-262
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:13:01-06:00
+    - id: 131211
+      taskid: TASK-262
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:13:01-06:00
+    - id: 131212
+      taskid: TASK-262
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:13:01-06:00
+    - id: 131197
       taskid: TASK-262
       phase: test
       gatetype: auto
@@ -810,7 +986,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:21:10-06:00
-    - id: 65571
+    - id: 131198
       taskid: TASK-262
       phase: test
       gatetype: auto
@@ -818,7 +994,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:21:10-06:00
-    - id: 65574
+    - id: 131199
       taskid: TASK-262
       phase: test
       gatetype: auto
@@ -826,7 +1002,39 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T03:21:10-06:00
-    - id: 65575
+    - id: 131213
+      taskid: TASK-262
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:21:10-06:00
+    - id: 131214
+      taskid: TASK-262
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:21:10-06:00
+    - id: 131215
+      taskid: TASK-262
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:21:10-06:00
+    - id: 131200
+      taskid: TASK-262
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T03:21:58-06:00
+    - id: 131216
       taskid: TASK-262
       phase: docs
       gatetype: auto

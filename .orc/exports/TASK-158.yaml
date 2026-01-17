@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.853654876-06:00
+exported_at: 2026-01-17T08:29:48.022378-06:00
 task:
     id: TASK-158
     title: 'Phase 0: Expand E2E tests for Filters and URL persistence (14 tests)'
@@ -45,7 +45,7 @@ task:
     category: test
     initiative_id: INIT-005
     created_at: 2026-01-14T02:18:29-06:00
-    updated_at: 2026-01-14T02:18:29-06:00
+    updated_at: 0001-01-01T00:00:00Z
 plan:
     version: 1
     task_id: TASK-158

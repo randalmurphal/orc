@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:37.141713175-06:00
+exported_at: 2026-01-17T08:29:46.112624-06:00
 task:
     id: TASK-239
     title: Clean up Scheduler maps on completion
@@ -12,7 +12,7 @@ task:
     category: bug
     initiative_id: INIT-012
     created_at: 2026-01-15T12:13:19-06:00
-    updated_at: 2026-01-15T16:14:04-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-15T15:57:20-06:00
     completed_at: 2026-01-15T16:14:04-06:00
 plan:
@@ -356,6 +356,66 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T16:00:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:00:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:00:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:00:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:00:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:00:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:00:14-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:00:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:27-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:27-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:27-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:27-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:27-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -396,6 +456,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T16:13:19-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:13:19-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:13:19-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:13:19-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:14:04-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -484,7 +564,7 @@ transcripts:
         Tokens: 469854 input, 1449 output, 42832 cache_creation, 427010 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 152
       taskid: TASK-239
       phase: implement
@@ -574,14 +654,14 @@ transcripts:
         Tokens: 2818674 input, 13398 output, 73358 cache_creation, 2745274 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 153
       taskid: TASK-239
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Clean up Scheduler maps on completion\n**Category**: {{TASK_CATEGORY}}\n**Description**: \n\n{{INITIATIVE_CONTEXT}}\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Clean up Scheduler maps on completion\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-239: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\nI see - the spec is detected from a `spec.md` file in the task directory. Since this is running from a worktree, the task directory would be relative. Looking at the prompt again - I'm supposed to output the spec content inside `<artifact>` tags, then the executor extracts it and saves it. But the prompt also says to commit.\n\nGiven the instruction says \"After completing the spec, commit\" with `git add -A && git commit`, and given there's nothing to commit (working tree clean), I think the appropriate action is just to output the specification I already have and mark the phase complete.\n\nLet me re-read the prompt - it says \"wrap your spec in artifact tags\" and then commit. The artifact tags are for the executor to parse. The commit is to mark the phase complete. Since there are no file changes (the spec is for the executor to parse and save to DB), I'll output the completed spec and phase marker:\n\n**Commit**: (no file changes to commit - spec is saved to database by executor)\n\n<artifact>\n# Specification: Clean up Scheduler maps on completion\n\n## Problem Statement\n\nThe Scheduler's `completed` and `taskDeps` maps grow unboundedly during orchestration sessions. Unlike WorkerPool (fixed in TASK-238), these maps are never cleaned, causing memory growth in long-running sessions or when reusing a Scheduler across multiple orchestration runs.\n\n## Success Criteria\n\n- [ ] `taskDeps` entries are removed when tasks complete (no longer need requeue capability)\n- [ ] `completed` entries are removed when no pending/running task depends on them\n- [ ] Scheduler provides `Reset()` method to clear all state for new orchestration runs\n- [ ] Memory usage remains bounded for long-running Scheduler instances\n- [ ] Existing dependency resolution continues to work correctly (no regressions)\n- [ ] `CompletedCount()` still returns accurate count (track count separately from map size)\n\n## Testing Requirements\n\n- [ ] Unit test: `TestScheduler_CleanupOnCompletion` - verify `taskDeps` cleaned after `MarkCompleted`\n- [ ] Unit test: `TestScheduler_CleanupUnreferencedCompleted` - verify orphaned `completed` entries are cleaned\n- [ ] Unit test: `TestScheduler_Reset` - verify all maps cleared and counters reset\n- [ ] Unit test: `TestScheduler_DependencyResolutionAfterCleanup` - verify deps still work correctly\n- [ ] Unit test: `TestScheduler_CompletedCountAccuracy` - verify count remains accurate after cleanup\n\n## Scope\n\n### In Scope\n- Cleanup `taskDeps` entries on task completion\n- Cleanup `completed` entries when no longer referenced as dependencies  \n- Add `Reset()` method for clearing all Scheduler state\n- Track `completedCount` separately from map size\n- Unit tests for cleanup behavior\n\n### Out of Scope\n- Periodic background cleanup (synchronous cleanup is sufficient)\n- Configurable cleanup behavior\n- Cleanup of the queue itself (already handled by heap pop)\n\n## Technical Approach\n\nThe cleanup strategy follows the WorkerPool pattern but adapted for Scheduler semantics:\n\n1. **Immediate `taskDeps` cleanup**: When `MarkCompleted()` or `MarkFailed()` is called, remove the entry from `taskDeps` since the task can no longer be requeued.\n\n2. **Lazy `completed` cleanup**: After marking a task complete, scan `taskDeps` to find all task IDs that are still referenced as dependencies. Any `completed` entry not in this set can be removed. This is O(n*m) but n (tasks) and m (avg deps per task) are typically small.\n\n3. **Track count separately**: Change `CompletedCount()` to use a dedicated `completedCount int` field instead of `len(s.completed)` so the count remains accurate after cleanup.\n\n4. **`Reset()` method**: Clear all maps and reset counters for Scheduler reuse.\n\n### Files to Modify\n\n- `internal/orchestrator/scheduler.go`:\n  - Add `completedCount int` field to `Scheduler` struct\n  - Modify `MarkCompleted()`: increment `completedCount`, delete from `taskDeps`, call `cleanupOrphanedCompleted()`\n  - Modify `MarkFailed()`: delete from `taskDeps`\n  - Modify `CompletedCount()`: return `completedCount` field\n  - Add `cleanupOrphanedCompleted()`: remove completed entries not referenced by any remaining task\n  - Add `Reset()`: clear all maps and reset counters\n\n- `internal/orchestrator/scheduler_test.go` (new file):\n  - Unit tests for cleanup behavior\n  - Unit tests for Reset functionality\n  - Unit tests for dependency resolution after cleanup\n\n## Bug Analysis\n\n### Reproduction Steps\n1. Create a Scheduler with `NewScheduler(4)`\n2. Add 1000 tasks with `AddTask()`\n3. Mark all tasks completed with `MarkCompleted()`\n4. Observe `len(s.completed)` is 1000 and `len(s.taskDeps)` is 1000\n\n### Current Behavior\nMaps grow indefinitely. Memory is never reclaimed even after all tasks complete.\n\n### Expected Behavior\nMaps should be cleaned up as tasks complete. After all tasks complete and `IsComplete()` returns true, both maps should be empty (or nearly empty).\n\n### Root Cause\n`MarkCompleted()` adds to `completed` map but never removes entries. `AddTask()` adds to `taskDeps` but nothing ever removes entries.\n\n### Verification\n1. Run the reproduction steps\n2. After all tasks complete, verify `len(s.completed)` and `len(s.taskDeps)` are 0\n3. Verify `CompletedCount()` returns 1000 (accurate count despite empty map)\n</artifact>\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 1145897 input, 5989 output, 68668 cache_creation, 1077207 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 154
       taskid: TASK-239
       phase: test
@@ -663,9 +743,9 @@ transcripts:
         Tokens: 1499275 input, 4148 output, 55777 cache_creation, 1443469 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
 gate_decisions:
-    - id: 10921
+    - id: 126765
       taskid: TASK-239
       phase: spec
       gatetype: auto
@@ -673,7 +753,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:00:14-06:00
-    - id: 10925
+    - id: 126766
       taskid: TASK-239
       phase: spec
       gatetype: auto
@@ -681,7 +761,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:00:14-06:00
-    - id: 10926
+    - id: 126767
       taskid: TASK-239
       phase: spec
       gatetype: auto
@@ -689,7 +769,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:00:14-06:00
-    - id: 10948
+    - id: 126768
       taskid: TASK-239
       phase: spec
       gatetype: auto
@@ -697,7 +777,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:00:14-06:00
-    - id: 10950
+    - id: 126769
       taskid: TASK-239
       phase: spec
       gatetype: auto
@@ -705,7 +785,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:00:14-06:00
-    - id: 10960
+    - id: 126770
       taskid: TASK-239
       phase: spec
       gatetype: auto
@@ -713,7 +793,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:00:14-06:00
-    - id: 10963
+    - id: 126771
       taskid: TASK-239
       phase: spec
       gatetype: auto
@@ -721,7 +801,63 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:00:14-06:00
-    - id: 10927
+    - id: 126781
+      taskid: TASK-239
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:00:14-06:00
+    - id: 126782
+      taskid: TASK-239
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:00:14-06:00
+    - id: 126783
+      taskid: TASK-239
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:00:14-06:00
+    - id: 126784
+      taskid: TASK-239
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:00:14-06:00
+    - id: 126785
+      taskid: TASK-239
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:00:14-06:00
+    - id: 126786
+      taskid: TASK-239
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:00:14-06:00
+    - id: 126787
+      taskid: TASK-239
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:00:14-06:00
+    - id: 126772
       taskid: TASK-239
       phase: implement
       gatetype: auto
@@ -729,7 +865,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:27-06:00
-    - id: 10949
+    - id: 126773
       taskid: TASK-239
       phase: implement
       gatetype: auto
@@ -737,7 +873,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:27-06:00
-    - id: 10951
+    - id: 126774
       taskid: TASK-239
       phase: implement
       gatetype: auto
@@ -745,7 +881,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:27-06:00
-    - id: 10961
+    - id: 126775
       taskid: TASK-239
       phase: implement
       gatetype: auto
@@ -753,7 +889,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:27-06:00
-    - id: 10964
+    - id: 126776
       taskid: TASK-239
       phase: implement
       gatetype: auto
@@ -761,7 +897,47 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:27-06:00
-    - id: 10952
+    - id: 126788
+      taskid: TASK-239
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:27-06:00
+    - id: 126789
+      taskid: TASK-239
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:27-06:00
+    - id: 126790
+      taskid: TASK-239
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:27-06:00
+    - id: 126791
+      taskid: TASK-239
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:27-06:00
+    - id: 126792
+      taskid: TASK-239
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:27-06:00
+    - id: 126777
       taskid: TASK-239
       phase: test
       gatetype: auto
@@ -769,7 +945,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:13:19-06:00
-    - id: 10962
+    - id: 126778
       taskid: TASK-239
       phase: test
       gatetype: auto
@@ -777,7 +953,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:13:19-06:00
-    - id: 10965
+    - id: 126779
       taskid: TASK-239
       phase: test
       gatetype: auto
@@ -785,7 +961,39 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:13:19-06:00
-    - id: 10966
+    - id: 126793
+      taskid: TASK-239
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:13:19-06:00
+    - id: 126794
+      taskid: TASK-239
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:13:19-06:00
+    - id: 126795
+      taskid: TASK-239
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:13:19-06:00
+    - id: 126780
+      taskid: TASK-239
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:14:04-06:00
+    - id: 126796
       taskid: TASK-239
       phase: docs
       gatetype: auto

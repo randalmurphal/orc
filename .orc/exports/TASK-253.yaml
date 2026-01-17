@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:37.052864328-06:00
+exported_at: 2026-01-17T08:29:46.027452-06:00
 task:
     id: TASK-253
     title: 'Fix: Limit Playwright/Vitest workers to prevent OOM when running parallel tasks'
@@ -11,7 +11,7 @@ task:
     priority: critical
     category: bug
     created_at: 2026-01-15T19:51:54-06:00
-    updated_at: 2026-01-15T20:04:56-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-15T19:52:08-06:00
     completed_at: 2026-01-15T20:04:56-06:00
     metadata:
@@ -357,6 +357,66 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T19:54:04-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:54:04-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:54:04-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:54:04-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:54:04-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:54:04-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:54:04-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:54:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:56:08-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:56:08-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:56:08-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:56:08-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:56:08-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -397,6 +457,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T20:03:24-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T20:03:24-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T20:03:24-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T20:03:24-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T20:04:56-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -489,7 +569,7 @@ transcripts:
         Tokens: 822041 input, 2662 output, 75544 cache_creation, 746483 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 211
       taskid: TASK-253
       phase: implement
@@ -596,14 +676,14 @@ transcripts:
         Tokens: 808447 input, 3918 output, 51598 cache_creation, 756830 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 212
       taskid: TASK-253
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Fix: Limit Playwright/Vitest workers to prevent OOM when running parallel tasks\n**Category**: {{TASK_CATEGORY}}\n**Description**: \n\n{{INITIATIVE_CONTEXT}}\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Fix: Limit Playwright/Vitest workers to prevent OOM when running parallel tasks\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-253: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n<artifact>\n# Specification: Limit Playwright/Vitest workers to prevent OOM when running parallel tasks\n\n## Problem Statement\n\nWhen orc runs multiple tasks in parallel, each task may spawn Playwright MCP servers and run Vitest/Playwright tests with their own worker pools. Without explicit limits, the number of workers scales multiplicatively (N tasks × M workers each), leading to out-of-memory (OOM) conditions on machines with limited RAM.\n\n## Success Criteria\n\n- [ ] Playwright config sets explicit `workers` limit in local (non-CI) mode instead of `undefined`\n- [ ] Vitest config includes `pool` and `poolOptions.threads.maxThreads` worker limit\n- [ ] Default worker count is sensible for parallel task execution (2 workers per test runner)\n- [ ] Worker limits can be overridden via environment variables for CI or user customization\n- [ ] Existing E2E tests continue to pass with new worker limits\n- [ ] Existing Vitest unit tests continue to pass with new worker limits\n\n## Testing Requirements\n\n- [ ] Integration test: Verify `npm run test` works with new Vitest limits\n- [ ] Integration test: Verify `npm run e2e` works with new Playwright limits\n- [ ] E2E test: Existing E2E suite passes (`make e2e`)\n- [ ] Manual verification: Run `make web-test` to confirm unit tests pass\n\n## Scope\n\n### In Scope\n- Modify `web/playwright.config.ts` to set explicit worker limit\n- Modify `web/vitest.config.ts` to set worker pool configuration\n- Add environment variable support for worker count customization\n- Document the changes in comments\n\n### Out of Scope\n- Changes to orc's WorkerPool (orchestrator-level parallelism) - that's a different layer\n- Memory profiling or monitoring infrastructure\n- Dynamic worker scaling based on available memory\n- Changes to web-svelte-archive configs (archived, not maintained)\n\n## Technical Approach\n\n### Files to Modify\n\n1. **`web/playwright.config.ts`**:\n   - Change `workers: process.env.CI ? 1 : undefined` to `workers: process.env.CI ? 1 : parseInt(process.env.PLAYWRIGHT_WORKERS || '2', 10)`\n   - Add comment explaining rationale for the limit\n\n2. **`web/vitest.config.ts`**:\n   - Add `pool: 'threads'` to explicitly use thread pool\n   - Add `poolOptions.threads.maxThreads` configuration (default 2)\n   - Support `VITEST_MAX_THREADS` environment variable override\n\n## Bug Fix Analysis\n\n### Reproduction Steps\n1. Start orc orchestrator with multiple parallel tasks that involve UI testing\n2. Each task runs UI tests via Playwright MCP\n3. Playwright spawns `undefined` (unlimited) workers locally\n4. Vitest spawns default thread count (typically based on CPU cores)\n5. With N parallel tasks, total workers = N × (Playwright workers + Vitest workers)\n6. System runs out of memory\n\n### Current Behavior\n- Playwright: `workers: process.env.CI ? 1 : undefined` - unlimited in local development\n- Vitest: No explicit limit - defaults to CPU-based calculation (often 8+ threads)\n- Result: OOM when running 3+ parallel tasks with UI testing on 64GB RAM system\n\n### Expected Behavior\n- Playwright: 2 workers by default locally (configurable via `PLAYWRIGHT_WORKERS` env var)\n- Vitest: 2 max threads (configurable via `VITEST_MAX_THREADS` env var)\n- Result: Bounded memory usage even with parallel orc tasks\n\n### Root Cause\nConfiguration files assume single-user development context, not orc's parallel task execution model where multiple test runners compete for resources.\n\n### Verification\n1. Run `make e2e` - tests should pass\n2. Run `make web-test` - tests should pass\n3. Test env var override: `PLAYWRIGHT_WORKERS=4 npm run e2e` should use 4 workers\n4. Test env var override: `VITEST_MAX_THREADS=4 npm run test` should use 4 threads\n</artifact>\n\n**Commit**: a56bdf3b\n<phase_complete>true</phase_complete>\n\n---\nTokens: 1195663 input, 5289 output, 100373 cache_creation, 1094250 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628597
     - id: 213
       taskid: TASK-253
       phase: test
@@ -705,9 +785,9 @@ transcripts:
         Tokens: 1378442 input, 4409 output, 48782 cache_creation, 1329632 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768627233
+      timestamp: 1768628597
 gate_decisions:
-    - id: 11253
+    - id: 130907
       taskid: TASK-253
       phase: spec
       gatetype: auto
@@ -715,7 +795,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:54:04-06:00
-    - id: 11254
+    - id: 130908
       taskid: TASK-253
       phase: spec
       gatetype: auto
@@ -723,7 +803,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:54:04-06:00
-    - id: 11255
+    - id: 130909
       taskid: TASK-253
       phase: spec
       gatetype: auto
@@ -731,7 +811,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:54:04-06:00
-    - id: 11260
+    - id: 130910
       taskid: TASK-253
       phase: spec
       gatetype: auto
@@ -739,7 +819,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:54:04-06:00
-    - id: 11262
+    - id: 130911
       taskid: TASK-253
       phase: spec
       gatetype: auto
@@ -747,7 +827,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:54:04-06:00
-    - id: 11270
+    - id: 130912
       taskid: TASK-253
       phase: spec
       gatetype: auto
@@ -755,7 +835,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:54:04-06:00
-    - id: 11273
+    - id: 130913
       taskid: TASK-253
       phase: spec
       gatetype: auto
@@ -763,7 +843,63 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:54:04-06:00
-    - id: 11256
+    - id: 130923
+      taskid: TASK-253
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:54:04-06:00
+    - id: 130924
+      taskid: TASK-253
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:54:04-06:00
+    - id: 130925
+      taskid: TASK-253
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:54:04-06:00
+    - id: 130926
+      taskid: TASK-253
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:54:04-06:00
+    - id: 130927
+      taskid: TASK-253
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:54:04-06:00
+    - id: 130928
+      taskid: TASK-253
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:54:04-06:00
+    - id: 130929
+      taskid: TASK-253
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:54:04-06:00
+    - id: 130914
       taskid: TASK-253
       phase: implement
       gatetype: auto
@@ -771,7 +907,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:56:08-06:00
-    - id: 11261
+    - id: 130915
       taskid: TASK-253
       phase: implement
       gatetype: auto
@@ -779,7 +915,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:56:08-06:00
-    - id: 11263
+    - id: 130916
       taskid: TASK-253
       phase: implement
       gatetype: auto
@@ -787,7 +923,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:56:08-06:00
-    - id: 11271
+    - id: 130917
       taskid: TASK-253
       phase: implement
       gatetype: auto
@@ -795,7 +931,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:56:08-06:00
-    - id: 11274
+    - id: 130918
       taskid: TASK-253
       phase: implement
       gatetype: auto
@@ -803,7 +939,47 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:56:08-06:00
-    - id: 11264
+    - id: 130930
+      taskid: TASK-253
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:56:08-06:00
+    - id: 130931
+      taskid: TASK-253
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:56:08-06:00
+    - id: 130932
+      taskid: TASK-253
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:56:08-06:00
+    - id: 130933
+      taskid: TASK-253
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:56:08-06:00
+    - id: 130934
+      taskid: TASK-253
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:56:08-06:00
+    - id: 130919
       taskid: TASK-253
       phase: test
       gatetype: auto
@@ -811,7 +987,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T20:03:24-06:00
-    - id: 11272
+    - id: 130920
       taskid: TASK-253
       phase: test
       gatetype: auto
@@ -819,7 +995,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T20:03:24-06:00
-    - id: 11275
+    - id: 130921
       taskid: TASK-253
       phase: test
       gatetype: auto
@@ -827,7 +1003,39 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T20:03:24-06:00
-    - id: 11276
+    - id: 130935
+      taskid: TASK-253
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T20:03:24-06:00
+    - id: 130936
+      taskid: TASK-253
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T20:03:24-06:00
+    - id: 130937
+      taskid: TASK-253
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T20:03:24-06:00
+    - id: 130922
+      taskid: TASK-253
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T20:04:56-06:00
+    - id: 130938
       taskid: TASK-253
       phase: docs
       gatetype: auto

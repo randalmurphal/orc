@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.951469469-06:00
+exported_at: 2026-01-17T08:29:45.944665-06:00
 task:
     id: TASK-302
     title: 'UI Bug: Date format shows year as ''1'' instead of full year (e.g., ''12/31/1'' instead of ''12/31/24'')'
@@ -11,7 +11,7 @@ task:
     priority: high
     category: bug
     created_at: 2026-01-16T16:58:41-06:00
-    updated_at: 2026-01-16T17:15:36-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-16T17:05:44-06:00
     completed_at: 2026-01-16T17:15:36-06:00
     metadata:
@@ -122,6 +122,36 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T17:11:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T17:11:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T17:11:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T17:11:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T17:11:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T17:11:14-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T17:15:29-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -140,16 +170,16 @@ transcripts:
       iteration: 1
       role: combined
       content: "# implement - Iteration 1\n\n## Prompt\n\nImplement the following task:\n\n**Task**: UI Bug: Date format shows year as '1' instead of full year (e.g., '12/31/1' instead of '12/31/24')\n\n**Description**: \n\n\n\n1. Implement the required changes\n2. Write/update tests as needed\n3. Run tests and fix any failures\n\nKeep iterating until implementation is complete and all tests pass.\n\nWhen done, output:\n<phase_complete>true</phase_complete>\n\n\n## Response\n\nThe bug fix for the date format issue was already implemented in commit `84b97496`. The fix included:\n\n1. **TaskCard.tsx** (web/src/components/board/TaskCard.tsx:44-65):\n   - Added explicit `toLocaleDateString` options with `year: 'numeric'` to ensure 4-digit year display\n   - Added validation for empty/invalid date strings (return empty string)\n\n2. **DashboardRecentActivity.tsx** (web/src/components/dashboard/DashboardRecentActivity.tsx:15-36):\n   - Same fix applied: explicit `year: 'numeric'` option\n\n3. **Tests** (web/src/components/board/TaskCard.test.tsx:434-472):\n   - Added 4 unit tests for date formatting edge cases:\n     - `shows relative time for recent updates` - verifies \"5m ago\" format\n     - `shows empty string for empty date` - handles empty date strings\n     - `shows empty string for invalid date` - handles invalid date strings  \n     - `shows formatted date with 4-digit year for old dates` - verifies 4-digit year (2024)\n\nAll 781 tests pass, including the 4 specific date formatting tests.\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 4784163 input, 10045 output, 128653 cache_creation, 4655454 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628598
     - id: 376
       taskid: TASK-302
       phase: test
       iteration: 1
       role: combined
       content: "# test - Iteration 1\n\n## Prompt\n\nFinal test verification for: UI Bug: Date format shows year as '1' instead of full year (e.g., '12/31/1' instead of '12/31/24')\n\n**Original task**: \n\n1. Run the full test suite\n2. Fix any failures found\n3. Verify edge cases are covered\n\nKeep iterating until all tests pass.\n\nWhen done, output:\n<phase_complete>true</phase_complete>\n\n\n## Response\n\n## Test Verification Summary\n\nAll tests pass successfully:\n\n**Backend (Go):** All tests pass\n**Frontend (Vitest):** 781 tests pass across 34 test files\n\n**Date Format Fix Verified:**\n- The `formatDate` function in `TaskCard.tsx:44-65` now uses `year: 'numeric'` option which ensures 4-digit year display (e.g., \"1/15/2024\" instead of the buggy \"1/15/1\")\n- Test coverage includes:\n  - Empty/missing date strings → returns empty string\n  - Invalid date strings → returns empty string  \n  - Recent dates → relative time (\"just now\", \"5m ago\", \"2h ago\", \"3d ago\")\n  - Old dates (>7 days) → full date with 4-digit year (verified via test \"shows formatted date with 4-digit year for old dates\")\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 490339 input, 1984 output, 54499 cache_creation, 435826 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768627233
+      timestamp: 1768628598
 gate_decisions:
-    - id: 66804
+    - id: 133605
       taskid: TASK-302
       phase: implement
       gatetype: auto
@@ -157,7 +187,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T17:11:14-06:00
-    - id: 66805
+    - id: 133606
       taskid: TASK-302
       phase: implement
       gatetype: auto
@@ -165,7 +195,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T17:11:14-06:00
-    - id: 66806
+    - id: 133607
       taskid: TASK-302
       phase: implement
       gatetype: auto
@@ -173,7 +203,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T17:11:14-06:00
-    - id: 66807
+    - id: 133608
       taskid: TASK-302
       phase: implement
       gatetype: auto
@@ -181,7 +211,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T17:11:14-06:00
-    - id: 66808
+    - id: 133609
       taskid: TASK-302
       phase: implement
       gatetype: auto
@@ -189,7 +219,55 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T17:11:14-06:00
-    - id: 66809
+    - id: 133611
+      taskid: TASK-302
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T17:11:14-06:00
+    - id: 133612
+      taskid: TASK-302
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T17:11:14-06:00
+    - id: 133613
+      taskid: TASK-302
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T17:11:14-06:00
+    - id: 133614
+      taskid: TASK-302
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T17:11:14-06:00
+    - id: 133615
+      taskid: TASK-302
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T17:11:14-06:00
+    - id: 133610
+      taskid: TASK-302
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T17:15:29-06:00
+    - id: 133616
       taskid: TASK-302
       phase: test
       gatetype: auto

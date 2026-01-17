@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.898859758-06:00
+exported_at: 2026-01-17T08:29:45.901541-06:00
 task:
     id: TASK-385
     title: Create Icon component as Lucide wrapper

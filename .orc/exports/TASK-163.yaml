@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.850866104-06:00
+exported_at: 2026-01-17T08:29:48.020218-06:00
 task:
     id: TASK-163
     title: 'Phase 1: React 19 project scaffolding with Vite'
@@ -64,7 +64,7 @@ task:
         - TASK-161
         - TASK-162
     created_at: 2026-01-14T02:19:56-06:00
-    updated_at: 2026-01-14T02:19:56-06:00
+    updated_at: 0001-01-01T00:00:00Z
 plan:
     version: 1
     task_id: TASK-163

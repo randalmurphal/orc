@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:38.851651321-06:00
+exported_at: 2026-01-17T08:29:48.02092-06:00
 task:
     id: TASK-161
     title: 'Phase 0: Expand E2E tests for Finalize workflow (10 tests)'
@@ -40,7 +40,7 @@ task:
     category: test
     initiative_id: INIT-005
     created_at: 2026-01-14T02:19:09-06:00
-    updated_at: 2026-01-14T22:08:23-06:00
+    updated_at: 0001-01-01T00:00:00Z
     started_at: 2026-01-14T22:00:44-06:00
     completed_at: 2026-01-14T22:08:23-06:00
 plan:
@@ -168,11 +168,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T22:04:08-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:04:08-06:00
         - phase: test
           gate_type: auto
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T22:07:26-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:07:26-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:08:23-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -185,7 +200,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 27
+    - id: 53
       taskid: TASK-161
       phase: implement
       gatetype: auto
@@ -193,7 +208,15 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:04:08-06:00
-    - id: 28
+    - id: 56
+      taskid: TASK-161
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:04:08-06:00
+    - id: 54
       taskid: TASK-161
       phase: test
       gatetype: auto
@@ -201,7 +224,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:07:26-06:00
-    - id: 29
+    - id: 57
+      taskid: TASK-161
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:07:26-06:00
+    - id: 55
+      taskid: TASK-161
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:08:23-06:00
+    - id: 58
       taskid: TASK-161
       phase: docs
       gatetype: auto

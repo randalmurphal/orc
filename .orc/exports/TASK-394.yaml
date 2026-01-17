@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-16T23:27:36.892653935-06:00
+exported_at: 2026-01-17T08:29:45.894609-06:00
 task:
     id: TASK-394
     title: Implement GET /api/events endpoint for timeline queries
