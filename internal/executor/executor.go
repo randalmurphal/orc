@@ -214,6 +214,12 @@ type Executor struct {
 
 	// Automation service for trigger-based automation
 	automationSvc *automation.Service
+
+	// Haiku client for validation calls (separate from main client)
+	haikuClient claude.Client
+
+	// Backpressure runner for deterministic quality checks
+	backpressure *BackpressureRunner
 }
 
 // New creates a new executor with the given configuration.
@@ -316,6 +322,33 @@ func New(cfg *Config) *Executor {
 	}
 	resourceTracker := NewResourceTracker(rtConfig, slog.Default())
 
+	// Create Haiku client for validation if enabled
+	var haikuClient claude.Client
+	if orcCfg.Validation.Enabled {
+		haikuOpts := []claude.ClaudeOption{
+			claude.WithModel(orcCfg.Validation.Model),
+			claude.WithWorkdir(cfg.WorkDir),
+		}
+		if claudePath != "" {
+			haikuOpts = append(haikuOpts, claude.WithClaudePath(claudePath))
+		}
+		if cfg.DangerouslySkipPermissions {
+			haikuOpts = append(haikuOpts, claude.WithDangerouslySkipPermissions())
+		}
+		haikuClient = claude.NewClaudeCLI(haikuOpts...)
+	}
+
+	// Create backpressure runner if validation is enabled
+	var backpressure *BackpressureRunner
+	if orcCfg.Validation.Enabled {
+		backpressure = NewBackpressureRunner(
+			cfg.WorkDir,
+			&orcCfg.Validation,
+			&orcCfg.Testing,
+			slog.Default(),
+		)
+	}
+
 	return &Executor{
 		config:              cfg,
 		orcConfig:           orcCfg,
@@ -329,6 +362,8 @@ func New(cfg *Config) *Executor {
 		backend:             cfg.Backend,
 		useSessionExecution: orcCfg.Execution.UseSessionExecution,
 		resourceTracker:     resourceTracker,
+		haikuClient:         haikuClient,
+		backpressure:        backpressure,
 	}
 }
 
@@ -364,6 +399,26 @@ func (e *Executor) taskDir(taskID string) string {
 // SetClient sets the Claude client (for testing).
 func (e *Executor) SetClient(c claude.Client) {
 	e.client = c
+}
+
+// SetHaikuClient sets the Haiku client for validation (for testing).
+func (e *Executor) SetHaikuClient(c claude.Client) {
+	e.haikuClient = c
+}
+
+// SetBackpressure sets the backpressure runner (for testing).
+func (e *Executor) SetBackpressure(bp *BackpressureRunner) {
+	e.backpressure = bp
+}
+
+// HaikuClient returns the Haiku client for validation calls.
+func (e *Executor) HaikuClient() claude.Client {
+	return e.haikuClient
+}
+
+// Backpressure returns the backpressure runner.
+func (e *Executor) Backpressure() *BackpressureRunner {
+	return e.backpressure
 }
 
 // SetUseSessionExecution enables or disables session-based execution.
@@ -406,8 +461,7 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 
 	case ExecutorTypeFull:
 		if e.fullExecutor == nil {
-			e.fullExecutor = NewFullExecutor(
-				e.sessionMgr,
+			opts := []FullExecutorOption{
 				WithFullGitSvc(gitSvc),
 				WithFullPublisher(e.publisher),
 				WithFullLogger(e.logger),
@@ -415,21 +469,46 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				WithFullWorkingDir(workingDir),
 				WithTaskDir(e.currentTaskDir),
 				WithFullBackend(e.backend),
-			)
+			}
+
+			// Create backpressure runner with the correct working directory
+			if e.orcConfig.Validation.Enabled && e.orcConfig.ShouldRunBackpressure(string(weight)) {
+				bp := NewBackpressureRunner(
+					workingDir,
+					&e.orcConfig.Validation,
+					&e.orcConfig.Testing,
+					e.logger,
+				)
+				opts = append(opts, WithFullBackpressure(bp))
+			}
+
+			e.fullExecutor = NewFullExecutor(e.sessionMgr, opts...)
 		}
 		return e.fullExecutor
 
 	default: // ExecutorTypeStandard
 		if e.standardExecutor == nil {
-			e.standardExecutor = NewStandardExecutor(
-				e.sessionMgr,
+			opts := []StandardExecutorOption{
 				WithGitSvc(gitSvc),
 				WithPublisher(e.publisher),
 				WithExecutorLogger(e.logger),
 				WithExecutorConfig(execCfg),
 				WithWorkingDir(workingDir),
 				WithStandardBackend(e.backend),
-			)
+			}
+
+			// Create backpressure runner with the correct working directory
+			if e.orcConfig.Validation.Enabled && e.orcConfig.ShouldRunBackpressure(string(weight)) {
+				bp := NewBackpressureRunner(
+					workingDir,
+					&e.orcConfig.Validation,
+					&e.orcConfig.Testing,
+					e.logger,
+				)
+				opts = append(opts, WithStandardBackpressure(bp))
+			}
+
+			e.standardExecutor = NewStandardExecutor(e.sessionMgr, opts...)
 		}
 		return e.standardExecutor
 	}

@@ -648,6 +648,26 @@ func (e *Executor) checkSpecRequirements(t *task.Task) error {
 			e.logger.Warn("task spec is invalid", "task", t.ID, "weight", t.Weight)
 			return fmt.Errorf("task %s has an incomplete spec - run 'orc plan %s' to update it", t.ID, t.ID)
 		}
+
+		// Haiku validation for spec quality (if enabled)
+		if e.haikuClient != nil && e.orcConfig.ShouldValidateSpec(string(t.Weight)) {
+			ctx := context.Background()
+			ready, suggestions, valErr := ValidateTaskReadiness(ctx, e.haikuClient, t.Description, specContent, string(t.Weight))
+			if valErr != nil {
+				// Fail open - don't block execution on validation errors
+				e.logger.Warn("haiku spec validation error (continuing)",
+					"task", t.ID,
+					"error", valErr,
+				)
+			} else if !ready && len(suggestions) > 0 {
+				e.logger.Warn("spec quality concerns detected",
+					"task", t.ID,
+					"suggestions", suggestions,
+				)
+				// For now, just warn - don't block execution
+				// This can be made stricter via config if desired
+			}
+		}
 	} else if e.orcConfig.Plan.WarnOnMissingSpec {
 		// Only warn for weights that semantically require specs (large, greenfield)
 		// Trivial/small/medium tasks don't benefit from spec warnings - they're simple enough

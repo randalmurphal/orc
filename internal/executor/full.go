@@ -34,6 +34,9 @@ type FullExecutor struct {
 	taskDir      string             // Directory for task-specific files
 	stateUpdater func(*state.State) // Callback to persist state changes
 	backend      storage.Backend    // Storage backend for loading initiatives
+
+	// Validation components (optional)
+	backpressure *BackpressureRunner // Deterministic quality checks
 }
 
 // FullExecutorOption configures a FullExecutor.
@@ -77,6 +80,11 @@ func WithStateUpdater(fn func(*state.State)) FullExecutorOption {
 // WithFullBackend sets the storage backend for loading initiatives.
 func WithFullBackend(b storage.Backend) FullExecutorOption {
 	return func(e *FullExecutor) { e.backend = b }
+}
+
+// WithFullBackpressure sets the backpressure runner for quality checks.
+func WithFullBackpressure(bp *BackpressureRunner) FullExecutorOption {
+	return func(e *FullExecutor) { e.backpressure = bp }
 }
 
 // NewFullExecutor creates a new full executor.
@@ -346,6 +354,31 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		// Check for completion
 		switch turnResult.Status {
 		case PhaseStatusComplete:
+			// Run backpressure checks before accepting completion (implement phase only)
+			if e.backpressure != nil && !ShouldSkipBackpressure(p.ID) {
+				bpResult := e.backpressure.Run(ctx)
+				if !bpResult.AllPassed {
+					// Reject completion, inject failure context
+					e.logger.Info("backpressure failed, continuing iteration",
+						"task", t.ID,
+						"phase", p.ID,
+						"tests", bpResult.TestsPassed,
+						"lint", bpResult.LintPassed,
+						"summary", bpResult.FailureSummary(),
+					)
+					e.publisher.Warning(t.ID, p.ID, "Backpressure check failed: "+bpResult.FailureSummary())
+
+					// Inject failure context into next prompt
+					promptText = FormatBackpressureForPrompt(bpResult)
+					continue // Don't accept completion, iterate again
+				}
+				e.logger.Info("backpressure passed",
+					"task", t.ID,
+					"phase", p.ID,
+					"duration", bpResult.Duration,
+				)
+			}
+
 			result.Status = plan.PhaseCompleted
 			result.Output = turnResult.Content
 

@@ -436,6 +436,47 @@ type TestingConfig struct {
 	ParseOutput bool `yaml:"parse_output"`
 }
 
+// ValidationConfig defines Haiku validation and backpressure settings.
+// This enables objective quality checks that don't rely on LLM self-assessment.
+type ValidationConfig struct {
+	// Enabled enables validation and backpressure checks (default: true)
+	Enabled bool `yaml:"enabled"`
+
+	// Model is the model to use for validation calls (default: claude-haiku-4-5-20251101)
+	Model string `yaml:"model"`
+
+	// SkipForWeights skips validation for these task weights (default: [trivial, small])
+	SkipForWeights []string `yaml:"skip_for_weights,omitempty"`
+
+	// EnforceTests runs unit tests as backpressure before accepting phase completion (default: true)
+	EnforceTests bool `yaml:"enforce_tests"`
+
+	// EnforceLint runs linting as backpressure before accepting phase completion (default: true)
+	EnforceLint bool `yaml:"enforce_lint"`
+
+	// EnforceBuild runs build as backpressure before accepting phase completion (default: false)
+	EnforceBuild bool `yaml:"enforce_build"`
+
+	// EnforceTypeCheck runs type checking as backpressure (default: false)
+	EnforceTypeCheck bool `yaml:"enforce_typecheck"`
+
+	// LintCommand is the lint command to run (auto-detected if empty)
+	LintCommand string `yaml:"lint_command,omitempty"`
+
+	// BuildCommand is the build command to run (auto-detected if empty)
+	BuildCommand string `yaml:"build_command,omitempty"`
+
+	// TypeCheckCommand is the type check command to run (auto-detected if empty)
+	TypeCheckCommand string `yaml:"typecheck_command,omitempty"`
+
+	// ValidateSpecs enables Haiku-based spec quality validation before execution (default: true)
+	ValidateSpecs bool `yaml:"validate_specs"`
+
+	// ValidateProgress enables Haiku-based progress validation during iteration (default: false)
+	// This is more expensive and may slow down execution.
+	ValidateProgress bool `yaml:"validate_progress"`
+}
+
 // DocumentationConfig defines documentation phase configuration.
 type DocumentationConfig struct {
 	// Enabled enables the docs phase (default: true)
@@ -965,6 +1006,9 @@ type Config struct {
 	// Testing configuration
 	Testing TestingConfig `yaml:"testing"`
 
+	// Validation configuration for Haiku validation and backpressure
+	Validation ValidationConfig `yaml:"validation"`
+
 	// Documentation configuration
 	Documentation DocumentationConfig `yaml:"documentation"`
 
@@ -1263,6 +1307,20 @@ func Default() *Config {
 			},
 			ParseOutput: true,
 		},
+		Validation: ValidationConfig{
+			Enabled:          true,                           // Validation enabled by default
+			Model:            "claude-haiku-4-5-20251101",    // Haiku for fast, cheap validation
+			SkipForWeights:   []string{"trivial", "small"},   // Skip for simple tasks
+			EnforceTests:     true,                           // Run tests before accepting completion
+			EnforceLint:      true,                           // Run lint before accepting completion
+			EnforceBuild:     false,                          // Build not enforced by default
+			EnforceTypeCheck: false,                          // Type check not enforced by default
+			LintCommand:      "",                             // Auto-detect
+			BuildCommand:     "",                             // Auto-detect
+			TypeCheckCommand: "",                             // Auto-detect
+			ValidateSpecs:    true,                           // Haiku validates spec quality
+			ValidateProgress: false,                          // Progress validation off (expensive)
+		},
 		Documentation: DocumentationConfig{
 			Enabled:            true,
 			AutoUpdateClaudeMD: true,
@@ -1469,12 +1527,13 @@ func ProfilePresets(profile AutomationProfile) GateConfig {
 }
 
 // ApplyProfile applies a preset profile to the configuration.
-// This affects gates, finalize phase, and PR behavior.
+// This affects gates, finalize phase, PR behavior, and validation settings.
 func (c *Config) ApplyProfile(profile AutomationProfile) {
 	c.Profile = profile
 	c.Gates = ProfilePresets(profile)
 	c.Completion.Finalize = FinalizePresets(profile)
 	c.Completion.PR.AutoApprove = PRAutoApprovePreset(profile)
+	c.Validation = ValidationPresets(profile)
 }
 
 // PRAutoApprovePreset returns the auto-approve setting for a given automation profile.
@@ -1576,6 +1635,64 @@ func FinalizePresets(profile AutomationProfile) FinalizeConfig {
 			Gates: FinalizeGatesConfig{
 				PreMerge: "auto",
 			},
+		}
+	}
+}
+
+// ValidationPresets returns validation configuration for a given automation profile.
+func ValidationPresets(profile AutomationProfile) ValidationConfig {
+	switch profile {
+	case ProfileFast:
+		// Fast: disable validation for speed
+		return ValidationConfig{
+			Enabled:          false,
+			Model:            "claude-haiku-4-5-20251101",
+			SkipForWeights:   []string{"trivial", "small", "medium"},
+			EnforceTests:     false,
+			EnforceLint:      false,
+			EnforceBuild:     false,
+			EnforceTypeCheck: false,
+			ValidateSpecs:    false,
+			ValidateProgress: false,
+		}
+	case ProfileSafe:
+		// Safe: enable validation with stricter settings
+		return ValidationConfig{
+			Enabled:          true,
+			Model:            "claude-haiku-4-5-20251101",
+			SkipForWeights:   []string{"trivial"},
+			EnforceTests:     true,
+			EnforceLint:      true,
+			EnforceBuild:     true,
+			EnforceTypeCheck: false,
+			ValidateSpecs:    true,
+			ValidateProgress: false,
+		}
+	case ProfileStrict:
+		// Strict: maximum validation
+		return ValidationConfig{
+			Enabled:          true,
+			Model:            "claude-haiku-4-5-20251101",
+			SkipForWeights:   []string{}, // No skipping
+			EnforceTests:     true,
+			EnforceLint:      true,
+			EnforceBuild:     true,
+			EnforceTypeCheck: true,
+			ValidateSpecs:    true,
+			ValidateProgress: true,
+		}
+	default: // ProfileAuto
+		// Auto: balanced validation
+		return ValidationConfig{
+			Enabled:          true,
+			Model:            "claude-haiku-4-5-20251101",
+			SkipForWeights:   []string{"trivial", "small"},
+			EnforceTests:     true,
+			EnforceLint:      true,
+			EnforceBuild:     false,
+			EnforceTypeCheck: false,
+			ValidateSpecs:    true,
+			ValidateProgress: false,
 		}
 	}
 }
@@ -2015,6 +2132,49 @@ func (c *Config) GetPreMergeGateType() string {
 // Team mode enables schedule-based triggers and time-based cooldowns.
 func (c *Config) IsTeamMode() bool {
 	return c.Database.Driver == "postgres" || c.Team.Mode == "shared_db"
+}
+
+// ShouldValidateForWeight returns true if validation should run for this task weight.
+func (c *Config) ShouldValidateForWeight(weight string) bool {
+	if !c.Validation.Enabled {
+		return false
+	}
+	for _, w := range c.Validation.SkipForWeights {
+		if w == weight {
+			return false
+		}
+	}
+	return true
+}
+
+// ShouldRunBackpressure returns true if backpressure checks should run for this weight.
+func (c *Config) ShouldRunBackpressure(weight string) bool {
+	if !c.Validation.Enabled {
+		return false
+	}
+	// At least one check must be enabled
+	hasCheck := c.Validation.EnforceTests || c.Validation.EnforceLint ||
+		c.Validation.EnforceBuild || c.Validation.EnforceTypeCheck
+	if !hasCheck {
+		return false
+	}
+	return c.ShouldValidateForWeight(weight)
+}
+
+// ShouldValidateSpec returns true if Haiku spec validation should run.
+func (c *Config) ShouldValidateSpec(weight string) bool {
+	if !c.Validation.Enabled || !c.Validation.ValidateSpecs {
+		return false
+	}
+	return c.ShouldValidateForWeight(weight)
+}
+
+// ShouldValidateProgress returns true if Haiku progress validation should run.
+func (c *Config) ShouldValidateProgress(weight string) bool {
+	if !c.Validation.Enabled || !c.Validation.ValidateProgress {
+		return false
+	}
+	return c.ShouldValidateForWeight(weight)
 }
 
 // AutomationEnabled returns true if automation is enabled.
