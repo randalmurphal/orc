@@ -2,11 +2,14 @@ package executor
 
 import (
 	"context"
+	"os"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // mockPersister is a test mock for TranscriptPersister.
@@ -460,5 +463,259 @@ func TestTranscriptBuffer_ChunkAggregation(t *testing.T) {
 	}
 	if transcripts[0].Content != "Hello World\n" {
 		t.Errorf("expected 'Hello World\\n', got '%s'", transcripts[0].Content)
+	}
+}
+
+func TestTranscriptBuffer_WriteFailure(t *testing.T) {
+	ctx := context.Background()
+	mock := newMockPersister()
+	mock.failOnWrite = true
+
+	buf := NewTranscriptBuffer(ctx, TranscriptBufferConfig{
+		TaskID:        "TASK-012",
+		DB:            mock,
+		MaxBuffer:     2,
+		FlushInterval: time.Hour,
+	})
+	defer buf.Close()
+
+	// Add lines to trigger auto-flush
+	buf.Add("test", 1, "prompt", "Line 1")
+	buf.Add("test", 1, "response", "Line 2")
+
+	// Buffer should be cleared even on failure (to prevent infinite retry)
+	if buf.LineCount() != 0 {
+		t.Errorf("expected 0 lines after failed flush, got %d", buf.LineCount())
+	}
+}
+
+// TestTranscriptBuffer_Integration_RealDatabase tests transcript persistence
+// with a real SQLite database backend, verifying the full write and read flow.
+func TestTranscriptBuffer_Integration_RealDatabase(t *testing.T) {
+	// Create a temporary directory for the test database
+	tmpDir, err := os.MkdirTemp("", "orc-buffer-test-*")
+	if err != nil {
+		t.Fatalf("create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create a real database backend
+	backend, err := storage.NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	ctx := context.Background()
+	taskID := "TASK-INT-001"
+
+	// Create a task first (required due to foreign key constraint)
+	testTask := task.New(taskID, "Integration test task")
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Create transcript buffer using real database
+	buf := NewTranscriptBuffer(ctx, TranscriptBufferConfig{
+		TaskID:        taskID,
+		DB:            backend,
+		MaxBuffer:     10,
+		FlushInterval: time.Hour, // Long interval to control flushing manually
+	})
+
+	// Simulate executor transcript output
+	buf.Add("implement", 1, "prompt", "Implement the feature")
+	buf.Add("implement", 1, "response", "I'll implement the feature now...")
+	buf.AddChunk("implement", 1, "Here is the ")
+	buf.AddChunk("implement", 1, "code implementation\n")
+	buf.Add("implement", 2, "prompt", "Continue with tests")
+	buf.Add("implement", 2, "response", "Adding test cases...")
+
+	// Flush pending chunks for iteration 1
+	buf.FlushChunks("implement", 1)
+
+	// Close buffer - should flush everything to database
+	if err := buf.Close(); err != nil {
+		t.Fatalf("close buffer: %v", err)
+	}
+
+	// Retrieve transcripts from database and verify
+	transcripts, err := backend.GetTranscripts(taskID)
+	if err != nil {
+		t.Fatalf("get transcripts: %v", err)
+	}
+
+	// Should have: 4 Add() lines + 1 aggregated chunk line = 5 transcripts
+	if len(transcripts) != 5 {
+		t.Errorf("expected 5 transcripts, got %d", len(transcripts))
+		for i, tr := range transcripts {
+			t.Logf("  [%d] phase=%s iter=%d role=%s content=%q",
+				i, tr.Phase, tr.Iteration, tr.Role, tr.Content)
+		}
+	}
+
+	// Verify transcripts are in correct order (by ID)
+	for i, tr := range transcripts {
+		if tr.TaskID != taskID {
+			t.Errorf("transcript[%d]: expected TaskID %q, got %q", i, taskID, tr.TaskID)
+		}
+		if tr.Phase != "implement" {
+			t.Errorf("transcript[%d]: expected Phase 'implement', got %q", i, tr.Phase)
+		}
+	}
+
+	// Verify specific content
+	var foundPrompt, foundResponse, foundChunk bool
+	for _, tr := range transcripts {
+		switch {
+		case tr.Role == "prompt" && tr.Content == "Implement the feature":
+			foundPrompt = true
+		case tr.Role == "response" && tr.Content == "I'll implement the feature now...":
+			foundResponse = true
+		case tr.Role == "chunk" && tr.Content == "Here is the code implementation\n":
+			foundChunk = true
+		}
+	}
+
+	if !foundPrompt {
+		t.Error("expected to find prompt transcript")
+	}
+	if !foundResponse {
+		t.Error("expected to find response transcript")
+	}
+	if !foundChunk {
+		t.Error("expected to find aggregated chunk transcript")
+	}
+
+	// Verify IDs were assigned (non-zero)
+	for i, tr := range transcripts {
+		if tr.ID == 0 {
+			t.Errorf("transcript[%d]: expected non-zero ID", i)
+		}
+	}
+}
+
+// TestTranscriptBuffer_Integration_OrderPreservation verifies transcripts
+// are retrieved in the same order they were written.
+func TestTranscriptBuffer_Integration_OrderPreservation(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-buffer-order-test-*")
+	if err != nil {
+		t.Fatalf("create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	backend, err := storage.NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	ctx := context.Background()
+	taskID := "TASK-ORDER-001"
+
+	// Create a task first (required due to foreign key constraint)
+	testTask := task.New(taskID, "Order preservation test task")
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	buf := NewTranscriptBuffer(ctx, TranscriptBufferConfig{
+		TaskID:        taskID,
+		DB:            backend,
+		MaxBuffer:     100,
+		FlushInterval: time.Hour,
+	})
+
+	// Add many transcripts across multiple phases and iterations
+	phases := []string{"spec", "implement", "review", "test"}
+	for _, phase := range phases {
+		for iter := 1; iter <= 3; iter++ {
+			buf.Add(phase, iter, "prompt", phase+"-prompt")
+			buf.Add(phase, iter, "response", phase+"-response")
+		}
+	}
+
+	if err := buf.Close(); err != nil {
+		t.Fatalf("close buffer: %v", err)
+	}
+
+	transcripts, err := backend.GetTranscripts(taskID)
+	if err != nil {
+		t.Fatalf("get transcripts: %v", err)
+	}
+
+	// 4 phases * 3 iterations * 2 entries = 24 transcripts
+	if len(transcripts) != 24 {
+		t.Errorf("expected 24 transcripts, got %d", len(transcripts))
+	}
+
+	// Verify IDs are sequential (order preserved)
+	for i := 1; i < len(transcripts); i++ {
+		if transcripts[i].ID <= transcripts[i-1].ID {
+			t.Errorf("transcript[%d] ID (%d) should be greater than transcript[%d] ID (%d)",
+				i, transcripts[i].ID, i-1, transcripts[i-1].ID)
+		}
+	}
+}
+
+// TestTranscriptBuffer_Integration_ConcurrentWrites tests that concurrent
+// writes to the buffer are properly serialized and persisted.
+func TestTranscriptBuffer_Integration_ConcurrentWrites(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-buffer-concurrent-test-*")
+	if err != nil {
+		t.Fatalf("create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	backend, err := storage.NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	ctx := context.Background()
+	taskID := "TASK-CONC-001"
+
+	// Create a task first (required due to foreign key constraint)
+	testTask := task.New(taskID, "Concurrent writes test task")
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	buf := NewTranscriptBuffer(ctx, TranscriptBufferConfig{
+		TaskID:        taskID,
+		DB:            backend,
+		MaxBuffer:     20, // Small buffer to trigger multiple flushes
+		FlushInterval: time.Hour,
+	})
+
+	// Spawn multiple goroutines writing concurrently
+	const numWorkers = 5
+	const writesPerWorker = 20
+
+	var wg sync.WaitGroup
+	for w := 0; w < numWorkers; w++ {
+		wg.Add(1)
+		go func(worker int) {
+			defer wg.Done()
+			for i := 0; i < writesPerWorker; i++ {
+				buf.Add("implement", worker, "response", "content")
+			}
+		}(w)
+	}
+	wg.Wait()
+
+	if err := buf.Close(); err != nil {
+		t.Fatalf("close buffer: %v", err)
+	}
+
+	transcripts, err := backend.GetTranscripts(taskID)
+	if err != nil {
+		t.Fatalf("get transcripts: %v", err)
+	}
+
+	expected := numWorkers * writesPerWorker
+	if len(transcripts) != expected {
+		t.Errorf("expected %d transcripts, got %d", expected, len(transcripts))
 	}
 }

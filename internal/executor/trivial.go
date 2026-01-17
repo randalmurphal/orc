@@ -99,7 +99,7 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		e.publisher.SetBuffer(buf)
 		defer func() {
 			if err := e.publisher.CloseBuffer(); err != nil {
-				e.logger.Warn("failed to close transcript buffer", "error", err)
+				e.logger.Error("failed to close transcript buffer", "error", err)
 			}
 		}()
 	}

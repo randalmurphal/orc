@@ -209,8 +209,9 @@ func (b *TranscriptBuffer) flushLocked() error {
 	copy(toWrite, b.lines)
 	b.lines = b.lines[:0]
 
-	// Use background context for the write to ensure it completes
-	// even if the parent context is cancelled
+	// Use background context to ensure transcript data is persisted even if
+	// the parent context is cancelled. Transcripts are critical for auditing
+	// and task resumption, so we complete writes regardless of cancellation.
 	writeCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -240,7 +241,7 @@ func (b *TranscriptBuffer) periodicFlush() {
 			return
 		case <-ticker.C:
 			if err := b.Flush(); err != nil {
-				// Error already logged in flushLocked
+				b.logger.Error("periodic flush failed", "error", err)
 			}
 		}
 	}
