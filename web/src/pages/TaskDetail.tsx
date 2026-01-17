@@ -12,6 +12,7 @@ import { CommentsTab } from '@/components/task-detail/CommentsTab';
 import { Icon } from '@/components/ui/Icon';
 import { getTask, getTaskPlan } from '@/lib/api';
 import { useTaskSubscription } from '@/hooks';
+import { useTask as useStoreTask } from '@/stores/taskStore';
 import type { Task, Plan } from '@/lib/types';
 import './TaskDetail.css';
 
@@ -45,6 +46,23 @@ export function TaskDetail() {
 
 	// Subscribe to real-time updates - returns state from the store
 	const { state: taskState, transcript: streamingTranscript } = useTaskSubscription(id);
+
+	// Get task from store (updated by WebSocket events)
+	const storeTask = useStoreTask(id ?? '');
+
+	// Sync local task state with store task when WebSocket updates arrive
+	// This ensures the UI reflects real-time status changes (e.g., running -> completed)
+	useEffect(() => {
+		if (storeTask) {
+			setTask((prev) => {
+				// Only update if status or current_phase changed
+				if (prev && (prev.status !== storeTask.status || prev.current_phase !== storeTask.current_phase)) {
+					return { ...prev, status: storeTask.status, current_phase: storeTask.current_phase };
+				}
+				return prev;
+			});
+		}
+	}, [storeTask?.status, storeTask?.current_phase]);
 
 	// Load task data
 	const loadTask = useCallback(async () => {
