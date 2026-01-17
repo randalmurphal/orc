@@ -14,6 +14,7 @@ ALTER TABLE cost_log ADD COLUMN initiative_id TEXT DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_cost_model ON cost_log(model);
 CREATE INDEX IF NOT EXISTS idx_cost_model_timestamp ON cost_log(model, timestamp);
 CREATE INDEX IF NOT EXISTS idx_cost_initiative ON cost_log(initiative_id);
+CREATE INDEX IF NOT EXISTS idx_cost_project_timestamp ON cost_log(project_id, timestamp);
 
 -- Cost aggregates table for efficient time-series queries
 CREATE TABLE IF NOT EXISTS cost_aggregates (

@@ -358,19 +358,27 @@ func (g *GlobalDB) RecordCostExtended(entry CostEntry) error {
 // GetCostByModel returns costs grouped by model for a time range.
 func (g *GlobalDB) GetCostByModel(projectID string, since time.Time) (map[string]float64, error) {
 	result := make(map[string]float64)
+	sinceStr := since.UTC().Format("2006-01-02 15:04:05")
 
+	// Build query using same pattern as GetCostTimeseries
+	withProject := projectID != ""
 	query := `
 		SELECT COALESCE(model, '') as model, COALESCE(SUM(cost_usd), 0)
 		FROM cost_log
 		WHERE timestamp >= ?
 	`
-	args := []any{since.UTC().Format("2006-01-02 15:04:05")}
-
-	if projectID != "" {
+	if withProject {
 		query += " AND project_id = ?"
-		args = append(args, projectID)
 	}
 	query += " GROUP BY model"
+
+	// Build args slice upfront based on project filter (consistent with GetCostTimeseries)
+	var args []any
+	if withProject {
+		args = []any{sinceStr, projectID}
+	} else {
+		args = []any{sinceStr}
+	}
 
 	rows, err := g.Query(query, args...)
 	if err != nil {
@@ -433,6 +441,10 @@ func buildTimeseriesQuery(granularity string, withProject bool) string {
 
 // GetCostTimeseries returns cost data bucketed by time for charting.
 // Granularity can be "day", "week", or "month".
+//
+// Note: CostAggregate.Phase is always empty in timeseries results since
+// the data is aggregated across all phases. Use GetCostAggregates for
+// phase-specific breakdowns.
 func (g *GlobalDB) GetCostTimeseries(projectID string, since time.Time, granularity string) ([]CostAggregate, error) {
 	sinceStr := since.UTC().Format("2006-01-02 15:04:05")
 
@@ -601,7 +613,8 @@ func (g *GlobalDB) SetBudget(budget CostBudget) error {
 //
 // Note: This method may execute 2 queries when the stored budget month differs
 // from the current month (to recalculate current spend). This is acceptable for
-// single-budget lookups but batch implementations should optimize if needed.
+// single-budget lookups. For batch operations across multiple projects, consider
+// querying cost_budgets directly and computing spend separately to avoid N+1 queries.
 func (g *GlobalDB) GetBudgetStatus(projectID string) (*BudgetStatus, error) {
 	budget, err := g.GetBudget(projectID)
 	if err != nil {
