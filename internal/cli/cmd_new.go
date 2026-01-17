@@ -21,53 +21,151 @@ import (
 func newNewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new <title>",
-		Short: "Create a new task",
-		Long: `Create a new task to be orchestrated by orc.
+		Short: "Create a new task to be orchestrated by orc",
+		Long: `Create a task that will be executed by Claude through orc's phased workflow.
 
-Specify the weight (trivial, small, medium, large, greenfield) via --weight flag.
-If not specified, defaults to medium.
+═══════════════════════════════════════════════════════════════════════════════
+CRITICAL: WHAT MAKES TASKS SUCCEED
+═══════════════════════════════════════════════════════════════════════════════
 
-Specify the category (feature, bug, refactor, chore, docs, test) via --category flag.
-If not specified, defaults to feature.
+For non-trivial tasks, orc REQUIRES a specification with three mandatory sections:
 
-Use --template to create a task from a predefined template:
-  orc new -t bugfix "Fix authentication timeout bug"
-  orc new -t feature "Add dark mode" -v FEATURE_SCOPE="UI only"
+  1. INTENT        - What problem are you solving? Why does this matter?
+  2. SUCCESS CRITERIA - Testable conditions that prove the work is done
+  3. TESTING       - How to verify the implementation works
 
-Available templates: bugfix, feature, refactor, migration, spike
-Use 'orc template list' to see all templates.
+Without these, the task WILL fail or produce incomplete results. The spec phase
+generates this, but YOU provide the foundation through title + description.
 
-Use --attach to add screenshots or files during task creation:
-  orc new "UI bug" --attach screenshot.png
-  orc new "Fix layout" --attach before.png --attach after.png
+GOOD task creation (leads to good spec → good implementation):
+  orc new "Add rate limiting to API endpoints" -d "Prevent abuse by limiting
+  requests to 100/min per user. Should return 429 when exceeded. Must not
+  affect authenticated admin users."
 
-Use --initiative to link the task to an initiative:
-  orc new "Add auth flow" --initiative INIT-001
+BAD task creation (vague → vague spec → poor implementation):
+  orc new "Fix API"
 
-Use --blocked-by to specify task dependencies:
-  orc new "Part 2 of feature" --blocked-by TASK-001
-  orc new "Final step" --blocked-by TASK-001,TASK-002
+═══════════════════════════════════════════════════════════════════════════════
+WEIGHT SELECTION (Determines phases & quality gates)
+═══════════════════════════════════════════════════════════════════════════════
 
-Use --related-to to link related tasks:
-  orc new "Related feature" --related-to TASK-003
+Weight determines which phases run. Choose based on COMPLEXITY, not time:
 
-Use --priority to set task priority:
-  orc new "Urgent fix" --priority critical
-  orc new "Important feature" -p high
+  trivial    One-liner fixes, typos, config tweaks
+             → implement only (NO spec required)
+             Example: "Fix typo in error message"
 
-Use --target-branch to override the default PR target branch:
-  orc new "Hotfix" --target-branch hotfix/v2.1
+  small      Bug fixes, small features, isolated changes
+             → implement → test
+             Example: "Add validation for email field"
 
-Example:
-  orc new "Fix authentication timeout bug"
-  orc new "Implement user dashboard" --weight large
-  orc new "Create new microservice" --weight greenfield
-  orc new "Fix login bug" --category bug
-  orc new -t bugfix "Fix memory leak"
-  orc new "Button misaligned" --attach screenshot.png
-  orc new "Implement login" --initiative INIT-001
-  orc new "Add tests" --blocked-by TASK-005
-  orc new "Critical bug" --priority critical`,
+  medium     Features requiring design thought (DEFAULT)
+             → spec → implement → review → test → docs
+             Example: "Add password reset flow"
+
+  large      Complex features, multi-file changes, architecture decisions
+             → spec → design → implement → review → test → docs → validate
+             Example: "Implement caching layer for API"
+
+  greenfield New systems, major features requiring research
+             → research → spec → design → implement → review → test → docs → validate
+             Example: "Design and implement plugin system"
+
+Key phases:
+  • spec      Creates Success Criteria + Testing requirements (REQUIRED for quality)
+  • design    Architecture decisions for large/complex work
+  • review    Multi-agent code review (5 specialized reviewers)
+  • validate  Final verification against all success criteria
+
+Use 'orc finalize TASK-XXX' to manually sync with target branch before merge.
+
+⚠️  COMMON MISTAKE: Under-weighting tasks. If unsure, go ONE weight heavier.
+    A "medium" task run as "small" skips the spec phase → Claude guesses
+    requirements → implementation misses the mark.
+
+═══════════════════════════════════════════════════════════════════════════════
+THE DESCRIPTION FIELD (-d) IS YOUR LEVERAGE
+═══════════════════════════════════════════════════════════════════════════════
+
+The description flows into EVERY phase prompt. It's how you communicate:
+  • What problem exists (the pain point)
+  • What success looks like (acceptance criteria hints)
+  • Constraints or requirements (performance, compatibility, etc.)
+  • Context Claude needs (related systems, edge cases)
+
+Example of description that produces excellent results:
+  orc new "Add user avatar upload" -w medium -d "Users should be able to
+  upload a profile picture. Requirements: Accept PNG/JPG up to 5MB, resize
+  to 200x200, store in S3, display in navbar. Must work on mobile. Related
+  to existing User model in models/user.go."
+
+═══════════════════════════════════════════════════════════════════════════════
+INITIATIVES: SHARED CONTEXT ACROSS TASKS
+═══════════════════════════════════════════════════════════════════════════════
+
+When tasks are part of a larger feature, link them to an initiative:
+
+  orc initiative new "User Authentication" -V "JWT-based auth with refresh tokens"
+  orc initiative decide INIT-001 "Use bcrypt for password hashing"
+  orc new "Create login endpoint" -i INIT-001 -w medium
+  orc new "Create logout endpoint" -i INIT-001 -w small --blocked-by TASK-001
+
+The initiative's VISION and DECISIONS flow into every linked task's prompts.
+This keeps Claude aligned across multiple related tasks.
+
+═══════════════════════════════════════════════════════════════════════════════
+CATEGORY SELECTION
+═══════════════════════════════════════════════════════════════════════════════
+
+Category affects how Claude approaches the work:
+
+  feature    New functionality (default) - focus on user value
+  bug        Broken behavior - focus on root cause & regression prevention
+  refactor   Code improvement - focus on preserving behavior while improving
+  chore      Maintenance - focus on operational concerns
+  docs       Documentation - focus on clarity and accuracy
+  test       Test coverage - focus on edge cases and assertions
+
+═══════════════════════════════════════════════════════════════════════════════
+DEPENDENCIES: ORDERING WORK
+═══════════════════════════════════════════════════════════════════════════════
+
+  --blocked-by TASK-XXX   Hard dependency - task won't run until blocker completes
+  --related-to TASK-XXX   Informational link - no execution blocking
+
+Example multi-task workflow:
+  orc new "Design database schema" -w medium
+  orc new "Implement data models" -w medium --blocked-by TASK-001
+  orc new "Create API endpoints" -w large --blocked-by TASK-002
+  orc new "Build frontend" -w large --blocked-by TASK-003
+
+═══════════════════════════════════════════════════════════════════════════════
+EXAMPLES
+═══════════════════════════════════════════════════════════════════════════════
+
+# Good: Clear title, appropriate weight, detailed description
+orc new "Add pagination to user list API" -w medium -c feature \
+  -d "The /api/users endpoint returns all users. Add limit/offset pagination
+  with default limit=20, max=100. Return total count in response header."
+
+# Good: Bug with context about the problem
+orc new "Fix login failing silently on timeout" -w small -c bug \
+  -d "When auth service times out, login form shows no error. User sees
+  nothing. Should show 'Service unavailable, try again' message."
+
+# Good: Part of initiative with dependency
+orc new "Implement refresh token rotation" -w medium -i INIT-001 \
+  --blocked-by TASK-005 \
+  -d "After login endpoint is done, add refresh token rotation per RFC 6749."
+
+# Trivial: Simple fix, no spec needed
+orc new "Fix typo: 'recieve' → 'receive'" -w trivial
+
+See also:
+  orc run      - Execute a task (runs the phases based on weight)
+  orc show     - View task details and spec content
+  orc deps     - View task dependencies
+  orc initiative - Group related tasks with shared context`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {

@@ -31,28 +31,65 @@ make dev-full               # API (:8080) + frontend (:5173)
 
 ## Task Model
 
-### Organization
+### What Makes Tasks Succeed
+
+**For non-trivial tasks, orc REQUIRES a specification with:**
+
+| Section | Purpose | Validation |
+|---------|---------|------------|
+| **Intent** | Why this work matters, what problem it solves | Must have meaningful content |
+| **Success Criteria** | Testable conditions proving the work is done | Must have specific, verifiable items |
+| **Testing** | How to verify the implementation works | Must define test types and acceptance criteria |
+
+The spec phase generates these from your task description. **Vague input → vague spec → poor results.**
+
+Run `orc new --help` for detailed guidance on creating tasks that execute well.
+
+### Weight Classification (Determines Required Phases)
+
+| Weight | Phases | Spec? | When to Use |
+|--------|--------|-------|-------------|
+| trivial | implement | NO | One-liner fixes, typos |
+| small | implement → test | NO | Bug fixes, isolated changes |
+| medium | spec → implement → review → test → docs | YES | Features needing design thought |
+| large | spec → design → implement → review → test → docs → validate | YES | Complex multi-file features |
+| greenfield | research → spec → design → implement → review → test → docs → validate | YES | New systems, major features |
+
+Key phases:
+- **spec**: Generates Success Criteria + Testing requirements (foundation for quality)
+- **design**: Architecture decisions for large/complex work
+- **review**: Multi-agent code review with 5 specialized reviewers
+- **validate**: Final verification against all success criteria
+
+Use `orc finalize TASK-XXX` to manually sync with target branch before merge.
+
+⚠️ **Common mistake**: Under-weighting tasks. A "medium" task run as "small" skips the spec phase, causing Claude to guess requirements.
+
+### Task Properties
 
 | Property | Values | Purpose |
 |----------|--------|---------|
 | Queue | `active`, `backlog` | Current work vs "someday" |
 | Priority | `critical`, `high`, `normal`, `low` | Urgency |
-| Category | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | Type of work |
-| Initiative | Initiative ID | Groups related tasks |
-
-### Weight Classification
-
-| Weight | Phases | Use Case |
-|--------|--------|----------|
-| trivial | implement | One-liner fix |
-| small | implement, test | Bug fix, small feature |
-| medium | implement, test, docs | Feature with tests |
-| large | spec, implement, test, docs, validate, finalize | Complex feature |
-| greenfield | research, spec, implement, test, docs, validate, finalize | New system |
+| Category | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | Affects how Claude approaches work |
+| Initiative | Initiative ID | Groups tasks with shared vision/decisions |
+| Description | Free text | **Flows into every phase prompt** - be specific! |
 
 ### Dependencies
 
 Tasks support `blocked_by` (must complete first) and `related_to` (informational). CLI: `orc new "Part 2" --blocked-by TASK-001`. Initiatives also support `blocked_by` for ordering.
+
+### Initiatives (Shared Context)
+
+When tasks are part of a larger feature, link them to an initiative:
+
+```bash
+orc initiative new "User Auth" -V "JWT-based auth with refresh tokens"
+orc initiative decide INIT-001 "Use bcrypt for passwords" -r "Industry standard"
+orc new "Login endpoint" -i INIT-001 -w medium
+```
+
+The initiative's **Vision** and **Decisions** flow into every linked task's prompts, keeping Claude aligned across multiple tasks.
 
 ### Completion Detection
 
@@ -85,16 +122,48 @@ Task data stored in SQLite (`orc.db`). Use `orc show TASK-001 --format yaml` for
 
 ## Commands
 
+**Always run `orc <command> --help` for detailed usage with quality guidance.**
+
+### Core Workflow
+
+| Command | Purpose | Key Flags |
+|---------|---------|-----------|
+| `orc go "description"` | Quick: create + execute task | `--weight`, `--profile`, `--stream` |
+| `orc new "title"` | Create task with full control | `-w weight`, `-d description`, `-i initiative` |
+| `orc run TASK-ID` | Execute task phases | `--profile`, `--auto-skip`, `--stream` |
+| `orc status` | Dashboard: what needs attention | `--watch`, `--all` |
+
+### Task Management
+
 | Command | Purpose |
 |---------|---------|
-| `orc go` | Main entry (interactive/headless/quick) |
-| `orc init` | Initialize project |
-| `orc new "title"` | Create task (`-c bug`, `-a file`) |
-| `orc run TASK-ID` | Execute phases |
-| `orc status` | Show running/blocked/ready/paused |
-| `orc deps [TASK-ID]` | Show dependencies (`--tree`, `--graph`) |
+| `orc show TASK-ID` | View task details, spec, state |
+| `orc deps TASK-ID` | Show dependencies (`--tree`, `--graph`) |
+| `orc log TASK-ID` | View Claude transcripts (`--follow` for streaming) |
+| `orc resume TASK-ID` | Continue paused/failed/orphaned task |
+| `orc approve TASK-ID` | Approve blocked gate |
+| `orc resolve TASK-ID` | Mark failed task as resolved |
 
-**Full CLI:** `internal/cli/CLAUDE.md` | **Initiatives:** `orc initiative --help`
+### Initiatives
+
+| Command | Purpose |
+|---------|---------|
+| `orc initiative new "title"` | Create initiative with `--vision` |
+| `orc initiative decide ID "decision"` | Record decision with `--rationale` |
+| `orc initiative link ID TASK...` | Batch link tasks |
+| `orc initiative run ID` | Run all ready tasks in order |
+
+Run `orc initiative --help` for full subcommand list.
+
+### Key Insight: Help Text = Documentation
+
+Each command's `--help` contains detailed guidance on:
+- What makes the command succeed
+- Common mistakes to avoid
+- How data flows through the system
+- Quality tips for best results
+
+**When in doubt, run `--help` first.**
 
 ## Key Patterns
 

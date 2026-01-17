@@ -47,17 +47,45 @@ type DepsSummary struct {
 func newDepsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deps [task-id]",
-		Short: "Show task dependencies",
-		Long: `Show dependencies for a task, including blocked_by, blocks, related_to, and referenced_by.
+		Short: "Show task dependencies and blocking relationships",
+		Long: `Show dependencies for a task, including what it's waiting on and what it blocks.
 
-Without arguments, shows the dependency overview for all tasks.
+Dependency types:
+  blocked_by     Tasks that must complete before this task can run
+  blocks         Tasks waiting on this task (computed from their blocked_by)
+  related_to     Informational links to other tasks
+  referenced_by  Tasks that reference this task (computed from their related_to)
+
+View modes:
+  Default        Single task's dependencies with blocking status
+  No args        Overview of all blocked/blocking tasks
+  --tree         Recursive dependency tree (shows what to complete first)
+  --graph        ASCII visualization of dependency relationships
+
+Understanding the output:
+  ● (filled)     Dependency is completed
+  ○ (empty)      Dependency is not yet completed
+  BLOCKED        Task has unmet dependencies (cannot run)
+  READY          All dependencies completed (can run)
+  "← start here" No dependencies - good place to begin work
+
+Quality tips:
+  • Use 'orc deps' (no args) to see what's blocking progress
+  • Use --tree to find the "root" tasks to complete first
+  • Use --graph to visualize complex dependency chains
+  • Tasks shown as "BLOCKING OTHER TASKS" should be prioritized
 
 Examples:
-  orc deps TASK-062            # Show dependencies for TASK-062
-  orc deps TASK-062 --tree     # Show full dependency tree
-  orc deps --graph INIT-001    # ASCII graph for initiative
-  orc deps --graph             # ASCII graph for all tasks
-  orc deps TASK-062 --json     # JSON output`,
+  orc deps                     # Overview: blocked vs blocking tasks
+  orc deps TASK-062            # Single task's dependencies
+  orc deps TASK-062 --tree     # Full dependency tree (recursive)
+  orc deps --graph             # ASCII graph of all dependencies
+  orc deps --graph -i INIT-001 # Graph for specific initiative
+  orc deps TASK-062 --json     # JSON output for scripting
+
+See also:
+  orc status   - Task status overview (includes dependency info)
+  orc run      - Execute a task (checks dependencies first)`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {

@@ -20,19 +20,43 @@ func newStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "status",
 		Aliases: []string{"st"},
-		Short:   "Show orc status",
-		Long: `Show current orc status at a glance.
+		Short:   "Show task status overview (prioritized by need for attention)",
+		Long: `Show current task status organized by priority.
 
-Organized by priority:
-  1. Blocked tasks (need attention)
-  2. Running tasks (in progress)
-  3. Paused tasks (can resume)
-  4. Recent activity (last 24h)
+This is your dashboard for understanding what needs attention. Tasks are
+organized by priority so you always know what to work on next.
+
+PRIORITY ORDER:
+  1. 🔴 Orphaned    Executor died mid-run (use 'orc resume' to continue)
+  2. 🟡 Attention   Failed tasks, blocked gates needing approval
+  3. 🔵 Running     Currently executing
+  4. ⚫ Blocked     Waiting on task dependencies (blocked_by)
+  5. 🟢 Ready       Can be run (dependencies complete)
+  6. ⏸  Paused      Manually paused (use 'orc resume' to continue)
+  7. 📋 Recent      Completed in last 24h
+
+DEPENDENCY AWARENESS:
+  The status command shows dependency state alongside task state:
+  • BLOCKED (waiting on deps) - has incomplete blocked_by tasks
+  • READY (deps complete) - all blocked_by tasks finished
+
+COMMON WORKFLOWS:
+  After checking status, typical next steps:
+  • Orphaned task  → orc resume TASK-XXX
+  • Attention task → orc show TASK-XXX to diagnose, then fix/retry
+  • Ready task     → orc run TASK-XXX
+  • Blocked task   → orc deps TASK-XXX to see what's blocking
 
 Examples:
-  orc status           # Quick overview
-  orc status --all     # Include all tasks
-  orc status --watch   # Refresh every 5s`,
+  orc status          # Quick overview (most common)
+  orc st              # Short alias
+  orc status --all    # Include completed tasks
+  orc status --watch  # Auto-refresh every 5 seconds
+
+See also:
+  orc deps     - View dependency relationships
+  orc list     - List all tasks with filters
+  orc show     - Detailed view of specific task`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
 				return err

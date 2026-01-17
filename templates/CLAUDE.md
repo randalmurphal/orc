@@ -22,10 +22,13 @@ templates/
 | `trivial` | implement |
 | `small` | implement → test |
 | `medium` | spec → implement → review → test → docs |
-| `large` | spec → design → implement → review → test → docs → validate → finalize |
-| `greenfield` | research → spec → design → implement → review → test → docs → validate → finalize |
+| `large` | spec → design → implement → review → test → docs → validate |
+| `greenfield` | research → spec → design → implement → review → test → docs → validate |
 
 **Review phase** (medium+): Multi-agent code review with 5 specialized reviewers.
+
+**Note**: `finalize` is a manual command (`orc finalize TASK-XXX`), not an automatic phase.
+Use it to sync with target branch and resolve conflicts before merge.
 
 ## Template Variables
 
