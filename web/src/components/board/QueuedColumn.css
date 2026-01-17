@@ -1,9 +1,9 @@
 /* QueuedColumn component styles */
 
 .queued-column {
-	flex: 1 0 180px;
-	min-width: 180px;
-	max-width: 300px;
+	/* Fixed width columns that don't shrink - enables horizontal scroll */
+	flex: 0 0 200px;
+	width: 200px;
 	display: flex;
 	flex-direction: column;
 	background: rgba(148, 163, 184, 0.05);
