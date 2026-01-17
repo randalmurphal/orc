@@ -21,27 +21,52 @@ func newInitiativeCmd() *cobra.Command {
 		Short:   "Manage initiatives (grouped tasks with shared context)",
 		Long: `Manage initiatives - groupings of related tasks with shared vision and decisions.
 
-Initiatives provide:
-  • Shared context across related tasks
-  • Decision tracking with rationale
-  • Task dependency management
-  • Initiative-to-initiative dependencies
-  • P2P/team collaboration via shared directories
+Initiatives are the primary way to organize complex work in orc. Use them when:
+  • A feature requires multiple related tasks
+  • Tasks need to share context and decisions
+  • You want dependency ordering across tasks
+  • Multiple people are collaborating on related work
+
+Key concepts:
+  Vision      High-level goal describing what the initiative achieves
+  Decisions   Recorded choices with rationale (e.g., "Use JWT for auth")
+  Tasks       Individual work items linked to the initiative
+  Dependencies Tasks/initiatives that must complete first (blocked_by)
+
+Workflow - Creating an initiative:
+  1. orc initiative new "Feature Name" --vision "What we're building"
+  2. orc initiative decide INIT-001 "Key decision" --rationale "Why"
+  3. orc new "First task" --initiative INIT-001
+  4. orc initiative activate INIT-001
+  5. orc initiative run INIT-001 --execute
 
 Commands:
-  new        Create a new initiative
-  list       List all initiatives
-  show       Show initiative details
-  edit       Edit initiative properties and dependencies
-  add-task   Link a task to an initiative
-  link       Batch link multiple tasks to an initiative
+  new        Create a new initiative with optional vision/dependencies
+  list       List all initiatives (filter with --status)
+  show       Show initiative details, tasks, and decisions
+  edit       Edit properties including title, vision, dependencies
+  add-task   Link a single task to an initiative
+  link       Batch link multiple tasks (supports --all-matching pattern)
   unlink     Remove tasks from an initiative
-  plan       Create tasks from a manifest file
-  decide     Record a decision
-  activate   Set initiative status to active
+  plan       Create tasks from a manifest.yaml file
+  decide     Record a decision with optional rationale
+  activate   Set initiative status to active (ready to run)
   complete   Mark initiative as completed
-  run        Run all initiative tasks in order
-  delete     Delete an initiative`,
+  run        Run all ready tasks in dependency order
+  delete     Delete an initiative
+
+Quality tips:
+  • Use --vision to clearly state what the initiative achieves
+  • Record decisions with 'decide' to maintain context for Claude
+  • Use --blocked-by to order initiatives (e.g., "API before frontend")
+  • Use 'initiative run --execute' to run all ready tasks automatically
+
+Examples:
+  orc initiative new "Auth System" -V "User login/logout with JWT"
+  orc i list --status active      # Short alias, filter by status
+  orc i show INIT-001             # View details and linked tasks
+  orc i run INIT-001              # Preview what would run
+  orc i run INIT-001 --execute    # Actually run the tasks`,
 	}
 
 	cmd.AddCommand(newInitiativeNewCmd())

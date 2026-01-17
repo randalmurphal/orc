@@ -24,18 +24,38 @@ import (
 func newLogCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "log <task-id>",
-		Short: "Show task transcripts",
-		Long: `Show task transcripts with content.
+		Short: "Show task transcripts (use --follow for real-time streaming)",
+		Long: `Show Claude transcripts from task execution.
 
-By default, shows the latest transcript. Use flags to customize output.
+Transcripts capture the full conversation between orc and Claude during each
+phase. Use this to understand what Claude did, debug issues, or learn from
+the AI's approach.
+
+Viewing modes:
+  Default     Shows last 100 lines of the most recent transcript
+  --all       Shows all transcripts for all phases
+  --phase     Filter to a specific phase (implement, test, etc.)
+  --list      List available transcript files without showing content
+  --follow    Real-time streaming as Claude writes (like tail -f)
+
+Quality tips:
+  • When debugging a failed task, start with the latest transcript
+  • Use --phase to find specific work (e.g., --phase test for test phase)
+  • Use --follow during execution to watch Claude work in real-time
+  • Transcripts are stored in .orc/tasks/TASK-XXX/transcripts/
 
 Examples:
-  orc log TASK-001              # Show latest transcript (last 100 lines)
-  orc log TASK-001 --all        # Show all transcripts
-  orc log TASK-001 --phase test # Show specific phase transcript
-  orc log TASK-001 --list       # List transcript files only
-  orc log TASK-001 --tail 50    # Show last 50 lines
-  orc log TASK-001 --follow     # Stream new lines (like tail -f)`,
+  orc log TASK-001              # Latest transcript (last 100 lines)
+  orc log TASK-001 --all        # All transcripts, all phases
+  orc log TASK-001 --phase test # Just the test phase transcript
+  orc log TASK-001 --list       # List available transcripts
+  orc log TASK-001 --tail 50    # Last 50 lines only
+  orc log TASK-001 --tail 0     # Full transcript (no limit)
+  orc log TASK-001 --follow     # Stream new lines in real-time
+
+See also:
+  orc show TASK-001 --session   # View session stats (tokens, timing)
+  orc diff TASK-001             # View code changes made by task`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {

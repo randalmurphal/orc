@@ -27,25 +27,101 @@ import (
 func newGoCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "go [description]",
-		Short: "Run complete orc workflow",
-		Long: `Run the complete orc workflow from start to finish.
+		Short: "Run complete orc workflow (main entry point)",
+		Long: `Quick way to create and execute a task in one command.
 
-This is the main entry point for orc. It handles:
-1. Project initialization (if not already initialized)
-2. Spec creation (interactive) or task creation (quick mode)
-3. Task planning and execution
-4. Review and QA sessions (configurable)
+This is the fastest path from idea to implementation, but for best results
+you should provide enough context for Claude to succeed.
 
-Modes:
-  Interactive (default): Shows status and guides next steps
-  Headless (--headless): Automated execution, no user interaction
-  Quick (description):   Skip spec, create single task, execute immediately
+═══════════════════════════════════════════════════════════════════════════════
+WHAT MAKES 'orc go' SUCCEED
+═══════════════════════════════════════════════════════════════════════════════
 
-Examples:
-  orc go                          # Interactive guidance
-  orc go --headless               # Automated mode
-  orc go "Add user authentication" # Quick single task
-  orc go --headless --quick "Fix login bug"`,
+The description you provide becomes the foundation for the entire task.
+Claude uses it to:
+  • Generate the specification (success criteria, testing requirements)
+  • Guide implementation decisions
+  • Know when the work is done
+
+GOOD (specific, provides context):
+  orc go "Add rate limiting to /api/users - max 100 req/min per user,
+  return 429 when exceeded, exclude admin users"
+
+BAD (vague, Claude will guess):
+  orc go "fix api"
+
+═══════════════════════════════════════════════════════════════════════════════
+WEIGHT SELECTION (Critical for quality)
+═══════════════════════════════════════════════════════════════════════════════
+
+Weight determines which phases run. Default is 'medium'.
+
+  trivial    → implement only (NO spec, NO tests)
+             Use for: typos, config tweaks, one-liners
+
+  small      → implement → test
+             Use for: bug fixes, isolated changes
+
+  medium     → spec → implement → review → test → docs (DEFAULT)
+             Use for: features needing design thought
+
+  large      → spec → design → implement → review → test → docs → validate
+             Use for: complex multi-file features
+
+  greenfield → research → spec → design → implement → review → test → docs → validate
+             Use for: new systems, major features
+
+The 'spec' phase generates Success Criteria and Testing requirements - this is what
+makes non-trivial tasks succeed. The 'review' phase runs 5 specialized code reviewers.
+
+⚠️  Under-weighting is the #1 cause of poor results.
+    A "medium" task run as "small" skips spec → Claude guesses → poor results.
+
+═══════════════════════════════════════════════════════════════════════════════
+EXECUTION MODES
+═══════════════════════════════════════════════════════════════════════════════
+
+  Interactive (default)   Run with no args - shows status, guides next steps
+  Quick (description)     Provide description - creates and executes immediately
+  Headless (--headless)   Runs all ready tasks with no user interaction
+
+═══════════════════════════════════════════════════════════════════════════════
+AUTOMATION PROFILES
+═══════════════════════════════════════════════════════════════════════════════
+
+  auto (default)  Fully automated, AI handles all gates
+  fast            Speed optimized, minimal validation
+  safe            AI reviews, requires human approval for merge
+  strict          Human gates on all major decisions
+
+Use --profile=safe for important work where you want final approval.
+
+═══════════════════════════════════════════════════════════════════════════════
+EXAMPLES
+═══════════════════════════════════════════════════════════════════════════════
+
+# Quick fixes (trivial weight)
+orc go "Fix typo: 'recieve' → 'receive' in error messages" -w trivial
+
+# Bug fixes (small weight)
+orc go "Fix login failing silently on auth timeout - show error message" -w small
+
+# Features (medium weight - default)
+orc go "Add pagination to user list API - limit/offset, max 100 per page"
+
+# Complex features (large weight)
+orc go "Implement Redis caching layer for API responses" -w large
+
+# Watch Claude work
+orc go "Add dark mode toggle" --stream
+
+# Safe mode for production changes
+orc go "Update payment processing logic" --profile safe
+
+See also:
+  orc new      - Create task with full control (description, initiative, deps)
+  orc run      - Execute an existing task
+  orc status   - View what needs attention`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			headless, _ := cmd.Flags().GetBool("headless")
 			quick, _ := cmd.Flags().GetBool("quick")

@@ -27,27 +27,65 @@ import (
 func newRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run <task-id>",
-		Short: "Execute a task",
-		Long: `Execute a task through its phases.
+		Short: "Execute a task through its phases",
+		Long: `Execute a task through its planned phases using Claude.
 
-The task will be executed according to its plan (based on weight).
-Each phase creates a git checkpoint for rewindability.
+This is the core execution command. Claude will work through each phase
+(implement, test, docs, etc.) based on the task's weight. Each phase creates
+a git checkpoint so you can rewind if needed.
 
-Automation profiles control gate behavior:
-  auto   - Fully automated, no human intervention (default)
-  fast   - Minimal gates, speed over safety
-  safe   - AI reviews, human approval only for merge
-  strict - Human gates on spec/review/merge
+EXECUTION FLOW:
+  1. Creates/switches to task worktree (isolated git branch)
+  2. Loads task plan and execution state
+  3. Executes each pending phase via Claude
+  4. Creates git checkpoints after each phase
+  5. Handles PR creation and merge (based on profile)
 
-Artifact detection:
-  When artifacts from previous runs exist (e.g., spec.md), orc will prompt
-  whether to skip that phase. Use --auto-skip to skip automatically.
+AUTOMATION PROFILES:
+  auto (default)  Fully automated, AI handles all gates
+  fast            Speed optimized, minimal checks
+  safe            AI reviews, requires human approval for merge
+  strict          Human gates on spec/review/merge phases
 
-Example:
-  orc run TASK-001
-  orc run TASK-001 --profile safe
-  orc run TASK-001 --auto-skip         # skip phases with existing artifacts
-  orc run TASK-001 --phase implement   # run specific phase`,
+DEPENDENCY HANDLING:
+  If the task has incomplete blocked_by dependencies, orc will warn and ask
+  for confirmation. Use --force to run anyway (not recommended).
+
+INTERRUPTION & RECOVERY:
+  • Ctrl+C saves state - use 'orc resume' to continue
+  • If task fails, use 'orc rewind TASK-XXX --phase X' to retry from checkpoint
+  • Use 'orc reset TASK-XXX' to start over completely
+
+ARTIFACT DETECTION:
+  When artifacts from previous runs exist (spec.md, etc.), orc can skip
+  phases automatically with --auto-skip or prompt for your choice.
+
+SPEC QUALITY AFFECTS RESULTS:
+  For non-trivial tasks, execution quality depends on the spec quality.
+  The spec defines Success Criteria and Testing requirements that guide
+  Claude's implementation. If the spec is vague or missing criteria,
+  Claude will guess, producing unpredictable results.
+
+  Before running, verify spec quality:
+    orc show TASK-XXX          # Check if spec exists and has clear criteria
+
+  If spec is poor, either:
+    orc reset TASK-XXX         # Clear state, fix description, re-run spec phase
+    orc edit TASK-XXX -d "..."  # Improve description for better spec generation
+
+Examples:
+  orc run TASK-001                    # Execute task with default profile
+  orc run TASK-001 --profile safe     # Require human merge approval
+  orc run TASK-001 --auto-skip        # Skip phases with existing artifacts
+  orc run TASK-001 --phase implement  # Run specific phase only
+  orc run TASK-001 --force            # Run despite incomplete dependencies
+  orc run TASK-001 --stream           # Stream Claude's output in real-time
+
+See also:
+  orc go       - Quick task creation + execution
+  orc resume   - Continue a paused/interrupted task
+  orc rewind   - Reset to a specific phase checkpoint
+  orc log      - View Claude transcripts from execution`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Find the project root (handles worktrees)
