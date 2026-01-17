@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,9 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db/driver"
 )
+
+// ErrBudgetNotFound is returned when no budget exists for a project.
+var ErrBudgetNotFound = errors.New("budget not found")
 
 // GlobalDB provides operations on the global database (~/.orc/orc.db).
 type GlobalDB struct {
@@ -232,6 +236,9 @@ type CostSummary struct {
 }
 
 // GetCostSummary retrieves aggregated cost data since the given time.
+// Uses a CTE (Common Table Expression) to filter cost_log once and then
+// perform all aggregations against the filtered result set, improving
+// performance from O(3n) to O(n) table scans when projectID filter is applied.
 func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSummary, error) {
 	summary := &CostSummary{
 		ByProject: make(map[string]float64),
@@ -242,51 +249,38 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 	// SQLite stores as "YYYY-MM-DD HH:MM:SS", RFC3339 is "YYYY-MM-DDTHH:MM:SSZ"
 	sinceStr := since.UTC().Format("2006-01-02 15:04:05")
 
-	// Single query with UNION ALL to get totals, project breakdown, and phase breakdown
-	// This reduces 3 database round-trips to 1
+	// Build query using CTE to filter once, aggregate multiple times
+	// Args: sinceStr (and projectID if provided)
+	var args []any
+
 	query := `
+		WITH filtered AS (
+			SELECT project_id, phase, cost_usd, input_tokens, output_tokens
+			FROM cost_log
+			WHERE timestamp >= ?`
+
+	args = append(args, sinceStr)
+	if projectID != "" {
+		query += " AND project_id = ?"
+		args = append(args, projectID)
+	}
+
+	query += `
+		)
 		SELECT 'total' as breakdown_type, '' as breakdown_key,
 			COALESCE(SUM(cost_usd), 0), COALESCE(SUM(input_tokens), 0),
 			COALESCE(SUM(output_tokens), 0), COUNT(*)
-		FROM cost_log
-		WHERE timestamp >= ?
-	`
-	args := []any{sinceStr}
-
-	if projectID != "" {
-		query += " AND project_id = ?"
-		args = append(args, projectID)
-	}
-
-	query += `
+		FROM filtered
 		UNION ALL
 		SELECT 'project' as breakdown_type, project_id as breakdown_key,
 			COALESCE(SUM(cost_usd), 0), 0, 0, 0
-		FROM cost_log
-		WHERE timestamp >= ?
-	`
-	args = append(args, sinceStr)
-
-	if projectID != "" {
-		query += " AND project_id = ?"
-		args = append(args, projectID)
-	}
-	query += " GROUP BY project_id"
-
-	query += `
+		FROM filtered
+		GROUP BY project_id
 		UNION ALL
 		SELECT 'phase' as breakdown_type, phase as breakdown_key,
 			COALESCE(SUM(cost_usd), 0), 0, 0, 0
-		FROM cost_log
-		WHERE timestamp >= ?
-	`
-	args = append(args, sinceStr)
-
-	if projectID != "" {
-		query += " AND project_id = ?"
-		args = append(args, projectID)
-	}
-	query += " GROUP BY phase"
+		FROM filtered
+		GROUP BY phase`
 
 	rows, err := g.Query(query, args...)
 	if err != nil {
@@ -399,30 +393,29 @@ func (g *GlobalDB) GetCostByModel(projectID string, since time.Time) (map[string
 	return result, nil
 }
 
-// Predefined SQL queries for GetCostTimeseries to avoid dynamic SQL construction.
-// Each query uses a different date format function for the granularity.
-const (
-	timeseriesDayQuery = `
-		SELECT
-			COALESCE(project_id, '') as project_id,
-			COALESCE(model, '') as model,
-			'' as phase,
-			strftime('%Y-%m-%d', timestamp) as date,
-			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
-			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
-			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
-			COUNT(*) as turn_count,
-			COUNT(DISTINCT task_id) as task_count
-		FROM cost_log
-		WHERE timestamp >= ?`
+// strftimeFormat returns the SQLite strftime format for a given granularity.
+func strftimeFormat(granularity string) string {
+	switch granularity {
+	case "week":
+		return "%Y-W%W"
+	case "month":
+		return "%Y-%m"
+	default: // "day" or default
+		return "%Y-%m-%d"
+	}
+}
 
-	timeseriesDayQueryWithProject = `
+// buildTimeseriesQuery builds the SQL query for cost timeseries aggregation.
+// The granularity parameter determines the date bucketing (day, week, month).
+// If withProject is true, a project_id filter placeholder is added.
+func buildTimeseriesQuery(granularity string, withProject bool) string {
+	dateFormat := strftimeFormat(granularity)
+	query := fmt.Sprintf(`
 		SELECT
 			COALESCE(project_id, '') as project_id,
 			COALESCE(model, '') as model,
 			'' as phase,
-			strftime('%Y-%m-%d', timestamp) as date,
+			strftime('%s', timestamp) as date,
 			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
 			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
@@ -430,100 +423,27 @@ const (
 			COUNT(*) as turn_count,
 			COUNT(DISTINCT task_id) as task_count
 		FROM cost_log
-		WHERE timestamp >= ? AND project_id = ?
-		GROUP BY strftime('%Y-%m-%d', timestamp), model ORDER BY date ASC`
-
-	timeseriesWeekQuery = `
-		SELECT
-			COALESCE(project_id, '') as project_id,
-			COALESCE(model, '') as model,
-			'' as phase,
-			strftime('%Y-W%W', timestamp) as date,
-			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
-			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
-			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
-			COUNT(*) as turn_count,
-			COUNT(DISTINCT task_id) as task_count
-		FROM cost_log
-		WHERE timestamp >= ?`
-
-	timeseriesWeekQueryWithProject = `
-		SELECT
-			COALESCE(project_id, '') as project_id,
-			COALESCE(model, '') as model,
-			'' as phase,
-			strftime('%Y-W%W', timestamp) as date,
-			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
-			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
-			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
-			COUNT(*) as turn_count,
-			COUNT(DISTINCT task_id) as task_count
-		FROM cost_log
-		WHERE timestamp >= ? AND project_id = ?
-		GROUP BY strftime('%Y-W%W', timestamp), model ORDER BY date ASC`
-
-	timeseriesMonthQuery = `
-		SELECT
-			COALESCE(project_id, '') as project_id,
-			COALESCE(model, '') as model,
-			'' as phase,
-			strftime('%Y-%m', timestamp) as date,
-			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
-			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
-			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
-			COUNT(*) as turn_count,
-			COUNT(DISTINCT task_id) as task_count
-		FROM cost_log
-		WHERE timestamp >= ?`
-
-	timeseriesMonthQueryWithProject = `
-		SELECT
-			COALESCE(project_id, '') as project_id,
-			COALESCE(model, '') as model,
-			'' as phase,
-			strftime('%Y-%m', timestamp) as date,
-			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
-			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
-			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
-			COUNT(*) as turn_count,
-			COUNT(DISTINCT task_id) as task_count
-		FROM cost_log
-		WHERE timestamp >= ? AND project_id = ?
-		GROUP BY strftime('%Y-%m', timestamp), model ORDER BY date ASC`
-)
+		WHERE timestamp >= ?`, dateFormat)
+	if withProject {
+		query += " AND project_id = ?"
+	}
+	query += fmt.Sprintf(" GROUP BY strftime('%s', timestamp), model ORDER BY date ASC", dateFormat)
+	return query
+}
 
 // GetCostTimeseries returns cost data bucketed by time for charting.
 // Granularity can be "day", "week", or "month".
 func (g *GlobalDB) GetCostTimeseries(projectID string, since time.Time, granularity string) ([]CostAggregate, error) {
 	sinceStr := since.UTC().Format("2006-01-02 15:04:05")
 
-	// Select the appropriate predefined query based on granularity and project filter
-	var query string
-	var args []any
+	// Build query using template function based on project filter
+	withProject := projectID != ""
+	query := buildTimeseriesQuery(granularity, withProject)
 
-	if projectID != "" {
-		switch granularity {
-		case "week":
-			query = timeseriesWeekQueryWithProject
-		case "month":
-			query = timeseriesMonthQueryWithProject
-		default: // "day" or default
-			query = timeseriesDayQueryWithProject
-		}
+	var args []any
+	if withProject {
 		args = []any{sinceStr, projectID}
 	} else {
-		switch granularity {
-		case "week":
-			query = timeseriesWeekQuery + " GROUP BY strftime('%Y-W%W', timestamp), model ORDER BY date ASC"
-		case "month":
-			query = timeseriesMonthQuery + " GROUP BY strftime('%Y-%m', timestamp), model ORDER BY date ASC"
-		default: // "day" or default
-			query = timeseriesDayQuery + " GROUP BY strftime('%Y-%m-%d', timestamp), model ORDER BY date ASC"
-		}
 		args = []any{sinceStr}
 	}
 
@@ -611,11 +531,7 @@ func (g *GlobalDB) GetCostAggregates(projectID string, startDate, endDate string
 		); err != nil {
 			return nil, fmt.Errorf("scan aggregate row: %w", err)
 		}
-		if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
-			agg.CreatedAt = t
-		} else if t, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
-			agg.CreatedAt = t
-		}
+		agg.CreatedAt = parseTimestamp(createdAt)
 		results = append(results, agg)
 	}
 	if err := rows.Err(); err != nil {
@@ -626,6 +542,8 @@ func (g *GlobalDB) GetCostAggregates(projectID string, startDate, endDate string
 }
 
 // GetBudget retrieves the budget for a project.
+// Returns (nil, nil) when no budget exists for the project.
+// Returns (nil, error) for database errors.
 func (g *GlobalDB) GetBudget(projectID string) (*CostBudget, error) {
 	row := g.QueryRow(`
 		SELECT id, project_id, monthly_limit_usd, alert_threshold_percent,
@@ -641,21 +559,16 @@ func (g *GlobalDB) GetBudget(projectID string) (*CostBudget, error) {
 		&b.ID, &b.ProjectID, &monthlyLimit, &b.AlertThresholdPercent,
 		&b.CurrentMonth, &b.CurrentMonthSpent, &createdAt, &updatedAt,
 	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // No budget configured for this project
+		}
 		return nil, fmt.Errorf("get budget %s: %w", projectID, err)
 	}
 	if monthlyLimit.Valid {
 		b.MonthlyLimitUSD = monthlyLimit.Float64
 	}
-	if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
-		b.CreatedAt = t
-	} else if t, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
-		b.CreatedAt = t
-	}
-	if t, err := time.Parse(time.RFC3339, updatedAt); err == nil {
-		b.UpdatedAt = t
-	} else if t, err := time.Parse("2006-01-02 15:04:05", updatedAt); err == nil {
-		b.UpdatedAt = t
-	}
+	b.CreatedAt = parseTimestamp(createdAt)
+	b.UpdatedAt = parseTimestamp(updatedAt)
 
 	return &b, nil
 }
@@ -683,10 +596,19 @@ func (g *GlobalDB) SetBudget(budget CostBudget) error {
 }
 
 // GetBudgetStatus returns the current spend vs limit for a project.
+// Returns (nil, nil) when no budget is configured for the project.
+// Returns (nil, error) for database errors.
+//
+// Note: This method may execute 2 queries when the stored budget month differs
+// from the current month (to recalculate current spend). This is acceptable for
+// single-budget lookups but batch implementations should optimize if needed.
 func (g *GlobalDB) GetBudgetStatus(projectID string) (*BudgetStatus, error) {
 	budget, err := g.GetBudget(projectID)
 	if err != nil {
 		return nil, err
+	}
+	if budget == nil {
+		return nil, nil // No budget configured for this project
 	}
 
 	currentMonth := time.Now().UTC().Format("2006-01")

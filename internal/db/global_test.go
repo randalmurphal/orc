@@ -511,6 +511,15 @@ func TestBudget_CRUD(t *testing.T) {
 	if got2.CurrentMonthSpent != 50.00 {
 		t.Errorf("CurrentMonthSpent after update = %f, want 50.00", got2.CurrentMonthSpent)
 	}
+
+	// Read non-existent budget - should return (nil, nil), not error
+	notFound, err := gdb.GetBudget("nonexistent-project")
+	if err != nil {
+		t.Errorf("GetBudget for nonexistent project returned error: %v", err)
+	}
+	if notFound != nil {
+		t.Errorf("GetBudget for nonexistent project returned %v, want nil", notFound)
+	}
 }
 
 func TestBudgetStatus(t *testing.T) {
@@ -576,6 +585,15 @@ func TestBudgetStatus(t *testing.T) {
 	}
 	if status2.PercentUsed != 120.00 {
 		t.Errorf("PercentUsed = %f, want 120.00", status2.PercentUsed)
+	}
+
+	// Test GetBudgetStatus for nonexistent project - should return (nil, nil)
+	statusNotFound, err := gdb.GetBudgetStatus("nonexistent-project")
+	if err != nil {
+		t.Errorf("GetBudgetStatus for nonexistent project returned error: %v", err)
+	}
+	if statusNotFound != nil {
+		t.Errorf("GetBudgetStatus for nonexistent project returned %v, want nil", statusNotFound)
 	}
 }
 
