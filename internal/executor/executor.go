@@ -457,6 +457,14 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				opts = append(opts, WithFullBackpressure(bp))
 			}
 
+			// Pass haiku client and config for progress validation
+			if e.haikuClient != nil {
+				opts = append(opts, WithFullHaikuClient(e.haikuClient))
+			}
+			if e.orcConfig != nil {
+				opts = append(opts, WithFullOrcConfig(e.orcConfig))
+			}
+
 			e.fullExecutor = NewFullExecutor(e.sessionMgr, opts...)
 		}
 		return e.fullExecutor
@@ -481,6 +489,14 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 					e.logger,
 				)
 				opts = append(opts, WithStandardBackpressure(bp))
+			}
+
+			// Pass haiku client and config for progress validation
+			if e.haikuClient != nil {
+				opts = append(opts, WithStandardHaikuClient(e.haikuClient))
+			}
+			if e.orcConfig != nil {
+				opts = append(opts, WithStandardOrcConfig(e.orcConfig))
 			}
 
 			e.standardExecutor = NewStandardExecutor(e.sessionMgr, opts...)
