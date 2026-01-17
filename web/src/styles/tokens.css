@@ -1,6 +1,6 @@
 /* =============================================================================
-   ORC Design Tokens - Mission Control Theme
-   Electric Violet accent with deep space backgrounds
+   ORC Design System Tokens
+   Based on example_ui/board.html reference design
    ============================================================================= */
 
 /* Font Faces - Using @fontsource packages */
@@ -69,79 +69,114 @@
 
 :root {
   /* ==========================================================================
-     COLOR SYSTEM
+     COLOR SYSTEM - New Design System
+     From example_ui/board.html reference
      ========================================================================== */
 
   /* Background Colors - Deep Space Theme */
-  --bg-void: #030508;
-  --bg-primary: #0a0e14;
-  --bg-secondary: #111827;
-  --bg-tertiary: #1a2332;
-  --bg-surface: #232f42;
-  --bg-elevated: #2a3a50;
-
-  /* Electric Violet Accent - WCAG AA compliant (4.5:1 contrast on dark backgrounds) */
-  --accent-primary: #a78bfa;           /* Lightened for 4.5:1 contrast on bg-secondary */
-  --accent-secondary: #c4b5fd;
-  --accent-glow: rgba(167, 139, 250, 0.25);
-  --accent-glow-strong: rgba(167, 139, 250, 0.4);
-  --accent-muted: rgba(167, 139, 250, 0.5);
-  --accent-hover: #c4b5fd;
-  --accent-active: #8b5cf6;
-  --accent-subtle: rgba(167, 139, 250, 0.1);
-  --accent-button: #7c3aed;            /* Darker violet for button bg - 4.6:1 contrast with white */
-  --accent-button-hover: #8b5cf6;      /* Hover state for button */
-
-  /* React-specific aliases (compatibility with existing components) */
-  --bg-hover: var(--bg-surface);
-  --accent-primary-hover: var(--accent-hover);
-  --accent-primary-transparent: var(--accent-subtle);
-
-  /* Status Colors */
-  --status-success: #10b981;
-  --status-success-glow: rgba(16, 185, 129, 0.25);
-  --status-success-bg: rgba(16, 185, 129, 0.1);
-
-  --status-warning: #f59e0b;
-  --status-warning-glow: rgba(245, 158, 11, 0.25);
-  --status-warning-bg: rgba(245, 158, 11, 0.1);
-
-  --status-danger: #f87171;         /* Lightened from #ef4444 for 4.5:1 contrast */
-  --status-danger-glow: rgba(248, 113, 113, 0.25);
-  --status-danger-bg: rgba(248, 113, 113, 0.1);
-
-  --status-info: #60a5fa;            /* Lightened from #3b82f6 for 4.5:1 contrast */
-  --status-info-glow: rgba(96, 165, 250, 0.25);
-  --status-info-bg: rgba(96, 165, 250, 0.1);
-
-  --status-running: #8b5cf6;
-  --status-running-glow: rgba(139, 92, 246, 0.25);
-  --status-running-bg: rgba(139, 92, 246, 0.1);
-
-  /* Status alias (React compatibility) */
-  --status-error: var(--status-danger);
-
-  /* Weight Colors - WCAG AA compliant for badge backgrounds */
-  --weight-trivial: #9ca3af;         /* Lightened from #6b7280 for contrast */
-  --weight-small: #34d399;           /* Lightened from #10b981 for contrast */
-  --weight-medium: #60a5fa;          /* Lightened from #3b82f6 for 4.5:1 contrast */
-  --weight-large: #fbbf24;           /* Lightened from #f59e0b for contrast */
-  --weight-greenfield: #a78bfa;      /* Same as accent-primary */
-
-  /* Text Colors - WCAG AA compliant (4.5:1 contrast on dark backgrounds) */
-  --text-primary: #f0f6fc;
-  --text-secondary: #94a3b8;
-  --text-muted: #9ca3af;             /* Lightened from #64748b for 4.5:1 contrast on bg-secondary */
-  --text-disabled: #9ca3af;          /* Same as text-muted for 4.5:1 contrast */
-  --text-inverse: #0a0e14;
-  --text-accent: var(--accent-primary);
+  --bg-base: #050508;
+  --bg-elevated: #0a0a0f;
+  --bg-surface: #101016;
+  --bg-card: #15151d;
+  --bg-hover: #1c1c26;
 
   /* Border Colors */
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --border-default: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.15);
-  --border-focus: var(--accent-primary);
-  --border-glow: var(--accent-glow);
+  --border: rgba(255, 255, 255, 0.04);
+  --border-light: rgba(255, 255, 255, 0.08);
+
+  /* Text Colors */
+  --text-primary: #eaeaef;
+  --text-secondary: #8e8e9a;
+  --text-muted: #55555f;
+
+  /* Primary Accent - Purple */
+  --primary: #a855f7;
+  --primary-bright: #c084fc;
+  --primary-dim: rgba(168, 85, 247, 0.1);
+  --primary-glow: rgba(168, 85, 247, 0.25);
+
+  /* Semantic Colors */
+  --cyan: #06b6d4;
+  --cyan-dim: rgba(6, 182, 212, 0.08);
+  --orange: #f97316;
+  --orange-dim: rgba(249, 115, 22, 0.08);
+  --green: #10b981;
+  --green-dim: rgba(16, 185, 129, 0.08);
+  --red: #ef4444;
+  --red-dim: rgba(239, 68, 68, 0.08);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245, 158, 11, 0.08);
+  --blue: #3b82f6;
+  --blue-dim: rgba(59, 130, 246, 0.08);
+
+  /* ==========================================================================
+     LEGACY COMPATIBILITY ALIASES
+     Maps old token names to new design system
+     ========================================================================== */
+
+  /* Background Aliases */
+  --bg-void: var(--bg-base);
+  --bg-primary: var(--bg-base);
+  --bg-secondary: var(--bg-elevated);
+  --bg-tertiary: var(--bg-surface);
+  /* --bg-surface already defined above */
+  /* --bg-elevated already defined above */
+  /* --bg-hover already defined above */
+
+  /* Accent Aliases (maps old accent-* to new primary-*) */
+  --accent-primary: var(--primary);
+  --accent-secondary: var(--primary-bright);
+  --accent-glow: var(--primary-glow);
+  --accent-glow-strong: rgba(168, 85, 247, 0.4);
+  --accent-muted: rgba(168, 85, 247, 0.5);
+  --accent-hover: var(--primary-bright);
+  --accent-active: #8b5cf6;
+  --accent-subtle: var(--primary-dim);
+  --accent-button: #7c3aed;
+  --accent-button-hover: #8b5cf6;
+  --accent-primary-hover: var(--primary-bright);
+  --accent-primary-transparent: var(--primary-dim);
+
+  /* Text Aliases */
+  --text-disabled: var(--text-muted);
+  --text-inverse: var(--bg-base);
+  --text-accent: var(--primary);
+
+  /* Border Aliases */
+  --border-subtle: var(--border);
+  --border-default: var(--border-light);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-focus: var(--primary);
+  --border-glow: var(--primary-glow);
+
+  /* Status Colors (maps to semantic colors) */
+  --status-success: var(--green);
+  --status-success-glow: rgba(16, 185, 129, 0.25);
+  --status-success-bg: var(--green-dim);
+
+  --status-warning: var(--amber);
+  --status-warning-glow: rgba(245, 158, 11, 0.25);
+  --status-warning-bg: var(--amber-dim);
+
+  --status-danger: var(--red);
+  --status-danger-glow: rgba(239, 68, 68, 0.25);
+  --status-danger-bg: var(--red-dim);
+  --status-error: var(--red);
+
+  --status-info: var(--blue);
+  --status-info-glow: rgba(59, 130, 246, 0.25);
+  --status-info-bg: var(--blue-dim);
+
+  --status-running: var(--primary);
+  --status-running-glow: var(--primary-glow);
+  --status-running-bg: var(--primary-dim);
+
+  /* Weight Colors */
+  --weight-trivial: var(--text-muted);
+  --weight-small: var(--green);
+  --weight-medium: var(--blue);
+  --weight-large: var(--amber);
+  --weight-greenfield: var(--primary);
 
   /* ==========================================================================
      TYPOGRAPHY
@@ -152,15 +187,20 @@
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
 
-  /* Font Sizes */
-  --text-2xs: 0.625rem;    /* 10px */
-  --text-xs: 0.6875rem;    /* 11px */
-  --text-sm: 0.8125rem;    /* 13px */
-  --text-base: 0.9375rem;  /* 15px */
-  --text-lg: 1.125rem;     /* 18px */
-  --text-xl: 1.5rem;       /* 24px */
-  --text-2xl: 2rem;        /* 32px */
-  --text-3xl: 2.5rem;      /* 40px */
+  /* Font Sizes - From Initiative Vision */
+  --text-xs: 0.5rem;     /* 8px */
+  --text-sm: 0.5625rem;  /* 9px */
+  --text-base: 0.625rem; /* 10px */
+  --text-md: 0.6875rem;  /* 11px */
+  --text-lg: 0.75rem;    /* 12px */
+  --text-xl: 0.8125rem;  /* 13px */
+  --text-2xl: 0.875rem;  /* 14px */
+  --text-3xl: 1rem;      /* 16px */
+  --text-4xl: 1.125rem;  /* 18px */
+  --text-5xl: 1.75rem;   /* 28px */
+
+  /* Legacy Font Size Aliases */
+  --text-2xs: var(--text-xs);
 
   /* Font Weights */
   --font-regular: 400;
@@ -225,19 +265,11 @@
   --radius-full: 9999px;
 
   /* Sidebar */
-  --sidebar-width-collapsed: 60px;
+  --sidebar-width-collapsed: 56px;
   --sidebar-width-expanded: 260px;
 
   /* Header */
-  --header-height: 56px;
-
-  /* Breakpoints (as values, used with @media queries directly) */
-  /* Note: CSS custom properties can't be used in @media queries,
-     so breakpoint values are documented here for reference:
-     - Mobile: 0 - 767px
-     - Tablet: 768px - 1023px
-     - Desktop: 1024px+
-  */
+  --header-height: 48px;
 
   /* ==========================================================================
      EFFECTS
@@ -252,8 +284,8 @@
   --shadow-2xl: 0 24px 48px rgba(0, 0, 0, 0.7);
 
   /* Glow Effects */
-  --shadow-glow-sm: 0 0 10px var(--accent-glow);
-  --shadow-glow: 0 0 20px var(--accent-glow);
+  --shadow-glow-sm: 0 0 10px var(--primary-glow);
+  --shadow-glow: 0 0 20px var(--primary-glow);
   --shadow-glow-lg: 0 0 40px var(--accent-glow-strong);
   --shadow-glow-success: 0 0 20px var(--status-success-glow);
   --shadow-glow-warning: 0 0 20px var(--status-warning-glow);
@@ -302,75 +334,58 @@
    ============================================================================= */
 
 :root[data-theme="light"] {
-  /* Background Colors - Clean Light Theme */
-  --bg-void: #f8fafc;
-  --bg-primary: #ffffff;
-  --bg-secondary: #f1f5f9;
-  --bg-tertiary: #e2e8f0;
-  --bg-surface: #cbd5e1;
-  --bg-elevated: #94a3b8;
+  /* Background Colors - Light Theme */
+  --bg-base: #f8fafc;
+  --bg-elevated: #ffffff;
+  --bg-surface: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-hover: #e2e8f0;
 
-  /* Electric Violet Accent - Adjusted for light backgrounds */
-  --accent-primary: #7c3aed;
-  --accent-secondary: #6d28d9;
-  --accent-glow: rgba(124, 58, 237, 0.15);
-  --accent-glow-strong: rgba(124, 58, 237, 0.25);
-  --accent-muted: rgba(124, 58, 237, 0.6);
-  --accent-hover: #6d28d9;
-  --accent-active: #5b21b6;
-  --accent-subtle: rgba(124, 58, 237, 0.08);
-  --accent-button: #7c3aed;
-  --accent-button-hover: #6d28d9;
+  /* Border Colors - Light Theme */
+  --border: rgba(0, 0, 0, 0.06);
+  --border-light: rgba(0, 0, 0, 0.1);
 
-  /* React-specific aliases */
-  --bg-hover: var(--bg-tertiary);
-  --accent-primary-hover: var(--accent-hover);
-  --accent-primary-transparent: var(--accent-subtle);
-
-  /* Status Colors - Darker for light mode contrast */
-  --status-success: #059669;
-  --status-success-glow: rgba(5, 150, 105, 0.2);
-  --status-success-bg: rgba(5, 150, 105, 0.1);
-
-  --status-warning: #d97706;
-  --status-warning-glow: rgba(217, 119, 6, 0.2);
-  --status-warning-bg: rgba(217, 119, 6, 0.1);
-
-  --status-danger: #dc2626;
-  --status-danger-glow: rgba(220, 38, 38, 0.2);
-  --status-danger-bg: rgba(220, 38, 38, 0.1);
-
-  --status-info: #2563eb;
-  --status-info-glow: rgba(37, 99, 235, 0.2);
-  --status-info-bg: rgba(37, 99, 235, 0.1);
-
-  --status-running: #7c3aed;
-  --status-running-glow: rgba(124, 58, 237, 0.2);
-  --status-running-bg: rgba(124, 58, 237, 0.1);
-
-  --status-error: var(--status-danger);
-
-  /* Weight Colors - Adjusted for light backgrounds */
-  --weight-trivial: #64748b;
-  --weight-small: #059669;
-  --weight-medium: #2563eb;
-  --weight-large: #d97706;
-  --weight-greenfield: #7c3aed;
-
-  /* Text Colors - Dark text for light backgrounds */
+  /* Text Colors - Light Theme */
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #64748b;
-  --text-disabled: #94a3b8;
-  --text-inverse: #f8fafc;
-  --text-accent: var(--accent-primary);
 
-  /* Border Colors - Darker for light mode */
-  --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-default: rgba(0, 0, 0, 0.1);
+  /* Primary Accent - Darker for light backgrounds */
+  --primary: #7c3aed;
+  --primary-bright: #6d28d9;
+  --primary-dim: rgba(124, 58, 237, 0.08);
+  --primary-glow: rgba(124, 58, 237, 0.15);
+
+  /* Semantic Colors - Adjusted for light backgrounds */
+  --cyan: #0891b2;
+  --cyan-dim: rgba(8, 145, 178, 0.08);
+  --orange: #ea580c;
+  --orange-dim: rgba(234, 88, 12, 0.08);
+  --green: #059669;
+  --green-dim: rgba(5, 150, 105, 0.08);
+  --red: #dc2626;
+  --red-dim: rgba(220, 38, 38, 0.08);
+  --amber: #d97706;
+  --amber-dim: rgba(217, 119, 6, 0.08);
+  --blue: #2563eb;
+  --blue-dim: rgba(37, 99, 235, 0.08);
+
+  /* Legacy compatibility updates for light mode */
+  --accent-glow-strong: rgba(124, 58, 237, 0.25);
+  --accent-muted: rgba(124, 58, 237, 0.6);
+  --accent-active: #5b21b6;
+  --accent-button: #7c3aed;
+  --accent-button-hover: #6d28d9;
+
+  --text-inverse: #f8fafc;
+
   --border-strong: rgba(0, 0, 0, 0.15);
-  --border-focus: var(--accent-primary);
-  --border-glow: var(--accent-glow);
+
+  /* Status glow adjustments */
+  --status-success-glow: rgba(5, 150, 105, 0.2);
+  --status-warning-glow: rgba(217, 119, 6, 0.2);
+  --status-danger-glow: rgba(220, 38, 38, 0.2);
+  --status-info-glow: rgba(37, 99, 235, 0.2);
 
   /* Shadows - Softer for light mode */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -379,12 +394,4 @@
   --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.12);
   --shadow-2xl: 0 24px 48px rgba(0, 0, 0, 0.15);
-
-  /* Glow Effects - Adjusted for light mode */
-  --shadow-glow-sm: 0 0 10px var(--accent-glow);
-  --shadow-glow: 0 0 20px var(--accent-glow);
-  --shadow-glow-lg: 0 0 40px var(--accent-glow-strong);
-  --shadow-glow-success: 0 0 20px var(--status-success-glow);
-  --shadow-glow-warning: 0 0 20px var(--status-warning-glow);
-  --shadow-glow-danger: 0 0 20px var(--status-danger-glow);
 }

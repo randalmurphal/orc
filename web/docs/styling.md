@@ -1,6 +1,6 @@
 # Styling Architecture
 
-The frontend uses a comprehensive design token system with "Mission Control" theme.
+The frontend uses a design token system based on the `example_ui/board.html` reference design.
 
 ## File Structure
 
@@ -18,22 +18,35 @@ The frontend uses a comprehensive design token system with "Mission Control" the
 
 ## Color System
 
+### Core Tokens (New Design System)
+
 | Category | Variables | Description |
 |----------|-----------|-------------|
-| Backgrounds | `--bg-void` through `--bg-elevated` | 6-level depth scale (#030508 to #2a3a50) |
-| Accent | `--accent-primary`, `-secondary`, `-glow`, `-hover` | Electric violet (#a78bfa) + variations |
-| Status | `--status-success/warning/danger/info/running` | Semantic colors with `-glow` and `-bg` variants |
-| Weight | `--weight-trivial/small/medium/large/greenfield` | Task weight badge colors |
-| Text | `--text-primary/secondary/muted/disabled/inverse/accent` | Text hierarchy |
-| Border | `--border-subtle/default/strong/focus/glow` | Border colors |
+| Backgrounds | `--bg-base`, `--bg-elevated`, `--bg-surface`, `--bg-card`, `--bg-hover` | 5-level depth scale (#050508 to #1c1c26) |
+| Primary | `--primary`, `--primary-bright`, `--primary-dim`, `--primary-glow` | Purple accent (#a855f7) + variations |
+| Semantic | `--cyan`, `--orange`, `--green`, `--red`, `--amber`, `--blue` | Status colors with `-dim` variants |
+| Text | `--text-primary`, `--text-secondary`, `--text-muted` | Text hierarchy |
+| Border | `--border`, `--border-light` | Border colors with opacity |
 
-**React-specific aliases:**
-```css
---bg-hover: var(--bg-surface);
---accent-primary-hover: var(--accent-hover);
---accent-primary-transparent: var(--accent-subtle);
---status-error: var(--status-danger);
-```
+### Legacy Compatibility Aliases
+
+For backward compatibility, old token names map to new values:
+
+| Old Token | Maps To |
+|-----------|---------|
+| `--bg-void`, `--bg-primary` | `--bg-base` |
+| `--bg-secondary` | `--bg-elevated` |
+| `--bg-tertiary` | `--bg-surface` |
+| `--accent-primary` | `--primary` |
+| `--accent-secondary` | `--primary-bright` |
+| `--accent-glow` | `--primary-glow` |
+| `--status-success` | `--green` |
+| `--status-warning` | `--amber` |
+| `--status-danger`, `--status-error` | `--red` |
+| `--status-info` | `--blue` |
+| `--weight-*` | Semantic colors (`--green`, `--blue`, `--amber`, `--primary`) |
+
+**Note:** Prefer new token names for new code. Legacy aliases exist for existing component compatibility.
 
 ## Typography
 
@@ -68,17 +81,15 @@ Font faces: Inter (400/500/600/700) and JetBrains Mono (400/500/600) via @fontso
 
 ## WCAG Compliance
 
-All colors meet WCAG AA contrast requirements (4.5:1 on dark backgrounds):
-- Text colors lightened for contrast on `--bg-secondary`
-- Status colors adjusted for accessibility
-- Accent color uses #a78bfa (not darker purple) for readability
+Colors are designed for accessibility on dark backgrounds. The design system uses opacity-based borders and dim variants for consistent visual hierarchy.
 
 ## Usage Example
 
 ```css
+/* New design system tokens (preferred) */
 .task-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
   transition: background var(--duration-fast) var(--ease-out);
@@ -86,5 +97,10 @@ All colors meet WCAG AA contrast requirements (4.5:1 on dark backgrounds):
 
 .task-card:hover {
   background: var(--bg-hover);
+}
+
+.status-badge {
+  color: var(--green);
+  background: var(--green-dim);
 }
 ```
