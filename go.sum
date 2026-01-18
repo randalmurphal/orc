@@ -44,8 +44,8 @@ github.com/randalmurphal/devflow v1.1.0 h1:BZxLd+vgBYxV6VnkQsDrIlLEarSSvs/M3QOXO
 github.com/randalmurphal/devflow v1.1.0/go.mod h1:wPG37RHmrTIdJHnaQpMdF6I+tvvyhDsd0GYuXLeG13Y=
 github.com/randalmurphal/flowgraph v1.1.0 h1:QevrUhT9OdEfuvf/y7/7aNuyMvoyvf5FHCoza33NGC4=
 github.com/randalmurphal/flowgraph v1.1.0/go.mod h1:uX/Sbv4YNC0CVxPgAJtZNpYjPb8zrmBNqMHuWLlqg5Y=
-github.com/randalmurphal/llmkit v1.2.1-0.20260115030546-ccc2f4a497c9 h1:s3V05t4Um5hGBykzcCSMefyoFRyHGdcyvy3IoWCO2jY=
-github.com/randalmurphal/llmkit v1.2.1-0.20260115030546-ccc2f4a497c9/go.mod h1:OGjBosxKZS3/sQaf9Angikp0n5qE3wXn5kaj8dzsbzY=
+github.com/randalmurphal/llmkit v1.2.1-0.20260118181227-c66a1f39db6b h1:HT2gGYvIuLDS/MdjBv7feevvbp5IxJ9achE4FJuOZTU=
+github.com/randalmurphal/llmkit v1.2.1-0.20260118181227-c66a1f39db6b/go.mod h1:OGjBosxKZS3/sQaf9Angikp0n5qE3wXn5kaj8dzsbzY=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=

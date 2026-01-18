@@ -38,7 +38,8 @@ func (v ValidationDecision) String() string {
 }
 
 // HaikuValidationModel is the default model for validation calls.
-const HaikuValidationModel = "claude-haiku-4-5-20251101"
+// Use the alias "haiku" for resilience against model name changes.
+const HaikuValidationModel = "haiku"
 
 // ValidateIterationProgress uses Haiku to assess whether an iteration is on track.
 // It evaluates the iteration output against the spec's success criteria.
