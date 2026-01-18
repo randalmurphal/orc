@@ -132,3 +132,49 @@ toast.info('Processing...');
 ```
 
 **Durations:** success/warning/info (5s), error (8s).
+
+## TaskCard
+
+Compact card component for queue display in the Board view.
+
+```tsx
+import { TaskCard } from '@/components/board';
+
+<TaskCard
+  task={task}
+  onClick={() => navigate(`/tasks/${task.id}`)}
+  onContextMenu={(e) => showContextMenu(e, task)}
+  isSelected={selectedId === task.id}
+  showInitiative={true}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `task` | `Task` | required | Task data object |
+| `onClick` | `() => void` | - | Click handler (navigation) |
+| `onContextMenu` | `(e: MouseEvent) => void` | - | Right-click handler |
+| `isSelected` | `boolean` | `false` | Show selected state |
+| `showInitiative` | `boolean` | `false` | Display initiative badge |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Visual Elements:**
+- Category icon (sparkles, bug, recycle, tools, file-text, beaker)
+- Task ID badge (monospace, muted)
+- Title (2-line clamp with ellipsis)
+- Priority dot (critical: red, high: orange, normal: blue, low: muted)
+- Blocked warning icon (pulsing when blocked)
+- Running indicator (animated dot when task is running)
+
+**States:**
+- Default: Surface background, standard border
+- Hover: `--bg-hover` background, `--border-light` border
+- Selected: `--primary` border with 1px shadow
+- Running: Primary border tint, subtle gradient background
+- Blocked: Red border tint, warning icon
+
+**Accessibility:**
+- `role="button"` with descriptive `aria-label`
+- Keyboard navigation: Enter/Space triggers onClick
+- Focus visible outline for keyboard users
+- Minimum 44px touch target
