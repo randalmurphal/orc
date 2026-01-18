@@ -9,16 +9,38 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 | **GlobalDB** | `~/.orc/orc.db` | Cross-project: projects, cost_log, templates |
 | **ProjectDB** | `.orc/orc.db` | Per-project: tasks, phases, transcripts, FTS |
 
+## File Structure
+
+| File | Contents |
+|------|----------|
+| `project.go` | Core: TxRunner, TxOps, ProjectDB, OpenProject, RunInTx, Detection |
+| `task.go` | Task CRUD, ListOpts, TaskFull, dependencies, scanners, Tx functions |
+| `initiative.go` | Initiative, decisions, task refs, dependencies, batch loading |
+| `phase.go` | Phase CRUD, Tx variants |
+| `transcript.go` | Transcript CRUD, batch insert, FTS search |
+| `plan.go` | Plan CRUD |
+| `spec.go` | Spec CRUD, FTS search |
+| `gate_decision.go` | GateDecision CRUD, Tx variants |
+| `attachment.go` | Attachment CRUD |
+| `sync_state.go` | SyncState for P2P sync |
+| `branch.go` | Branch registry CRUD |
+| `global.go` | GlobalDB, cost tracking, budgets, templates |
+| `subtask.go` | Subtask queue operations |
+| `review_comment.go` | Review comment CRUD |
+| `task_comment.go` | Task comment CRUD |
+| `team.go` | Team members, claims, activity |
+| `knowledge.go` | Knowledge queue operations |
+
 ## Key Types
 
-| Type | Purpose |
-|------|---------|
-| `DB` | Core wrapper with driver abstraction |
-| `GlobalDB` | Global operations (extends DB) |
-| `ProjectDB` | Project operations with FTS (extends DB) |
-| `TxRunner` | Transaction execution interface |
-| `TxOps` | Transaction context (stores context for cancellation) |
-| `driver.Driver` | SQLite/PostgreSQL backend interface |
+| Type | File | Purpose |
+|------|------|---------|
+| `DB` | `db.go` | Core wrapper with driver abstraction |
+| `GlobalDB` | `global.go` | Global operations (extends DB) |
+| `ProjectDB` | `project.go` | Project operations with FTS (extends DB) |
+| `TxRunner` | `project.go` | Transaction execution interface |
+| `TxOps` | `project.go` | Transaction context (stores context for cancellation) |
+| `driver.Driver` | `driver/` | SQLite/PostgreSQL backend interface |
 
 ## Usage
 
