@@ -25,14 +25,22 @@ export interface PipelineProps extends HTMLAttributes<HTMLDivElement> {
 	size?: 'compact' | 'default';
 }
 
+/** Internal representation of a phase with computed status. */
 interface PhaseState {
 	name: string;
 	status: PhaseStatus;
 	progress?: number;
 }
 
+/** Return type for computePhaseStates including computed count. */
+interface PhaseStatesResult {
+	phases: PhaseState[];
+	completedCount: number;
+}
+
 /**
  * Computes the status of each phase based on current, completed, and failed phases.
+ * Returns both phase states and completed count in a single pass.
  */
 function computePhaseStates(
 	phases: string[],
@@ -40,10 +48,11 @@ function computePhaseStates(
 	completedPhases: string[],
 	failedPhase?: string,
 	progress?: number
-): PhaseState[] {
+): PhaseStatesResult {
 	const completedSet = new Set(completedPhases.map((p) => p.toLowerCase()));
+	let completedCount = 0;
 
-	return phases.map((name) => {
+	const phaseStates = phases.map((name) => {
 		const nameLower = name.toLowerCase();
 
 		if (failedPhase && failedPhase.toLowerCase() === nameLower) {
@@ -51,6 +60,7 @@ function computePhaseStates(
 		}
 
 		if (completedSet.has(nameLower)) {
+			completedCount++;
 			return { name, status: 'completed' as const };
 		}
 
@@ -60,14 +70,15 @@ function computePhaseStates(
 
 		return { name, status: 'pending' as const };
 	});
+
+	return { phases: phaseStates, completedCount };
 }
 
 /**
  * Generates the aria-valuetext for accessibility.
  */
-function getAriaValueText(phaseStates: PhaseState[]): string {
+function getAriaValueText(phaseStates: PhaseState[], completedCount: number): string {
 	const activePhase = phaseStates.find((p) => p.status === 'active');
-	const completedCount = phaseStates.filter((p) => p.status === 'completed').length;
 	const failedPhase = phaseStates.find((p) => p.status === 'failed');
 
 	if (failedPhase) {
@@ -134,13 +145,15 @@ export const Pipeline = forwardRef<HTMLDivElement, PipelineProps>(
 		},
 		ref
 	) => {
-		const phaseStates = useMemo(
+		const { phases: phaseStates, completedCount } = useMemo(
 			() => computePhaseStates(phases, currentPhase, completedPhases, failedPhase, progress),
 			[phases, currentPhase, completedPhases, failedPhase, progress]
 		);
 
-		const completedCount = phaseStates.filter((p) => p.status === 'completed').length;
-		const ariaValueText = getAriaValueText(phaseStates);
+		const ariaValueText = useMemo(
+			() => getAriaValueText(phaseStates, completedCount),
+			[phaseStates, completedCount]
+		);
 
 		const classes = ['pipeline', size === 'compact' && 'pipeline--compact', className]
 			.filter(Boolean)
