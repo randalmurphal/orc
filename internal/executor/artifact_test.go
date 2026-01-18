@@ -300,11 +300,11 @@ Build a feature.
 - Works correctly`,
 		},
 		{
-			name:        "saves raw output when no artifact tags",
-			phaseID:     "spec",
-			output:      "Raw spec content without artifact tags",
-			wantSaved:   true,
-			wantContent: "Raw spec content without artifact tags",
+			name:      "rejects raw output without artifact tags or structure",
+			phaseID:   "spec",
+			output:    "Raw spec content without artifact tags",
+			wantSaved: false,
+			// No longer saves raw output - requires artifact tags or structured markers
 		},
 		{
 			name:      "skips non-spec phase",
@@ -457,11 +457,21 @@ func TestSaveSpecToDatabase_ArtifactTagsPrecedence(t *testing.T) {
 	// Create task first (required for foreign key constraint)
 	createTestTask(t, backend, taskID)
 
+	// Expected spec content - must have spec sections to pass validation
+	expectedSpec := `# Specification
+
+## Intent
+Implement the user authentication feature.
+
+## Success Criteria
+- Users can log in with email/password
+- Sessions are properly managed`
+
 	// Output with both artifact tags and other content
 	output := `Some preamble that should be ignored.
 
 <artifact>
-The real spec content
+` + expectedSpec + `
 </artifact>
 
 And some trailing text.`
@@ -479,8 +489,71 @@ And some trailing text.`
 	if err != nil {
 		t.Fatalf("LoadSpec() error = %v", err)
 	}
-	if specContent != "The real spec content" {
-		t.Errorf("spec content = %q, want 'The real spec content'", specContent)
+	if specContent != expectedSpec {
+		t.Errorf("spec content = %q, want %q", specContent, expectedSpec)
+	}
+}
+
+func TestIsValidSpecContent(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{
+			name:    "valid spec with intent section",
+			content: "# Specification\n\n## Intent\nImplement user authentication with proper session management.",
+			want:    true,
+		},
+		{
+			name:    "valid spec with success criteria",
+			content: "# Spec\n\n## Success Criteria\n- Users can log in\n- Sessions persist across requests",
+			want:    true,
+		},
+		{
+			name:    "valid spec with testing section",
+			content: "# Technical Spec\n\n## Testing\n- Unit tests for auth module\n- Integration tests for login flow",
+			want:    true,
+		},
+		{
+			name:    "rejects empty content",
+			content: "",
+			want:    false,
+		},
+		{
+			name:    "rejects very short content",
+			content: "Short",
+			want:    false,
+		},
+		{
+			name:    "rejects phase_complete marker only",
+			content: "<phase_complete>true</phase_complete>",
+			want:    false,
+		},
+		{
+			name:    "rejects garbage with phase_complete",
+			content: "The working tree is clean - the spec was created.\n<phase_complete>true</phase_complete>",
+			want:    false,
+		},
+		{
+			name:    "rejects common garbage pattern",
+			content: "The spec was created as output in this conversation rather than a file.\n**Commit**: N/A",
+			want:    false,
+		},
+		{
+			name:    "accepts long content without sections",
+			content: "This is a very detailed specification that describes the implementation requirements in great detail. It covers all the necessary aspects of the feature including edge cases, error handling, and performance considerations. The implementation should follow best practices.",
+			want:    true, // 200+ chars without noise
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isValidSpecContent(tt.content)
+			if got != tt.want {
+				t.Errorf("isValidSpecContent() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 

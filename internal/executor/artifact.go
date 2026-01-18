@@ -4,6 +4,7 @@ package executor
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -64,15 +65,17 @@ func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string)
 		return false, nil
 	}
 
-	// Extract the spec content from the output
+	// Extract the spec content from the output using artifact tags or structured markers
 	specContent := extractArtifact(output)
 	if specContent == "" {
-		// If no artifact tags, try using the raw output (trimmed)
-		// Some spec outputs may not use artifact tags
-		specContent = output
+		// No structured spec content found - don't save raw output as it may contain
+		// completion markers or other noise that isn't a valid spec
+		return false, nil
 	}
 
-	if specContent == "" {
+	// Validate that the spec content looks like a valid spec
+	// A valid spec should have meaningful content and not just completion markers
+	if !isValidSpecContent(specContent) {
 		return false, nil
 	}
 
@@ -82,4 +85,67 @@ func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string)
 	}
 
 	return true, nil
+}
+
+// isValidSpecContent validates that spec content is meaningful and not just noise.
+// A valid spec should:
+// - Have a minimum length (50 chars)
+// - Not consist primarily of completion markers
+// - Ideally have at least one spec-like section (Intent, Success Criteria, etc.)
+func isValidSpecContent(content string) bool {
+	trimmed := strings.TrimSpace(content)
+
+	// Minimum length check - a real spec should have at least some content
+	if len(trimmed) < 50 {
+		return false
+	}
+
+	lowerContent := strings.ToLower(trimmed)
+
+	// Reject content that is primarily completion markers or noise
+	noisePatterns := []string{
+		"<phase_complete>",
+		"<phase_blocked>",
+		"the working tree is clean",
+		"the spec was created as output in this conversation",
+		"spec is in conversation output",
+		"n/a (spec is in conversation",
+	}
+
+	for _, noise := range noisePatterns {
+		if strings.Contains(lowerContent, noise) {
+			// If noise pattern is found, check if there's meaningful content before it
+			noiseIdx := strings.Index(lowerContent, noise)
+			beforeNoise := strings.TrimSpace(trimmed[:noiseIdx])
+			// Need at least 50 meaningful chars before the noise
+			if len(beforeNoise) < 50 {
+				return false
+			}
+		}
+	}
+
+	// Check for at least one spec-like section header (case insensitive)
+	specSections := []string{
+		"intent",
+		"success criteria",
+		"testing",
+		"scope",
+		"requirements",
+		"approach",
+		"technical",
+		"acceptance",
+		"specification",
+		"overview",
+		"background",
+	}
+
+	for _, section := range specSections {
+		if strings.Contains(lowerContent, section) {
+			return true
+		}
+	}
+
+	// If no recognized spec sections, require longer content (200 chars)
+	// to avoid accepting random garbage
+	return len(trimmed) >= 200
 }

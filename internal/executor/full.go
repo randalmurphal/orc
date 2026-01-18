@@ -376,6 +376,21 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 			e.orcConfig.ShouldValidateProgress(string(t.Weight)) {
 			decision, reason, valErr := ValidateIterationProgress(ctx, e.haikuClient, specContent, turnResult.Content)
 			if valErr != nil {
+				if e.orcConfig.Validation.FailOnAPIError {
+					// Fail properly - task is resumable from this phase
+					e.logger.Error("progress validation API error - failing task",
+						"task", t.ID,
+						"phase", p.ID,
+						"error", valErr,
+						"hint", "Task can be resumed with 'orc resume'",
+					)
+					result.Status = plan.PhaseFailed
+					result.Error = fmt.Errorf("progress validation API error (resumable): %w", valErr)
+					result.Output = lastResponse
+					result.Duration = time.Since(start)
+					return result, result.Error
+				}
+				// Fail open (legacy behavior for fast profile)
 				e.logger.Warn("progress validation error (continuing)",
 					"task", t.ID,
 					"phase", p.ID,
@@ -462,19 +477,12 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 			result.Status = plan.PhaseCompleted
 			result.Output = turnResult.Content
 
-			// Save artifact on success
+			// Save artifact on success (spec is saved centrally in task_execution.go with fail-fast logic)
 			if artifactPath, err := SavePhaseArtifact(t.ID, p.ID, result.Output); err != nil {
 				e.logger.Warn("failed to save phase artifact", "error", err)
 			} else if artifactPath != "" {
 				result.Artifacts = append(result.Artifacts, artifactPath)
 				e.logger.Info("saved phase artifact", "path", artifactPath)
-			}
-
-			// Save spec content to database for spec phase
-			if saved, err := SaveSpecToDatabase(e.backend, t.ID, p.ID, result.Output); err != nil {
-				e.logger.Warn("failed to save spec to database", "error", err)
-			} else if saved {
-				e.logger.Info("saved spec to database", "task", t.ID)
 			}
 
 			// Create git checkpoint on completion

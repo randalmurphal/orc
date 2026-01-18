@@ -67,13 +67,20 @@ For tasks that warrant it, Haiku (a separate, faster model) evaluates:
 2. **Fast and cheap** - Quick validation without blocking execution
 3. **Focused** - Only evaluates alignment, not implementation quality
 
-### Fail-Open Design
+### API Error Handling
 
-Validation errors (API failures, timeouts) don't block execution:
-- Backpressure failure → log warning, allow completion (tests didn't run, assume OK)
-- Haiku API error → log warning, continue iteration
+Controlled by `validation.fail_on_api_error` config:
 
-This prevents validation infrastructure from becoming a reliability bottleneck.
+| Profile | fail_on_api_error | Behavior on API Error |
+|---------|-------------------|----------------------|
+| fast | false | Fail open - continue without validation |
+| auto | true | Fail closed - task fails (resumable) |
+| safe | true | Fail closed - task fails (resumable) |
+| strict | true | Fail closed - task fails (resumable) |
+
+**Fail closed (default)**: API errors (rate limits, network) fail the task with a resumable error. Run `orc resume TASK-XXX` to retry after the issue resolves.
+
+**Fail open (fast profile)**: API errors are logged as warnings, execution continues without validation. Trades quality assurance for speed.
 
 ## Configuration
 
@@ -89,6 +96,7 @@ validation:
   enforce_build: false
   validate_specs: true
   validate_progress: false  # Expensive, off by default
+  fail_on_api_error: true   # Fail properly on API errors (resumable)
 ```
 
 ### Profile Presets
@@ -104,8 +112,7 @@ validation:
 
 1. **Parse specs structurally** - Haiku reads the spec naturally
 2. **Maintain validation history** - Each check is independent
-3. **Block on all failures** - Fails open when possible
-4. **Replace the test phase** - Backpressure is quick validation, test phase is thorough
+3. **Replace the test phase** - Backpressure is quick validation, test phase is thorough
 
 ## References
 

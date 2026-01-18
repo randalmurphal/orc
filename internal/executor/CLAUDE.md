@@ -196,7 +196,9 @@ Objective quality checks run after agent claims completion. See `docs/research/E
 
 **Flow:** Agent outputs `<phase_complete>` → Backpressure runs → If fail, inject context and continue iteration.
 
-**Fail-open:** API errors, timeouts return success (don't block execution).
+**API Error Handling:** Controlled by `config.Validation.FailOnAPIError`:
+- `true` (default for auto/safe/strict): Fail task properly (resumable via `orc resume`)
+- `false` (fast profile): Fail open, continue execution without validation
 
 ## Transcript Persistence
 

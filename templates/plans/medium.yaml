@@ -64,7 +64,8 @@ phases:
 
       ## Output Format
 
-      Wrap your spec in artifact tags:
+      **CRITICAL**: You MUST output your spec in `<artifact>` tags - this is how specs are captured.
+      The artifact is MANDATORY even if no file changes were made. Worktree state is irrelevant.
 
       <artifact>
       # Specification: {{TASK_TITLE}}
@@ -73,12 +74,16 @@ phases:
       [1-2 sentences]
 
       ## Success Criteria
-      - [ ] [Criterion 1]
-      - [ ] [Criterion 2]
+      | ID | Criterion | Verification | Expected |
+      |----|-----------|--------------|----------|
+      | SC-1 | [Criterion] | [Command/test] | [Result] |
 
       ## Testing Requirements
-      - [ ] [Test 1]
-      - [ ] [Test 2]
+      | Type | Description | Command |
+      |------|-------------|---------|
+      | Unit | [Tests] | [Command] |
+      | Integration | [Tests] | [Command] |
+      | E2E | [Tests] | [Command or "N/A"] |
 
       ## Scope
       ### In Scope
@@ -96,7 +101,7 @@ phases:
       [Include appropriate section based on category]
       </artifact>
 
-      After completing the spec, commit:
+      After outputting the artifact, commit any file changes (if any):
       ```bash
       git add -A
       git commit -m "[orc] {{TASK_ID}}: spec - completed"
@@ -104,11 +109,11 @@ phases:
 
       Then output:
       ```
-      **Commit**: [SHA]
+      **Commit**: [SHA or "N/A - no file changes"]
       <phase_complete>true</phase_complete>
       ```
 
-      If blocked (requirements unclear):
+      If blocked (requirements genuinely unclear):
       ```
       <phase_blocked>
       reason: [what's unclear]

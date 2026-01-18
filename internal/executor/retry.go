@@ -213,9 +213,10 @@ func BuildRetryContextForFreshSession(opts RetryOptions) string {
 		sb.WriteString(fmt.Sprintf("**Reason:** %s\n\n", opts.FailureReason))
 	}
 
-	// Failure output (truncated)
+	// Failure output (generous limit to avoid cutting off important review findings)
+	// 250k chars ≈ 60k tokens - enough for comprehensive review output
 	if opts.FailureOutput != "" {
-		output := truncateOutput(opts.FailureOutput, 1500)
+		output := truncateOutput(opts.FailureOutput, 250000)
 		sb.WriteString("### Failure Output\n\n")
 		sb.WriteString("```\n")
 		sb.WriteString(output)

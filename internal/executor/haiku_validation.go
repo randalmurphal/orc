@@ -48,8 +48,9 @@ const HaikuValidationModel = "claude-haiku-4-5-20251101"
 //   - ValidationRetry: The approach has diverged, needs redirection
 //   - ValidationStop: Fundamentally blocked, cannot proceed
 //
-// On error (API failure, timeout), fails open by returning ValidationContinue.
-// This ensures validation failures don't block execution.
+// On error (API failure, timeout), returns the error to let caller decide:
+//   - If config.Validation.FailOnAPIError is true: Fail the task (resumable)
+//   - If config.Validation.FailOnAPIError is false: Fail open, continue execution
 func ValidateIterationProgress(
 	ctx context.Context,
 	client claude.Client,
@@ -112,16 +113,16 @@ The spec requires a third-party service that doesn't exist."`, specContent, trun
 	})
 
 	if err != nil {
-		// Fail open - don't block execution on validation errors
-		slog.Warn("haiku validation failed, continuing",
+		// Return the error - let caller decide whether to fail open or closed
+		slog.Warn("haiku validation API error",
 			"error", err,
 		)
-		return ValidationContinue, "", nil
+		return ValidationContinue, "", fmt.Errorf("validation API error: %w", err)
 	}
 
-	// Fail open if response is nil (shouldn't happen, but be defensive)
+	// Return error if response is nil (shouldn't happen, but be defensive)
 	if resp == nil {
-		return ValidationContinue, "", nil
+		return ValidationContinue, "", fmt.Errorf("validation API returned nil response")
 	}
 
 	// Parse the response
@@ -136,7 +137,7 @@ The spec requires a third-party service that doesn't exist."`, specContent, trun
 // Returns:
 //   - ready: true if the spec is sufficient for execution
 //   - suggestions: list of improvements if not ready
-//   - error: only on actual failures (API errors return ready=true, fail open)
+//   - error: on API failures, returned to let caller decide based on config.Validation.FailOnAPIError
 func ValidateTaskReadiness(
 	ctx context.Context,
 	client claude.Client,
@@ -195,16 +196,16 @@ Example response for bad spec:
 	})
 
 	if err != nil {
-		// Fail open - don't block execution on validation errors
-		slog.Warn("haiku spec validation failed, allowing execution",
+		// Return the error - let caller decide whether to fail open or closed
+		slog.Warn("haiku spec validation API error",
 			"error", err,
 		)
-		return true, nil, nil
+		return true, nil, fmt.Errorf("spec validation API error: %w", err)
 	}
 
-	// Fail open if response is nil
+	// Return error if response is nil (shouldn't happen, but be defensive)
 	if resp == nil {
-		return true, nil, nil
+		return true, nil, fmt.Errorf("spec validation API returned nil response")
 	}
 
 	return parseReadinessResponse(resp.Content)
