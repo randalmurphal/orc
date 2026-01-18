@@ -65,3 +65,26 @@ export {
 	type DateFormat,
 	type Preferences,
 } from './preferencesStore';
+
+// Session store
+export {
+	useSessionStore,
+	useSessionId,
+	useStartTime,
+	useTotalTokens,
+	useTotalCost,
+	useIsPaused,
+	useActiveTaskCount,
+	useFormattedDuration,
+	useFormattedCost,
+	useFormattedTokens,
+	useSessionMetrics,
+	formatDuration,
+	formatCost,
+	formatTokens,
+	STORAGE_KEYS as SESSION_STORAGE_KEYS,
+	type SessionState,
+	type SessionActions,
+	type SessionStore,
+	type SessionMetrics,
+} from './sessionStore';
