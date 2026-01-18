@@ -1,0 +1,287 @@
+/* =============================================================================
+   Button Component Styles
+   Primary, ghost, and icon button variants
+   Based on example_ui/board.html (.btn, .btn-primary, .btn-ghost, .btn-icon)
+   ============================================================================= */
+
+/* ==========================================================================
+   BASE STYLES
+   Shared styles across all button variants
+   ========================================================================== */
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	padding: 7px 12px;
+	border-radius: var(--radius-md);
+	font-family: var(--font-body);
+	font-size: 11px;
+	font-weight: var(--font-medium);
+	line-height: 1;
+	white-space: nowrap;
+	border: none;
+	cursor: pointer;
+	transition: all 0.15s var(--ease-out);
+	text-decoration: none;
+	user-select: none;
+	position: relative;
+	overflow: hidden;
+}
+
+.btn:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: 2px;
+}
+
+/* ==========================================================================
+   PRIMARY VARIANT
+   Purple background with glow on hover
+   ========================================================================== */
+
+.btn-primary {
+	background-color: var(--primary);
+	color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+	background-color: var(--primary-bright);
+	box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.btn-primary:active:not(:disabled) {
+	background-color: var(--primary);
+	box-shadow: 0 2px 8px var(--primary-glow);
+}
+
+/* ==========================================================================
+   SECONDARY VARIANT
+   Similar to ghost but with more emphasis
+   ========================================================================== */
+
+.btn-secondary {
+	background-color: var(--bg-surface);
+	border: 1px solid var(--border-light);
+	color: var(--text-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+	background-color: var(--bg-hover);
+	border-color: var(--border-hover);
+}
+
+.btn-secondary:active:not(:disabled) {
+	background-color: var(--bg-surface);
+}
+
+/* ==========================================================================
+   GHOST VARIANT
+   Subtle background with border
+   ========================================================================== */
+
+.btn-ghost {
+	background-color: var(--bg-surface);
+	border: 1px solid var(--border);
+	color: var(--text-secondary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+	background-color: var(--bg-hover);
+	color: var(--text-primary);
+}
+
+.btn-ghost:active:not(:disabled) {
+	background-color: var(--bg-surface);
+}
+
+/* ==========================================================================
+   DANGER VARIANT
+   Red styling for destructive actions
+   ========================================================================== */
+
+.btn-danger {
+	background-color: var(--red-dim);
+	border: 1px solid var(--red-border);
+	color: var(--red);
+}
+
+.btn-danger:hover:not(:disabled) {
+	background-color: var(--red);
+	border-color: var(--red);
+	color: white;
+}
+
+.btn-danger:active:not(:disabled) {
+	background-color: var(--red-dim);
+	color: var(--red);
+}
+
+/* ==========================================================================
+   SUCCESS VARIANT
+   Green styling for positive actions
+   ========================================================================== */
+
+.btn-success {
+	background-color: var(--green);
+	color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+	background-color: var(--green);
+	box-shadow: 0 4px 12px var(--green-glow);
+}
+
+.btn-success:active:not(:disabled) {
+	box-shadow: 0 2px 8px var(--green-glow);
+}
+
+/* ==========================================================================
+   ICON VARIANT
+   Square button for icon-only actions
+   ========================================================================== */
+
+.btn-icon {
+	width: 32px;
+	height: 32px;
+	min-width: 32px;
+	min-height: 32px;
+	padding: 0;
+	background-color: var(--bg-surface);
+	border: 1px solid var(--border);
+	color: var(--text-muted);
+}
+
+.btn-icon:hover:not(:disabled) {
+	background-color: var(--bg-hover);
+	color: var(--text-primary);
+}
+
+.btn-icon:active:not(:disabled) {
+	background-color: var(--bg-surface);
+}
+
+/* Icon variant active state (toggle buttons) */
+.btn-icon.btn-active {
+	background-color: var(--primary-dim);
+	border-color: var(--primary-border);
+	color: var(--primary);
+}
+
+.btn-icon.btn-active:hover:not(:disabled) {
+	background-color: var(--primary-dim);
+	border-color: var(--primary-border-hover);
+	color: var(--primary-bright);
+}
+
+/* ==========================================================================
+   SIZE VARIANTS
+   ========================================================================== */
+
+/* Small size */
+.btn-sm {
+	padding: 5px 8px;
+	font-size: 10px;
+	gap: 4px;
+}
+
+.btn-icon.btn-sm {
+	width: 28px;
+	height: 28px;
+	min-width: 28px;
+	min-height: 28px;
+}
+
+/* Large size */
+.btn-lg {
+	padding: 10px 16px;
+	font-size: 13px;
+	gap: 6px;
+}
+
+.btn-icon.btn-lg {
+	width: 40px;
+	height: 40px;
+	min-width: 40px;
+	min-height: 40px;
+}
+
+/* ==========================================================================
+   DISABLED STATE
+   ========================================================================== */
+
+.btn:disabled,
+.btn.btn-disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+/* ==========================================================================
+   LOADING STATE
+   ========================================================================== */
+
+.btn-loading {
+	position: relative;
+	pointer-events: none;
+}
+
+.btn-loading .btn-content {
+	opacity: 0;
+}
+
+.btn-spinner {
+	position: absolute;
+	width: 14px;
+	height: 14px;
+	border: 2px solid currentColor;
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: btn-spin 0.6s linear infinite;
+}
+
+.btn-sm .btn-spinner {
+	width: 12px;
+	height: 12px;
+}
+
+.btn-lg .btn-spinner {
+	width: 16px;
+	height: 16px;
+}
+
+@keyframes btn-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* ==========================================================================
+   FULL WIDTH
+   ========================================================================== */
+
+.btn-full {
+	width: 100%;
+}
+
+/* ==========================================================================
+   ICON SIZING WITHIN BUTTONS
+   ========================================================================== */
+
+.btn svg {
+	flex-shrink: 0;
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.btn {
+		transition: none;
+	}
+
+	.btn-spinner {
+		animation: none;
+	}
+}
