@@ -24,7 +24,7 @@
 }
 
 .stat-label {
-	font-size: var(--text-md);
+	font-size: var(--text-base);
 	color: var(--text-muted);
 	font-weight: var(--font-medium);
 }
