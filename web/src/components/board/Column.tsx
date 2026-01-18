@@ -7,7 +7,6 @@
 
 import { TaskCard } from './TaskCard';
 import type { Task } from '@/lib/types';
-import type { FinalizeState } from '@/lib/api';
 import './Column.css';
 
 export interface ColumnConfig {
@@ -50,21 +49,15 @@ const COLUMN_STYLES: Record<
 interface ColumnProps {
 	column: ColumnConfig;
 	tasks: Task[];
-	onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 	onTaskClick?: (task: Task) => void;
-	onFinalizeClick?: (task: Task) => void;
-	onInitiativeClick?: (initiativeId: string) => void;
-	getFinalizeState?: (taskId: string) => FinalizeState | null | undefined;
+	onContextMenu?: (task: Task, e: React.MouseEvent) => void;
 }
 
 export function Column({
 	column,
 	tasks,
-	onAction,
 	onTaskClick,
-	onFinalizeClick,
-	onInitiativeClick,
-	getFinalizeState,
+	onContextMenu,
 }: ColumnProps) {
 	const style = COLUMN_STYLES[column.id] || COLUMN_STYLES.queued;
 
@@ -93,11 +86,8 @@ export function Column({
 						<TaskCard
 							key={task.id}
 							task={task}
-							onAction={onAction}
-							onTaskClick={onTaskClick}
-							onFinalizeClick={onFinalizeClick}
-							onInitiativeClick={onInitiativeClick}
-							finalizeState={getFinalizeState?.(task.id)}
+							onClick={() => onTaskClick?.(task)}
+							onContextMenu={(e) => onContextMenu?.(task, e)}
 						/>
 					))
 				)}

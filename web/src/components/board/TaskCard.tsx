@@ -1,268 +1,113 @@
 /**
- * TaskCard component for Kanban board
+ * TaskCard - Compact card component for queue display
  *
- * Displays task information with:
- * - Status indicator, ID, and priority badge
- * - Title and description preview
- * - Phase indicator when running
- * - Weight badge, blocked indicator, initiative badge
- * - Action buttons (run/pause/resume/finalize)
- * - Quick menu for queue/priority changes (Radix DropdownMenu)
- * - Clickable to navigate to task detail
+ * Displays task information in a compact format optimized for queue columns:
+ * - Task ID badge (monospace)
+ * - Title (2-line max with ellipsis)
+ * - Priority dot
+ * - Category icon
+ * - Status indicators (blocked warning, running progress)
  */
 
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { StatusIndicator } from '@/components/ui/StatusIndicator';
-import { Button } from '@/components/ui/Button';
-import { Tooltip } from '@/components/ui/Tooltip';
-import type { Task, TaskPriority, TaskQueue } from '@/lib/types';
-import { PRIORITY_CONFIG, ACTIVITY_CONFIG, isSpecPhaseActivity } from '@/lib/types';
-import { updateTask, triggerFinalize, type FinalizeState } from '@/lib/api';
-import { useTaskStore, getInitiativeBadgeTitle, useTaskActivity } from '@/stores';
+import { useCallback } from 'react';
+import { Icon, type IconName } from '@/components/ui/Icon';
+import type { Task, TaskPriority, TaskCategory } from '@/lib/types';
+import { CATEGORY_CONFIG } from '@/lib/types';
 import './TaskCard.css';
 
 interface TaskCardProps {
 	task: Task;
-	onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
-	onTaskClick?: (task: Task) => void;
-	onInitiativeClick?: (initiativeId: string) => void;
-	onFinalizeClick?: (task: Task) => void;
-	finalizeState?: FinalizeState | null;
+	onClick?: () => void;
+	onContextMenu?: (e: React.MouseEvent) => void;
+	isSelected?: boolean;
+	showInitiative?: boolean;
+	className?: string;
 }
 
-// Weight badge color config
-const WEIGHT_CONFIG: Record<string, { color: string; bg: string }> = {
-	trivial: { color: 'var(--weight-trivial)', bg: 'rgba(107, 114, 128, 0.15)' },
-	small: { color: 'var(--weight-small)', bg: 'var(--status-success-bg)' },
-	medium: { color: 'var(--weight-medium)', bg: 'var(--status-info-bg)' },
-	large: { color: 'var(--weight-large)', bg: 'var(--status-warning-bg)' },
-	greenfield: { color: 'var(--weight-greenfield)', bg: 'var(--accent-subtle)' },
+// Priority dot colors
+const PRIORITY_COLORS: Record<TaskPriority, string> = {
+	critical: 'var(--red)',
+	high: 'var(--orange)',
+	normal: 'var(--blue)',
+	low: 'var(--text-muted)',
 };
 
-function formatDate(dateStr: string): string {
-	if (!dateStr) return '';
-	const date = new Date(dateStr);
-	if (isNaN(date.getTime())) return '';
-
-	const now = new Date();
-	const diffMs = now.getTime() - date.getTime();
-	const diffMins = Math.floor(diffMs / 60000);
-	const diffHours = Math.floor(diffMins / 60);
-	const diffDays = Math.floor(diffHours / 24);
-
-	if (diffMins < 1) return 'just now';
-	if (diffMins < 60) return `${diffMins}m ago`;
-	if (diffHours < 24) return `${diffHours}h ago`;
-	if (diffDays < 7) return `${diffDays}d ago`;
-	// Use explicit options to ensure 4-digit year display
-	return date.toLocaleDateString(undefined, {
-		year: 'numeric',
-		month: 'numeric',
-		day: 'numeric',
-	});
-}
+// Category icon mapping (to IconName)
+const CATEGORY_ICONS: Record<TaskCategory, IconName> = {
+	feature: 'sparkles',
+	bug: 'bug',
+	refactor: 'recycle',
+	chore: 'tools',
+	docs: 'file-text',
+	test: 'beaker',
+};
 
 /**
- * Normalize markdown text for display in card preview.
- * Strips markdown formatting and collapses whitespace.
+ * Build accessible aria-label for task card
  */
-function normalizeDescription(text: string): string {
-	return (
-		text
-			// Strip heading markers (# ## ### etc.)
-			.replace(/^#{1,6}\s+/gm, '')
-			// Strip bold/italic markers (**, __, *, _)
-			.replace(/(\*\*|__)(.*?)\1/g, '$2')
-			.replace(/(\*|_)(.*?)\1/g, '$2')
-			// Strip inline code backticks
-			.replace(/`([^`]+)`/g, '$1')
-			// Strip list markers (-, *, numbered lists)
-			.replace(/^[\s]*[-*+]\s+/gm, '')
-			.replace(/^[\s]*\d+\.\s+/gm, '')
-			// Collapse multiple newlines into spaces
-			.replace(/\n+/g, ' ')
-			// Collapse multiple spaces
-			.replace(/\s{2,}/g, ' ')
-			.trim()
-	);
+function buildAriaLabel(task: Task): string {
+	const priority = task.priority || 'normal';
+	const category = task.category || 'feature';
+	const parts = [`${task.id}: ${task.title}`, `${priority} priority`, category];
+
+	if (task.is_blocked) {
+		parts.push('blocked');
+	}
+	if (task.status === 'running') {
+		parts.push('running');
+	}
+
+	return parts.join(', ');
 }
 
 export function TaskCard({
 	task,
-	onAction,
-	onTaskClick,
-	onInitiativeClick,
-	onFinalizeClick,
-	finalizeState,
+	onClick,
+	onContextMenu,
+	isSelected = false,
+	showInitiative = false,
+	className = '',
 }: TaskCardProps) {
-	const navigate = useNavigate();
-	const updateTaskInStore = useTaskStore((state) => state.updateTask);
-	const taskActivity = useTaskActivity(task.id);
-
-	const [actionLoading, setActionLoading] = useState(false);
-	const [quickMenuOpen, setQuickMenuOpen] = useState(false);
-	const [quickMenuLoading, setQuickMenuLoading] = useState(false);
-	const [finalizeLoading, setFinalizeLoading] = useState(false);
-
-	// Derived values
 	const priority = (task.priority || 'normal') as TaskPriority;
-	const priorityConfig = PRIORITY_CONFIG[priority];
-	const showPriority = priority !== 'normal';
-	const queue = (task.queue || 'active') as TaskQueue;
-	const weight = WEIGHT_CONFIG[task.weight] || WEIGHT_CONFIG.small;
+	const category = (task.category || 'feature') as TaskCategory;
+	const categoryConfig = CATEGORY_CONFIG[category];
+	const categoryIcon = CATEGORY_ICONS[category];
+	const priorityColor = PRIORITY_COLORS[priority];
 
 	const isRunning = task.status === 'running';
-	const isFinalizing = task.status === 'finalizing';
-	const isCompleted = task.status === 'completed';
-	const isBlocked = task.status === 'blocked';
+	const isBlocked = task.is_blocked;
 
-	// Initiative badge
-	const initiativeBadge = task.initiative_id ? getInitiativeBadgeTitle(task.initiative_id) : null;
+	// Click handler
+	const handleClick = useCallback(() => {
+		onClick?.();
+	}, [onClick]);
 
-	// Spec phase activity indicator (only shown when running spec phase with spec-specific activity)
-	const specActivityLabel = isRunning && taskActivity && isSpecPhaseActivity(taskActivity.activity)
-		? ACTIVITY_CONFIG[taskActivity.activity]?.label
-		: null;
-
-	// Finalize progress
-	const finalizeProgress =
-		finalizeState && finalizeState.status !== 'not_started'
-			? {
-					step: finalizeState.step || 'Processing',
-					progress: finalizeState.progress || '',
-					percent: finalizeState.step_percent || 0,
-				}
-			: null;
-
-	// Action handler
-	const handleAction = useCallback(
-		async (action: 'run' | 'pause' | 'resume', e: React.MouseEvent) => {
-			e.stopPropagation();
-			e.preventDefault();
-			setActionLoading(true);
-			try {
-				await onAction(task.id, action);
-			} finally {
-				setActionLoading(false);
-			}
-		},
-		[task.id, onAction]
-	);
-
-	// Card click handler
-	const openTask = useCallback(
-		(e: React.MouseEvent) => {
-			const target = e.target as HTMLElement;
-			if (target.closest('.actions') || target.closest('.quick-menu')) {
-				return;
-			}
-			// For running tasks, show transcript modal if callback provided
-			if (task.status === 'running' && onTaskClick) {
-				onTaskClick(task);
-				return;
-			}
-			navigate(`/tasks/${task.id}`);
-		},
-		[task, onTaskClick, navigate]
-	);
-
-	// Keyboard handler
-	const handleKeydown = useCallback(
+	// Keyboard handler for accessibility
+	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (e.key === 'Enter' || e.key === ' ') {
 				e.preventDefault();
-				navigate(`/tasks/${task.id}`);
-			}
-			// Note: Escape handling for dropdown is managed by Radix DropdownMenu
-		},
-		[task.id, navigate]
-	);
-
-	// Quick menu handlers
-	const setQueueValue = useCallback(
-		async (newQueue: TaskQueue) => {
-			if (newQueue === queue) {
-				setQuickMenuOpen(false);
-				return;
-			}
-			setQuickMenuLoading(true);
-			try {
-				const updated = await updateTask(task.id, { queue: newQueue });
-				updateTaskInStore(task.id, updated);
-			} catch (err) {
-				console.error('Failed to update queue:', err);
-			} finally {
-				setQuickMenuLoading(false);
-				setQuickMenuOpen(false);
+				onClick?.();
 			}
 		},
-		[task.id, queue, updateTaskInStore]
+		[onClick]
 	);
 
-	const setPriorityValue = useCallback(
-		async (newPriority: TaskPriority) => {
-			if (newPriority === priority) {
-				setQuickMenuOpen(false);
-				return;
-			}
-			setQuickMenuLoading(true);
-			try {
-				const updated = await updateTask(task.id, { priority: newPriority });
-				updateTaskInStore(task.id, updated);
-			} catch (err) {
-				console.error('Failed to update priority:', err);
-			} finally {
-				setQuickMenuLoading(false);
-				setQuickMenuOpen(false);
-			}
-		},
-		[task.id, priority, updateTaskInStore]
-	);
-
-	// Finalize handler
-	const handleFinalize = useCallback(
-		async (e: React.MouseEvent) => {
-			e.stopPropagation();
-			e.preventDefault();
-
-			if (onFinalizeClick) {
-				onFinalizeClick(task);
-				return;
-			}
-
-			setFinalizeLoading(true);
-			try {
-				await triggerFinalize(task.id);
-			} catch (err) {
-				console.error('Failed to trigger finalize:', err);
-			} finally {
-				setFinalizeLoading(false);
-			}
-		},
-		[task, onFinalizeClick]
-	);
-
-	// Initiative click handler
-	const handleInitiativeClick = useCallback(
+	// Context menu handler
+	const handleContextMenu = useCallback(
 		(e: React.MouseEvent) => {
-			e.stopPropagation();
-			e.preventDefault();
-			if (task.initiative_id && onInitiativeClick) {
-				onInitiativeClick(task.initiative_id);
-			}
+			onContextMenu?.(e);
 		},
-		[task.initiative_id, onInitiativeClick]
+		[onContextMenu]
 	);
 
 	// Build class names
 	const cardClasses = [
 		'task-card',
+		isSelected && 'selected',
 		isRunning && 'running',
-		isFinalizing && 'finalizing',
-		isCompleted && 'completed',
 		isBlocked && 'blocked',
+		className,
 	]
 		.filter(Boolean)
 		.join(' ');
@@ -270,393 +115,55 @@ export function TaskCard({
 	return (
 		<article
 			className={cardClasses}
-			onClick={openTask}
-			onKeyDown={handleKeydown}
+			onClick={handleClick}
+			onContextMenu={handleContextMenu}
+			onKeyDown={handleKeyDown}
 			tabIndex={0}
 			role="button"
-			aria-label={`Task ${task.id}: ${task.title}`}
+			aria-label={buildAriaLabel(task)}
 		>
-			<div className="card-header">
-				<div className="header-left">
-					<span className="task-id">{task.id}</span>
-					{showPriority && (
-						<Tooltip content={`${priorityConfig.label} priority`}>
-							<span
-								className={`priority-badge ${priority}`}
-								style={{ color: priorityConfig.color }}
-							>
-								{priority === 'critical' && (
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="10"
-										height="10"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2.5"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<circle cx="12" cy="12" r="10" />
-										<line x1="12" y1="8" x2="12" y2="12" />
-										<line x1="12" y1="16" x2="12.01" y2="16" />
-									</svg>
-								)}
-								{priority === 'high' && (
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="10"
-										height="10"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2.5"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<polyline points="18 15 12 9 6 15" />
-									</svg>
-								)}
-								{priority === 'low' && (
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="10"
-										height="10"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2.5"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<polyline points="6 9 12 15 18 9" />
-									</svg>
-								)}
-							</span>
-						</Tooltip>
-					)}
-				</div>
-				<StatusIndicator status={task.status} size="sm" />
+			{/* Category icon */}
+			<div
+				className="task-card-category"
+				style={{ color: categoryConfig.color }}
+				title={categoryConfig.label}
+			>
+				<Icon name={categoryIcon} size={14} />
 			</div>
 
-			<h3 className="task-title">{task.title}</h3>
-
-			{task.description && (
-				<Tooltip content={task.description}>
-					<p className="task-description">{normalizeDescription(task.description)}</p>
-				</Tooltip>
-			)}
-
-			{task.current_phase && (
-				<div className="task-phase">
-					<span className="phase-label">Phase:</span>
-					<span className="phase-value">{task.current_phase}</span>
-					{specActivityLabel && (
-						<span className="spec-activity-label">{specActivityLabel}</span>
+			{/* Main content */}
+			<div className="task-card-content">
+				<div className="task-card-header">
+					<span className="task-card-id">{task.id}</span>
+					{showInitiative && task.initiative_id && (
+						<span className="task-card-initiative">{task.initiative_id}</span>
 					)}
 				</div>
-			)}
+				<h3 className="task-card-title">{task.title}</h3>
+			</div>
 
-			{/* Finalize progress indicator */}
-			{isFinalizing && finalizeProgress && (
-				<div className="finalize-progress">
-					<div className="finalize-step">{finalizeProgress.step}</div>
-					<div className="progress-bar">
-						<div
-							className="progress-fill"
-							style={{ width: `${finalizeProgress.percent}%` }}
-						/>
-					</div>
-				</div>
-			)}
-
-			{/* Merged commit info (shown when finalize has completed) */}
-			{isCompleted && finalizeState?.result?.commit_sha && (
-				<div className="finished-info">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="12"
-						height="12"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-					>
-						<circle cx="12" cy="12" r="4" />
-						<line x1="1.05" y1="12" x2="7" y2="12" />
-						<line x1="17.01" y1="12" x2="22.96" y2="12" />
-					</svg>
-					<span className="commit-sha">
-						{finalizeState.result.commit_sha.slice(0, 7)}
+			{/* Status indicators */}
+			<div className="task-card-status">
+				{/* Blocked warning icon */}
+				{isBlocked && (
+					<span className="task-card-blocked" title={`Blocked by ${task.unmet_blockers?.join(', ')}`}>
+						<Icon name="alert-triangle" size={12} />
 					</span>
-					<span className="merge-target">
-						merged to {finalizeState.result.target_branch}
+				)}
+
+				{/* Running progress indicator */}
+				{isRunning && (
+					<span className="task-card-running" title={`Running: ${task.current_phase || 'starting'}`}>
+						<span className="task-card-running-dot" />
 					</span>
-				</div>
-			)}
+				)}
 
-			<div className="card-footer">
-				<div className="footer-left">
-					<span
-						className="weight-badge"
-						style={{ color: weight.color, background: weight.bg }}
-					>
-						{task.weight}
-					</span>
-					{task.is_blocked && (
-						<Tooltip content={`Blocked by ${task.unmet_blockers?.join(', ')}`}>
-							<span className="blocked-badge">
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="10"
-									height="10"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2.5"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<circle cx="12" cy="12" r="10" />
-									<line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-								</svg>
-								Blocked
-							</span>
-						</Tooltip>
-					)}
-					{initiativeBadge && (
-						<Tooltip content={initiativeBadge.full}>
-							<Button
-								variant="ghost"
-								size="sm"
-								className="initiative-badge"
-								onClick={handleInitiativeClick}
-							>
-								{initiativeBadge.display}
-							</Button>
-						</Tooltip>
-					)}
-					<span className="updated-time">{formatDate(task.updated_at)}</span>
-				</div>
-
-				<div className="actions">
-					{(task.status === 'created' || task.status === 'planned') && (
-						<Tooltip content="Run task">
-							<Button
-								variant="ghost"
-								size="sm"
-								iconOnly
-								className="action-btn run"
-								onClick={(e) => handleAction('run', e)}
-								disabled={actionLoading}
-								aria-label="Run task"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="currentColor"
-									stroke="none"
-								>
-									<polygon points="5 3 19 12 5 21 5 3" />
-								</svg>
-							</Button>
-						</Tooltip>
-					)}
-					{task.status === 'running' && (
-						<Tooltip content="Pause task">
-							<Button
-								variant="ghost"
-								size="sm"
-								iconOnly
-								className="action-btn pause"
-								onClick={(e) => handleAction('pause', e)}
-								disabled={actionLoading}
-								aria-label="Pause task"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="currentColor"
-									stroke="none"
-								>
-									<rect x="6" y="4" width="4" height="16" rx="1" />
-									<rect x="14" y="4" width="4" height="16" rx="1" />
-								</svg>
-							</Button>
-						</Tooltip>
-					)}
-					{task.status === 'paused' && (
-						<Tooltip content="Resume task">
-							<Button
-								variant="ghost"
-								size="sm"
-								iconOnly
-								className="action-btn resume"
-								onClick={(e) => handleAction('resume', e)}
-								disabled={actionLoading}
-								aria-label="Resume task"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="currentColor"
-									stroke="none"
-								>
-									<polygon points="5 3 19 12 5 21 5 3" />
-								</svg>
-							</Button>
-						</Tooltip>
-					)}
-					{task.status === 'completed' && (
-						<Tooltip content="Finalize and merge">
-							<Button
-								variant="ghost"
-								size="sm"
-								iconOnly
-								className="action-btn finalize"
-								onClick={handleFinalize}
-								disabled={finalizeLoading}
-								loading={finalizeLoading}
-								aria-label="Finalize and merge"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<circle cx="18" cy="18" r="3" />
-									<circle cx="6" cy="6" r="3" />
-									<path d="M6 21V9a9 9 0 0 0 9 9" />
-								</svg>
-							</Button>
-						</Tooltip>
-					)}
-
-					{/* Quick menu for queue/priority - Radix DropdownMenu */}
-					<DropdownMenu.Root open={quickMenuOpen} onOpenChange={setQuickMenuOpen}>
-						<Tooltip content="Quick actions">
-							<DropdownMenu.Trigger asChild>
-								<Button
-									variant="ghost"
-									size="sm"
-									iconOnly
-									className="action-btn more"
-									aria-label="Quick actions"
-								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="12"
-										height="12"
-										viewBox="0 0 24 24"
-										fill="currentColor"
-										stroke="none"
-									>
-										<circle cx="12" cy="5" r="2" />
-										<circle cx="12" cy="12" r="2" />
-										<circle cx="12" cy="19" r="2" />
-									</svg>
-								</Button>
-							</DropdownMenu.Trigger>
-						</Tooltip>
-
-						<DropdownMenu.Portal>
-							<DropdownMenu.Content
-								className="quick-menu-dropdown"
-								sideOffset={4}
-								align="end"
-								onCloseAutoFocus={(e) => e.preventDefault()}
-							>
-								{quickMenuLoading ? (
-									<div className="menu-loading">
-										<div className="spinner" />
-									</div>
-								) : (
-									<>
-										{/* Queue section */}
-										<DropdownMenu.Label className="menu-label">
-											Queue
-										</DropdownMenu.Label>
-										<DropdownMenu.Item
-											className={`menu-item ${queue === 'active' ? 'selected' : ''}`}
-											onSelect={() => setQueueValue('active')}
-										>
-											<span className="menu-icon active-icon" />
-											Active
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											className={`menu-item ${queue === 'backlog' ? 'selected' : ''}`}
-											onSelect={() => setQueueValue('backlog')}
-										>
-											<span className="menu-icon backlog-icon" />
-											Backlog
-										</DropdownMenu.Item>
-
-										<DropdownMenu.Separator className="menu-divider" />
-
-										{/* Priority section */}
-										<DropdownMenu.Label className="menu-label">
-											Priority
-										</DropdownMenu.Label>
-										<DropdownMenu.Item
-											className={`menu-item ${priority === 'critical' ? 'selected' : ''}`}
-											onSelect={() => setPriorityValue('critical')}
-										>
-											<span
-												className="menu-icon priority-icon"
-												style={{ background: 'var(--status-error)' }}
-											/>
-											Critical
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											className={`menu-item ${priority === 'high' ? 'selected' : ''}`}
-											onSelect={() => setPriorityValue('high')}
-										>
-											<span
-												className="menu-icon priority-icon"
-												style={{ background: 'var(--status-warning)' }}
-											/>
-											High
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											className={`menu-item ${priority === 'normal' ? 'selected' : ''}`}
-											onSelect={() => setPriorityValue('normal')}
-										>
-											<span
-												className="menu-icon priority-icon"
-												style={{ background: 'var(--text-muted)' }}
-											/>
-											Normal
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											className={`menu-item ${priority === 'low' ? 'selected' : ''}`}
-											onSelect={() => setPriorityValue('low')}
-										>
-											<span
-												className="menu-icon priority-icon"
-												style={{ background: 'var(--text-disabled)' }}
-											/>
-											Low
-										</DropdownMenu.Item>
-									</>
-								)}
-							</DropdownMenu.Content>
-						</DropdownMenu.Portal>
-					</DropdownMenu.Root>
-				</div>
+				{/* Priority dot */}
+				<span
+					className="task-card-priority"
+					style={{ backgroundColor: priorityColor }}
+					title={`${priority} priority`}
+				/>
 			</div>
 		</article>
 	);

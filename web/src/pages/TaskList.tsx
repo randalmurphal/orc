@@ -36,7 +36,6 @@ import { Icon } from '@/components/ui/Icon';
 import {
 	runProjectTask,
 	pauseProjectTask,
-	resumeProjectTask,
 	deleteProjectTask,
 } from '@/lib/api';
 import type { Task, TaskWeight } from '@/lib/types';
@@ -256,21 +255,6 @@ export function TaskList() {
 		[currentProjectId]
 	);
 
-	const handleResumeTask = useCallback(
-		async (taskId: string) => {
-			if (!currentProjectId) {
-				toast.error('Please select a project first');
-				return;
-			}
-			try {
-				await resumeProjectTask(currentProjectId, taskId);
-			} catch (e) {
-				toast.error(e instanceof Error ? e.message : 'Failed to resume task');
-			}
-		},
-		[currentProjectId]
-	);
-
 	const handleDeleteTask = useCallback(
 		async (taskId: string) => {
 			if (!currentProjectId) {
@@ -286,20 +270,6 @@ export function TaskList() {
 			}
 		},
 		[currentProjectId, removeTask]
-	);
-
-	// Handle task action (from TaskCard)
-	const handleAction = useCallback(
-		async (taskId: string, action: 'run' | 'pause' | 'resume') => {
-			if (action === 'run') {
-				await handleRunTask(taskId);
-			} else if (action === 'pause') {
-				await handlePauseTask(taskId);
-			} else if (action === 'resume') {
-				await handleResumeTask(taskId);
-			}
-		},
-		[handleRunTask, handlePauseTask, handleResumeTask]
 	);
 
 	// Keyboard shortcuts
@@ -599,14 +569,8 @@ export function TaskList() {
 						>
 							<TaskCard
 								task={task}
-								onAction={handleAction}
-								onTaskClick={(t) => {
-									if (t.status === 'running') {
-										// Could open transcript modal here
-										navigate(`/tasks/${t.id}`);
-									}
-								}}
-								onInitiativeClick={(initiativeId) => selectInitiative(initiativeId)}
+								onClick={() => navigate(`/tasks/${task.id}`)}
+								isSelected={index === selectedIndex}
 							/>
 						</div>
 					))}
