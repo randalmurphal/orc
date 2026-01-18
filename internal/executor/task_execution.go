@@ -165,20 +165,33 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			return fmt.Errorf("phase %s failed: %w", phase.ID, err)
 		}
 
+		// Save spec content to database for spec phase BEFORE marking complete.
+		// This ensures we fail-fast if spec phase produces invalid output.
+		if phase.ID == "spec" && result.Output != "" {
+			saved, err := SaveSpecToDatabase(e.backend, t.ID, phase.ID, result.Output)
+			if err != nil {
+				e.logger.Warn("failed to save spec to database", "error", err)
+			} else if saved {
+				e.logger.Info("saved spec to database", "task", t.ID)
+			} else {
+				// Spec phase must produce a valid spec for medium+ weights
+				// If validation rejected the output, fail the phase
+				requiresSpec := t.Weight != task.WeightTrivial && t.Weight != task.WeightSmall
+				if requiresSpec {
+					e.logger.Error("spec phase produced invalid output - no valid spec extracted",
+						"task", t.ID,
+						"weight", t.Weight,
+						"hint", "Agent must output spec in <artifact> tags with Success Criteria section",
+					)
+					return fmt.Errorf("spec phase failed: no valid spec produced - agent must output spec in <artifact> tags")
+				}
+			}
+		}
+
 		// Complete phase
 		s.CompletePhase(phase.ID, result.CommitSHA)
 		phase.Status = plan.PhaseCompleted
 		phase.CommitSHA = result.CommitSHA
-
-		// Save spec content to database for spec phase (belt-and-suspenders: executors also save,
-		// but this ensures all execution paths are covered)
-		if result.Output != "" {
-			if saved, err := SaveSpecToDatabase(e.backend, t.ID, phase.ID, result.Output); err != nil {
-				e.logger.Warn("failed to save spec to database", "error", err)
-			} else if saved {
-				e.logger.Info("saved spec to database", "task", t.ID)
-			}
-		}
 
 		// Clear retry context on successful completion
 		if s.HasRetryContext() {
@@ -675,7 +688,16 @@ func (e *Executor) checkSpecRequirements(t *task.Task) error {
 			ctx := context.Background()
 			ready, suggestions, valErr := ValidateTaskReadiness(ctx, e.haikuClient, t.Description, specContent, string(t.Weight))
 			if valErr != nil {
-				// Fail open - don't block execution on validation errors (API issues)
+				if e.orcConfig.Validation.FailOnAPIError {
+					// Fail properly - task is resumable from spec phase
+					e.logger.Error("spec validation API error - failing task",
+						"task", t.ID,
+						"error", valErr,
+						"hint", "Task can be resumed with 'orc resume'",
+					)
+					return fmt.Errorf("spec validation API error (resumable): %w", valErr)
+				}
+				// Fail open (legacy behavior for fast profile)
 				e.logger.Warn("haiku spec validation error (continuing)",
 					"task", t.ID,
 					"error", valErr,

@@ -108,7 +108,7 @@ review:
     rounds: 2
     require_pass: true
 plan:
-    require_spec_for_execution: false
+    require_spec_for_execution: true
     warn_on_missing_spec: true
     skip_validation_weights:
         - trivial

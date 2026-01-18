@@ -231,9 +231,15 @@ This checklist will be verified during the review phase. Define upfront what rev
 
 ## Output Format
 
-**IMPORTANT**: Do NOT use the Write tool to create `spec.md` files. Specs are extracted from the `<artifact>` tags below and saved to the database automatically. Writing spec files to the filesystem causes merge conflicts and cleanup issues.
+**CRITICAL REQUIREMENTS**:
+1. You **MUST** output your spec wrapped in `<artifact>` tags - this is how specs are captured
+2. Do NOT use the Write tool to create `spec.md` files - specs are extracted from `<artifact>` tags automatically
+3. The `<artifact>` tags are **MANDATORY** even if no file changes were made
+4. Worktree state is IRRELEVANT - you must always produce the artifact
 
-Create the spec and wrap it in artifact tags for automatic persistence:
+The spec exists ONLY in your `<artifact>` output. Without it, subsequent phases have no success criteria to work from.
+
+Create the spec and wrap it in artifact tags:
 
 <artifact>
 # Specification: {{TASK_TITLE}}
@@ -330,14 +336,18 @@ Create the spec and wrap it in artifact tags for automatic persistence:
 
 ## Phase Completion
 
-After completing the spec, commit your changes:
+**Step 1**: Output your spec in `<artifact>` tags (REQUIRED - see Output Format above)
+
+**Step 2**: Commit any file changes made during spec creation (if any):
 
 ```bash
 git add -A
 git commit -m "[orc] {{TASK_ID}}: spec - completed"
 ```
 
-Then output:
+If the working tree is clean, skip the commit but **still output the artifact**.
+
+**Step 3**: Output completion with summary:
 
 ```
 ### Spec Summary
@@ -345,15 +355,17 @@ Then output:
 **Success Criteria**: [count] defined
 **Testing Requirements**: [count] defined
 **Scope**: [narrow/moderate/wide]
-**Commit**: [commit SHA]
+**Commit**: [commit SHA or "N/A - no file changes"]
 
 <phase_complete>true</phase_complete>
 ```
 
-If blocked (e.g., requirements unclear):
+**If blocked** (requirements genuinely unclear - NOT because worktree is clean):
 ```
 <phase_blocked>
 reason: [what's unclear]
 needs: [what clarification is needed]
 </phase_blocked>
 ```
+
+⚠️ **Common mistake**: Do NOT skip the `<artifact>` tags because the worktree is clean. The artifact is your spec output, not a file.

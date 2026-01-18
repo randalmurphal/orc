@@ -38,6 +38,8 @@ phases:
 
       **Description**: {{TASK_DESCRIPTION}}
 
+      {{INITIATIVE_CONTEXT}}
+
       **Research findings**:
       {{RESEARCH_CONTENT}}
 
@@ -57,10 +59,51 @@ phases:
       - E2E criteria (critical paths via Playwright MCP tools)
       - Documentation criteria
 
-      Keep iterating until specification is complete.
+      ## Output Format
 
-      When done, output:
+      **CRITICAL**: You MUST output your spec wrapped in `<artifact>` tags - this is how specs are captured.
+      The artifact is MANDATORY even if no file changes were made. Worktree state is IRRELEVANT.
+
+      <artifact>
+      # Specification: {{TASK_TITLE}}
+
+      ## Problem Statement
+      [What we're building and why]
+
+      ## Success Criteria
+      | ID | Criterion | Verification | Expected |
+      |----|-----------|--------------|----------|
+      | SC-1 | [Criterion] | [Command/test] | [Result] |
+
+      ## Testing Requirements
+      | Type | Description | Command |
+      |------|-------------|---------|
+      | Unit | [Tests] | [Command] |
+      | Integration | [Tests] | [Command] |
+      | E2E | [Tests] | [Command] |
+
+      ## Scope
+      ### In Scope
+      - [Items]
+      ### Out of Scope
+      - [Items]
+
+      ## Technical Approach
+      [Architecture, data model, API design, frontend components]
+      </artifact>
+
+      After outputting the artifact, commit any file changes (if any):
+      ```bash
+      git add -A && git commit -m "[orc] {{TASK_ID}}: spec - completed"
+      ```
+
+      Then output:
+      ```
+      **Commit**: [SHA or "N/A"]
       <phase_complete>true</phase_complete>
+      ```
+
+      ⚠️ **Common mistake**: Do NOT skip the `<artifact>` tags because the worktree is clean.
     depends_on: [research]
     gate:
       type: auto

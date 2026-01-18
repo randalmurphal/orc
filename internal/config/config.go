@@ -475,6 +475,11 @@ type ValidationConfig struct {
 	// ValidateProgress enables Haiku-based progress validation during iteration (default: false)
 	// This is more expensive and may slow down execution.
 	ValidateProgress bool `yaml:"validate_progress"`
+
+	// FailOnAPIError controls behavior when validation API calls fail (rate limits, network, etc.)
+	// true (default): Fail the task properly (resumable) - quality over speed
+	// false: Fail open - continue execution without validation (legacy behavior)
+	FailOnAPIError bool `yaml:"fail_on_api_error"`
 }
 
 // DocumentationConfig defines documentation phase configuration.
@@ -1320,6 +1325,7 @@ func Default() *Config {
 			TypeCheckCommand: "",                             // Auto-detect
 			ValidateSpecs:    true,                           // Haiku validates spec quality
 			ValidateProgress: true,                           // Haiku validates iteration progress
+			FailOnAPIError:   true,                           // Fail properly on API errors (resumable)
 		},
 		Documentation: DocumentationConfig{
 			Enabled:            true,
@@ -1654,6 +1660,7 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			EnforceTypeCheck: false,
 			ValidateSpecs:    true,
 			ValidateProgress: false,
+			FailOnAPIError:   false, // Fast: fail open for speed
 		}
 	case ProfileSafe:
 		// Safe: quality-focused validation
@@ -1667,6 +1674,7 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			EnforceTypeCheck: false,
 			ValidateSpecs:    true,
 			ValidateProgress: true,
+			FailOnAPIError:   true, // Safe: fail properly on API errors
 		}
 	case ProfileStrict:
 		// Strict: maximum validation
@@ -1680,6 +1688,7 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			EnforceTypeCheck: true,
 			ValidateSpecs:    true,
 			ValidateProgress: true,
+			FailOnAPIError:   true, // Strict: always fail properly on API errors
 		}
 	default: // ProfileAuto
 		// Auto: quality-first validation (default)
@@ -1693,6 +1702,7 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			EnforceTypeCheck: false,
 			ValidateSpecs:    true,
 			ValidateProgress: true,
+			FailOnAPIError:   true, // Auto: fail properly on API errors (quality-first)
 		}
 	}
 }
