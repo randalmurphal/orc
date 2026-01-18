@@ -124,6 +124,17 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 	// Load spec content from database (specs are not stored as file artifacts)
 	vars = vars.WithSpecFromDatabase(e.backend, t.ID)
 
+	// Load review context for review phases (round 2+ needs prior findings)
+	if p.ID == "review" {
+		round := 1
+		if s != nil && s.Phases != nil {
+			if ps, ok := s.Phases["review"]; ok && ps.Status == "completed" {
+				round = 2
+			}
+		}
+		vars = vars.WithReviewContext(e.backend, t.ID, round)
+	}
+
 	// Add testing configuration (coverage threshold)
 	if e.config.OrcConfig != nil {
 		vars.CoverageThreshold = e.config.OrcConfig.Testing.CoverageThreshold

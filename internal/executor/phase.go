@@ -106,6 +106,17 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 	// Load spec content from database (specs are not stored as file artifacts)
 	templateVars = templateVars.WithSpecFromDatabase(e.backend, t.ID)
 
+	// Load review context for review phases (round 2+ needs prior findings)
+	if p.ID == "review" {
+		round := 1
+		if s != nil && s.Phases != nil {
+			if ps, ok := s.Phases["review"]; ok && ps.Status == "completed" {
+				round = 2
+			}
+		}
+		templateVars = templateVars.WithReviewContext(e.backend, t.ID, round)
+	}
+
 	// Load and apply initiative context if task belongs to an initiative
 	if initCtx := LoadInitiativeContext(t, e.backend); initCtx != nil {
 		templateVars = templateVars.WithInitiativeContext(*initCtx)
@@ -144,12 +155,6 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 		requiresUITesting = "true"
 	}
 
-	// Determine review round - default to 1 for review phase
-	reviewRound := 0
-	if p.ID == "review" {
-		reviewRound = 1
-	}
-
 	// Initial state with retry context if applicable
 	initialState := PhaseState{
 		TaskID:           t.ID,
@@ -179,8 +184,9 @@ func (e *Executor) executePhaseWithFlowgraph(ctx context.Context, t *task.Task, 
 		// Testing configuration
 		CoverageThreshold: templateVars.CoverageThreshold,
 
-		// Review phase context
-		ReviewRound:         reviewRound,
+		// Review phase context (populated by WithReviewContext)
+		ReviewRound:         templateVars.ReviewRound,
+		ReviewFindings:      templateVars.ReviewFindings,
 		VerificationResults: templateVars.VerificationResults,
 	}
 

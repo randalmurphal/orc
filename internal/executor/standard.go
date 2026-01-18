@@ -175,6 +175,21 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	// Load spec content from database (specs are not stored as file artifacts)
 	vars = vars.WithSpecFromDatabase(e.backend, t.ID)
 
+	// Load review context for review phases (round 2+ needs prior findings)
+	if p.ID == "review" {
+		// Determine review round from config (default 1 for first review)
+		round := 1
+		if e.config.OrcConfig != nil {
+			// Check if this is a subsequent review round based on state
+			if s != nil && s.Phases != nil {
+				if ps, ok := s.Phases["review"]; ok && ps.Status == "completed" {
+					round = 2 // Re-running review means it's round 2
+				}
+			}
+		}
+		vars = vars.WithReviewContext(e.backend, t.ID, round)
+	}
+
 	// Add testing configuration (coverage threshold)
 	if e.config.OrcConfig != nil {
 		vars.CoverageThreshold = e.config.OrcConfig.Testing.CoverageThreshold
