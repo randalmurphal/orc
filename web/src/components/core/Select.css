@@ -1,0 +1,218 @@
+/* =============================================================================
+   Select Component Styles
+   Matches mockup styles from example_ui/agents.html (.select class)
+   ============================================================================= */
+
+/* ==========================================================================
+   TRIGGER (THE VISIBLE SELECT BUTTON)
+   ========================================================================== */
+
+.select-trigger {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	padding: 8px 12px;
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	font-size: 12px;
+	font-family: var(--font-body);
+	color: var(--text-primary);
+	cursor: pointer;
+	transition: border-color var(--duration-fast) var(--ease-out);
+	outline: none;
+}
+
+.select-trigger:hover:not([data-disabled]) {
+	border-color: var(--border-light);
+}
+
+.select-trigger:focus {
+	outline: none;
+	border-color: var(--primary);
+}
+
+.select-trigger:focus-visible {
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+.select-trigger[data-disabled] {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Placeholder text styling */
+.select-trigger[data-placeholder] > span:first-child {
+	color: var(--text-muted);
+}
+
+/* Value text - truncate with ellipsis */
+.select-trigger > span:first-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex: 1;
+	text-align: left;
+}
+
+/* ==========================================================================
+   CHEVRON ICON
+   ========================================================================== */
+
+.select-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	flex-shrink: 0;
+	margin-left: 8px;
+	transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.select-icon svg {
+	width: 12px;
+	height: 12px;
+}
+
+/* Rotate chevron when open */
+.select-trigger[data-state='open'] .select-icon {
+	transform: rotate(180deg);
+}
+
+/* ==========================================================================
+   DROPDOWN CONTENT (MENU)
+   ========================================================================== */
+
+.select-content {
+	min-width: var(--radix-select-trigger-width);
+	max-height: var(--radix-select-content-available-height);
+	overflow: hidden;
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	box-shadow: var(--shadow-lg);
+	z-index: var(--z-dropdown);
+	animation: select-enter var(--duration-fast) var(--ease-out);
+}
+
+.select-content[data-state='closed'] {
+	animation: select-exit var(--duration-fast) var(--ease-in);
+}
+
+@keyframes select-enter {
+	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes select-exit {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+}
+
+/* ==========================================================================
+   VIEWPORT (SCROLLABLE AREA)
+   ========================================================================== */
+
+.select-viewport {
+	padding: 4px;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+/* Custom scrollbar for the viewport */
+.select-viewport::-webkit-scrollbar {
+	width: 6px;
+}
+
+.select-viewport::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.select-viewport::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 3px;
+}
+
+.select-viewport::-webkit-scrollbar-thumb:hover {
+	background: var(--text-muted);
+}
+
+/* ==========================================================================
+   ITEM (EACH OPTION)
+   ========================================================================== */
+
+.select-item {
+	display: flex;
+	align-items: center;
+	padding: 8px 12px;
+	font-size: 12px;
+	color: var(--text-primary);
+	border-radius: 4px;
+	cursor: pointer;
+	user-select: none;
+	outline: none;
+	transition: background var(--duration-fast) var(--ease-out);
+}
+
+/* Truncate long option text */
+.select-item span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Highlighted state (keyboard focus or hover) */
+.select-item[data-highlighted] {
+	background: var(--bg-hover);
+}
+
+/* Selected/checked state */
+.select-item[data-state='checked'] {
+	background: var(--primary-dim);
+	color: var(--primary);
+}
+
+/* Selected + highlighted */
+.select-item[data-state='checked'][data-highlighted] {
+	background: var(--primary-dim);
+}
+
+/* Disabled state */
+.select-item[data-disabled] {
+	color: var(--text-muted);
+	pointer-events: none;
+	opacity: 0.5;
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.select-content,
+	.select-content[data-state='closed'] {
+		animation: none;
+	}
+
+	.select-icon {
+		transition: none;
+	}
+
+	.select-trigger {
+		transition: none;
+	}
+}
