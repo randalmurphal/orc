@@ -60,7 +60,7 @@
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 	background: var(--primary);
-	color: var(--bg-base, #fff);
+	color: var(--bg-base);
 	padding: var(--space-0-5, 2px) var(--space-2, 8px);
 	border-radius: var(--radius-sm, 4px);
 }
@@ -162,7 +162,7 @@
 
 .project-item.active .project-icon {
 	background: var(--primary);
-	color: var(--bg-base, #fff);
+	color: var(--bg-base);
 }
 
 .project-info {

@@ -35,7 +35,7 @@
 .icon-nav__logo-mark {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, var(--primary), #ec4899);
+  background: linear-gradient(135deg, var(--primary), var(--primary-gradient-end));
   border-radius: 8px;
   display: flex;
   align-items: center;
