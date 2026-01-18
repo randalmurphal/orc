@@ -5,6 +5,9 @@
  * providing excellent performance for common hover hint use cases.
  * Supports keyboard focus, configurable positions, and customizable delay.
  *
+ * Accessibility: Uses aria-describedby to link the trigger element to the
+ * tooltip content for screen readers.
+ *
  * For complex tooltips with rich content or controlled state, use the
  * Radix-based Tooltip in components/ui/Tooltip.tsx instead.
  */
@@ -12,8 +15,11 @@
 import {
 	forwardRef,
 	useId,
+	cloneElement,
+	isValidElement,
 	type HTMLAttributes,
 	type ReactNode,
+	type ReactElement,
 	type CSSProperties,
 } from 'react';
 import './Tooltip.css';
@@ -84,6 +90,14 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
 			'--tooltip-delay': `${delay}ms`,
 		} as CSSProperties;
 
+		// Clone child element to add aria-describedby for accessibility
+		// This links the trigger element to the tooltip content for screen readers
+		const enhancedChildren = isValidElement(children)
+			? cloneElement(children as ReactElement<{ 'aria-describedby'?: string }>, {
+					'aria-describedby': tooltipId,
+				})
+			: children;
+
 		return (
 			<div
 				ref={ref}
@@ -91,13 +105,12 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
 				style={cssVars}
 				{...props}
 			>
-				{children}
+				{enhancedChildren}
 				<span
 					id={tooltipId}
 					className="tooltip-content"
 					data-position={position}
 					role="tooltip"
-					aria-hidden="true"
 				>
 					{content}
 				</span>

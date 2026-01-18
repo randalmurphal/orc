@@ -150,15 +150,17 @@ describe('Tooltip', () => {
 			expect(tooltipContent).toHaveAttribute('role', 'tooltip');
 		});
 
-		it('has aria-hidden="true" on content (CSS controls visibility)', () => {
+		it('adds aria-describedby to child element linking to tooltip', () => {
 			const { container } = render(
-				<Tooltip content="Hidden by default">
+				<Tooltip content="Accessible tooltip">
 					<button>Hover me</button>
 				</Tooltip>
 			);
 
+			const button = container.querySelector('button');
 			const tooltipContent = container.querySelector('.tooltip-content');
-			expect(tooltipContent).toHaveAttribute('aria-hidden', 'true');
+
+			expect(button).toHaveAttribute('aria-describedby', tooltipContent?.id);
 		});
 
 		it('generates unique id for tooltip content', () => {
@@ -179,6 +181,25 @@ describe('Tooltip', () => {
 			expect(ids[0]).toBeTruthy();
 			expect(ids[1]).toBeTruthy();
 			expect(ids[0]).not.toBe(ids[1]);
+		});
+
+		it('links each trigger to its own tooltip', () => {
+			const { container } = render(
+				<>
+					<Tooltip content="First tooltip">
+						<button>First</button>
+					</Tooltip>
+					<Tooltip content="Second tooltip">
+						<button>Second</button>
+					</Tooltip>
+				</>
+			);
+
+			const buttons = container.querySelectorAll('button');
+			const tooltips = container.querySelectorAll('.tooltip-content');
+
+			expect(buttons[0]).toHaveAttribute('aria-describedby', tooltips[0].id);
+			expect(buttons[1]).toHaveAttribute('aria-describedby', tooltips[1].id);
 		});
 	});
 
@@ -313,7 +334,7 @@ describe('Tooltip', () => {
 			expect(container.querySelector('.tooltip-wrapper span')).toHaveTextContent('Text');
 		});
 
-		it('works with multiple children', () => {
+		it('works with multiple children (no aria-describedby enhancement)', () => {
 			const { container } = render(
 				<Tooltip content="Multiple children">
 					<span>First</span>
@@ -322,7 +343,19 @@ describe('Tooltip', () => {
 			);
 
 			const wrapper = container.querySelector('.tooltip-wrapper');
-			expect(wrapper?.querySelectorAll('span:not(.tooltip-content)').length).toBe(2);
+			const spans = wrapper?.querySelectorAll('span:not(.tooltip-content)');
+			expect(spans?.length).toBe(2);
+			// Multiple children are not enhanced with aria-describedby
+			expect(spans?.[0]).not.toHaveAttribute('aria-describedby');
+		});
+
+		it('works with text node children (no aria-describedby enhancement)', () => {
+			const { container } = render(<Tooltip content="Text tooltip">Plain text</Tooltip>);
+
+			const wrapper = container.querySelector('.tooltip-wrapper');
+			expect(wrapper).toHaveTextContent('Plain text');
+			// The tooltip still works, just without aria-describedby on the text
+			expect(container.querySelector('.tooltip-content')).toBeInTheDocument();
 		});
 	});
 });
