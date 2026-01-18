@@ -132,6 +132,33 @@ Root layout with Sidebar + Header + content area.
 
 Handles: Global shortcuts, modal states, responsive sidebar margin.
 
+### IconNav
+
+56px icon-based navigation sidebar. Compact vertical navigation with icons and small labels.
+
+**Structure:**
+- Logo section with gradient "O" mark (32x32px)
+- Main nav: Board, Initiatives, Stats (with divider)
+- Secondary nav: Agents, Settings
+- Bottom section: Help
+
+**Features:**
+- Active state detection via React Router NavLink
+- Nested route support (e.g., `/settings/*` activates Settings)
+- Tooltips on hover with full descriptions
+- Accessibility: `role="navigation"`, `aria-label="Main navigation"`
+
+**Navigation Routes:**
+
+| Item | Icon | Route |
+|------|------|-------|
+| Board | board | `/board` |
+| Initiatives | layers | `/initiatives` |
+| Stats | bar-chart | `/stats` |
+| Agents | robot | `/agents` |
+| Settings | settings | `/settings` |
+| Help | help | `/help` |
+
 ### Sidebar
 
 Left navigation with sections: Work, Initiatives, Environment, Preferences.

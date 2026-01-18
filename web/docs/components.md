@@ -105,7 +105,7 @@ SVG icon component with 60+ built-in icons.
 <Icon name="error" size={24} className="text-danger" />
 ```
 
-**Categories:** Navigation, Actions, Playback, Chevrons, Status, Git, Circle variants.
+**Categories:** Navigation/Sidebar, Actions, Playback, Chevrons, Status, Dashboard stats, Git, Circle variants, Panel, Database, Edit/Action, Automation, Category, Theme, Environment, IconNav (help, bar-chart).
 
 ## StatusIndicator
 
