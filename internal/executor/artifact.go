@@ -2,6 +2,7 @@
 package executor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,6 +59,19 @@ func ExtractArtifactContent(output string) string {
 //
 // This should be called after a successful spec phase completion.
 // Returns true if the spec was saved, false if the phase is not "spec" or no content found.
+// SpecExtractionError provides details about why spec extraction failed
+type SpecExtractionError struct {
+	Reason      string
+	OutputLen   int
+	SpecPath    string
+	FileExists  bool
+	FileReadErr error
+}
+
+func (e *SpecExtractionError) Error() string {
+	return e.Reason
+}
+
 func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string, worktreePath ...string) (bool, error) {
 	// Only save for spec phase
 	if phaseID != "spec" {
@@ -65,36 +79,55 @@ func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string,
 	}
 
 	if backend == nil {
-		return false, nil
+		// This shouldn't happen in production - return error for visibility
+		return false, fmt.Errorf("backend is nil - cannot save spec")
 	}
 
 	// Extract the spec content from the output using artifact tags or structured markers
 	specContent := extractArtifact(output)
+	var specPath string
+	var fileExists bool
+	var fileReadErr error
 
 	// If no artifact tags found, check for spec file in task directory
 	// Agents sometimes write spec.md files instead of using artifact tags
 	if specContent == "" && len(worktreePath) > 0 && worktreePath[0] != "" {
-		specPath := task.SpecPathIn(worktreePath[0], taskID)
+		specPath = task.SpecPathIn(worktreePath[0], taskID)
 		if content, err := os.ReadFile(specPath); err == nil && len(content) > 0 {
 			specContent = strings.TrimSpace(string(content))
+			fileExists = true
+		} else if err != nil && !os.IsNotExist(err) {
+			// File exists but couldn't be read - track this for diagnostics
+			fileExists = true
+			fileReadErr = err
 		}
 	}
 
 	if specContent == "" {
-		// No structured spec content found - don't save raw output as it may contain
-		// completion markers or other noise that isn't a valid spec
-		return false, nil
+		// No structured spec content found - return detailed error for diagnostics
+		return false, &SpecExtractionError{
+			Reason:      "no spec content found in output or file",
+			OutputLen:   len(output),
+			SpecPath:    specPath,
+			FileExists:  fileExists,
+			FileReadErr: fileReadErr,
+		}
 	}
 
 	// Validate that the spec content looks like a valid spec
 	// A valid spec should have meaningful content and not just completion markers
 	if !isValidSpecContent(specContent) {
-		return false, nil
+		return false, &SpecExtractionError{
+			Reason:     "spec content failed validation (too short, missing sections, or contains only noise)",
+			OutputLen:  len(output),
+			SpecPath:   specPath,
+			FileExists: fileExists,
+		}
 	}
 
 	// Save to database with source indicating it came from execution
 	if err := backend.SaveSpec(taskID, specContent, "executor"); err != nil {
-		return false, err
+		return false, fmt.Errorf("database save failed: %w", err)
 	}
 
 	return true, nil
