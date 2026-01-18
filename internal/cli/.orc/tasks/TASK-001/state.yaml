@@ -1,0 +1,22 @@
+task_id: TASK-001
+current_phase: implement
+current_iteration: 0
+status: interrupted
+started_at: 2026-01-11T00:17:17.47370426-06:00
+updated_at: 2026-01-11T00:17:17.473718637-06:00
+phases:
+    implement:
+        status: interrupted
+        started_at: 2026-01-11T00:17:17.473704821-06:00
+        interrupted_at: 2026-01-11T00:17:17.473706855-06:00
+        iterations: 0
+        tokens:
+            input_tokens: 0
+            output_tokens: 0
+            total_tokens: 0
+tokens:
+    input_tokens: 0
+    output_tokens: 0
+    total_tokens: 0
+cost:
+    total_cost_usd: 0
