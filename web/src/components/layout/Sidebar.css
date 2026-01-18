@@ -18,7 +18,7 @@
 }
 
 .sidebar.expanded {
-	width: var(--sidebar-width-expanded, 220px);
+	width: var(--sidebar-width-expanded, 260px);
 }
 
 /* Logo Section */
@@ -399,7 +399,7 @@
 	/* Sidebar becomes a slide-out overlay on mobile */
 	.sidebar {
 		/* Always expanded width when visible on mobile */
-		width: var(--sidebar-width-expanded, 220px);
+		width: var(--sidebar-width-expanded, 260px);
 		/* Start off-screen */
 		transform: translateX(-100%);
 		/* Add shadow for overlay effect */

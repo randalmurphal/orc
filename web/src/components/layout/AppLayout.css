@@ -15,7 +15,7 @@
 
 /* Sidebar expanded state - wider margin */
 .app-layout.sidebar-expanded .app-main {
-	margin-left: var(--sidebar-width-expanded, 220px);
+	margin-left: var(--sidebar-width-expanded, 260px);
 }
 
 /* Sidebar collapsed state - narrower margin */
