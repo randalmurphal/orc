@@ -112,6 +112,7 @@ plan:
     warn_on_missing_spec: true
     skip_validation_weights:
         - trivial
+        - small
     minimum_sections:
         - intent
         - success_criteria
