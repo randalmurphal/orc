@@ -874,6 +874,85 @@ In both cases, the PR is created successfully; only auto-merge is skipped.
 
 ---
 
+## PR Merge Failures (Race Condition)
+
+### Task Blocked After Merge Failure
+
+**Symptoms**:
+- Task shows status `blocked` with `blocked_reason=merge_failed`
+- Error message mentions "Base branch was modified"
+- Multiple tasks ran in parallel and one merged first
+
+**Example output**:
+```
+⚠️  Task TASK-042 blocked: merge failed
+   PR was created but merge failed after 3 retries.
+
+   The most likely cause is another PR merged first, modifying the
+   target branch. This can happen when running parallel tasks.
+
+   To resolve:
+     orc resume TASK-042
+```
+
+**Cause**: When parallel tasks both complete and attempt to merge:
+1. TASK-A and TASK-B both create PRs targeting `main`
+2. TASK-A's PR merges first, advancing `main`
+3. TASK-B's merge attempt gets HTTP 405 "Base branch was modified"
+4. Orc automatically retries with rebase (up to 3 times)
+5. If retries exhausted or rebase conflicts, task is blocked
+
+**What Orc Does Automatically**:
+
+| Step | Action |
+|------|--------|
+| 1. Detect 405 | Recognize "Base branch was modified" as retryable |
+| 2. Backoff | Wait with exponential backoff (2s, 4s, 8s) |
+| 3. Rebase | Fetch and rebase branch onto latest target |
+| 4. Push | Force-push rebased branch with `--force-with-lease` |
+| 5. Retry | Attempt merge again (up to 3 total attempts) |
+| 6. Block | If all retries fail, block task for manual resolution |
+
+**Solutions**:
+
+| Scenario | Command | Notes |
+|----------|---------|-------|
+| Retries failed (conflicts) | Resolve conflicts manually, then `orc resume TASK-XXX` | Most common |
+| Transient failure | `orc resume TASK-XXX` | Retry may succeed |
+| Give up | `orc resolve TASK-XXX --force` | If PR is no longer needed |
+
+**Manual Resolution Steps**:
+```bash
+# Navigate to worktree
+cd .orc/worktrees/orc-TASK-042
+
+# Fetch and rebase onto target
+git fetch origin
+git rebase origin/main
+
+# Resolve any conflicts, then:
+git add <resolved-files>
+git rebase --continue
+
+# Force push the rebased branch
+git push --force-with-lease origin orc/TASK-042
+
+# Resume the task (will retry merge)
+orc resume TASK-042
+```
+
+**Non-Retryable Merge Errors**:
+
+Some merge errors indicate permanent failures that won't be fixed by retry:
+
+| Error Code | Meaning | Action |
+|------------|---------|--------|
+| HTTP 405 + "Base branch was modified" | Retryable | Automatic retry with rebase |
+| HTTP 422 | Validation failed (conflicts, required checks) | Manual resolution required |
+| Other errors | Various failures | Check error message for details |
+
+---
+
 ## Web UI Issues
 
 ### No Tasks Displayed / "Select Project" Message

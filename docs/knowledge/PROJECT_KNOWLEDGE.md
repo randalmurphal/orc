@@ -83,6 +83,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Log level classification for expected failures | PR label errors and auto-merge config errors (repo doesn't support auto-merge) log at DEBUG; auth errors log at WARN (actionable); missing spec warnings only for large/greenfield weights; keeps normal operation quiet while surfacing actionable issues | TASK-289 |
 | Initiative decision ID namespace | Decision IDs (DEC-001, DEC-002, etc.) are scoped per-initiative, not global; composite primary key `(id, initiative_id)` in `initiative_decisions` table; `AddDecision()` generates ID from `len(i.Decisions)+1`, so each initiative's first decision is DEC-001 | TASK-414 |
 | Streaming transcript persistence | `TranscriptBuffer` in executor package batches transcript lines (50 lines or 5 seconds) for database persistence; attached to `EventPublisher` via `SetBuffer()`; chunks accumulated until newline then persisted; `Close()` flushes remaining on phase/executor completion; uses background context with 30s timeout to ensure writes complete even on cancellation | TASK-401 |
+| Merge retry with rebase on 405 | `MergePR()` retries on HTTP 405 "Base branch was modified" errors (up to 3 attempts with exponential backoff: 2s, 4s, 8s); rebases branch onto target before each retry; merge failures block task completion with `blocked_reason=merge_failed` instead of false positive "completed" | TASK-437 |
 
 ## Known Gotchas
 
@@ -115,6 +116,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | 'completed!' shown when sync fails | Fixed: `completeTask()` returned nil when sync failed with conflicts, so CLI showed celebration message; now returns `ErrTaskBlocked` sentinel error; CLI checks `errors.Is(err, executor.ErrTaskBlocked)` and calls `TaskBlocked()` display instead of `TaskCompleted()` | TASK-287 |
 | Stray spec.md files in repo | Fixed: Added `spec.md` and `artifacts/spec.md` to `.gitignore`; spec prompt now explicitly instructs Claude not to write spec files to filesystem; specs stored in database only via `<artifact>` tags | TASK-292 |
 | Decision IDs collide across initiatives | Fixed: `initiative_decisions` table now uses composite primary key `(id, initiative_id)` instead of `id` alone; decision IDs like DEC-001 are per-initiative, not global; migration 018 (SQLite) and 005 (PostgreSQL) handle existing data | TASK-414 |
+| Task marked completed when PR merge fails | Fixed: `completeTask()` now checks for `ErrMergeFailed` and blocks task with `blocked_reason=merge_failed`; `MergePR()` implements retry logic with rebase for HTTP 405 "Base branch was modified" errors; task status becomes `StatusBlocked` instead of false positive `StatusCompleted` | TASK-437 |
 
 ## Decisions
 
