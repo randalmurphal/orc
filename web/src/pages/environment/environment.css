@@ -234,7 +234,7 @@
 
 .env-section-count {
   font-size: var(--text-sm);
-  font-weight: var(--font-normal);
+  font-weight: var(--font-regular);
   color: var(--text-muted);
 }
 
