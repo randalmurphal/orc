@@ -3,12 +3,14 @@
  *
  * Features:
  * - Project dropdown button (static - dropdown menu is future task)
- * - Search box (static - search functionality is future task)
+ * - Search box with Cmd+K shortcut (search functionality is future task)
  * - Session metrics: duration, tokens, cost with colored icon badges
  * - Pause/Resume button that integrates with sessionStore
  * - New Task button
+ * - Responsive: hides session stats at 768px, expandable search at 480px
  */
 
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
 import { useSessionStore, useCurrentProject } from '@/stores';
@@ -57,6 +59,9 @@ export function TopBar({
 		resumeAll,
 	} = useSessionStore();
 
+	const searchInputRef = useRef<HTMLInputElement>(null);
+	const [searchExpanded, setSearchExpanded] = useState(false);
+
 	const projectName = projectNameProp ?? currentProject?.name ?? 'Select project';
 
 	const handlePauseResume = async () => {
@@ -67,7 +72,35 @@ export function TopBar({
 		}
 	};
 
+	// Focus search on Cmd+K / Ctrl+K
+	const handleKeyDown = useCallback((e: KeyboardEvent) => {
+		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+			e.preventDefault();
+			setSearchExpanded(true);
+			searchInputRef.current?.focus();
+		}
+		// Close expanded search on Escape
+		if (e.key === 'Escape' && searchExpanded) {
+			setSearchExpanded(false);
+			searchInputRef.current?.blur();
+		}
+	}, [searchExpanded]);
+
+	useEffect(() => {
+		document.addEventListener('keydown', handleKeyDown);
+		return () => document.removeEventListener('keydown', handleKeyDown);
+	}, [handleKeyDown]);
+
+	const handleSearchToggle = () => {
+		setSearchExpanded((prev) => !prev);
+		if (!searchExpanded) {
+			// Focus after state update
+			setTimeout(() => searchInputRef.current?.focus(), 0);
+		}
+	};
+
 	const classes = ['top-bar', className].filter(Boolean).join(' ');
+	const searchClasses = ['search-box', searchExpanded && 'search-expanded'].filter(Boolean).join(' ');
 
 	return (
 		<header className={classes} role="banner">
@@ -82,13 +115,28 @@ export function TopBar({
 					<Icon name="chevron-down" size={12} />
 				</button>
 
-				<div className="search-box">
+				{/* Mobile search toggle button (visible <480px) */}
+				<button
+					className="search-toggle"
+					onClick={handleSearchToggle}
+					aria-label="Toggle search"
+					aria-expanded={searchExpanded}
+				>
+					<Icon name="search" size={14} />
+				</button>
+
+				<div className={searchClasses}>
 					<Icon name="search" size={14} />
 					<input
+						ref={searchInputRef}
 						type="text"
 						placeholder="Search tasks..."
 						aria-label="Search tasks"
 					/>
+					<span className="search-kbd-hint">
+						<kbd>⌘</kbd>
+						<kbd>K</kbd>
+					</span>
 				</div>
 			</div>
 
