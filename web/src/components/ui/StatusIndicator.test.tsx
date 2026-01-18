@@ -82,8 +82,8 @@ describe('StatusIndicator', () => {
 		const { container } = render(<StatusIndicator status="running" />);
 		const orb = container.querySelector('.orb');
 		expect(orb).toHaveStyle({
-			'--status-color': 'var(--accent-primary)',
-			'--status-glow': 'var(--accent-glow)',
+			'--status-color': 'var(--primary)',
+			'--status-glow': 'var(--primary-glow)',
 		});
 	});
 

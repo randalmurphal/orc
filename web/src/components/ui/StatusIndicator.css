@@ -10,7 +10,7 @@
 	border-radius: 50%;
 	background: var(--status-color);
 	box-shadow: 0 0 0 var(--status-glow);
-	transition: all var(--duration-normal) var(--ease-out);
+	transition: box-shadow var(--duration-normal) var(--ease-out);
 }
 
 /* Sizes */

@@ -1,7 +1,7 @@
 /* AppLayout - Main application layout */
 .app-layout {
 	min-height: 100vh;
-	background: var(--bg-primary);
+	background: var(--bg-base);
 }
 
 /* Main content wrapper - needs margin to account for fixed sidebar */
@@ -15,7 +15,7 @@
 
 /* Sidebar expanded state - wider margin */
 .app-layout.sidebar-expanded .app-main {
-	margin-left: var(--sidebar-width-expanded, 220px);
+	margin-left: var(--sidebar-width-expanded, 260px);
 }
 
 /* Sidebar collapsed state - narrower margin */
@@ -60,7 +60,7 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background: rgba(0, 0, 0, 0.5);
+		background: var(--overlay-medium);
 		z-index: calc(var(--z-sidebar, 300) - 1);
 		animation: backdrop-fade-in var(--duration-fast, 100ms) var(--ease-out, ease-out);
 	}

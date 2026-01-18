@@ -2,7 +2,7 @@
 
 .summary-section {
 	padding-top: var(--space-4);
-	border-top: 1px solid var(--border-subtle);
+	border-top: 1px solid var(--border);
 }
 
 .summary-stats {
@@ -31,9 +31,9 @@
 }
 
 .summary-value.success {
-	color: var(--status-success);
+	color: var(--green);
 }
 
 .summary-value.danger {
-	color: var(--status-danger);
+	color: var(--red);
 }

@@ -3,14 +3,14 @@
 .swimlane {
 	display: flex;
 	flex-direction: column;
-	background: var(--bg-secondary);
+	background: var(--bg-elevated);
 	border-radius: var(--radius-lg);
-	border: 1px solid var(--border-subtle);
+	border: 1px solid var(--border);
 	overflow: hidden;
 }
 
 .swimlane.collapsed {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 }
 
 /* Swimlane Header - override Button primitive styles */
@@ -28,7 +28,7 @@
 }
 
 .swimlane-header.btn:hover:not(:disabled) {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	transform: none;
 }
 
@@ -67,7 +67,7 @@
 .swimlane-header .progress-bar {
 	width: 80px;
 	height: 6px;
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	border-radius: var(--radius-full);
 	overflow: hidden;
 	flex-shrink: 0;
@@ -75,7 +75,7 @@
 
 .swimlane-header .progress-fill {
 	height: 100%;
-	background: var(--status-success);
+	background: var(--green);
 	border-radius: var(--radius-full);
 	transition: width 0.3s ease-out;
 }
@@ -96,7 +96,7 @@
 	padding: var(--space-3);
 	min-height: 150px;
 	overflow-x: auto;
-	border-top: 1px solid var(--border-subtle);
+	border-top: 1px solid var(--border);
 }
 
 .swimlane-column {
@@ -107,7 +107,7 @@
 	flex-direction: column;
 	gap: var(--space-2);
 	padding: var(--space-2);
-	background: var(--bg-primary);
+	background: var(--bg-base);
 	border-radius: var(--radius-md);
 	min-height: 100px;
 }

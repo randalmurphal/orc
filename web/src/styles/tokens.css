@@ -79,10 +79,12 @@
   --bg-surface: #101016;
   --bg-card: #15151d;
   --bg-hover: #1c1c26;
+  --bg-queued: rgba(148, 163, 184, 0.05);
 
   /* Border Colors */
   --border: rgba(255, 255, 255, 0.04);
   --border-light: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.12);
 
   /* Text Colors */
   --text-primary: #eaeaef;
@@ -94,89 +96,51 @@
   --primary-bright: #c084fc;
   --primary-dim: rgba(168, 85, 247, 0.1);
   --primary-glow: rgba(168, 85, 247, 0.25);
+  --primary-border: rgba(168, 85, 247, 0.2);
+  --primary-border-hover: rgba(168, 85, 247, 0.3);
+  --selection-bg: rgba(168, 85, 247, 0.5);
+  /* Accessible primary for text on dark - meets WCAG AA */
+  --primary-accessible: #7c3aed;
+  --primary-accessible-hover: #8b5cf6;
+  /* Gradient endpoint for logo/branding elements */
+  --primary-gradient-end: #ec4899;
 
   /* Semantic Colors */
   --cyan: #06b6d4;
   --cyan-dim: rgba(6, 182, 212, 0.08);
+  --cyan-glow: rgba(6, 182, 212, 0.25);
   --orange: #f97316;
   --orange-dim: rgba(249, 115, 22, 0.08);
+  --orange-glow: rgba(249, 115, 22, 0.25);
   --green: #10b981;
   --green-dim: rgba(16, 185, 129, 0.08);
+  --green-glow: rgba(16, 185, 129, 0.25);
+  --green-bg: rgba(52, 211, 153, 0.1);
   --red: #ef4444;
   --red-dim: rgba(239, 68, 68, 0.08);
+  --red-glow: rgba(248, 113, 113, 0.3);
+  --red-border: rgba(248, 113, 113, 0.3);
+  --red-bg: rgba(248, 113, 113, 0.1);
   --amber: #f59e0b;
   --amber-dim: rgba(245, 158, 11, 0.08);
+  --amber-glow: rgba(250, 204, 21, 0.25);
+  --amber-border: rgba(250, 204, 21, 0.3);
+  --amber-bg: rgba(250, 204, 21, 0.1);
   --blue: #3b82f6;
   --blue-dim: rgba(59, 130, 246, 0.08);
+  --blue-glow: rgba(96, 165, 250, 0.25);
+  --blue-border: rgba(96, 165, 250, 0.3);
+  --blue-bg: rgba(96, 165, 250, 0.1);
 
-  /* ==========================================================================
-     LEGACY COMPATIBILITY ALIASES
-     Maps old token names to new design system
-     ========================================================================== */
-
-  /* Background Aliases */
-  --bg-void: var(--bg-base);
-  --bg-primary: var(--bg-base);
-  --bg-secondary: var(--bg-elevated);
-  --bg-tertiary: var(--bg-surface);
-  /* --bg-surface already defined above */
-  /* --bg-elevated already defined above */
-  /* --bg-hover already defined above */
-
-  /* Accent Aliases (maps old accent-* to new primary-*) */
-  --accent-primary: var(--primary);
-  --accent-secondary: var(--primary-bright);
-  --accent-glow: var(--primary-glow);
-  --accent-glow-strong: rgba(168, 85, 247, 0.4);
-  --accent-muted: rgba(168, 85, 247, 0.5);
-  --accent-hover: var(--primary-bright);
-  --accent-active: #8b5cf6;
-  --accent-subtle: var(--primary-dim);
-  --accent-button: #7c3aed;
-  --accent-button-hover: #8b5cf6;
-  --accent-primary-hover: var(--primary-bright);
-  --accent-primary-transparent: var(--primary-dim);
-
-  /* Text Aliases */
-  --text-disabled: var(--text-muted);
-  --text-inverse: var(--bg-base);
-  --text-accent: var(--primary);
-
-  /* Border Aliases */
-  --border-subtle: var(--border);
-  --border-default: var(--border-light);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --border-focus: var(--primary);
-  --border-glow: var(--primary-glow);
-
-  /* Status Colors (maps to semantic colors) */
-  --status-success: var(--green);
-  --status-success-glow: rgba(16, 185, 129, 0.25);
-  --status-success-bg: var(--green-dim);
-
-  --status-warning: var(--amber);
-  --status-warning-glow: rgba(245, 158, 11, 0.25);
-  --status-warning-bg: var(--amber-dim);
-
-  --status-danger: var(--red);
-  --status-danger-glow: rgba(239, 68, 68, 0.25);
-  --status-danger-bg: var(--red-dim);
-  --status-error: var(--red);
-
-  --status-info: var(--blue);
-  --status-info-glow: rgba(59, 130, 246, 0.25);
-  --status-info-bg: var(--blue-dim);
-
-  --status-running: var(--primary);
-  --status-running-glow: var(--primary-glow);
-  --status-running-bg: var(--primary-dim);
-
-  /* Weight Colors */
-  --weight-trivial: var(--text-muted);
-  --weight-small: var(--green);
-  --weight-medium: var(--blue);
-  --weight-large: var(--amber);
-  --weight-greenfield: var(--primary);
+  /* Overlay Colors - for backdrops and translucent overlays */
+  --overlay-light: rgba(0, 0, 0, 0.3);
+  --overlay-medium: rgba(0, 0, 0, 0.5);
+  --overlay-dark: rgba(0, 0, 0, 0.6);
+  --overlay-heavy: rgba(0, 0, 0, 0.7);
+  --overlay-opaque: rgba(0, 0, 0, 0.9);
+  --overlay-white-subtle: rgba(255, 255, 255, 0.1);
+  --overlay-white-light: rgba(255, 255, 255, 0.2);
+  --overlay-white-border: rgba(255, 255, 255, 0.3);
 
   /* ==========================================================================
      TYPOGRAPHY
@@ -188,18 +152,18 @@
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
 
   /* Font Sizes - From Initiative Vision */
-  --text-xs: 0.5rem;     /* 8px */
-  --text-sm: 0.5625rem;  /* 9px */
-  --text-base: 0.625rem; /* 10px */
-  --text-md: 0.6875rem;  /* 11px */
-  --text-lg: 0.75rem;    /* 12px */
-  --text-xl: 0.8125rem;  /* 13px */
-  --text-2xl: 0.875rem;  /* 14px */
-  --text-3xl: 1rem;      /* 16px */
-  --text-4xl: 1.125rem;  /* 18px */
-  --text-5xl: 1.75rem;   /* 28px */
+  --text-xs: 0.5rem;      /* 8px */
+  --text-sm: 0.5625rem;   /* 9px */
+  --text-base: 0.6875rem; /* 11px */
+  --text-md: 0.75rem;     /* 12px */
+  --text-lg: 0.8125rem;   /* 13px */
+  --text-xl: 0.875rem;    /* 14px */
+  --text-2xl: 1rem;       /* 16px */
+  --text-3xl: 1.125rem;   /* 18px */
+  --text-4xl: 1.5rem;     /* 24px */
+  --text-5xl: 1.75rem;    /* 28px */
 
-  /* Legacy Font Size Aliases */
+  /* Legacy Font Size Alias - maps to xs for backward compatibility */
   --text-2xs: var(--text-xs);
 
   /* Font Weights */
@@ -286,10 +250,7 @@
   /* Glow Effects */
   --shadow-glow-sm: 0 0 10px var(--primary-glow);
   --shadow-glow: 0 0 20px var(--primary-glow);
-  --shadow-glow-lg: 0 0 40px var(--accent-glow-strong);
-  --shadow-glow-success: 0 0 20px var(--status-success-glow);
-  --shadow-glow-warning: 0 0 20px var(--status-warning-glow);
-  --shadow-glow-danger: 0 0 20px var(--status-danger-glow);
+  --shadow-glow-lg: 0 0 40px rgba(168, 85, 247, 0.4);
 
   /* ==========================================================================
      ANIMATION
@@ -344,6 +305,7 @@
   /* Border Colors - Light Theme */
   --border: rgba(0, 0, 0, 0.06);
   --border-light: rgba(0, 0, 0, 0.1);
+  --border-hover: rgba(0, 0, 0, 0.15);
 
   /* Text Colors - Light Theme */
   --text-primary: #0f172a;
@@ -359,33 +321,36 @@
   /* Semantic Colors - Adjusted for light backgrounds */
   --cyan: #0891b2;
   --cyan-dim: rgba(8, 145, 178, 0.08);
+  --cyan-glow: rgba(8, 145, 178, 0.2);
   --orange: #ea580c;
   --orange-dim: rgba(234, 88, 12, 0.08);
+  --orange-glow: rgba(234, 88, 12, 0.2);
   --green: #059669;
   --green-dim: rgba(5, 150, 105, 0.08);
+  --green-glow: rgba(5, 150, 105, 0.2);
+  --green-bg: rgba(5, 150, 105, 0.1);
   --red: #dc2626;
   --red-dim: rgba(220, 38, 38, 0.08);
+  --red-glow: rgba(220, 38, 38, 0.2);
+  --red-bg: rgba(220, 38, 38, 0.1);
+  --red-border: rgba(220, 38, 38, 0.3);
   --amber: #d97706;
   --amber-dim: rgba(217, 119, 6, 0.08);
+  --amber-glow: rgba(217, 119, 6, 0.2);
+  --amber-bg: rgba(217, 119, 6, 0.1);
   --blue: #2563eb;
   --blue-dim: rgba(37, 99, 235, 0.08);
+  --blue-glow: rgba(37, 99, 235, 0.2);
 
-  /* Legacy compatibility updates for light mode */
-  --accent-glow-strong: rgba(124, 58, 237, 0.25);
-  --accent-muted: rgba(124, 58, 237, 0.6);
-  --accent-active: #5b21b6;
-  --accent-button: #7c3aed;
-  --accent-button-hover: #6d28d9;
-
-  --text-inverse: #f8fafc;
-
-  --border-strong: rgba(0, 0, 0, 0.15);
-
-  /* Status glow adjustments */
-  --status-success-glow: rgba(5, 150, 105, 0.2);
-  --status-warning-glow: rgba(217, 119, 6, 0.2);
-  --status-danger-glow: rgba(220, 38, 38, 0.2);
-  --status-info-glow: rgba(37, 99, 235, 0.2);
+  /* Overlay Colors - Adjusted for light mode */
+  --overlay-light: rgba(0, 0, 0, 0.1);
+  --overlay-medium: rgba(0, 0, 0, 0.3);
+  --overlay-dark: rgba(0, 0, 0, 0.4);
+  --overlay-heavy: rgba(0, 0, 0, 0.5);
+  --overlay-opaque: rgba(0, 0, 0, 0.8);
+  --overlay-white-subtle: rgba(255, 255, 255, 0.5);
+  --overlay-white-light: rgba(255, 255, 255, 0.7);
+  --overlay-white-border: rgba(255, 255, 255, 0.9);
 
   /* Shadows - Softer for light mode */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -394,4 +359,41 @@
   --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.12);
   --shadow-2xl: 0 24px 48px rgba(0, 0, 0, 0.15);
+
+  /* Glow Effects - Adjusted for light mode */
+  --shadow-glow-lg: 0 0 40px rgba(124, 58, 237, 0.25);
+}
+
+/* =============================================================================
+   SEMANTIC STATUS ALIASES
+   Map semantic status names to design system colors for intuitive usage.
+   ============================================================================= */
+
+:root {
+  /* Status Colors - Map to semantic colors */
+  --status-success: var(--green);
+  --status-success-glow: var(--green-dim);
+  --status-success-bg: var(--green-dim);
+
+  --status-error: var(--red);
+  --status-danger: var(--red);
+  --status-danger-glow: var(--red-dim);
+  --status-danger-bg: var(--red-dim);
+
+  --status-warning: var(--amber);
+  --status-warning-glow: var(--amber-dim);
+  --status-warning-bg: var(--amber-dim);
+
+  --status-info: var(--blue);
+  --status-info-glow: var(--blue-dim);
+  --status-info-bg: var(--blue-dim);
+
+  /* Background tertiary - between surface and card */
+  --bg-tertiary: var(--bg-surface);
+
+  /* Old accent tokens -> new primary tokens */
+  --accent-primary: var(--primary);
+  --accent-glow: var(--primary-glow);
+  --accent-subtle: var(--primary-dim);
+  --accent-secondary: var(--cyan);
 }

@@ -45,7 +45,7 @@
 	font-size: 12px;
 	font-weight: 600;
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 
 .project-selector:hover {
@@ -84,7 +84,7 @@
 	border: 1px solid var(--border);
 	border-radius: 6px;
 	width: 200px;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 
 .search-box:focus-within {

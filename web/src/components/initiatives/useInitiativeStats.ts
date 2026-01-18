@@ -5,7 +5,7 @@
  * updates when the stats_update WebSocket event is implemented.
  */
 
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, useRef } from 'react';
 import { useTaskStore, useInitiativeStore, useInitiatives } from '@/stores';
 import { useWebSocket } from '@/hooks';
 import type { InitiativeStats } from './StatsRow';
@@ -110,7 +110,7 @@ export function useStatsSubscription(onChange: (stats: InitiativeStats) => void)
 	const { stats } = useInitiativeStats();
 
 	// Use ref to track previous stats for comparison
-	const prevStatsRef = useMemo(() => ({ current: stats }), []);
+	const prevStatsRef = useRef(stats);
 
 	useEffect(() => {
 		// Only fire callback if stats actually changed
