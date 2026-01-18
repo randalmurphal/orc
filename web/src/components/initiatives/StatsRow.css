@@ -1,0 +1,181 @@
+/* =============================================================================
+   StatsRow Component Styles
+   Displays 4 key initiative statistics in a horizontal row
+   ============================================================================= */
+
+/* ==========================================================================
+   CONTAINER
+   ========================================================================== */
+
+.stats-row {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 12px;
+}
+
+/* ==========================================================================
+   STAT CARD
+   ========================================================================== */
+
+.stats-row-card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 16px;
+	transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.stats-row-card:hover {
+	border-color: var(--border-light);
+}
+
+/* ==========================================================================
+   LABEL
+   ========================================================================== */
+
+.stats-row-card-label {
+	font-size: 11px;
+	color: var(--text-muted);
+	margin-bottom: 4px;
+	font-weight: var(--font-medium);
+}
+
+/* ==========================================================================
+   VALUE
+   ========================================================================== */
+
+.stats-row-card-value {
+	font-size: 28px;
+	font-weight: var(--font-bold);
+	font-family: var(--font-mono);
+	color: var(--text-primary);
+	line-height: var(--leading-tight);
+	transition: opacity var(--duration-fast) var(--ease-out),
+		transform var(--duration-fast) var(--ease-out);
+}
+
+/* Value Color Variants */
+.stats-row-card-value-default {
+	color: var(--text-primary);
+}
+
+.stats-row-card-value-purple {
+	color: var(--primary);
+}
+
+.stats-row-card-value-green {
+	color: var(--green);
+}
+
+.stats-row-card-value-amber {
+	color: var(--amber);
+}
+
+.stats-row-card-value-red {
+	color: var(--red);
+}
+
+/* Value animation state */
+.stats-row-card-value-animating {
+	opacity: 0.7;
+	transform: scale(0.98);
+}
+
+/* ==========================================================================
+   TREND INDICATOR
+   ========================================================================== */
+
+.stats-row-card-trend {
+	font-size: 10px;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin-top: 4px;
+	font-weight: var(--font-medium);
+}
+
+.stats-row-card-trend svg {
+	width: 12px;
+	height: 12px;
+	flex-shrink: 0;
+}
+
+.stats-row-card-trend-positive {
+	color: var(--green);
+}
+
+.stats-row-card-trend-negative {
+	color: var(--red);
+}
+
+/* ==========================================================================
+   LOADING SKELETON
+   ========================================================================== */
+
+.stats-row-card-loading {
+	pointer-events: none;
+}
+
+.stats-row-card-label-skeleton {
+	width: 80px;
+	height: 11px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-sm);
+	margin-bottom: 8px;
+}
+
+.stats-row-card-value-skeleton {
+	width: 60px;
+	height: 28px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-sm);
+}
+
+/* ==========================================================================
+   RESPONSIVE BREAKPOINTS
+   ========================================================================== */
+
+/* Tablet: 2x2 grid */
+@media (max-width: 768px) {
+	.stats-row {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+/* Mobile: single column stack */
+@media (max-width: 480px) {
+	.stats-row {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.stats-row-card,
+	.stats-row-card-value {
+		transition: none;
+	}
+
+	.stats-row-card-label-skeleton,
+	.stats-row-card-value-skeleton {
+		animation: none;
+		background: var(--bg-surface);
+	}
+}
