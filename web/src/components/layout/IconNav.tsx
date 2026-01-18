@@ -6,7 +6,7 @@
  * Matches the design from example_ui/board.html.
  */
 
-import { useCallback } from 'react';
+import { memo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Icon, Tooltip } from '@/components/ui';
 import type { IconName } from '@/components/ui/Icon';
@@ -92,8 +92,9 @@ function checkIsActive(path: string, pathname: string): boolean {
 
 /**
  * Renders a single navigation item with icon, label, and tooltip.
+ * Memoized to prevent unnecessary re-renders when other nav items change state.
  */
-function NavItem({ item, isActive }: { item: NavItemConfig; isActive: boolean }) {
+const NavItem = memo(function NavItem({ item, isActive }: { item: NavItemConfig; isActive: boolean }) {
 	const itemClasses = ['icon-nav__item', isActive ? 'icon-nav__item--active' : '']
 		.filter(Boolean)
 		.join(' ');
@@ -111,7 +112,7 @@ function NavItem({ item, isActive }: { item: NavItemConfig; isActive: boolean })
 			</NavLink>
 		</Tooltip>
 	);
-}
+});
 
 /**
  * IconNav - 56px icon-based navigation sidebar.
@@ -134,11 +135,8 @@ export function IconNav({ className = '' }: IconNavProps) {
 	const location = useLocation();
 	const navClasses = ['icon-nav', className].filter(Boolean).join(' ');
 
-	// Memoize active state check
-	const isActive = useCallback(
-		(path: string) => checkIsActive(path, location.pathname),
-		[location.pathname]
-	);
+	// Check if a path is currently active
+	const isActive = (path: string) => checkIsActive(path, location.pathname);
 
 	return (
 		<nav
