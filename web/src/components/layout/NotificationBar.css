@@ -16,20 +16,20 @@
 }
 
 .notification-warning {
-	background: rgba(250, 204, 21, 0.1);
-	border: 1px solid rgba(250, 204, 21, 0.3);
+	background: var(--amber-bg);
+	border: 1px solid var(--amber-border);
 	color: var(--amber);
 }
 
 .notification-error {
-	background: rgba(248, 113, 113, 0.1);
-	border: 1px solid rgba(248, 113, 113, 0.3);
+	background: var(--red-bg);
+	border: 1px solid var(--red-border);
 	color: var(--red);
 }
 
 .notification-info {
-	background: rgba(96, 165, 250, 0.1);
-	border: 1px solid rgba(96, 165, 250, 0.3);
+	background: var(--blue-bg);
+	border: 1px solid var(--blue-border);
 	color: var(--blue);
 }
 

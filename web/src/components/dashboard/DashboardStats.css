@@ -114,8 +114,8 @@
 }
 
 .stat-card.today .stat-icon {
-	background: rgba(168, 85, 247, 0.1);
-	color: rgb(168, 85, 247);
+	background: var(--primary-dim);
+	color: var(--primary);
 }
 
 .stat-card.tokens .stat-icon {

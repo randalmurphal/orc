@@ -67,7 +67,7 @@
 .env-scope-tab[data-state='active'],
 .env-scope-tab.active {
   color: var(--primary);
-  background: rgba(168, 85, 247, 0.5);
+  background: var(--selection-bg);
   border-bottom: 2px solid var(--primary);
   margin-bottom: -1px;
 }
@@ -88,7 +88,7 @@
 }
 
 .env-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-hover);
 }
 
 .env-card-header {
@@ -145,7 +145,7 @@
 }
 
 .env-list-item:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-hover);
 }
 
 .env-list-item-content {
@@ -199,7 +199,7 @@
 }
 
 .env-badge-source {
-  background: rgba(168, 85, 247, 0.5);
+  background: var(--selection-bg);
   color: var(--primary);
 }
 
@@ -417,7 +417,7 @@
 }
 
 .prompt-item:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-hover);
 }
 
 .prompt-item-header {
@@ -469,7 +469,7 @@
 }
 
 .prompt-badge.source-project {
-  background: rgba(168, 85, 247, 0.5);
+  background: var(--selection-bg);
   color: var(--primary);
 }
 
@@ -892,7 +892,7 @@
   font-size: var(--text-xs);
   color: var(--primary);
   padding: var(--space-0-5) var(--space-2);
-  background: rgba(168, 85, 247, 0.5);
+  background: var(--selection-bg);
   border-radius: var(--radius-sm);
 }
 

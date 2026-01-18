@@ -6,7 +6,7 @@
 	width: 200px;
 	display: flex;
 	flex-direction: column;
-	background: rgba(148, 163, 184, 0.05);
+	background: var(--bg-queued);
 	border-radius: var(--radius-lg);
 }
 
@@ -89,7 +89,7 @@
 
 .queued-column .backlog-toggle.btn:hover:not(:disabled) {
 	background: var(--bg-surface);
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 	transform: none;
 }
 

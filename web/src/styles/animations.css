@@ -24,7 +24,7 @@
     box-shadow: 0 0 8px var(--primary-glow);
   }
   50% {
-    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+    box-shadow: var(--shadow-glow-lg);
   }
 }
 
@@ -248,7 +248,7 @@
 /* Focus Ring Expand */
 @keyframes focus-ring-expand {
   from {
-    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4);
+    box-shadow: 0 0 0 0 var(--primary-glow);
   }
   to {
     box-shadow: 0 0 0 3px var(--primary-glow);
