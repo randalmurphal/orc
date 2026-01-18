@@ -22,3 +22,9 @@ export type { SearchInputProps } from './SearchInput';
 
 export { Select } from './Select';
 export type { SelectProps, SelectOption } from './Select';
+
+export { Slider } from './Slider';
+export type { SliderProps } from './Slider';
+
+export { Tooltip } from './Tooltip';
+export type { TooltipProps, TooltipPosition } from './Tooltip';
