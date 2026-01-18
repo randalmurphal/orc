@@ -5,8 +5,6 @@
  * - Flat and swimlane view modes
  * - Filter by initiative
  * - Clickable task cards for navigation
- * - Live transcript modal for running tasks
- * - Finalize modal for completed tasks
  *
  * URL params:
  * - project: Project filter
@@ -15,7 +13,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
 	useTaskStore,
 	useInitiatives,
@@ -31,12 +29,6 @@ import {
 	type BoardViewMode,
 } from '@/components/board';
 import { Icon } from '@/components/ui/Icon';
-import {
-	runProjectTask,
-	pauseProjectTask,
-	resumeProjectTask,
-	type FinalizeState,
-} from '@/lib/api';
 import type { Task, DependencyStatus } from '@/lib/types';
 import './Board.css';
 
@@ -44,6 +36,7 @@ import './Board.css';
 const VIEW_MODE_STORAGE_KEY = 'orc-board-view-mode';
 
 export function Board() {
+	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const currentProjectId = useCurrentProjectId();
 	const currentInitiativeId = useCurrentInitiativeId();
@@ -62,20 +55,6 @@ export function Board() {
 		const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
 		return stored === 'swimlane' ? 'swimlane' : 'flat';
 	});
-
-	// Modal states - setters used, getters for when modals are implemented
-	 
-	const [_transcriptModalOpen, setTranscriptModalOpen] = useState(false);
-	 
-	const [_selectedTask, setSelectedTask] = useState<Task | null>(null);
-	 
-	const [_finalizeModalOpen, setFinalizeModalOpen] = useState(false);
-	 
-	const [_finalizeTask, setFinalizeTask] = useState<Task | null>(null);
-
-	// Finalize states map - getter used by Board component via getFinalizeState
-	 
-	const [finalizeStates, _setFinalizeStates] = useState<Map<string, FinalizeState>>(new Map());
 
 	// Swimlane view disabled when initiative filter is active in URL
 	// Use URL param as source of truth, not store value (which includes localStorage-persisted state)
@@ -116,53 +95,22 @@ export function Board() {
 		[selectInitiative]
 	);
 
-	// Handle task actions (run/pause/resume)
-	const handleAction = useCallback(
-		async (taskId: string, action: 'run' | 'pause' | 'resume') => {
-			if (!currentProjectId) return;
-
-			try {
-				if (action === 'run') {
-					await runProjectTask(currentProjectId, taskId);
-				} else if (action === 'pause') {
-					await pauseProjectTask(currentProjectId, taskId);
-				} else if (action === 'resume') {
-					await resumeProjectTask(currentProjectId, taskId);
-				}
-				// WebSocket will update the store
-			} catch (err) {
-				console.error(`Failed to ${action} task:`, err);
-			}
+	// Handle task click - navigate to task detail
+	const handleTaskClick = useCallback(
+		(task: Task) => {
+			navigate(`/tasks/${task.id}`);
 		},
-		[currentProjectId]
+		[navigate]
 	);
 
-	// Handle task click (for running tasks, show transcript modal)
-	const handleTaskClick = useCallback((task: Task) => {
-		setSelectedTask(task);
-		setTranscriptModalOpen(true);
-	}, []);
-
-	// Handle finalize click
-	const handleFinalizeClick = useCallback((task: Task) => {
-		setFinalizeTask(task);
-		setFinalizeModalOpen(true);
-	}, []);
-
-	// Handle initiative click (from task card badge)
-	const handleInitiativeClick = useCallback(
-		(initiativeId: string) => {
-			selectInitiative(initiativeId);
+	// Handle context menu - placeholder for future context menu implementation
+	const handleContextMenu = useCallback(
+		(task: Task, e: React.MouseEvent) => {
+			e.preventDefault();
+			// TODO: Show context menu with actions like run/pause/resume/finalize
+			console.log('Context menu for task:', task.id);
 		},
-		[selectInitiative]
-	);
-
-	// Get finalize state for a task
-	const getFinalizeState = useCallback(
-		(taskId: string) => {
-			return finalizeStates.get(taskId);
-		},
-		[finalizeStates]
+		[]
 	);
 
 	// Clear initiative filter
@@ -262,14 +210,9 @@ export function Board() {
 				tasks={filteredTasks}
 				viewMode={swimlaneDisabled ? 'flat' : viewMode}
 				initiatives={initiatives}
-				onAction={handleAction}
 				onTaskClick={handleTaskClick}
-				onFinalizeClick={handleFinalizeClick}
-				onInitiativeClick={handleInitiativeClick}
-				getFinalizeState={getFinalizeState}
+				onContextMenu={handleContextMenu}
 			/>
-
-			{/* TODO: Add LiveTranscriptModal and FinalizeModal when those components exist */}
 		</div>
 	);
 }

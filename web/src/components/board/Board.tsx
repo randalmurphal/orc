@@ -12,7 +12,6 @@ import { Column, type ColumnConfig } from './Column';
 import { QueuedColumn } from './QueuedColumn';
 import { Swimlane } from './Swimlane';
 import type { Task, Initiative, TaskPriority } from '@/lib/types';
-import type { FinalizeState } from '@/lib/api';
 import { PRIORITY_ORDER } from '@/lib/types';
 import './Board.css';
 
@@ -35,11 +34,8 @@ interface BoardProps {
 	tasks: Task[];
 	viewMode?: BoardViewMode;
 	initiatives?: Initiative[];
-	onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 	onTaskClick?: (task: Task) => void;
-	onFinalizeClick?: (task: Task) => void;
-	onInitiativeClick?: (initiativeId: string) => void;
-	getFinalizeState?: (taskId: string) => FinalizeState | null | undefined;
+	onContextMenu?: (task: Task, e: React.MouseEvent) => void;
 }
 
 // Categorize task to column based on status and phase
@@ -89,11 +85,8 @@ export function Board({
 	tasks,
 	viewMode = 'flat',
 	initiatives = [],
-	onAction,
 	onTaskClick,
-	onFinalizeClick,
-	onInitiativeClick,
-	getFinalizeState,
+	onContextMenu,
 }: BoardProps) {
 	// UI state
 	const [showBacklog, setShowBacklog] = useState(() => {
@@ -227,22 +220,16 @@ export function Board({
 						backlogTasks={queuedTasks.backlog}
 						showBacklog={showBacklog}
 						onToggleBacklog={handleToggleBacklog}
-						onAction={onAction}
 						onTaskClick={onTaskClick}
-						onFinalizeClick={onFinalizeClick}
-						onInitiativeClick={onInitiativeClick}
-						getFinalizeState={getFinalizeState}
+						onContextMenu={onContextMenu}
 					/>
 					{columnsWithoutQueued.map((column) => (
 						<Column
 							key={column.id}
 							column={column}
 							tasks={tasksByColumn[column.id] || []}
-							onAction={onAction}
 							onTaskClick={onTaskClick}
-							onFinalizeClick={onFinalizeClick}
-							onInitiativeClick={onInitiativeClick}
-							getFinalizeState={getFinalizeState}
+							onContextMenu={onContextMenu}
 						/>
 					))}
 				</>
@@ -275,11 +262,8 @@ export function Board({
 									tasksByColumn={getTasksByColumnForInitiative(initTasks)}
 									collapsed={collapsedSwimlanes.has(initiative.id)}
 									onToggleCollapse={() => toggleSwimlane(initiative.id)}
-									onAction={onAction}
 									onTaskClick={onTaskClick}
-									onFinalizeClick={onFinalizeClick}
-									onInitiativeClick={onInitiativeClick}
-									getFinalizeState={getFinalizeState}
+									onContextMenu={onContextMenu}
 								/>
 							);
 						})}
@@ -295,11 +279,8 @@ export function Board({
 								)}
 								collapsed={collapsedSwimlanes.has('unassigned')}
 								onToggleCollapse={() => toggleSwimlane('unassigned')}
-								onAction={onAction}
 								onTaskClick={onTaskClick}
-								onFinalizeClick={onFinalizeClick}
-								onInitiativeClick={onInitiativeClick}
-								getFinalizeState={getFinalizeState}
+								onContextMenu={onContextMenu}
 							/>
 						)}
 					</div>

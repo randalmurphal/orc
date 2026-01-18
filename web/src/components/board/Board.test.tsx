@@ -97,7 +97,6 @@ const sampleInitiatives: Initiative[] = [
 describe('Board', () => {
 	const defaultProps = {
 		tasks: sampleTasks,
-		onAction: vi.fn(),
 	};
 
 	beforeEach(() => {
@@ -285,27 +284,25 @@ describe('Board', () => {
 		});
 	});
 
-	describe('task actions', () => {
-		it('calls onTaskClick when running task is clicked', async () => {
+	describe('task click handler', () => {
+		it('calls onTaskClick when task is clicked', async () => {
 			const onTaskClick = vi.fn();
-			// Create a running task - only running tasks call onTaskClick
 			const runningTask = createTask({
 				id: 'TASK-RUN',
 				title: 'Running Task',
 				status: 'running',
 				current_phase: 'implement',
 			});
-			renderWithRouter(<Board tasks={[runningTask]} onAction={vi.fn()} onTaskClick={onTaskClick} />);
+			renderWithRouter(<Board tasks={[runningTask]} onTaskClick={onTaskClick} />);
 
-			// Click on the running task card
+			// Click on the task card
 			const taskCard = screen.getByText('Running Task');
 			fireEvent.click(taskCard);
 
 			expect(onTaskClick).toHaveBeenCalled();
 		});
 
-		it('navigates to task detail for non-running tasks', () => {
-			// For non-running tasks, clicking navigates instead of calling onTaskClick
+		it('calls onTaskClick for all tasks (not just running)', () => {
 			const onTaskClick = vi.fn();
 			renderWithRouter(<Board {...defaultProps} onTaskClick={onTaskClick} />);
 
@@ -313,8 +310,21 @@ describe('Board', () => {
 			const taskCard = screen.getByText('Task 1'); // Status: created
 			fireEvent.click(taskCard);
 
-			// onTaskClick should NOT be called for non-running tasks
-			expect(onTaskClick).not.toHaveBeenCalled();
+			// onTaskClick should be called for all tasks now
+			expect(onTaskClick).toHaveBeenCalled();
+		});
+	});
+
+	describe('context menu handler', () => {
+		it('calls onContextMenu when task is right-clicked', () => {
+			const onContextMenu = vi.fn();
+			const task = createTask({ id: 'TASK-001', title: 'Test Task' });
+			renderWithRouter(<Board tasks={[task]} onContextMenu={onContextMenu} />);
+
+			const taskCard = screen.getByText('Test Task');
+			fireEvent.contextMenu(taskCard);
+
+			expect(onContextMenu).toHaveBeenCalled();
 		});
 	});
 
@@ -335,27 +345,14 @@ describe('Board', () => {
 		});
 	});
 
-	describe('finalize functionality', () => {
-		it('calls onFinalizeClick for completed tasks', () => {
-			const onFinalizeClick = vi.fn();
+	describe('completed tasks', () => {
+		it('renders completed tasks in Done column', () => {
 			const completedTask = createTask({ id: 'TASK-DONE', title: 'Done Task', status: 'completed' });
 
-			renderWithRouter(<Board {...defaultProps} tasks={[completedTask]} onFinalizeClick={onFinalizeClick} />);
+			renderWithRouter(<Board {...defaultProps} tasks={[completedTask]} />);
 
 			// The Done column should contain the completed task
 			expect(screen.getByText('Done Task')).toBeInTheDocument();
-		});
-
-		it('gets finalize state via callback', () => {
-			const getFinalizeState = vi.fn().mockReturnValue(null);
-			const completedTask = createTask({ id: 'TASK-DONE', title: 'Done Task', status: 'completed' });
-
-			renderWithRouter(
-				<Board {...defaultProps} tasks={[completedTask]} getFinalizeState={getFinalizeState} />
-			);
-
-			// getFinalizeState should be called during render
-			expect(getFinalizeState).toHaveBeenCalled();
 		});
 	});
 });
