@@ -184,3 +184,39 @@ toast.info('Processing...');
 ```
 
 **Durations:** success/warning/info (5s), error (8s).
+
+## TopBar
+
+Fixed 48px header with project selector, search, session metrics, and action buttons.
+
+```tsx
+import { TopBar } from '@/components/layout';
+
+<TopBar
+  onProjectChange={() => openProjectPicker()}
+  onNewTask={() => openNewTaskModal()}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `projectName` | `string` | From store | Override project name (for testing) |
+| `onProjectChange` | `() => void` | - | Open project picker |
+| `onNewTask` | `() => void` | - | Open new task modal |
+| `onSearch` | `(query: string) => void` | - | Search callback |
+| `className` | `string` | - | Additional CSS class |
+
+**Store Integration:**
+- `useCurrentProject()` - Current project name
+- `useSessionStore()` - Session metrics (duration, tokens, cost, isPaused)
+
+**Session Stats:**
+- Duration (purple badge, clock icon): "2h 34m"
+- Tokens (amber badge, zap icon): "847K"
+- Cost (green badge, dollar icon): "$2.34"
+
+**Actions:**
+- Pause/Resume button toggles `isPaused` via `pauseAll()`/`resumeAll()`
+- New Task button (primary) triggers `onNewTask` callback
+
+**Accessibility:** `role="banner"`, `aria-label="Search tasks"`, `aria-haspopup="listbox"` on project selector.
