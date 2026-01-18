@@ -283,7 +283,7 @@ type CompletionConfig struct {
 	Finalize FinalizeConfig `yaml:"finalize"`
 
 	// WeightActions allows per-weight action overrides
-	// e.g., {"trivial": "none", "small": "merge"}
+	// e.g., {"trivial": "merge", "small": "merge"} to skip PR for lightweight tasks
 	WeightActions map[string]string `yaml:"weight_actions,omitempty"`
 }
 
@@ -1254,12 +1254,10 @@ func Default() *Config {
 					PreMerge: "auto", // Auto gate before merge/PR by default
 				},
 			},
-			// Safety defaults: use PR workflow for protected branches
+			// Safety defaults: use PR workflow for all weights
 			// Direct merge is blocked for protected branches (main, master, develop, release)
-			WeightActions: map[string]string{
-				"trivial": "none", // No PR for trivial fixes (local-only changes)
-				// All other weights use default "pr" action
-			},
+			// Override per-weight via config if needed (e.g., "trivial": "merge")
+			WeightActions: map[string]string{},
 		},
 		Execution: ExecutionConfig{
 			UseSessionExecution: false, // Default to flowgraph for compatibility
