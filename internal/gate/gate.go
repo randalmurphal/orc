@@ -4,6 +4,7 @@ package gate
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -27,6 +28,35 @@ type Evaluator struct {
 // New creates a new gate evaluator.
 func New(client claude.Client) *Evaluator {
 	return &Evaluator{client: client}
+}
+
+// JSON schema for AI gate evaluation response.
+const gateDecisionSchema = `{
+	"type": "object",
+	"properties": {
+		"decision": {
+			"type": "string",
+			"enum": ["APPROVED", "REJECTED", "NEEDS_CLARIFICATION"],
+			"description": "The evaluation decision"
+		},
+		"reason": {
+			"type": "string",
+			"description": "Explanation for the decision"
+		},
+		"questions": {
+			"type": "array",
+			"items": {"type": "string"},
+			"description": "Questions if clarification is needed (empty otherwise)"
+		}
+	},
+	"required": ["decision", "reason", "questions"]
+}`
+
+// gateResponse is the JSON structure for AI gate evaluation.
+type gateResponse struct {
+	Decision  string   `json:"decision"`
+	Reason    string   `json:"reason"`
+	Questions []string `json:"questions"`
 }
 
 // Evaluate determines if a gate passes.
@@ -100,9 +130,7 @@ func (e *Evaluator) evaluateAI(ctx context.Context, gate *plan.Gate, phaseOutput
 		return nil, fmt.Errorf("AI gate requires LLM client")
 	}
 
-	prompt := fmt.Sprintf(`You are reviewing the output of a completed phase.
-
-Review the following output and determine if it meets the quality criteria.
+	prompt := fmt.Sprintf(`Review the phase output and determine if it meets the quality criteria.
 
 Criteria:
 %s
@@ -112,12 +140,7 @@ Phase Output:
 %s
 ---
 
-Respond with:
-- "APPROVED: <reason>" if the output meets the criteria
-- "REJECTED: <reason>" if the output does not meet the criteria
-- "NEEDS_CLARIFICATION: <questions>" if you need more information
-
-Be concise but thorough in your assessment.`,
+Evaluate whether the output meets the criteria. If you need more information, specify what questions need answering.`,
 		formatCriteria(gate.Criteria),
 		truncateOutput(phaseOutput, 4000),
 	)
@@ -126,12 +149,39 @@ Be concise but thorough in your assessment.`,
 		Messages: []claude.Message{
 			{Role: claude.RoleUser, Content: prompt},
 		},
+		JSONSchema: gateDecisionSchema,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("AI evaluation failed: %w", err)
 	}
 
-	return parseAIResponse(resp.Content)
+	// Parse JSON response
+	var result gateResponse
+	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
+		return nil, fmt.Errorf("parse AI response: %w", err)
+	}
+
+	decision := strings.ToUpper(result.Decision)
+	switch decision {
+	case "APPROVED":
+		return &Decision{
+			Approved: true,
+			Reason:   result.Reason,
+		}, nil
+	case "REJECTED":
+		return &Decision{
+			Approved: false,
+			Reason:   result.Reason,
+		}, nil
+	case "NEEDS_CLARIFICATION":
+		return &Decision{
+			Approved:  false,
+			Reason:    result.Reason,
+			Questions: result.Questions,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unexpected decision: %s", result.Decision)
+	}
 }
 
 // requestHumanApproval prompts for human approval.
@@ -210,41 +260,4 @@ func truncateOutput(output string, maxLen int) string {
 		return output
 	}
 	return output[:maxLen] + "\n... (truncated)"
-}
-
-// parseAIResponse parses the AI evaluation response.
-func parseAIResponse(response string) (*Decision, error) {
-	response = strings.TrimSpace(response)
-
-	if strings.HasPrefix(response, "APPROVED:") {
-		reason := strings.TrimPrefix(response, "APPROVED:")
-		return &Decision{
-			Approved: true,
-			Reason:   strings.TrimSpace(reason),
-		}, nil
-	}
-
-	if strings.HasPrefix(response, "REJECTED:") {
-		reason := strings.TrimPrefix(response, "REJECTED:")
-		return &Decision{
-			Approved: false,
-			Reason:   strings.TrimSpace(reason),
-		}, nil
-	}
-
-	if strings.HasPrefix(response, "NEEDS_CLARIFICATION:") {
-		questionsStr := strings.TrimPrefix(response, "NEEDS_CLARIFICATION:")
-		questions := strings.Split(strings.TrimSpace(questionsStr), "\n")
-		return &Decision{
-			Approved:  false,
-			Reason:    "needs clarification",
-			Questions: questions,
-		}, nil
-	}
-
-	// If we can't parse, treat as approval with the response as reason
-	return &Decision{
-		Approved: true,
-		Reason:   response,
-	}, nil
 }
