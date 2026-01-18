@@ -42,7 +42,7 @@
 
 .project-btn:hover {
 	background: var(--bg-surface);
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }
 
 .project-btn:focus-visible {
@@ -109,7 +109,7 @@
 
 .cmd-hint:hover {
 	background: var(--bg-surface);
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 	color: var(--text-secondary);
 }
 

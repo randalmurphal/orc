@@ -94,14 +94,14 @@
    COLOR VARIANTS
    ========================================================================== */
 
-/* Primary - Electric Violet (darker shade for WCAG AA contrast with white text) */
+/* Primary - Electric Violet (uses accessible variant for WCAG AA contrast) */
 .btn-primary {
-	background-color: #7c3aed;
+	background-color: var(--primary-accessible);
 	color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-	background-color: #8b5cf6;
+	background-color: var(--primary-accessible-hover);
 	transform: scale(1.01);
 }
 

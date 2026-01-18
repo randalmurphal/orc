@@ -173,12 +173,12 @@
 }
 
 .btn-primary {
-	background: #7c3aed;
+	background: var(--primary-accessible);
 	color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-	background: #8b5cf6;
+	background: var(--primary-accessible-hover);
 }
 
 .btn-secondary {
@@ -189,5 +189,5 @@
 
 .btn-secondary:hover:not(:disabled) {
 	background: var(--bg-surface);
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }

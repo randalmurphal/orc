@@ -83,6 +83,7 @@
   /* Border Colors */
   --border: rgba(255, 255, 255, 0.04);
   --border-light: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.12);
 
   /* Text Colors */
   --text-primary: #eaeaef;
@@ -94,6 +95,11 @@
   --primary-bright: #c084fc;
   --primary-dim: rgba(168, 85, 247, 0.1);
   --primary-glow: rgba(168, 85, 247, 0.25);
+  --primary-border: rgba(168, 85, 247, 0.2);
+  --primary-border-hover: rgba(168, 85, 247, 0.3);
+  /* Accessible primary for text on dark - meets WCAG AA */
+  --primary-accessible: #7c3aed;
+  --primary-accessible-hover: #8b5cf6;
 
   /* Semantic Colors */
   --cyan: #06b6d4;
@@ -269,6 +275,7 @@
   /* Border Colors - Light Theme */
   --border: rgba(0, 0, 0, 0.06);
   --border-light: rgba(0, 0, 0, 0.1);
+  --border-hover: rgba(0, 0, 0, 0.15);
 
   /* Text Colors - Light Theme */
   --text-primary: #0f172a;
