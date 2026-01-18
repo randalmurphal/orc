@@ -84,7 +84,7 @@
 
 /* Default hover */
 .textarea-wrapper:hover:not(.textarea-disabled) {
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }
 
 /* Focus state - only on keyboard navigation */

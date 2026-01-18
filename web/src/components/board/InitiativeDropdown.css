@@ -21,7 +21,7 @@
 
 .initiative-dropdown .dropdown-trigger:hover {
 	background: var(--bg-surface);
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }
 
 .initiative-dropdown .dropdown-trigger:focus-visible {

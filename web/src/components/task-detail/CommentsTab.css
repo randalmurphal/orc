@@ -110,7 +110,7 @@
 }
 
 .filter-btn:hover {
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 	color: var(--text-primary);
 }
 
@@ -205,7 +205,7 @@
 }
 
 .comment-thread:hover {
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }
 
 .comment-header {
@@ -289,7 +289,7 @@
 
 .action-btn:hover {
 	background: var(--bg-surface);
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 	color: var(--text-primary);
 }
 
@@ -441,7 +441,7 @@
 }
 
 .author-type-option:hover {
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }
 
 .author-type-option.selected {
@@ -496,7 +496,7 @@
 }
 
 .form-actions button.ghost:hover {
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 	color: var(--text-primary);
 }
 

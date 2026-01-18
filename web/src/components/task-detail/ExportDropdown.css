@@ -22,7 +22,7 @@
 .export-trigger:hover:not([data-disabled]) {
 	background: var(--bg-surface);
 	color: var(--text-primary);
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }
 
 .export-trigger:focus-visible {

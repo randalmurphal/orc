@@ -14,7 +14,6 @@
 	/* Width transition is intentional - sidebar needs layout-based expansion for content flow.
 	   Using contain: layout to limit recalc scope since sidebar is position: fixed */
 	contain: layout;
-	will-change: width;
 	transition: width var(--duration-normal, 200ms) var(--ease-out, ease-out);
 }
 

@@ -21,7 +21,7 @@
 }
 
 .dependency-dropdown .dropdown-trigger:hover {
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }
 
 .dependency-dropdown .dropdown-trigger:focus-visible {

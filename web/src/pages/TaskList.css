@@ -63,7 +63,7 @@
 
 .task-list-page .banner-clear:hover {
 	background: var(--bg-surface);
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }
 
 /* Filter Bar */
@@ -171,7 +171,7 @@
 }
 
 .task-list-page .filter-select:hover {
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }
 
 .task-list-page .filter-select:focus {

@@ -22,7 +22,7 @@
 }
 
 .board-page::-webkit-scrollbar-thumb {
-	background: rgba(255, 255, 255, 0.12);
+	background: var(--border-hover);
 	border-radius: var(--radius-full);
 }
 
@@ -92,7 +92,7 @@
 
 .board-page .banner-clear:hover {
 	background: var(--bg-elevated);
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 	color: var(--text-primary);
 }
 

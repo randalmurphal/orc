@@ -2,8 +2,9 @@
 export { Badge } from './Badge';
 export type { BadgeProps, BadgeVariant, BadgeStatus } from './Badge';
 
-export { Button } from './Button';
-export type { ButtonProps, ButtonVariant, ButtonSize } from './Button';
+// Button is the canonical implementation in ui/, re-export for backwards compatibility
+export { Button } from '../ui/Button';
+export type { ButtonProps, ButtonVariant, ButtonSize } from '../ui/Button';
 
 export { Card } from './Card';
 export type { CardProps, CardPadding } from './Card';

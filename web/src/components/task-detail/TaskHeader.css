@@ -32,7 +32,7 @@
 .back-btn:hover {
 	background: var(--bg-surface);
 	color: var(--text-primary);
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }
 
 .task-identity {
@@ -206,7 +206,7 @@
 .icon-btn:hover {
 	background: var(--bg-surface);
 	color: var(--text-primary);
-	border-color: rgba(255, 255, 255, 0.12);
+	border-color: var(--border-hover);
 }
 
 .icon-btn.danger:hover {
