@@ -2,7 +2,7 @@
 
 ## State Management (Zustand)
 
-Five stores with `subscribeWithSelector` middleware for efficient derived state.
+Six stores with `subscribeWithSelector` middleware for efficient derived state.
 
 | Store | State | Persistence | Purpose |
 |-------|-------|-------------|---------|
@@ -10,6 +10,7 @@ Five stores with `subscribeWithSelector` middleware for efficient derived state.
 | `projectStore` | projects, currentProjectId | URL + localStorage | Project selection |
 | `initiativeStore` | initiatives, currentInitiativeId | URL + localStorage | Initiative filter |
 | `dependencyStore` | currentDependencyStatus | URL + localStorage | Dependency filter |
+| `sessionStore` | duration, tokens, cost, isPaused | localStorage | Session metrics |
 | `uiStore` | sidebarExpanded, wsStatus, toasts | localStorage (sidebar) | UI state |
 
 ### Store Patterns
