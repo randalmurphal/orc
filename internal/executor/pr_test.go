@@ -652,6 +652,55 @@ func TestIsNonFastForwardError(t *testing.T) {
 	}
 }
 
+func TestErrMergeFailed(t *testing.T) {
+	// ErrMergeFailed should be defined and usable
+	if ErrMergeFailed == nil {
+		t.Error("ErrMergeFailed should not be nil")
+	}
+	if ErrMergeFailed.Error() != "PR merge failed" {
+		t.Errorf("ErrMergeFailed.Error() = %s, want 'PR merge failed'", ErrMergeFailed.Error())
+	}
+}
+
+func TestErrMergeFailed_WrappingWithFmtErrorf(t *testing.T) {
+	// Test that ErrMergeFailed can be properly wrapped using fmt.Errorf
+	// This matches the pattern used in completeTask:
+	//   return fmt.Errorf("%w: merge failed - run 'orc resume %s' after resolving", ErrTaskBlocked, t.ID)
+	taskID := "TASK-456"
+	wrapped := fmt.Errorf("%w: max retries exceeded for %s", ErrMergeFailed, taskID)
+
+	// errors.Is should work with wrapped errors
+	if !errors.Is(wrapped, ErrMergeFailed) {
+		t.Error("errors.Is(wrapped, ErrMergeFailed) should return true")
+	}
+
+	// The error message should include the task ID
+	if !strings.Contains(wrapped.Error(), taskID) {
+		t.Errorf("wrapped error should contain task ID, got: %s", wrapped.Error())
+	}
+
+	// The error message should include the original sentinel error message
+	if !strings.Contains(wrapped.Error(), ErrMergeFailed.Error()) {
+		t.Errorf("wrapped error should contain sentinel error message, got: %s", wrapped.Error())
+	}
+}
+
+func TestErrMergeFailed_NestedWrapping(t *testing.T) {
+	// Test that ErrMergeFailed can be detected through multiple layers of wrapping
+	// This is important because the error flows through multiple function calls:
+	// MergePR -> WaitForCIAndMerge -> createPR -> runCompletion -> completeTask
+
+	// Simulate the wrapping chain
+	mergeErr := fmt.Errorf("%w: max retries (3) exceeded: HTTP 405", ErrMergeFailed)
+	ciMergeErr := fmt.Errorf("merge PR: %w", mergeErr)
+	completionErr := fmt.Errorf("completion action: %w", ciMergeErr)
+
+	// errors.Is should still find ErrMergeFailed through the chain
+	if !errors.Is(completionErr, ErrMergeFailed) {
+		t.Errorf("errors.Is should find ErrMergeFailed through wrapping chain, got error: %s", completionErr)
+	}
+}
+
 func TestIsAutoMergeConfigError(t *testing.T) {
 	tests := []struct {
 		name     string

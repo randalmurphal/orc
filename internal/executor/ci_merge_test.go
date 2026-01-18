@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -710,11 +711,11 @@ func TestDeleteBranchAPIPathConstruction(t *testing.T) {
 	// Test that delete branch API path is constructed correctly
 	// This verifies the format: DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}
 	tests := []struct {
-		name           string
-		owner          string
-		repo           string
-		branch         string
-		expectedPath   string
+		name         string
+		owner        string
+		repo         string
+		branch       string
+		expectedPath string
 	}{
 		{
 			name:         "simple branch name",
@@ -750,6 +751,160 @@ func TestDeleteBranchAPIPathConstruction(t *testing.T) {
 			apiPath := "/repos/" + tt.owner + "/" + tt.repo + "/git/refs/heads/" + branchName
 			if apiPath != tt.expectedPath {
 				t.Errorf("expected API path %q, got %q", tt.expectedPath, apiPath)
+			}
+		})
+	}
+}
+
+func TestIsRetryableMergeError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		output   string
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			output:   "",
+			expected: false,
+		},
+		{
+			name:     "405 with base branch modified message",
+			err:      fmt.Errorf("exit status 1: HTTP 405 Base branch was modified. Review and try the merge again."),
+			output:   "",
+			expected: true,
+		},
+		{
+			name:     "405 in output with message",
+			err:      fmt.Errorf("exit status 1"),
+			output:   `{"message": "Base branch was modified. Review and try the merge again.", "status": "405"}`,
+			expected: true,
+		},
+		{
+			name:     "405 with review message variant",
+			err:      fmt.Errorf("HTTP 405: review and try the merge again"),
+			output:   "",
+			expected: true,
+		},
+		{
+			name:     "422 validation error - not retryable",
+			err:      fmt.Errorf("HTTP 422 Unprocessable Entity"),
+			output:   `{"message": "Pull Request is not mergeable"}`,
+			expected: false,
+		},
+		{
+			name:     "404 not found - not retryable",
+			err:      fmt.Errorf("HTTP 404 Not Found"),
+			output:   "",
+			expected: false,
+		},
+		{
+			name:     "405 without base branch message - not retryable",
+			err:      fmt.Errorf("HTTP 405 Method Not Allowed"),
+			output:   "",
+			expected: false,
+		},
+		{
+			name:     "generic network error - not retryable",
+			err:      fmt.Errorf("network timeout"),
+			output:   "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isRetryableMergeError(tt.err, tt.output)
+			if result != tt.expected {
+				t.Errorf("isRetryableMergeError(%v, %q) = %v, want %v", tt.err, tt.output, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsValidationMergeError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		output   string
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			output:   "",
+			expected: false,
+		},
+		{
+			name:     "422 error in error string",
+			err:      fmt.Errorf("HTTP 422 Unprocessable Entity: validation failed"),
+			output:   "",
+			expected: true,
+		},
+		{
+			name:     "422 in output",
+			err:      fmt.Errorf("exit status 1"),
+			output:   `{"message": "Pull Request is not mergeable", "status": "422"}`,
+			expected: true,
+		},
+		{
+			name:     "405 - not a validation error",
+			err:      fmt.Errorf("HTTP 405"),
+			output:   "",
+			expected: false,
+		},
+		{
+			name:     "404 - not a validation error",
+			err:      fmt.Errorf("HTTP 404"),
+			output:   "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isValidationMergeError(tt.err, tt.output)
+			if result != tt.expected {
+				t.Errorf("isValidationMergeError(%v, %q) = %v, want %v", tt.err, tt.output, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestErrMergeFailed_Sentinel(t *testing.T) {
+	// Test that ErrMergeFailed works as a sentinel error
+	wrappedErr := fmt.Errorf("%w: some details", ErrMergeFailed)
+
+	if !errors.Is(wrappedErr, ErrMergeFailed) {
+		t.Error("expected errors.Is to return true for wrapped ErrMergeFailed")
+	}
+
+	// Test nested wrapping
+	doubleWrapped := fmt.Errorf("outer: %w", wrappedErr)
+	if !errors.Is(doubleWrapped, ErrMergeFailed) {
+		t.Error("expected errors.Is to return true for double-wrapped ErrMergeFailed")
+	}
+}
+
+func TestMergePR_ExponentialBackoffValues(t *testing.T) {
+	// Test that backoff calculation produces expected values
+	// Formula: min(2^attempt seconds, 8 seconds)
+	tests := []struct {
+		attempt  int
+		expected time.Duration
+	}{
+		{1, 2 * time.Second},  // 2^1 = 2s
+		{2, 4 * time.Second},  // 2^2 = 4s
+		{3, 8 * time.Second},  // 2^3 = 8s, capped
+		{4, 8 * time.Second},  // would be 16s, but capped at 8s
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("attempt_%d", tt.attempt), func(t *testing.T) {
+			backoff := min(time.Duration(1<<tt.attempt)*time.Second, 8*time.Second)
+			if backoff != tt.expected {
+				t.Errorf("backoff for attempt %d = %v, want %v", tt.attempt, backoff, tt.expected)
 			}
 		})
 	}

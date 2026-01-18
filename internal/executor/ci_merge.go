@@ -104,6 +104,10 @@ var ErrCITimeout = errors.New("CI checks timed out")
 // ErrCIFailed is returned when CI checks fail.
 var ErrCIFailed = errors.New("CI checks failed")
 
+// ErrMergeFailed is returned when PR merge fails and cannot be retried.
+// This includes both exhausted retries and non-retryable errors.
+var ErrMergeFailed = errors.New("PR merge failed")
+
 // WaitForCIAndMerge waits for CI checks to pass, then merges the PR.
 // This is the main entry point for the auto-merge flow after finalize.
 //
@@ -333,7 +337,19 @@ func (m *CIMerger) CheckCIStatus(ctx context.Context, prURL string) (*CICheckRes
 // MergePR merges a PR using the configured merge method.
 // Uses the GitHub REST API directly to avoid local git checkout issues
 // when the target branch is checked out in another worktree.
+//
+// Implements retry logic for "Base branch was modified" errors (HTTP 405):
+// 1. Attempt merge
+// 2. If 405 received:
+//   - Wait with exponential backoff (2^attempt seconds, max 8s)
+//   - Fetch and rebase onto target branch
+//   - Push rebased branch (force-with-lease)
+//   - Retry merge (up to 3 attempts)
+//
+// 3. If rebase has conflicts or max retries exceeded, return ErrMergeFailed
 func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) error {
+	const maxRetries = 3
+
 	method := m.config.MergeMethod()
 
 	// Extract owner, repo, and PR number from the URL
@@ -358,49 +374,201 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) erro
 		mergeMethod = "squash" // Default to squash
 	}
 
-	// Call GitHub API to merge the PR
-	// PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge
-	apiPath := fmt.Sprintf("/repos/%s/%s/pulls/%d/merge", owner, repo, prNumber)
-	output, err := m.runGH(ctx, "api", "-X", "PUT", apiPath, "-f", fmt.Sprintf("merge_method=%s", mergeMethod))
-	if err != nil {
-		return fmt.Errorf("merge PR via API: %w\nOutput: %s", err, output)
-	}
-
-	// Parse the response to get the merge commit SHA
-	var mergeResponse struct {
-		SHA     string `json:"sha"`
-		Merged  bool   `json:"merged"`
-		Message string `json:"message"`
-	}
-	if err := json.Unmarshal([]byte(output), &mergeResponse); err != nil {
-		m.logger.Warn("failed to parse merge response", "error", err, "output", output)
-	} else if mergeResponse.SHA != "" {
-		if t.PR != nil {
-			t.PR.MergeCommitSHA = mergeResponse.SHA
-		}
-		m.logger.Info("PR merged", "sha", mergeResponse.SHA)
-	}
-
-	// Delete the branch if configured
-	if m.config.Completion.DeleteBranch {
-		if err := m.deleteBranch(ctx, owner, repo, t.Branch); err != nil {
-			// Log but don't fail - the merge succeeded
-			m.logger.Warn("failed to delete branch after merge",
-				"branch", t.Branch,
-				"error", err,
+	// Retry loop for handling "Base branch was modified" errors
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff: 2s, 4s, 8s
+			backoff := min(time.Duration(1<<attempt)*time.Second, 8*time.Second)
+			m.logger.Info("waiting before merge retry",
+				"attempt", attempt,
+				"backoff", backoff,
+				"task", t.ID,
 			)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(backoff):
+			}
+
+			// Rebase before retry
+			if err := m.rebaseOnTarget(ctx, t); err != nil {
+				// If rebase fails (conflicts or other error), return ErrMergeFailed
+				m.logger.Error("rebase before merge retry failed",
+					"task", t.ID,
+					"attempt", attempt,
+					"error", err,
+				)
+				return fmt.Errorf("%w: rebase failed during retry: %v", ErrMergeFailed, err)
+			}
+		}
+
+		// Call GitHub API to merge the PR
+		// PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge
+		apiPath := fmt.Sprintf("/repos/%s/%s/pulls/%d/merge", owner, repo, prNumber)
+		output, err := m.runGH(ctx, "api", "-X", "PUT", apiPath, "-f", fmt.Sprintf("merge_method=%s", mergeMethod))
+		if err != nil {
+			// Check if this is a retryable error
+			if isRetryableMergeError(err, output) {
+				lastErr = err
+				m.logger.Warn("merge failed with retryable error",
+					"task", t.ID,
+					"attempt", attempt,
+					"error", err,
+				)
+				continue
+			}
+
+			// Non-retryable error - check if it's a validation error
+			if isValidationMergeError(err, output) {
+				return fmt.Errorf("%w: merge validation failed: %v\nOutput: %s", ErrMergeFailed, err, output)
+			}
+
+			// Other non-retryable errors
+			return fmt.Errorf("merge PR via API: %w\nOutput: %s", err, output)
+		}
+
+		// Parse the response to get the merge commit SHA
+		var mergeResponse struct {
+			SHA     string `json:"sha"`
+			Merged  bool   `json:"merged"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal([]byte(output), &mergeResponse); err != nil {
+			m.logger.Warn("failed to parse merge response", "error", err, "output", output)
+		} else if mergeResponse.SHA != "" {
+			if t.PR != nil {
+				t.PR.MergeCommitSHA = mergeResponse.SHA
+			}
+			m.logger.Info("PR merged", "sha", mergeResponse.SHA)
+		}
+
+		// Delete the branch if configured
+		if m.config.Completion.DeleteBranch {
+			if err := m.deleteBranch(ctx, owner, repo, t.Branch); err != nil {
+				// Log but don't fail - the merge succeeded
+				m.logger.Warn("failed to delete branch after merge",
+					"branch", t.Branch,
+					"error", err,
+				)
+			}
+		}
+
+		// Update task with merge info
+		t.SetMergedInfo(prURL, m.config.Completion.TargetBranch)
+		if m.backend != nil {
+			if saveErr := m.backend.SaveTask(t); saveErr != nil {
+				m.logger.Warn("failed to save task after merge", "error", saveErr)
+			}
+		}
+
+		return nil
+	}
+
+	// All retries exhausted
+	return fmt.Errorf("%w: max retries (%d) exceeded: %v", ErrMergeFailed, maxRetries, lastErr)
+}
+
+// isRetryableMergeError checks if a merge error can be retried.
+// HTTP 405 "Base branch was modified" is the primary retryable case.
+func isRetryableMergeError(err error, output string) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	outputStr := strings.ToLower(output)
+
+	// GitHub returns 405 "Method Not Allowed" with "Base branch was modified"
+	// when another PR merged first, modifying the base branch
+	return (strings.Contains(errStr, "405") || strings.Contains(outputStr, "405")) &&
+		(strings.Contains(errStr, "base branch was modified") ||
+			strings.Contains(outputStr, "base branch was modified") ||
+			strings.Contains(errStr, "review and try the merge again") ||
+			strings.Contains(outputStr, "review and try the merge again"))
+}
+
+// isValidationMergeError checks if a merge error is a validation failure.
+// HTTP 422 typically indicates validation errors that won't be fixed by retry.
+func isValidationMergeError(err error, output string) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	outputStr := strings.ToLower(output)
+
+	// 422 Unprocessable Entity - validation failed (conflicts, required checks, etc.)
+	return strings.Contains(errStr, "422") || strings.Contains(outputStr, "422")
+}
+
+// rebaseOnTarget rebases the task branch onto the target branch.
+// This is called before merge retries to incorporate upstream changes.
+func (m *CIMerger) rebaseOnTarget(ctx context.Context, t *task.Task) error {
+	targetBranch := m.config.Completion.TargetBranch
+	if targetBranch == "" {
+		targetBranch = "main"
+	}
+
+	m.logger.Info("rebasing onto target branch before merge retry",
+		"task", t.ID,
+		"branch", t.Branch,
+		"target", targetBranch,
+	)
+
+	// Fetch latest from origin
+	if _, err := m.runGH(ctx, "api", "-X", "GET", "/rate_limit"); err == nil {
+		// gh is available, use git commands via shell
+		fetchOutput, fetchErr := m.runGitCmd(ctx, "fetch", "origin", targetBranch)
+		if fetchErr != nil {
+			m.logger.Warn("fetch failed", "error", fetchErr, "output", fetchOutput)
+			// Continue anyway - we might be able to rebase without fresh fetch
 		}
 	}
 
-	// Update task with merge info
-	t.SetMergedInfo(prURL, m.config.Completion.TargetBranch)
-	if m.backend != nil {
-		if saveErr := m.backend.SaveTask(t); saveErr != nil {
-			m.logger.Warn("failed to save task after merge", "error", saveErr)
+	// Attempt rebase onto origin/target
+	target := "origin/" + targetBranch
+	rebaseOutput, rebaseErr := m.runGitCmd(ctx, "rebase", target)
+	if rebaseErr != nil {
+		// Check for conflicts
+		diffOutput, _ := m.runGitCmd(ctx, "diff", "--name-only", "--diff-filter=U")
+		if diffOutput != "" {
+			// Abort the failed rebase
+			_, _ = m.runGitCmd(ctx, "rebase", "--abort")
+			return fmt.Errorf("rebase conflicts detected in files: %s", strings.TrimSpace(diffOutput))
 		}
+
+		// Abort and return other rebase errors
+		_, _ = m.runGitCmd(ctx, "rebase", "--abort")
+		return fmt.Errorf("rebase failed: %s\nOutput: %s", rebaseErr, rebaseOutput)
 	}
+
+	// Push the rebased branch with force-with-lease for safety
+	pushOutput, pushErr := m.runGitCmd(ctx, "push", "--force-with-lease", "origin", t.Branch)
+	if pushErr != nil {
+		return fmt.Errorf("push after rebase failed: %s\nOutput: %s", pushErr, pushOutput)
+	}
+
+	m.logger.Info("successfully rebased and pushed",
+		"task", t.ID,
+		"branch", t.Branch,
+		"target", targetBranch,
+	)
 
 	return nil
+}
+
+// runGitCmd executes a git command in the working directory.
+func (m *CIMerger) runGitCmd(ctx context.Context, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	if m.workDir != "" {
+		cmd.Dir = m.workDir
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(output), fmt.Errorf("%w: %s", err, output)
+	}
+
+	return string(output), nil
 }
 
 // deleteBranch deletes a branch via the GitHub API.

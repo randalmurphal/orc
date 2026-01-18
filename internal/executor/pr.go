@@ -614,8 +614,13 @@ func (e *Executor) createPR(ctx context.Context, t *task.Task) error {
 		)
 
 		if mergeErr := ciMerger.WaitForCIAndMerge(ctx, t); mergeErr != nil {
+			// Check if this is a merge failure that should block completion
+			if errors.Is(mergeErr, ErrMergeFailed) {
+				e.logger.Error("merge failed - task will be blocked", "task", t.ID, "error", mergeErr)
+				return mergeErr
+			}
+			// Other CI/merge errors - PR is created, can be merged manually
 			e.logger.Warn("CI wait and merge failed", "task", t.ID, "error", mergeErr)
-			// Don't fail the task - PR is created, can be merged manually
 		} else {
 			// Task already completed - merge success is logged but status unchanged
 			// (completeTask already set StatusCompleted before we got here)

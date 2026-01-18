@@ -603,16 +603,48 @@ completion:
   delete_branch: true         # Delete branch after merge (default: true)
 ```
 
+### Merge Retry Logic
+
+When parallel tasks target the same branch, one task may merge first, causing subsequent merges to receive HTTP 405 "Base branch was modified" from GitHub. Orc handles this with automatic retry:
+
+| Attempt | Backoff | Action |
+|---------|---------|--------|
+| 1 | 0s | Initial merge attempt |
+| 2 | 2s | Rebase onto target, retry merge |
+| 3 | 4s | Rebase onto target, retry merge |
+| 4 | 8s | Final rebase and retry |
+
+**Retry flow:**
+1. Attempt merge via GitHub REST API
+2. If 405 "Base branch was modified" received:
+   - Wait with exponential backoff (2^attempt seconds, max 8s)
+   - Fetch latest from origin
+   - Rebase task branch onto target (e.g., `origin/main`)
+   - Push rebased branch with `--force-with-lease`
+   - Retry merge
+3. If rebase conflicts or max retries exceeded, return `ErrMergeFailed`
+
+**Error classification:**
+
+| Error | Retryable | Handling |
+|-------|-----------|----------|
+| HTTP 405 + "Base branch was modified" | Yes | Retry with rebase |
+| HTTP 422 (validation failed) | No | Block immediately |
+| Rebase conflicts | No | Block with conflict details |
+| Other errors | No | Block with error message |
+
 ### Error Handling
 
 | Error | Behavior |
 |-------|----------|
 | CI timeout | Log warning, PR remains open for manual merge |
 | CI failed | Log error with failed check names, PR remains open |
-| Merge conflict | Log error, PR remains open (should be rare after finalize) |
+| Merge conflict (405 retryable) | Auto-retry with rebase up to 3 times |
+| Merge conflict (after retries) | Task blocked with `blocked_reason=merge_failed` |
+| Rebase conflicts | Task blocked, requires manual resolution |
 | gh CLI error | Log error, PR remains open |
 
-Errors during CI wait/merge don't fail the task - the finalize phase completed successfully and the PR exists. Users can manually merge if auto-merge fails.
+Merge failures now properly block task completion instead of incorrectly marking the task as completed. Users can resolve issues and run `orc resume TASK-XXX` to retry.
 
 ### WebSocket Events
 
