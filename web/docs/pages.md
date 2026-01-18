@@ -41,6 +41,7 @@ Toggle via `ViewModeDropdown`, persisted in localStorage.
 | `QueuedColumn` | Column with active/backlog sections |
 | `Swimlane` | Initiative row in swimlane view |
 | `TaskCard` | Clickable task card with status/priority |
+| `Pipeline` | Horizontal phase progress visualization (4px bars, 5 phases) |
 | `InitiativeDropdown` | Filter by initiative |
 | `ViewModeDropdown` | Flat/swimlane toggle |
 

@@ -118,6 +118,58 @@ Colored status orb with animations.
 
 **Status colors:** running (accent/pulse), paused (warning/pulse), blocked (danger), completed (success), failed (danger).
 
+## Pipeline
+
+Horizontal phase visualization for task execution progress.
+
+```tsx
+import { Pipeline } from '@/components/board';
+
+// Basic usage
+<Pipeline
+  phases={["Plan", "Code", "Test", "Review", "Done"]}
+  currentPhase="Code"
+  completedPhases={["Plan"]}
+/>
+
+// With progress percentage
+<Pipeline
+  phases={["Plan", "Code", "Test", "Review", "Done"]}
+  currentPhase="Code"
+  completedPhases={["Plan"]}
+  progress={45}
+/>
+
+// Compact variant (no labels)
+<Pipeline
+  phases={["Plan", "Code", "Test", "Review", "Done"]}
+  currentPhase="Test"
+  completedPhases={["Plan", "Code"]}
+  size="compact"
+/>
+
+// Failed phase
+<Pipeline
+  phases={["Plan", "Code", "Test", "Review", "Done"]}
+  currentPhase=""
+  completedPhases={["Plan", "Code"]}
+  failedPhase="Test"
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `phases` | `string[]` | - | Array of phase names to display |
+| `currentPhase` | `string` | - | Currently active phase name |
+| `completedPhases` | `string[]` | - | List of completed phase names |
+| `failedPhase` | `string` | - | Phase that failed (if any) |
+| `progress` | `number` | - | 0-100 progress for current phase |
+| `size` | `'compact' \| 'default'` | `'default'` | Compact hides labels |
+
+**Phase states:** pending (muted), active (primary with pulse), completed (green with checkmark), failed (red with X).
+
+**Accessibility:** Uses `role="progressbar"` with `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, and descriptive `aria-valuetext`.
+
 ## ToastContainer
 
 Portal-rendered notification queue via `uiStore`.
