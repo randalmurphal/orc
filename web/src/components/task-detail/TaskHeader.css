@@ -26,7 +26,7 @@
 	border-radius: var(--radius-md);
 	color: var(--text-secondary);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 .back-btn:hover {
@@ -129,7 +129,7 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 
 .initiative-badge:hover {
@@ -160,7 +160,7 @@
 	font-size: var(--text-sm);
 	font-weight: var(--font-medium);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out);
 }
 
 .action-btn:hover:not(:disabled) {
@@ -200,7 +200,7 @@
 	border-radius: var(--radius-md);
 	color: var(--text-secondary);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 .icon-btn:hover {
@@ -316,7 +316,7 @@
 	font-size: var(--text-sm);
 	font-weight: var(--font-medium);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 .cancel-btn:hover:not(:disabled) {
@@ -333,7 +333,7 @@
 	font-size: var(--text-sm);
 	font-weight: var(--font-medium);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out);
 }
 
 .delete-btn:hover:not(:disabled) {

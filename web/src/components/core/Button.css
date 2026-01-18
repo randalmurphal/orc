@@ -18,7 +18,7 @@
 	font-family: var(--font-body);
 	border: none;
 	cursor: pointer;
-	transition: all 0.15s;
+	transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
 	white-space: nowrap;
 	text-decoration: none;
 	user-select: none;
@@ -141,7 +141,7 @@
 
 .btn--icon.active {
 	background: var(--primary-dim);
-	border-color: rgba(168, 85, 247, 0.2);
+	border-color: var(--primary-border);
 	color: var(--primary);
 }
 

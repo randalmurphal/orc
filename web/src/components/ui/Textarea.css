@@ -14,7 +14,7 @@
 	background: var(--bg-elevated);
 	border: 1px solid var(--border-light);
 	border-radius: var(--radius-md);
-	transition: all var(--duration-normal) var(--ease-out);
+	transition: border-color var(--duration-normal) var(--ease-out), box-shadow var(--duration-normal) var(--ease-out);
 }
 
 /* =============================================================================

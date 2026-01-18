@@ -29,7 +29,7 @@
 	font-weight: var(--font-medium);
 	cursor: pointer;
 	white-space: nowrap;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 .tab-btn:hover {

@@ -97,7 +97,7 @@
 	font-size: var(--text-sm);
 	color: var(--text-muted);
 	cursor: pointer;
-	transition: all 0.2s;
+	transition: background-color 0.2s, color 0.2s;
 }
 
 .tab:hover {
@@ -320,7 +320,7 @@
 	color: var(--primary);
 	font-size: var(--text-sm);
 	text-decoration: none;
-	transition: all 0.2s;
+	transition: background-color 0.2s, border-color 0.2s;
 }
 
 .quick-link:hover {

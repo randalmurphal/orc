@@ -97,6 +97,7 @@
   --primary-glow: rgba(168, 85, 247, 0.25);
   --primary-border: rgba(168, 85, 247, 0.2);
   --primary-border-hover: rgba(168, 85, 247, 0.3);
+  --selection-bg: rgba(168, 85, 247, 0.5);
   /* Accessible primary for text on dark - meets WCAG AA */
   --primary-accessible: #7c3aed;
   --primary-accessible-hover: #8b5cf6;

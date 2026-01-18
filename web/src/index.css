@@ -175,7 +175,7 @@ code, pre, kbd, samp {
    ============================================================================= */
 
 ::selection {
-  background-color: rgba(168, 85, 247, 0.5);
+  background-color: var(--selection-bg);
   color: var(--text-primary);
 }
 

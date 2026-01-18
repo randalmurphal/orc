@@ -163,7 +163,7 @@
 	font-weight: var(--font-medium);
 	border-radius: var(--radius-md);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 	border: 1px solid transparent;
 }
 

@@ -74,7 +74,7 @@
 	font-size: var(--text-sm);
 	font-weight: var(--font-medium);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 .form-actions .cancel-btn:hover:not(:disabled) {
@@ -91,7 +91,7 @@
 	font-size: var(--text-sm);
 	font-weight: var(--font-medium);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out);
 }
 
 .form-actions .save-btn:hover:not(:disabled) {

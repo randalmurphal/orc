@@ -35,7 +35,7 @@
 	border-radius: var(--radius-md);
 	color: var(--text-secondary);
 	cursor: pointer;
-	transition: all var(--duration-fast);
+	transition: background-color var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
 }
 
 .toolbar-btn:hover {
@@ -95,7 +95,7 @@
 	fill: var(--node-fill);
 	stroke: var(--node-color);
 	stroke-width: 1.5;
-	transition: all var(--duration-fast);
+	transition: stroke-width var(--duration-fast), filter var(--duration-fast);
 }
 
 .node-running .node-bg {

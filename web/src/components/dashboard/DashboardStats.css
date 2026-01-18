@@ -84,7 +84,7 @@
 	border: 1px solid var(--border-light);
 	border-radius: var(--radius-lg);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: border-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 	text-align: left;
 }
 

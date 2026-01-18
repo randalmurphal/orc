@@ -16,7 +16,7 @@
 	color: var(--text-secondary);
 	font-size: var(--text-sm);
 	cursor: pointer;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 .export-trigger:hover:not([data-disabled]) {
@@ -109,7 +109,7 @@
 	text-align: left;
 	cursor: pointer;
 	outline: none;
-	transition: all var(--duration-fast) var(--ease-out);
+	transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 /* Highlighted state (keyboard focus or hover) */
