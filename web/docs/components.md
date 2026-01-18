@@ -105,7 +105,7 @@ SVG icon component with 60+ built-in icons.
 <Icon name="error" size={24} className="text-danger" />
 ```
 
-**Categories:** Navigation, Actions, Playback, Chevrons, Status, Git, Circle variants.
+**Categories:** Navigation/Sidebar, Actions, Playback, Chevrons, Status, Dashboard stats, Git, Circle variants, Panel, Database, Edit/Action, Automation, Category, Theme, Environment, IconNav (help, bar-chart).
 
 ## StatusIndicator
 
@@ -117,6 +117,84 @@ Colored status orb with animations.
 ```
 
 **Status colors:** running (accent/pulse), paused (warning/pulse), blocked (danger), completed (success), failed (danger).
+
+## IconNav
+
+56px icon-based navigation sidebar with vertical layout.
+
+```tsx
+import { IconNav } from '@/components/layout';
+
+<IconNav />
+<IconNav className="custom-nav" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Structure:**
+- Logo section with gradient "O" mark
+- Main nav: Board, Initiatives, Stats
+- Divider
+- Secondary nav: Agents, Settings
+- Bottom section: Help
+
+**States:** Default (muted), hover (surface bg), active (primary-dim bg with primary-bright text).
+
+**Accessibility:** `role="navigation"`, `aria-label="Main navigation"`, tooltips on hover with descriptions.
+
+## Pipeline
+
+Horizontal phase visualization for task execution progress.
+
+```tsx
+import { Pipeline } from '@/components/board';
+
+// Basic usage
+<Pipeline
+  phases={["Plan", "Code", "Test", "Review", "Done"]}
+  currentPhase="Code"
+  completedPhases={["Plan"]}
+/>
+
+// With progress percentage
+<Pipeline
+  phases={["Plan", "Code", "Test", "Review", "Done"]}
+  currentPhase="Code"
+  completedPhases={["Plan"]}
+  progress={45}
+/>
+
+// Compact variant (no labels)
+<Pipeline
+  phases={["Plan", "Code", "Test", "Review", "Done"]}
+  currentPhase="Test"
+  completedPhases={["Plan", "Code"]}
+  size="compact"
+/>
+
+// Failed phase
+<Pipeline
+  phases={["Plan", "Code", "Test", "Review", "Done"]}
+  currentPhase=""
+  completedPhases={["Plan", "Code"]}
+  failedPhase="Test"
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `phases` | `string[]` | - | Array of phase names to display |
+| `currentPhase` | `string` | - | Currently active phase name |
+| `completedPhases` | `string[]` | - | List of completed phase names |
+| `failedPhase` | `string` | - | Phase that failed (if any) |
+| `progress` | `number` | - | 0-100 progress for current phase |
+| `size` | `'compact' \| 'default'` | `'default'` | Compact hides labels |
+
+**Phase states:** pending (muted), active (primary with pulse), completed (green with checkmark), failed (red with X).
+
+**Accessibility:** Uses `role="progressbar"` with `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, and descriptive `aria-valuetext`.
 
 ## ToastContainer
 
@@ -132,6 +210,42 @@ toast.info('Processing...');
 ```
 
 **Durations:** success/warning/info (5s), error (8s).
+
+## TopBar
+
+Fixed 48px header with project selector, search, session metrics, and action buttons.
+
+```tsx
+import { TopBar } from '@/components/layout';
+
+<TopBar
+  onProjectChange={() => openProjectPicker()}
+  onNewTask={() => openNewTaskModal()}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `projectName` | `string` | From store | Override project name (for testing) |
+| `onProjectChange` | `() => void` | - | Open project picker |
+| `onNewTask` | `() => void` | - | Open new task modal |
+| `onSearch` | `(query: string) => void` | - | Search callback |
+| `className` | `string` | - | Additional CSS class |
+
+**Store Integration:**
+- `useCurrentProject()` - Current project name
+- `useSessionStore()` - Session metrics (duration, tokens, cost, isPaused)
+
+**Session Stats:**
+- Duration (purple badge, clock icon): "2h 34m"
+- Tokens (amber badge, zap icon): "847K"
+- Cost (green badge, dollar icon): "$2.34"
+
+**Actions:**
+- Pause/Resume button toggles `isPaused` via `pauseAll()`/`resumeAll()`
+- New Task button (primary) triggers `onNewTask` callback
+
+**Accessibility:** `role="banner"`, `aria-label="Search tasks"`, `aria-haspopup="listbox"` on project selector.
 
 ## TaskCard
 

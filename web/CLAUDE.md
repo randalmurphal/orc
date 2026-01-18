@@ -37,7 +37,7 @@ web/src/
 ├── components/           # UI components
 │   ├── board/            # Kanban (Board, Column, TaskCard, etc.)
 │   ├── dashboard/        # Dashboard sections
-│   ├── layout/           # AppLayout, Sidebar, Header
+│   ├── layout/           # AppLayout, Sidebar, Header, IconNav, TopBar
 │   ├── task-detail/      # TaskHeader, TabNav, tabs
 │   ├── overlays/         # Modal, CommandPalette, NewTaskModal
 │   └── ui/               # Primitives (Button, Icon, Input, Tooltip)
@@ -63,6 +63,7 @@ web/src/
 | `taskStore` | Task data and states |
 | `projectStore` | Project selection (URL + localStorage) |
 | `initiativeStore` | Initiative filter |
+| `sessionStore` | Session metrics (duration, tokens, cost), pause/resume |
 | `uiStore` | Sidebar, toasts, WebSocket status |
 
 ### WebSocket Events
