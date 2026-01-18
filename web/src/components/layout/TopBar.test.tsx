@@ -200,4 +200,64 @@ describe('TopBar', () => {
 			expect(svgs?.length).toBe(2);
 		});
 	});
+
+	describe('keyboard shortcuts', () => {
+		it('should focus search input on Cmd+K', async () => {
+			render(<TopBar />);
+			const searchInput = screen.getByLabelText('Search tasks');
+
+			// Simulate Cmd+K
+			act(() => {
+				fireEvent.keyDown(document, { key: 'k', metaKey: true });
+			});
+
+			await waitFor(() => {
+				expect(document.activeElement).toBe(searchInput);
+			});
+		});
+
+		it('should focus search input on Ctrl+K', async () => {
+			render(<TopBar />);
+			const searchInput = screen.getByLabelText('Search tasks');
+
+			// Simulate Ctrl+K
+			act(() => {
+				fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
+			});
+
+			await waitFor(() => {
+				expect(document.activeElement).toBe(searchInput);
+			});
+		});
+
+		it('should show keyboard hint in search box', () => {
+			render(<TopBar />);
+			expect(screen.getByText('⌘')).toBeInTheDocument();
+			expect(screen.getByText('K')).toBeInTheDocument();
+		});
+	});
+
+	describe('mobile search toggle', () => {
+		it('should render search toggle button', () => {
+			render(<TopBar />);
+			expect(screen.getByLabelText('Toggle search')).toBeInTheDocument();
+		});
+
+		it('should have aria-expanded on search toggle', () => {
+			render(<TopBar />);
+			const toggleBtn = screen.getByLabelText('Toggle search');
+			expect(toggleBtn).toHaveAttribute('aria-expanded', 'false');
+		});
+
+		it('should toggle search expanded state when clicked', () => {
+			render(<TopBar />);
+			const toggleBtn = screen.getByLabelText('Toggle search');
+
+			fireEvent.click(toggleBtn);
+			expect(toggleBtn).toHaveAttribute('aria-expanded', 'true');
+
+			fireEvent.click(toggleBtn);
+			expect(toggleBtn).toHaveAttribute('aria-expanded', 'false');
+		});
+	});
 });
