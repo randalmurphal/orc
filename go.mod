@@ -9,7 +9,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/randalmurphal/devflow v1.1.0
 	github.com/randalmurphal/flowgraph v1.1.0
-	github.com/randalmurphal/llmkit v1.2.1-0.20260118184856-c2773741aab9
+	github.com/randalmurphal/llmkit v1.2.1-0.20260118201025-3df4b607a810
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
