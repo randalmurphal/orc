@@ -26,5 +26,11 @@ export type { SelectProps, SelectOption } from './Select';
 export { Slider } from './Slider';
 export type { SliderProps } from './Slider';
 
+export { Stat, formatLargeNumber } from './Stat';
+export type { StatProps, StatValueColor, StatIconColor, StatTrend } from './Stat';
+
+export { Toggle } from './Toggle';
+export type { ToggleProps, ToggleSize } from './Toggle';
+
 export { Tooltip } from './Tooltip';
 export type { TooltipProps, TooltipPosition } from './Tooltip';
