@@ -169,23 +169,50 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		// Save spec content to database for spec phase BEFORE marking complete.
 		// This ensures we fail-fast if spec phase produces invalid output.
 		// Pass worktree path so we can check for spec files if agent didn't use artifact tags.
-		if phase.ID == "spec" && result.Output != "" {
-			saved, err := SaveSpecToDatabase(e.backend, t.ID, phase.ID, result.Output, e.worktreePath)
-			if err != nil {
-				e.logger.Warn("failed to save spec to database", "error", err)
-			} else if saved {
-				e.logger.Info("saved spec to database", "task", t.ID)
-			} else {
-				// Spec phase must produce a valid spec for medium+ weights
-				// If validation rejected the output, fail the phase
-				requiresSpec := t.Weight != task.WeightTrivial && t.Weight != task.WeightSmall
+		if phase.ID == "spec" {
+			requiresSpec := t.Weight != task.WeightTrivial && t.Weight != task.WeightSmall
+
+			// Check for empty output first
+			if result.Output == "" {
 				if requiresSpec {
-					e.logger.Error("spec phase produced invalid output - no valid spec extracted",
+					e.logger.Error("spec phase produced no output",
 						"task", t.ID,
 						"weight", t.Weight,
-						"hint", "Agent must output spec in <artifact> tags OR write to spec.md file",
 					)
-					return fmt.Errorf("spec phase failed: no valid spec produced - agent must output spec in <artifact> tags or write spec.md file")
+					return fmt.Errorf("spec phase failed: no output produced")
+				}
+				e.logger.Warn("spec phase produced no output, continuing (trivial/small weight)")
+			} else {
+				saved, err := SaveSpecToDatabase(e.backend, t.ID, phase.ID, result.Output, e.worktreePath)
+				if err != nil {
+					// Check if it's a spec extraction error with details
+					if specErr, ok := err.(*SpecExtractionError); ok {
+						if requiresSpec {
+							e.logger.Error("spec extraction failed",
+								"task", t.ID,
+								"reason", specErr.Reason,
+								"output_len", specErr.OutputLen,
+								"spec_path", specErr.SpecPath,
+								"file_exists", specErr.FileExists,
+								"file_read_err", specErr.FileReadErr,
+								"hint", "Agent must output spec in <artifact> tags OR write to spec.md file",
+							)
+							return fmt.Errorf("spec phase failed: %s", specErr.Reason)
+						}
+						e.logger.Warn("spec extraction failed (non-critical)", "reason", specErr.Reason)
+					} else {
+						// Other errors (database, etc.)
+						if requiresSpec {
+							e.logger.Error("failed to save spec to database",
+								"task", t.ID,
+								"error", err,
+							)
+							return fmt.Errorf("spec phase failed: %w", err)
+						}
+						e.logger.Warn("failed to save spec to database", "error", err)
+					}
+				} else if saved {
+					e.logger.Info("saved spec to database", "task", t.ID)
 				}
 			}
 		}

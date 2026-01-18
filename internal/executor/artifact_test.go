@@ -273,6 +273,7 @@ func TestSaveSpecToDatabase(t *testing.T) {
 		phaseID     string
 		output      string
 		wantSaved   bool
+		wantErr     bool // Whether we expect an error
 		wantContent string
 	}{
 		{
@@ -305,25 +306,28 @@ Build a feature.
 			phaseID:   "spec",
 			output:    "Raw spec content without artifact tags",
 			wantSaved: false,
-			// No longer saves raw output - requires artifact tags or structured markers
+			wantErr:   true, // Now returns SpecExtractionError
 		},
 		{
 			name:      "skips non-spec phase",
 			phaseID:   "implement",
 			output:    "<artifact>Some content</artifact>",
 			wantSaved: false,
+			wantErr:   false, // Non-spec phases return (false, nil)
 		},
 		{
-			name:      "skips empty output",
+			name:      "returns error for empty output",
 			phaseID:   "spec",
 			output:    "",
 			wantSaved: false,
+			wantErr:   true, // Now returns SpecExtractionError
 		},
 		{
 			name:      "skips research phase",
 			phaseID:   "research",
 			output:    "<artifact>Research results</artifact>",
 			wantSaved: false,
+			wantErr:   false, // Non-spec phases return (false, nil)
 		},
 	}
 
@@ -336,8 +340,21 @@ Build a feature.
 			createTestTask(t, backend, taskID)
 
 			saved, err := SaveSpecToDatabase(backend, taskID, tt.phaseID, tt.output)
-			if err != nil {
-				t.Fatalf("SaveSpecToDatabase() error = %v", err)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("SaveSpecToDatabase() expected error, got nil")
+				}
+				// Verify it's a SpecExtractionError with useful info
+				if specErr, ok := err.(*SpecExtractionError); ok {
+					if specErr.Reason == "" {
+						t.Error("SpecExtractionError should have a reason")
+					}
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("SaveSpecToDatabase() error = %v", err)
+				}
 			}
 
 			if saved != tt.wantSaved {
@@ -363,8 +380,12 @@ Build a feature.
 
 func TestSaveSpecToDatabase_NilBackend(t *testing.T) {
 	saved, err := SaveSpecToDatabase(nil, "TASK-001", "spec", "Some content")
-	if err != nil {
-		t.Fatalf("SaveSpecToDatabase() with nil backend should not error, got %v", err)
+	// Nil backend now returns an error for visibility
+	if err == nil {
+		t.Fatal("SaveSpecToDatabase() with nil backend should return error")
+	}
+	if !strings.Contains(err.Error(), "backend is nil") {
+		t.Errorf("error should mention nil backend, got: %v", err)
 	}
 	if saved {
 		t.Error("SaveSpecToDatabase() with nil backend should return false")
