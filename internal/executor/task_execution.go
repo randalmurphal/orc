@@ -40,7 +40,8 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 	}
 
 	// Check spec requirements for non-trivial tasks
-	if err := e.checkSpecRequirements(t); err != nil {
+	// Skip if first phase is "spec" - the spec phase will create it
+	if err := e.checkSpecRequirements(t, p); err != nil {
 		return err
 	}
 
@@ -650,9 +651,17 @@ func (e *Executor) ResumeFromPhase(ctx context.Context, t *task.Task, p *plan.Pl
 
 // checkSpecRequirements checks if a task has a valid spec for non-trivial weights.
 // Returns an error if spec is required but missing or invalid.
-func (e *Executor) checkSpecRequirements(t *task.Task) error {
+// Skips check if the plan's first phase is "spec" (the spec will be created during execution).
+func (e *Executor) checkSpecRequirements(t *task.Task, p *plan.Plan) error {
 	// Trivial tasks don't require specs
 	if t.Weight == task.WeightTrivial {
+		return nil
+	}
+
+	// Skip if plan starts with spec phase - it will create the spec
+	if p != nil && len(p.Phases) > 0 && p.Phases[0].ID == "spec" {
+		e.logger.Debug("skipping spec requirement check - plan starts with spec phase",
+			"task", t.ID)
 		return nil
 	}
 
