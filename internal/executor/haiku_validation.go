@@ -4,6 +4,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -41,6 +42,56 @@ func (v ValidationDecision) String() string {
 // Use the alias "haiku" for resilience against model name changes.
 const HaikuValidationModel = "haiku"
 
+// JSON schemas for structured validation output.
+// Using schemas ensures consistent, parseable output.
+const (
+	// iterationProgressSchema forces structured output for progress validation.
+	iterationProgressSchema = `{
+		"type": "object",
+		"properties": {
+			"decision": {
+				"type": "string",
+				"enum": ["CONTINUE", "RETRY", "STOP"],
+				"description": "CONTINUE if on track, RETRY if off track, STOP if blocked"
+			},
+			"reason": {
+				"type": "string",
+				"description": "Brief explanation of the decision"
+			}
+		},
+		"required": ["decision", "reason"]
+	}`
+
+	// taskReadinessSchema forces structured output for spec validation.
+	taskReadinessSchema = `{
+		"type": "object",
+		"properties": {
+			"ready": {
+				"type": "boolean",
+				"description": "true if spec is ready for implementation, false otherwise"
+			},
+			"suggestions": {
+				"type": "array",
+				"items": {"type": "string"},
+				"description": "List of specific improvements needed (empty if ready)"
+			}
+		},
+		"required": ["ready", "suggestions"]
+	}`
+)
+
+// progressResponse is the JSON structure for iteration progress validation.
+type progressResponse struct {
+	Decision string `json:"decision"`
+	Reason   string `json:"reason"`
+}
+
+// readinessResponse is the JSON structure for spec readiness validation.
+type readinessResponse struct {
+	Ready       bool     `json:"ready"`
+	Suggestions []string `json:"suggestions"`
+}
+
 // ValidateIterationProgress uses Haiku to assess whether an iteration is on track.
 // It evaluates the iteration output against the spec's success criteria.
 //
@@ -49,7 +100,7 @@ const HaikuValidationModel = "haiku"
 //   - ValidationRetry: The approach has diverged, needs redirection
 //   - ValidationStop: Fundamentally blocked, cannot proceed
 //
-// On error (API failure, timeout), returns the error to let caller decide:
+// On error (API failure, timeout, parse failure), returns the error to let caller decide:
 //   - If config.Validation.FailOnAPIError is true: Fail the task (resumable)
 //   - If config.Validation.FailOnAPIError is false: Fail open, continue execution
 func ValidateIterationProgress(
@@ -74,35 +125,19 @@ func ValidateIterationProgress(
 		truncatedOutput = iterationOutput[:maxOutputLen] + "\n...[truncated]"
 	}
 
-	prompt := fmt.Sprintf(`You are evaluating whether an AI agent's work is progressing toward the success criteria in a specification.
+	prompt := fmt.Sprintf(`Evaluate whether an AI agent's work is progressing toward the success criteria.
 
-## Specification (contains success criteria)
+## Specification
 %s
 
 ## Agent's Latest Output
 %s
 
-## Evaluation Task
-
-Assess whether the agent's work is:
-1. ON TRACK - Making progress toward the success criteria
-2. OFF TRACK - Diverging from the specification (wrong approach, scope creep, misunderstanding)
-3. BLOCKED - Cannot proceed (missing dependencies, impossible requirements, fundamental issues)
-
-Respond with EXACTLY one of these three words on the first line, followed by a brief reason:
-- CONTINUE (if on track)
-- RETRY (if off track - explain what went wrong)
-- STOP (if blocked - explain what's blocking)
-
-Example responses:
-"CONTINUE
-Making good progress on the authentication flow."
-
-"RETRY
-The agent is implementing a REST API but the spec calls for GraphQL."
-
-"STOP
-The spec requires a third-party service that doesn't exist."`, specContent, truncatedOutput)
+## Task
+Assess if the work is:
+- ON TRACK: Making progress toward success criteria → decision: "CONTINUE"
+- OFF TRACK: Wrong approach, scope creep, misunderstanding → decision: "RETRY"
+- BLOCKED: Missing dependencies, impossible requirements → decision: "STOP"`, specContent, truncatedOutput)
 
 	resp, err := client.Complete(ctx, claude.CompletionRequest{
 		Messages: []claude.Message{
@@ -111,24 +146,39 @@ The spec requires a third-party service that doesn't exist."`, specContent, trun
 		Model:       HaikuValidationModel,
 		MaxTokens:   200,
 		Temperature: 0,
+		JSONSchema:  iterationProgressSchema,
 	})
 
 	if err != nil {
-		// Return the error - let caller decide whether to fail open or closed
-		slog.Warn("haiku validation API error",
-			"error", err,
-		)
+		slog.Warn("haiku validation API error", "error", err)
 		return ValidationContinue, "", fmt.Errorf("validation API error: %w", err)
 	}
 
-	// Return error if response is nil (shouldn't happen, but be defensive)
 	if resp == nil {
 		return ValidationContinue, "", fmt.Errorf("validation API returned nil response")
 	}
 
-	// Parse the response
-	decision, reason := parseValidationResponse(resp.Content)
-	return decision, reason, nil
+	// Parse JSON response
+	var result progressResponse
+	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
+		slog.Warn("haiku validation parse error",
+			"error", err,
+			"content", resp.Content,
+		)
+		return ValidationContinue, "", fmt.Errorf("validation parse error: %w", err)
+	}
+
+	decision := strings.ToUpper(result.Decision)
+	switch decision {
+	case "CONTINUE":
+		return ValidationContinue, result.Reason, nil
+	case "RETRY":
+		return ValidationRetry, result.Reason, nil
+	case "STOP":
+		return ValidationStop, result.Reason, nil
+	default:
+		return ValidationContinue, "", fmt.Errorf("unexpected decision: %s", result.Decision)
+	}
 }
 
 // ValidateTaskReadiness checks if a task has a quality spec before execution.
@@ -138,7 +188,7 @@ The spec requires a third-party service that doesn't exist."`, specContent, trun
 // Returns:
 //   - ready: true if the spec is sufficient for execution
 //   - suggestions: list of improvements if not ready
-//   - error: on API failures, returned to let caller decide based on config.Validation.FailOnAPIError
+//   - error: on API/parse failures, returned to let caller decide based on config.Validation.FailOnAPIError
 func ValidateTaskReadiness(
 	ctx context.Context,
 	client claude.Client,
@@ -155,7 +205,7 @@ func ValidateTaskReadiness(
 		return true, nil, nil
 	}
 
-	prompt := fmt.Sprintf(`You are evaluating whether a task specification is complete enough for implementation.
+	prompt := fmt.Sprintf(`Evaluate whether this task specification is complete enough for implementation.
 
 ## Task Description
 %s
@@ -166,26 +216,13 @@ func ValidateTaskReadiness(
 ## Specification
 %s
 
-## Evaluation Criteria
-
-For a %s task, the specification should have:
+## Criteria
+For a %s task, the spec should have:
 1. INTENT - Clear statement of why this work matters
 2. SUCCESS CRITERIA - Specific, testable conditions for "done"
 3. TESTING - How to verify the implementation works
 
-Evaluate if this spec is ready for implementation.
-
-Respond with EXACTLY "READY" or "NOT READY" on the first line.
-If NOT READY, list specific improvements needed (one per line, starting with "- ").
-
-Example response for good spec:
-"READY"
-
-Example response for bad spec:
-"NOT READY
-- Success criteria are vague - need specific measurable conditions
-- No testing section - add how to verify the implementation
-- Intent unclear - why does the user need this feature?"`, taskDescription, weight, specContent, weight)
+Set ready=true only if all criteria are met. Otherwise, list specific improvements needed.`, taskDescription, weight, specContent, weight)
 
 	resp, err := client.Complete(ctx, claude.CompletionRequest{
 		Messages: []claude.Message{
@@ -194,77 +231,27 @@ Example response for bad spec:
 		Model:       HaikuValidationModel,
 		MaxTokens:   300,
 		Temperature: 0,
+		JSONSchema:  taskReadinessSchema,
 	})
 
 	if err != nil {
-		// Return the error - let caller decide whether to fail open or closed
-		slog.Warn("haiku spec validation API error",
-			"error", err,
-		)
+		slog.Warn("haiku spec validation API error", "error", err)
 		return true, nil, fmt.Errorf("spec validation API error: %w", err)
 	}
 
-	// Return error if response is nil (shouldn't happen, but be defensive)
 	if resp == nil {
 		return true, nil, fmt.Errorf("spec validation API returned nil response")
 	}
 
-	return parseReadinessResponse(resp.Content)
-}
-
-// parseValidationResponse extracts the decision and reason from Haiku's response.
-func parseValidationResponse(content string) (ValidationDecision, string) {
-	content = strings.TrimSpace(content)
-	lines := strings.SplitN(content, "\n", 2)
-	if len(lines) == 0 {
-		return ValidationContinue, ""
+	// Parse JSON response
+	var result readinessResponse
+	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
+		slog.Warn("haiku spec validation parse error",
+			"error", err,
+			"content", resp.Content,
+		)
+		return true, nil, fmt.Errorf("spec validation parse error: %w", err)
 	}
 
-	firstLine := strings.ToUpper(strings.TrimSpace(lines[0]))
-	reason := ""
-	if len(lines) > 1 {
-		reason = strings.TrimSpace(lines[1])
-	}
-
-	switch {
-	case strings.HasPrefix(firstLine, "CONTINUE"):
-		return ValidationContinue, reason
-	case strings.HasPrefix(firstLine, "RETRY"):
-		return ValidationRetry, reason
-	case strings.HasPrefix(firstLine, "STOP"):
-		return ValidationStop, reason
-	default:
-		// Default to continue if response is malformed
-		return ValidationContinue, ""
-	}
-}
-
-// parseReadinessResponse extracts the readiness status and suggestions from Haiku's response.
-func parseReadinessResponse(content string) (bool, []string, error) {
-	content = strings.TrimSpace(content)
-	if content == "" {
-		// Fail open - empty response means ready
-		return true, nil, nil
-	}
-
-	lines := strings.Split(content, "\n")
-	firstLine := strings.ToUpper(strings.TrimSpace(lines[0]))
-	ready := strings.HasPrefix(firstLine, "READY") && !strings.HasPrefix(firstLine, "NOT READY")
-
-	var suggestions []string
-	if !ready {
-		for _, line := range lines[1:] {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "-") || strings.HasPrefix(line, "*") {
-				// Remove the bullet point prefix
-				suggestion := strings.TrimPrefix(strings.TrimPrefix(line, "-"), "*")
-				suggestion = strings.TrimSpace(suggestion)
-				if suggestion != "" {
-					suggestions = append(suggestions, suggestion)
-				}
-			}
-		}
-	}
-
-	return ready, suggestions, nil
+	return result.Ready, result.Suggestions, nil
 }
