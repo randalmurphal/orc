@@ -1,0 +1,109 @@
+/* =============================================================================
+   Slider Component Styles
+   Range input slider with visual value display
+   Based on example_ui/agents.html (.slider, .slider-fill, .slider-thumb classes)
+   ============================================================================= */
+
+/* ==========================================================================
+   BASE STYLES
+   ========================================================================== */
+
+.slider {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+/* Track container */
+.slider__track {
+	flex: 1;
+	height: 4px;
+	background: var(--bg-surface);
+	border-radius: 2px;
+	position: relative;
+	cursor: pointer;
+}
+
+/* Filled portion of track */
+.slider__fill {
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 100%;
+	background: var(--primary);
+	border-radius: 2px;
+	pointer-events: none;
+}
+
+/* Draggable thumb */
+.slider__thumb {
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 14px;
+	height: 14px;
+	background: white;
+	border-radius: 50%;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+	cursor: grab;
+	transition: box-shadow 0.15s;
+}
+
+.slider__thumb:hover {
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.slider__thumb:active,
+.slider--dragging .slider__thumb {
+	cursor: grabbing;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Value display */
+.slider__value {
+	font-size: 12px;
+	font-weight: 600;
+	font-family: 'JetBrains Mono', var(--font-mono), monospace;
+	min-width: 30px;
+	text-align: right;
+	color: var(--text-primary);
+	white-space: nowrap;
+}
+
+/* ==========================================================================
+   FOCUS STATE
+   ========================================================================== */
+
+.slider__track:focus-visible {
+	outline: none;
+}
+
+.slider__track:focus-visible .slider__thumb {
+	box-shadow: 0 0 0 2px var(--primary-glow), 0 0 0 3px var(--primary), 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ==========================================================================
+   DISABLED STATE
+   ========================================================================== */
+
+.slider--disabled {
+	opacity: 0.5;
+}
+
+.slider--disabled .slider__track {
+	cursor: not-allowed;
+}
+
+.slider--disabled .slider__thumb {
+	cursor: not-allowed;
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.slider__thumb {
+		transition: none;
+	}
+}
