@@ -113,7 +113,7 @@ func TestEstimateProjectSize(t *testing.T) {
 func TestNewSpawner(t *testing.T) {
 	spawner := NewSpawner(SpawnerOptions{
 		WorkDir: "/tmp/test",
-		Model:   "claude-opus-4-5-20251101",
+		Model:   "opus",
 	})
 
 	if spawner.opts.ClaudePath != "claude" {

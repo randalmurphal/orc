@@ -12,8 +12,8 @@ func TestDefaultConfig_SetsCorrectDefaults(t *testing.T) {
 	if cfg.ClaudePath != "claude" {
 		t.Errorf("ClaudePath = %q, want %q", cfg.ClaudePath, "claude")
 	}
-	if cfg.Model != "claude-opus-4-5-20251101" {
-		t.Errorf("Model = %q, want %q", cfg.Model, "claude-opus-4-5-20251101")
+	if cfg.Model != "opus" {
+		t.Errorf("Model = %q, want %q", cfg.Model, "opus")
 	}
 	if !cfg.DangerouslySkipPermissions {
 		t.Error("DangerouslySkipPermissions = false, want true")

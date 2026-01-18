@@ -45,7 +45,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		ClaudePath:                 "claude",
-		Model:                      "claude-opus-4-5-20251101",
+		Model:                      "opus",
 		DangerouslySkipPermissions: true,
 		MaxIterations:              30,
 		Timeout:                    10 * time.Minute,

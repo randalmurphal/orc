@@ -587,7 +587,7 @@ func TestNewWithDifferentConfigs(t *testing.T) {
 			name: "custom iterations",
 			cfg: &Config{
 				ClaudePath:                 "claude",
-				Model:                      "claude-sonnet-4-20250514",
+				Model:                      "sonnet",
 				MaxIterations:              50,
 				Timeout:                    5 * time.Minute,
 				BranchPrefix:               "custom/",
