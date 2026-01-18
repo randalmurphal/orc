@@ -135,6 +135,17 @@ See `docs/architecture/FINALIZE.md` for detailed flow.
 
 **Profiles:** `auto`/`fast` auto-merge on CI pass; `safe`/`strict` require human approval.
 
+**Merge retry logic:** `MergePR()` handles HTTP 405 "Base branch was modified" errors from GitHub (race condition when parallel tasks merge):
+- Detects retryable error via `isRetryableMergeError()`
+- Retries up to 3 times with exponential backoff (2s, 4s, 8s)
+- Rebases branch onto target via `rebaseOnTarget()` before each retry
+- Returns `ErrMergeFailed` if retries exhausted or rebase conflicts
+
+**Error handling in completeTask():**
+- `ErrMergeFailed` blocks task with `blocked_reason=merge_failed`
+- Returns `ErrTaskBlocked` so CLI shows blocked message instead of celebration
+- User runs `orc resume TASK-XXX` after resolving
+
 ## Resource Tracker
 
 `resource_tracker.go` detects orphaned MCP processes after task execution.
