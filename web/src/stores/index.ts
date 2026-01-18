@@ -88,3 +88,26 @@ export {
 	type SessionStore,
 	type SessionMetrics,
 } from './sessionStore';
+
+// Stats store
+export {
+	useStatsStore,
+	useStatsPeriod,
+	useStatsLoading,
+	useStatsError,
+	useActivityData,
+	useOutcomes,
+	useTasksPerDay,
+	useTopInitiatives,
+	useTopFiles,
+	useSummaryStats,
+	useWeeklyChanges,
+	type StatsPeriod,
+	type Outcomes,
+	type TasksPerDay,
+	type TopInitiative,
+	type TopFile,
+	type SummaryStats,
+	type WeeklyChanges,
+	type StatsStore,
+} from './statsStore';
