@@ -306,3 +306,37 @@
   /* Glow Effects - Adjusted for light mode */
   --shadow-glow-lg: 0 0 40px rgba(124, 58, 237, 0.25);
 }
+
+/* =============================================================================
+   SEMANTIC STATUS ALIASES
+   Map semantic status names to design system colors for intuitive usage.
+   ============================================================================= */
+
+:root {
+  /* Status Colors - Map to semantic colors */
+  --status-success: var(--green);
+  --status-success-glow: var(--green-dim);
+  --status-success-bg: var(--green-dim);
+
+  --status-error: var(--red);
+  --status-danger: var(--red);
+  --status-danger-glow: var(--red-dim);
+  --status-danger-bg: var(--red-dim);
+
+  --status-warning: var(--amber);
+  --status-warning-glow: var(--amber-dim);
+  --status-warning-bg: var(--amber-dim);
+
+  --status-info: var(--blue);
+  --status-info-glow: var(--blue-dim);
+  --status-info-bg: var(--blue-dim);
+
+  /* Background tertiary - between surface and card */
+  --bg-tertiary: var(--bg-surface);
+
+  /* Old accent tokens -> new primary tokens */
+  --accent-primary: var(--primary);
+  --accent-glow: var(--primary-glow);
+  --accent-subtle: var(--primary-dim);
+  --accent-secondary: var(--cyan);
+}

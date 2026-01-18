@@ -31,8 +31,8 @@ const statusConfig: Record<TaskStatus, StatusConfig> = {
 		label: 'Planned',
 	},
 	running: {
-		color: 'var(--accent-primary)',
-		glow: 'var(--accent-glow)',
+		color: 'var(--primary)',
+		glow: 'var(--primary-glow)',
 		label: 'Running',
 	},
 	paused: {

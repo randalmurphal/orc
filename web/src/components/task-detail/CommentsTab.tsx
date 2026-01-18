@@ -46,8 +46,8 @@ const authorTypeConfig: Record<
 		icon: 'user',
 	},
 	agent: {
-		color: 'var(--accent-primary)',
-		bg: 'var(--accent-glow)',
+		color: 'var(--primary)',
+		bg: 'var(--primary-dim)',
 		label: 'Agent',
 		icon: 'cpu',
 	},
