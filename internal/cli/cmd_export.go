@@ -28,6 +28,10 @@ import (
 // Version 3: state and transcripts included by default, tar.gz support
 const ExportFormatVersion = 3
 
+// maxImportFileSize is the maximum size of a single file to import (100MB).
+// This prevents zip/tar bomb attacks that could exhaust memory.
+const maxImportFileSize = 100 * 1024 * 1024
+
 // ExportManifest contains metadata about an export archive.
 type ExportManifest struct {
 	Version          int       `yaml:"version"`
@@ -472,7 +476,8 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	if export.State != nil {
 		if err := backend.SaveState(export.State); err != nil {
 			// State is critical for active tasks - fail if we can't save it
-			if export.Task.Status == task.StatusPaused || export.Task.Status == task.StatusRunning {
+			// Note: wasRunning tracks if task was originally running (now paused)
+			if wasRunning || export.Task.Status == task.StatusPaused {
 				return fmt.Errorf("save state for active task: %w", err)
 			}
 			// Non-fatal for completed/failed tasks
@@ -739,8 +744,8 @@ func importTarGz(archivePath string, force, skipExisting bool) error {
 			continue
 		}
 
-		// Read file content
-		data, err := io.ReadAll(tarReader)
+		// Read file content (with size limit to prevent tar bombs)
+		data, err := io.ReadAll(io.LimitReader(tarReader, maxImportFileSize))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: read error: %v\n", header.Name, err)
 			continue
@@ -820,7 +825,7 @@ func importDryRun(path, format string) error {
 			if filepath.Base(header.Name) == "manifest.yaml" {
 				continue
 			}
-			data, err := io.ReadAll(tarReader)
+			data, err := io.ReadAll(io.LimitReader(tarReader, maxImportFileSize))
 			if err != nil {
 				continue
 			}
@@ -852,7 +857,7 @@ func importDryRun(path, format string) error {
 			if err != nil {
 				continue
 			}
-			data, err := io.ReadAll(rc)
+			data, err := io.ReadAll(io.LimitReader(rc, maxImportFileSize))
 			_ = rc.Close()
 			if err != nil {
 				continue
@@ -976,15 +981,19 @@ func importZip(zipPath string, force, skipExisting bool) error {
 		if ext != ".yaml" && ext != ".yml" {
 			continue
 		}
+		// Skip manifest.yaml - it's metadata only
+		if filepath.Base(f.Name) == "manifest.yaml" {
+			continue
+		}
 
-		// Read file from zip
+		// Read file from zip (with size limit to prevent zip bombs)
 		rc, err := f.Open()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: open error: %v\n", f.Name, err)
 			continue
 		}
 
-		data, err := io.ReadAll(rc)
+		data, err := io.ReadAll(io.LimitReader(rc, maxImportFileSize))
 		_ = rc.Close()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: read error: %v\n", f.Name, err)
@@ -1020,26 +1029,53 @@ func importDirectory(dir string, force, skipExisting bool) error {
 	var tasksImported, tasksSkipped int
 	var initiativesImported, initiativesSkipped int
 
-	// Import YAML files in the root directory (tasks)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("read directory: %w", err)
 	}
 
+	// Check for subdirectory structure (tasks/, initiatives/)
+	hasTasksDir := false
+	hasInitiativesDir := false
 	for _, entry := range entries {
 		if entry.IsDir() {
-			// Check for initiatives subdirectory
-			if entry.Name() == "initiatives" {
-				initDir := filepath.Join(dir, "initiatives")
-				imported, skipped := importInitiativesFromDir(initDir, force, skipExisting)
-				initiativesImported += imported
-				initiativesSkipped += skipped
+			switch entry.Name() {
+			case "tasks":
+				hasTasksDir = true
+			case "initiatives":
+				hasInitiativesDir = true
 			}
+		}
+	}
+
+	// Import from tasks/ subdirectory if it exists (v3 format)
+	if hasTasksDir {
+		tasksDir := filepath.Join(dir, "tasks")
+		imported, skipped := importTasksFromDir(tasksDir, force, skipExisting)
+		tasksImported += imported
+		tasksSkipped += skipped
+	}
+
+	// Import from initiatives/ subdirectory if it exists
+	if hasInitiativesDir {
+		initDir := filepath.Join(dir, "initiatives")
+		imported, skipped := importInitiativesFromDir(initDir, force, skipExisting)
+		initiativesImported += imported
+		initiativesSkipped += skipped
+	}
+
+	// Also import YAML files in root directory (v2 format or single files)
+	for _, entry := range entries {
+		if entry.IsDir() {
 			continue
 		}
 
 		ext := filepath.Ext(entry.Name())
 		if ext != ".yaml" && ext != ".yml" {
+			continue
+		}
+		// Skip manifest
+		if entry.Name() == "manifest.yaml" {
 			continue
 		}
 
@@ -1076,6 +1112,39 @@ func importDirectory(dir string, force, skipExisting bool) error {
 	}
 
 	return nil
+}
+
+// importTasksFromDir imports all tasks from a directory.
+func importTasksFromDir(dir string, force, skipExisting bool) (imported, skipped int) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not read tasks directory: %v\n", err)
+		return 0, 0
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		ext := filepath.Ext(entry.Name())
+		if ext != ".yaml" && ext != ".yml" {
+			continue
+		}
+
+		path := filepath.Join(dir, entry.Name())
+		if err := importFileWithMerge(path, force, skipExisting); err != nil {
+			if strings.Contains(err.Error(), "skipped") {
+				skipped++
+				continue
+			}
+			fmt.Fprintf(os.Stderr, "Warning: %s: %v\n", path, err)
+			continue
+		}
+		imported++
+	}
+
+	return imported, skipped
 }
 
 // importInitiativesFromDir imports all initiatives from a directory.
