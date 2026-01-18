@@ -529,13 +529,20 @@ func loadFromTranscript(taskDir string, phaseID string) string {
 }
 
 // extractArtifact extracts content between <artifact>...</artifact> tags.
-// If no artifact tags are found, returns the entire content (trimmed).
+// Uses the LAST match to avoid matching template examples in prompts.
+// If no artifact tags are found, returns empty string.
 func extractArtifact(content string) string {
 	// Try to extract content between <artifact> tags
+	// Use FindAllStringSubmatch and take the LAST match - this avoids matching
+	// template examples in the prompt and finds the agent's actual output
 	artifactPattern := regexp.MustCompile(`(?s)<artifact>(.*?)</artifact>`)
-	matches := artifactPattern.FindStringSubmatch(content)
-	if len(matches) >= 2 {
-		return strings.TrimSpace(matches[1])
+	allMatches := artifactPattern.FindAllStringSubmatch(content, -1)
+	if len(allMatches) > 0 {
+		// Take the last match (agent's response, not template example)
+		lastMatch := allMatches[len(allMatches)-1]
+		if len(lastMatch) >= 2 {
+			return strings.TrimSpace(lastMatch[1])
+		}
 	}
 
 	// If no artifact tags, look for structured output markers
