@@ -53,9 +53,12 @@ func ExtractArtifactContent(output string) string {
 // of truth for spec content, which is loaded via backend.LoadSpec() to populate
 // {{SPEC_CONTENT}} in subsequent phase templates.
 //
+// The worktreePath parameter is optional - if provided, we check for spec.md files
+// that agents may have written instead of using artifact tags.
+//
 // This should be called after a successful spec phase completion.
 // Returns true if the spec was saved, false if the phase is not "spec" or no content found.
-func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string) (bool, error) {
+func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string, worktreePath ...string) (bool, error) {
 	// Only save for spec phase
 	if phaseID != "spec" {
 		return false, nil
@@ -67,6 +70,16 @@ func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string)
 
 	// Extract the spec content from the output using artifact tags or structured markers
 	specContent := extractArtifact(output)
+
+	// If no artifact tags found, check for spec file in task directory
+	// Agents sometimes write spec.md files instead of using artifact tags
+	if specContent == "" && len(worktreePath) > 0 && worktreePath[0] != "" {
+		specPath := task.SpecPathIn(worktreePath[0], taskID)
+		if content, err := os.ReadFile(specPath); err == nil && len(content) > 0 {
+			specContent = strings.TrimSpace(string(content))
+		}
+	}
+
 	if specContent == "" {
 		// No structured spec content found - don't save raw output as it may contain
 		// completion markers or other noise that isn't a valid spec

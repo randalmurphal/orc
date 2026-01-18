@@ -181,7 +181,9 @@ go test ./internal/executor/... -v
 
 **Spec handling:**
 - `SavePhaseArtifact()` skips file writes for spec phase
-- `SaveSpecToDatabase()` saves spec content to database with source tag
+- `SaveSpecToDatabase()` extracts spec content and saves to database with source tag
+  - Primary: Looks for `<artifact>` tags in agent output
+  - Fallback: If no artifact tags, checks for `spec.md` file in task directory (agents sometimes write specs to files instead of using artifact tags)
 - `ArtifactDetector` checks database first (via `NewArtifactDetectorWithBackend`), falls back to legacy `spec.md` file
 
 ## Backpressure & Haiku Validation

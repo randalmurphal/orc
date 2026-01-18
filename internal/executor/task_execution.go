@@ -168,8 +168,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 
 		// Save spec content to database for spec phase BEFORE marking complete.
 		// This ensures we fail-fast if spec phase produces invalid output.
+		// Pass worktree path so we can check for spec files if agent didn't use artifact tags.
 		if phase.ID == "spec" && result.Output != "" {
-			saved, err := SaveSpecToDatabase(e.backend, t.ID, phase.ID, result.Output)
+			saved, err := SaveSpecToDatabase(e.backend, t.ID, phase.ID, result.Output, e.worktreePath)
 			if err != nil {
 				e.logger.Warn("failed to save spec to database", "error", err)
 			} else if saved {
@@ -182,9 +183,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 					e.logger.Error("spec phase produced invalid output - no valid spec extracted",
 						"task", t.ID,
 						"weight", t.Weight,
-						"hint", "Agent must output spec in <artifact> tags with Success Criteria section",
+						"hint", "Agent must output spec in <artifact> tags OR write to spec.md file",
 					)
-					return fmt.Errorf("spec phase failed: no valid spec produced - agent must output spec in <artifact> tags")
+					return fmt.Errorf("spec phase failed: no valid spec produced - agent must output spec in <artifact> tags or write spec.md file")
 				}
 			}
 		}
