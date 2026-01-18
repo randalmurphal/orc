@@ -177,6 +177,31 @@ Changed these files:
 			content: "<artifact>preferred content</artifact>\n\n## Specification\nfallback content",
 			want:    "preferred content",
 		},
+		{
+			name: "uses last artifact match (avoids template examples)",
+			content: `Here's an example:
+<artifact>
+[Template placeholder - not real content]
+</artifact>
+
+## Response
+
+<artifact>
+# Actual Spec Content
+
+This is the real spec from the agent.
+</artifact>`,
+			want: `# Actual Spec Content
+
+This is the real spec from the agent.`,
+		},
+		{
+			name: "multiple artifacts returns last one",
+			content: `<artifact>first</artifact>
+<artifact>second</artifact>
+<artifact>third and final</artifact>`,
+			want: "third and final",
+		},
 	}
 
 	for _, tt := range tests {
