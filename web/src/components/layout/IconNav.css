@@ -1,0 +1,156 @@
+/**
+ * IconNav component styles
+ * 56px icon-based navigation sidebar
+ * Matches example_ui/board.html reference design
+ */
+
+/* =============================================================================
+   NAV CONTAINER
+   ============================================================================= */
+
+.icon-nav {
+  width: 56px;
+  min-width: 56px;
+  height: 100vh;
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0;
+}
+
+/* =============================================================================
+   LOGO SECTION
+   ============================================================================= */
+
+.icon-nav__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.icon-nav__logo-mark {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--primary), #ec4899);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+  color: white;
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+/* =============================================================================
+   NAV ITEMS CONTAINER
+   ============================================================================= */
+
+.icon-nav__items {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px;
+}
+
+/* =============================================================================
+   NAV ITEM
+   ============================================================================= */
+
+.icon-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 4px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+  position: relative;
+}
+
+.icon-nav__item:hover {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.icon-nav__item--active {
+  background: var(--primary-dim);
+  color: var(--primary-bright);
+}
+
+/* Active indicator - 2px left border effect */
+.icon-nav__active-indicator {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--primary-bright);
+  border-radius: 0 1px 1px 0;
+}
+
+/* Icon sizing */
+.icon-nav__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Label styling */
+.icon-nav__label {
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* =============================================================================
+   DIVIDER
+   ============================================================================= */
+
+.icon-nav__divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 8px;
+}
+
+/* =============================================================================
+   BOTTOM SECTION
+   ============================================================================= */
+
+.icon-nav__bottom {
+  padding: 0 8px;
+}
+
+/* =============================================================================
+   FOCUS STATES (Accessibility)
+   ============================================================================= */
+
+.icon-nav__item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Remove default focus outline since we're providing custom one */
+.icon-nav__item:focus {
+  outline: none;
+}
+
+/* =============================================================================
+   REDUCED MOTION
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-nav__item {
+    transition: none;
+  }
+}
