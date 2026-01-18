@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { createRef } from 'react';
-import { Home, Check, AlertCircle, Search, Settings } from 'lucide-react';
+import { Home, Check, AlertCircle, Search } from 'lucide-react';
 import { Icon, type IconSize, type IconColor } from './Icon';
 
 describe('Icon', () => {
