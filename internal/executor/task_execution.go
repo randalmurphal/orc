@@ -617,7 +617,40 @@ func (e *Executor) completeTask(ctx context.Context, t *task.Task, s *state.Stat
 			return fmt.Errorf("%w: sync conflict - resolve conflicts then run 'orc resume %s'", ErrTaskBlocked, t.ID)
 		}
 
-		// Other completion errors (non-conflict) - log warning but continue to complete
+		// Check if it's a merge failure (e.g., from race condition with parallel tasks)
+		if errors.Is(completionErr, ErrMergeFailed) {
+			e.logger.Error("completion failed due to merge failure",
+				"task", t.ID,
+				"error", completionErr)
+
+			// Mark task as blocked, not completed
+			t.Status = task.StatusBlocked
+			if t.Metadata == nil {
+				t.Metadata = make(map[string]string)
+			}
+			t.Metadata["blocked_reason"] = "merge_failed"
+			t.Metadata["blocked_error"] = completionErr.Error()
+
+			s.ClearExecution()
+			if saveErr := e.backend.SaveState(s); saveErr != nil {
+				e.logger.Error("failed to save state on merge failure block", "error", saveErr)
+			}
+			if saveErr := e.backend.SaveTask(t); saveErr != nil {
+				e.logger.Error("failed to save task on merge failure block", "error", saveErr)
+			}
+
+			// Publish blocked event
+			e.publish(events.NewEvent(events.EventComplete, t.ID, events.CompleteData{
+				Status: "blocked",
+			}))
+			e.publishState(t.ID, s)
+
+			// Return ErrTaskBlocked so CLI can display the correct message.
+			// The PR was created but merge failed after retries.
+			return fmt.Errorf("%w: merge failed - run 'orc resume %s' after resolving", ErrTaskBlocked, t.ID)
+		}
+
+		// Other completion errors (non-conflict, non-merge) - log warning but continue to complete
 		e.logger.Warn("completion action failed", "error", completionErr)
 	}
 
