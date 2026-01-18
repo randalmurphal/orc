@@ -118,7 +118,10 @@ export type IconName =
 	| 'book'
 	| 'image'
 	| 'code'
-	| 'minimize-2';
+	| 'minimize-2'
+	// IconNav specific icons
+	| 'help'
+	| 'bar-chart';
 
 // Icon paths organized by category
 // All icons use viewBox="0 0 24 24" with stroke-based rendering
@@ -260,6 +263,10 @@ const icons: Record<IconName, string> = {
 	image: `<rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />`,
 	code: `<polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />`,
 	'minimize-2': `<polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />`,
+
+	// IconNav specific icons
+	help: `<circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />`,
+	'bar-chart': `<path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" />`,
 };
 
 interface IconProps {
