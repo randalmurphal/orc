@@ -3,6 +3,7 @@ package executor
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/storage"
@@ -367,6 +368,124 @@ func TestSaveSpecToDatabase_NilBackend(t *testing.T) {
 	}
 	if saved {
 		t.Error("SaveSpecToDatabase() with nil backend should return false")
+	}
+}
+
+// TestSaveSpecToDatabase_FallbackToFile verifies that SaveSpecToDatabase reads from
+// spec.md files when artifact tags are missing from the output. This handles the case
+// where agents write specs to files instead of using artifact tags.
+func TestSaveSpecToDatabase_FallbackToFile(t *testing.T) {
+	backend := newArtifactTestBackend(t)
+	taskID := "TASK-FILE-001"
+
+	// Create task first (required for foreign key constraint)
+	createTestTask(t, backend, taskID)
+
+	// Create a worktree directory with spec file
+	tmpDir := t.TempDir()
+	specDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
+	if err := os.MkdirAll(specDir, 0755); err != nil {
+		t.Fatalf("failed to create spec dir: %v", err)
+	}
+
+	// Write spec file (what agents sometimes do instead of using artifact tags)
+	specContent := `# Specification: Test Feature
+
+## Problem Statement
+This tests the file fallback mechanism.
+
+## Success Criteria
+- [ ] Agent writes spec to file
+- [ ] System reads from file when no artifact tags
+`
+	specPath := filepath.Join(specDir, "spec.md")
+	if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
+		t.Fatalf("failed to write spec file: %v", err)
+	}
+
+	// Call with output that has NO artifact tags - should fall back to file
+	outputWithNoArtifact := `The spec is stored in the task directory.
+<phase_complete>true</phase_complete>`
+
+	saved, err := SaveSpecToDatabase(backend, taskID, "spec", outputWithNoArtifact, tmpDir)
+	if err != nil {
+		t.Fatalf("SaveSpecToDatabase() error = %v", err)
+	}
+	if !saved {
+		t.Error("SaveSpecToDatabase() should have saved spec from file")
+	}
+
+	// Verify content was saved from file
+	loadedSpec, err := backend.LoadSpec(taskID)
+	if err != nil {
+		t.Fatalf("LoadSpec() error = %v", err)
+	}
+
+	// Should contain the file content
+	if !strings.Contains(loadedSpec, "This tests the file fallback mechanism") {
+		t.Errorf("spec content should be from file, got: %s", loadedSpec)
+	}
+}
+
+// TestSaveSpecToDatabase_ArtifactTagsTakePrecedence verifies that artifact tags
+// are preferred over spec files when both exist.
+func TestSaveSpecToDatabase_ArtifactTagsTakePrecedence(t *testing.T) {
+	backend := newArtifactTestBackend(t)
+	taskID := "TASK-PREC-001"
+
+	// Create task first (required for foreign key constraint)
+	createTestTask(t, backend, taskID)
+
+	// Create a worktree directory with spec file
+	tmpDir := t.TempDir()
+	specDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
+	if err := os.MkdirAll(specDir, 0755); err != nil {
+		t.Fatalf("failed to create spec dir: %v", err)
+	}
+
+	// Write spec file with different content
+	fileContent := `# File Spec
+## Intent
+This is from the file, not the artifact tags. File content should not be used.
+
+## Success Criteria
+- [ ] This should NOT be saved`
+	specPath := filepath.Join(specDir, "spec.md")
+	if err := os.WriteFile(specPath, []byte(fileContent), 0644); err != nil {
+		t.Fatalf("failed to write spec file: %v", err)
+	}
+
+	// Output with artifact tags should take precedence
+	outputWithArtifact := `<artifact>
+# Artifact Spec
+## Intent
+This is from artifact tags, which should take precedence over file content.
+
+## Success Criteria
+- [ ] Artifact tags are prioritized
+- [ ] File is only used as fallback
+</artifact>
+<phase_complete>true</phase_complete>`
+
+	saved, err := SaveSpecToDatabase(backend, taskID, "spec", outputWithArtifact, tmpDir)
+	if err != nil {
+		t.Fatalf("SaveSpecToDatabase() error = %v", err)
+	}
+	if !saved {
+		t.Error("SaveSpecToDatabase() should have saved spec")
+	}
+
+	// Verify artifact content was saved (not file content)
+	loadedSpec, err := backend.LoadSpec(taskID)
+	if err != nil {
+		t.Fatalf("LoadSpec() error = %v", err)
+	}
+
+	if !strings.Contains(loadedSpec, "artifact tags, which should take precedence") {
+		t.Errorf("spec content should be from artifact tags, got: %s", loadedSpec)
+	}
+	if strings.Contains(loadedSpec, "File content should not be used") {
+		t.Error("spec content should NOT contain file content")
 	}
 }
 
