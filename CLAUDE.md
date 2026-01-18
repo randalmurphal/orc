@@ -159,11 +159,13 @@ Run `orc initiative --help` for full subcommand list.
 
 | Command | Purpose |
 |---------|---------|
-| `orc export --all-tasks --all` | Full backup to `.orc/exports/` |
-| `orc export --all-tasks --all --initiatives` | Backup with initiatives |
-| `orc import` | Restore from `.orc/exports/` |
+| `orc export --all-tasks` | Full backup (tar.gz) to `.orc/exports/` |
+| `orc export --all-tasks --initiatives` | Include initiatives |
+| `orc export --all-tasks --minimal` | Smaller backup (no transcripts) |
+| `orc import` | Restore from `.orc/exports/` (auto-detect format) |
+| `orc import --dry-run` | Preview import without changes |
 
-Smart merge on import: newer `updated_at` wins. Use `--force` to always overwrite.
+**Import behavior:** Newer `updated_at` wins (local preserved on tie). Running tasks become "interrupted" for safe resume. Use `--force` to always overwrite.
 
 ### Key Insight: Help Text = Documentation
 
