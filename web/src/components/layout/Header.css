@@ -47,7 +47,7 @@
 
 .project-btn:focus-visible {
 	border-color: var(--primary);
-	box-shadow: 0 0 0 3px var(--primary-glow, rgba(56, 139, 253, 0.3));
+	box-shadow: 0 0 0 3px var(--primary-glow);
 	outline: none;
 }
 
@@ -115,7 +115,7 @@
 
 .cmd-hint:focus-visible {
 	border-color: var(--primary);
-	box-shadow: 0 0 0 3px var(--primary-glow, rgba(56, 139, 253, 0.3));
+	box-shadow: 0 0 0 3px var(--primary-glow);
 	outline: none;
 }
 

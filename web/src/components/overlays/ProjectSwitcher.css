@@ -2,7 +2,7 @@
 .switcher-backdrop {
 	position: fixed;
 	inset: 0;
-	background: rgba(0, 0, 0, 0.6);
+	background: var(--overlay-dark);
 	backdrop-filter: blur(4px);
 	display: flex;
 	align-items: flex-start;
@@ -16,9 +16,7 @@
 	background: var(--bg-elevated);
 	border: 1px solid var(--border-light);
 	border-radius: var(--radius-xl, 12px);
-	box-shadow: var(--shadow-2xl,
-		0 25px 50px -12px rgba(0, 0, 0, 0.25),
-		0 0 0 1px rgba(0, 0, 0, 0.1));
+	box-shadow: var(--shadow-2xl);
 	width: 100%;
 	max-width: 480px;
 	max-height: 70vh;

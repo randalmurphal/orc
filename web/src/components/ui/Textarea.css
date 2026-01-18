@@ -100,7 +100,7 @@
 
 .textarea-variant-error:focus-within:not(.textarea-disabled) {
 	border-color: var(--red);
-	box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.3);
+	box-shadow: 0 0 0 2px var(--red-glow);
 }
 
 /* Disabled state */

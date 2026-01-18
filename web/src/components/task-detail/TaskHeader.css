@@ -183,7 +183,7 @@
 .btn-spinner {
 	width: 16px;
 	height: 16px;
-	border: 2px solid rgba(255, 255, 255, 0.3);
+	border: 2px solid var(--overlay-white-border);
 	border-top-color: white;
 	border-radius: 50%;
 	animation: spin 0.8s linear infinite;
@@ -251,7 +251,7 @@
 .modal-overlay {
 	position: fixed;
 	inset: 0;
-	background: rgba(0, 0, 0, 0.5);
+	background: var(--overlay-medium);
 	display: flex;
 	align-items: center;
 	justify-content: center;

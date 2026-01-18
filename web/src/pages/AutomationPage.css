@@ -76,8 +76,8 @@
 	align-items: center;
 	gap: var(--space-3);
 	padding: var(--space-3) var(--space-4);
-	background: rgba(248, 113, 113, 0.1);
-	border: 1px solid rgba(248, 113, 113, 0.3);
+	background: var(--red-bg);
+	border: 1px solid var(--red-border);
 	border-radius: var(--radius-md);
 	color: var(--red);
 	font-size: var(--text-sm);
@@ -374,7 +374,7 @@
 }
 
 .task-item.running {
-	background: rgba(167, 139, 250, 0.05);
+	background: var(--primary-dim);
 }
 
 .task-item.completed {
@@ -382,7 +382,7 @@
 }
 
 .task-item.failed {
-	background: rgba(248, 113, 113, 0.05);
+	background: var(--red-dim);
 }
 
 .task-id {
@@ -487,7 +487,7 @@
 }
 
 .execution-status.status-pending {
-	background: rgba(250, 204, 21, 0.1);
+	background: var(--amber-bg);
 	color: var(--amber);
 }
 
@@ -497,12 +497,12 @@
 }
 
 .execution-status.status-completed {
-	background: rgba(52, 211, 153, 0.1);
+	background: var(--green-bg);
 	color: var(--green);
 }
 
 .execution-status.status-failed {
-	background: rgba(248, 113, 113, 0.1);
+	background: var(--red-bg);
 	color: var(--red);
 }
 

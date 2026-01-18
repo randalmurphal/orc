@@ -111,12 +111,12 @@
 	font-size: var(--text-xs);
 	font-family: var(--font-mono);
 	padding: var(--space-0-5) var(--space-1-5);
-	background: rgba(0, 0, 0, 0.2);
+	background: var(--overlay-light);
 	border-radius: var(--radius-full);
 }
 
 .task-list-page .status-tab.active .tab-count {
-	background: rgba(255, 255, 255, 0.2);
+	background: var(--overlay-white-light);
 }
 
 /* Filters Row */

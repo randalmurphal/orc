@@ -163,7 +163,7 @@
 	top: var(--space-1);
 	right: var(--space-1);
 	padding: var(--space-1);
-	background: rgba(0, 0, 0, 0.6);
+	background: var(--overlay-dark);
 	border: none;
 	border-radius: var(--radius-sm);
 	color: white;
@@ -245,7 +245,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba(0, 0, 0, 0.9);
+	background: var(--overlay-opaque);
 	padding: var(--space-4);
 }
 

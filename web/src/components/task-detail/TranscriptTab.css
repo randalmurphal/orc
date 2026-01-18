@@ -239,7 +239,7 @@
 	align-items: center;
 	gap: var(--space-2);
 	padding: var(--space-2) var(--space-3);
-	background: rgba(0, 0, 0, 0.1);
+	background: var(--overlay-light);
 }
 
 .section-icon {
@@ -322,7 +322,7 @@
 	align-items: center;
 	gap: var(--space-2);
 	padding: var(--space-2) var(--space-3);
-	background: rgba(0, 0, 0, 0.1);
+	background: var(--overlay-light);
 }
 
 .streaming-icon {
@@ -376,7 +376,7 @@
 	align-items: center;
 	gap: var(--space-2);
 	padding: var(--space-1-5) var(--space-3);
-	background: rgba(0, 0, 0, 0.1);
+	background: var(--overlay-light);
 }
 
 .streaming-line-icon {

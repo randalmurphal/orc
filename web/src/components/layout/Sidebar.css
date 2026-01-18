@@ -54,7 +54,7 @@
 
 .logo-icon {
 	font-size: var(--text-lg, 1.125rem);
-	text-shadow: 0 0 10px var(--primary-glow, rgba(56, 139, 253, 0.3));
+	text-shadow: 0 0 10px var(--primary-glow);
 }
 
 .logo-text {
