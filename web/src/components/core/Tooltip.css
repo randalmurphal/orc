@@ -1,0 +1,111 @@
+/**
+ * Tooltip Component Styles - CSS-only implementation
+ *
+ * Uses CSS-only show/hide for performance. The tooltip appears on hover
+ * and focus-within with a configurable delay via CSS custom property.
+ */
+
+/* =============================================================================
+   TOOLTIP WRAPPER
+   ============================================================================= */
+
+.tooltip-wrapper {
+	position: relative;
+	display: inline-flex;
+}
+
+/* =============================================================================
+   TOOLTIP CONTENT
+   ============================================================================= */
+
+.tooltip-content {
+	/* Positioning */
+	position: absolute;
+	z-index: var(--z-tooltip);
+
+	/* Typography */
+	font-family: var(--font-body);
+	font-size: var(--text-sm);
+	line-height: var(--leading-snug);
+	color: var(--text-primary);
+	white-space: nowrap;
+
+	/* Visual */
+	background-color: var(--bg-elevated);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-sm);
+	padding: var(--space-1) var(--space-2);
+	box-shadow: var(--shadow-md);
+
+	/* Hidden by default */
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+
+	/* Transition with delay */
+	transition:
+		opacity var(--duration-fast) var(--ease-out),
+		visibility var(--duration-fast) var(--ease-out);
+}
+
+/* =============================================================================
+   SHOW ON HOVER AND FOCUS
+   ============================================================================= */
+
+.tooltip-wrapper:hover .tooltip-content,
+.tooltip-wrapper:focus-within .tooltip-content {
+	opacity: 1;
+	visibility: visible;
+	transition-delay: var(--tooltip-delay, 300ms);
+}
+
+/* =============================================================================
+   POSITION VARIANTS
+   ============================================================================= */
+
+/* Top (default) */
+.tooltip-content[data-position='top'] {
+	bottom: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	margin-bottom: var(--space-1-5);
+}
+
+/* Bottom */
+.tooltip-content[data-position='bottom'] {
+	top: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	margin-top: var(--space-1-5);
+}
+
+/* Left */
+.tooltip-content[data-position='left'] {
+	right: 100%;
+	top: 50%;
+	transform: translateY(-50%);
+	margin-right: var(--space-1-5);
+}
+
+/* Right */
+.tooltip-content[data-position='right'] {
+	left: 100%;
+	top: 50%;
+	transform: translateY(-50%);
+	margin-left: var(--space-1-5);
+}
+
+/* =============================================================================
+   REDUCED MOTION
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+	.tooltip-content {
+		transition: none;
+	}
+
+	.tooltip-wrapper:hover .tooltip-content,
+	.tooltip-wrapper:focus-within .tooltip-content {
+		transition-delay: 0ms;
+	}
+}
