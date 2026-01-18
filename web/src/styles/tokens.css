@@ -136,6 +136,9 @@
   --text-4xl: 1.125rem;  /* 18px */
   --text-5xl: 1.75rem;   /* 28px */
 
+  /* Legacy Font Size Alias - maps to xs for backward compatibility */
+  --text-2xs: var(--text-xs);
+
   /* Font Weights */
   --font-regular: 400;
   --font-medium: 500;
