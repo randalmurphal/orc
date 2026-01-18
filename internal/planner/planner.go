@@ -62,7 +62,7 @@ func New(opts Options) *Planner {
 		opts.SpecDir = ".spec"
 	}
 	if opts.Model == "" {
-		opts.Model = "claude-sonnet-4-20250514"
+		opts.Model = "sonnet"
 	}
 
 	return &Planner{

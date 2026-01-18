@@ -442,7 +442,7 @@ type ValidationConfig struct {
 	// Enabled enables validation and backpressure checks (default: true)
 	Enabled bool `yaml:"enabled"`
 
-	// Model is the model to use for validation calls (default: claude-haiku-4-5-20251101)
+	// Model is the model to use for validation calls (default: haiku)
 	Model string `yaml:"model"`
 
 	// SkipForWeights skips validation for these task weights (default: [trivial, small])
@@ -1314,7 +1314,7 @@ func Default() *Config {
 		},
 		Validation: ValidationConfig{
 			Enabled:          true,                           // Validation enabled by default
-			Model:            "claude-haiku-4-5-20251101",    // Haiku for fast validation
+			Model:            "haiku",    // Haiku for fast validation
 			SkipForWeights:   []string{"trivial"},            // Only skip for trivial tasks
 			EnforceTests:     true,                           // Run tests before accepting completion
 			EnforceLint:      true,                           // Run lint before accepting completion
@@ -1471,7 +1471,7 @@ func Default() *Config {
 				"validate":  {Model: "opus", Thinking: true},
 			},
 		},
-		Model:                      "claude-opus-4-5-20251101",
+		Model:                      "opus",
 		MaxIterations:              30,
 		Timeout:                    10 * time.Minute,
 		BranchPrefix:               "orc/",
@@ -1652,7 +1652,7 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 		// Fast: minimal validation for speed (only for quick iterations)
 		return ValidationConfig{
 			Enabled:          true,
-			Model:            "claude-haiku-4-5-20251101",
+			Model:            "haiku",
 			SkipForWeights:   []string{"trivial", "small"},
 			EnforceTests:     true,
 			EnforceLint:      false,
@@ -1666,7 +1666,7 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 		// Safe: quality-focused validation
 		return ValidationConfig{
 			Enabled:          true,
-			Model:            "claude-haiku-4-5-20251101",
+			Model:            "haiku",
 			SkipForWeights:   []string{"trivial"},
 			EnforceTests:     true,
 			EnforceLint:      true,
@@ -1680,7 +1680,7 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 		// Strict: maximum validation
 		return ValidationConfig{
 			Enabled:          true,
-			Model:            "claude-haiku-4-5-20251101",
+			Model:            "haiku",
 			SkipForWeights:   []string{}, // No skipping
 			EnforceTests:     true,
 			EnforceLint:      true,
@@ -1694,7 +1694,7 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 		// Auto: quality-first validation (default)
 		return ValidationConfig{
 			Enabled:          true,
-			Model:            "claude-haiku-4-5-20251101",
+			Model:            "haiku",
 			SkipForWeights:   []string{"trivial"},
 			EnforceTests:     true,
 			EnforceLint:      true,

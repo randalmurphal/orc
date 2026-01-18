@@ -16,7 +16,7 @@ type Options struct {
 	// WorkDir is the project directory (default: current directory)
 	WorkDir string
 
-	// Model is the Claude model to use (default: claude-opus-4-5-20251101)
+	// Model is the Claude model to use (default: opus)
 	Model string
 
 	// DryRun prints the prompt instead of running Claude
@@ -53,7 +53,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 
 	// Default model
 	if opts.Model == "" {
-		opts.Model = "claude-opus-4-5-20251101"
+		opts.Model = "opus"
 	}
 
 	// Load detection from SQLite

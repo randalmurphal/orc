@@ -1238,7 +1238,7 @@ func TestGetConfigEndpoint(t *testing.T) {
 	// Create config directory and file
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
 	configYAML := `version: 1
-model: claude-sonnet-4-20250514
+model: sonnet
 max_iterations: 30
 timeout: 10m
 `
