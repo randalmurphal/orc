@@ -11,6 +11,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `serve.go` | API server command |
 | `session.go` | Interactive session handling |
 | `signals.go` | Signal handling (SIGINT, SIGTERM) |
+| `cmd_export.go` | Export/import with tar.gz/zip/dir formats |
 
 ## Command Pattern
 
@@ -56,6 +57,10 @@ Views: default (single task), `--tree` (recursive), `--graph` (ASCII)
 ### `orc log TASK-ID --follow`
 
 Real-time streaming via fsnotify with polling fallback.
+
+### `orc export/import`
+
+Data portability with tar.gz archives. Export defaults include state and transcripts. Import auto-detects format and handles running→interrupted transformation. See [COMMANDS.md](COMMANDS.md) for full flag reference.
 
 ## Global Flags
 

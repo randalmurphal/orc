@@ -165,6 +165,55 @@ See `docs/specs/FILE_FORMATS.md` for the manifest format reference.
 | `--profile` | Override automation profile |
 | `--force, -f` | Run even if blocked |
 
+## Export/Import Commands
+
+### `orc export`
+
+Export tasks for backup or cross-machine portability. Default output is tar.gz to `.orc/exports/`.
+
+| Flag | Description |
+|------|-------------|
+| `--all-tasks` | Export all tasks (creates archive in `.orc/exports/`) |
+| `--initiatives` | Include initiatives in export |
+| `--format` | Archive format: `tar.gz` (default), `zip`, `dir` |
+| `--minimal` | Skip transcripts and attachments (smaller archive) |
+| `--no-state` | Skip execution state (not recommended) |
+| `-o, --output` | Output path (default: stdout for single task, `.orc/exports/` for --all-tasks) |
+
+**Examples:**
+```bash
+orc export TASK-001                     # Single task YAML to stdout
+orc export TASK-001 -o task.yaml        # Single task to file
+orc export --all-tasks                  # Full backup to .orc/exports/orc-export-*.tar.gz
+orc export --all-tasks --format=dir     # Directory format (old behavior)
+orc export --all-tasks --minimal        # Smaller backup (no transcripts)
+```
+
+### `orc import [path]`
+
+Import tasks from archive, directory, or YAML. Auto-detects format. Default: latest archive in `.orc/exports/`.
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Preview what would be imported without making changes |
+| `--force` | Always overwrite existing tasks (default: newer wins) |
+| `--skip-existing` | Never overwrite existing tasks |
+
+**Merge behavior:**
+- Newer `updated_at` wins (local preserved on tie)
+- Running tasks imported as "interrupted" (use `orc resume` to continue)
+- Transcripts deduplicated by TaskID+Phase+Iteration
+
+**Examples:**
+```bash
+orc import                              # Auto-detect from .orc/exports/
+orc import backup.tar.gz               # From archive
+orc import ./backup/                    # From directory
+orc import --dry-run backup.tar.gz     # Preview only
+```
+
+**Format detection:** Extension (`.tar.gz`, `.zip`, `.yaml`) or magic bytes (gzip: `0x1f 0x8b`, zip: `0x50 0x4b`).
+
 ## Global Flags
 
 | Flag | Description |
