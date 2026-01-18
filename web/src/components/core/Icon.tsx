@@ -10,7 +10,7 @@ import './Icon.css';
 export type IconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 export type IconColor = 'primary' | 'secondary' | 'muted' | 'success' | 'warning' | 'error';
 
-export interface IconProps extends Omit<SVGAttributes<SVGSVGElement>, 'ref'> {
+export interface IconProps extends Omit<SVGAttributes<SVGSVGElement>, 'ref' | 'name'> {
 	/** Lucide icon component to render */
 	name: LucideIcon;
 	/** Icon size: xs=12px, sm=14px, md=16px (default), lg=18px, xl=20px */
