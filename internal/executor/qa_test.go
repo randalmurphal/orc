@@ -1,9 +1,11 @@
 package executor
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/config"
 )
 
@@ -393,4 +395,94 @@ func TestFormatQAResultSummary(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestExtractQAResult(t *testing.T) {
+	ctx := context.Background()
+	// MockClient returns what we give it, but ExtractStructured tries direct parsing first
+	mockClient := claude.NewMockClient("")
+
+	tests := []struct {
+		name       string
+		output     string
+		wantStatus QAStatus
+		wantErr    bool
+	}{
+		{
+			name: "pass status",
+			output: `{
+				"status": "PASS",
+				"summary": "All tests pass",
+				"recommendation": "Ready to ship"
+			}`,
+			wantStatus: QAStatusPass,
+		},
+		{
+			name: "fail status with details",
+			output: `{
+				"status": "fail",
+				"summary": "Tests failing",
+				"tests_run": {
+					"total": 10,
+					"passed": 7,
+					"failed": 3,
+					"skipped": 0
+				},
+				"issues": [
+					{"severity": "high", "description": "Test failures in auth module"}
+				],
+				"recommendation": "Fix failing tests"
+			}`,
+			wantStatus: QAStatusFail,
+		},
+		{
+			name: "needs_attention status",
+			output: `{
+				"status": "needs_attention",
+				"summary": "Low coverage",
+				"coverage": {
+					"percentage": 45.5,
+					"uncovered_areas": "api/, handlers/"
+				},
+				"recommendation": "Add more tests"
+			}`,
+			wantStatus: QAStatusNeedsAttention,
+		},
+		{
+			name: "JSON with surrounding text",
+			output: `Here are the QA results:
+{"status": "pass", "summary": "Good", "recommendation": "Approve"}
+Done with QA.`,
+			wantStatus: QAStatusPass,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ExtractQAResult(ctx, mockClient, tt.output)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("ExtractQAResult() expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("ExtractQAResult() unexpected error: %v", err)
+				return
+			}
+			if result.Status != tt.wantStatus {
+				t.Errorf("Status = %q, want %q", result.Status, tt.wantStatus)
+			}
+			// Verify slices are initialized (not nil)
+			if result.TestsWritten == nil {
+				t.Error("TestsWritten should be empty slice, not nil")
+			}
+			if result.Documentation == nil {
+				t.Error("Documentation should be empty slice, not nil")
+			}
+			if result.Issues == nil {
+				t.Error("Issues should be empty slice, not nil")
+			}
+		})
+	}
 }

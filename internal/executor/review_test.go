@@ -1,9 +1,11 @@
 package executor
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -823,3 +825,172 @@ func taskWeightFromString(s string) task.Weight {
 		return task.WeightSmall
 	}
 }
+
+func TestExtractReviewFindings(t *testing.T) {
+	ctx := context.Background()
+	// MockClient returns what we give it, but ExtractStructured tries direct parsing first
+	mockClient := claude.NewMockClient("")
+
+	tests := []struct {
+		name       string
+		output     string
+		wantRound  int
+		wantIssues int
+		wantErr    bool
+	}{
+		{
+			name: "direct JSON parsing - pure JSON",
+			output: `{
+				"round": 1,
+				"summary": "Found some issues",
+				"issues": [
+					{"severity": "high", "description": "Missing error handling"},
+					{"severity": "medium", "description": "Consider refactoring"}
+				]
+			}`,
+			wantRound:  1,
+			wantIssues: 2,
+		},
+		{
+			name: "JSON in code block",
+			output: `Here are the review findings:
+` + "```json" + `
+{
+	"round": 2,
+	"summary": "Improvements made",
+	"issues": [
+		{"severity": "low", "description": "Minor style issue"}
+	],
+	"positives": ["Good test coverage"]
+}
+` + "```",
+			wantRound:  2,
+			wantIssues: 1,
+		},
+		{
+			name: "JSON with surrounding text",
+			output: `After reviewing the code, here are my findings:
+{"round": 1, "summary": "Code looks good", "issues": []}
+Please let me know if you have questions.`,
+			wantRound:  1,
+			wantIssues: 0,
+		},
+		{
+			name: "empty issues array initialized",
+			output: `{
+				"round": 1,
+				"summary": "No issues found"
+			}`,
+			wantRound:  1,
+			wantIssues: 0, // Empty slice, not nil
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			findings, err := ExtractReviewFindings(ctx, mockClient, tt.output)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("ExtractReviewFindings() expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("ExtractReviewFindings() unexpected error: %v", err)
+				return
+			}
+			if findings.Round != tt.wantRound {
+				t.Errorf("Round = %d, want %d", findings.Round, tt.wantRound)
+			}
+			if len(findings.Issues) != tt.wantIssues {
+				t.Errorf("Issues count = %d, want %d", len(findings.Issues), tt.wantIssues)
+			}
+			// Verify slices are initialized (not nil)
+			if findings.Issues == nil {
+				t.Error("Issues should be empty slice, not nil")
+			}
+			if findings.Questions == nil {
+				t.Error("Questions should be empty slice, not nil")
+			}
+			if findings.Positives == nil {
+				t.Error("Positives should be empty slice, not nil")
+			}
+		})
+	}
+}
+
+func TestExtractReviewDecision(t *testing.T) {
+	ctx := context.Background()
+	mockClient := claude.NewMockClient("")
+
+	tests := []struct {
+		name       string
+		output     string
+		wantStatus ReviewDecisionStatus
+		wantErr    bool
+	}{
+		{
+			name: "pass decision",
+			output: `{
+				"status": "PASS",
+				"gaps_addressed": true,
+				"summary": "All issues resolved",
+				"recommendation": "Ready to merge"
+			}`,
+			wantStatus: ReviewStatusPass,
+		},
+		{
+			name: "fail decision with remaining issues",
+			output: `{
+				"status": "fail",
+				"gaps_addressed": false,
+				"summary": "Still has problems",
+				"remaining_issues": [
+					{"severity": "high", "description": "Critical bug unfixed"}
+				],
+				"recommendation": "Fix remaining issues"
+			}`,
+			wantStatus: ReviewStatusFail,
+		},
+		{
+			name: "needs_user_input",
+			output: `{
+				"status": "needs_user_input",
+				"summary": "Unclear requirements",
+				"user_questions": ["Should we use approach A or B?"],
+				"recommendation": "Clarify with user"
+			}`,
+			wantStatus: ReviewStatusNeedsUserInput,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decision, err := ExtractReviewDecision(ctx, mockClient, tt.output)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("ExtractReviewDecision() expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("ExtractReviewDecision() unexpected error: %v", err)
+				return
+			}
+			if decision.Status != tt.wantStatus {
+				t.Errorf("Status = %q, want %q", decision.Status, tt.wantStatus)
+			}
+			// Verify slices are initialized (not nil)
+			if decision.RemainingIssues == nil {
+				t.Error("RemainingIssues should be empty slice, not nil")
+			}
+			if decision.IssuesResolved == nil {
+				t.Error("IssuesResolved should be empty slice, not nil")
+			}
+			if decision.UserQuestions == nil {
+				t.Error("UserQuestions should be empty slice, not nil")
+			}
+		})
+	}
+}
+

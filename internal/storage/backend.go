@@ -70,6 +70,76 @@ type GateDecision struct {
 	DecidedAt time.Time
 }
 
+// ReviewFinding represents a single issue found during review.
+type ReviewFinding struct {
+	Severity    string `json:"severity"` // high, medium, low
+	File        string `json:"file,omitempty"`
+	Line        int    `json:"line,omitempty"`
+	Description string `json:"description"`
+	Suggestion  string `json:"suggestion,omitempty"`
+	Perspective string `json:"perspective,omitempty"`
+}
+
+// ReviewFindings represents the structured output from a review round.
+type ReviewFindings struct {
+	TaskID      string          `json:"task_id"`
+	Round       int             `json:"round"`
+	Summary     string          `json:"summary"`
+	Issues      []ReviewFinding `json:"issues"`
+	Questions   []string        `json:"questions,omitempty"`
+	Positives   []string        `json:"positives,omitempty"`
+	Perspective string          `json:"perspective,omitempty"`
+	CreatedAt   time.Time       `json:"created_at"`
+}
+
+// QATest represents a test written during QA.
+type QATest struct {
+	File        string `json:"file"`
+	Description string `json:"description"`
+	Type        string `json:"type"`
+}
+
+// QATestRun represents test execution results.
+type QATestRun struct {
+	Total   int `json:"total"`
+	Passed  int `json:"passed"`
+	Failed  int `json:"failed"`
+	Skipped int `json:"skipped"`
+}
+
+// QACoverage represents code coverage information.
+type QACoverage struct {
+	Percentage     float64 `json:"percentage"`
+	UncoveredAreas string  `json:"uncovered_areas,omitempty"`
+}
+
+// QADoc represents documentation created during QA.
+type QADoc struct {
+	File string `json:"file"`
+	Type string `json:"type"`
+}
+
+// QAIssue represents an issue found during QA.
+type QAIssue struct {
+	Severity     string `json:"severity"`
+	Description  string `json:"description"`
+	Reproduction string `json:"reproduction,omitempty"`
+}
+
+// QAResult represents the complete result of a QA session.
+type QAResult struct {
+	TaskID         string      `json:"task_id"`
+	Status         string      `json:"status"`
+	Summary        string      `json:"summary"`
+	TestsWritten   []QATest    `json:"tests_written,omitempty"`
+	TestsRun       *QATestRun  `json:"tests_run,omitempty"`
+	Coverage       *QACoverage `json:"coverage,omitempty"`
+	Documentation  []QADoc     `json:"documentation,omitempty"`
+	Issues         []QAIssue   `json:"issues,omitempty"`
+	Recommendation string      `json:"recommendation"`
+	CreatedAt      time.Time   `json:"created_at"`
+}
+
 // BranchType represents the type of branch being tracked.
 type BranchType string
 
@@ -155,6 +225,15 @@ type Backend interface {
 	SaveTaskComment(c *TaskComment) error
 	ListReviewComments(taskID string) ([]ReviewComment, error)
 	SaveReviewComment(c *ReviewComment) error
+
+	// Review findings operations (structured review output for multi-round review)
+	SaveReviewFindings(f *ReviewFindings) error
+	LoadReviewFindings(taskID string, round int) (*ReviewFindings, error)
+	LoadAllReviewFindings(taskID string) ([]*ReviewFindings, error)
+
+	// QA result operations (structured QA output for reporting)
+	SaveQAResult(r *QAResult) error
+	LoadQAResult(taskID string) (*QAResult, error)
 
 	// Gate decision operations (for export/import)
 	ListGateDecisions(taskID string) ([]GateDecision, error)

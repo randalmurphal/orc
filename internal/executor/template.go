@@ -433,6 +433,97 @@ func (v TemplateVars) WithSpecFromDatabase(backend storage.Backend, taskID strin
 	return v
 }
 
+// WithReviewContext returns a copy of the vars with review context applied.
+// For round 2+, it loads the previous round's findings from the database and formats
+// them for injection into the prompt template via {{REVIEW_FINDINGS}}.
+func (v TemplateVars) WithReviewContext(backend storage.Backend, taskID string, round int) TemplateVars {
+	v.ReviewRound = round
+
+	// For round 1, no prior findings to load
+	if round <= 1 || backend == nil {
+		return v
+	}
+
+	// Load previous round's findings
+	findings, err := backend.LoadReviewFindings(taskID, round-1)
+	if err != nil {
+		slog.Debug("failed to load review findings from database",
+			"task_id", taskID,
+			"round", round-1,
+			"error", err,
+		)
+		return v
+	}
+
+	if findings != nil {
+		// Format findings for the template
+		v.ReviewFindings = formatReviewFindingsForTemplate(findings)
+	}
+
+	return v
+}
+
+// formatReviewFindingsForTemplate formats storage.ReviewFindings for template injection.
+func formatReviewFindingsForTemplate(findings *storage.ReviewFindings) string {
+	if findings == nil {
+		return "No findings from previous round."
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("## Round %d Summary\n\n", findings.Round))
+	sb.WriteString(findings.Summary)
+	sb.WriteString("\n\n")
+
+	// Count issues by severity
+	highCount, mediumCount, lowCount := 0, 0, 0
+	for _, issue := range findings.Issues {
+		switch issue.Severity {
+		case "high":
+			highCount++
+		case "medium":
+			mediumCount++
+		case "low":
+			lowCount++
+		}
+	}
+
+	sb.WriteString(fmt.Sprintf("**Issues Found:** %d high, %d medium, %d low\n\n", highCount, mediumCount, lowCount))
+
+	if len(findings.Issues) > 0 {
+		sb.WriteString("### Issues to Verify\n\n")
+		for i, issue := range findings.Issues {
+			sb.WriteString(fmt.Sprintf("%d. [%s] %s", i+1, strings.ToUpper(issue.Severity), issue.Description))
+			if issue.File != "" {
+				sb.WriteString(fmt.Sprintf(" (in %s", issue.File))
+				if issue.Line > 0 {
+					sb.WriteString(fmt.Sprintf(":%d", issue.Line))
+				}
+				sb.WriteString(")")
+			}
+			sb.WriteString("\n")
+			if issue.Suggestion != "" {
+				sb.WriteString(fmt.Sprintf("   Suggested fix: %s\n", issue.Suggestion))
+			}
+		}
+	}
+
+	if len(findings.Positives) > 0 {
+		sb.WriteString("\n### Positive Notes\n\n")
+		for _, p := range findings.Positives {
+			sb.WriteString(fmt.Sprintf("- %s\n", p))
+		}
+	}
+
+	if len(findings.Questions) > 0 {
+		sb.WriteString("\n### Questions from Review\n\n")
+		for _, q := range findings.Questions {
+			sb.WriteString(fmt.Sprintf("- %s\n", q))
+		}
+	}
+
+	return sb.String()
+}
+
 // LoadInitiativeContext loads initiative context for a task if it belongs to an initiative.
 // Returns nil if the task doesn't belong to an initiative or if the initiative can't be loaded.
 func LoadInitiativeContext(t *task.Task, backend storage.Backend) *InitiativeContext {

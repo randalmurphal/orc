@@ -268,6 +268,15 @@ func (b *emptyBackend) ListReviewComments(string) ([]storage.ReviewComment, erro
 func (b *emptyBackend) SaveReviewComment(*storage.ReviewComment) error             { return nil }
 func (b *emptyBackend) ListGateDecisions(string) ([]storage.GateDecision, error)   { return nil, nil }
 func (b *emptyBackend) SaveGateDecision(*storage.GateDecision) error               { return nil }
+func (b *emptyBackend) SaveReviewFindings(*storage.ReviewFindings) error           { return nil }
+func (b *emptyBackend) LoadReviewFindings(string, int) (*storage.ReviewFindings, error) {
+	return nil, nil
+}
+func (b *emptyBackend) LoadAllReviewFindings(string) ([]*storage.ReviewFindings, error) {
+	return nil, nil
+}
+func (b *emptyBackend) SaveQAResult(*storage.QAResult) error     { return nil }
+func (b *emptyBackend) LoadQAResult(string) (*storage.QAResult, error) { return nil, nil }
 
 func TestPRPoller_StopTwice(t *testing.T) {
 	// Create a poller with a backend that returns no tasks
