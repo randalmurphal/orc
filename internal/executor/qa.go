@@ -1,8 +1,8 @@
 package executor
 
 import (
+	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/randalmurphal/orc/internal/config"
@@ -81,138 +81,106 @@ func ShouldRunQA(cfg *config.Config, weight string) bool {
 	return true
 }
 
-// ParseQAResult extracts QA result from Claude's response.
+// QAResultSchema forces structured output for QA results.
+const QAResultSchema = `{
+	"type": "object",
+	"properties": {
+		"status": {
+			"type": "string",
+			"enum": ["pass", "fail", "needs_attention"],
+			"description": "The QA session status"
+		},
+		"summary": {
+			"type": "string",
+			"description": "Summary of the QA session"
+		},
+		"tests_written": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"file": {"type": "string"},
+					"description": {"type": "string"},
+					"type": {"type": "string", "enum": ["e2e", "integration", "unit"]}
+				},
+				"required": ["file", "description", "type"]
+			},
+			"description": "Tests written during QA"
+		},
+		"tests_run": {
+			"type": "object",
+			"properties": {
+				"total": {"type": "integer"},
+				"passed": {"type": "integer"},
+				"failed": {"type": "integer"},
+				"skipped": {"type": "integer"}
+			},
+			"required": ["total", "passed", "failed", "skipped"],
+			"description": "Test execution results"
+		},
+		"coverage": {
+			"type": "object",
+			"properties": {
+				"percentage": {"type": "number"},
+				"uncovered_areas": {"type": "string"}
+			},
+			"description": "Code coverage information"
+		},
+		"documentation": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"file": {"type": "string"},
+					"type": {"type": "string", "enum": ["feature", "api", "testing"]}
+				},
+				"required": ["file", "type"]
+			},
+			"description": "Documentation created during QA"
+		},
+		"issues": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"severity": {"type": "string", "enum": ["high", "medium", "low"]},
+					"description": {"type": "string"},
+					"reproduction": {"type": "string"}
+				},
+				"required": ["severity", "description"]
+			},
+			"description": "Issues found during QA"
+		},
+		"recommendation": {
+			"type": "string",
+			"description": "Recommendation for next steps"
+		}
+	},
+	"required": ["status", "summary", "recommendation"]
+}`
+
+// ParseQAResult parses JSON QA result from Claude's response.
 func ParseQAResult(response string) (*QAResult, error) {
-	result := &QAResult{
-		TestsWritten:  []QATest{},
-		Documentation: []QADoc{},
-		Issues:        []QAIssue{},
+	var result QAResult
+	if err := json.Unmarshal([]byte(response), &result); err != nil {
+		return nil, fmt.Errorf("parse QA result JSON: %w", err)
 	}
 
-	// Extract <qa_result> block
-	resultRe := regexp.MustCompile(`(?s)<qa_result>(.*?)</qa_result>`)
-	resultMatch := resultRe.FindStringSubmatch(response)
-	if resultMatch == nil {
-		return nil, fmt.Errorf("no <qa_result> block found in response")
-	}
-	content := resultMatch[1]
+	// Normalize status to lowercase
+	result.Status = QAStatus(strings.ToLower(string(result.Status)))
 
-	// Parse status (required field)
-	statusRe := regexp.MustCompile(`<status>\s*(pass|fail|needs_attention)\s*</status>`)
-	if m := statusRe.FindStringSubmatch(content); m != nil {
-		result.Status = QAStatus(m[1])
-	} else {
-		return nil, fmt.Errorf("no valid <status> found in qa_result (expected pass, fail, or needs_attention)")
+	// Initialize nil slices to empty
+	if result.TestsWritten == nil {
+		result.TestsWritten = []QATest{}
+	}
+	if result.Documentation == nil {
+		result.Documentation = []QADoc{}
+	}
+	if result.Issues == nil {
+		result.Issues = []QAIssue{}
 	}
 
-	// Parse summary
-	summaryRe := regexp.MustCompile(`(?s)<summary>(.*?)</summary>`)
-	if m := summaryRe.FindStringSubmatch(content); m != nil {
-		result.Summary = strings.TrimSpace(m[1])
-	}
-
-	// Parse tests_written
-	testsWrittenRe := regexp.MustCompile(`(?s)<tests_written>(.*?)</tests_written>`)
-	if m := testsWrittenRe.FindStringSubmatch(content); m != nil {
-		testRe := regexp.MustCompile(`(?s)<test>(.*?)</test>`)
-		tests := testRe.FindAllStringSubmatch(m[1], -1)
-		for _, tm := range tests {
-			test := QATest{}
-			if fm := regexp.MustCompile(`<file>(.*?)</file>`).FindStringSubmatch(tm[1]); fm != nil {
-				test.File = strings.TrimSpace(fm[1])
-			}
-			if dm := regexp.MustCompile(`<description>(.*?)</description>`).FindStringSubmatch(tm[1]); dm != nil {
-				test.Description = strings.TrimSpace(dm[1])
-			}
-			if tym := regexp.MustCompile(`<type>(.*?)</type>`).FindStringSubmatch(tm[1]); tym != nil {
-				test.Type = strings.TrimSpace(tym[1])
-			}
-			result.TestsWritten = append(result.TestsWritten, test)
-		}
-	}
-
-	// Parse tests_run
-	testsRunRe := regexp.MustCompile(`(?s)<tests_run>(.*?)</tests_run>`)
-	if m := testsRunRe.FindStringSubmatch(content); m != nil {
-		result.TestsRun = &QATestRun{}
-		runContent := m[1]
-		if tm := regexp.MustCompile(`<total>(\d+)</total>`).FindStringSubmatch(runContent); tm != nil {
-			_, _ = fmt.Sscanf(tm[1], "%d", &result.TestsRun.Total)
-		}
-		if pm := regexp.MustCompile(`<passed>(\d+)</passed>`).FindStringSubmatch(runContent); pm != nil {
-			_, _ = fmt.Sscanf(pm[1], "%d", &result.TestsRun.Passed)
-		}
-		if fm := regexp.MustCompile(`<failed>(\d+)</failed>`).FindStringSubmatch(runContent); fm != nil {
-			_, _ = fmt.Sscanf(fm[1], "%d", &result.TestsRun.Failed)
-		}
-		if sm := regexp.MustCompile(`<skipped>(\d+)</skipped>`).FindStringSubmatch(runContent); sm != nil {
-			_, _ = fmt.Sscanf(sm[1], "%d", &result.TestsRun.Skipped)
-		}
-	}
-
-	// Parse coverage
-	coverageRe := regexp.MustCompile(`(?s)<coverage>(.*?)</coverage>`)
-	if m := coverageRe.FindStringSubmatch(content); m != nil {
-		result.Coverage = &QACoverage{}
-		covContent := m[1]
-		if pm := regexp.MustCompile(`<percentage>([0-9.]+)%?</percentage>`).FindStringSubmatch(covContent); pm != nil {
-			_, _ = fmt.Sscanf(pm[1], "%f", &result.Coverage.Percentage)
-		}
-		if um := regexp.MustCompile(`<uncovered_areas>(.*?)</uncovered_areas>`).FindStringSubmatch(covContent); um != nil {
-			result.Coverage.UncoveredAreas = strings.TrimSpace(um[1])
-		}
-	}
-
-	// Parse documentation
-	docRe := regexp.MustCompile(`(?s)<documentation>(.*?)</documentation>`)
-	if m := docRe.FindStringSubmatch(content); m != nil {
-		fileRe := regexp.MustCompile(`(?s)<file>(.*?)</file>`)
-		typeRe := regexp.MustCompile(`<type>(.*?)</type>`)
-
-		// Handle multiple doc entries or single entry
-		// Try to find structured entries first
-		docContent := m[1]
-		files := fileRe.FindAllStringSubmatch(docContent, -1)
-		types := typeRe.FindAllStringSubmatch(docContent, -1)
-
-		for i := 0; i < len(files); i++ {
-			doc := QADoc{
-				File: strings.TrimSpace(files[i][1]),
-			}
-			if i < len(types) {
-				doc.Type = strings.TrimSpace(types[i][1])
-			}
-			result.Documentation = append(result.Documentation, doc)
-		}
-	}
-
-	// Parse issues
-	issuesRe := regexp.MustCompile(`(?s)<issues>(.*?)</issues>`)
-	if m := issuesRe.FindStringSubmatch(content); m != nil {
-		issueRe := regexp.MustCompile(`(?s)<issue\s+severity="(high|medium|low)">(.*?)</issue>`)
-		issues := issueRe.FindAllStringSubmatch(m[1], -1)
-		for _, im := range issues {
-			issue := QAIssue{
-				Severity: im[1],
-			}
-			issueContent := im[2]
-			if dm := regexp.MustCompile(`(?s)<description>(.*?)</description>`).FindStringSubmatch(issueContent); dm != nil {
-				issue.Description = strings.TrimSpace(dm[1])
-			}
-			if rm := regexp.MustCompile(`(?s)<reproduction>(.*?)</reproduction>`).FindStringSubmatch(issueContent); rm != nil {
-				issue.Reproduction = strings.TrimSpace(rm[1])
-			}
-			result.Issues = append(result.Issues, issue)
-		}
-	}
-
-	// Parse recommendation
-	recRe := regexp.MustCompile(`(?s)<recommendation>(.*?)</recommendation>`)
-	if m := recRe.FindStringSubmatch(content); m != nil {
-		result.Recommendation = strings.TrimSpace(m[1])
-	}
-
-	return result, nil
+	return &result, nil
 }
 
 // HasHighSeverityIssues checks if there are any high-severity issues.

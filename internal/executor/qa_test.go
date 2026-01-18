@@ -82,48 +82,38 @@ func TestParseQAResult(t *testing.T) {
 		wantStatus QAStatus
 	}{
 		{
-			name:     "no qa_result block",
-			response: "Some random response without the expected block",
+			name:     "invalid JSON",
+			response: "Some random response without valid JSON",
 			wantErr:  true,
 		},
 		{
 			name: "pass status",
-			response: `
-<qa_result>
-  <status>pass</status>
-  <summary>All tests pass</summary>
-  <recommendation>Ready for release</recommendation>
-</qa_result>
-`,
+			response: `{
+				"status": "pass",
+				"summary": "All tests pass",
+				"recommendation": "Ready for release"
+			}`,
 			wantErr:    false,
 			wantStatus: QAStatusPass,
 		},
 		{
 			name: "fail status",
-			response: `
-<qa_result>
-  <status>fail</status>
-  <summary>Tests failing</summary>
-  <issues>
-    <issue severity="high">
-      <description>E2E test fails</description>
-    </issue>
-  </issues>
-  <recommendation>Fix failing tests</recommendation>
-</qa_result>
-`,
+			response: `{
+				"status": "fail",
+				"summary": "Tests failing",
+				"issues": [{"severity": "high", "description": "E2E test fails"}],
+				"recommendation": "Fix failing tests"
+			}`,
 			wantErr:    false,
 			wantStatus: QAStatusFail,
 		},
 		{
 			name: "needs_attention status",
-			response: `
-<qa_result>
-  <status>needs_attention</status>
-  <summary>Minor items to address</summary>
-  <recommendation>Follow up on documentation</recommendation>
-</qa_result>
-`,
+			response: `{
+				"status": "needs_attention",
+				"summary": "Minor items to address",
+				"recommendation": "Follow up on documentation"
+			}`,
 			wantErr:    false,
 			wantStatus: QAStatusNeedsAttention,
 		},
@@ -150,51 +140,46 @@ func TestParseQAResult(t *testing.T) {
 }
 
 func TestParseQAResultDetails(t *testing.T) {
-	response := `
-<qa_result>
-  <status>pass</status>
-  <summary>QA session complete. All tests pass with good coverage.</summary>
-
-  <tests_written>
-    <test>
-      <file>internal/api/server_test.go</file>
-      <description>E2E tests for new endpoint</description>
-      <type>e2e</type>
-    </test>
-    <test>
-      <file>internal/executor/qa_test.go</file>
-      <description>Unit tests for QA parsing</description>
-      <type>unit</type>
-    </test>
-  </tests_written>
-
-  <tests_run>
-    <total>42</total>
-    <passed>40</passed>
-    <failed>0</failed>
-    <skipped>2</skipped>
-  </tests_run>
-
-  <coverage>
-    <percentage>85.5%</percentage>
-    <uncovered_areas>Error handling in edge cases</uncovered_areas>
-  </coverage>
-
-  <documentation>
-    <file>docs/api/new-endpoint.md</file>
-    <type>api</type>
-  </documentation>
-
-  <issues>
-    <issue severity="low">
-      <description>Consider adding more edge case tests</description>
-      <reproduction>N/A</reproduction>
-    </issue>
-  </issues>
-
-  <recommendation>Ready for production deployment</recommendation>
-</qa_result>
-`
+	response := `{
+		"status": "pass",
+		"summary": "QA session complete. All tests pass with good coverage.",
+		"tests_written": [
+			{
+				"file": "internal/api/server_test.go",
+				"description": "E2E tests for new endpoint",
+				"type": "e2e"
+			},
+			{
+				"file": "internal/executor/qa_test.go",
+				"description": "Unit tests for QA parsing",
+				"type": "unit"
+			}
+		],
+		"tests_run": {
+			"total": 42,
+			"passed": 40,
+			"failed": 0,
+			"skipped": 2
+		},
+		"coverage": {
+			"percentage": 85.5,
+			"uncovered_areas": "Error handling in edge cases"
+		},
+		"documentation": [
+			{
+				"file": "docs/api/new-endpoint.md",
+				"type": "api"
+			}
+		],
+		"issues": [
+			{
+				"severity": "low",
+				"description": "Consider adding more edge case tests",
+				"reproduction": "N/A"
+			}
+		],
+		"recommendation": "Ready for production deployment"
+	}`
 
 	result, err := ParseQAResult(response)
 	if err != nil {

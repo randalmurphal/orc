@@ -1,8 +1,8 @@
 package executor
 
 import (
+	"encoding/json"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -115,153 +115,161 @@ func GetReviewRounds(cfg *config.Config) int {
 	return cfg.Review.Rounds
 }
 
-// ParseReviewFindings extracts review findings from Claude's response.
+// JSON schemas for structured review output.
+const (
+	// ReviewFindingsSchema forces structured output for review findings.
+	ReviewFindingsSchema = `{
+		"type": "object",
+		"properties": {
+			"round": {
+				"type": "integer",
+				"description": "The review round number"
+			},
+			"summary": {
+				"type": "string",
+				"description": "Brief overview of review findings"
+			},
+			"issues": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"severity": {
+							"type": "string",
+							"enum": ["high", "medium", "low"],
+							"description": "Issue severity"
+						},
+						"file": {
+							"type": "string",
+							"description": "File path where issue was found"
+						},
+						"line": {
+							"type": "integer",
+							"description": "Line number of the issue"
+						},
+						"description": {
+							"type": "string",
+							"description": "Description of the issue"
+						},
+						"suggestion": {
+							"type": "string",
+							"description": "Suggested fix"
+						}
+					},
+					"required": ["severity", "description"]
+				},
+				"description": "List of issues found"
+			},
+			"questions": {
+				"type": "array",
+				"items": {"type": "string"},
+				"description": "Questions requiring clarification"
+			},
+			"positives": {
+				"type": "array",
+				"items": {"type": "string"},
+				"description": "Positive aspects noted"
+			}
+		},
+		"required": ["round", "summary", "issues"]
+	}`
+
+	// ReviewDecisionSchema forces structured output for review decisions.
+	ReviewDecisionSchema = `{
+		"type": "object",
+		"properties": {
+			"status": {
+				"type": "string",
+				"enum": ["pass", "fail", "needs_user_input"],
+				"description": "The review decision status"
+			},
+			"gaps_addressed": {
+				"type": "boolean",
+				"description": "Whether all gaps from previous round were addressed"
+			},
+			"summary": {
+				"type": "string",
+				"description": "Overall assessment of the implementation"
+			},
+			"issues_resolved": {
+				"type": "array",
+				"items": {"type": "string"},
+				"description": "List of resolved issues from previous round"
+			},
+			"remaining_issues": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"severity": {
+							"type": "string",
+							"enum": ["high", "medium", "low"]
+						},
+						"description": {
+							"type": "string"
+						}
+					},
+					"required": ["severity", "description"]
+				},
+				"description": "Issues that still need attention"
+			},
+			"user_questions": {
+				"type": "array",
+				"items": {"type": "string"},
+				"description": "Questions requiring user decision"
+			},
+			"recommendation": {
+				"type": "string",
+				"description": "What should happen next"
+			}
+		},
+		"required": ["status", "summary", "recommendation"]
+	}`
+)
+
+// ParseReviewFindings parses JSON review findings from Claude's response.
 func ParseReviewFindings(response string) (*ReviewFindings, error) {
-	findings := &ReviewFindings{
-		Issues: []ReviewFinding{},
+	var findings ReviewFindings
+	if err := json.Unmarshal([]byte(response), &findings); err != nil {
+		return nil, fmt.Errorf("parse review findings JSON: %w", err)
 	}
 
-	// Extract <review_findings> block
-	findingsRe := regexp.MustCompile(`(?s)<review_findings>(.*?)</review_findings>`)
-	findingsMatch := findingsRe.FindStringSubmatch(response)
-	if findingsMatch == nil {
-		return nil, fmt.Errorf("no <review_findings> block found in response")
+	// Initialize nil slices to empty
+	if findings.Issues == nil {
+		findings.Issues = []ReviewFinding{}
 	}
-	content := findingsMatch[1]
-
-	// Parse round
-	roundRe := regexp.MustCompile(`<round>(\d+)</round>`)
-	if m := roundRe.FindStringSubmatch(content); m != nil {
-		_, _ = fmt.Sscanf(m[1], "%d", &findings.Round)
+	if findings.Questions == nil {
+		findings.Questions = []string{}
+	}
+	if findings.Positives == nil {
+		findings.Positives = []string{}
 	}
 
-	// Parse summary (use (?s) to handle multiline content)
-	summaryRe := regexp.MustCompile(`(?s)<summary>(.*?)</summary>`)
-	if m := summaryRe.FindStringSubmatch(content); m != nil {
-		findings.Summary = strings.TrimSpace(m[1])
-	}
-
-	// Parse issues
-	issueRe := regexp.MustCompile(`(?s)<issue severity="(high|medium|low)">(.*?)</issue>`)
-	issueMatches := issueRe.FindAllStringSubmatch(content, -1)
-	for _, m := range issueMatches {
-		issue := ReviewFinding{
-			Severity: m[1],
-		}
-		issueContent := m[2]
-
-		// Parse file
-		if fm := regexp.MustCompile(`<file>(.*?)</file>`).FindStringSubmatch(issueContent); fm != nil {
-			issue.File = strings.TrimSpace(fm[1])
-		}
-		// Parse line
-		if lm := regexp.MustCompile(`<line>(\d+)</line>`).FindStringSubmatch(issueContent); lm != nil {
-			_, _ = fmt.Sscanf(lm[1], "%d", &issue.Line)
-		}
-		// Parse description
-		if dm := regexp.MustCompile(`<description>(.*?)</description>`).FindStringSubmatch(issueContent); dm != nil {
-			issue.Description = strings.TrimSpace(dm[1])
-		}
-		// Parse suggestion
-		if sm := regexp.MustCompile(`<suggestion>(.*?)</suggestion>`).FindStringSubmatch(issueContent); sm != nil {
-			issue.Suggestion = strings.TrimSpace(sm[1])
-		}
-
-		findings.Issues = append(findings.Issues, issue)
-	}
-
-	// Parse questions
-	// Note: use (?:\s+[^>]*)? to avoid matching <questions> wrapper tag
-	questionRe := regexp.MustCompile(`(?s)<question(?:\s+[^>]*)?>(.+?)</question>`)
-	questionMatches := questionRe.FindAllStringSubmatch(content, -1)
-	for _, m := range questionMatches {
-		findings.Questions = append(findings.Questions, strings.TrimSpace(m[1]))
-	}
-
-	// Parse positives
-	positiveRe := regexp.MustCompile(`<positive>(.*?)</positive>`)
-	positiveMatches := positiveRe.FindAllStringSubmatch(content, -1)
-	for _, m := range positiveMatches {
-		findings.Positives = append(findings.Positives, strings.TrimSpace(m[1]))
-	}
-
-	return findings, nil
+	return &findings, nil
 }
 
-// ParseReviewDecision extracts the review decision from Claude's response.
+// ParseReviewDecision parses JSON review decision from Claude's response.
 func ParseReviewDecision(response string) (*ReviewDecision, error) {
-	decision := &ReviewDecision{
-		RemainingIssues: []ReviewFinding{},
+	var decision ReviewDecision
+	if err := json.Unmarshal([]byte(response), &decision); err != nil {
+		return nil, fmt.Errorf("parse review decision JSON: %w", err)
 	}
 
-	// Extract <review_decision> block
-	decisionRe := regexp.MustCompile(`(?s)<review_decision>(.*?)</review_decision>`)
-	decisionMatch := decisionRe.FindStringSubmatch(response)
-	if decisionMatch == nil {
-		return nil, fmt.Errorf("no <review_decision> block found in response")
-	}
-	content := decisionMatch[1]
+	// Normalize status to lowercase
+	decision.Status = ReviewDecisionStatus(strings.ToLower(string(decision.Status)))
 
-	// Parse status (required field)
-	statusRe := regexp.MustCompile(`<status>\s*(pass|fail|needs_user_input)\s*</status>`)
-	if m := statusRe.FindStringSubmatch(content); m != nil {
-		decision.Status = ReviewDecisionStatus(m[1])
-	} else {
-		return nil, fmt.Errorf("no valid <status> found in review_decision (expected pass, fail, or needs_user_input)")
+	// Initialize nil slices to empty
+	if decision.RemainingIssues == nil {
+		decision.RemainingIssues = []ReviewFinding{}
+	}
+	if decision.IssuesResolved == nil {
+		decision.IssuesResolved = []string{}
+	}
+	if decision.UserQuestions == nil {
+		decision.UserQuestions = []string{}
 	}
 
-	// Parse gaps_addressed
-	gapsRe := regexp.MustCompile(`<gaps_addressed>(true|false)</gaps_addressed>`)
-	if m := gapsRe.FindStringSubmatch(content); m != nil {
-		decision.GapsAddressed = m[1] == "true"
-	}
-
-	// Parse summary (use (?s) to handle multiline content)
-	summaryRe := regexp.MustCompile(`(?s)<summary>(.*?)</summary>`)
-	if m := summaryRe.FindStringSubmatch(content); m != nil {
-		decision.Summary = strings.TrimSpace(m[1])
-	}
-
-	// Parse issues_resolved
-	resolvedRe := regexp.MustCompile(`(?s)<issues_resolved>(.*?)</issues_resolved>`)
-	if m := resolvedRe.FindStringSubmatch(content); m != nil {
-		issueRe := regexp.MustCompile(`<issue>(.*?)</issue>`)
-		issues := issueRe.FindAllStringSubmatch(m[1], -1)
-		for _, im := range issues {
-			decision.IssuesResolved = append(decision.IssuesResolved, strings.TrimSpace(im[1]))
-		}
-	}
-
-	// Parse remaining_issues
-	remainingRe := regexp.MustCompile(`(?s)<remaining_issues>(.*?)</remaining_issues>`)
-	if m := remainingRe.FindStringSubmatch(content); m != nil {
-		issueRe := regexp.MustCompile(`<issue severity="(high|medium|low)">(.*?)</issue>`)
-		issues := issueRe.FindAllStringSubmatch(m[1], -1)
-		for _, im := range issues {
-			decision.RemainingIssues = append(decision.RemainingIssues, ReviewFinding{
-				Severity:    im[1],
-				Description: strings.TrimSpace(im[2]),
-			})
-		}
-	}
-
-	// Parse user_questions
-	questionsRe := regexp.MustCompile(`(?s)<user_questions>(.*?)</user_questions>`)
-	if m := questionsRe.FindStringSubmatch(content); m != nil {
-		questionRe := regexp.MustCompile(`<question>(.*?)</question>`)
-		questions := questionRe.FindAllStringSubmatch(m[1], -1)
-		for _, qm := range questions {
-			decision.UserQuestions = append(decision.UserQuestions, strings.TrimSpace(qm[1]))
-		}
-	}
-
-	// Parse recommendation
-	recRe := regexp.MustCompile(`<recommendation>(.*?)</recommendation>`)
-	if m := recRe.FindStringSubmatch(content); m != nil {
-		decision.Recommendation = strings.TrimSpace(m[1])
-	}
-
-	return decision, nil
+	return &decision, nil
 }
 
 // HasHighSeverityIssues checks if there are any high-severity issues.

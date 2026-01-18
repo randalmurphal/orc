@@ -95,58 +95,49 @@ func TestParseReviewFindings(t *testing.T) {
 		wantIssue int
 	}{
 		{
-			name:     "no review_findings block",
-			response: "Some random response without the expected block",
+			name:     "invalid JSON",
+			response: "Some random response without valid JSON",
 			wantErr:  true,
 		},
 		{
 			name: "valid findings with issues",
-			response: `
-Here are my findings:
-
-<review_findings>
-  <round>1</round>
-  <summary>Code looks good overall with minor issues</summary>
-  <issues>
-    <issue severity="high">
-      <file>main.go</file>
-      <line>42</line>
-      <description>Missing error handling</description>
-      <suggestion>Add error check after db.Query()</suggestion>
-    </issue>
-    <issue severity="medium">
-      <file>utils.go</file>
-      <line>15</line>
-      <description>Unused variable</description>
-      <suggestion>Remove unused variable x</suggestion>
-    </issue>
-    <issue severity="low">
-      <description>Consider adding comments</description>
-    </issue>
-  </issues>
-  <questions>
-    <question context="architecture">Should we use a different database driver?</question>
-  </questions>
-  <positives>
-    <positive>Good test coverage</positive>
-    <positive>Clean code structure</positive>
-  </positives>
-</review_findings>
-
-<phase_complete>true</phase_complete>
-`,
+			response: `{
+				"round": 1,
+				"summary": "Code looks good overall with minor issues",
+				"issues": [
+					{
+						"severity": "high",
+						"file": "main.go",
+						"line": 42,
+						"description": "Missing error handling",
+						"suggestion": "Add error check after db.Query()"
+					},
+					{
+						"severity": "medium",
+						"file": "utils.go",
+						"line": 15,
+						"description": "Unused variable",
+						"suggestion": "Remove unused variable x"
+					},
+					{
+						"severity": "low",
+						"description": "Consider adding comments"
+					}
+				],
+				"questions": ["Should we use a different database driver?"],
+				"positives": ["Good test coverage", "Clean code structure"]
+			}`,
 			wantErr:   false,
 			wantRound: 1,
 			wantIssue: 3,
 		},
 		{
 			name: "empty findings",
-			response: `
-<review_findings>
-  <round>1</round>
-  <summary>No issues found</summary>
-</review_findings>
-`,
+			response: `{
+				"round": 1,
+				"summary": "No issues found",
+				"issues": []
+			}`,
 			wantErr:   false,
 			wantRound: 1,
 			wantIssue: 0,
@@ -177,26 +168,21 @@ Here are my findings:
 }
 
 func TestParseReviewFindingsDetails(t *testing.T) {
-	response := `
-<review_findings>
-  <round>1</round>
-  <summary>Review complete</summary>
-  <issues>
-    <issue severity="high">
-      <file>internal/api/server.go</file>
-      <line>100</line>
-      <description>SQL injection vulnerability</description>
-      <suggestion>Use parameterized queries</suggestion>
-    </issue>
-  </issues>
-  <questions>
-    <question>Is input validation handled elsewhere?</question>
-  </questions>
-  <positives>
-    <positive>Good separation of concerns</positive>
-  </positives>
-</review_findings>
-`
+	response := `{
+		"round": 1,
+		"summary": "Review complete",
+		"issues": [
+			{
+				"severity": "high",
+				"file": "internal/api/server.go",
+				"line": 100,
+				"description": "SQL injection vulnerability",
+				"suggestion": "Use parameterized queries"
+			}
+		],
+		"questions": ["Is input validation handled elsewhere?"],
+		"positives": ["Good separation of concerns"]
+	}`
 
 	findings, err := ParseReviewFindings(response)
 	if err != nil {
@@ -251,56 +237,43 @@ func TestParseReviewDecision(t *testing.T) {
 		wantStatus ReviewDecisionStatus
 	}{
 		{
-			name:     "no review_decision block",
+			name:     "invalid JSON",
 			response: "Random response",
 			wantErr:  true,
 		},
 		{
 			name: "pass decision",
-			response: `
-<review_decision>
-  <status>pass</status>
-  <gaps_addressed>true</gaps_addressed>
-  <summary>All issues resolved</summary>
-  <issues_resolved>
-    <issue>Fixed SQL injection</issue>
-    <issue>Added error handling</issue>
-  </issues_resolved>
-  <recommendation>Ready to merge</recommendation>
-</review_decision>
-`,
+			response: `{
+				"status": "pass",
+				"gaps_addressed": true,
+				"summary": "All issues resolved",
+				"issues_resolved": ["Fixed SQL injection", "Added error handling"],
+				"recommendation": "Ready to merge"
+			}`,
 			wantErr:    false,
 			wantStatus: ReviewStatusPass,
 		},
 		{
 			name: "fail decision",
-			response: `
-<review_decision>
-  <status>fail</status>
-  <gaps_addressed>false</gaps_addressed>
-  <summary>Issues remain</summary>
-  <remaining_issues>
-    <issue severity="high">SQL injection not fixed</issue>
-  </remaining_issues>
-  <recommendation>Fix remaining issues</recommendation>
-</review_decision>
-`,
+			response: `{
+				"status": "fail",
+				"gaps_addressed": false,
+				"summary": "Issues remain",
+				"remaining_issues": [{"severity": "high", "description": "SQL injection not fixed"}],
+				"recommendation": "Fix remaining issues"
+			}`,
 			wantErr:    false,
 			wantStatus: ReviewStatusFail,
 		},
 		{
 			name: "needs_user_input decision",
-			response: `
-<review_decision>
-  <status>needs_user_input</status>
-  <gaps_addressed>false</gaps_addressed>
-  <summary>Need clarification</summary>
-  <user_questions>
-    <question>Should we use OAuth or API keys?</question>
-  </user_questions>
-  <recommendation>Await user decision</recommendation>
-</review_decision>
-`,
+			response: `{
+				"status": "needs_user_input",
+				"gaps_addressed": false,
+				"summary": "Need clarification",
+				"user_questions": ["Should we use OAuth or API keys?"],
+				"recommendation": "Await user decision"
+			}`,
 			wantErr:    false,
 			wantStatus: ReviewStatusNeedsUserInput,
 		},
@@ -327,24 +300,20 @@ func TestParseReviewDecision(t *testing.T) {
 }
 
 func TestParseReviewDecisionDetails(t *testing.T) {
-	response := `
-<review_decision>
-  <status>pass</status>
-  <gaps_addressed>true</gaps_addressed>
-  <summary>All identified issues have been addressed</summary>
-  <issues_resolved>
-    <issue>SQL injection fixed with parameterized queries</issue>
-    <issue>Added proper error handling</issue>
-  </issues_resolved>
-  <remaining_issues>
-    <issue severity="low">Minor style issue</issue>
-  </remaining_issues>
-  <user_questions>
-    <question>Consider adding more tests?</question>
-  </user_questions>
-  <recommendation>Ready to proceed to QA</recommendation>
-</review_decision>
-`
+	response := `{
+		"status": "pass",
+		"gaps_addressed": true,
+		"summary": "All identified issues have been addressed",
+		"issues_resolved": [
+			"SQL injection fixed with parameterized queries",
+			"Added proper error handling"
+		],
+		"remaining_issues": [
+			{"severity": "low", "description": "Minor style issue"}
+		],
+		"user_questions": ["Consider adding more tests?"],
+		"recommendation": "Ready to proceed to QA"
+	}`
 
 	decision, err := ParseReviewDecision(response)
 	if err != nil {

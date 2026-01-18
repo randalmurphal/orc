@@ -2,7 +2,9 @@ package gate
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/randalmurphal/llmkit/claude"
@@ -184,33 +186,67 @@ func TestTruncateOutput(t *testing.T) {
 	}
 }
 
-func TestParseAIResponse(t *testing.T) {
+func TestGateResponseJSON(t *testing.T) {
 	tests := []struct {
-		input    string
+		name     string
+		json     string
 		approved bool
+		reason   string
 		hasQ     bool
 	}{
-		{"APPROVED: looks good", true, false},
-		{"REJECTED: needs work", false, false},
-		{"NEEDS_CLARIFICATION: what about X?", false, true},
-		{"some other response", true, false}, // defaults to approved
+		{
+			name:     "approved",
+			json:     `{"decision":"APPROVED","reason":"looks good","questions":[]}`,
+			approved: true,
+			reason:   "looks good",
+			hasQ:     false,
+		},
+		{
+			name:     "rejected",
+			json:     `{"decision":"REJECTED","reason":"needs work","questions":[]}`,
+			approved: false,
+			reason:   "needs work",
+			hasQ:     false,
+		},
+		{
+			name:     "needs clarification",
+			json:     `{"decision":"NEEDS_CLARIFICATION","reason":"unclear","questions":["what about X?"]}`,
+			approved: false,
+			reason:   "unclear",
+			hasQ:     true,
+		},
+		{
+			name:     "lowercase decision normalized",
+			json:     `{"decision":"approved","reason":"all good","questions":[]}`,
+			approved: true,
+			reason:   "all good",
+			hasQ:     false,
+		},
 	}
 
 	for _, tt := range tests {
-		decision, err := parseAIResponse(tt.input)
-		if err != nil {
-			t.Errorf("parseAIResponse(%q) failed: %v", tt.input, err)
-			continue
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			var resp gateResponse
+			if err := json.Unmarshal([]byte(tt.json), &resp); err != nil {
+				t.Fatalf("failed to unmarshal: %v", err)
+			}
 
-		if decision.Approved != tt.approved {
-			t.Errorf("parseAIResponse(%q).Approved = %v, want %v", tt.input, decision.Approved, tt.approved)
-		}
+			// Validate decision normalization
+			decision := strings.ToUpper(resp.Decision)
+			isApproved := decision == "APPROVED"
+			if isApproved != tt.approved {
+				t.Errorf("approved = %v, want %v", isApproved, tt.approved)
+			}
 
-		hasQuestions := len(decision.Questions) > 0
-		if hasQuestions != tt.hasQ {
-			t.Errorf("parseAIResponse(%q) hasQuestions = %v, want %v", tt.input, hasQuestions, tt.hasQ)
-		}
+			if resp.Reason != tt.reason {
+				t.Errorf("reason = %q, want %q", resp.Reason, tt.reason)
+			}
+
+			hasQuestions := len(resp.Questions) > 0
+			if hasQuestions != tt.hasQ {
+				t.Errorf("hasQuestions = %v, want %v", hasQuestions, tt.hasQ)
+			}
+		})
 	}
 }
 
@@ -235,7 +271,7 @@ func TestDecision(t *testing.T) {
 }
 
 func TestEvaluateAI_Approved(t *testing.T) {
-	mockClient := claude.NewMockClient("APPROVED: looks good and meets all criteria")
+	mockClient := claude.NewMockClient(`{"decision":"APPROVED","reason":"looks good and meets all criteria","questions":[]}`)
 	e := New(mockClient)
 
 	gate := &plan.Gate{
@@ -258,7 +294,7 @@ func TestEvaluateAI_Approved(t *testing.T) {
 }
 
 func TestEvaluateAI_Rejected(t *testing.T) {
-	mockClient := claude.NewMockClient("REJECTED: missing test cases")
+	mockClient := claude.NewMockClient(`{"decision":"REJECTED","reason":"missing test cases","questions":[]}`)
 	e := New(mockClient)
 
 	gate := &plan.Gate{
@@ -281,7 +317,7 @@ func TestEvaluateAI_Rejected(t *testing.T) {
 }
 
 func TestEvaluateAI_NeedsClarification(t *testing.T) {
-	mockClient := claude.NewMockClient("NEEDS_CLARIFICATION: what about edge cases?\nare there integration tests?")
+	mockClient := claude.NewMockClient(`{"decision":"NEEDS_CLARIFICATION","reason":"unclear requirements","questions":["what about edge cases?","are there integration tests?"]}`)
 	e := New(mockClient)
 
 	gate := &plan.Gate{
@@ -300,6 +336,10 @@ func TestEvaluateAI_NeedsClarification(t *testing.T) {
 
 	if len(decision.Questions) == 0 {
 		t.Error("should have questions")
+	}
+
+	if len(decision.Questions) != 2 {
+		t.Errorf("should have 2 questions, got %d", len(decision.Questions))
 	}
 }
 

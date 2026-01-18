@@ -202,6 +202,19 @@ Objective quality checks run after agent claims completion. See `docs/research/E
 - `true` (default for auto/safe/strict): Fail task properly (resumable via `orc resume`)
 - `false` (fast profile): Fail open, continue execution without validation
 
+## Structured Output (JSON Schema)
+
+LLM responses requiring structured data use JSON schemas via Claude's `--json-schema` flag. This replaces fragile XML regex parsing with reliable `json.Unmarshal`.
+
+| File | Schema Constant | Parser Function |
+|------|-----------------|-----------------|
+| `haiku_validation.go` | `iterationProgressSchema`, `taskReadinessSchema` | `parseIterationProgress()`, `parseTaskReadiness()` |
+| `review.go` | `ReviewFindingsSchema`, `ReviewDecisionSchema` | `ParseReviewFindings()`, `ParseReviewDecision()` |
+| `qa.go` | `QAResultSchema` | `ParseQAResult()` |
+| `../gate/gate.go` | `gateDecisionSchema` | `gateResponse` struct unmarshal |
+
+**Pattern:** Define JSON schema constant → Pass to LLM call → Unmarshal response → Normalize fields (e.g., lowercase status enums).
+
 ## Transcript Persistence
 
 `buffer.go` provides `TranscriptBuffer` for batched transcript persistence during streaming execution.
