@@ -51,12 +51,12 @@
    ========================================================================== */
 
 .card-active {
-	border-color: rgba(168, 85, 247, 0.2);
+	border-color: var(--primary-border);
 	background: linear-gradient(135deg, var(--bg-card), var(--primary-dim));
 }
 
 .card-active:hover {
-	border-color: rgba(168, 85, 247, 0.3);
+	border-color: var(--primary-border-hover);
 }
 
 /* ==========================================================================
@@ -88,7 +88,7 @@
 
 /* Active + Hoverable */
 .card-active.card-hoverable:hover {
-	border-color: rgba(168, 85, 247, 0.3);
+	border-color: var(--primary-border-hover);
 	transform: translateY(-2px);
 }
 

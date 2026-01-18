@@ -10,27 +10,27 @@
 	gap: 0.25rem;
 	min-width: 150px;
 	padding: 0.5rem;
-	background: var(--color-bg-secondary, #161b22);
+	background: var(--bg-elevated);
 	border-radius: 8px;
 }
 
 .env-nav-link {
 	padding: 0.5rem 0.75rem;
 	border-radius: 4px;
-	color: var(--color-text-secondary, #8b949e);
+	color: var(--text-secondary);
 	text-decoration: none;
 	font-size: 0.875rem;
 	transition: background-color 0.15s, color 0.15s;
 }
 
 .env-nav-link:hover {
-	background: var(--color-bg-tertiary, #21262d);
-	color: var(--color-text-primary, #e6edf3);
+	background: var(--bg-surface);
+	color: var(--text-primary);
 }
 
 .env-nav-link.active {
-	background: var(--color-accent-subtle, rgba(56, 139, 253, 0.15));
-	color: var(--color-accent, #58a6ff);
+	background: var(--primary-dim);
+	color: var(--primary);
 }
 
 .environment-content {

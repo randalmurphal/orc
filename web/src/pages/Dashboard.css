@@ -21,8 +21,8 @@
 .dashboard .spinner {
 	width: 32px;
 	height: 32px;
-	border: 3px solid var(--border-default);
-	border-top-color: var(--accent-primary);
+	border: 3px solid var(--border-light);
+	border-top-color: var(--primary);
 	border-radius: 50%;
 	animation: spin 1s linear infinite;
 }
@@ -34,21 +34,21 @@
 }
 
 .dashboard .error p {
-	color: var(--status-danger);
+	color: var(--red);
 	margin: 0;
 }
 
 .dashboard .error button {
 	padding: var(--space-2) var(--space-4);
-	background: var(--accent-primary);
+	background: var(--primary);
 	border: none;
 	border-radius: var(--radius-md);
-	color: var(--text-inverse);
+	color: var(--bg-base);
 	cursor: pointer;
 	font-size: var(--text-sm);
 	transition: background var(--duration-fast) var(--ease-out);
 }
 
 .dashboard .error button:hover {
-	background: var(--accent-secondary);
+	background: var(--primary-bright);
 }

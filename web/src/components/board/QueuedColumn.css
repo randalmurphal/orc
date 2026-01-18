@@ -6,7 +6,7 @@
 	width: 200px;
 	display: flex;
 	flex-direction: column;
-	background: rgba(148, 163, 184, 0.05);
+	background: var(--bg-queued);
 	border-radius: var(--radius-lg);
 }
 
@@ -16,7 +16,7 @@
 	align-items: center;
 	justify-content: space-between;
 	padding: var(--space-3);
-	border-bottom: 1px solid var(--border-subtle);
+	border-bottom: 1px solid var(--border);
 }
 
 .queued-column .column-header h2 {
@@ -38,7 +38,7 @@
 	font-size: var(--text-xs);
 	font-weight: var(--font-semibold);
 	color: var(--text-secondary);
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	border-radius: var(--radius-full);
 }
 
@@ -83,13 +83,13 @@
 	height: auto;
 	padding: var(--space-2);
 	background: transparent;
-	border: 1px dashed var(--border-default);
+	border: 1px dashed var(--border-light);
 	border-radius: var(--radius-md);
 }
 
 .queued-column .backlog-toggle.btn:hover:not(:disabled) {
-	background: var(--bg-tertiary);
-	border-color: var(--border-strong);
+	background: var(--bg-surface);
+	border-color: var(--border-hover);
 	transform: none;
 }
 
@@ -125,7 +125,7 @@
 	font-size: var(--text-xs);
 	font-weight: var(--font-semibold);
 	color: var(--text-muted);
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	border-radius: var(--radius-full);
 }
 

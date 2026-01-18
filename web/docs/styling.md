@@ -23,30 +23,43 @@ The frontend uses a design token system based on the `example_ui/board.html` ref
 | Category | Variables | Description |
 |----------|-----------|-------------|
 | Backgrounds | `--bg-base`, `--bg-elevated`, `--bg-surface`, `--bg-card`, `--bg-hover` | 5-level depth scale (#050508 to #1c1c26) |
-| Primary | `--primary`, `--primary-bright`, `--primary-dim`, `--primary-glow` | Purple accent (#a855f7) + variations |
+| Primary | `--primary`, `--primary-bright`, `--primary-dim`, `--primary-glow`, `--primary-border`, `--primary-accessible` | Purple accent (#a855f7) + variations |
 | Semantic | `--cyan`, `--orange`, `--green`, `--red`, `--amber`, `--blue` | Status colors with `-dim` variants |
 | Text | `--text-primary`, `--text-secondary`, `--text-muted` | Text hierarchy |
-| Border | `--border`, `--border-light` | Border colors with opacity |
+| Border | `--border`, `--border-light`, `--border-hover` | Border colors with opacity |
 
-### Legacy Compatibility Aliases
+### Semantic Status Aliases
 
-For backward compatibility, old token names map to new values:
+These aliases map semantic names to design system colors:
 
-| Old Token | Maps To |
-|-----------|---------|
-| `--bg-void`, `--bg-primary` | `--bg-base` |
-| `--bg-secondary` | `--bg-elevated` |
-| `--bg-tertiary` | `--bg-surface` |
-| `--accent-primary` | `--primary` |
-| `--accent-secondary` | `--primary-bright` |
-| `--accent-glow` | `--primary-glow` |
-| `--status-success` | `--green` |
-| `--status-warning` | `--amber` |
-| `--status-danger`, `--status-error` | `--red` |
-| `--status-info` | `--blue` |
-| `--weight-*` | Semantic colors (`--green`, `--blue`, `--amber`, `--primary`) |
+| Alias | Maps To | Usage |
+|-------|---------|-------|
+| `--status-success` | `--green` | Success states |
+| `--status-warning` | `--amber` | Warning states |
+| `--status-danger`, `--status-error` | `--red` | Error states |
+| `--status-info` | `--blue` | Info states |
+| `--bg-tertiary` | `--bg-surface` | Tertiary background |
+| `--accent-primary` | `--primary` | Primary accent |
+| `--accent-glow` | `--primary-glow` | Accent glow effect |
+| `--accent-subtle` | `--primary-dim` | Subtle accent background |
+| `--accent-secondary` | `--cyan` | Secondary accent |
 
-**Note:** Prefer new token names for new code. Legacy aliases exist for existing component compatibility.
+### Overlay Colors
+
+For backdrops and translucent overlays:
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--overlay-light` | `rgba(0,0,0,0.3)` | Light dimming |
+| `--overlay-medium` | `rgba(0,0,0,0.5)` | Standard modal backdrop |
+| `--overlay-dark` | `rgba(0,0,0,0.6)` | Dark overlay |
+| `--overlay-heavy` | `rgba(0,0,0,0.7)` | Heavy dimming |
+| `--overlay-opaque` | `rgba(0,0,0,0.9)` | Near-opaque |
+| `--overlay-white-subtle` | `rgba(255,255,255,0.1)` | Subtle white tint |
+| `--overlay-white-light` | `rgba(255,255,255,0.2)` | Light white tint |
+| `--overlay-white-border` | `rgba(255,255,255,0.3)` | White border highlight |
+
+**Note:** Prefer semantic token names for new code.
 
 ## Typography
 
@@ -55,8 +68,25 @@ For backward compatibility, old token names map to new values:
 | `--font-display` | Inter | Headings |
 | `--font-body` | Inter | Body text |
 | `--font-mono` | JetBrains Mono | Code blocks |
-| `--text-xs` to `--text-3xl` | 11px to 40px | Font size scale |
+| `--text-xs` to `--text-5xl` | 8px to 28px | Font size scale (10 sizes) |
 | `--font-regular` to `--font-bold` | 400-700 | Font weights |
+
+### Font Size Scale
+
+| Token | Size | Usage |
+|-------|------|-------|
+| `--text-xs` | 8px (0.5rem) | Tiny labels |
+| `--text-sm` | 9px (0.5625rem) | Small text |
+| `--text-base` | 11px (0.6875rem) | Body text (default) |
+| `--text-md` | 12px (0.75rem) | Slightly larger body |
+| `--text-lg` | 13px (0.8125rem) | Emphasized text |
+| `--text-xl` | 14px (0.875rem) | Subheadings |
+| `--text-2xl` | 16px (1rem) | Section headings |
+| `--text-3xl` | 18px (1.125rem) | Page headings |
+| `--text-4xl` | 24px (1.5rem) | Large headings |
+| `--text-5xl` | 28px (1.75rem) | Display headings |
+
+**Note:** `--text-2xs` is a legacy alias for `--text-xs`.
 
 Font faces: Inter (400/500/600/700) and JetBrains Mono (400/500/600) via @fontsource packages.
 
@@ -66,8 +96,8 @@ Font faces: Inter (400/500/600/700) and JetBrains Mono (400/500/600) via @fontso
 |-------|-------|-------|
 | `--space-0` to `--space-32` | 0 to 8rem | Spacing scale (21 values) |
 | `--radius-sm` to `--radius-full` | 4px to 9999px | Border radius scale |
-| `--sidebar-width-collapsed/expanded` | 60px/260px | Sidebar dimensions |
-| `--header-height` | 56px | Header height |
+| `--sidebar-width-collapsed/expanded` | 56px/260px | Sidebar dimensions |
+| `--header-height` | 48px | Header height |
 
 ## Effects & Animation
 
@@ -79,9 +109,27 @@ Font faces: Inter (400/500/600/700) and JetBrains Mono (400/500/600) via @fontso
 | Easings | `--ease-linear/in/out/in-out/bounce/spring` |
 | Z-index | `--z-base` (0) to `--z-max` (9999), 11 named layers |
 
+## Light Theme
+
+The design system includes light theme overrides via `[data-theme="light"]` on `:root`:
+
+```css
+/* Apply light theme */
+document.documentElement.dataset.theme = 'light';
+```
+
+Light theme automatically adjusts:
+- Backgrounds: Light grays (#f8fafc to #ffffff)
+- Text: Dark slate (#0f172a to #64748b)
+- Shadows: Reduced opacity for subtlety
+- Primary colors: Darker purple for contrast
+
 ## WCAG Compliance
 
-Colors are designed for accessibility on dark backgrounds. The design system uses opacity-based borders and dim variants for consistent visual hierarchy.
+Colors are designed for accessibility on both dark and light backgrounds. The design system uses:
+- Opacity-based borders for consistent visual hierarchy
+- `--primary-accessible` variant for WCAG AA text contrast
+- Semantic `-dim` variants for subtle backgrounds
 
 ## Usage Example
 

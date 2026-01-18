@@ -5,17 +5,20 @@
 	left: 0;
 	bottom: 0;
 	width: var(--sidebar-width-collapsed, 56px);
-	background: var(--bg-secondary);
-	border-right: 1px solid var(--border-subtle);
+	background: var(--bg-elevated);
+	border-right: 1px solid var(--border);
 	display: flex;
 	flex-direction: column;
 	z-index: var(--z-sidebar, 100);
-	transition: width var(--duration-normal, 200ms) var(--ease-out, ease-out);
 	overflow: hidden;
+	/* Width transition is intentional - sidebar needs layout-based expansion for content flow.
+	   Using contain: layout to limit recalc scope since sidebar is position: fixed */
+	contain: layout;
+	transition: width var(--duration-normal, 200ms) var(--ease-out, ease-out);
 }
 
 .sidebar.expanded {
-	width: var(--sidebar-width-expanded, 220px);
+	width: var(--sidebar-width-expanded, 260px);
 }
 
 /* Logo Section */
@@ -25,7 +28,7 @@
 	justify-content: space-between;
 	height: var(--header-height, 56px);
 	padding: 0 var(--space-3, 12px);
-	border-bottom: 1px solid var(--border-subtle);
+	border-bottom: 1px solid var(--border);
 	flex-shrink: 0;
 }
 
@@ -39,19 +42,19 @@
 	align-items: center;
 	gap: var(--space-2, 8px);
 	text-decoration: none;
-	color: var(--accent-primary);
+	color: var(--primary);
 	font-family: var(--font-mono);
 	font-weight: var(--font-bold, 700);
 	font-size: var(--text-lg, 1.125rem);
 }
 
 .logo:hover {
-	color: var(--accent-hover);
+	color: var(--primary-bright);
 }
 
 .logo-icon {
 	font-size: var(--text-lg, 1.125rem);
-	text-shadow: 0 0 10px var(--accent-glow, rgba(56, 139, 253, 0.3));
+	text-shadow: 0 0 10px var(--primary-glow);
 }
 
 .logo-text {
@@ -63,14 +66,14 @@
 .toggle-btn.btn {
 	width: 32px;
 	height: 32px;
-	background: var(--bg-tertiary);
-	border: 1px solid var(--border-subtle);
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
 	flex-shrink: 0;
 }
 
 .toggle-btn.btn:hover:not(:disabled) {
 	background: var(--bg-hover);
-	border-color: var(--border-default);
+	border-color: var(--border-light);
 }
 
 /* Navigation Container */
@@ -136,7 +139,7 @@
 	color: var(--text-secondary);
 	text-decoration: none;
 	border-radius: var(--radius-md, 6px);
-	transition: all var(--duration-fast, 150ms) var(--ease-out, ease-out);
+	transition: background-color var(--duration-fast, 150ms) var(--ease-out, ease-out), color var(--duration-fast, 150ms) var(--ease-out, ease-out);
 	white-space: nowrap;
 }
 
@@ -152,17 +155,17 @@
 }
 
 .nav-item:hover {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	color: var(--text-primary);
 }
 
 .nav-item.active {
-	background: var(--accent-subtle);
-	color: var(--accent-primary);
+	background: var(--primary-dim);
+	color: var(--primary);
 }
 
 .nav-item.active .nav-icon {
-	color: var(--accent-primary);
+	color: var(--primary);
 }
 
 .nav-icon {
@@ -205,17 +208,17 @@
 	font-size: var(--text-sm, 0.875rem);
 	font-weight: var(--font-medium, 500);
 	cursor: pointer;
-	transition: all var(--duration-fast, 150ms) var(--ease-out, ease-out);
+	transition: background-color var(--duration-fast, 150ms) var(--ease-out, ease-out), color var(--duration-fast, 150ms) var(--ease-out, ease-out);
 	text-align: left;
 }
 
 .group-header:hover {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	color: var(--text-primary);
 }
 
 .group-header.active {
-	color: var(--accent-primary);
+	color: var(--primary);
 }
 
 .group-icon {
@@ -240,7 +243,7 @@
 /* Divider */
 .nav-divider {
 	height: 1px;
-	background: var(--border-subtle);
+	background: var(--border);
 	margin: var(--space-2, 8px) var(--space-4, 16px);
 }
 
@@ -284,12 +287,12 @@
 	border-radius: 50%;
 	border: 1.5px solid var(--text-muted);
 	background: transparent;
-	transition: all var(--duration-fast, 150ms) var(--ease-out, ease-out);
+	transition: background-color var(--duration-fast, 150ms) var(--ease-out, ease-out), border-color var(--duration-fast, 150ms) var(--ease-out, ease-out);
 }
 
 .indicator-dot.filled {
-	background: var(--accent-primary);
-	border-color: var(--accent-primary);
+	background: var(--primary);
+	border-color: var(--primary);
 }
 
 .initiative-item:hover .indicator-dot {
@@ -297,7 +300,7 @@
 }
 
 .initiative-item.active .indicator-dot {
-	border-color: var(--accent-primary);
+	border-color: var(--primary);
 }
 
 .initiative-title {
@@ -325,17 +328,17 @@
 }
 
 .initiative-status-badge.status-draft {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	color: var(--text-muted);
 }
 
 .initiative-status-badge.status-completed {
-	background: var(--status-success-bg);
-	color: var(--status-success);
+	background: var(--green-dim);
+	color: var(--green);
 }
 
 .initiative-status-badge.status-archived {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	color: var(--text-muted);
 	opacity: 0.7;
 }
@@ -350,8 +353,8 @@
 }
 
 .new-initiative-btn:hover {
-	color: var(--accent-primary);
-	background: var(--bg-tertiary);
+	color: var(--primary);
+	background: var(--bg-surface);
 }
 
 .new-initiative-btn .nav-icon {
@@ -362,7 +365,7 @@
 /* Keyboard hint */
 .keyboard-hint {
 	padding: var(--space-3, 12px) var(--space-4, 16px);
-	border-top: 1px solid var(--border-subtle);
+	border-top: 1px solid var(--border);
 	font-size: var(--text-xs, 0.75rem);
 	color: var(--text-muted);
 	display: flex;
@@ -374,11 +377,11 @@
 .keyboard-hint kbd {
 	font-family: var(--font-mono);
 	font-size: var(--text-2xs, 0.625rem);
-	background: var(--bg-tertiary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-surface);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-sm, 4px);
 	padding: var(--space-0-5, 2px) var(--space-1, 4px);
-	box-shadow: 0 1px 0 var(--border-default);
+	box-shadow: 0 1px 0 var(--border-light);
 }
 
 /* Fade-in animation */
@@ -396,7 +399,7 @@
 	/* Sidebar becomes a slide-out overlay on mobile */
 	.sidebar {
 		/* Always expanded width when visible on mobile */
-		width: var(--sidebar-width-expanded, 220px);
+		width: var(--sidebar-width-expanded, 260px);
 		/* Start off-screen */
 		transform: translateX(-100%);
 		/* Add shadow for overlay effect */

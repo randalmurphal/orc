@@ -2,8 +2,9 @@
 export { Badge } from './Badge';
 export type { BadgeProps, BadgeVariant, BadgeStatus } from './Badge';
 
-export { Button } from './Button';
-export type { ButtonProps, ButtonVariant, ButtonSize } from './Button';
+// Button is the canonical implementation in ui/, re-export for backwards compatibility
+export { Button } from '../ui/Button';
+export type { ButtonProps, ButtonVariant, ButtonSize } from '../ui/Button';
 
 export { Card } from './Card';
 export type { CardProps, CardPadding } from './Card';
@@ -25,6 +26,12 @@ export type { SelectProps, SelectOption } from './Select';
 
 export { Slider } from './Slider';
 export type { SliderProps } from './Slider';
+
+export { Stat, formatLargeNumber } from './Stat';
+export type { StatProps, StatValueColor, StatIconColor, StatTrend } from './Stat';
+
+export { Toggle } from './Toggle';
+export type { ToggleProps, ToggleSize } from './Toggle';
 
 export { Tooltip } from './Tooltip';
 export type { TooltipProps, TooltipPosition } from './Tooltip';

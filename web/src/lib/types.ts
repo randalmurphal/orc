@@ -60,7 +60,7 @@ export const CATEGORY_CONFIG: Record<TaskCategory, { label: string; color: strin
 	refactor: { label: 'Refactor', color: 'var(--status-info)', icon: 'recycle' },
 	chore: { label: 'Chore', color: 'var(--text-muted)', icon: 'tools' },
 	docs: { label: 'Docs', color: 'var(--status-warning)', icon: 'file-text' },
-	test: { label: 'Test', color: 'var(--accent-secondary)', icon: 'beaker' }
+	test: { label: 'Test', color: 'var(--cyan)', icon: 'beaker' }
 };
 
 export interface Phase {

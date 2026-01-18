@@ -30,7 +30,7 @@ const layoutConfig: Partial<LayoutConfig> = {
 // Status colors and labels
 const statusConfig: Record<string, { color: string; fill: string; label: string }> = {
 	done: { color: 'var(--status-success)', fill: 'var(--status-success-bg)', label: 'done' },
-	running: { color: 'var(--accent-primary)', fill: 'var(--accent-subtle)', label: 'running' },
+	running: { color: 'var(--primary)', fill: 'var(--primary-dim)', label: 'running' },
 	blocked: { color: 'var(--status-danger)', fill: 'var(--status-danger-bg)', label: 'blocked' },
 	ready: { color: 'var(--status-info)', fill: 'var(--status-info-bg)', label: 'ready' },
 	pending: { color: 'var(--text-muted)', fill: 'var(--bg-tertiary)', label: 'pending' },

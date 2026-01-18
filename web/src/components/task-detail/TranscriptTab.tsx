@@ -38,8 +38,8 @@ const PAGE_SIZE = 10;
 const sectionStyles: Record<string, { icon: string; colorVar: string; bgVar: string }> = {
 	prompt: {
 		icon: '\u25B6', // ▶
-		colorVar: 'var(--accent-primary)',
-		bgVar: 'var(--accent-subtle)',
+		colorVar: 'var(--primary)',
+		bgVar: 'var(--primary-dim)',
 	},
 	'retry-context': {
 		icon: '\u21BB', // ↻
