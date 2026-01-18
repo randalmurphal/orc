@@ -206,12 +206,33 @@ Objective quality checks run after agent claims completion. See `docs/research/E
 
 LLM responses requiring structured data use JSON schemas via Claude's `--json-schema` flag. This replaces fragile XML regex parsing with reliable `json.Unmarshal`.
 
-| File | Schema Constant | Parser Function |
-|------|-----------------|-----------------|
-| `haiku_validation.go` | `iterationProgressSchema`, `taskReadinessSchema` | `parseIterationProgress()`, `parseTaskReadiness()` |
-| `review.go` | `ReviewFindingsSchema`, `ReviewDecisionSchema` | `ParseReviewFindings()`, `ParseReviewDecision()` |
-| `qa.go` | `QAResultSchema` | `ParseQAResult()` |
-| `../gate/gate.go` | `gateDecisionSchema` | `gateResponse` struct unmarshal |
+### Schema Definitions
+
+| File | Schema Constant | Purpose |
+|------|-----------------|---------|
+| `haiku_validation.go` | `iterationProgressSchema`, `taskReadinessSchema` | Progress and spec validation |
+| `review.go` | `ReviewFindingsSchema`, `ReviewDecisionSchema` | Code review structured output |
+| `qa.go` | `QAResultSchema` | QA session results |
+| `../gate/gate.go` | `gateDecisionSchema` | Gate approval decisions |
+
+### Parsing Functions
+
+| Function | Use Case |
+|----------|----------|
+| `ParseReviewFindings()`, `ParseReviewDecision()` | Direct JSON parsing (clean JSON input) |
+| `ParseQAResult()` | Direct JSON parsing (clean JSON input) |
+| `ExtractReviewFindings()`, `ExtractReviewDecision()` | Robust extraction from mixed text/JSON session output |
+| `ExtractQAResult()` | Robust extraction from mixed text/JSON session output |
+
+**Extract vs Parse:**
+- `Parse*` functions expect clean JSON - use when LLM returns pure JSON via `--json-schema`
+- `Extract*` functions handle mixed output - use when processing session output that may contain text around JSON
+
+**Extraction Flow (llmkit/claude/extract.go):**
+1. Try direct JSON parsing (fast path)
+2. Look for JSON in code blocks (```json ... ```)
+3. Find JSON object by brace matching
+4. If no valid JSON found, fallback to LLM extraction with schema
 
 **Pattern:** Define JSON schema constant → Pass to LLM call → Unmarshal response → Normalize fields (e.g., lowercase status enums).
 
