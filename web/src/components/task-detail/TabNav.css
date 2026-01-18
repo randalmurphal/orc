@@ -10,8 +10,8 @@
 	display: flex;
 	gap: var(--space-1);
 	padding: var(--space-2) var(--space-4);
-	background: var(--bg-secondary);
-	border-bottom: 1px solid var(--border-subtle);
+	background: var(--bg-elevated);
+	border-bottom: 1px solid var(--border);
 	overflow-x: auto;
 	flex-shrink: 0;
 }
@@ -33,14 +33,14 @@
 }
 
 .tab-btn:hover {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	color: var(--text-primary);
 }
 
 /* Radix active state via data-state attribute */
 .tab-btn[data-state='active'] {
-	background: var(--accent-glow);
-	color: var(--accent-primary);
+	background: var(--primary-glow);
+	color: var(--primary);
 }
 
 .tab-btn svg {
@@ -53,11 +53,11 @@
 	min-height: 0;
 	overflow: auto;
 	padding: var(--space-4);
-	background: var(--bg-primary);
+	background: var(--bg-base);
 }
 
 /* Focus styles for keyboard navigation */
 .tab-btn:focus-visible {
-	outline: 2px solid var(--accent-primary);
+	outline: 2px solid var(--primary);
 	outline-offset: 2px;
 }

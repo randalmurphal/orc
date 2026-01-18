@@ -12,8 +12,8 @@
 	position: relative;
 	display: flex;
 	align-items: center;
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-md);
 	transition: all var(--duration-normal) var(--ease-out);
 }
@@ -113,29 +113,29 @@
 
 /* Default hover */
 .input-wrapper:hover:not(.input-disabled) {
-	border-color: var(--border-strong);
+	border-color: rgba(255, 255, 255, 0.12);
 }
 
 /* Focus state - only on keyboard navigation */
 .input-wrapper:focus-within:not(.input-disabled) {
-	border-color: var(--accent-primary);
-	box-shadow: 0 0 0 2px var(--accent-glow);
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px var(--primary-glow);
 }
 
 /* Error variant */
 .input-variant-error {
-	border-color: var(--status-danger);
+	border-color: var(--red);
 }
 
 .input-variant-error:focus-within:not(.input-disabled) {
-	border-color: var(--status-danger);
+	border-color: var(--red);
 	box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.3);
 }
 
 /* Disabled state */
 .input-disabled {
-	background: var(--bg-tertiary);
-	border-color: var(--border-subtle);
+	background: var(--bg-surface);
+	border-color: var(--border);
 	opacity: 0.5;
 	cursor: not-allowed;
 }
@@ -187,6 +187,6 @@
 
 .input-error-message {
 	font-size: var(--text-sm);
-	color: var(--status-danger);
+	color: var(--red);
 	line-height: var(--leading-tight);
 }

@@ -17,12 +17,12 @@
 }
 
 .board-page::-webkit-scrollbar-track {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	border-radius: var(--radius-full);
 }
 
 .board-page::-webkit-scrollbar-thumb {
-	background: var(--border-strong);
+	background: rgba(255, 255, 255, 0.12);
 	border-radius: var(--radius-full);
 }
 
@@ -59,8 +59,8 @@
 	justify-content: space-between;
 	gap: var(--space-3);
 	padding: var(--space-2) var(--space-3);
-	background: var(--accent-subtle);
-	border: 1px solid var(--accent-primary);
+	background: var(--primary-dim);
+	border: 1px solid var(--primary);
 	border-radius: var(--radius-md);
 	margin-bottom: var(--space-4);
 	flex-shrink: 0;
@@ -72,7 +72,7 @@
 }
 
 .board-page .banner-label strong {
-	color: var(--accent-primary);
+	color: var(--primary);
 }
 
 .board-page .banner-clear {
@@ -84,15 +84,15 @@
 	font-weight: var(--font-medium);
 	color: var(--text-secondary);
 	background: transparent;
-	border: 1px solid var(--border-default);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-sm);
 	cursor: pointer;
 	transition: all var(--duration-fast) var(--ease-out);
 }
 
 .board-page .banner-clear:hover {
-	background: var(--bg-secondary);
-	border-color: var(--border-strong);
+	background: var(--bg-elevated);
+	border-color: rgba(255, 255, 255, 0.12);
 	color: var(--text-primary);
 }
 
@@ -110,8 +110,8 @@
 .board-page .loading-state .spinner {
 	width: 32px;
 	height: 32px;
-	border: 3px solid var(--border-default);
-	border-top-color: var(--accent-primary);
+	border: 3px solid var(--border-light);
+	border-top-color: var(--primary);
 	border-radius: 50%;
 	animation: spin 0.8s linear infinite;
 }
@@ -130,7 +130,7 @@
 	justify-content: center;
 	gap: var(--space-3);
 	height: 100%;
-	color: var(--status-danger);
+	color: var(--red);
 }
 
 /* Empty State */

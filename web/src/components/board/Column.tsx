@@ -29,7 +29,7 @@ const COLUMN_STYLES: Record<
 		bgColor: 'rgba(59, 130, 246, 0.05)',
 	},
 	implement: {
-		accentColor: 'var(--accent-primary)',
+		accentColor: 'var(--primary)',
 		bgColor: 'rgba(139, 92, 246, 0.05)',
 	},
 	test: {
@@ -37,11 +37,11 @@ const COLUMN_STYLES: Record<
 		bgColor: 'rgba(6, 182, 212, 0.05)',
 	},
 	review: {
-		accentColor: 'var(--status-warning)',
+		accentColor: 'var(--amber)',
 		bgColor: 'rgba(245, 158, 11, 0.05)',
 	},
 	done: {
-		accentColor: 'var(--status-success)',
+		accentColor: 'var(--green)',
 		bgColor: 'rgba(16, 185, 129, 0.05)',
 	},
 };

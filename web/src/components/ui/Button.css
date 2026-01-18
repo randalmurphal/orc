@@ -29,7 +29,7 @@
 }
 
 .btn:focus-visible {
-	box-shadow: 0 0 0 2px var(--accent-glow), 0 0 0 3px var(--border-focus);
+	box-shadow: 0 0 0 2px var(--primary-glow), 0 0 0 3px var(--primary);
 }
 
 /* ==========================================================================
@@ -96,12 +96,12 @@
 
 /* Primary - Electric Violet (darker shade for WCAG AA contrast with white text) */
 .btn-primary {
-	background-color: var(--accent-button);
+	background-color: #7c3aed;
 	color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-	background-color: var(--accent-button-hover);
+	background-color: #8b5cf6;
 	transform: scale(1.01);
 }
 
@@ -114,7 +114,7 @@
 .btn-secondary {
 	background-color: transparent;
 	color: var(--text-primary);
-	border: 1px solid var(--border-default);
+	border: 1px solid var(--border-light);
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -129,7 +129,7 @@
 
 /* Danger - Red */
 .btn-danger {
-	background-color: var(--status-danger);
+	background-color: var(--red);
 	color: white;
 }
 
@@ -161,7 +161,7 @@
 
 /* Success - Green */
 .btn-success {
-	background-color: var(--status-success);
+	background-color: var(--green);
 	color: white;
 }
 

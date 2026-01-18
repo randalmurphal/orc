@@ -22,8 +22,8 @@
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%, -50%);
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-xl);
 	box-shadow: var(--shadow-2xl);
 	width: 100%;
@@ -62,7 +62,7 @@
 	align-items: center;
 	justify-content: space-between;
 	padding: var(--space-4) var(--space-5);
-	border-bottom: 1px solid var(--border-subtle);
+	border-bottom: 1px solid var(--border);
 	flex-shrink: 0;
 }
 
@@ -88,13 +88,13 @@
 }
 
 .modal-close:hover {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	color: var(--text-primary);
 }
 
 .modal-close:focus-visible {
 	outline: none;
-	box-shadow: 0 0 0 2px var(--accent-glow);
+	box-shadow: 0 0 0 2px var(--primary-glow);
 }
 
 /* Body */

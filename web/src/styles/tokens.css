@@ -110,75 +110,6 @@
   --blue-dim: rgba(59, 130, 246, 0.08);
 
   /* ==========================================================================
-     LEGACY COMPATIBILITY ALIASES
-     Maps old token names to new design system
-     ========================================================================== */
-
-  /* Background Aliases */
-  --bg-void: var(--bg-base);
-  --bg-primary: var(--bg-base);
-  --bg-secondary: var(--bg-elevated);
-  --bg-tertiary: var(--bg-surface);
-  /* --bg-surface already defined above */
-  /* --bg-elevated already defined above */
-  /* --bg-hover already defined above */
-
-  /* Accent Aliases (maps old accent-* to new primary-*) */
-  --accent-primary: var(--primary);
-  --accent-secondary: var(--primary-bright);
-  --accent-glow: var(--primary-glow);
-  --accent-glow-strong: rgba(168, 85, 247, 0.4);
-  --accent-muted: rgba(168, 85, 247, 0.5);
-  --accent-hover: var(--primary-bright);
-  --accent-active: #8b5cf6;
-  --accent-subtle: var(--primary-dim);
-  --accent-button: #7c3aed;
-  --accent-button-hover: #8b5cf6;
-  --accent-primary-hover: var(--primary-bright);
-  --accent-primary-transparent: var(--primary-dim);
-
-  /* Text Aliases */
-  --text-disabled: var(--text-muted);
-  --text-inverse: var(--bg-base);
-  --text-accent: var(--primary);
-
-  /* Border Aliases */
-  --border-subtle: var(--border);
-  --border-default: var(--border-light);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --border-focus: var(--primary);
-  --border-glow: var(--primary-glow);
-
-  /* Status Colors (maps to semantic colors) */
-  --status-success: var(--green);
-  --status-success-glow: rgba(16, 185, 129, 0.25);
-  --status-success-bg: var(--green-dim);
-
-  --status-warning: var(--amber);
-  --status-warning-glow: rgba(245, 158, 11, 0.25);
-  --status-warning-bg: var(--amber-dim);
-
-  --status-danger: var(--red);
-  --status-danger-glow: rgba(239, 68, 68, 0.25);
-  --status-danger-bg: var(--red-dim);
-  --status-error: var(--red);
-
-  --status-info: var(--blue);
-  --status-info-glow: rgba(59, 130, 246, 0.25);
-  --status-info-bg: var(--blue-dim);
-
-  --status-running: var(--primary);
-  --status-running-glow: var(--primary-glow);
-  --status-running-bg: var(--primary-dim);
-
-  /* Weight Colors */
-  --weight-trivial: var(--text-muted);
-  --weight-small: var(--green);
-  --weight-medium: var(--blue);
-  --weight-large: var(--amber);
-  --weight-greenfield: var(--primary);
-
-  /* ==========================================================================
      TYPOGRAPHY
      ========================================================================== */
 
@@ -198,9 +129,6 @@
   --text-3xl: 1rem;      /* 16px */
   --text-4xl: 1.125rem;  /* 18px */
   --text-5xl: 1.75rem;   /* 28px */
-
-  /* Legacy Font Size Aliases */
-  --text-2xs: var(--text-xs);
 
   /* Font Weights */
   --font-regular: 400;
@@ -286,10 +214,7 @@
   /* Glow Effects */
   --shadow-glow-sm: 0 0 10px var(--primary-glow);
   --shadow-glow: 0 0 20px var(--primary-glow);
-  --shadow-glow-lg: 0 0 40px var(--accent-glow-strong);
-  --shadow-glow-success: 0 0 20px var(--status-success-glow);
-  --shadow-glow-warning: 0 0 20px var(--status-warning-glow);
-  --shadow-glow-danger: 0 0 20px var(--status-danger-glow);
+  --shadow-glow-lg: 0 0 40px rgba(168, 85, 247, 0.4);
 
   /* ==========================================================================
      ANIMATION
@@ -370,23 +295,6 @@
   --blue: #2563eb;
   --blue-dim: rgba(37, 99, 235, 0.08);
 
-  /* Legacy compatibility updates for light mode */
-  --accent-glow-strong: rgba(124, 58, 237, 0.25);
-  --accent-muted: rgba(124, 58, 237, 0.6);
-  --accent-active: #5b21b6;
-  --accent-button: #7c3aed;
-  --accent-button-hover: #6d28d9;
-
-  --text-inverse: #f8fafc;
-
-  --border-strong: rgba(0, 0, 0, 0.15);
-
-  /* Status glow adjustments */
-  --status-success-glow: rgba(5, 150, 105, 0.2);
-  --status-warning-glow: rgba(217, 119, 6, 0.2);
-  --status-danger-glow: rgba(220, 38, 38, 0.2);
-  --status-info-glow: rgba(37, 99, 235, 0.2);
-
   /* Shadows - Softer for light mode */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
@@ -394,4 +302,7 @@
   --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.12);
   --shadow-2xl: 0 24px 48px rgba(0, 0, 0, 0.15);
+
+  /* Glow Effects - Adjusted for light mode */
+  --shadow-glow-lg: 0 0 40px rgba(124, 58, 237, 0.25);
 }

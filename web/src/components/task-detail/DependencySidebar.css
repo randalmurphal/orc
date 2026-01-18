@@ -4,8 +4,8 @@
 	flex-direction: column;
 	width: 280px;
 	min-width: 280px;
-	background: var(--bg-secondary);
-	border-right: 1px solid var(--border-subtle);
+	background: var(--bg-elevated);
+	border-right: 1px solid var(--border);
 	overflow: hidden;
 	flex-shrink: 0;
 	transition: width var(--duration-normal) var(--ease-out),
@@ -28,7 +28,7 @@
 	align-items: center;
 	justify-content: space-between;
 	padding: var(--space-3) var(--space-4);
-	border-bottom: 1px solid var(--border-subtle);
+	border-bottom: 1px solid var(--border);
 }
 
 .sidebar-header h3 {
@@ -55,7 +55,7 @@
 }
 
 .toggle-btn:hover {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	color: var(--text-primary);
 }
 
@@ -69,8 +69,8 @@
 .sidebar-loading .loading-spinner {
 	width: 24px;
 	height: 24px;
-	border: 2px solid var(--border-default);
-	border-top-color: var(--accent-primary);
+	border: 2px solid var(--border-light);
+	border-top-color: var(--primary);
 	border-radius: 50%;
 	animation: spin 0.8s linear infinite;
 }
@@ -107,8 +107,8 @@
 	justify-content: center;
 	width: 24px;
 	height: 24px;
-	background: var(--bg-tertiary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-surface);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-sm);
 	color: var(--text-muted);
 	cursor: pointer;
@@ -116,9 +116,9 @@
 }
 
 .add-dep-btn:hover {
-	background: var(--accent-glow);
-	border-color: var(--accent-primary);
-	color: var(--accent-primary);
+	background: var(--primary-glow);
+	border-color: var(--primary);
+	color: var(--primary);
 }
 
 .dep-empty {
@@ -144,7 +144,7 @@
 }
 
 .dep-item:hover {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 }
 
 .dep-link {
@@ -194,14 +194,14 @@
 }
 
 .remove-dep-btn:hover {
-	background: var(--status-danger-bg);
-	color: var(--status-danger);
+	background: var(--red-dim);
+	color: var(--red);
 }
 
 /* Add Dependency Modal */
 .add-dep-modal {
-	background: var(--bg-primary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-base);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-lg);
 	width: 400px;
 	max-width: 90vw;
@@ -216,7 +216,7 @@
 	align-items: center;
 	justify-content: space-between;
 	padding: var(--space-4);
-	border-bottom: 1px solid var(--border-subtle);
+	border-bottom: 1px solid var(--border);
 }
 
 .add-dep-modal .modal-header h4 {
@@ -241,7 +241,7 @@
 }
 
 .add-dep-modal .close-btn:hover {
-	background: var(--bg-tertiary);
+	background: var(--bg-surface);
 	color: var(--text-primary);
 }
 
@@ -250,7 +250,7 @@
 	align-items: center;
 	gap: var(--space-2);
 	padding: var(--space-3) var(--space-4);
-	border-bottom: 1px solid var(--border-subtle);
+	border-bottom: 1px solid var(--border);
 	color: var(--text-muted);
 }
 
@@ -295,7 +295,7 @@
 }
 
 .task-option:hover:not(:disabled) {
-	background: var(--bg-secondary);
+	background: var(--bg-elevated);
 }
 
 .task-option:disabled {

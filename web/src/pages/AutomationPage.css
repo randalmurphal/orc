@@ -21,7 +21,7 @@
 }
 
 .automation-page .error-state {
-	color: var(--status-danger);
+	color: var(--red);
 }
 
 /* Header */
@@ -79,7 +79,7 @@
 	background: rgba(248, 113, 113, 0.1);
 	border: 1px solid rgba(248, 113, 113, 0.3);
 	border-radius: var(--radius-md);
-	color: var(--status-danger);
+	color: var(--red);
 	font-size: var(--text-sm);
 }
 
@@ -91,7 +91,7 @@
 .automation-tabs {
 	display: flex;
 	gap: var(--space-2);
-	border-bottom: 1px solid var(--border-subtle);
+	border-bottom: 1px solid var(--border);
 	padding-bottom: var(--space-2);
 }
 
@@ -116,8 +116,8 @@
 }
 
 .automation-tabs .tab-btn.active {
-	background: var(--accent-subtle);
-	color: var(--accent-primary);
+	background: var(--primary-dim);
+	color: var(--primary);
 }
 
 .automation-tabs .tab-count {
@@ -129,8 +129,8 @@
 }
 
 .automation-tabs .tab-btn.active .tab-count {
-	background: var(--accent-primary);
-	color: var(--text-inverse);
+	background: var(--primary);
+	color: var(--bg-base);
 }
 
 /* Content area */
@@ -170,8 +170,8 @@
 }
 
 .trigger-card {
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-lg);
 	padding: var(--space-4);
 	cursor: pointer;
@@ -179,12 +179,12 @@
 }
 
 .trigger-card:hover {
-	border-color: var(--border-strong);
+	border-color: rgba(255, 255, 255, 0.12);
 }
 
 .trigger-card.selected {
-	border-color: var(--accent-primary);
-	box-shadow: 0 0 0 1px var(--accent-primary);
+	border-color: var(--primary);
+	box-shadow: 0 0 0 1px var(--primary);
 }
 
 .trigger-card.disabled {
@@ -203,9 +203,9 @@
 	justify-content: center;
 	width: 40px;
 	height: 40px;
-	background: var(--accent-subtle);
+	background: var(--primary-dim);
 	border-radius: var(--radius-md);
-	color: var(--accent-primary);
+	color: var(--primary);
 	flex-shrink: 0;
 }
 
@@ -241,7 +241,7 @@
 	gap: var(--space-4);
 	margin-top: var(--space-3);
 	padding-top: var(--space-3);
-	border-top: 1px solid var(--border-subtle);
+	border-top: 1px solid var(--border);
 }
 
 .trigger-type,
@@ -263,7 +263,7 @@
 .trigger-details {
 	margin-top: var(--space-4);
 	padding-top: var(--space-4);
-	border-top: 1px solid var(--border-subtle);
+	border-top: 1px solid var(--border);
 }
 
 .detail-section {
@@ -279,7 +279,7 @@
 
 .config-preview {
 	padding: var(--space-3);
-	background: var(--bg-void);
+	background: var(--bg-base);
 	border-radius: var(--radius-md);
 	font-family: var(--font-mono);
 	font-size: var(--text-xs);
@@ -319,8 +319,8 @@
 }
 
 .task-group {
-	background: var(--bg-secondary);
-	border: 1px solid var(--border-default);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border-light);
 	border-radius: var(--radius-lg);
 	overflow: hidden;
 }
@@ -338,13 +338,13 @@
 }
 
 .group-title.failed {
-	color: var(--status-danger);
+	color: var(--red);
 }
 
 .group-count {
 	margin-left: auto;
 	padding: var(--space-1) var(--space-2);
-	background: var(--bg-secondary);
+	background: var(--bg-elevated);
 	border-radius: var(--radius-full);
 	font-size: var(--text-xs);
 	color: var(--text-muted);
@@ -360,7 +360,7 @@
 	align-items: center;
 	gap: var(--space-3);
 	padding: var(--space-3) var(--space-4);
-	border-top: 1px solid var(--border-subtle);
+	border-top: 1px solid var(--border);
 	cursor: pointer;
 	transition: background var(--duration-fast) var(--ease-out);
 }
@@ -403,10 +403,10 @@
 
 .task-phase {
 	padding: var(--space-1) var(--space-2);
-	background: var(--accent-subtle);
+	background: var(--primary-dim);
 	border-radius: var(--radius-sm);
 	font-size: var(--text-xs);
-	color: var(--accent-primary);
+	color: var(--primary);
 }
 
 .task-time {
@@ -443,7 +443,7 @@
 .history-table td {
 	padding: var(--space-3) var(--space-4);
 	text-align: left;
-	border-bottom: 1px solid var(--border-subtle);
+	border-bottom: 1px solid var(--border);
 }
 
 .history-table th {
@@ -461,7 +461,7 @@
 }
 
 .history-table a {
-	color: var(--accent-primary);
+	color: var(--primary);
 	text-decoration: none;
 }
 
@@ -488,22 +488,22 @@
 
 .execution-status.status-pending {
 	background: rgba(250, 204, 21, 0.1);
-	color: var(--status-warning);
+	color: var(--amber);
 }
 
 .execution-status.status-running {
-	background: var(--accent-subtle);
-	color: var(--accent-primary);
+	background: var(--primary-dim);
+	color: var(--primary);
 }
 
 .execution-status.status-completed {
 	background: rgba(52, 211, 153, 0.1);
-	color: var(--status-success);
+	color: var(--green);
 }
 
 .execution-status.status-failed {
 	background: rgba(248, 113, 113, 0.1);
-	color: var(--status-danger);
+	color: var(--red);
 }
 
 .execution-status.status-skipped {
@@ -513,7 +513,7 @@
 
 /* Execution task link */
 .execution-task a {
-	color: var(--accent-primary);
+	color: var(--primary);
 	text-decoration: none;
 	font-family: var(--font-mono);
 	font-size: var(--text-xs);

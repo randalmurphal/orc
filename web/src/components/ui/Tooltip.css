@@ -23,7 +23,7 @@
 
   /* Visual */
   background-color: var(--bg-elevated);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
 
@@ -79,8 +79,8 @@
   padding: var(--space-0-5) var(--space-1-5);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   margin: 0 var(--space-0-5);
 }
@@ -89,7 +89,7 @@
 .tooltip-content code {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-elevated);
   padding: var(--space-0-5) var(--space-1);
   border-radius: var(--radius-sm);
 }
