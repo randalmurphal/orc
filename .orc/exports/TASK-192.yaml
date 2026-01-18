@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.010729-06:00
+exported_at: 2026-01-17T22:16:48.220964792-06:00
 task:
     id: TASK-192
     title: Add --initiative flag to orc list for filtering tasks by initiative
@@ -108,6 +108,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T02:59:47-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:59:47-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:59:47-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T03:04:31-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T03:04:31-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -125,7 +145,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 119
+    - id: 237
       taskid: TASK-192
       phase: implement
       gatetype: auto
@@ -133,7 +153,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T02:59:47-06:00
-    - id: 121
+    - id: 238
       taskid: TASK-192
       phase: implement
       gatetype: auto
@@ -141,7 +161,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T02:59:47-06:00
-    - id: 120
+    - id: 241
+      taskid: TASK-192
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:59:47-06:00
+    - id: 242
+      taskid: TASK-192
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:59:47-06:00
+    - id: 239
       taskid: TASK-192
       phase: test
       gatetype: auto
@@ -149,7 +185,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T03:04:31-06:00
-    - id: 122
+    - id: 240
+      taskid: TASK-192
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T03:04:31-06:00
+    - id: 243
+      taskid: TASK-192
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T03:04:31-06:00
+    - id: 244
       taskid: TASK-192
       phase: test
       gatetype: auto

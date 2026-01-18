@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.939025-06:00
+exported_at: 2026-01-17T22:16:35.57413889-06:00
 task:
     id: TASK-312
     title: 'UX: Make task status/phase prominent for running tasks'

@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.930328-06:00
+exported_at: 2026-01-17T22:16:32.367312156-06:00
 task:
     id: TASK-328
     title: Create Card component as base container
@@ -28,7 +28,8 @@ task:
         - web/src/components/core/Card.tsx
         - web/src/components/core/Card.css
     weight: small
-    status: planned
+    status: completed
+    current_phase: test
     branch: orc/TASK-328
     queue: active
     priority: high
@@ -38,6 +39,10 @@ task:
         - TASK-325
     created_at: 2026-01-16T20:55:24-06:00
     updated_at: 0001-01-01T00:00:00Z
+    started_at: 2026-01-17T15:08:41-06:00
+    completed_at: 2026-01-17T15:12:31-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/197
 plan:
     version: 1
     task_id: TASK-328
@@ -66,7 +71,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: ebc7b1cf593618e65e90fc5ec9a38d1ee442dc30
         - id: test
           name: test
           prompt: |
@@ -87,18 +93,237 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 0ef621245416d67377c89a511bf0840016bc189e
 state:
     task_id: TASK-328
-    current_phase: ""
+    current_phase: test
     current_iteration: 0
-    status: pending
-    started_at: 0001-01-01T00:00:00Z
+    status: completed
+    started_at: 2026-01-17T15:08:41-06:00
     updated_at: 0001-01-01T00:00:00Z
-    phases: {}
+    phases:
+        implement:
+            status: completed
+            started_at: 2026-01-17T15:08:42-06:00
+            completed_at: 2026-01-17T15:11:16-06:00
+            iterations: 1
+            commit_sha: ebc7b1cf593618e65e90fc5ec9a38d1ee442dc30
+            tokens:
+                input_tokens: 1667222
+                output_tokens: 5265
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-17T15:11:16-06:00
+            completed_at: 2026-01-17T15:12:23-06:00
+            iterations: 1
+            commit_sha: 0ef621245416d67377c89a511bf0840016bc189e
+            tokens:
+                input_tokens: 318525
+                output_tokens: 1628
+                total_tokens: 0
+    gates:
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T15:11:16-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T15:11:16-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T15:11:16-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T15:12:23-06:00
     tokens:
         input_tokens: 0
         output_tokens: 0
         total_tokens: 0
     cost:
         total_cost_usd: 0
+transcripts:
+    - id: 443
+      taskid: TASK-328
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the following task:
+
+        **Task**: Create Card component as base container
+
+        **Description**: Create a Card component as the base container used throughout the UI.
+
+        REFERENCE FILES:
+        - example_ui/board.html (.stat-card, .swimlane-card classes)
+        - example_ui/initiatives.html (.initiative-card class)
+        - example_ui/Screenshot_20260116_201819.png
+
+        SUCCESS CRITERIA:
+        1. Card component created at web/src/components/core/Card.tsx
+        2. Base styles: background var(--bg-card), border 1px solid var(--border), border-radius 10-12px, padding 16-20px
+        3. Hoverable variant: border lightens to var(--border-light), optional translateY(-2px)
+        4. Active/selected variant: border with primary tint, gradient background option
+        5. Props: children, hoverable, active, padding (sm/md/lg), className, onClick
+        6. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Clickable cards should have cursor: pointer
+        - Cards with onClick should have proper keyboard accessibility (Enter/Space)
+        - Nested cards should work correctly
+
+        FILES TO CREATE:
+        - web/src/components/core/Card.tsx
+        - web/src/components/core/Card.css
+
+
+
+        1. Implement the required changes
+        2. Write/update tests as needed
+        3. Run tests and fix any failures
+
+        Keep iterating until implementation is complete and all tests pass.
+
+        When done, output:
+        <phase_complete>true</phase_complete>
+
+
+        ## Response
+
+        All success criteria have been met:
+
+        1. Card component created at `web/src/components/core/Card.tsx`
+        2. Base styles implemented with `--bg-card`, `--border`, `--radius-xl` (12px), and padding variants (sm: 12px, md: 16px, lg: 20px)
+        3. Hoverable variant with `--border-light` and `translateY(-2px)` on hover
+        4. Active/selected variant with primary tinted border and gradient background
+        5. Props implemented: `children`, `hoverable`, `active`, `padding` (sm/md/lg), `className`, `onClick`
+        6. `npm run typecheck` exits 0
+
+        Edge cases handled:
+        - Clickable cards have `cursor: pointer`
+        - Keyboard accessibility with Enter/Space support, `role="button"`, and `tabIndex=0`
+        - Nested cards work correctly
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1667222 input, 5265 output, 69979 cache_creation, 1580690 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768684276
+    - id: 444
+      taskid: TASK-328
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Final test verification for: Create Card component as base container
+
+        **Original task**: Create a Card component as the base container used throughout the UI.
+
+        REFERENCE FILES:
+        - example_ui/board.html (.stat-card, .swimlane-card classes)
+        - example_ui/initiatives.html (.initiative-card class)
+        - example_ui/Screenshot_20260116_201819.png
+
+        SUCCESS CRITERIA:
+        1. Card component created at web/src/components/core/Card.tsx
+        2. Base styles: background var(--bg-card), border 1px solid var(--border), border-radius 10-12px, padding 16-20px
+        3. Hoverable variant: border lightens to var(--border-light), optional translateY(-2px)
+        4. Active/selected variant: border with primary tint, gradient background option
+        5. Props: children, hoverable, active, padding (sm/md/lg), className, onClick
+        6. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Clickable cards should have cursor: pointer
+        - Cards with onClick should have proper keyboard accessibility (Enter/Space)
+        - Nested cards should work correctly
+
+        FILES TO CREATE:
+        - web/src/components/core/Card.tsx
+        - web/src/components/core/Card.css
+
+        1. Run the full test suite
+        2. Fix any failures found
+        3. Verify edge cases are covered
+
+        Keep iterating until all tests pass.
+
+        When done, output:
+        <phase_complete>true</phase_complete>
+
+
+        ## Response
+
+        All tests pass and typecheck succeeds.
+
+        **Summary:**
+        - ✅ Card component created at `web/src/components/core/Card.tsx`
+        - ✅ Card CSS at `web/src/components/core/Card.css`
+        - ✅ Base styles with proper variables (bg-card, border, 12px radius, 16-20px padding)
+        - ✅ Hoverable variant with border lightening and translateY(-2px)
+        - ✅ Active variant with primary tint border and gradient background
+        - ✅ Props: children, hoverable, active, padding (sm/md/lg), className, onClick
+        - ✅ Keyboard accessibility (Enter/Space triggers onClick, role="button", tabIndex=0)
+        - ✅ cursor: pointer for clickable cards
+        - ✅ Reduced motion support
+        - ✅ All 793 tests pass
+        - ✅ TypeScript compiles cleanly
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 318525 input, 1628 output, 19022 cache_creation, 298321 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768684343
+gate_decisions:
+    - id: 356182
+      taskid: TASK-328
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T15:11:16-06:00
+    - id: 356183
+      taskid: TASK-328
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T15:11:16-06:00
+    - id: 356185
+      taskid: TASK-328
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T15:11:16-06:00
+    - id: 356186
+      taskid: TASK-328
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T15:12:23-06:00

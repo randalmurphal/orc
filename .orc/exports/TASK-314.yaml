@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.938519-06:00
+exported_at: 2026-01-17T22:16:35.573305679-06:00
 task:
     id: TASK-314
     title: 'Feature: Keyboard navigation in task list'

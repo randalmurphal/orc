@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:47.911345-06:00
+exported_at: 2026-01-17T22:16:47.901191452-06:00
 task:
     id: TASK-212
     title: Replace TaskCard quick menu with Radix DropdownMenu
@@ -396,6 +396,126 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:51:10-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:55:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:55:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:55:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:55:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:55:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:55:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:55:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:55:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:55:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:55:14-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -476,6 +596,46 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T18:59:29-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:59:29-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:59:29-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:59:29-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:59:29-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:59:29-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T18:59:29-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:01:30-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T19:01:30-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -499,7 +659,7 @@ transcripts:
       iteration: 1
       role: combined
       content: "# docs - Iteration 1\n\n## Prompt\n\nUpdate documentation for:\n\n**Task**: Replace TaskCard quick menu with Radix DropdownMenu\n**Category**: {{TASK_CATEGORY}}\n\n## Specification\n\n# Specification: Replace TaskCard quick menu with Radix DropdownMenu\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n\n## Instructions\n\n1. Update any relevant documentation files\n2. Ensure CLAUDE.md reflects the changes if applicable\n3. Add/update code comments where needed\n4. Update README if user-facing changes were made\n\nKeep iterating until documentation is complete.\n\nAfter completing, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-212: docs - completed\"\n```\n\nWhen done, output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\n\n## Response\n\nDocumentation updates complete.\n\n**Commit**: 3bf3c75f\n\n**Summary of documentation changes:**\n\n1. **web/CLAUDE.md** - Updated TaskCard Quick Menu section:\n   - Changed heading from \"Quick Menu\" to \"Quick Menu (Radix DropdownMenu)\"\n   - Documented the use of `@radix-ui/react-dropdown-menu` \n   - Listed accessibility features: trigger wrapping, portal, keyboard focus, auto-close\n\n2. **docs/decisions/ADR-008-radix-adoption.md** - Added Active Usage section:\n   - New table showing which components use which Radix packages\n   - TaskCard listed as using `@radix-ui/react-dropdown-menu` for quick menu\n\n3. **CLAUDE.md** - Added knowledge pattern entry:\n   - New \"TaskCard Radix DropdownMenu\" pattern documenting implementation details\n   - Covers: trigger wrapping, portal usage, data-highlighted, onCloseAutoFocus, CSS class\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 2068658 input, 4173 output, 116977 cache_creation, 1951614 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768628593
+      timestamp: 1768661749
     - id: 39
       taskid: TASK-212
       phase: implement
@@ -589,14 +749,14 @@ transcripts:
         Tokens: 3263056 input, 12734 output, 123329 cache_creation, 3138776 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768628593
+      timestamp: 1768661749
     - id: 40
       taskid: TASK-212
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Replace TaskCard quick menu with Radix DropdownMenu\n**Category**: {{TASK_CATEGORY}}\n**Description**: ## Overview\nReplace the custom quick menu in TaskCard with Radix DropdownMenu for proper accessibility.\n\n## Current Implementation\nLocation: web/src/components/board/TaskCard.tsx\n- Custom dropdown with click-outside detection\n- Manual keyboard handling (limited)\n- CSS classes: .quick-menu, .quick-menu-backdrop, .quick-menu-dropdown, .menu-section, .menu-label, .menu-item, .menu-divider\n\n## Radix DropdownMenu Mapping\n\n### Component Mapping\n| Current | Radix | CSS Class |\n|---------|-------|-----------|\n| More button | DropdownMenu.Trigger | .action-btn.more |\n| Menu container | DropdownMenu.Portal + Content | .quick-menu-dropdown |\n| Section | DropdownMenu.Group | .menu-section |\n| Label | DropdownMenu.Label | .menu-label |\n| Item (single select) | DropdownMenu.RadioItem | .menu-item |\n| Divider | DropdownMenu.Separator | .menu-divider |\n\n### Animation\n```css\n.quick-menu-dropdown[data-state='open'] {\n  animation: dropdown-enter var(--duration-fast) var(--ease-out);\n}\n\n.quick-menu-dropdown[data-state='closed'] {\n  animation: dropdown-exit var(--duration-fast) var(--ease-in);\n}\n\n@keyframes dropdown-enter {\n  from { opacity: 0; transform: scale(0.95) translateY(-4px); }\n  to { opacity: 1; transform: scale(1) translateY(0); }\n}\n\n@keyframes dropdown-exit {\n  from { opacity: 1; transform: scale(1) translateY(0); }\n  to { opacity: 0; transform: scale(0.95) translateY(-4px); }\n}\n```\n\n## Implementation Structure\n```tsx\n<DropdownMenu.Root>\n  <DropdownMenu.Trigger asChild>\n    <Button variant=\"ghost\" size=\"sm\" iconOnly className=\"action-btn more\">\n      <Icon name=\"more-vertical\" />\n    </Button>\n  </DropdownMenu.Trigger>\n  \n  <DropdownMenu.Portal>\n    <DropdownMenu.Content className=\"quick-menu-dropdown\" sideOffset={4}>\n      {/* Queue section */}\n      <DropdownMenu.Label className=\"menu-label\">Queue</DropdownMenu.Label>\n      <DropdownMenu.RadioGroup value={queue} onValueChange={setQueue}>\n        <DropdownMenu.RadioItem value=\"active\" className=\"menu-item\">\n          Active\n        </DropdownMenu.RadioItem>\n        <DropdownMenu.RadioItem value=\"backlog\" className=\"menu-item\">\n          Backlog\n        </DropdownMenu.RadioItem>\n      </DropdownMenu.RadioGroup>\n      \n      <DropdownMenu.Separator className=\"menu-divider\" />\n      \n      {/* Priority section */}\n      <DropdownMenu.Label className=\"menu-label\">Priority</DropdownMenu.Label>\n      <DropdownMenu.RadioGroup value={priority} onValueChange={setPriority}>\n        <DropdownMenu.RadioItem value=\"critical\" className=\"menu-item\">\n          Critical\n        </DropdownMenu.RadioItem>\n        {/* ... other priorities */}\n      </DropdownMenu.RadioGroup>\n    </DropdownMenu.Content>\n  </DropdownMenu.Portal>\n</DropdownMenu.Root>\n```\n\n## Accessibility Improvements\nRadix provides automatically:\n- Arrow up/down navigates items\n- Enter/Space selects item\n- Escape closes menu\n- Focus returns to trigger\n- Typeahead (type 'c' jumps to 'Critical')\n- aria-expanded on trigger\n- aria-checked on radio items\n\n## Success Criteria\n- Quick menu is fully keyboard accessible\n- Screen reader announces items correctly\n- Visual appearance unchanged\n- All menu actions work correctly\n\n## Test Criteria\n\n### Keyboard Accessibility Tests\n- Arrow down opens menu and focuses first item\n- Arrow up/down navigates items\n- Enter selects item and closes menu\n- Escape closes menu without selection\n- Typing 'c' jumps to 'Critical' option\n- Focus returns to trigger after close\n\n### E2E Tests\n- bunx playwright test board.spec.ts passes\n- Quick menu actions work (queue change, priority change)\n\n{{INITIATIVE_CONTEXT}}\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Replace TaskCard quick menu with Radix DropdownMenu\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-212: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\nThe spec is complete. The specification is stored in the database (not git-tracked per the project's \"Task database storage\" pattern), so no new files to commit.\n\n**Commit**: 94baf44c (existing - no new files to commit, spec stored in database)\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 509712 input, 2520 output, 75812 cache_creation, 433890 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768628593
+      timestamp: 1768661749
     - id: 41
       taskid: TASK-212
       phase: test
@@ -679,9 +839,9 @@ transcripts:
         Tokens: 1482787 input, 3971 output, 70616 cache_creation, 1412148 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768628593
+      timestamp: 1768661749
 gate_decisions:
-    - id: 6543
+    - id: 13085
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -689,7 +849,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6544
+    - id: 13086
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -697,7 +857,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6545
+    - id: 13087
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -705,7 +865,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6546
+    - id: 13088
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -713,7 +873,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6547
+    - id: 13089
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -721,7 +881,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6548
+    - id: 13090
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -729,7 +889,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6549
+    - id: 13091
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -737,7 +897,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6559
+    - id: 13092
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -745,7 +905,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6560
+    - id: 13093
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -753,7 +913,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6561
+    - id: 13094
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -761,7 +921,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6562
+    - id: 13095
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -769,7 +929,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6563
+    - id: 13096
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -777,7 +937,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6564
+    - id: 13097
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -785,7 +945,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6565
+    - id: 13098
       taskid: TASK-212
       phase: spec
       gatetype: auto
@@ -793,7 +953,119 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:51:10-06:00
-    - id: 6550
+    - id: 13117
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13118
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13119
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13120
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13121
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13122
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13123
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13124
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13125
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13126
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13127
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13128
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13129
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13130
+      taskid: TASK-212
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:51:10-06:00
+    - id: 13099
       taskid: TASK-212
       phase: implement
       gatetype: auto
@@ -801,7 +1073,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:55:14-06:00
-    - id: 6551
+    - id: 13100
       taskid: TASK-212
       phase: implement
       gatetype: auto
@@ -809,7 +1081,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:55:14-06:00
-    - id: 6552
+    - id: 13101
       taskid: TASK-212
       phase: implement
       gatetype: auto
@@ -817,7 +1089,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:55:14-06:00
-    - id: 6553
+    - id: 13102
       taskid: TASK-212
       phase: implement
       gatetype: auto
@@ -825,7 +1097,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:55:14-06:00
-    - id: 6554
+    - id: 13103
       taskid: TASK-212
       phase: implement
       gatetype: auto
@@ -833,7 +1105,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:55:14-06:00
-    - id: 6566
+    - id: 13104
       taskid: TASK-212
       phase: implement
       gatetype: auto
@@ -841,7 +1113,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:55:14-06:00
-    - id: 6567
+    - id: 13105
       taskid: TASK-212
       phase: implement
       gatetype: auto
@@ -849,7 +1121,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:55:14-06:00
-    - id: 6568
+    - id: 13106
       taskid: TASK-212
       phase: implement
       gatetype: auto
@@ -857,7 +1129,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:55:14-06:00
-    - id: 6569
+    - id: 13107
       taskid: TASK-212
       phase: implement
       gatetype: auto
@@ -865,7 +1137,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:55:14-06:00
-    - id: 6570
+    - id: 13108
       taskid: TASK-212
       phase: implement
       gatetype: auto
@@ -873,7 +1145,87 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:55:14-06:00
-    - id: 6555
+    - id: 13131
+      taskid: TASK-212
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:55:14-06:00
+    - id: 13132
+      taskid: TASK-212
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:55:14-06:00
+    - id: 13133
+      taskid: TASK-212
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:55:14-06:00
+    - id: 13134
+      taskid: TASK-212
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:55:14-06:00
+    - id: 13135
+      taskid: TASK-212
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:55:14-06:00
+    - id: 13136
+      taskid: TASK-212
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:55:14-06:00
+    - id: 13137
+      taskid: TASK-212
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:55:14-06:00
+    - id: 13138
+      taskid: TASK-212
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:55:14-06:00
+    - id: 13139
+      taskid: TASK-212
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:55:14-06:00
+    - id: 13140
+      taskid: TASK-212
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:55:14-06:00
+    - id: 13109
       taskid: TASK-212
       phase: test
       gatetype: auto
@@ -881,7 +1233,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:59:29-06:00
-    - id: 6556
+    - id: 13110
       taskid: TASK-212
       phase: test
       gatetype: auto
@@ -889,7 +1241,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:59:29-06:00
-    - id: 6557
+    - id: 13111
       taskid: TASK-212
       phase: test
       gatetype: auto
@@ -897,7 +1249,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:59:29-06:00
-    - id: 6571
+    - id: 13112
       taskid: TASK-212
       phase: test
       gatetype: auto
@@ -905,7 +1257,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:59:29-06:00
-    - id: 6572
+    - id: 13113
       taskid: TASK-212
       phase: test
       gatetype: auto
@@ -913,7 +1265,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:59:29-06:00
-    - id: 6573
+    - id: 13114
       taskid: TASK-212
       phase: test
       gatetype: auto
@@ -921,7 +1273,55 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T18:59:29-06:00
-    - id: 6558
+    - id: 13141
+      taskid: TASK-212
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:59:29-06:00
+    - id: 13142
+      taskid: TASK-212
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:59:29-06:00
+    - id: 13143
+      taskid: TASK-212
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:59:29-06:00
+    - id: 13144
+      taskid: TASK-212
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:59:29-06:00
+    - id: 13145
+      taskid: TASK-212
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:59:29-06:00
+    - id: 13146
+      taskid: TASK-212
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T18:59:29-06:00
+    - id: 13115
       taskid: TASK-212
       phase: docs
       gatetype: auto
@@ -929,7 +1329,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T19:01:30-06:00
-    - id: 6574
+    - id: 13116
+      taskid: TASK-212
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:01:30-06:00
+    - id: 13147
+      taskid: TASK-212
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T19:01:30-06:00
+    - id: 13148
       taskid: TASK-212
       phase: docs
       gatetype: auto

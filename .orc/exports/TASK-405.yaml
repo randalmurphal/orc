@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.888668-06:00
+exported_at: 2026-01-17T22:16:31.550631124-06:00
 task:
     id: TASK-405
     title: Integrate TranscriptViewer into task detail page

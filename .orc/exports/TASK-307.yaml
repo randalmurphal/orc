@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.941481-06:00
+exported_at: 2026-01-17T22:16:35.579768051-06:00
 task:
     id: TASK-307
     title: 'UI Bug: Task status not updating after completion (shows ''running'' when CLI shows ''completed'')'
@@ -128,6 +128,46 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T18:37:30-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:37:30-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:37:30-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:37:30-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:37:30-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:37:30-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:37:30-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:38:23-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:38:23-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -145,7 +185,7 @@ state:
     cost:
         total_cost_usd: 0
 transcripts:
-    - id: 385
+    - id: 388
       taskid: TASK-307
       phase: implement
       iteration: 1
@@ -219,8 +259,8 @@ transcripts:
         Tokens: 9727714 input, 38108 output, 643616 cache_creation, 9082149 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768628598
-    - id: 386
+      timestamp: 1768661769
+    - id: 389
       taskid: TASK-307
       phase: test
       iteration: 1
@@ -268,9 +308,9 @@ transcripts:
         Tokens: 293693 input, 1629 output, 42390 cache_creation, 251294 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768628598
+      timestamp: 1768661769
 gate_decisions:
-    - id: 133669
+    - id: 267367
       taskid: TASK-307
       phase: implement
       gatetype: auto
@@ -278,7 +318,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:37:30-06:00
-    - id: 133670
+    - id: 267368
       taskid: TASK-307
       phase: implement
       gatetype: auto
@@ -286,7 +326,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:37:30-06:00
-    - id: 133671
+    - id: 267369
       taskid: TASK-307
       phase: implement
       gatetype: auto
@@ -294,7 +334,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:37:30-06:00
-    - id: 133673
+    - id: 267370
       taskid: TASK-307
       phase: implement
       gatetype: auto
@@ -302,7 +342,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:37:30-06:00
-    - id: 133674
+    - id: 267371
       taskid: TASK-307
       phase: implement
       gatetype: auto
@@ -310,7 +350,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:37:30-06:00
-    - id: 133675
+    - id: 267372
       taskid: TASK-307
       phase: implement
       gatetype: auto
@@ -318,7 +358,55 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:37:30-06:00
-    - id: 133672
+    - id: 267375
+      taskid: TASK-307
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:37:30-06:00
+    - id: 267376
+      taskid: TASK-307
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:37:30-06:00
+    - id: 267377
+      taskid: TASK-307
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:37:30-06:00
+    - id: 267378
+      taskid: TASK-307
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:37:30-06:00
+    - id: 267379
+      taskid: TASK-307
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:37:30-06:00
+    - id: 267380
+      taskid: TASK-307
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:37:30-06:00
+    - id: 267373
       taskid: TASK-307
       phase: test
       gatetype: auto
@@ -326,7 +414,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:38:23-06:00
-    - id: 133676
+    - id: 267374
+      taskid: TASK-307
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:38:23-06:00
+    - id: 267381
+      taskid: TASK-307
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:38:23-06:00
+    - id: 267382
       taskid: TASK-307
       phase: test
       gatetype: auto

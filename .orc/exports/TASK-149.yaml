@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.025989-06:00
+exported_at: 2026-01-17T22:16:48.24827186-06:00
 task:
     id: TASK-149
     title: Add initiative status management to UI - complete/archive actions
@@ -144,12 +144,42 @@ state:
           gate_type: auto
           approved: true
           reason: auto-approved on success
+          timestamp: 2026-01-14T01:55:06-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T01:55:06-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
           timestamp: 2026-01-14T02:01:03-06:00
         - phase: implement
           gate_type: auto
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T02:01:03-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:01:03-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:01:03-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:09:00-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:09:00-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -167,7 +197,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 9
+    - id: 17
       taskid: TASK-149
       phase: implement
       gatetype: auto
@@ -175,7 +205,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T01:55:06-06:00
-    - id: 12
+    - id: 18
       taskid: TASK-149
       phase: implement
       gatetype: auto
@@ -183,7 +213,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T01:55:06-06:00
-    - id: 10
+    - id: 23
+      taskid: TASK-149
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T01:55:06-06:00
+    - id: 24
+      taskid: TASK-149
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T01:55:06-06:00
+    - id: 19
       taskid: TASK-149
       phase: implement
       gatetype: auto
@@ -191,7 +237,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T02:01:03-06:00
-    - id: 13
+    - id: 20
       taskid: TASK-149
       phase: implement
       gatetype: auto
@@ -199,7 +245,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T02:01:03-06:00
-    - id: 11
+    - id: 25
+      taskid: TASK-149
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:01:03-06:00
+    - id: 26
+      taskid: TASK-149
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:01:03-06:00
+    - id: 21
       taskid: TASK-149
       phase: test
       gatetype: auto
@@ -207,7 +269,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T02:09:00-06:00
-    - id: 14
+    - id: 22
+      taskid: TASK-149
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:09:00-06:00
+    - id: 27
+      taskid: TASK-149
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:09:00-06:00
+    - id: 28
       taskid: TASK-149
       phase: test
       gatetype: auto

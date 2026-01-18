@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.030544-06:00
+exported_at: 2026-01-17T22:16:48.256198801-06:00
 type: initiative
 initiative:
     version: 0
@@ -24,42 +24,42 @@ initiative:
     tasks:
         - id: TASK-325
           title: Replace CSS tokens with new design system
-          status: failed
+          status: completed
         - id: TASK-326
           title: Create Badge component with all variants
-          status: planned
+          status: completed
         - id: TASK-327
           title: Create Button component with primary, ghost, and icon variants
-          status: planned
+          status: completed
         - id: TASK-328
           title: Create Card component as base container
-          status: planned
+          status: completed
         - id: TASK-329
           title: Create Stat component for dashboard statistics
-          status: planned
+          status: completed
         - id: TASK-330
           title: Create Progress component for progress bars
-          status: planned
+          status: completed
         - id: TASK-331
           title: Create Toggle component for on/off switches
-          status: planned
+          status: completed
         - id: TASK-332
           title: Create Slider component for range inputs
-          status: planned
+          status: completed
         - id: TASK-333
           title: Create Select dropdown component
-          status: planned
+          status: completed
         - id: TASK-334
           title: Create Input and SearchInput components
-          status: planned
+          status: completed
         - id: TASK-335
           title: Create core component barrel export and documentation
-          status: planned
+          status: completed
         - id: TASK-385
           title: Create Icon component as Lucide wrapper
-          status: planned
+          status: completed
         - id: TASK-386
           title: Create Tooltip component for hover hints
-          status: planned
+          status: completed
     created_at: 2026-01-16T20:54:22-06:00
-    updated_at: 2026-01-16T23:43:19-06:00
+    updated_at: 2026-01-17T08:56:12-06:00

@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.020559-06:00
+exported_at: 2026-01-17T22:16:48.239223028-06:00
 task:
     id: TASK-162
     title: 'Phase 0: Setup accessibility testing with axe-playwright'

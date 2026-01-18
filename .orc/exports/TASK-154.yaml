@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.024329-06:00
+exported_at: 2026-01-17T22:16:48.245656239-06:00
 task:
     id: TASK-154
     title: 'Phase 0: Expand E2E tests for Board interactions (18 tests)'

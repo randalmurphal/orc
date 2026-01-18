@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.911723-06:00
+exported_at: 2026-01-17T22:16:32.245108861-06:00
 task:
     id: TASK-373
     title: Verify Stats View matches mockup using Playwright

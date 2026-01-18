@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.937449-06:00
+exported_at: 2026-01-17T22:16:35.570899819-06:00
 task:
     id: TASK-318
     title: 'Feature: Search within task transcripts'

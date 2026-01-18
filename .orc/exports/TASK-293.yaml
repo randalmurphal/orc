@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.949928-06:00
+exported_at: 2026-01-17T22:16:35.597930616-06:00
 task:
     id: TASK-293
     title: 'Hook: Prevent shell death when worktree is removed while cwd is inside it'

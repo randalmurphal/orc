@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.006899-06:00
+exported_at: 2026-01-17T22:16:48.213773246-06:00
 task:
     id: TASK-199
     title: 'Bug: Blocker check doesn''t recognize ''finished'' status as complete'
@@ -326,6 +326,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T22:20:45-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:20:45-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:20:45-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:23:50-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:23:50-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -346,6 +366,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T22:25:32-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:25:32-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:25:32-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:26:41-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:26:41-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -363,7 +403,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 161
+    - id: 321
       taskid: TASK-199
       phase: spec
       gatetype: auto
@@ -371,7 +411,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:20:45-06:00
-    - id: 165
+    - id: 322
       taskid: TASK-199
       phase: spec
       gatetype: auto
@@ -379,7 +419,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:20:45-06:00
-    - id: 162
+    - id: 329
+      taskid: TASK-199
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:20:45-06:00
+    - id: 330
+      taskid: TASK-199
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:20:45-06:00
+    - id: 323
       taskid: TASK-199
       phase: implement
       gatetype: auto
@@ -387,7 +443,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:23:50-06:00
-    - id: 166
+    - id: 324
       taskid: TASK-199
       phase: implement
       gatetype: auto
@@ -395,7 +451,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:23:50-06:00
-    - id: 163
+    - id: 331
+      taskid: TASK-199
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:23:50-06:00
+    - id: 332
+      taskid: TASK-199
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:23:50-06:00
+    - id: 325
       taskid: TASK-199
       phase: test
       gatetype: auto
@@ -403,7 +475,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:25:32-06:00
-    - id: 167
+    - id: 326
       taskid: TASK-199
       phase: test
       gatetype: auto
@@ -411,7 +483,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:25:32-06:00
-    - id: 164
+    - id: 333
+      taskid: TASK-199
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:25:32-06:00
+    - id: 334
+      taskid: TASK-199
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:25:32-06:00
+    - id: 327
       taskid: TASK-199
       phase: docs
       gatetype: auto
@@ -419,7 +507,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:26:41-06:00
-    - id: 168
+    - id: 328
+      taskid: TASK-199
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:26:41-06:00
+    - id: 335
+      taskid: TASK-199
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:26:41-06:00
+    - id: 336
       taskid: TASK-199
       phase: docs
       gatetype: auto

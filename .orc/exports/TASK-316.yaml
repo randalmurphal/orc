@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.937944-06:00
+exported_at: 2026-01-17T22:16:35.572121066-06:00
 task:
     id: TASK-316
     title: 'UX: Board view - collapse empty columns and improve horizontal space'

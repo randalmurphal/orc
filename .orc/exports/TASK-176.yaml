@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.014852-06:00
+exported_at: 2026-01-17T22:16:48.228940189-06:00
 task:
     id: TASK-176
     title: 'Phase 2: React - All modal components'
@@ -279,6 +279,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T15:55:09-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T15:55:09-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T15:55:09-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T16:45:35-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T16:45:35-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -299,6 +319,16 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T18:48:03-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T18:48:03-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T18:48:03-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -309,6 +339,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T18:50:42-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T18:50:42-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T18:50:42-06:00
+        - phase: validate
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T19:04:43-06:00
+        - phase: validate
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T19:04:43-06:00
         - phase: validate
           gate_type: auto
           approved: true
@@ -326,7 +376,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 67
+    - id: 133
       taskid: TASK-176
       phase: spec
       gatetype: auto
@@ -334,7 +384,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T15:55:09-06:00
-    - id: 72
+    - id: 134
       taskid: TASK-176
       phase: spec
       gatetype: auto
@@ -342,7 +392,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T15:55:09-06:00
-    - id: 68
+    - id: 143
+      taskid: TASK-176
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T15:55:09-06:00
+    - id: 144
+      taskid: TASK-176
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T15:55:09-06:00
+    - id: 135
       taskid: TASK-176
       phase: implement
       gatetype: auto
@@ -350,7 +416,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T16:45:35-06:00
-    - id: 73
+    - id: 136
       taskid: TASK-176
       phase: implement
       gatetype: auto
@@ -358,7 +424,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T16:45:35-06:00
-    - id: 69
+    - id: 145
+      taskid: TASK-176
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T16:45:35-06:00
+    - id: 146
+      taskid: TASK-176
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T16:45:35-06:00
+    - id: 137
       taskid: TASK-176
       phase: test
       gatetype: auto
@@ -366,7 +448,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T18:48:03-06:00
-    - id: 74
+    - id: 138
       taskid: TASK-176
       phase: test
       gatetype: auto
@@ -374,7 +456,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T18:48:03-06:00
-    - id: 70
+    - id: 147
+      taskid: TASK-176
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T18:48:03-06:00
+    - id: 148
+      taskid: TASK-176
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T18:48:03-06:00
+    - id: 139
       taskid: TASK-176
       phase: docs
       gatetype: auto
@@ -382,7 +480,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T18:50:42-06:00
-    - id: 75
+    - id: 140
       taskid: TASK-176
       phase: docs
       gatetype: auto
@@ -390,7 +488,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T18:50:42-06:00
-    - id: 71
+    - id: 149
+      taskid: TASK-176
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T18:50:42-06:00
+    - id: 150
+      taskid: TASK-176
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T18:50:42-06:00
+    - id: 141
       taskid: TASK-176
       phase: validate
       gatetype: auto
@@ -398,7 +512,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T19:04:43-06:00
-    - id: 76
+    - id: 142
+      taskid: TASK-176
+      phase: validate
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T19:04:43-06:00
+    - id: 151
+      taskid: TASK-176
+      phase: validate
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T19:04:43-06:00
+    - id: 152
       taskid: TASK-176
       phase: validate
       gatetype: auto

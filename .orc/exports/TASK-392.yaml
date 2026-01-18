@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.895849-06:00
+exported_at: 2026-01-17T22:16:32.215131085-06:00
 task:
     id: TASK-392
     title: Create event_log database schema and migration

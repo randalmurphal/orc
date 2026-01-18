@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.923631-06:00
+exported_at: 2026-01-17T22:16:32.270131974-06:00
 task:
     id: TASK-345
     title: Create RunningCard component with expanded task view
@@ -44,7 +44,8 @@ task:
         - web/src/components/board/RunningCard.tsx
         - web/src/components/board/RunningCard.css
     weight: medium
-    status: planned
+    status: failed
+    current_phase: implement
     branch: orc/TASK-345
     queue: active
     priority: critical
@@ -54,6 +55,7 @@ task:
         - TASK-342
     created_at: 2026-01-16T20:58:39-06:00
     updated_at: 0001-01-01T00:00:00Z
+    started_at: 2026-01-17T19:03:52-06:00
 plan:
     version: 1
     task_id: TASK-345
@@ -175,7 +177,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 3c99cdd77b57733b61e31a533a843d7bb57a2ea0
         - id: implement
           name: implement
           prompt: |
@@ -225,7 +228,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 7a3a0c6be6505963754ad8477652483efb637142
         - id: review
           name: review
           prompt: ""
@@ -316,17 +320,2791 @@ plan:
             type: auto
           checkpoint: true
           status: pending
+spec: |-
+    **Commit**: 6c1c6a39
+    <phase_complete>true</phase_complete>
 state:
     task_id: TASK-345
-    current_phase: ""
+    current_phase: implement
     current_iteration: 0
-    status: pending
-    started_at: 0001-01-01T00:00:00Z
+    status: failed
+    started_at: 2026-01-17T19:03:52-06:00
     updated_at: 0001-01-01T00:00:00Z
-    phases: {}
+    phases:
+        implement:
+            status: failed
+            started_at: 2026-01-17T19:26:47-06:00
+            iterations: 3
+            commit_sha: 7a3a0c6be6505963754ad8477652483efb637142
+            error: 'node execute: execute: claude completion: claude complete: exit status 1: '
+            tokens:
+                input_tokens: 7210069
+                output_tokens: 32686
+                total_tokens: 0
+        review:
+            status: pending
+            started_at: 2026-01-17T19:25:17-06:00
+            iterations: 2
+            tokens:
+                input_tokens: 1429465
+                output_tokens: 17989
+                total_tokens: 0
+        spec:
+            status: completed
+            started_at: 2026-01-17T19:03:57-06:00
+            completed_at: 2026-01-17T19:05:21-06:00
+            iterations: 1
+            commit_sha: 3c99cdd77b57733b61e31a533a843d7bb57a2ea0
+            tokens:
+                input_tokens: 836136
+                output_tokens: 3370
+                total_tokens: 0
+    gates:
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:05:21-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:10:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:18:04-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:25:17-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:25:17-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:25:17-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:25:17-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T19:25:17-06:00
     tokens:
         input_tokens: 0
         output_tokens: 0
         total_tokens: 0
     cost:
         total_cost_usd: 0
+    retry_context:
+        from_phase: review
+        to_phase: implement
+        reason: 'Phase review failed: node execute: execute: claude completion: claude complete: exit status 1: '
+        failure_output: 'node execute: execute: claude completion: claude complete: exit status 1: '
+        context_file: .orc/tasks/retry-context-review-3.md
+        attempt: 3
+        timestamp: 2026-01-17T19:26:47.559094625-06:00
+transcripts:
+    - id: 511
+      taskid: TASK-345
+      phase: spec
+      iteration: 1
+      role: combined
+      content: |
+        # spec - Iteration 1
+
+        ## Prompt
+
+        Create a specification for this task:
+
+        **Task**: Create RunningCard component with expanded task view
+        **Category**: feature
+        **Description**: Create an expanded RunningCard component for actively executing tasks with pipeline visualization and live output.
+
+        REFERENCE FILES:
+        - example_ui/board.html (.running-card class, lines 371-420)
+        - example_ui/Screenshot_20260116_201804.png (running column shows expanded cards)
+
+        SUCCESS CRITERIA:
+        1. RunningCard component at web/src/components/board/RunningCard.tsx
+        2. Expanded card layout:
+           - Header: Task ID (bright monospace), title, initiative badge, execution timer
+           - Pipeline component showing current phase progress
+           - Expandable output section (last N lines of transcript)
+        3. Visual specs:
+           - Background: gradient from var(--bg-card) to var(--primary-dim)
+           - Border: 1px solid with primary tint
+           - Glow effect: box-shadow with var(--primary-glow)
+           - Border-radius: 10px
+           - Padding: 16px
+        4. Output section:
+           - Collapsible with expand/collapse button
+           - Scrollable content area
+           - Syntax highlighting for code output
+           - Color coding: success (green), error (red), info (default)
+        5. Real-time updates via WebSocket subscription
+        6. Props:
+           - task: Task object
+           - state: TaskState object
+           - expanded?: boolean
+           - onToggleExpand?: () => void
+        7. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Output truncates to last 50 lines for performance
+        - Handle rapid updates without flicker
+        - Smooth scroll to bottom on new output
+
+        FILES TO CREATE:
+        - web/src/components/board/RunningCard.tsx
+        - web/src/components/board/RunningCard.css
+
+        ## Initiative Context
+
+        This task is part of **UI Redesign: Board View** (INIT-017).
+
+        ### Vision
+
+        Build the Board view as the primary task management interface, replacing web/src/pages/Board.tsx.
+
+        Layout (within AppShell):
+        - Two-column board: Queue (flex: 1, min-width: 280px) | Running (420px fixed)
+        - Right panel sections: Blocked, Decisions, Claude Config, Files Changed, Completed
+
+        Queue Column:
+        - Initiative swimlanes with collapse/expand (Swimlane component)
+        - Swimlane header: emoji icon, name, progress bar, task count, chevron
+        - TaskCard (compact): position number, title, task ID (monospace), priority badge
+        - '+N more' truncation for long lists
+
+        Running Column (420px):
+        - RunningCard with gradient background (bg-card -> primary-dim at bottom)
+        - Header: task ID (primary color), title, initiative tag, phase name, elapsed time
+        - Pipeline: 5-step visualization (Plan, Code, Test, Review, Done) with phase indicator
+        - Expandable output log (monospace, dark background, click card to toggle)
+        - Animation: pulse on active column, progress-grow on current phase
+
+        Right Panel Sections:
+        - BlockedPanel: tasks waiting for dependencies, Skip/Force action buttons
+        - DecisionsPanel: pending decisions with option buttons, real-time via WebSocket
+        - ConfigPanel: links to Slash Commands, CLAUDE.md, MCP Servers, Permissions
+        - FilesPanel: changed files with M/A/D status badges
+        - CompletedPanel: count summary with optional details (collapsible)
+
+        Data: Pull from taskStore, group by initiative for swimlanes, filter by status for columns
+        Reference: example_ui/board.html, example_ui/Screenshot_20260116_201804.png
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Instructions
+
+        Create a clear, actionable specification that defines exactly what needs to be done
+        and how to verify it's complete.
+
+        ### 1. Problem Statement
+        Summarize what needs to be solved in 1-2 sentences.
+
+        ### 2. Success Criteria (REQUIRED)
+        Define specific, testable criteria as checkboxes:
+        - Each criterion must be verifiable (file exists, test passes, API returns X)
+        - No vague language ("works well", "is fast")
+        - Include both functional and quality criteria
+
+        ### 3. Testing Requirements (REQUIRED)
+        Specify what tests must pass:
+        - [ ] Unit test: [specific test description]
+        - [ ] Integration test: [if applicable]
+        - [ ] E2E test: [if UI changes]
+
+        ### 4. Scope
+        Define boundaries to prevent scope creep:
+        - **In Scope**: What will be implemented
+        - **Out of Scope**: What will NOT be implemented
+
+        ### 5. Technical Approach
+        Brief plan for implementation:
+        - Files to modify
+        - Key changes in each file
+
+        ### 6. Category-Specific Analysis
+
+        **If this is a BUG (category=bug):**
+        - Reproduction Steps: Exact steps to trigger the bug
+        - Current Behavior: What happens now (the bug)
+        - Expected Behavior: What should happen
+        - Root Cause: Where the bug originates (if known)
+        - Verification: How to confirm the fix works
+
+        **If this is a FEATURE (category=feature):**
+        - User Story: As a [user], I want [feature] so that [benefit]
+        - Acceptance Criteria: Specific conditions for feature acceptance
+
+        **If this is a REFACTOR (category=refactor):**
+        - Before Pattern: Current code/architecture
+        - After Pattern: Target code/architecture
+        - Risk Assessment: What could break
+
+        ## Output Format
+
+        Wrap your spec in artifact tags:
+
+        <artifact>
+        # Specification: Create RunningCard component with expanded task view
+
+        ## Problem Statement
+        [1-2 sentences]
+
+        ## Success Criteria
+        - [ ] [Criterion 1]
+        - [ ] [Criterion 2]
+
+        ## Testing Requirements
+        - [ ] [Test 1]
+        - [ ] [Test 2]
+
+        ## Scope
+        ### In Scope
+        - [Item]
+        ### Out of Scope
+        - [Item]
+
+        ## Technical Approach
+        [Brief implementation plan]
+
+        ### Files to Modify
+        - [file]: [change]
+
+        ## [Category-Specific Section]
+        [Include appropriate section based on category]
+        </artifact>
+
+        After completing the spec, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-345: spec - completed"
+        ```
+
+        Then output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+        If blocked (requirements unclear):
+        ```
+        <phase_blocked>
+        reason: [what's unclear]
+        needs: [what clarification is needed]
+        </phase_blocked>
+        ```
+
+
+        ## Response
+
+        **Commit**: 6c1c6a39
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 836136 input, 3370 output, 66036 cache_creation, 767712 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768698321
+    - id: 517
+      taskid: TASK-345
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Create RunningCard component with expanded task view
+        **Category**: feature
+
+        ## Initiative Context
+
+        This task is part of **UI Redesign: Board View** (INIT-017).
+
+        ### Vision
+
+        Build the Board view as the primary task management interface, replacing web/src/pages/Board.tsx.
+
+        Layout (within AppShell):
+        - Two-column board: Queue (flex: 1, min-width: 280px) | Running (420px fixed)
+        - Right panel sections: Blocked, Decisions, Claude Config, Files Changed, Completed
+
+        Queue Column:
+        - Initiative swimlanes with collapse/expand (Swimlane component)
+        - Swimlane header: emoji icon, name, progress bar, task count, chevron
+        - TaskCard (compact): position number, title, task ID (monospace), priority badge
+        - '+N more' truncation for long lists
+
+        Running Column (420px):
+        - RunningCard with gradient background (bg-card -> primary-dim at bottom)
+        - Header: task ID (primary color), title, initiative tag, phase name, elapsed time
+        - Pipeline: 5-step visualization (Plan, Code, Test, Review, Done) with phase indicator
+        - Expandable output log (monospace, dark background, click card to toggle)
+        - Animation: pulse on active column, progress-grow on current phase
+
+        Right Panel Sections:
+        - BlockedPanel: tasks waiting for dependencies, Skip/Force action buttons
+        - DecisionsPanel: pending decisions with option buttons, real-time via WebSocket
+        - ConfigPanel: links to Slash Commands, CLAUDE.md, MCP Servers, Permissions
+        - FilesPanel: changed files with M/A/D status badges
+        - CompletedPanel: count summary with optional details (collapsible)
+
+        Data: Pull from taskStore, group by initiative for swimlanes, filter by status for columns
+        Reference: example_ui/board.html, example_ui/Screenshot_20260116_201804.png
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Specification
+
+        **Commit**: 6c1c6a39
+        <phase_complete>true</phase_complete>
+
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-345: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        Implementation complete. Let me verify the success criteria from the spec are all met:
+
+        **Commit**: 2e1382e2
+
+        ## Success Criteria Verification
+
+        | Criteria | Status |
+        |----------|--------|
+        | `web/src/components/board/RunningCard.tsx` exists | ✅ |
+        | `web/src/components/board/RunningCard.css` exists | ✅ |
+        | Props interface matches spec (task, state, expanded, onToggleExpand) | ✅ |
+        | Task ID in primary-bright monospace (10px) | ✅ |
+        | Title (13px, 600 weight, max 2 lines) | ✅ |
+        | Initiative badge when `task.initiative_id` exists | ✅ |
+        | Current phase name (uppercase, 9px) | ✅ |
+        | Execution timer (MM:SS, 18px monospace) | ✅ |
+        | Uses existing `Pipeline` component | ✅ |
+        | Derives phases from `getPhaseConfig(task.weight)` | ✅ |
+        | Background gradient (bg-card -> primary-dim) | ✅ |
+        | Border with purple tint | ✅ |
+        | Border-radius: 10px | ✅ |
+        | Padding: 14px | ✅ |
+        | Box-shadow glow when expanded | ✅ |
+        | Output hidden by default | ✅ |
+        | Output shown when expanded | ✅ |
+        | Click toggles via onToggleExpand | ✅ |
+        | Max-height: 100px with scroll | ✅ |
+        | Color-coded output lines (.success, .info, .dim) | ✅ |
+        | Timer calculates from state.started_at | ✅ |
+        | `npm run typecheck` exits 0 | ✅ |
+
+        ## Testing Requirements
+
+        | Test | Status |
+        |------|--------|
+        | RunningCard renders with all required props | ✅ |
+        | Timer displays correct elapsed time format (MM:SS) | ✅ |
+        | Pipeline shows correct phase states | ✅ |
+        | Initiative badge renders when initiative_id present, hidden when absent | ✅ |
+        | Output section visibility toggles with expanded prop | ✅ |
+        | Click handler calls onToggleExpand | ✅ |
+        | Output truncates to last 50 lines (truncateOutput function) | ✅ |
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 3215957 input, 15157 output, 86721 cache_creation, 3119744 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768698619
+    - id: 521
+      taskid: TASK-345
+      phase: review
+      iteration: 1
+      role: combined
+      content: |
+        # review - Iteration 1
+
+        ## Prompt
+
+        # Multi-Agent Code Review Phase
+
+        You are the review coordinator orchestrating a comprehensive multi-perspective code review.
+
+        ## Context
+
+        **Task ID**: TASK-345
+        **Task**: Create RunningCard component with expanded task view
+        **Weight**: medium
+        **Category**: feature
+        **Review Round**: 1
+
+        ## Initiative Context
+
+        This task is part of **UI Redesign: Board View** (INIT-017).
+
+        ### Vision
+
+        Build the Board view as the primary task management interface, replacing web/src/pages/Board.tsx.
+
+        Layout (within AppShell):
+        - Two-column board: Queue (flex: 1, min-width: 280px) | Running (420px fixed)
+        - Right panel sections: Blocked, Decisions, Claude Config, Files Changed, Completed
+
+        Queue Column:
+        - Initiative swimlanes with collapse/expand (Swimlane component)
+        - Swimlane header: emoji icon, name, progress bar, task count, chevron
+        - TaskCard (compact): position number, title, task ID (monospace), priority badge
+        - '+N more' truncation for long lists
+
+        Running Column (420px):
+        - RunningCard with gradient background (bg-card -> primary-dim at bottom)
+        - Header: task ID (primary color), title, initiative tag, phase name, elapsed time
+        - Pipeline: 5-step visualization (Plan, Code, Test, Review, Done) with phase indicator
+        - Expandable output log (monospace, dark background, click card to toggle)
+        - Animation: pulse on active column, progress-grow on current phase
+
+        Right Panel Sections:
+        - BlockedPanel: tasks waiting for dependencies, Skip/Force action buttons
+        - DecisionsPanel: pending decisions with option buttons, real-time via WebSocket
+        - ConfigPanel: links to Slash Commands, CLAUDE.md, MCP Servers, Permissions
+        - FilesPanel: changed files with M/A/D status badges
+        - CompletedPanel: count summary with optional details (collapsible)
+
+        Data: Pull from taskStore, group by initiative for swimlanes, filter by status for columns
+        Reference: example_ui/board.html, example_ui/Screenshot_20260116_201804.png
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Worktree Safety
+
+        You are working in an **isolated git worktree**.
+
+        | Property | Value |
+        |----------|-------|
+        | Worktree Path | `/home/randy/repos/orc/.orc/worktrees/orc-TASK-345` |
+        | Task Branch | `orc/TASK-345` |
+        | Target Branch | `main` |
+
+        **CRITICAL SAFETY RULES:**
+        - All commits go to branch `orc/TASK-345`
+        - **DO NOT** push to `main` or any protected branch
+        - **DO NOT** checkout other branches - stay on `orc/TASK-345`
+        - Merging happens via PR after all phases complete
+
+        ## Specification
+
+        **Commit**: 6c1c6a39
+        <phase_complete>true</phase_complete>
+
+        ## Implementation Summary
+
+        **Commit**: 6c1c6a39
+        <phase_complete>true</phase_complete>
+
+
+
+        ---
+
+        ## Round 1: Multi-Agent Review
+
+
+
+        ### Step 1: Gather Changed Files
+
+        First, identify what to review:
+
+        ```bash
+        # Get list of changed files
+        git diff --name-only origin/main...HEAD
+
+        # Get summary of changes
+        git diff --stat origin/main...HEAD
+        ```
+
+        ### Step 2: Spawn Reviewer Agents
+
+        **CRITICAL**: You MUST spawn ALL 5 reviewer agents in a SINGLE response using the Task tool. Do NOT wait for one to complete before spawning the next. All agents run in parallel.
+
+        Use the Task tool with these exact configurations:
+
+        ---
+
+        #### Agent 1: Correctness Reviewer (model: opus)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: opus
+        - description: "Review correctness and spec compliance"
+        - prompt: |
+            You are reviewing code for CORRECTNESS and SPEC COMPLIANCE.
+
+            ## Task Context
+            - Task: Create RunningCard component with expanded task view
+            - Task ID: TASK-345
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-345
+
+            ## Specification
+            **Commit**: 6c1c6a39
+        <phase_complete>true</phase_complete>
+
+            ## Your Focus
+            1. Does the implementation satisfy ALL success criteria from the spec?
+            2. Are there any logic errors or bugs?
+            3. Are edge cases from the spec handled correctly?
+            4. Is behavior correct for both happy path AND error paths?
+            5. Are all requirements implemented (no missing features)?
+            6. Does the implementation match the spec's technical approach?
+
+            ## Process
+            1. Read each changed file: `git diff --name-only origin/main...HEAD`
+            2. For each file, check against spec requirements
+            3. Verify error handling paths work correctly
+            4. Test boundary conditions mentioned in spec
+
+            ## Output Format (REQUIRED)
+
+            Output your findings in this EXACT XML format:
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>correctness</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+                <file>path/to/file2.go</file>
+              </files_reviewed>
+              <spec_compliance>
+                <criterion id="SC-1" status="pass|fail">Notes on compliance</criterion>
+                <criterion id="SC-2" status="pass|fail">Notes on compliance</criterion>
+              </spec_compliance>
+              <issues>
+                <issue id="COR-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Detailed description of the correctness issue</description>
+                  <spec_violation>Which spec criterion is violated (if any)</spec_violation>
+                  <suggestion>How to fix it</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall correctness assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+
+            If no issues found, output empty <issues></issues> but still include spec_compliance.
+        ```
+
+        ---
+
+        #### Agent 2: Security Reviewer (model: opus)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Security-Auditor
+        - model: opus
+        - description: "Review security vulnerabilities"
+        - prompt: |
+            You are reviewing code for SECURITY VULNERABILITIES.
+
+            ## Task Context
+            - Task: Create RunningCard component with expanded task view
+            - Task ID: TASK-345
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-345
+
+            ## Your Focus - OWASP Top 10 and Common Vulnerabilities
+            1. **Injection**: SQL, command, XSS, template injection
+            2. **Broken Authentication**: Session management, credential exposure
+            3. **Sensitive Data Exposure**: Secrets in code, logging PII, unencrypted data
+            4. **Security Misconfigurations**: Hardcoded credentials, debug enabled
+            5. **Insecure Dependencies**: Known vulnerable packages
+            6. **Input Validation**: Missing or inadequate validation
+            7. **Cryptographic Weaknesses**: Weak algorithms, improper key management
+            8. **Error Handling**: Information leakage through errors
+
+            ## Process
+            1. Read each changed file
+            2. Check for common vulnerability patterns
+            3. Verify input validation on all external inputs
+            4. Check for secrets/credentials in code
+            5. Review authentication/authorization logic
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>security</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+              </files_reviewed>
+              <issues>
+                <issue id="SEC-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Security vulnerability description</description>
+                  <owasp_category>A01:2021-Broken Access Control</owasp_category>
+                  <cwe>CWE-89</cwe>
+                  <suggestion>Remediation steps</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall security assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        #### Agent 3: Architecture Reviewer (model: haiku)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: haiku
+        - description: "Review architecture and maintainability"
+        - prompt: |
+            You are reviewing code for ARCHITECTURE and MAINTAINABILITY.
+
+            ## Task Context
+            - Task: Create RunningCard component with expanded task view
+            - Task ID: TASK-345
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-345
+
+            ## Your Focus
+            1. Does it follow existing project patterns? (Check CLAUDE.md)
+            2. Is the code well-organized and modular?
+            3. Are abstractions appropriate (not over/under-engineered)?
+            4. Is error handling consistent with project conventions?
+            5. Are there code smells (god classes, feature envy, etc.)?
+            6. Is the code testable?
+            7. Are dependencies appropriate?
+            8. Is naming clear and consistent?
+
+            ## Process
+            1. Read CLAUDE.md to understand project patterns
+            2. Read each changed file
+            3. Compare against existing code patterns
+            4. Check for code smells and anti-patterns
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>architecture</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+              </files_reviewed>
+              <patterns_checked>
+                <pattern name="error-wrapping" followed="true|false">Notes</pattern>
+                <pattern name="functional-options" followed="true|false">Notes</pattern>
+              </patterns_checked>
+              <issues>
+                <issue id="ARCH-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Architecture/maintainability concern</description>
+                  <pattern_violated>Which project pattern is violated</pattern_violated>
+                  <suggestion>How to improve</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall architecture assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        #### Agent 4: Performance Reviewer (model: haiku)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: haiku
+        - description: "Review performance issues"
+        - prompt: |
+            You are reviewing code for PERFORMANCE ISSUES.
+
+            ## Task Context
+            - Task: Create RunningCard component with expanded task view
+            - Task ID: TASK-345
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-345
+
+            ## Your Focus
+            1. N+1 query patterns (database calls in loops)
+            2. Unbounded iterations/recursion
+            3. Memory leaks or excessive allocations
+            4. Missing caching opportunities
+            5. Blocking operations in hot paths
+            6. Inefficient algorithms (O(n^2) when O(n) possible)
+            7. Resource leaks (unclosed files, connections, channels)
+            8. Missing pagination/limits on queries
+
+            ## Process
+            1. Read each changed file
+            2. Look for loops with I/O operations inside
+            3. Check for proper resource cleanup (defer, close)
+            4. Identify algorithmic complexity
+            5. Check for unbounded data structures
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>performance</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+              </files_reviewed>
+              <issues>
+                <issue id="PERF-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Performance issue description</description>
+                  <impact>Expected performance impact (e.g., O(n^2) instead of O(n))</impact>
+                  <suggestion>Optimization approach</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall performance assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        #### Agent 5: Integration Reviewer (model: haiku)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: haiku
+        - description: "Review integration and linting"
+        - prompt: |
+            You are reviewing code for INTEGRATION issues, MERGE CONFLICTS, and LINTING.
+
+            ## Task Context
+            - Task: Create RunningCard component with expanded task view
+            - Task ID: TASK-345
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-345
+            - Task Branch: orc/TASK-345
+            - Target Branch: main
+
+            ## Your Focus
+
+            ### 1. Merge Conflict Detection (CRITICAL)
+            Run this FIRST:
+            ```bash
+            git fetch origin main
+            git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main
+            ```
+            If output shows conflicts, document each conflicted file.
+
+            ### 2. Linting Compliance (CRITICAL)
+            Run the appropriate linter:
+            ```bash
+            # For Go projects
+            golangci-lint run ./... 2>&1 || go vet ./...
+
+            # For Node/TypeScript projects
+            npm run typecheck 2>&1
+            npm run lint 2>&1
+            ```
+            Document ALL linting errors - these are BLOCKING.
+
+            ### 3. Build Verification
+            ```bash
+            # For Go
+            go build ./...
+
+            # For Node
+            npm run build
+            ```
+
+            ### 4. API/Integration Compatibility
+            - Breaking changes to public APIs?
+            - Missing migrations for schema changes?
+            - Config changes documented?
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>integration</reviewer>
+              <merge_status>
+                <target_branch>main</target_branch>
+                <conflicts_detected>true|false</conflicts_detected>
+                <conflicted_files>
+                  <file path="path/to/file.go">Description of conflict</file>
+                </conflicted_files>
+              </merge_status>
+              <lint_status>
+                <tool>golangci-lint|eslint|ruff</tool>
+                <passed>true|false</passed>
+                <error_count>N</error_count>
+                <errors>
+                  <error file="path/to/file.go" line="123">Error message</error>
+                </errors>
+              </lint_status>
+              <build_status>
+                <passed>true|false</passed>
+                <errors>Build error messages if any</errors>
+              </build_status>
+              <issues>
+                <issue id="INT-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Integration issue description</description>
+                  <suggestion>How to resolve</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall integration assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        ### Step 3: Aggregate and Validate Findings
+
+        After ALL 5 agents complete, collect and process their findings:
+
+        1. **Parse all XML findings** from each agent
+        2. **Deduplicate issues** - Same file/line with similar description = single issue
+        3. **Validate findings** - Remove obvious false positives:
+           - Issues in unchanged code (not part of this task)
+           - Theoretical issues with no practical impact
+           - Already-fixed issues
+        4. **Assign final severity**:
+           - `blocking`: Security vulns, bugs, spec violations, merge conflicts, lint errors
+           - `should-fix`: Performance issues, maintainability problems, missing error handling
+           - `nice-to-have`: Better naming, comments, minor refactors
+
+        ### Step 4: Create Aggregated Review Report
+
+        ```xml
+        <review_aggregate>
+          <round>1</round>
+          <task_id>TASK-345</task_id>
+          <summary>
+            <total_issues>[count]</total_issues>
+            <blocking>[count]</blocking>
+            <should_fix>[count]</should_fix>
+            <nice_to_have>[count]</nice_to_have>
+            <duplicates_removed>[count]</duplicates_removed>
+            <false_positives_removed>[count]</false_positives_removed>
+          </summary>
+
+          <merge_status>
+            <conflicts_detected>true|false</conflicts_detected>
+            <conflicted_files>
+              <file>path/to/file.go</file>
+            </conflicted_files>
+          </merge_status>
+
+          <lint_status>
+            <passed>true|false</passed>
+            <error_count>[count]</error_count>
+          </lint_status>
+
+          <spec_compliance>
+            <criterion id="SC-1" status="pass|fail">Notes</criterion>
+            <criterion id="SC-2" status="pass|fail">Notes</criterion>
+          </spec_compliance>
+
+          <validated_issues>
+            <issue id="REV-001" original_id="SEC-001" severity="blocking">
+              <reviewer>security</reviewer>
+              <file>path/to/file.go</file>
+              <line>123</line>
+              <title>SQL Injection vulnerability</title>
+              <description>User input passed directly to query</description>
+              <suggestion>Use parameterized queries</suggestion>
+            </issue>
+            <!-- More validated issues... -->
+          </validated_issues>
+
+          <nice_to_have_issues>
+            <!-- Issues that don't block but would be nice to fix -->
+          </nice_to_have_issues>
+
+          <decision>pass|fail</decision>
+          <reason>Explanation of decision</reason>
+        </review_aggregate>
+        ```
+
+        ---
+
+        ### Pass/Fail Criteria
+
+        **PASS** if ALL of the following are true:
+        - Zero `blocking` issues
+        - Zero `should-fix` issues
+        - No merge conflicts with target branch
+        - Linting passes (zero errors)
+        - All spec success criteria satisfied
+
+        **FAIL** if ANY of the following are true:
+        - One or more `blocking` issues
+        - One or more `should-fix` issues
+        - Merge conflicts exist with target branch
+        - Linting errors exist
+        - Spec success criteria not satisfied
+
+        ---
+
+        ## Phase Completion
+
+        ### If PASS (Round 1):
+
+        Commit and complete:
+
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-345: review - passed
+
+        Phase: review
+        Round: 1
+        Reviewers: 5 (correctness, security, architecture, performance, integration)
+        Issues: 0 blocking, 0 should-fix
+        "
+        ```
+
+        Then output:
+
+        ```
+        ### Review Summary - PASSED
+
+        **Round**: 1
+        **Reviewers**: 5 (correctness, security, architecture, performance, integration)
+
+        | Category | Count |
+        |----------|-------|
+        | Blocking | 0 |
+        | Should-Fix | 0 |
+        | Nice-to-Have | [count] |
+
+        **Merge Status**: Clean (no conflicts with main)
+        **Lint Status**: Passed
+        **Spec Compliance**: All criteria satisfied
+
+        **Nice-to-Have Notes** (not blocking):
+        [List any nice-to-have suggestions for future consideration]
+
+        **Commit**: [SHA]
+
+        <phase_complete>true</phase_complete>
+        ```
+
+        ### If FAIL (Round 1):
+
+        Do NOT output `<phase_complete>`. Create detailed feedback for implement phase:
+
+        ```
+        ### Review Summary - FAILED
+
+        **Round**: 1
+        **Issues Requiring Fix**:
+
+        | Severity | Count |
+        |----------|-------|
+        | Blocking | [count] |
+        | Should-Fix | [count] |
+
+        <review_findings_for_implement>
+          <round>1</round>
+          <blocking_issues>
+            <issue id="REV-001">
+              <file>path/to/file.go</file>
+              <line>45</line>
+              <reviewer>security</reviewer>
+              <title>SQL Injection vulnerability</title>
+              <description>User input concatenated into SQL query without sanitization</description>
+              <fix_required>Use parameterized queries: db.Query("SELECT * FROM users WHERE id = ?", userID)</fix_required>
+            </issue>
+          </blocking_issues>
+
+          <should_fix_issues>
+            <issue id="REV-005">
+              <file>path/to/handler.go</file>
+              <line>123</line>
+              <reviewer>performance</reviewer>
+              <title>N+1 query in loop</title>
+              <description>Database query inside for loop causes N+1 problem</description>
+              <fix_required>Batch the query outside the loop using IN clause</fix_required>
+            </issue>
+          </should_fix_issues>
+
+          <merge_conflicts>
+            <file path="config/settings.go">Upstream added new config field that conflicts with your changes</file>
+          </merge_conflicts>
+
+          <lint_errors>
+            <error file="internal/task/task.go" line="89">errcheck: error return value not checked</error>
+            <error file="internal/api/handler.go" line="156">unused variable 'ctx'</error>
+          </lint_errors>
+
+          <spec_failures>
+            <criterion id="SC-2">Error handling not implemented for network timeout case</criterion>
+          </spec_failures>
+        </review_findings_for_implement>
+
+        The implement phase will receive this feedback as  and must fix all issues before review can pass.
+
+        <phase_blocked>
+        reason: Review found [X] blocking and [Y] should-fix issues that must be addressed
+        needs: Fix all issues listed above, then review will re-run automatically
+        </phase_blocked>
+        ```
+
+
+
+        ---
+
+        ## Round 2: Verification Review
+
+
+
+        ---
+
+        ## Severity Reference
+
+        | Severity | Examples | Action |
+        |----------|----------|--------|
+        | `blocking` | SQL injection, auth bypass, spec violations, merge conflicts, lint errors, missing required functionality | MUST fix before merge |
+        | `should-fix` | N+1 queries, memory leaks, missing error handling, code duplication, poor naming | MUST fix before merge |
+        | `nice-to-have` | Additional comments, minor refactors, style preferences | Note for future, doesn't block |
+
+        **Golden Rule**: When in doubt, classify as `should-fix`. It's better to fix something that could have been skipped than to skip something that causes problems later.
+
+
+        ## Response
+
+        <phase_blocked>
+        reason: Review found 0 blocking and 4 should-fix issues that must be addressed
+        needs: Fix all issues listed above (REV-001 through REV-004), then review will re-run automatically
+        </phase_blocked>
+
+        ---
+        Tokens: 602208 input, 8223 output, 40409 cache_creation, 561786 cache_read
+        Complete: false
+        Blocked: true
+      timestamp: 1768698848
+    - id: 524
+      taskid: TASK-345
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Create RunningCard component with expanded task view
+        **Category**: feature
+
+        ## Initiative Context
+
+        This task is part of **UI Redesign: Board View** (INIT-017).
+
+        ### Vision
+
+        Build the Board view as the primary task management interface, replacing web/src/pages/Board.tsx.
+
+        Layout (within AppShell):
+        - Two-column board: Queue (flex: 1, min-width: 280px) | Running (420px fixed)
+        - Right panel sections: Blocked, Decisions, Claude Config, Files Changed, Completed
+
+        Queue Column:
+        - Initiative swimlanes with collapse/expand (Swimlane component)
+        - Swimlane header: emoji icon, name, progress bar, task count, chevron
+        - TaskCard (compact): position number, title, task ID (monospace), priority badge
+        - '+N more' truncation for long lists
+
+        Running Column (420px):
+        - RunningCard with gradient background (bg-card -> primary-dim at bottom)
+        - Header: task ID (primary color), title, initiative tag, phase name, elapsed time
+        - Pipeline: 5-step visualization (Plan, Code, Test, Review, Done) with phase indicator
+        - Expandable output log (monospace, dark background, click card to toggle)
+        - Animation: pulse on active column, progress-grow on current phase
+
+        Right Panel Sections:
+        - BlockedPanel: tasks waiting for dependencies, Skip/Force action buttons
+        - DecisionsPanel: pending decisions with option buttons, real-time via WebSocket
+        - ConfigPanel: links to Slash Commands, CLAUDE.md, MCP Servers, Permissions
+        - FilesPanel: changed files with M/A/D status badges
+        - CompletedPanel: count summary with optional details (collapsible)
+
+        Data: Pull from taskStore, group by initiative for swimlanes, filter by status for columns
+        Reference: example_ui/board.html, example_ui/Screenshot_20260116_201804.png
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Specification
+
+        **Commit**: 6c1c6a39
+        <phase_complete>true</phase_complete>
+
+        ## Retry Context
+
+        This phase is being re-executed due to a failure in a later phase.
+
+        **What happened:**
+        - Phase "review" failed/was rejected
+        - Reason: Phase review failed: phase blocked: needs clarification
+        - This is retry attempt #1
+
+        **What to fix:**
+        Please address the issues that caused the later phase to fail. The failure output is below:
+
+        ---
+        <phase_blocked>
+        reason: Review found 0 blocking and 4 should-fix issues that must be addressed
+        needs: Fix all issues listed above (REV-001 through REV-004), then review will re-run automatically
+        </phase_blocked>
+        ---
+
+        Focus on fixing the root cause of these issues in this phase.
+
+        Detailed context saved to: .orc/tasks/retry-context-review-1.md
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-345: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: da35a52f
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 2861624 input, 10391 output, 58571 cache_creation, 2802850 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768699084
+    - id: 526
+      taskid: TASK-345
+      phase: review
+      iteration: 1
+      role: combined
+      content: |
+        # review - Iteration 1
+
+        ## Prompt
+
+        # Multi-Agent Code Review Phase
+
+        You are the review coordinator orchestrating a comprehensive multi-perspective code review.
+
+        ## Context
+
+        **Task ID**: TASK-345
+        **Task**: Create RunningCard component with expanded task view
+        **Weight**: medium
+        **Category**: feature
+        **Review Round**: 1
+
+        ## Initiative Context
+
+        This task is part of **UI Redesign: Board View** (INIT-017).
+
+        ### Vision
+
+        Build the Board view as the primary task management interface, replacing web/src/pages/Board.tsx.
+
+        Layout (within AppShell):
+        - Two-column board: Queue (flex: 1, min-width: 280px) | Running (420px fixed)
+        - Right panel sections: Blocked, Decisions, Claude Config, Files Changed, Completed
+
+        Queue Column:
+        - Initiative swimlanes with collapse/expand (Swimlane component)
+        - Swimlane header: emoji icon, name, progress bar, task count, chevron
+        - TaskCard (compact): position number, title, task ID (monospace), priority badge
+        - '+N more' truncation for long lists
+
+        Running Column (420px):
+        - RunningCard with gradient background (bg-card -> primary-dim at bottom)
+        - Header: task ID (primary color), title, initiative tag, phase name, elapsed time
+        - Pipeline: 5-step visualization (Plan, Code, Test, Review, Done) with phase indicator
+        - Expandable output log (monospace, dark background, click card to toggle)
+        - Animation: pulse on active column, progress-grow on current phase
+
+        Right Panel Sections:
+        - BlockedPanel: tasks waiting for dependencies, Skip/Force action buttons
+        - DecisionsPanel: pending decisions with option buttons, real-time via WebSocket
+        - ConfigPanel: links to Slash Commands, CLAUDE.md, MCP Servers, Permissions
+        - FilesPanel: changed files with M/A/D status badges
+        - CompletedPanel: count summary with optional details (collapsible)
+
+        Data: Pull from taskStore, group by initiative for swimlanes, filter by status for columns
+        Reference: example_ui/board.html, example_ui/Screenshot_20260116_201804.png
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Worktree Safety
+
+        You are working in an **isolated git worktree**.
+
+        | Property | Value |
+        |----------|-------|
+        | Worktree Path | `/home/randy/repos/orc/.orc/worktrees/orc-TASK-345` |
+        | Task Branch | `orc/TASK-345` |
+        | Target Branch | `main` |
+
+        **CRITICAL SAFETY RULES:**
+        - All commits go to branch `orc/TASK-345`
+        - **DO NOT** push to `main` or any protected branch
+        - **DO NOT** checkout other branches - stay on `orc/TASK-345`
+        - Merging happens via PR after all phases complete
+
+        ## Specification
+
+        **Commit**: 6c1c6a39
+        <phase_complete>true</phase_complete>
+
+        ## Implementation Summary
+
+        **Commit**: 6c1c6a39
+        <phase_complete>true</phase_complete>
+
+
+
+        ---
+
+        ## Round 1: Multi-Agent Review
+
+
+
+        ### Step 1: Gather Changed Files
+
+        First, identify what to review:
+
+        ```bash
+        # Get list of changed files
+        git diff --name-only origin/main...HEAD
+
+        # Get summary of changes
+        git diff --stat origin/main...HEAD
+        ```
+
+        ### Step 2: Spawn Reviewer Agents
+
+        **CRITICAL**: You MUST spawn ALL 5 reviewer agents in a SINGLE response using the Task tool. Do NOT wait for one to complete before spawning the next. All agents run in parallel.
+
+        Use the Task tool with these exact configurations:
+
+        ---
+
+        #### Agent 1: Correctness Reviewer (model: opus)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: opus
+        - description: "Review correctness and spec compliance"
+        - prompt: |
+            You are reviewing code for CORRECTNESS and SPEC COMPLIANCE.
+
+            ## Task Context
+            - Task: Create RunningCard component with expanded task view
+            - Task ID: TASK-345
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-345
+
+            ## Specification
+            **Commit**: 6c1c6a39
+        <phase_complete>true</phase_complete>
+
+            ## Your Focus
+            1. Does the implementation satisfy ALL success criteria from the spec?
+            2. Are there any logic errors or bugs?
+            3. Are edge cases from the spec handled correctly?
+            4. Is behavior correct for both happy path AND error paths?
+            5. Are all requirements implemented (no missing features)?
+            6. Does the implementation match the spec's technical approach?
+
+            ## Process
+            1. Read each changed file: `git diff --name-only origin/main...HEAD`
+            2. For each file, check against spec requirements
+            3. Verify error handling paths work correctly
+            4. Test boundary conditions mentioned in spec
+
+            ## Output Format (REQUIRED)
+
+            Output your findings in this EXACT XML format:
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>correctness</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+                <file>path/to/file2.go</file>
+              </files_reviewed>
+              <spec_compliance>
+                <criterion id="SC-1" status="pass|fail">Notes on compliance</criterion>
+                <criterion id="SC-2" status="pass|fail">Notes on compliance</criterion>
+              </spec_compliance>
+              <issues>
+                <issue id="COR-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Detailed description of the correctness issue</description>
+                  <spec_violation>Which spec criterion is violated (if any)</spec_violation>
+                  <suggestion>How to fix it</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall correctness assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+
+            If no issues found, output empty <issues></issues> but still include spec_compliance.
+        ```
+
+        ---
+
+        #### Agent 2: Security Reviewer (model: opus)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Security-Auditor
+        - model: opus
+        - description: "Review security vulnerabilities"
+        - prompt: |
+            You are reviewing code for SECURITY VULNERABILITIES.
+
+            ## Task Context
+            - Task: Create RunningCard component with expanded task view
+            - Task ID: TASK-345
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-345
+
+            ## Your Focus - OWASP Top 10 and Common Vulnerabilities
+            1. **Injection**: SQL, command, XSS, template injection
+            2. **Broken Authentication**: Session management, credential exposure
+            3. **Sensitive Data Exposure**: Secrets in code, logging PII, unencrypted data
+            4. **Security Misconfigurations**: Hardcoded credentials, debug enabled
+            5. **Insecure Dependencies**: Known vulnerable packages
+            6. **Input Validation**: Missing or inadequate validation
+            7. **Cryptographic Weaknesses**: Weak algorithms, improper key management
+            8. **Error Handling**: Information leakage through errors
+
+            ## Process
+            1. Read each changed file
+            2. Check for common vulnerability patterns
+            3. Verify input validation on all external inputs
+            4. Check for secrets/credentials in code
+            5. Review authentication/authorization logic
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>security</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+              </files_reviewed>
+              <issues>
+                <issue id="SEC-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Security vulnerability description</description>
+                  <owasp_category>A01:2021-Broken Access Control</owasp_category>
+                  <cwe>CWE-89</cwe>
+                  <suggestion>Remediation steps</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall security assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        #### Agent 3: Architecture Reviewer (model: haiku)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: haiku
+        - description: "Review architecture and maintainability"
+        - prompt: |
+            You are reviewing code for ARCHITECTURE and MAINTAINABILITY.
+
+            ## Task Context
+            - Task: Create RunningCard component with expanded task view
+            - Task ID: TASK-345
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-345
+
+            ## Your Focus
+            1. Does it follow existing project patterns? (Check CLAUDE.md)
+            2. Is the code well-organized and modular?
+            3. Are abstractions appropriate (not over/under-engineered)?
+            4. Is error handling consistent with project conventions?
+            5. Are there code smells (god classes, feature envy, etc.)?
+            6. Is the code testable?
+            7. Are dependencies appropriate?
+            8. Is naming clear and consistent?
+
+            ## Process
+            1. Read CLAUDE.md to understand project patterns
+            2. Read each changed file
+            3. Compare against existing code patterns
+            4. Check for code smells and anti-patterns
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>architecture</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+              </files_reviewed>
+              <patterns_checked>
+                <pattern name="error-wrapping" followed="true|false">Notes</pattern>
+                <pattern name="functional-options" followed="true|false">Notes</pattern>
+              </patterns_checked>
+              <issues>
+                <issue id="ARCH-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Architecture/maintainability concern</description>
+                  <pattern_violated>Which project pattern is violated</pattern_violated>
+                  <suggestion>How to improve</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall architecture assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        #### Agent 4: Performance Reviewer (model: haiku)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: haiku
+        - description: "Review performance issues"
+        - prompt: |
+            You are reviewing code for PERFORMANCE ISSUES.
+
+            ## Task Context
+            - Task: Create RunningCard component with expanded task view
+            - Task ID: TASK-345
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-345
+
+            ## Your Focus
+            1. N+1 query patterns (database calls in loops)
+            2. Unbounded iterations/recursion
+            3. Memory leaks or excessive allocations
+            4. Missing caching opportunities
+            5. Blocking operations in hot paths
+            6. Inefficient algorithms (O(n^2) when O(n) possible)
+            7. Resource leaks (unclosed files, connections, channels)
+            8. Missing pagination/limits on queries
+
+            ## Process
+            1. Read each changed file
+            2. Look for loops with I/O operations inside
+            3. Check for proper resource cleanup (defer, close)
+            4. Identify algorithmic complexity
+            5. Check for unbounded data structures
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>performance</reviewer>
+              <files_reviewed>
+                <file>path/to/file1.go</file>
+              </files_reviewed>
+              <issues>
+                <issue id="PERF-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Performance issue description</description>
+                  <impact>Expected performance impact (e.g., O(n^2) instead of O(n))</impact>
+                  <suggestion>Optimization approach</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall performance assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        #### Agent 5: Integration Reviewer (model: haiku)
+
+        ```
+        Task tool parameters:
+        - subagent_type: Reviewer
+        - model: haiku
+        - description: "Review integration and linting"
+        - prompt: |
+            You are reviewing code for INTEGRATION issues, MERGE CONFLICTS, and LINTING.
+
+            ## Task Context
+            - Task: Create RunningCard component with expanded task view
+            - Task ID: TASK-345
+            - Worktree: /home/randy/repos/orc/.orc/worktrees/orc-TASK-345
+            - Task Branch: orc/TASK-345
+            - Target Branch: main
+
+            ## Your Focus
+
+            ### 1. Merge Conflict Detection (CRITICAL)
+            Run this FIRST:
+            ```bash
+            git fetch origin main
+            git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main
+            ```
+            If output shows conflicts, document each conflicted file.
+
+            ### 2. Linting Compliance (CRITICAL)
+            Run the appropriate linter:
+            ```bash
+            # For Go projects
+            golangci-lint run ./... 2>&1 || go vet ./...
+
+            # For Node/TypeScript projects
+            npm run typecheck 2>&1
+            npm run lint 2>&1
+            ```
+            Document ALL linting errors - these are BLOCKING.
+
+            ### 3. Build Verification
+            ```bash
+            # For Go
+            go build ./...
+
+            # For Node
+            npm run build
+            ```
+
+            ### 4. API/Integration Compatibility
+            - Breaking changes to public APIs?
+            - Missing migrations for schema changes?
+            - Config changes documented?
+
+            ## Output Format (REQUIRED)
+
+            ```xml
+            <reviewer_findings>
+              <reviewer>integration</reviewer>
+              <merge_status>
+                <target_branch>main</target_branch>
+                <conflicts_detected>true|false</conflicts_detected>
+                <conflicted_files>
+                  <file path="path/to/file.go">Description of conflict</file>
+                </conflicted_files>
+              </merge_status>
+              <lint_status>
+                <tool>golangci-lint|eslint|ruff</tool>
+                <passed>true|false</passed>
+                <error_count>N</error_count>
+                <errors>
+                  <error file="path/to/file.go" line="123">Error message</error>
+                </errors>
+              </lint_status>
+              <build_status>
+                <passed>true|false</passed>
+                <errors>Build error messages if any</errors>
+              </build_status>
+              <issues>
+                <issue id="INT-001" severity="blocking|should-fix|nice-to-have">
+                  <file>path/to/file.go</file>
+                  <line>123</line>
+                  <title>Brief issue title</title>
+                  <description>Integration issue description</description>
+                  <suggestion>How to resolve</suggestion>
+                </issue>
+              </issues>
+              <summary>Overall integration assessment in 2-3 sentences</summary>
+            </reviewer_findings>
+            ```
+        ```
+
+        ---
+
+        ### Step 3: Aggregate and Validate Findings
+
+        After ALL 5 agents complete, collect and process their findings:
+
+        1. **Parse all XML findings** from each agent
+        2. **Deduplicate issues** - Same file/line with similar description = single issue
+        3. **Validate findings** - Remove obvious false positives:
+           - Issues in unchanged code (not part of this task)
+           - Theoretical issues with no practical impact
+           - Already-fixed issues
+        4. **Assign final severity**:
+           - `blocking`: Security vulns, bugs, spec violations, merge conflicts, lint errors
+           - `should-fix`: Performance issues, maintainability problems, missing error handling
+           - `nice-to-have`: Better naming, comments, minor refactors
+
+        ### Step 4: Create Aggregated Review Report
+
+        ```xml
+        <review_aggregate>
+          <round>1</round>
+          <task_id>TASK-345</task_id>
+          <summary>
+            <total_issues>[count]</total_issues>
+            <blocking>[count]</blocking>
+            <should_fix>[count]</should_fix>
+            <nice_to_have>[count]</nice_to_have>
+            <duplicates_removed>[count]</duplicates_removed>
+            <false_positives_removed>[count]</false_positives_removed>
+          </summary>
+
+          <merge_status>
+            <conflicts_detected>true|false</conflicts_detected>
+            <conflicted_files>
+              <file>path/to/file.go</file>
+            </conflicted_files>
+          </merge_status>
+
+          <lint_status>
+            <passed>true|false</passed>
+            <error_count>[count]</error_count>
+          </lint_status>
+
+          <spec_compliance>
+            <criterion id="SC-1" status="pass|fail">Notes</criterion>
+            <criterion id="SC-2" status="pass|fail">Notes</criterion>
+          </spec_compliance>
+
+          <validated_issues>
+            <issue id="REV-001" original_id="SEC-001" severity="blocking">
+              <reviewer>security</reviewer>
+              <file>path/to/file.go</file>
+              <line>123</line>
+              <title>SQL Injection vulnerability</title>
+              <description>User input passed directly to query</description>
+              <suggestion>Use parameterized queries</suggestion>
+            </issue>
+            <!-- More validated issues... -->
+          </validated_issues>
+
+          <nice_to_have_issues>
+            <!-- Issues that don't block but would be nice to fix -->
+          </nice_to_have_issues>
+
+          <decision>pass|fail</decision>
+          <reason>Explanation of decision</reason>
+        </review_aggregate>
+        ```
+
+        ---
+
+        ### Pass/Fail Criteria
+
+        **PASS** if ALL of the following are true:
+        - Zero `blocking` issues
+        - Zero `should-fix` issues
+        - No merge conflicts with target branch
+        - Linting passes (zero errors)
+        - All spec success criteria satisfied
+
+        **FAIL** if ANY of the following are true:
+        - One or more `blocking` issues
+        - One or more `should-fix` issues
+        - Merge conflicts exist with target branch
+        - Linting errors exist
+        - Spec success criteria not satisfied
+
+        ---
+
+        ## Phase Completion
+
+        ### If PASS (Round 1):
+
+        Commit and complete:
+
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-345: review - passed
+
+        Phase: review
+        Round: 1
+        Reviewers: 5 (correctness, security, architecture, performance, integration)
+        Issues: 0 blocking, 0 should-fix
+        "
+        ```
+
+        Then output:
+
+        ```
+        ### Review Summary - PASSED
+
+        **Round**: 1
+        **Reviewers**: 5 (correctness, security, architecture, performance, integration)
+
+        | Category | Count |
+        |----------|-------|
+        | Blocking | 0 |
+        | Should-Fix | 0 |
+        | Nice-to-Have | [count] |
+
+        **Merge Status**: Clean (no conflicts with main)
+        **Lint Status**: Passed
+        **Spec Compliance**: All criteria satisfied
+
+        **Nice-to-Have Notes** (not blocking):
+        [List any nice-to-have suggestions for future consideration]
+
+        **Commit**: [SHA]
+
+        <phase_complete>true</phase_complete>
+        ```
+
+        ### If FAIL (Round 1):
+
+        Do NOT output `<phase_complete>`. Create detailed feedback for implement phase:
+
+        ```
+        ### Review Summary - FAILED
+
+        **Round**: 1
+        **Issues Requiring Fix**:
+
+        | Severity | Count |
+        |----------|-------|
+        | Blocking | [count] |
+        | Should-Fix | [count] |
+
+        <review_findings_for_implement>
+          <round>1</round>
+          <blocking_issues>
+            <issue id="REV-001">
+              <file>path/to/file.go</file>
+              <line>45</line>
+              <reviewer>security</reviewer>
+              <title>SQL Injection vulnerability</title>
+              <description>User input concatenated into SQL query without sanitization</description>
+              <fix_required>Use parameterized queries: db.Query("SELECT * FROM users WHERE id = ?", userID)</fix_required>
+            </issue>
+          </blocking_issues>
+
+          <should_fix_issues>
+            <issue id="REV-005">
+              <file>path/to/handler.go</file>
+              <line>123</line>
+              <reviewer>performance</reviewer>
+              <title>N+1 query in loop</title>
+              <description>Database query inside for loop causes N+1 problem</description>
+              <fix_required>Batch the query outside the loop using IN clause</fix_required>
+            </issue>
+          </should_fix_issues>
+
+          <merge_conflicts>
+            <file path="config/settings.go">Upstream added new config field that conflicts with your changes</file>
+          </merge_conflicts>
+
+          <lint_errors>
+            <error file="internal/task/task.go" line="89">errcheck: error return value not checked</error>
+            <error file="internal/api/handler.go" line="156">unused variable 'ctx'</error>
+          </lint_errors>
+
+          <spec_failures>
+            <criterion id="SC-2">Error handling not implemented for network timeout case</criterion>
+          </spec_failures>
+        </review_findings_for_implement>
+
+        The implement phase will receive this feedback as  and must fix all issues before review can pass.
+
+        <phase_blocked>
+        reason: Review found [X] blocking and [Y] should-fix issues that must be addressed
+        needs: Fix all issues listed above, then review will re-run automatically
+        </phase_blocked>
+        ```
+
+
+
+        ---
+
+        ## Round 2: Verification Review
+
+
+
+        ---
+
+        ## Severity Reference
+
+        | Severity | Examples | Action |
+        |----------|----------|--------|
+        | `blocking` | SQL injection, auth bypass, spec violations, merge conflicts, lint errors, missing required functionality | MUST fix before merge |
+        | `should-fix` | N+1 queries, memory leaks, missing error handling, code duplication, poor naming | MUST fix before merge |
+        | `nice-to-have` | Additional comments, minor refactors, style preferences | Note for future, doesn't block |
+
+        **Golden Rule**: When in doubt, classify as `should-fix`. It's better to fix something that could have been skipped than to skip something that causes problems later.
+
+
+        ## Response
+
+        <phase_blocked>
+        reason: Review found 0 blocking and 4 should-fix issues that must be addressed
+        needs: Fix all issues listed above (extract utilities to separate file, fix O(n²) algorithm, fix useMemo dependency, reduce component size), then review will re-run automatically
+        </phase_blocked>
+
+        ---
+        Tokens: 827257 input, 9766 output, 40346 cache_creation, 786892 cache_read
+        Complete: false
+        Blocked: true
+      timestamp: 1768699365
+    - id: 528
+      taskid: TASK-345
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the task according to the specification:
+
+        **Task**: Create RunningCard component with expanded task view
+        **Category**: feature
+
+        ## Initiative Context
+
+        This task is part of **UI Redesign: Board View** (INIT-017).
+
+        ### Vision
+
+        Build the Board view as the primary task management interface, replacing web/src/pages/Board.tsx.
+
+        Layout (within AppShell):
+        - Two-column board: Queue (flex: 1, min-width: 280px) | Running (420px fixed)
+        - Right panel sections: Blocked, Decisions, Claude Config, Files Changed, Completed
+
+        Queue Column:
+        - Initiative swimlanes with collapse/expand (Swimlane component)
+        - Swimlane header: emoji icon, name, progress bar, task count, chevron
+        - TaskCard (compact): position number, title, task ID (monospace), priority badge
+        - '+N more' truncation for long lists
+
+        Running Column (420px):
+        - RunningCard with gradient background (bg-card -> primary-dim at bottom)
+        - Header: task ID (primary color), title, initiative tag, phase name, elapsed time
+        - Pipeline: 5-step visualization (Plan, Code, Test, Review, Done) with phase indicator
+        - Expandable output log (monospace, dark background, click card to toggle)
+        - Animation: pulse on active column, progress-grow on current phase
+
+        Right Panel Sections:
+        - BlockedPanel: tasks waiting for dependencies, Skip/Force action buttons
+        - DecisionsPanel: pending decisions with option buttons, real-time via WebSocket
+        - ConfigPanel: links to Slash Commands, CLAUDE.md, MCP Servers, Permissions
+        - FilesPanel: changed files with M/A/D status badges
+        - CompletedPanel: count summary with optional details (collapsible)
+
+        Data: Pull from taskStore, group by initiative for swimlanes, filter by status for columns
+        Reference: example_ui/board.html, example_ui/Screenshot_20260116_201804.png
+
+        **Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.
+
+
+        ## Specification
+
+        **Commit**: 6c1c6a39
+        <phase_complete>true</phase_complete>
+
+        ## Retry Context
+
+        This phase is being re-executed due to a failure in a later phase.
+
+        **What happened:**
+        - Phase "review" failed/was rejected
+        - Reason: Phase review failed: phase blocked: needs clarification
+        - This is retry attempt #2
+
+        **What to fix:**
+        Please address the issues that caused the later phase to fail. The failure output is below:
+
+        ---
+        <phase_blocked>
+        reason: Review found 0 blocking and 4 should-fix issues that must be addressed
+        needs: Fix all issues listed above (extract utilities to separate file, fix O(n²) algorithm, fix useMemo dependency, reduce component size), then review will re-run automatically
+        </phase_blocked>
+        ---
+
+        Focus on fixing the root cause of these issues in this phase.
+
+        Detailed context saved to: .orc/tasks/retry-context-review-2.md
+
+
+        ## Instructions
+
+        1. Review the spec's success criteria - these are your acceptance criteria
+        2. Implement the required changes following the technical approach
+        3. Write/update tests alongside code (as specified in Testing Requirements)
+        4. Run tests and fix any failures
+        5. Self-review against success criteria before completing
+
+        ### Self-Review Checklist
+        - [ ] All success criteria from spec addressed
+        - [ ] All testing requirements satisfied
+        - [ ] Scope boundaries respected (no extra features)
+        - [ ] Error handling complete
+        - [ ] Code follows project patterns
+
+        Keep iterating until implementation is complete and tests pass.
+
+        After completing, commit:
+        ```bash
+        git add -A
+        git commit -m "[orc] TASK-345: implement - completed"
+        ```
+
+        When done, output:
+        ```
+        **Commit**: [SHA]
+        <phase_complete>true</phase_complete>
+        ```
+
+
+        ## Response
+
+        **Commit**: 3a2ec872
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 1132488 input, 7138 output, 43653 cache_creation, 1084965 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768699517
+gate_decisions:
+    - id: 358486
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358497
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358518
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358550
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358551
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358553
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358583
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358592
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358594
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358602
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358641
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358645
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358647
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358662
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358693
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358704
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358707
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358717
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358735
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358738
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358742
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358748
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358752
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358756
+      taskid: TASK-345
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:05:21-06:00
+    - id: 358552
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358554
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358584
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358593
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358595
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358603
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358642
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358646
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358648
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358663
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358694
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358705
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358708
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358718
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358736
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358739
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358743
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358749
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358753
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358757
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:10:19-06:00
+    - id: 358649
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358664
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358695
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358706
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358709
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358719
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358737
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358740
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358744
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358750
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358754
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358758
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:18:04-06:00
+    - id: 358741
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:25:17-06:00
+    - id: 358745
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:25:17-06:00
+    - id: 358751
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:25:17-06:00
+    - id: 358755
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:25:17-06:00
+    - id: 358759
+      taskid: TASK-345
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T19:25:17-06:00

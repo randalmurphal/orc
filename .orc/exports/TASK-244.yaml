@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:46.047723-06:00
+exported_at: 2026-01-17T22:16:35.962285126-06:00
 task:
     id: TASK-244
     title: 'UX: Add progress indication during spec phase execution'
@@ -607,6 +607,356 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:48:56-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -857,6 +1207,406 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T14:59:14-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:05:04-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -1057,6 +1807,66 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T15:07:05-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:07:05-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:07:05-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:07:05-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:07:05-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:07:05-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:07:05-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:07:05-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:07:05-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:07:05-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:07:05-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:11:31-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T15:11:31-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -1263,7 +2073,7 @@ transcripts:
         Tokens: 1197643 input, 3497 output, 73493 cache_creation, 1124130 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768628597
+      timestamp: 1768661767
     - id: 172
       taskid: TASK-244
       phase: implement
@@ -1464,14 +2274,14 @@ transcripts:
         Tokens: 9380378 input, 24278 output, 311638 cache_creation, 9068649 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768628597
+      timestamp: 1768661767
     - id: 173
       taskid: TASK-244
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: UX: Add progress indication during spec phase execution\n**Category**: feature\n**Description**: \n\n\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: UX: Add progress indication during spec phase execution\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-244: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n<artifact>\n# Specification: UX: Add progress indication during spec phase execution\n\n## Problem Statement\nWhen running the spec phase, users see no visual feedback about what's happening until the phase completes. This creates uncertainty about whether the task is progressing, especially during the longer spec phases where Claude is analyzing the codebase and writing a detailed specification.\n\n## Project Context\n\n### Patterns to Follow\n\n| Pattern | Example Location | How to Apply |\n|---------|------------------|--------------|\n| Event publishing | `internal/executor/standard.go:218-234` | Use existing `publisher.Activity()`, `publisher.Heartbeat()`, `publisher.TranscriptChunk()` patterns |\n| Activity tracking | `internal/executor/activity.go` | Use `ActivityTracker` for state transitions |\n| Progress display | `internal/progress/display.go` | Extend `Display` type with spec-specific progress methods |\n| CLI publisher | `internal/events/cli_publisher.go` | Handle new event types for CLI output |\n| WebSocket events | `internal/events/types.go` | Define new event data structures |\n\n### Affected Code\n\n| File | Current Behavior | After This Change |\n|------|------------------|-------------------|\n| `internal/executor/standard.go` | Publishes phase_start, transcript, activity events | Adds spec-phase-specific progress events |\n| `internal/progress/display.go` | Shows generic \"Waiting for API\" and heartbeats | Shows spec-specific progress stages |\n| `internal/events/cli_publisher.go` | Handles activity/heartbeat/transcript events | Handles spec progress events |\n| `web/src/components/board/TaskCard.tsx` | Shows phase name only during execution | Shows spec progress stage indicator |\n\n### Breaking Changes\n- [x] Backward compatible - new events are additive, existing behavior unchanged\n\n## Success Criteria\n\n| ID | Criterion | Verification Method | Expected Result | Error Path |\n|----|-----------|---------------------|-----------------|------------|\n| SC-1 | CLI shows \"Analyzing codebase...\" during spec phase | Run `orc run TASK-XXX` on a task with spec phase, observe stdout | Shows progress message within 5s of phase start | If no message, display generic \"Processing...\" |\n| SC-2 | CLI shows \"Writing specification...\" progress stage | Run `orc run TASK-XXX` with `--stream` flag | Shows stage transition message | Falls back to transcript-only display |\n| SC-3 | Web UI TaskCard shows spec progress indicator | Run task in web UI, observe TaskCard component | Shows \"Analyzing...\" or \"Writing spec...\" subtext under phase name | Falls back to phase name only |\n| SC-4 | Heartbeat dots continue during spec phase | Run spec phase for >30 seconds | Dots appear every 30s during API wait | Silent if no activity (existing behavior) |\n| SC-5 | TranscriptTab shows streaming content during spec | Open task detail during spec execution | Live streaming content appears | Falls back to \"Streaming...\" placeholder |\n| SC-6 | Activity events publish with spec-specific states | Subscribe to WebSocket, observe events | `activity` events contain `spec_analyzing` or `spec_writing` | Falls back to generic `waiting_api` |\n\n## Testing Requirements\n\n| Test Type | Description | Command |\n|-----------|-------------|---------|\n| Unit | EventPublisher emits spec progress events | `go test ./internal/executor -run TestEventPublisher_SpecProgress` |\n| Unit | Display.SpecProgress formats output correctly | `go test ./internal/progress -run TestDisplay_SpecProgress` |\n| Unit | CLIPublisher handles activity events for spec | `go test ./internal/events -run TestCLIPublisher_SpecActivity` |\n| Integration | End-to-end spec phase shows progress | `go test ./internal/executor -run TestStandardExecutor_SpecProgress` |\n| E2E | Web UI shows spec progress | `npm run e2e -- --grep \"spec progress\"` |\n\n## Scope\n\n### In Scope\n- CLI progress indicators during spec phase\n- Web UI progress indicators during spec phase\n- New activity states: `spec_analyzing`, `spec_writing`\n- Heartbeat continuation during spec execution\n- Streaming transcript display for spec output\n\n### Out of Scope\n- Progress bars with percentage completion (spec duration is unpredictable)\n- Detailed step-by-step progress (e.g., \"Reading file X\")\n- Cancel/pause functionality changes\n- Other phase progress enhancements (implement, test, etc.)\n\n## Technical Approach\n\nThe spec phase is long-running and has two distinct stages:\n1. **Analyzing**: Claude reads the codebase, researches patterns, identifies affected files\n2. **Writing**: Claude writes the specification document\n\nWe'll add phase-specific activity states that the executor publishes, which both CLI and web UI can render appropriately.\n\n### Files to Modify\n\n- `internal/executor/activity.go`: Add `ActivitySpecAnalyzing`, `ActivitySpecWriting` states\n- `internal/executor/standard.go`: Detect spec phase and publish stage-specific activity\n- `internal/events/types.go`: Add spec progress data to `ActivityUpdate` struct\n- `internal/events/cli_publisher.go`: Handle spec activity states with distinct messages\n- `internal/progress/display.go`: Add `SpecProgress(stage string)` method\n- `web/src/lib/types.ts`: Add spec progress types\n- `web/src/components/board/TaskCard.tsx`: Render spec progress indicator\n\n### New Files\n- None required\n\n## Feature Definition\n\n### User Story\nAs a developer running orc, I want to see visual feedback during the spec phase so that I know the task is making progress and understand what Claude is currently doing.\n\n### Acceptance Criteria\n- [ ] Running `orc run TASK-XXX` on a large weight task shows \"Analyzing codebase...\" within 5 seconds\n- [ ] The message updates to \"Writing specification...\" when Claude starts outputting the spec\n- [ ] Heartbeat dots continue to appear every 30 seconds during long API calls\n- [ ] Web UI TaskCard shows current spec stage under the phase name\n- [ ] TranscriptTab shows streaming spec content in real-time\n\n## Failure Modes\n\n| Failure Scenario | Expected Behavior | User Feedback | Test |\n|------------------|-------------------|---------------|------|\n| Publisher is nil | Skip publishing, continue execution | No progress shown (silent degradation) | TestStandardExecutor_NilPublisher |\n| WebSocket disconnected | CLI continues normally | CLI shows progress, web reconnects | E2E WebSocket reconnection |\n| Spec phase fails mid-execution | Normal error handling | Error message with phase context | TestStandardExecutor_SpecError |\n| Activity callback panics | Recover, log warning, continue | Degraded progress display | TestActivityTracker_CallbackPanic |\n\n## Edge Cases\n\n| Input/State | Expected Behavior | Test |\n|-------------|-------------------|------|\n| Trivial weight task (no spec) | No spec progress shown | Unit test: skip for trivial |\n| Spec phase skipped (artifact exists) | No progress events for skipped phase | Unit test: artifact skip |\n| Very fast spec completion (<5s) | May not show all stages | Integration test: fast completion |\n| Multiple concurrent tasks | Each task publishes own events | Integration test: concurrent |\n| Quiet mode enabled | No CLI progress output | Unit test: quiet mode |\n\n## Review Checklist\n\n### Code Quality\n- [ ] Linting passes (0 errors)\n- [ ] Type checking passes\n- [ ] No TODOs or debug statements\n- [ ] New activity states follow existing naming pattern\n\n### Test Coverage\n- [ ] Coverage >= 70% on new code\n- [ ] All success criteria have tests\n- [ ] All edge cases tested\n- [ ] All failure modes tested\n\n### Integration\n- [ ] No merge conflicts with main\n- [ ] Build succeeds\n- [ ] Existing tests pass\n- [ ] Web UI builds without TypeScript errors\n\n## Open Questions\nNone - the task is well-defined and follows established patterns in the codebase.\n</artifact>\n\n### Spec Summary\n\n**Success Criteria**: 6 defined\n**Testing Requirements**: 5 defined\n**Scope**: narrow (spec phase only, additive changes)\n**Database**: Spec saved to SQLite (TASK-244, 7716 chars)\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 3214376 input, 9573 output, 84854 cache_creation, 3127442 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768628597
+      timestamp: 1768661767
     - id: 174
       taskid: TASK-244
       phase: test
@@ -1665,9 +2475,9 @@ transcripts:
         Tokens: 1959230 input, 6272 output, 74252 cache_creation, 1884781 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768628597
+      timestamp: 1768661767
 gate_decisions:
-    - id: 129917
+    - id: 259833
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1675,7 +2485,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129918
+    - id: 259834
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1683,7 +2493,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129919
+    - id: 259835
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1691,7 +2501,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129920
+    - id: 259836
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1699,7 +2509,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129921
+    - id: 259837
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1707,7 +2517,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129922
+    - id: 259838
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1715,7 +2525,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129923
+    - id: 259839
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1723,7 +2533,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129924
+    - id: 259840
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1731,7 +2541,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129925
+    - id: 259841
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1739,7 +2549,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129926
+    - id: 259842
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1747,7 +2557,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129927
+    - id: 259843
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1755,7 +2565,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129928
+    - id: 259844
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1763,7 +2573,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129929
+    - id: 259845
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1771,7 +2581,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129930
+    - id: 259846
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1779,7 +2589,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129931
+    - id: 259847
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1787,7 +2597,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129932
+    - id: 259848
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1795,7 +2605,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129933
+    - id: 259849
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1803,7 +2613,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129934
+    - id: 259850
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1811,7 +2621,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129935
+    - id: 259851
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1819,7 +2629,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129936
+    - id: 259852
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1827,7 +2637,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129937
+    - id: 259853
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1835,7 +2645,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129938
+    - id: 259854
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1843,7 +2653,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129939
+    - id: 259855
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1851,7 +2661,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129940
+    - id: 259856
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1859,7 +2669,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129941
+    - id: 259857
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1867,7 +2677,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129942
+    - id: 259858
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1875,7 +2685,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129943
+    - id: 259859
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1883,7 +2693,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129944
+    - id: 259860
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1891,7 +2701,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129945
+    - id: 259861
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1899,7 +2709,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129946
+    - id: 259862
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1907,7 +2717,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129947
+    - id: 259863
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1915,7 +2725,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129948
+    - id: 259864
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1923,7 +2733,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129949
+    - id: 259865
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1931,7 +2741,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129950
+    - id: 259866
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1939,7 +2749,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129951
+    - id: 259867
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1947,7 +2757,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129998
+    - id: 259868
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1955,7 +2765,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129999
+    - id: 259869
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1963,7 +2773,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130000
+    - id: 259870
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1971,7 +2781,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130001
+    - id: 259871
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1979,7 +2789,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130002
+    - id: 259872
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1987,7 +2797,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130003
+    - id: 259873
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -1995,7 +2805,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130004
+    - id: 259874
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2003,7 +2813,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130005
+    - id: 259875
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2011,7 +2821,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130006
+    - id: 259876
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2019,7 +2829,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130007
+    - id: 259877
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2027,7 +2837,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130008
+    - id: 259878
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2035,7 +2845,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130009
+    - id: 259879
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2043,7 +2853,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130010
+    - id: 259880
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2051,7 +2861,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130011
+    - id: 259881
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2059,7 +2869,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130012
+    - id: 259882
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2067,7 +2877,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130013
+    - id: 259883
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2075,7 +2885,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130014
+    - id: 259884
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2083,7 +2893,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130015
+    - id: 259885
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2091,7 +2901,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130016
+    - id: 259886
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2099,7 +2909,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130017
+    - id: 259887
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2107,7 +2917,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130018
+    - id: 259888
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2115,7 +2925,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130019
+    - id: 259889
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2123,7 +2933,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130020
+    - id: 259890
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2131,7 +2941,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130021
+    - id: 259891
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2139,7 +2949,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130022
+    - id: 259892
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2147,7 +2957,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130023
+    - id: 259893
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2155,7 +2965,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130024
+    - id: 259894
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2163,7 +2973,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130025
+    - id: 259895
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2171,7 +2981,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130026
+    - id: 259896
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2179,7 +2989,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130027
+    - id: 259897
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2187,7 +2997,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130028
+    - id: 259898
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2195,7 +3005,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130029
+    - id: 259899
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2203,7 +3013,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130030
+    - id: 259900
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2211,7 +3021,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130031
+    - id: 259901
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2219,7 +3029,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 130032
+    - id: 259902
       taskid: TASK-244
       phase: spec
       gatetype: auto
@@ -2227,7 +3037,567 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:48:56-06:00
-    - id: 129952
+    - id: 259995
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 259996
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 259997
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 259998
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 259999
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260000
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260001
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260002
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260003
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260004
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260005
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260006
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260007
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260008
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260009
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260010
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260011
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260012
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260013
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260014
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260015
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260016
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260017
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260018
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260019
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260020
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260021
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260022
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260023
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260024
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260025
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260026
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260027
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260028
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260029
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260030
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260031
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260032
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260033
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260034
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260035
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260036
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260037
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260038
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260039
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260040
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260041
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260042
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260043
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260044
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260045
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260046
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260047
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260048
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260049
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260050
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260051
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260052
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260053
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260054
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260055
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260056
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260057
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260058
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260059
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260060
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260061
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260062
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260063
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 260064
+      taskid: TASK-244
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:48:56-06:00
+    - id: 259903
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2235,7 +3605,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129953
+    - id: 259904
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2243,7 +3613,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129954
+    - id: 259905
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2251,7 +3621,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129955
+    - id: 259906
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2259,7 +3629,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129956
+    - id: 259907
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2267,7 +3637,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129957
+    - id: 259908
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2275,7 +3645,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129958
+    - id: 259909
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2283,7 +3653,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129959
+    - id: 259910
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2291,7 +3661,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129960
+    - id: 259911
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2299,7 +3669,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129961
+    - id: 259912
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2307,7 +3677,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129962
+    - id: 259913
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2315,7 +3685,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129963
+    - id: 259914
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2323,7 +3693,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129964
+    - id: 259915
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2331,7 +3701,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129965
+    - id: 259916
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2339,7 +3709,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129966
+    - id: 259917
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2347,7 +3717,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129967
+    - id: 259918
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2355,7 +3725,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129968
+    - id: 259919
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2363,7 +3733,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129969
+    - id: 259920
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2371,7 +3741,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129970
+    - id: 259921
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2379,7 +3749,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129971
+    - id: 259922
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2387,7 +3757,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129972
+    - id: 259923
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2395,7 +3765,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129973
+    - id: 259924
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2403,7 +3773,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129974
+    - id: 259925
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2411,7 +3781,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129975
+    - id: 259926
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2419,7 +3789,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129976
+    - id: 259927
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2427,7 +3797,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130033
+    - id: 259928
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2435,7 +3805,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130034
+    - id: 259929
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2443,7 +3813,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130035
+    - id: 259930
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2451,7 +3821,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130036
+    - id: 259931
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2459,7 +3829,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130037
+    - id: 259932
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2467,7 +3837,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130038
+    - id: 259933
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2475,7 +3845,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130039
+    - id: 259934
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2483,7 +3853,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130040
+    - id: 259935
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2491,7 +3861,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130041
+    - id: 259936
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2499,7 +3869,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130042
+    - id: 259937
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2507,7 +3877,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130043
+    - id: 259938
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2515,7 +3885,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130044
+    - id: 259939
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2523,7 +3893,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130045
+    - id: 259940
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2531,7 +3901,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130046
+    - id: 259941
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2539,7 +3909,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130047
+    - id: 259942
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2547,7 +3917,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130048
+    - id: 259943
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2555,7 +3925,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130049
+    - id: 259944
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2563,7 +3933,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130050
+    - id: 259945
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2571,7 +3941,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130051
+    - id: 259946
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2579,7 +3949,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130052
+    - id: 259947
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2587,7 +3957,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130053
+    - id: 259948
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2595,7 +3965,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130054
+    - id: 259949
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2603,7 +3973,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130055
+    - id: 259950
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2611,7 +3981,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130056
+    - id: 259951
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2619,7 +3989,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 130057
+    - id: 259952
       taskid: TASK-244
       phase: implement
       gatetype: auto
@@ -2627,7 +3997,407 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T14:59:14-06:00
-    - id: 129977
+    - id: 260065
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260066
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260067
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260068
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260069
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260070
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260071
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260072
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260073
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260074
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260075
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260076
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260077
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260078
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260079
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260080
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260081
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260082
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260083
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260084
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260085
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260086
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260087
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260088
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260089
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260090
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260091
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260092
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260093
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260094
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260095
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260096
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260097
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260098
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260099
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260100
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260101
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260102
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260103
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260104
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260105
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260106
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260107
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260108
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260109
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260110
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260111
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260112
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260113
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 260114
+      taskid: TASK-244
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T14:59:14-06:00
+    - id: 259953
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2635,7 +4405,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129978
+    - id: 259954
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2643,7 +4413,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129979
+    - id: 259955
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2651,7 +4421,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129980
+    - id: 259956
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2659,7 +4429,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129981
+    - id: 259957
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2667,7 +4437,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129982
+    - id: 259958
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2675,7 +4445,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129983
+    - id: 259959
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2683,7 +4453,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129984
+    - id: 259960
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2691,7 +4461,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129985
+    - id: 259961
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2699,7 +4469,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129986
+    - id: 259962
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2707,7 +4477,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129987
+    - id: 259963
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2715,7 +4485,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129988
+    - id: 259964
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2723,7 +4493,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129989
+    - id: 259965
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2731,7 +4501,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129990
+    - id: 259966
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2739,7 +4509,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129991
+    - id: 259967
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2747,7 +4517,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130058
+    - id: 259968
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2755,7 +4525,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130059
+    - id: 259969
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2763,7 +4533,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130060
+    - id: 259970
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2771,7 +4541,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130061
+    - id: 259971
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2779,7 +4549,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130062
+    - id: 259972
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2787,7 +4557,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130063
+    - id: 259973
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2795,7 +4565,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130064
+    - id: 259974
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2803,7 +4573,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130065
+    - id: 259975
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2811,7 +4581,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130066
+    - id: 259976
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2819,7 +4589,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130067
+    - id: 259977
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2827,7 +4597,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130068
+    - id: 259978
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2835,7 +4605,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130069
+    - id: 259979
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2843,7 +4613,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130070
+    - id: 259980
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2851,7 +4621,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130071
+    - id: 259981
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2859,7 +4629,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 130072
+    - id: 259982
       taskid: TASK-244
       phase: test
       gatetype: auto
@@ -2867,7 +4637,247 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:05:04-06:00
-    - id: 129992
+    - id: 260115
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260116
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260117
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260118
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260119
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260120
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260121
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260122
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260123
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260124
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260125
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260126
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260127
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260128
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260129
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260130
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260131
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260132
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260133
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260134
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260135
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260136
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260137
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260138
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260139
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260140
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260141
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260142
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260143
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 260144
+      taskid: TASK-244
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:05:04-06:00
+    - id: 259983
       taskid: TASK-244
       phase: docs
       gatetype: auto
@@ -2875,7 +4885,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:07:05-06:00
-    - id: 129993
+    - id: 259984
       taskid: TASK-244
       phase: docs
       gatetype: auto
@@ -2883,7 +4893,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:07:05-06:00
-    - id: 129994
+    - id: 259985
       taskid: TASK-244
       phase: docs
       gatetype: auto
@@ -2891,7 +4901,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:07:05-06:00
-    - id: 129995
+    - id: 259986
       taskid: TASK-244
       phase: docs
       gatetype: auto
@@ -2899,7 +4909,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:07:05-06:00
-    - id: 129996
+    - id: 259987
       taskid: TASK-244
       phase: docs
       gatetype: auto
@@ -2907,7 +4917,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:07:05-06:00
-    - id: 130073
+    - id: 259988
       taskid: TASK-244
       phase: docs
       gatetype: auto
@@ -2915,7 +4925,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:07:05-06:00
-    - id: 130074
+    - id: 259989
       taskid: TASK-244
       phase: docs
       gatetype: auto
@@ -2923,7 +4933,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:07:05-06:00
-    - id: 130075
+    - id: 259990
       taskid: TASK-244
       phase: docs
       gatetype: auto
@@ -2931,7 +4941,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:07:05-06:00
-    - id: 130076
+    - id: 259991
       taskid: TASK-244
       phase: docs
       gatetype: auto
@@ -2939,7 +4949,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:07:05-06:00
-    - id: 130077
+    - id: 259992
       taskid: TASK-244
       phase: docs
       gatetype: auto
@@ -2947,7 +4957,87 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:07:05-06:00
-    - id: 129997
+    - id: 260145
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:07:05-06:00
+    - id: 260146
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:07:05-06:00
+    - id: 260147
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:07:05-06:00
+    - id: 260148
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:07:05-06:00
+    - id: 260149
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:07:05-06:00
+    - id: 260150
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:07:05-06:00
+    - id: 260151
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:07:05-06:00
+    - id: 260152
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:07:05-06:00
+    - id: 260153
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:07:05-06:00
+    - id: 260154
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:07:05-06:00
+    - id: 259993
       taskid: TASK-244
       phase: docs
       gatetype: auto
@@ -2955,7 +5045,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T15:11:31-06:00
-    - id: 130078
+    - id: 259994
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:11:31-06:00
+    - id: 260155
+      taskid: TASK-244
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T15:11:31-06:00
+    - id: 260156
       taskid: TASK-244
       phase: docs
       gatetype: auto

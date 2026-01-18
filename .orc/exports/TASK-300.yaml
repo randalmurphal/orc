@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.945607-06:00
+exported_at: 2026-01-17T22:16:35.58860577-06:00
 task:
     id: TASK-300
     title: 'CLI: Add --from-phase flag to orc resume for retrying from earlier phase'
@@ -471,6 +471,81 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-17T00:28:37-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:28:37-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:28:37-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:28:37-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:28:37-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:28:37-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:28:37-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:28:37-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:28:37-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:28:37-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:28:37-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:35:42-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:35:42-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:35:42-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:35:42-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T00:35:42-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -503,14 +578,14 @@ state:
     cost:
         total_cost_usd: 0
 transcripts:
-    - id: 406
+    - id: 375
       taskid: TASK-300
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n**Category**: feature\n**Description**: \n\n\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-300: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\nAh, `.orc/tasks/` is gitignored - the spec is stored in the database, not as a file in git. The spec phase is complete because I've written the spec. Let me check if there's a way to save it to the database or if the system expects it as output:\n\nLooking at the prompt I was given, it says to output the spec in `<artifact>` tags and commit. But `.orc/tasks/` is gitignored because specs are stored in the database. Let me just output the spec as requested:\n\n<artifact>\n# Specification: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n\n## Problem Statement\n\nWhen a task fails or produces incorrect output in a later phase, users currently have no way to restart from an earlier phase without manually modifying state. The `orc resume` command only resumes from the interrupted/running phase, but sometimes you need to go back further (e.g., restart from `implement` after a bad `review` phase).\n\n## Success Criteria\n\n- [ ] `orc resume TASK-XXX --from-phase implement` resumes from the specified phase\n- [ ] `orc resume TASK-XXX --from-phase spec` works for any phase in the task's plan\n- [ ] Invalid phase IDs produce a clear error: `phase \"foo\" not found in plan (available: spec, implement, review, test, docs)`\n- [ ] `--from-phase` can be combined with `--force` for orphaned tasks\n- [ ] All phases from the specified phase onward are reset to pending status\n- [ ] Help text documents the flag with examples\n- [ ] Tab completion works for phase names (if Cobra completion is already set up)\n\n## Testing Requirements\n\n- [ ] Unit test: `--from-phase` flag parsing and validation\n- [ ] Unit test: Phase validation returns correct error for invalid phase IDs\n- [ ] Unit test: Phase state reset affects target phase and all subsequent phases\n- [ ] Integration test: `orc resume --from-phase` executes from the correct phase\n- [ ] Manual test: Run `orc resume TASK-XXX --from-phase implement` on a task that completed `review`\n\n## Scope\n\n### In Scope\n- Add `--from-phase` flag to `orc resume` command\n- Validate that specified phase exists in the task's plan\n- Reset phase states from specified phase onward\n- Clear error messages for invalid phases (list available phases)\n- Help text and flag documentation\n\n### Out of Scope\n- Modifying `orc run` command (different use case)\n- Phase dependency validation (e.g., skipping `spec` to go to `implement`)\n- Interactive phase selection (just the flag for now)\n- Resetting git commits/changes made by earlier phases\n\n## Technical Approach\n\nThe implementation is straightforward: accept a phase ID, validate it exists, reset phases from that point onward, then call `ResumeFromPhase`.\n\n### Files to Modify\n\n1. **`internal/cli/cmd_resume.go`**:\n   - Add `--from-phase` flag (string, default empty)\n   - After loading the plan, validate the phase exists\n   - If `--from-phase` is set, override the resume phase determination\n   - Reset all phases from specified phase to end of plan to `StatusPending`\n   - Call `ResumeFromPhase` with the specified phase\n\n2. **`internal/state/state.go`**:\n   - Add `ResetPhasesFrom(phaseID string, allPhases []string)` method\n   - This resets the target phase and all subsequent phases to pending\n   - Clears `CompletedAt`, `Error`, `Artifacts` etc.\n\n3. **`internal/cli/cmd_resume_test.go`** (or create if doesn't exist):\n   - Test flag parsing\n   - Test phase validation error messages\n\n### Implementation Details\n\n**Phase validation** (in cmd_resume.go):\n- Load plan after loading task/state\n- If `--from-phase` is set, iterate through plan phases to validate it exists\n- Collect all phase IDs for the error message if not found\n- Reset phases from the specified phase onward\n- Override `resumePhase` with the user-specified value\n\n**Phase reset** (in state.go):\n- Add `ResetPhasesFrom(startPhase string, allPhases []string)` method\n- Iterate through phases, once we hit `startPhase`, reset that and all following phases\n- Use existing `ResetPhase()` method for each\n\n## Feature Details\n\n### User Story\n\nAs a developer using orc, I want to retry a task from an earlier phase so that I can recover from bad output in later phases without losing all my work.\n\n### Acceptance Criteria\n\n1. **Flag exists and works**: `orc resume --from-phase <phase>` accepts a phase ID\n2. **Validation is helpful**: Invalid phase names show available options\n3. **State is properly reset**: Phases from the target onward are reset to pending\n4. **Execution starts correctly**: The executor begins from the specified phase\n5. **Documentation**: Help text explains the flag with an example\n\n### Example Usage\n\n```bash\n# Task completed review phase with bad output, restart from implement\norc resume TASK-001 --from-phase implement\n\n# Full restart from spec phase\norc resume TASK-001 --from-phase spec\n\n# Invalid phase shows helpful error\norc resume TASK-001 --from-phase bogus\n# Error: phase \"bogus\" not found in plan (available: spec, implement, review, test, docs)\n```\n</artifact>\n\nSince the `.orc/tasks/` directory is gitignored (specs are stored in the database), there's nothing to commit for the spec phase. The spec has been written and output above.\n\n**Commit**: N/A (spec stored in database, not git)\n<phase_complete>true</phase_complete>\n\n---\nTokens: 417044 input, 3999 output, 21951 cache_creation, 395080 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768631316
-    - id: 407
+      timestamp: 1768661769
+    - id: 376
       taskid: TASK-300
       phase: implement
       iteration: 1
@@ -676,16 +751,16 @@ transcripts:
         Tokens: 1845287 input, 11042 output, 66956 cache_creation, 1774522 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768631742
-    - id: 408
+      timestamp: 1768661769
+    - id: 377
       taskid: TASK-300
       phase: review
       iteration: 1
       role: combined
       content: "# review - Iteration 1\n\n## Prompt\n\n# Multi-Agent Code Review Phase\n\nYou are the review coordinator orchestrating a comprehensive multi-perspective code review.\n\n## Context\n\n**Task ID**: TASK-300\n**Task**: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n**Weight**: medium\n**Category**: feature\n**Review Round**: 1\n\n\n\n## Worktree Safety\n\nYou are working in an **isolated git worktree**.\n\n| Property | Value |\n|----------|-------|\n| Worktree Path | `/Users/randy/repos/orc/.orc/worktrees/orc-TASK-300` |\n| Task Branch | `orc/TASK-300` |\n| Target Branch | `main` |\n\n**CRITICAL SAFETY RULES:**\n- All commits go to branch `orc/TASK-300`\n- **DO NOT** push to `main` or any protected branch\n- **DO NOT** checkout other branches - stay on `orc/TASK-300`\n- Merging happens via PR after all phases complete\n\n## Specification\n\n` tags and commit. But `.orc/tasks/` is gitignored because specs are stored in the database. Let me just output the spec as requested:\n\n<artifact>\n# Specification: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n\n## Problem Statement\n\nWhen a task fails or produces incorrect output in a later phase, users currently have no way to restart from an earlier phase without manually modifying state. The `orc resume` command only resumes from the interrupted/running phase, but sometimes you need to go back further (e.g., restart from `implement` after a bad `review` phase).\n\n## Success Criteria\n\n- [ ] `orc resume TASK-XXX --from-phase implement` resumes from the specified phase\n- [ ] `orc resume TASK-XXX --from-phase spec` works for any phase in the task's plan\n- [ ] Invalid phase IDs produce a clear error: `phase \"foo\" not found in plan (available: spec, implement, review, test, docs)`\n- [ ] `--from-phase` can be combined with `--force` for orphaned tasks\n- [ ] All phases from the specified phase onward are reset to pending status\n- [ ] Help text documents the flag with examples\n- [ ] Tab completion works for phase names (if Cobra completion is already set up)\n\n## Testing Requirements\n\n- [ ] Unit test: `--from-phase` flag parsing and validation\n- [ ] Unit test: Phase validation returns correct error for invalid phase IDs\n- [ ] Unit test: Phase state reset affects target phase and all subsequent phases\n- [ ] Integration test: `orc resume --from-phase` executes from the correct phase\n- [ ] Manual test: Run `orc resume TASK-XXX --from-phase implement` on a task that completed `review`\n\n## Scope\n\n### In Scope\n- Add `--from-phase` flag to `orc resume` command\n- Validate that specified phase exists in the task's plan\n- Reset phase states from specified phase onward\n- Clear error messages for invalid phases (list available phases)\n- Help text and flag documentation\n\n### Out of Scope\n- Modifying `orc run` command (different use case)\n- Phase dependency validation (e.g., skipping `spec` to go to `implement`)\n- Interactive phase selection (just the flag for now)\n- Resetting git commits/changes made by earlier phases\n\n## Technical Approach\n\nThe implementation is straightforward: accept a phase ID, validate it exists, reset phases from that point onward, then call `ResumeFromPhase`.\n\n### Files to Modify\n\n1. **`internal/cli/cmd_resume.go`**:\n   - Add `--from-phase` flag (string, default empty)\n   - After loading the plan, validate the phase exists\n   - If `--from-phase` is set, override the resume phase determination\n   - Reset all phases from specified phase to end of plan to `StatusPending`\n   - Call `ResumeFromPhase` with the specified phase\n\n2. **`internal/state/state.go`**:\n   - Add `ResetPhasesFrom(phaseID string, allPhases []string)` method\n   - This resets the target phase and all subsequent phases to pending\n   - Clears `CompletedAt`, `Error`, `Artifacts` etc.\n\n3. **`internal/cli/cmd_resume_test.go`** (or create if doesn't exist):\n   - Test flag parsing\n   - Test phase validation error messages\n\n### Implementation Details\n\n**Phase validation** (in cmd_resume.go):\n- Load plan after loading task/state\n- If `--from-phase` is set, iterate through plan phases to validate it exists\n- Collect all phase IDs for the error message if not found\n- Reset phases from the specified phase onward\n- Override `resumePhase` with the user-specified value\n\n**Phase reset** (in state.go):\n- Add `ResetPhasesFrom(startPhase string, allPhases []string)` method\n- Iterate through phases, once we hit `startPhase`, reset that and all following phases\n- Use existing `ResetPhase()` method for each\n\n## Feature Details\n\n### User Story\n\nAs a developer using orc, I want to retry a task from an earlier phase so that I can recover from bad output in later phases without losing all my work.\n\n### Acceptance Criteria\n\n1. **Flag exists and works**: `orc resume --from-phase <phase>` accepts a phase ID\n2. **Validation is helpful**: Invalid phase names show available options\n3. **State is properly reset**: Phases from the target onward are reset to pending\n4. **Execution starts correctly**: The executor begins from the specified phase\n5. **Documentation**: Help text explains the flag with an example\n\n### Example Usage\n\n```bash\n# Task completed review phase with bad output, restart from implement\norc resume TASK-001 --from-phase implement\n\n# Full restart from spec phase\norc resume TASK-001 --from-phase spec\n\n# Invalid phase shows helpful error\norc resume TASK-001 --from-phase bogus\n# Error: phase \"bogus\" not found in plan (available: spec, implement, review, test, docs)\n```\n\n## Implementation Summary\n\n` tags and commit. But `.orc/tasks/` is gitignored because specs are stored in the database. Let me just output the spec as requested:\n\n<artifact>\n# Specification: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n\n\n\n---\n\n## Round 1: Multi-Agent Review\n\n\n\n### Step 1: Gather Changed Files\n\nFirst, identify what to review:\n\n```bash\n# Get list of changed files\ngit diff --name-only origin/main...HEAD\n\n# Get summary of changes\ngit diff --stat origin/main...HEAD\n```\n\n### Step 2: Spawn Reviewer Agents\n\n**CRITICAL**: You MUST spawn ALL 5 reviewer agents in a SINGLE response using the Task tool. Do NOT wait for one to complete before spawning the next. All agents run in parallel.\n\nUse the Task tool with these exact configurations:\n\n---\n\n#### Agent 1: Correctness Reviewer (model: opus)\n\n```\nTask tool parameters:\n- subagent_type: Reviewer\n- model: opus\n- description: \"Review correctness and spec compliance\"\n- prompt: |\n    You are reviewing code for CORRECTNESS and SPEC COMPLIANCE.\n\n    ## Task Context\n    - Task: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n    - Task ID: TASK-300\n    - Worktree: /Users/randy/repos/orc/.orc/worktrees/orc-TASK-300\n\n    ## Specification\n    ` tags and commit. But `.orc/tasks/` is gitignored because specs are stored in the database. Let me just output the spec as requested:\n\n<artifact>\n# Specification: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n\n## Problem Statement\n\nWhen a task fails or produces incorrect output in a later phase, users currently have no way to restart from an earlier phase without manually modifying state. The `orc resume` command only resumes from the interrupted/running phase, but sometimes you need to go back further (e.g., restart from `implement` after a bad `review` phase).\n\n## Success Criteria\n\n- [ ] `orc resume TASK-XXX --from-phase implement` resumes from the specified phase\n- [ ] `orc resume TASK-XXX --from-phase spec` works for any phase in the task's plan\n- [ ] Invalid phase IDs produce a clear error: `phase \"foo\" not found in plan (available: spec, implement, review, test, docs)`\n- [ ] `--from-phase` can be combined with `--force` for orphaned tasks\n- [ ] All phases from the specified phase onward are reset to pending status\n- [ ] Help text documents the flag with examples\n- [ ] Tab completion works for phase names (if Cobra completion is already set up)\n\n## Testing Requirements\n\n- [ ] Unit test: `--from-phase` flag parsing and validation\n- [ ] Unit test: Phase validation returns correct error for invalid phase IDs\n- [ ] Unit test: Phase state reset affects target phase and all subsequent phases\n- [ ] Integration test: `orc resume --from-phase` executes from the correct phase\n- [ ] Manual test: Run `orc resume TASK-XXX --from-phase implement` on a task that completed `review`\n\n## Scope\n\n### In Scope\n- Add `--from-phase` flag to `orc resume` command\n- Validate that specified phase exists in the task's plan\n- Reset phase states from specified phase onward\n- Clear error messages for invalid phases (list available phases)\n- Help text and flag documentation\n\n### Out of Scope\n- Modifying `orc run` command (different use case)\n- Phase dependency validation (e.g., skipping `spec` to go to `implement`)\n- Interactive phase selection (just the flag for now)\n- Resetting git commits/changes made by earlier phases\n\n## Technical Approach\n\nThe implementation is straightforward: accept a phase ID, validate it exists, reset phases from that point onward, then call `ResumeFromPhase`.\n\n### Files to Modify\n\n1. **`internal/cli/cmd_resume.go`**:\n   - Add `--from-phase` flag (string, default empty)\n   - After loading the plan, validate the phase exists\n   - If `--from-phase` is set, override the resume phase determination\n   - Reset all phases from specified phase to end of plan to `StatusPending`\n   - Call `ResumeFromPhase` with the specified phase\n\n2. **`internal/state/state.go`**:\n   - Add `ResetPhasesFrom(phaseID string, allPhases []string)` method\n   - This resets the target phase and all subsequent phases to pending\n   - Clears `CompletedAt`, `Error`, `Artifacts` etc.\n\n3. **`internal/cli/cmd_resume_test.go`** (or create if doesn't exist):\n   - Test flag parsing\n   - Test phase validation error messages\n\n### Implementation Details\n\n**Phase validation** (in cmd_resume.go):\n- Load plan after loading task/state\n- If `--from-phase` is set, iterate through plan phases to validate it exists\n- Collect all phase IDs for the error message if not found\n- Reset phases from the specified phase onward\n- Override `resumePhase` with the user-specified value\n\n**Phase reset** (in state.go):\n- Add `ResetPhasesFrom(startPhase string, allPhases []string)` method\n- Iterate through phases, once we hit `startPhase`, reset that and all following phases\n- Use existing `ResetPhase()` method for each\n\n## Feature Details\n\n### User Story\n\nAs a developer using orc, I want to retry a task from an earlier phase so that I can recover from bad output in later phases without losing all my work.\n\n### Acceptance Criteria\n\n1. **Flag exists and works**: `orc resume --from-phase <phase>` accepts a phase ID\n2. **Validation is helpful**: Invalid phase names show available options\n3. **State is properly reset**: Phases from the target onward are reset to pending\n4. **Execution starts correctly**: The executor begins from the specified phase\n5. **Documentation**: Help text explains the flag with an example\n\n### Example Usage\n\n```bash\n# Task completed review phase with bad output, restart from implement\norc resume TASK-001 --from-phase implement\n\n# Full restart from spec phase\norc resume TASK-001 --from-phase spec\n\n# Invalid phase shows helpful error\norc resume TASK-001 --from-phase bogus\n# Error: phase \"bogus\" not found in plan (available: spec, implement, review, test, docs)\n```\n\n    ## Your Focus\n    1. Does the implementation satisfy ALL success criteria from the spec?\n    2. Are there any logic errors or bugs?\n    3. Are edge cases from the spec handled correctly?\n    4. Is behavior correct for both happy path AND error paths?\n    5. Are all requirements implemented (no missing features)?\n    6. Does the implementation match the spec's technical approach?\n\n    ## Process\n    1. Read each changed file: `git diff --name-only origin/main...HEAD`\n    2. For each file, check against spec requirements\n    3. Verify error handling paths work correctly\n    4. Test boundary conditions mentioned in spec\n\n    ## Output Format (REQUIRED)\n\n    Output your findings in this EXACT XML format:\n\n    ```xml\n    <reviewer_findings>\n      <reviewer>correctness</reviewer>\n      <files_reviewed>\n        <file>path/to/file1.go</file>\n        <file>path/to/file2.go</file>\n      </files_reviewed>\n      <spec_compliance>\n        <criterion id=\"SC-1\" status=\"pass|fail\">Notes on compliance</criterion>\n        <criterion id=\"SC-2\" status=\"pass|fail\">Notes on compliance</criterion>\n      </spec_compliance>\n      <issues>\n        <issue id=\"COR-001\" severity=\"blocking|should-fix|nice-to-have\">\n          <file>path/to/file.go</file>\n          <line>123</line>\n          <title>Brief issue title</title>\n          <description>Detailed description of the correctness issue</description>\n          <spec_violation>Which spec criterion is violated (if any)</spec_violation>\n          <suggestion>How to fix it</suggestion>\n        </issue>\n      </issues>\n      <summary>Overall correctness assessment in 2-3 sentences</summary>\n    </reviewer_findings>\n    ```\n\n    If no issues found, output empty <issues></issues> but still include spec_compliance.\n```\n\n---\n\n#### Agent 2: Security Reviewer (model: opus)\n\n```\nTask tool parameters:\n- subagent_type: Security-Auditor\n- model: opus\n- description: \"Review security vulnerabilities\"\n- prompt: |\n    You are reviewing code for SECURITY VULNERABILITIES.\n\n    ## Task Context\n    - Task: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n    - Task ID: TASK-300\n    - Worktree: /Users/randy/repos/orc/.orc/worktrees/orc-TASK-300\n\n    ## Your Focus - OWASP Top 10 and Common Vulnerabilities\n    1. **Injection**: SQL, command, XSS, template injection\n    2. **Broken Authentication**: Session management, credential exposure\n    3. **Sensitive Data Exposure**: Secrets in code, logging PII, unencrypted data\n    4. **Security Misconfigurations**: Hardcoded credentials, debug enabled\n    5. **Insecure Dependencies**: Known vulnerable packages\n    6. **Input Validation**: Missing or inadequate validation\n    7. **Cryptographic Weaknesses**: Weak algorithms, improper key management\n    8. **Error Handling**: Information leakage through errors\n\n    ## Process\n    1. Read each changed file\n    2. Check for common vulnerability patterns\n    3. Verify input validation on all external inputs\n    4. Check for secrets/credentials in code\n    5. Review authentication/authorization logic\n\n    ## Output Format (REQUIRED)\n\n    ```xml\n    <reviewer_findings>\n      <reviewer>security</reviewer>\n      <files_reviewed>\n        <file>path/to/file1.go</file>\n      </files_reviewed>\n      <issues>\n        <issue id=\"SEC-001\" severity=\"blocking|should-fix|nice-to-have\">\n          <file>path/to/file.go</file>\n          <line>123</line>\n          <title>Brief issue title</title>\n          <description>Security vulnerability description</description>\n          <owasp_category>A01:2021-Broken Access Control</owasp_category>\n          <cwe>CWE-89</cwe>\n          <suggestion>Remediation steps</suggestion>\n        </issue>\n      </issues>\n      <summary>Overall security assessment in 2-3 sentences</summary>\n    </reviewer_findings>\n    ```\n```\n\n---\n\n#### Agent 3: Architecture Reviewer (model: haiku)\n\n```\nTask tool parameters:\n- subagent_type: Reviewer\n- model: haiku\n- description: \"Review architecture and maintainability\"\n- prompt: |\n    You are reviewing code for ARCHITECTURE and MAINTAINABILITY.\n\n    ## Task Context\n    - Task: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n    - Task ID: TASK-300\n    - Worktree: /Users/randy/repos/orc/.orc/worktrees/orc-TASK-300\n\n    ## Your Focus\n    1. Does it follow existing project patterns? (Check CLAUDE.md)\n    2. Is the code well-organized and modular?\n    3. Are abstractions appropriate (not over/under-engineered)?\n    4. Is error handling consistent with project conventions?\n    5. Are there code smells (god classes, feature envy, etc.)?\n    6. Is the code testable?\n    7. Are dependencies appropriate?\n    8. Is naming clear and consistent?\n\n    ## Process\n    1. Read CLAUDE.md to understand project patterns\n    2. Read each changed file\n    3. Compare against existing code patterns\n    4. Check for code smells and anti-patterns\n\n    ## Output Format (REQUIRED)\n\n    ```xml\n    <reviewer_findings>\n      <reviewer>architecture</reviewer>\n      <files_reviewed>\n        <file>path/to/file1.go</file>\n      </files_reviewed>\n      <patterns_checked>\n        <pattern name=\"error-wrapping\" followed=\"true|false\">Notes</pattern>\n        <pattern name=\"functional-options\" followed=\"true|false\">Notes</pattern>\n      </patterns_checked>\n      <issues>\n        <issue id=\"ARCH-001\" severity=\"blocking|should-fix|nice-to-have\">\n          <file>path/to/file.go</file>\n          <line>123</line>\n          <title>Brief issue title</title>\n          <description>Architecture/maintainability concern</description>\n          <pattern_violated>Which project pattern is violated</pattern_violated>\n          <suggestion>How to improve</suggestion>\n        </issue>\n      </issues>\n      <summary>Overall architecture assessment in 2-3 sentences</summary>\n    </reviewer_findings>\n    ```\n```\n\n---\n\n#### Agent 4: Performance Reviewer (model: haiku)\n\n```\nTask tool parameters:\n- subagent_type: Reviewer\n- model: haiku\n- description: \"Review performance issues\"\n- prompt: |\n    You are reviewing code for PERFORMANCE ISSUES.\n\n    ## Task Context\n    - Task: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n    - Task ID: TASK-300\n    - Worktree: /Users/randy/repos/orc/.orc/worktrees/orc-TASK-300\n\n    ## Your Focus\n    1. N+1 query patterns (database calls in loops)\n    2. Unbounded iterations/recursion\n    3. Memory leaks or excessive allocations\n    4. Missing caching opportunities\n    5. Blocking operations in hot paths\n    6. Inefficient algorithms (O(n^2) when O(n) possible)\n    7. Resource leaks (unclosed files, connections, channels)\n    8. Missing pagination/limits on queries\n\n    ## Process\n    1. Read each changed file\n    2. Look for loops with I/O operations inside\n    3. Check for proper resource cleanup (defer, close)\n    4. Identify algorithmic complexity\n    5. Check for unbounded data structures\n\n    ## Output Format (REQUIRED)\n\n    ```xml\n    <reviewer_findings>\n      <reviewer>performance</reviewer>\n      <files_reviewed>\n        <file>path/to/file1.go</file>\n      </files_reviewed>\n      <issues>\n        <issue id=\"PERF-001\" severity=\"blocking|should-fix|nice-to-have\">\n          <file>path/to/file.go</file>\n          <line>123</line>\n          <title>Brief issue title</title>\n          <description>Performance issue description</description>\n          <impact>Expected performance impact (e.g., O(n^2) instead of O(n))</impact>\n          <suggestion>Optimization approach</suggestion>\n        </issue>\n      </issues>\n      <summary>Overall performance assessment in 2-3 sentences</summary>\n    </reviewer_findings>\n    ```\n```\n\n---\n\n#### Agent 5: Integration Reviewer (model: haiku)\n\n```\nTask tool parameters:\n- subagent_type: Reviewer\n- model: haiku\n- description: \"Review integration and linting\"\n- prompt: |\n    You are reviewing code for INTEGRATION issues, MERGE CONFLICTS, and LINTING.\n\n    ## Task Context\n    - Task: CLI: Add --from-phase flag to orc resume for retrying from earlier phase\n    - Task ID: TASK-300\n    - Worktree: /Users/randy/repos/orc/.orc/worktrees/orc-TASK-300\n    - Task Branch: orc/TASK-300\n    - Target Branch: main\n\n    ## Your Focus\n\n    ### 1. Merge Conflict Detection (CRITICAL)\n    Run this FIRST:\n    ```bash\n    git fetch origin main\n    git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main\n    ```\n    If output shows conflicts, document each conflicted file.\n\n    ### 2. Linting Compliance (CRITICAL)\n    Run the appropriate linter:\n    ```bash\n    # For Go projects\n    golangci-lint run ./... 2>&1 || go vet ./...\n\n    # For Node/TypeScript projects\n    npm run typecheck 2>&1\n    npm run lint 2>&1\n    ```\n    Document ALL linting errors - these are BLOCKING.\n\n    ### 3. Build Verification\n    ```bash\n    # For Go\n    go build ./...\n\n    # For Node\n    npm run build\n    ```\n\n    ### 4. API/Integration Compatibility\n    - Breaking changes to public APIs?\n    - Missing migrations for schema changes?\n    - Config changes documented?\n\n    ## Output Format (REQUIRED)\n\n    ```xml\n    <reviewer_findings>\n      <reviewer>integration</reviewer>\n      <merge_status>\n        <target_branch>main</target_branch>\n        <conflicts_detected>true|false</conflicts_detected>\n        <conflicted_files>\n          <file path=\"path/to/file.go\">Description of conflict</file>\n        </conflicted_files>\n      </merge_status>\n      <lint_status>\n        <tool>golangci-lint|eslint|ruff</tool>\n        <passed>true|false</passed>\n        <error_count>N</error_count>\n        <errors>\n          <error file=\"path/to/file.go\" line=\"123\">Error message</error>\n        </errors>\n      </lint_status>\n      <build_status>\n        <passed>true|false</passed>\n        <errors>Build error messages if any</errors>\n      </build_status>\n      <issues>\n        <issue id=\"INT-001\" severity=\"blocking|should-fix|nice-to-have\">\n          <file>path/to/file.go</file>\n          <line>123</line>\n          <title>Brief issue title</title>\n          <description>Integration issue description</description>\n          <suggestion>How to resolve</suggestion>\n        </issue>\n      </issues>\n      <summary>Overall integration assessment in 2-3 sentences</summary>\n    </reviewer_findings>\n    ```\n```\n\n---\n\n### Step 3: Aggregate and Validate Findings\n\nAfter ALL 5 agents complete, collect and process their findings:\n\n1. **Parse all XML findings** from each agent\n2. **Deduplicate issues** - Same file/line with similar description = single issue\n3. **Validate findings** - Remove obvious false positives:\n   - Issues in unchanged code (not part of this task)\n   - Theoretical issues with no practical impact\n   - Already-fixed issues\n4. **Assign final severity**:\n   - `blocking`: Security vulns, bugs, spec violations, merge conflicts, lint errors\n   - `should-fix`: Performance issues, maintainability problems, missing error handling\n   - `nice-to-have`: Better naming, comments, minor refactors\n\n### Step 4: Create Aggregated Review Report\n\n```xml\n<review_aggregate>\n  <round>1</round>\n  <task_id>TASK-300</task_id>\n  <summary>\n    <total_issues>[count]</total_issues>\n    <blocking>[count]</blocking>\n    <should_fix>[count]</should_fix>\n    <nice_to_have>[count]</nice_to_have>\n    <duplicates_removed>[count]</duplicates_removed>\n    <false_positives_removed>[count]</false_positives_removed>\n  </summary>\n\n  <merge_status>\n    <conflicts_detected>true|false</conflicts_detected>\n    <conflicted_files>\n      <file>path/to/file.go</file>\n    </conflicted_files>\n  </merge_status>\n\n  <lint_status>\n    <passed>true|false</passed>\n    <error_count>[count]</error_count>\n  </lint_status>\n\n  <spec_compliance>\n    <criterion id=\"SC-1\" status=\"pass|fail\">Notes</criterion>\n    <criterion id=\"SC-2\" status=\"pass|fail\">Notes</criterion>\n  </spec_compliance>\n\n  <validated_issues>\n    <issue id=\"REV-001\" original_id=\"SEC-001\" severity=\"blocking\">\n      <reviewer>security</reviewer>\n      <file>path/to/file.go</file>\n      <line>123</line>\n      <title>SQL Injection vulnerability</title>\n      <description>User input passed directly to query</description>\n      <suggestion>Use parameterized queries</suggestion>\n    </issue>\n    <!-- More validated issues... -->\n  </validated_issues>\n\n  <nice_to_have_issues>\n    <!-- Issues that don't block but would be nice to fix -->\n  </nice_to_have_issues>\n\n  <decision>pass|fail</decision>\n  <reason>Explanation of decision</reason>\n</review_aggregate>\n```\n\n---\n\n### Pass/Fail Criteria\n\n**PASS** if ALL of the following are true:\n- Zero `blocking` issues\n- Zero `should-fix` issues\n- No merge conflicts with target branch\n- Linting passes (zero errors)\n- All spec success criteria satisfied\n\n**FAIL** if ANY of the following are true:\n- One or more `blocking` issues\n- One or more `should-fix` issues\n- Merge conflicts exist with target branch\n- Linting errors exist\n- Spec success criteria not satisfied\n\n---\n\n## Phase Completion\n\n### If PASS (Round 1):\n\nCommit and complete:\n\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-300: review - passed\n\nPhase: review\nRound: 1\nReviewers: 5 (correctness, security, architecture, performance, integration)\nIssues: 0 blocking, 0 should-fix\n\"\n```\n\nThen output:\n\n```\n### Review Summary - PASSED\n\n**Round**: 1\n**Reviewers**: 5 (correctness, security, architecture, performance, integration)\n\n| Category | Count |\n|----------|-------|\n| Blocking | 0 |\n| Should-Fix | 0 |\n| Nice-to-Have | [count] |\n\n**Merge Status**: Clean (no conflicts with main)\n**Lint Status**: Passed\n**Spec Compliance**: All criteria satisfied\n\n**Nice-to-Have Notes** (not blocking):\n[List any nice-to-have suggestions for future consideration]\n\n**Commit**: [SHA]\n\n<phase_complete>true</phase_complete>\n```\n\n### If FAIL (Round 1):\n\nDo NOT output `<phase_complete>`. Create detailed feedback for implement phase:\n\n```\n### Review Summary - FAILED\n\n**Round**: 1\n**Issues Requiring Fix**:\n\n| Severity | Count |\n|----------|-------|\n| Blocking | [count] |\n| Should-Fix | [count] |\n\n<review_findings_for_implement>\n  <round>1</round>\n  <blocking_issues>\n    <issue id=\"REV-001\">\n      <file>path/to/file.go</file>\n      <line>45</line>\n      <reviewer>security</reviewer>\n      <title>SQL Injection vulnerability</title>\n      <description>User input concatenated into SQL query without sanitization</description>\n      <fix_required>Use parameterized queries: db.Query(\"SELECT * FROM users WHERE id = ?\", userID)</fix_required>\n    </issue>\n  </blocking_issues>\n\n  <should_fix_issues>\n    <issue id=\"REV-005\">\n      <file>path/to/handler.go</file>\n      <line>123</line>\n      <reviewer>performance</reviewer>\n      <title>N+1 query in loop</title>\n      <description>Database query inside for loop causes N+1 problem</description>\n      <fix_required>Batch the query outside the loop using IN clause</fix_required>\n    </issue>\n  </should_fix_issues>\n\n  <merge_conflicts>\n    <file path=\"config/settings.go\">Upstream added new config field that conflicts with your changes</file>\n  </merge_conflicts>\n\n  <lint_errors>\n    <error file=\"internal/task/task.go\" line=\"89\">errcheck: error return value not checked</error>\n    <error file=\"internal/api/handler.go\" line=\"156\">unused variable 'ctx'</error>\n  </lint_errors>\n\n  <spec_failures>\n    <criterion id=\"SC-2\">Error handling not implemented for network timeout case</criterion>\n  </spec_failures>\n</review_findings_for_implement>\n\nThe implement phase will receive this feedback as  and must fix all issues before review can pass.\n\n<phase_blocked>\nreason: Review found [X] blocking and [Y] should-fix issues that must be addressed\nneeds: Fix all issues listed above, then review will re-run automatically\n</phase_blocked>\n```\n\n\n\n---\n\n## Round 2: Verification Review\n\n\n\n---\n\n## Severity Reference\n\n| Severity | Examples | Action |\n|----------|----------|--------|\n| `blocking` | SQL injection, auth bypass, spec violations, merge conflicts, lint errors, missing required functionality | MUST fix before merge |\n| `should-fix` | N+1 queries, memory leaks, missing error handling, code duplication, poor naming | MUST fix before merge |\n| `nice-to-have` | Additional comments, minor refactors, style preferences | Note for future, doesn't block |\n\n**Golden Rule**: When in doubt, classify as `should-fix`. It's better to fix something that could have been skipped than to skip something that causes problems later.\n\n\n## Response\n\nAll 5 reviewers are back. Let me aggregate the findings.\n\n## Aggregated Review Report - Round 1\n\n```xml\n<review_aggregate>\n  <round>1</round>\n  <task_id>TASK-300</task_id>\n  <summary>\n    <total_issues>9</total_issues>\n    <blocking>0</blocking>\n    <should_fix>3</should_fix>\n    <nice_to_have>6</nice_to_have>\n    <duplicates_removed>0</duplicates_removed>\n    <false_positives_removed>1</false_positives_removed>\n  </summary>\n\n  <merge_status>\n    <conflicts_detected>false</conflicts_detected>\n    <conflicted_files/>\n  </merge_status>\n\n  <lint_status>\n    <passed>true</passed>\n    <error_count>0</error_count>\n    <notes>Pre-existing linting issues in other files (migrate-transcripts.go, cmd_initiative_plan.go, manifest.go) not related to TASK-300. Integration reviewer fixed a missing interface stub in pr_poller_test.go.</notes>\n  </lint_status>\n\n  <build_status>\n    <passed>true</passed>\n  </build_status>\n\n  <spec_compliance>\n    <criterion id=\"SC-1\" status=\"pass\">--from-phase resumes from specified phase</criterion>\n    <criterion id=\"SC-2\" status=\"pass\">Works for any phase in the task's plan</criterion>\n    <criterion id=\"SC-3\" status=\"pass\">Invalid phase IDs produce clear error with available phases listed</criterion>\n    <criterion id=\"SC-4\" status=\"pass\">--from-phase can be combined with --force</criterion>\n    <criterion id=\"SC-5\" status=\"pass\">All phases from specified phase onward are reset to pending</criterion>\n    <criterion id=\"SC-6\" status=\"pass\">Help text documents the flag with examples</criterion>\n    <criterion id=\"SC-7\" status=\"fail\">Tab completion for phase names NOT implemented</criterion>\n  </spec_compliance>\n\n  <security_assessment>No vulnerabilities identified. Input validation is proper, no injection vectors.</security_assessment>\n\n  <validated_issues>\n    <issue id=\"REV-001\" original_id=\"COR-001\" severity=\"should-fix\">\n      <reviewer>correctness</reviewer>\n      <file>internal/cli/cmd_resume.go</file>\n      <line>230</line>\n      <title>Missing tab completion for --from-phase flag</title>\n      <description>Spec requires tab completion for phase names. Cobra completion is set up in the project (used in cmd_list.go), but --from-phase has no RegisterFlagCompletionFunc.</description>\n      <suggestion>Add completion function that loads task plan and returns available phase IDs.</suggestion>\n    </issue>\n    \n    <issue id=\"REV-002\" original_id=\"ARCH-001\" severity=\"should-fix\">\n      <reviewer>architecture</reviewer>\n      <file>internal/cli/cmd_resume_test.go</file>\n      <line>16-40</line>\n      <title>Test isolation violation: using os.Chdir()</title>\n      <description>withResumeTestDir() changes working directory with os.Chdir(), which is process-wide and not goroutine-safe. Project CLAUDE.md explicitly marks this as anti-pattern.</description>\n      <suggestion>Use path-aware variants like InitAt(basePath), LoadFrom(projectDir) instead of chdir.</suggestion>\n    </issue>\n    \n    <issue id=\"REV-003\" original_id=\"ARCH-002\" severity=\"should-fix\">\n      <reviewer>architecture</reviewer>\n      <file>internal/cli/cmd_resume_test.go</file>\n      <line>433-501</line>\n      <title>Test logic issue: validates state after execution</title>\n      <description>TestResumeCommand_FromPhaseResetsState runs full phase execution, then checks state. But execution overwrites the reset state. Should validate reset persistence before execution or mock executor.</description>\n      <suggestion>Validate reset was persisted before cmd.Execute(), or mock executor to prevent phase execution.</suggestion>\n    </issue>\n  </validated_issues>\n\n  <nice_to_have_issues>\n    <issue id=\"REV-004\" original_id=\"ARCH-003\">\n      <reviewer>architecture</reviewer>\n      <title>Manual phase list collection could be a plan method</title>\n      <suggestion>Consider adding Plan.ValidatePhaseID() helper for reusability.</suggestion>\n    </issue>\n    <issue id=\"REV-005\" original_id=\"ARCH-004\">\n      <reviewer>architecture</reviewer>\n      <title>ResetPhasesFrom could validate phase order</title>\n      <suggestion>Add comment documenting that allPhases MUST be in execution order.</suggestion>\n    </issue>\n    <issue id=\"REV-006\" original_id=\"ARCH-005\">\n      <reviewer>architecture</reviewer>\n      <title>formatPhaseList could be moved to helpers</title>\n      <suggestion>Consider shared formatting functions if reused elsewhere.</suggestion>\n    </issue>\n    <issue id=\"REV-007\" original_id=\"PERF-001\">\n      <reviewer>performance</reviewer>\n      <title>Redundant iteration through phase list</title>\n      <suggestion>Could combine validation and reset into single pass, but phase count is small.</suggestion>\n    </issue>\n    <issue id=\"REV-008\" original_id=\"PERF-002\">\n      <reviewer>performance</reviewer>\n      <title>Inefficient substring search in test helper</title>\n      <suggestion>Replace manual contains() with strings.Contains().</suggestion>\n    </issue>\n    <issue id=\"REV-009\" original_id=\"INT-001\">\n      <reviewer>integration</reviewer>\n      <title>Fixed: Missing interface stubs in test</title>\n      <notes>Integration reviewer already fixed this during review.</notes>\n    </issue>\n  </nice_to_have_issues>\n\n  <decision>fail</decision>\n  <reason>3 should-fix issues identified: missing tab completion (spec violation), test isolation violation using os.Chdir(), and test logic validating state at wrong point in lifecycle. These must be addressed before merge.</reason>\n</review_aggregate>\n```\n\n---\n\n### Review Summary - FAILED\n\n**Round**: 1  \n**Reviewers**: 5 (correctness, security, architecture, performance, integration)\n\n| Category | Count |\n|----------|-------|\n| Blocking | 0 |\n| Should-Fix | 3 |\n| Nice-to-Have | 6 |\n\n**Merge Status**: Clean (no conflicts with main)  \n**Lint Status**: Passed  \n**Build Status**: Passed  \n**Spec Compliance**: 6/7 criteria met (missing tab completion)\n\n---\n\n<review_findings_for_implement>\n  <round>1</round>\n  <blocking_issues/>\n  \n  <should_fix_issues>\n    <issue id=\"REV-001\">\n      <file>internal/cli/cmd_resume.go</file>\n      <line>after line 230 (flag registration)</line>\n      <reviewer>correctness</reviewer>\n      <title>Missing tab completion for --from-phase flag</title>\n      <description>Spec criterion SC-7 requires tab completion for phase names. The codebase has Cobra completion set up (e.g., cmd_list.go line 162 uses RegisterFlagCompletionFunc for --initiative). The --from-phase flag needs the same treatment.</description>\n      <fix_required>Add RegisterFlagCompletionFunc for \"from-phase\" that:\n1. Takes taskID from args[0]\n2. Loads the task's plan via backend.LoadPlan(taskID)\n3. Returns list of phase IDs from the plan\n4. Uses ShellCompDirectiveNoFileComp to prevent file completion\n\nExample pattern from cmd_list.go:\n```go\n_ = cmd.RegisterFlagCompletionFunc(\"from-phase\", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {\n    if len(args) == 0 {\n        return nil, cobra.ShellCompDirectiveNoFileComp\n    }\n    backend, err := getBackend()\n    if err != nil {\n        return nil, cobra.ShellCompDirectiveNoFileComp\n    }\n    defer func() { _ = backend.Close() }()\n    p, err := backend.LoadPlan(args[0])\n    if err != nil {\n        return nil, cobra.ShellCompDirectiveNoFileComp\n    }\n    var phases []string\n    for _, phase := range p.Phases {\n        phases = append(phases, phase.ID)\n    }\n    return phases, cobra.ShellCompDirectiveNoFileComp\n})\n```</fix_required>\n    </issue>\n    \n    <issue id=\"REV-002\">\n      <file>internal/cli/cmd_resume_test.go</file>\n      <line>16-40</line>\n      <reviewer>architecture</reviewer>\n      <title>Test isolation violation: using os.Chdir()</title>\n      <description>The withResumeTestDir() helper uses os.Chdir() which is process-wide and not goroutine-safe. This violates the project's test isolation pattern documented in internal/CLAUDE.md: \"NEVER use os.Chdir() in tests\".</description>\n      <fix_required>Refactor tests to use path-aware patterns:\n1. Instead of changing working directory, pass tmpDir explicitly to functions\n2. Use config.InitAt(basePath) instead of config.Init() after chdir\n3. Use backend.SaveTo(baseDir) and LoadFrom(projectDir) variants\n4. Remove all os.Chdir() calls from tests\n\nLook at other test files in internal/cli/ for examples of path-aware test patterns that don't rely on chdir.</fix_required>\n    </issue>\n    \n    <issue id=\"REV-003\">\n      <file>internal/cli/cmd_resume_test.go</file>\n      <line>433-501</line>\n      <reviewer>architecture</reviewer>\n      <title>Test logic validates state after execution instead of before</title>\n      <description>TestResumeCommand_FromPhaseResetsState calls cmd.Execute() which runs full phase execution. After execution completes (and fails due to missing prompt templates), the phase states will be in failed/error state, not the pending state from the reset. The test is validating the wrong thing.</description>\n      <fix_required>Either:\n1. Validate reset persistence BEFORE calling Execute(): After setting up the command with --from-phase, manually call the reset logic and verify state, without running the executor.\n2. OR mock/stub the executor to prevent actual phase execution, so the reset state is preserved.\n3. OR check that the phase WAS reset (via log output or event) rather than checking final state which gets overwritten by execution.\n\nThe key insight: we want to verify that ResetPhasesFrom() was called with correct args and persisted, not what state the phases end up in after execution.</fix_required>\n    </issue>\n  </should_fix_issues>\n\n  <merge_conflicts/>\n  <lint_errors/>\n  <spec_failures>\n    <criterion id=\"SC-7\">Tab completion for phase names not implemented</criterion>\n  </spec_failures>\n</review_findings_for_implement>\n\nThe implement phase will receive this feedback as {{RETRY_CONTEXT}} and must fix all issues before review can pass.\n\n<phase_blocked>\nreason: Review found 0 blocking and 3 should-fix issues that must be addressed\nneeds: Fix all issues listed above (tab completion, test isolation, test logic), then review will re-run automatically\n</phase_blocked>\n\n---\nTokens: 120828 input, 6844 output, 27007 cache_creation, 93816 cache_read\nComplete: false\nBlocked: true\n"
-      timestamp: 1768632117
+      timestamp: 1768661769
 gate_decisions:
-    - id: 133954
+    - id: 267209
       taskid: TASK-300
       phase: spec
       gatetype: auto
@@ -693,7 +768,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:28:37-06:00
-    - id: 133955
+    - id: 267210
       taskid: TASK-300
       phase: spec
       gatetype: auto
@@ -701,7 +776,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:28:37-06:00
-    - id: 133956
+    - id: 267211
       taskid: TASK-300
       phase: spec
       gatetype: auto
@@ -709,7 +784,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:28:37-06:00
-    - id: 133957
+    - id: 267212
       taskid: TASK-300
       phase: spec
       gatetype: auto
@@ -717,7 +792,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:28:37-06:00
-    - id: 133958
+    - id: 267213
       taskid: TASK-300
       phase: spec
       gatetype: auto
@@ -725,7 +800,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:28:37-06:00
-    - id: 133959
+    - id: 267214
       taskid: TASK-300
       phase: spec
       gatetype: auto
@@ -733,7 +808,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:28:37-06:00
-    - id: 133961
+    - id: 267215
       taskid: TASK-300
       phase: spec
       gatetype: auto
@@ -741,7 +816,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:28:37-06:00
-    - id: 133963
+    - id: 267216
       taskid: TASK-300
       phase: spec
       gatetype: auto
@@ -749,7 +824,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:28:37-06:00
-    - id: 133965
+    - id: 267217
       taskid: TASK-300
       phase: spec
       gatetype: auto
@@ -757,7 +832,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:28:37-06:00
-    - id: 133967
+    - id: 267218
       taskid: TASK-300
       phase: spec
       gatetype: auto
@@ -765,7 +840,87 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:28:37-06:00
-    - id: 133960
+    - id: 267224
+      taskid: TASK-300
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:28:37-06:00
+    - id: 267225
+      taskid: TASK-300
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:28:37-06:00
+    - id: 267226
+      taskid: TASK-300
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:28:37-06:00
+    - id: 267227
+      taskid: TASK-300
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:28:37-06:00
+    - id: 267228
+      taskid: TASK-300
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:28:37-06:00
+    - id: 267229
+      taskid: TASK-300
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:28:37-06:00
+    - id: 267230
+      taskid: TASK-300
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:28:37-06:00
+    - id: 267231
+      taskid: TASK-300
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:28:37-06:00
+    - id: 267232
+      taskid: TASK-300
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:28:37-06:00
+    - id: 267233
+      taskid: TASK-300
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:28:37-06:00
+    - id: 267219
       taskid: TASK-300
       phase: implement
       gatetype: auto
@@ -773,7 +928,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:35:42-06:00
-    - id: 133962
+    - id: 267220
       taskid: TASK-300
       phase: implement
       gatetype: auto
@@ -781,7 +936,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:35:42-06:00
-    - id: 133964
+    - id: 267221
       taskid: TASK-300
       phase: implement
       gatetype: auto
@@ -789,7 +944,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:35:42-06:00
-    - id: 133966
+    - id: 267222
       taskid: TASK-300
       phase: implement
       gatetype: auto
@@ -797,7 +952,47 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-17T00:35:42-06:00
-    - id: 133968
+    - id: 267223
+      taskid: TASK-300
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:35:42-06:00
+    - id: 267234
+      taskid: TASK-300
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:35:42-06:00
+    - id: 267235
+      taskid: TASK-300
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:35:42-06:00
+    - id: 267236
+      taskid: TASK-300
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:35:42-06:00
+    - id: 267237
+      taskid: TASK-300
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T00:35:42-06:00
+    - id: 267238
       taskid: TASK-300
       phase: implement
       gatetype: auto

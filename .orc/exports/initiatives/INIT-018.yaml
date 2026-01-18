@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.030106-06:00
+exported_at: 2026-01-17T22:16:48.255886999-06:00
 type: initiative
 initiative:
     version: 0
@@ -32,7 +32,7 @@ initiative:
     tasks:
         - id: TASK-354
           title: Create StatsRow component for initiative overview stats
-          status: planned
+          status: completed
         - id: TASK-355
           title: Create InitiativeCard component
           status: planned
@@ -45,4 +45,4 @@ initiative:
     blocked_by:
         - INIT-016
     created_at: 2026-01-16T20:59:55-06:00
-    updated_at: 2026-01-16T23:43:19-06:00
+    updated_at: 2026-01-17T08:56:12-06:00
