@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.025262-06:00
+exported_at: 2026-01-17T22:16:48.246992317-06:00
 task:
     id: TASK-152
     title: 'Bug: Worktrees disappear during parallel task execution'

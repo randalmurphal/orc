@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.0129-06:00
+exported_at: 2026-01-17T22:16:48.225179232-06:00
 task:
     id: TASK-179
     title: 'Phase 4: Dual-run validation - Run all E2E tests against React'
@@ -801,6 +801,16 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T22:04:06-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:04:06-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:04:06-06:00
     tokens:
         input_tokens: 0
         output_tokens: 0
@@ -808,7 +818,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 93
+    - id: 185
       taskid: TASK-179
       phase: spec
       gatetype: auto
@@ -816,7 +826,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:04:06-06:00
-    - id: 94
+    - id: 186
+      taskid: TASK-179
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:04:06-06:00
+    - id: 187
+      taskid: TASK-179
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:04:06-06:00
+    - id: 188
       taskid: TASK-179
       phase: spec
       gatetype: auto

@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.01027-06:00
+exported_at: 2026-01-17T22:16:48.219829356-06:00
 task:
     id: TASK-193
     title: 'Comprehensive auto-commit: ALL .orc/ file mutations must commit'
@@ -147,6 +147,16 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T03:40:16-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T03:40:16-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T03:40:16-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -157,6 +167,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T03:44:28-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T03:44:28-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T03:44:28-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T03:47:57-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T03:47:57-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -174,7 +204,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 123
+    - id: 245
       taskid: TASK-193
       phase: implement
       gatetype: auto
@@ -182,7 +212,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T03:40:16-06:00
-    - id: 126
+    - id: 246
       taskid: TASK-193
       phase: implement
       gatetype: auto
@@ -190,7 +220,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T03:40:16-06:00
-    - id: 124
+    - id: 251
+      taskid: TASK-193
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T03:40:16-06:00
+    - id: 252
+      taskid: TASK-193
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T03:40:16-06:00
+    - id: 247
       taskid: TASK-193
       phase: test
       gatetype: auto
@@ -198,7 +244,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T03:44:28-06:00
-    - id: 127
+    - id: 248
       taskid: TASK-193
       phase: test
       gatetype: auto
@@ -206,7 +252,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T03:44:28-06:00
-    - id: 125
+    - id: 253
+      taskid: TASK-193
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T03:44:28-06:00
+    - id: 254
+      taskid: TASK-193
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T03:44:28-06:00
+    - id: 249
       taskid: TASK-193
       phase: docs
       gatetype: auto
@@ -214,7 +276,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T03:47:57-06:00
-    - id: 128
+    - id: 250
+      taskid: TASK-193
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T03:47:57-06:00
+    - id: 255
+      taskid: TASK-193
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T03:47:57-06:00
+    - id: 256
       taskid: TASK-193
       phase: docs
       gatetype: auto

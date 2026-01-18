@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.011124-06:00
+exported_at: 2026-01-17T22:16:48.221683325-06:00
 task:
     id: TASK-191
     title: 'Auto-commit for all task operations: delete, edit, status changes, and API/UI updates'
@@ -104,6 +104,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T02:43:56-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:43:56-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:43:56-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:51:21-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:51:21-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -121,7 +141,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 115
+    - id: 229
       taskid: TASK-191
       phase: implement
       gatetype: auto
@@ -129,7 +149,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T02:43:56-06:00
-    - id: 117
+    - id: 230
       taskid: TASK-191
       phase: implement
       gatetype: auto
@@ -137,7 +157,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T02:43:56-06:00
-    - id: 116
+    - id: 233
+      taskid: TASK-191
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:43:56-06:00
+    - id: 234
+      taskid: TASK-191
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:43:56-06:00
+    - id: 231
       taskid: TASK-191
       phase: test
       gatetype: auto
@@ -145,7 +181,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T02:51:21-06:00
-    - id: 118
+    - id: 232
+      taskid: TASK-191
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:51:21-06:00
+    - id: 235
+      taskid: TASK-191
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:51:21-06:00
+    - id: 236
       taskid: TASK-191
       phase: test
       gatetype: auto

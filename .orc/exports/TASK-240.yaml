@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:46.10537-06:00
+exported_at: 2026-01-17T22:16:36.210589771-06:00
 task:
     id: TASK-240
     title: Add context propagation to DatabaseBackend methods
@@ -391,6 +391,126 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T15:59:59-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:47-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:47-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:47-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:47-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:47-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:47-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:47-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:47-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:47-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:08:47-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -471,6 +591,46 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-15T16:11:24-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:11:24-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:11:24-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:11:24-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:11:24-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:11:24-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:11:24-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:13:22-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-15T16:13:22-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -565,21 +725,21 @@ transcripts:
         Tokens: 1286384 input, 4983 output, 69753 cache_creation, 1215321 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768628597
+      timestamp: 1768661767
     - id: 156
       taskid: TASK-240
       phase: implement
       iteration: 1
       role: combined
       content: "# implement - Iteration 1\n\n## Prompt\n\nImplement the task according to the specification:\n\n**Task**: Add context propagation to DatabaseBackend methods\n**Category**: {{TASK_CATEGORY}}\n\n{{INITIATIVE_CONTEXT}}\n\n## Specification\n\n# Specification: Add context propagation to DatabaseBackend methods\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n\n\n\n## Instructions\n\n1. Review the spec's success criteria - these are your acceptance criteria\n2. Implement the required changes following the technical approach\n3. Write/update tests alongside code (as specified in Testing Requirements)\n4. Run tests and fix any failures\n5. Self-review against success criteria before completing\n\n### Self-Review Checklist\n- [ ] All success criteria from spec addressed\n- [ ] All testing requirements satisfied\n- [ ] Scope boundaries respected (no extra features)\n- [ ] Error handling complete\n- [ ] Code follows project patterns\n\nKeep iterating until implementation is complete and tests pass.\n\nAfter completing, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-240: implement - completed\"\n```\n\nWhen done, output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\n\n## Response\n\n**Commit**: 0b856265\n\n## Summary\n\nI've implemented context propagation to the `DatabaseBackend` methods. Here's what was done:\n\n### Changes Made\n\n1. **`internal/db/project.go`**:\n   - Added `ctx` field to `TxOps` struct to store the context for the transaction lifetime\n   - Updated `TxOps.Exec`, `TxOps.Query`, `TxOps.QueryRow` to use the stored context instead of `context.Background()`\n   - Added `Context()` method to `TxOps` for accessing the transaction context\n   - Updated `RunInTx` to pass the context to `TxOps` when creating transactions\n\n2. **`internal/storage/database_backend.go`**:\n   - Added `SaveTaskCtx(ctx, task)` method with context support\n   - Added `SaveStateCtx(ctx, state)` method with context support  \n   - Added `SaveInitiativeCtx(ctx, initiative)` method with context support\n   - Modified existing `SaveTask`, `SaveState`, `SaveInitiative` to be thin wrappers that call the `*Ctx` variants with `context.Background()`\n\n3. **`internal/storage/database_backend_test.go`**:\n   - Added `TestSaveTaskCtx_ContextCancellation` - verifies canceled context aborts transaction\n   - Added `TestSaveStateCtx_ContextCancellation` - verifies canceled context aborts state save\n   - Added `TestSaveInitiativeCtx_ContextCancellation` - verifies canceled context aborts initiative save  \n   - Added `TestSaveTaskCtx_ValidContext` - verifies valid context allows operation to succeed\n\n### Design Decisions\n\n- **Backward compatibility**: Existing methods (`SaveTask`, `SaveState`, `SaveInitiative`) continue to work unchanged by using `context.Background()` internally\n- **Context lifetime**: The context is stored in `TxOps` when the transaction begins, ensuring all operations within the transaction use the same context\n- **Cancellation propagation**: When a context is canceled, the transaction will fail and be rolled back automatically\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 4692568 input, 15199 output, 135348 cache_creation, 4557170 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768628597
+      timestamp: 1768661767
     - id: 157
       taskid: TASK-240
       phase: spec
       iteration: 1
       role: combined
       content: "# spec - Iteration 1\n\n## Prompt\n\nCreate a specification for this task:\n\n**Task**: Add context propagation to DatabaseBackend methods\n**Category**: {{TASK_CATEGORY}}\n**Description**: \n\n{{INITIATIVE_CONTEXT}}\n\n## Instructions\n\nCreate a clear, actionable specification that defines exactly what needs to be done\nand how to verify it's complete.\n\n### 1. Problem Statement\nSummarize what needs to be solved in 1-2 sentences.\n\n### 2. Success Criteria (REQUIRED)\nDefine specific, testable criteria as checkboxes:\n- Each criterion must be verifiable (file exists, test passes, API returns X)\n- No vague language (\"works well\", \"is fast\")\n- Include both functional and quality criteria\n\n### 3. Testing Requirements (REQUIRED)\nSpecify what tests must pass:\n- [ ] Unit test: [specific test description]\n- [ ] Integration test: [if applicable]\n- [ ] E2E test: [if UI changes]\n\n### 4. Scope\nDefine boundaries to prevent scope creep:\n- **In Scope**: What will be implemented\n- **Out of Scope**: What will NOT be implemented\n\n### 5. Technical Approach\nBrief plan for implementation:\n- Files to modify\n- Key changes in each file\n\n### 6. Category-Specific Analysis\n\n**If this is a BUG (category=bug):**\n- Reproduction Steps: Exact steps to trigger the bug\n- Current Behavior: What happens now (the bug)\n- Expected Behavior: What should happen\n- Root Cause: Where the bug originates (if known)\n- Verification: How to confirm the fix works\n\n**If this is a FEATURE (category=feature):**\n- User Story: As a [user], I want [feature] so that [benefit]\n- Acceptance Criteria: Specific conditions for feature acceptance\n\n**If this is a REFACTOR (category=refactor):**\n- Before Pattern: Current code/architecture\n- After Pattern: Target code/architecture\n- Risk Assessment: What could break\n\n## Output Format\n\nWrap your spec in artifact tags:\n\n<artifact>\n# Specification: Add context propagation to DatabaseBackend methods\n\n## Problem Statement\n[1-2 sentences]\n\n## Success Criteria\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n\n## Testing Requirements\n- [ ] [Test 1]\n- [ ] [Test 2]\n\n## Scope\n### In Scope\n- [Item]\n### Out of Scope\n- [Item]\n\n## Technical Approach\n[Brief implementation plan]\n\n### Files to Modify\n- [file]: [change]\n\n## [Category-Specific Section]\n[Include appropriate section based on category]\n</artifact>\n\nAfter completing the spec, commit:\n```bash\ngit add -A\ngit commit -m \"[orc] TASK-240: spec - completed\"\n```\n\nThen output:\n```\n**Commit**: [SHA]\n<phase_complete>true</phase_complete>\n```\n\nIf blocked (requirements unclear):\n```\n<phase_blocked>\nreason: [what's unclear]\nneeds: [what clarification is needed]\n</phase_blocked>\n```\n\n\n## Response\n\n**Commit**: b4d2b9af\n<phase_complete>true</phase_complete>\n\n---\nTokens: 1893128 input, 7722 output, 117863 cache_creation, 1773361 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768628597
+      timestamp: 1768661767
     - id: 158
       taskid: TASK-240
       phase: test
@@ -661,9 +821,9 @@ transcripts:
         Tokens: 2153169 input, 4553 output, 131157 cache_creation, 2021880 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768628597
+      timestamp: 1768661767
 gate_decisions:
-    - id: 126797
+    - id: 253593
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -671,7 +831,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126798
+    - id: 253594
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -679,7 +839,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126799
+    - id: 253595
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -687,7 +847,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126800
+    - id: 253596
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -695,7 +855,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126801
+    - id: 253597
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -703,7 +863,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126802
+    - id: 253598
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -711,7 +871,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126803
+    - id: 253599
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -719,7 +879,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126813
+    - id: 253600
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -727,7 +887,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126814
+    - id: 253601
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -735,7 +895,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126815
+    - id: 253602
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -743,7 +903,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126816
+    - id: 253603
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -751,7 +911,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126817
+    - id: 253604
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -759,7 +919,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126818
+    - id: 253605
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -767,7 +927,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126819
+    - id: 253606
       taskid: TASK-240
       phase: spec
       gatetype: auto
@@ -775,7 +935,119 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T15:59:59-06:00
-    - id: 126804
+    - id: 253625
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253626
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253627
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253628
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253629
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253630
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253631
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253632
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253633
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253634
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253635
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253636
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253637
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253638
+      taskid: TASK-240
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T15:59:59-06:00
+    - id: 253607
       taskid: TASK-240
       phase: implement
       gatetype: auto
@@ -783,7 +1055,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:47-06:00
-    - id: 126805
+    - id: 253608
       taskid: TASK-240
       phase: implement
       gatetype: auto
@@ -791,7 +1063,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:47-06:00
-    - id: 126806
+    - id: 253609
       taskid: TASK-240
       phase: implement
       gatetype: auto
@@ -799,7 +1071,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:47-06:00
-    - id: 126807
+    - id: 253610
       taskid: TASK-240
       phase: implement
       gatetype: auto
@@ -807,7 +1079,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:47-06:00
-    - id: 126808
+    - id: 253611
       taskid: TASK-240
       phase: implement
       gatetype: auto
@@ -815,7 +1087,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:47-06:00
-    - id: 126820
+    - id: 253612
       taskid: TASK-240
       phase: implement
       gatetype: auto
@@ -823,7 +1095,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:47-06:00
-    - id: 126821
+    - id: 253613
       taskid: TASK-240
       phase: implement
       gatetype: auto
@@ -831,7 +1103,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:47-06:00
-    - id: 126822
+    - id: 253614
       taskid: TASK-240
       phase: implement
       gatetype: auto
@@ -839,7 +1111,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:47-06:00
-    - id: 126823
+    - id: 253615
       taskid: TASK-240
       phase: implement
       gatetype: auto
@@ -847,7 +1119,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:47-06:00
-    - id: 126824
+    - id: 253616
       taskid: TASK-240
       phase: implement
       gatetype: auto
@@ -855,7 +1127,87 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:08:47-06:00
-    - id: 126809
+    - id: 253639
+      taskid: TASK-240
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:47-06:00
+    - id: 253640
+      taskid: TASK-240
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:47-06:00
+    - id: 253641
+      taskid: TASK-240
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:47-06:00
+    - id: 253642
+      taskid: TASK-240
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:47-06:00
+    - id: 253643
+      taskid: TASK-240
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:47-06:00
+    - id: 253644
+      taskid: TASK-240
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:47-06:00
+    - id: 253645
+      taskid: TASK-240
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:47-06:00
+    - id: 253646
+      taskid: TASK-240
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:47-06:00
+    - id: 253647
+      taskid: TASK-240
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:47-06:00
+    - id: 253648
+      taskid: TASK-240
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:08:47-06:00
+    - id: 253617
       taskid: TASK-240
       phase: test
       gatetype: auto
@@ -863,7 +1215,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:11:24-06:00
-    - id: 126810
+    - id: 253618
       taskid: TASK-240
       phase: test
       gatetype: auto
@@ -871,7 +1223,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:11:24-06:00
-    - id: 126811
+    - id: 253619
       taskid: TASK-240
       phase: test
       gatetype: auto
@@ -879,7 +1231,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:11:24-06:00
-    - id: 126825
+    - id: 253620
       taskid: TASK-240
       phase: test
       gatetype: auto
@@ -887,7 +1239,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:11:24-06:00
-    - id: 126826
+    - id: 253621
       taskid: TASK-240
       phase: test
       gatetype: auto
@@ -895,7 +1247,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:11:24-06:00
-    - id: 126827
+    - id: 253622
       taskid: TASK-240
       phase: test
       gatetype: auto
@@ -903,7 +1255,55 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:11:24-06:00
-    - id: 126812
+    - id: 253649
+      taskid: TASK-240
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:11:24-06:00
+    - id: 253650
+      taskid: TASK-240
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:11:24-06:00
+    - id: 253651
+      taskid: TASK-240
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:11:24-06:00
+    - id: 253652
+      taskid: TASK-240
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:11:24-06:00
+    - id: 253653
+      taskid: TASK-240
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:11:24-06:00
+    - id: 253654
+      taskid: TASK-240
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:11:24-06:00
+    - id: 253623
       taskid: TASK-240
       phase: docs
       gatetype: auto
@@ -911,7 +1311,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-15T16:13:22-06:00
-    - id: 126828
+    - id: 253624
+      taskid: TASK-240
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:13:22-06:00
+    - id: 253655
+      taskid: TASK-240
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-15T16:13:22-06:00
+    - id: 253656
       taskid: TASK-240
       phase: docs
       gatetype: auto

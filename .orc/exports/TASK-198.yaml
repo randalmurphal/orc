@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.007622-06:00
+exported_at: 2026-01-17T22:16:48.214980546-06:00
 task:
     id: TASK-198
     title: 'Fix: Re-running completed tasks fails to push due to diverged remote branch'
@@ -542,6 +542,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T22:21:19-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:21:19-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:21:19-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:25:11-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:25:11-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -562,6 +582,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T22:28:28-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:28:28-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:28:28-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:30:02-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T22:30:02-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -579,7 +619,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 153
+    - id: 305
       taskid: TASK-198
       phase: spec
       gatetype: auto
@@ -587,7 +627,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:21:19-06:00
-    - id: 157
+    - id: 306
       taskid: TASK-198
       phase: spec
       gatetype: auto
@@ -595,7 +635,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:21:19-06:00
-    - id: 154
+    - id: 313
+      taskid: TASK-198
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:21:19-06:00
+    - id: 314
+      taskid: TASK-198
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:21:19-06:00
+    - id: 307
       taskid: TASK-198
       phase: implement
       gatetype: auto
@@ -603,7 +659,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:25:11-06:00
-    - id: 158
+    - id: 308
       taskid: TASK-198
       phase: implement
       gatetype: auto
@@ -611,7 +667,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:25:11-06:00
-    - id: 155
+    - id: 315
+      taskid: TASK-198
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:25:11-06:00
+    - id: 316
+      taskid: TASK-198
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:25:11-06:00
+    - id: 309
       taskid: TASK-198
       phase: test
       gatetype: auto
@@ -619,7 +691,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:28:28-06:00
-    - id: 159
+    - id: 310
       taskid: TASK-198
       phase: test
       gatetype: auto
@@ -627,7 +699,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:28:28-06:00
-    - id: 156
+    - id: 317
+      taskid: TASK-198
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:28:28-06:00
+    - id: 318
+      taskid: TASK-198
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:28:28-06:00
+    - id: 311
       taskid: TASK-198
       phase: docs
       gatetype: auto
@@ -635,7 +723,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T22:30:02-06:00
-    - id: 160
+    - id: 312
+      taskid: TASK-198
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:30:02-06:00
+    - id: 319
+      taskid: TASK-198
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T22:30:02-06:00
+    - id: 320
       taskid: TASK-198
       phase: docs
       gatetype: auto

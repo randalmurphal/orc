@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.93058-06:00
+exported_at: 2026-01-17T22:16:32.368124738-06:00
 task:
     id: TASK-327
     title: Create Button component with primary, ghost, and icon variants
@@ -31,7 +31,8 @@ task:
         - web/src/components/core/Button.tsx
         - web/src/components/core/Button.css
     weight: small
-    status: planned
+    status: completed
+    current_phase: test
     branch: orc/TASK-327
     queue: active
     priority: high
@@ -41,6 +42,10 @@ task:
         - TASK-325
     created_at: 2026-01-16T20:55:02-06:00
     updated_at: 0001-01-01T00:00:00Z
+    started_at: 2026-01-17T15:08:40-06:00
+    completed_at: 2026-01-17T15:14:49-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/199
 plan:
     version: 1
     task_id: TASK-327
@@ -69,7 +74,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: a1f5d2ac0c45fc968b6c4acd96f2098c343d11aa
         - id: test
           name: test
           prompt: |
@@ -90,18 +96,270 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 214902489f4e2361abada1075e1897d936802f9b
 state:
     task_id: TASK-327
-    current_phase: ""
+    current_phase: test
     current_iteration: 0
-    status: pending
-    started_at: 0001-01-01T00:00:00Z
+    status: completed
+    started_at: 2026-01-17T15:08:40-06:00
     updated_at: 0001-01-01T00:00:00Z
-    phases: {}
+    phases:
+        implement:
+            status: completed
+            started_at: 2026-01-17T15:08:41-06:00
+            completed_at: 2026-01-17T15:13:13-06:00
+            iterations: 1
+            commit_sha: a1f5d2ac0c45fc968b6c4acd96f2098c343d11aa
+            tokens:
+                input_tokens: 2663646
+                output_tokens: 12201
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-17T15:13:13-06:00
+            completed_at: 2026-01-17T15:14:40-06:00
+            iterations: 1
+            commit_sha: 214902489f4e2361abada1075e1897d936802f9b
+            tokens:
+                input_tokens: 492597
+                output_tokens: 1601
+                total_tokens: 0
+    gates:
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T15:13:13-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T15:13:13-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T15:13:13-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T15:14:40-06:00
     tokens:
         input_tokens: 0
         output_tokens: 0
         total_tokens: 0
     cost:
         total_cost_usd: 0
+transcripts:
+    - id: 447
+      taskid: TASK-327
+      phase: implement
+      iteration: 1
+      role: combined
+      content: |
+        # implement - Iteration 1
+
+        ## Prompt
+
+        Implement the following task:
+
+        **Task**: Create Button component with primary, ghost, and icon variants
+
+        **Description**: Create a Button component matching the mockup button styles.
+
+        REFERENCE FILES:
+        - example_ui/board.html (.btn, .btn-primary, .btn-ghost classes)
+        - example_ui/initiatives.html (New Initiative button)
+        - example_ui/Screenshot_20260116_201819.png
+
+        SUCCESS CRITERIA:
+        1. Button component created at web/src/components/core/Button.tsx
+        2. Primary variant: background var(--primary), hover var(--primary-bright), white text, glow shadow
+        3. Ghost variant: background var(--bg-surface), 1px border, hover var(--bg-hover)
+        4. Icon variant: 28-32px square, icon centered, no text
+        5. Shared styles: border-radius 6px, padding 7px 12px, font-size 11px, font-weight 500, gap 5px, transition 0.15s
+        6. Loading state with spinner
+        7. Disabled state with reduced opacity
+        8. Props interface with variant, size, icon, loading, disabled
+        9. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Icon-only buttons must have aria-label for accessibility
+        - Loading state should disable click
+        - Should work as submit button in forms
+
+        FILES TO CREATE:
+        - web/src/components/core/Button.tsx
+        - web/src/components/core/Button.css
+
+
+
+        1. Implement the required changes
+        2. Write/update tests as needed
+        3. Run tests and fix any failures
+
+        Keep iterating until implementation is complete and all tests pass.
+
+        When done, output:
+        <phase_complete>true</phase_complete>
+
+
+        ## Response
+
+        Implementation is complete. Here's a summary:
+
+        ## Summary
+
+        Created the Button component at `web/src/components/core/Button.tsx` and `web/src/components/core/Button.css` matching the mockup design from `example_ui/board.html`.
+
+        ### Features Implemented:
+
+        **Variants:**
+        - **Primary**: Purple background (`--primary`), white text, glow shadow on hover
+        - **Ghost**: Surface background with border, hover highlights
+        - **Icon**: 28-32px square buttons for icon-only use
+
+        **Sizes:**
+        - `sm` (28px icon, smaller padding)
+        - `md` (32px icon, default)
+        - `lg` (36px icon, larger padding)
+
+        **States:**
+        - Loading with animated spinner
+        - Disabled with reduced opacity (0.5)
+
+        **Props Interface:**
+        ```typescript
+        interface ButtonProps {
+          variant?: 'primary' | 'ghost' | 'icon';
+          size?: 'sm' | 'md' | 'lg';
+          icon?: ReactNode;
+          loading?: boolean;
+          disabled?: boolean;
+        }
+        ```
+
+        **Accessibility:**
+        - Icon-only buttons require `aria-label`
+        - Loading state sets `aria-busy`
+        - Disabled state sets `aria-disabled`
+        - Spinner is `aria-hidden`
+
+        **Tests:** 46 passing tests covering all variants, states, and edge cases.
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 2663646 input, 12201 output, 92003 cache_creation, 2554911 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768684393
+    - id: 448
+      taskid: TASK-327
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Final test verification for: Create Button component with primary, ghost, and icon variants
+
+        **Original task**: Create a Button component matching the mockup button styles.
+
+        REFERENCE FILES:
+        - example_ui/board.html (.btn, .btn-primary, .btn-ghost classes)
+        - example_ui/initiatives.html (New Initiative button)
+        - example_ui/Screenshot_20260116_201819.png
+
+        SUCCESS CRITERIA:
+        1. Button component created at web/src/components/core/Button.tsx
+        2. Primary variant: background var(--primary), hover var(--primary-bright), white text, glow shadow
+        3. Ghost variant: background var(--bg-surface), 1px border, hover var(--bg-hover)
+        4. Icon variant: 28-32px square, icon centered, no text
+        5. Shared styles: border-radius 6px, padding 7px 12px, font-size 11px, font-weight 500, gap 5px, transition 0.15s
+        6. Loading state with spinner
+        7. Disabled state with reduced opacity
+        8. Props interface with variant, size, icon, loading, disabled
+        9. npm run typecheck exits 0
+
+        EDGE CASES:
+        - Icon-only buttons must have aria-label for accessibility
+        - Loading state should disable click
+        - Should work as submit button in forms
+
+        FILES TO CREATE:
+        - web/src/components/core/Button.tsx
+        - web/src/components/core/Button.css
+
+        1. Run the full test suite
+        2. Fix any failures found
+        3. Verify edge cases are covered
+
+        Keep iterating until all tests pass.
+
+        When done, output:
+        <phase_complete>true</phase_complete>
+
+
+        ## Response
+
+        All verifications complete:
+
+        **Summary:**
+        - ✅ All 839 tests pass (including 46 tests for the new `core/Button.tsx`)
+        - ✅ TypeScript typecheck passes (`npm run typecheck` exits 0)
+        - ✅ Button component created at `web/src/components/core/Button.tsx`
+        - ✅ Primary variant: background var(--primary), hover var(--primary-bright), white text, glow shadow
+        - ✅ Ghost variant: background var(--bg-surface), 1px border, hover var(--bg-hover)
+        - ✅ Icon variant: 28-32px square, icon centered, no text
+        - ✅ Shared styles: border-radius 6px, padding 7px 12px, font-size 11px, font-weight 500, gap 5px, transition 0.15s
+        - ✅ Loading state with spinner
+        - ✅ Disabled state with reduced opacity
+        - ✅ Props interface with variant, size, icon, loading, disabled
+        - ✅ Edge cases covered: icon-only aria-label, loading disables click, form submit support
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 492597 input, 1601 output, 30307 cache_creation, 459746 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768684480
+gate_decisions:
+    - id: 356189
+      taskid: TASK-327
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T15:13:13-06:00
+    - id: 356192
+      taskid: TASK-327
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T15:13:13-06:00
+    - id: 356193
+      taskid: TASK-327
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T15:13:13-06:00
+    - id: 356194
+      taskid: TASK-327
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T15:14:40-06:00

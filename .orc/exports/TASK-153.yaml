@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.024853-06:00
+exported_at: 2026-01-17T22:16:48.246306569-06:00
 task:
     id: TASK-153
     title: Auto-commit task files on creation and modification
@@ -133,6 +133,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T02:24:35-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:24:35-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:24:35-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:29:55-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T02:29:55-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -150,7 +170,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 23
+    - id: 45
       taskid: TASK-153
       phase: implement
       gatetype: auto
@@ -158,7 +178,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T02:24:35-06:00
-    - id: 25
+    - id: 46
       taskid: TASK-153
       phase: implement
       gatetype: auto
@@ -166,7 +186,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T02:24:35-06:00
-    - id: 24
+    - id: 49
+      taskid: TASK-153
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:24:35-06:00
+    - id: 50
+      taskid: TASK-153
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:24:35-06:00
+    - id: 47
       taskid: TASK-153
       phase: test
       gatetype: auto
@@ -174,7 +210,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T02:29:55-06:00
-    - id: 26
+    - id: 48
+      taskid: TASK-153
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:29:55-06:00
+    - id: 51
+      taskid: TASK-153
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T02:29:55-06:00
+    - id: 52
       taskid: TASK-153
       phase: test
       gatetype: auto

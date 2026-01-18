@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.031962-06:00
+exported_at: 2026-01-17T22:16:48.257522796-06:00
 type: initiative
 initiative:
     version: 0
@@ -19,4 +19,4 @@ initiative:
           decision: Dependency graph visualization is optional power feature (large weight)
           rationale: Core blocking/related functionality more important. Graph can come later.
     created_at: 2026-01-13T21:15:38-06:00
-    updated_at: 2026-01-16T23:43:19-06:00
+    updated_at: 2026-01-17T08:56:10-06:00

@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.901541-06:00
+exported_at: 2026-01-17T22:16:32.227432032-06:00
 task:
     id: TASK-385
     title: Create Icon component as Lucide wrapper
@@ -54,7 +54,8 @@ task:
 
         **Reference:** example_ui/board.html uses icons throughout (nav, buttons, status indicators)
     weight: small
-    status: planned
+    status: completed
+    current_phase: test
     branch: orc/TASK-385
     queue: active
     priority: normal
@@ -64,6 +65,10 @@ task:
         - TASK-325
     created_at: 2026-01-16T22:39:02-06:00
     updated_at: 0001-01-01T00:00:00Z
+    started_at: 2026-01-17T18:18:22-06:00
+    completed_at: 2026-01-17T18:22:33-06:00
+    metadata:
+        pr_url: https://github.com/randalmurphal/orc/pull/206
 plan:
     version: 1
     task_id: TASK-385
@@ -92,7 +97,8 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 4408e925388a7d795e6875f70be2f1f60f9a2ab6
         - id: test
           name: test
           prompt: |
@@ -113,18 +119,220 @@ plan:
           gate:
             type: auto
           checkpoint: true
-          status: pending
+          status: completed
+          commit_sha: 883179363b2c9f5b5d0d5fa6f8ae6193586026e5
 state:
     task_id: TASK-385
-    current_phase: ""
+    current_phase: test
     current_iteration: 0
-    status: pending
-    started_at: 0001-01-01T00:00:00Z
+    status: completed
+    started_at: 2026-01-17T18:18:22-06:00
     updated_at: 0001-01-01T00:00:00Z
-    phases: {}
+    phases:
+        implement:
+            status: completed
+            started_at: 2026-01-17T18:18:24-06:00
+            completed_at: 2026-01-17T18:21:54-06:00
+            iterations: 1
+            commit_sha: 4408e925388a7d795e6875f70be2f1f60f9a2ab6
+            tokens:
+                input_tokens: 1606012
+                output_tokens: 9124
+                total_tokens: 0
+        test:
+            status: completed
+            started_at: 2026-01-17T18:21:54-06:00
+            completed_at: 2026-01-17T18:22:26-06:00
+            iterations: 1
+            commit_sha: 883179363b2c9f5b5d0d5fa6f8ae6193586026e5
+            tokens:
+                input_tokens: 223940
+                output_tokens: 1129
+                total_tokens: 0
+    gates:
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T18:21:54-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T18:21:54-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T18:21:54-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-17T18:22:26-06:00
     tokens:
         input_tokens: 0
         output_tokens: 0
         total_tokens: 0
     cost:
         total_cost_usd: 0
+transcripts:
+    - id: 464
+      taskid: TASK-385
+      phase: implement
+      iteration: 1
+      role: combined
+      content: "# implement - Iteration 1\n\n## Prompt\n\nImplement the following task:\n\n**Task**: Create Icon component as Lucide wrapper\n\n**Description**: Create a reusable Icon component that wraps lucide-react icons with consistent sizing, colors, and accessibility.\n\n**Component Interface:**\n```typescript\ninterface IconProps {\n  name: LucideIcon;           // Icon component from lucide-react\n  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';  // 12, 14, 16, 18, 20px\n  color?: 'primary' | 'secondary' | 'muted' | 'success' | 'warning' | 'error';\n  className?: string;\n  'aria-label'?: string;      // Required for standalone icons\n  'aria-hidden'?: boolean;    // true when decorative\n}\n```\n\n**Size mapping:**\n```css\n--icon-xs: 12px;\n--icon-sm: 14px;\n--icon-md: 16px;   /* default */\n--icon-lg: 18px;\n--icon-xl: 20px;\n```\n\n**Color mapping:**\n- primary: var(--text-primary)\n- secondary: var(--text-secondary)\n- muted: var(--text-muted)\n- success: var(--green)\n- warning: var(--amber)\n- error: var(--red)\n\n**Usage examples:**\n```tsx\n<Icon name={Home} size=\"lg\" aria-label=\"Home\" />\n<Icon name={Check} color=\"success\" aria-hidden />\n<Icon name={AlertCircle} color=\"error\" size=\"sm\" />\n```\n\n**Files to create:**\n- web/src/components/core/Icon.tsx\n\n**Success criteria:**\n- Renders any lucide-react icon\n- All 5 sizes work correctly\n- All color variants apply correct CSS variable\n- Accessible: aria-label for interactive, aria-hidden for decorative\n- Exported from web/src/components/core/index.ts (update TASK-335)\n\n**Reference:** example_ui/board.html uses icons throughout (nav, buttons, status indicators)\n\n\n\n1. Implement the required changes\n2. Write/update tests as needed\n3. Run tests and fix any failures\n\nKeep iterating until implementation is complete and all tests pass.\n\nWhen done, output:\n<phase_complete>true</phase_complete>\n\n\n## Response\n\nImplementation is complete. Let me summarize what was created:\n\n## Summary\n\nCreated a new **Icon component** (`web/src/components/core/Icon.tsx`) as a Lucide icon wrapper with:\n\n### Component Features:\n- **Renders any lucide-react icon** - accepts `LucideIcon` type via `name` prop\n- **5 sizes**: xs (12px), sm (14px), md (16px default), lg (18px), xl (20px)\n- **6 color variants**: primary, secondary, muted, success, warning, error - all mapped to CSS variables\n- **Accessibility support**: \n  - `aria-label` for interactive icons (sets `role=\"img\"`)\n  - `aria-hidden` for decorative icons (defaults to true when no aria-label)\n- **Ref forwarding** and full SVG attribute support\n- **CSS variables** defined for icon sizes (`--icon-xs` through `--icon-xl`)\n\n### Files Created/Modified:\n1. `web/src/components/core/Icon.tsx` - Component implementation\n2. `web/src/components/core/Icon.css` - CSS styles with size and color variants\n3. `web/src/components/core/Icon.test.tsx` - 31 comprehensive tests\n4. `web/src/components/core/index.ts` - Updated to export Icon, IconProps, IconSize, IconColor\n\n### Dependencies:\n- Added `lucide-react` package to `package.json`\n\n### All tests pass (1118 total, 31 for Icon component)\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 1606012 input, 9124 output, 63344 cache_creation, 1542638 cache_read\nComplete: true\nBlocked: false\n"
+      timestamp: 1768695713
+    - id: 465
+      taskid: TASK-385
+      phase: test
+      iteration: 1
+      role: combined
+      content: |
+        # test - Iteration 1
+
+        ## Prompt
+
+        Final test verification for: Create Icon component as Lucide wrapper
+
+        **Original task**: Create a reusable Icon component that wraps lucide-react icons with consistent sizing, colors, and accessibility.
+
+        **Component Interface:**
+        ```typescript
+        interface IconProps {
+          name: LucideIcon;           // Icon component from lucide-react
+          size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';  // 12, 14, 16, 18, 20px
+          color?: 'primary' | 'secondary' | 'muted' | 'success' | 'warning' | 'error';
+          className?: string;
+          'aria-label'?: string;      // Required for standalone icons
+          'aria-hidden'?: boolean;    // true when decorative
+        }
+        ```
+
+        **Size mapping:**
+        ```css
+        --icon-xs: 12px;
+        --icon-sm: 14px;
+        --icon-md: 16px;   /* default */
+        --icon-lg: 18px;
+        --icon-xl: 20px;
+        ```
+
+        **Color mapping:**
+        - primary: var(--text-primary)
+        - secondary: var(--text-secondary)
+        - muted: var(--text-muted)
+        - success: var(--green)
+        - warning: var(--amber)
+        - error: var(--red)
+
+        **Usage examples:**
+        ```tsx
+        <Icon name={Home} size="lg" aria-label="Home" />
+        <Icon name={Check} color="success" aria-hidden />
+        <Icon name={AlertCircle} color="error" size="sm" />
+        ```
+
+        **Files to create:**
+        - web/src/components/core/Icon.tsx
+
+        **Success criteria:**
+        - Renders any lucide-react icon
+        - All 5 sizes work correctly
+        - All color variants apply correct CSS variable
+        - Accessible: aria-label for interactive, aria-hidden for decorative
+        - Exported from web/src/components/core/index.ts (update TASK-335)
+
+        **Reference:** example_ui/board.html uses icons throughout (nav, buttons, status indicators)
+
+        1. Run the full test suite
+        2. Fix any failures found
+        3. Verify edge cases are covered
+
+        Keep iterating until all tests pass.
+
+        When done, output:
+        <phase_complete>true</phase_complete>
+
+
+        ## Response
+
+        All tests pass (31 tests) and the implementation is complete. Let me verify the summary of what's been implemented:
+
+        **Verification Summary:**
+
+        ✅ **All 31 tests pass** - covering rendering, sizes, colors, accessibility, ref forwarding, className, SVG attributes, and usage examples
+
+        ✅ **Component interface matches spec:**
+        - `name: LucideIcon` - Accepts any Lucide icon component
+        - `size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'` - All 5 sizes (12, 14, 16, 18, 20px)
+        - `color?: IconColor` - All 6 colors mapped to correct CSS variables
+        - `className?: string` - Custom className support
+        - `aria-label?: string` - For interactive icons
+        - `aria-hidden?: boolean` - For decorative icons
+
+        ✅ **Size mapping correct:**
+        - xs: 12px, sm: 14px, md: 16px (default), lg: 18px, xl: 20px
+
+        ✅ **Color mapping correct:**
+        - primary → var(--text-primary)
+        - secondary → var(--text-secondary)
+        - muted → var(--text-muted)
+        - success → var(--green)
+        - warning → var(--amber)
+        - error → var(--red)
+
+        ✅ **Accessibility implemented:**
+        - Icons with `aria-label` get `role="img"` and `aria-hidden="false"`
+        - Icons without `aria-label` are automatically `aria-hidden="true"`
+        - Explicit `aria-hidden` override supported
+
+        ✅ **Exported from `web/src/components/core/index.ts`**
+
+        ✅ **Edge cases covered:**
+        - Ref forwarding
+        - Custom className merging
+        - SVG attribute passthrough (strokeWidth, style, data-*)
+        - All usage examples from task work correctly
+
+        <phase_complete>true</phase_complete>
+
+        ---
+        Tokens: 223940 input, 1129 output, 18521 cache_creation, 204313 cache_read
+        Complete: true
+        Blocked: false
+      timestamp: 1768695745
+gate_decisions:
+    - id: 356298
+      taskid: TASK-385
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T18:21:54-06:00
+    - id: 356299
+      taskid: TASK-385
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T18:21:54-06:00
+    - id: 356300
+      taskid: TASK-385
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T18:21:54-06:00
+    - id: 356301
+      taskid: TASK-385
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-17T18:22:26-06:00

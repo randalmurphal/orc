@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.910552-06:00
+exported_at: 2026-01-17T22:16:32.243111751-06:00
 task:
     id: TASK-375
     title: Verify Settings View matches mockup using Playwright

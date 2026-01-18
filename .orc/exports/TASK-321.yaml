@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.936598-06:00
+exported_at: 2026-01-17T22:16:35.568585825-06:00
 task:
     id: TASK-321
     title: 'Feature: Bulk task operations (select multiple, run/archive/delete)'

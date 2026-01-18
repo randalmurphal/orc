@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.009755-06:00
+exported_at: 2026-01-17T22:16:48.218702523-06:00
 task:
     id: TASK-195
     title: Add --status flag to orc edit command
@@ -353,6 +353,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T19:45:09-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T19:45:09-06:00
+        - phase: spec
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T19:45:09-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T19:49:18-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T19:49:18-06:00
         - phase: implement
           gate_type: auto
           approved: true
@@ -373,6 +393,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T19:52:22-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T19:52:22-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T19:52:22-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T19:54:17-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T19:54:17-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -390,7 +430,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 129
+    - id: 257
       taskid: TASK-195
       phase: spec
       gatetype: auto
@@ -398,7 +438,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T19:45:09-06:00
-    - id: 133
+    - id: 258
       taskid: TASK-195
       phase: spec
       gatetype: auto
@@ -406,7 +446,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T19:45:09-06:00
-    - id: 130
+    - id: 265
+      taskid: TASK-195
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T19:45:09-06:00
+    - id: 266
+      taskid: TASK-195
+      phase: spec
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T19:45:09-06:00
+    - id: 259
       taskid: TASK-195
       phase: implement
       gatetype: auto
@@ -414,7 +470,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T19:49:18-06:00
-    - id: 134
+    - id: 260
       taskid: TASK-195
       phase: implement
       gatetype: auto
@@ -422,7 +478,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T19:49:18-06:00
-    - id: 131
+    - id: 267
+      taskid: TASK-195
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T19:49:18-06:00
+    - id: 268
+      taskid: TASK-195
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T19:49:18-06:00
+    - id: 261
       taskid: TASK-195
       phase: test
       gatetype: auto
@@ -430,7 +502,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T19:52:22-06:00
-    - id: 135
+    - id: 262
       taskid: TASK-195
       phase: test
       gatetype: auto
@@ -438,7 +510,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T19:52:22-06:00
-    - id: 132
+    - id: 269
+      taskid: TASK-195
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T19:52:22-06:00
+    - id: 270
+      taskid: TASK-195
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T19:52:22-06:00
+    - id: 263
       taskid: TASK-195
       phase: docs
       gatetype: auto
@@ -446,7 +534,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T19:54:17-06:00
-    - id: 136
+    - id: 264
+      taskid: TASK-195
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T19:54:17-06:00
+    - id: 271
+      taskid: TASK-195
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T19:54:17-06:00
+    - id: 272
       taskid: TASK-195
       phase: docs
       gatetype: auto

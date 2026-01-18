@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.940014-06:00
+exported_at: 2026-01-17T22:16:35.57626404-06:00
 task:
     id: TASK-309
     title: 'CRITICAL: UI Run button sets status to ''running'' but doesn''t spawn executor process'
@@ -148,6 +148,66 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:11:55-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:16:16-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-16T18:16:16-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -165,7 +225,7 @@ state:
     cost:
         total_cost_usd: 0
 transcripts:
-    - id: 389
+    - id: 392
       taskid: TASK-309
       phase: implement
       iteration: 1
@@ -237,16 +297,16 @@ transcripts:
         Tokens: 6769381 input, 14940 output, 391414 cache_creation, 6377899 cache_read
         Complete: true
         Blocked: false
-      timestamp: 1768628598
-    - id: 390
+      timestamp: 1768661769
+    - id: 393
       taskid: TASK-309
       phase: test
       iteration: 1
       role: combined
       content: "# test - Iteration 1\n\n## Prompt\n\nFinal test verification for: CRITICAL: UI Run button sets status to 'running' but doesn't spawn executor process\n\n**Original task**: Steps to reproduce: 1. Click Run on any task in the UI. 2. Task status changes to 'running' in the UI. 3. No executor process is spawned - check 'ps aux | grep claude'. 4. Task remains 'running' indefinitely with no progress. Workaround: Use 'orc run TASK-XXX' via CLI to actually execute tasks. Impact: Makes the Run button in the UI completely non-functional.\n\n1. Run the full test suite\n2. Fix any failures found\n3. Verify edge cases are covered\n\nKeep iterating until all tests pass.\n\nWhen done, output:\n<phase_complete>true</phase_complete>\n\n\n## Response\n\nAll tests pass and edge cases are covered:\n\n## Test Verification Summary\n\n### Go Backend Tests (All Pass)\n- **API Handler Tests**: \n  - `TestRunTaskEndpoint` - Verifies run endpoint starts execution and returns running status\n  - `TestRunTaskEndpoint_SetsCurrentPhase` - Ensures current_phase is set to the first phase\n  - `TestRunTaskEndpoint_TaskCannotRun` - Validates 400 for already-running tasks\n  - `TestRunTaskEndpoint_NoPlan` - Validates 404 for tasks without plans\n  - `TestRunTaskEndpoint_BlockedByIncompleteTasks` - Tests dependency checking\n\n- **Executor Tests**:\n  - `TestNew_SessionManagerWithClaudePath` - **Critical TASK-309 fix test** - verifies session manager receives Claude path for spawning\n  - `TestExecuteTask_SinglePhaseSuccess` - Full task execution through phases\n  - `TestExecuteTask_WithPublisher` - Event publishing during execution\n  - `TestExecutePhase_Complete` - Phase completion detection\n  - Various retry, cancellation, and error handling tests\n\n### Frontend Tests (783 tests, all pass)\n- WebSocket integration tests\n- TaskHeader tests (including `runTask` mock)\n- Store tests for task state management\n\n### Edge Cases Covered\n1. **Session manager initialization** - Tests verify `session.WithClaudePath(claudePath)` is passed\n2. **Task status updates** - Status set to 'running' BEFORE spawning executor\n3. **Current phase tracking** - First phase ID set when task starts\n4. **Dependency blocking** - Returns 409 Conflict when task is blocked\n5. **Force execution** - Allows bypassing dependency checks with `force=true`\n6. **Context cancellation** - Proper cleanup on context cancellation\n7. **Plan validation** - 404 when no plan exists\n\n<phase_complete>true</phase_complete>\n\n---\nTokens: 874170 input, 3165 output, 76044 cache_creation, 795151 cache_read\nComplete: true\nBlocked: false\n"
-      timestamp: 1768628598
+      timestamp: 1768661769
 gate_decisions:
-    - id: 133689
+    - id: 267407
       taskid: TASK-309
       phase: implement
       gatetype: auto
@@ -254,7 +314,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:11:55-06:00
-    - id: 133690
+    - id: 267408
       taskid: TASK-309
       phase: implement
       gatetype: auto
@@ -262,7 +322,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:11:55-06:00
-    - id: 133691
+    - id: 267409
       taskid: TASK-309
       phase: implement
       gatetype: auto
@@ -270,7 +330,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:11:55-06:00
-    - id: 133692
+    - id: 267410
       taskid: TASK-309
       phase: implement
       gatetype: auto
@@ -278,7 +338,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:11:55-06:00
-    - id: 133693
+    - id: 267411
       taskid: TASK-309
       phase: implement
       gatetype: auto
@@ -286,7 +346,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:11:55-06:00
-    - id: 133695
+    - id: 267412
       taskid: TASK-309
       phase: implement
       gatetype: auto
@@ -294,7 +354,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:11:55-06:00
-    - id: 133696
+    - id: 267413
       taskid: TASK-309
       phase: implement
       gatetype: auto
@@ -302,7 +362,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:11:55-06:00
-    - id: 133697
+    - id: 267414
       taskid: TASK-309
       phase: implement
       gatetype: auto
@@ -310,7 +370,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:11:55-06:00
-    - id: 133698
+    - id: 267415
       taskid: TASK-309
       phase: implement
       gatetype: auto
@@ -318,7 +378,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:11:55-06:00
-    - id: 133699
+    - id: 267416
       taskid: TASK-309
       phase: implement
       gatetype: auto
@@ -326,7 +386,87 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:11:55-06:00
-    - id: 133694
+    - id: 267419
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 267420
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 267421
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 267422
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 267423
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 267424
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 267425
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 267426
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 267427
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 267428
+      taskid: TASK-309
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:11:55-06:00
+    - id: 267417
       taskid: TASK-309
       phase: test
       gatetype: auto
@@ -334,7 +474,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-16T18:16:16-06:00
-    - id: 133700
+    - id: 267418
+      taskid: TASK-309
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:16:16-06:00
+    - id: 267429
+      taskid: TASK-309
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-16T18:16:16-06:00
+    - id: 267430
       taskid: TASK-309
       phase: test
       gatetype: auto

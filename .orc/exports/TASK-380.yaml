@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:45.903697-06:00
+exported_at: 2026-01-17T22:16:32.231074959-06:00
 task:
     id: TASK-380
     title: Implement GET /api/stats/per-day endpoint for bar chart

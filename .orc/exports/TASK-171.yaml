@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.01752-06:00
+exported_at: 2026-01-17T22:16:48.233796663-06:00
 task:
     id: TASK-171
     title: 'Phase 2: React - Dashboard page'
@@ -191,6 +191,16 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T13:16:12-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T13:16:12-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T13:16:12-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -201,6 +211,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T13:19:42-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T13:19:42-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T13:19:42-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T13:22:23-06:00
+        - phase: docs
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T13:22:23-06:00
         - phase: docs
           gate_type: auto
           approved: true
@@ -218,7 +248,7 @@ state:
     cost:
         total_cost_usd: 0
 gate_decisions:
-    - id: 59
+    - id: 117
       taskid: TASK-171
       phase: implement
       gatetype: auto
@@ -226,7 +256,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T13:16:12-06:00
-    - id: 62
+    - id: 118
       taskid: TASK-171
       phase: implement
       gatetype: auto
@@ -234,7 +264,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T13:16:12-06:00
-    - id: 60
+    - id: 123
+      taskid: TASK-171
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T13:16:12-06:00
+    - id: 124
+      taskid: TASK-171
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T13:16:12-06:00
+    - id: 119
       taskid: TASK-171
       phase: test
       gatetype: auto
@@ -242,7 +288,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T13:19:42-06:00
-    - id: 63
+    - id: 120
       taskid: TASK-171
       phase: test
       gatetype: auto
@@ -250,7 +296,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T13:19:42-06:00
-    - id: 61
+    - id: 125
+      taskid: TASK-171
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T13:19:42-06:00
+    - id: 126
+      taskid: TASK-171
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T13:19:42-06:00
+    - id: 121
       taskid: TASK-171
       phase: docs
       gatetype: auto
@@ -258,7 +320,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T13:22:23-06:00
-    - id: 64
+    - id: 122
+      taskid: TASK-171
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T13:22:23-06:00
+    - id: 127
+      taskid: TASK-171
+      phase: docs
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T13:22:23-06:00
+    - id: 128
       taskid: TASK-171
       phase: docs
       gatetype: auto

@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.019887-06:00
+exported_at: 2026-01-17T22:16:48.238230897-06:00
 task:
     id: TASK-164
     title: 'Phase 1: Setup Zustand stores mirroring Svelte stores'

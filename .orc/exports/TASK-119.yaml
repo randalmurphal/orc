@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.026809-06:00
+exported_at: 2026-01-17T22:16:48.24954905-06:00
 task:
     id: TASK-119
     title: Show file change summary after task completion
@@ -104,6 +104,26 @@ state:
           approved: true
           reason: auto-approved on success
           timestamp: 2026-01-14T01:47:58-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T01:47:58-06:00
+        - phase: implement
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T01:47:58-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T01:57:10-06:00
+        - phase: test
+          gate_type: auto
+          approved: true
+          reason: auto-approved on success
+          timestamp: 2026-01-14T01:57:10-06:00
         - phase: test
           gate_type: auto
           approved: true
@@ -129,7 +149,7 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T01:47:58-06:00
-    - id: 3
+    - id: 2
       taskid: TASK-119
       phase: implement
       gatetype: auto
@@ -137,7 +157,23 @@ gate_decisions:
       reason: auto-approved on success
       decidedby: ""
       decidedat: 2026-01-14T01:47:58-06:00
-    - id: 2
+    - id: 5
+      taskid: TASK-119
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T01:47:58-06:00
+    - id: 6
+      taskid: TASK-119
+      phase: implement
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T01:47:58-06:00
+    - id: 3
       taskid: TASK-119
       phase: test
       gatetype: auto
@@ -146,6 +182,22 @@ gate_decisions:
       decidedby: ""
       decidedat: 2026-01-14T01:57:10-06:00
     - id: 4
+      taskid: TASK-119
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T01:57:10-06:00
+    - id: 7
+      taskid: TASK-119
+      phase: test
+      gatetype: auto
+      approved: true
+      reason: auto-approved on success
+      decidedby: ""
+      decidedat: 2026-01-14T01:57:10-06:00
+    - id: 8
       taskid: TASK-119
       phase: test
       gatetype: auto

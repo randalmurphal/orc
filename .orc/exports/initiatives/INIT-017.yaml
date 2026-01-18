@@ -1,5 +1,5 @@
 version: 2
-exported_at: 2026-01-17T08:29:48.030332-06:00
+exported_at: 2026-01-17T22:16:48.255977284-06:00
 type: initiative
 initiative:
     version: 0
@@ -38,16 +38,16 @@ initiative:
     tasks:
         - id: TASK-342
           title: Create Pipeline component for task phase visualization
-          status: planned
+          status: completed
         - id: TASK-343
           title: Create Swimlane component for initiative grouping
-          status: planned
+          status: failed
         - id: TASK-344
           title: Create compact TaskCard component for queue
-          status: planned
+          status: completed
         - id: TASK-345
           title: Create RunningCard component with expanded task view
-          status: planned
+          status: failed
         - id: TASK-346
           title: Create QueueColumn component with swimlane layout
           status: planned
@@ -75,4 +75,4 @@ initiative:
     blocked_by:
         - INIT-016
     created_at: 2026-01-16T20:57:45-06:00
-    updated_at: 2026-01-16T23:43:19-06:00
+    updated_at: 2026-01-17T08:56:12-06:00
