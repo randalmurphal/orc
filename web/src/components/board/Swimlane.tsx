@@ -10,7 +10,6 @@ import { useCallback } from 'react';
 import { TaskCard } from './TaskCard';
 import { Button } from '@/components/ui/Button';
 import type { Task, Initiative } from '@/lib/types';
-import type { FinalizeState } from '@/lib/api';
 import type { ColumnConfig } from './Column';
 import './Swimlane.css';
 
@@ -21,11 +20,8 @@ interface SwimlaneProps {
 	tasksByColumn: Record<string, Task[]>;
 	collapsed: boolean;
 	onToggleCollapse: () => void;
-	onAction: (taskId: string, action: 'run' | 'pause' | 'resume') => Promise<void>;
 	onTaskClick?: (task: Task) => void;
-	onFinalizeClick?: (task: Task) => void;
-	onInitiativeClick?: (initiativeId: string) => void;
-	getFinalizeState?: (taskId: string) => FinalizeState | null | undefined;
+	onContextMenu?: (task: Task, e: React.MouseEvent) => void;
 }
 
 export function Swimlane({
@@ -35,11 +31,8 @@ export function Swimlane({
 	tasksByColumn,
 	collapsed,
 	onToggleCollapse,
-	onAction,
 	onTaskClick,
-	onFinalizeClick,
-	onInitiativeClick,
-	getFinalizeState,
+	onContextMenu,
 }: SwimlaneProps) {
 	// Calculate progress
 	const completedCount = tasks.filter((t) => t.status === 'completed').length;
@@ -118,11 +111,8 @@ export function Swimlane({
 										<TaskCard
 											key={task.id}
 											task={task}
-											onAction={onAction}
-											onTaskClick={onTaskClick}
-											onFinalizeClick={onFinalizeClick}
-											onInitiativeClick={onInitiativeClick}
-											finalizeState={getFinalizeState?.(task.id)}
+											onClick={() => onTaskClick?.(task)}
+											onContextMenu={(e) => onContextMenu?.(task, e)}
 										/>
 									))
 								)}
