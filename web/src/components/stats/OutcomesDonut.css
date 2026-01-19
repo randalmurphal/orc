@@ -1,0 +1,107 @@
+/* =============================================================================
+   OutcomesDonut - CSS-only donut chart for task outcomes
+   ============================================================================= */
+
+.outcomes-donut-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Donut Chart */
+.outcomes-donut {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--duration-slow) var(--ease-out);
+}
+
+/* Inner hole created with pseudo-element */
+.outcomes-donut::after {
+  content: '';
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  background: var(--bg-card);
+  border-radius: 50%;
+}
+
+/* Center text container */
+.outcomes-donut-center {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* Total count value */
+.outcomes-donut-value {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+/* "Total" label */
+.outcomes-donut-label {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Legend */
+.outcomes-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.outcomes-donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-base);
+}
+
+/* Colored dots */
+.outcomes-donut-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.outcomes-donut-legend-dot--completed {
+  background: var(--green);
+}
+
+.outcomes-donut-legend-dot--retries {
+  background: var(--amber);
+}
+
+.outcomes-donut-legend-dot--failed {
+  background: var(--red);
+}
+
+/* Legend text */
+.outcomes-donut-legend-text {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+/* Legend count */
+.outcomes-donut-legend-count {
+  font-family: var(--font-mono);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin-left: auto;
+}
