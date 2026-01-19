@@ -84,6 +84,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Initiative decision ID namespace | Decision IDs (DEC-001, DEC-002, etc.) are scoped per-initiative, not global; composite primary key `(id, initiative_id)` in `initiative_decisions` table; `AddDecision()` generates ID from `len(i.Decisions)+1`, so each initiative's first decision is DEC-001 | TASK-414 |
 | Streaming transcript persistence | `TranscriptBuffer` in executor package batches transcript lines (50 lines or 5 seconds) for database persistence; attached to `EventPublisher` via `SetBuffer()`; chunks accumulated until newline then persisted; `Close()` flushes remaining on phase/executor completion; uses background context with 30s timeout to ensure writes complete even on cancellation | TASK-401 |
 | Merge retry with rebase on 405 | `MergePR()` retries on HTTP 405 "Base branch was modified" errors (up to 3 attempts with exponential backoff: 2s, 4s, 8s); rebases branch onto target before each retry; merge failures block task completion with `blocked_reason=merge_failed` instead of false positive "completed" | TASK-437 |
+| PhaseMax timeout enforcement | `ExecutePhase()` wrapped with `executePhaseWithTimeout()` to enforce `PhaseMax` config (default 30m); `FinalizeTask()` also respects timeout; `PhaseMax=0` disables timeout; timeout produces `phaseTimeoutError` which marks task as interrupted (resumable); distinguishes phase timeout from parent context cancellation | TASK-439 |
 
 ## Known Gotchas
 
@@ -117,6 +118,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Stray spec.md files in repo | Fixed: Added `spec.md` and `artifacts/spec.md` to `.gitignore`; spec prompt now explicitly instructs Claude not to write spec files to filesystem; specs stored in database only via `<artifact>` tags | TASK-292 |
 | Decision IDs collide across initiatives | Fixed: `initiative_decisions` table now uses composite primary key `(id, initiative_id)` instead of `id` alone; decision IDs like DEC-001 are per-initiative, not global; migration 018 (SQLite) and 005 (PostgreSQL) handle existing data | TASK-414 |
 | Task marked completed when PR merge fails | Fixed: `completeTask()` now checks for `ErrMergeFailed` and blocks task with `blocked_reason=merge_failed`; `MergePR()` implements retry logic with rebase for HTTP 405 "Base branch was modified" errors; task status becomes `StatusBlocked` instead of false positive `StatusCompleted` | TASK-437 |
+| PhaseMax timeout not enforced (phases hang forever) | Fixed: `ExecutePhase()` now called via `executePhaseWithTimeout()` wrapper that applies `context.WithTimeout(ctx, PhaseMax)` if `PhaseMax > 0`; same pattern applied to `FinalizeTask()`; timeout errors produce `phaseTimeoutError` type to distinguish from parent context cancellation | TASK-439 |
 
 ## Decisions
 
