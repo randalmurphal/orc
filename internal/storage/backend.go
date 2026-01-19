@@ -12,23 +12,40 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// Transcript represents a conversation transcript entry.
+// Transcript represents a single message from a Claude JSONL session file.
+// This stores the full message data including per-message token usage.
 type Transcript struct {
-	ID        int64
-	TaskID    string
-	Phase     string
-	Iteration int    // Iteration number within the phase (1-based)
-	Role      string // "prompt", "response", or "combined" for full transcript
-	Content   string
-	Timestamp int64
+	ID          int64
+	TaskID      string
+	Phase       string
+	SessionID   string  // Claude session UUID
+	MessageUUID string  // Individual message UUID
+	ParentUUID  *string // Links to parent message (threading)
+	Type        string  // "user", "assistant", "queue-operation"
+	Role        string  // from message.role
+	Content     string  // Full content JSON (preserves structure)
+	Model       string  // Model used (assistant messages only)
+
+	// Per-message token tracking
+	InputTokens         int
+	OutputTokens        int
+	CacheCreationTokens int
+	CacheReadTokens     int
+
+	// Tool information
+	ToolCalls   string // JSON array of tool_use blocks
+	ToolResults string // JSON of toolUseResult metadata
+
+	Timestamp int64 // Unix timestamp (milliseconds)
 }
 
 // TranscriptMatch represents a search result from transcript FTS.
 type TranscriptMatch struct {
-	TaskID  string
-	Phase   string
-	Snippet string
-	Rank    float64
+	TaskID    string
+	Phase     string
+	SessionID string
+	Snippet   string
+	Rank      float64
 }
 
 // TaskComment represents a discussion comment on a task.

@@ -2246,23 +2246,27 @@ func TestGetTranscriptsEndpoint_WithTranscripts(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	// Add transcripts to database (not filesystem)
+	// Add transcripts to database (JSONL-based schema)
 	transcripts := []storage.Transcript{
 		{
-			TaskID:    "TASK-TRANS-002",
-			Phase:     "implement",
-			Iteration: 1,
-			Role:      "prompt",
-			Content:   "Implement the feature",
-			Timestamp: 1700000000,
+			TaskID:      "TASK-TRANS-002",
+			Phase:       "implement",
+			SessionID:   "sess-001",
+			MessageUUID: "msg-001",
+			Type:        "user",
+			Role:        "user",
+			Content:     "Implement the feature",
+			Timestamp:   1700000000000,
 		},
 		{
-			TaskID:    "TASK-TRANS-002",
-			Phase:     "implement",
-			Iteration: 1,
-			Role:      "response",
-			Content:   "Implementation done!",
-			Timestamp: 1700000001,
+			TaskID:      "TASK-TRANS-002",
+			Phase:       "implement",
+			SessionID:   "sess-001",
+			MessageUUID: "msg-002",
+			Type:        "assistant",
+			Role:        "assistant",
+			Content:     "Implementation done!",
+			Timestamp:   1700000001000,
 		},
 	}
 	if err := backend.AddTranscriptBatch(context.Background(), transcripts); err != nil {
@@ -2287,13 +2291,16 @@ func TestGetTranscriptsEndpoint_WithTranscripts(t *testing.T) {
 		t.Errorf("expected 2 transcripts, got %d", len(result))
 	}
 
-	// Verify transcript content from database
+	// Verify transcript content from database (new JSONL-based schema)
 	if len(result) > 0 {
 		if result[0]["phase"] != "implement" {
 			t.Errorf("expected phase 'implement', got %v", result[0]["phase"])
 		}
-		if result[0]["role"] != "prompt" {
-			t.Errorf("expected role 'prompt', got %v", result[0]["role"])
+		if result[0]["role"] != "user" {
+			t.Errorf("expected role 'user', got %v", result[0]["role"])
+		}
+		if result[0]["type"] != "user" {
+			t.Errorf("expected type 'user', got %v", result[0]["type"])
 		}
 	}
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
+	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // handleGetState returns task execution state.
@@ -52,8 +53,30 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleGetTokens returns token usage and cost for a task.
+// Prefers DB-aggregated metrics when available, falls back to state.
 func (s *Server) handleGetTokens(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+
+	// Try DB-based metrics first (JSONL-synced data)
+	if dbBackend, ok := s.backend.(*storage.DatabaseBackend); ok {
+		pdb := dbBackend.DB()
+		usage, err := pdb.GetTaskTokenUsage(id)
+		if err != nil {
+			// Log DB error but fall through to state-based fallback
+			s.logger.Debug("db token lookup failed, using state fallback", "task", id, "error", err)
+		} else if usage.MessageCount > 0 {
+			s.jsonResponse(w, map[string]any{
+				"input_tokens":          usage.TotalInput,
+				"output_tokens":         usage.TotalOutput,
+				"cache_read_tokens":     usage.TotalCacheRead,
+				"cache_creation_tokens": usage.TotalCacheCreation,
+				"message_count":         usage.MessageCount,
+			})
+			return
+		}
+	}
+
+	// Fall back to state-based tokens (legacy or running tasks)
 	st, err := s.backend.LoadState(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
@@ -189,18 +212,27 @@ func (s *Server) handleGetTranscripts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Transform to API response format
+	// Transform to API response format (new JSONL-based schema)
 	response := make([]map[string]any, len(transcripts))
 	for i, t := range transcripts {
 		response[i] = map[string]any{
-			"id":         t.ID,
-			"task_id":    t.TaskID,
-			"phase":      t.Phase,
-			"iteration":  t.Iteration,
-			"role":       t.Role,
-			"content":    t.Content,
-			"timestamp":  t.Timestamp,
-			"created_at": time.Unix(t.Timestamp, 0),
+			"id":                   t.ID,
+			"task_id":              t.TaskID,
+			"phase":                t.Phase,
+			"session_id":           t.SessionID,
+			"message_uuid":         t.MessageUUID,
+			"parent_uuid":          t.ParentUUID,
+			"type":                 t.Type,
+			"role":                 t.Role,
+			"content":              t.Content,
+			"model":                t.Model,
+			"input_tokens":         t.InputTokens,
+			"output_tokens":        t.OutputTokens,
+			"cache_creation_tokens": t.CacheCreationTokens,
+			"cache_read_tokens":    t.CacheReadTokens,
+			"tool_calls":           t.ToolCalls,
+			"tool_results":         t.ToolResults,
+			"timestamp":            t.Timestamp,
 		}
 	}
 

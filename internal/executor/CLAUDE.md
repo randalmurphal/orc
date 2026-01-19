@@ -33,8 +33,8 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | `heartbeat.go` | Periodic heartbeat updates during execution |
 | `backpressure.go` | Deterministic quality checks (tests, lint, build) |
 | `haiku_validation.go` | Haiku-based spec and progress validation |
-| `buffer.go` | `TranscriptBuffer` for batched transcript persistence |
-| `publish.go` | `EventPublisher` with optional transcript buffering |
+| `jsonl_sync.go` | `JSONLSyncer` for Claude JSONL → DB sync |
+| `publish.go` | `EventPublisher` for real-time events |
 
 ## Architecture
 
@@ -248,43 +248,37 @@ LLM responses requiring structured data use JSON schemas via Claude's `--json-sc
 
 **Pattern:** Define JSON schema constant → Pass to LLM call → Unmarshal response → Normalize fields (e.g., lowercase status enums).
 
-## Transcript Persistence
+## Transcript Persistence (JSONL Sync)
 
-`buffer.go` provides `TranscriptBuffer` for batched transcript persistence during streaming execution.
+`jsonl_sync.go` syncs Claude Code JSONL session files to the database on phase completion.
 
 **Key features:**
-- Accumulates transcript lines in memory
-- Auto-flushes at 50 lines OR every 5 seconds (whichever first)
-- Chunk aggregation: streaming chunks combined until newline
-- Background goroutine for periodic flushing
-- `Close()` flushes remaining data on completion
+- Reads JSONL files written by Claude Code (`~/.claude/projects/`)
+- Extracts: messages, tool calls, token usage, todos
+- Deduplicates via `MessageUUID` (append mode)
+- Filters out `queue-operation` messages (internal bookkeeping)
 
 **Integration:**
 ```go
-// In executor setup
-buf := NewTranscriptBuffer(ctx, TranscriptBufferConfig{
-    TaskID:        task.ID,
-    DB:            backend,  // Implements TranscriptPersister
-    Logger:        logger,
-    MaxBuffer:     50,       // Lines before auto-flush
-    FlushInterval: 5 * time.Second,
+// In executor, after phase completion
+syncer := NewJSONLSyncer(backend, logger)
+err := syncer.SyncFromFile(ctx, jsonlPath, SyncOptions{
+    TaskID: task.ID,
+    Phase:  phase.ID,
+    Append: true,  // Only sync new messages
 })
-defer buf.Close()  // Flush remaining on completion
-
-// Attach to publisher
-publisher.SetBuffer(buf)
 ```
 
-**Flush triggers:**
+**What gets synced:**
 
-| Trigger | Behavior |
-|---------|----------|
-| 50 lines accumulated | Immediate flush |
-| 5 seconds elapsed | Periodic background flush |
-| `FlushChunks(phase, iter)` | Flush pending chunks for phase |
-| `Close()` | Flush all remaining + stop flusher |
+| Data | Source | DB Table |
+|------|--------|----------|
+| Messages | `message.content` | `transcripts` |
+| Tokens | `message.usage` | `transcripts` (per-message) |
+| Tool calls | `content[type=tool_use]` | `transcripts.tool_calls` |
+| Todos | `TodoWrite` tool results | `todo_snapshots` |
 
-**Write resilience:** Uses `context.Background()` with 30s timeout for DB writes to ensure persistence even when parent context is cancelled.
+**Token aggregation:** DB views compute per-task/phase totals from per-message tokens. See `db/CLAUDE.md`.
 
 ## Common Gotchas
 
@@ -295,4 +289,4 @@ publisher.SetBuffer(buf)
 5. **Worktree cleanup by path** - Use `CleanupWorktreeAtPath(e.worktreePath)` not `CleanupWorktree(taskID)` to handle initiative-prefixed worktrees correctly
 6. **Spec not found in templates** - Use `WithSpecFromDatabase()` to load spec content; file-based specs are legacy
 7. **Invalid session ID errors** - Only pass custom session IDs when `Persistence: true`; Claude CLI expects UUIDs it generates for ephemeral sessions
-8. **Transcripts not persisting** - Ensure `TranscriptBuffer` is attached via `publisher.SetBuffer()` and `Close()` called on completion
+8. **Transcripts not persisting** - Ensure `JSONLSyncer.SyncFromFile()` called after phase completion with correct JSONL path

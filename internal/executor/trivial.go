@@ -89,20 +89,8 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		Status: plan.PhaseRunning,
 	}
 
-	// Initialize transcript buffer for persistence if backend is available
-	if e.backend != nil {
-		buf := NewTranscriptBuffer(ctx, TranscriptBufferConfig{
-			TaskID: t.ID,
-			DB:     e.backend,
-			Logger: e.logger,
-		})
-		e.publisher.SetBuffer(buf)
-		defer func() {
-			if err := e.publisher.CloseBuffer(); err != nil {
-				e.logger.Error("failed to close transcript buffer", "error", err)
-			}
-		}()
-	}
+	// Transcript persistence is handled via JSONL sync from Claude Code's session files
+	// (see jsonl_sync.go), not through the publisher buffer
 
 	if e.client == nil {
 		result.Status = plan.PhaseFailed

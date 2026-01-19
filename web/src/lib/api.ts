@@ -166,15 +166,128 @@ export async function deleteTask(id: string): Promise<void> {
 	}
 }
 
-// Transcripts
+// Transcripts (JSONL-based from Claude Code sessions)
+export interface Transcript {
+	id: number;
+	task_id: string;
+	phase: string;
+	session_id: string;
+	message_uuid: string;
+	parent_uuid?: string;
+	type: 'user' | 'assistant' | 'queue-operation';
+	role: string;
+	content: string; // JSON string of content blocks
+	model?: string;
+	input_tokens: number;
+	output_tokens: number;
+	cache_creation_tokens: number;
+	cache_read_tokens: number;
+	tool_calls?: string; // JSON array
+	tool_results?: string; // JSON
+	timestamp: string;
+}
+
+// Legacy type for backwards compatibility
 export interface TranscriptFile {
 	filename: string;
 	content: string;
 	created_at: string;
 }
 
-export async function getTranscripts(id: string): Promise<TranscriptFile[]> {
-	return fetchJSON<TranscriptFile[]>(`/tasks/${id}/transcripts`);
+export async function getTranscripts(id: string): Promise<Transcript[]> {
+	return fetchJSON<Transcript[]>(`/tasks/${id}/transcripts`);
+}
+
+// Todos (from Claude's TodoWrite tool calls)
+export interface TodoItem {
+	content: string;
+	status: 'pending' | 'in_progress' | 'completed';
+	active_form: string;
+}
+
+export interface TodoSnapshot {
+	id: number;
+	task_id: string;
+	phase: string;
+	message_uuid?: string;
+	items: TodoItem[];
+	timestamp: string;
+}
+
+export async function getTaskTodos(id: string): Promise<TodoSnapshot | null> {
+	return fetchJSON<TodoSnapshot | null>(`/tasks/${id}/todos`);
+}
+
+export async function getTaskTodoHistory(id: string): Promise<TodoSnapshot[]> {
+	return fetchJSON<TodoSnapshot[]>(`/tasks/${id}/todos/history`);
+}
+
+// Metrics (JSONL-based analytics)
+export interface ModelMetrics {
+	model: string;
+	cost: number;
+	input_tokens: number;
+	output_tokens: number;
+	task_count: number;
+}
+
+export interface MetricsSummary {
+	total_cost: number;
+	total_input: number;
+	total_output: number;
+	task_count: number;
+	by_model: Record<string, ModelMetrics>;
+}
+
+export interface DailyMetrics {
+	date: string;
+	total_input: number;
+	total_output: number;
+	total_cost: number;
+	task_count: number;
+	models_used: number;
+}
+
+export interface TaskMetric {
+	id: number;
+	task_id: string;
+	phase: string;
+	model: string;
+	input_tokens: number;
+	output_tokens: number;
+	cache_creation_tokens: number;
+	cache_read_tokens: number;
+	cost_usd: number;
+	duration_ms: number;
+	timestamp: string;
+}
+
+export interface TokenUsage {
+	input_tokens: number;
+	output_tokens: number;
+	cache_read_tokens: number;
+	cache_creation_tokens: number;
+	message_count: number;
+}
+
+export async function getMetricsSummary(since = '7d'): Promise<MetricsSummary> {
+	return fetchJSON<MetricsSummary>(`/metrics/summary?since=${since}`);
+}
+
+export async function getDailyMetrics(since = '30d'): Promise<DailyMetrics[]> {
+	return fetchJSON<DailyMetrics[]>(`/metrics/daily?since=${since}`);
+}
+
+export async function getMetricsByModel(since = '7d'): Promise<ModelMetrics[]> {
+	return fetchJSON<ModelMetrics[]>(`/metrics/by-model?since=${since}`);
+}
+
+export async function getTaskMetrics(id: string): Promise<TaskMetric[]> {
+	return fetchJSON<TaskMetric[]>(`/tasks/${id}/metrics`);
+}
+
+export async function getTaskTokenUsage(id: string): Promise<TokenUsage> {
+	return fetchJSON<TokenUsage>(`/tasks/${id}/tokens`);
 }
 
 // Prompts
@@ -1123,8 +1236,8 @@ export async function escalateProjectTask(
 export async function getProjectTranscripts(
 	projectId: string,
 	taskId: string
-): Promise<TranscriptFile[]> {
-	return fetchJSON<TranscriptFile[]>(`/projects/${projectId}/tasks/${taskId}/transcripts`);
+): Promise<Transcript[]> {
+	return fetchJSON<Transcript[]>(`/projects/${projectId}/tasks/${taskId}/transcripts`);
 }
 
 // Dashboard

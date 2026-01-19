@@ -24,6 +24,7 @@ Full endpoint reference for the REST API.
 | `handlers_templates.go` | `/api/templates/*` | Templates |
 | `handlers_config.go` | `/api/config/*` | Orc config |
 | `handlers_dashboard.go` | `/api/dashboard/*` | Dashboard stats |
+| `handlers_metrics.go` | `/api/metrics/*` | JSONL-based analytics |
 | `handlers_diff.go` | `/api/tasks/:id/diff/*` | Git diffs |
 | `handlers_github.go` | `/api/tasks/:id/github/*` | GitHub PRs |
 | `handlers_initiatives.go` | `/api/initiatives/*` | Initiatives |
@@ -120,6 +121,23 @@ All support `?scope=global` for user-level config (`~/.claude/`):
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/dashboard/stats` | Get dashboard stats |
+
+## Metrics Endpoints
+
+JSONL-based analytics from Claude Code session files.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/metrics/summary?since=7d` | Aggregated metrics summary (cost, tokens, task count, by model) |
+| GET | `/api/metrics/daily?since=30d` | Daily aggregated metrics for charts |
+| GET | `/api/metrics/by-model?since=7d` | Per-model breakdown |
+| GET | `/api/tasks/:id/metrics` | Task-specific metrics by phase |
+| GET | `/api/tasks/:id/tokens` | Task token usage (prefers DB, falls back to state) |
+| GET | `/api/tasks/:id/todos` | Latest todo snapshot for task |
+| GET | `/api/tasks/:id/todos/history` | Todo snapshot history (progress timeline) |
+
+**Query parameters:**
+- `since`: Time period filter. Supports: `1h`, `7d`, `30d`, `2w`, `1m`. Defaults to `7d`.
 
 ## WebSocket
 

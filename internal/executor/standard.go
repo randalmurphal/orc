@@ -121,20 +121,8 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		Status: plan.PhaseRunning,
 	}
 
-	// Initialize transcript buffer for persistence if backend is available
-	if e.backend != nil {
-		buf := NewTranscriptBuffer(ctx, TranscriptBufferConfig{
-			TaskID: t.ID,
-			DB:     e.backend,
-			Logger: e.logger,
-		})
-		e.publisher.SetBuffer(buf)
-		defer func() {
-			if err := e.publisher.CloseBuffer(); err != nil {
-				e.logger.Error("failed to close transcript buffer", "error", err)
-			}
-		}()
-	}
+	// Transcript persistence is handled via JSONL sync from Claude Code's session files
+	// (see jsonl_sync.go), not through the publisher buffer
 
 	// Generate session ID: {task_id}-{phase_id}
 	sessionID := fmt.Sprintf("%s-%s", t.ID, p.ID)
@@ -161,6 +149,13 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 			e.logger.Error("failed to close adapter", "error", closeErr)
 		}
 	}()
+
+	// Update state with JSONL path for live tailing (orc log --follow)
+	if s != nil && adapter.JSONLPath() != "" {
+		s.JSONLPath = adapter.JSONLPath()
+		// StandardExecutor doesn't have stateUpdater, but state will be saved
+		// by the orchestrator after phase execution
+	}
 
 	// Load and render initial prompt using shared template module
 	tmpl, err := LoadPromptTemplate(p)
@@ -351,9 +346,6 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		// Publish response transcript
 		e.publisher.Transcript(t.ID, p.ID, iteration, "response", turnResult.Content)
 
-		// Flush any pending streaming chunks for this iteration
-		e.publisher.FlushChunks(p.ID, iteration)
-
 		// Progress validation: check if iteration is on track (if enabled)
 		if e.haikuClient != nil && e.orcConfig != nil && specContent != "" &&
 			e.orcConfig.ShouldValidateProgress(string(t.Weight)) {
@@ -519,6 +511,20 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 
 done:
 	result.Duration = time.Since(start)
+
+	// Sync JSONL transcripts to database
+	if jsonlPath := adapter.JSONLPath(); jsonlPath != "" && e.backend != nil {
+		syncer := NewJSONLSyncer(e.backend, e.logger)
+		if err := syncer.SyncFromFile(ctx, jsonlPath, SyncOptions{
+			TaskID: t.ID,
+			Phase:  p.ID,
+			Append: true, // Append mode to avoid duplicates on re-execution
+		}); err != nil {
+			e.logger.Warn("failed to sync JSONL transcripts", "error", err, "path", jsonlPath)
+		} else {
+			e.logger.Debug("synced JSONL transcripts", "task", t.ID, "phase", p.ID, "path", jsonlPath)
+		}
+	}
 
 	// Save artifact on success (spec is saved centrally in task_execution.go with fail-fast logic)
 	if result.Status == plan.PhaseCompleted && result.Output != "" {

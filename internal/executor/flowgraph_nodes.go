@@ -11,7 +11,6 @@ import (
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
-	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // buildPromptNode creates the prompt building node.
@@ -231,22 +230,11 @@ Blocked: %v
 		s.Phase, s.Iteration, s.Prompt, s.Response,
 		s.InputTokens, s.OutputTokens, s.CacheCreationInputTokens, s.CacheReadInputTokens, s.Complete, s.Blocked)
 
-	// Write to database (source of truth for export/search)
-	if e.backend != nil {
-		transcript := &storage.Transcript{
-			TaskID:    s.TaskID,
-			Phase:     s.Phase,
-			Iteration: s.Iteration,
-			Role:      "combined", // Full prompt+response transcript
-			Content:   content,
-		}
-		if err := e.backend.AddTranscript(transcript); err != nil {
-			// Log but don't fail - file backup is still available
-			e.logger.Warn("failed to save transcript to database", "error", err)
-		}
-	}
+	// NOTE: Database transcript persistence is handled via JSONL sync from Claude Code's
+	// session files (see jsonl_sync.go). Flowgraph execution still writes file backups
+	// for debugging purposes.
 
-	// Also write to files for debugging/backup
+	// Write to files for debugging/backup
 	dir := filepath.Join(e.config.WorkDir, ".orc", "tasks", s.TaskID, "transcripts")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err

@@ -503,11 +503,22 @@ func (d *DatabaseBackend) AddTranscript(t *Transcript) error {
 	defer d.mu.Unlock()
 
 	dbTranscript := &db.Transcript{
-		TaskID:    t.TaskID,
-		Phase:     t.Phase,
-		Iteration: t.Iteration,
-		Role:      t.Role,
-		Content:   t.Content,
+		TaskID:              t.TaskID,
+		Phase:               t.Phase,
+		SessionID:           t.SessionID,
+		MessageUUID:         t.MessageUUID,
+		ParentUUID:          t.ParentUUID,
+		Type:                t.Type,
+		Role:                t.Role,
+		Content:             t.Content,
+		Model:               t.Model,
+		InputTokens:         t.InputTokens,
+		OutputTokens:        t.OutputTokens,
+		CacheCreationTokens: t.CacheCreationTokens,
+		CacheReadTokens:     t.CacheReadTokens,
+		ToolCalls:           t.ToolCalls,
+		ToolResults:         t.ToolResults,
+		Timestamp:           time.UnixMilli(t.Timestamp),
 	}
 	if err := d.db.AddTranscript(dbTranscript); err != nil {
 		return fmt.Errorf("add transcript: %w", err)
@@ -529,11 +540,22 @@ func (d *DatabaseBackend) AddTranscriptBatch(ctx context.Context, transcripts []
 	dbTranscripts := make([]db.Transcript, len(transcripts))
 	for i, t := range transcripts {
 		dbTranscripts[i] = db.Transcript{
-			TaskID:    t.TaskID,
-			Phase:     t.Phase,
-			Iteration: t.Iteration,
-			Role:      t.Role,
-			Content:   t.Content,
+			TaskID:              t.TaskID,
+			Phase:               t.Phase,
+			SessionID:           t.SessionID,
+			MessageUUID:         t.MessageUUID,
+			ParentUUID:          t.ParentUUID,
+			Type:                t.Type,
+			Role:                t.Role,
+			Content:             t.Content,
+			Model:               t.Model,
+			InputTokens:         t.InputTokens,
+			OutputTokens:        t.OutputTokens,
+			CacheCreationTokens: t.CacheCreationTokens,
+			CacheReadTokens:     t.CacheReadTokens,
+			ToolCalls:           t.ToolCalls,
+			ToolResults:         t.ToolResults,
+			Timestamp:           time.UnixMilli(t.Timestamp),
 		}
 	}
 
@@ -561,13 +583,23 @@ func (d *DatabaseBackend) GetTranscripts(taskID string) ([]Transcript, error) {
 	result := make([]Transcript, len(dbTranscripts))
 	for i, t := range dbTranscripts {
 		result[i] = Transcript{
-			ID:        t.ID,
-			TaskID:    t.TaskID,
-			Phase:     t.Phase,
-			Iteration: t.Iteration,
-			Role:      t.Role,
-			Content:   t.Content,
-			Timestamp: t.Timestamp.Unix(),
+			ID:                  t.ID,
+			TaskID:              t.TaskID,
+			Phase:               t.Phase,
+			SessionID:           t.SessionID,
+			MessageUUID:         t.MessageUUID,
+			ParentUUID:          t.ParentUUID,
+			Type:                t.Type,
+			Role:                t.Role,
+			Content:             t.Content,
+			Model:               t.Model,
+			InputTokens:         t.InputTokens,
+			OutputTokens:        t.OutputTokens,
+			CacheCreationTokens: t.CacheCreationTokens,
+			CacheReadTokens:     t.CacheReadTokens,
+			ToolCalls:           t.ToolCalls,
+			ToolResults:         t.ToolResults,
+			Timestamp:           t.Timestamp.UnixMilli(),
 		}
 	}
 	return result, nil
@@ -586,10 +618,11 @@ func (d *DatabaseBackend) SearchTranscripts(query string) ([]TranscriptMatch, er
 	result := make([]TranscriptMatch, len(dbMatches))
 	for i, m := range dbMatches {
 		result[i] = TranscriptMatch{
-			TaskID:  m.TaskID,
-			Phase:   m.Phase,
-			Snippet: m.Snippet,
-			Rank:    m.Rank,
+			TaskID:    m.TaskID,
+			Phase:     m.Phase,
+			SessionID: m.SessionID,
+			Snippet:   m.Snippet,
+			Rank:      m.Rank,
 		}
 	}
 	return result, nil
