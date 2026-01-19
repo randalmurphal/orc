@@ -112,9 +112,9 @@ See also:
 			}
 
 			// Create storage backend to query database
-			backend, err := storage.NewDatabaseBackend(".", nil)
+			backend, err := getBackend()
 			if err != nil {
-				return fmt.Errorf("open database: %w", err)
+				return err
 			}
 			defer func() { _ = backend.Close() }()
 
@@ -343,9 +343,9 @@ func collectPhases(transcripts []storage.Transcript) []string {
 // followLiveJSONL streams messages from the live JSONL file during task execution
 func followLiveJSONL(taskID string, opts transcriptDisplayOptions) error {
 	// Create storage backend to load state
-	backend, err := storage.NewDatabaseBackend(".", nil)
+	backend, err := getBackend()
 	if err != nil {
-		return fmt.Errorf("open database: %w", err)
+		return err
 	}
 	defer func() { _ = backend.Close() }()
 
