@@ -158,8 +158,12 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			}
 
 			// Check if it's a phase timeout error (marked by our wrapper)
+			// Use failTask instead of interruptTask because:
+			// - "paused" implies user-initiated pause, "failed" implies error
+			// - Failed tasks with clear error are more actionable
+			// - `orc resume` already handles failed tasks properly
 			if isPhaseTimeoutError(err) {
-				e.interruptTask(t, phase.ID, s, err)
+				e.failTask(t, phase, s, err)
 				return err
 			}
 
@@ -974,17 +978,34 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 		}
 
 		// Check if finalize context timed out (PhaseMax exceeded)
+		// Use failTask-like logic (set StatusFailed) instead of interruptTask because:
+		// - "paused" implies user-initiated pause, "failed" implies error
+		// - Failed tasks with clear error are more actionable
+		// - `orc resume` already handles failed tasks properly
 		if finalizeCtx.Err() == context.DeadlineExceeded {
 			timeoutErr := &phaseTimeoutError{
 				phase:   "finalize",
 				timeout: phaseMax,
+				taskID:  t.ID,
 				err:     err,
 			}
-			e.logger.Warn("finalize phase timeout exceeded",
+			e.logger.Error("finalize phase timeout exceeded",
 				"timeout", phaseMax,
 				"task", t.ID,
 			)
-			e.interruptTask(t, "finalize", s, timeoutErr)
+			// Manually handle failure (like failTask but preserving original status on non-timeout errors)
+			s.FailPhase("finalize", timeoutErr)
+			s.ClearExecution()
+			if saveErr := e.backend.SaveState(s); saveErr != nil {
+				e.logger.Error("failed to save state on timeout", "error", saveErr)
+			}
+			t.Status = task.StatusFailed
+			if saveErr := e.backend.SaveTask(t); saveErr != nil {
+				e.logger.Error("failed to save task on timeout", "error", saveErr)
+			}
+			e.publishPhaseFailed(t.ID, "finalize", timeoutErr)
+			e.publishError(t.ID, "finalize", timeoutErr.Error(), true)
+			e.publishState(t.ID, s)
 			return timeoutErr
 		}
 
@@ -1275,11 +1296,12 @@ func (e *Executor) tryExtractQAResult(ctx context.Context, taskID, output string
 type phaseTimeoutError struct {
 	phase   string
 	timeout time.Duration
+	taskID  string
 	err     error
 }
 
 func (e *phaseTimeoutError) Error() string {
-	return fmt.Sprintf("phase %s exceeded timeout (%v)", e.phase, e.timeout)
+	return fmt.Sprintf("Phase %s exceeded timeout (%v). Run 'orc resume %s' to retry.", e.phase, e.timeout, e.taskID)
 }
 
 func (e *phaseTimeoutError) Unwrap() error {
@@ -1295,6 +1317,7 @@ func isPhaseTimeoutError(err error) bool {
 // executePhaseWithTimeout wraps ExecutePhase with PhaseMax timeout if configured.
 // PhaseMax=0 means unlimited (no timeout).
 // Returns a phaseTimeoutError if the phase times out due to PhaseMax.
+// Logs warnings at 50% and 75% of the timeout duration.
 func (e *Executor) executePhaseWithTimeout(ctx context.Context, t *task.Task, phase *plan.Phase, s *state.State) (*Result, error) {
 	phaseMax := e.orcConfig.Timeouts.PhaseMax
 	if phaseMax <= 0 {
@@ -1306,11 +1329,64 @@ func (e *Executor) executePhaseWithTimeout(ctx context.Context, t *task.Task, ph
 	phaseCtx, cancel := context.WithTimeout(ctx, phaseMax)
 	defer cancel()
 
+	// Start timeout monitoring goroutine for warnings at 50% and 75%
+	startTime := time.Now()
+	warningDone := make(chan struct{})
+	go func() {
+		defer close(warningDone)
+
+		threshold50 := phaseMax / 2
+		threshold75 := phaseMax * 3 / 4
+
+		timer50 := time.NewTimer(threshold50)
+		defer timer50.Stop()
+
+		select {
+		case <-phaseCtx.Done():
+			return
+		case <-timer50.C:
+			elapsed := time.Since(startTime)
+			remaining := phaseMax - elapsed
+			e.logger.Warn("phase_max 50% elapsed",
+				"phase", phase.ID,
+				"task", t.ID,
+				"elapsed", elapsed.Round(time.Second),
+				"timeout", phaseMax,
+				"remaining", remaining.Round(time.Second),
+			)
+		}
+
+		timer75 := time.NewTimer(threshold75 - threshold50)
+		defer timer75.Stop()
+
+		select {
+		case <-phaseCtx.Done():
+			return
+		case <-timer75.C:
+			elapsed := time.Since(startTime)
+			remaining := phaseMax - elapsed
+			e.logger.Warn("phase_max 75% elapsed",
+				"phase", phase.ID,
+				"task", t.ID,
+				"elapsed", elapsed.Round(time.Second),
+				"timeout", phaseMax,
+				"remaining", remaining.Round(time.Second),
+			)
+		}
+
+		// Wait for context to complete
+		<-phaseCtx.Done()
+	}()
+
 	result, err := e.ExecutePhase(phaseCtx, t, phase, s)
+
+	// Wait for warning goroutine to finish (it will exit on context done)
+	<-warningDone
+
 	if err != nil {
 		// Check if phase context timed out (but parent context is still alive)
 		if phaseCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil {
-			e.logger.Warn("phase timeout exceeded",
+			e.logger.Error("phase timeout exceeded",
 				"phase", phase.ID,
 				"timeout", phaseMax,
 				"task", t.ID,
@@ -1318,6 +1394,7 @@ func (e *Executor) executePhaseWithTimeout(ctx context.Context, t *task.Task, ph
 			return result, &phaseTimeoutError{
 				phase:   phase.ID,
 				timeout: phaseMax,
+				taskID:  t.ID,
 				err:     err,
 			}
 		}
