@@ -218,6 +218,7 @@ func (d *DatabaseBackend) SaveStateCtx(ctx context.Context, s *state.State) erro
 	// We store state status in a separate field (StateStatus)
 	dbTask.StateStatus = string(s.Status)
 	dbTask.CurrentPhase = s.CurrentPhase
+	dbTask.TotalCostUSD = s.Cost.TotalCostUSD
 
 	// Persist execution info for orphan detection
 	if s.Execution != nil {
@@ -411,6 +412,9 @@ func (d *DatabaseBackend) loadStateUnlocked(taskID string) (*state.State, error)
 			s.Execution.LastHeartbeat = *dbTask.LastHeartbeat
 		}
 	}
+
+	// Load cost from task
+	s.Cost.TotalCostUSD = dbTask.TotalCostUSD
 
 	return s, nil
 }

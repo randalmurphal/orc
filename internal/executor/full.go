@@ -368,10 +368,11 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 			goto done
 		}
 
-		// Track tokens - use effective input to include cached context
+		// Track tokens and cost - use effective input to include cached context
 		effectiveInput := turnResult.Usage.EffectiveInputTokens()
 		result.InputTokens += effectiveInput
 		result.OutputTokens += turnResult.Usage.OutputTokens
+		result.CostUSD += turnResult.CostUSD
 		result.Iterations = iteration
 		lastResponse = turnResult.Content
 
@@ -445,6 +446,8 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		}
 
 		// Update state with iteration progress
+		// Note: Cost is NOT added here - it's accumulated in result.CostUSD and transferred
+		// to state after phase completion in task_execution.go for consistency across all executors.
 		if s != nil && e.stateUpdater != nil {
 			s.IncrementIteration()
 			s.AddTokens(effectiveInput, turnResult.Usage.OutputTokens,

@@ -185,6 +185,7 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		// Note: claude.TokenUsage doesn't have EffectiveInputTokens method, so compute directly
 		result.InputTokens += resp.Usage.InputTokens + resp.Usage.CacheCreationInputTokens + resp.Usage.CacheReadInputTokens
 		result.OutputTokens += resp.Usage.OutputTokens
+		result.CostUSD += resp.CostUSD
 		result.Iterations = iteration
 		lastResponse = resp.Content
 
