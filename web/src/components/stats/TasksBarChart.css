@@ -1,0 +1,121 @@
+/* =============================================================================
+   TasksBarChart Component Styles
+   Displays tasks completed per day as a bar chart with 7 bars (Mon-Sun)
+   ============================================================================= */
+
+/* ==========================================================================
+   CONTAINER
+   ========================================================================== */
+
+.tasks-bar-chart {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	height: 160px;
+	padding-top: 20px;
+}
+
+/* ==========================================================================
+   BAR GROUP
+   ========================================================================== */
+
+.tasks-bar-chart-group {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+}
+
+/* ==========================================================================
+   BAR
+   ========================================================================== */
+
+.tasks-bar-chart-bar {
+	width: 100%;
+	max-width: 32px;
+	border-radius: 4px 4px 0 0;
+	background: var(--primary);
+	transition: height var(--duration-normal) var(--ease-out);
+	cursor: pointer;
+}
+
+.tasks-bar-chart-bar:hover {
+	background: var(--primary-bright);
+}
+
+/* ==========================================================================
+   LABEL
+   ========================================================================== */
+
+.tasks-bar-chart-label {
+	font-size: 9px;
+	color: var(--text-muted);
+	font-weight: var(--font-medium);
+	text-transform: capitalize;
+}
+
+/* ==========================================================================
+   EMPTY STATE
+   ========================================================================== */
+
+.tasks-bar-chart-empty {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+/* ==========================================================================
+   LOADING SKELETON
+   ========================================================================== */
+
+.tasks-bar-chart-loading {
+	pointer-events: none;
+}
+
+.tasks-bar-chart-bar-skeleton {
+	width: 100%;
+	max-width: 32px;
+	border-radius: 4px 4px 0 0;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.tasks-bar-chart-label-skeleton {
+	width: 20px;
+	height: 9px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-sm);
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.tasks-bar-chart-bar {
+		transition: none;
+	}
+
+	.tasks-bar-chart-bar-skeleton,
+	.tasks-bar-chart-label-skeleton {
+		animation: none;
+		background: var(--bg-surface);
+	}
+}
