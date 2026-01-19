@@ -578,6 +578,50 @@ import { InitiativesView } from '@/components/initiatives';
 - Pre-computed task lookup map per initiative
 - Memoized progress and stats calculations
 
+## AgentsView
+
+Container component assembling the complete agents configuration page with active agents grid, execution settings, and tool permissions sections.
+
+```tsx
+import { AgentsView } from '@/components/agents';
+
+<AgentsView />
+<AgentsView className="custom-class" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Visual Structure:**
+- Header: "Agents" title, subtitle, "Add Agent" button
+- Active Agents section: Responsive AgentCard grid (auto-fill, min 320px)
+- Execution Settings section: ExecutionSettings component with model, limits config
+- Tool Permissions section: ToolPermissions component with tool toggles
+
+**States:**
+| State | Rendering |
+|-------|-----------|
+| Loading | 3 skeleton cards in grid |
+| Empty | Icon + "Create your first agent" message |
+| Error | Error message + retry button |
+| Populated | AgentCard grid + ExecutionSettings + ToolPermissions |
+
+**Data Sources:**
+- Agents: Fetched from `/api/agents` via `listAgents()`
+- Config: Fetched from `/api/config` via `getConfig()`
+
+**Events:**
+- "Add Agent" click: Dispatches `window.dispatchEvent(new CustomEvent('orc:add-agent'))`
+- Card click: Dispatches `orc:select-agent` custom event with agent data
+- Settings change: Persists to API via `updateConfig()`
+
+**Transformation:**
+SubAgent API objects are transformed to display-friendly Agent objects:
+- Icon color derived from index (purple, blue, green, amber rotation)
+- Emoji assigned from preset list
+- Stats initialized with defaults (tokens: 0, tasksDone: 0, successRate: 100)
+
 ## RunningCard
 
 Expanded card component for actively executing tasks. Displays rich execution context including pipeline visualization, elapsed time, and live output.

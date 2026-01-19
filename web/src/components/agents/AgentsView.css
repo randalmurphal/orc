@@ -1,0 +1,353 @@
+/* =============================================================================
+   AgentsView Container Component Styles
+   Assembles the complete agents configuration page
+   ============================================================================= */
+
+/* ==========================================================================
+   MAIN CONTAINER
+   ========================================================================== */
+
+.agents-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+.agents-view-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 20px;
+	background: var(--bg-elevated);
+	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
+}
+
+.agents-view-header-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.agents-view-title {
+	font-size: 16px;
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0;
+}
+
+.agents-view-subtitle {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin: 0;
+}
+
+/* ==========================================================================
+   CONTENT AREA
+   ========================================================================== */
+
+.agents-view-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: 20px;
+}
+
+.agents-view-content::-webkit-scrollbar {
+	width: 6px;
+}
+
+.agents-view-content::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 3px;
+}
+
+/* ==========================================================================
+   SECTIONS
+   ========================================================================== */
+
+.agents-view-section {
+	margin-bottom: 32px;
+}
+
+.agents-view-section:last-child {
+	margin-bottom: 0;
+}
+
+.agents-view-section-header {
+	margin-bottom: 16px;
+}
+
+.section-title {
+	font-size: 14px;
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0 0 4px;
+}
+
+.section-subtitle {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin: 0;
+}
+
+/* ==========================================================================
+   AGENTS GRID
+   ========================================================================== */
+
+.agents-view-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+	gap: 16px;
+}
+
+/* ==========================================================================
+   EMPTY STATE
+   ========================================================================== */
+
+.agents-view-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 60px 20px;
+	text-align: center;
+}
+
+.agents-view-empty-icon {
+	width: 64px;
+	height: 64px;
+	background: var(--bg-surface);
+	border-radius: 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 16px;
+	color: var(--text-muted);
+}
+
+.agents-view-empty-title {
+	font-size: 16px;
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0 0 8px;
+}
+
+.agents-view-empty-desc {
+	font-size: 13px;
+	color: var(--text-muted);
+	max-width: 300px;
+	margin: 0;
+	line-height: var(--leading-relaxed);
+}
+
+/* ==========================================================================
+   ERROR STATE
+   ========================================================================== */
+
+.agents-view-error {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 60px 20px;
+	text-align: center;
+}
+
+.agents-view-error-icon {
+	width: 48px;
+	height: 48px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 16px;
+	color: var(--red);
+}
+
+.agents-view-error-title {
+	font-size: 16px;
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0 0 8px;
+}
+
+.agents-view-error-desc {
+	font-size: 13px;
+	color: var(--text-muted);
+	max-width: 400px;
+	margin: 0 0 16px;
+	line-height: var(--leading-relaxed);
+}
+
+/* ==========================================================================
+   SKELETON LOADING CARDS
+   ========================================================================== */
+
+.agents-view-card-skeleton {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	padding: 16px;
+}
+
+.agents-view-card-skeleton-header {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+.agents-view-card-skeleton-icon {
+	width: 40px;
+	height: 40px;
+	border-radius: 10px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: agents-shimmer 1.5s ease-in-out infinite;
+	flex-shrink: 0;
+}
+
+.agents-view-card-skeleton-info {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.agents-view-card-skeleton-title {
+	width: 50%;
+	height: 16px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: agents-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-sm);
+}
+
+.agents-view-card-skeleton-model {
+	width: 70%;
+	height: 12px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: agents-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-sm);
+}
+
+.agents-view-card-skeleton-badge {
+	width: 50px;
+	height: 20px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: agents-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-sm);
+}
+
+.agents-view-card-skeleton-stats {
+	display: flex;
+	gap: 16px;
+	margin-bottom: 16px;
+}
+
+.agents-view-card-skeleton-stat {
+	flex: 1;
+	height: 32px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: agents-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-sm);
+}
+
+.agents-view-card-skeleton-tools {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.agents-view-card-skeleton-tool {
+	width: 70px;
+	height: 22px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: agents-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-sm);
+}
+
+/* Shimmer animation */
+@keyframes agents-shimmer {
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
+}
+
+/* ==========================================================================
+   RESPONSIVE BREAKPOINTS
+   ========================================================================== */
+
+/* Mobile: single column */
+@media (max-width: 480px) {
+	.agents-view-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.agents-view-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	.agents-view-content {
+		padding: 16px;
+	}
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.agents-view-card-skeleton-icon,
+	.agents-view-card-skeleton-title,
+	.agents-view-card-skeleton-model,
+	.agents-view-card-skeleton-badge,
+	.agents-view-card-skeleton-stat,
+	.agents-view-card-skeleton-tool {
+		animation: none;
+		background: var(--bg-surface);
+	}
+}
