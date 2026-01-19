@@ -152,10 +152,14 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	}()
 
 	// Update state with JSONL path for live tailing (orc log --follow)
+	// Persist immediately so `orc log --follow` can find the file during execution.
 	if s != nil && adapter.JSONLPath() != "" {
 		s.JSONLPath = adapter.JSONLPath()
-		// StandardExecutor doesn't have stateUpdater, but state will be saved
-		// by the orchestrator after phase execution
+		if e.backend != nil {
+			if err := e.backend.SaveState(s); err != nil {
+				e.logger.Warn("failed to persist JSONLPath to state", "error", err)
+			}
+		}
 	}
 
 	// Load and render initial prompt using shared template module
