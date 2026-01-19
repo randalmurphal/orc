@@ -196,6 +196,7 @@ go test ./internal/executor/... -v
   - Primary: Looks for `<artifact>` tags in agent output
   - Fallback: If no artifact tags, checks for `spec.md` file in task directory (agents sometimes write specs to files instead of using artifact tags)
 - `ArtifactDetector` checks database first (via `NewArtifactDetectorWithBackend`), falls back to legacy `spec.md` file
+- **Failure handling:** All three spec extraction failure paths (empty output, extraction error, database save error) call `failTask()` to ensure task status becomes `StatusFailed` rather than orphaned in `StatusRunning`
 
 ## Backpressure & Haiku Validation
 
