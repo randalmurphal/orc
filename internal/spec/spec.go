@@ -5,9 +5,11 @@ package spec
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -52,15 +54,23 @@ type Result struct {
 // Run executes an interactive spec session.
 func Run(ctx context.Context, title string, opts Options) (*Result, error) {
 	if opts.WorkDir == "" {
-		opts.WorkDir = "."
+		var err error
+		opts.WorkDir, err = config.FindProjectRoot()
+		if err != nil {
+			return nil, fmt.Errorf("WorkDir not specified and not in orc project: %w", err)
+		}
 	}
 
-	// Load detection if available
+	// Load detection if available (non-fatal - enhances prompts but not required)
 	var detection *db.Detection
 	pdb, err := db.OpenProject(opts.WorkDir)
 	if err == nil {
 		defer func() { _ = pdb.Close() }()
-		detection, _ = pdb.LoadDetection()
+		var loadErr error
+		detection, loadErr = pdb.LoadDetection()
+		if loadErr != nil {
+			slog.Debug("spec: could not load detection (non-fatal)", "error", loadErr)
+		}
 	}
 
 	// Load initiative if specified

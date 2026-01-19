@@ -50,22 +50,10 @@ type SharedConfig struct {
 	} `yaml:"cost,omitempty"`
 }
 
-// findProjectRoot walks up from cwd to find the .orc directory.
+// findProjectRoot returns the project root, using config.FindProjectRoot()
+// which has worktree awareness and proper validation.
 func findProjectRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("get working directory: %w", err)
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, config.OrcDir)); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("not in an orc project (no %s directory found)", config.OrcDir)
-		}
-		dir = parent
-	}
+	return config.FindProjectRoot()
 }
 
 func newTeamCmd() *cobra.Command {

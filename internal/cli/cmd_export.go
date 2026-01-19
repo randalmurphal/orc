@@ -159,9 +159,9 @@ Examples:
 
 			// Export all tasks
 			if allTasks {
-				wd, err := os.Getwd()
+				wd, err := config.FindProjectRoot()
 				if err != nil {
-					return fmt.Errorf("get working directory: %w", err)
+					return fmt.Errorf("not in an orc project: %w", err)
 				}
 
 				// Generate default output path based on format
@@ -268,14 +268,14 @@ func exportToBranchDir(taskID string, withState, withTranscripts, withContext bo
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	// Get project path
-	cwd, err := os.Getwd()
+	// Get project path (worktree-aware)
+	projectRoot, err := config.FindProjectRoot()
 	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
+		return fmt.Errorf("not in an orc project: %w", err)
 	}
 
 	// Create storage backend
-	backend, err := storage.NewBackend(cwd, &cfg.Storage)
+	backend, err := storage.NewBackend(projectRoot, &cfg.Storage)
 	if err != nil {
 		return fmt.Errorf("create storage backend: %w", err)
 	}
@@ -342,11 +342,11 @@ Examples:
 			var path string
 			if len(args) == 0 {
 				// Default to .orc/exports/ - find most recent archive or use directory
-				wd, err := os.Getwd()
+				projectRoot, err := config.FindProjectRoot()
 				if err != nil {
-					return fmt.Errorf("get working directory: %w", err)
+					return fmt.Errorf("not in an orc project: %w", err)
 				}
-				exportDir := task.ExportPath(wd)
+				exportDir := task.ExportPath(projectRoot)
 				path, err = findLatestExport(exportDir)
 				if err != nil {
 					return err
