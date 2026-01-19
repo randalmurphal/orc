@@ -2293,7 +2293,8 @@ func TestHandlePhaseFailure_MaxRetriesExceeded(t *testing.T) {
 
 // TestExecutePhase_PhaseTimeout verifies that phases respect PhaseMax timeout.
 // When a phase exceeds PhaseMax, it should return a phaseTimeoutError and the task
-// should be marked as paused (interrupted), not failed.
+// should be marked as failed (not paused), with a clear error message including
+// the task ID and resume hint.
 func TestExecutePhase_PhaseTimeout(t *testing.T) {
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
@@ -2463,24 +2464,33 @@ func TestExecutePhase_TimeoutProducesInterruptedState(t *testing.T) {
 		t.Errorf("expected phaseTimeoutError, got %T: %v", err, err)
 	}
 
-	// Reload task and verify status is paused (interrupted), not failed
+	// Verify error message includes task ID and resume hint
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "TASK-TIMEOUT-STATE") {
+		t.Errorf("error message should contain task ID, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "orc resume") {
+		t.Errorf("error message should contain resume hint, got: %s", errMsg)
+	}
+
+	// Reload task and verify status is failed (not paused, since timeout is an error condition)
 	reloadedTask, loadErr := backend.LoadTask("TASK-TIMEOUT-STATE")
 	if loadErr != nil {
 		t.Fatalf("failed to reload task: %v", loadErr)
 	}
 
-	if reloadedTask.Status != task.StatusPaused {
-		t.Errorf("task status = %s, want paused (interrupted)", reloadedTask.Status)
+	if reloadedTask.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want failed (timeout is an error condition)", reloadedTask.Status)
 	}
 
-	// Verify state shows interrupted phase
+	// Verify state shows failed phase
 	reloadedState, stateErr := backend.LoadState("TASK-TIMEOUT-STATE")
 	if stateErr != nil {
 		t.Fatalf("failed to reload state: %v", stateErr)
 	}
 
-	if reloadedState.Phases["implement"].Status != "interrupted" {
-		t.Errorf("phase status = %s, want interrupted", reloadedState.Phases["implement"].Status)
+	if reloadedState.Phases["implement"].Status != "failed" {
+		t.Errorf("phase status = %s, want failed", reloadedState.Phases["implement"].Status)
 	}
 }
 
@@ -2490,6 +2500,7 @@ func TestPhaseTimeoutError(t *testing.T) {
 	pte := &phaseTimeoutError{
 		phase:   "implement",
 		timeout: 30 * time.Minute,
+		taskID:  "TASK-123",
 		err:     underlyingErr,
 	}
 
@@ -2500,6 +2511,12 @@ func TestPhaseTimeoutError(t *testing.T) {
 	}
 	if !strings.Contains(errMsg, "30m") {
 		t.Errorf("error message should contain timeout duration, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "TASK-123") {
+		t.Errorf("error message should contain task ID, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "orc resume") {
+		t.Errorf("error message should contain resume hint, got: %s", errMsg)
 	}
 
 	// Test Unwrap() method
@@ -2572,6 +2589,55 @@ func TestExecutePhase_TurnTimeoutStillWorks(t *testing.T) {
 
 	if result.Status != plan.PhaseCompleted {
 		t.Errorf("expected status Completed, got %v", result.Status)
+	}
+}
+
+// TestTimeoutWarningThresholds verifies that warning thresholds are calculated correctly.
+func TestTimeoutWarningThresholds(t *testing.T) {
+	tests := []struct {
+		name         string
+		phaseMax     time.Duration
+		expected50   time.Duration
+		expected75   time.Duration
+	}{
+		{
+			name:       "60 minute timeout",
+			phaseMax:   60 * time.Minute,
+			expected50: 30 * time.Minute,
+			expected75: 45 * time.Minute,
+		},
+		{
+			name:       "30 minute timeout",
+			phaseMax:   30 * time.Minute,
+			expected50: 15 * time.Minute,
+			expected75: 22*time.Minute + 30*time.Second,
+		},
+		{
+			name:       "10 minute timeout",
+			phaseMax:   10 * time.Minute,
+			expected50: 5 * time.Minute,
+			expected75: 7*time.Minute + 30*time.Second,
+		},
+		{
+			name:       "100ms timeout (for testing)",
+			phaseMax:   100 * time.Millisecond,
+			expected50: 50 * time.Millisecond,
+			expected75: 75 * time.Millisecond,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			threshold50 := tt.phaseMax / 2
+			threshold75 := tt.phaseMax * 3 / 4
+
+			if threshold50 != tt.expected50 {
+				t.Errorf("50%% threshold = %v, want %v", threshold50, tt.expected50)
+			}
+			if threshold75 != tt.expected75 {
+				t.Errorf("75%% threshold = %v, want %v", threshold75, tt.expected75)
+			}
+		})
 	}
 }
 

@@ -277,7 +277,7 @@ cost:
 
 # Timeouts and progress indication
 timeouts:
-  phase_max: 30m                       # Max time per phase (0 = unlimited)
+  phase_max: 60m                       # Max time per phase (0 = unlimited, default: 60m)
   turn_max: 10m                        # Max time per API turn (0 = unlimited)
   idle_warning: 5m                     # Warn if no tool calls for this duration
   heartbeat_interval: 30s              # Progress dots during API calls (0 = disable)

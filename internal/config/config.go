@@ -503,7 +503,7 @@ type DocumentationConfig struct {
 
 // TimeoutsConfig defines timeout settings for phases.
 type TimeoutsConfig struct {
-	// PhaseMax is the maximum time per phase (0 = unlimited, default: 30m)
+	// PhaseMax is the maximum time per phase (0 = unlimited, default: 60m)
 	PhaseMax time.Duration `yaml:"phase_max"`
 	// TurnMax is the maximum time per API turn/iteration (0 = unlimited, default: 10m)
 	// If a single API call takes longer than this, it will be cancelled gracefully.
@@ -1343,7 +1343,7 @@ func Default() *Config {
 			Sections:           []string{"api-endpoints", "commands", "config-options"},
 		},
 		Timeouts: TimeoutsConfig{
-			PhaseMax:          30 * time.Minute,
+			PhaseMax:          60 * time.Minute,
 			TurnMax:           10 * time.Minute,
 			IdleWarning:       5 * time.Minute,
 			HeartbeatInterval: 30 * time.Second,
