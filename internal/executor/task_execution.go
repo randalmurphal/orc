@@ -1380,12 +1380,20 @@ func (e *Executor) executePhaseWithTimeout(ctx context.Context, t *task.Task, ph
 
 	result, err := e.ExecutePhase(phaseCtx, t, phase, s)
 
-	// Wait for warning goroutine to finish (it will exit on context done)
+	// Capture the phase context error before canceling.
+	// This determines if the timeout was reached (DeadlineExceeded) vs normal completion.
+	phaseCtxErr := phaseCtx.Err()
+
+	// Cancel the phase context to signal the warning goroutine to exit.
+	// This must be called before waiting on warningDone to avoid deadlock.
+	cancel()
+
+	// Wait for warning goroutine to finish
 	<-warningDone
 
 	if err != nil {
 		// Check if phase context timed out (but parent context is still alive)
-		if phaseCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil {
+		if phaseCtxErr == context.DeadlineExceeded && ctx.Err() == nil {
 			e.logger.Error("phase timeout exceeded",
 				"phase", phase.ID,
 				"timeout", phaseMax,

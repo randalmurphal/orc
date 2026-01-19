@@ -10,7 +10,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20
 	github.com/randalmurphal/devflow v1.1.0
 	github.com/randalmurphal/flowgraph v1.1.0
-	github.com/randalmurphal/llmkit v1.2.1-0.20260118201025-3df4b607a810
+	github.com/randalmurphal/llmkit v1.2.1-0.20260119160237-2a3d393272a0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
