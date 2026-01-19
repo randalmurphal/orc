@@ -120,6 +120,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Task marked completed when PR merge fails | Fixed: `completeTask()` now checks for `ErrMergeFailed` and blocks task with `blocked_reason=merge_failed`; `MergePR()` implements retry logic with rebase for HTTP 405 "Base branch was modified" errors; task status becomes `StatusBlocked` instead of false positive `StatusCompleted` | TASK-437 |
 | PhaseMax timeout not enforced (phases hang forever) | Fixed: `ExecutePhase()` now called via `executePhaseWithTimeout()` wrapper that applies `context.WithTimeout(ctx, PhaseMax)` if `PhaseMax > 0`; same pattern applied to `FinalizeTask()`; timeout errors produce `phaseTimeoutError` type to distinguish from parent context cancellation | TASK-439 |
 | Task left in 'running' after spec extraction fails | Fixed: `ExecuteTask()` now calls `failTask()` before returning errors for all three spec extraction failure paths (empty output, extraction error, database save error); task status correctly becomes `StatusFailed` instead of orphaned in `StatusRunning` | TASK-438 |
+| `orc log --follow` says "may not be running" for active tasks | Fixed: JSONLPath now persisted immediately after executor sets it (not just at phase end); fallback path construction added when JSONLPath empty; error messages now show actual task status with actionable guidance | TASK-460 |
 
 ## Decisions
 

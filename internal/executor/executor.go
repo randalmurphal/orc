@@ -462,6 +462,12 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				WithFullWorkingDir(workingDir),
 				WithTaskDir(e.currentTaskDir),
 				WithFullBackend(e.backend),
+				// State updater for persisting state changes (e.g., JSONLPath for --follow)
+				WithStateUpdater(func(s *state.State) {
+					if err := e.backend.SaveState(s); err != nil {
+						e.logger.Warn("failed to persist state in full executor", "error", err)
+					}
+				}),
 			}
 
 			// Create backpressure runner with the correct working directory
