@@ -5,20 +5,8 @@ description: Trivial task - single implement phase, fully automated
 phases:
   - id: implement
     name: implement
-    prompt: |
-      Complete this task:
-
-      **Task**: {{TASK_TITLE}}
-
-      **Description**: {{TASK_DESCRIPTION}}
-
-      {{RETRY_CONTEXT}}
-
-      Implement the fix/change directly. Run any affected tests.
-      Keep iterating until the implementation is complete and tests pass.
-
-      When done, output:
-      <phase_complete>true</phase_complete>
+    # Uses templates/prompts/implement.md (no inline prompt)
+    # For trivial tasks, spec_content falls back to task_description
     depends_on: []
     gate:
       type: auto
