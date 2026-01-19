@@ -703,7 +703,7 @@ func (e *FinalizeExecutor) runTests(ctx context.Context, t *task.Task, cfg confi
 	// Run tests
 	workDir := e.workingDir
 	if workDir == "" {
-		workDir = "."
+		return nil, fmt.Errorf("executor workingDir not set: cannot run tests safely")
 	}
 
 	cmd := exec.CommandContext(ctx, "sh", "-c", testCmd)

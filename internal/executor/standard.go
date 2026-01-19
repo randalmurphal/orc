@@ -223,28 +223,28 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 
 	// Add UI testing context if task requires it
 	if t.RequiresUITesting {
-		projectDir := "."
-		if e.workingDir != "" {
-			projectDir = e.workingDir
+		if e.workingDir == "" {
+			e.logger.Warn("workingDir not set for UI testing - skipping UI testing context",
+				"task", t.ID, "phase", p.ID)
+		} else {
+			// Set up screenshot directory in task test-results
+			screenshotDir := task.ScreenshotsPath(e.workingDir, t.ID)
+			if err := os.MkdirAll(screenshotDir, 0755); err != nil {
+				e.logger.Warn("failed to create screenshot directory", "error", err)
+			}
+
+			vars = vars.WithUITestingContext(UITestingContext{
+				RequiresUITesting: true,
+				ScreenshotDir:     screenshotDir,
+				TestResults:       loadPriorContent(task.TaskDir(t.ID), s, "test"),
+			})
+
+			e.logger.Info("UI testing enabled",
+				"task", t.ID,
+				"phase", p.ID,
+				"screenshot_dir", screenshotDir,
+			)
 		}
-
-		// Set up screenshot directory in task test-results
-		screenshotDir := task.ScreenshotsPath(projectDir, t.ID)
-		if err := os.MkdirAll(screenshotDir, 0755); err != nil {
-			e.logger.Warn("failed to create screenshot directory", "error", err)
-		}
-
-		vars = vars.WithUITestingContext(UITestingContext{
-			RequiresUITesting: true,
-			ScreenshotDir:     screenshotDir,
-			TestResults:       loadPriorContent(task.TaskDir(t.ID), s, "test"),
-		})
-
-		e.logger.Info("UI testing enabled",
-			"task", t.ID,
-			"phase", p.ID,
-			"screenshot_dir", screenshotDir,
-		)
 	}
 
 	// Add initiative context if task belongs to an initiative
@@ -260,11 +260,10 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 
 	// Add automation context if this is an automation task (AUTO-XXX)
 	if t.IsAutomation {
-		projectRoot := "."
-		if e.workingDir != "" {
-			projectRoot = e.workingDir
-		}
-		if autoCtx := LoadAutomationContext(t, e.backend, projectRoot); autoCtx != nil {
+		if e.workingDir == "" {
+			e.logger.Warn("workingDir not set for automation context - skipping automation context",
+				"task", t.ID, "phase", p.ID)
+		} else if autoCtx := LoadAutomationContext(t, e.backend, e.workingDir); autoCtx != nil {
 			vars = vars.WithAutomationContext(*autoCtx)
 			e.logger.Info("automation context injected",
 				"task", t.ID,

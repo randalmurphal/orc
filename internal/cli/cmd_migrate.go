@@ -86,13 +86,13 @@ Examples:
 }
 
 func runMigrateYAMLToDB(dryRun, deleteAfter bool) error {
-	cwd, err := os.Getwd()
+	projectRoot, err := config.FindProjectRoot()
 	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
+		return fmt.Errorf("not in an orc project: %w", err)
 	}
 
-	// Check if .orc exists
-	orcDir := filepath.Join(cwd, ".orc")
+	// Check if .orc exists (FindProjectRoot already validates this, but keep for clarity)
+	orcDir := filepath.Join(projectRoot, ".orc")
 	if _, err := os.Stat(orcDir); os.IsNotExist(err) {
 		return fmt.Errorf("no .orc directory found - run 'orc init' first")
 	}
@@ -105,7 +105,7 @@ func runMigrateYAMLToDB(dryRun, deleteAfter bool) error {
 
 	var backend storage.Backend
 	if !dryRun {
-		backend, err = storage.NewBackend(cwd, &cfg.Storage)
+		backend, err = storage.NewBackend(projectRoot, &cfg.Storage)
 		if err != nil {
 			return fmt.Errorf("create backend: %w", err)
 		}

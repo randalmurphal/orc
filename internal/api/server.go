@@ -103,10 +103,19 @@ func New(cfg *Config) *Server {
 		logger = slog.Default()
 	}
 
-	// Set default work directory
+	// Set default work directory - use FindProjectRoot for worktree awareness
 	workDir := cfg.WorkDir
 	if workDir == "" {
-		workDir = "."
+		var err error
+		workDir, err = config.FindProjectRoot()
+		if err != nil {
+			// Fall back to cwd if not in a project (server may be started for init)
+			workDir, err = os.Getwd()
+			if err != nil {
+				panic(fmt.Sprintf("cannot determine work directory: %v", err))
+			}
+			logger.Warn("server started outside orc project", "workDir", workDir)
+		}
 	}
 
 	// Load orc configuration from the work directory
@@ -883,16 +892,25 @@ func (s *Server) Publisher() events.Publisher {
 }
 
 // getProjectRoot returns the current project root directory.
+// Prefers workDir (set at server startup), falls back to FindProjectRoot.
 func (s *Server) getProjectRoot() string {
-	// Use workDir if set, otherwise fall back to current working directory
 	if s.workDir != "" {
 		return s.workDir
 	}
-	wd, err := os.Getwd()
+	// workDir should always be set at server startup, but handle edge case
+	root, err := config.FindProjectRoot()
 	if err != nil {
-		return "."
+		s.logger.Warn("getProjectRoot: workDir not set and FindProjectRoot failed",
+			"error", err)
+		// Last resort: use cwd (better than "." which is ambiguous)
+		wd, wdErr := os.Getwd()
+		if wdErr != nil {
+			s.logger.Error("getProjectRoot: cannot determine directory", "error", wdErr)
+			return "."
+		}
+		return wd
 	}
-	return wd
+	return root
 }
 
 // pruneStaleWorktrees removes stale worktree entries from git's tracking.

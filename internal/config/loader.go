@@ -27,10 +27,19 @@ type Loader struct {
 }
 
 // NewLoader creates a new configuration loader.
-// If projectDir is empty, the current working directory is used.
+// If projectDir is empty, FindProjectRoot is used for worktree awareness.
 func NewLoader(projectDir string) *Loader {
 	if projectDir == "" {
-		projectDir, _ = os.Getwd()
+		var err error
+		projectDir, err = FindProjectRoot()
+		if err != nil {
+			// Fall back to cwd - may not be in a project yet
+			projectDir, err = os.Getwd()
+			if err != nil {
+				slog.Warn("NewLoader: cannot determine project directory", "error", err)
+				projectDir = "."
+			}
+		}
 	}
 	userDir := ""
 	if home, err := os.UserHomeDir(); err == nil {

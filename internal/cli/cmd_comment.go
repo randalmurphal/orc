@@ -83,9 +83,9 @@ Examples:
 				at = db.AuthorTypeHuman
 			}
 
-			wd, err := os.Getwd()
+			wd, err := config.FindProjectRoot()
 			if err != nil {
-				return fmt.Errorf("get working directory: %w", err)
+				return fmt.Errorf("find project root: %w", err)
 			}
 
 			pdb, err := db.OpenProject(wd)
@@ -154,9 +154,9 @@ Examples:
 				return fmt.Errorf("task %s not found", taskID)
 			}
 
-			wd, err := os.Getwd()
+			wd, err := config.FindProjectRoot()
 			if err != nil {
-				return fmt.Errorf("get working directory: %w", err)
+				return fmt.Errorf("find project root: %w", err)
 			}
 
 			pdb, err := db.OpenProject(wd)
@@ -244,9 +244,9 @@ func newCommentDeleteCmd() *cobra.Command {
 			}
 
 			commentID := args[0]
-			wd, err := os.Getwd()
+			wd, err := config.FindProjectRoot()
 			if err != nil {
-				return fmt.Errorf("get working directory: %w", err)
+				return fmt.Errorf("find project root: %w", err)
 			}
 
 			pdb, err := db.OpenProject(wd)

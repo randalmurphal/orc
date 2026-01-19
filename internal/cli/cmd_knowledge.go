@@ -58,7 +58,10 @@ func newKnowledgeStatusCmd() *cobra.Command {
 				return err
 			}
 
-			wd, _ := os.Getwd()
+			wd, err := config.FindProjectRoot()
+			if err != nil {
+				return fmt.Errorf("find project root: %w", err)
+			}
 
 			// Check if knowledge section exists
 			if !bootstrap.HasKnowledgeSection(wd) {
@@ -157,7 +160,10 @@ The CLAUDE.md knowledge section is replaced with a pointer to agent_docs/.`,
 				return err
 			}
 
-			wd, _ := os.Getwd()
+			wd, err := config.FindProjectRoot()
+			if err != nil {
+				return fmt.Errorf("find project root: %w", err)
+			}
 
 			// Check if knowledge section exists
 			if !bootstrap.HasKnowledgeSection(wd) {
@@ -230,7 +236,10 @@ func newKnowledgeSearchCmd() *cobra.Command {
 			}
 
 			keyword := strings.ToLower(args[0])
-			wd, _ := os.Getwd()
+			wd, err := config.FindProjectRoot()
+			if err != nil {
+				return fmt.Errorf("find project root: %w", err)
+			}
 
 			// Search CLAUDE.md knowledge section
 			patterns, gotchas, decisions, _ := parseKnowledgeSection(wd)
@@ -515,7 +524,10 @@ By default, shows only pending entries. Use --all to see all entries.`,
 				return err
 			}
 
-			wd, _ := os.Getwd()
+			wd, err := config.FindProjectRoot()
+			if err != nil {
+				return fmt.Errorf("find project root: %w", err)
+			}
 
 			pdb, err := db.OpenProject(wd)
 			if err != nil {
@@ -592,7 +604,10 @@ Use --all to approve all pending entries at once.`,
 				return fmt.Errorf("specify an entry ID or use --all")
 			}
 
-			wd, _ := os.Getwd()
+			wd, err := config.FindProjectRoot()
+			if err != nil {
+				return fmt.Errorf("find project root: %w", err)
+			}
 
 			pdb, err := db.OpenProject(wd)
 			if err != nil {
@@ -649,7 +664,10 @@ func newKnowledgeRejectCmd() *cobra.Command {
 				reason = strings.Join(args[1:], " ")
 			}
 
-			wd, _ := os.Getwd()
+			wd, err := config.FindProjectRoot()
+			if err != nil {
+				return fmt.Errorf("find project root: %w", err)
+			}
 
 			pdb, err := db.OpenProject(wd)
 			if err != nil {
@@ -686,7 +704,10 @@ Use --list to see all stale entries that need validation.`,
 				return err
 			}
 
-			wd, _ := os.Getwd()
+			wd, err := config.FindProjectRoot()
+			if err != nil {
+				return fmt.Errorf("find project root: %w", err)
+			}
 
 			pdb, err := db.OpenProject(wd)
 			if err != nil {

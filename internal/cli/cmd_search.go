@@ -40,12 +40,12 @@ Examples:
 			query := args[0]
 
 			// Open project database
-			cwd, err := os.Getwd()
+			projectRoot, err := config.FindProjectRoot()
 			if err != nil {
-				return fmt.Errorf("get working directory: %w", err)
+				return fmt.Errorf("find project root: %w", err)
 			}
 
-			pdb, err := db.OpenProject(cwd)
+			pdb, err := db.OpenProject(projectRoot)
 			if err != nil {
 				// Provide user-friendly message for common error cases
 				if os.IsNotExist(err) || strings.Contains(err.Error(), "no such file") ||

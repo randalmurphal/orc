@@ -242,7 +242,11 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 						fmt.Fprintf(os.Stderr, "⚠️  Warning: Could not initialize git: %v\n", err)
 					}
 				} else {
-					wtStatus, _ = checkWorktreeStatus(id, gitOps)
+					var wtErr error
+					wtStatus, wtErr = checkWorktreeStatus(id, gitOps)
+					if wtErr != nil && !quiet {
+						fmt.Fprintf(os.Stderr, "⚠️  Warning: Could not check worktree status: %v\n", wtErr)
+					}
 				}
 			}
 

@@ -5,10 +5,12 @@ package plan_session
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -104,7 +106,11 @@ func DetectMode(target string, backend storage.Backend) (Mode, string, error) {
 // Run executes an interactive planning session.
 func Run(ctx context.Context, target string, opts Options) (*Result, error) {
 	if opts.WorkDir == "" {
-		opts.WorkDir = "."
+		var err error
+		opts.WorkDir, err = config.FindProjectRoot()
+		if err != nil {
+			return nil, fmt.Errorf("WorkDir not specified and not in orc project: %w", err)
+		}
 	}
 
 	// Detect mode
@@ -118,12 +124,16 @@ func Run(ctx context.Context, target string, opts Options) (*Result, error) {
 		return nil, fmt.Errorf("interactive mode not yet implemented - please specify a task ID or feature title")
 	}
 
-	// Load detection if available
+	// Load detection if available (non-fatal - enhances prompts but not required)
 	var detection *db.Detection
 	pdb, err := db.OpenProject(opts.WorkDir)
 	if err == nil {
 		defer func() { _ = pdb.Close() }()
-		detection, _ = pdb.LoadDetection()
+		var loadErr error
+		detection, loadErr = pdb.LoadDetection()
+		if loadErr != nil {
+			slog.Debug("plan_session: could not load detection (non-fatal)", "error", loadErr)
+		}
 	}
 
 	// Load initiative if specified

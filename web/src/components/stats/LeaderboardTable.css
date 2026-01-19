@@ -1,0 +1,116 @@
+/* =============================================================================
+   LeaderboardTable - Ranked list display for stats page
+   ============================================================================= */
+
+.leaderboard-table {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Header */
+.leaderboard-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.leaderboard-table-title {
+  font-size: 13px;
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.leaderboard-table-view-all {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.leaderboard-table-view-all:hover {
+  color: var(--text-secondary);
+}
+
+/* Table body */
+.leaderboard-table-body {
+  width: 100%;
+}
+
+/* Table row */
+.leaderboard-table-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.leaderboard-table-row:last-child {
+  border-bottom: none;
+}
+
+.leaderboard-table-row:hover {
+  background: var(--bg-hover);
+}
+
+/* Rank badge */
+.leaderboard-table-rank {
+  width: 24px;
+  height: 24px;
+  background: var(--bg-surface);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: var(--font-semibold);
+  color: var(--text-muted);
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+/* Name/path cell */
+.leaderboard-table-name {
+  flex: 1;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* File path variant - uses monospace and truncates from left */
+.leaderboard-table-name--path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  direction: rtl;
+  text-align: left;
+}
+
+/* Value cell */
+.leaderboard-table-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  text-align: right;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+/* Empty state */
+.leaderboard-table-empty {
+  padding: 24px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
