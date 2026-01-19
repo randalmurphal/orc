@@ -31,6 +31,7 @@ import { type ReactNode, useState, useCallback } from 'react';
 import { IconNav } from './IconNav';
 import { TopBar } from './TopBar';
 import { RightPanel } from './RightPanel';
+import { UrlParamSync } from './UrlParamSync';
 import { AppShellProvider, useAppShell } from './AppShellContext';
 import './AppShell.css';
 
@@ -101,6 +102,9 @@ function AppShellInner({
 
 	return (
 		<div className={shellClasses}>
+			{/* URL parameter sync */}
+			<UrlParamSync />
+
 			{/* Skip Link for accessibility */}
 			<a href="#main-content" className="app-shell__skip-link">
 				Skip to main content

@@ -402,6 +402,141 @@ import { QueueColumn } from '@/components/board';
 - `role="region"` with `aria-label="Queue column"`
 - Count badge has `aria-label="{n} tasks"`
 
+## InitiativeCard
+
+Card component for displaying initiative information in a grid layout.
+
+```tsx
+import { InitiativeCard } from '@/components/initiatives';
+
+// Basic usage
+<InitiativeCard
+  initiative={initiative}
+  completedTasks={15}
+  totalTasks={20}
+  onClick={() => navigate(`/initiatives/${initiative.id}`)}
+/>
+
+// With all metrics
+<InitiativeCard
+  initiative={initiative}
+  completedTasks={15}
+  totalTasks={20}
+  estimatedTimeRemaining="Est. 2h remaining"
+  costSpent={18.45}
+  tokensUsed={542000}
+  onClick={handleClick}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `initiative` | `Initiative` | required | Initiative data object |
+| `completedTasks` | `number` | `0` | Number of completed tasks |
+| `totalTasks` | `number` | `0` | Total number of tasks |
+| `estimatedTimeRemaining` | `string` | - | Time remaining text (e.g., "8h remaining") |
+| `costSpent` | `number` | - | Cost in dollars |
+| `tokensUsed` | `number` | - | Token count |
+| `onClick` | `() => void` | - | Click handler for navigation |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Visual Elements:**
+- Icon: 40px circle with emoji from title/vision (falls back to 📋)
+- Title: 15px semibold, primary text
+- Description: 12px secondary text, 2-line clamp with ellipsis
+- Status badge: uppercase 9px with color variant
+- Progress section: label, "X / Y tasks" count, colored progress bar
+- Meta row: icons for time, cost, tokens (only shown if data provided)
+
+**Status Badge Colors:**
+| Status | Background | Text |
+|--------|------------|------|
+| `active` | `--green-dim` | `--green` |
+| `paused` | `--amber-dim` | `--amber` |
+| `completed` | `--primary-dim` | `--primary` |
+| `draft`/`archived` | `--amber-dim` | `--amber` |
+
+**Icon Background Colors:** Same mapping as status (active → green, completed → purple, etc.)
+
+**States:**
+- Default: `--bg-card` background, 1px `--border`, 12px radius, 20px padding
+- Hover: `translateY(-2px)`, border lightens to `--border-light`
+- Paused/Archived: `opacity: 0.6`
+- Focus: 2px `--primary` outline
+
+**Exported Utilities:**
+```tsx
+import {
+  extractEmoji,
+  getStatusColor,
+  getIconColor,
+  formatTokens,
+  formatCostDisplay,
+  isPaused
+} from '@/components/initiatives';
+
+extractEmoji('🚀 Launch Feature');  // '🚀'
+extractEmoji(undefined);             // '📋'
+
+getStatusColor('active');            // 'green'
+getStatusColor('completed');         // 'purple'
+
+formatTokens(542000);                // '542K'
+formatTokens(1500000);               // '1.5M'
+
+formatCostDisplay(18.45);            // '$18.45'
+
+isPaused('archived');                // true
+isPaused('active');                  // false
+```
+
+**Accessibility:**
+- `role="button"` with descriptive `aria-label` (title, status, progress)
+- Keyboard navigation: Enter/Space triggers onClick
+- Focus visible outline with primary color
+- Progress bar has `role="progressbar"` with `aria-valuenow/min/max`
+- Animations respect `prefers-reduced-motion`
+
+## StatsRow
+
+Horizontal stat card row for initiative dashboards. Displays key metrics with trends.
+
+```tsx
+import { StatsRow, defaultStats } from '@/components/initiatives';
+
+// Basic usage
+<StatsRow stats={{
+  totalTasks: 42,
+  completedTasks: 28,
+  tokensUsed: 1500000,
+  costSpent: 45.30,
+  timeRemaining: '2d 4h'
+}} />
+
+// With trends
+<StatsRow stats={{
+  ...stats,
+  taskTrend: 15,      // +15% from previous period
+  tokenTrend: -5,     // -5% from previous period
+}} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `stats` | `InitiativeStats` | required | Stats object with values and trends |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Exported Utilities:**
+```tsx
+import { formatNumber, formatCost, formatPercentage, formatTrend } from '@/components/initiatives';
+
+formatNumber(1500000);    // '1.5M'
+formatCost(45.30);        // '$45.30'
+formatPercentage(0.667);  // '66.7%'
+formatTrend(15);          // '+15%'
+formatTrend(-5);          // '-5%'
+```
+
 ## RunningCard
 
 Expanded card component for actively executing tasks. Displays rich execution context including pipeline visualization, elapsed time, and live output.
@@ -485,6 +620,69 @@ mapPhaseToDisplay('implement');  // "Code"
 - Keyboard navigation: Enter/Space toggles expand
 - Focus visible outline with primary glow
 - Expand toggle icon is `aria-hidden`
+
+## TasksBarChart
+
+Bar chart displaying tasks completed per day of the week (Mon-Sun).
+
+```tsx
+import { TasksBarChart, defaultWeekData } from '@/components/stats/TasksBarChart';
+
+// Basic usage
+<TasksBarChart
+  data={[
+    { day: 'Mon', count: 12 },
+    { day: 'Tue', count: 18 },
+    { day: 'Wed', count: 9 },
+    { day: 'Thu', count: 24 },
+    { day: 'Fri', count: 16 },
+    { day: 'Sat', count: 6 },
+    { day: 'Sun', count: 20 },
+  ]}
+/>
+
+// Loading state
+<TasksBarChart data={[]} loading />
+
+// With default empty data
+<TasksBarChart data={defaultWeekData} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `data` | `DayData[]` | required | Array of `{ day: string; count: number }` |
+| `loading` | `boolean` | `false` | Show skeleton loading state |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Visual Specifications:**
+- Container: 160px height with flexbox layout
+- Bars: Max 32px width, top border-radius only (4px), `--primary` color
+- Labels: 9px font, `--text-muted` color, below each bar
+- Height scaling: Proportional to max value in dataset
+- Zero values: 4px minimum height for visibility
+
+**States:**
+- Default: Purple bars (`--primary`)
+- Hover: Brighter purple (`--primary-bright`), shows tooltip with exact count
+- Loading: Shimmer animation on 7 skeleton bars
+- Empty: "No data available" centered message
+
+**Exported Utilities:**
+```tsx
+import { calculateBarHeight, defaultWeekData, type DayData } from '@/components/stats/TasksBarChart';
+
+// Calculate bar height (4px minimum, 140px maximum)
+calculateBarHeight(count: number, maxCount: number): number
+
+// Default week data with zero counts
+defaultWeekData: DayData[]
+```
+
+**Accessibility:**
+- `role="img"` with descriptive `aria-label` listing all values
+- Loading state has `aria-busy="true"`
+- Tooltip on hover shows exact count
+- Respects `prefers-reduced-motion` (disables transitions and animations)
 
 ## OutcomesDonut
 
