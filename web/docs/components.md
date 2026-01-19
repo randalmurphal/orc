@@ -402,6 +402,86 @@ import { QueueColumn } from '@/components/board';
 - `role="region"` with `aria-label="Queue column"`
 - Count badge has `aria-label="{n} tasks"`
 
+## AgentCard
+
+Displays individual AI agent configurations with identity, status, stats, and enabled tools.
+
+```tsx
+import { AgentCard } from '@/components/agents';
+
+// Basic usage
+<AgentCard
+  agent={{
+    id: 'primary',
+    name: 'Primary Coder',
+    model: 'claude-sonnet-4-20250514',
+    status: 'active',
+    emoji: '🧠',
+    iconColor: 'purple',
+    stats: { tokensToday: 847000, tasksDone: 34, successRate: 94 },
+    tools: ['File Read/Write', 'Bash', 'Web Search', 'MCP'],
+  }}
+  onSelect={(agent) => console.log('Selected:', agent.name)}
+/>
+
+// Active/selected card
+<AgentCard agent={agent} isActive onSelect={handleSelect} />
+
+// Disabled agent
+<AgentCard agent={{ ...agent, disabled: true }} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `agent` | `Agent` | required | Agent data object |
+| `isActive` | `boolean` | `false` | Whether this card is selected |
+| `onSelect` | `(agent: Agent) => void` | - | Called on click/keyboard activation |
+| `maxToolsDisplayed` | `number` | `4` | Max tools before truncation |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Agent Interface:**
+```ts
+interface Agent {
+  id: string;
+  name: string;
+  model: string;
+  status: 'active' | 'idle';
+  emoji: string;
+  iconColor: 'purple' | 'blue' | 'green' | 'amber';
+  stats: AgentStats;
+  tools: string[];
+  disabled?: boolean;
+}
+
+interface AgentStats {
+  tokensToday: number;
+  tasksDone: number;
+  successRate: number;
+  tasksDoneLabel?: string;  // Override "Tasks Done" label
+}
+```
+
+**Visual Elements:**
+- Header: 44px emoji icon with colored background, agent name, model ID (monospace), status badge
+- Stats row: 3-column grid (Tokens Today, Tasks Done, Success)
+- Tools section: Wrapped badge list with "+N more" truncation
+
+**Icon Colors:** `purple`, `blue`, `green`, `amber` - applied via `.agent-card-icon-{color}` classes.
+
+**States:**
+- Default: `--bg-card` background, standard border
+- Hover: Lightened border (`--border-light`)
+- Active: Gradient background (`--bg-card` to `--primary-dim`), primary border
+- Disabled: 50% opacity, no pointer events, muted appearance
+
+**Accessibility:**
+- `role="button"` when interactive (has `onSelect` and not disabled)
+- `aria-pressed` reflects active state
+- `aria-disabled` when disabled
+- `aria-label` with full agent context (name, status, stats)
+- Keyboard: Enter/Space triggers selection
+- Focus visible outline
+
 ## RunningCard
 
 Expanded card component for actively executing tasks. Displays rich execution context including pipeline visualization, elapsed time, and live output.

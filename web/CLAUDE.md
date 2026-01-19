@@ -35,6 +35,7 @@ web/src/
 ├── router/               # Route configuration
 ├── lib/                  # Utilities (types, websocket, shortcuts)
 ├── components/           # UI components
+│   ├── agents/           # Agent config (AgentCard)
 │   ├── board/            # Kanban (Board, Column, TaskCard, etc.)
 │   ├── dashboard/        # Dashboard sections
 │   ├── layout/           # AppLayout, Sidebar, Header, IconNav, TopBar

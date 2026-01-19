@@ -6,12 +6,14 @@
 
 import {
 	forwardRef,
+	memo,
+	useCallback,
+	useMemo,
 	type HTMLAttributes,
 	type KeyboardEvent,
 	type MouseEvent,
 } from 'react';
-import { Badge } from '../core/Badge';
-import { formatLargeNumber } from '../core/Stat';
+import { Badge, formatLargeNumber } from '../core';
 import './AgentCard.css';
 
 // =============================================================================
@@ -101,7 +103,7 @@ const DEFAULT_MAX_TOOLS = 4;
  * // Disabled agent
  * <AgentCard agent={{ ...agent, disabled: true }} />
  */
-export const AgentCard = forwardRef<HTMLDivElement, AgentCardProps>(
+const AgentCardInner = forwardRef<HTMLDivElement, AgentCardProps>(
 	(
 		{
 			agent,
@@ -109,7 +111,7 @@ export const AgentCard = forwardRef<HTMLDivElement, AgentCardProps>(
 			onSelect,
 			maxToolsDisplayed = DEFAULT_MAX_TOOLS,
 			className = '',
-			onKeyDown,
+			onKeyDown: onKeyDownProp,
 			...props
 		},
 		ref
@@ -117,39 +119,53 @@ export const AgentCard = forwardRef<HTMLDivElement, AgentCardProps>(
 		const { name, model, status, emoji, iconColor, stats, tools, disabled } = agent;
 		const isInteractive = Boolean(onSelect) && !disabled;
 
-		// Handle click
-		const handleClick = (_event: MouseEvent<HTMLDivElement>) => {
-			if (isInteractive) {
-				onSelect?.(agent);
-			}
-		};
+		// Memoize event handlers
+		const handleClick = useCallback(
+			(_event: MouseEvent<HTMLDivElement>) => {
+				if (!disabled && onSelect) {
+					onSelect(agent);
+				}
+			},
+			[agent, disabled, onSelect]
+		);
 
-		// Handle keyboard activation
-		const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-			onKeyDown?.(event);
+		const handleKeyDown = useCallback(
+			(event: KeyboardEvent<HTMLDivElement>) => {
+				onKeyDownProp?.(event);
 
-			if (isInteractive && (event.key === 'Enter' || event.key === ' ')) {
-				event.preventDefault();
-				onSelect?.(agent);
-			}
-		};
+				if (!disabled && onSelect && (event.key === 'Enter' || event.key === ' ')) {
+					event.preventDefault();
+					onSelect(agent);
+				}
+			},
+			[agent, disabled, onSelect, onKeyDownProp]
+		);
 
-		// Build class list
-		const classes = [
-			'agent-card',
-			isActive && 'agent-card-active',
-			disabled && 'agent-card-disabled',
-			isInteractive && 'agent-card-interactive',
-			className,
-		]
-			.filter(Boolean)
-			.join(' ');
+		// Memoize formatted values
+		const formattedStats = useMemo(
+			() => ({
+				tokens: formatLargeNumber(stats.tokensToday),
+				tasks: String(stats.tasksDone),
+				successRate: `${stats.successRate}%`,
+				tasksDoneLabel: stats.tasksDoneLabel ?? 'Tasks Done',
+			}),
+			[stats.tokensToday, stats.tasksDone, stats.successRate, stats.tasksDoneLabel]
+		);
 
-		// Format stats
-		const formattedTokens = formatLargeNumber(stats.tokensToday);
-		const formattedTasksDone = String(stats.tasksDone);
-		const formattedSuccessRate = `${stats.successRate}%`;
-		const tasksDoneLabel = stats.tasksDoneLabel ?? 'Tasks Done';
+		// Memoize class list
+		const classes = useMemo(
+			() =>
+				[
+					'agent-card',
+					isActive && 'agent-card-active',
+					disabled && 'agent-card-disabled',
+					isInteractive && 'agent-card-interactive',
+					className,
+				]
+					.filter(Boolean)
+					.join(' '),
+			[isActive, disabled, isInteractive, className]
+		);
 
 		// Tool truncation
 		const visibleTools = tools.slice(0, maxToolsDisplayed);
@@ -164,7 +180,7 @@ export const AgentCard = forwardRef<HTMLDivElement, AgentCardProps>(
 				role={isInteractive ? 'button' : undefined}
 				tabIndex={isInteractive ? 0 : undefined}
 				aria-pressed={isInteractive ? isActive : undefined}
-				aria-label={`${name} agent, ${status}, ${formattedTokens} tokens today, ${stats.tasksDone} tasks done, ${stats.successRate}% success rate`}
+				aria-label={`${name} agent, ${status}, ${formattedStats.tokens} tokens today, ${stats.tasksDone} tasks done, ${stats.successRate}% success rate`}
 				aria-disabled={disabled}
 				{...props}
 			>
@@ -187,15 +203,15 @@ export const AgentCard = forwardRef<HTMLDivElement, AgentCardProps>(
 				{/* Stats */}
 				<div className="agent-card-stats">
 					<div className="agent-card-stat">
-						<div className="agent-card-stat-value">{formattedTokens}</div>
+						<div className="agent-card-stat-value">{formattedStats.tokens}</div>
 						<div className="agent-card-stat-label">Tokens Today</div>
 					</div>
 					<div className="agent-card-stat">
-						<div className="agent-card-stat-value">{formattedTasksDone}</div>
-						<div className="agent-card-stat-label">{tasksDoneLabel}</div>
+						<div className="agent-card-stat-value">{formattedStats.tasks}</div>
+						<div className="agent-card-stat-label">{formattedStats.tasksDoneLabel}</div>
 					</div>
 					<div className="agent-card-stat">
-						<div className="agent-card-stat-value">{formattedSuccessRate}</div>
+						<div className="agent-card-stat-value">{formattedStats.successRate}</div>
 						<div className="agent-card-stat-label">Success</div>
 					</div>
 				</div>
@@ -220,4 +236,7 @@ export const AgentCard = forwardRef<HTMLDivElement, AgentCardProps>(
 	}
 );
 
-AgentCard.displayName = 'AgentCard';
+AgentCardInner.displayName = 'AgentCard';
+
+/** Memoized AgentCard component for list usage */
+export const AgentCard = memo(AgentCardInner);
