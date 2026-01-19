@@ -1,0 +1,152 @@
+/* =============================================================================
+   DecisionsPanel Component Styles
+   Displays pending decisions from running tasks in the right panel
+   Matches mockup: example_ui/board.html (.attention-item decision styling)
+   ============================================================================= */
+
+/* =============================================================================
+   Decision List Container
+   ============================================================================= */
+
+.decisions-panel-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+/* =============================================================================
+   Individual Decision Item
+   ============================================================================= */
+
+.decision-item {
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	padding: var(--space-3);
+	transition:
+		opacity var(--duration-normal) var(--ease-out),
+		background var(--duration-fast) var(--ease-out);
+}
+
+.decision-item:hover {
+	background: var(--bg-hover);
+}
+
+/* Submitting state - dim the item */
+.decision-item.submitting {
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+/* =============================================================================
+   Decision Header
+   ============================================================================= */
+
+.decision-header {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	margin-bottom: var(--space-2);
+}
+
+/* Decision icon - purple themed message bubble */
+.decision-icon {
+	width: 20px;
+	height: 20px;
+	border-radius: var(--radius-sm);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	background: var(--primary-dim);
+	color: var(--primary);
+}
+
+.decision-icon svg {
+	width: 10px;
+	height: 10px;
+}
+
+/* Decision content - task ID and question */
+.decision-content {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.decision-task {
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+}
+
+.decision-question {
+	font-size: var(--text-base);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+	line-height: var(--leading-snug);
+	/* Allow text to wrap for long questions */
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+}
+
+/* =============================================================================
+   Decision Options
+   Row of option buttons
+   ============================================================================= */
+
+.decision-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1-5);
+	margin-top: var(--space-2);
+}
+
+/* Option button base styling */
+.decision-option {
+	flex: 1;
+	min-width: 60px;
+	text-align: center;
+	font-size: var(--text-sm) !important;
+	padding: var(--space-1) var(--space-2) !important;
+	height: auto !important;
+	min-height: 26px;
+}
+
+/* Ghost variant option (non-recommended) */
+.decision-option:not(.recommended) {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	color: var(--text-secondary);
+}
+
+.decision-option:not(.recommended):hover:not(:disabled) {
+	background: var(--bg-hover);
+	border-color: var(--border-light);
+	color: var(--text-primary);
+}
+
+/* Recommended option - primary styling */
+.decision-option.recommended {
+	background: var(--primary-dim);
+	border: 1px solid var(--primary-border);
+	color: var(--primary);
+}
+
+.decision-option.recommended:hover:not(:disabled) {
+	background: var(--primary-dim);
+	border-color: var(--primary-border-hover);
+	color: var(--primary-bright);
+}
+
+/* =============================================================================
+   Reduced Motion
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+	.decision-item {
+		transition: none;
+	}
+}
