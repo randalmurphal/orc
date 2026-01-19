@@ -47,11 +47,13 @@ Toggle via `ViewModeDropdown`, persisted in localStorage.
 
 ### TaskCard Behavior
 
-- Click navigates to task detail
-- Running tasks open LiveTranscriptModal instead
-- Quick menu (three dots) for edit/delete actions
-- Priority badge with color coding
-- Weight badge (trivial/small/medium/large/greenfield)
+- Click navigates to task detail (parent handles via `onClick` callback)
+- Right-click triggers context menu (parent handles via `onContextMenu` callback)
+- Priority dot with color coding (critical: red, high: orange, normal: blue, low: muted)
+- Category icon indicates task type (feature, bug, refactor, chore, docs, test)
+- Blocked tasks show warning icon with pulse animation
+- Running tasks show animated progress indicator
+- Keyboard accessible: Enter/Space triggers click, focus-visible outline
 
 ## Task Detail
 
