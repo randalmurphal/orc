@@ -42,6 +42,8 @@ export interface AppShellContextValue {
 	rightPanelContent: ReactNode;
 	/** Whether mobile nav is in hamburger mode */
 	isMobileNavMode: boolean;
+	/** Ref to attach to the panel toggle button for focus management */
+	panelToggleRef: React.RefObject<HTMLButtonElement | null>;
 }
 
 interface AppShellProviderProps {
@@ -100,6 +102,13 @@ export function AppShellProvider({ children }: AppShellProviderProps) {
 	// Ref to track if initial render is done (for focus management)
 	const initialRenderRef = useRef(true);
 	const panelToggleRef = useRef<HTMLButtonElement | null>(null);
+	// Ref to access current panel state inside resize handler without re-registering listener
+	const isRightPanelOpenRef = useRef(isRightPanelOpen);
+
+	// Keep ref in sync with state
+	useEffect(() => {
+		isRightPanelOpenRef.current = isRightPanelOpen;
+	}, [isRightPanelOpen]);
 
 	// Toggle panel and persist state
 	const toggleRightPanel = useCallback(() => {
@@ -133,15 +142,15 @@ export function AppShellProvider({ children }: AppShellProviderProps) {
 			// Update mobile nav mode
 			setIsMobileNavMode(width < MOBILE_BREAKPOINT);
 
-			// Auto-collapse right panel below tablet breakpoint
-			if (width < TABLET_BREAKPOINT && isRightPanelOpen) {
+			// Auto-collapse right panel below tablet breakpoint (use ref to avoid re-registering listener)
+			if (width < TABLET_BREAKPOINT && isRightPanelOpenRef.current) {
 				setIsRightPanelOpen(false);
 			}
 		};
 
 		window.addEventListener('resize', handleResize);
 		return () => window.removeEventListener('resize', handleResize);
-	}, [isRightPanelOpen]);
+	}, []); // Empty deps - only run once
 
 	// Focus management when panel opens/closes (skip initial render)
 	useEffect(() => {
@@ -162,6 +171,7 @@ export function AppShellProvider({ children }: AppShellProviderProps) {
 		setRightPanelContent,
 		rightPanelContent,
 		isMobileNavMode,
+		panelToggleRef,
 	};
 
 	return (

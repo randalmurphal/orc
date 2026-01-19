@@ -262,11 +262,17 @@ describe('AppShell.css', () => {
 describe('AppShellContext', () => {
 	describe('useAppShell hook', () => {
 		it('should return context value with isRightPanelOpen, toggleRightPanel, setRightPanelContent', () => {
-			let contextValue: ReturnType<typeof useAppShell> | null = null;
-
+			// Test component that exposes context value through data attributes
 			function TestComponent() {
-				contextValue = useAppShell();
-				return null;
+				const ctx = useAppShell();
+				return (
+					<div
+						data-testid="context-consumer"
+						data-has-is-right-panel-open={ctx.isRightPanelOpen !== undefined}
+						data-has-toggle-right-panel={typeof ctx.toggleRightPanel === 'function'}
+						data-has-set-right-panel-content={typeof ctx.setRightPanelContent === 'function'}
+					/>
+				);
 			}
 
 			renderWithProviders(
@@ -275,12 +281,10 @@ describe('AppShellContext', () => {
 				</AppShellProvider>
 			);
 
-			expect(contextValue).not.toBeNull();
-			expect(contextValue).toHaveProperty('isRightPanelOpen');
-			expect(contextValue).toHaveProperty('toggleRightPanel');
-			expect(contextValue).toHaveProperty('setRightPanelContent');
-			expect(typeof contextValue!.toggleRightPanel).toBe('function');
-			expect(typeof contextValue!.setRightPanelContent).toBe('function');
+			const consumer = screen.getByTestId('context-consumer');
+			expect(consumer).toHaveAttribute('data-has-is-right-panel-open', 'true');
+			expect(consumer).toHaveAttribute('data-has-toggle-right-panel', 'true');
+			expect(consumer).toHaveAttribute('data-has-set-right-panel-content', 'true');
 		});
 
 		it('should throw error when used outside provider', () => {
@@ -302,11 +306,10 @@ describe('AppShellContext', () => {
 
 	describe('keyboard shortcuts', () => {
 		it('should toggle right panel on Shift+Alt+R', async () => {
-			let contextValue: ReturnType<typeof useAppShell> | null = null;
-
+			// Component that shows panel state via data attribute
 			function TestComponent() {
-				contextValue = useAppShell();
-				return <div data-testid="test">Test</div>;
+				const { isRightPanelOpen } = useAppShell();
+				return <div data-testid="panel-state" data-open={isRightPanelOpen} />;
 			}
 
 			renderWithProviders(
@@ -315,7 +318,8 @@ describe('AppShellContext', () => {
 				</AppShellProvider>
 			);
 
-			const initialState = contextValue!.isRightPanelOpen;
+			const panelState = screen.getByTestId('panel-state');
+			const initialOpen = panelState.getAttribute('data-open') === 'true';
 
 			// Simulate Shift+Alt+R
 			act(() => {
@@ -327,17 +331,16 @@ describe('AppShellContext', () => {
 			});
 
 			await waitFor(() => {
-				// Re-render to get updated context
-				expect(contextValue!.isRightPanelOpen).toBe(!initialState);
+				const newOpen = screen.getByTestId('panel-state').getAttribute('data-open') === 'true';
+				expect(newOpen).toBe(!initialOpen);
 			});
 		});
 
-		it('should not toggle on other key combinations', () => {
-			let contextValue: ReturnType<typeof useAppShell> | null = null;
-
+		it('should not toggle on other key combinations', async () => {
+			// Component that shows panel state via data attribute
 			function TestComponent() {
-				contextValue = useAppShell();
-				return <div>Test</div>;
+				const { isRightPanelOpen } = useAppShell();
+				return <div data-testid="panel-state" data-open={isRightPanelOpen} />;
 			}
 
 			renderWithProviders(
@@ -346,35 +349,40 @@ describe('AppShellContext', () => {
 				</AppShellProvider>
 			);
 
-			const initialState = contextValue!.isRightPanelOpen;
+			const panelState = screen.getByTestId('panel-state');
+			const initialOpen = panelState.getAttribute('data-open') === 'true';
 
 			// Just R key
 			act(() => {
 				fireEvent.keyDown(document, { key: 'r' });
 			});
-			expect(contextValue!.isRightPanelOpen).toBe(initialState);
+			expect(screen.getByTestId('panel-state').getAttribute('data-open') === 'true').toBe(initialOpen);
 
 			// Shift+R (no Alt)
 			act(() => {
 				fireEvent.keyDown(document, { key: 'r', shiftKey: true });
 			});
-			expect(contextValue!.isRightPanelOpen).toBe(initialState);
+			expect(screen.getByTestId('panel-state').getAttribute('data-open') === 'true').toBe(initialOpen);
 
 			// Alt+R (no Shift)
 			act(() => {
 				fireEvent.keyDown(document, { key: 'r', altKey: true });
 			});
-			expect(contextValue!.isRightPanelOpen).toBe(initialState);
+			expect(screen.getByTestId('panel-state').getAttribute('data-open') === 'true').toBe(initialOpen);
 		});
 	});
 
 	describe('localStorage persistence', () => {
-		it('should persist right panel state to localStorage', () => {
-			let contextValue: ReturnType<typeof useAppShell> | null = null;
-
+		it('should persist right panel state to localStorage', async () => {
+			// Component with a toggle button to trigger state change
 			function TestComponent() {
-				contextValue = useAppShell();
-				return <div>Test</div>;
+				const { isRightPanelOpen, toggleRightPanel } = useAppShell();
+				return (
+					<div>
+						<div data-testid="panel-state" data-open={isRightPanelOpen} />
+						<button data-testid="toggle-btn" onClick={toggleRightPanel}>Toggle</button>
+					</div>
+				);
 			}
 
 			renderWithProviders(
@@ -385,31 +393,33 @@ describe('AppShellContext', () => {
 
 			// Toggle to close panel
 			act(() => {
-				contextValue!.toggleRightPanel();
+				fireEvent.click(screen.getByTestId('toggle-btn'));
 			});
 
 			// Check localStorage
-			const stored = localStorage.getItem('orc-right-panel-collapsed');
-			expect(stored).toBe('true');
+			await waitFor(() => {
+				const stored = localStorage.getItem('orc-right-panel-collapsed');
+				expect(stored).toBe('true');
+			});
 
 			// Toggle to open panel
 			act(() => {
-				contextValue!.toggleRightPanel();
+				fireEvent.click(screen.getByTestId('toggle-btn'));
 			});
 
-			const storedAfter = localStorage.getItem('orc-right-panel-collapsed');
-			expect(storedAfter).toBe('false');
+			await waitFor(() => {
+				const storedAfter = localStorage.getItem('orc-right-panel-collapsed');
+				expect(storedAfter).toBe('false');
+			});
 		});
 
 		it('should load initial state from localStorage', () => {
 			// Set localStorage before rendering
 			localStorage.setItem('orc-right-panel-collapsed', 'true');
 
-			let contextValue: ReturnType<typeof useAppShell> | null = null;
-
 			function TestComponent() {
-				contextValue = useAppShell();
-				return <div>Test</div>;
+				const { isRightPanelOpen } = useAppShell();
+				return <div data-testid="panel-state" data-open={isRightPanelOpen} />;
 			}
 
 			renderWithProviders(
@@ -419,7 +429,7 @@ describe('AppShellContext', () => {
 			);
 
 			// Panel should be closed (collapsed = true means isOpen = false)
-			expect(contextValue!.isRightPanelOpen).toBe(false);
+			expect(screen.getByTestId('panel-state').getAttribute('data-open')).toBe('false');
 		});
 	});
 });
@@ -496,11 +506,9 @@ describe('AppShell responsive behavior', () => {
 			value: 900,
 		});
 
-		let contextValue: ReturnType<typeof useAppShell> | null = null;
-
 		function TestComponent() {
-			contextValue = useAppShell();
-			return <div>Test</div>;
+			const { isRightPanelOpen } = useAppShell();
+			return <div data-testid="panel-state" data-open={isRightPanelOpen} />;
 		}
 
 		renderWithProviders(
@@ -510,7 +518,7 @@ describe('AppShell responsive behavior', () => {
 		);
 
 		// Panel should be closed at tablet viewport
-		expect(contextValue!.isRightPanelOpen).toBe(false);
+		expect(screen.getByTestId('panel-state').getAttribute('data-open')).toBe('false');
 	});
 
 	it('should have isMobileNavMode true at viewport <768px', () => {
@@ -520,11 +528,9 @@ describe('AppShell responsive behavior', () => {
 			value: 600,
 		});
 
-		let contextValue: ReturnType<typeof useAppShell> | null = null;
-
 		function TestComponent() {
-			contextValue = useAppShell();
-			return <div>Test</div>;
+			const { isMobileNavMode } = useAppShell();
+			return <div data-testid="mobile-state" data-mobile={isMobileNavMode} />;
 		}
 
 		renderWithProviders(
@@ -533,6 +539,6 @@ describe('AppShell responsive behavior', () => {
 			</AppShellProvider>
 		);
 
-		expect(contextValue!.isMobileNavMode).toBe(true);
+		expect(screen.getByTestId('mobile-state').getAttribute('data-mobile')).toBe('true');
 	});
 });
