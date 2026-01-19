@@ -1,0 +1,61 @@
+/**
+ * ExecutionSettings styles
+ * 2-column grid of setting cards for global agent configuration
+ */
+
+.execution-settings {
+	position: relative;
+}
+
+.execution-settings__saving {
+	position: absolute;
+	top: -24px;
+	right: 0;
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+/* 2-column responsive grid with 16px gap */
+.settings-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 16px;
+}
+
+@media (max-width: 640px) {
+	.settings-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Individual setting card styling */
+.setting-card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 16px;
+}
+
+.setting-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+
+.setting-label {
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.setting-desc {
+	font-size: 11px;
+	color: var(--text-muted);
+	line-height: 1.4;
+	margin-bottom: 12px;
+}
+
+/* When card has no control after desc (like auto-approve), remove margin */
+.setting-card .setting-desc:last-child {
+	margin-bottom: 0;
+}
