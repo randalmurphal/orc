@@ -437,6 +437,37 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 				)
 			}
 
+			// Criteria validation: check if success criteria from spec are met
+			// This runs after backpressure (tests pass) but before accepting completion
+			shouldValidateCriteria := e.config.OrcConfig != nil && e.config.OrcConfig.ShouldValidateCriteria(string(t.Weight))
+			if e.haikuClient != nil && specContent != "" && p.ID == "implement" && shouldValidateCriteria {
+				criteriaResult, valErr := ValidateSuccessCriteria(ctx, e.haikuClient, specContent, turnResult.Content)
+				if valErr != nil {
+					// API error - log and continue (fail open)
+					e.logger.Warn("criteria validation error (continuing)",
+						"task", t.ID,
+						"phase", p.ID,
+						"error", valErr,
+					)
+				} else if !criteriaResult.AllMet {
+					// Not all criteria met - inject feedback and continue iteration
+					e.logger.Info("criteria validation failed, continuing iteration",
+						"task", t.ID,
+						"phase", p.ID,
+						"missing", criteriaResult.MissingSummary,
+					)
+					e.publisher.Warning(t.ID, p.ID, "Criteria check: "+criteriaResult.MissingSummary)
+
+					// Inject criteria feedback into next prompt
+					promptText = FormatCriteriaFeedback(criteriaResult)
+					continue // Don't accept completion, iterate again
+				}
+				e.logger.Info("criteria validation passed",
+					"task", t.ID,
+					"phase", p.ID,
+				)
+			}
+
 			result.Status = plan.PhaseCompleted
 			result.Output = turnResult.Content
 			e.logger.Info("phase complete", "task", t.ID, "phase", p.ID, "iterations", iteration)

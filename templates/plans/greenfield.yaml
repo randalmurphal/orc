@@ -1,6 +1,6 @@
 version: 1
 weight: greenfield
-description: Greenfield project - research, spec, design, implement, review, test, docs, validate with multi-agent code review
+description: Greenfield project - research, spec, design, implement, review, test, docs, validate with criteria validation
 
 phases:
   - id: research

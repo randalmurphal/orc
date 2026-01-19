@@ -78,6 +78,49 @@ const (
 		},
 		"required": ["ready", "suggestions"]
 	}`
+
+	// criteriaCompletionSchema forces structured output for success criteria validation.
+	criteriaCompletionSchema = `{
+		"type": "object",
+		"properties": {
+			"all_met": {
+				"type": "boolean",
+				"description": "true if ALL success criteria are satisfied, false if any are missing"
+			},
+			"criteria": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"id": {
+							"type": "string",
+							"description": "Criterion ID (e.g., SC-1)"
+						},
+						"description": {
+							"type": "string",
+							"description": "Brief description of the criterion"
+						},
+						"status": {
+							"type": "string",
+							"enum": ["MET", "NOT_MET", "PARTIAL"],
+							"description": "Whether this criterion is satisfied"
+						},
+						"reason": {
+							"type": "string",
+							"description": "Why it is or isn't met"
+						}
+					},
+					"required": ["id", "status", "reason"]
+				},
+				"description": "Status of each success criterion"
+			},
+			"missing_summary": {
+				"type": "string",
+				"description": "Brief summary of what's still needed (empty if all_met)"
+			}
+		},
+		"required": ["all_met", "criteria", "missing_summary"]
+	}`
 )
 
 // progressResponse is the JSON structure for iteration progress validation.
@@ -90,6 +133,21 @@ type progressResponse struct {
 type readinessResponse struct {
 	Ready       bool     `json:"ready"`
 	Suggestions []string `json:"suggestions"`
+}
+
+// CriterionStatus represents the status of a single success criterion.
+type CriterionStatus struct {
+	ID          string `json:"id"`
+	Description string `json:"description,omitempty"`
+	Status      string `json:"status"` // MET, NOT_MET, PARTIAL
+	Reason      string `json:"reason"`
+}
+
+// criteriaCompletionResponse is the JSON structure for success criteria validation.
+type criteriaCompletionResponse struct {
+	AllMet         bool              `json:"all_met"`
+	Criteria       []CriterionStatus `json:"criteria"`
+	MissingSummary string            `json:"missing_summary"`
 }
 
 // ValidateIterationProgress uses Haiku to assess whether an iteration is on track.
@@ -254,4 +312,127 @@ Set ready=true only if all criteria are met. Otherwise, list specific improvemen
 	}
 
 	return result.Ready, result.Suggestions, nil
+}
+
+// CriteriaValidationResult holds the result of success criteria validation.
+type CriteriaValidationResult struct {
+	AllMet         bool
+	Criteria       []CriterionStatus
+	MissingSummary string
+}
+
+// ValidateSuccessCriteria checks if all success criteria from the spec are satisfied.
+// This is the key gate for implement phase completion - it ensures the agent has
+// actually done what the spec requires, not just claimed completion.
+//
+// Returns:
+//   - result: detailed status of each criterion
+//   - error: on API/parse failures
+//
+// The caller should check result.AllMet to decide whether to accept phase completion.
+func ValidateSuccessCriteria(
+	ctx context.Context,
+	client claude.Client,
+	specContent string,
+	implementationSummary string,
+) (*CriteriaValidationResult, error) {
+	if client == nil {
+		// No client = skip validation (optimistic)
+		return &CriteriaValidationResult{AllMet: true}, nil
+	}
+
+	if specContent == "" {
+		// No spec = can't validate criteria
+		return &CriteriaValidationResult{AllMet: true}, nil
+	}
+
+	// Truncate implementation summary to keep costs reasonable
+	maxSummaryLen := 6000
+	truncatedSummary := implementationSummary
+	if len(implementationSummary) > maxSummaryLen {
+		truncatedSummary = implementationSummary[:maxSummaryLen] + "\n...[truncated]"
+	}
+
+	prompt := fmt.Sprintf(`Evaluate whether the implementation satisfies ALL success criteria from the specification.
+
+## Specification
+%s
+
+## Implementation Summary (Agent's Claimed Work)
+%s
+
+## Task
+For EACH success criterion in the spec (look for "Success Criteria" section, SC-1, SC-2, etc.):
+1. Determine if it is MET, NOT_MET, or PARTIAL
+2. Explain why in the reason field
+
+Be strict: a criterion is only MET if there's clear evidence it's satisfied.
+If the implementation summary doesn't mention addressing a criterion, mark it NOT_MET.
+
+Set all_met=true ONLY if every single criterion has status=MET.`, specContent, truncatedSummary)
+
+	resp, err := client.Complete(ctx, claude.CompletionRequest{
+		Messages: []claude.Message{
+			{Role: claude.RoleUser, Content: prompt},
+		},
+		Model:       HaikuValidationModel,
+		MaxTokens:   800, // More tokens for detailed criteria breakdown
+		Temperature: 0,
+		JSONSchema:  criteriaCompletionSchema,
+	})
+
+	if err != nil {
+		slog.Warn("criteria validation API error", "error", err)
+		return nil, fmt.Errorf("criteria validation API error: %w", err)
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("criteria validation API returned nil response")
+	}
+
+	// Parse JSON response
+	var result criteriaCompletionResponse
+	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
+		slog.Warn("criteria validation parse error",
+			"error", err,
+			"content", resp.Content,
+		)
+		return nil, fmt.Errorf("criteria validation parse error: %w", err)
+	}
+
+	return &CriteriaValidationResult{
+		AllMet:         result.AllMet,
+		Criteria:       result.Criteria,
+		MissingSummary: result.MissingSummary,
+	}, nil
+}
+
+// FormatCriteriaFeedback formats missing criteria as actionable feedback for the agent.
+func FormatCriteriaFeedback(result *CriteriaValidationResult) string {
+	if result == nil || result.AllMet {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("## Criteria Validation Failed\n\n")
+	sb.WriteString("Not all success criteria from the spec are satisfied. You must address the following:\n\n")
+
+	for _, c := range result.Criteria {
+		if c.Status != "MET" {
+			sb.WriteString(fmt.Sprintf("### %s: %s\n", c.ID, c.Status))
+			if c.Description != "" {
+				sb.WriteString(fmt.Sprintf("**Criterion:** %s\n", c.Description))
+			}
+			sb.WriteString(fmt.Sprintf("**Issue:** %s\n\n", c.Reason))
+		}
+	}
+
+	if result.MissingSummary != "" {
+		sb.WriteString("### Summary\n")
+		sb.WriteString(result.MissingSummary)
+		sb.WriteString("\n\n")
+	}
+
+	sb.WriteString("Please address all NOT_MET and PARTIAL criteria before claiming completion.\n")
+	return sb.String()
 }

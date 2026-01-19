@@ -1,6 +1,6 @@
 version: 1
 weight: medium
-description: Medium task - spec, implement, review, test, docs with multi-agent code review
+description: Medium task - spec, implement, review, test, docs with criteria validation
 
 phases:
   - id: spec

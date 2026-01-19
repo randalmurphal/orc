@@ -1,6 +1,6 @@
 version: 1
 weight: large
-description: Large task - spec, design, implement, review, test, docs, validate with multi-agent code review
+description: Large task - spec, design, implement, review, test, docs, validate with criteria validation
 
 phases:
   - id: spec
