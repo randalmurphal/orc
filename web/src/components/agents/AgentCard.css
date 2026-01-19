@@ -1,0 +1,192 @@
+/* =============================================================================
+   AgentCard Component Styles
+   Individual AI agent configuration cards with status, stats, and tools
+   Based on example_ui/agents.html reference design
+   ============================================================================= */
+
+/* ==========================================================================
+   BASE STYLES
+   ========================================================================== */
+
+.agent-card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xl);
+	padding: var(--space-5);
+	transition:
+		border-color var(--duration-normal) var(--ease-out),
+		background-color var(--duration-normal) var(--ease-out),
+		opacity var(--duration-normal) var(--ease-out);
+}
+
+/* ==========================================================================
+   HOVER STATE
+   ========================================================================== */
+
+.agent-card:hover {
+	border-color: var(--border-light);
+}
+
+/* ==========================================================================
+   ACTIVE/SELECTED STATE
+   ========================================================================== */
+
+.agent-card-active {
+	border-color: var(--primary-border-hover);
+	background: linear-gradient(135deg, var(--bg-card), var(--primary-dim));
+}
+
+.agent-card-active:hover {
+	border-color: var(--primary-border-hover);
+}
+
+/* ==========================================================================
+   INTERACTIVE STATE
+   ========================================================================== */
+
+.agent-card-interactive {
+	cursor: pointer;
+}
+
+.agent-card-interactive:focus {
+	outline: none;
+}
+
+.agent-card-interactive:focus-visible {
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+/* ==========================================================================
+   DISABLED STATE
+   ========================================================================== */
+
+.agent-card-disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.agent-card-disabled:hover {
+	border-color: var(--border);
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+.agent-card-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	margin-bottom: var(--space-4);
+}
+
+/* Icon - 44x44 with colored background */
+.agent-card-icon {
+	width: 44px;
+	height: 44px;
+	border-radius: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 20px;
+	flex-shrink: 0;
+}
+
+/* Icon color variants */
+.agent-card-icon-purple {
+	background: var(--primary-dim);
+}
+
+.agent-card-icon-blue {
+	background: var(--blue-dim);
+}
+
+.agent-card-icon-green {
+	background: var(--green-dim);
+}
+
+.agent-card-icon-amber {
+	background: var(--amber-dim);
+}
+
+/* Agent info */
+.agent-card-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.agent-card-name {
+	font-size: var(--text-xl);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin-bottom: 2px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.agent-card-model {
+	font-size: var(--text-base);
+	font-family: var(--font-mono);
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   STATS ROW
+   ========================================================================== */
+
+.agent-card-stats {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: var(--space-3);
+	padding: var(--space-3) 0;
+	border-top: 1px solid var(--border);
+	border-bottom: 1px solid var(--border);
+	margin-bottom: var(--space-4);
+}
+
+.agent-card-stat {
+	text-align: center;
+}
+
+.agent-card-stat-value {
+	font-size: var(--text-2xl);
+	font-weight: var(--font-bold);
+	font-family: var(--font-mono);
+	color: var(--text-primary);
+}
+
+.agent-card-stat-label {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	margin-top: 2px;
+}
+
+/* ==========================================================================
+   TOOLS
+   ========================================================================== */
+
+.agent-card-tools {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1-5);
+}
+
+/* "+N more" badge styling */
+.agent-card-tools-more {
+	font-style: italic;
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.agent-card {
+		transition: none;
+	}
+}
