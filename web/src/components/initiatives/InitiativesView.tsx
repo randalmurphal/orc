@@ -12,6 +12,7 @@ import type { Initiative } from '@/lib/types';
 import { StatsRow, type InitiativeStats } from './StatsRow';
 import { InitiativeCard } from './InitiativeCard';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import './InitiativesView.css';
 
 // =============================================================================
@@ -25,61 +26,6 @@ export interface InitiativesViewProps {
 interface ProgressData {
 	completed: number;
 	total: number;
-}
-
-// =============================================================================
-// Icons
-// =============================================================================
-
-function PlusIcon() {
-	return (
-		<svg
-			width="12"
-			height="12"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2.5"
-			aria-hidden="true"
-		>
-			<path d="M12 4v16m8-8H4" />
-		</svg>
-	);
-}
-
-function LayersIcon() {
-	return (
-		<svg
-			width="32"
-			height="32"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			aria-hidden="true"
-		>
-			<polygon points="12 2 2 7 12 12 22 7 12 2" />
-			<polyline points="2 17 12 22 22 17" />
-			<polyline points="2 12 12 17 22 12" />
-		</svg>
-	);
-}
-
-function AlertCircleIcon() {
-	return (
-		<svg
-			width="24"
-			height="24"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			aria-hidden="true"
-		>
-			<circle cx="12" cy="12" r="10" />
-			<path d="M12 8v4M12 16h.01" />
-		</svg>
-	);
 }
 
 // =============================================================================
@@ -132,7 +78,7 @@ function InitiativesViewEmpty() {
 	return (
 		<div className="initiatives-view-empty" role="status">
 			<div className="initiatives-view-empty-icon">
-				<LayersIcon />
+				<Icon name="layers" size={32} />
 			</div>
 			<h2 className="initiatives-view-empty-title">Create your first initiative</h2>
 			<p className="initiatives-view-empty-desc">
@@ -156,7 +102,7 @@ function InitiativesViewError({ error, onRetry }: InitiativesViewErrorProps) {
 	return (
 		<div className="initiatives-view-error" role="alert">
 			<div className="initiatives-view-error-icon">
-				<AlertCircleIcon />
+				<Icon name="alert-circle" size={24} />
 			</div>
 			<h2 className="initiatives-view-error-title">Failed to load initiatives</h2>
 			<p className="initiatives-view-error-desc">{error}</p>
@@ -180,6 +126,7 @@ function InitiativesViewError({ error, onRetry }: InitiativesViewErrorProps) {
 export function InitiativesView({ className = '' }: InitiativesViewProps) {
 	const navigate = useNavigate();
 	const tasks = useTaskStore((state) => state.tasks);
+	const taskStates = useTaskStore((state) => state.taskStates);
 
 	const [initiatives, setInitiatives] = useState<Initiative[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -238,14 +185,12 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 		const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
 		// Calculate total cost from task states (tokens * rate)
-		// For now, we'll use a placeholder since we don't have cost data readily available
-		// In a real implementation, this would aggregate from task states
+		// Create Map for O(1) task lookups instead of O(n) Array.find()
+		const taskById = new Map(tasks.map((t) => [t.id, t]));
 		let totalCost = 0;
-		const taskStates = useTaskStore.getState().taskStates;
-		for (const [taskId] of taskStates) {
-			const task = tasks.find((t) => t.id === taskId);
+		for (const [taskId, state] of taskStates) {
+			const task = taskById.get(taskId);
 			if (task?.initiative_id || initiativeTaskIds.has(taskId)) {
-				const state = taskStates.get(taskId);
 				if (state?.tokens) {
 					// Rough estimate: $3/1M input tokens, $15/1M output tokens
 					const inputCost = (state.tokens.input_tokens / 1_000_000) * 3;
@@ -269,7 +214,7 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 			completionRate,
 			totalCost,
 		};
-	}, [initiatives, tasks]);
+	}, [initiatives, tasks, taskStates]);
 
 	// Get progress for a specific initiative
 	const getProgress = useCallback(
@@ -305,7 +250,7 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 				</div>
 				<Button
 					variant="primary"
-					leftIcon={<PlusIcon />}
+					leftIcon={<Icon name="plus" size={12} />}
 					onClick={handleNewInitiative}
 				>
 					New Initiative
