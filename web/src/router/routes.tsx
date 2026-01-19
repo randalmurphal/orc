@@ -3,7 +3,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Board } from '@/pages/Board';
 import { Dashboard } from '@/pages/Dashboard';
-import { TaskList } from '@/pages/TaskList';
+import { InitiativesPage } from '@/pages/InitiativesPage';
 import { TaskDetail } from '@/pages/TaskDetail';
 import { InitiativeDetail } from '@/pages/InitiativeDetail';
 import { AutomationPage } from '@/pages/AutomationPage';
@@ -31,7 +31,7 @@ import { Agents } from '@/pages/environment/Agents';
  * |-------|--------|
  * | / | redirects to /board |
  * | /board | ?project, ?initiative, ?dependency_status |
- * | /initiatives | (task list filtered view) |
+ * | /initiatives | initiatives overview with stats and cards |
  * | /initiatives/:id | - |
  * | /stats | ?project (dashboard stats) |
  * | /agents | - |
@@ -79,10 +79,10 @@ export const routes: RouteObject[] = [
 				path: 'board',
 				element: <Board />,
 			},
-			// Initiatives - Task list with initiative focus
+			// Initiatives - Overview page with stats and cards
 			{
 				path: 'initiatives',
-				element: <TaskList />,
+				element: <InitiativesPage />,
 			},
 			// Initiative detail
 			{
