@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -764,27 +765,36 @@ func TestIntegration_PhaseTimeout_EnforcesLimit(t *testing.T) {
 		t.Fatalf("expected phaseTimeoutError, got %T: %v", err, err)
 	}
 
-	// Verify task is paused (recoverable)
+	// Verify error message includes task ID and resume hint
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "INT-TIMEOUT") {
+		t.Errorf("error message should contain task ID, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "orc resume") {
+		t.Errorf("error message should contain resume hint, got: %s", errMsg)
+	}
+
+	// Verify task is failed (timeout is an error condition, recoverable via orc resume)
 	reloadedTask, loadErr := backend.LoadTask("INT-TIMEOUT")
 	if loadErr != nil {
 		t.Fatalf("failed to reload task: %v", loadErr)
 	}
 
-	if reloadedTask.Status != task.StatusPaused {
-		t.Errorf("task status = %s, want paused", reloadedTask.Status)
+	if reloadedTask.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want failed (timeout is an error condition)", reloadedTask.Status)
 	}
 
-	// Verify phase is interrupted
+	// Verify phase is failed
 	reloadedState, stateErr := backend.LoadState("INT-TIMEOUT")
 	if stateErr != nil {
 		t.Fatalf("failed to reload state: %v", stateErr)
 	}
 
-	if reloadedState.Phases["implement"].Status != state.StatusInterrupted {
-		t.Errorf("phase status = %s, want interrupted", reloadedState.Phases["implement"].Status)
+	if reloadedState.Phases["implement"].Status != state.StatusFailed {
+		t.Errorf("phase status = %s, want failed", reloadedState.Phases["implement"].Status)
 	}
 
-	t.Logf("PhaseMax timeout correctly enforced - task can be resumed")
+	t.Logf("PhaseMax timeout correctly enforced - task can be resumed via 'orc resume'")
 }
 
 // TestIntegration_PhaseTimeout_Disabled verifies that PhaseMax=0 disables timeout.
