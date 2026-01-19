@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/randalmurphal/llmkit/claude/jsonl"
 	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -358,12 +360,25 @@ func followLiveJSONL(taskID string, opts transcriptDisplayOptions) error {
 
 	// Get JSONL path from state (if available)
 	jsonlPath := st.JSONLPath
+
+	// If JSONLPath is empty, try to construct it as a fallback
 	if jsonlPath == "" {
-		return fmt.Errorf("no active JSONL file for task %s (task may not be running)", taskID)
+		// Try to construct path from session ID and worktree
+		constructedPath, constructErr := constructJSONLPathFallback(taskID, st)
+		if constructErr == nil && constructedPath != "" {
+			jsonlPath = constructedPath
+		} else {
+			// Provide accurate error message based on task status
+			return formatFollowError(taskID, st, constructErr)
+		}
 	}
 
 	// Check file exists
 	if _, err := os.Stat(jsonlPath); os.IsNotExist(err) {
+		// File doesn't exist yet - check if task is still starting up
+		if st.Status == state.StatusRunning {
+			return fmt.Errorf("JSONL file not yet created at %s (session may still be starting)", jsonlPath)
+		}
 		return fmt.Errorf("JSONL file not found: %s", jsonlPath)
 	}
 
@@ -468,4 +483,89 @@ func displayJSONLMessage(msg session.JSONLMessage, opts transcriptDisplayOptions
 	}
 
 	fmt.Println()
+}
+
+// constructJSONLPathFallback attempts to construct the JSONL path from task state
+// when the path wasn't persisted to state. This uses the same path format as llmkit:
+// ~/.claude/projects/{normalized-workdir}/{sessionId}.jsonl
+func constructJSONLPathFallback(taskID string, st *state.State) (string, error) {
+	// Check for session ID in state
+	sessionID := st.GetSessionID()
+
+	// If no explicit session ID, try constructing from current phase
+	// Session IDs for orc tasks are typically: {taskID}-{phaseID}
+	if sessionID == "" && st.CurrentPhase != "" {
+		sessionID = fmt.Sprintf("%s-%s", taskID, st.CurrentPhase)
+	}
+
+	if sessionID == "" {
+		return "", fmt.Errorf("no session ID available")
+	}
+
+	// Get home directory for ~/.claude location
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("get home directory: %w", err)
+	}
+
+	// Try to find the worktree path
+	// First, check common worktree location relative to current directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("get working directory: %w", err)
+	}
+
+	// Look for worktree pattern: .orc/worktrees/orc-{TASK-ID}
+	worktreePath := filepath.Join(cwd, ".orc", "worktrees", "orc-"+taskID)
+	if _, err := os.Stat(worktreePath); err == nil {
+		// Worktree exists, construct JSONL path using worktree as workdir
+		normalizedPath := normalizeProjectPath(worktreePath)
+		return fmt.Sprintf("%s/.claude/projects/%s/%s.jsonl", homeDir, normalizedPath, sessionID), nil
+	}
+
+	// Fallback: use current directory as workdir (non-worktree execution)
+	normalizedPath := normalizeProjectPath(cwd)
+	jsonlPath := fmt.Sprintf("%s/.claude/projects/%s/%s.jsonl", homeDir, normalizedPath, sessionID)
+
+	// Verify the constructed path exists before returning
+	if _, err := os.Stat(jsonlPath); err != nil {
+		return "", fmt.Errorf("constructed JSONL path does not exist")
+	}
+
+	return jsonlPath, nil
+}
+
+// normalizeProjectPath converts an absolute path to Claude Code's normalized format.
+// Example: /home/user/repos/project -> -home-user-repos-project
+func normalizeProjectPath(path string) string {
+	// Remove leading slash and replace remaining slashes with dashes
+	normalized := strings.TrimPrefix(path, "/")
+	normalized = strings.ReplaceAll(normalized, "/", "-")
+	// Prepend dash to match Claude Code's format
+	return "-" + normalized
+}
+
+// formatFollowError returns an appropriate error message based on task status
+// when --follow cannot find a JSONL file.
+func formatFollowError(taskID string, st *state.State, constructErr error) error {
+	switch st.Status {
+	case state.StatusPending:
+		return fmt.Errorf("task %s has not started yet (status: pending)", taskID)
+	case state.StatusCompleted:
+		return fmt.Errorf("task %s has already completed - use 'orc log %s' without --follow to view transcripts", taskID, taskID)
+	case state.StatusFailed:
+		return fmt.Errorf("task %s has failed - use 'orc log %s' without --follow to view transcripts", taskID, taskID)
+	case state.StatusPaused:
+		return fmt.Errorf("task %s is paused (not actively running) - use 'orc resume %s' to continue", taskID, taskID)
+	case state.StatusInterrupted:
+		return fmt.Errorf("task %s was interrupted - use 'orc resume %s' to continue", taskID, taskID)
+	case state.StatusRunning:
+		// Task claims to be running but no JSONL - might be starting up or executor died
+		if constructErr != nil {
+			return fmt.Errorf("task %s is running but JSONL file not yet available (session may still be starting): %w", taskID, constructErr)
+		}
+		return fmt.Errorf("task %s is running but JSONL file not yet available (session may still be starting)", taskID)
+	default:
+		return fmt.Errorf("no JSONL file available for task %s (task status: %s)", taskID, st.Status)
+	}
 }
