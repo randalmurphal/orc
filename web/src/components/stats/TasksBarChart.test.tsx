@@ -279,6 +279,27 @@ describe('TasksBarChart', () => {
 			);
 			expect(labelSkeletons).toHaveLength(7);
 		});
+
+		it('skeleton heights are deterministic across renders', () => {
+			const { container, rerender } = renderWithProvider(
+				<TasksBarChart data={mockWeekData} loading />
+			);
+			const firstRenderHeights = Array.from(
+				container.querySelectorAll('.tasks-bar-chart-bar-skeleton')
+			).map((el) => (el as HTMLElement).style.height);
+
+			// Rerender and check heights are the same
+			rerender(
+				<TooltipProvider delayDuration={0}>
+					<TasksBarChart data={mockWeekData} loading />
+				</TooltipProvider>
+			);
+			const secondRenderHeights = Array.from(
+				container.querySelectorAll('.tasks-bar-chart-bar-skeleton')
+			).map((el) => (el as HTMLElement).style.height);
+
+			expect(firstRenderHeights).toEqual(secondRenderHeights);
+		});
 	});
 
 	describe('ref forwarding', () => {

@@ -6,43 +6,25 @@
 
 import { forwardRef, type HTMLAttributes } from 'react';
 import { Tooltip } from '../ui/Tooltip';
+import {
+	calculateBarHeight,
+	getSkeletonBarHeight,
+	type DayData,
+} from './barChartUtils';
 import './TasksBarChart.css';
+
+// Re-export types and utilities for backwards compatibility
+export type { DayData } from './barChartUtils';
+export { calculateBarHeight, defaultWeekData } from './barChartUtils';
 
 // =============================================================================
 // Types
 // =============================================================================
 
-export interface DayData {
-	day: string;
-	count: number;
-}
-
 export interface TasksBarChartProps extends HTMLAttributes<HTMLDivElement> {
 	data: DayData[];
 	loading?: boolean;
 	className?: string;
-}
-
-// =============================================================================
-// Constants
-// =============================================================================
-
-const MIN_BAR_HEIGHT = 4;
-const MAX_BAR_HEIGHT = 140; // Leave room for label (160px container - 20px for label/gap)
-
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-/**
- * Calculate bar height based on count relative to max value.
- * Returns minimum height for zero values to ensure visibility.
- */
-export function calculateBarHeight(count: number, maxCount: number): number {
-	if (count === 0) return MIN_BAR_HEIGHT;
-	const normalizedMax = Math.max(maxCount, 1); // Avoid division by zero
-	const height = (count / normalizedMax) * MAX_BAR_HEIGHT;
-	return Math.min(MAX_BAR_HEIGHT, Math.max(MIN_BAR_HEIGHT, height));
 }
 
 // =============================================================================
@@ -91,7 +73,7 @@ export const TasksBarChart = forwardRef<HTMLDivElement, TasksBarChartProps>(
 						<div key={i} className="tasks-bar-chart-group">
 							<div
 								className="tasks-bar-chart-bar-skeleton"
-								style={{ height: `${40 + Math.random() * 60}px` }}
+								style={{ height: `${getSkeletonBarHeight(i)}px` }}
 								aria-hidden="true"
 							/>
 							<div className="tasks-bar-chart-label-skeleton" aria-hidden="true" />
@@ -149,17 +131,3 @@ export const TasksBarChart = forwardRef<HTMLDivElement, TasksBarChartProps>(
 );
 
 TasksBarChart.displayName = 'TasksBarChart';
-
-// =============================================================================
-// Default Data (for demo/story purposes)
-// =============================================================================
-
-export const defaultWeekData: DayData[] = [
-	{ day: 'Mon', count: 0 },
-	{ day: 'Tue', count: 0 },
-	{ day: 'Wed', count: 0 },
-	{ day: 'Thu', count: 0 },
-	{ day: 'Fri', count: 0 },
-	{ day: 'Sat', count: 0 },
-	{ day: 'Sun', count: 0 },
-];
