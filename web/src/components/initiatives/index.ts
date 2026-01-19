@@ -25,3 +25,7 @@ export {
 	useStatsSubscription,
 	calculateTrends,
 } from './useInitiativeStats';
+
+// Initiative views
+export { InitiativesView } from './InitiativesView';
+export type { InitiativesViewProps } from './InitiativesView';

@@ -537,6 +537,47 @@ formatTrend(15);          // '+15%'
 formatTrend(-5);          // '-5%'
 ```
 
+## InitiativesView
+
+Container component assembling the complete initiatives overview page with aggregate statistics, cards grid, and state handling.
+
+```tsx
+import { InitiativesView } from '@/components/initiatives';
+
+<InitiativesView />
+<InitiativesView className="custom-class" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Visual Structure:**
+- Header: "Initiatives" title, subtitle, "New Initiative" button
+- StatsRow: 4 aggregate stat cards (Active Initiatives, Total Tasks, Completion Rate, Total Cost)
+- Grid: Responsive InitiativeCard layout (auto-fill, min 360px)
+
+**States:**
+| State | Rendering |
+|-------|-----------|
+| Loading | Skeleton StatsRow + 4 skeleton cards |
+| Empty | Icon + "Create your first initiative" message |
+| Error | Error message + retry button |
+| Populated | StatsRow + InitiativeCard grid |
+
+**Data Sources:**
+- Initiatives: Fetched from `/api/initiatives`
+- Task progress: From `useTaskStore` (tasks, taskStates)
+
+**Events:**
+- "New Initiative" click: Dispatches `window.dispatchEvent(new CustomEvent('orc:new-initiative'))`
+- Card click: Navigates to `/initiatives/{id}`
+
+**Performance:**
+- Single-pass task processing (O(n)) for stats computation
+- Pre-computed task lookup map per initiative
+- Memoized progress and stats calculations
+
 ## RunningCard
 
 Expanded card component for actively executing tasks. Displays rich execution context including pipeline visualization, elapsed time, and live output.
