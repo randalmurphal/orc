@@ -1,0 +1,317 @@
+/* =============================================================================
+   ActivityHeatmap Component Styles
+   GitHub-style activity heatmap for task completion visualization
+   ============================================================================= */
+
+/* ==========================================================================
+   CONTAINER
+   ========================================================================== */
+
+.activity-heatmap {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+.heatmap-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 8px;
+}
+
+.heatmap-title {
+	font-size: var(--text-lg);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+}
+
+/* ==========================================================================
+   LEGEND
+   ========================================================================== */
+
+.heatmap-legend {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 10px;
+	color: var(--text-muted);
+}
+
+.heatmap-legend-scale {
+	display: flex;
+	gap: 2px;
+}
+
+.heatmap-legend-cell {
+	width: 10px;
+	height: 10px;
+	border-radius: 2px;
+}
+
+/* ==========================================================================
+   MONTH LABELS
+   ========================================================================== */
+
+.heatmap-months {
+	display: flex;
+	gap: 2px;
+	margin-left: 28px;
+	margin-bottom: 6px;
+}
+
+.month-label {
+	font-size: 10px;
+	color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   GRID CONTAINER
+   ========================================================================== */
+
+.heatmap-container {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.heatmap-grid-wrapper {
+	display: flex;
+	gap: 4px;
+}
+
+/* ==========================================================================
+   DAY LABELS
+   ========================================================================== */
+
+.heatmap-days {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding-top: 2px;
+}
+
+.day-label {
+	font-size: 9px;
+	color: var(--text-muted);
+	width: 24px;
+	height: 12px;
+	line-height: 12px;
+}
+
+/* ==========================================================================
+   GRID
+   ========================================================================== */
+
+.heatmap-grid {
+	display: grid;
+	grid-template-rows: repeat(7, 1fr);
+	grid-auto-flow: column;
+	gap: 3px;
+}
+
+/* ==========================================================================
+   CELLS
+   ========================================================================== */
+
+.heatmap-cell {
+	width: 12px;
+	height: 12px;
+	border-radius: 2px;
+	cursor: pointer;
+	transition: transform 0.1s ease;
+	background: var(--bg-surface);
+}
+
+.heatmap-cell:hover {
+	transform: scale(1.2);
+}
+
+.heatmap-cell:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: 1px;
+}
+
+.heatmap-cell.future {
+	cursor: default;
+	opacity: 0.3;
+}
+
+.heatmap-cell.future:hover {
+	transform: none;
+}
+
+/* Green color intensity levels - matches task spec */
+.heatmap-cell.level-0 {
+	background: var(--bg-surface);
+}
+
+.heatmap-cell.level-1 {
+	background: rgba(16, 185, 129, 0.3);
+}
+
+.heatmap-cell.level-2 {
+	background: rgba(16, 185, 129, 0.5);
+}
+
+.heatmap-cell.level-3 {
+	background: rgba(16, 185, 129, 0.7);
+}
+
+.heatmap-cell.level-4 {
+	background: var(--green);
+}
+
+/* ==========================================================================
+   TOOLTIP
+   ========================================================================== */
+
+.heatmap-tooltip {
+	position: fixed;
+	padding: 6px 10px;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	font-size: var(--text-base);
+	color: var(--text-primary);
+	pointer-events: none;
+	z-index: var(--z-tooltip);
+	white-space: nowrap;
+	box-shadow: var(--shadow-md);
+	opacity: 0;
+	transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.heatmap-tooltip.visible {
+	opacity: 1;
+}
+
+.heatmap-tooltip-count {
+	font-weight: var(--font-semibold);
+	color: var(--green);
+}
+
+/* ==========================================================================
+   SKELETON LOADING
+   ========================================================================== */
+
+.heatmap-skeleton {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.heatmap-skeleton-header {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 8px;
+}
+
+.heatmap-skeleton-title {
+	width: 100px;
+	height: 16px;
+	background: var(--bg-surface);
+	border-radius: var(--radius-sm);
+	animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.heatmap-skeleton-legend {
+	width: 80px;
+	height: 10px;
+	background: var(--bg-surface);
+	border-radius: var(--radius-sm);
+	animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.heatmap-skeleton-grid {
+	display: grid;
+	grid-template-rows: repeat(7, 1fr);
+	grid-auto-flow: column;
+	gap: 3px;
+	margin-left: 28px;
+}
+
+.heatmap-skeleton-cell {
+	width: 12px;
+	height: 12px;
+	border-radius: 2px;
+	background: var(--bg-surface);
+	animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+	0%, 100% {
+		opacity: 0.4;
+	}
+	50% {
+		opacity: 0.7;
+	}
+}
+
+/* ==========================================================================
+   EMPTY STATE
+   ========================================================================== */
+
+.heatmap-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: var(--space-8);
+	color: var(--text-muted);
+	font-size: var(--text-md);
+	text-align: center;
+}
+
+.heatmap-empty-icon {
+	margin-bottom: var(--space-2);
+	opacity: 0.5;
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+/* Below 768px: show 8 weeks instead of 16 */
+@media (max-width: 768px) {
+	.heatmap-grid[data-weeks="16"] {
+		/* Grid will be dynamically adjusted in JS via weeks prop */
+	}
+}
+
+/* Below 480px: show 4 weeks */
+@media (max-width: 480px) {
+	.heatmap-grid[data-weeks="16"],
+	.heatmap-grid[data-weeks="8"] {
+		/* Grid will be dynamically adjusted in JS via weeks prop */
+	}
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.heatmap-cell {
+		transition: none;
+	}
+
+	.heatmap-cell:hover {
+		transform: none;
+	}
+
+	.heatmap-tooltip {
+		transition: none;
+	}
+
+	.heatmap-skeleton-title,
+	.heatmap-skeleton-legend,
+	.heatmap-skeleton-cell {
+		animation: none;
+		opacity: 0.5;
+	}
+}
