@@ -620,3 +620,66 @@ mapPhaseToDisplay('implement');  // "Code"
 - Keyboard navigation: Enter/Space toggles expand
 - Focus visible outline with primary glow
 - Expand toggle icon is `aria-hidden`
+
+## TasksBarChart
+
+Bar chart displaying tasks completed per day of the week (Mon-Sun).
+
+```tsx
+import { TasksBarChart, defaultWeekData } from '@/components/stats/TasksBarChart';
+
+// Basic usage
+<TasksBarChart
+  data={[
+    { day: 'Mon', count: 12 },
+    { day: 'Tue', count: 18 },
+    { day: 'Wed', count: 9 },
+    { day: 'Thu', count: 24 },
+    { day: 'Fri', count: 16 },
+    { day: 'Sat', count: 6 },
+    { day: 'Sun', count: 20 },
+  ]}
+/>
+
+// Loading state
+<TasksBarChart data={[]} loading />
+
+// With default empty data
+<TasksBarChart data={defaultWeekData} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `data` | `DayData[]` | required | Array of `{ day: string; count: number }` |
+| `loading` | `boolean` | `false` | Show skeleton loading state |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Visual Specifications:**
+- Container: 160px height with flexbox layout
+- Bars: Max 32px width, top border-radius only (4px), `--primary` color
+- Labels: 9px font, `--text-muted` color, below each bar
+- Height scaling: Proportional to max value in dataset
+- Zero values: 4px minimum height for visibility
+
+**States:**
+- Default: Purple bars (`--primary`)
+- Hover: Brighter purple (`--primary-bright`), shows tooltip with exact count
+- Loading: Shimmer animation on 7 skeleton bars
+- Empty: "No data available" centered message
+
+**Exported Utilities:**
+```tsx
+import { calculateBarHeight, defaultWeekData, type DayData } from '@/components/stats/TasksBarChart';
+
+// Calculate bar height (4px minimum, 140px maximum)
+calculateBarHeight(count: number, maxCount: number): number
+
+// Default week data with zero counts
+defaultWeekData: DayData[]
+```
+
+**Accessibility:**
+- `role="img"` with descriptive `aria-label` listing all values
+- Loading state has `aria-busy="true"`
+- Tooltip on hover shows exact count
+- Respects `prefers-reduced-motion` (disables transitions and animations)
