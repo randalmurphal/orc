@@ -485,3 +485,48 @@ mapPhaseToDisplay('implement');  // "Code"
 - Keyboard navigation: Enter/Space toggles expand
 - Focus visible outline with primary glow
 - Expand toggle icon is `aria-hidden`
+
+## OutcomesDonut
+
+CSS-only donut chart for visualizing task outcomes (completed, with retries, failed) with centered total count and legend.
+
+```tsx
+import { OutcomesDonut } from '@/components/stats';
+
+// Basic usage
+<OutcomesDonut completed={232} withRetries={11} failed={4} />
+
+// Single category (full circle)
+<OutcomesDonut completed={50} withRetries={0} failed={0} />
+
+// Empty state (no tasks)
+<OutcomesDonut completed={0} withRetries={0} failed={0} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `completed` | `number` | required | Number of successfully completed tasks |
+| `withRetries` | `number` | required | Number of tasks completed with retries |
+| `failed` | `number` | required | Number of failed tasks |
+
+**Visual Elements:**
+- 120px diameter donut chart with 80px inner hole
+- Centered total count (JetBrains Mono, `--font-mono`)
+- "Total" label below count
+- Legend with colored dots and counts for each category
+
+**Segment Colors:**
+| Category | Color |
+|----------|-------|
+| Completed | `var(--green)` |
+| With Retries | `var(--amber)` |
+| Failed | `var(--red)` |
+
+**Edge Cases:**
+- All zeros: Shows neutral background (`var(--bg-surface)`)
+- Single category: Full circle of that color (no gradient stops)
+- Mixed values: Proportional conic-gradient segments
+
+**Animations:** Smooth segment transitions via `transition: background var(--duration-slow)`.
+
+**Implementation:** Uses CSS `conic-gradient` for rendering (no SVG or canvas). Inner hole created with `::after` pseudo-element over `--bg-card` background

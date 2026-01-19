@@ -38,6 +38,7 @@ web/src/
 │   ├── board/            # Kanban (Board, Column, TaskCard, etc.)
 │   ├── dashboard/        # Dashboard sections
 │   ├── layout/           # AppLayout, Sidebar, Header, IconNav, TopBar
+│   ├── stats/            # Statistics visualizations (OutcomesDonut)
 │   ├── task-detail/      # TaskHeader, TabNav, tabs
 │   ├── overlays/         # Modal, CommandPalette, NewTaskModal
 │   └── ui/               # Primitives (Button, Icon, Input, Tooltip)
