@@ -1513,3 +1513,161 @@ func TestPopulateComputedFields_DependencyStatus(t *testing.T) {
 		t.Errorf("TASK-005 DependencyStatus = %s, want %s", tasks[4].DependencyStatus, DependencyStatusBlocked)
 	}
 }
+
+// ============================================================================
+// Quality Metrics Tests
+// ============================================================================
+
+func TestRecordPhaseRetry(t *testing.T) {
+	task := &Task{ID: "TASK-001", Title: "Test Task", Weight: WeightMedium}
+
+	// Initially no quality metrics
+	if task.Quality != nil {
+		t.Error("expected Quality to be nil initially")
+	}
+
+	// Record first retry
+	task.RecordPhaseRetry("implement")
+	if task.Quality == nil {
+		t.Fatal("expected Quality to be initialized after recording retry")
+	}
+	if task.Quality.PhaseRetries["implement"] != 1 {
+		t.Errorf("expected implement retries=1, got %d", task.Quality.PhaseRetries["implement"])
+	}
+	if task.Quality.TotalRetries != 1 {
+		t.Errorf("expected TotalRetries=1, got %d", task.Quality.TotalRetries)
+	}
+
+	// Record more retries
+	task.RecordPhaseRetry("implement")
+	task.RecordPhaseRetry("review")
+	if task.Quality.PhaseRetries["implement"] != 2 {
+		t.Errorf("expected implement retries=2, got %d", task.Quality.PhaseRetries["implement"])
+	}
+	if task.Quality.PhaseRetries["review"] != 1 {
+		t.Errorf("expected review retries=1, got %d", task.Quality.PhaseRetries["review"])
+	}
+	if task.Quality.TotalRetries != 3 {
+		t.Errorf("expected TotalRetries=3, got %d", task.Quality.TotalRetries)
+	}
+}
+
+func TestRecordReviewRejection(t *testing.T) {
+	task := &Task{ID: "TASK-001", Title: "Test Task", Weight: WeightMedium}
+
+	task.RecordReviewRejection()
+	if task.Quality == nil {
+		t.Fatal("expected Quality to be initialized")
+	}
+	if task.Quality.ReviewRejections != 1 {
+		t.Errorf("expected ReviewRejections=1, got %d", task.Quality.ReviewRejections)
+	}
+
+	task.RecordReviewRejection()
+	task.RecordReviewRejection()
+	if task.Quality.ReviewRejections != 3 {
+		t.Errorf("expected ReviewRejections=3, got %d", task.Quality.ReviewRejections)
+	}
+}
+
+func TestRecordManualIntervention(t *testing.T) {
+	task := &Task{ID: "TASK-001", Title: "Test Task", Weight: WeightMedium}
+
+	task.RecordManualIntervention("Fixed via orc resolve")
+	if task.Quality == nil {
+		t.Fatal("expected Quality to be initialized")
+	}
+	if !task.Quality.ManualIntervention {
+		t.Error("expected ManualIntervention=true")
+	}
+	if task.Quality.ManualInterventionReason != "Fixed via orc resolve" {
+		t.Errorf("expected reason to match, got %q", task.Quality.ManualInterventionReason)
+	}
+
+	// Recording again should update the reason
+	task.RecordManualIntervention("Updated reason")
+	if task.Quality.ManualInterventionReason != "Updated reason" {
+		t.Errorf("expected updated reason, got %q", task.Quality.ManualInterventionReason)
+	}
+}
+
+func TestGetPhaseRetries(t *testing.T) {
+	task := &Task{ID: "TASK-001", Title: "Test Task", Weight: WeightMedium}
+
+	// No quality metrics yet
+	if task.GetPhaseRetries("implement") != 0 {
+		t.Error("expected 0 retries for nil Quality")
+	}
+
+	task.RecordPhaseRetry("implement")
+	task.RecordPhaseRetry("implement")
+	if task.GetPhaseRetries("implement") != 2 {
+		t.Errorf("expected 2 retries, got %d", task.GetPhaseRetries("implement"))
+	}
+	if task.GetPhaseRetries("review") != 0 {
+		t.Errorf("expected 0 retries for unrecorded phase, got %d", task.GetPhaseRetries("review"))
+	}
+}
+
+func TestGetTotalRetries(t *testing.T) {
+	task := &Task{ID: "TASK-001", Title: "Test Task", Weight: WeightMedium}
+
+	if task.GetTotalRetries() != 0 {
+		t.Error("expected 0 total retries for nil Quality")
+	}
+
+	task.RecordPhaseRetry("implement")
+	task.RecordPhaseRetry("review")
+	if task.GetTotalRetries() != 2 {
+		t.Errorf("expected 2 total retries, got %d", task.GetTotalRetries())
+	}
+}
+
+func TestGetReviewRejections(t *testing.T) {
+	task := &Task{ID: "TASK-001", Title: "Test Task", Weight: WeightMedium}
+
+	if task.GetReviewRejections() != 0 {
+		t.Error("expected 0 rejections for nil Quality")
+	}
+
+	task.RecordReviewRejection()
+	if task.GetReviewRejections() != 1 {
+		t.Errorf("expected 1 rejection, got %d", task.GetReviewRejections())
+	}
+}
+
+func TestHadManualIntervention(t *testing.T) {
+	task := &Task{ID: "TASK-001", Title: "Test Task", Weight: WeightMedium}
+
+	if task.HadManualIntervention() {
+		t.Error("expected false for nil Quality")
+	}
+
+	task.RecordManualIntervention("test")
+	if !task.HadManualIntervention() {
+		t.Error("expected true after recording intervention")
+	}
+}
+
+func TestEnsureQualityMetrics(t *testing.T) {
+	task := &Task{ID: "TASK-001", Title: "Test Task", Weight: WeightMedium}
+
+	if task.Quality != nil {
+		t.Error("expected Quality to be nil initially")
+	}
+
+	task.EnsureQualityMetrics()
+	if task.Quality == nil {
+		t.Fatal("expected Quality to be initialized")
+	}
+	if task.Quality.PhaseRetries == nil {
+		t.Error("expected PhaseRetries map to be initialized")
+	}
+
+	// Calling again should not reset
+	task.Quality.TotalRetries = 5
+	task.EnsureQualityMetrics()
+	if task.Quality.TotalRetries != 5 {
+		t.Error("EnsureQualityMetrics should not reset existing values")
+	}
+}

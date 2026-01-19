@@ -54,6 +54,11 @@ While reviewing the fixes:
 - Any patterns that were missed in Round 1?
 - Verify no regressions in existing functionality
 
+**Re-verify critical checks:**
+- [ ] All dependents still updated (no new broken references)
+- [ ] Preservation requirements still met (fixes didn't remove preserved features)
+- [ ] Build/typecheck still passes
+
 ### Step 4: Make Final Decision
 
 Based on your validation:

@@ -69,6 +69,44 @@ What existing code will be impacted by this change?
 - [ ] This change is backward compatible
 - [ ] This change breaks: [list what breaks and migration path]
 
+#### Preservation Requirements (REQUIRED)
+
+**What existing behavior MUST NOT change?**
+
+This section prevents accidental feature removal and regression. List:
+- Features that must continue working exactly as before
+- Invariants that must be maintained
+- Code paths that must NOT be modified
+
+| Existing Behavior | Why It Must Be Preserved | How to Verify It Still Works |
+|-------------------|--------------------------|------------------------------|
+| [Feature/behavior] | [Business reason or dependency] | [Test or command to verify] |
+
+**Example:**
+| Existing Behavior | Why It Must Be Preserved | How to Verify |
+|-------------------|--------------------------|---------------|
+| WebSocket real-time updates | Users depend on live task status | E2E test: task status updates without refresh |
+| Task dependency blocking | Core workflow feature | Unit test: blocked tasks cannot start |
+
+If this is a greenfield feature with no preservation requirements, explicitly state: "No preservation requirements - new functionality only."
+
+#### Feature Replacement Policy
+
+When this task **replaces** existing functionality:
+
+1. **Default: Full replacement** - Old feature is removed entirely, new feature takes over
+2. **No backwards compatibility** unless explicitly requested in the task description
+3. **Migration required if**:
+   - Data format changes (provide migration script/command)
+   - API contracts change (document breaking changes, provide migration guide)
+   - Configuration changes (provide upgrade instructions)
+
+| Replaced Feature | Replacement | Migration Needed? | Migration Provided |
+|------------------|-------------|-------------------|-------------------|
+| [old feature] | [new feature] | Yes/No | [script/guide location] |
+
+If no features are being replaced, state: "No replacements - additive changes only."
+
 ### Step 2: Define Success Criteria (REQUIRED)
 
 Create specific, testable criteria with **explicit verification methods**:
@@ -261,6 +299,16 @@ Create the spec and wrap it in artifact tags:
 
 ### Breaking Changes
 - [ ] Backward compatible / [ ] Breaks: [details]
+
+### Preservation Requirements
+| Existing Behavior | Why It Must Be Preserved | Verification |
+|-------------------|--------------------------|--------------|
+| [behavior] | [reason] | [test/command] |
+
+### Feature Replacements
+| Replaced Feature | Replacement | Migration |
+|------------------|-------------|-----------|
+| [old] | [new] | [script/guide or "N/A"] |
 
 ## Success Criteria
 

@@ -43,29 +43,72 @@ You are working in an **isolated git worktree**. This ensures your changes don't
 
 Re-read the spec. Your acceptance criteria are the success criteria listed.
 
-### Step 2: Plan Changes
+Pay special attention to:
+- **Preservation Requirements**: What must NOT change
+- **Feature Replacements**: What's being replaced and any migrations needed
 
-Before coding, identify:
+### Step 2: Impact Analysis (REQUIRED)
+
+**Before writing any code**, analyze what will be affected by your changes.
+
+#### 2a. Find All Callers/Dependents
+
+For each file/function you plan to modify:
+
+```bash
+# Find who calls this function (Go)
+grep -r "FunctionName" --include="*.go" .
+
+# Find who imports this package
+grep -r "package/path" --include="*.go" .
+
+# Find references (TypeScript)
+grep -r "functionName\|ClassName" --include="*.ts" --include="*.tsx" .
+```
+
+Or use LSP to find references if available.
+
+#### 2b. Create Dependency Map
+
+| Code Being Changed | Who Uses It | Also Needs Update? |
+|--------------------|-------------|-------------------|
+| [function/file] | [list of callers] | Yes/No - [reason] |
+
+#### 2c. Verify Preservation Requirements
+
+Cross-check against the spec's Preservation Requirements table:
+- [ ] All preserved behaviors identified
+- [ ] Tests exist for each (or will be added)
+- [ ] No planned changes conflict with preservation requirements
+
+**Do NOT proceed to Step 3 until you've mapped dependencies.** Skipping this step leads to incomplete updates.
+
+### Step 3: Plan Changes
+
+Based on your impact analysis, identify:
 - New files to create
-- Existing files to modify
+- Existing files to modify (including dependents from Step 2)
 - Tests to write/update
 
-### Step 3: Implement
+### Step 4: Implement
 
 For each change:
-1. Make the minimal change to satisfy requirements
-2. Follow existing code patterns
-3. Add appropriate error handling
-4. Include comments for non-obvious logic
+1. **Fully implement** all requirements - no partial solutions or TODOs
+2. **Update all dependents** identified in your impact analysis
+3. Follow existing code patterns
+4. Add appropriate error handling
+5. Include comments for non-obvious logic
 
-### Step 4: Handle Edge Cases
+**Stay within scope** (don't add unrequested features), but **be thorough within that scope**.
+
+### Step 5: Handle Edge Cases
 
 Check for:
 - Invalid input
 - Empty/null values
 - Boundary conditions
 
-### Step 5: Ensure Error Handling
+### Step 6: Ensure Error Handling
 
 Every error path should:
 - Have a clear error message
@@ -74,10 +117,12 @@ Every error path should:
 
 **No silent failures.**
 
-### Step 6: Self-Review
+### Step 7: Self-Review
 
 Before completing:
 - [ ] All success criteria addressed
+- [ ] All dependents from impact analysis updated
+- [ ] Preservation requirements verified (nothing accidentally removed)
 - [ ] Scope boundaries respected
 - [ ] Error handling complete
 - [ ] Code follows project patterns
@@ -117,7 +162,7 @@ Amendments preserve the original spec for audit while capturing what actually ha
 
 ## Phase Completion
 
-### Step 7: Verify All Criteria (REQUIRED)
+### Step 8: Verify All Criteria (REQUIRED)
 
 **Before claiming completion, you MUST verify each success criterion.**
 
@@ -129,7 +174,7 @@ For each criterion in the spec's Success Criteria table:
 
 **Do NOT mark phase complete until all verifications pass.**
 
-### Step 8: Quick Lint Check (Recommended)
+### Step 9: Quick Lint Check (Recommended)
 
 Before committing, run a quick lint check to catch obvious issues:
 
@@ -155,7 +200,7 @@ Common issues to watch for:
 - Type errors (TypeScript)
 - Formatting issues
 
-### Step 9: Commit Changes
+### Step 10: Commit Changes
 
 **IMPORTANT**: Before marking the phase complete, commit all changes:
 
@@ -171,7 +216,7 @@ Files changed: [count]
 
 This checkpoint enables rollback if later phases fail.
 
-### Step 10: Output Completion
+### Step 11: Output Completion
 
 Wrap your implementation summary in artifact tags for automatic persistence:
 
@@ -179,6 +224,16 @@ Wrap your implementation summary in artifact tags for automatic persistence:
 ## Implementation Summary
 
 **Task**: {{TASK_TITLE}}
+
+### Impact Analysis Results
+
+| Code Changed | Dependents Found | Updates Made |
+|--------------|------------------|--------------|
+| [function/file] | [list] | [what was updated] |
+
+### Preservation Verification
+- [ ] [Preserved behavior 1]: Verified via [test/command]
+- [ ] [Preserved behavior 2]: Verified via [test/command]
 
 ### Files Changed
 - [file1]: [description]

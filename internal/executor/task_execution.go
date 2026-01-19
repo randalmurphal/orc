@@ -166,6 +166,15 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			// Handle phase failure with potential retry
 			shouldRetry, retryIdx := e.handlePhaseFailure(phase.ID, err, result, p, s, retryCounts, i)
 			if shouldRetry {
+				// Track quality metrics for retry analysis
+				t.RecordPhaseRetry(phase.ID)
+				if phase.ID == "review" {
+					t.RecordReviewRejection()
+				}
+				if saveErr := e.backend.SaveTask(t); saveErr != nil {
+					e.logger.Warn("failed to save quality metrics", "error", saveErr)
+				}
+
 				i = retryIdx
 				continue
 			}
@@ -301,6 +310,15 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		if phase.Gate.Type != "" {
 			shouldRetry, retryIdx := e.handleGateEvaluation(ctx, phase, result, t, p, s, retryCounts, i)
 			if shouldRetry {
+				// Track quality metrics for retry analysis
+				t.RecordPhaseRetry(phase.ID)
+				if phase.ID == "review" {
+					t.RecordReviewRejection()
+				}
+				if saveErr := e.backend.SaveTask(t); saveErr != nil {
+					e.logger.Warn("failed to save quality metrics", "error", saveErr)
+				}
+
 				i = retryIdx
 				continue
 			}

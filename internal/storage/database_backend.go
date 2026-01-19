@@ -1193,6 +1193,14 @@ func taskToDBTask(t *task.Task) *db.Task {
 		}
 	}
 
+	// Serialize quality metrics to JSON
+	var qualityJSON string
+	if t.Quality != nil {
+		if data, err := json.Marshal(t.Quality); err == nil {
+			qualityJSON = string(data)
+		}
+	}
+
 	return &db.Task{
 		ID:           t.ID,
 		Title:        t.Title,
@@ -1211,6 +1219,7 @@ func taskToDBTask(t *task.Task) *db.Task {
 		CompletedAt:  t.CompletedAt,
 		UpdatedAt:    t.UpdatedAt,
 		Metadata:     metadataJSON,
+		Quality:      qualityJSON,
 		IsAutomation: t.IsAutomation,
 	}
 }
@@ -1221,6 +1230,13 @@ func dbTaskToTask(dbTask *db.Task) *task.Task {
 	var metadata map[string]string
 	if dbTask.Metadata != "" {
 		_ = json.Unmarshal([]byte(dbTask.Metadata), &metadata)
+	}
+
+	// Deserialize quality metrics from JSON
+	var quality *task.QualityMetrics
+	if dbTask.Quality != "" {
+		quality = &task.QualityMetrics{}
+		_ = json.Unmarshal([]byte(dbTask.Quality), quality)
 	}
 
 	return &task.Task{
@@ -1241,6 +1257,7 @@ func dbTaskToTask(dbTask *db.Task) *task.Task {
 		CompletedAt:  dbTask.CompletedAt,
 		UpdatedAt:    dbTask.UpdatedAt,
 		Metadata:     metadata,
+		Quality:      quality,
 		IsAutomation: dbTask.IsAutomation,
 	}
 }

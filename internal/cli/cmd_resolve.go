@@ -331,6 +331,13 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 			t.Status = task.StatusResolved
 			now := time.Now()
 
+			// Track manual intervention in quality metrics
+			reason := "Resolved manually via 'orc resolve'"
+			if message != "" {
+				reason = message
+			}
+			t.RecordManualIntervention(reason)
+
 			// Add resolution metadata
 			if t.Metadata == nil {
 				t.Metadata = make(map[string]string)
