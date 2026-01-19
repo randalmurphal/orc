@@ -1,0 +1,280 @@
+/* =============================================================================
+   Right Panel Styles
+   Collapsible context panel matching board.html command-panel design
+   ============================================================================= */
+
+.right-panel {
+	width: 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	background: var(--bg-elevated);
+	border-left: 1px solid var(--border);
+	overflow: hidden;
+	flex-shrink: 0;
+	transition:
+		width var(--duration-normal, 200ms) var(--ease-out, ease-out),
+		min-width var(--duration-normal, 200ms) var(--ease-out, ease-out);
+}
+
+.right-panel.open {
+	width: 300px;
+	min-width: 300px;
+}
+
+/* =============================================================================
+   Scrollable Content Area
+   ============================================================================= */
+
+.right-panel-scroll {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+/* Custom scrollbar */
+.right-panel-scroll::-webkit-scrollbar {
+	width: 4px;
+}
+
+.right-panel-scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.right-panel-scroll::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 2px;
+}
+
+.right-panel-scroll::-webkit-scrollbar-thumb:hover {
+	background: var(--text-muted);
+}
+
+/* Firefox scrollbar */
+.right-panel-scroll {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-light) transparent;
+}
+
+/* =============================================================================
+   Section Component
+   ============================================================================= */
+
+.right-panel-section {
+	border-bottom: 1px solid var(--border);
+}
+
+.right-panel-section:last-child {
+	border-bottom: none;
+}
+
+/* =============================================================================
+   Section Header
+   ============================================================================= */
+
+.right-panel-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	padding: 10px 12px;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	user-select: none;
+	transition: background var(--duration-fast, 150ms) var(--ease-out, ease-out);
+}
+
+.right-panel-header:hover {
+	background: var(--bg-surface);
+}
+
+.right-panel-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.right-panel-title-text {
+	font-size: 10px;
+	font-weight: var(--font-semibold, 600);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+}
+
+/* Title Icon */
+.right-panel-title-icon {
+	width: 18px;
+	height: 18px;
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.right-panel-title-icon svg {
+	width: 10px;
+	height: 10px;
+}
+
+/* Icon color variants */
+.right-panel-title-icon.purple {
+	background: var(--primary-dim);
+	color: var(--primary);
+}
+
+.right-panel-title-icon.orange {
+	background: var(--orange-dim);
+	color: var(--orange);
+}
+
+.right-panel-title-icon.amber {
+	background: var(--amber-dim);
+	color: var(--amber);
+}
+
+.right-panel-title-icon.green {
+	background: var(--green-dim);
+	color: var(--green);
+}
+
+.right-panel-title-icon.blue {
+	background: var(--blue-dim);
+	color: var(--blue);
+}
+
+.right-panel-title-icon.cyan {
+	background: var(--cyan-dim);
+	color: var(--cyan);
+}
+
+.right-panel-title-icon.red {
+	background: var(--red-dim);
+	color: var(--red);
+}
+
+/* Badge */
+.right-panel-badge {
+	padding: 2px 6px;
+	border-radius: 8px;
+	font-size: 9px;
+	font-weight: var(--font-semibold, 600);
+}
+
+/* Badge color variants */
+.right-panel-badge.purple {
+	background: var(--primary-dim);
+	color: var(--primary);
+}
+
+.right-panel-badge.orange {
+	background: var(--orange-dim);
+	color: var(--orange);
+}
+
+.right-panel-badge.amber {
+	background: var(--amber-dim);
+	color: var(--amber);
+}
+
+.right-panel-badge.green {
+	background: var(--green-dim);
+	color: var(--green);
+}
+
+.right-panel-badge.blue {
+	background: var(--blue-dim);
+	color: var(--blue);
+}
+
+.right-panel-badge.cyan {
+	background: var(--cyan-dim);
+	color: var(--cyan);
+}
+
+.right-panel-badge.red {
+	background: var(--red-dim);
+	color: var(--red);
+}
+
+/* Chevron */
+.right-panel-chevron {
+	color: var(--text-muted);
+	transition: transform var(--duration-fast, 150ms) var(--ease-out, ease-out);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Collapsed state - rotate chevron */
+.right-panel-section.collapsed .right-panel-chevron {
+	transform: rotate(-90deg);
+}
+
+/* =============================================================================
+   Section Body
+   ============================================================================= */
+
+.right-panel-body {
+	padding: 0 12px 12px;
+}
+
+/* Hide body when section is collapsed (handled by component, but CSS fallback) */
+.right-panel-section.collapsed .right-panel-body {
+	display: none;
+}
+
+/* =============================================================================
+   Mobile Responsive Styles
+   ============================================================================= */
+
+@media (max-width: 767px) {
+	/* On mobile, panel overlays content */
+	.right-panel {
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		z-index: var(--z-sidebar, 300);
+		box-shadow: var(--shadow-xl);
+		/* Start off-screen */
+		transform: translateX(100%);
+		width: 300px;
+		min-width: 300px;
+	}
+
+	.right-panel.open {
+		transform: translateX(0);
+	}
+}
+
+/* =============================================================================
+   Animation - slide in/out
+   ============================================================================= */
+
+@keyframes right-panel-slide-in {
+	from {
+		width: 0;
+		min-width: 0;
+		opacity: 0;
+	}
+	to {
+		width: 300px;
+		min-width: 300px;
+		opacity: 1;
+	}
+}
+
+@keyframes right-panel-slide-out {
+	from {
+		width: 300px;
+		min-width: 300px;
+		opacity: 1;
+	}
+	to {
+		width: 0;
+		min-width: 0;
+		opacity: 0;
+	}
+}
