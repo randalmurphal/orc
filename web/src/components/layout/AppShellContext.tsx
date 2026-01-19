@@ -74,6 +74,64 @@ function saveCollapsedState(collapsed: boolean): void {
 }
 
 // =============================================================================
+// INITIALIZATION HELPERS
+// =============================================================================
+
+/**
+ * Determines the initial right panel state based on environment and preferences.
+ *
+ * Priority order:
+ * 1. SSR environment → default to open (will recompute on hydration)
+ * 2. Below tablet breakpoint → always start collapsed (responsive UX)
+ * 3. Otherwise → use persisted localStorage preference
+ */
+function getInitialPanelState(): boolean {
+	// SSR: default to open, will recompute on client hydration
+	if (typeof window === 'undefined') return true;
+
+	// Mobile/tablet: always start collapsed regardless of preference
+	if (window.innerWidth < TABLET_BREAKPOINT) return false;
+
+	// Desktop: use stored preference (stored value is "collapsed", so invert)
+	return !loadCollapsedState();
+}
+
+/**
+ * Determines if mobile navigation mode should be active.
+ */
+function getInitialMobileNavMode(): boolean {
+	if (typeof window === 'undefined') return false;
+	return window.innerWidth < MOBILE_BREAKPOINT;
+}
+
+// =============================================================================
+// CUSTOM HOOKS
+// =============================================================================
+
+/**
+ * Creates a ref that stays synchronized with a value.
+ *
+ * This hook encapsulates the pattern of maintaining a ref that mirrors state,
+ * which is useful when callbacks or effects need to read the current value
+ * without re-registering on every change.
+ *
+ * @param value - The value to keep in sync
+ * @returns A ref object whose .current always reflects the latest value
+ */
+function useSyncedRef<T>(value: T): React.RefObject<T> {
+	const ref = useRef(value);
+
+	// Keep ref in sync with value on every render
+	// Using useEffect ensures this runs after render, maintaining React's
+	// unidirectional data flow while keeping the ref current
+	useEffect(() => {
+		ref.current = value;
+	}, [value]);
+
+	return ref;
+}
+
+// =============================================================================
 // CONTEXT
 // =============================================================================
 
@@ -84,40 +142,18 @@ const AppShellContext = createContext<AppShellContextValue | null>(null);
 // =============================================================================
 
 export function AppShellProvider({ children }: AppShellProviderProps) {
-	// Initialize state from localStorage, but check viewport first
-	const [isRightPanelOpen, setIsRightPanelOpen] = useState(() => {
-		if (typeof window === 'undefined') return true;
-		// Below tablet breakpoint, start collapsed
-		if (window.innerWidth < TABLET_BREAKPOINT) return false;
-		// Otherwise, use stored preference (inverted: stored is "collapsed")
-		return !loadCollapsedState();
-	});
-
+	// State initialization uses extracted helpers for clarity and testability
+	const [isRightPanelOpen, setIsRightPanelOpen] = useState(getInitialPanelState);
 	const [rightPanelContent, setRightPanelContent] = useState<ReactNode>(null);
-	const [isMobileNavMode, setIsMobileNavMode] = useState(() => {
-		if (typeof window === 'undefined') return false;
-		return window.innerWidth < MOBILE_BREAKPOINT;
-	});
+	const [isMobileNavMode, setIsMobileNavMode] = useState(getInitialMobileNavMode);
 
 	// Ref to track if initial render is done (for focus management)
 	const initialRenderRef = useRef(true);
 	const panelToggleRef = useRef<HTMLButtonElement | null>(null);
 
-	// REF SYNCHRONIZATION PATTERN:
-	// We use a ref alongside state to avoid re-registering the resize listener on every state change.
-	// The resize handler (line 139-149) needs to read the current panel state to decide whether
-	// to auto-collapse it, but including isRightPanelOpen in the effect's dependency array would
-	// cause the listener to be re-registered on every toggle.
-	//
-	// Instead, the resize handler reads from isRightPanelOpenRef to get the latest panel state.
-	// IMPORTANT: The effect below MUST keep this ref in sync with state. If this sync effect
-	// is removed, the ref becomes stale and the resize handler will read outdated values.
-	const isRightPanelOpenRef = useRef(isRightPanelOpen);
-
-	// Keep ref in sync with state - REQUIRED for resize handler to work correctly
-	useEffect(() => {
-		isRightPanelOpenRef.current = isRightPanelOpen;
-	}, [isRightPanelOpen]);
+	// Use synced ref to allow resize handler to read current panel state
+	// without re-registering the event listener on every toggle
+	const isRightPanelOpenRef = useSyncedRef(isRightPanelOpen);
 
 	// Toggle panel and persist state
 	const toggleRightPanel = useCallback(() => {
@@ -152,7 +188,7 @@ export function AppShellProvider({ children }: AppShellProviderProps) {
 			setIsMobileNavMode(width < MOBILE_BREAKPOINT);
 
 			// Auto-collapse right panel below tablet breakpoint
-			// (reads from isRightPanelOpenRef - see REF SYNCHRONIZATION PATTERN comment above)
+			// (uses useSyncedRef to read current state without re-registering listener)
 			if (width < TABLET_BREAKPOINT && isRightPanelOpenRef.current) {
 				setIsRightPanelOpen(false);
 			}
