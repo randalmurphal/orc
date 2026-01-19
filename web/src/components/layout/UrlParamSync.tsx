@@ -11,8 +11,8 @@ import { useProjectStore, useInitiativeStore } from '@/stores';
  *
  * Parameters handled:
  * - project: Project ID (on all routes)
- * - initiative: Initiative filter (on /, /board)
- * - dependency_status: Dependency filter (on /, /board)
+ * - initiative: Initiative filter (on /, /board, /initiatives)
+ * - dependency_status: Dependency filter (on /, /board, /initiatives)
  */
 export function UrlParamSync() {
 	const [searchParams, setSearchParams] = useSearchParams();
@@ -34,7 +34,7 @@ export function UrlParamSync() {
 	const urlInitiativeId = searchParams.get('initiative');
 
 	// Routes that support initiative param
-	const supportsInitiative = location.pathname === '/' || location.pathname === '/board';
+	const supportsInitiative = location.pathname === '/' || location.pathname === '/board' || location.pathname === '/initiatives';
 
 	// URL -> Store sync
 	// Only sync FROM URL when URL explicitly has the parameter
