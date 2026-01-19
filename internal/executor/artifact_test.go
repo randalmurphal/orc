@@ -778,3 +778,258 @@ func TestLoadPriorContent(t *testing.T) {
 		})
 	}
 }
+
+// TestSpecExtractionError_Diagnostics verifies that the error message includes
+// comprehensive diagnostic information for debugging spec failures.
+func TestSpecExtractionError_Diagnostics(t *testing.T) {
+	tests := []struct {
+		name           string
+		err            *SpecExtractionError
+		wantContains   []string
+		wantNotContain []string
+	}{
+		{
+			name: "includes output length and preview",
+			err: &SpecExtractionError{
+				Reason:        "no spec content found",
+				OutputLen:     500,
+				OutputPreview: "Some output without artifact tags...",
+			},
+			wantContains: []string{
+				"no spec content found",
+				"output_length: 500 bytes",
+				"output_preview: \"Some output without artifact tags...\"",
+			},
+		},
+		{
+			name: "includes file info when path provided",
+			err: &SpecExtractionError{
+				Reason:     "no spec content found",
+				OutputLen:  100,
+				SpecPath:   "/worktree/path/.orc/tasks/TASK-001/spec.md",
+				FileExists: true,
+				FileSize:   256,
+			},
+			wantContains: []string{
+				"spec_path: /worktree/path/.orc/tasks/TASK-001/spec.md",
+				"file_exists: true",
+				"file_size: 256 bytes",
+			},
+		},
+		{
+			name: "includes file read error",
+			err: &SpecExtractionError{
+				Reason:      "no spec content found",
+				OutputLen:   100,
+				SpecPath:    "/worktree/path/.orc/tasks/TASK-001/spec.md",
+				FileExists:  true,
+				FileReadErr: os.ErrPermission,
+			},
+			wantContains: []string{
+				"file_read_error: permission denied",
+			},
+		},
+		{
+			name: "includes validation failure reason",
+			err: &SpecExtractionError{
+				Reason:            "spec content failed validation",
+				OutputLen:         500,
+				OutputPreview:     "<artifact>short</artifact>",
+				ValidationFailure: "content too short (5 chars, need at least 50)",
+			},
+			wantContains: []string{
+				"validation_failure: content too short (5 chars, need at least 50)",
+			},
+		},
+		{
+			name: "omits empty fields",
+			err: &SpecExtractionError{
+				Reason:    "no spec content found",
+				OutputLen: 0,
+			},
+			wantNotContain: []string{
+				"output_preview",
+				"spec_path",
+				"file_exists",
+				"file_size",
+				"file_read_error",
+				"validation_failure",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errMsg := tt.err.Error()
+
+			for _, want := range tt.wantContains {
+				if !strings.Contains(errMsg, want) {
+					t.Errorf("error message should contain %q\ngot: %s", want, errMsg)
+				}
+			}
+
+			for _, notWant := range tt.wantNotContain {
+				if strings.Contains(errMsg, notWant) {
+					t.Errorf("error message should NOT contain %q\ngot: %s", notWant, errMsg)
+				}
+			}
+		})
+	}
+}
+
+// TestValidateSpecContent_ReturnsReason verifies the new validateSpecContent
+// function returns descriptive failure reasons.
+func TestValidateSpecContent_ReturnsReason(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		wantReason  string // empty means valid
+		wantContain string // substring that should be in the reason
+	}{
+		{
+			name:       "valid spec returns empty",
+			content:    "# Spec\n\n## Intent\nBuild feature X with robust error handling.",
+			wantReason: "",
+		},
+		{
+			name:        "too short returns length info",
+			content:     "Short",
+			wantContain: "content too short (5 chars, need at least 50)",
+		},
+		{
+			name: "noise pattern detected",
+			// 50 chars minimum to pass first check, but less than 50 before the noise marker
+			content:     "Short preamble. <phase_complete>true</phase_complete> More text to reach 50 chars minimum length",
+			wantContain: "noise pattern detected",
+		},
+		{
+			name:        "missing sections and short",
+			content:     "This is some content without any spec sections at all.",
+			wantContain: "no recognized spec sections",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reason := validateSpecContent(tt.content)
+
+			if tt.wantReason != "" && reason != tt.wantReason {
+				t.Errorf("validateSpecContent() = %q, want %q", reason, tt.wantReason)
+			}
+
+			if tt.wantContain != "" && !strings.Contains(reason, tt.wantContain) {
+				t.Errorf("validateSpecContent() should contain %q, got %q", tt.wantContain, reason)
+			}
+
+			if tt.wantReason == "" && tt.wantContain == "" && reason != "" {
+				t.Errorf("validateSpecContent() should be valid (empty reason), got %q", reason)
+			}
+		})
+	}
+}
+
+// TestSaveSpecToDatabase_PopulatesDiagnostics verifies that SaveSpecToDatabase
+// populates all diagnostic fields in SpecExtractionError.
+func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
+	backend := newArtifactTestBackend(t)
+	taskID := "TASK-DIAG-001"
+	createTestTask(t, backend, taskID)
+
+	t.Run("no content found includes output preview", func(t *testing.T) {
+		output := "Some agent output without any artifact tags or spec structure at all."
+		_, err := SaveSpecToDatabase(backend, taskID, "spec", output)
+
+		specErr, ok := err.(*SpecExtractionError)
+		if !ok {
+			t.Fatalf("expected SpecExtractionError, got %T", err)
+		}
+
+		if specErr.OutputLen != len(output) {
+			t.Errorf("OutputLen = %d, want %d", specErr.OutputLen, len(output))
+		}
+		if specErr.OutputPreview == "" {
+			t.Error("OutputPreview should not be empty")
+		}
+		if !strings.HasPrefix(specErr.OutputPreview, "Some agent") {
+			t.Errorf("OutputPreview should start with output, got %q", specErr.OutputPreview)
+		}
+	})
+
+	t.Run("validation failure includes reason", func(t *testing.T) {
+		// Artifact with content that's too short
+		output := "<artifact>Too short</artifact>"
+		_, err := SaveSpecToDatabase(backend, taskID, "spec", output)
+
+		specErr, ok := err.(*SpecExtractionError)
+		if !ok {
+			t.Fatalf("expected SpecExtractionError, got %T", err)
+		}
+
+		if specErr.ValidationFailure == "" {
+			t.Error("ValidationFailure should not be empty for invalid content")
+		}
+		if !strings.Contains(specErr.ValidationFailure, "content too short") {
+			t.Errorf("ValidationFailure should mention 'content too short', got %q", specErr.ValidationFailure)
+		}
+	})
+
+	t.Run("file fallback includes file info", func(t *testing.T) {
+		// Create a worktree with spec file
+		tmpDir := t.TempDir()
+		specDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
+		if err := os.MkdirAll(specDir, 0755); err != nil {
+			t.Fatalf("failed to create spec dir: %v", err)
+		}
+
+		// Write a valid spec file
+		specContent := "# Specification\n\n## Intent\nBuild a feature with proper error handling and tests."
+		specPath := filepath.Join(specDir, "spec.md")
+		if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
+			t.Fatalf("failed to write spec file: %v", err)
+		}
+
+		// Output without artifact tags - should fall back to file
+		output := "The spec has been written to the file."
+		saved, err := SaveSpecToDatabase(backend, taskID, "spec", output, tmpDir)
+
+		if err != nil {
+			t.Fatalf("SaveSpecToDatabase() unexpected error: %v", err)
+		}
+		if !saved {
+			t.Error("SaveSpecToDatabase() should have saved from file")
+		}
+	})
+
+	t.Run("file exists but empty returns file info in error", func(t *testing.T) {
+		// Create a worktree with empty spec file
+		tmpDir := t.TempDir()
+		specDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
+		if err := os.MkdirAll(specDir, 0755); err != nil {
+			t.Fatalf("failed to create spec dir: %v", err)
+		}
+
+		// Write an empty spec file
+		specPath := filepath.Join(specDir, "spec.md")
+		if err := os.WriteFile(specPath, []byte(""), 0644); err != nil {
+			t.Fatalf("failed to write spec file: %v", err)
+		}
+
+		// Output without artifact tags
+		output := "No spec content."
+		_, err := SaveSpecToDatabase(backend, taskID, "spec", output, tmpDir)
+
+		specErr, ok := err.(*SpecExtractionError)
+		if !ok {
+			t.Fatalf("expected SpecExtractionError, got %T", err)
+		}
+
+		if specErr.SpecPath == "" {
+			t.Error("SpecPath should be populated")
+		}
+		// File exists but is empty, so FileExists should be true
+		// but we don't read empty files as valid content
+		if !strings.Contains(specErr.SpecPath, "spec.md") {
+			t.Errorf("SpecPath should include spec.md, got %q", specErr.SpecPath)
+		}
+	})
+}
