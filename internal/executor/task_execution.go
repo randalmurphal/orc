@@ -257,6 +257,11 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		phase.Status = plan.PhaseCompleted
 		phase.CommitSHA = result.CommitSHA
 
+		// Transfer result tokens and cost to state (for executors that don't update state during iteration)
+		// This ensures standard/trivial executors persist their accumulated usage to state.
+		// Full executor updates state during iteration, so this is a no-op for those values.
+		s.AddCost(result.CostUSD)
+
 		// Clear retry context on successful completion
 		if s.HasRetryContext() {
 			s.ClearRetryContext()

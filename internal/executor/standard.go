@@ -340,6 +340,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		// Track tokens - use effective input to include cached context
 		result.InputTokens += turnResult.Usage.EffectiveInputTokens()
 		result.OutputTokens += turnResult.Usage.OutputTokens
+		result.CostUSD += turnResult.CostUSD
 		result.Iterations = iteration
 		lastResponse = turnResult.Content
 

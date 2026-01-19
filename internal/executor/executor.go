@@ -178,6 +178,7 @@ type Result struct {
 	CommitSHA    string
 	InputTokens  int
 	OutputTokens int
+	CostUSD      float64 // Total cost in USD for this phase
 }
 
 // Executor runs phases using session-based execution with weight-adaptive strategies.
