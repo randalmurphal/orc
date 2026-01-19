@@ -557,3 +557,19 @@ export const BRANCH_TYPE_CONFIG: Record<BranchType, { label: string; icon: strin
 	staging: { label: 'Staging', icon: 'git-branch' },
 	task: { label: 'Task', icon: 'check-circle' },
 };
+
+// Pending decision types - decisions from running tasks waiting for user input
+export interface DecisionOption {
+	id: string;
+	label: string;
+	description?: string;
+	recommended?: boolean;
+}
+
+export interface PendingDecision {
+	id: string;
+	task_id: string;
+	question: string;
+	options: DecisionOption[];
+	created_at: string;
+}
