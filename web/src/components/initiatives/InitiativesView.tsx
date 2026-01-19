@@ -151,61 +151,80 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 		loadInitiatives();
 	}, [loadInitiatives]);
 
-	// Compute progress for each initiative from tasks
+	// Pre-compute task lookups in a single pass (O(n) instead of O(n*m))
+	// This builds a Map from initiative_id -> Task[] and tracks aggregate stats
+	const { tasksByInitiative, linkedTasks, tasksThisWeek, completedCount } = useMemo(() => {
+		const byInitiative = new Map<string, typeof tasks>();
+		const linked: typeof tasks = [];
+		let thisWeek = 0;
+		let completed = 0;
+
+		const oneWeekAgo = new Date();
+		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+		for (const task of tasks) {
+			if (task.initiative_id) {
+				// Build initiative -> tasks lookup
+				const existing = byInitiative.get(task.initiative_id);
+				if (existing) {
+					existing.push(task);
+				} else {
+					byInitiative.set(task.initiative_id, [task]);
+				}
+
+				// Track linked tasks and compute stats in same pass
+				linked.push(task);
+				if (task.status === 'completed') {
+					completed++;
+				}
+				if (new Date(task.created_at) > oneWeekAgo) {
+					thisWeek++;
+				}
+			}
+		}
+
+		return {
+			tasksByInitiative: byInitiative,
+			linkedTasks: linked,
+			tasksThisWeek: thisWeek,
+			completedCount: completed,
+		};
+	}, [tasks]);
+
+	// Compute progress for each initiative using pre-computed lookup (O(n) total)
 	const progressMap = useMemo(() => {
 		const map = new Map<string, ProgressData>();
 
 		for (const initiative of initiatives) {
-			// Get tasks linked to this initiative
-			const initiativeTasks = tasks.filter((t) => t.initiative_id === initiative.id);
+			const initiativeTasks = tasksByInitiative.get(initiative.id) || [];
 			const completed = initiativeTasks.filter((t) => t.status === 'completed').length;
-			const total = initiativeTasks.length;
-			map.set(initiative.id, { completed, total });
+			map.set(initiative.id, { completed, total: initiativeTasks.length });
 		}
 
 		return map;
-	}, [initiatives, tasks]);
+	}, [initiatives, tasksByInitiative]);
 
 	// Compute aggregate stats
 	const stats: InitiativeStats = useMemo(() => {
 		// Count active initiatives
 		const activeInitiatives = initiatives.filter((i) => i.status === 'active').length;
 
-		// Count total tasks linked to initiatives
-		const initiativeTaskIds = new Set(
-			initiatives.flatMap((i) => i.tasks?.map((t) => t.id) || [])
-		);
-		const linkedTasks = tasks.filter(
-			(t) => t.initiative_id || initiativeTaskIds.has(t.id)
-		);
+		// Use pre-computed values from single-pass task processing
 		const totalTasks = linkedTasks.length;
-
-		// Calculate completion rate
-		const completedTasks = linkedTasks.filter((t) => t.status === 'completed').length;
-		const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+		const completionRate = totalTasks > 0 ? (completedCount / totalTasks) * 100 : 0;
 
 		// Calculate total cost from task states (tokens * rate)
-		// Create Map for O(1) task lookups instead of O(n) Array.find()
-		const taskById = new Map(tasks.map((t) => [t.id, t]));
+		// Build Set of linked task IDs for O(1) lookup
+		const linkedTaskIds = new Set(linkedTasks.map((t) => t.id));
 		let totalCost = 0;
 		for (const [taskId, state] of taskStates) {
-			const task = taskById.get(taskId);
-			if (task?.initiative_id || initiativeTaskIds.has(taskId)) {
-				if (state?.tokens) {
-					// Rough estimate: $3/1M input tokens, $15/1M output tokens
-					const inputCost = (state.tokens.input_tokens / 1_000_000) * 3;
-					const outputCost = (state.tokens.output_tokens / 1_000_000) * 15;
-					totalCost += inputCost + outputCost;
-				}
+			if (linkedTaskIds.has(taskId) && state?.tokens) {
+				// Rough estimate: $3/1M input tokens, $15/1M output tokens
+				const inputCost = (state.tokens.input_tokens / 1_000_000) * 3;
+				const outputCost = (state.tokens.output_tokens / 1_000_000) * 15;
+				totalCost += inputCost + outputCost;
 			}
 		}
-
-		// Count tasks this week
-		const oneWeekAgo = new Date();
-		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-		const tasksThisWeek = linkedTasks.filter(
-			(t) => new Date(t.created_at) > oneWeekAgo
-		).length;
 
 		return {
 			activeInitiatives,
@@ -214,7 +233,7 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 			completionRate,
 			totalCost,
 		};
-	}, [initiatives, tasks, taskStates]);
+	}, [initiatives, linkedTasks, completedCount, tasksThisWeek, taskStates]);
 
 	// Get progress for a specific initiative
 	const getProgress = useCallback(
