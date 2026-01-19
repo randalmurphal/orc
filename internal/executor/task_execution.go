@@ -187,7 +187,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 						"task", t.ID,
 						"weight", t.Weight,
 					)
-					return fmt.Errorf("spec phase failed: no output produced")
+					specErr := fmt.Errorf("spec phase failed: no output produced")
+					e.failTask(t, phase, s, specErr)
+					return specErr
 				}
 				e.logger.Warn("spec phase produced no output, continuing (trivial/small weight)")
 			} else {
@@ -205,7 +207,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 								"file_read_err", specErr.FileReadErr,
 								"hint", "Agent must output spec in <artifact> tags OR write to spec.md file",
 							)
-							return fmt.Errorf("spec phase failed: %s", specErr.Reason)
+							extractionErr := fmt.Errorf("spec phase failed: %s", specErr.Reason)
+							e.failTask(t, phase, s, extractionErr)
+							return extractionErr
 						}
 						e.logger.Warn("spec extraction failed (non-critical)", "reason", specErr.Reason)
 					} else {
@@ -215,7 +219,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 								"task", t.ID,
 								"error", err,
 							)
-							return fmt.Errorf("spec phase failed: %w", err)
+							dbErr := fmt.Errorf("spec phase failed: %w", err)
+							e.failTask(t, phase, s, dbErr)
+							return dbErr
 						}
 						e.logger.Warn("failed to save spec to database", "error", err)
 					}
