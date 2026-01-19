@@ -61,15 +61,40 @@ func ExtractArtifactContent(output string) string {
 // Returns true if the spec was saved, false if the phase is not "spec" or no content found.
 // SpecExtractionError provides details about why spec extraction failed
 type SpecExtractionError struct {
-	Reason      string
-	OutputLen   int
-	SpecPath    string
-	FileExists  bool
-	FileReadErr error
+	Reason            string
+	OutputLen         int
+	OutputPreview     string // First 200 chars of output for debugging
+	SpecPath          string
+	FileExists        bool
+	FileSize          int64 // Size of spec.md if it exists
+	FileReadErr       error
+	ValidationFailure string // Specific reason why isValidSpecContent failed
 }
 
 func (e *SpecExtractionError) Error() string {
-	return e.Reason
+	var b strings.Builder
+	b.WriteString(e.Reason)
+
+	// Add diagnostic details
+	fmt.Fprintf(&b, "\n  output_length: %d bytes", e.OutputLen)
+	if e.OutputPreview != "" {
+		fmt.Fprintf(&b, "\n  output_preview: %q", e.OutputPreview)
+	}
+	if e.SpecPath != "" {
+		fmt.Fprintf(&b, "\n  spec_path: %s", e.SpecPath)
+		fmt.Fprintf(&b, "\n  file_exists: %v", e.FileExists)
+		if e.FileExists && e.FileSize > 0 {
+			fmt.Fprintf(&b, "\n  file_size: %d bytes", e.FileSize)
+		}
+		if e.FileReadErr != nil {
+			fmt.Fprintf(&b, "\n  file_read_error: %v", e.FileReadErr)
+		}
+	}
+	if e.ValidationFailure != "" {
+		fmt.Fprintf(&b, "\n  validation_failure: %s", e.ValidationFailure)
+	}
+
+	return b.String()
 }
 
 func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string, worktreePath ...string) (bool, error) {
@@ -83,22 +108,35 @@ func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string,
 		return false, fmt.Errorf("backend is nil - cannot save spec")
 	}
 
+	// Helper to get first N chars of output for preview
+	outputPreview := func(s string, maxLen int) string {
+		if len(s) <= maxLen {
+			return s
+		}
+		return s[:maxLen] + "..."
+	}
+
 	// Extract the spec content from the output using artifact tags or structured markers
 	specContent := extractArtifact(output)
 	var specPath string
 	var fileExists bool
+	var fileSize int64
 	var fileReadErr error
 
 	// If no artifact tags found, check for spec file in task directory
 	// Agents sometimes write spec.md files instead of using artifact tags
 	if specContent == "" && len(worktreePath) > 0 && worktreePath[0] != "" {
 		specPath = task.SpecPathIn(worktreePath[0], taskID)
-		if content, err := os.ReadFile(specPath); err == nil && len(content) > 0 {
-			specContent = strings.TrimSpace(string(content))
+		if info, err := os.Stat(specPath); err == nil {
 			fileExists = true
-		} else if err != nil && !os.IsNotExist(err) {
-			// File exists but couldn't be read - track this for diagnostics
-			fileExists = true
+			fileSize = info.Size()
+			if content, err := os.ReadFile(specPath); err == nil && len(content) > 0 {
+				specContent = strings.TrimSpace(string(content))
+			} else if err != nil {
+				fileReadErr = err
+			}
+		} else if !os.IsNotExist(err) {
+			// Stat failed but not because file doesn't exist
 			fileReadErr = err
 		}
 	}
@@ -106,22 +144,27 @@ func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string,
 	if specContent == "" {
 		// No structured spec content found - return detailed error for diagnostics
 		return false, &SpecExtractionError{
-			Reason:      "no spec content found in output or file",
-			OutputLen:   len(output),
-			SpecPath:    specPath,
-			FileExists:  fileExists,
-			FileReadErr: fileReadErr,
+			Reason:        "no spec content found in output or file",
+			OutputLen:     len(output),
+			OutputPreview: outputPreview(output, 200),
+			SpecPath:      specPath,
+			FileExists:    fileExists,
+			FileSize:      fileSize,
+			FileReadErr:   fileReadErr,
 		}
 	}
 
 	// Validate that the spec content looks like a valid spec
 	// A valid spec should have meaningful content and not just completion markers
-	if !isValidSpecContent(specContent) {
+	if validationFailure := validateSpecContent(specContent); validationFailure != "" {
 		return false, &SpecExtractionError{
-			Reason:     "spec content failed validation (too short, missing sections, or contains only noise)",
-			OutputLen:  len(output),
-			SpecPath:   specPath,
-			FileExists: fileExists,
+			Reason:            "spec content failed validation",
+			OutputLen:         len(output),
+			OutputPreview:     outputPreview(output, 200),
+			SpecPath:          specPath,
+			FileExists:        fileExists,
+			FileSize:          fileSize,
+			ValidationFailure: validationFailure,
 		}
 	}
 
@@ -139,11 +182,18 @@ func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string,
 // - Not consist primarily of completion markers
 // - Ideally have at least one spec-like section (Intent, Success Criteria, etc.)
 func isValidSpecContent(content string) bool {
+	reason := validateSpecContent(content)
+	return reason == ""
+}
+
+// validateSpecContent checks if spec content is valid and returns an empty string
+// if valid, or a description of why validation failed.
+func validateSpecContent(content string) string {
 	trimmed := strings.TrimSpace(content)
 
 	// Minimum length check - a real spec should have at least some content
 	if len(trimmed) < 50 {
-		return false
+		return fmt.Sprintf("content too short (%d chars, need at least 50)", len(trimmed))
 	}
 
 	lowerContent := strings.ToLower(trimmed)
@@ -165,7 +215,7 @@ func isValidSpecContent(content string) bool {
 			beforeNoise := strings.TrimSpace(trimmed[:noiseIdx])
 			// Need at least 50 meaningful chars before the noise
 			if len(beforeNoise) < 50 {
-				return false
+				return fmt.Sprintf("noise pattern detected (%q) with only %d chars of content before it (need 50)", noise, len(beforeNoise))
 			}
 		}
 	}
@@ -187,11 +237,15 @@ func isValidSpecContent(content string) bool {
 
 	for _, section := range specSections {
 		if strings.Contains(lowerContent, section) {
-			return true
+			return "" // Valid: has spec section
 		}
 	}
 
 	// If no recognized spec sections, require longer content (200 chars)
 	// to avoid accepting random garbage
-	return len(trimmed) >= 200
+	if len(trimmed) >= 200 {
+		return "" // Valid: long enough without sections
+	}
+
+	return fmt.Sprintf("no recognized spec sections (intent, success criteria, etc.) and content too short (%d chars, need 200 without sections)", len(trimmed))
 }
