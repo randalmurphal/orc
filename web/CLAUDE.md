@@ -37,7 +37,7 @@ web/src/
 ├── components/           # UI components
 │   ├── board/            # Kanban (Board, Column, TaskCard, etc.)
 │   ├── dashboard/        # Dashboard sections
-│   ├── initiatives/      # Initiative components (InitiativeCard, StatsRow)
+│   ├── initiatives/      # Initiative components (InitiativeCard, StatsRow, InitiativesView)
 │   ├── layout/           # AppLayout, Sidebar, Header, IconNav, TopBar
 │   ├── stats/            # Statistics visualizations (OutcomesDonut)
 │   ├── task-detail/      # TaskHeader, TabNav, tabs
@@ -108,12 +108,13 @@ See [docs/components.md](docs/components.md) for full API.
 
 | Route | Component |
 |-------|-----------|
-| `/` | TaskList |
+| `/` | Redirects to `/board` |
 | `/board` | Board (flat/swimlane views) |
-| `/dashboard` | Dashboard stats |
-| `/tasks/:id` | TaskDetail (6 tabs) |
+| `/initiatives` | InitiativesPage (aggregate stats, cards grid) |
 | `/initiatives/:id` | InitiativeDetail |
-| `/environment/*` | Config editors |
+| `/stats` | Dashboard stats |
+| `/tasks/:id` | TaskDetail (6 tabs) |
+| `/settings/*` | Config editors |
 
 ## Testing
 

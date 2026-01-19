@@ -84,6 +84,67 @@ Edit form with fields: title, description, weight, category, priority, queue, in
 
 Export options: JSON, YAML, Markdown. Uses Radix DropdownMenu.
 
+## Initiatives
+
+Initiatives overview page at `/initiatives` with aggregate statistics and card grid.
+
+### Page Structure
+
+| Component | Purpose |
+|-----------|---------|
+| `InitiativesPage` | Route wrapper that renders InitiativesView |
+| `InitiativesView` | Container with data fetching, stats, and cards |
+
+### Visual Sections
+
+| Section | Content |
+|---------|---------|
+| Header | "Initiatives" title, "Manage your project epics and milestones" subtitle, "New Initiative" button |
+| StatsRow | Aggregate metrics (Active Initiatives, Total Tasks, Completion Rate, Total Cost) |
+| Grid | Responsive InitiativeCard grid (auto-fill, min 360px, gap 16px) |
+
+### States
+
+| State | Display |
+|-------|---------|
+| Loading | Skeleton StatsRow + 4 skeleton cards in grid |
+| Empty | Icon, "Create your first initiative" title, descriptive text |
+| Error | Error message with retry button |
+| Populated | StatsRow + InitiativeCard grid |
+
+### Data Flow
+
+- **Initiatives**: Fetched from `/api/initiatives` via `listInitiatives()`
+- **Task Stats**: From `useTaskStore` for progress and cost calculations
+- **Progress per Card**: Computed from tasks with matching `initiative_id`
+
+### Stats Calculation
+
+| Metric | Source |
+|--------|--------|
+| Active Initiatives | `initiatives.filter(i => i.status === 'active').length` |
+| Total Tasks | Tasks with `initiative_id` set |
+| Completion Rate | `completedTasks / totalTasks * 100` |
+| Total Cost | Sum of token costs from `taskStates` for linked tasks |
+
+### Events
+
+| Action | Event/Navigation |
+|--------|------------------|
+| Click "New Initiative" | Dispatches `orc:new-initiative` custom event |
+| Click initiative card | Navigates to `/initiatives/{id}` |
+
+### CSS Classes
+
+| Class | Purpose |
+|-------|---------|
+| `.initiatives-view` | Main container |
+| `.initiatives-view-header` | Page header with title/subtitle/button |
+| `.initiatives-view-content` | Scrollable content area (padding: 20px) |
+| `.initiatives-view-grid` | Responsive grid (auto-fill, minmax(360px, 1fr), gap: 16px) |
+| `.initiatives-view-empty` | Empty state styling |
+| `.initiatives-view-error` | Error state with retry |
+
 ## Initiative Detail
 
 Initiative management at `/initiatives/:id`.
