@@ -414,11 +414,9 @@ func followLiveJSONL(taskID string, opts transcriptDisplayOptions) error {
 			continue
 		}
 
-		// Filter by phase if specified
-		if opts.phase != "" {
-			// JSONL messages don't have phase - skip filtering in follow mode
-			// or we could match by session ID patterns
-		}
+		// Note: Phase filtering is not supported in follow mode since
+		// JSONL messages don't contain phase information.
+		// TODO(future): Could match by session ID patterns if needed.
 
 		// Display the message
 		displayJSONLMessage(msg, opts)
