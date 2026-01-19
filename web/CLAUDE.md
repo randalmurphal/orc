@@ -37,6 +37,7 @@ web/src/
 ├── components/           # UI components
 │   ├── board/            # Kanban (Board, Column, TaskCard, etc.)
 │   ├── dashboard/        # Dashboard sections
+│   ├── initiatives/      # Initiative components (InitiativeCard, StatsRow)
 │   ├── layout/           # AppLayout, Sidebar, Header, IconNav, TopBar
 │   ├── task-detail/      # TaskHeader, TabNav, tabs
 │   ├── overlays/         # Modal, CommandPalette, NewTaskModal
