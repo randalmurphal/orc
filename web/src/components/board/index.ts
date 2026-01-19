@@ -6,5 +6,6 @@ export { QueuedColumn } from './QueuedColumn';
 export { RunningCard, type RunningCardProps, type OutputLine } from './RunningCard';
 export { Swimlane } from './Swimlane';
 export { TaskCard } from './TaskCard';
+export { QueueColumn, type QueueColumnProps } from './QueueColumn';
 export { ViewModeDropdown } from './ViewModeDropdown';
 export { InitiativeDropdown } from './InitiativeDropdown';

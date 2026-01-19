@@ -9,7 +9,7 @@
  * - Empty state when no tasks
  */
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Swimlane } from './Swimlane';
 import type { Task, Initiative } from '@/lib/types';
 import './QueueColumn.css';
@@ -54,9 +54,8 @@ function groupAndSortTasks(
 	const groups = new Map<string | null, Task[]>();
 	for (const task of tasks) {
 		const key = task.initiative_id ?? null;
-		const existing = groups.get(key) ?? [];
-		existing.push(task);
-		groups.set(key, existing);
+		if (!groups.has(key)) groups.set(key, []);
+		groups.get(key)!.push(task);
 	}
 
 	// Convert to array of SwimlaneGroup
@@ -76,7 +75,7 @@ function groupAndSortTasks(
 				if (!unassignedGroup) {
 					unassignedGroup = { initiative: null, tasks: [] };
 				}
-				unassignedGroup.tasks.push(...groupTasks);
+				unassignedGroup.tasks = unassignedGroup.tasks.concat(groupTasks);
 			}
 		}
 	}
@@ -116,10 +115,11 @@ export function QueueColumn({
 
 	const totalCount = tasks.length;
 
-	// Handle toggle for a swimlane
-	const handleToggle = (id: string) => {
-		onToggleSwimlane?.(id);
-	};
+	// Memoize toggle handler to avoid creating new function references each render
+	const handleToggle = useCallback(
+		(id: string) => onToggleSwimlane?.(id),
+		[onToggleSwimlane]
+	);
 
 	return (
 		<div
