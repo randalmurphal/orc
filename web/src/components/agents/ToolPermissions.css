@@ -1,0 +1,153 @@
+/* =============================================================================
+   ToolPermissions Component Styles
+   Matches mockup styles from example_ui/agents.html
+   ============================================================================= */
+
+/* ==========================================================================
+   BASE CONTAINER
+   ========================================================================== */
+
+.tool-permissions {
+	position: relative;
+}
+
+/* ==========================================================================
+   3-COLUMN PERMISSION GRID
+   ========================================================================== */
+
+.tool-permissions__grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 8px;
+}
+
+/* Responsive: 2 columns on smaller screens */
+@media (max-width: 768px) {
+	.tool-permissions__grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+/* Responsive: 1 column on mobile */
+@media (max-width: 480px) {
+	.tool-permissions__grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* ==========================================================================
+   PERMISSION ITEM
+   ========================================================================== */
+
+.tool-permissions__item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 12px;
+	background: var(--bg-surface);
+	border-radius: 6px;
+	transition: background var(--duration-fast) var(--ease-out);
+}
+
+.tool-permissions__item:hover {
+	background: var(--bg-hover);
+}
+
+/* Warning state highlight */
+.tool-permissions__item--warning {
+	background: var(--amber-dim);
+	box-shadow: 0 0 0 1px var(--amber-border);
+}
+
+/* ==========================================================================
+   PERMISSION LABEL
+   ========================================================================== */
+
+.tool-permissions__label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 11px;
+	color: var(--text-primary);
+	user-select: none;
+}
+
+/* Icon within label - 14px, muted color handled by Icon component */
+.tool-permissions__label .icon {
+	flex-shrink: 0;
+}
+
+/* ==========================================================================
+   WARNING DIALOG
+   ========================================================================== */
+
+.tool-permissions__warning {
+	margin-top: 12px;
+	padding: 12px;
+	background: var(--amber-dim);
+	border: 1px solid var(--amber-border);
+	border-radius: 6px;
+}
+
+.tool-permissions__warning-content {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.tool-permissions__warning-text {
+	font-size: 12px;
+	color: var(--text-secondary);
+	line-height: 1.5;
+}
+
+.tool-permissions__warning-text strong {
+	color: var(--text-primary);
+}
+
+.tool-permissions__warning-actions {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+.tool-permissions__warning-btn {
+	padding: 6px 12px;
+	font-size: 11px;
+	font-weight: 500;
+	border-radius: 4px;
+	border: none;
+	cursor: pointer;
+	transition: all var(--duration-fast) var(--ease-out);
+}
+
+.tool-permissions__warning-btn--cancel {
+	background: var(--bg-surface);
+	color: var(--text-secondary);
+	border: 1px solid var(--border);
+}
+
+.tool-permissions__warning-btn--cancel:hover {
+	background: var(--bg-hover);
+	color: var(--text-primary);
+}
+
+.tool-permissions__warning-btn--confirm {
+	background: var(--amber);
+	color: var(--bg-base);
+}
+
+.tool-permissions__warning-btn--confirm:hover {
+	filter: brightness(1.1);
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.tool-permissions__item,
+	.tool-permissions__warning-btn {
+		transition: none;
+	}
+}
