@@ -489,11 +489,25 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 			// Criteria validation: check if success criteria from spec are met
 			// This runs after backpressure (tests pass) but before accepting completion
-			shouldValidateCriteria := e.config.OrcConfig != nil && e.config.OrcConfig.ShouldValidateCriteria(string(t.Weight))
-			if e.haikuClient != nil && specContent != "" && p.ID == "implement" && shouldValidateCriteria {
+			if e.haikuClient != nil && e.orcConfig != nil && specContent != "" && p.ID == "implement" &&
+				e.orcConfig.ShouldValidateCriteria(string(t.Weight)) {
 				criteriaResult, valErr := ValidateSuccessCriteria(ctx, e.haikuClient, specContent, turnResult.Content)
 				if valErr != nil {
-					// API error - log and continue (fail open)
+					if e.orcConfig.Validation.FailOnAPIError {
+						// Fail properly - task is resumable from this phase
+						e.logger.Error("criteria validation API error - failing task",
+							"task", t.ID,
+							"phase", p.ID,
+							"error", valErr,
+							"hint", "Task can be resumed with 'orc resume'",
+						)
+						result.Status = plan.PhaseFailed
+						result.Error = fmt.Errorf("criteria validation API error (resumable): %w", valErr)
+						result.Output = turnResult.Content
+						result.Duration = time.Since(start)
+						return result, result.Error
+					}
+					// Fail open (legacy behavior for fast profile)
 					e.logger.Warn("criteria validation error (continuing)",
 						"task", t.ID,
 						"phase", p.ID,

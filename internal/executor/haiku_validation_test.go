@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/randalmurphal/llmkit/claude"
@@ -272,4 +273,204 @@ func TestValidationDecision_String(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateSuccessCriteria_JSONParsing(t *testing.T) {
+	tests := []struct {
+		name           string
+		response       criteriaCompletionResponse
+		wantAllMet     bool
+		wantCritCount  int
+		wantMissing    string
+	}{
+		{
+			name: "all criteria met",
+			response: criteriaCompletionResponse{
+				AllMet: true,
+				Criteria: []CriterionStatus{
+					{ID: "SC-1", Status: "MET", Reason: "Implemented correctly"},
+					{ID: "SC-2", Status: "MET", Reason: "Tests pass"},
+				},
+				MissingSummary: "",
+			},
+			wantAllMet:    true,
+			wantCritCount: 2,
+			wantMissing:   "",
+		},
+		{
+			name: "some criteria not met",
+			response: criteriaCompletionResponse{
+				AllMet: false,
+				Criteria: []CriterionStatus{
+					{ID: "SC-1", Status: "MET", Reason: "Done"},
+					{ID: "SC-2", Status: "NOT_MET", Reason: "Missing implementation"},
+				},
+				MissingSummary: "SC-2 is not implemented",
+			},
+			wantAllMet:    false,
+			wantCritCount: 2,
+			wantMissing:   "SC-2 is not implemented",
+		},
+		{
+			name: "partial status",
+			response: criteriaCompletionResponse{
+				AllMet: false,
+				Criteria: []CriterionStatus{
+					{ID: "SC-1", Status: "PARTIAL", Reason: "Partially done"},
+				},
+				MissingSummary: "SC-1 needs more work",
+			},
+			wantAllMet:    false,
+			wantCritCount: 1,
+			wantMissing:   "SC-1 needs more work",
+		},
+		{
+			name: "lowercase status normalized",
+			response: criteriaCompletionResponse{
+				AllMet: true,
+				Criteria: []CriterionStatus{
+					{ID: "SC-1", Status: "met", Reason: "done"},
+				},
+				MissingSummary: "",
+			},
+			wantAllMet:    true,
+			wantCritCount: 1,
+			wantMissing:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jsonBytes, _ := json.Marshal(tt.response)
+			client := &mockValidationClient{response: string(jsonBytes)}
+
+			result, err := ValidateSuccessCriteria(
+				context.Background(),
+				client,
+				"spec with SC-1 and SC-2",
+				"implementation summary",
+			)
+
+			if err != nil {
+				t.Fatalf("ValidateSuccessCriteria() error = %v", err)
+			}
+			if result.AllMet != tt.wantAllMet {
+				t.Errorf("AllMet = %v, want %v", result.AllMet, tt.wantAllMet)
+			}
+			if len(result.Criteria) != tt.wantCritCount {
+				t.Errorf("criteria count = %d, want %d", len(result.Criteria), tt.wantCritCount)
+			}
+			if result.MissingSummary != tt.wantMissing {
+				t.Errorf("MissingSummary = %q, want %q", result.MissingSummary, tt.wantMissing)
+			}
+		})
+	}
+}
+
+func TestValidateSuccessCriteria_EdgeCases(t *testing.T) {
+	t.Run("nil client returns AllMet=true", func(t *testing.T) {
+		result, err := ValidateSuccessCriteria(
+			context.Background(),
+			nil,
+			"spec",
+			"impl",
+		)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if !result.AllMet {
+			t.Error("expected AllMet=true for nil client")
+		}
+	})
+
+	t.Run("empty spec returns AllMet=true", func(t *testing.T) {
+		client := &mockValidationClient{response: "{}"}
+		result, err := ValidateSuccessCriteria(
+			context.Background(),
+			client,
+			"",
+			"impl",
+		)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if !result.AllMet {
+			t.Error("expected AllMet=true for empty spec")
+		}
+	})
+
+	t.Run("invalid JSON returns error", func(t *testing.T) {
+		client := &mockValidationClient{response: "not json"}
+		_, err := ValidateSuccessCriteria(
+			context.Background(),
+			client,
+			"spec",
+			"impl",
+		)
+		if err == nil {
+			t.Error("expected error for invalid JSON")
+		}
+	})
+}
+
+func TestFormatCriteriaFeedback(t *testing.T) {
+	t.Run("nil result returns empty string", func(t *testing.T) {
+		got := FormatCriteriaFeedback(nil)
+		if got != "" {
+			t.Errorf("expected empty string, got %q", got)
+		}
+	})
+
+	t.Run("all met returns empty string", func(t *testing.T) {
+		result := &CriteriaValidationResult{AllMet: true}
+		got := FormatCriteriaFeedback(result)
+		if got != "" {
+			t.Errorf("expected empty string for AllMet=true, got %q", got)
+		}
+	})
+
+	t.Run("formats missing criteria", func(t *testing.T) {
+		result := &CriteriaValidationResult{
+			AllMet: false,
+			Criteria: []CriterionStatus{
+				{ID: "SC-1", Status: "MET", Reason: "Done"},
+				{ID: "SC-2", Status: "NOT_MET", Reason: "Missing tests"},
+				{ID: "SC-3", Status: "PARTIAL", Reason: "Incomplete"},
+			},
+			MissingSummary: "2 criteria need work",
+		}
+		got := FormatCriteriaFeedback(result)
+
+		// Should contain header
+		if !strings.Contains(got, "Criteria Validation Failed") {
+			t.Error("expected header in output")
+		}
+		// Should contain summary
+		if !strings.Contains(got, "2 criteria need work") {
+			t.Error("expected summary in output")
+		}
+		// Should list NOT_MET criteria
+		if !strings.Contains(got, "SC-2") || !strings.Contains(got, "NOT_MET") {
+			t.Error("expected NOT_MET criterion in output")
+		}
+		// Should list PARTIAL criteria
+		if !strings.Contains(got, "SC-3") || !strings.Contains(got, "PARTIAL") {
+			t.Error("expected PARTIAL criterion in output")
+		}
+	})
+
+	t.Run("includes description when present", func(t *testing.T) {
+		result := &CriteriaValidationResult{
+			AllMet: false,
+			Criteria: []CriterionStatus{
+				{ID: "SC-1", Description: "User can log in", Status: "NOT_MET", Reason: "No login form"},
+			},
+			MissingSummary: "Login not implemented",
+		}
+		got := FormatCriteriaFeedback(result)
+
+		if !strings.Contains(got, "User can log in") {
+			t.Error("expected description in output")
+		}
+	})
 }
