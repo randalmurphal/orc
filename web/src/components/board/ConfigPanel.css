@@ -1,0 +1,181 @@
+/* =============================================================================
+   ConfigPanel Component Styles
+   Cyan-themed panel section for Claude Code configuration quick links
+   Matches mockup: example_ui/board.html (.config-item class, lines 640-676)
+   ============================================================================= */
+
+/* =============================================================================
+   Panel Section (Collapsible Container)
+   ============================================================================= */
+
+.config-panel {
+	border-bottom: 1px solid var(--border);
+}
+
+.config-panel .panel-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-3);
+	width: 100%;
+	background: none;
+	border: none;
+	cursor: pointer;
+	transition: background var(--duration-fast);
+}
+
+.config-panel .panel-header:hover {
+	background: var(--bg-hover);
+}
+
+.config-panel .panel-title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	flex: 1;
+	font-size: var(--text-sm);
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-secondary);
+}
+
+.config-panel .panel-title-icon {
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-sm);
+}
+
+.config-panel .panel-title-icon.cyan {
+	background: var(--cyan-dim);
+	color: var(--cyan);
+}
+
+.config-panel .panel-chevron {
+	color: var(--text-muted);
+	transition: transform var(--duration-fast);
+	flex-shrink: 0;
+}
+
+/* Collapsed state */
+.config-panel.collapsed .panel-body {
+	display: none;
+}
+
+/* =============================================================================
+   Panel Body (Scrollable Content Area)
+   ============================================================================= */
+
+.config-panel .panel-body {
+	padding: 0 var(--space-3) var(--space-3);
+}
+
+/* =============================================================================
+   Config Item (Clickable Link Card)
+   Displays icon, title, description, badge, and arrow
+   ============================================================================= */
+
+.config-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px;
+	width: 100%;
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	margin-bottom: var(--space-1-5);
+	cursor: pointer;
+	transition:
+		background var(--duration-fast),
+		border-color var(--duration-fast);
+	text-align: left;
+}
+
+.config-item:hover {
+	background: var(--bg-hover);
+	border-color: var(--border-light);
+}
+
+.config-item:last-child {
+	margin-bottom: 0;
+}
+
+/* Config Icon */
+.config-icon {
+	width: 28px;
+	height: 28px;
+	background: var(--primary-dim);
+	border-radius: var(--radius-md);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--primary);
+	flex-shrink: 0;
+}
+
+/* Config Content */
+.config-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.config-title {
+	font-size: var(--text-sm);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	line-height: var(--leading-tight);
+}
+
+.config-desc {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	line-height: var(--leading-tight);
+}
+
+/* Config Badge */
+.config-badge {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+	flex-shrink: 0;
+}
+
+/* Loading skeleton for badge */
+.config-badge-loading {
+	display: flex;
+	align-items: center;
+}
+
+.config-badge-loading .loading-skeleton {
+	display: inline-block;
+	width: 24px;
+	height: 14px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	border-radius: var(--radius-sm);
+	animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
+}
+
+/* Config Arrow */
+.config-arrow {
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
