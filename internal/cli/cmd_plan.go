@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -159,15 +160,16 @@ func runPlanInteractive(cmd *cobra.Command, args []string) error {
 
 // runPlanBatch handles the batch mode - reading existing specs and generating tasks.
 func runPlanBatch(_ *cobra.Command, _ []string) error {
-	// Get working directory
-	wd, err := os.Getwd()
+	// Get project root
+	wd, err := config.FindProjectRoot()
 	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
+		return fmt.Errorf("find project root: %w", err)
 	}
 
-	// Check if .orc directory exists
-	if _, err := os.Stat(".orc"); os.IsNotExist(err) {
-		return fmt.Errorf("orc not initialized in this directory (run 'orc init' first)")
+	// Check if .orc directory exists in project root
+	orcDir := filepath.Join(wd, ".orc")
+	if _, err := os.Stat(orcDir); os.IsNotExist(err) {
+		return fmt.Errorf("orc not initialized in %s (run 'orc init' first)", wd)
 	}
 
 	// Create planner
