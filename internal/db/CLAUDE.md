@@ -147,7 +147,7 @@ summary, err := gdb.GetCostSummary(projectID, since)
 ### Extended (Recommended)
 
 ```go
-// Record cost with full model and cache tracking
+// Record cost with full model, cache, and duration tracking
 entry := db.CostEntry{
     ProjectID:           projectID,
     TaskID:              taskID,
@@ -161,6 +161,7 @@ entry := db.CostEntry{
     CacheReadTokens:     8000,
     TotalTokens:         9700,
     InitiativeID:        "INIT-001",
+    DurationMs:          45678,  // Phase execution time in milliseconds
 }
 gdb.RecordCostExtended(entry)
 

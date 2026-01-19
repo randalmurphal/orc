@@ -155,6 +155,7 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 
 	// Resolve model settings for this phase and weight
 	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
+	result.Model = modelSetting.Model
 
 	// Inject "ultrathink" for extended thinking mode (rare for trivial, but consistent)
 	if modelSetting.Thinking {
@@ -185,6 +186,8 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		// Note: claude.TokenUsage doesn't have EffectiveInputTokens method, so compute directly
 		result.InputTokens += resp.Usage.InputTokens + resp.Usage.CacheCreationInputTokens + resp.Usage.CacheReadInputTokens
 		result.OutputTokens += resp.Usage.OutputTokens
+		result.CacheCreationTokens += resp.Usage.CacheCreationInputTokens
+		result.CacheReadTokens += resp.Usage.CacheReadInputTokens
 		result.CostUSD += resp.CostUSD
 		result.Iterations = iteration
 		lastResponse = resp.Content

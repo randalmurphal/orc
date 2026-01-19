@@ -148,6 +148,7 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 	// Resolve model settings for this phase and weight
 	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
+	result.Model = modelSetting.Model
 
 	// Create session adapter with resume capability
 	adapterOpts := SessionAdapterOptions{
@@ -372,6 +373,8 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		effectiveInput := turnResult.Usage.EffectiveInputTokens()
 		result.InputTokens += effectiveInput
 		result.OutputTokens += turnResult.Usage.OutputTokens
+		result.CacheCreationTokens += turnResult.Usage.CacheCreationInputTokens
+		result.CacheReadTokens += turnResult.Usage.CacheReadInputTokens
 		result.CostUSD += turnResult.CostUSD
 		result.Iterations = iteration
 		lastResponse = turnResult.Content

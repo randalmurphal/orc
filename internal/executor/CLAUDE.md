@@ -35,6 +35,7 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | `haiku_validation.go` | Haiku-based spec and progress validation |
 | `jsonl_sync.go` | `JSONLSyncer` for Claude JSONL → DB sync |
 | `publish.go` | `EventPublisher` for real-time events |
+| `cost_tracking.go` | Global cost recording to `~/.orc/orc.db` |
 
 ## Architecture
 
@@ -279,6 +280,35 @@ err := syncer.SyncFromFile(ctx, jsonlPath, SyncOptions{
 | Todos | `TodoWrite` tool results | `todo_snapshots` |
 
 **Token aggregation:** DB views compute per-task/phase totals from per-message tokens. See `db/CLAUDE.md`.
+
+## Cost Tracking
+
+`cost_tracking.go` records phase costs to the global database (`~/.orc/orc.db`) after each phase completion.
+
+**Data flow:**
+```
+TurnResult.Usage (session_adapter.go:228-234)
+    ↓ accumulated per iteration
+Result{InputTokens, OutputTokens, CacheCreation/ReadTokens, CostUSD} (executor.go:180-187)
+    ↓ after phase completion
+recordCostToGlobal() (cost_tracking.go:21)
+    ↓
+GlobalDB.RecordCostExtended() (db/global.go:340)
+```
+
+**What gets recorded:**
+
+| Field | Source | Purpose |
+|-------|--------|---------|
+| `CostUSD` | `TurnResult.CostUSD` from Claude CLI | Actual cost from API |
+| `InputTokens` | `TurnResult.Usage.EffectiveInputTokens()` | Includes cache tokens |
+| `OutputTokens` | `TurnResult.Usage.OutputTokens` | Response tokens |
+| `CacheCreationTokens` | `TurnResult.Usage.CacheCreationInputTokens` | New cache entries |
+| `CacheReadTokens` | `TurnResult.Usage.CacheReadInputTokens` | Cache hits |
+| `DurationMs` | `Result.Duration.Milliseconds()` | Phase execution time |
+| `Model` | `DetectModel(modelSetting.Model)` | opus/sonnet/haiku/unknown |
+
+**Integration point:** `task_execution.go:~280` calls `recordCostToGlobal()` after phase completion.
 
 ## Common Gotchas
 
