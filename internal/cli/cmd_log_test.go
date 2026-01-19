@@ -234,6 +234,241 @@ func TestFollowFileTruncation(t *testing.T) {
 	}
 }
 
+func TestDetectSection(t *testing.T) {
+	tests := []struct {
+		line     string
+		expected transcriptSection
+	}{
+		{"## Prompt", sectionPrompt},
+		{"## Response", sectionResponse},
+		{"---", sectionMetadata},
+		{"# implement - Iteration 1", sectionMetadata},
+		{"# spec - Iteration 3", sectionMetadata},
+		{"Some regular content", sectionUnknown},
+		{"", sectionUnknown},
+		{"  ## Prompt  ", sectionPrompt}, // whitespace should be trimmed
+		{"## PromptExtra", sectionUnknown},
+		{"## Responses", sectionUnknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.line, func(t *testing.T) {
+			result := detectSection(tt.line)
+			if result != tt.expected {
+				t.Errorf("detectSection(%q) = %v, want %v", tt.line, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestShouldShowLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		section  transcriptSection
+		opts     displayOptions
+		expected bool
+	}{
+		// No filtering - show everything
+		{"no filter, unknown section", sectionUnknown, displayOptions{}, true},
+		{"no filter, prompt section", sectionPrompt, displayOptions{}, true},
+		{"no filter, response section", sectionResponse, displayOptions{}, true},
+		{"no filter, metadata section", sectionMetadata, displayOptions{}, true},
+
+		// Response only
+		{"response only, unknown section", sectionUnknown, displayOptions{responseOnly: true}, true},
+		{"response only, prompt section", sectionPrompt, displayOptions{responseOnly: true}, false},
+		{"response only, response section", sectionResponse, displayOptions{responseOnly: true}, true},
+		{"response only, metadata section", sectionMetadata, displayOptions{responseOnly: true}, false},
+
+		// Prompt only
+		{"prompt only, unknown section", sectionUnknown, displayOptions{promptOnly: true}, true},
+		{"prompt only, prompt section", sectionPrompt, displayOptions{promptOnly: true}, true},
+		{"prompt only, response section", sectionResponse, displayOptions{promptOnly: true}, false},
+		{"prompt only, metadata section", sectionMetadata, displayOptions{promptOnly: true}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shouldShowLine(tt.section, tt.opts)
+			if result != tt.expected {
+				t.Errorf("shouldShowLine(%v, %+v) = %v, want %v",
+					tt.section, tt.opts, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFilterTranscriptLines(t *testing.T) {
+	sampleTranscript := []string{
+		"# implement - Iteration 1",
+		"",
+		"## Prompt",
+		"",
+		"This is the prompt content.",
+		"More prompt content.",
+		"",
+		"## Response",
+		"",
+		"This is the response content.",
+		"More response content.",
+		"",
+		"---",
+		"Tokens: 1000 input, 500 output",
+	}
+
+	t.Run("no filtering", func(t *testing.T) {
+		opts := displayOptions{}
+		result := filterTranscriptLines(sampleTranscript, opts)
+		if len(result) != len(sampleTranscript) {
+			t.Errorf("expected %d lines, got %d", len(sampleTranscript), len(result))
+		}
+	})
+
+	t.Run("response only", func(t *testing.T) {
+		opts := displayOptions{responseOnly: true}
+		result := filterTranscriptLines(sampleTranscript, opts)
+
+		// Should contain response content
+		found := false
+		for _, line := range result {
+			if strings.Contains(line, "response content") {
+				found = true
+			}
+			// Should NOT contain prompt content
+			if strings.Contains(line, "prompt content") {
+				t.Error("response-only should not include prompt content")
+			}
+		}
+		if !found {
+			t.Error("response-only should include response content")
+		}
+	})
+
+	t.Run("prompt only", func(t *testing.T) {
+		opts := displayOptions{promptOnly: true}
+		result := filterTranscriptLines(sampleTranscript, opts)
+
+		// Should contain prompt content
+		found := false
+		for _, line := range result {
+			if strings.Contains(line, "prompt content") {
+				found = true
+			}
+			// Should NOT contain response content
+			if strings.Contains(line, "response content") {
+				t.Error("prompt-only should not include response content")
+			}
+		}
+		if !found {
+			t.Error("prompt-only should include prompt content")
+		}
+	})
+
+	t.Run("with color", func(t *testing.T) {
+		opts := displayOptions{useColor: true}
+		result := filterTranscriptLines(sampleTranscript, opts)
+
+		// Prompt lines should have ANSI codes
+		foundColoredPrompt := false
+		for _, line := range result {
+			if strings.Contains(line, "prompt content") {
+				if strings.Contains(line, ansiDim) && strings.Contains(line, ansiReset) {
+					foundColoredPrompt = true
+				}
+			}
+		}
+		if !foundColoredPrompt {
+			t.Error("expected prompt lines to have ANSI color codes")
+		}
+
+		// Response lines should NOT have dim codes
+		for _, line := range result {
+			if strings.Contains(line, "response content") {
+				if strings.Contains(line, ansiDim) {
+					t.Error("response lines should not be dimmed")
+				}
+			}
+		}
+	})
+}
+
+func TestShowFileContentWithFiltering(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test-transcript.md")
+
+	content := `# implement - Iteration 1
+
+## Prompt
+
+This is the prompt.
+
+## Response
+
+This is the response.
+
+---
+Tokens: 100 input
+`
+	if err := os.WriteFile(tmpFile, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	t.Run("response only via file", func(t *testing.T) {
+		// Capture stdout
+		oldStdout := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+
+		opts := displayOptions{responseOnly: true}
+		err := showFileContent(tmpFile, 0, opts)
+
+		_ = w.Close()
+		os.Stdout = oldStdout
+
+		if err != nil {
+			t.Fatalf("showFileContent error: %v", err)
+		}
+
+		var buf bytes.Buffer
+		_, _ = buf.ReadFrom(r)
+		output := buf.String()
+
+		if !strings.Contains(output, "This is the response") {
+			t.Errorf("expected response content in output, got: %q", output)
+		}
+		if strings.Contains(output, "This is the prompt") {
+			t.Errorf("should not contain prompt content in response-only mode, got: %q", output)
+		}
+	})
+
+	t.Run("with tail limit", func(t *testing.T) {
+		// Capture stdout
+		oldStdout := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+
+		opts := displayOptions{}
+		err := showFileContent(tmpFile, 3, opts) // Only last 3 lines
+
+		_ = w.Close()
+		os.Stdout = oldStdout
+
+		if err != nil {
+			t.Fatalf("showFileContent error: %v", err)
+		}
+
+		var buf bytes.Buffer
+		_, _ = buf.ReadFrom(r)
+		output := buf.String()
+
+		// Count lines
+		lines := strings.Split(strings.TrimSpace(output), "\n")
+		if len(lines) > 3 {
+			t.Errorf("expected at most 3 lines, got %d: %v", len(lines), lines)
+		}
+	})
+}
+
 func TestFollowFileWithWatcherNewContent(t *testing.T) {
 	// Create a temp file
 	tmpDir := t.TempDir()
