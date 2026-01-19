@@ -14,6 +14,7 @@ import (
 	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/git"
@@ -179,6 +180,11 @@ type Result struct {
 	InputTokens  int
 	OutputTokens int
 	CostUSD      float64 // Total cost in USD for this phase
+	Model        string  // Model used for this phase (e.g., "opus", "sonnet")
+
+	// Cache token tracking (for cost analytics)
+	CacheCreationTokens int // Tokens used to create new cache entries
+	CacheReadTokens     int // Tokens read from existing cache
 }
 
 // Executor runs phases using session-based execution with weight-adaptive strategies.
@@ -218,6 +224,9 @@ type Executor struct {
 
 	// Haiku client for validation calls (separate from main client)
 	haikuClient claude.Client
+
+	// Global database for cross-project cost tracking
+	globalDB *db.GlobalDB
 }
 
 // New creates a new executor with the given configuration.
@@ -336,6 +345,13 @@ func New(cfg *Config) *Executor {
 		haikuClient = claude.NewClaudeCLI(haikuOpts...)
 	}
 
+	// Open global database for cross-project cost tracking
+	// Cost tracking is optional - failures are logged but don't block execution
+	globalDB, err := db.OpenGlobal()
+	if err != nil {
+		slog.Warn("failed to open global database for cost tracking", "error", err)
+	}
+
 	return &Executor{
 		config:              cfg,
 		orcConfig:           orcCfg,
@@ -350,6 +366,7 @@ func New(cfg *Config) *Executor {
 		useSessionExecution: orcCfg.Execution.UseSessionExecution,
 		resourceTracker:     resourceTracker,
 		haikuClient:         haikuClient,
+		globalDB:            globalDB,
 	}
 }
 

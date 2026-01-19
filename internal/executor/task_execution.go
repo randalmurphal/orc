@@ -12,6 +12,7 @@ import (
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/orc/internal/automation"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/plan"
@@ -261,6 +262,14 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		// This ensures standard/trivial executors persist their accumulated usage to state.
 		// Full executor updates state during iteration, so this is a no-op for those values.
 		s.AddCost(result.CostUSD)
+
+		// Record cost to global database for cross-project analytics
+		e.recordCostToGlobal(t, phase.ID, result, CostMetadata{
+			Model:       db.DetectModel(result.Model),
+			Iteration:   result.Iterations,
+			Duration:    result.Duration,
+			ProjectPath: e.config.WorkDir,
+		})
 
 		// Clear retry context on successful completion
 		if s.HasRetryContext() {

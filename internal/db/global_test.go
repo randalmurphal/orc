@@ -83,6 +83,42 @@ func TestMigration002_AppliesCleanly(t *testing.T) {
 	}
 }
 
+func TestMigration003_AddsDurationMs(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "global.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Migrate global schema (001, 002, 003)
+	if err := db.Migrate("global"); err != nil {
+		t.Fatalf("Migrate global failed: %v", err)
+	}
+
+	// Verify duration_ms column exists in cost_log
+	var colCount int
+	err = db.QueryRow(`
+		SELECT COUNT(*) FROM pragma_table_info('cost_log')
+		WHERE name = 'duration_ms'
+	`).Scan(&colCount)
+	if err != nil {
+		t.Fatalf("check column: %v", err)
+	}
+	if colCount != 1 {
+		t.Errorf("duration_ms column count = %d, want 1", colCount)
+	}
+
+	// Verify index exists
+	var name string
+	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_cost_duration'").Scan(&name)
+	if err != nil {
+		t.Errorf("index idx_cost_duration not created: %v", err)
+	}
+}
+
 func TestMigration002_Idempotent(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
@@ -175,6 +211,7 @@ func TestRecordCostExtended_AllFields(t *testing.T) {
 		CacheReadTokens:     300,
 		TotalTokens:         3800,
 		InitiativeID:        "INIT-001",
+		DurationMs:          45678, // 45.678 seconds
 	}
 
 	if err := gdb.RecordCostExtended(entry); err != nil {
@@ -183,15 +220,16 @@ func TestRecordCostExtended_AllFields(t *testing.T) {
 
 	// Verify all fields were stored
 	var (
-		model, phase, initID                     string
-		iteration, cacheCreate, cacheRead, total int
-		cost                                     float64
+		model, phase, initID                            string
+		iteration, cacheCreate, cacheRead, total        int
+		durationMs                                      int64
+		cost                                            float64
 	)
 	err = db.QueryRow(`
 		SELECT model, phase, iteration, cost_usd, cache_creation_tokens,
-			   cache_read_tokens, total_tokens, initiative_id
+			   cache_read_tokens, total_tokens, initiative_id, duration_ms
 		FROM cost_log WHERE task_id = ?
-	`, "TASK-001").Scan(&model, &phase, &iteration, &cost, &cacheCreate, &cacheRead, &total, &initID)
+	`, "TASK-001").Scan(&model, &phase, &iteration, &cost, &cacheCreate, &cacheRead, &total, &initID, &durationMs)
 	if err != nil {
 		t.Fatalf("Query failed: %v", err)
 	}
@@ -216,6 +254,9 @@ func TestRecordCostExtended_AllFields(t *testing.T) {
 	}
 	if initID != "INIT-001" {
 		t.Errorf("initiative_id = %q, want INIT-001", initID)
+	}
+	if durationMs != 45678 {
+		t.Errorf("duration_ms = %d, want 45678", durationMs)
 	}
 }
 
