@@ -183,7 +183,6 @@ export function AppShellProvider({ children }: AppShellProviderProps) {
 			window.removeEventListener('resize', handleResize);
 			if (rafId !== null) cancelAnimationFrame(rafId);
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally empty: ref pattern allows reading state without re-registering listener
 	}, []);
 
 	// Focus management when panel opens/closes
