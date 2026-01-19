@@ -292,3 +292,87 @@ import { TaskCard } from '@/components/board';
 - Keyboard navigation: Enter/Space triggers onClick
 - Focus visible outline for keyboard users
 - Minimum 44px touch target
+
+## RunningCard
+
+Expanded card component for actively executing tasks. Displays rich execution context including pipeline visualization, elapsed time, and live output.
+
+```tsx
+import { RunningCard } from '@/components/board';
+
+// Basic usage
+<RunningCard
+  task={task}
+  state={taskState}
+/>
+
+// With expand/collapse control
+<RunningCard
+  task={task}
+  state={taskState}
+  expanded={isExpanded}
+  onToggleExpand={() => setIsExpanded(!isExpanded)}
+  outputLines={transcriptLines}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `task` | `Task` | required | Task data object |
+| `state` | `TaskState` | required | Current execution state |
+| `expanded` | `boolean` | `false` | Whether output section is visible |
+| `onToggleExpand` | `() => void` | - | Toggle expand callback |
+| `outputLines` | `string[]` | `[]` | Raw output lines from transcript |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Visual Elements:**
+- Task ID badge (monospace, `--primary-bright`)
+- Title (2-line clamp with ellipsis)
+- Initiative badge (when `task.initiative_id` set)
+- Current phase name (uppercase, `--primary-bright`)
+- Elapsed timer (MM:SS or H:MM:SS format, updates every second)
+- Pipeline component showing phase progress
+- Collapsible output section (max 50 lines)
+
+**Output Line Types:**
+| Pattern | Type | Color |
+|---------|------|-------|
+| Starts with `✓` or contains "success" | `success` | `--green` |
+| Starts with `✗` or contains "error"/"fail" | `error` | `--red` |
+| Starts with `→`/`◐` or contains "info" | `info` | `--primary-bright` |
+| Default | `default` | `--text-secondary` |
+
+**Phase Mapping:**
+Internal phases map to display names for the Pipeline:
+- `spec`, `design`, `research` → "Plan"
+- `implement` → "Code"
+- `test` → "Test"
+- `review` → "Review"
+- `docs`, `validate` → "Done"
+
+**States:**
+- Default: Gradient background (`--bg-card` to `--primary-dim`), glow shadow
+- Hover: Enhanced glow, brighter border
+- Expanded: Output section visible with scroll (100px max-height)
+- Focus: Primary border with double glow ring
+
+**Exported Utilities:**
+```tsx
+import { parseOutputLine, formatElapsedTime, mapPhaseToDisplay } from '@/components/board/RunningCard';
+
+// Parse line for color coding
+const { type, content } = parseOutputLine('✓ Tests passed');  // type: 'success'
+
+// Format elapsed time
+formatElapsedTime('2025-01-18T10:30:00Z');  // "5:23" or "1:05:23"
+
+// Map internal phase to display name
+mapPhaseToDisplay('implement');  // "Code"
+```
+
+**Accessibility:**
+- `role="button"` with descriptive `aria-label` including task ID, title, phase, initiative
+- `aria-expanded` reflects current state
+- Keyboard navigation: Enter/Space toggles expand
+- Focus visible outline with primary glow
+- Expand toggle icon is `aria-hidden`

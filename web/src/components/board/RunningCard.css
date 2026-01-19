@@ -1,0 +1,247 @@
+/* =============================================================================
+   RunningCard Component Styles
+   Expanded card for actively executing tasks
+   Matches mockup: example_ui/board.html
+   ============================================================================= */
+
+/* =============================================================================
+   Base Card
+   Gradient background with primary accent glow
+   ============================================================================= */
+
+.running-card {
+	background: linear-gradient(135deg, var(--bg-card), var(--primary-dim));
+	border: 1px solid rgba(168, 85, 247, 0.15);
+	border-radius: 10px;
+	padding: 16px;
+	margin-bottom: 10px;
+	cursor: pointer;
+	position: relative;
+	box-shadow: 0 0 20px var(--primary-glow);
+	transition:
+		background-color var(--duration-normal) ease,
+		border-color var(--duration-normal) ease,
+		box-shadow var(--duration-normal) ease;
+}
+
+.running-card:last-child {
+	margin-bottom: 0;
+}
+
+.running-card:hover {
+	border-color: rgba(168, 85, 247, 0.25);
+	box-shadow: 0 0 30px var(--primary-glow);
+}
+
+.running-card:focus-visible {
+	outline: none;
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px var(--primary-glow), 0 0 20px var(--primary-glow);
+}
+
+/* =============================================================================
+   Header
+   Task info left, stats right
+   ============================================================================= */
+
+.running-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	margin-bottom: 10px;
+	gap: 12px;
+}
+
+.running-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.running-id {
+	font-family: var(--font-mono);
+	font-size: 10px;
+	font-weight: 500;
+	color: var(--primary-bright);
+	margin-bottom: 3px;
+	letter-spacing: 0.02em;
+}
+
+.running-title {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--text-primary);
+	line-height: 1.35;
+	margin-bottom: 6px;
+	/* 2-line max with ellipsis */
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* =============================================================================
+   Initiative Badge
+   ============================================================================= */
+
+.running-initiative {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 7px;
+	background: rgba(0, 0, 0, 0.2);
+	border-radius: 4px;
+	font-size: 9px;
+	color: var(--text-secondary);
+}
+
+.running-initiative-dot {
+	width: 5px;
+	height: 5px;
+	border-radius: 2px;
+	background: var(--primary);
+	flex-shrink: 0;
+}
+
+/* =============================================================================
+   Stats (right side)
+   Phase name and elapsed time
+   ============================================================================= */
+
+.running-stats {
+	text-align: right;
+	flex-shrink: 0;
+}
+
+.running-phase {
+	font-size: 9px;
+	font-weight: 600;
+	color: var(--primary-bright);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	margin-bottom: 2px;
+}
+
+.running-time {
+	font-family: var(--font-mono);
+	font-size: 18px;
+	font-weight: 600;
+	color: var(--text-primary);
+}
+
+/* =============================================================================
+   Pipeline Wrapper
+   ============================================================================= */
+
+.running-pipeline {
+	/* Let Pipeline component handle its own styling */
+}
+
+/* =============================================================================
+   Output Section (Collapsible)
+   ============================================================================= */
+
+.running-output {
+	margin-top: 12px;
+	padding: 10px;
+	background: rgba(0, 0, 0, 0.25);
+	border-radius: 6px;
+	font-family: var(--font-mono);
+	font-size: 10px;
+	line-height: 1.5;
+	max-height: 0;
+	overflow: hidden;
+	opacity: 0;
+	transition:
+		max-height var(--duration-slow) ease,
+		opacity var(--duration-normal) ease,
+		padding var(--duration-slow) ease,
+		margin var(--duration-slow) ease;
+	padding: 0 10px;
+	margin-top: 0;
+}
+
+.running-output.expanded {
+	max-height: 100px;
+	overflow-y: auto;
+	opacity: 1;
+	padding: 10px;
+	margin-top: 12px;
+}
+
+/* Scrollbar styling for output */
+.running-output::-webkit-scrollbar {
+	width: 4px;
+}
+
+.running-output::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 2px;
+}
+
+.running-output::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+/* =============================================================================
+   Output Lines
+   Color-coded by type
+   ============================================================================= */
+
+.output-line {
+	display: block;
+	color: var(--text-secondary);
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.output-line.success {
+	color: var(--green);
+}
+
+.output-line.error {
+	color: var(--red);
+}
+
+.output-line.info {
+	color: var(--primary-bright);
+}
+
+.output-line.output-empty {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+/* =============================================================================
+   Expand Toggle Button
+   ============================================================================= */
+
+.running-expand-toggle {
+	position: absolute;
+	bottom: 6px;
+	left: 50%;
+	transform: translateX(-50%);
+	color: var(--text-muted);
+	opacity: 0.5;
+	transition: opacity var(--duration-normal) ease;
+	pointer-events: none;
+}
+
+.running-card:hover .running-expand-toggle {
+	opacity: 0.8;
+}
+
+.running-card.expanded .running-expand-toggle {
+	opacity: 0.6;
+}
+
+/* =============================================================================
+   Expanded State
+   Show output section
+   ============================================================================= */
+
+.running-card.expanded {
+	/* Additional styling for expanded state if needed */
+}
