@@ -1,0 +1,101 @@
+/* QueueColumn component styles - Swimlane-based queue column */
+
+.queue-column {
+	/* Flexible width with minimum */
+	flex: 1;
+	min-width: 280px;
+	display: flex;
+	flex-direction: column;
+	/* Transparent background - inherits page background */
+	background: transparent;
+	/* Right border separator */
+	border-right: 1px solid var(--border);
+}
+
+/* Column Header */
+.queue-column-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
+}
+
+.queue-column-title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-size: var(--text-sm);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+}
+
+/* Indicator dot before title */
+.queue-column-indicator {
+	width: 8px;
+	height: 8px;
+	border-radius: var(--radius-full);
+	background: var(--text-muted);
+}
+
+/* Task count badge */
+.queue-column-count {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	height: 24px;
+	padding: 0 var(--space-1-5);
+	font-size: var(--text-xs);
+	font-weight: var(--font-semibold);
+	color: var(--text-secondary);
+	background: var(--bg-surface);
+	border-radius: var(--radius-full);
+}
+
+/* Column Body - scrollable content area */
+.queue-column-body {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	padding: 12px;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+/* Custom thin scrollbar */
+.queue-column-body::-webkit-scrollbar {
+	width: 5px;
+}
+
+.queue-column-body::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.queue-column-body::-webkit-scrollbar-thumb {
+	background: var(--border);
+	border-radius: var(--radius-full);
+}
+
+.queue-column-body::-webkit-scrollbar-thumb:hover {
+	background: var(--border-hover);
+}
+
+/* Firefox scrollbar */
+.queue-column-body {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border) transparent;
+}
+
+/* Empty state */
+.queue-column-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	min-height: 120px;
+	color: var(--text-muted);
+	font-size: var(--text-sm);
+	font-style: italic;
+}
