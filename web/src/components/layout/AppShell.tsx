@@ -78,15 +78,7 @@ function AppShellInner({
 		isMobileNavMode,
 	} = useAppShell();
 
-	// Build class names
-	const shellClasses = [
-		'app-shell',
-		isRightPanelOpen && 'app-shell--panel-open',
-		mobileNavOpen && 'app-shell--mobile-nav-open',
-		className,
-	]
-		.filter(Boolean)
-		.join(' ');
+	const shellClasses = ['app-shell', isRightPanelOpen && 'app-shell--panel-open', mobileNavOpen && 'app-shell--mobile-nav-open', className].filter(Boolean).join(' ');
 
 	// Determine panel content (custom or default)
 	const panelContent = rightPanelContent ?? defaultPanelContent;

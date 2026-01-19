@@ -96,16 +96,17 @@
 	width: 300px;
 	min-width: 300px;
 	overflow: hidden;
+	/* Use transform for GPU-accelerated animation (avoids layout thrashing) */
+	transform: translateX(0);
+	opacity: 1;
 	transition:
-		width 0.2s ease,
-		min-width 0.2s ease,
+		transform 0.2s ease,
 		opacity 0.2s ease;
 }
 
-/* Collapsed state */
+/* Collapsed state - slide out with transform instead of width change */
 .app-shell:not(.app-shell--panel-open) .app-shell__panel {
-	width: 0;
-	min-width: 0;
+	transform: translateX(100%);
 	opacity: 0;
 	pointer-events: none;
 }
