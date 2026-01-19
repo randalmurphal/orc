@@ -153,31 +153,6 @@ export function Board({
 		return grouped;
 	}, [tasks, initiatives]);
 
-	// Get tasks by column within an initiative
-	const getTasksByColumnForInitiative = useCallback(
-		(initiativeTasks: Task[]) => {
-			const grouped: Record<string, Task[]> = {};
-			for (const column of BOARD_COLUMNS) {
-				grouped[column.id] = [];
-			}
-
-			for (const task of initiativeTasks) {
-				const columnId = getTaskColumn(task);
-				if (grouped[columnId]) {
-					grouped[columnId].push(task);
-				}
-			}
-
-			// Sort each column
-			for (const columnId of Object.keys(grouped)) {
-				grouped[columnId] = sortTasks(grouped[columnId]);
-			}
-
-			return grouped;
-		},
-		[]
-	);
-
 	// Toggle backlog visibility
 	const handleToggleBacklog = useCallback(() => {
 		setShowBacklog((prev) => {
@@ -258,10 +233,8 @@ export function Board({
 									key={initiative.id}
 									initiative={initiative}
 									tasks={initTasks}
-									columns={BOARD_COLUMNS}
-									tasksByColumn={getTasksByColumnForInitiative(initTasks)}
-									collapsed={collapsedSwimlanes.has(initiative.id)}
-									onToggleCollapse={() => toggleSwimlane(initiative.id)}
+									isCollapsed={collapsedSwimlanes.has(initiative.id)}
+									onToggle={() => toggleSwimlane(initiative.id)}
 									onTaskClick={onTaskClick}
 									onContextMenu={onContextMenu}
 								/>
@@ -273,12 +246,8 @@ export function Board({
 							<Swimlane
 								initiative={null}
 								tasks={tasksByInitiative['unassigned']}
-								columns={BOARD_COLUMNS}
-								tasksByColumn={getTasksByColumnForInitiative(
-									tasksByInitiative['unassigned']
-								)}
-								collapsed={collapsedSwimlanes.has('unassigned')}
-								onToggleCollapse={() => toggleSwimlane('unassigned')}
+								isCollapsed={collapsedSwimlanes.has('unassigned')}
+								onToggle={() => toggleSwimlane('unassigned')}
 								onTaskClick={onTaskClick}
 								onContextMenu={onContextMenu}
 							/>
