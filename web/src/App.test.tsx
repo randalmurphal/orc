@@ -96,12 +96,12 @@ describe('App', () => {
 		});
 	});
 
-	it('renders TaskList page at root route', async () => {
+	it('redirects root route to /board', async () => {
 		renderApp('/');
 		await waitFor(() => {
-			// TaskList shows status filter tabs - check for the status-tab class
-			const allTab = document.querySelector('.status-tab');
-			expect(allTab).toBeInTheDocument();
+			// Root route redirects to /board which renders the board-page
+			const boardPage = document.querySelector('.board-page');
+			expect(boardPage).toBeInTheDocument();
 		});
 	});
 
@@ -115,10 +115,10 @@ describe('App', () => {
 		});
 	});
 
-	it('renders Dashboard page at /dashboard route', async () => {
+	it('redirects /dashboard to /stats and shows Quick Stats', async () => {
 		renderApp('/dashboard');
 		await waitFor(() => {
-			// Dashboard renders Quick Stats section
+			// Dashboard (now at /stats) renders Quick Stats section
 			expect(screen.getByText('Quick Stats')).toBeInTheDocument();
 		});
 	});
