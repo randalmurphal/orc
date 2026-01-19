@@ -1,0 +1,248 @@
+/* =============================================================================
+   AppShell Styles
+   Main application shell with CSS Grid layout from board.html mockup
+   ============================================================================= */
+
+/* =============================================================================
+   Main Grid Layout
+   Grid structure:
+   - Column 1: IconNav (56px)
+   - Column 2: Main content (1fr)
+   - Column 3: RightPanel (300px, optional)
+   Row structure:
+   - Row 1: TopBar (48px)
+   - Row 2: Content (1fr)
+   ============================================================================= */
+
+.app-shell {
+	display: grid;
+	grid-template-columns: 56px 1fr;
+	grid-template-rows: 48px 1fr;
+	height: 100vh;
+	overflow: hidden;
+	background: var(--bg-base);
+}
+
+/* With right panel open */
+.app-shell--panel-open {
+	grid-template-columns: 56px 1fr 300px;
+}
+
+/* =============================================================================
+   IconNav Placement
+   Spans both rows (full height)
+   ============================================================================= */
+
+.app-shell__nav {
+	grid-column: 1;
+	grid-row: 1 / 3;
+}
+
+/* =============================================================================
+   TopBar Placement
+   Spans from column 2 to end (includes right panel column when present)
+   ============================================================================= */
+
+.app-shell__topbar {
+	grid-column: 2 / -1;
+	grid-row: 1;
+}
+
+/* =============================================================================
+   Main Content Area
+   Scrollable independently, no shell scroll
+   ============================================================================= */
+
+.app-shell__main {
+	grid-column: 2;
+	grid-row: 2;
+	overflow-y: auto;
+	overflow-x: hidden;
+	background: var(--bg-base);
+}
+
+/* Custom scrollbar for main content */
+.app-shell__main::-webkit-scrollbar {
+	width: 5px;
+}
+
+.app-shell__main::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.app-shell__main::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 3px;
+}
+
+.app-shell__main::-webkit-scrollbar-thumb:hover {
+	background: var(--text-muted);
+}
+
+/* Firefox scrollbar */
+.app-shell__main {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-light) transparent;
+}
+
+/* =============================================================================
+   Right Panel Placement
+   Spans both rows, collapsible with animation
+   ============================================================================= */
+
+.app-shell__panel {
+	grid-column: 3;
+	grid-row: 1 / 3;
+	width: 300px;
+	min-width: 300px;
+	overflow: hidden;
+	/* Use transform for GPU-accelerated animation (avoids layout thrashing) */
+	transform: translateX(0);
+	opacity: 1;
+	transition:
+		transform 0.2s ease,
+		opacity 0.2s ease;
+}
+
+/* Collapsed state - slide out with transform instead of width change */
+.app-shell:not(.app-shell--panel-open) .app-shell__panel {
+	transform: translateX(100%);
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* =============================================================================
+   Skip Link (Accessibility)
+   ============================================================================= */
+
+.app-shell__skip-link {
+	position: absolute;
+	top: -100px;
+	left: 0;
+	background: var(--primary);
+	color: white;
+	padding: 8px 16px;
+	font-size: 14px;
+	font-weight: 500;
+	text-decoration: none;
+	z-index: 9999;
+	border-radius: 0 0 4px 0;
+	transition: top 0.2s ease;
+}
+
+.app-shell__skip-link:focus {
+	top: 0;
+	outline: 2px solid var(--primary-bright);
+	outline-offset: 2px;
+}
+
+/* =============================================================================
+   Responsive: Tablet (<1024px)
+   Right panel hidden by default
+   ============================================================================= */
+
+@media (max-width: 1023px) {
+	.app-shell {
+		/* Always 2-column layout on tablet, panel overlays */
+		grid-template-columns: 56px 1fr;
+	}
+
+	.app-shell--panel-open {
+		/* Panel doesn't affect grid at tablet size */
+		grid-template-columns: 56px 1fr;
+	}
+
+	.app-shell__panel {
+		/* Panel becomes overlay on tablet */
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		z-index: var(--z-sidebar, 300);
+		box-shadow: var(--shadow-xl);
+	}
+
+	/* Panel slides in from right */
+	.app-shell:not(.app-shell--panel-open) .app-shell__panel {
+		transform: translateX(100%);
+	}
+
+	.app-shell--panel-open .app-shell__panel {
+		transform: translateX(0);
+	}
+}
+
+/* =============================================================================
+   Responsive: Mobile (<768px)
+   IconNav becomes hamburger menu (overlay mode)
+   ============================================================================= */
+
+@media (max-width: 767px) {
+	.app-shell {
+		/* Single column on mobile */
+		grid-template-columns: 1fr;
+		grid-template-rows: 48px 1fr;
+	}
+
+	.app-shell--panel-open {
+		grid-template-columns: 1fr;
+	}
+
+	/* IconNav becomes overlay hamburger menu */
+	.app-shell__nav {
+		position: fixed;
+		top: 0;
+		left: 0;
+		bottom: 0;
+		z-index: var(--z-sidebar, 300);
+		transform: translateX(-100%);
+		transition: transform 0.2s ease;
+		box-shadow: var(--shadow-xl);
+	}
+
+	.app-shell--mobile-nav-open .app-shell__nav {
+		transform: translateX(0);
+	}
+
+	/* TopBar spans full width */
+	.app-shell__topbar {
+		grid-column: 1;
+	}
+
+	/* Main content spans full width */
+	.app-shell__main {
+		grid-column: 1;
+	}
+
+	/* Backdrop for mobile overlays */
+	.app-shell__backdrop {
+		display: none;
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.5);
+		z-index: calc(var(--z-sidebar, 300) - 1);
+	}
+
+	.app-shell--mobile-nav-open .app-shell__backdrop,
+	.app-shell--panel-open .app-shell__backdrop {
+		display: block;
+	}
+}
+
+/* =============================================================================
+   Responsive: Extra Small (<480px)
+   Full mobile layout
+   ============================================================================= */
+
+@media (max-width: 479px) {
+	.app-shell {
+		/* Ensure full mobile layout */
+		grid-template-columns: 1fr;
+	}
+
+	/* Panel takes full width on extra small screens */
+	.app-shell__panel {
+		width: 100%;
+		min-width: 100%;
+	}
+}
