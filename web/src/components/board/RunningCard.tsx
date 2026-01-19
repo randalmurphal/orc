@@ -22,6 +22,8 @@ export interface RunningCardProps {
 	expanded?: boolean;
 	/** Callback when card is clicked to toggle expand */
 	onToggleExpand?: () => void;
+	/** Output lines to display (passed from parent, typically via WebSocket) */
+	outputLines?: string[];
 	/** Additional CSS class names */
 	className?: string;
 }
@@ -134,6 +136,7 @@ export function RunningCard({
 	state,
 	expanded = false,
 	onToggleExpand,
+	outputLines: rawOutputLines = [],
 	className = '',
 }: RunningCardProps) {
 	// Elapsed time with live updates
@@ -166,12 +169,10 @@ export function RunningCard({
 	// Completed phases for pipeline
 	const completedPhases = useMemo(() => getCompletedPhases(state), [state]);
 
-	// Parse output lines from state (mock for now - actual output comes from parent)
-	const outputLines = useMemo(() => {
-		// Output would typically be passed in or come from WebSocket subscription
-		// For now, return empty array - parent component handles output streaming
-		return [] as OutputLine[];
-	}, []);
+	// Parse raw output lines into typed output lines with color coding
+	const parsedOutputLines = useMemo(() => {
+		return rawOutputLines.map(parseOutputLine);
+	}, [rawOutputLines]);
 
 	// Click handler
 	const handleClick = useCallback(() => {
@@ -232,8 +233,8 @@ export function RunningCard({
 
 			{/* Output section (collapsible) */}
 			<div className={`running-output ${expanded ? 'expanded' : ''}`}>
-				{outputLines.length > 0 ? (
-					outputLines.slice(-50).map((line, index) => (
+				{parsedOutputLines.length > 0 ? (
+					parsedOutputLines.slice(-50).map((line, index) => (
 						<span key={index} className={`output-line ${line.type}`}>
 							{line.content}
 						</span>
