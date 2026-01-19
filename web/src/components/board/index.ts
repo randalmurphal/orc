@@ -9,3 +9,4 @@ export { TaskCard } from './TaskCard';
 export { QueueColumn, type QueueColumnProps } from './QueueColumn';
 export { ViewModeDropdown } from './ViewModeDropdown';
 export { InitiativeDropdown } from './InitiativeDropdown';
+export { ConfigPanel, type ConfigPanelProps, type ConfigStats } from './ConfigPanel';
