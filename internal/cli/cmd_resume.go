@@ -130,13 +130,20 @@ Use --force to resume a task even if it appears to still be running.`,
 			disp := progress.New(id, quiet)
 			disp.Info(fmt.Sprintf("Resuming task %s", id))
 
-			// Show session ID if available (useful for manual Claude resume)
-			if sessionID := s.GetSessionID(); sessionID != "" {
-				disp.Info(fmt.Sprintf("Session ID: %s (use 'claude --resume %s' for direct Claude access)", sessionID, sessionID))
-			}
-
 			exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
 			exec.SetBackend(backend)
+
+			// Check for session ID and pass to executor for --resume flag
+			if sessionID := s.GetSessionID(); sessionID != "" {
+				// Check if session is from this machine
+				currentHost, _ := os.Hostname()
+				if s.Execution != nil && s.Execution.Hostname != "" && s.Execution.Hostname != currentHost {
+					disp.Warning(fmt.Sprintf("Task ran on different machine (%s), starting fresh session", s.Execution.Hostname))
+				} else {
+					disp.Info(fmt.Sprintf("Resuming Claude session: %s", sessionID))
+					exec.SetResumeSessionID(sessionID)
+				}
+			}
 
 			// Set up streaming publisher if verbose or --stream flag is set
 			stream, _ := cmd.Flags().GetBool("stream")
