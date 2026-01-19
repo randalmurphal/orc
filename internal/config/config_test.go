@@ -1124,7 +1124,93 @@ func TestFindProjectRoot_FallbackToOrcDir(t *testing.T) {
 	}
 	defer func() { _ = os.Chdir(origWd) }()
 
-	// Create temp project with .orc but no tasks dir (freshly initialized)
+	// Create temp project with .orc and database (simulates freshly initialized project)
+	// Note: After orc init, there's always a database file, so just having .orc/ is not enough
+	// to be recognized as a project. This prevents worktrees with tracked .orc/ files from
+	// being mistakenly identified as projects.
+	tmpDir := t.TempDir()
+	orcDir := filepath.Join(tmpDir, OrcDir)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create a database file to simulate a real initialized project
+	// (orc init always creates the database)
+	dbPath := filepath.Join(orcDir, "orc.db")
+	if err := os.WriteFile(dbPath, []byte("sqlite"), 0644); err != nil {
+		t.Fatalf("failed to create db file: %v", err)
+	}
+
+	// Change to temp dir
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	// FindProjectRoot should fallback to current dir (has .orc with database)
+	root, err := FindProjectRoot()
+	if err != nil {
+		t.Fatalf("FindProjectRoot() failed: %v", err)
+	}
+	if root != tmpDir {
+		t.Errorf("FindProjectRoot() = %s, want %s", root, tmpDir)
+	}
+}
+
+func TestFindProjectRoot_WorktreePath(t *testing.T) {
+	// Save current dir
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origWd) }()
+
+	// Create a structure that simulates a worktree:
+	// tmpDir/.orc/orc.db (main project database)
+	// tmpDir/.orc/worktrees/task-xxx/.orc/ (worktree with tracked files)
+	tmpDir := t.TempDir()
+	mainOrcDir := filepath.Join(tmpDir, OrcDir)
+	if err := os.MkdirAll(mainOrcDir, 0755); err != nil {
+		t.Fatalf("failed to create main .orc dir: %v", err)
+	}
+
+	// Create database in main project
+	dbPath := filepath.Join(mainOrcDir, "orc.db")
+	if err := os.WriteFile(dbPath, []byte("sqlite"), 0644); err != nil {
+		t.Fatalf("failed to create db file: %v", err)
+	}
+
+	// Create worktree path with .orc/ (simulating tracked files from git checkout)
+	worktreeDir := filepath.Join(tmpDir, OrcDir, "worktrees", "task-xxx")
+	worktreeOrcDir := filepath.Join(worktreeDir, OrcDir)
+	if err := os.MkdirAll(worktreeOrcDir, 0755); err != nil {
+		t.Fatalf("failed to create worktree .orc dir: %v", err)
+	}
+
+	// Change to worktree dir
+	if err := os.Chdir(worktreeDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	// FindProjectRoot should detect we're in a worktree and return main project path
+	root, err := FindProjectRoot()
+	if err != nil {
+		t.Fatalf("FindProjectRoot() failed: %v", err)
+	}
+	if root != tmpDir {
+		t.Errorf("FindProjectRoot() = %s, want %s (main project, not worktree)", root, tmpDir)
+	}
+}
+
+func TestFindProjectRoot_WorktreeOrcDirOnly(t *testing.T) {
+	// Save current dir
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origWd) }()
+
+	// Create directory with .orc but no database or tasks (like a worktree with tracked files)
+	// This should NOT be recognized as a project
 	tmpDir := t.TempDir()
 	orcDir := filepath.Join(tmpDir, OrcDir)
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
@@ -1136,13 +1222,10 @@ func TestFindProjectRoot_FallbackToOrcDir(t *testing.T) {
 		t.Fatalf("failed to chdir: %v", err)
 	}
 
-	// FindProjectRoot should fallback to current dir (has .orc)
-	root, err := FindProjectRoot()
-	if err != nil {
-		t.Fatalf("FindProjectRoot() failed: %v", err)
-	}
-	if root != tmpDir {
-		t.Errorf("FindProjectRoot() = %s, want %s", root, tmpDir)
+	// FindProjectRoot should fail because .orc/ alone is not enough
+	_, err = FindProjectRoot()
+	if err == nil {
+		t.Error("FindProjectRoot() should fail when only .orc/ exists without database or tasks")
 	}
 }
 

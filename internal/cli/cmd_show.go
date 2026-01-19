@@ -4,12 +4,17 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
+	"strings"
 	"time"
 
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // newShowCmd creates the show command
@@ -17,6 +22,7 @@ func newShowCmd() *cobra.Command {
 	var showSession bool
 	var showCost bool
 	var showFull bool
+	var showSpec bool
 	var period string
 
 	cmd := &cobra.Command{
@@ -27,12 +33,14 @@ func newShowCmd() *cobra.Command {
 Optional flags to include additional information:
   --session    Include Claude session info (session ID, model, turn count)
   --cost       Include cost breakdown (tokens, per-phase costs)
+  --spec       Show the task specification content
   --full       Include everything (session + cost)
 
 Examples:
   orc show TASK-001              # Basic task info
   orc show TASK-001 --session    # Include session info
   orc show TASK-001 --cost       # Include cost breakdown
+  orc show TASK-001 --spec       # View the spec content
   orc show TASK-001 --full       # Everything`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -62,6 +70,12 @@ Examples:
 				showCost = true
 			}
 
+			// Load spec if requested
+			var spec *storage.SpecInfo
+			if showSpec {
+				spec, _ = backend.LoadFullSpec(id)
+			}
+
 			// JSON output
 			if jsonOut {
 				result := map[string]any{
@@ -79,6 +93,19 @@ Examples:
 					result["cost"] = map[string]any{
 						"tokens": s.Tokens,
 						"cost":   s.Cost,
+					}
+				}
+				if showSpec {
+					if spec != nil {
+						result["spec"] = map[string]any{
+							"source":       spec.Source,
+							"content":      spec.Content,
+							"content_hash": spec.ContentHash,
+							"created_at":   spec.CreatedAt,
+							"updated_at":   spec.UpdatedAt,
+						}
+					} else {
+						result["spec"] = nil
 					}
 				}
 				data, _ := json.MarshalIndent(result, "", "  ")
@@ -133,12 +160,18 @@ Examples:
 				printCostInfo(s, id, period)
 			}
 
+			// Print spec info if requested
+			if showSpec {
+				printSpecInfo(spec)
+			}
+
 			return nil
 		},
 	}
 
 	cmd.Flags().BoolVar(&showSession, "session", false, "include session information")
 	cmd.Flags().BoolVar(&showCost, "cost", false, "include cost breakdown")
+	cmd.Flags().BoolVar(&showSpec, "spec", false, "show specification content")
 	cmd.Flags().BoolVar(&showFull, "full", false, "include all details (session + cost)")
 	cmd.Flags().StringVarP(&period, "period", "p", "", "cost period filter (day, week, month) - only with --cost")
 
@@ -194,4 +227,75 @@ func printCostInfo(s *state.State, id string, _ string) {
 			fmt.Printf("  %-12s $%.4f\n", phase+":", cost)
 		}
 	}
+}
+
+// printSpecInfo displays specification content for a task.
+func printSpecInfo(spec *storage.SpecInfo) {
+	fmt.Printf("\nSpecification\n")
+	fmt.Printf("─────────────────────────\n")
+
+	if spec == nil {
+		fmt.Printf("No specification found.\n")
+		fmt.Println("Specs are generated during the 'spec' phase for medium/large/greenfield tasks.")
+		return
+	}
+
+	// Show metadata
+	source := spec.Source
+	if source == "" {
+		source = "unknown"
+	}
+	fmt.Printf("Source:   %s\n", source)
+	fmt.Printf("Length:   %d bytes\n", len(spec.Content))
+	lineCount := strings.Count(spec.Content, "\n") + 1
+	if spec.Content == "" {
+		lineCount = 0
+	}
+	fmt.Printf("Lines:    %d\n", lineCount)
+	fmt.Printf("Created:  %s\n", spec.CreatedAt.Format("2006-01-02 15:04:05"))
+	if !spec.UpdatedAt.IsZero() && spec.UpdatedAt != spec.CreatedAt {
+		fmt.Printf("Updated:  %s\n", spec.UpdatedAt.Format("2006-01-02 15:04:05"))
+	}
+
+	fmt.Printf("\n")
+
+	// For long content (>50 lines), try to use a pager if we're in a terminal
+	const pagerThreshold = 50
+	if lineCount > pagerThreshold && isatty.IsTerminal(os.Stdout.Fd()) {
+		// Try to use less, fall back to direct output
+		if showWithPager(spec.Content) {
+			return
+		}
+	}
+
+	// Direct output
+	fmt.Printf("Content:\n")
+	fmt.Printf("────────────────────────────────────────────\n")
+	fmt.Print(spec.Content)
+	if !strings.HasSuffix(spec.Content, "\n") {
+		fmt.Println()
+	}
+}
+
+// showWithPager attempts to display content using the system pager (less).
+// Returns true if successful, false if pager is not available.
+func showWithPager(content string) bool {
+	// Look for less first, then more
+	pagerPath, err := exec.LookPath("less")
+	if err != nil {
+		pagerPath, err = exec.LookPath("more")
+		if err != nil {
+			return false
+		}
+	}
+
+	cmd := exec.Command(pagerPath)
+	cmd.Stdin = strings.NewReader(content)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
 }

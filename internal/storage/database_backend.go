@@ -1086,6 +1086,28 @@ func (d *DatabaseBackend) LoadSpec(taskID string) (string, error) {
 	return spec.Content, nil
 }
 
+// LoadFullSpec loads a spec with all metadata from the database.
+func (d *DatabaseBackend) LoadFullSpec(taskID string) (*SpecInfo, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	spec, err := d.db.GetSpec(taskID)
+	if err != nil {
+		return nil, err
+	}
+	if spec == nil {
+		return nil, nil
+	}
+	return &SpecInfo{
+		TaskID:      spec.TaskID,
+		Content:     spec.Content,
+		ContentHash: spec.ContentHash,
+		Source:      spec.Source,
+		CreatedAt:   spec.CreatedAt,
+		UpdatedAt:   spec.UpdatedAt,
+	}, nil
+}
+
 // SpecExists checks if a spec exists for a task.
 func (d *DatabaseBackend) SpecExists(taskID string) (bool, error) {
 	d.mu.RLock()
