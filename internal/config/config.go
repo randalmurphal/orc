@@ -1867,8 +1867,16 @@ func FindProjectRoot() (string, error) {
 		dir = parent
 	}
 
+	// Check if we're inside an orc worktree directory (e.g., /repo/.orc/worktrees/task-xxx)
+	// If so, extract the main project root from the path
+	if mainRoot := extractMainRepoFromWorktreePath(cwd); mainRoot != "" {
+		return mainRoot, nil
+	}
+
 	// Fallback: return current directory (may have .orc but no tasks yet)
-	if IsInitializedAt(cwd) {
+	// IMPORTANT: Only if this looks like a real orc project, not a worktree with
+	// tracked .orc/ files. Check for database or tasks directory, not just .orc/.
+	if isRealOrcProject(cwd) {
 		return cwd, nil
 	}
 
@@ -1880,6 +1888,53 @@ func hasTasksDir(dir string) bool {
 	tasksPath := filepath.Join(dir, OrcDir, "tasks")
 	info, err := os.Stat(tasksPath)
 	return err == nil && info.IsDir()
+}
+
+// extractMainRepoFromWorktreePath extracts the main project root from a path
+// that is inside an orc worktree directory (e.g., /repo/.orc/worktrees/task-xxx).
+// Returns empty string if the path doesn't look like a worktree path.
+func extractMainRepoFromWorktreePath(path string) string {
+	// Look for ".orc/worktrees/" in the path
+	worktreeMarker := filepath.Join(OrcDir, "worktrees")
+	idx := strings.Index(path, worktreeMarker)
+	if idx == -1 {
+		return ""
+	}
+
+	// Extract the part before ".orc/worktrees/"
+	// e.g., /repo/.orc/worktrees/task-xxx -> /repo
+	mainRoot := path[:idx]
+	if mainRoot == "" {
+		return ""
+	}
+
+	// Remove trailing slash if present
+	mainRoot = strings.TrimSuffix(mainRoot, string(filepath.Separator))
+
+	// Verify this looks like a real project (has database or tasks)
+	if hasTasksDir(mainRoot) || hasDatabase(mainRoot) {
+		return mainRoot
+	}
+
+	return ""
+}
+
+// hasDatabase checks if a directory has .orc/orc.db
+func hasDatabase(dir string) bool {
+	dbPath := filepath.Join(dir, OrcDir, "orc.db")
+	info, err := os.Stat(dbPath)
+	return err == nil && !info.IsDir()
+}
+
+// isRealOrcProject checks if a directory is a real orc project (not just
+// a worktree with tracked .orc/ files). A real project has either a database
+// or a tasks directory, not just the .orc/ directory from git checkout.
+func isRealOrcProject(dir string) bool {
+	if !IsInitializedAt(dir) {
+		return false
+	}
+	// Must have either database or tasks directory
+	return hasTasksDir(dir) || hasDatabase(dir)
 }
 
 // findMainGitRepo uses git to find the main repository when in a worktree.

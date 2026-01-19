@@ -2,6 +2,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -10,12 +12,13 @@ import (
 
 // getBackend creates a storage backend for the current project.
 // Most CLI commands that need to access task data should use this.
+// Returns an error if not in an orc project (do not fall back to "." as
+// that could create a database in the wrong location, e.g., inside a worktree).
 func getBackend() (storage.Backend, error) {
 	// Find project root (works from worktrees too)
 	projectRoot, err := config.FindProjectRoot()
 	if err != nil {
-		// If not in a project, use current directory
-		projectRoot = "."
+		return nil, fmt.Errorf("not in an orc project (run 'orc init' first): %w", err)
 	}
 
 	// Load config for storage settings
