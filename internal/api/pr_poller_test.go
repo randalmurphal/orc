@@ -219,9 +219,10 @@ func (b *emptyBackend) LoadState(string) (*state.State, error)                { 
 func (b *emptyBackend) LoadAllStates() ([]*state.State, error)                { return nil, nil }
 func (b *emptyBackend) SavePlan(*plan.Plan, string) error                     { return nil }
 func (b *emptyBackend) LoadPlan(string) (*plan.Plan, error)                   { return nil, nil }
-func (b *emptyBackend) SaveSpec(string, string, string) error                 { return nil }
-func (b *emptyBackend) LoadSpec(string) (string, error)                       { return "", nil }
-func (b *emptyBackend) SpecExists(string) (bool, error)                       { return false, nil }
+func (b *emptyBackend) SaveSpec(string, string, string) error        { return nil }
+func (b *emptyBackend) LoadSpec(string) (string, error)              { return "", nil }
+func (b *emptyBackend) LoadFullSpec(string) (*storage.SpecInfo, error) { return nil, nil }
+func (b *emptyBackend) SpecExists(string) (bool, error)              { return false, nil }
 func (b *emptyBackend) SaveInitiative(*initiative.Initiative) error           { return nil }
 func (b *emptyBackend) LoadInitiative(string) (*initiative.Initiative, error) { return nil, nil }
 func (b *emptyBackend) LoadAllInitiatives() ([]*initiative.Initiative, error) { return nil, nil }

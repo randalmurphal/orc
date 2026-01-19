@@ -192,6 +192,16 @@ type BranchListOpts struct {
 	Status BranchStatus // Filter by status (empty = all)
 }
 
+// SpecInfo represents full spec metadata for display purposes.
+type SpecInfo struct {
+	TaskID      string
+	Content     string
+	ContentHash string
+	Source      string // 'file', 'db', 'generated', 'migrated'
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 // Backend defines the storage operations for orc.
 // All implementations must be safe for concurrent access.
 type Backend interface {
@@ -215,6 +225,7 @@ type Backend interface {
 	// Spec operations
 	SaveSpec(taskID, content, source string) error
 	LoadSpec(taskID string) (string, error)
+	LoadFullSpec(taskID string) (*SpecInfo, error)
 	SpecExists(taskID string) (bool, error)
 
 	// Initiative operations
