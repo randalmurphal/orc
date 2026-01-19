@@ -1,0 +1,262 @@
+/* =============================================================================
+   BlockedPanel Component Styles
+   Orange-themed panel section for blocked tasks
+   Matches mockup: example_ui/board.html (.blocked-item class)
+   ============================================================================= */
+
+/* =============================================================================
+   Panel Section (Collapsible Container)
+   ============================================================================= */
+
+.blocked-panel {
+	border-bottom: 1px solid var(--border);
+}
+
+.blocked-panel .panel-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-3);
+	width: 100%;
+	background: none;
+	border: none;
+	cursor: pointer;
+	transition: background var(--duration-fast);
+}
+
+.blocked-panel .panel-header:hover {
+	background: var(--bg-hover);
+}
+
+.blocked-panel .panel-title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	flex: 1;
+	font-size: var(--text-sm);
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-secondary);
+}
+
+.blocked-panel .panel-title-icon {
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-sm);
+}
+
+.blocked-panel .panel-title-icon.orange {
+	background: var(--orange-dim);
+	color: var(--orange);
+}
+
+.blocked-panel .panel-badge {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 20px;
+	height: 20px;
+	padding: 0 var(--space-1-5);
+	font-size: var(--text-xs);
+	font-weight: var(--font-semibold);
+	border-radius: var(--radius-full);
+}
+
+.blocked-panel .panel-badge.orange {
+	background: var(--orange-dim);
+	color: var(--orange);
+}
+
+.blocked-panel .panel-chevron {
+	color: var(--text-muted);
+	transition: transform var(--duration-fast);
+	flex-shrink: 0;
+}
+
+/* Collapsed state */
+.blocked-panel.collapsed .panel-body {
+	display: none;
+}
+
+/* =============================================================================
+   Panel Body (Scrollable Content Area)
+   ============================================================================= */
+
+.blocked-panel .panel-body {
+	padding: 0 var(--space-3) var(--space-3);
+}
+
+/* =============================================================================
+   Blocked Item Card
+   Orange gradient background with icon, task info, and actions
+   ============================================================================= */
+
+.blocked-item {
+	background: linear-gradient(135deg, var(--bg-surface), var(--orange-dim));
+	border: 1px solid rgba(249, 115, 22, 0.15);
+	border-radius: var(--radius-lg);
+	padding: var(--space-2-5);
+	margin-bottom: var(--space-2);
+	transition:
+		border-color var(--duration-fast),
+		box-shadow var(--duration-fast);
+}
+
+.blocked-item:last-child {
+	margin-bottom: 0;
+}
+
+.blocked-item:hover {
+	border-color: rgba(249, 115, 22, 0.25);
+}
+
+/* =============================================================================
+   Blocked Item Header
+   Icon + task ID and title
+   ============================================================================= */
+
+.blocked-header {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+}
+
+.blocked-icon {
+	width: 20px;
+	height: 20px;
+	background: var(--orange-dim);
+	border-radius: var(--radius-sm);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--orange);
+	flex-shrink: 0;
+}
+
+.blocked-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.blocked-id {
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	color: var(--orange);
+	line-height: 1.2;
+}
+
+.blocked-title {
+	font-size: var(--text-base);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+	line-height: var(--leading-snug);
+	/* Truncation for long titles */
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* =============================================================================
+   Blocking Reason
+   Code-formatted task IDs, supports multiple blockers as list
+   ============================================================================= */
+
+.blocked-reason {
+	margin-top: var(--space-2);
+	padding: var(--space-1-5) var(--space-2);
+	background: rgba(0, 0, 0, 0.2);
+	border-radius: var(--radius-sm);
+	font-size: var(--text-sm);
+	color: var(--text-secondary);
+	line-height: var(--leading-normal);
+}
+
+.blocked-reason code {
+	color: var(--primary-bright);
+	background: rgba(0, 0, 0, 0.3);
+	padding: 1px 4px;
+	border-radius: 2px;
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
+}
+
+/* Multiple blockers list */
+.blocked-reason-list {
+	margin: 0;
+	padding-left: var(--space-4);
+	list-style-type: disc;
+}
+
+.blocked-reason-list li {
+	margin-bottom: var(--space-0-5);
+}
+
+.blocked-reason-list li:last-child {
+	margin-bottom: 0;
+}
+
+/* =============================================================================
+   Action Buttons
+   Skip and Force buttons, evenly distributed
+   ============================================================================= */
+
+.blocked-actions {
+	display: flex;
+	gap: var(--space-1-5);
+	margin-top: var(--space-2);
+}
+
+.blocked-actions .btn {
+	flex: 1;
+	justify-content: center;
+	padding: var(--space-1) var(--space-2);
+	font-size: var(--text-sm);
+}
+
+/* =============================================================================
+   Force Confirmation Modal
+   Warning dialog before force-running blocked task
+   ============================================================================= */
+
+.blocked-force-confirm {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+.blocked-force-message {
+	font-size: var(--text-md);
+	color: var(--text-primary);
+	margin: 0;
+}
+
+.blocked-force-message code {
+	font-family: var(--font-mono);
+	color: var(--orange);
+	background: var(--orange-dim);
+	padding: 2px 6px;
+	border-radius: var(--radius-sm);
+}
+
+.blocked-force-warning {
+	font-size: var(--text-sm);
+	color: var(--text-secondary);
+	margin: 0;
+	padding: var(--space-2-5);
+	background: var(--orange-dim);
+	border: 1px solid rgba(249, 115, 22, 0.2);
+	border-radius: var(--radius-md);
+	line-height: var(--leading-relaxed);
+}
+
+.blocked-force-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-2);
+	margin-top: var(--space-2);
+}
