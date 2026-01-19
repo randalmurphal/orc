@@ -105,33 +105,6 @@ function getInitialMobileNavMode(): boolean {
 }
 
 // =============================================================================
-// CUSTOM HOOKS
-// =============================================================================
-
-/**
- * Creates a ref that stays synchronized with a value.
- *
- * This hook encapsulates the pattern of maintaining a ref that mirrors state,
- * which is useful when callbacks or effects need to read the current value
- * without re-registering on every change.
- *
- * @param value - The value to keep in sync
- * @returns A ref object whose .current always reflects the latest value
- */
-function useSyncedRef<T>(value: T): React.RefObject<T> {
-	const ref = useRef(value);
-
-	// Keep ref in sync with value on every render
-	// Using useEffect ensures this runs after render, maintaining React's
-	// unidirectional data flow while keeping the ref current
-	useEffect(() => {
-		ref.current = value;
-	}, [value]);
-
-	return ref;
-}
-
-// =============================================================================
 // CONTEXT
 // =============================================================================
 
@@ -151,9 +124,12 @@ export function AppShellProvider({ children }: AppShellProviderProps) {
 	const initialRenderRef = useRef(true);
 	const panelToggleRef = useRef<HTMLButtonElement | null>(null);
 
-	// Use synced ref to allow resize handler to read current panel state
-	// without re-registering the event listener on every toggle
-	const isRightPanelOpenRef = useSyncedRef(isRightPanelOpen);
+	// Ref to allow resize handler to read current panel state without
+	// re-registering the event listener on every toggle
+	const isRightPanelOpenRef = useRef(isRightPanelOpen);
+	useEffect(() => {
+		isRightPanelOpenRef.current = isRightPanelOpen;
+	}, [isRightPanelOpen]);
 
 	// Toggle panel and persist state
 	const toggleRightPanel = useCallback(() => {
@@ -177,26 +153,38 @@ export function AppShellProvider({ children }: AppShellProviderProps) {
 		return () => document.removeEventListener('keydown', handleKeyDown);
 	}, [toggleRightPanel]);
 
-	// Handle responsive breakpoints
+	// Handle responsive breakpoints with RAF-throttled resize handler
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
 
+		let rafId: number | null = null;
+
 		const handleResize = () => {
-			const width = window.innerWidth;
+			// Skip if a frame is already pending (RAF throttling)
+			if (rafId !== null) return;
 
-			// Update mobile nav mode
-			setIsMobileNavMode(width < MOBILE_BREAKPOINT);
+			rafId = requestAnimationFrame(() => {
+				const width = window.innerWidth;
 
-			// Auto-collapse right panel below tablet breakpoint
-			// (uses useSyncedRef to read current state without re-registering listener)
-			if (width < TABLET_BREAKPOINT && isRightPanelOpenRef.current) {
-				setIsRightPanelOpen(false);
-			}
+				// Update mobile nav mode
+				setIsMobileNavMode(width < MOBILE_BREAKPOINT);
+
+				// Auto-collapse right panel below tablet breakpoint
+				if (width < TABLET_BREAKPOINT && isRightPanelOpenRef.current) {
+					setIsRightPanelOpen(false);
+				}
+
+				rafId = null;
+			});
 		};
 
 		window.addEventListener('resize', handleResize);
-		return () => window.removeEventListener('resize', handleResize);
-	}, []); // Empty deps - only run once
+		return () => {
+			window.removeEventListener('resize', handleResize);
+			if (rafId !== null) cancelAnimationFrame(rafId);
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally empty: ref pattern allows reading state without re-registering listener
+	}, []);
 
 	// Focus management when panel opens/closes
 	// Skip initial render: we only want to manage focus when the user actively toggles the panel,
