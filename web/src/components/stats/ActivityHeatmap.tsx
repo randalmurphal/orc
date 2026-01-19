@@ -358,7 +358,7 @@ export function ActivityHeatmap({
 					event.preventDefault();
 					break;
 				case 'Enter':
-				case ' ':
+				case ' ': {
 					// Activate the cell
 					const cell = flatCells[focusIndex];
 					if (cell && !cell.isFuture) {
@@ -366,6 +366,7 @@ export function ActivityHeatmap({
 					}
 					event.preventDefault();
 					break;
+				}
 				default:
 					return;
 			}
@@ -378,7 +379,7 @@ export function ActivityHeatmap({
 				targetCell?.focus();
 			}
 		},
-		[focusIndex, flatCells, grid.length, onDayClick]
+		[focusIndex, flatCells, onDayClick]
 	);
 
 	const handleCellFocus = useCallback((index: number) => {
