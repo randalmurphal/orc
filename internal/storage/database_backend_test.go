@@ -106,6 +106,97 @@ func TestSaveTask_Transaction(t *testing.T) {
 	}
 }
 
+// TestSaveTask_QualityMetrics verifies quality metrics are persisted and loaded correctly.
+func TestSaveTask_QualityMetrics(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create a task with quality metrics
+	testTask := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test Task with Quality",
+		Weight:    task.WeightMedium,
+		Status:    task.StatusFailed,
+		CreatedAt: time.Now(),
+	}
+
+	// Add quality metrics
+	testTask.RecordPhaseRetry("implement")
+	testTask.RecordPhaseRetry("implement")
+	testTask.RecordPhaseRetry("review")
+	testTask.RecordReviewRejection()
+	testTask.RecordManualIntervention("Fixed manually via resolve command")
+
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Load and verify
+	loaded, err := backend.LoadTask("TASK-001")
+	if err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+
+	// Verify quality metrics were persisted
+	if loaded.Quality == nil {
+		t.Fatal("Quality metrics should not be nil after load")
+	}
+
+	// Verify phase retries
+	if loaded.Quality.TotalRetries != 3 {
+		t.Errorf("expected TotalRetries=3, got %d", loaded.Quality.TotalRetries)
+	}
+	if loaded.Quality.PhaseRetries["implement"] != 2 {
+		t.Errorf("expected implement retries=2, got %d", loaded.Quality.PhaseRetries["implement"])
+	}
+	if loaded.Quality.PhaseRetries["review"] != 1 {
+		t.Errorf("expected review retries=1, got %d", loaded.Quality.PhaseRetries["review"])
+	}
+
+	// Verify review rejections
+	if loaded.Quality.ReviewRejections != 1 {
+		t.Errorf("expected ReviewRejections=1, got %d", loaded.Quality.ReviewRejections)
+	}
+
+	// Verify manual intervention
+	if !loaded.Quality.ManualIntervention {
+		t.Error("expected ManualIntervention=true")
+	}
+	if loaded.Quality.ManualInterventionReason != "Fixed manually via resolve command" {
+		t.Errorf("expected ManualInterventionReason to match, got %q", loaded.Quality.ManualInterventionReason)
+	}
+}
+
+// TestSaveTask_QualityMetrics_Empty verifies tasks without quality metrics load correctly.
+func TestSaveTask_QualityMetrics_Empty(t *testing.T) {
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create a task without quality metrics
+	testTask := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test Task without Quality",
+		Weight:    task.WeightSmall,
+		Status:    task.StatusCompleted,
+		CreatedAt: time.Now(),
+	}
+
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Load and verify
+	loaded, err := backend.LoadTask("TASK-001")
+	if err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+
+	// Quality should be nil when not set
+	if loaded.Quality != nil {
+		t.Errorf("expected Quality to be nil for task without metrics, got %+v", loaded.Quality)
+	}
+}
+
 // TestSaveState_Transaction verifies state and phases are saved atomically.
 func TestSaveState_Transaction(t *testing.T) {
 	backend, tmpDir := setupTestDB(t)

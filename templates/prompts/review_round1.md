@@ -42,7 +42,18 @@ Use the available tools to:
 
 ### Step 2: Identify Gaps and Issues
 
-Look for:
+**CRITICAL CHECKS (do these first):**
+
+- **Completeness**: Were all dependents from impact analysis updated?
+  - Check implementation artifact's "Impact Analysis Results"
+  - Verify no broken imports/references: `go build ./...` or `npm run typecheck`
+
+- **Preservation**: Was anything removed that shouldn't be?
+  - Cross-reference spec's "Preservation Requirements" table
+  - Check for large deletions: `git diff --stat`
+  - Verify preserved behaviors still work
+
+**Standard checks:**
 - **Architecture alignment**: Does the implementation match the spec's design?
 - **Edge cases**: Are all edge cases handled properly?
 - **Error handling**: Are errors handled gracefully with clear messages?
@@ -54,6 +65,7 @@ Look for:
 ### Step 3: Document Findings
 
 For each issue found, categorize by severity:
+- **critical**: Incomplete updates (missed dependents), removed preserved functionality
 - **high**: Bugs, security issues, incorrect behavior
 - **medium**: Missing edge cases, unclear code, potential issues
 - **low**: Style issues, minor improvements, suggestions
@@ -67,6 +79,18 @@ Produce a review findings document:
   <round>1</round>
   <summary>Brief overview of review findings</summary>
   <issues>
+    <issue severity="critical" type="incomplete">
+      <file>path/to/caller.go</file>
+      <line>N/A</line>
+      <description>Caller of modified function not updated</description>
+      <suggestion>Update all callers identified in impact analysis</suggestion>
+    </issue>
+    <issue severity="critical" type="preservation">
+      <file>path/to/feature.go</file>
+      <line>50</line>
+      <description>Preserved feature X was removed</description>
+      <suggestion>Restore feature per preservation requirements</suggestion>
+    </issue>
     <issue severity="high">
       <file>path/to/file.go</file>
       <line>42</line>

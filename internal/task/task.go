@@ -318,6 +318,28 @@ type TestingRequirements struct {
 	Visual bool `yaml:"visual,omitempty" json:"visual,omitempty"`
 }
 
+// QualityMetrics tracks execution quality signals for analysis.
+// These metrics help identify patterns in task failures and quality issues.
+type QualityMetrics struct {
+	// PhaseRetries counts how many times each phase was retried due to failure.
+	// Key is phase name (e.g., "implement", "review"), value is retry count.
+	PhaseRetries map[string]int `yaml:"phase_retries,omitempty" json:"phase_retries,omitempty"`
+
+	// ReviewRejections counts how many times the review phase rejected implementation.
+	// This indicates quality issues caught during review.
+	ReviewRejections int `yaml:"review_rejections,omitempty" json:"review_rejections,omitempty"`
+
+	// ManualIntervention indicates if a human had to manually fix something
+	// that the automated execution couldn't handle.
+	ManualIntervention bool `yaml:"manual_intervention,omitempty" json:"manual_intervention,omitempty"`
+
+	// ManualInterventionReason describes what required manual intervention.
+	ManualInterventionReason string `yaml:"manual_intervention_reason,omitempty" json:"manual_intervention_reason,omitempty"`
+
+	// TotalRetries is the sum of all phase retries for quick filtering.
+	TotalRetries int `yaml:"total_retries,omitempty" json:"total_retries,omitempty"`
+}
+
 // Task represents a unit of work to be orchestrated.
 type Task struct {
 	// ID is the unique identifier (e.g., TASK-001)
@@ -401,6 +423,10 @@ type Task struct {
 
 	// TestingRequirements specifies what types of testing are needed
 	TestingRequirements *TestingRequirements `yaml:"testing_requirements,omitempty" json:"testing_requirements,omitempty"`
+
+	// Quality tracks execution quality metrics for analysis.
+	// Used to identify patterns in failures and measure improvement over time.
+	Quality *QualityMetrics `yaml:"quality,omitempty" json:"quality,omitempty"`
 
 	// CreatedAt is when the task was created
 	CreatedAt time.Time `yaml:"created_at" json:"created_at"`
@@ -1006,6 +1032,67 @@ type BlockerInfo struct {
 	ID     string `json:"id"`
 	Title  string `json:"title"`
 	Status Status `json:"status"`
+}
+
+// EnsureQualityMetrics initializes the Quality field if nil.
+func (t *Task) EnsureQualityMetrics() {
+	if t.Quality == nil {
+		t.Quality = &QualityMetrics{
+			PhaseRetries: make(map[string]int),
+		}
+	}
+	if t.Quality.PhaseRetries == nil {
+		t.Quality.PhaseRetries = make(map[string]int)
+	}
+}
+
+// RecordPhaseRetry increments the retry count for a specific phase.
+func (t *Task) RecordPhaseRetry(phase string) {
+	t.EnsureQualityMetrics()
+	t.Quality.PhaseRetries[phase]++
+	t.Quality.TotalRetries++
+}
+
+// RecordReviewRejection increments the review rejection count.
+func (t *Task) RecordReviewRejection() {
+	t.EnsureQualityMetrics()
+	t.Quality.ReviewRejections++
+}
+
+// RecordManualIntervention marks that manual intervention was required.
+func (t *Task) RecordManualIntervention(reason string) {
+	t.EnsureQualityMetrics()
+	t.Quality.ManualIntervention = true
+	t.Quality.ManualInterventionReason = reason
+}
+
+// GetPhaseRetries returns the retry count for a specific phase, or 0 if not tracked.
+func (t *Task) GetPhaseRetries(phase string) int {
+	if t.Quality == nil || t.Quality.PhaseRetries == nil {
+		return 0
+	}
+	return t.Quality.PhaseRetries[phase]
+}
+
+// GetTotalRetries returns the total retry count across all phases.
+func (t *Task) GetTotalRetries() int {
+	if t.Quality == nil {
+		return 0
+	}
+	return t.Quality.TotalRetries
+}
+
+// GetReviewRejections returns the review rejection count.
+func (t *Task) GetReviewRejections() int {
+	if t.Quality == nil {
+		return 0
+	}
+	return t.Quality.ReviewRejections
+}
+
+// HadManualIntervention returns true if manual intervention was required.
+func (t *Task) HadManualIntervention() bool {
+	return t.Quality != nil && t.Quality.ManualIntervention
 }
 
 // GetIncompleteBlockers returns full information about blocking tasks that aren't completed.

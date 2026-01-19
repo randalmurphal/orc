@@ -18,19 +18,55 @@ Fast validation before test phase. Three possible outcomes.
 
 ## What to Check
 
-### 1. Obvious Bugs
+### 1. Completeness Check (CRITICAL)
+
+**Did the implementation update everything it needed to?**
+
+Review the implementation artifact's "Impact Analysis Results" section:
+- [ ] All identified dependents were updated
+- [ ] No callers/importers were missed
+- [ ] Changes propagated to all necessary files
+
+```bash
+# Verify no broken references
+go build ./... 2>&1 | grep -i "undefined\|cannot find"
+# Or for TypeScript
+npm run typecheck 2>&1 | grep -i "cannot find\|not found"
+```
+
+### 2. Preservation Check (CRITICAL)
+
+**Was anything removed that shouldn't have been?**
+
+Cross-reference spec's "Preservation Requirements" table:
+- [ ] All preserved behaviors still work
+- [ ] No features accidentally removed
+- [ ] Run preservation verification commands from spec
+
+```bash
+# Check diff for removed functionality
+git diff origin/{{TARGET_BRANCH}}...HEAD --stat
+git diff origin/{{TARGET_BRANCH}}...HEAD | grep "^-" | grep -v "^---"
+```
+
+**Red flags:**
+- Large deletions without corresponding additions
+- Removed test cases
+- Removed exports/public APIs
+
+### 3. Obvious Bugs
 - Null pointer / undefined access
 - Logic errors (wrong condition, off-by-one)
 - Infinite loops, unbounded recursion
 - Resource leaks (unclosed files, connections)
 
-### 2. Security Issues
+### 4. Security Issues
 - SQL/command injection
 - Hardcoded secrets
 - Missing input validation
 - Auth bypass
 
-### 3. Spec Compliance
+### 5. Spec Compliance
 - Are success criteria addressed?
 - Missing functionality?
 
