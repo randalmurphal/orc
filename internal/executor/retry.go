@@ -21,13 +21,18 @@ const (
 
 // DefaultRetryMap returns the default mapping of failed phases to retry phases.
 // When a phase fails, this map determines which earlier phase to retry from.
+//
+// Review has a three-tier approach:
+// 1. Small bugs: Fix in-place with Edit (no retry)
+// 2. Major implementation issues: Block → retry from implement
+// 3. Wrong approach entirely: Block with detailed context → retry from implement
 func DefaultRetryMap() map[string]string {
 	return map[string]string{
 		"test":      "implement",
 		"test_unit": "implement",
 		"test_e2e":  "implement",
 		"validate":  "implement",
-		"review":    "implement",
+		"review":    "implement", // Major issues go back to implement; small issues fixed in-place
 	}
 }
 

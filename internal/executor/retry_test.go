@@ -270,7 +270,7 @@ func TestDefaultRetryMap(t *testing.T) {
 		"test_unit": "implement",
 		"test_e2e":  "implement",
 		"validate":  "implement",
-		"review":    "implement", // Review findings need to be addressed in implement
+		"review":    "implement", // Major issues go back; small issues fixed in-place
 	}
 
 	for phase, target := range expected {
