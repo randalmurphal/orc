@@ -15,9 +15,26 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+)
+
+// Transcript section types for filtering
+type transcriptSection int
+
+const (
+	sectionUnknown transcriptSection = iota
+	sectionPrompt
+	sectionResponse
+	sectionMetadata
+)
+
+// ANSI color codes
+const (
+	ansiDim   = "\033[2m"
+	ansiReset = "\033[0m"
 )
 
 // newLogCmd creates the log command
@@ -38,6 +55,11 @@ Viewing modes:
   --list      List available transcript files without showing content
   --follow    Real-time streaming as Claude writes (like tail -f)
 
+Content filtering:
+  --response-only   Show only Claude's response (what the agent said)
+  --prompt-only     Show only the prompt (what we told Claude)
+  --no-color        Disable color output
+
 Quality tips:
   • When debugging a failed task, start with the latest transcript
   • Use --phase to find specific work (e.g., --phase test for test phase)
@@ -52,6 +74,8 @@ Examples:
   orc log TASK-001 --tail 50    # Last 50 lines only
   orc log TASK-001 --tail 0     # Full transcript (no limit)
   orc log TASK-001 --follow     # Stream new lines in real-time
+  orc log TASK-001 -r           # Show only Claude's response
+  orc log TASK-001 --prompt-only # Show only the prompt sent to Claude
 
 See also:
   orc show TASK-001 --session   # View session stats (tokens, timing)
@@ -68,6 +92,21 @@ See also:
 			all, _ := cmd.Flags().GetBool("all")
 			tail, _ := cmd.Flags().GetInt("tail")
 			follow, _ := cmd.Flags().GetBool("follow")
+			responseOnly, _ := cmd.Flags().GetBool("response-only")
+			promptOnly, _ := cmd.Flags().GetBool("prompt-only")
+			noColor, _ := cmd.Flags().GetBool("no-color")
+
+			// Validate mutually exclusive flags
+			if responseOnly && promptOnly {
+				return fmt.Errorf("--response-only and --prompt-only are mutually exclusive")
+			}
+
+			// Build display options
+			opts := displayOptions{
+				responseOnly: responseOnly,
+				promptOnly:   promptOnly,
+				useColor:     !noColor && isatty.IsTerminal(os.Stdout.Fd()),
+			}
 
 			transcriptsDir := fmt.Sprintf(".orc/tasks/%s/transcripts", id)
 			entries, err := os.ReadDir(transcriptsDir)
@@ -160,7 +199,7 @@ See also:
 					fmt.Printf("─── %s ───\n", filepath.Base(filePath))
 				}
 
-				if err := showFileContent(filePath, tail); err != nil {
+				if err := showFileContent(filePath, tail, opts); err != nil {
 					fmt.Printf("Error reading %s: %v\n", filePath, err)
 					continue
 				}
@@ -179,52 +218,135 @@ See also:
 	cmd.Flags().BoolP("all", "a", false, "show all transcripts (not just latest)")
 	cmd.Flags().IntP("tail", "n", 100, "number of lines to show (0 for all)")
 	cmd.Flags().BoolP("follow", "f", false, "stream new lines as they are written")
+	cmd.Flags().BoolP("response-only", "r", false, "show only Claude's response (what the agent said)")
+	cmd.Flags().BoolP("prompt-only", "P", false, "show only the prompt (what we told Claude)")
+	cmd.Flags().Bool("no-color", false, "disable color output")
 
 	return cmd
 }
 
+// displayOptions configures transcript display behavior
+type displayOptions struct {
+	responseOnly bool // Show only response sections
+	promptOnly   bool // Show only prompt sections
+	useColor     bool // Enable color output
+}
+
 // showFileContent displays the content of a transcript file
-func showFileContent(filePath string, tailLines int) error {
+func showFileContent(filePath string, tailLines int, opts displayOptions) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = file.Close() }()
 
-	if tailLines == 0 {
-		// Show all lines
-		scanner := bufio.NewScanner(file)
-		// Increase buffer size for long lines
-		buf := make([]byte, 0, 64*1024)
-		scanner.Buffer(buf, 1024*1024)
-		for scanner.Scan() {
-			fmt.Println(scanner.Text())
-		}
-		return scanner.Err()
-	}
-
-	// Tail mode - read last N lines
-	lines := make([]string, 0, tailLines)
+	// Read all lines first to handle section parsing
 	scanner := bufio.NewScanner(file)
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
 
+	var allLines []string
 	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-		if len(lines) > tailLines {
-			lines = lines[1:]
-		}
+		allLines = append(allLines, scanner.Text())
 	}
-
 	if err := scanner.Err(); err != nil {
 		return err
 	}
 
-	for _, line := range lines {
+	// Parse and filter sections if needed
+	linesToShow := filterTranscriptLines(allLines, opts)
+
+	// Apply tail limit
+	if tailLines > 0 && len(linesToShow) > tailLines {
+		linesToShow = linesToShow[len(linesToShow)-tailLines:]
+	}
+
+	// Output lines
+	for _, line := range linesToShow {
 		fmt.Println(line)
 	}
 
 	return nil
+}
+
+// filterTranscriptLines filters transcript lines based on display options.
+// Returns filtered lines with appropriate coloring applied.
+func filterTranscriptLines(lines []string, opts displayOptions) []string {
+	// If no filtering needed and no color, return as-is
+	if !opts.responseOnly && !opts.promptOnly && !opts.useColor {
+		return lines
+	}
+
+	var result []string
+	currentSection := sectionUnknown
+
+	for _, line := range lines {
+		// Detect section changes
+		newSection := detectSection(line)
+		if newSection != sectionUnknown {
+			currentSection = newSection
+		}
+
+		// Determine if this line should be shown
+		show := shouldShowLine(currentSection, opts)
+		if !show {
+			continue
+		}
+
+		// Apply coloring
+		outputLine := line
+		if opts.useColor && currentSection == sectionPrompt {
+			outputLine = ansiDim + line + ansiReset
+		}
+
+		result = append(result, outputLine)
+	}
+
+	return result
+}
+
+// detectSection determines the transcript section from a line.
+// Returns sectionUnknown if the line is not a section header.
+func detectSection(line string) transcriptSection {
+	trimmed := strings.TrimSpace(line)
+
+	// Check for section headers
+	if trimmed == "## Prompt" {
+		return sectionPrompt
+	}
+	if trimmed == "## Response" {
+		return sectionResponse
+	}
+	// Metadata section starts with "---" separator line
+	if trimmed == "---" {
+		return sectionMetadata
+	}
+	// Main header like "# implement - Iteration 1" is metadata
+	if strings.HasPrefix(trimmed, "# ") && strings.Contains(trimmed, "Iteration") {
+		return sectionMetadata
+	}
+
+	return sectionUnknown
+}
+
+// shouldShowLine determines if a line should be shown based on current section and options.
+func shouldShowLine(section transcriptSection, opts displayOptions) bool {
+	// No filtering - show everything
+	if !opts.responseOnly && !opts.promptOnly {
+		return true
+	}
+
+	// Response only: show response section and metadata headers
+	if opts.responseOnly {
+		return section == sectionResponse || section == sectionUnknown
+	}
+
+	// Prompt only: show prompt section and metadata headers
+	if opts.promptOnly {
+		return section == sectionPrompt || section == sectionUnknown
+	}
+
+	return true
 }
 
 // followFile streams new lines from a file using fsnotify for real-time updates.
