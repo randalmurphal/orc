@@ -293,6 +293,115 @@ import { TaskCard } from '@/components/board';
 - Focus visible outline for keyboard users
 - Minimum 44px touch target
 
+## Swimlane
+
+Collapsible task group for displaying tasks organized by initiative.
+
+```tsx
+import { Swimlane } from '@/components/board';
+
+// Initiative swimlane
+<Swimlane
+  initiative={initiative}
+  tasks={tasks}
+  isCollapsed={false}
+  onToggle={() => toggleCollapse(initiative.id)}
+  onTaskClick={(task) => navigate(`/tasks/${task.id}`)}
+  onContextMenu={(task, e) => showContextMenu(e, task)}
+/>
+
+// Unassigned tasks swimlane
+<Swimlane
+  initiative={null}
+  tasks={unassignedTasks}
+  isCollapsed={isCollapsed}
+  onToggle={() => toggleCollapse('unassigned')}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `initiative` | `Initiative \| null` | required | Initiative object, or null for unassigned |
+| `tasks` | `Task[]` | required | Tasks belonging to this swimlane |
+| `isCollapsed` | `boolean` | required | Whether swimlane content is hidden |
+| `onToggle` | `() => void` | required | Toggle collapse callback |
+| `onTaskClick` | `(task: Task) => void` | - | Task click handler |
+| `onContextMenu` | `(task: Task, e: MouseEvent) => void` | - | Right-click handler |
+
+**Visual Elements:**
+- Chevron icon (rotates on collapse)
+- Initiative icon (emoji in colored circle, or "?" for unassigned)
+- Initiative title (or "Unassigned")
+- Progress meta: "3/5 complete" (initiatives only)
+- Task count badge
+- Progress bar (colored by initiative theme)
+
+**Color Themes:** Purple, green, amber, blue, cyan (derived from initiative ID hash). Unassigned uses muted gray.
+
+**States:**
+- Expanded: Content visible with smooth height animation
+- Collapsed: Content hidden, chevron rotated -90°
+- Empty: Shows "No tasks" message
+
+**Accessibility:**
+- Header has `role="button"` with `aria-expanded`
+- Content has `aria-hidden` when collapsed
+- Keyboard: Enter/Space toggles collapse
+- `data-testid="swimlane-{id}"` for testing
+
+## QueueColumn
+
+Column component for displaying queued tasks grouped by initiative in swimlanes.
+
+```tsx
+import { QueueColumn } from '@/components/board';
+
+<QueueColumn
+  tasks={queuedTasks}
+  initiatives={initiatives}
+  collapsedSwimlanes={collapsedSet}
+  onToggleSwimlane={(id) => toggleCollapse(id)}
+  onTaskClick={(task) => navigate(`/tasks/${task.id}`)}
+  onContextMenu={(task, e) => showContextMenu(e, task)}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `tasks` | `Task[]` | required | Tasks filtered to queued status |
+| `initiatives` | `Initiative[]` | required | Initiatives for grouping and display |
+| `collapsedSwimlanes` | `Set<string>` | - | Set of collapsed swimlane IDs |
+| `onToggleSwimlane` | `(id: string) => void` | - | Collapse toggle callback |
+| `onTaskClick` | `(task: Task) => void` | - | Task click handler |
+| `onContextMenu` | `(task: Task, e: MouseEvent) => void` | - | Right-click handler |
+
+**Visual Elements:**
+- Column header with indicator dot, "Queue" title, and task count badge
+- Scrollable body with custom thin scrollbar (5px)
+- Swimlanes grouped by initiative
+- Empty state: "No queued tasks" centered
+
+**Layout:**
+- `flex: 1` with `min-width: 280px`
+- Transparent background (inherits page)
+- Right border separator
+- Header: 10px 12px padding
+- Body: 12px padding, scrollable
+
+**Swimlane Sorting:**
+1. Active initiatives first (status === 'active')
+2. Then by task count (descending)
+3. "Unassigned" swimlane always at bottom
+
+**Edge Cases:**
+- Tasks with unknown initiative_id are placed in "Unassigned"
+- Empty task list shows empty state (no swimlanes)
+- Undefined collapsedSwimlanes treats all as expanded
+
+**Accessibility:**
+- `role="region"` with `aria-label="Queue column"`
+- Count badge has `aria-label="{n} tasks"`
+
 ## RunningCard
 
 Expanded card component for actively executing tasks. Displays rich execution context including pipeline visualization, elapsed time, and live output.
