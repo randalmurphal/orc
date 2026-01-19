@@ -332,13 +332,16 @@ describe('Routes', () => {
 	});
 
 	describe('/initiatives route', () => {
-		it('renders TaskList page at /initiatives', async () => {
+		it('renders InitiativesView page at /initiatives', async () => {
 			renderWithRouter('/initiatives');
-			await waitFor(() => {
-				// TaskList shows status filter tabs
-				const allTab = document.querySelector('.status-tab');
-				expect(allTab).toBeInTheDocument();
-			});
+			await waitFor(
+				() => {
+					// InitiativesView shows the header with title and button
+					const title = screen.getByRole('heading', { level: 1, name: 'Initiatives' });
+					expect(title).toBeInTheDocument();
+				},
+				{ timeout: 3000 }
+			);
 		});
 	});
 
