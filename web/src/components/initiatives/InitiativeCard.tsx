@@ -1,0 +1,336 @@
+/**
+ * InitiativeCard component - displays individual initiative information in a card layout.
+ * Shows initiative metadata (icon, title, description, status), progress tracking,
+ * and metrics (time remaining, cost, tokens).
+ */
+
+import { forwardRef, useCallback, type HTMLAttributes, type KeyboardEvent } from 'react';
+import type { Initiative, InitiativeStatus } from '../../lib/types';
+import './InitiativeCard.css';
+
+// =============================================================================
+// Types
+// =============================================================================
+
+export interface InitiativeCardProps extends HTMLAttributes<HTMLDivElement> {
+	initiative: Initiative;
+	/** Number of completed tasks (parent computes from tasks) */
+	completedTasks?: number;
+	/** Total number of tasks (parent computes from tasks) */
+	totalTasks?: number;
+	/** Estimated time remaining (e.g., "8h remaining", "15m remaining") */
+	estimatedTimeRemaining?: string;
+	/** Cost spent in dollars */
+	costSpent?: number;
+	/** Tokens used */
+	tokensUsed?: number;
+	/** Click handler for card navigation */
+	onClick?: () => void;
+	className?: string;
+}
+
+export type InitiativeColorVariant = 'purple' | 'green' | 'amber' | 'blue';
+
+// =============================================================================
+// Utility Functions
+// =============================================================================
+
+/**
+ * Extracts the first emoji from a string, or returns default.
+ */
+export function extractEmoji(text: string | undefined): string {
+	if (!text) return '📋';
+
+	// Match emoji including compound emojis (skin tones, ZWJ sequences)
+	const emojiRegex =
+		/(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\p{Emoji_Modifier})?(?:\u200D(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\p{Emoji_Modifier})?)*/u;
+	const match = text.match(emojiRegex);
+
+	return match ? match[0] : '📋';
+}
+
+/**
+ * Maps initiative status to a color variant.
+ */
+export function getStatusColor(status: InitiativeStatus): InitiativeColorVariant {
+	switch (status) {
+		case 'active':
+			return 'green';
+		case 'completed':
+			return 'purple';
+		case 'archived':
+		case 'draft':
+			return 'amber';
+		default:
+			return 'blue';
+	}
+}
+
+/**
+ * Maps initiative index to a color variant for visual variety.
+ */
+export function getIconColor(status: InitiativeStatus): InitiativeColorVariant {
+	switch (status) {
+		case 'active':
+			return 'green';
+		case 'completed':
+			return 'purple';
+		case 'archived':
+		case 'draft':
+			return 'amber';
+		default:
+			return 'blue';
+	}
+}
+
+/**
+ * Formats a number with K/M suffix for large values.
+ */
+export function formatTokens(value: number): string {
+	if (value >= 1_000_000) {
+		const formatted = (value / 1_000_000).toFixed(1);
+		return `${formatted.replace(/\.0$/, '')}M`;
+	}
+	if (value >= 1_000) {
+		const formatted = (value / 1_000).toFixed(0);
+		return `${formatted}K`;
+	}
+	return value.toString();
+}
+
+/**
+ * Formats cost as dollar amount.
+ */
+export function formatCostDisplay(value: number): string {
+	return `$${value.toFixed(2)}`;
+}
+
+/**
+ * Checks if initiative should render with reduced opacity.
+ */
+export function isPaused(status: InitiativeStatus): boolean {
+	return status === 'archived' || status === 'draft';
+}
+
+// =============================================================================
+// Icons
+// =============================================================================
+
+function ClockIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			aria-hidden="true"
+		>
+			<circle cx="12" cy="12" r="10" />
+			<polyline points="12 6 12 12 16 14" />
+		</svg>
+	);
+}
+
+function DollarIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			aria-hidden="true"
+		>
+			<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+		</svg>
+	);
+}
+
+function LightningIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			aria-hidden="true"
+		>
+			<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+		</svg>
+	);
+}
+
+// =============================================================================
+// StatusBadge Component
+// =============================================================================
+
+interface StatusBadgeProps {
+	status: InitiativeStatus;
+}
+
+function StatusBadge({ status }: StatusBadgeProps) {
+	const colorClass = `initiative-card-status-${getStatusColor(status)}`;
+	const label = status.charAt(0).toUpperCase() + status.slice(1);
+
+	return (
+		<span
+			className={`initiative-card-status ${colorClass}`}
+			role="status"
+			aria-label={`Status: ${label}`}
+		>
+			{label}
+		</span>
+	);
+}
+
+// =============================================================================
+// InitiativeCard Component
+// =============================================================================
+
+/**
+ * InitiativeCard component displaying an initiative with progress and metrics.
+ *
+ * @example
+ * // Basic usage
+ * <InitiativeCard
+ *   initiative={initiative}
+ *   completedTasks={15}
+ *   totalTasks={20}
+ *   onClick={() => navigate(`/initiatives/${initiative.id}`)}
+ * />
+ *
+ * @example
+ * // With all metrics
+ * <InitiativeCard
+ *   initiative={initiative}
+ *   completedTasks={15}
+ *   totalTasks={20}
+ *   estimatedTimeRemaining="Est. 2h remaining"
+ *   costSpent={18.45}
+ *   tokensUsed={542000}
+ *   onClick={handleClick}
+ * />
+ */
+export const InitiativeCard = forwardRef<HTMLDivElement, InitiativeCardProps>(
+	(
+		{
+			initiative,
+			completedTasks = 0,
+			totalTasks = 0,
+			estimatedTimeRemaining,
+			costSpent,
+			tokensUsed,
+			onClick,
+			className = '',
+			...props
+		},
+		ref
+	) => {
+		const paused = isPaused(initiative.status);
+		const statusColor = getStatusColor(initiative.status);
+		const iconColor = getIconColor(initiative.status);
+		const emoji = extractEmoji(initiative.title) || extractEmoji(initiative.vision);
+
+		// Calculate progress percentage
+		const progressPercent = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+		// Build class names
+		const classes = [
+			'initiative-card',
+			paused ? 'initiative-card-paused' : '',
+			onClick ? 'initiative-card-clickable' : '',
+			className,
+		]
+			.filter(Boolean)
+			.join(' ');
+
+		// Handle keyboard interaction
+		const handleKeyDown = useCallback(
+			(event: KeyboardEvent<HTMLDivElement>) => {
+				if (onClick && (event.key === 'Enter' || event.key === ' ')) {
+					event.preventDefault();
+					onClick();
+				}
+			},
+			[onClick]
+		);
+
+		// Determine if we have any meta items to display
+		const hasMetaItems = estimatedTimeRemaining || costSpent !== undefined || tokensUsed !== undefined;
+
+		return (
+			<article
+				ref={ref}
+				className={classes}
+				onClick={onClick}
+				onKeyDown={handleKeyDown}
+				tabIndex={onClick ? 0 : undefined}
+				role={onClick ? 'button' : undefined}
+				aria-label={`Initiative: ${initiative.title}. Status: ${initiative.status}. Progress: ${completedTasks} of ${totalTasks} tasks complete.`}
+				{...props}
+			>
+				{/* Header */}
+				<div className="initiative-card-header">
+					<div className={`initiative-card-icon initiative-card-icon-${iconColor}`}>
+						{emoji}
+					</div>
+					<div className="initiative-card-info">
+						<h3 className="initiative-card-name">{initiative.title}</h3>
+						{initiative.vision && (
+							<p className="initiative-card-desc">{initiative.vision}</p>
+						)}
+					</div>
+					<StatusBadge status={initiative.status} />
+				</div>
+
+				{/* Progress Section */}
+				<div className="initiative-card-progress">
+					<div className="initiative-card-progress-header">
+						<span className="initiative-card-progress-label">Progress</span>
+						<span className="initiative-card-progress-value">
+							{completedTasks} / {totalTasks} tasks
+						</span>
+					</div>
+					<div
+						className="initiative-card-progress-bar"
+						role="progressbar"
+						aria-valuenow={progressPercent}
+						aria-valuemin={0}
+						aria-valuemax={100}
+						aria-label={`Progress: ${Math.round(progressPercent)}%`}
+					>
+						<div
+							className={`initiative-card-progress-fill initiative-card-progress-fill-${statusColor}`}
+							style={{ width: `${progressPercent}%` }}
+						/>
+					</div>
+				</div>
+
+				{/* Meta Row */}
+				{hasMetaItems && (
+					<div className="initiative-card-meta">
+						{estimatedTimeRemaining && (
+							<div className="initiative-card-meta-item">
+								<ClockIcon />
+								<span>{estimatedTimeRemaining}</span>
+							</div>
+						)}
+						{costSpent !== undefined && (
+							<div className="initiative-card-meta-item">
+								<DollarIcon />
+								<span>{formatCostDisplay(costSpent)} spent</span>
+							</div>
+						)}
+						{tokensUsed !== undefined && (
+							<div className="initiative-card-meta-item">
+								<LightningIcon />
+								<span>{formatTokens(tokensUsed)} tokens</span>
+							</div>
+						)}
+					</div>
+				)}
+			</article>
+		);
+	}
+);
+
+InitiativeCard.displayName = 'InitiativeCard';

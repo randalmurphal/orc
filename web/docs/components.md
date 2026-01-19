@@ -402,6 +402,141 @@ import { QueueColumn } from '@/components/board';
 - `role="region"` with `aria-label="Queue column"`
 - Count badge has `aria-label="{n} tasks"`
 
+## InitiativeCard
+
+Card component for displaying initiative information in a grid layout.
+
+```tsx
+import { InitiativeCard } from '@/components/initiatives';
+
+// Basic usage
+<InitiativeCard
+  initiative={initiative}
+  completedTasks={15}
+  totalTasks={20}
+  onClick={() => navigate(`/initiatives/${initiative.id}`)}
+/>
+
+// With all metrics
+<InitiativeCard
+  initiative={initiative}
+  completedTasks={15}
+  totalTasks={20}
+  estimatedTimeRemaining="Est. 2h remaining"
+  costSpent={18.45}
+  tokensUsed={542000}
+  onClick={handleClick}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `initiative` | `Initiative` | required | Initiative data object |
+| `completedTasks` | `number` | `0` | Number of completed tasks |
+| `totalTasks` | `number` | `0` | Total number of tasks |
+| `estimatedTimeRemaining` | `string` | - | Time remaining text (e.g., "8h remaining") |
+| `costSpent` | `number` | - | Cost in dollars |
+| `tokensUsed` | `number` | - | Token count |
+| `onClick` | `() => void` | - | Click handler for navigation |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Visual Elements:**
+- Icon: 40px circle with emoji from title/vision (falls back to 📋)
+- Title: 15px semibold, primary text
+- Description: 12px secondary text, 2-line clamp with ellipsis
+- Status badge: uppercase 9px with color variant
+- Progress section: label, "X / Y tasks" count, colored progress bar
+- Meta row: icons for time, cost, tokens (only shown if data provided)
+
+**Status Badge Colors:**
+| Status | Background | Text |
+|--------|------------|------|
+| `active` | `--green-dim` | `--green` |
+| `paused` | `--amber-dim` | `--amber` |
+| `completed` | `--primary-dim` | `--primary` |
+| `draft`/`archived` | `--amber-dim` | `--amber` |
+
+**Icon Background Colors:** Same mapping as status (active → green, completed → purple, etc.)
+
+**States:**
+- Default: `--bg-card` background, 1px `--border`, 12px radius, 20px padding
+- Hover: `translateY(-2px)`, border lightens to `--border-light`
+- Paused/Archived: `opacity: 0.6`
+- Focus: 2px `--primary` outline
+
+**Exported Utilities:**
+```tsx
+import {
+  extractEmoji,
+  getStatusColor,
+  getIconColor,
+  formatTokens,
+  formatCostDisplay,
+  isPaused
+} from '@/components/initiatives';
+
+extractEmoji('🚀 Launch Feature');  // '🚀'
+extractEmoji(undefined);             // '📋'
+
+getStatusColor('active');            // 'green'
+getStatusColor('completed');         // 'purple'
+
+formatTokens(542000);                // '542K'
+formatTokens(1500000);               // '1.5M'
+
+formatCostDisplay(18.45);            // '$18.45'
+
+isPaused('archived');                // true
+isPaused('active');                  // false
+```
+
+**Accessibility:**
+- `role="button"` with descriptive `aria-label` (title, status, progress)
+- Keyboard navigation: Enter/Space triggers onClick
+- Focus visible outline with primary color
+- Progress bar has `role="progressbar"` with `aria-valuenow/min/max`
+- Animations respect `prefers-reduced-motion`
+
+## StatsRow
+
+Horizontal stat card row for initiative dashboards. Displays key metrics with trends.
+
+```tsx
+import { StatsRow, defaultStats } from '@/components/initiatives';
+
+// Basic usage
+<StatsRow stats={{
+  totalTasks: 42,
+  completedTasks: 28,
+  tokensUsed: 1500000,
+  costSpent: 45.30,
+  timeRemaining: '2d 4h'
+}} />
+
+// With trends
+<StatsRow stats={{
+  ...stats,
+  taskTrend: 15,      // +15% from previous period
+  tokenTrend: -5,     // -5% from previous period
+}} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `stats` | `InitiativeStats` | required | Stats object with values and trends |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Exported Utilities:**
+```tsx
+import { formatNumber, formatCost, formatPercentage, formatTrend } from '@/components/initiatives';
+
+formatNumber(1500000);    // '1.5M'
+formatCost(45.30);        // '$45.30'
+formatPercentage(0.667);  // '66.7%'
+formatTrend(15);          // '+15%'
+formatTrend(-5);          // '-5%'
+```
+
 ## RunningCard
 
 Expanded card component for actively executing tasks. Displays rich execution context including pipeline visualization, elapsed time, and live output.
