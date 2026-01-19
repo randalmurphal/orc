@@ -485,21 +485,23 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 		}
 	}
 
-	// Import transcripts if present (with deduplication)
+	// Import transcripts if present (with deduplication by MessageUUID)
 	if len(export.Transcripts) > 0 {
 		// Get existing transcripts to deduplicate
 		existingTranscripts, _ := backend.GetTranscripts(export.Task.ID)
 		transcriptKeys := make(map[string]bool)
 		for _, t := range existingTranscripts {
-			key := fmt.Sprintf("%s:%s:%d:%s", t.TaskID, t.Phase, t.Iteration, t.Role)
-			transcriptKeys[key] = true
+			// Use MessageUUID for deduplication (unique per message in JSONL)
+			if t.MessageUUID != "" {
+				transcriptKeys[t.MessageUUID] = true
+			}
 		}
 
 		var imported, skipped int
 		for i := range export.Transcripts {
 			t := &export.Transcripts[i]
-			key := fmt.Sprintf("%s:%s:%d:%s", t.TaskID, t.Phase, t.Iteration, t.Role)
-			if transcriptKeys[key] {
+			// Skip if we already have this message
+			if t.MessageUUID != "" && transcriptKeys[t.MessageUUID] {
 				skipped++
 				continue // Skip duplicate
 			}
@@ -507,7 +509,9 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 				fmt.Fprintf(os.Stderr, "Warning: could not import transcript: %v\n", err)
 			} else {
 				imported++
-				transcriptKeys[key] = true
+				if t.MessageUUID != "" {
+					transcriptKeys[t.MessageUUID] = true
+				}
 			}
 		}
 		if skipped > 0 {

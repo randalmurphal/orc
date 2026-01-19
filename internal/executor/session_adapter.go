@@ -102,6 +102,12 @@ func (a *SessionAdapter) SessionID() string {
 	return a.session.ID()
 }
 
+// JSONLPath returns the path to Claude's session JSONL file.
+// Returns empty string if session has no persistent storage.
+func (a *SessionAdapter) JSONLPath() string {
+	return a.session.JSONLPath()
+}
+
 // Status returns the current session status.
 func (a *SessionAdapter) Status() session.SessionStatus {
 	return a.session.Status()

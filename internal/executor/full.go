@@ -134,20 +134,8 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		Status: plan.PhaseRunning,
 	}
 
-	// Initialize transcript buffer for persistence if backend is available
-	if e.backend != nil {
-		buf := NewTranscriptBuffer(ctx, TranscriptBufferConfig{
-			TaskID: t.ID,
-			DB:     e.backend,
-			Logger: e.logger,
-		})
-		e.publisher.SetBuffer(buf)
-		defer func() {
-			if err := e.publisher.CloseBuffer(); err != nil {
-				e.logger.Error("failed to close transcript buffer", "error", err)
-			}
-		}()
-	}
+	// Transcript persistence is handled via JSONL sync from Claude Code's session files
+	// (see jsonl_sync.go), not through the publisher buffer
 
 	// Generate session ID for resumability
 	sessionID := fmt.Sprintf("%s-%s", t.ID, p.ID)
@@ -183,6 +171,14 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 			e.logger.Error("failed to close adapter", "error", closeErr)
 		}
 	}()
+
+	// Update state with JSONL path for live tailing (orc log --follow)
+	if s != nil && adapter.JSONLPath() != "" {
+		s.JSONLPath = adapter.JSONLPath()
+		if e.stateUpdater != nil {
+			e.stateUpdater(s)
+		}
+	}
 
 	// Determine starting iteration (from checkpoint or 0)
 	startIteration := 0
@@ -380,9 +376,6 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		lastResponse = turnResult.Content
 
 		e.publisher.Transcript(t.ID, p.ID, iteration, "response", turnResult.Content)
-
-		// Flush any pending streaming chunks for this iteration
-		e.publisher.FlushChunks(p.ID, iteration)
 
 		// Progress validation: check if iteration is on track (if enabled)
 		if e.haikuClient != nil && e.orcConfig != nil && specContent != "" &&
@@ -620,6 +613,21 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 done:
 	result.Duration = time.Since(start)
+
+	// Sync JSONL transcripts to database
+	if jsonlPath := adapter.JSONLPath(); jsonlPath != "" && e.backend != nil {
+		syncer := NewJSONLSyncer(e.backend, e.logger)
+		if err := syncer.SyncFromFile(ctx, jsonlPath, SyncOptions{
+			TaskID: t.ID,
+			Phase:  p.ID,
+			Append: true, // Append mode to handle resumed sessions
+		}); err != nil {
+			e.logger.Warn("failed to sync JSONL transcripts", "error", err, "path", jsonlPath)
+		} else {
+			e.logger.Debug("synced JSONL transcripts", "task", t.ID, "phase", p.ID, "path", jsonlPath)
+		}
+	}
+
 	return result, result.Error
 }
 

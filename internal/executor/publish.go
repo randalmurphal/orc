@@ -2,7 +2,6 @@
 package executor
 
 import (
-	"sync"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/events"
@@ -13,78 +12,18 @@ import (
 // EventPublisher wraps event publishing with nil-safety and convenience methods.
 // All methods are safe to call even when the underlying publisher is nil.
 //
-// When a TranscriptBuffer is attached via SetBuffer(), transcript data is
-// automatically persisted to the database in addition to being published
-// for real-time display.
+// Transcript persistence is handled separately via JSONL sync from Claude Code's
+// session files, not through this publisher.
 //
 // Thread-safe: All methods can be called concurrently.
 type EventPublisher struct {
 	publisher events.Publisher
-	bufferMu  sync.RWMutex      // Protects buffer pointer access
-	buffer    *TranscriptBuffer // Optional buffer for transcript persistence
 }
 
 // NewEventPublisher creates a new EventPublisher wrapping the given publisher.
 // If p is nil, all publish operations become no-ops.
 func NewEventPublisher(p events.Publisher) *EventPublisher {
 	return &EventPublisher{publisher: p}
-}
-
-// SetBuffer attaches a TranscriptBuffer for automatic transcript persistence.
-// When set, Transcript() and TranscriptChunk() calls will add data to the
-// buffer in addition to publishing events.
-func (ep *EventPublisher) SetBuffer(buf *TranscriptBuffer) {
-	if ep == nil {
-		return
-	}
-	ep.bufferMu.Lock()
-	ep.buffer = buf
-	ep.bufferMu.Unlock()
-}
-
-// FlushBuffer flushes any buffered transcripts to the database.
-// Safe to call if buffer is nil.
-func (ep *EventPublisher) FlushBuffer() error {
-	if ep == nil {
-		return nil
-	}
-	ep.bufferMu.RLock()
-	buf := ep.buffer
-	ep.bufferMu.RUnlock()
-	if buf == nil {
-		return nil
-	}
-	return buf.Flush()
-}
-
-// FlushChunks flushes pending chunks for the given phase/iteration.
-// Call this at iteration completion to ensure partial chunks are persisted.
-func (ep *EventPublisher) FlushChunks(phase string, iteration int) {
-	if ep == nil {
-		return
-	}
-	ep.bufferMu.RLock()
-	buf := ep.buffer
-	ep.bufferMu.RUnlock()
-	if buf == nil {
-		return
-	}
-	buf.FlushChunks(phase, iteration)
-}
-
-// CloseBuffer closes the transcript buffer, flushing any remaining data.
-// Safe to call if buffer is nil.
-func (ep *EventPublisher) CloseBuffer() error {
-	if ep == nil {
-		return nil
-	}
-	ep.bufferMu.RLock()
-	buf := ep.buffer
-	ep.bufferMu.RUnlock()
-	if buf == nil {
-		return nil
-	}
-	return buf.Close()
 }
 
 // Publish sends an event to the underlying publisher.
@@ -127,9 +66,8 @@ func (ep *EventPublisher) PhaseFailed(taskID, phase string, err error) {
 }
 
 // Transcript publishes a transcript line event (prompt, response, tool, error).
-// If a buffer is attached, the line is also added for database persistence.
+// Database persistence is handled separately via JSONL sync.
 func (ep *EventPublisher) Transcript(taskID, phase string, iteration int, msgType, content string) {
-	// Publish for real-time display (WebSocket)
 	ep.Publish(events.NewEvent(events.EventTranscript, taskID, events.TranscriptLine{
 		Phase:     phase,
 		Iteration: iteration,
@@ -137,22 +75,11 @@ func (ep *EventPublisher) Transcript(taskID, phase string, iteration int, msgTyp
 		Content:   content,
 		Timestamp: time.Now(),
 	}))
-
-	// Add to buffer for database persistence (async)
-	if ep != nil {
-		ep.bufferMu.RLock()
-		buf := ep.buffer
-		ep.bufferMu.RUnlock()
-		if buf != nil {
-			buf.Add(phase, iteration, msgType, content)
-		}
-	}
 }
 
 // TranscriptChunk publishes a streaming transcript chunk event.
-// If a buffer is attached, chunks are accumulated until newlines are encountered.
+// Database persistence is handled separately via JSONL sync.
 func (ep *EventPublisher) TranscriptChunk(taskID, phase string, iteration int, chunk string) {
-	// Publish for real-time display (WebSocket)
 	ep.Publish(events.NewEvent(events.EventTranscript, taskID, events.TranscriptLine{
 		Phase:     phase,
 		Iteration: iteration,
@@ -160,16 +87,6 @@ func (ep *EventPublisher) TranscriptChunk(taskID, phase string, iteration int, c
 		Content:   chunk,
 		Timestamp: time.Now(),
 	}))
-
-	// Add to buffer for database persistence (async)
-	if ep != nil {
-		ep.bufferMu.RLock()
-		buf := ep.buffer
-		ep.bufferMu.RUnlock()
-		if buf != nil {
-			buf.AddChunk(phase, iteration, chunk)
-		}
-	}
 }
 
 // Tokens publishes a token usage update event.

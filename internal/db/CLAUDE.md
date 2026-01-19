@@ -17,7 +17,7 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 | `task.go` | Task CRUD, ListOpts, TaskFull, dependencies, scanners, Tx functions |
 | `initiative.go` | Initiative, decisions, task refs, dependencies, batch loading |
 | `phase.go` | Phase CRUD, Tx variants |
-| `transcript.go` | Transcript CRUD, batch insert, FTS search |
+| `transcript.go` | Transcript CRUD, batch insert, FTS, token aggregation, todos, metrics |
 | `plan.go` | Plan CRUD |
 | `spec.go` | Spec CRUD, FTS search |
 | `gate_decision.go` | GateDecision CRUD, Tx variants |
@@ -83,6 +83,48 @@ deps := allDeps[task.ID]                    // Map lookup
 ```
 
 **Batch functions:** `GetAllTaskDependencies()`, `GetAllInitiativeDecisions()`, `GetAllInitiativeTaskRefs()`, `GetAllInitiativeDependencies()`, `GetAllInitiativeDependents()`
+
+## Transcript System (JSONL-Based)
+
+Transcripts store Claude Code session messages synced from JSONL files. `transcript.go:42-667`
+
+### Transcript Schema
+
+| Field | Purpose |
+|-------|---------|
+| `MessageUUID` | Claude session message ID (unique) |
+| `ParentUUID` | Links to parent message (threading) |
+| `Type` | `user`, `assistant` |
+| `Content` | Full content JSON (preserves structure) |
+| `InputTokens`, `OutputTokens` | Per-message usage |
+| `CacheCreationTokens`, `CacheReadTokens` | Cache tracking |
+| `ToolCalls`, `ToolResults` | JSON for tool interactions |
+
+### Token Aggregation
+
+```go
+// Per-task aggregated usage (from assistant messages only)
+usage, err := pdb.GetTaskTokenUsage(taskID)     // :313
+usage, err := pdb.GetPhaseTokenUsage(taskID, phase) // :339
+```
+
+### Todo Snapshots
+
+Progress tracking from Claude's TodoWrite tool calls:
+
+```go
+pdb.AddTodoSnapshot(snapshot)           // :386
+snapshot, _ := pdb.GetLatestTodos(taskID)  // :405
+history, _ := pdb.GetTodoHistory(taskID)   // :438
+```
+
+### Metrics Aggregation
+
+```go
+summary, _ := pdb.GetMetricsSummary(since)       // :538 - Total cost, tokens, by-model
+daily, _ := pdb.GetDailyMetrics(since)           // :597 - Time series for charts
+metrics, _ := pdb.GetTaskMetrics(taskID)         // :649 - Per-task breakdown
+```
 
 ## Full-Text Search
 

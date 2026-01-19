@@ -327,6 +327,16 @@ func (s *Server) registerRoutes() {
 	// Cost aggregation
 	s.mux.HandleFunc("GET /api/cost/summary", cors(s.handleGetCostSummary))
 
+	// Metrics (JSONL-based analytics)
+	s.mux.HandleFunc("GET /api/metrics/summary", cors(s.handleGetMetricsSummary))
+	s.mux.HandleFunc("GET /api/metrics/daily", cors(s.handleGetDailyMetrics))
+	s.mux.HandleFunc("GET /api/metrics/by-model", cors(s.handleGetMetricsByModel))
+	s.mux.HandleFunc("GET /api/tasks/{id}/metrics", cors(s.handleGetTaskMetrics))
+
+	// Todos (progress tracking from JSONL)
+	s.mux.HandleFunc("GET /api/tasks/{id}/todos", cors(s.handleGetTaskTodos))
+	s.mux.HandleFunc("GET /api/tasks/{id}/todos/history", cors(s.handleGetTaskTodoHistory))
+
 	// Prompts
 	s.mux.HandleFunc("GET /api/prompts", cors(s.handleListPrompts))
 	s.mux.HandleFunc("GET /api/prompts/variables", cors(s.handleGetPromptVariables))

@@ -42,6 +42,7 @@ type State struct {
 	Execution        *ExecutionInfo         `yaml:"execution,omitempty" json:"execution,omitempty"`
 	Error            string                 `yaml:"error,omitempty" json:"error,omitempty"`
 	RetryContext     *RetryContext          `yaml:"retry_context,omitempty" json:"retry_context,omitempty"`
+	JSONLPath        string                 `yaml:"jsonl_path,omitempty" json:"jsonl_path,omitempty"` // Path to active Claude JSONL file
 }
 
 // SessionInfo tracks the Claude session associated with the task.

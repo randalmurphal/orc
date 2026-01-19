@@ -456,11 +456,12 @@ func TestProjectDB_Transcripts(t *testing.T) {
 		t.Fatalf("SaveTask failed: %v", err)
 	}
 
-	// Add transcripts
+	// Add transcripts (new JSONL-based schema)
+	now := time.Now()
 	transcripts := []Transcript{
-		{TaskID: "TASK-001", Phase: "implement", Iteration: 1, Role: "user", Content: "Fix the authentication bug"},
-		{TaskID: "TASK-001", Phase: "implement", Iteration: 1, Role: "assistant", Content: "I'll fix the authentication module"},
-		{TaskID: "TASK-001", Phase: "test", Iteration: 1, Role: "user", Content: "Run the test suite"},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-001", Type: "user", Role: "user", Content: "Fix the authentication bug", Timestamp: now},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-002", Type: "assistant", Role: "assistant", Content: "I'll fix the authentication module", Timestamp: now.Add(time.Second)},
+		{TaskID: "TASK-001", Phase: "test", SessionID: "sess-002", MessageUUID: "msg-003", Type: "user", Role: "user", Content: "Run the test suite", Timestamp: now.Add(2 * time.Second)},
 	}
 
 	for i := range transcripts {
@@ -504,13 +505,14 @@ func TestProjectDB_TranscriptBatch(t *testing.T) {
 		t.Fatalf("SaveTask failed: %v", err)
 	}
 
-	// Batch add transcripts
+	// Batch add transcripts (new JSONL-based schema)
+	now := time.Now()
 	transcripts := []Transcript{
-		{TaskID: "TASK-002", Phase: "implement", Iteration: 1, Role: "prompt", Content: "Start implementation"},
-		{TaskID: "TASK-002", Phase: "implement", Iteration: 1, Role: "chunk", Content: "Streaming chunk 1\n"},
-		{TaskID: "TASK-002", Phase: "implement", Iteration: 1, Role: "chunk", Content: "Streaming chunk 2\n"},
-		{TaskID: "TASK-002", Phase: "implement", Iteration: 1, Role: "response", Content: "Implementation complete"},
-		{TaskID: "TASK-002", Phase: "implement", Iteration: 2, Role: "prompt", Content: "Continue task"},
+		{TaskID: "TASK-002", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-001", Type: "user", Role: "user", Content: "Start implementation", Timestamp: now},
+		{TaskID: "TASK-002", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-002", Type: "assistant", Role: "assistant", Content: "Streaming chunk 1\n", Timestamp: now.Add(time.Second)},
+		{TaskID: "TASK-002", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-003", Type: "assistant", Role: "assistant", Content: "Streaming chunk 2\n", Timestamp: now.Add(2 * time.Second)},
+		{TaskID: "TASK-002", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-004", Type: "assistant", Role: "assistant", Content: "Implementation complete", Timestamp: now.Add(3 * time.Second)},
+		{TaskID: "TASK-002", Phase: "implement", SessionID: "sess-002", MessageUUID: "msg-005", Type: "user", Role: "user", Content: "Continue task", Timestamp: now.Add(4 * time.Second)},
 	}
 
 	ctx := context.Background()
@@ -597,10 +599,11 @@ func TestProjectDB_TranscriptSearch(t *testing.T) {
 		t.Fatalf("SaveTask failed: %v", err)
 	}
 
+	now := time.Now()
 	transcripts := []Transcript{
-		{TaskID: "TASK-001", Phase: "implement", Iteration: 1, Role: "assistant", Content: "Fixed the authentication bug in login handler"},
-		{TaskID: "TASK-001", Phase: "test", Iteration: 1, Role: "assistant", Content: "All unit tests are passing now"},
-		{TaskID: "TASK-001", Phase: "implement", Iteration: 1, Role: "assistant", Content: "Updated the database schema"},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-001", Type: "assistant", Role: "assistant", Content: "Fixed the authentication bug in login handler", Timestamp: now},
+		{TaskID: "TASK-001", Phase: "test", SessionID: "sess-002", MessageUUID: "msg-002", Type: "assistant", Role: "assistant", Content: "All unit tests are passing now", Timestamp: now.Add(time.Second)},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-003", Type: "assistant", Role: "assistant", Content: "Updated the database schema", Timestamp: now.Add(2 * time.Second)},
 	}
 
 	for i := range transcripts {
@@ -1217,5 +1220,377 @@ func TestProjectDB_InitiativeBatchLoading_Empty(t *testing.T) {
 	}
 	if len(allDependents) != 0 {
 		t.Errorf("len(allDependents) = %d, want 0", len(allDependents))
+	}
+}
+
+func TestProjectDB_GetTranscriptsByPhase(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create task
+	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
+	if err := pdb.SaveTask(task); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
+
+	// Add transcripts across different phases
+	now := time.Now()
+	transcripts := []Transcript{
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-001", Type: "user", Role: "user", Content: "Implement the feature", Timestamp: now},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-002", Type: "assistant", Role: "assistant", Content: "I'll implement it", Timestamp: now.Add(time.Second)},
+		{TaskID: "TASK-001", Phase: "test", SessionID: "sess-002", MessageUUID: "msg-003", Type: "user", Role: "user", Content: "Run tests", Timestamp: now.Add(2 * time.Second)},
+		{TaskID: "TASK-001", Phase: "test", SessionID: "sess-002", MessageUUID: "msg-004", Type: "assistant", Role: "assistant", Content: "Tests passing", Timestamp: now.Add(3 * time.Second)},
+		{TaskID: "TASK-001", Phase: "review", SessionID: "sess-003", MessageUUID: "msg-005", Type: "assistant", Role: "assistant", Content: "Code review complete", Timestamp: now.Add(4 * time.Second)},
+	}
+
+	for i := range transcripts {
+		if err := pdb.AddTranscript(&transcripts[i]); err != nil {
+			t.Fatalf("AddTranscript failed: %v", err)
+		}
+	}
+
+	// Test filtering by "implement" phase
+	implementTranscripts, err := pdb.GetTranscriptsByPhase("TASK-001", "implement")
+	if err != nil {
+		t.Fatalf("GetTranscriptsByPhase(implement) failed: %v", err)
+	}
+	if len(implementTranscripts) != 2 {
+		t.Errorf("len(implementTranscripts) = %d, want 2", len(implementTranscripts))
+	}
+	for _, tr := range implementTranscripts {
+		if tr.Phase != "implement" {
+			t.Errorf("transcript phase = %q, want implement", tr.Phase)
+		}
+	}
+
+	// Test filtering by "test" phase
+	testTranscripts, err := pdb.GetTranscriptsByPhase("TASK-001", "test")
+	if err != nil {
+		t.Fatalf("GetTranscriptsByPhase(test) failed: %v", err)
+	}
+	if len(testTranscripts) != 2 {
+		t.Errorf("len(testTranscripts) = %d, want 2", len(testTranscripts))
+	}
+
+	// Test filtering by "review" phase
+	reviewTranscripts, err := pdb.GetTranscriptsByPhase("TASK-001", "review")
+	if err != nil {
+		t.Fatalf("GetTranscriptsByPhase(review) failed: %v", err)
+	}
+	if len(reviewTranscripts) != 1 {
+		t.Errorf("len(reviewTranscripts) = %d, want 1", len(reviewTranscripts))
+	}
+
+	// Test non-existent phase returns empty
+	emptyTranscripts, err := pdb.GetTranscriptsByPhase("TASK-001", "nonexistent")
+	if err != nil {
+		t.Fatalf("GetTranscriptsByPhase(nonexistent) failed: %v", err)
+	}
+	if len(emptyTranscripts) != 0 {
+		t.Errorf("len(emptyTranscripts) = %d, want 0", len(emptyTranscripts))
+	}
+}
+
+func TestProjectDB_GetTranscriptsBySession(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create tasks
+	task1 := &Task{ID: "TASK-001", Title: "Task 1", Status: "running", CreatedAt: time.Now()}
+	task2 := &Task{ID: "TASK-002", Title: "Task 2", Status: "running", CreatedAt: time.Now()}
+	if err := pdb.SaveTask(task1); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
+	if err := pdb.SaveTask(task2); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
+
+	// Add transcripts across different sessions and tasks
+	now := time.Now()
+	transcripts := []Transcript{
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "session-A", MessageUUID: "msg-001", Type: "user", Role: "user", Content: "Message 1", Timestamp: now},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "session-A", MessageUUID: "msg-002", Type: "assistant", Role: "assistant", Content: "Message 2", Timestamp: now.Add(time.Second)},
+		{TaskID: "TASK-001", Phase: "test", SessionID: "session-B", MessageUUID: "msg-003", Type: "user", Role: "user", Content: "Message 3", Timestamp: now.Add(2 * time.Second)},
+		{TaskID: "TASK-002", Phase: "implement", SessionID: "session-A", MessageUUID: "msg-004", Type: "user", Role: "user", Content: "Message 4", Timestamp: now.Add(3 * time.Second)},
+		{TaskID: "TASK-002", Phase: "implement", SessionID: "session-C", MessageUUID: "msg-005", Type: "user", Role: "user", Content: "Message 5", Timestamp: now.Add(4 * time.Second)},
+	}
+
+	for i := range transcripts {
+		if err := pdb.AddTranscript(&transcripts[i]); err != nil {
+			t.Fatalf("AddTranscript failed: %v", err)
+		}
+	}
+
+	// Test filtering by session-A (should get messages from both tasks)
+	sessionATranscripts, err := pdb.GetTranscriptsBySession("session-A")
+	if err != nil {
+		t.Fatalf("GetTranscriptsBySession(session-A) failed: %v", err)
+	}
+	if len(sessionATranscripts) != 3 {
+		t.Errorf("len(sessionATranscripts) = %d, want 3", len(sessionATranscripts))
+	}
+	for _, tr := range sessionATranscripts {
+		if tr.SessionID != "session-A" {
+			t.Errorf("transcript session = %q, want session-A", tr.SessionID)
+		}
+	}
+
+	// Test filtering by session-B
+	sessionBTranscripts, err := pdb.GetTranscriptsBySession("session-B")
+	if err != nil {
+		t.Fatalf("GetTranscriptsBySession(session-B) failed: %v", err)
+	}
+	if len(sessionBTranscripts) != 1 {
+		t.Errorf("len(sessionBTranscripts) = %d, want 1", len(sessionBTranscripts))
+	}
+
+	// Test non-existent session returns empty
+	emptyTranscripts, err := pdb.GetTranscriptsBySession("nonexistent-session")
+	if err != nil {
+		t.Fatalf("GetTranscriptsBySession(nonexistent) failed: %v", err)
+	}
+	if len(emptyTranscripts) != 0 {
+		t.Errorf("len(emptyTranscripts) = %d, want 0", len(emptyTranscripts))
+	}
+}
+
+func TestProjectDB_GetLatestTranscript(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create task
+	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
+	if err := pdb.SaveTask(task); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
+
+	// Test empty case - no transcripts yet
+	latest, err := pdb.GetLatestTranscript("TASK-001")
+	if err != nil {
+		t.Fatalf("GetLatestTranscript (empty) failed: %v", err)
+	}
+	if latest != nil {
+		t.Errorf("expected nil for empty task, got %+v", latest)
+	}
+
+	// Add transcripts at different times
+	now := time.Now()
+	transcripts := []Transcript{
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-001", Type: "user", Role: "user", Content: "First message", Timestamp: now},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-002", Type: "assistant", Role: "assistant", Content: "Second message", Timestamp: now.Add(time.Second)},
+		{TaskID: "TASK-001", Phase: "test", SessionID: "sess-002", MessageUUID: "msg-003", Type: "user", Role: "user", Content: "Third message", Timestamp: now.Add(2 * time.Second)},
+		{TaskID: "TASK-001", Phase: "test", SessionID: "sess-002", MessageUUID: "msg-004", Type: "assistant", Role: "assistant", Content: "Latest message", Model: "claude-sonnet-4", Timestamp: now.Add(3 * time.Second)},
+	}
+
+	for i := range transcripts {
+		if err := pdb.AddTranscript(&transcripts[i]); err != nil {
+			t.Fatalf("AddTranscript failed: %v", err)
+		}
+	}
+
+	// Get latest transcript
+	latest, err = pdb.GetLatestTranscript("TASK-001")
+	if err != nil {
+		t.Fatalf("GetLatestTranscript failed: %v", err)
+	}
+	if latest == nil {
+		t.Fatal("expected non-nil latest transcript")
+	}
+	if latest.MessageUUID != "msg-004" {
+		t.Errorf("latest.MessageUUID = %q, want msg-004", latest.MessageUUID)
+	}
+	if latest.Content != "Latest message" {
+		t.Errorf("latest.Content = %q, want 'Latest message'", latest.Content)
+	}
+	if latest.Phase != "test" {
+		t.Errorf("latest.Phase = %q, want test", latest.Phase)
+	}
+	if latest.Model != "claude-sonnet-4" {
+		t.Errorf("latest.Model = %q, want claude-sonnet-4", latest.Model)
+	}
+
+	// Test non-existent task returns nil
+	noTask, err := pdb.GetLatestTranscript("TASK-NONEXISTENT")
+	if err != nil {
+		t.Fatalf("GetLatestTranscript (nonexistent) failed: %v", err)
+	}
+	if noTask != nil {
+		t.Errorf("expected nil for nonexistent task, got %+v", noTask)
+	}
+}
+
+func TestProjectDB_TokenUsage(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create task
+	task := &Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()}
+	if err := pdb.SaveTask(task); err != nil {
+		t.Fatalf("SaveTask failed: %v", err)
+	}
+
+	// Test empty case - no transcripts yet
+	emptyUsage, err := pdb.GetTaskTokenUsage("TASK-001")
+	if err != nil {
+		t.Fatalf("GetTaskTokenUsage (empty) failed: %v", err)
+	}
+	if emptyUsage.TotalInput != 0 || emptyUsage.TotalOutput != 0 || emptyUsage.MessageCount != 0 {
+		t.Errorf("expected zero usage for empty task, got %+v", emptyUsage)
+	}
+
+	// Add transcripts with token counts
+	// Note: only assistant messages should be counted for token usage
+	now := time.Now()
+	transcripts := []Transcript{
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-001", Type: "user", Role: "user", Content: "User message", InputTokens: 50, Timestamp: now},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-002", Type: "assistant", Role: "assistant", Content: "Assistant 1", InputTokens: 100, OutputTokens: 200, CacheCreationTokens: 10, CacheReadTokens: 50, Timestamp: now.Add(time.Second)},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-003", Type: "assistant", Role: "assistant", Content: "Assistant 2", InputTokens: 150, OutputTokens: 300, CacheCreationTokens: 20, CacheReadTokens: 100, Timestamp: now.Add(2 * time.Second)},
+		{TaskID: "TASK-001", Phase: "test", SessionID: "sess-002", MessageUUID: "msg-004", Type: "user", Role: "user", Content: "User message 2", InputTokens: 30, Timestamp: now.Add(3 * time.Second)},
+		{TaskID: "TASK-001", Phase: "test", SessionID: "sess-002", MessageUUID: "msg-005", Type: "assistant", Role: "assistant", Content: "Assistant 3", InputTokens: 200, OutputTokens: 100, CacheCreationTokens: 5, CacheReadTokens: 25, Timestamp: now.Add(4 * time.Second)},
+	}
+
+	for i := range transcripts {
+		if err := pdb.AddTranscript(&transcripts[i]); err != nil {
+			t.Fatalf("AddTranscript failed: %v", err)
+		}
+	}
+
+	// Test GetTaskTokenUsage - should aggregate only assistant messages
+	taskUsage, err := pdb.GetTaskTokenUsage("TASK-001")
+	if err != nil {
+		t.Fatalf("GetTaskTokenUsage failed: %v", err)
+	}
+	// Expected: sum of assistant messages only
+	// InputTokens: 100 + 150 + 200 = 450
+	// OutputTokens: 200 + 300 + 100 = 600
+	// CacheCreation: 10 + 20 + 5 = 35
+	// CacheRead: 50 + 100 + 25 = 175
+	// MessageCount: 3
+	if taskUsage.TotalInput != 450 {
+		t.Errorf("TotalInput = %d, want 450", taskUsage.TotalInput)
+	}
+	if taskUsage.TotalOutput != 600 {
+		t.Errorf("TotalOutput = %d, want 600", taskUsage.TotalOutput)
+	}
+	if taskUsage.TotalCacheCreation != 35 {
+		t.Errorf("TotalCacheCreation = %d, want 35", taskUsage.TotalCacheCreation)
+	}
+	if taskUsage.TotalCacheRead != 175 {
+		t.Errorf("TotalCacheRead = %d, want 175", taskUsage.TotalCacheRead)
+	}
+	if taskUsage.MessageCount != 3 {
+		t.Errorf("MessageCount = %d, want 3", taskUsage.MessageCount)
+	}
+
+	// Test GetPhaseTokenUsage for "implement" phase
+	implementUsage, err := pdb.GetPhaseTokenUsage("TASK-001", "implement")
+	if err != nil {
+		t.Fatalf("GetPhaseTokenUsage(implement) failed: %v", err)
+	}
+	// Expected: sum of implement phase assistant messages only (msg-002, msg-003)
+	// InputTokens: 100 + 150 = 250
+	// OutputTokens: 200 + 300 = 500
+	// CacheCreation: 10 + 20 = 30
+	// CacheRead: 50 + 100 = 150
+	// MessageCount: 2
+	if implementUsage.TotalInput != 250 {
+		t.Errorf("implement TotalInput = %d, want 250", implementUsage.TotalInput)
+	}
+	if implementUsage.TotalOutput != 500 {
+		t.Errorf("implement TotalOutput = %d, want 500", implementUsage.TotalOutput)
+	}
+	if implementUsage.TotalCacheCreation != 30 {
+		t.Errorf("implement TotalCacheCreation = %d, want 30", implementUsage.TotalCacheCreation)
+	}
+	if implementUsage.TotalCacheRead != 150 {
+		t.Errorf("implement TotalCacheRead = %d, want 150", implementUsage.TotalCacheRead)
+	}
+	if implementUsage.MessageCount != 2 {
+		t.Errorf("implement MessageCount = %d, want 2", implementUsage.MessageCount)
+	}
+	if implementUsage.Phase != "implement" {
+		t.Errorf("implement Phase = %q, want implement", implementUsage.Phase)
+	}
+
+	// Test GetPhaseTokenUsage for "test" phase
+	testUsage, err := pdb.GetPhaseTokenUsage("TASK-001", "test")
+	if err != nil {
+		t.Fatalf("GetPhaseTokenUsage(test) failed: %v", err)
+	}
+	// Expected: sum of test phase assistant messages only (msg-005)
+	// InputTokens: 200
+	// OutputTokens: 100
+	// CacheCreation: 5
+	// CacheRead: 25
+	// MessageCount: 1
+	if testUsage.TotalInput != 200 {
+		t.Errorf("test TotalInput = %d, want 200", testUsage.TotalInput)
+	}
+	if testUsage.TotalOutput != 100 {
+		t.Errorf("test TotalOutput = %d, want 100", testUsage.TotalOutput)
+	}
+	if testUsage.MessageCount != 1 {
+		t.Errorf("test MessageCount = %d, want 1", testUsage.MessageCount)
+	}
+
+	// Test empty phase returns zero usage
+	emptyPhaseUsage, err := pdb.GetPhaseTokenUsage("TASK-001", "nonexistent")
+	if err != nil {
+		t.Fatalf("GetPhaseTokenUsage(nonexistent) failed: %v", err)
+	}
+	if emptyPhaseUsage.TotalInput != 0 || emptyPhaseUsage.MessageCount != 0 {
+		t.Errorf("expected zero usage for nonexistent phase, got %+v", emptyPhaseUsage)
+	}
+	if emptyPhaseUsage.TaskID != "TASK-001" || emptyPhaseUsage.Phase != "nonexistent" {
+		t.Errorf("expected TaskID=TASK-001 and Phase=nonexistent, got TaskID=%s Phase=%s",
+			emptyPhaseUsage.TaskID, emptyPhaseUsage.Phase)
 	}
 }

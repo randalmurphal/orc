@@ -137,12 +137,8 @@ export interface TranscriptLine {
 	content: string;
 }
 
-// Full transcript file from API
-export interface TranscriptFile {
-	filename: string;
-	content: string;
-	created_at: string;
-}
+// Re-export transcript types from api.ts
+export type { Transcript, TranscriptFile, TodoItem, TodoSnapshot } from './api';
 
 export interface Project {
 	id: string;

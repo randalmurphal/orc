@@ -1,30 +1,31 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { TranscriptFile } from '@/lib/types';
+import type { Transcript } from '@/lib/api';
 import type { TranscriptLine } from '@/hooks/useWebSocket';
 import { getTranscripts } from '@/lib/api';
 import { Icon } from '@/components/ui/Icon';
 import { toast } from '@/stores/uiStore';
 import './TranscriptTab.css';
 
-interface ParsedSection {
-	type: 'prompt' | 'retry-context' | 'response' | 'metadata';
-	title: string;
-	content: string;
+// Content block types from Claude's JSONL format
+interface TextBlock {
+	type: 'text';
+	text: string;
 }
 
-interface ParsedTranscript {
-	phase: string;
-	iteration: number;
-	sections: ParsedSection[];
-	metadata: {
-		inputTokens?: number;
-		outputTokens?: number;
-		cacheCreationTokens?: number;
-		cacheReadTokens?: number;
-		complete?: boolean;
-		blocked?: boolean;
-	};
+interface ToolUseBlock {
+	type: 'tool_use';
+	id: string;
+	name: string;
+	input: Record<string, unknown>;
 }
+
+interface ToolResultBlock {
+	type: 'tool_result';
+	tool_use_id: string;
+	content: string | Array<{ type: string; text?: string }>;
+}
+
+type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock | { type: string };
 
 interface TranscriptTabProps {
 	taskId: string;
@@ -33,108 +34,41 @@ interface TranscriptTabProps {
 	autoScroll?: boolean;
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50; // Messages per page
 
-const sectionStyles: Record<string, { icon: string; colorVar: string; bgVar: string }> = {
-	prompt: {
-		icon: '\u25B6', // ▶
-		colorVar: 'var(--primary)',
-		bgVar: 'var(--primary-dim)',
-	},
-	'retry-context': {
-		icon: '\u21BB', // ↻
-		colorVar: 'var(--status-warning)',
-		bgVar: 'var(--status-warning-bg)',
-	},
-	response: {
-		icon: '\u25C0', // ◀
-		colorVar: 'var(--status-success)',
-		bgVar: 'var(--status-success-bg)',
-	},
-};
-
-function parseTranscript(content: string): ParsedTranscript {
-	const lines = content.split('\n');
-
-	// Parse title: "# implement - Iteration 1"
-	const titleMatch = lines[0]?.match(/^# (\w+) - Iteration (\d+)/);
-	const phase = titleMatch?.[1] || 'unknown';
-	const iteration = titleMatch ? parseInt(titleMatch[2], 10) : 1;
-
-	const sections: ParsedSection[] = [];
-	let currentSection: ParsedSection | null = null;
-	let inMetadata = false;
-	const metadata: ParsedTranscript['metadata'] = {};
-
-	for (let i = 1; i < lines.length; i++) {
-		const line = lines[i];
-
-		// Check for section headers
-		if (line.startsWith('## Prompt')) {
-			if (currentSection) sections.push(currentSection);
-			currentSection = { type: 'prompt', title: 'Prompt', content: '' };
-			continue;
-		}
-		if (line.startsWith('## Retry Context')) {
-			if (currentSection) sections.push(currentSection);
-			currentSection = { type: 'retry-context', title: 'Retry Context', content: '' };
-			continue;
-		}
-		if (line.startsWith('## Response')) {
-			if (currentSection) sections.push(currentSection);
-			currentSection = { type: 'response', title: 'Response', content: '' };
-			continue;
-		}
-
-		// Check for metadata section (starts with ---)
-		if (line === '---' && currentSection?.type === 'response') {
-			inMetadata = true;
-			if (currentSection) sections.push(currentSection);
-			currentSection = null;
-			continue;
-		}
-
-		// Parse metadata
-		if (inMetadata) {
-			// Try new format with cache tokens first
-			const tokensWithCacheMatch = line.match(
-				/^Tokens: (\d+) input, (\d+) output, (\d+) cache_creation, (\d+) cache_read/
-			);
-			if (tokensWithCacheMatch) {
-				metadata.inputTokens = parseInt(tokensWithCacheMatch[1], 10);
-				metadata.outputTokens = parseInt(tokensWithCacheMatch[2], 10);
-				metadata.cacheCreationTokens = parseInt(tokensWithCacheMatch[3], 10);
-				metadata.cacheReadTokens = parseInt(tokensWithCacheMatch[4], 10);
-			} else {
-				// Fall back to old format without cache tokens
-				const tokensMatch = line.match(/^Tokens: (\d+) input, (\d+) output/);
-				if (tokensMatch) {
-					metadata.inputTokens = parseInt(tokensMatch[1], 10);
-					metadata.outputTokens = parseInt(tokensMatch[2], 10);
-				}
-			}
-			if (line.startsWith('Complete:')) {
-				metadata.complete = line.includes('true');
-			}
-			if (line.startsWith('Blocked:')) {
-				metadata.blocked = line.includes('true');
-			}
-			continue;
-		}
-
-		// Add content to current section
-		if (currentSection) {
-			currentSection.content += (currentSection.content ? '\n' : '') + line;
-		}
+// Group transcripts by phase
+function groupByPhase(transcripts: Transcript[]): Map<string, Transcript[]> {
+	const groups = new Map<string, Transcript[]>();
+	for (const t of transcripts) {
+		const existing = groups.get(t.phase) || [];
+		existing.push(t);
+		groups.set(t.phase, existing);
 	}
+	return groups;
+}
 
-	// Push last section
-	if (currentSection) sections.push(currentSection);
+// Parse content blocks from JSON string
+function parseContent(content: string): ContentBlock[] {
+	try {
+		const parsed = JSON.parse(content);
+		return Array.isArray(parsed) ? parsed : [{ type: 'text', text: String(content) }];
+	} catch {
+		// If not JSON, treat as plain text
+		return [{ type: 'text', text: content }];
+	}
+}
 
-	// Trim content
-	sections.forEach((s) => (s.content = s.content.trim()));
+// Extract text from content blocks
+function extractText(blocks: ContentBlock[]): string {
+	return blocks
+		.filter((b): b is TextBlock => b.type === 'text')
+		.map((b) => b.text)
+		.join('\n');
+}
 
-	return { phase, iteration, sections, metadata };
+// Extract tool calls from content blocks
+function extractToolCalls(blocks: ContentBlock[]): ToolUseBlock[] {
+	return blocks.filter((b): b is ToolUseBlock => b.type === 'tool_use');
 }
 
 function formatTime(timestamp: string): string {
@@ -147,18 +81,122 @@ function formatTime(timestamp: string): string {
 	});
 }
 
+function formatTokens(transcript: Transcript): string {
+	const parts = [];
+	const inputTokens = transcript.input_tokens || 0;
+	const outputTokens = transcript.output_tokens || 0;
+	const cacheRead = transcript.cache_read_tokens || 0;
+	const cacheCreation = transcript.cache_creation_tokens || 0;
+
+	if (inputTokens) parts.push(`${inputTokens.toLocaleString()} in`);
+	if (outputTokens) parts.push(`${outputTokens.toLocaleString()} out`);
+	const cached = cacheRead + cacheCreation;
+	if (cached > 0) parts.push(`(${cached.toLocaleString()} cached)`);
+	return parts.join(' / ');
+}
+
+// Tool call display component
+function ToolCallView({ tool }: { tool: ToolUseBlock }) {
+	const [expanded, setExpanded] = useState(false);
+
+	return (
+		<div className="tool-call">
+			<button className="tool-call-header" onClick={() => setExpanded(!expanded)}>
+				<Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={12} />
+				<span className="tool-name">{tool.name}</span>
+			</button>
+			{expanded && (
+				<pre className="tool-input">{JSON.stringify(tool.input, null, 2)}</pre>
+			)}
+		</div>
+	);
+}
+
+// Single message display
+function MessageView({ transcript }: { transcript: Transcript }) {
+	const blocks = parseContent(transcript.content);
+	const text = extractText(blocks);
+	const toolCalls = extractToolCalls(blocks);
+	const isAssistant = transcript.type === 'assistant';
+
+	return (
+		<div className={`transcript-message ${transcript.type}`}>
+			<div className="message-header">
+				<span className={`message-type ${transcript.type}`}>
+					{transcript.type.toUpperCase()}
+				</span>
+				{transcript.model && <span className="message-model">{transcript.model}</span>}
+				<span className="message-time">{formatTime(transcript.timestamp)}</span>
+				{isAssistant && (transcript.input_tokens > 0 || transcript.output_tokens > 0) && (
+					<span className="message-tokens">{formatTokens(transcript)}</span>
+				)}
+			</div>
+			<div className="message-content">
+				{text && <pre className="message-text">{text}</pre>}
+				{toolCalls.length > 0 && (
+					<div className="tool-calls">
+						<div className="tool-calls-label">Tool Calls ({toolCalls.length})</div>
+						{toolCalls.map((tool) => (
+							<ToolCallView key={tool.id} tool={tool} />
+						))}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+// Phase group display
+function PhaseGroup({ phase, transcripts }: { phase: string; transcripts: Transcript[] }) {
+	const [expanded, setExpanded] = useState(true);
+
+	// Calculate totals for this phase (with defensive null handling)
+	const totals = useMemo(() => {
+		return transcripts.reduce(
+			(acc, t) => ({
+				input: acc.input + (t.input_tokens || 0),
+				output: acc.output + (t.output_tokens || 0),
+				cached: acc.cached + (t.cache_read_tokens || 0) + (t.cache_creation_tokens || 0),
+			}),
+			{ input: 0, output: 0, cached: 0 }
+		);
+	}, [transcripts]);
+
+	return (
+		<div className={`phase-group ${expanded ? 'expanded' : ''}`}>
+			<button className="phase-header" onClick={() => setExpanded(!expanded)}>
+				<Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} />
+				<span className="phase-name">{phase}</span>
+				<span className="phase-count">{transcripts.length} messages</span>
+				{totals.input > 0 && (
+					<span className="phase-tokens">
+						{totals.input.toLocaleString()} in / {totals.output.toLocaleString()} out
+						{totals.cached > 0 && ` (${totals.cached.toLocaleString()} cached)`}
+					</span>
+				)}
+			</button>
+			{expanded && (
+				<div className="phase-messages">
+					{transcripts.map((t) => (
+						<MessageView key={t.message_uuid} transcript={t} />
+					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
 export function TranscriptTab({
 	taskId,
 	streamingLines = [],
 	autoScroll = true,
 }: TranscriptTabProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const [files, setFiles] = useState<TranscriptFile[]>([]);
+	const [transcripts, setTranscripts] = useState<Transcript[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(autoScroll);
 	const [currentPage, setCurrentPage] = useState(1);
-	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
 
 	// Load transcripts
 	useEffect(() => {
@@ -167,7 +205,7 @@ export function TranscriptTab({
 			setError(null);
 			try {
 				const data = await getTranscripts(taskId);
-				setFiles(data);
+				setTranscripts(data);
 			} catch (e) {
 				setError(e instanceof Error ? e.message : 'Failed to load transcripts');
 			} finally {
@@ -177,46 +215,26 @@ export function TranscriptTab({
 		loadTranscripts();
 	}, [taskId]);
 
-	// Pagination
-	const totalPages = Math.ceil(files.length / PAGE_SIZE);
-	const paginatedFiles = useMemo(
-		() => files.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-		[files, currentPage]
-	);
+	// Group by phase
+	const phaseGroups = useMemo(() => groupByPhase(transcripts), [transcripts]);
 
-	// Auto-expand all files on initial load
-	useEffect(() => {
-		if (files.length > 0 && expandedFiles.size === 0) {
-			setExpandedFiles(new Set(files.map((f) => f.filename)));
-		}
-	}, [files, expandedFiles.size]);
+	// Pagination
+	const totalPages = Math.ceil(transcripts.length / PAGE_SIZE);
+	const paginatedTranscripts = useMemo(
+		() => transcripts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+		[transcripts, currentPage]
+	);
+	const paginatedPhases = useMemo(
+		() => groupByPhase(paginatedTranscripts),
+		[paginatedTranscripts]
+	);
 
 	// Auto-scroll when new content added
 	useEffect(() => {
 		if (isAutoScrollEnabled && containerRef.current) {
 			containerRef.current.scrollTop = containerRef.current.scrollHeight;
 		}
-	}, [files.length, streamingLines.length, isAutoScrollEnabled]);
-
-	const toggleFile = useCallback((filename: string) => {
-		setExpandedFiles((prev) => {
-			const next = new Set(prev);
-			if (next.has(filename)) {
-				next.delete(filename);
-			} else {
-				next.add(filename);
-			}
-			return next;
-		});
-	}, []);
-
-	const expandAll = useCallback(() => {
-		setExpandedFiles(new Set(files.map((f) => f.filename)));
-	}, [files]);
-
-	const collapseAll = useCallback(() => {
-		setExpandedFiles(new Set());
-	}, []);
+	}, [transcripts.length, streamingLines.length, isAutoScrollEnabled]);
 
 	const toggleAutoScroll = useCallback(() => {
 		setIsAutoScrollEnabled((prev) => !prev);
@@ -224,17 +242,27 @@ export function TranscriptTab({
 
 	// Export transcript to markdown
 	const exportToMarkdown = useCallback(() => {
-		if (files.length === 0) return;
+		if (transcripts.length === 0) return;
 
 		const timestamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
 		const filename = `${taskId}-transcript-${timestamp}.md`;
 
 		let content = `# Transcript: ${taskId}\n\n`;
 		content += `Generated: ${new Date().toLocaleString()}\n\n`;
-		content += `---\n\n`;
 
-		for (const file of files) {
-			content += file.content + '\n\n---\n\n';
+		for (const [phase, messages] of phaseGroups) {
+			content += `## ${phase}\n\n`;
+			for (const t of messages) {
+				content += `### ${t.type} (${formatTime(t.timestamp)})\n\n`;
+				const blocks = parseContent(t.content);
+				const text = extractText(blocks);
+				if (text) content += `${text}\n\n`;
+				const tools = extractToolCalls(blocks);
+				for (const tool of tools) {
+					content += `**Tool: ${tool.name}**\n\`\`\`json\n${JSON.stringify(tool.input, null, 2)}\n\`\`\`\n\n`;
+				}
+			}
+			content += `---\n\n`;
 		}
 
 		const blob = new Blob([content], { type: 'text/markdown' });
@@ -248,15 +276,22 @@ export function TranscriptTab({
 		URL.revokeObjectURL(url);
 
 		toast.success('Transcript exported');
-	}, [files, taskId]);
+	}, [transcripts, phaseGroups, taskId]);
 
 	// Copy transcript to clipboard
 	const copyToClipboard = useCallback(async () => {
-		if (files.length === 0) return;
+		if (transcripts.length === 0) return;
 
 		let content = '';
-		for (const file of files) {
-			content += file.content + '\n\n---\n\n';
+		for (const [phase, messages] of phaseGroups) {
+			content += `=== ${phase} ===\n\n`;
+			for (const t of messages) {
+				content += `[${t.type}] ${formatTime(t.timestamp)}\n`;
+				const blocks = parseContent(t.content);
+				const text = extractText(blocks);
+				if (text) content += `${text}\n`;
+				content += '\n';
+			}
 		}
 
 		try {
@@ -266,10 +301,10 @@ export function TranscriptTab({
 			console.error('Failed to copy to clipboard:', e);
 			toast.error('Failed to copy to clipboard');
 		}
-	}, [files]);
+	}, [transcripts, phaseGroups]);
 
 	const hasStreamingContent = streamingLines.length > 0;
-	const isEmpty = files.length === 0 && !hasStreamingContent;
+	const isEmpty = transcripts.length === 0 && !hasStreamingContent;
 
 	// Loading state
 	if (loading) {
@@ -312,21 +347,11 @@ export function TranscriptTab({
 			<div className="transcript-header">
 				<h2>Transcript</h2>
 				<div className="header-actions">
-					{files.length > 1 && (
-						<>
-							<button className="header-btn" onClick={expandAll} title="Expand all">
-								Expand All
-							</button>
-							<button className="header-btn" onClick={collapseAll} title="Collapse all">
-								Collapse All
-							</button>
-						</>
-					)}
 					<button
 						className="header-btn"
 						onClick={copyToClipboard}
 						title="Copy transcript to clipboard"
-						disabled={files.length === 0}
+						disabled={transcripts.length === 0}
 					>
 						<Icon name="clipboard" size={14} />
 						Copy
@@ -335,7 +360,7 @@ export function TranscriptTab({
 						className="header-btn"
 						onClick={exportToMarkdown}
 						title="Export transcript as markdown"
-						disabled={files.length === 0}
+						disabled={transcripts.length === 0}
 					>
 						<Icon name="download" size={14} />
 						Export
@@ -359,94 +384,13 @@ export function TranscriptTab({
 							<Icon name="terminal" size={32} />
 						</div>
 						<p className="empty-title">No transcript yet</p>
-						<p className="empty-hint">Run the task to see live output</p>
+						<p className="empty-hint">Run the task to see Claude's output</p>
 					</div>
 				) : (
-					<div className="transcript-files">
-						{paginatedFiles.map((file) => {
-							const parsed = parseTranscript(file.content);
-							const isExpanded = expandedFiles.has(file.filename);
-							const cacheTotal =
-								(parsed.metadata.cacheCreationTokens || 0) +
-								(parsed.metadata.cacheReadTokens || 0);
-
-							return (
-								<div
-									key={file.filename}
-									className={`transcript-file ${isExpanded ? 'expanded' : ''}`}
-								>
-									{/* File Header */}
-									<button className="file-header" onClick={() => toggleFile(file.filename)}>
-										<div className="file-info">
-											<span className={`chevron ${isExpanded ? 'rotated' : ''}`}>
-												<Icon name="chevron-right" size={16} />
-											</span>
-											<span className="phase-badge">{parsed.phase}</span>
-											<span className="iteration">Iteration {parsed.iteration}</span>
-											{parsed.metadata.complete && (
-												<span className="status-badge complete">
-													<Icon name="check" size={10} /> Complete
-												</span>
-											)}
-											{parsed.metadata.blocked && (
-												<span className="status-badge blocked">
-													<Icon name="alert-triangle" size={10} /> Blocked
-												</span>
-											)}
-										</div>
-										<div className="file-meta">
-											{(parsed.metadata.inputTokens || parsed.metadata.outputTokens) && (
-												<span
-													className="tokens"
-													title={
-														cacheTotal > 0
-															? `Cache creation: ${(parsed.metadata.cacheCreationTokens || 0).toLocaleString()}\nCache read: ${(parsed.metadata.cacheReadTokens || 0).toLocaleString()}`
-															: undefined
-													}
-												>
-													{parsed.metadata.inputTokens?.toLocaleString() ?? 0} in /{' '}
-													{parsed.metadata.outputTokens?.toLocaleString() ?? 0} out
-													{cacheTotal > 0 && ` (${cacheTotal.toLocaleString()} cached)`}
-												</span>
-											)}
-											<span className="file-time">{formatTime(file.created_at)}</span>
-										</div>
-									</button>
-
-									{/* File Content */}
-									{isExpanded && (
-										<div className="file-content">
-											{parsed.sections.map((section, idx) => {
-												const style =
-													sectionStyles[section.type] || sectionStyles.response;
-												return (
-													<div
-														key={idx}
-														className="section"
-														style={
-															{
-																'--section-color': style.colorVar,
-																'--section-bg': style.bgVar,
-															} as React.CSSProperties
-														}
-													>
-														<div className="section-header">
-															<span className="section-icon">{style.icon}</span>
-															<span className="section-title">
-																{section.title.toUpperCase()}
-															</span>
-														</div>
-														<div className="section-content">
-															<pre>{section.content}</pre>
-														</div>
-													</div>
-												);
-											})}
-										</div>
-									)}
-								</div>
-							);
-						})}
+					<div className="transcript-messages">
+						{Array.from(paginatedPhases).map(([phase, messages]) => (
+							<PhaseGroup key={phase} phase={phase} transcripts={messages} />
+						))}
 
 						{/* Pagination */}
 						{totalPages > 1 && (
@@ -466,7 +410,7 @@ export function TranscriptTab({
 									Prev
 								</button>
 								<span className="page-info">
-									Page {currentPage} of {totalPages} ({files.length} files)
+									Page {currentPage} of {totalPages} ({transcripts.length} messages)
 								</span>
 								<button
 									className="page-btn"
@@ -496,36 +440,20 @@ export function TranscriptTab({
 							<span className="streaming-time">Live</span>
 						</div>
 						<div className="streaming-content">
-							{streamingLines.map((line, idx) => {
-								// Get style based on line type
-								const typeStyle = line.type === 'prompt' ? sectionStyles.prompt
-									: line.type === 'response' ? sectionStyles.response
-									: line.type === 'chunk' ? sectionStyles.response
-									: sectionStyles.response;
-
-								// For chunks, just append content without header
-								if (line.type === 'chunk') {
-									return <span key={idx} className="streaming-chunk">{line.content}</span>;
-								}
-
-								return (
-									<div
-										key={idx}
-										className={`streaming-line streaming-line-${line.type}`}
-										style={{
-											'--section-color': typeStyle.colorVar,
-											'--section-bg': typeStyle.bgVar,
-										} as React.CSSProperties}
-									>
+							{streamingLines.map((line, idx) => (
+								<div
+									key={idx}
+									className={`streaming-line streaming-line-${line.type}`}
+								>
+									{line.type !== 'chunk' && (
 										<div className="streaming-line-header">
-											<span className="streaming-line-icon">{typeStyle.icon}</span>
 											<span className="streaming-line-type">{line.type.toUpperCase()}</span>
 											<span className="streaming-line-phase">{line.phase} #{line.iteration}</span>
 										</div>
-										<pre className="streaming-line-content">{line.content}</pre>
-									</div>
-								);
-							})}
+									)}
+									<pre className="streaming-line-content">{line.content}</pre>
+								</div>
+							))}
 						</div>
 					</div>
 				)}
