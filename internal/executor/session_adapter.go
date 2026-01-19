@@ -86,7 +86,32 @@ func NewSessionAdapter(ctx context.Context, mgr session.SessionManager, opts Ses
 	// Create session
 	s, err := mgr.Create(ctx, sessionOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("create session: %w", err)
+		// If resume failed due to expired/invalid session, try fresh session
+		if opts.Resume && isSessionExpiredError(err) {
+			// Rebuild session options without resume flag
+			var freshOpts []session.SessionOption
+			if opts.Model != "" {
+				freshOpts = append(freshOpts, session.WithModel(opts.Model))
+			}
+			if opts.Workdir != "" {
+				freshOpts = append(freshOpts, session.WithWorkdir(opts.Workdir))
+			}
+			if opts.MaxTurns > 0 {
+				freshOpts = append(freshOpts, session.WithMaxTurns(opts.MaxTurns))
+			}
+			if !opts.Persistence {
+				freshOpts = append(freshOpts, session.WithNoSessionPersistence())
+			}
+
+			s, err = mgr.Create(ctx, freshOpts...)
+			if err != nil {
+				return nil, fmt.Errorf("create fresh session after resume failed: %w", err)
+			}
+			// Log that we fell back to fresh session
+			// (caller will see fresh session ID instead of resumed one)
+		} else {
+			return nil, fmt.Errorf("create session: %w", err)
+		}
 	}
 
 	return &SessionAdapter{
@@ -95,6 +120,18 @@ func NewSessionAdapter(ctx context.Context, mgr session.SessionManager, opts Ses
 		markers: PhaseMarkers,
 		owns:    true,
 	}, nil
+}
+
+// isSessionExpiredError checks if the error indicates a session that no longer exists.
+func isSessionExpiredError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "session not found") ||
+		strings.Contains(errStr, "invalid session") ||
+		strings.Contains(errStr, "Session not found") ||
+		strings.Contains(errStr, "Invalid session")
 }
 
 // SessionID returns the session identifier.

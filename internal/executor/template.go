@@ -811,3 +811,20 @@ func collectRecentChangedFiles(tasks []*task.Task, limit int) string {
 
 	return strings.Join(files, "\n")
 }
+
+// BuildContinuationPrompt creates a short prompt for resuming a paused session.
+// When using Claude's --resume flag, the session already has full context,
+// so we just need to signal that we're continuing from where we left off.
+func BuildContinuationPrompt(s *state.State, phaseID string) string {
+	iteration := 1
+	if s != nil {
+		iteration = s.CurrentIteration
+	}
+
+	return fmt.Sprintf(`Resuming from where we paused.
+
+Work has been committed to git. Continue from iteration %d of the %s phase.
+
+Continue working on the task. Output <phase_complete>true</phase_complete> when done.`,
+		iteration, phaseID)
+}
