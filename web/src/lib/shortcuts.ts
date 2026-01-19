@@ -327,7 +327,13 @@ export const SHORTCUTS = {
 	HELP: { key: '?', description: 'Show keyboard shortcuts' },
 	ESCAPE: { key: 'escape', description: 'Close overlay / Cancel' },
 
-	// Navigation sequences
+	// Navigation sequences (new routes)
+	GO_BOARD: { keys: ['g', 'b'], description: 'Go to board' },
+	GO_INITIATIVES: { keys: ['g', 'i'], description: 'Go to initiatives' },
+	GO_STATS: { keys: ['g', 's'], description: 'Go to stats' },
+	GO_AGENTS: { keys: ['g', 'a'], description: 'Go to agents' },
+	GO_SETTINGS: { keys: ['g', ','], description: 'Go to settings' },
+	// Legacy navigation (kept for compatibility)
 	GO_DASHBOARD: { keys: ['g', 'd'], description: 'Go to dashboard' },
 	GO_TASKS: { keys: ['g', 't'], description: 'Go to tasks' },
 	GO_ENVIRONMENT: { keys: ['g', 'e'], description: 'Go to environment' },
@@ -356,6 +362,13 @@ export function setupGlobalShortcuts(callbacks: {
 	onSearch?: ShortcutCallback;
 	onHelp?: ShortcutCallback;
 	onEscape?: ShortcutCallback;
+	// New navigation shortcuts
+	onGoBoard?: ShortcutCallback;
+	onGoInitiatives?: ShortcutCallback;
+	onGoStats?: ShortcutCallback;
+	onGoAgents?: ShortcutCallback;
+	onGoSettings?: ShortcutCallback;
+	// Legacy navigation (kept for compatibility)
 	onGoDashboard?: ShortcutCallback;
 	onGoTasks?: ShortcutCallback;
 	onGoEnvironment?: ShortcutCallback;
@@ -431,7 +444,53 @@ export function setupGlobalShortcuts(callbacks: {
 		);
 	}
 
-	// Navigation sequences
+	// Navigation sequences (new routes)
+	if (callbacks.onGoBoard) {
+		unsubscribers.push(
+			manager.registerSequence({
+				...SHORTCUTS.GO_BOARD,
+				action: callbacks.onGoBoard,
+			})
+		);
+	}
+
+	if (callbacks.onGoInitiatives) {
+		unsubscribers.push(
+			manager.registerSequence({
+				...SHORTCUTS.GO_INITIATIVES,
+				action: callbacks.onGoInitiatives,
+			})
+		);
+	}
+
+	if (callbacks.onGoStats) {
+		unsubscribers.push(
+			manager.registerSequence({
+				...SHORTCUTS.GO_STATS,
+				action: callbacks.onGoStats,
+			})
+		);
+	}
+
+	if (callbacks.onGoAgents) {
+		unsubscribers.push(
+			manager.registerSequence({
+				...SHORTCUTS.GO_AGENTS,
+				action: callbacks.onGoAgents,
+			})
+		);
+	}
+
+	if (callbacks.onGoSettings) {
+		unsubscribers.push(
+			manager.registerSequence({
+				...SHORTCUTS.GO_SETTINGS,
+				action: callbacks.onGoSettings,
+			})
+		);
+	}
+
+	// Legacy navigation sequences (kept for compatibility)
 	if (callbacks.onGoDashboard) {
 		unsubscribers.push(
 			manager.registerSequence({

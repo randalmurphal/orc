@@ -186,12 +186,27 @@ describe('Routes', () => {
 	});
 
 	describe('Root route (/)', () => {
-		it('renders TaskList page', async () => {
+		it('redirects to /board', async () => {
+			// Set project to see the board (not empty state)
+			useProjectStore.setState({
+				projects: [
+					{
+						id: 'test-project',
+						path: '/test/project',
+						name: 'Test Project',
+						created_at: '2024-01-01T00:00:00Z',
+					},
+				],
+				currentProjectId: 'test-project',
+				loading: false,
+				error: null,
+				_isHandlingPopState: false,
+			});
+
 			renderWithRouter('/');
 			await waitFor(() => {
-				// TaskList shows status filter tabs - check for the status-tab class
-				const allTab = document.querySelector('.status-tab');
-				expect(allTab).toBeInTheDocument();
+				// After redirect, should show Board page
+				expect(screen.getByRole('heading', { level: 2, name: 'Board' })).toBeInTheDocument();
 			});
 		});
 
@@ -200,17 +215,9 @@ describe('Routes', () => {
 			await waitFor(() => {
 				// Check sidebar nav links exist by href attribute
 				const nav = screen.getByRole('navigation', { name: 'Main navigation' });
-				expect(nav.querySelector('a[href="/"]')).toBeInTheDocument();
 				expect(nav.querySelector('a[href="/board"]')).toBeInTheDocument();
-				expect(nav.querySelector('a[href="/dashboard"]')).toBeInTheDocument();
-			});
-		});
-
-		it('renders header', async () => {
-			renderWithRouter('/');
-			await waitFor(() => {
-				// Header title should be "Tasks" for root route
-				expect(screen.getAllByText('Tasks').length).toBeGreaterThan(0);
+				expect(nav.querySelector('a[href="/initiatives"]')).toBeInTheDocument();
+				expect(nav.querySelector('a[href="/stats"]')).toBeInTheDocument();
 			});
 		});
 	});
@@ -252,7 +259,7 @@ describe('Routes', () => {
 		});
 	});
 
-	describe('/dashboard route', () => {
+	describe('/stats route (was /dashboard)', () => {
 		beforeEach(() => {
 			// Mock API responses for dashboard
 			vi.mocked(fetch).mockImplementation((url) => {
@@ -287,12 +294,18 @@ describe('Routes', () => {
 			});
 		});
 
-		it('renders Dashboard page with Quick Stats', async () => {
+		it('renders Dashboard page with Quick Stats at /stats', async () => {
+			renderWithRouter('/stats');
+			await waitFor(() => {
+				// Dashboard shows "Quick Stats" section
+				expect(screen.getByText('Quick Stats')).toBeInTheDocument();
+			});
+		});
+
+		it('redirects /dashboard to /stats', async () => {
 			renderWithRouter('/dashboard');
 			await waitFor(() => {
-				// "Dashboard" appears in header h1
-				expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
-				// Dashboard shows "Quick Stats" section
+				// After redirect, should show Dashboard page with Quick Stats
 				expect(screen.getByText('Quick Stats')).toBeInTheDocument();
 			});
 		});
@@ -318,11 +331,10 @@ describe('Routes', () => {
 		});
 	});
 
-	describe('/initiatives route (redirect)', () => {
-		it('redirects /initiatives to root route', async () => {
+	describe('/initiatives route', () => {
+		it('renders TaskList page at /initiatives', async () => {
 			renderWithRouter('/initiatives');
 			await waitFor(() => {
-				// After redirect, should show TaskList page (root route)
 				// TaskList shows status filter tabs
 				const allTab = document.querySelector('.status-tab');
 				expect(allTab).toBeInTheDocument();
@@ -341,6 +353,15 @@ describe('Routes', () => {
 		});
 	});
 
+	describe('/agents route', () => {
+		it('renders Agents page', async () => {
+			renderWithRouter('/agents');
+			await waitFor(() => {
+				expect(screen.getByRole('heading', { level: 3, name: 'Agents' })).toBeInTheDocument();
+			});
+		});
+	});
+
 	describe('/preferences route', () => {
 		it('renders Preferences page', async () => {
 			renderWithRouter('/preferences');
@@ -354,28 +375,19 @@ describe('Routes', () => {
 		});
 	});
 
-	describe('/environment routes', () => {
-		it('redirects /environment to /environment/settings', async () => {
-			renderWithRouter('/environment');
+	describe('/settings routes', () => {
+		it('redirects /settings to /settings/prompts/system', async () => {
+			renderWithRouter('/settings');
 			await waitFor(() => {
-				// Settings page has "Claude Code Settings" heading
+				// Prompts page has "Phase Prompts" heading
 				expect(
-					screen.getByRole('heading', { level: 3, name: 'Claude Code Settings' })
+					screen.getByRole('heading', { level: 3, name: 'Phase Prompts' })
 				).toBeInTheDocument();
 			});
 		});
 
-		it('renders Settings page at /environment/settings', async () => {
-			renderWithRouter('/environment/settings');
-			await waitFor(() => {
-				expect(
-					screen.getByRole('heading', { level: 3, name: 'Claude Code Settings' })
-				).toBeInTheDocument();
-			});
-		});
-
-		it('renders Prompts page at /environment/prompts', async () => {
-			renderWithRouter('/environment/prompts');
+		it('renders Prompts page at /settings/prompts/system', async () => {
+			renderWithRouter('/settings/prompts/system');
 			await waitFor(() => {
 				expect(
 					screen.getByRole('heading', { level: 3, name: 'Phase Prompts' })
@@ -383,29 +395,31 @@ describe('Routes', () => {
 			});
 		});
 
-		it('renders Scripts page at /environment/scripts', async () => {
-			renderWithRouter('/environment/scripts');
+		it('renders Settings page at /settings/configuration/general', async () => {
+			renderWithRouter('/settings/configuration/general');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Scripts' })).toBeInTheDocument();
+				expect(
+					screen.getByRole('heading', { level: 3, name: 'Claude Code Settings' })
+				).toBeInTheDocument();
 			});
 		});
 
-		it('renders Hooks page at /environment/hooks', async () => {
-			renderWithRouter('/environment/hooks');
+		it('renders Hooks page at /settings/automation/hooks', async () => {
+			renderWithRouter('/settings/automation/hooks');
 			await waitFor(() => {
 				expect(screen.getByRole('heading', { level: 3, name: 'Hooks' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders Skills page at /environment/skills', async () => {
-			renderWithRouter('/environment/skills');
+		it('renders Scripts page at /settings/automation/scripts', async () => {
+			renderWithRouter('/settings/automation/scripts');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Skills' })).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 3, name: 'Scripts' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders MCP page at /environment/mcp', async () => {
-			renderWithRouter('/environment/mcp');
+		it('renders MCP page at /settings/advanced/mcp', async () => {
+			renderWithRouter('/settings/advanced/mcp');
 			await waitFor(() => {
 				expect(
 					screen.getByRole('heading', { level: 3, name: 'MCP Servers' })
@@ -413,8 +427,15 @@ describe('Routes', () => {
 			});
 		});
 
-		it('renders Config page at /environment/config', async () => {
-			renderWithRouter('/environment/config');
+		it('renders Skills page at /settings/advanced/skills', async () => {
+			renderWithRouter('/settings/advanced/skills');
+			await waitFor(() => {
+				expect(screen.getByRole('heading', { level: 3, name: 'Skills' })).toBeInTheDocument();
+			});
+		});
+
+		it('renders Config page at /settings/advanced/config', async () => {
+			renderWithRouter('/settings/advanced/config');
 			await waitFor(() => {
 				expect(
 					screen.getByRole('heading', { level: 3, name: 'Orc Configuration' })
@@ -422,8 +443,8 @@ describe('Routes', () => {
 			});
 		});
 
-		it('renders ClaudeMd page at /environment/claudemd', async () => {
-			renderWithRouter('/environment/claudemd');
+		it('renders ClaudeMd page at /settings/advanced/claudemd', async () => {
+			renderWithRouter('/settings/advanced/claudemd');
 			await waitFor(() => {
 				expect(
 					screen.getByRole('heading', { level: 3, name: 'CLAUDE.md' })
@@ -431,31 +452,46 @@ describe('Routes', () => {
 			});
 		});
 
-		it('renders Tools page at /environment/tools', async () => {
-			renderWithRouter('/environment/tools');
+		it('renders Tools page at /settings/advanced/tools', async () => {
+			renderWithRouter('/settings/advanced/tools');
 			await waitFor(() => {
 				expect(screen.getByRole('heading', { level: 3, name: 'Tools' })).toBeInTheDocument();
 			});
 		});
+	});
 
-		it('renders Agents page at /environment/agents', async () => {
-			renderWithRouter('/environment/agents');
+	describe('Legacy /environment routes redirect to /settings', () => {
+		it('redirects /environment to /settings', async () => {
+			renderWithRouter('/environment');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Agents' })).toBeInTheDocument();
+				// Should redirect to /settings which shows Prompts page
+				expect(
+					screen.getByRole('heading', { level: 3, name: 'Phase Prompts' })
+				).toBeInTheDocument();
+			});
+		});
+
+		it('redirects /environment/settings to /settings', async () => {
+			renderWithRouter('/environment/settings');
+			await waitFor(() => {
+				// Should redirect to /settings which shows Prompts page
+				expect(
+					screen.getByRole('heading', { level: 3, name: 'Phase Prompts' })
+				).toBeInTheDocument();
 			});
 		});
 	});
 
 	describe('URL parameters', () => {
 		it('syncs project param from URL to store', async () => {
-			renderWithRouter('/?project=test-project');
+			renderWithRouter('/board?project=test-project');
 			await waitFor(() => {
 				expect(useProjectStore.getState().currentProjectId).toBe('test-project');
 			});
 		});
 
-		it('syncs initiative param from URL to store on root route', async () => {
-			renderWithRouter('/?initiative=INIT-001');
+		it('syncs initiative param from URL to store on initiatives route', async () => {
+			renderWithRouter('/initiatives?initiative=INIT-001');
 			await waitFor(() => {
 				expect(useInitiativeStore.getState().currentInitiativeId).toBe('INIT-001');
 			});
@@ -489,21 +525,31 @@ describe('Routes', () => {
 
 	describe('Layout structure', () => {
 		it('renders sidebar on all routes', async () => {
-			renderWithRouter('/');
+			renderWithRouter('/board');
 			expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument();
 		});
 
 		it('renders header on all routes', async () => {
-			renderWithRouter('/');
+			renderWithRouter('/board');
 			expect(screen.getByRole('banner')).toBeInTheDocument();
 		});
 
-		it('shows environment sub-navigation on environment routes', async () => {
-			renderWithRouter('/environment/settings');
+		it('shows settings sub-navigation on settings routes', async () => {
+			renderWithRouter('/settings/prompts/system');
 			await waitFor(() => {
 				// Should see sub-navigation links
 				expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument();
 				expect(screen.getByRole('link', { name: 'Prompts' })).toBeInTheDocument();
+			});
+		});
+	});
+
+	describe('404 route', () => {
+		it('renders NotFoundPage for unknown routes', async () => {
+			renderWithRouter('/some-unknown-route');
+			await waitFor(() => {
+				expect(screen.getByText('Page not found')).toBeInTheDocument();
+				expect(screen.getByText('404')).toBeInTheDocument();
 			});
 		});
 	});

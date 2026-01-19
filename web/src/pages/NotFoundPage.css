@@ -1,0 +1,83 @@
+/**
+ * NotFoundPage styles
+ */
+
+.not-found-page {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: calc(100vh - var(--top-bar-height, 48px));
+	padding: 24px;
+}
+
+.not-found-page__content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	max-width: 400px;
+	text-align: center;
+}
+
+.not-found-page__icon {
+	color: var(--text-muted);
+	margin-bottom: 16px;
+}
+
+.not-found-page__status {
+	font-size: var(--text-5xl);
+	font-weight: 700;
+	color: var(--text-muted);
+	margin-bottom: 8px;
+}
+
+.not-found-page__title {
+	font-size: var(--text-2xl);
+	font-weight: 600;
+	color: var(--text-primary);
+	margin: 0 0 8px;
+}
+
+.not-found-page__message {
+	font-size: var(--text-base);
+	color: var(--text-secondary);
+	margin: 0 0 24px;
+	line-height: 1.5;
+}
+
+.not-found-page__actions {
+	display: flex;
+	gap: 12px;
+}
+
+.not-found-page__button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 16px;
+	font-size: var(--text-base);
+	font-weight: 500;
+	border-radius: 6px;
+	border: none;
+	cursor: pointer;
+	text-decoration: none;
+	transition: background-color 0.15s ease;
+}
+
+.not-found-page__button--primary {
+	background: var(--primary);
+	color: white;
+}
+
+.not-found-page__button--primary:hover {
+	background: var(--primary-bright);
+}
+
+.not-found-page__button--secondary {
+	background: var(--bg-surface);
+	color: var(--text-primary);
+	border: 1px solid var(--border);
+}
+
+.not-found-page__button--secondary:hover {
+	background: var(--bg-hover);
+}
