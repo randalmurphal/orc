@@ -687,3 +687,169 @@ func TestMock_ExecuteTask_SetsStartedAt(t *testing.T) {
 
 	t.Logf("ExecuteTask properly set StartedAt; Elapsed() = %v", elapsed)
 }
+
+// TestIntegration_PhaseTimeout_EnforcesLimit verifies that PhaseMax timeout is enforced
+// and produces a recoverable interrupted state.
+func TestIntegration_PhaseTimeout_EnforcesLimit(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create backend
+	backend, err := storage.NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	cfg := DefaultConfig()
+	cfg.WorkDir = tmpDir
+	cfg.Backend = backend
+
+	// Create orc config with a short PhaseMax timeout
+	orcCfg := &config.Config{
+		Timeouts: config.TimeoutsConfig{
+			PhaseMax: 50 * time.Millisecond, // Short timeout for testing
+		},
+	}
+
+	e := NewWithConfig(cfg, orcCfg)
+	e.SetBackend(backend)
+
+	// Use a mock client that takes longer than the timeout
+	mockClient := claude.NewMockClient("").WithCompleteFunc(func(ctx context.Context, req claude.CompletionRequest) (*claude.CompletionResponse, error) {
+		select {
+		case <-time.After(500 * time.Millisecond):
+			return &claude.CompletionResponse{Content: "Done!"}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	})
+	e.SetClient(mockClient)
+
+	// Create task
+	testTask := task.New("INT-TIMEOUT", "Phase timeout test")
+	testTask.Weight = task.WeightSmall
+	testTask.Status = task.StatusPlanned
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	testPlan := &plan.Plan{
+		Version: 1,
+		Weight:  "small",
+		Phases: []plan.Phase{
+			{
+				ID:     "implement",
+				Name:   "Implementation",
+				Prompt: "Implement: {{TASK_TITLE}}",
+			},
+		},
+	}
+	if err := backend.SavePlan(testPlan, "INT-TIMEOUT"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
+
+	testState := state.New("INT-TIMEOUT")
+
+	// Execute - should timeout
+	ctx := context.Background()
+	err = e.ExecuteTask(ctx, testTask, testPlan, testState)
+
+	// Should get a timeout error
+	if err == nil {
+		t.Fatal("expected timeout error, got nil")
+	}
+
+	// Verify it's a phase timeout error
+	if !isPhaseTimeoutError(err) {
+		t.Fatalf("expected phaseTimeoutError, got %T: %v", err, err)
+	}
+
+	// Verify task is paused (recoverable)
+	reloadedTask, loadErr := backend.LoadTask("INT-TIMEOUT")
+	if loadErr != nil {
+		t.Fatalf("failed to reload task: %v", loadErr)
+	}
+
+	if reloadedTask.Status != task.StatusPaused {
+		t.Errorf("task status = %s, want paused", reloadedTask.Status)
+	}
+
+	// Verify phase is interrupted
+	reloadedState, stateErr := backend.LoadState("INT-TIMEOUT")
+	if stateErr != nil {
+		t.Fatalf("failed to reload state: %v", stateErr)
+	}
+
+	if reloadedState.Phases["implement"].Status != state.StatusInterrupted {
+		t.Errorf("phase status = %s, want interrupted", reloadedState.Phases["implement"].Status)
+	}
+
+	t.Logf("PhaseMax timeout correctly enforced - task can be resumed")
+}
+
+// TestIntegration_PhaseTimeout_Disabled verifies that PhaseMax=0 disables timeout.
+func TestIntegration_PhaseTimeout_Disabled(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	backend, err := storage.NewDatabaseBackend(tmpDir, &config.StorageConfig{})
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	cfg := DefaultConfig()
+	cfg.WorkDir = tmpDir
+	cfg.Backend = backend
+
+	// PhaseMax=0 means unlimited
+	orcCfg := &config.Config{
+		Timeouts: config.TimeoutsConfig{
+			PhaseMax: 0,
+		},
+	}
+
+	e := NewWithConfig(cfg, orcCfg)
+	e.SetBackend(backend)
+
+	// Mock client that completes quickly
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	e.SetClient(mockClient)
+
+	testTask := task.New("INT-NO-TIMEOUT", "No timeout test")
+	testTask.Weight = task.WeightSmall
+	testTask.Status = task.StatusPlanned
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	testPlan := &plan.Plan{
+		Version: 1,
+		Weight:  "small",
+		Phases: []plan.Phase{
+			{
+				ID:     "implement",
+				Name:   "Implementation",
+				Prompt: "Implement: {{TASK_TITLE}}",
+			},
+		},
+	}
+	if err := backend.SavePlan(testPlan, "INT-NO-TIMEOUT"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
+
+	testState := state.New("INT-NO-TIMEOUT")
+
+	ctx := context.Background()
+	err = e.ExecuteTask(ctx, testTask, testPlan, testState)
+
+	if err != nil {
+		t.Fatalf("ExecuteTask failed: %v", err)
+	}
+
+	reloadedTask, _ := backend.LoadTask("INT-NO-TIMEOUT")
+	if reloadedTask.Status != task.StatusCompleted {
+		t.Errorf("task status = %s, want completed", reloadedTask.Status)
+	}
+
+	t.Logf("PhaseMax=0 correctly disables timeout")
+}

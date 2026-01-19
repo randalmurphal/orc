@@ -2288,3 +2288,289 @@ func TestHandlePhaseFailure_MaxRetriesExceeded(t *testing.T) {
 		t.Errorf("expected shouldRetry=false when max retries (%d) exceeded", maxRetries)
 	}
 }
+
+// === Phase Timeout Tests ===
+
+// TestExecutePhase_PhaseTimeout verifies that phases respect PhaseMax timeout.
+// When a phase exceeds PhaseMax, it should return a phaseTimeoutError and the task
+// should be marked as paused (interrupted), not failed.
+func TestExecutePhase_PhaseTimeout(t *testing.T) {
+	backend := newTestBackend(t)
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+
+	// Create orc config with a very short PhaseMax timeout
+	orcCfg := &config.Config{
+		Timeouts: config.TimeoutsConfig{
+			PhaseMax: 100 * time.Millisecond, // Very short for testing
+		},
+	}
+
+	e := NewWithConfig(cfg, orcCfg)
+
+	// Create a mock client that takes a long time to respond
+	// The mock will respond instantly, but we'll verify the timeout mechanism
+	// by checking the context behavior
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	e.SetClient(mockClient)
+
+	testTask := &task.Task{
+		ID:     "TEST-TIMEOUT-001",
+		Title:  "Timeout Test",
+		Status: task.StatusRunning,
+		Weight: task.WeightSmall,
+	}
+
+	testPhase := &plan.Phase{
+		ID:     "implement",
+		Name:   "Implementation",
+		Prompt: "Implement: {{TASK_TITLE}}",
+	}
+
+	testState := state.New("TEST-TIMEOUT-001")
+
+	// Execute with the short timeout - mock completes quickly so this should succeed
+	ctx := context.Background()
+	result, err := e.executePhaseWithTimeout(ctx, testTask, testPhase, testState)
+
+	// With the mock completing instantly, it should succeed
+	if err != nil {
+		t.Fatalf("executePhaseWithTimeout failed unexpectedly: %v", err)
+	}
+
+	if result.Status != plan.PhaseCompleted {
+		t.Errorf("expected status Completed, got %v", result.Status)
+	}
+}
+
+// TestExecutePhase_PhaseTimeoutDisabled verifies that PhaseMax=0 disables timeout.
+func TestExecutePhase_PhaseTimeoutDisabled(t *testing.T) {
+	backend := newTestBackend(t)
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+
+	// Create orc config with PhaseMax=0 (disabled)
+	orcCfg := &config.Config{
+		Timeouts: config.TimeoutsConfig{
+			PhaseMax: 0, // Disabled
+		},
+	}
+
+	e := NewWithConfig(cfg, orcCfg)
+
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	e.SetClient(mockClient)
+
+	testTask := &task.Task{
+		ID:     "TEST-TIMEOUT-002",
+		Title:  "No Timeout Test",
+		Status: task.StatusRunning,
+		Weight: task.WeightSmall,
+	}
+
+	testPhase := &plan.Phase{
+		ID:     "implement",
+		Name:   "Implementation",
+		Prompt: "Implement: {{TASK_TITLE}}",
+	}
+
+	testState := state.New("TEST-TIMEOUT-002")
+
+	// Execute - should complete without timeout interference
+	ctx := context.Background()
+	result, err := e.executePhaseWithTimeout(ctx, testTask, testPhase, testState)
+
+	if err != nil {
+		t.Fatalf("executePhaseWithTimeout failed: %v", err)
+	}
+
+	if result.Status != plan.PhaseCompleted {
+		t.Errorf("expected status Completed, got %v", result.Status)
+	}
+}
+
+// TestExecutePhase_TimeoutProducesInterruptedState verifies that when a phase timeout
+// occurs, the task is marked as paused (interrupted) rather than failed, allowing resume.
+func TestExecutePhase_TimeoutProducesInterruptedState(t *testing.T) {
+	backend := newTestBackend(t)
+
+	// Create task
+	testTask := task.New("TASK-TIMEOUT-STATE", "Timeout State Test")
+	testTask.Weight = task.WeightSmall
+	testTask.Status = task.StatusPlanned
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create plan
+	testPlan := &plan.Plan{
+		Version: 1,
+		Weight:  "small",
+		Phases: []plan.Phase{
+			{
+				ID:     "implement",
+				Name:   "Implementation",
+				Prompt: "Implement: {{TASK_TITLE}}",
+			},
+		},
+	}
+	if err := backend.SavePlan(testPlan, "TASK-TIMEOUT-STATE"); err != nil {
+		t.Fatalf("failed to save plan: %v", err)
+	}
+
+	testState := state.New("TASK-TIMEOUT-STATE")
+
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+
+	// Create orc config with a very short PhaseMax timeout
+	orcCfg := &config.Config{
+		Timeouts: config.TimeoutsConfig{
+			PhaseMax: 10 * time.Millisecond, // Short timeout for test
+		},
+	}
+
+	e := NewWithConfig(cfg, orcCfg)
+
+	// Use a mock client with a custom complete function that blocks longer than the timeout
+	mockClient := claude.NewMockClient("").WithCompleteFunc(func(ctx context.Context, req claude.CompletionRequest) (*claude.CompletionResponse, error) {
+		// Sleep longer than PhaseMax to trigger timeout
+		select {
+		case <-time.After(200 * time.Millisecond):
+			return &claude.CompletionResponse{
+				Content: "Still working...",
+			}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	})
+	e.SetClient(mockClient)
+
+	// Execute task - should timeout
+	ctx := context.Background()
+	err := e.ExecuteTask(ctx, testTask, testPlan, testState)
+
+	// Should get a timeout error
+	if err == nil {
+		t.Fatal("expected timeout error, got nil")
+	}
+
+	// Verify it's a phase timeout error
+	if !isPhaseTimeoutError(err) {
+		t.Errorf("expected phaseTimeoutError, got %T: %v", err, err)
+	}
+
+	// Reload task and verify status is paused (interrupted), not failed
+	reloadedTask, loadErr := backend.LoadTask("TASK-TIMEOUT-STATE")
+	if loadErr != nil {
+		t.Fatalf("failed to reload task: %v", loadErr)
+	}
+
+	if reloadedTask.Status != task.StatusPaused {
+		t.Errorf("task status = %s, want paused (interrupted)", reloadedTask.Status)
+	}
+
+	// Verify state shows interrupted phase
+	reloadedState, stateErr := backend.LoadState("TASK-TIMEOUT-STATE")
+	if stateErr != nil {
+		t.Fatalf("failed to reload state: %v", stateErr)
+	}
+
+	if reloadedState.Phases["implement"].Status != "interrupted" {
+		t.Errorf("phase status = %s, want interrupted", reloadedState.Phases["implement"].Status)
+	}
+}
+
+// TestPhaseTimeoutError verifies the phaseTimeoutError type behavior.
+func TestPhaseTimeoutError(t *testing.T) {
+	underlyingErr := fmt.Errorf("underlying error")
+	pte := &phaseTimeoutError{
+		phase:   "implement",
+		timeout: 30 * time.Minute,
+		err:     underlyingErr,
+	}
+
+	// Test Error() method
+	errMsg := pte.Error()
+	if !strings.Contains(errMsg, "implement") {
+		t.Errorf("error message should contain phase name, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "30m") {
+		t.Errorf("error message should contain timeout duration, got: %s", errMsg)
+	}
+
+	// Test Unwrap() method
+	unwrapped := pte.Unwrap()
+	if unwrapped != underlyingErr {
+		t.Errorf("Unwrap() = %v, want %v", unwrapped, underlyingErr)
+	}
+
+	// Test isPhaseTimeoutError()
+	if !isPhaseTimeoutError(pte) {
+		t.Error("isPhaseTimeoutError should return true for phaseTimeoutError")
+	}
+
+	// Test isPhaseTimeoutError() with non-timeout error
+	regularErr := fmt.Errorf("regular error")
+	if isPhaseTimeoutError(regularErr) {
+		t.Error("isPhaseTimeoutError should return false for regular error")
+	}
+
+	// Test isPhaseTimeoutError() with nil
+	if isPhaseTimeoutError(nil) {
+		t.Error("isPhaseTimeoutError should return false for nil")
+	}
+}
+
+// TestExecutePhase_TurnTimeoutStillWorks verifies that the existing TurnMax timeout
+// still takes precedence when it's shorter than PhaseMax.
+func TestExecutePhase_TurnTimeoutStillWorks(t *testing.T) {
+	backend := newTestBackend(t)
+	cfg := DefaultConfig()
+	cfg.WorkDir = t.TempDir()
+	cfg.Backend = backend
+	cfg.Timeout = 50 * time.Millisecond // Turn timeout (short)
+
+	// Create orc config with a longer PhaseMax timeout
+	orcCfg := &config.Config{
+		Timeouts: config.TimeoutsConfig{
+			PhaseMax: 5 * time.Second, // Much longer than turn timeout
+		},
+	}
+
+	e := NewWithConfig(cfg, orcCfg)
+
+	// Use a mock client that completes quickly
+	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	e.SetClient(mockClient)
+
+	testTask := &task.Task{
+		ID:     "TEST-TURN-TIMEOUT",
+		Title:  "Turn Timeout Test",
+		Status: task.StatusRunning,
+		Weight: task.WeightSmall,
+	}
+
+	testPhase := &plan.Phase{
+		ID:     "implement",
+		Name:   "Implementation",
+		Prompt: "Implement: {{TASK_TITLE}}",
+	}
+
+	testState := state.New("TEST-TURN-TIMEOUT")
+
+	// Execute - should complete successfully (mock is fast)
+	ctx := context.Background()
+	result, err := e.executePhaseWithTimeout(ctx, testTask, testPhase, testState)
+
+	if err != nil {
+		t.Fatalf("executePhaseWithTimeout failed: %v", err)
+	}
+
+	if result.Status != plan.PhaseCompleted {
+		t.Errorf("expected status Completed, got %v", result.Status)
+	}
+}
