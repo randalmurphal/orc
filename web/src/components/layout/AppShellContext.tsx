@@ -102,10 +102,19 @@ export function AppShellProvider({ children }: AppShellProviderProps) {
 	// Ref to track if initial render is done (for focus management)
 	const initialRenderRef = useRef(true);
 	const panelToggleRef = useRef<HTMLButtonElement | null>(null);
-	// Ref to access current panel state inside resize handler without re-registering listener
+
+	// REF SYNCHRONIZATION PATTERN:
+	// We use a ref alongside state to avoid re-registering the resize listener on every state change.
+	// The resize handler (line 139-149) needs to read the current panel state to decide whether
+	// to auto-collapse it, but including isRightPanelOpen in the effect's dependency array would
+	// cause the listener to be re-registered on every toggle.
+	//
+	// Instead, the resize handler reads from isRightPanelOpenRef to get the latest panel state.
+	// IMPORTANT: The effect below MUST keep this ref in sync with state. If this sync effect
+	// is removed, the ref becomes stale and the resize handler will read outdated values.
 	const isRightPanelOpenRef = useRef(isRightPanelOpen);
 
-	// Keep ref in sync with state
+	// Keep ref in sync with state - REQUIRED for resize handler to work correctly
 	useEffect(() => {
 		isRightPanelOpenRef.current = isRightPanelOpen;
 	}, [isRightPanelOpen]);
@@ -142,7 +151,8 @@ export function AppShellProvider({ children }: AppShellProviderProps) {
 			// Update mobile nav mode
 			setIsMobileNavMode(width < MOBILE_BREAKPOINT);
 
-			// Auto-collapse right panel below tablet breakpoint (use ref to avoid re-registering listener)
+			// Auto-collapse right panel below tablet breakpoint
+			// (reads from isRightPanelOpenRef - see REF SYNCHRONIZATION PATTERN comment above)
 			if (width < TABLET_BREAKPOINT && isRightPanelOpenRef.current) {
 				setIsRightPanelOpen(false);
 			}
@@ -152,7 +162,9 @@ export function AppShellProvider({ children }: AppShellProviderProps) {
 		return () => window.removeEventListener('resize', handleResize);
 	}, []); // Empty deps - only run once
 
-	// Focus management when panel opens/closes (skip initial render)
+	// Focus management when panel opens/closes
+	// Skip initial render: we only want to manage focus when the user actively toggles the panel,
+	// not when the component first mounts (which would steal focus from wherever it was)
 	useEffect(() => {
 		if (initialRenderRef.current) {
 			initialRenderRef.current = false;
