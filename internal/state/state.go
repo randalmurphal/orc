@@ -77,15 +77,16 @@ type CostTracking struct {
 
 // PhaseState represents the state of a single phase.
 type PhaseState struct {
-	Status        Status     `yaml:"status" json:"status"`
-	StartedAt     time.Time  `yaml:"started_at,omitempty" json:"started_at,omitempty"`
-	CompletedAt   *time.Time `yaml:"completed_at,omitempty" json:"completed_at,omitempty"`
-	InterruptedAt *time.Time `yaml:"interrupted_at,omitempty" json:"interrupted_at,omitempty"`
-	Iterations    int        `yaml:"iterations" json:"iterations"`
-	CommitSHA     string     `yaml:"commit_sha,omitempty" json:"commit_sha,omitempty"`
-	Artifacts     []string   `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`
-	Error         string     `yaml:"error,omitempty" json:"error,omitempty"`
-	Tokens        TokenUsage `yaml:"tokens" json:"tokens"`
+	Status            Status            `yaml:"status" json:"status"`
+	StartedAt         time.Time         `yaml:"started_at,omitempty" json:"started_at,omitempty"`
+	CompletedAt       *time.Time        `yaml:"completed_at,omitempty" json:"completed_at,omitempty"`
+	InterruptedAt     *time.Time        `yaml:"interrupted_at,omitempty" json:"interrupted_at,omitempty"`
+	Iterations        int               `yaml:"iterations" json:"iterations"`
+	CommitSHA         string            `yaml:"commit_sha,omitempty" json:"commit_sha,omitempty"`
+	Artifacts         []string          `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`
+	Error             string            `yaml:"error,omitempty" json:"error,omitempty"`
+	Tokens            TokenUsage        `yaml:"tokens" json:"tokens"`
+	ValidationHistory []ValidationEntry `yaml:"validation_history,omitempty" json:"validation_history,omitempty"`
 }
 
 // GateDecision records a gate evaluation result.
@@ -100,19 +101,19 @@ type GateDecision struct {
 // RetryContext captures why a phase is being retried.
 type RetryContext struct {
 	// FromPhase is the phase that failed/rejected
-	FromPhase string `yaml:"from_phase"`
+	FromPhase string `yaml:"from_phase" json:"from_phase"`
 	// ToPhase is the phase we're retrying from
-	ToPhase string `yaml:"to_phase"`
+	ToPhase string `yaml:"to_phase" json:"to_phase"`
 	// Reason is a summary of why the retry is happening
-	Reason string `yaml:"reason"`
+	Reason string `yaml:"reason" json:"reason"`
 	// FailureOutput is the relevant output from the failed phase
-	FailureOutput string `yaml:"failure_output,omitempty"`
+	FailureOutput string `yaml:"failure_output,omitempty" json:"failure_output,omitempty"`
 	// ContextFile is path to detailed context file
-	ContextFile string `yaml:"context_file,omitempty"`
+	ContextFile string `yaml:"context_file,omitempty" json:"context_file,omitempty"`
 	// Attempt is which retry attempt this is
-	Attempt int `yaml:"attempt"`
+	Attempt int `yaml:"attempt" json:"attempt"`
 	// Timestamp is when the retry was triggered
-	Timestamp time.Time `yaml:"timestamp"`
+	Timestamp time.Time `yaml:"timestamp" json:"timestamp"`
 }
 
 // TokenUsage tracks token consumption.
@@ -122,6 +123,16 @@ type TokenUsage struct {
 	CacheCreationInputTokens int `yaml:"cache_creation_input_tokens,omitempty" json:"cache_creation_input_tokens,omitempty"`
 	CacheReadInputTokens     int `yaml:"cache_read_input_tokens,omitempty" json:"cache_read_input_tokens,omitempty"`
 	TotalTokens              int `yaml:"total_tokens" json:"total_tokens"`
+}
+
+// ValidationEntry records a single validation decision during phase execution.
+// This is used to track Haiku validation results for pause/resume.
+type ValidationEntry struct {
+	Iteration int       `yaml:"iteration" json:"iteration"`
+	Type      string    `yaml:"type" json:"type"`                         // "progress", "criteria", "backpressure"
+	Decision  string    `yaml:"decision" json:"decision"`                 // "CONTINUE", "RETRY", "STOP"
+	Reason    string    `yaml:"reason,omitempty" json:"reason,omitempty"` // Optional explanation
+	Timestamp time.Time `yaml:"timestamp" json:"timestamp"`
 }
 
 // New creates a new state for a task.
@@ -416,6 +427,28 @@ func (s *State) GetSessionID() string {
 		return s.Session.ID
 	}
 	return ""
+}
+
+// RecordValidation records a validation decision for the specified phase.
+func (s *State) RecordValidation(phaseID string, entry ValidationEntry) {
+	if s.Phases[phaseID] == nil {
+		s.Phases[phaseID] = &PhaseState{}
+	}
+	s.Phases[phaseID].ValidationHistory = append(s.Phases[phaseID].ValidationHistory, entry)
+	s.UpdatedAt = time.Now()
+}
+
+// GetLastValidation returns the most recent validation entry for the specified phase.
+// Returns nil if no validations have been recorded.
+func (s *State) GetLastValidation(phaseID string) *ValidationEntry {
+	if s.Phases[phaseID] == nil {
+		return nil
+	}
+	history := s.Phases[phaseID].ValidationHistory
+	if len(history) == 0 {
+		return nil
+	}
+	return &history[len(history)-1]
 }
 
 // StartExecution records that an executor process has started running this task.

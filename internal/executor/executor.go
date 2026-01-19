@@ -219,6 +219,9 @@ type Executor struct {
 	// Resource tracker for process/memory diagnostics
 	resourceTracker *ResourceTracker
 
+	// Resume session ID for continuing paused tasks with Claude's --resume flag
+	resumeSessionID string
+
 	// Automation service for trigger-based automation
 	automationSvc *automation.Service
 
@@ -470,6 +473,11 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				}),
 			}
 
+			// Pass resume session ID if set
+			if e.resumeSessionID != "" {
+				opts = append(opts, WithFullResumeSessionID(e.resumeSessionID))
+			}
+
 			// Create backpressure runner with the correct working directory
 			if e.orcConfig.Validation.Enabled && e.orcConfig.ShouldRunBackpressure(string(weight)) {
 				bp := NewBackpressureRunner(
@@ -502,6 +510,11 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				WithExecutorConfig(execCfg),
 				WithWorkingDir(workingDir),
 				WithStandardBackend(e.backend),
+			}
+
+			// Pass resume session ID if set
+			if e.resumeSessionID != "" {
+				opts = append(opts, WithStandardResumeSessionID(e.resumeSessionID))
 			}
 
 			// Create backpressure runner with the correct working directory
@@ -594,6 +607,20 @@ func (e *Executor) TokenPool() *tokenpool.Pool {
 // SetTokenPool sets the token pool (for testing).
 func (e *Executor) SetTokenPool(pool *tokenpool.Pool) {
 	e.tokenPool = pool
+}
+
+// SetResumeSessionID sets the session ID to use for resuming a paused task.
+// When set, the executor will use Claude's --resume flag to continue the
+// previous session instead of starting fresh.
+func (e *Executor) SetResumeSessionID(sessionID string) {
+	e.resumeSessionID = sessionID
+	// Reset phase executors so they're recreated with the new session ID
+	e.resetPhaseExecutors()
+}
+
+// GetResumeSessionID returns the current resume session ID.
+func (e *Executor) GetResumeSessionID() string {
+	return e.resumeSessionID
 }
 
 // SwitchToNextAccount switches to the next available account in the pool.

@@ -34,6 +34,9 @@ type StandardExecutor struct {
 	workingDir string
 	backend    storage.Backend // Storage backend for loading initiatives
 
+	// Resume support: if set, use Claude's --resume flag instead of starting fresh
+	resumeSessionID string
+
 	// Validation components (optional)
 	backpressure *BackpressureRunner // Deterministic quality checks
 	haikuClient  claude.Client       // Haiku client for progress validation
@@ -88,6 +91,12 @@ func WithStandardOrcConfig(cfg *config.Config) StandardExecutorOption {
 	return func(e *StandardExecutor) { e.orcConfig = cfg }
 }
 
+// WithStandardResumeSessionID sets the session ID to resume from.
+// When set, uses Claude's --resume flag instead of starting a fresh session.
+func WithStandardResumeSessionID(id string) StandardExecutorOption {
+	return func(e *StandardExecutor) { e.resumeSessionID = id }
+}
+
 // NewStandardExecutor creates a new standard executor.
 func NewStandardExecutor(mgr session.SessionManager, opts ...StandardExecutorOption) *StandardExecutor {
 	e := &StandardExecutor{
@@ -125,7 +134,13 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	// (see jsonl_sync.go), not through the publisher buffer
 
 	// Generate session ID: {task_id}-{phase_id}
+	// If resuming, use the stored session ID instead
 	sessionID := fmt.Sprintf("%s-%s", t.ID, p.ID)
+	isResume := e.resumeSessionID != ""
+	if isResume {
+		sessionID = e.resumeSessionID
+		e.logger.Info("resuming from previous session", "session_id", sessionID)
+	}
 
 	// Resolve model settings for this phase and weight
 	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
@@ -134,6 +149,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	// Create session adapter
 	adapter, err := NewSessionAdapter(ctx, e.manager, SessionAdapterOptions{
 		SessionID:   sessionID,
+		Resume:      isResume,
 		Model:       modelSetting.Model,
 		Workdir:     e.workingDir,
 		MaxTurns:    e.config.MaxIterations,
@@ -151,13 +167,16 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		}
 	}()
 
-	// Update state with JSONL path for live tailing (orc log --follow)
-	// Persist immediately so `orc log --follow` can find the file during execution.
-	if s != nil && adapter.JSONLPath() != "" {
-		s.JSONLPath = adapter.JSONLPath()
+	// Update state with session info and JSONL path for live tailing (orc log --follow)
+	// Persist immediately so `orc log --follow` can find the file and resume can use session ID.
+	if s != nil {
+		s.SetSession(adapter.SessionID(), modelSetting.Model, "running", 0)
+		if adapter.JSONLPath() != "" {
+			s.JSONLPath = adapter.JSONLPath()
+		}
 		if e.backend != nil {
 			if err := e.backend.SaveState(s); err != nil {
-				e.logger.Warn("failed to persist JSONLPath to state", "error", err)
+				e.logger.Warn("failed to persist session info to state", "error", err)
 			}
 		}
 	}
@@ -255,7 +274,15 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		}
 	}
 
-	promptText := RenderTemplate(tmpl, vars)
+	// Use continuation prompt when resuming (Claude already has full context)
+	// Otherwise render the full template
+	var promptText string
+	if isResume {
+		promptText = BuildContinuationPrompt(s, p.ID)
+		e.logger.Info("using continuation prompt for resume", "task", t.ID, "phase", p.ID)
+	} else {
+		promptText = RenderTemplate(tmpl, vars)
+	}
 
 	// Load spec content for progress validation (if enabled)
 	var specContent string
@@ -265,9 +292,9 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		}
 	}
 
-	// Inject "ultrathink" for extended thinking mode
+	// Inject "ultrathink" for extended thinking mode (skip for resume - Claude preserves thinking mode)
 	// This triggers maximum thinking budget (31,999 tokens) in Claude Code
-	if modelSetting.Thinking {
+	if modelSetting.Thinking && !isResume {
 		promptText = "ultrathink\n\n" + promptText
 		e.logger.Debug("extended thinking enabled", "task", t.ID, "phase", p.ID)
 	}
@@ -351,6 +378,12 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		result.Iterations = iteration
 		lastResponse = turnResult.Content
 
+		// Update session turn count for resume tracking
+		if s != nil && s.Session != nil {
+			s.Session.TurnCount = iteration
+			s.Session.LastActivity = time.Now()
+		}
+
 		// Publish response transcript
 		e.publisher.Transcript(t.ID, p.ID, iteration, "response", turnResult.Content)
 
@@ -380,6 +413,21 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 					"error", valErr,
 				)
 			} else {
+				// Record validation result to state for resume/retry tracking
+				if s != nil {
+					s.RecordValidation(p.ID, state.ValidationEntry{
+						Iteration: iteration,
+						Type:      "progress",
+						Decision:  decision.String(),
+						Reason:    reason,
+						Timestamp: time.Now(),
+					})
+					// Persist immediately so validation survives crashes/interrupts
+					if err := e.backend.SaveState(s); err != nil {
+						e.logger.Error("failed to persist validation result", "error", err)
+					}
+				}
+
 				switch decision {
 				case ValidationRetry:
 					e.logger.Info("progress validation: redirect needed",

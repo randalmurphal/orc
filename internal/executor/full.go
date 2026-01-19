@@ -37,6 +37,9 @@ type FullExecutor struct {
 	stateUpdater func(*state.State) // Callback to persist state changes
 	backend      storage.Backend    // Storage backend for loading initiatives
 
+	// Resume support: if set, use Claude's --resume flag instead of starting fresh
+	resumeSessionID string
+
 	// Validation components (optional)
 	backpressure *BackpressureRunner // Deterministic quality checks
 	haikuClient  claude.Client       // Haiku client for progress validation
@@ -101,6 +104,12 @@ func WithFullOrcConfig(cfg *config.Config) FullExecutorOption {
 	return func(e *FullExecutor) { e.orcConfig = cfg }
 }
 
+// WithFullResumeSessionID sets the session ID to resume from.
+// When set, uses Claude's --resume flag instead of starting a fresh session.
+func WithFullResumeSessionID(id string) FullExecutorOption {
+	return func(e *FullExecutor) { e.resumeSessionID = id }
+}
+
 // NewFullExecutor creates a new full executor.
 func NewFullExecutor(mgr session.SessionManager, opts ...FullExecutorOption) *FullExecutor {
 	e := &FullExecutor{
@@ -138,9 +147,15 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 	// (see jsonl_sync.go), not through the publisher buffer
 
 	// Generate session ID for resumability
+	// If resuming via orc resume, use the stored session ID
 	sessionID := fmt.Sprintf("%s-%s", t.ID, p.ID)
+	isResume := e.resumeSessionID != ""
+	if isResume {
+		sessionID = e.resumeSessionID
+		e.logger.Info("resuming from previous session", "session_id", sessionID)
+	}
 
-	// Check for existing checkpoint to resume from
+	// Check for existing checkpoint to resume from (fallback if no explicit resume)
 	checkpoint, err := e.loadCheckpoint(t.ID, p.ID)
 	if err != nil {
 		e.logger.Debug("no checkpoint found, starting fresh", "task", t.ID, "phase", p.ID)
@@ -151,9 +166,11 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 	result.Model = modelSetting.Model
 
 	// Create session adapter with resume capability
+	// Only use Claude's --resume flag when we have an explicit session ID from orc resume.
+	// Checkpoint-based resume is at the application level (iteration state), not Claude's session level.
 	adapterOpts := SessionAdapterOptions{
 		SessionID:   sessionID,
-		Resume:      checkpoint != nil, // Resume if we have a checkpoint
+		Resume:      isResume, // Only resume Claude session when explicit session ID provided
 		Model:       modelSetting.Model,
 		Workdir:     e.workingDir,
 		MaxTurns:    e.config.MaxIterations,
@@ -173,9 +190,13 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		}
 	}()
 
-	// Update state with JSONL path for live tailing (orc log --follow)
-	if s != nil && adapter.JSONLPath() != "" {
-		s.JSONLPath = adapter.JSONLPath()
+	// Update state with session info and JSONL path for live tailing (orc log --follow)
+	// Persist immediately so `orc log --follow` can find the file and resume can use session ID.
+	if s != nil {
+		s.SetSession(adapter.SessionID(), modelSetting.Model, "running", 0)
+		if adapter.JSONLPath() != "" {
+			s.JSONLPath = adapter.JSONLPath()
+		}
 		if e.stateUpdater != nil {
 			e.stateUpdater(s)
 		}
@@ -285,7 +306,15 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		}
 	}
 
-	promptText := RenderTemplate(tmpl, vars)
+	// Use continuation prompt when resuming (Claude already has full context)
+	// Otherwise render the full template
+	var promptText string
+	if isResume {
+		promptText = BuildContinuationPrompt(s, p.ID)
+		e.logger.Info("using continuation prompt for resume", "task", t.ID, "phase", p.ID)
+	} else {
+		promptText = RenderTemplate(tmpl, vars)
+	}
 
 	// Load spec content for progress validation (if enabled)
 	var specContent string
@@ -295,9 +324,9 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		}
 	}
 
-	// Inject "ultrathink" for extended thinking mode
+	// Inject "ultrathink" for extended thinking mode (skip for resume - Claude preserves thinking mode)
 	// This triggers maximum thinking budget (31,999 tokens) in Claude Code
-	if modelSetting.Thinking {
+	if modelSetting.Thinking && !isResume {
 		promptText = "ultrathink\n\n" + promptText
 		e.logger.Debug("extended thinking enabled", "task", t.ID, "phase", p.ID)
 	}
@@ -379,6 +408,12 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		result.Iterations = iteration
 		lastResponse = turnResult.Content
 
+		// Update session turn count for resume tracking
+		if s != nil && s.Session != nil {
+			s.Session.TurnCount = iteration
+			s.Session.LastActivity = time.Now()
+		}
+
 		e.publisher.Transcript(t.ID, p.ID, iteration, "response", turnResult.Content)
 
 		// Progress validation: check if iteration is on track (if enabled)
@@ -407,6 +442,21 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 					"error", valErr,
 				)
 			} else {
+				// Record validation result to state for resume/retry tracking
+				if s != nil {
+					s.RecordValidation(p.ID, state.ValidationEntry{
+						Iteration: iteration,
+						Type:      "progress",
+						Decision:  decision.String(),
+						Reason:    reason,
+						Timestamp: time.Now(),
+					})
+					// Persist immediately so validation survives crashes/interrupts
+					if e.stateUpdater != nil {
+						e.stateUpdater(s)
+					}
+				}
+
 				switch decision {
 				case ValidationRetry:
 					e.logger.Info("progress validation: redirect needed",

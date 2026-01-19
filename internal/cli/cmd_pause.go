@@ -3,10 +3,15 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -14,18 +19,23 @@ import (
 
 // newPauseCmd creates the pause command
 func newPauseCmd() *cobra.Command {
-	return &cobra.Command{
+	var force bool
+	var timeout time.Duration
+
+	cmd := &cobra.Command{
 		Use:   "pause <task-id>",
 		Short: "Pause task execution (can resume later)",
 		Long: `Pause a running task, saving its current state.
 
-The task can be resumed later with 'orc resume'. All progress is preserved.
+The task can be resumed later with 'orc resume'. All progress is preserved,
+including uncommitted work which will be committed and pushed.
 
 Use 'orc stop' instead if you want to abort the task permanently.
 
 Examples:
   orc pause TASK-001
-  orc resume TASK-001  # Continue later`,
+  orc pause TASK-001 --timeout 60s  # Wait up to 60s for graceful pause
+  orc resume TASK-001               # Continue later`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -49,6 +59,40 @@ Examples:
 				return fmt.Errorf("task is not running (status: %s)", t.Status)
 			}
 
+			// Load state to check for executor PID
+			s, err := backend.LoadState(id)
+			if err != nil {
+				s = state.New(id)
+			}
+
+			// Check if executor process is alive and signal it
+			if s.Execution != nil && s.Execution.PID > 0 {
+				if state.IsPIDAlive(s.Execution.PID) {
+					fmt.Printf("⏸️  Signaling executor (PID %d) to pause...\n", s.Execution.PID)
+
+					proc, procErr := os.FindProcess(s.Execution.PID)
+					if procErr == nil {
+						// Send SIGUSR1 for graceful pause
+						if sigErr := proc.Signal(syscall.SIGUSR1); sigErr != nil {
+							fmt.Printf("Warning: Could not signal executor: %v\n", sigErr)
+						} else {
+							// Wait for executor to save state
+							if waitErr := waitForTaskStatus(backend, id, task.StatusPaused, timeout); waitErr != nil {
+								if !force {
+									return fmt.Errorf("executor did not pause in time: %w (use --force to override)", waitErr)
+								}
+								fmt.Println("Warning: Executor did not respond, forcing pause...")
+							} else {
+								fmt.Printf("✅ Task %s paused successfully\n", id)
+								fmt.Printf("   Resume with: orc resume %s\n", id)
+								return nil
+							}
+						}
+					}
+				}
+			}
+
+			// Fallback: Update status directly (executor not running or signal failed)
 			t.Status = task.StatusPaused
 			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
@@ -59,6 +103,23 @@ Examples:
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force pause even if executor doesn't respond")
+	cmd.Flags().DurationVarP(&timeout, "timeout", "t", 30*time.Second, "Timeout waiting for executor to pause")
+	return cmd
+}
+
+// waitForTaskStatus polls until task reaches expected status or timeout
+func waitForTaskStatus(backend storage.Backend, taskID string, expected task.Status, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		t, err := backend.LoadTask(taskID)
+		if err == nil && t.Status == expected {
+			return nil
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return fmt.Errorf("timeout waiting for status %s", expected)
 }
 
 // newStopCmd creates the stop command

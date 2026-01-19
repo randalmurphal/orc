@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude"
@@ -77,6 +79,34 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 	heartbeat := NewHeartbeatRunner(e.backend, s, e.logger)
 	heartbeat.Start(ctx)
 	defer heartbeat.Stop()
+
+	// Set up SIGUSR1 handler for external pause requests (orc pause).
+	// When received, triggers graceful pause: commits WIP, saves state, exits cleanly.
+	pauseCh := make(chan os.Signal, 1)
+	signal.Notify(pauseCh, syscall.SIGUSR1)
+	defer func() {
+		signal.Stop(pauseCh)
+		// Drain any pending signal to prevent goroutine leak
+		select {
+		case <-pauseCh:
+		default:
+		}
+	}()
+
+	// Create a cancellable context for pause handling
+	execCtx, execCancel := context.WithCancel(ctx)
+	defer execCancel()
+
+	go func() {
+		select {
+		case <-pauseCh:
+			e.logger.Info("SIGUSR1 received, initiating graceful pause", "task", t.ID)
+			// Cancel context to trigger interrupt in phase execution
+			execCancel()
+		case <-execCtx.Done():
+			return
+		}
+	}()
 
 	// Setup worktree if enabled
 	if e.orcConfig.Worktree.Enabled && e.gitOps != nil {
@@ -149,12 +179,22 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 
 		// Execute phase with PhaseMax timeout if configured
 		// PhaseMax=0 means unlimited (no timeout)
-		result, err := e.executePhaseWithTimeout(ctx, t, phase, s)
+		// Use execCtx so SIGUSR1 can trigger graceful pause
+		result, err := e.executePhaseWithTimeout(execCtx, t, phase, s)
 		if err != nil {
-			// Check for context errors - distinguish between phase timeout and parent interrupt
+			// Check for context errors - distinguish between:
+			// 1. Parent context cancelled (Ctrl+C) - ctx.Err() != nil
+			// 2. SIGUSR1 pause request - ctx.Err() == nil but execCtx.Err() == context.Canceled
 			if ctx.Err() != nil {
 				e.interruptTask(t, phase.ID, s, ctx.Err())
 				return ctx.Err()
+			}
+			// Re-check parent context after execCtx check to avoid TOCTOU race:
+			// Parent ctx could have been cancelled between the two checks
+			if execCtx.Err() == context.Canceled && ctx.Err() == nil {
+				// SIGUSR1 triggered pause (confirmed parent ctx wasn't cancelled)
+				e.interruptTask(t, phase.ID, s, errors.New("paused via SIGUSR1"))
+				return errors.New("task paused")
 			}
 
 			// Check if it's a phase timeout error (marked by our wrapper)
@@ -539,8 +579,44 @@ func (e *Executor) failTask(t *task.Task, phase *plan.Phase, s *state.State, err
 // interruptTask handles marking a task as interrupted/paused.
 // This ensures both task status and state are properly updated when execution is cancelled,
 // preventing orphaned tasks that show "running" but have no active executor.
+// Also commits and pushes any work-in-progress to preserve changes.
 func (e *Executor) interruptTask(t *task.Task, phaseID string, s *state.State, err error) {
 	e.logger.Info("task interrupted", "task", t.ID, "phase", phaseID, "reason", err.Error())
+
+	// Commit work-in-progress before updating state
+	gitSvc := e.worktreeGit
+	if gitSvc == nil {
+		gitSvc = e.gitOps
+	}
+	if gitSvc != nil {
+		// Use CreateCheckpoint which handles staging and committing
+		checkpoint, cpErr := gitSvc.CreateCheckpoint(t.ID, phaseID, "interrupted (work in progress)")
+		if cpErr != nil {
+			// Log but don't fail - checkpoint is best effort
+			e.logger.Debug("no checkpoint created on interrupt", "reason", cpErr)
+		} else if checkpoint != nil {
+			e.logger.Info("committed WIP on interrupt", "sha", checkpoint.CommitSHA[:min(8, len(checkpoint.CommitSHA))])
+			// Store commit SHA in state (with nil safety for both Phases map and entry)
+			if s.Phases != nil && s.Phases[phaseID] != nil {
+				s.Phases[phaseID].CommitSHA = checkpoint.CommitSHA
+			}
+			// Push to remote with timeout to avoid blocking interrupt
+			pushDone := make(chan error, 1)
+			go func() {
+				pushDone <- gitSvc.Push("origin", t.Branch, false)
+			}()
+			select {
+			case pushErr := <-pushDone:
+				if pushErr != nil {
+					e.logger.Warn("failed to push on interrupt", "error", pushErr)
+				} else {
+					e.logger.Info("pushed WIP to remote", "branch", t.Branch)
+				}
+			case <-time.After(30 * time.Second):
+				e.logger.Warn("push timed out on interrupt")
+			}
+		}
+	}
 
 	// Update state: mark phase as interrupted and store error
 	s.InterruptPhase(phaseID)
