@@ -5,25 +5,7 @@ description: Greenfield project - research, spec, design, implement, review, tes
 phases:
   - id: research
     name: research
-    prompt: |
-      Research for new greenfield project:
-
-      **Task**: {{TASK_TITLE}}
-
-      **Description**: {{TASK_DESCRIPTION}}
-
-      Investigate:
-      1. Similar existing systems/approaches
-      2. Technology options and trade-offs
-      3. Best practices in the domain
-      4. Constraints and requirements
-      5. Integration points
-      6. Testing strategies (unit, integration, E2E)
-
-      Keep iterating until research is thorough.
-
-      When done, output:
-      <phase_complete>true</phase_complete>
+    # Uses templates/prompts/research.md (no inline prompt)
     depends_on: []
     gate:
       type: auto
@@ -31,79 +13,7 @@ phases:
 
   - id: spec
     name: spec
-    prompt: |
-      Create specification for greenfield project:
-
-      **Task**: {{TASK_TITLE}}
-
-      **Description**: {{TASK_DESCRIPTION}}
-
-      {{INITIATIVE_CONTEXT}}
-
-      **Research findings**:
-      {{RESEARCH_CONTENT}}
-
-      Define:
-      1. Project scope and goals
-      2. Requirements (functional and non-functional)
-      3. Architecture decisions
-      4. Data model
-      5. API design (endpoints, request/response formats)
-      6. Frontend components and user flows
-      7. Success criteria with checkboxes
-      8. Test plan (unit, integration, E2E with Playwright MCP)
-
-      Include explicit completion criteria:
-      - Backend criteria (all endpoints, tests, coverage)
-      - Frontend criteria (all components, flows, states)
-      - E2E criteria (critical paths via Playwright MCP tools)
-      - Documentation criteria
-
-      ## Output Format
-
-      **CRITICAL**: You MUST output your spec wrapped in `<artifact>` tags - this is how specs are captured.
-      The artifact is MANDATORY even if no file changes were made. Worktree state is IRRELEVANT.
-
-      <artifact>
-      # Specification: {{TASK_TITLE}}
-
-      ## Problem Statement
-      [What we're building and why]
-
-      ## Success Criteria
-      | ID | Criterion | Verification | Expected |
-      |----|-----------|--------------|----------|
-      | SC-1 | [Criterion] | [Command/test] | [Result] |
-
-      ## Testing Requirements
-      | Type | Description | Command |
-      |------|-------------|---------|
-      | Unit | [Tests] | [Command] |
-      | Integration | [Tests] | [Command] |
-      | E2E | [Tests] | [Command] |
-
-      ## Scope
-      ### In Scope
-      - [Items]
-      ### Out of Scope
-      - [Items]
-
-      ## Technical Approach
-      [Architecture, data model, API design, frontend components]
-      </artifact>
-
-      After outputting the artifact, commit any file changes (if any):
-      ```bash
-      git add -A && git commit -m "[orc] {{TASK_ID}}: spec - completed"
-      ```
-
-      Then output:
-      ```
-      **Commit**: [SHA or "N/A"]
-      <phase_complete>true</phase_complete>
-      ```
-
-      ⚠️ **Common mistake**: Do NOT skip the `<artifact>` tags because the worktree is clean.
+    # Uses templates/prompts/spec.md (no inline prompt)
     depends_on: [research]
     gate:
       type: auto
@@ -111,34 +21,7 @@ phases:
 
   - id: design
     name: design
-    prompt: |
-      Create architecture and design for greenfield project:
-
-      **Task**: {{TASK_TITLE}}
-
-      **Description**: {{TASK_DESCRIPTION}}
-
-      **Research findings**:
-      {{RESEARCH_CONTENT}}
-
-      **Specification**:
-      {{SPEC_CONTENT}}
-
-      Design requirements:
-      1. Define system architecture and components
-      2. Document design decisions with rationale
-      3. Assess implementation risks
-      4. Define implementation order
-
-      Output a design document with:
-      - System architecture diagram
-      - Component responsibilities
-      - Design decisions table (DD-1, DD-2, etc.)
-      - Risk assessment
-      - Implementation order
-
-      When done, output:
-      <phase_complete>true</phase_complete>
+    # Uses templates/prompts/design.md (no inline prompt)
     depends_on: [spec]
     gate:
       type: auto
@@ -146,45 +29,7 @@ phases:
 
   - id: implement
     name: implement
-    prompt: |
-      Implement the greenfield project:
-
-      **Task**: {{TASK_TITLE}}
-
-      **Description**: {{TASK_DESCRIPTION}}
-
-      **Specification**:
-      {{SPEC_CONTENT}}
-
-      **Design**:
-      {{DESIGN_CONTENT}}
-
-      {{RETRY_CONTEXT}}
-
-      Implementation protocol:
-      1. Follow the design's implementation order
-      2. Create project structure
-      3. Implement backend:
-         - All API endpoints
-         - Business logic
-         - Error handling
-         - Unit tests alongside code
-      4. Implement frontend:
-         - All pages/routes
-         - All components
-         - API integration
-         - Loading/error states
-      5. Run tests frequently: `go test ./... -v -race`
-      6. Fix failures before continuing
-
-      Keep iterating until:
-      - All backend code complete
-      - All frontend code complete
-      - All unit tests pass
-      - No race conditions
-
-      When done, output:
-      <phase_complete>true</phase_complete>
+    # Uses templates/prompts/implement.md (no inline prompt)
     depends_on: [design]
     gate:
       type: auto
@@ -192,7 +37,7 @@ phases:
 
   - id: review
     name: review
-    prompt_file: review.md
+    # Uses templates/prompts/review.md (no inline prompt)
     depends_on: [implement]
     gate:
       type: auto
@@ -201,55 +46,7 @@ phases:
 
   - id: test
     name: test
-    prompt: |
-      Complete testing for greenfield project:
-
-      **Task**: {{TASK_TITLE}}
-
-      **Description**: {{TASK_DESCRIPTION}}
-
-      Testing checklist:
-
-      ## Unit Tests
-      1. Run: `go test ./... -v -race -cover`
-      2. Verify coverage > 80%
-      3. Fix any failures
-
-      ## Integration Tests
-      1. Test API endpoints with real database/storage
-      2. Test cross-component interactions
-      3. Verify error handling paths
-
-      ## E2E Tests (REQUIRED - Use Playwright MCP tools)
-
-      Setup:
-      - Start API server: `make serve` (port 8080)
-      - Start frontend: `make web-dev` (port 5173)
-
-      Test flows using Playwright MCP:
-      1. `mcp__playwright__browser_navigate` to http://localhost:5173
-      2. `mcp__playwright__browser_snapshot` to verify page state
-      3. `mcp__playwright__browser_click` to interact with elements
-      4. `mcp__playwright__browser_type` to enter text
-      5. `mcp__playwright__browser_fill_form` to fill forms
-      6. `mcp__playwright__browser_wait_for` to wait for conditions
-      7. `mcp__playwright__browser_network_requests` to verify API calls
-
-      Critical E2E scenarios to test:
-      - Main user journey (create, view, interact)
-      - Error handling (invalid input, network failures)
-      - Real-time updates (if applicable)
-      - All navigation paths
-
-      ## Performance Testing
-      1. API response times < 100ms
-      2. Frontend loads < 2s
-      3. No memory leaks
-
-      Keep iterating until ALL tests pass.
-
-      When done, output:
-      <phase_complete>true</phase_complete>
+    # Uses templates/prompts/test.md (no inline prompt)
     depends_on: [review]
     gate:
       type: auto
@@ -257,22 +54,7 @@ phases:
 
   - id: docs
     name: docs
-    prompt: |
-      Update documentation for:
-
-      **Task**: {{TASK_TITLE}}
-
-      **Description**: {{TASK_DESCRIPTION}}
-
-      1. Update any relevant documentation files
-      2. Ensure CLAUDE.md reflects the changes if applicable
-      3. Add/update code comments where needed
-      4. Update README if user-facing changes were made
-
-      Keep iterating until documentation is complete.
-
-      When done, output:
-      <phase_complete>true</phase_complete>
+    # Uses templates/prompts/docs.md (no inline prompt)
     depends_on: [test]
     gate:
       type: auto
@@ -280,64 +62,7 @@ phases:
 
   - id: validate
     name: validate
-    prompt: |
-      Final validation for greenfield project:
-
-      **Task**: {{TASK_TITLE}}
-
-      **Description**: {{TASK_DESCRIPTION}}
-
-      ## Validation Checklist
-
-      ### Backend
-      - [ ] All API endpoints functional
-      - [ ] All business logic complete
-      - [ ] Error handling returns actionable messages
-      - [ ] Unit tests pass: `go test ./... -v -race`
-      - [ ] Test coverage > 80%
-      - [ ] No race conditions
-      - [ ] API documented
-
-      ### Frontend
-      - [ ] All pages/routes implemented
-      - [ ] All components functional
-      - [ ] State management works correctly
-      - [ ] API integration complete
-      - [ ] Loading states shown
-      - [ ] Error states handled
-      - [ ] Responsive design works
-
-      ### E2E (Playwright MCP - MUST RUN)
-      Start servers and run E2E tests:
-      - [ ] Main user flow works end-to-end
-      - [ ] All critical paths tested
-      - [ ] Error scenarios handled gracefully
-      - [ ] Real-time features work (if applicable)
-
-      ### Documentation
-      - [ ] CLAUDE.md is current and accurate
-      - [ ] README is updated
-      - [ ] API endpoints documented
-      - [ ] Setup instructions work
-
-      ### Code Quality
-      - [ ] No TODO comments in production code
-      - [ ] No console.log/fmt.Println debugging
-      - [ ] Consistent code style
-      - [ ] No security vulnerabilities
-
-      ## Final E2E Verification
-
-      Run full E2E test suite using Playwright MCP tools:
-      1. Navigate to frontend
-      2. Test every user-facing feature
-      3. Verify all API calls succeed
-      4. Check all UI states render correctly
-
-      Keep iterating until ALL checkboxes are checked.
-
-      When ALL validation criteria pass, output:
-      <phase_complete>true</phase_complete>
+    # Uses templates/prompts/validate.md (no inline prompt)
     depends_on: [docs]
     gate:
       type: auto
