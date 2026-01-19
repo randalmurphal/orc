@@ -1,0 +1,177 @@
+/* =============================================================================
+   RunningColumn Component Styles
+   Fixed-width column for actively executing tasks
+   Matches mockup: example_ui/board.html (.column.running class)
+   ============================================================================= */
+
+/* =============================================================================
+   Base Column
+   Fixed 420px width, doesn't shrink
+   ============================================================================= */
+
+.running-column {
+	flex: 0 0 420px;
+	width: 420px;
+	min-width: 420px;
+	display: flex;
+	flex-direction: column;
+	background: transparent;
+	border-radius: var(--radius-lg);
+	/* Subtle background gradient for running state emphasis */
+	background: linear-gradient(
+		180deg,
+		rgba(168, 85, 247, 0.02) 0%,
+		transparent 50%
+	);
+}
+
+/* =============================================================================
+   Column Header
+   Title with pulsing indicator and count badge
+   ============================================================================= */
+
+.running-column-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--space-3);
+	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
+}
+
+.running-column-title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-size: var(--text-sm);
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+}
+
+/* Pulsing indicator dot */
+.running-indicator {
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+	background: var(--primary);
+	box-shadow: 0 0 8px var(--primary-glow);
+	animation: running-pulse 2s ease-in-out infinite;
+}
+
+@keyframes running-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+/* Count badge */
+.running-count {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	height: 24px;
+	padding: 0 var(--space-1-5);
+	font-size: var(--text-xs);
+	font-weight: var(--font-semibold);
+	color: var(--primary-bright);
+	background: var(--primary-dim);
+	border-radius: var(--radius-full);
+}
+
+/* =============================================================================
+   Column Content
+   Scrollable area with max 2 visible cards (~300px visible area)
+   RunningCard is ~120px collapsed, so 2 cards + gaps ≈ 260px
+   ============================================================================= */
+
+.running-column-content {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	padding: var(--space-3);
+	overflow-y: auto;
+	/* Max height for 2 visible cards: 2 * ~150px + gap + padding */
+	max-height: 350px;
+}
+
+/* Scrollbar styling */
+.running-column-content::-webkit-scrollbar {
+	width: 5px;
+}
+
+.running-column-content::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 3px;
+}
+
+.running-column-content::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+/* =============================================================================
+   Card Wrapper
+   Handles completion animation
+   ============================================================================= */
+
+.running-card-wrapper {
+	transition:
+		opacity var(--duration-slow) ease-out,
+		transform var(--duration-slow) ease-out,
+		max-height var(--duration-slow) ease-out;
+}
+
+/* Task completion exit animation */
+.running-card-wrapper.completing {
+	opacity: 0;
+	transform: scale(0.95);
+	max-height: 0;
+	overflow: hidden;
+	margin-bottom: 0;
+	padding: 0;
+}
+
+/* =============================================================================
+   Empty State
+   Shown when no tasks are running
+   ============================================================================= */
+
+.running-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 200px;
+	gap: var(--space-2);
+	text-align: center;
+}
+
+.running-empty-text {
+	font-size: var(--text-lg);
+	font-weight: var(--font-medium);
+	color: var(--text-secondary);
+}
+
+.running-empty-hint {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	max-width: 280px;
+	line-height: var(--leading-relaxed);
+}
+
+.running-empty-hint code {
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
+	padding: 2px 6px;
+	background: var(--bg-surface);
+	border: 1px solid var(--border-light);
+	border-radius: var(--radius-sm);
+	color: var(--primary-bright);
+}
