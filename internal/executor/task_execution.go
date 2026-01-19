@@ -146,13 +146,20 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		e.publishPhaseStart(t.ID, phase.ID)
 		e.publishState(t.ID, s)
 
-		// Execute phase
-		result, err := e.ExecutePhase(ctx, t, phase, s)
+		// Execute phase with PhaseMax timeout if configured
+		// PhaseMax=0 means unlimited (no timeout)
+		result, err := e.executePhaseWithTimeout(ctx, t, phase, s)
 		if err != nil {
-			// Check for context cancellation (interrupt)
+			// Check for context errors - distinguish between phase timeout and parent interrupt
 			if ctx.Err() != nil {
 				e.interruptTask(t, phase.ID, s, ctx.Err())
 				return ctx.Err()
+			}
+
+			// Check if it's a phase timeout error (marked by our wrapper)
+			if isPhaseTimeoutError(err) {
+				e.interruptTask(t, phase.ID, s, err)
+				return err
 			}
 
 			// Handle phase failure with potential retry
@@ -910,13 +917,37 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 		}),
 	)
 
-	// Execute finalize phase
-	result, err := finalizeExec.Execute(ctx, t, p, s)
+	// Execute finalize phase with PhaseMax timeout if configured
+	// PhaseMax=0 means unlimited (no timeout)
+	phaseMax := e.orcConfig.Timeouts.PhaseMax
+	finalizeCtx := ctx
+	var finalizeCancel context.CancelFunc
+	if phaseMax > 0 {
+		finalizeCtx, finalizeCancel = context.WithTimeout(ctx, phaseMax)
+		defer finalizeCancel()
+	}
+
+	result, err := finalizeExec.Execute(finalizeCtx, t, p, s)
 	if err != nil {
-		// Check for context cancellation (interrupt)
+		// Check for context errors - distinguish between phase timeout and parent interrupt
 		if ctx.Err() != nil {
 			e.interruptTask(t, "finalize", s, ctx.Err())
 			return ctx.Err()
+		}
+
+		// Check if finalize context timed out (PhaseMax exceeded)
+		if finalizeCtx.Err() == context.DeadlineExceeded {
+			timeoutErr := &phaseTimeoutError{
+				phase:   "finalize",
+				timeout: phaseMax,
+				err:     err,
+			}
+			e.logger.Warn("finalize phase timeout exceeded",
+				"timeout", phaseMax,
+				"task", t.ID,
+			)
+			e.interruptTask(t, "finalize", s, timeoutErr)
+			return timeoutErr
 		}
 
 		// Fail the phase
@@ -1200,5 +1231,59 @@ func (e *Executor) tryExtractQAResult(ctx context.Context, taskID, output string
 		"tests_written", len(qaResult.TestsWritten),
 		"issues", len(qaResult.Issues),
 	)
+}
+
+// phaseTimeoutError wraps an error to indicate it was caused by PhaseMax timeout
+type phaseTimeoutError struct {
+	phase   string
+	timeout time.Duration
+	err     error
+}
+
+func (e *phaseTimeoutError) Error() string {
+	return fmt.Sprintf("phase %s exceeded timeout (%v)", e.phase, e.timeout)
+}
+
+func (e *phaseTimeoutError) Unwrap() error {
+	return e.err
+}
+
+// isPhaseTimeoutError returns true if the error is a phase timeout error
+func isPhaseTimeoutError(err error) bool {
+	var pte *phaseTimeoutError
+	return errors.As(err, &pte)
+}
+
+// executePhaseWithTimeout wraps ExecutePhase with PhaseMax timeout if configured.
+// PhaseMax=0 means unlimited (no timeout).
+// Returns a phaseTimeoutError if the phase times out due to PhaseMax.
+func (e *Executor) executePhaseWithTimeout(ctx context.Context, t *task.Task, phase *plan.Phase, s *state.State) (*Result, error) {
+	phaseMax := e.orcConfig.Timeouts.PhaseMax
+	if phaseMax <= 0 {
+		// No timeout configured, execute directly
+		return e.ExecutePhase(ctx, t, phase, s)
+	}
+
+	// Create timeout context for this phase
+	phaseCtx, cancel := context.WithTimeout(ctx, phaseMax)
+	defer cancel()
+
+	result, err := e.ExecutePhase(phaseCtx, t, phase, s)
+	if err != nil {
+		// Check if phase context timed out (but parent context is still alive)
+		if phaseCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil {
+			e.logger.Warn("phase timeout exceeded",
+				"phase", phase.ID,
+				"timeout", phaseMax,
+				"task", t.ID,
+			)
+			return result, &phaseTimeoutError{
+				phase:   phase.ID,
+				timeout: phaseMax,
+				err:     err,
+			}
+		}
+	}
+	return result, err
 }
 
