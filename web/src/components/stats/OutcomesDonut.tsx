@@ -3,6 +3,7 @@
  * Uses conic-gradient for rendering with animated segment transitions.
  */
 
+import { useMemo } from 'react';
 import './OutcomesDonut.css';
 
 export interface OutcomesDonutProps {
@@ -24,8 +25,8 @@ export interface OutcomesDonutProps {
 export function OutcomesDonut({ completed, withRetries, failed }: OutcomesDonutProps) {
 	const total = completed + withRetries + failed;
 
-	// Calculate degrees for each segment
-	const getGradient = () => {
+	// Memoize gradient calculation to avoid recalculating on every render
+	const gradient = useMemo(() => {
 		if (total === 0) {
 			// Empty state - neutral background
 			return 'var(--bg-surface)';
@@ -65,11 +66,11 @@ export function OutcomesDonut({ completed, withRetries, failed }: OutcomesDonutP
 		}
 
 		return `conic-gradient(${segments.join(', ')})`;
-	};
+	}, [completed, withRetries, failed, total]);
 
 	return (
 		<div className="outcomes-donut-container">
-			<div className="outcomes-donut" style={{ background: getGradient() }}>
+			<div className="outcomes-donut" style={{ background: gradient }}>
 				<div className="outcomes-donut-center">
 					<span className="outcomes-donut-value">{total}</span>
 					<span className="outcomes-donut-label">Total</span>
