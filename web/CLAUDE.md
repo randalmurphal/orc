@@ -41,6 +41,7 @@ web/src/
 │   ├── layout/           # AppLayout, Sidebar, Header, IconNav, TopBar
 │   ├── task-detail/      # TaskHeader, TabNav, tabs
 │   ├── overlays/         # Modal, CommandPalette, NewTaskModal
+│   ├── stats/            # Statistics visualizations (TasksBarChart)
 │   └── ui/               # Primitives (Button, Icon, Input, Tooltip)
 ├── pages/                # Route pages
 ├── stores/               # Zustand stores
