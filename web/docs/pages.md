@@ -145,6 +145,63 @@ Initiatives overview page at `/initiatives` with aggregate statistics and card g
 | `.initiatives-view-empty` | Empty state styling |
 | `.initiatives-view-error` | Error state with retry |
 
+## Agents
+
+Agent configuration page at `/agents` with active agents grid, execution settings, and tool permissions.
+
+### Page Structure
+
+| Component | Purpose |
+|-----------|---------|
+| `AgentsPage` | Route wrapper that renders AgentsView |
+| `AgentsView` | Container with data fetching, sections, and state handling |
+
+### Visual Sections
+
+| Section | Content |
+|---------|---------|
+| Header | "Agents" title, "Configure Claude models and execution settings" subtitle, "Add Agent" button |
+| Active Agents | Responsive AgentCard grid (auto-fill, min 320px, gap 16px) |
+| Execution Settings | 2-column grid with parallel tasks, auto-approve, model, cost limit |
+| Tool Permissions | 3-column grid of tool toggles (file read/write, bash, web, git, MCP) |
+
+### States
+
+| State | Display |
+|-------|---------|
+| Loading | Skeleton cards (3) in grid |
+| Empty | Icon + "Create your first agent" message |
+| Error | Error message with retry button |
+| Populated | AgentCard grid + ExecutionSettings + ToolPermissions |
+
+### Data Flow
+
+- **Agents**: Fetched from `/api/agents` via `listAgents()`
+- **Config**: Fetched from `/api/config` via `getConfig()`
+- **Execution Settings**: Derived from config (model, automation profile)
+- **Tool Permissions**: Local state with toggle persistence
+
+### Events
+
+| Action | Event/Effect |
+|--------|--------------|
+| Click "Add Agent" | Dispatches `orc:add-agent` custom event |
+| Click agent card | Dispatches `orc:select-agent` custom event with agent data |
+| Change execution setting | Updates local state, persists model via `updateConfig()` |
+| Toggle tool permission | Updates local state |
+
+### CSS Classes
+
+| Class | Purpose |
+|-------|---------|
+| `.agents-view` | Main container |
+| `.agents-view-header` | Page header with title/subtitle/button |
+| `.agents-view-content` | Scrollable content area (padding: 20px) |
+| `.agents-view-section` | Section wrapper (margin-bottom: 32px) |
+| `.agents-view-grid` | Responsive grid (auto-fill, minmax(320px, 1fr), gap: 16px) |
+| `.agents-view-empty` | Empty state styling |
+| `.agents-view-error` | Error state with retry |
+
 ## Initiative Detail
 
 Initiative management at `/initiatives/:id`.

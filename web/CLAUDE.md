@@ -35,6 +35,7 @@ web/src/
 ├── router/               # Route configuration
 ├── lib/                  # Utilities (types, websocket, shortcuts)
 ├── components/           # UI components
+│   ├── agents/           # Agent components (AgentCard, ExecutionSettings, ToolPermissions, AgentsView)
 │   ├── board/            # Kanban (Board, Column, TaskCard, etc.)
 │   ├── dashboard/        # Dashboard sections
 │   ├── initiatives/      # Initiative components (InitiativeCard, StatsRow, InitiativesView)
@@ -112,6 +113,7 @@ See [docs/components.md](docs/components.md) for full API.
 | `/board` | Board (flat/swimlane views) |
 | `/initiatives` | InitiativesPage (aggregate stats, cards grid) |
 | `/initiatives/:id` | InitiativeDetail |
+| `/agents` | AgentsPage (agent cards, execution settings, tool permissions) |
 | `/stats` | Dashboard stats |
 | `/tasks/:id` | TaskDetail (6 tabs) |
 | `/settings/*` | Config editors |
