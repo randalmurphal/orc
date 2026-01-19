@@ -60,6 +60,11 @@ const statusConfig: Record<TaskStatus, StatusConfig> = {
 		glow: 'transparent',
 		label: 'Failed',
 	},
+	resolved: {
+		color: 'var(--status-warning)',
+		glow: 'transparent',
+		label: 'Resolved',
+	},
 };
 
 interface StatusIndicatorProps {
