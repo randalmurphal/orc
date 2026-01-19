@@ -86,6 +86,7 @@ const (
 	StatusFinalizing  Status = "finalizing" // Post-completion: cleanup, PR creation, branch sync
 	StatusCompleted   Status = "completed"  // Terminal: all phases AND sync/PR/merge succeeded
 	StatusFailed      Status = "failed"
+	StatusResolved    Status = "resolved" // Terminal: failed task marked as resolved without re-running
 )
 
 // ValidStatuses returns all valid status values.
@@ -93,7 +94,7 @@ func ValidStatuses() []Status {
 	return []Status{
 		StatusCreated, StatusClassifying, StatusPlanned, StatusRunning,
 		StatusPaused, StatusBlocked, StatusFinalizing, StatusCompleted,
-		StatusFailed,
+		StatusFailed, StatusResolved,
 	}
 }
 
@@ -102,7 +103,7 @@ func IsValidStatus(s Status) bool {
 	switch s {
 	case StatusCreated, StatusClassifying, StatusPlanned, StatusRunning,
 		StatusPaused, StatusBlocked, StatusFinalizing, StatusCompleted,
-		StatusFailed:
+		StatusFailed, StatusResolved:
 		return true
 	default:
 		return false
@@ -556,7 +557,7 @@ func (t *Task) UpdatePRStatus(status PRStatus, checksStatus string, mergeable bo
 
 // IsTerminal returns true if the task is in a terminal state.
 func (t *Task) IsTerminal() bool {
-	return t.Status == StatusCompleted || t.Status == StatusFailed
+	return t.Status == StatusCompleted || t.Status == StatusFailed || t.Status == StatusResolved
 }
 
 // CanRun returns true if the task can be executed.

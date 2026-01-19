@@ -327,10 +327,9 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 				}
 			}
 
-			// Update task status to completed
-			t.Status = task.StatusCompleted
+			// Update task status to resolved (distinct from completed to indicate no actual work done)
+			t.Status = task.StatusResolved
 			now := time.Now()
-			t.CompletedAt = &now
 
 			// Add resolution metadata
 			if t.Metadata == nil {

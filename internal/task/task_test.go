@@ -50,6 +50,7 @@ func TestIsTerminal(t *testing.T) {
 		{StatusFinalizing, false},
 		{StatusCompleted, true},
 		{StatusFailed, true},
+		{StatusResolved, true},
 	}
 
 	for _, tt := range tests {
@@ -74,6 +75,7 @@ func TestCanRun(t *testing.T) {
 		{StatusFinalizing, false},
 		{StatusCompleted, false},
 		{StatusFailed, false},
+		{StatusResolved, false},
 	}
 
 	for _, tt := range tests {
@@ -212,6 +214,7 @@ func TestIsValidStatus(t *testing.T) {
 		{StatusFinalizing, true},
 		{StatusCompleted, true},
 		{StatusFailed, true},
+		{StatusResolved, true},
 		{Status("invalid"), false},
 		{Status(""), false},
 		{Status("COMPLETED"), false}, // case-sensitive
@@ -227,14 +230,14 @@ func TestIsValidStatus(t *testing.T) {
 func TestValidStatuses(t *testing.T) {
 	statuses := ValidStatuses()
 
-	if len(statuses) != 9 {
-		t.Errorf("ValidStatuses() returned %d statuses, want 9", len(statuses))
+	if len(statuses) != 10 {
+		t.Errorf("ValidStatuses() returned %d statuses, want 10", len(statuses))
 	}
 
 	expected := []Status{
 		StatusCreated, StatusClassifying, StatusPlanned, StatusRunning,
 		StatusPaused, StatusBlocked, StatusFinalizing, StatusCompleted,
-		StatusFailed,
+		StatusFailed, StatusResolved,
 	}
 	for i, s := range expected {
 		if statuses[i] != s {

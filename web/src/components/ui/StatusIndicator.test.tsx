@@ -69,6 +69,7 @@ describe('StatusIndicator', () => {
 			finalizing: 'Finalizing',
 			completed: 'Completed',
 			failed: 'Failed',
+			resolved: 'Resolved',
 		};
 
 		Object.entries(statusLabels).forEach(([status, label]) => {
