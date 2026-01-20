@@ -43,6 +43,7 @@ web/src/
 │   ├── stats/            # Statistics visualizations (OutcomesDonut)
 │   ├── task-detail/      # TaskHeader, TabNav, tabs
 │   ├── overlays/         # Modal, CommandPalette, NewTaskModal
+│   ├── settings/         # Settings components (CommandList)
 │   ├── stats/            # Statistics visualizations (TasksBarChart)
 │   └── ui/               # Primitives (Button, Icon, Input, Tooltip)
 ├── pages/                # Route pages
