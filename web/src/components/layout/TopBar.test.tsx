@@ -1,7 +1,20 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, type RenderOptions } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { TopBar } from './TopBar';
+import { AppShellProvider } from './AppShellContext';
 import { useProjectStore, useSessionStore } from '@/stores';
+
+// Wrapper component that includes AppShellProvider
+function renderWithProviders(
+	ui: ReactElement,
+	options?: Omit<RenderOptions, 'wrapper'>
+) {
+	return render(ui, {
+		wrapper: ({ children }) => <AppShellProvider>{children}</AppShellProvider>,
+		...options,
+	});
+}
 
 describe('TopBar', () => {
 	beforeEach(() => {
@@ -37,7 +50,7 @@ describe('TopBar', () => {
 
 	describe('rendering', () => {
 		it('should render with role="banner"', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByRole('banner')).toBeInTheDocument();
 		});
 
@@ -46,17 +59,17 @@ describe('TopBar', () => {
 				projects: [],
 				currentProjectId: null,
 			});
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByText('Select project')).toBeInTheDocument();
 		});
 
 		it('should display project name when project is selected', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByText('Test Project')).toBeInTheDocument();
 		});
 
 		it('should allow projectName prop to override store value', () => {
-			render(<TopBar projectName="Override Project" />);
+			renderWithProviders(<TopBar projectName="Override Project" />);
 			expect(screen.getByText('Override Project')).toBeInTheDocument();
 			expect(screen.queryByText('Test Project')).not.toBeInTheDocument();
 		});
@@ -64,25 +77,25 @@ describe('TopBar', () => {
 
 	describe('session stats', () => {
 		it('should display duration from session store', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByText('Session')).toBeInTheDocument();
 			expect(screen.getByText('1h 23m')).toBeInTheDocument();
 		});
 
 		it('should display formatted token count', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByText('Tokens')).toBeInTheDocument();
 			expect(screen.getByText('847K')).toBeInTheDocument();
 		});
 
 		it('should display formatted cost', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByText('Cost')).toBeInTheDocument();
 			expect(screen.getByText('$2.34')).toBeInTheDocument();
 		});
 
 		it('should display updated values when store changes', () => {
-			const { rerender } = render(<TopBar />);
+			const { rerender } = renderWithProviders(<TopBar />);
 			expect(screen.getByText('$2.34')).toBeInTheDocument();
 
 			act(() => {
@@ -93,7 +106,7 @@ describe('TopBar', () => {
 				});
 			});
 
-			rerender(<TopBar />);
+			rerender(<AppShellProvider><TopBar /></AppShellProvider>);
 			expect(screen.getByText('$5.00')).toBeInTheDocument();
 			expect(screen.getByText('1.2M')).toBeInTheDocument();
 			expect(screen.getByText('2h 45m')).toBeInTheDocument();
@@ -103,13 +116,13 @@ describe('TopBar', () => {
 	describe('pause/resume button', () => {
 		it('should show "Pause" when not paused', () => {
 			useSessionStore.setState({ isPaused: false });
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByRole('button', { name: /pause/i })).toBeInTheDocument();
 		});
 
 		it('should show "Resume" when paused', () => {
 			useSessionStore.setState({ isPaused: true });
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByRole('button', { name: /resume/i })).toBeInTheDocument();
 		});
 
@@ -117,7 +130,7 @@ describe('TopBar', () => {
 			const pauseAll = vi.fn().mockResolvedValue(undefined);
 			useSessionStore.setState({ isPaused: false, pauseAll });
 
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			const pauseBtn = screen.getByRole('button', { name: /pause/i });
 			fireEvent.click(pauseBtn);
 
@@ -130,7 +143,7 @@ describe('TopBar', () => {
 			const resumeAll = vi.fn().mockResolvedValue(undefined);
 			useSessionStore.setState({ isPaused: true, resumeAll });
 
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			const resumeBtn = screen.getByRole('button', { name: /resume/i });
 			fireEvent.click(resumeBtn);
 
@@ -143,18 +156,18 @@ describe('TopBar', () => {
 	describe('new task button', () => {
 		it('should render New Task button when onNewTask is provided', () => {
 			const onNewTask = vi.fn();
-			render(<TopBar onNewTask={onNewTask} />);
+			renderWithProviders(<TopBar onNewTask={onNewTask} />);
 			expect(screen.getByRole('button', { name: /new task/i })).toBeInTheDocument();
 		});
 
 		it('should not render New Task button when onNewTask is not provided', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.queryByRole('button', { name: /new task/i })).not.toBeInTheDocument();
 		});
 
 		it('should call onNewTask when clicked', () => {
 			const onNewTask = vi.fn();
-			render(<TopBar onNewTask={onNewTask} />);
+			renderWithProviders(<TopBar onNewTask={onNewTask} />);
 
 			const newTaskBtn = screen.getByRole('button', { name: /new task/i });
 			fireEvent.click(newTaskBtn);
@@ -165,17 +178,17 @@ describe('TopBar', () => {
 
 	describe('accessibility', () => {
 		it('should have role="banner" on header', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByRole('banner')).toBeInTheDocument();
 		});
 
 		it('should have aria-label on search input', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByLabelText('Search tasks')).toBeInTheDocument();
 		});
 
 		it('should have aria-haspopup="listbox" on project selector', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			const projectSelector = screen.getByText('Test Project').closest('button');
 			expect(projectSelector).toHaveAttribute('aria-haspopup', 'listbox');
 		});
@@ -184,7 +197,7 @@ describe('TopBar', () => {
 	describe('project selector', () => {
 		it('should call onProjectChange when clicked', () => {
 			const onProjectChange = vi.fn();
-			render(<TopBar onProjectChange={onProjectChange} />);
+			renderWithProviders(<TopBar onProjectChange={onProjectChange} />);
 
 			const projectSelector = screen.getByText('Test Project').closest('button');
 			fireEvent.click(projectSelector!);
@@ -193,7 +206,7 @@ describe('TopBar', () => {
 		});
 
 		it('should have folder icon', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			const projectSelector = screen.getByText('Test Project').closest('button');
 			// Check for SVG icons (folder and chevron-down)
 			const svgs = projectSelector?.querySelectorAll('svg');
@@ -203,7 +216,7 @@ describe('TopBar', () => {
 
 	describe('keyboard shortcuts', () => {
 		it('should focus search input on Cmd+K', async () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			const searchInput = screen.getByLabelText('Search tasks');
 
 			// Simulate Cmd+K
@@ -217,7 +230,7 @@ describe('TopBar', () => {
 		});
 
 		it('should focus search input on Ctrl+K', async () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			const searchInput = screen.getByLabelText('Search tasks');
 
 			// Simulate Ctrl+K
@@ -231,7 +244,7 @@ describe('TopBar', () => {
 		});
 
 		it('should show keyboard hint in search box', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByText('⌘')).toBeInTheDocument();
 			expect(screen.getByText('K')).toBeInTheDocument();
 		});
@@ -239,18 +252,18 @@ describe('TopBar', () => {
 
 	describe('mobile search toggle', () => {
 		it('should render search toggle button', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			expect(screen.getByLabelText('Toggle search')).toBeInTheDocument();
 		});
 
 		it('should have aria-expanded on search toggle', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			const toggleBtn = screen.getByLabelText('Toggle search');
 			expect(toggleBtn).toHaveAttribute('aria-expanded', 'false');
 		});
 
 		it('should toggle search expanded state when clicked', () => {
-			render(<TopBar />);
+			renderWithProviders(<TopBar />);
 			const toggleBtn = screen.getByLabelText('Toggle search');
 
 			fireEvent.click(toggleBtn);

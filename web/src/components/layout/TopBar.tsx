@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
 import { useSessionStore, useCurrentProject } from '@/stores';
+import { useAppShell } from './AppShellContext';
 import './TopBar.css';
 
 interface TopBarProps {
@@ -58,6 +59,7 @@ export function TopBar({
 		pauseAll,
 		resumeAll,
 	} = useSessionStore();
+	const { isRightPanelOpen, toggleRightPanel, panelToggleRef } = useAppShell();
 
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const [searchExpanded, setSearchExpanded] = useState(false);
@@ -179,6 +181,15 @@ export function TopBar({
 						New Task
 					</Button>
 				)}
+				<button
+					ref={panelToggleRef}
+					className={`btn-icon ${isRightPanelOpen ? 'active' : ''}`}
+					onClick={toggleRightPanel}
+					aria-label={isRightPanelOpen ? 'Close panel' : 'Open panel'}
+					aria-expanded={isRightPanelOpen}
+				>
+					<Icon name="panel-right" size={16} />
+				</button>
 			</div>
 		</header>
 	);
