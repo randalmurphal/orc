@@ -66,7 +66,9 @@ deps:
 # =============================================================================
 
 ## build: Build the binary locally (with embedded frontend)
-build: web-build embed-frontend $(BUILD_DIR)/$(BINARY)
+build: web-build embed-frontend
+	@mkdir -p $(BUILD_DIR)
+	CGO_ENABLED=0 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/orc
 
 ## build-cli: Build CLI only (no frontend)
 build-cli: $(BUILD_DIR)/$(BINARY)
