@@ -26,7 +26,7 @@ import {
 } from '@/lib/api';
 import type { Initiative, InitiativeStatus, Task } from '@/lib/types';
 import { useInitiativeStore } from '@/stores';
-import { Icon } from '@/components/ui/Icon';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { Modal } from '@/components/overlays/Modal';
 import { DependencyGraph } from '@/components/initiative/DependencyGraph';
 import './InitiativeDetailPage.css';
@@ -580,7 +580,7 @@ export function InitiativeDetailPage() {
 											className={`task-status ${getStatusClass(task.status)}`}
 										>
 											<Icon
-												name={getStatusIcon(task.status) as any}
+												name={getStatusIcon(task.status) as IconName}
 												size={16}
 											/>
 										</span>

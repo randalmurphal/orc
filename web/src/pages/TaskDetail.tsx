@@ -62,7 +62,7 @@ export function TaskDetail() {
 				return prev;
 			});
 		}
-	}, [storeTask?.status, storeTask?.current_phase]);
+	}, [storeTask]);
 
 	// Load task data
 	const loadTask = useCallback(async () => {

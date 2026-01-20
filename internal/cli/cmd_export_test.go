@@ -32,9 +32,9 @@ func TestDetectImportFormat(t *testing.T) {
 				f, _ := os.Create(path)
 				gw := gzip.NewWriter(f)
 				tw := tar.NewWriter(gw)
-				tw.Close()
-				gw.Close()
-				f.Close()
+				_ = tw.Close()
+				_ = gw.Close()
+				_ = f.Close()
 				return path
 			},
 			expected: "tar.gz",
@@ -45,8 +45,8 @@ func TestDetectImportFormat(t *testing.T) {
 				path := filepath.Join(tmpDir, "test.zip")
 				f, _ := os.Create(path)
 				zw := zip.NewWriter(f)
-				zw.Close()
-				f.Close()
+				_ = zw.Close()
+				_ = f.Close()
 				return path
 			},
 			expected: "zip",
@@ -55,7 +55,7 @@ func TestDetectImportFormat(t *testing.T) {
 			name: "yaml by extension",
 			setup: func() string {
 				path := filepath.Join(tmpDir, "test.yaml")
-				os.WriteFile(path, []byte("version: 3"), 0644)
+				_ = os.WriteFile(path, []byte("version: 3"), 0644)
 				return path
 			},
 			expected: "yaml",
@@ -64,7 +64,7 @@ func TestDetectImportFormat(t *testing.T) {
 			name: "directory",
 			setup: func() string {
 				path := filepath.Join(tmpDir, "testdir")
-				os.MkdirAll(path, 0755)
+				_ = os.MkdirAll(path, 0755)
 				return path
 			},
 			expected: "dir",
@@ -75,9 +75,9 @@ func TestDetectImportFormat(t *testing.T) {
 				path := filepath.Join(tmpDir, "noext")
 				f, _ := os.Create(path)
 				gw := gzip.NewWriter(f)
-				gw.Write([]byte("test"))
-				gw.Close()
-				f.Close()
+				_, _ = gw.Write([]byte("test"))
+				_ = gw.Close()
+				_ = f.Close()
 				return path
 			},
 			expected: "tar.gz",
@@ -140,9 +140,9 @@ func TestWriteTarFile(t *testing.T) {
 		t.Fatalf("writeTarFile: %v", err)
 	}
 
-	tw.Close()
-	gw.Close()
-	f.Close()
+	_ = tw.Close()
+	_ = gw.Close()
+	_ = f.Close()
 
 	// Verify by reading back
 	f, _ = os.Open(archivePath)
@@ -181,12 +181,12 @@ func TestWriteZipFile(t *testing.T) {
 		t.Fatalf("writeZipFile: %v", err)
 	}
 
-	zw.Close()
-	f.Close()
+	_ = zw.Close()
+	_ = f.Close()
 
 	// Verify by reading back
 	r, _ := zip.OpenReader(archivePath)
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	if len(r.File) != 1 {
 		t.Fatalf("expected 1 file, got %d", len(r.File))
@@ -201,15 +201,15 @@ func TestFindLatestExport(t *testing.T) {
 
 	// Create a directory structure
 	exportDir := filepath.Join(tmpDir, ".orc", "exports")
-	os.MkdirAll(exportDir, 0755)
+	_ = os.MkdirAll(exportDir, 0755)
 
 	// Create some test files with different timestamps
 	oldArchive := filepath.Join(exportDir, "orc-export-old.tar.gz")
 	newArchive := filepath.Join(exportDir, "orc-export-new.tar.gz")
 
-	os.WriteFile(oldArchive, []byte{0x1f, 0x8b}, 0644)
+	_ = os.WriteFile(oldArchive, []byte{0x1f, 0x8b}, 0644)
 	time.Sleep(10 * time.Millisecond)
-	os.WriteFile(newArchive, []byte{0x1f, 0x8b}, 0644)
+	_ = os.WriteFile(newArchive, []byte{0x1f, 0x8b}, 0644)
 
 	path, err := findLatestExport(exportDir)
 	if err != nil {
@@ -225,7 +225,7 @@ func TestFindLatestExportFallsBackToDir(t *testing.T) {
 
 	// Create empty export directory (no archives)
 	exportDir := filepath.Join(tmpDir, ".orc", "exports")
-	os.MkdirAll(exportDir, 0755)
+	_ = os.MkdirAll(exportDir, 0755)
 
 	path, err := findLatestExport(exportDir)
 	if err != nil {

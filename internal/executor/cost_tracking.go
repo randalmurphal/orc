@@ -64,12 +64,3 @@ func (e *Executor) recordCostToGlobal(t *task.Task, phaseID string, result *Resu
 	}
 }
 
-// closeGlobalDB closes the global database connection.
-// Should be called when the executor is done.
-func (e *Executor) closeGlobalDB() {
-	if e.globalDB != nil {
-		if err := e.globalDB.Close(); err != nil {
-			e.logger.Warn("failed to close global database", "error", err)
-		}
-	}
-}

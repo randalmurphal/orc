@@ -329,8 +329,8 @@ function handleWSEvent(event: WSEvent): void {
 			break;
 
 		default:
-			// Unknown event type - log for debugging
-			console.log('Unhandled WebSocket event:', eventType, data);
+			// Unknown event type
+			console.warn('Unhandled WebSocket event:', eventType, data);
 	}
 }
 

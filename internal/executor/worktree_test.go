@@ -8,12 +8,249 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 func TestSetupWorktree_NilGitOps(t *testing.T) {
 	_, err := SetupWorktree("TASK-001", nil, nil)
 	if err == nil {
 		t.Error("expected error when gitOps is nil")
+	}
+}
+
+// Tests for SetupWorktreeForTask (preferred function)
+
+func TestSetupWorktreeForTask_NilGitOps(t *testing.T) {
+	tsk := &task.Task{ID: "TASK-001"}
+	_, err := SetupWorktreeForTask(tsk, nil, nil, nil)
+	if err == nil {
+		t.Error("expected error when gitOps is nil")
+	}
+}
+
+func TestSetupWorktreeForTask_NilTask(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-worktree-task-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	if err := initTestRepo(tmpDir); err != nil {
+		t.Fatalf("failed to init test repo: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	_, err = SetupWorktreeForTask(nil, nil, gitOps, nil)
+	if err == nil {
+		t.Error("expected error when task is nil")
+	}
+}
+
+func TestSetupWorktreeForTask_CreatesWorktree(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-worktree-task-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	if err := initTestRepo(tmpDir); err != nil {
+		t.Fatalf("failed to init test repo: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	cfg := config.Default()
+	cfg.Completion.TargetBranch = "main"
+
+	tsk := &task.Task{ID: "TASK-001"}
+
+	result, err := SetupWorktreeForTask(tsk, cfg, gitOps, nil)
+	if err != nil {
+		t.Fatalf("SetupWorktreeForTask failed: %v", err)
+	}
+
+	// Verify directory exists
+	if _, err := os.Stat(result.Path); os.IsNotExist(err) {
+		t.Errorf("worktree directory does not exist: %s", result.Path)
+	}
+
+	// Verify it's not marked as reused
+	if result.Reused {
+		t.Error("expected Reused to be false for new worktree")
+	}
+
+	// Verify target branch
+	if result.TargetBranch != "main" {
+		t.Errorf("expected target branch 'main', got %s", result.TargetBranch)
+	}
+
+	// Verify correct branch
+	worktreeGit := gitOps.InWorktree(result.Path)
+	currentBranch, err := worktreeGit.GetCurrentBranch()
+	if err != nil {
+		t.Fatalf("failed to get current branch: %v", err)
+	}
+	expectedBranch := gitOps.BranchName("TASK-001")
+	if currentBranch != expectedBranch {
+		t.Errorf("expected branch %s, got %s", expectedBranch, currentBranch)
+	}
+}
+
+func TestSetupWorktreeForTask_ReusesExisting(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-worktree-task-reuse-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	if err := initTestRepo(tmpDir); err != nil {
+		t.Fatalf("failed to init test repo: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	tsk := &task.Task{ID: "TASK-REUSE"}
+
+	// Create worktree first time
+	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
+	if err != nil {
+		t.Fatalf("first SetupWorktreeForTask failed: %v", err)
+	}
+
+	if result1.Reused {
+		t.Error("first setup should not be reused")
+	}
+
+	// Setup again - should reuse
+	result2, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
+	if err != nil {
+		t.Fatalf("second SetupWorktreeForTask failed: %v", err)
+	}
+
+	if !result2.Reused {
+		t.Error("second setup should be reused")
+	}
+
+	if result1.Path != result2.Path {
+		t.Errorf("paths should match: %s != %s", result1.Path, result2.Path)
+	}
+}
+
+func TestSetupWorktreeForTask_SwitchesToCorrectBranch(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-worktree-task-branch-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	if err := initTestRepo(tmpDir); err != nil {
+		t.Fatalf("failed to init test repo: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	tsk := &task.Task{ID: "TASK-BRANCH2"}
+
+	// Create worktree
+	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
+	if err != nil {
+		t.Fatalf("SetupWorktreeForTask failed: %v", err)
+	}
+
+	// Verify we're on the expected branch
+	worktreeGit := gitOps.InWorktree(result1.Path)
+	expectedBranch := gitOps.BranchName("TASK-BRANCH2")
+	currentBranch, err := worktreeGit.GetCurrentBranch()
+	if err != nil {
+		t.Fatalf("failed to get current branch: %v", err)
+	}
+	if currentBranch != expectedBranch {
+		t.Fatalf("expected branch %s, got %s", expectedBranch, currentBranch)
+	}
+
+	// Switch to a wrong branch
+	wrongBranch := "wrong-branch-2"
+	if err := runGitCmd(result1.Path, "checkout", "-b", wrongBranch); err != nil {
+		t.Fatalf("failed to create and checkout wrong branch: %v", err)
+	}
+
+	// Verify we're on the wrong branch
+	currentBranch, err = worktreeGit.GetCurrentBranch()
+	if err != nil {
+		t.Fatalf("failed to get current branch: %v", err)
+	}
+	if currentBranch != wrongBranch {
+		t.Fatalf("expected to be on %s, got %s", wrongBranch, currentBranch)
+	}
+
+	// Reuse worktree - should switch back to the correct branch
+	result2, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
+	if err != nil {
+		t.Fatalf("SetupWorktreeForTask failed on reuse: %v", err)
+	}
+
+	if !result2.Reused {
+		t.Error("should be marked as reused")
+	}
+
+	// Verify we're back on the expected branch
+	currentBranch, err = worktreeGit.GetCurrentBranch()
+	if err != nil {
+		t.Fatalf("failed to get current branch after reuse: %v", err)
+	}
+	if currentBranch != expectedBranch {
+		t.Errorf("worktree should be on %s after reuse, but is on %s", expectedBranch, currentBranch)
+	}
+}
+
+func TestSetupWorktreeForTask_WithTargetBranchOverride(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-worktree-target-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	if err := initTestRepo(tmpDir); err != nil {
+		t.Fatalf("failed to init test repo: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	// Create a task with explicit target branch
+	tsk := &task.Task{
+		ID:           "TASK-TARGET",
+		TargetBranch: "develop",
+	}
+
+	// Create develop branch first (since it's a default branch name)
+	if err := runGitCmd(tmpDir, "branch", "develop"); err != nil {
+		t.Fatalf("failed to create develop branch: %v", err)
+	}
+
+	result, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
+	if err != nil {
+		t.Fatalf("SetupWorktreeForTask failed: %v", err)
+	}
+
+	// Verify target branch is from task override
+	if result.TargetBranch != "develop" {
+		t.Errorf("expected target branch 'develop', got %s", result.TargetBranch)
 	}
 }
 

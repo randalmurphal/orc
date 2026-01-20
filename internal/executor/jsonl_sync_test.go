@@ -26,7 +26,7 @@ func TestJSONLSyncer_SyncMessages(t *testing.T) {
 	// Create temp dir and database
 	tmpDir := t.TempDir()
 	backend := testBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create task first (transcripts have FK to tasks)
 	if err := backend.SaveTask(&task.Task{ID: "TASK-TEST-001", Title: "Test", Status: task.StatusRunning}); err != nil {
@@ -105,7 +105,7 @@ func TestJSONLSyncer_SyncMessages(t *testing.T) {
 func TestJSONLSyncer_AppendMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	backend := testBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create task first (transcripts have FK to tasks)
 	if err := backend.SaveTask(&task.Task{ID: "TASK-TEST", Title: "Test", Status: task.StatusRunning}); err != nil {
@@ -193,7 +193,7 @@ func TestJSONLSyncer_SyncFromFile(t *testing.T) {
 	}
 
 	backend := testBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create task first (transcripts have FK to tasks)
 	if err := backend.SaveTask(&task.Task{ID: "TASK-FILE-TEST", Title: "Test", Status: task.StatusRunning}); err != nil {
@@ -277,7 +277,7 @@ func strPtr(s string) *string {
 func TestJSONLSyncer_FileNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	backend := testBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	syncer := NewJSONLSyncer(backend, nil)
 
@@ -301,7 +301,7 @@ func TestJSONLSyncer_FileNotFound(t *testing.T) {
 func TestJSONLSyncer_MalformedJSONL(t *testing.T) {
 	tmpDir := t.TempDir()
 	backend := testBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create task first (required for FK constraint)
 	if err := backend.SaveTask(&task.Task{ID: "TASK-MALFORMED", Title: "Test", Status: task.StatusRunning}); err != nil {
@@ -360,7 +360,7 @@ func TestJSONLSyncer_MalformedJSONL(t *testing.T) {
 func TestJSONLSyncer_QueueOperationFiltered(t *testing.T) {
 	tmpDir := t.TempDir()
 	backend := testBackend(t, tmpDir)
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create task first
 	if err := backend.SaveTask(&task.Task{ID: "TASK-QUEUE", Title: "Test", Status: task.StatusRunning}); err != nil {
