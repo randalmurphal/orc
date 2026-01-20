@@ -199,11 +199,11 @@ func TestCheckCompletionNode_DetectsComplete(t *testing.T) {
 
 	nodeFunc := e.checkCompletionNode(phase, testState)
 
-	// State with completion marker
+	// State with JSON completion status
 	ps := PhaseState{
 		TaskID:   "TASK-COMP-001",
 		Phase:    "implement",
-		Response: "Work done! <phase_complete>true</phase_complete> All finished.",
+		Response: `{"status": "complete", "summary": "Work done! All finished."}`,
 	}
 
 	result, err := nodeFunc(nil, ps)
@@ -219,32 +219,10 @@ func TestCheckCompletionNode_DetectsComplete(t *testing.T) {
 	}
 }
 
-func TestCheckCompletionNode_DetectsPhaseSpecificComplete(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.WorkDir = t.TempDir()
-	e := New(cfg)
-
-	phase := &plan.Phase{ID: "test"}
-	testState := state.New("TASK-COMP-002")
-
-	nodeFunc := e.checkCompletionNode(phase, testState)
-
-	// State with phase-specific completion marker
-	ps := PhaseState{
-		TaskID:   "TASK-COMP-002",
-		Phase:    "test",
-		Response: "Tests passed! <test_complete>true</test_complete>",
-	}
-
-	result, err := nodeFunc(nil, ps)
-	if err != nil {
-		t.Fatalf("checkCompletionNode failed: %v", err)
-	}
-
-	if !result.Complete {
-		t.Error("expected Complete to be true for phase-specific marker")
-	}
-}
+// TestCheckCompletionNode_DetectsPhaseSpecificComplete was removed.
+// JSON completion uses a generic {"status": "complete"} format without
+// phase-specific variants. Phase-specific markers like <test_complete>
+// no longer exist in the JSON schema approach.
 
 func TestCheckCompletionNode_DetectsBlocked(t *testing.T) {
 	cfg := DefaultConfig()
@@ -256,11 +234,11 @@ func TestCheckCompletionNode_DetectsBlocked(t *testing.T) {
 
 	nodeFunc := e.checkCompletionNode(phase, testState)
 
-	// State with blocked marker
+	// State with JSON blocked status
 	ps := PhaseState{
 		TaskID:   "TASK-BLOCK-001",
 		Phase:    "spec",
-		Response: "I need more information. <phase_blocked>Missing API specification</phase_blocked>",
+		Response: `{"status": "blocked", "reason": "Missing API specification"}`,
 	}
 
 	result, err := nodeFunc(nil, ps)
@@ -276,7 +254,7 @@ func TestCheckCompletionNode_DetectsBlocked(t *testing.T) {
 	}
 }
 
-func TestCheckCompletionNode_NoMarkers(t *testing.T) {
+func TestCheckCompletionNode_NoJSONCompletion(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	e := New(cfg)
@@ -286,7 +264,7 @@ func TestCheckCompletionNode_NoMarkers(t *testing.T) {
 
 	nodeFunc := e.checkCompletionNode(phase, testState)
 
-	// State without any markers - should continue
+	// State without JSON completion status - should continue
 	ps := PhaseState{
 		TaskID:   "TASK-CONT-001",
 		Phase:    "implement",
@@ -320,7 +298,7 @@ func TestCheckCompletionNode_UpdatesState(t *testing.T) {
 	ps := PhaseState{
 		TaskID:       "TASK-STATE-001",
 		Phase:        "implement",
-		Response:     "<phase_complete>true</phase_complete>",
+		Response:     `{"status": "complete", "summary": "Implementation done"}`,
 		InputTokens:  100,
 		OutputTokens: 50,
 	}
@@ -356,7 +334,7 @@ func TestCheckCompletionNode_NilState(t *testing.T) {
 	ps := PhaseState{
 		TaskID:   "TASK-NIL-001",
 		Phase:    "implement",
-		Response: "<phase_complete>true</phase_complete>",
+		Response: `{"status": "complete", "summary": "Done"}`,
 	}
 
 	result, err := nodeFunc(nil, ps)
@@ -790,7 +768,7 @@ func TestExecutePhase_Flowgraph_Complete(t *testing.T) {
 	e := New(cfg)
 	e.SetUseSessionExecution(false) // Force flowgraph path
 
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 
 	testTask := &task.Task{
@@ -868,7 +846,7 @@ func TestExecutePhase_Flowgraph_Blocked(t *testing.T) {
 	e := New(cfg)
 	e.SetUseSessionExecution(false)
 
-	mockClient := claude.NewMockClient("<phase_blocked>Need clarification</phase_blocked>")
+	mockClient := claude.NewMockClient(`{"status": "blocked", "reason": "Need clarification"}`)
 	e.SetClient(mockClient)
 
 	testTask := &task.Task{

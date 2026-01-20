@@ -151,18 +151,10 @@ func (e *Executor) executeClaudeNode() flowgraph.NodeFunc[PhaseState] {
 // checkCompletionNode creates the completion check node.
 func (e *Executor) checkCompletionNode(p *plan.Phase, st *state.State) flowgraph.NodeFunc[PhaseState] {
 	return func(ctx flowgraph.Context, s PhaseState) (PhaseState, error) {
-		// Detect completion marker in response
-		s.Complete = strings.Contains(s.Response, "<phase_complete>true</phase_complete>")
-
-		// Also check for specific phase completion tag
-		phaseCompleteTag := fmt.Sprintf("<%s_complete>true</%s_complete>", p.ID, p.ID)
-		if strings.Contains(s.Response, phaseCompleteTag) {
-			s.Complete = true
-		}
-
-		// Check for blocked state
-		if strings.Contains(s.Response, "<phase_blocked>") {
-			s.Blocked = true
+		// Parse JSON response for completion status
+		if resp, err := ParsePhaseResponse(s.Response); err == nil {
+			s.Complete = resp.IsComplete()
+			s.Blocked = resp.IsBlocked()
 		}
 
 		// Update state tracking

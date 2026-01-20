@@ -47,7 +47,7 @@ This is the spec content.
 - Criterion 2
 </artifact>
 
-<phase_complete>true</phase_complete>`,
+{"status": "complete", "summary": "Done"}`,
 			wantSaved: true,
 			wantContent: `# Specification
 
@@ -316,7 +316,7 @@ Build a feature.
 - Works correctly
 </artifact>
 
-<phase_complete>true</phase_complete>`,
+{"status": "complete", "summary": "Done"}`,
 			wantSaved: true,
 			wantContent: `# Specification
 
@@ -451,7 +451,7 @@ This tests the file fallback mechanism.
 
 	// Call with output that has NO artifact tags - should fall back to file
 	outputWithNoArtifact := `The spec is stored in the task directory.
-<phase_complete>true</phase_complete>`
+{"status": "complete", "summary": "Done"}`
 
 	saved, err := SaveSpecToDatabase(backend, taskID, "spec", outputWithNoArtifact, tmpDir)
 	if err != nil {
@@ -511,7 +511,7 @@ This is from artifact tags, which should take precedence over file content.
 - [ ] Artifact tags are prioritized
 - [ ] File is only used as fallback
 </artifact>
-<phase_complete>true</phase_complete>`
+{"status": "complete", "summary": "Done"}`
 
 	saved, err := SaveSpecToDatabase(backend, taskID, "spec", outputWithArtifact, tmpDir)
 	if err != nil {
@@ -563,7 +563,7 @@ This spec should NOT be written to a file.
 - Only saved to database
 </artifact>
 
-<phase_complete>true</phase_complete>`
+{"status": "complete", "summary": "Done"}`
 
 	// Call SavePhaseArtifact for spec phase
 	path, err := SavePhaseArtifact("TASK-SKIP-001", "spec", specOutput)
@@ -691,13 +691,13 @@ func TestIsValidSpecContent(t *testing.T) {
 			want:    false,
 		},
 		{
-			name:    "rejects phase_complete marker only",
-			content: "<phase_complete>true</phase_complete>",
+			name:    "rejects JSON completion status only",
+			content: `{"status": "complete", "summary": "Done"}`,
 			want:    false,
 		},
 		{
-			name:    "rejects garbage with phase_complete",
-			content: "The working tree is clean - the spec was created.\n<phase_complete>true</phase_complete>",
+			name:    "rejects garbage with JSON completion",
+			content: "The working tree is clean - the spec was created.\n" + `{"status": "complete", "summary": "Done"}`,
 			want:    false,
 		},
 		{
@@ -899,7 +899,7 @@ func TestValidateSpecContent_ReturnsReason(t *testing.T) {
 		{
 			name: "noise pattern detected",
 			// 50 chars minimum to pass first check, but less than 50 before the noise marker
-			content:     "Short preamble. <phase_complete>true</phase_complete> More text to reach 50 chars minimum length",
+			content:     `Short preamble. {"status": "complete", "summary": "Done"} More text to reach 50 chars minimum length`,
 			wantContain: "noise pattern detected",
 		},
 		{

@@ -114,7 +114,7 @@ orc resolve TASK-XXX -m "Fixed manually"  # Mark failed task as resolved without
 
 **Symptoms**:
 - Iteration count keeps increasing
-- No `<phase_complete>true</phase_complete>` in output
+- No `{"status": "complete"}` JSON in output
 - Approaching max_iterations limit
 
 **Diagnosis**:
@@ -122,8 +122,8 @@ orc resolve TASK-XXX -m "Fixed manually"  # Mark failed task as resolved without
 # Check what Claude is outputting
 orc log TASK-XXX -f  # Follow live
 
-# Look for completion signals
-grep "phase_complete" .orc/tasks/TASK-XXX/transcripts/*.md
+# Look for completion signals (JSON format)
+grep '"status"' .orc/tasks/TASK-XXX/transcripts/*.md
 ```
 
 **Common Causes**:

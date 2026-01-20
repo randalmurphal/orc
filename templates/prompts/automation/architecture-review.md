@@ -52,16 +52,16 @@ Review the codebase for architectural consistency, identify drift from establish
 
 ## Output Format
 
-When complete, output:
+When complete, output ONLY this JSON:
 
-```xml
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Architecture review complete: [summary of findings/fixes]"}
 ```
 
-If architectural changes require discussion, output:
+If architectural changes require discussion, output ONLY this JSON:
 
-```xml
-<phase_blocked>reason: [description of architectural decision needed]</phase_blocked>
+```json
+{"status": "blocked", "reason": "[description of architectural decision needed]"}
 ```
 
 ## Guidelines

@@ -490,8 +490,8 @@ func TestBuildConflictResolutionPrompt(t *testing.T) {
 	if !strings.Contains(prompt, "Custom instructions for this project") {
 		t.Error("prompt should contain custom instructions")
 	}
-	if !strings.Contains(prompt, "<phase_complete>true</phase_complete>") {
-		t.Error("prompt should contain completion marker instructions")
+	if !strings.Contains(prompt, `"status": "complete"`) {
+		t.Error("prompt should contain JSON completion instructions")
 	}
 }
 
@@ -562,8 +562,8 @@ func TestBuildFinalizeReport(t *testing.T) {
 	if !strings.Contains(report, "abc123") {
 		t.Error("report should contain commit SHA")
 	}
-	if !strings.Contains(report, "<phase_complete>true</phase_complete>") {
-		t.Error("report should contain phase completion marker")
+	if !strings.Contains(report, `"status": "complete"`) {
+		t.Error("report should contain JSON completion status")
 	}
 }
 

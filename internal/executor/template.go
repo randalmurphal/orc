@@ -825,6 +825,6 @@ func BuildContinuationPrompt(s *state.State, phaseID string) string {
 
 Work has been committed to git. Continue from iteration %d of the %s phase.
 
-Continue working on the task. Output <phase_complete>true</phase_complete> when done.`,
+Continue working on the task.`,
 		iteration, phaseID)
 }

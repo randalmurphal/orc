@@ -628,7 +628,7 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 
 		case PhaseStatusContinue:
 			// Session maintains context, just send continuation prompt
-			promptText = "Continue working on the task. Remember to output <phase_complete>true</phase_complete> when you're done."
+			promptText = "Continue working on the task."
 		}
 
 		// Check for errors

@@ -200,8 +200,8 @@ func validateSpecContent(content string) string {
 
 	// Reject content that is primarily completion markers or noise
 	noisePatterns := []string{
-		"<phase_complete>",
-		"<phase_blocked>",
+		`"status": "complete"`,
+		`"status": "blocked"`,
 		"the working tree is clean",
 		"the spec was created as output in this conversation",
 		"spec is in conversation output",

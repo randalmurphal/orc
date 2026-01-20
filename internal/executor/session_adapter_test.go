@@ -118,60 +118,61 @@ func TestSessionAdapterOptions_ResumeSession(t *testing.T) {
 // The workaround detects this scenario by:
 // 1. Tracking idle time (no messages from Claude CLI)
 // 2. When idle time exceeds 2x IdleTimeout AND accumulated content contains
-//    <phase_complete>true</phase_complete> or <phase_blocked>, break out of the loop
+//    JSON completion status, break out of the loop
 //
 // See: https://github.com/anthropics/claude-code/issues/1920
 func TestMissingResultMessageWorkaround(t *testing.T) {
-	// Test that phase completion markers are correctly detected
+	// Test that JSON phase completion is correctly detected
 	tests := []struct {
-		name     string
-		content  string
-		complete bool
-		blocked  bool
+		name         string
+		content      string
+		hasComplete  bool // HasJSONCompletion returns true (complete or blocked)
 	}{
 		{
-			name:     "phase complete marker",
-			content:  "Done with the task.\n<phase_complete>true</phase_complete>",
-			complete: true,
-			blocked:  false,
+			name:         "JSON complete status",
+			content:      `{"status": "complete", "summary": "Done with the task"}`,
+			hasComplete:  true,
 		},
 		{
-			name:     "phase blocked marker",
-			content:  "I cannot proceed.\n<phase_blocked>Missing configuration file</phase_blocked>",
-			complete: false,
-			blocked:  true,
+			name:         "JSON blocked status",
+			content:      `{"status": "blocked", "reason": "Missing configuration file"}`,
+			hasComplete:  true,
 		},
 		{
-			name:     "no markers",
-			content:  "Still working on the task...",
-			complete: false,
-			blocked:  false,
+			name:         "JSON continue status",
+			content:      `{"status": "continue", "reason": "Still working"}`,
+			hasComplete:  false,
 		},
 		{
-			name:     "empty content",
-			content:  "",
-			complete: false,
-			blocked:  false,
+			name:         "no JSON",
+			content:      "Still working on the task...",
+			hasComplete:  false,
+		},
+		{
+			name:         "empty content",
+			content:      "",
+			hasComplete:  false,
+		},
+		{
+			name:         "invalid JSON",
+			content:      `{"status": incomplete`,
+			hasComplete:  false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isComplete := IsPhaseComplete(tt.content)
-			isBlocked := IsPhaseBlocked(tt.content)
+			hasComplete := HasJSONCompletion(tt.content)
 
-			if isComplete != tt.complete {
-				t.Errorf("IsPhaseComplete(%q) = %v, want %v", tt.content, isComplete, tt.complete)
-			}
-			if isBlocked != tt.blocked {
-				t.Errorf("IsPhaseBlocked(%q) = %v, want %v", tt.content, isBlocked, tt.blocked)
+			if hasComplete != tt.hasComplete {
+				t.Errorf("HasJSONCompletion(%q) = %v, want %v", tt.content, hasComplete, tt.hasComplete)
 			}
 		})
 	}
 
 	// Document the workaround behavior
 	t.Log("Workaround behavior:")
-	t.Log("1. If idle for > 2x IdleTimeout AND content contains completion markers, break loop")
+	t.Log("1. If idle for > 2x IdleTimeout AND content contains JSON completion, break loop")
 	t.Log("2. This handles Claude CLI bug #1920 where result message is never sent")
 	t.Log("3. The turn still completes successfully because we have the content")
 }

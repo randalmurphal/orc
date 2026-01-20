@@ -43,16 +43,16 @@ Create or update the project changelog with entries from recently completed task
 
 ## Output Format
 
-When complete, output:
+When complete, output ONLY this JSON:
 
-```xml
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Changelog generation complete: [count] entries added"}
 ```
 
-If unable to categorize certain tasks, output:
+If unable to categorize certain tasks, output ONLY this JSON:
 
-```xml
-<phase_blocked>reason: [description of unclear tasks]</phase_blocked>
+```json
+{"status": "blocked", "reason": "[description of unclear tasks]"}
 ```
 
 ## Guidelines

@@ -252,42 +252,28 @@ Coverage: [percent]% (threshold: {{COVERAGE_THRESHOLD}}%)
 
 ### Output Completion
 
-Only output `<phase_complete>true</phase_complete>` when ALL THREE conditions are met:
+Only signal completion when ALL THREE conditions are met:
 - All tests pass
 - Coverage ≥ {{COVERAGE_THRESHOLD}}%
 - Linting passes (0 errors)
 
-```
-### Test Summary
+Then output ONLY this JSON to signal completion:
 
-**Tests**: [passed]/[total] passing
-**Coverage**: [percent]% ✅ (meets {{COVERAGE_THRESHOLD}}% threshold)
-**Linting**: ✅ passed
-**Commit**: [commit SHA]
-
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Tests: [passed]/[total] passing, Coverage: [percent]% (threshold: {{COVERAGE_THRESHOLD}}%), Linting: passed. Commit: [SHA]"}
 ```
 
-If tests fail:
-```
-<phase_blocked>
-reason: [count] tests failing
-needs: [specific failures to fix]
-</phase_blocked>
+If tests fail, output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "[count] tests failing: [specific failures to fix]"}
 ```
 
-If coverage is below threshold:
-```
-<phase_blocked>
-reason: coverage [percent]% is below {{COVERAGE_THRESHOLD}}% threshold
-needs: add tests for uncovered code paths
-</phase_blocked>
+If coverage is below threshold, output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "Coverage [percent]% is below {{COVERAGE_THRESHOLD}}% threshold. Need tests for uncovered code paths."}
 ```
 
-If linting fails:
-```
-<phase_blocked>
-reason: linting errors found
-needs: [list specific linting issues to fix]
-</phase_blocked>
+If linting fails, output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "Linting errors found: [list specific issues to fix]"}
 ```

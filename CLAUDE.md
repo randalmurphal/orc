@@ -93,7 +93,7 @@ The initiative's **Vision** and **Decisions** flow into every linked task's prom
 
 ### Completion Detection
 
-Phases complete with `<phase_complete>true</phase_complete>`. Failed phases trigger retry from earlier phase with `{{RETRY_CONTEXT}}`.
+Phases complete when Claude outputs JSON with `{"status": "complete", ...}`. Blocked phases output `{"status": "blocked", "reason": "..."}`. Failed phases trigger retry from earlier phase with `{{RETRY_CONTEXT}}`.
 
 ## Configuration
 

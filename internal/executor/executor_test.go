@@ -680,7 +680,7 @@ func TestNewWithConfig_NilOrcConfig(t *testing.T) {
 func TestSetClient(t *testing.T) {
 	e := newTestExecutor(t)
 
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done"}`)
 	e.SetClient(mockClient)
 
 	// Verify client was set (by making a request)
@@ -896,7 +896,7 @@ func TestExecutePhase_Complete(t *testing.T) {
 	cfg.Backend = backend
 	e := New(cfg)
 
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Implementation done.")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Implementation done."}`)
 	e.SetClient(mockClient)
 
 	// Create test task
@@ -980,7 +980,7 @@ func TestExecutePhase_Blocked(t *testing.T) {
 	cfg.Backend = backend
 	e := New(cfg)
 
-	mockClient := claude.NewMockClient("<phase_blocked>Need clarification on requirements</phase_blocked>")
+	mockClient := claude.NewMockClient(`{"status": "blocked", "reason": "Need clarification on requirements"}`)
 	e.SetClient(mockClient)
 
 	testTask := &task.Task{
@@ -1059,7 +1059,7 @@ func TestExecutePhase_WithPublisher(t *testing.T) {
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
 
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 
 	ch := pub.Subscribe("TEST-005")
@@ -1390,7 +1390,7 @@ func TestExecuteWithRetry_Success(t *testing.T) {
 	cfg.Backend = backend
 	e := New(cfg)
 
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 
 	testTask := &task.Task{
@@ -1509,7 +1509,7 @@ func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
 			{
 				ID:     "implement",
 				Name:   "Implementation",
-				Prompt: "Implement: {{TASK_TITLE}} <phase_complete>true</phase_complete>",
+				Prompt: "Implement: {{TASK_TITLE}}",
 			},
 		},
 	}
@@ -1525,7 +1525,7 @@ func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Implementation done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Implementation done!"}`)
 	e.SetClient(mockClient)
 
 	// Execute task
@@ -1643,7 +1643,7 @@ func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 
 	// Execute task
@@ -1718,7 +1718,7 @@ func TestExecuteTask_WithPublisher(t *testing.T) {
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 	e.SetPublisher(pub)
 
@@ -1810,7 +1810,7 @@ func TestResumeFromPhase_Success(t *testing.T) {
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 
 	// Resume from implement phase
@@ -2061,7 +2061,7 @@ func TestExecuteTask_UpdatesTaskCurrentPhase(t *testing.T) {
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 
 	ctx := context.Background()
@@ -2120,7 +2120,7 @@ func TestHandlePhaseFailure_BlockedReview_TriggersRetry(t *testing.T) {
 	blockResult := &Result{
 		Phase:  "review",
 		Status: plan.PhaseFailed,
-		Output: "<phase_blocked>Review found 3 issues that need fixing</phase_blocked>",
+		Output: `{"status": "blocked", "reason": "Review found 3 issues that need fixing"}`,
 		Error:  blockError,
 	}
 
@@ -2183,7 +2183,7 @@ func TestHandlePhaseFailure_BlockedTest_TriggersRetry(t *testing.T) {
 	blockResult := &Result{
 		Phase:  "test",
 		Status: plan.PhaseFailed,
-		Output: "<phase_blocked>Tests failed - 5 tests need fixing</phase_blocked>",
+		Output: `{"status": "blocked", "reason": "Tests failed - 5 tests need fixing"}`,
 		Error:  blockError,
 	}
 
@@ -2313,7 +2313,7 @@ func TestExecutePhase_PhaseTimeout(t *testing.T) {
 	// Create a mock client that takes a long time to respond
 	// The mock will respond instantly, but we'll verify the timeout mechanism
 	// by checking the context behavior
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 
 	testTask := &task.Task{
@@ -2361,7 +2361,7 @@ func TestExecutePhase_PhaseTimeoutDisabled(t *testing.T) {
 
 	e := NewWithConfig(cfg, orcCfg)
 
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 
 	testTask := &task.Task{
@@ -2561,7 +2561,7 @@ func TestExecutePhase_TurnTimeoutStillWorks(t *testing.T) {
 	e := NewWithConfig(cfg, orcCfg)
 
 	// Use a mock client that completes quickly
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 
 	testTask := &task.Task{
@@ -2690,7 +2690,7 @@ func TestExecuteTask_SpecExtractionFailure(t *testing.T) {
 	defer pub.Unsubscribe("TASK-SPEC-FAIL-001", ch)
 
 	// Mock client returns output WITHOUT artifact tags - this should cause spec extraction to fail
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Spec done but no artifact tags!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Spec done but no artifact tags!"}`)
 	e.SetClient(mockClient)
 
 	// Execute task - should fail during spec extraction
@@ -2884,7 +2884,7 @@ func TestExecuteTask_SpecFailure_ClearsExecution(t *testing.T) {
 	e := New(cfg)
 
 	// Mock returns output without artifact tags
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>No spec content")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "No spec content"}`)
 	e.SetClient(mockClient)
 
 	ctx := context.Background()
@@ -2951,12 +2951,12 @@ func TestExecuteTask_SmallWeight_NoSpecRequired(t *testing.T) {
 		if callCount == 1 {
 			// First call (spec phase) - no artifact tags
 			return &claude.CompletionResponse{
-				Content: "<phase_complete>true</phase_complete>Spec done but no tags",
+				Content: `{"status": "complete", "summary": "Spec done but no tags"}`,
 			}, nil
 		}
 		// Second call (implement phase) - complete
 		return &claude.CompletionResponse{
-			Content: "<phase_complete>true</phase_complete>Implementation done!",
+			Content: `{"status": "complete", "summary": "Implementation done!"}`,
 		}, nil
 	})
 	e.SetClient(mockClient)

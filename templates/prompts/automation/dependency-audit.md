@@ -42,16 +42,16 @@ Review all project dependencies, identify issues, and update or replace problema
 
 ## Output Format
 
-When complete, output:
+When complete, output ONLY this JSON:
 
-```xml
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Dependency audit complete: [count] updates applied"}
 ```
 
-If blocked (e.g., critical vulnerability requires human decision), output:
+If blocked (e.g., critical vulnerability requires human decision), output ONLY this JSON:
 
-```xml
-<phase_blocked>reason: [description of issue]</phase_blocked>
+```json
+{"status": "blocked", "reason": "[description of issue]"}
 ```
 
 ## Guidelines

@@ -397,23 +397,15 @@ If the working tree is clean, skip the commit but **still output the artifact**.
 
 **Step 3**: Output completion with summary:
 
-```
-### Spec Summary
+Then output ONLY this JSON to signal completion:
 
-**Success Criteria**: [count] defined
-**Testing Requirements**: [count] defined
-**Scope**: [narrow/moderate/wide]
-**Commit**: [commit SHA or "N/A - no file changes"]
-
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Spec defined [count] success criteria and [count] testing requirements. Scope: [narrow/moderate/wide]"}
 ```
 
-**If blocked** (requirements genuinely unclear - NOT because worktree is clean):
-```
-<phase_blocked>
-reason: [what's unclear]
-needs: [what clarification is needed]
-</phase_blocked>
+**If blocked** (requirements genuinely unclear - NOT because worktree is clean), output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "[what's unclear and what clarification is needed]"}
 ```
 
 ⚠️ **Common mistake**: Do NOT skip the `<artifact>` tags because the worktree is clean. The artifact is your spec output, not a file.

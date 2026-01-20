@@ -545,7 +545,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 			// Continue with next iteration
 			// For session-based execution, we don't need to re-render the full prompt
 			// The session maintains context. Just send a continuation prompt.
-			promptText = "Continue working on the task. Remember to output <phase_complete>true</phase_complete> when you're done."
+			promptText = "Continue working on the task."
 		}
 
 		// Check for errors

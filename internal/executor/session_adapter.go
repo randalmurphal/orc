@@ -8,16 +8,14 @@ import (
 
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/llmkit/claude/session"
-	"github.com/randalmurphal/llmkit/parser"
 )
 
 // SessionAdapter wraps a llmkit session for phase execution.
 // It provides methods for sending prompts and collecting responses
-// with completion marker detection.
+// with JSON-based completion detection.
 type SessionAdapter struct {
 	session session.Session
 	manager session.SessionManager
-	markers *parser.MarkerMatcher
 	owns    bool // True if we created the session and should close it
 }
 
@@ -40,7 +38,6 @@ func NewSessionAdapter(ctx context.Context, mgr session.SessionManager, opts Ses
 			return &SessionAdapter{
 				session: existing,
 				manager: mgr,
-				markers: PhaseMarkers,
 				owns:    false,
 			}, nil
 		}
@@ -117,7 +114,6 @@ func NewSessionAdapter(ctx context.Context, mgr session.SessionManager, opts Ses
 	return &SessionAdapter{
 		session: s,
 		manager: mgr,
-		markers: PhaseMarkers,
 		owns:    true,
 	}, nil
 }
@@ -218,7 +214,7 @@ collectLoop:
 			// See: https://github.com/anthropics/claude-code/issues/1920
 			accumulated := content.String()
 			if accumulated != "" && idleDuration > idleTimeout*2 {
-				if IsPhaseComplete(accumulated) || IsPhaseBlocked(accumulated) {
+				if HasJSONCompletion(accumulated) {
 					break collectLoop
 				}
 			}
@@ -237,7 +233,7 @@ collectLoop:
 				// Check for phase completion markers immediately - don't wait for result message.
 				// See: https://github.com/anthropics/claude-code/issues/1920
 				accumulated := content.String()
-				if IsPhaseComplete(accumulated) || IsPhaseBlocked(accumulated) {
+				if HasJSONCompletion(accumulated) {
 					break collectLoop
 				}
 			}
@@ -256,7 +252,7 @@ collectLoop:
 	}
 
 	// Check completion status
-	turnResult.Status, turnResult.Reason = CheckPhaseCompletion(turnResult.Content)
+	turnResult.Status, turnResult.Reason = CheckPhaseCompletionJSON(turnResult.Content)
 
 	// Extract metadata from result message
 	if result != nil {
@@ -327,7 +323,7 @@ streamLoop:
 		Duration: time.Since(start),
 	}
 
-	turnResult.Status, turnResult.Reason = CheckPhaseCompletion(turnResult.Content)
+	turnResult.Status, turnResult.Reason = CheckPhaseCompletionJSON(turnResult.Content)
 
 	if result != nil {
 		turnResult.NumTurns = result.NumTurns
@@ -447,7 +443,7 @@ streamLoop:
 				// See: https://github.com/anthropics/claude-code/issues/1920
 				accumulated := content.String()
 				if accumulated != "" && idleDuration > opts.IdleTimeout*2 {
-					if IsPhaseComplete(accumulated) || IsPhaseBlocked(accumulated) {
+					if HasJSONCompletion(accumulated) {
 						break streamLoop
 					}
 				}
@@ -472,7 +468,7 @@ streamLoop:
 				// send more content, so we can safely exit even without a result message.
 				// See: https://github.com/anthropics/claude-code/issues/1920
 				accumulated := content.String()
-				if IsPhaseComplete(accumulated) || IsPhaseBlocked(accumulated) {
+				if HasJSONCompletion(accumulated) {
 					break streamLoop
 				}
 
@@ -504,7 +500,7 @@ streamLoop:
 		Duration: time.Since(start),
 	}
 
-	turnResult.Status, turnResult.Reason = CheckPhaseCompletion(turnResult.Content)
+	turnResult.Status, turnResult.Reason = CheckPhaseCompletionJSON(turnResult.Content)
 
 	if result != nil {
 		turnResult.NumTurns = result.NumTurns

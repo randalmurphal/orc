@@ -244,7 +244,7 @@ If any file exceeds threshold + tolerance (BLOCK status):
 2. Add pointer in CLAUDE.md: `See [file.md](file.md) for details`
 3. Re-run lint until passing
 
-**Do NOT use `<phase_complete>true</phase_complete>` until lint passes.**
+**Do NOT signal completion until lint passes.**
 
 ---
 
@@ -326,18 +326,13 @@ git add -A
 git commit -m "[orc] {{TASK_ID}}: docs - completed"
 ```
 
-Then output:
+Then output ONLY this JSON to signal completion:
 
-```
-**Commit**: [commit SHA]
-
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Documentation updated, lint passed. Commit: [SHA]"}
 ```
 
-If blocked (e.g., unclear what to document):
-```
-<phase_blocked>
-reason: [what's blocking documentation]
-needs: [what clarification is needed]
-</phase_blocked>
+If blocked (e.g., unclear what to document), output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "[what's blocking documentation and what clarification is needed]"}
 ```
